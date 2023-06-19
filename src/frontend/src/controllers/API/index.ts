@@ -19,11 +19,6 @@ export async function getAll(): Promise<AxiosResponse<APIObjectType>> {
 }
 
 const GITHUB_API_URL = "https://api.github.com";
-const GITHUB_PERSONAL_ACCESS_TOKEN = "REDACTED_GITHUB_TOKEN";
-
-axios.defaults.headers.common[
-  "Authorization"
-] = `token ${GITHUB_PERSONAL_ACCESS_TOKEN}`;
 
 export async function getRepoStars(owner, repo) {
   try {

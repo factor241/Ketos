@@ -154,7 +154,7 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: [Langflow-runner]
+            runner: ubuntu-latest
           - arch: arm64
             runner:
               [self-hosted, linux, ARM64, langflow-ai-arm64-40gb-ephemeral]
@@ -225,7 +225,7 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: [Langflow-runner]
+            runner: ubuntu-latest
           - arch: arm64
             runner:
               [self-hosted, linux, ARM64, langflow-ai-arm64-40gb-ephemeral]
@@ -296,7 +296,7 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: [Langflow-runner]
+            runner: ubuntu-latest
           - arch: arm64
             runner:
               [self-hosted, linux, ARM64, langflow-ai-arm64-40gb-ephemeral]
@@ -371,7 +371,7 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: [Langflow-runner]
+            runner: ubuntu-latest
           - arch: arm64
             runner:
               [self-hosted, linux, ARM64, langflow-ai-arm64-40gb-ephemeral]
@@ -442,7 +442,7 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: [Langflow-runner]
+            runner: ubuntu-latest
           - arch: arm64
             runner:
               [self-hosted, linux, ARM64, langflow-ai-arm64-40gb-ephemeral]
@@ -513,7 +513,7 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: [Langflow-runner]
+            runner: ubuntu-latest
           - arch: arm64
             runner:
               [self-hosted, linux, ARM64, langflow-ai-arm64-40gb-ephemeral]

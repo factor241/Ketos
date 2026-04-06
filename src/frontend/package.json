@@ -1,12 +1,13 @@
 {
   "name": "langflow",
-  "version": "1.8.3",
+  "version": "1.8.4",
   "private": true,
   "engines": {
     "node": ">=20.19.0"
   },
   "overrides": {
     "tar": "^7.5.7",
+    "tar-fs": ">=2.1.4",
     "glob": "^11.1.0",
     "test-exclude": "^7.0.0"
   },

@@ -424,11 +424,13 @@ class WatsonxOrchestrateDeploymentService(BaseDeploymentService):
         if not agent:
             msg = f"Deployment '{deployment_id}' not found."
             raise DeploymentNotFoundError(msg)
+        environments = get_agent_environments(agent) if isinstance(agent, dict) and "environments" in agent else []
         return get_deployment_detail_metadata(
             data=agent,
             deployment_type=DeploymentType.AGENT,
             provider_data={
                 "tool_ids": extract_agent_tool_ids(agent),
+                "environment": environments[0] if environments else "unknown",
                 **({"llm": agent["llm"]} if isinstance(agent, dict) and agent.get("llm") else {}),
             },
         )

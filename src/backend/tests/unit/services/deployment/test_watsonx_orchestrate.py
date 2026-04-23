@@ -355,7 +355,7 @@ async def test_process_config_uses_raw_payload_but_overrides_name(monkeypatch):
 
     captured = {}
 
-    async def mock_create_config(*, clients, config, user_id, db):  # noqa: ARG001
+    async def mock_create_config(*, clients, config, user_id, db, created_app_ids_journal=None):  # noqa: ARG001
         captured["name"] = config.name
         captured["env_vars"] = config.environment_variables
         return config.name
@@ -1026,7 +1026,7 @@ async def test_update_provider_data_creates_raw_connection_and_raw_tool(monkeypa
     async def mock_get_provider_clients(*, user_id, db):  # noqa: ARG001
         return fake_clients
 
-    async def mock_create_config(*, clients, config, user_id, db):  # noqa: ARG001
+    async def mock_create_config(*, clients, config, user_id, db, created_app_ids_journal=None):  # noqa: ARG001
         captured["created_app_id"] = config.name
         fake_connections._connections_by_app_id[config.name] = f"conn-{config.name}"
         return config.name
@@ -1114,7 +1114,7 @@ async def test_update_provider_data_binds_existing_tool_using_provider_app_id_fo
     async def mock_get_provider_clients(*, user_id, db):  # noqa: ARG001
         return fake_clients
 
-    async def mock_create_config(*, clients, config, user_id, db):  # noqa: ARG001
+    async def mock_create_config(*, clients, config, user_id, db, created_app_ids_journal=None):  # noqa: ARG001
         captured["created_app_id"] = config.name
         fake_connections._connections_by_app_id[config.name] = f"conn-{config.name}"
         return config.name
@@ -1288,7 +1288,10 @@ def test_build_provider_update_plan_preserves_operation_encounter_order():
     assert plan.final_existing_tool_ids == ["tool-a", "tool-c"]
     assert plan.existing_app_ids == ["cfg-2", "cfg-1", "cfg-3"]
     assert [item.operation_app_id for item in plan.raw_connections_to_create] == ["cfg-raw-1", "cfg-raw-2"]
-    assert [item.provider_app_id for item in plan.raw_connections_to_create] == ["cfg-raw-1", "cfg-raw-2"]
+    assert [item.provider_app_id for item in plan.raw_connections_to_create] == [
+        _normalized_provider_app_id("cfg-raw-1"),
+        _normalized_provider_app_id("cfg-raw-2"),
+    ]
     assert len(plan.raw_tools_to_create) == 1
     assert plan.raw_tools_to_create[0].app_ids == ["cfg-raw-2", "cfg-raw-1"]
 
@@ -2337,7 +2340,7 @@ async def test_update_provider_data_maps_raw_connection_conflict_to_deployment_c
     async def mock_get_provider_clients(*, user_id, db):  # noqa: ARG001
         return fake_clients
 
-    async def mock_create_config(*, clients, config, user_id, db):  # noqa: ARG001
+    async def mock_create_config(*, clients, config, user_id, db, created_app_ids_journal=None):  # noqa: ARG001
         response = SimpleNamespace(status_code=409, text='{"detail":"already exists"}')
         raise ClientAPIException(response=response)
 
@@ -2400,7 +2403,7 @@ async def test_create_provider_data_maps_raw_connection_conflict_to_deployment_c
     async def mock_get_provider_clients(*, user_id, db):  # noqa: ARG001
         return fake_clients
 
-    async def mock_create_config(*, clients, config, user_id, db):  # noqa: ARG001
+    async def mock_create_config(*, clients, config, user_id, db, created_app_ids_journal=None):  # noqa: ARG001
         captured["attempted_app_id"] = config.name
         response = SimpleNamespace(status_code=409, text='{"detail":"already exists"}')
         raise ClientAPIException(response=response)
@@ -2595,7 +2598,7 @@ async def test_update_provider_data_rolls_back_partially_created_raw_tools(monke
     async def mock_get_provider_clients(*, user_id, db):  # noqa: ARG001
         return fake_clients
 
-    async def mock_create_config(*, clients, config, user_id, db):  # noqa: ARG001
+    async def mock_create_config(*, clients, config, user_id, db, created_app_ids_journal=None):  # noqa: ARG001
         fake_connections._connections_by_app_id[config.name] = f"conn-{config.name}"
         return config.name
 

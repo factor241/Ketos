@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -89,6 +90,16 @@ async def prove_crud(database_url: str) -> list[str | None]:
     return observed
 
 
+async def database_server_version(database_url: str) -> str:
+    engine = create_async_engine(database_url)
+    try:
+        async with engine.connect() as connection:
+            version = await connection.run_sync(lambda sync: sync.dialect.server_version_info)
+        return ".".join(str(part) for part in version) if version else "unknown"
+    finally:
+        await engine.dispose()
+
+
 def run_proof(database_url: str) -> dict[str, object]:
     async_url = as_async_url(database_url)
     config = alembic_config(async_url)
@@ -109,8 +120,11 @@ def run_proof(database_url: str) -> dict[str, object]:
 
     parsed_url = make_url(async_url)
     return {
+        "schema_version": 1,
+        "executed_at": datetime.now(timezone.utc).isoformat(),
         "database": parsed_url.render_as_string(hide_password=True),
         "dialect": parsed_url.get_backend_name(),
+        "database_server_version": asyncio.run(database_server_version(async_url)),
         "revision": REVISION,
         "upgrade_has_column": upgrade_has_column,
         "downgrade_has_column": downgrade_has_column,
@@ -120,9 +134,18 @@ def run_proof(database_url: str) -> dict[str, object]:
     }
 
 
+def write_evidence(result: dict[str, object], output: Path) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--database-url", required=True)
+    parser.add_argument("--output", type=Path, help="Write redacted JSON evidence to this path.")
     parser.add_argument(
         "--confirm-disposable",
         action="store_true",
@@ -136,7 +159,10 @@ def main() -> int:
     args = parser.parse_args()
     if not args.confirm_disposable:
         parser.error("Refusing to run without --confirm-disposable")
-    print(json.dumps(run_proof(args.database_url), ensure_ascii=False, sort_keys=True))
+    result = run_proof(args.database_url)
+    if args.output is not None:
+        write_evidence(result, args.output)
+    print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0
 
 

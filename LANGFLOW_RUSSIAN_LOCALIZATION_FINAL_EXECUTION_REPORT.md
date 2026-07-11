@@ -14,7 +14,7 @@
 | R0 | PASS после фиксации reviewable commit | Governance согласован; snapshot и hashes обновляются на commit этой ветки. Graphify остаётся stale относительно новых исходников и не используется как финальное evidence. |
 | R1 | PASS | Strict locale/key/hardcoded gates fail-closed. Commit baseline больше не является неявным allowlist; 365 AST-кандидатов, 334 exact reviewed allowlist entries, new/stale/blocking = 0. |
 | R2 | PASS | Подтверждённый Wave B English debt локализован; machine values не изменены. |
-| R3 | PASS | Language page, latest-write-wins race, explicit null reset, SQLite и PostgreSQL upgrade/downgrade/re-upgrade/CRUD доказаны. |
+| R3 | PASS | Language page, latest-write-wins race, explicit null reset, SQLite и PostgreSQL upgrade/downgrade/re-upgrade/CRUD доказаны; tracked evidence: `docs/localization/ru/evidence/preferred-locale-postgresql.json`. |
 | R4 | PASS локально | Каталоги и 37 plural groups проходят; видимые residual strings устранены. Human linguistic review остаётся внешним blocker R8. |
 | R5 | PASS в заявленном scope | 11 507 backend keys / 354 components, stable coded errors и strict endpoint runtime проходят. |
 | R6 | BLOCKED внешне | 53 GP tests PASS, TLS fail-closed; live GP upload/status/download/PR не выполнены из-за отсутствующих credentials и reviewer identity. |
@@ -33,7 +33,7 @@
 - Residual UI localization contracts: `21 passed` в двух suites.
 - Production Vite build: PASS, 6 609 modules transformed.
 - Playwright localization manifest/errors/a11y: `12 passed, 5 skipped`; каждый skip соответствует явному R8 blocker и не засчитан как PASS.
-- PostgreSQL 16 disposable proof: upgrade/downgrade/re-upgrade PASS; CRUD sequence `[ru, en, ru, null]`.
+- PostgreSQL 16.14 disposable proof: upgrade/downgrade/re-upgrade PASS; CRUD sequence `[ru, en, ru, null]`; redacted tracked JSON сохранён в `docs/localization/ru/evidence/preferred-locale-postgresql.json`.
 - GP + packaging contracts после TLS/Node исправлений: `68 passed`.
 - `git diff --check`: PASS.
 - Общий `npx tsc --noEmit` остаётся FAIL на широком накопленном type-debt в несвязанных модулях; production Vite build при этом PASS. Это не скрывается как зелёный gate.

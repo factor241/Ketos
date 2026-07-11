@@ -1,6 +1,9 @@
 import type { FlowType } from "@/types/flow";
 import type { FolderType } from "../../entities";
-import { shouldShowMainContent } from "../main-page-utils";
+import {
+  getFolderDisplayName,
+  shouldShowMainContent,
+} from "../main-page-utils";
 
 const makeFlow = (id: string): FlowType =>
   ({ id, name: `flow-${id}`, is_component: false }) as FlowType;
@@ -93,5 +96,23 @@ describe("shouldShowMainContent", () => {
     const result = shouldShowMainContent(flows, examples, folders);
 
     expect(result).toBe(true);
+  });
+});
+
+describe("getFolderDisplayName", () => {
+  it("uses the localized display layer without replacing the stable folder name", () => {
+    const folder = {
+      ...makeFolder("starter", "Starter Projects"),
+      display_name: "Стартовые проекты",
+    };
+
+    expect(getFolderDisplayName(folder)).toBe("Стартовые проекты");
+    expect(folder.name).toBe("Starter Projects");
+  });
+
+  it("falls back to the persisted user folder name", () => {
+    expect(getFolderDisplayName(makeFolder("custom", "My Folder"))).toBe(
+      "My Folder",
+    );
   });
 });

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, UploadFile
 from lfx.base.agents.utils import safe_cache_get, safe_cache_set
 from lfx.base.mcp.util import update_tools
 
+from langflow.api.error_codes import ApiErrorCode, coded_http_error
 from langflow.api.utils import CurrentActiveUser, DbSession
 from langflow.api.v2.files import (
     MCP_SERVERS_FILE,
@@ -68,13 +69,16 @@ def _enforce_immutable_server_name(server_name: str, server_config: dict) -> dic
 
     body_name = server_config["name"]
     if body_name != server_name:
-        raise HTTPException(
+        detail = (
+            f"Server name is immutable and is determined by the URL path "
+            f"('{server_name}'); it cannot be set or changed via the request body "
+            f"(got '{body_name}'). To rename a server, delete it and create a new one."
+        )
+        raise coded_http_error(
+            ApiErrorCode.REQUEST_VALIDATION_FAILED,
+            detail=detail,
             status_code=422,
-            detail=(
-                f"Server name is immutable and is determined by the URL path "
-                f"('{server_name}'); it cannot be set or changed via the request body "
-                f"(got '{body_name}'). To rename a server, delete it and create a new one."
-            ),
+            technical_detail=detail,
         )
     # Matching name is redundant — drop it so it isn't persisted as stray config.
     return {key: value for key, value in server_config.items() if key != "name"}
@@ -152,7 +156,11 @@ async def get_server_list(
         mcp_file = await get_mcp_file(current_user)
         server_config_file = await get_file_by_name(mcp_file, current_user, session)
         if not server_config_file:
-            raise HTTPException(status_code=500, detail="Failed to create MCP Servers configuration file") from None
+            raise coded_http_error(
+                ApiErrorCode.SERVER_INTERNAL_ERROR,
+                detail="Failed to create MCP Servers configuration file",
+                status_code=500,
+            ) from None
 
         server_config_bytes = await download_file(
             server_config_file.id,
@@ -166,7 +174,11 @@ async def get_server_list(
     try:
         servers = json.loads(server_config_bytes)
     except json.JSONDecodeError:
-        raise HTTPException(status_code=500, detail="Invalid server configuration file format.") from None
+        raise coded_http_error(
+            ApiErrorCode.MCP_INVALID_JSON,
+            detail="Invalid server configuration file format.",
+            status_code=500,
+        ) from None
 
     return servers
 
@@ -337,14 +349,24 @@ async def update_server(
 
         # Validate server name
         if check_existing and server_name in server_list["mcpServers"]:
-            raise HTTPException(status_code=500, detail="Server already exists.")
+            raise coded_http_error(
+                ApiErrorCode.MCP_SERVER_EXISTS,
+                params={"name": server_name},
+                detail="Server already exists.",
+                status_code=500,
+            )
 
         # Handle the delete case
         if delete:
             if server_name in server_list["mcpServers"]:
                 del server_list["mcpServers"][server_name]
             else:
-                raise HTTPException(status_code=500, detail="Server not found.")
+                raise coded_http_error(
+                    ApiErrorCode.MCP_SERVER_NOT_FOUND,
+                    params={"name": server_name},
+                    detail="Server not found.",
+                    status_code=500,
+                )
         elif merge_existing:
             existing_config = server_list["mcpServers"].get(server_name, {})
             server_list["mcpServers"][server_name] = {**existing_config, **server_config}
@@ -386,9 +408,10 @@ async def add_server(
     settings_service: Annotated[SettingsService, Depends(get_settings_service)],
 ):
     if is_mcp_servers_locked(settings_service.settings) and not current_user.is_superuser:
-        raise HTTPException(
-            status_code=403,
+        raise coded_http_error(
+            ApiErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
             detail="MCP server configuration is locked. Contact an administrator to manage external MCP servers.",
+            status_code=403,
         )
 
     return await update_server(
@@ -413,9 +436,10 @@ async def update_server_endpoint(
     settings_service: Annotated[SettingsService, Depends(get_settings_service)],
 ):
     if is_mcp_servers_locked(settings_service.settings) and not current_user.is_superuser:
-        raise HTTPException(
-            status_code=403,
+        raise coded_http_error(
+            ApiErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
             detail="MCP server configuration is locked. Contact an administrator to manage external MCP servers.",
+            status_code=403,
         )
 
     return await update_server(
@@ -438,9 +462,10 @@ async def delete_server(
     settings_service: Annotated[SettingsService, Depends(get_settings_service)],
 ):
     if is_mcp_servers_locked(settings_service.settings) and not current_user.is_superuser:
-        raise HTTPException(
-            status_code=403,
+        raise coded_http_error(
+            ApiErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
             detail="MCP server configuration is locked. Contact an administrator to manage external MCP servers.",
+            status_code=403,
         )
 
     return await update_server(

@@ -1,44 +1,58 @@
+import type { TFunction } from "i18next";
 import i18n from "@/i18n";
-import type { AssistantSuggestion } from "./assistant-panel.types";
+import type {
+  AssistantSuggestion,
+  AssistantSuggestionId,
+} from "./assistant-panel.types";
 
 export const ASSISTANT_TITLE = "Langflow Assistant";
 
 export const ASSISTANT_SESSION_STORAGE_KEY_PREFIX =
   "langflow-assistant-session-";
 
-const ASSISTANT_PLACEHOLDER_KEYS = [
-  "assistant.placeholder.0",
-  "assistant.placeholder.1",
-  "assistant.placeholder.2",
-  "assistant.placeholder.3",
-  "assistant.placeholder.4",
-];
+export function getAssistantPlaceholders(): string[] {
+  return [
+    i18n.t("assistant.placeholder.0"),
+    i18n.t("assistant.placeholder.1"),
+    i18n.t("assistant.placeholder.2"),
+    i18n.t("assistant.placeholder.3"),
+    i18n.t("assistant.placeholder.4"),
+  ];
+}
 
-export const ASSISTANT_PLACEHOLDERS: string[] = ASSISTANT_PLACEHOLDER_KEYS.map(
-  (key) => i18n.t(key),
-);
+/** Kept for source compatibility; runtime consumers use the locale-live getter. */
+export const ASSISTANT_PLACEHOLDERS: string[] = getAssistantPlaceholders();
 
 export function getAssistantPlaceholder(): string {
-  return ASSISTANT_PLACEHOLDERS[
-    Math.floor(Math.random() * ASSISTANT_PLACEHOLDERS.length)
-  ];
+  const placeholders = getAssistantPlaceholders();
+  return placeholders[Math.floor(Math.random() * placeholders.length)];
 }
 
 export const ASSISTANT_SESSIONS_STORAGE_KEY = "langflow-assistant-sessions";
 export const ASSISTANT_MAX_SESSIONS = 10;
 export const ASSISTANT_SESSION_PREVIEW_LENGTH = 80;
 
-export const ASSISTANT_WELCOME_TEXT = "Here's how I can help";
+export const ASSISTANT_WELCOME_TEXT = "assistant.welcomeText";
 
 export const ASSISTANT_SUGGESTIONS: AssistantSuggestion[] = [
   {
     id: "build-agents",
     icon: "Sparkles",
-    text: "Build agents and other components",
   },
   {
     id: "answer-questions",
     icon: "Sparkles",
-    text: "Answer questions about Langflow",
   },
 ];
+
+export function getAssistantSuggestionText(
+  id: AssistantSuggestionId,
+  t: TFunction,
+): string {
+  switch (id) {
+    case "build-agents":
+      return t("assistant.suggestion.build-agents");
+    case "answer-questions":
+      return t("assistant.suggestion.answer-questions");
+  }
+}

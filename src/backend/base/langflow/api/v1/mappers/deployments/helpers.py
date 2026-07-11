@@ -31,6 +31,7 @@ from lfx.services.interfaces import DeploymentServiceProtocol
 from sqlalchemy import and_, literal, union_all
 from sqlmodel import col, func, select
 
+from langflow.api.error_codes import ApiErrorCode, coded_http_error
 from langflow.api.v1.mappers.deployments.contracts import ProviderSnapshotBinding
 from langflow.api.v1.mappers.deployments.sync import (
     extract_verified_provider_snapshot_ids,
@@ -99,7 +100,12 @@ def parse_flow_version_reference_ids(reference_ids: Sequence[UUID | str]) -> lis
             flow_version_ids.append(UUID(flow_version_ref_str))
         except ValueError as exc:
             msg = f"Invalid flow version id: {flow_version_ref}"
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=msg) from exc
+            raise coded_http_error(
+                ApiErrorCode.REQUEST_BAD_REQUEST,
+                detail=msg,
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                technical_detail=str(exc),
+            ) from exc
     return flow_version_ids
 
 
@@ -169,13 +175,21 @@ async def build_flow_artifacts_from_flow_versions(
             "One or more flow versions are invalid. "
             "Please ensure the flows belong to the project containing the deployment."
         )
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
+        raise coded_http_error(
+            ApiErrorCode.REQUEST_BAD_REQUEST,
+            detail=msg,
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
 
     artifacts: list[tuple[UUID, int, UUID, BaseFlowArtifact]] = []
     for row in rows:
         if row.flow_version_data is None:
             msg = f"Flow version {row.flow_version_id} has no data (snapshot may be corrupted)."
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=msg)
+            raise coded_http_error(
+                ApiErrorCode.REQUEST_BAD_REQUEST,
+                detail=msg,
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
         artifacts.append(
             (
                 row.flow_version_id,
@@ -237,13 +251,21 @@ async def build_project_scoped_flow_artifacts_from_flow_versions(
     rows = list((await db.exec(statement)).all())
     if len(rows) < len(flow_version_ids):
         msg = "One or more flow version ids are not checkpoints of flows in the selected project."
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
+        raise coded_http_error(
+            ApiErrorCode.REQUEST_BAD_REQUEST,
+            detail=msg,
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
 
     artifacts: list[tuple[UUID, BaseFlowArtifact]] = []
     for row in rows:
         if row.flow_version_data is None:
             msg = f"Flow version {row.flow_version_id} has no data (snapshot may be corrupted)."
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=msg)
+            raise coded_http_error(
+                ApiErrorCode.REQUEST_BAD_REQUEST,
+                detail=msg,
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
         artifacts.append(
             (
                 row.flow_version_id,
@@ -293,7 +315,11 @@ async def validate_project_scoped_flow_version_ids(
     )
     if matched_count != len(unique_flow_version_ids):
         msg = "One or more flow version ids are not checkpoints of flows in the selected project."
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
+        raise coded_http_error(
+            ApiErrorCode.REQUEST_BAD_REQUEST,
+            detail=msg,
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -314,7 +340,11 @@ def page_offset(page: int, size: int) -> int:
 
 def raise_http_for_value_error(exc: ValueError) -> None:
     status_code = status.HTTP_404_NOT_FOUND if "not found" in str(exc).lower() else status.HTTP_400_BAD_REQUEST
-    raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+    raise coded_http_error(
+        ApiErrorCode.REQUEST_BAD_REQUEST,
+        status_code=status_code,
+        technical_detail=str(exc),
+    ) from exc
 
 
 @contextmanager
@@ -331,23 +361,32 @@ def handle_adapter_errors(*, mapper: BaseDeploymentMapper | None = None):
         yield
     except DeploymentServiceError as exc:
         http_status = http_status_for_deployment_error(exc)
-        detail = exc.message
+        compatibility_detail = None
         if isinstance(exc, ResourceConflictError) and mapper is not None:
-            detail = mapper.format_conflict_detail(
+            compatibility_detail = mapper.format_conflict_detail(
                 exc.message,
                 resource=exc.resource,
                 resource_name=exc.resource_name,
             )
-        logger.exception("Adapter error (status=%s): %s", http_status, detail)
-        raise HTTPException(
+        logger.exception("Adapter error (status=%s): %s", http_status, exc.message)
+        code = (
+            ApiErrorCode.DEPLOYMENT_CONFLICT
+            if isinstance(exc, ResourceConflictError)
+            else ApiErrorCode.DEPLOYMENT_UPDATE_FAILED
+        )
+        raise coded_http_error(
+            code,
             status_code=http_status,
-            detail=detail,
+            detail=compatibility_detail,
+            technical_detail=str(exc),
         ) from exc
     except NotImplementedError as exc:
         logger.exception("Adapter not-implemented error: %s", exc)
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.DEPLOYMENT_UPDATE_FAILED,
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail="This operation is not supported by the deployment provider.",
+            technical_detail=str(exc),
         ) from exc
     except ValueError as exc:
         logger.exception("Adapter value error: %s", exc)
@@ -356,9 +395,10 @@ def handle_adapter_errors(*, mapper: BaseDeploymentMapper | None = None):
         raise
     except Exception as exc:
         logger.exception("Unhandled adapter error: %s", exc)
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.SERVER_INTERNAL_ERROR,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while communicating with the deployment provider.",
+            technical_detail=str(exc),
         ) from exc
 
 
@@ -381,7 +421,11 @@ async def get_owned_provider_account_or_404(
 ) -> DeploymentProviderAccount:
     provider_account = await get_provider_account_row_by_id(db, provider_id=provider_id, user_id=user_id)
     if provider_account is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Deployment provider account not found.")
+        raise coded_http_error(
+            ApiErrorCode.REQUEST_BAD_REQUEST,
+            detail="Deployment provider account not found.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
     return provider_account
 
 
@@ -407,18 +451,25 @@ def resolve_deployment_adapter(
             "Deployment provider account has no provider_key configured.",
         )
     except ValueError as exc:
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.REQUEST_BAD_REQUEST,
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
+            detail="Deployment provider account has no provider_key configured.",
+            technical_detail=str(exc),
         ) from exc
 
     try:
         deployment_adapter = get_deployment_adapter(adapter_key)
     except Exception as exc:
         logger.exception("Failed to resolve deployment adapter for key '%s': %s", adapter_key, exc)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+        raise coded_http_error(
+            ApiErrorCode.SERVER_INTERNAL_ERROR,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            technical_detail=str(exc),
+        ) from exc
     if deployment_adapter is None:
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.DEPLOYMENT_UPDATE_FAILED,
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"No deployment adapter registered for provider_key '{adapter_key}'.",
         )
@@ -437,7 +488,12 @@ async def get_deployment_row_or_404(
     # this to authorize the actor against the resolved deployment.
     deployment_row = await get_deployment_db(db, user_id=user_id, deployment_id=deployment_id)
     if deployment_row is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found.")
+        raise coded_http_error(
+            ApiErrorCode.DEPLOYMENT_NOT_FOUND,
+            params={"deployment_id": str(deployment_id)},
+            detail="Deployment not found.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
     return deployment_row
 
 
@@ -506,7 +562,11 @@ async def resolve_project_id_for_deployment_create(
             )
         ).first()
         if project is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
+            raise coded_http_error(
+                ApiErrorCode.REQUEST_BAD_REQUEST,
+                detail="Project not found.",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
         return project.id
 
     default_folder = await get_or_create_default_folder(db, user_id)
@@ -527,7 +587,11 @@ def resolve_snapshot_map_for_create(
     bindings_by_source_ref = bindings.to_source_ref_map()
     if not bindings_by_source_ref:
         msg = "Deployment provider create result is missing required snapshot bindings."
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=msg)
+        raise coded_http_error(
+            ApiErrorCode.DEPLOYMENT_UPDATE_FAILED,
+            detail=msg,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
     expected_source_ref_to_flow_version_id = {
         str(flow_version_id): flow_version_id for flow_version_id in flow_version_ids
     }
@@ -536,13 +600,21 @@ def resolve_snapshot_map_for_create(
             f"Snapshot binding count mismatch on create: {len(expected_source_ref_to_flow_version_id)} "
             f"flow versions vs {len(bindings_by_source_ref)} snapshot bindings"
         )
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=msg)
+        raise coded_http_error(
+            ApiErrorCode.DEPLOYMENT_UPDATE_FAILED,
+            detail=msg,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
     snapshot_id_by_flow_version_id: dict[UUID, str] = {}
     for source_ref, snapshot_id in bindings_by_source_ref.items():
         flow_version_id = expected_source_ref_to_flow_version_id.get(source_ref)
         if flow_version_id is None:
             msg = f"Unexpected source_ref in create snapshot bindings: {source_ref}"
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=msg)
+            raise coded_http_error(
+                ApiErrorCode.DEPLOYMENT_UPDATE_FAILED,
+                detail=msg,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         snapshot_id_by_flow_version_id[flow_version_id] = snapshot_id
     return snapshot_id_by_flow_version_id
 
@@ -758,12 +830,15 @@ async def sync_deployment_attachment_count_for_get(
             deployment.id,
             exc_info=True,
         )
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.DEPLOYMENT_UPDATE_FAILED,
+            params={"deployment_id": str(deployment.id)},
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=(
                 f"Deployment provider {provider_key} does not support binding-aware GET sync "
                 f"for deployment {deployment.id}."
             ),
+            technical_detail=str(exc),
         ) from exc
     except Exception:  # noqa: BLE001
         logger.warning(
@@ -780,9 +855,12 @@ async def sync_deployment_attachment_count_for_get(
                 deployment.id,
                 exc_info=True,
             )
-            raise HTTPException(
+            raise coded_http_error(
+                ApiErrorCode.DEPLOYMENT_UPDATE_FAILED,
+                params={"deployment_id": str(deployment.id)},
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve the number of flows attached to deployment {deployment.id}.",
+                technical_detail=str(exc),
             ) from exc
 
 
@@ -817,11 +895,18 @@ async def get_deployment_synced(
                 deployment.id,
                 exc_info=True,
             )
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found.") from None
+        raise coded_http_error(
+            ApiErrorCode.DEPLOYMENT_NOT_FOUND,
+            params={"deployment_id": str(deployment.id)},
+            detail="Deployment not found.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        ) from None
     except DeploymentServiceError as exc:
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.DEPLOYMENT_UPDATE_FAILED,
+            params={"deployment_id": str(deployment.id)},
             status_code=http_status_for_deployment_error(exc),
-            detail=exc.message,
+            technical_detail=str(exc),
         ) from exc
 
     provider_metadata = deployment_mapper.extract_metadata_for_get(provider_deployment)
@@ -1123,7 +1208,11 @@ def resolve_added_snapshot_bindings_for_update(
     )
     if unexpected_source_refs:
         msg = f"Unexpected source_ref in update snapshot bindings: {unexpected_source_refs}"
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=msg)
+        raise coded_http_error(
+            ApiErrorCode.DEPLOYMENT_UPDATE_FAILED,
+            detail=msg,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
     snapshot_bindings: list[tuple[UUID, str]] = []
     missing_source_refs: list[str] = []
@@ -1135,5 +1224,9 @@ def resolve_added_snapshot_bindings_for_update(
         snapshot_bindings.append((flow_version_id, snapshot_id))
     if missing_source_refs:
         msg = f"Missing snapshot bindings for added flow versions on update: {missing_source_refs}"
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=msg)
+        raise coded_http_error(
+            ApiErrorCode.DEPLOYMENT_UPDATE_FAILED,
+            detail=msg,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
     return snapshot_bindings

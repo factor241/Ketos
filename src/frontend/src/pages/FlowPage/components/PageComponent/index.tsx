@@ -1,6 +1,7 @@
 import {
   type Connection,
   type Edge,
+  type EdgeChange,
   type NodeChange,
   type OnNodeDrag,
   type OnSelectionChangeParams,
@@ -27,6 +28,7 @@ import {
   NOTE_NODE_MIN_HEIGHT,
   NOTE_NODE_MIN_WIDTH,
 } from "@/constants/constants";
+import { CanvasReadOnlyProvider } from "@/contexts/canvas-read-only-context";
 import { api } from "@/controllers/API/api";
 import { getURL } from "@/controllers/API/helpers/constants";
 import { useGetBuildsQuery } from "@/controllers/API/queries/_builds";
@@ -160,24 +162,25 @@ export default function Page({
     (state) => state.isAssistantProcessing,
   );
   const effectiveLocked = isLocked || isAgentWorking || isAssistantProcessing;
+  const isCanvasReadOnly = Boolean(view || isPreviewActive || effectiveLocked);
 
   // Keep banner mounted during exit animation, preserve last text
   const [bannerVisible, setBannerVisible] = useState(false);
   const bannerVisibleRef = useRef(false);
   const [bannerExiting, setBannerExiting] = useState(false);
-  const [bannerText, setBannerText] = useState(
-    "Agent is working on this flow...",
-  );
+  const [bannerText, setBannerText] = useState(t("canvas.agentWorking"));
 
   // Update banner text while active (not during exit)
   useEffect(() => {
-    if (isAgentWorking && events.length > 0) {
-      const last = events[events.length - 1];
-      if (last.summary) {
-        setBannerText(`Agent: ${last.summary}`);
-      }
+    if (isAgentWorking) {
+      const summary = events.at(-1)?.summary;
+      setBannerText(
+        summary
+          ? t("canvas.agentChanges.summary", { summary })
+          : t("canvas.agentWorking"),
+      );
     }
-  }, [isAgentWorking, events]);
+  }, [isAgentWorking, events, t]);
 
   useEffect(() => {
     if (isAgentWorking) {
@@ -191,11 +194,11 @@ export default function Page({
         setBannerVisible(false);
         bannerVisibleRef.current = false;
         setBannerExiting(false);
-        setBannerText("Agent is working on this flow...");
+        setBannerText(t("canvas.agentWorking"));
       }, 350);
       return () => clearTimeout(timer);
     }
-  }, [isAgentWorking]);
+  }, [isAgentWorking, t]);
   const applyFlowToCanvas = useApplyFlowToCanvas();
   const setSuccessData = useAlertStore((state) => state.setSuccessData);
   const prevSettledRef = useRef<number | null>(null);
@@ -243,26 +246,38 @@ export default function Page({
           if (nonSettleEvents.length > 0) {
             const counts: Record<string, number> = {};
             for (const e of nonSettleEvents) {
-              const key =
-                {
-                  component_added: "added",
-                  component_removed: "removed",
-                  component_configured: "configured",
-                  connection_added: "connected",
-                  connection_removed: "disconnected",
-                  flow_updated: "updated",
-                }[e.type] || "changed";
-              counts[key] = (counts[key] || 0) + 1;
+              counts[e.type] = (counts[e.type] || 0) + 1;
             }
-            const parts = Object.entries(counts).map(([action, count]) => {
-              const isConnection =
-                action === "connected" || action === "disconnected";
-              const base = isConnection ? "connection" : "component";
-              const noun = count === 1 ? base : `${base}s`;
-              return `${action} ${count} ${noun}`;
-            });
+            const parts = Object.entries(counts)
+              .map(([eventType, count]) => {
+                switch (eventType) {
+                  case "component_added":
+                    return t("canvas.agentChanges.componentAdded", { count });
+                  case "component_removed":
+                    return t("canvas.agentChanges.componentRemoved", {
+                      count,
+                    });
+                  case "component_configured":
+                    return t("canvas.agentChanges.componentConfigured", {
+                      count,
+                    });
+                  case "connection_added":
+                    return t("canvas.agentChanges.connectionAdded", { count });
+                  case "connection_removed":
+                    return t("canvas.agentChanges.connectionRemoved", {
+                      count,
+                    });
+                  case "flow_updated":
+                    return t("canvas.agentChanges.flowUpdated", { count });
+                  default:
+                    return null;
+                }
+              })
+              .filter((part): part is string => part !== null);
             setSuccessData({
-              title: `Agent ${parts.join(", ")}`,
+              title: t("canvas.agentChanges.summary", {
+                summary: parts.join(", "),
+              }),
             });
           }
         })
@@ -275,8 +290,8 @@ export default function Page({
           );
           setErrorData({
             title: isNetwork
-              ? "Network error reloading flow after agent changes. Try refreshing."
-              : "Error applying agent changes to canvas. Try refreshing.",
+              ? t("canvas.agentChanges.networkError")
+              : t("canvas.agentChanges.applyError"),
           });
         });
 
@@ -289,6 +304,7 @@ export default function Page({
     setSuccessData,
     setErrorData,
     clearEvents,
+    t,
   ]);
 
   useEffect(() => {
@@ -300,6 +316,7 @@ export default function Page({
   const addComponent = useAddComponent();
 
   const handleGroupNode = useCallback(() => {
+    if (isCanvasReadOnly) return;
     takeSnapshot();
     const edgesState = useFlowStore.getState().edges;
     if (validateSelection(lastSelection!, edgesState).length === 0) {
@@ -331,7 +348,7 @@ export default function Page({
         list: validateSelection(lastSelection!, edgesState),
       });
     }
-  }, [lastSelection, setNodes, setErrorData, takeSnapshot]);
+  }, [isCanvasReadOnly, lastSelection, setNodes, setErrorData, takeSnapshot]);
 
   useEffect(() => {
     const handleMouseMove = (event) => {
@@ -361,7 +378,7 @@ export default function Page({
   }, [autoSaveFlow]);
 
   function handleUndo(e: KeyboardEvent) {
-    if (isPreviewActive || effectiveLocked) return;
+    if (isCanvasReadOnly) return;
     if (!isWrappedWithClass(e, "noflow")) {
       e.preventDefault();
       (e as unknown as Event).stopImmediatePropagation();
@@ -370,7 +387,7 @@ export default function Page({
   }
 
   function handleRedo(e: KeyboardEvent) {
-    if (isPreviewActive || effectiveLocked) return;
+    if (isCanvasReadOnly) return;
     if (!isWrappedWithClass(e, "noflow")) {
       e.preventDefault();
       (e as unknown as Event).stopImmediatePropagation();
@@ -379,7 +396,7 @@ export default function Page({
   }
 
   function handleGroup(e: KeyboardEvent) {
-    if (isPreviewActive || effectiveLocked) return;
+    if (isCanvasReadOnly) return;
     if (selectionMenuVisible) {
       e.preventDefault();
       (e as unknown as Event).stopImmediatePropagation();
@@ -388,7 +405,7 @@ export default function Page({
   }
 
   function handleDuplicate(e: KeyboardEvent) {
-    if (isPreviewActive || effectiveLocked) return;
+    if (isCanvasReadOnly) return;
     e.preventDefault();
     e.stopPropagation();
     (e as unknown as Event).stopImmediatePropagation();
@@ -425,7 +442,7 @@ export default function Page({
   }
 
   function handleCut(e: KeyboardEvent) {
-    if (isPreviewActive || effectiveLocked) return;
+    if (isCanvasReadOnly) return;
     if (!isWrappedWithClass(e, "noflow")) {
       e.preventDefault();
       (e as unknown as Event).stopImmediatePropagation();
@@ -436,7 +453,7 @@ export default function Page({
   }
 
   function handlePaste(e: KeyboardEvent) {
-    if (isPreviewActive || effectiveLocked) return;
+    if (isCanvasReadOnly) return;
     if (!isWrappedWithClass(e, "noflow")) {
       e.preventDefault();
       (e as unknown as Event).stopImmediatePropagation();
@@ -454,8 +471,7 @@ export default function Page({
   }
 
   function handleDelete(e: KeyboardEvent) {
-    if (isPreviewActive) return;
-    if (effectiveLocked) return;
+    if (isCanvasReadOnly) return;
     if (!isWrappedWithClass(e, "nodelete") && lastSelection) {
       e.preventDefault();
       (e as unknown as Event).stopImmediatePropagation();
@@ -524,11 +540,12 @@ export default function Page({
 
   const onConnectMod = useCallback(
     (params: Connection) => {
+      if (isCanvasReadOnly) return;
       takeSnapshot();
       onConnect(params);
       track("New Component Connection Added");
     },
-    [takeSnapshot, onConnect],
+    [isCanvasReadOnly, takeSnapshot, onConnect],
   );
 
   const [helperLines, setHelperLines] = useState<HelperLinesState>({});
@@ -547,16 +564,18 @@ export default function Page({
 
   const onNodeDragStart: OnNodeDrag = useCallback(
     (_, node) => {
+      if (isCanvasReadOnly) return;
       // 👇 make dragging a node undoable
       takeSnapshot();
       setIsDragging(true);
       // 👉 you can place your event handlers here
     },
-    [takeSnapshot],
+    [isCanvasReadOnly, takeSnapshot],
   );
 
   const onNodeDragStop: OnNodeDrag = useCallback(
     (_, node) => {
+      if (isCanvasReadOnly) return;
       // 👇 make moving the canvas undoable
       autoSaveFlow();
       updateCurrentFlow({ nodes });
@@ -565,6 +584,7 @@ export default function Page({
       setHelperLines({});
     },
     [
+      isCanvasReadOnly,
       takeSnapshot,
       autoSaveFlow,
       nodes,
@@ -574,8 +594,18 @@ export default function Page({
     ],
   );
 
-  const onNodesChangeWithHelperLines = useCallback(
+  const onNodesChangeReadOnlyAware = useCallback(
     (changes: NodeChange<AllNodeType>[]) => {
+      if (isCanvasReadOnly) {
+        onNodesChange(
+          changes.filter(
+            (change) =>
+              change.type === "select" || change.type === "dimensions",
+          ),
+        );
+        return;
+      }
+
       if (!helperLineEnabled) {
         onNodesChange(changes);
         return;
@@ -628,12 +658,24 @@ export default function Page({
 
       onNodesChange(modifiedChanges);
     },
-    [onNodesChange, nodes, isDragging, helperLineEnabled],
+    [isCanvasReadOnly, onNodesChange, nodes, isDragging, helperLineEnabled],
+  );
+
+  const onEdgesChangeReadOnlyAware = useCallback(
+    (changes: EdgeChange<EdgeType>[]) => {
+      onEdgesChange(
+        isCanvasReadOnly
+          ? changes.filter((change) => change.type === "select")
+          : changes,
+      );
+    },
+    [isCanvasReadOnly, onEdgesChange],
   );
 
   const onSelectionDragStart: SelectionDragHandler = useCallback(() => {
+    if (isCanvasReadOnly) return;
     takeSnapshot();
-  }, [takeSnapshot]);
+  }, [isCanvasReadOnly, takeSnapshot]);
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -647,7 +689,7 @@ export default function Page({
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
-      if (effectiveLocked) return;
+      if (isCanvasReadOnly) return;
       const grabbingElement =
         document.getElementsByClassName("cursor-grabbing");
       if (grabbingElement.length > 0) {
@@ -691,15 +733,17 @@ export default function Page({
         });
       }
     },
-    [takeSnapshot, addComponent],
+    [isCanvasReadOnly, takeSnapshot, addComponent],
   );
 
   const onEdgeUpdateStart = useCallback(() => {
+    if (isCanvasReadOnly) return;
     edgeUpdateSuccessful.current = false;
-  }, []);
+  }, [isCanvasReadOnly]);
 
   const onEdgeUpdate = useCallback(
     (oldEdge: EdgeType, newConnection: Connection) => {
+      if (isCanvasReadOnly) return;
       if (isValidConnection(newConnection, nodes, edges)) {
         edgeUpdateSuccessful.current = true;
         oldEdge.data = {
@@ -709,15 +753,19 @@ export default function Page({
         setEdges((els) => reconnectEdge(oldEdge, newConnection, els));
       }
     },
-    [setEdges],
+    [isCanvasReadOnly, setEdges],
   );
 
-  const onEdgeUpdateEnd = useCallback((_, edge: Edge): void => {
-    if (!edgeUpdateSuccessful.current) {
-      setEdges((eds) => eds.filter((edg) => edg.id !== edge.id));
-    }
-    edgeUpdateSuccessful.current = true;
-  }, []);
+  const onEdgeUpdateEnd = useCallback(
+    (_, edge: Edge): void => {
+      if (isCanvasReadOnly) return;
+      if (!edgeUpdateSuccessful.current) {
+        setEdges((eds) => eds.filter((edg) => edg.id !== edge.id));
+      }
+      edgeUpdateSuccessful.current = true;
+    },
+    [isCanvasReadOnly, setEdges],
+  );
 
   const [selectionEnded, setSelectionEnded] = useState(true);
 
@@ -753,7 +801,7 @@ export default function Page({
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: AllNodeType) => {
       event.preventDefault();
-      if (effectiveLocked) return;
+      if (isCanvasReadOnly) return;
 
       // Set the right-clicked node ID to show its dropdown menu
       setRightClickedNodeId(node.id);
@@ -766,7 +814,7 @@ export default function Page({
         }));
       });
     },
-    [effectiveLocked, setRightClickedNodeId, setNodes],
+    [isCanvasReadOnly, setRightClickedNodeId, setNodes],
   );
 
   const onPaneClick = useCallback(() => {
@@ -799,6 +847,7 @@ export default function Page({
   // Immediately places the note above the toolbar so the user can drag it right away.
   useEffect(() => {
     const handleStartAddNote = () => {
+      if (isCanvasReadOnly) return;
       const toolbar = document.querySelector(
         "[data-testid='main_canvas_controls']",
       );
@@ -836,7 +885,7 @@ export default function Page({
     return () => {
       window.removeEventListener("lf:start-add-note", handleStartAddNote);
     };
-  }, [reactFlowInstance, getNodeId, setNodes]);
+  }, [isCanvasReadOnly, reactFlowInstance, getNodeId, setNodes]);
 
   const MIN_ZOOM = 0.25;
   const MAX_ZOOM = 2;
@@ -899,77 +948,77 @@ export default function Page({
                 )}
               </>
             )}
-            {!isWelcomeOpen && <MemoizedSidebarTrigger />}
-            <SelectionMenu
-              lastSelection={lastSelection}
-              isVisible={selectionMenuVisible}
-              nodes={lastSelection?.nodes}
-              onClick={handleGroupNode}
-            />
-            <ReactFlow<AllNodeType, EdgeType>
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChangeWithHelperLines}
-              onEdgesChange={onEdgesChange}
-              onConnect={
-                effectiveLocked || isPreviewActive ? undefined : onConnectMod
-              }
-              disableKeyboardA11y={true}
-              nodesFocusable={!effectiveLocked && !isPreviewActive}
-              edgesFocusable={!effectiveLocked && !isPreviewActive}
-              nodesDraggable={!isPreviewActive && !effectiveLocked}
-              nodesConnectable={!isPreviewActive && !effectiveLocked}
-              elementsSelectable={!isPreviewActive && !effectiveLocked}
-              onInit={setReactFlowInstance}
-              nodeTypes={nodeTypes}
-              onReconnect={
-                effectiveLocked || isPreviewActive ? undefined : onEdgeUpdate
-              }
-              onReconnectStart={
-                effectiveLocked || isPreviewActive
-                  ? undefined
-                  : onEdgeUpdateStart
-              }
-              onReconnectEnd={
-                effectiveLocked || isPreviewActive ? undefined : onEdgeUpdateEnd
-              }
-              onNodeDrag={isPreviewActive ? undefined : onNodeDrag}
-              onNodeDragStart={isPreviewActive ? undefined : onNodeDragStart}
-              onSelectionDragStart={
-                isPreviewActive ? undefined : onSelectionDragStart
-              }
-              elevateEdgesOnSelect={false}
-              onSelectionEnd={isPreviewActive ? undefined : onSelectionEnd}
-              onSelectionStart={isPreviewActive ? undefined : onSelectionStart}
-              connectionRadius={30}
-              edgeTypes={edgeTypes}
-              connectionLineComponent={ConnectionLineComponent}
-              onDragOver={isPreviewActive ? undefined : onDragOver}
-              onNodeDragStop={isPreviewActive ? undefined : onNodeDragStop}
-              onDrop={isPreviewActive ? undefined : onDrop}
-              onSelectionChange={onSelectionChange}
-              deleteKeyCode={[]}
-              fitView={isEmptyFlow.current ? false : true}
-              fitViewOptions={fitViewOptions}
-              className="theme-attribution"
-              tabIndex={effectiveLocked ? -1 : undefined}
-              minZoom={MIN_ZOOM}
-              maxZoom={MAX_ZOOM}
-              zoomOnScroll={!view}
-              zoomOnPinch={!view}
-              selectNodesOnDrag={false}
-              panOnDrag={!view}
-              panActivationKeyCode={""}
-              proOptions={{ hideAttribution: true }}
-              onPaneClick={onPaneClick}
-              onEdgeClick={handleEdgeClick}
-              onKeyDown={handleKeyDown}
-              onNodeContextMenu={onNodeContextMenu}
-            >
-              <UpdateAllComponents />
-              <MemoizedBackground />
-              {helperLineEnabled && <HelperLines helperLines={helperLines} />}
-            </ReactFlow>
+            {!view && !isWelcomeOpen && <MemoizedSidebarTrigger />}
+            {!isCanvasReadOnly && (
+              <SelectionMenu
+                lastSelection={lastSelection}
+                isVisible={selectionMenuVisible}
+                nodes={lastSelection?.nodes}
+                onClick={handleGroupNode}
+              />
+            )}
+            <CanvasReadOnlyProvider readOnly={isCanvasReadOnly}>
+              <ReactFlow<AllNodeType, EdgeType>
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChangeReadOnlyAware}
+                onEdgesChange={onEdgesChangeReadOnlyAware}
+                onConnect={isCanvasReadOnly ? undefined : onConnectMod}
+                disableKeyboardA11y={true}
+                nodesFocusable={!isCanvasReadOnly}
+                edgesFocusable={!isCanvasReadOnly}
+                nodesDraggable={!isCanvasReadOnly}
+                nodesConnectable={!isCanvasReadOnly}
+                elementsSelectable={!isCanvasReadOnly}
+                onInit={setReactFlowInstance}
+                nodeTypes={nodeTypes}
+                onReconnect={isCanvasReadOnly ? undefined : onEdgeUpdate}
+                onReconnectStart={
+                  isCanvasReadOnly ? undefined : onEdgeUpdateStart
+                }
+                onReconnectEnd={isCanvasReadOnly ? undefined : onEdgeUpdateEnd}
+                onNodeDrag={isCanvasReadOnly ? undefined : onNodeDrag}
+                onNodeDragStart={isCanvasReadOnly ? undefined : onNodeDragStart}
+                onSelectionDragStart={
+                  isCanvasReadOnly ? undefined : onSelectionDragStart
+                }
+                elevateEdgesOnSelect={false}
+                onSelectionEnd={isCanvasReadOnly ? undefined : onSelectionEnd}
+                onSelectionStart={
+                  isCanvasReadOnly ? undefined : onSelectionStart
+                }
+                connectionRadius={30}
+                edgeTypes={edgeTypes}
+                connectionLineComponent={ConnectionLineComponent}
+                onDragOver={isCanvasReadOnly ? undefined : onDragOver}
+                onNodeDragStop={isCanvasReadOnly ? undefined : onNodeDragStop}
+                onDrop={isCanvasReadOnly ? undefined : onDrop}
+                onSelectionChange={onSelectionChange}
+                deleteKeyCode={[]}
+                fitView={isEmptyFlow.current ? false : true}
+                fitViewOptions={fitViewOptions}
+                className="theme-attribution"
+                tabIndex={isCanvasReadOnly ? -1 : undefined}
+                minZoom={MIN_ZOOM}
+                maxZoom={MAX_ZOOM}
+                zoomOnScroll={!view}
+                zoomOnPinch={!view}
+                selectNodesOnDrag={false}
+                panOnDrag={!view}
+                panActivationKeyCode={""}
+                proOptions={{ hideAttribution: true }}
+                onPaneClick={onPaneClick}
+                onEdgeClick={handleEdgeClick}
+                onKeyDown={handleKeyDown}
+                onNodeContextMenu={
+                  isCanvasReadOnly ? undefined : onNodeContextMenu
+                }
+              >
+                {!isCanvasReadOnly && <UpdateAllComponents />}
+                <MemoizedBackground />
+                {helperLineEnabled && <HelperLines helperLines={helperLines} />}
+              </ReactFlow>
+            </CanvasReadOnlyProvider>
             <FlowBuildingComponent />
             {bannerVisible && (
               <div
@@ -991,12 +1040,12 @@ export default function Page({
                 </CanvasBadge>
               </div>
             )}
-            {isPreviewActive && <VersionPreviewOverlay />}
+            {!view && isPreviewActive && <VersionPreviewOverlay />}
             {/* Welcome overlay surfaces on freshly-created empty flows —
                 its visibility is driven entirely by the
                 ``flowBuilderWelcomeStore`` which is primed by the
                 "New Flow" button on the home page. */}
-            <FlowBuilderWelcomeMount />
+            {!view && <FlowBuilderWelcomeMount />}
           </div>
         </>
       ) : (

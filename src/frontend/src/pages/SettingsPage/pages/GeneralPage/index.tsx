@@ -21,7 +21,6 @@ import type {
 } from "../../../../types/components";
 import useScrollToElement from "../hooks/use-scroll-to-element";
 import GeneralPageHeaderComponent from "./components/GeneralPageHeader";
-import LanguageFormComponent from "./components/LanguageForm";
 import PasswordFormComponent from "./components/PasswordForm";
 import ProfilePictureFormComponent from "./components/ProfilePictureForm";
 
@@ -65,11 +64,10 @@ export const GeneralPage = () => {
             handleInput({ target: { name: "cnfPassword", value: "" } });
             setSuccessData({ title: t("success.changesSaved") });
           },
-          onError: (error) => {
+          onError: (_error) => {
             setErrorData({
               title: t("errors.saveChanges"),
-              // biome-ignore lint/suspicious/noExplicitAny: legacy
-              list: [(error as any)?.response?.data?.detail],
+              list: [t("errors.requestFailed")],
             });
           },
         },
@@ -90,11 +88,10 @@ export const GeneralPage = () => {
             setUserData(newUserData);
             setSuccessData({ title: t("success.changesSaved") });
           },
-          onError: (error) => {
+          onError: (_error) => {
             setErrorData({
               title: t("errors.saveChanges"),
-              // biome-ignore lint/suspicious/noExplicitAny: legacy
-              list: [(error as any)?.response?.data?.detail],
+              list: [t("errors.requestFailed")],
             });
           },
         },
@@ -112,11 +109,10 @@ export const GeneralPage = () => {
       setLoadingApiKey(false);
       handleInput({ target: { name: "apikey", value: "" } });
     },
-    onError: (error) => {
+    onError: (_error) => {
       setErrorData({
         title: t("errors.saveApiKey"),
-        // biome-ignore lint/suspicious/noExplicitAny: legacy
-        list: [(error as any)?.response?.data?.detail],
+        list: [t("errors.requestFailed")],
       });
       setHasApiKey(false);
       setValidApiKey(false);
@@ -142,8 +138,6 @@ export const GeneralPage = () => {
       <GeneralPageHeaderComponent />
 
       <div className="flex w-full flex-col gap-6">
-        <LanguageFormComponent />
-
         {ENABLE_PROFILE_ICONS && (
           <ProfilePictureFormComponent
             profilePicture={profilePicture}

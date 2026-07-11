@@ -93,6 +93,7 @@ describe("useTypesStore", () => {
         types: {},
         templates: {},
         data: {},
+        componentDisplayNames: {},
       });
     });
   });
@@ -105,6 +106,61 @@ describe("useTypesStore", () => {
       expect(result.current.types).toEqual({});
       expect(result.current.templates).toEqual({});
       expect(result.current.data).toEqual({});
+    });
+  });
+
+  describe("resetTypes", () => {
+    it("atomically clears locale-dependent type data and preserves component display names", () => {
+      const componentDisplayNames = {
+        textinput: {
+          display_name: ["Text Input", "Текстовый ввод"],
+          description: ["Text input component", "Компонент текстового ввода"],
+          fields: {
+            value: { display_name: ["Value", "Значение"] },
+          },
+        },
+      };
+      mockTypesGenerator.mockReturnValue(mockTypes);
+      mockTemplatesGenerator.mockReturnValue(mockTemplates);
+      mockExtractSecretFieldsFromComponents.mockReturnValue(
+        new Set(["TextInput", "NumberInput"]),
+      );
+
+      act(() => {
+        useTypesStore.getState().setTypes(mockAPIData);
+        useTypesStore
+          .getState()
+          .setComponentDisplayNames(componentDisplayNames);
+      });
+
+      const notifications: Array<ReturnType<typeof useTypesStore.getState>> =
+        [];
+      const unsubscribe = useTypesStore.subscribe((state) => {
+        notifications.push(state);
+      });
+      const { resetTypes } = useTypesStore.getState() as ReturnType<
+        typeof useTypesStore.getState
+      > & {
+        resetTypes: () => void;
+      };
+
+      try {
+        expect(resetTypes).toEqual(expect.any(Function));
+
+        act(() => {
+          resetTypes();
+        });
+
+        const state = useTypesStore.getState();
+        expect(state.types).toEqual({});
+        expect(state.templates).toEqual({});
+        expect(state.data).toEqual({});
+        expect(state.ComponentFields).toEqual(new Set());
+        expect(state.componentDisplayNames).toBe(componentDisplayNames);
+        expect(notifications).toHaveLength(1);
+      } finally {
+        unsubscribe();
+      }
     });
   });
 

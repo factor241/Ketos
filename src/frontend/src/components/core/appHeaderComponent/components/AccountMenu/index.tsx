@@ -53,7 +53,7 @@ export const AccountMenu = () => {
 
   return (
     <HeaderMenu>
-      <HeaderMenuToggle>
+      <HeaderMenuToggle ariaLabel={t("account.openMenu")}>
         <div
           className="h-6 w-6 rounded-lg focus-visible:outline-0"
           data-testid="user-profile-settings"

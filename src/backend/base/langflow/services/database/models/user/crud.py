@@ -34,7 +34,9 @@ async def update_user(user_db: User | None, user: UserUpdate, db: AsyncSession) 
     user_data = user.model_dump(exclude_unset=True)
     changed = False
     for attr, value in user_data.items():
-        if hasattr(user_db, attr) and value is not None:
+        # preferred_locale=null is an explicit reset to the server/default
+        # locale. Other nullable fields keep their historical PATCH semantics.
+        if hasattr(user_db, attr) and (value is not None or attr == "preferred_locale"):
             setattr(user_db, attr, value)
             changed = True
 

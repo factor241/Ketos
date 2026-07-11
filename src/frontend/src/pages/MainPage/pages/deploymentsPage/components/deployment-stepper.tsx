@@ -1,39 +1,54 @@
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/utils/utils";
 import { useDeploymentStepper } from "../contexts/deployment-stepper-context";
 
-const STEP_LABEL_KEYS: Record<string, string> = {
-  Provider: "deployments.provider",
-  Type: "deployments.labelType",
-  Flows: "deployments.stepFlows",
-  Review: "deployments.review",
-  Deployed: "deployments.deployed",
-};
-
 export const CREATE_STEPS = [
-  { number: 1, label: "Provider" },
-  { number: 2, label: "Type" },
-  { number: 3, label: "Flows" },
-  { number: 4, label: "Review" },
+  { number: 1, labelKey: "deployments.provider" },
+  { number: 2, labelKey: "deployments.labelType" },
+  { number: 3, labelKey: "deployments.stepFlows" },
+  { number: 4, labelKey: "deployments.review" },
 ] as const;
 
 export const CREATE_DEPLOYED_STEPS = [
-  { number: 1, label: "Provider" },
-  { number: 2, label: "Type" },
-  { number: 3, label: "Flows" },
-  { number: 4, label: "Deployed" },
+  { number: 1, labelKey: "deployments.provider" },
+  { number: 2, labelKey: "deployments.labelType" },
+  { number: 3, labelKey: "deployments.stepFlows" },
+  { number: 4, labelKey: "deployments.deployed" },
 ] as const;
 
 const EDIT_STEPS = [
-  { number: 1, label: "Type" },
-  { number: 2, label: "Flows" },
-  { number: 3, label: "Review" },
+  { number: 1, labelKey: "deployments.labelType" },
+  { number: 2, labelKey: "deployments.stepFlows" },
+  { number: 3, labelKey: "deployments.review" },
 ] as const;
 
 export const DEPLOYMENT_STEPS = CREATE_STEPS;
 
+type DeploymentStepLabelKey =
+  | "deployments.provider"
+  | "deployments.labelType"
+  | "deployments.stepFlows"
+  | "deployments.review"
+  | "deployments.deployed";
+
+function translateStepLabel(t: TFunction, labelKey: DeploymentStepLabelKey) {
+  switch (labelKey) {
+    case "deployments.provider":
+      return t("deployments.provider");
+    case "deployments.labelType":
+      return t("deployments.labelType");
+    case "deployments.stepFlows":
+      return t("deployments.stepFlows");
+    case "deployments.review":
+      return t("deployments.review");
+    case "deployments.deployed":
+      return t("deployments.deployed");
+  }
+}
+
 interface DeploymentStepperProps {
-  steps?: readonly { number: number; label: string }[];
+  steps?: readonly { number: number; labelKey: DeploymentStepLabelKey }[];
   currentStepOverride?: number;
 }
 
@@ -74,7 +89,7 @@ export default function DeploymentStepper({
                 activeStep >= step.number && "font-medium",
               )}
             >
-              {t(STEP_LABEL_KEYS[step.label] ?? step.label)}
+              {translateStepLabel(t, step.labelKey)}
             </span>
           </div>
         ))}

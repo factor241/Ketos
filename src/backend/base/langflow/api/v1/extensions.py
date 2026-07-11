@@ -23,6 +23,7 @@ from lfx.log.logger import logger
 from lfx.services.deps import get_extension_events_service, get_settings_service
 from pydantic import BaseModel
 
+from langflow.api.error_codes import ApiErrorCode, coded_http_error
 from langflow.api.utils.core import CurrentActiveUser
 
 router = APIRouter(prefix="/extensions", tags=["Extensions"])
@@ -39,7 +40,13 @@ class ExtensionEventsResponse(BaseModel):
     settled: bool
 
 
-def _typed_http_exception(*, status_code: int, error: ExtensionError) -> HTTPException:
+def _typed_http_exception(
+    *,
+    status_code: int,
+    error: ExtensionError,
+    stable_code: ApiErrorCode = ApiErrorCode.EXTENSION_RELOAD_FAILED,
+    bundle_name: str | None = None,
+) -> HTTPException:
     """Wrap an :class:`ExtensionError` in a FastAPI HTTPException.
 
     The ``detail`` body is the full ``{code, message, location, content,
@@ -48,7 +55,18 @@ def _typed_http_exception(*, status_code: int, error: ExtensionError) -> HTTPExc
     drop the fix hint and the docs link from the client surface, which the
     palette + CLI consumers depend on.
     """
-    return HTTPException(status_code=status_code, detail=error.to_dict())
+    params = (
+        {"bundle": bundle_name}
+        if bundle_name is not None and stable_code is ApiErrorCode.EXTENSION_RELOAD_FAILED
+        else None
+    )
+    return coded_http_error(
+        stable_code,
+        params=params,
+        detail=error.to_dict(),
+        status_code=status_code,
+        technical_detail=error.message,
+    )
 
 
 def _require_extension_reload_enabled() -> None:
@@ -115,6 +133,7 @@ async def reload_extension_bundle(
         # a 404 so a typo in the URL doesn't mutate someone else's bundle.
         raise _typed_http_exception(
             status_code=status.HTTP_404_NOT_FOUND,
+            bundle_name=bundle_name,
             error=ExtensionError(
                 code="reload-bundle-not-installed",
                 message=(
@@ -148,6 +167,7 @@ async def reload_extension_bundle(
         logger.info("extension reload-in-progress collision for %s", exc.bundle)
         raise _typed_http_exception(
             status_code=status.HTTP_409_CONFLICT,
+            bundle_name=exc.bundle,
             error=ExtensionError(
                 code="reload-in-progress",
                 message=str(exc),
@@ -180,12 +200,14 @@ async def reload_extension_bundle(
             bundle_name,
             primary.code,
         )
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.EXTENSION_INVALID_MANIFEST,
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={
                 **primary.to_dict(),
                 "result": result.to_dict(),
             },
+            technical_detail=primary.message,
         )
 
     return result.to_dict()
@@ -224,6 +246,7 @@ async def get_extension_events(
     if keyspace is not None:
         raise _typed_http_exception(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            stable_code=ApiErrorCode.REQUEST_VALIDATION_FAILED,
             error=ExtensionError(
                 code="extension-events-keyspace-forbidden",
                 message=(

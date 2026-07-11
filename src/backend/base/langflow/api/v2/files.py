@@ -14,10 +14,11 @@ from fastapi.responses import StreamingResponse
 from lfx.log.logger import logger
 from sqlmodel import col, select
 
+from langflow.api.error_codes import ApiErrorCode, coded_http_error
 from langflow.api.schemas import UploadFileResponse
 from langflow.api.utils import CurrentActiveUser, DbSession, build_content_disposition
 from langflow.services.authorization import FileAction, ensure_file_permission
-from langflow.services.authorization.fetch import authorized_or_owner_scoped, deny_to_404
+from langflow.services.authorization.fetch import authorized_or_owner_scoped
 from langflow.services.database.models.file.model import File as UserFile
 from langflow.services.deps import get_settings_service, get_storage_service
 from langflow.services.settings.service import SettingsService
@@ -90,15 +91,30 @@ async def _validate_uploaded_mcp_config(file: UploadFile) -> None:
     try:
         parsed = json.loads(raw)
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-        raise HTTPException(status_code=422, detail="Invalid MCP servers config: not valid JSON") from exc
+        raise coded_http_error(
+            ApiErrorCode.MCP_INVALID_JSON,
+            detail="Invalid MCP servers config: not valid JSON",
+            status_code=422,
+            technical_detail=str(exc),
+        ) from exc
     servers = parsed.get("mcpServers") if isinstance(parsed, dict) else None
     if not isinstance(servers, dict):
-        raise HTTPException(status_code=422, detail="Invalid MCP servers config: expected an 'mcpServers' object")
+        raise coded_http_error(
+            ApiErrorCode.MCP_INVALID_JSON,
+            detail="Invalid MCP servers config: expected an 'mcpServers' object",
+            status_code=422,
+        )
     for name, cfg in servers.items():
         try:
             MCPServerConfig.model_validate(cfg)
         except ValidationError as exc:
-            raise HTTPException(status_code=422, detail=f"Invalid MCP server '{name}': {exc}") from exc
+            raise coded_http_error(
+                ApiErrorCode.FILE_INVALID,
+                params={"name": str(name), "reason": "invalid_mcp_server"},
+                detail=f"Invalid MCP server '{name}'.",
+                status_code=422,
+                technical_detail=str(exc),
+            ) from exc
 
 
 async def byte_stream_generator(file_input, chunk_size: int = 8192) -> AsyncGenerator[bytes, None]:
@@ -135,7 +151,12 @@ async def fetch_file_object(file_id: uuid.UUID, current_user: CurrentActiveUser,
 
     # Check if the file exists
     if not file:
-        raise HTTPException(status_code=404, detail="File not found")
+        raise coded_http_error(
+            ApiErrorCode.FILE_NOT_FOUND,
+            params={"file_id": str(file_id)},
+            detail="File not found",
+            status_code=404,
+        )
 
     return file
 
@@ -185,17 +206,23 @@ async def upload_user_file(
     try:
         max_file_size_upload = settings_service.settings.max_file_size_upload
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Settings error: {e}") from e
+        raise coded_http_error(
+            ApiErrorCode.FILE_STORAGE_ERROR,
+            status_code=500,
+            technical_detail=f"Settings error: {e}",
+        ) from e
 
     # Validate that a file is actually provided
     if not file or not file.filename:
-        raise HTTPException(status_code=400, detail="No file provided")
+        raise coded_http_error(ApiErrorCode.FILE_INVALID, detail="No file provided", status_code=400)
 
     # Validate file size (convert MB to bytes)
     if file.size > max_file_size_upload * 1024 * 1024:
-        raise HTTPException(
-            status_code=413,
+        raise coded_http_error(
+            ApiErrorCode.FILE_TOO_LARGE,
+            params={"name": file.filename, "max_size_mb": max_file_size_upload},
             detail=f"File size is larger than the maximum file size {max_file_size_upload}MB.",
+            status_code=413,
         )
 
     # Create a new database record for the uploaded file.
@@ -203,28 +230,32 @@ async def upload_user_file(
         # SECURITY FIX: Validate and sanitize multipart upload filename to prevent path traversal attacks
         # First, validate the original filename to reject obvious malicious attempts
         if not file.filename:
-            raise HTTPException(status_code=400, detail="No filename provided")
+            raise coded_http_error(ApiErrorCode.FILE_INVALID, detail="No filename provided", status_code=400)
 
         # Reject filenames containing directory traversal sequences or path separators
         # This prevents attackers from using directory traversal in the Content-Disposition header
         # Check for: path separators (/, \), traversal (..), null bytes, and other dangerous chars
         dangerous_chars = ["..", "/", "\\", "\x00", "\n", "\r"]
         if any(char in file.filename for char in dangerous_chars):
-            raise HTTPException(
-                status_code=400,
+            raise coded_http_error(
+                ApiErrorCode.FILE_INVALID,
+                params={"name": file.filename, "reason": "unsafe_name"},
                 detail=(
                     "Invalid file name. Filename must not contain directory paths, "
                     "'..' sequences, or control characters."
                 ),
+                status_code=400,
             )
 
         # Additional check: reject filenames that are too long (prevent DoS)
         # Most filesystems have a 255 byte limit for filenames
         MAX_FILENAME_BYTES = 255  # noqa: N806
         if len(file.filename.encode("utf-8")) > MAX_FILENAME_BYTES:
-            raise HTTPException(
-                status_code=400,
+            raise coded_http_error(
+                ApiErrorCode.FILE_INVALID,
+                params={"name": file.filename, "reason": "name_too_long"},
                 detail="File name is too long. Maximum 255 bytes allowed.",
+                status_code=400,
             )
 
         # Extract only the basename as an additional safety measure
@@ -233,7 +264,12 @@ async def upload_user_file(
 
         # Final validation: ensure the sanitized filename is valid and not empty
         if not new_filename or new_filename in (".", ".."):
-            raise HTTPException(status_code=400, detail="Invalid file name after sanitization")
+            raise coded_http_error(
+                ApiErrorCode.FILE_INVALID,
+                params={"name": file.filename, "reason": "invalid_name"},
+                detail="Invalid file name after sanitization",
+                status_code=400,
+            )
 
         # Reject reserved filenames on Windows (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
         # This prevents issues when code runs on Windows systems
@@ -263,9 +299,11 @@ async def upload_user_file(
         }
         name_without_ext = new_filename.rsplit(".", 1)[0].upper()
         if name_without_ext in reserved_names:
-            raise HTTPException(
-                status_code=400,
+            raise coded_http_error(
+                ApiErrorCode.FILE_INVALID,
+                params={"name": file.filename, "reason": "reserved_name"},
                 detail=f"Invalid file name. '{name_without_ext}' is a reserved system name.",
+                status_code=400,
             )
 
         # Enforce unique constraint on name, except for the special _mcp_servers file
@@ -290,10 +328,11 @@ async def upload_user_file(
             from langflow.api.v2.mcp import is_mcp_servers_locked
 
             if is_mcp_servers_locked(settings_service.settings) and not current_user.is_superuser:
-                raise HTTPException(
-                    status_code=403,
+                raise coded_http_error(
+                    ApiErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
                     detail="MCP server configuration is locked. "
                     "Contact an administrator to manage external MCP servers.",
+                    status_code=403,
                 )
             # Validate the uploaded MCP servers config before storing it, so this
             # path can't bypass the command allow-list enforced by the structured
@@ -351,13 +390,27 @@ async def upload_user_file(
             )
         except FileNotFoundError as e:
             # S3 bucket doesn't exist or file not found, or file was uploaded but can't be found
-            raise HTTPException(status_code=404, detail=str(e)) from e
+            raise coded_http_error(
+                ApiErrorCode.FILE_NOT_FOUND,
+                params={"name": stored_file_name if "stored_file_name" in locals() else new_filename},
+                status_code=404,
+                technical_detail=str(e),
+            ) from e
         except PermissionError as e:
             # Access denied or invalid credentials - return 500 as this is a server config issue
-            raise HTTPException(status_code=500, detail="Error accessing storage") from e
+            raise coded_http_error(
+                ApiErrorCode.FILE_STORAGE_ERROR,
+                detail="Error accessing storage",
+                status_code=500,
+                technical_detail=str(e),
+            ) from e
         except Exception as e:
             # General error saving file or getting file size
-            raise HTTPException(status_code=500, detail=f"Error accessing file: {e}") from e
+            raise coded_http_error(
+                ApiErrorCode.FILE_STORAGE_ERROR,
+                status_code=500,
+                technical_detail=f"Error accessing file: {e}",
+            ) from e
 
         if ephemeral:
             # Ephemeral uploads: file is saved to storage (servable for chat history)
@@ -393,15 +446,21 @@ async def upload_user_file(
                 #  If delete fails, just log the error
                 await logger.aerror(f"Failed to clean up uploaded file {stored_file_name}: {e}")
 
-            raise HTTPException(
-                status_code=500, detail=f"Error inserting file metadata into database: {db_err}"
+            raise coded_http_error(
+                ApiErrorCode.FILE_STORAGE_ERROR,
+                status_code=500,
+                technical_detail=f"Error inserting file metadata into database: {db_err}",
             ) from db_err
     except HTTPException:
         # Re-raise HTTP exceptions (like 409 conflicts) without modification
         raise
     except Exception as e:
         # Optionally, you could also delete the file from disk if the DB insert fails.
-        raise HTTPException(status_code=500, detail=f"Database error: {e}") from e
+        raise coded_http_error(
+            ApiErrorCode.FILE_STORAGE_ERROR,
+            status_code=500,
+            technical_detail=f"Database error: {e}",
+        ) from e
 
     return UploadFileResponse(id=new_file.id, name=new_file.name, path=new_file.path, size=new_file.size)
 
@@ -419,7 +478,11 @@ async def get_file_by_name(
 
         return result.first() or None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching file: {e}") from e
+        raise coded_http_error(
+            ApiErrorCode.FILE_STORAGE_ERROR,
+            status_code=500,
+            technical_detail=f"Error fetching file: {e}",
+        ) from e
 
 
 async def load_sample_files(current_user: CurrentActiveUser, session: DbSession, storage_service: StorageService):
@@ -493,7 +556,11 @@ async def list_files(
 
         return [file for file in full_list if file.name != mcp_file]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error listing files: {e}") from e
+        raise coded_http_error(
+            ApiErrorCode.FILE_STORAGE_ERROR,
+            status_code=500,
+            technical_detail=f"Error listing files: {e}",
+        ) from e
 
 
 @router.delete("/batch/", status_code=HTTPStatus.OK)
@@ -520,7 +587,7 @@ async def delete_files_batch(
         files = results.all()
 
         if not files:
-            raise HTTPException(status_code=404, detail="No files found")
+            raise coded_http_error(ApiErrorCode.FILE_NOT_FOUND, detail="No files found", status_code=404)
 
         # Per-file authorization. Use the true owner so a delete share on
         # someone else's file is enforced against the right object key.
@@ -591,7 +658,11 @@ async def delete_files_batch(
             await logger.aerror("Batch delete completed with %d database failures: %s", len(db_failures), db_failures)
             # If all database deletions failed, raise an error
             if len(db_failures) == len(files):
-                raise HTTPException(status_code=500, detail=f"Failed to delete any files from database: {db_failures}")
+                raise coded_http_error(
+                    ApiErrorCode.FILE_STORAGE_ERROR,
+                    status_code=500,
+                    technical_detail=f"Failed to delete any files from database: {db_failures}",
+                )
 
         # Calculate how many files were actually deleted from database
         # Files successfully deleted = total - (kept due to transient storage failures) - (DB deletion failures)
@@ -608,8 +679,14 @@ async def delete_files_batch(
         else:
             message = "No files were deleted from database"
 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error deleting files: {e}") from e
+        raise coded_http_error(
+            ApiErrorCode.FILE_STORAGE_ERROR,
+            status_code=500,
+            technical_detail=f"Error deleting files: {e}",
+        ) from e
 
     return {"message": message}
 
@@ -636,7 +713,7 @@ async def download_files_batch(
         files = results.all()
 
         if not files:
-            raise HTTPException(status_code=404, detail="No files found")
+            raise coded_http_error(ApiErrorCode.FILE_NOT_FOUND, detail="No files found", status_code=404)
 
         for file in files:
             await ensure_file_permission(
@@ -677,10 +754,20 @@ async def download_files_batch(
             headers={"Content-Disposition": cd},
         )
 
+    except HTTPException:
+        raise
     except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=f"File not found: {e}") from e
+        raise coded_http_error(
+            ApiErrorCode.FILE_NOT_FOUND,
+            status_code=404,
+            technical_detail=f"File not found: {e}",
+        ) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error downloading files: {e}") from e
+        raise coded_http_error(
+            ApiErrorCode.FILE_STORAGE_ERROR,
+            status_code=500,
+            technical_detail=f"Error downloading files: {e}",
+        ) from e
 
 
 async def read_file_content(file_stream: AsyncIterable[bytes] | bytes, *, decode: bool = True) -> str | bytes:
@@ -712,11 +799,24 @@ async def read_file_content(file_stream: AsyncIterable[bytes] | bytes, *, decode
         try:
             return content.decode("utf-8")
         except UnicodeDecodeError as exc:
-            raise HTTPException(status_code=500, detail="Invalid file encoding") from exc
+            raise coded_http_error(
+                ApiErrorCode.FILE_INVALID,
+                detail="Invalid file encoding",
+                status_code=500,
+                technical_detail=str(exc),
+            ) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=500, detail=f"Error reading file: {exc}") from exc
+        raise coded_http_error(
+            ApiErrorCode.FILE_STORAGE_ERROR,
+            status_code=500,
+            technical_detail=f"Error reading file: {exc}",
+        ) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Error reading file: {exc}") from exc
+        raise coded_http_error(
+            ApiErrorCode.FILE_STORAGE_ERROR,
+            status_code=500,
+            technical_detail=f"Error reading file: {exc}",
+        ) from exc
 
 
 @router.get("/{file_id}")
@@ -744,7 +844,12 @@ async def download_file(
         # Fetch the file from the DB
         file = await fetch_file_object(file_id, current_user, session)
         if not file:
-            raise HTTPException(status_code=404, detail="File not found")
+            raise coded_http_error(
+                ApiErrorCode.FILE_NOT_FOUND,
+                params={"file_id": str(file_id)},
+                detail="File not found",
+                status_code=404,
+            )
 
         try:
             await ensure_file_permission(
@@ -754,7 +859,13 @@ async def download_file(
                 file_user_id=file.user_id,
             )
         except HTTPException as exc:
-            raise deny_to_404(exc, detail="File not found") from exc
+            raise coded_http_error(
+                ApiErrorCode.FILE_NOT_FOUND,
+                params={"file_id": str(file_id)},
+                detail="File not found",
+                status_code=404,
+                technical_detail=str(exc),
+            ) from exc
 
         # Get the basename of the file path. The file lives under the owner's
         # storage namespace, not the actor's — for a shared-file read by a
@@ -767,7 +878,12 @@ async def download_file(
             # For content return, get the full file
             file_content = await storage_service.get_file(flow_id=owner_id, file_name=file_name)
             if file_content is None:
-                raise HTTPException(status_code=404, detail="File not found")
+                raise coded_http_error(
+                    ApiErrorCode.FILE_NOT_FOUND,
+                    params={"file_id": str(file_id)},
+                    detail="File not found",
+                    status_code=404,
+                )
             return await read_file_content(file_content, decode=True)
 
         # Check file exists before streaming (to catch errors before response headers are sent)
@@ -775,7 +891,13 @@ async def download_file(
         try:
             await storage_service.get_file_size(flow_id=owner_id, file_name=file_name)
         except FileNotFoundError as e:
-            raise HTTPException(status_code=404, detail=f"File not found: {e}") from e
+            raise coded_http_error(
+                ApiErrorCode.FILE_NOT_FOUND,
+                params={"file_id": str(file_id)},
+                detail="File not found",
+                status_code=404,
+                technical_detail=str(e),
+            ) from e
 
         # Wrap the async generator in byte_stream_generator to ensure proper iteration
         file_stream = storage_service.get_file_stream(flow_id=owner_id, file_name=file_name)
@@ -796,9 +918,19 @@ async def download_file(
     except HTTPException:
         raise
     except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=f"File not found: {e}") from e
+        raise coded_http_error(
+            ApiErrorCode.FILE_NOT_FOUND,
+            params={"file_id": str(file_id)},
+            detail="File not found",
+            status_code=404,
+            technical_detail=str(e),
+        ) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error downloading file: {e}") from e
+        raise coded_http_error(
+            ApiErrorCode.FILE_STORAGE_ERROR,
+            status_code=500,
+            technical_detail=f"Error downloading file: {e}",
+        ) from e
 
 
 @router.put("/{file_id}")
@@ -820,7 +952,13 @@ async def edit_file_name(
                 file_user_id=file.user_id,
             )
         except HTTPException as exc:
-            raise deny_to_404(exc, detail="File not found") from exc
+            raise coded_http_error(
+                ApiErrorCode.FILE_NOT_FOUND,
+                params={"file_id": str(file_id)},
+                detail="File not found",
+                status_code=404,
+                technical_detail=str(exc),
+            ) from exc
 
         # Update the file name
         file.name = name
@@ -828,7 +966,11 @@ async def edit_file_name(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error editing file: {e}") from e
+        raise coded_http_error(
+            ApiErrorCode.FILE_STORAGE_ERROR,
+            status_code=500,
+            technical_detail=f"Error editing file: {e}",
+        ) from e
 
     return UploadFileResponse(id=file.id, name=file.name, path=file.path, size=file.size)
 
@@ -845,7 +987,12 @@ async def delete_file(
         # Fetch the file object
         file_to_delete = await fetch_file_object(file_id, current_user, session)
         if not file_to_delete:
-            raise HTTPException(status_code=404, detail="File not found")
+            raise coded_http_error(
+                ApiErrorCode.FILE_NOT_FOUND,
+                params={"file_id": str(file_id)},
+                detail="File not found",
+                status_code=404,
+            )
 
         try:
             await ensure_file_permission(
@@ -855,7 +1002,13 @@ async def delete_file(
                 file_user_id=file_to_delete.user_id,
             )
         except HTTPException as exc:
-            raise deny_to_404(exc, detail="File not found") from exc
+            raise coded_http_error(
+                ApiErrorCode.FILE_NOT_FOUND,
+                params={"file_id": str(file_id)},
+                detail="File not found",
+                status_code=404,
+                technical_detail=str(exc),
+            ) from exc
 
         # Extract just the filename from the path (strip user_id prefix).
         # The file lives under the owner's namespace; for shared-file deletes
@@ -886,9 +1039,11 @@ async def delete_file(
                     err,
                 )
                 # Don't delete from DB - user can retry
-                raise HTTPException(
+                raise coded_http_error(
+                    ApiErrorCode.FILE_STORAGE_ERROR,
+                    detail="Failed to delete file from storage. Please try again.",
                     status_code=500,
-                    detail=f"Failed to delete file from storage. Please try again. Error: {err}",
+                    technical_detail=f"Failed to delete file from storage: {err}",
                 ) from err
 
         # Only delete from database if storage deletion succeeded OR it was a permanent failure
@@ -901,8 +1056,10 @@ async def delete_file(
                     file_to_delete.name,
                     db_error,
                 )
-                raise HTTPException(
-                    status_code=500, detail=f"Error deleting file from database: {db_error}"
+                raise coded_http_error(
+                    ApiErrorCode.FILE_STORAGE_ERROR,
+                    status_code=500,
+                    technical_detail=f"Error deleting file from database: {db_error}",
                 ) from db_error
 
             return {"detail": f"File {file_to_delete.name} deleted successfully"}
@@ -912,7 +1069,11 @@ async def delete_file(
     except Exception as e:
         # Log and return a generic server error
         await logger.aerror("Error deleting file %s: %s", file_id, e)
-        raise HTTPException(status_code=500, detail=f"Error deleting file: {e}") from e
+        raise coded_http_error(
+            ApiErrorCode.FILE_STORAGE_ERROR,
+            status_code=500,
+            technical_detail=f"Error deleting file: {e}",
+        ) from e
 
 
 @router.delete("")
@@ -988,7 +1149,11 @@ async def delete_all_files(
             await logger.aerror("Batch delete completed with %d database failures: %s", len(db_failures), db_failures)
             # If all database deletions failed, raise an error
             if len(db_failures) == len(files):
-                raise HTTPException(status_code=500, detail=f"Failed to delete any files from database: {db_failures}")
+                raise coded_http_error(
+                    ApiErrorCode.FILE_STORAGE_ERROR,
+                    status_code=500,
+                    technical_detail=f"Failed to delete any files from database: {db_failures}",
+                )
 
         # Calculate how many files were actually deleted from database
         # Files successfully deleted = total - (kept due to transient storage failures) - (DB deletion failures)
@@ -1004,7 +1169,13 @@ async def delete_all_files(
         else:
             message = "Failed to delete files. See logs for details."
 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error deleting all files: {e}") from e
+        raise coded_http_error(
+            ApiErrorCode.FILE_STORAGE_ERROR,
+            status_code=500,
+            technical_detail=f"Error deleting all files: {e}",
+        ) from e
 
     return {"message": message}

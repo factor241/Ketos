@@ -6,6 +6,7 @@ import useAlertStore from "../../../stores/alertStore";
 import { useStoreStore } from "../../../stores/storeStore";
 import type { FlowType } from "../../../types/flow";
 import type { storeComponent } from "../../../types/store";
+import { getLocalizedApiErrorMessage } from "../../../utils/localized-api-error";
 import cloneFLowWithParent, {
   getInputsAndOutputs,
 } from "../../../utils/storeUtils";
@@ -44,7 +45,9 @@ export default function StoreCardComponent({
     data?.downloads_count ?? 0,
   );
 
-  const name = data.is_component ? "Component" : "Flow";
+  const name = data.is_component
+    ? t("store.itemComponent")
+    : t("store.itemFlow");
 
   async function _getFlowData() {
     const res = await getComponent(data.id);
@@ -96,7 +99,11 @@ export default function StoreCardComponent({
             console.error(error);
             setErrorData({
               title: t("store.errorLiking", { name }),
-              list: [error.response.data.detail],
+              list: [
+                getLocalizedApiErrorMessage(error, (key) => t(key), {
+                  fallbackKey: "errors.requestFailed",
+                }),
+              ],
             });
           },
         },
@@ -173,7 +180,7 @@ export default function StoreCardComponent({
             <div className="flex gap-2">
               {data.user_created && data.user_created.username && (
                 <span className="text-sm text-primary">
-                  by <b>{data.user_created.username}</b>
+                  {t("common.by")} <b>{data.user_created.username}</b>
                   {data.last_tested_version && (
                     <>
                       {" "}
@@ -205,6 +212,9 @@ export default function StoreCardComponent({
                   }
                 >
                   <Button
+                    aria-label={
+                      authorized ? t("store.like") : t("store.reviewApiKey")
+                    }
                     disabled={isPending}
                     variant="ghost"
                     size="icon"
@@ -240,6 +250,11 @@ export default function StoreCardComponent({
                   }
                 >
                   <Button
+                    aria-label={
+                      authorized
+                        ? t("store.installLocally")
+                        : t("store.reviewApiKey")
+                    }
                     disabled={loading}
                     variant="ghost"
                     size="icon"

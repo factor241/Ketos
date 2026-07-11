@@ -53,7 +53,7 @@ export function SessionMoreMenu({
   triggerClassName,
   contentClassName,
   isVisible = true,
-  tooltipContent = "More options",
+  tooltipContent,
   tooltipSide = "left",
   dataTestid,
   open: controlledOpen,
@@ -62,6 +62,8 @@ export function SessionMoreMenu({
   const { t } = useTranslation();
   const [selectValue, setSelectValue] = useState("");
   const [internalOpen, setInternalOpen] = useState(false);
+  const resolvedTooltipContent =
+    tooltipContent ?? t("playgroundComponent.moreOptions");
 
   // Use controlled state if provided, otherwise use internal state
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
@@ -98,7 +100,7 @@ export function SessionMoreMenu({
         <ShadTooltip
           styleClasses="z-50"
           side={tooltipSide}
-          content={tooltipContent}
+          content={resolvedTooltipContent}
         >
           <SelectTrigger
             className={cn(
@@ -106,7 +108,7 @@ export function SessionMoreMenu({
               !isVisible && "invisible group-hover:visible",
               triggerClassName,
             )}
-            aria-label={tooltipContent}
+            aria-label={resolvedTooltipContent}
             aria-haspopup="true"
             onClick={(e) => {
               e.stopPropagation();

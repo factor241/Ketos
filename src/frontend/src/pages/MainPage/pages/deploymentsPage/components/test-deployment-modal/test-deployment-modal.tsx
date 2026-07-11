@@ -46,14 +46,16 @@ export default function TestDeploymentModal({
           {t("deployments.testDeployment")}
         </DialogTitle>
         <DialogDescription className="sr-only">
-          Chat interface to test the {deployment?.name ?? "deployment"}
+          {t("deployments.testDeploymentDescription", {
+            name: deployment?.name ?? t("deployments.deployment"),
+          })}
         </DialogDescription>
 
         <h2
           className="text-center text-2xl font-semibold py-5"
           data-testid="test-deployment-modal-title"
         >
-          Test Deployment
+          {t("deployments.testDeployment")}
         </h2>
 
         <div className="mx-4 mb-4 flex flex-1 flex-col overflow-hidden rounded-lg border border-border bg-background">

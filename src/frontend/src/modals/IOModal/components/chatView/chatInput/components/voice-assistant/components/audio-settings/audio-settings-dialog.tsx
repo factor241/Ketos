@@ -19,6 +19,7 @@ import GeneralGlobalVariableModal from "@/shared/components/global-variable-moda
 import { useGlobalVariablesStore } from "@/stores/globalVariablesStore/globalVariables";
 import { useVoiceStore } from "@/stores/voiceStore";
 import { getLocalStorage, setLocalStorage } from "@/utils/local-storage-util";
+import { getIntlLocale } from "@/utils/locale-format";
 import AudioSettingsHeader from "./components/header";
 import LanguageSelect from "./components/language-select";
 import MicrophoneSelect from "./components/microphone-select";
@@ -103,7 +104,7 @@ const SettingsVoiceModal = ({
   const [selectedMicrophone, setSelectedMicrophone] = useState<string>("");
 
   const [currentLanguage, setCurrentLanguage] = useState(
-    localStorage.getItem("lf_preferred_language") || "en-US",
+    localStorage.getItem("lf_preferred_language") || getIntlLocale(),
   );
 
   useEffect(() => {

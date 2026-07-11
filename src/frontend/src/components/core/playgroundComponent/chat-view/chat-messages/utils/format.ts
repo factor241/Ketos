@@ -3,6 +3,8 @@
  * Contains functions for formatting time, tool titles, and file names.
  */
 
+import { formatNumber, getIntlLocale } from "@/utils/locale-format";
+
 /**
  * Formats a duration in milliseconds to a human-readable string.
  *
@@ -17,13 +19,39 @@
  */
 export function formatTime(ms: number, showMsOnly: boolean = false): string {
   if (showMsOnly) {
-    return `${Math.round(ms)}ms`;
+    return formatNumber(Math.round(ms), {
+      style: "unit",
+      unit: "millisecond",
+      unitDisplay: "short",
+    });
   }
   const seconds = ms / 1000;
-  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  if (seconds < 60)
+    return formatNumber(seconds, {
+      style: "unit",
+      unit: "second",
+      unitDisplay: "short",
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
-  return `${minutes}m ${remainingSeconds.toFixed(0)}s`;
+  return new Intl.ListFormat(getIntlLocale(), {
+    style: "short",
+    type: "unit",
+  }).format([
+    formatNumber(minutes, {
+      style: "unit",
+      unit: "minute",
+      unitDisplay: "short",
+    }),
+    formatNumber(remainingSeconds, {
+      style: "unit",
+      unit: "second",
+      unitDisplay: "short",
+      maximumFractionDigits: 0,
+    }),
+  ]);
 }
 
 /**
@@ -40,7 +68,13 @@ export function formatTime(ms: number, showMsOnly: boolean = false): string {
  */
 export function formatSeconds(ms: number): string {
   const seconds = Math.ceil((ms / 1000) * 10) / 10;
-  return `${seconds.toFixed(1)}s`;
+  return formatNumber(seconds, {
+    style: "unit",
+    unit: "second",
+    unitDisplay: "short",
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
 }
 
 /**

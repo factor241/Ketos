@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "@/controllers/API/api";
 import { getURL } from "@/controllers/API/helpers/constants";
 import useAlertStore from "@/stores/alertStore";
@@ -30,6 +31,7 @@ type UseExtensionEventsReturn = {
 };
 
 export function useExtensionEvents(): UseExtensionEventsReturn {
+  const { t } = useTranslation();
   const [isSettled, setIsSettled] = useState(true);
   const [events, setEvents] = useState<ExtensionEvent[]>([]);
 
@@ -146,7 +148,7 @@ export function useExtensionEvents(): UseExtensionEventsReturn {
             const bundle =
               typeof event.payload.bundle === "string"
                 ? event.payload.bundle
-                : "bundle";
+                : t("extensions.unnamedBundle");
             const added = Array.isArray(event.payload.components_added)
               ? event.payload.components_added.length
               : 0;
@@ -164,16 +166,21 @@ export function useExtensionEvents(): UseExtensionEventsReturn {
             // the API response) sees only the green toast and silently
             // loses the warnings the clicking tab saw.
             const warnings = extractTypedErrorList(event.payload.warnings);
-            const warningList = renderTypedErrorList(warnings);
+            const warningList = renderTypedErrorList(warnings, (key) => t(key));
             alert.setSuccessData({
               title: hasDelta
-                ? `Reloaded ${bundle} (+${added} / -${removed} / ~${changed} components)`
-                : `Reloaded ${bundle} (no source changes detected)`,
+                ? t("extensions.reloadedWithChanges", {
+                    bundle,
+                    added,
+                    removed,
+                    changed,
+                  })
+                : t("extensions.reloadedNoChanges", { bundle }),
               ...(warningList ? { list: warningList.list } : {}),
             });
             if (warningList && warningList.list.length > 0) {
               alert.setNoticeData({
-                title: `Reloaded ${bundle} with warnings`,
+                title: t("extensions.reloadedWithWarnings", { bundle }),
                 list: warningList.list,
               });
             }
@@ -197,36 +204,23 @@ export function useExtensionEvents(): UseExtensionEventsReturn {
             const sign = event.type === "components_added" ? "+" : "-";
             alert.setNoticeData({
               title: bundle
-                ? `${sign}${components} components in ${bundle}`
-                : `${sign}${components} components`,
+                ? t("extensions.componentsChangedInBundle", {
+                    sign,
+                    componentCount: components,
+                    bundle,
+                  })
+                : t("extensions.componentsChanged", {
+                    sign,
+                    componentCount: components,
+                  }),
             });
           } else if (
             event.type === "extension_error" ||
             event.type === "bundle_reload_failed"
           ) {
-            // bundle_reload_failed carries the full ReloadResult envelope
-            // (errors[] from ExtensionError.to_dict()); extension_error
-            // emits a flat {message,...} payload. Try both before falling
-            // back to the generic fallback.
-            let message: string | undefined;
-            const errors = event.payload.errors;
-            if (Array.isArray(errors) && errors.length > 0) {
-              const first = errors[0];
-              if (
-                first &&
-                typeof first === "object" &&
-                "message" in first &&
-                typeof (first as { message: unknown }).message === "string"
-              ) {
-                message = (first as { message: string }).message;
-              }
-            }
-            if (!message && typeof event.payload.message === "string") {
-              message = event.payload.message;
-            }
             alert.setErrorData({
-              title: "Extension error",
-              list: [message ?? `${event.type}: check server logs for details`],
+              title: t("extensions.error"),
+              list: [t("extensions.reloadFailed")],
             });
           }
           // flow_migrated: no-op for Phase 1; future tickets wire to canvas
@@ -280,7 +274,7 @@ export function useExtensionEvents(): UseExtensionEventsReturn {
     } finally {
       isPollingRef.current = false;
     }
-  }, [clearInterval_, settle]);
+  }, [clearInterval_, settle, t]);
 
   pollRef.current = poll;
 

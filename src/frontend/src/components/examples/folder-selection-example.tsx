@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import InputFileComponent from "@/components/core/parameterRenderComponent/components/inputFileComponent";
 
 type FolderSelectionData = {
@@ -13,6 +14,7 @@ type FolderSelectionData = {
  * all supported files within them.
  */
 export default function FolderSelectionExample() {
+  const { t } = useTranslation();
   const [value, setValue] = useState<string>("");
   const [filePath, setFilePath] = useState<string>("");
 
@@ -24,34 +26,30 @@ export default function FolderSelectionExample() {
   return (
     <div className="max-w-2xl mx-auto p-6 space-y-6">
       <div>
-        <h2 className="text-2xl font-bold mb-4">Folder Selection Example</h2>
+        <h2 className="text-2xl font-bold mb-4">
+          {t("folderSelectionExample.title")}
+        </h2>
         <p className="text-muted-foreground mb-6">
-          This example demonstrates the folder selection feature in the File
-          Component. Toggle between Files and Folder mode to see the difference:
+          {t("folderSelectionExample.description")}
         </p>
         <ul className="list-disc list-inside text-sm text-muted-foreground mb-6 space-y-1">
           <li>
-            <strong>Files mode:</strong> Select individual files (standard
-            behavior)
+            <strong>{t("folderSelectionExample.filesModeLabel")}</strong>{" "}
+            {t("folderSelectionExample.filesModeDescription")}
           </li>
           <li>
-            <strong>Folder mode:</strong> Select entire folders and recursively
-            process all supported files
+            <strong>{t("folderSelectionExample.folderModeLabel")}</strong>{" "}
+            {t("folderSelectionExample.folderModeDescription")}
           </li>
-          <li>
-            In folder mode, only files matching the specified types will be
-            processed
-          </li>
-          <li>
-            Supports common document formats: PDF, TXT, DOC, DOCX, MD, etc.
-          </li>
+          <li>{t("folderSelectionExample.matchingTypesOnly")}</li>
+          <li>{t("folderSelectionExample.supportedFormats")}</li>
         </ul>
       </div>
 
       <div className="space-y-4">
         <div>
           <label className="text-sm font-medium mb-2 block">
-            File Component with Folder Selection
+            {t("folderSelectionExample.componentLabel")}
           </label>
           <InputFileComponent
             value={value}
@@ -78,13 +76,17 @@ export default function FolderSelectionExample() {
 
         {(value || filePath) && (
           <div className="p-4 bg-muted rounded-lg">
-            <h3 className="font-medium mb-2">Selected Files:</h3>
+            <h3 className="font-medium mb-2">
+              {t("folderSelectionExample.selectedFiles")}
+            </h3>
             <div className="space-y-1 text-sm">
               <div>
-                <strong>Value:</strong> {value}
+                <strong>{t("folderSelectionExample.valueLabel")}</strong>{" "}
+                {value}
               </div>
               <div>
-                <strong>File Path:</strong> {filePath}
+                <strong>{t("folderSelectionExample.filePathLabel")}</strong>{" "}
+                {filePath}
               </div>
             </div>
           </div>
@@ -92,16 +94,15 @@ export default function FolderSelectionExample() {
       </div>
 
       <div className="border-t pt-6">
-        <h3 className="font-medium mb-2">Usage Instructions:</h3>
+        <h3 className="font-medium mb-2">
+          {t("folderSelectionExample.usageInstructions")}
+        </h3>
         <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1">
-          <li>Toggle the switch to enable Folder mode</li>
-          <li>Click the upload area or drag a folder to select it</li>
-          <li>
-            The component will recursively find all supported files in the
-            folder
-          </li>
-          <li>Only files matching the specified fileTypes will be processed</li>
-          <li>All selected files will be uploaded and their paths returned</li>
+          <li>{t("folderSelectionExample.enableFolderMode")}</li>
+          <li>{t("folderSelectionExample.selectFolder")}</li>
+          <li>{t("folderSelectionExample.recursiveDiscovery")}</li>
+          <li>{t("folderSelectionExample.processMatchingTypes")}</li>
+          <li>{t("folderSelectionExample.uploadResult")}</li>
         </ol>
       </div>
     </div>

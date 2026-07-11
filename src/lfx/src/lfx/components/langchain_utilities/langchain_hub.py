@@ -15,6 +15,8 @@ class LangChainHubPromptComponent(Component):
     icon = "LangChain"
     trace_type = "prompt"
     name = "LangChain Hub Prompt"
+    dynamic_i18n = {"info": "Fill in the value for {{{field}}}"}
+    dynamic_i18n_verbatim = frozenset({"display_name", "info"})
 
     inputs = [
         SecretStrInput(

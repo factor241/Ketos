@@ -197,4 +197,27 @@ describe("useSaveFlow", () => {
       expect.objectContaining({ id: "flow-1", folder_id: "folder-B" }),
     );
   });
+
+  it("localizes a stable error code and never renders backend detail", async () => {
+    const rawDetail = "database traceback from the flow service";
+    mockMutate.mockImplementation((_payload, options) => {
+      options.onError({
+        response: {
+          status: 404,
+          data: { code: "flows.not_found", detail: rawDetail },
+        },
+      });
+    });
+
+    const { result } = renderHook(() => useSaveFlow());
+
+    await expect(result.current()).rejects.toBeDefined();
+    expect(mockSetErrorData).toHaveBeenCalledWith({
+      title: "Failed to save flow",
+      list: ["The flow was not found."],
+    });
+    expect(JSON.stringify(mockSetErrorData.mock.calls)).not.toContain(
+      rawDetail,
+    );
+  });
 });

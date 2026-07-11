@@ -14,7 +14,7 @@ import { useGetUserData, useUpdateUser } from "@/controllers/API/queries/auth";
 import useAuthStore from "@/stores/authStore";
 import { useDarkStore } from "@/stores/darkStore";
 import { useFolderStore } from "@/stores/foldersStore";
-import { formatNumber } from "@/utils/utils";
+import { formatCompactNumber } from "@/utils/locale-format";
 import useFileDrop from "../hooks/use-on-file-drop";
 
 const EXTERNAL_LINK_ICON_CLASS =
@@ -110,7 +110,7 @@ export const EmptyPageCommunity = ({
                       <div>
                         <span className="font-semibold">GitHub</span>
                         <span className="ml-2 font-mono text-muted-foreground">
-                          {formatNumber(stars)}
+                          {formatCompactNumber(stars)}
                         </span>
                       </div>
                     </div>
@@ -140,7 +140,7 @@ export const EmptyPageCommunity = ({
                       <div>
                         <span className="font-semibold">Discord</span>
                         <span className="ml-2 font-mono text-muted-foreground">
-                          {formatNumber(discordCount)}
+                          {formatCompactNumber(discordCount)}
                         </span>
                       </div>
                     </div>

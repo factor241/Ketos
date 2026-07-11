@@ -24,7 +24,7 @@ const ModelTrigger = ({
   disabled,
   options,
   selectedModel,
-  placeholder = "Setup Provider",
+  placeholder,
   hasEnabledProviders,
   onOpenManageProviders,
   id,
@@ -32,6 +32,7 @@ const ModelTrigger = ({
   showEmptyState = false,
 }: ModelTriggerProps) => {
   const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t("model.setupProvider");
   const renderSelectedIcon = () => {
     if (disabled || options.length === 0) {
       return null;
@@ -48,7 +49,12 @@ const ModelTrigger = ({
   // Check if we're in empty state mode (showEmptyState=true and no options)
   const isEmptyStateMode = showEmptyState && options.length === 0;
 
-  if (!hasEnabledProviders && !showEmptyState && options.length === 0) {
+  if (
+    !disabled &&
+    !hasEnabledProviders &&
+    !showEmptyState &&
+    options.length === 0
+  ) {
     return (
       <Button
         variant="outline"
@@ -61,9 +67,7 @@ const ModelTrigger = ({
           className="h-4 w-4 flex-shrink-0 text-muted-foreground"
         />
         <div className="text-[13px] text-muted-foreground">
-          {placeholder === "Setup Provider"
-            ? t("model.setupProvider")
-            : placeholder}
+          {resolvedPlaceholder}
         </div>
       </Button>
     );

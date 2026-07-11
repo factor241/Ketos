@@ -1,6 +1,12 @@
+jest.unmock("react-i18next");
+
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import type { i18n as I18nInstance } from "i18next";
+import { I18nextProvider } from "react-i18next";
 import { useGetRefreshFlowsQuery } from "@/controllers/API/queries/flows/use-get-refresh-flows-query";
+import i18n from "@/i18n";
 import { useFolderStore } from "@/stores/foldersStore";
+import { createTestI18n } from "@/test-utils/create-test-i18n";
 import StepReview from "../components/step-review";
 import { useDeploymentStepper } from "../contexts/deployment-stepper-context";
 import type { ConnectionItem } from "../types";
@@ -114,11 +120,20 @@ function setupStepper(overrides: Record<string, unknown> = {}) {
 function setup(
   stepperOverrides: Record<string, unknown> = {},
   flows: Array<{ id: string; name: string; folder_id: string }> = [],
+  translationInstance?: I18nInstance,
 ) {
   setupFolderStore();
   setupFlowsQuery(flows);
   const values = setupStepper(stepperOverrides);
-  render(<StepReview />);
+  render(
+    translationInstance ? (
+      <I18nextProvider i18n={translationInstance}>
+        <StepReview />
+      </I18nextProvider>
+    ) : (
+      <StepReview />
+    ),
+  );
   return values;
 }
 
@@ -158,6 +173,31 @@ describe("StepReview tool name editing", () => {
     ) => Map<string, string>;
     const updated = updater(new Map());
     expect(updated.get("flow-1")).toBe("My Tool Name");
+  });
+});
+
+describe("StepReview localized presentation fallbacks", () => {
+  afterEach(async () => {
+    await i18n.changeLanguage("en");
+  });
+
+  it("renders an unknown flow in Russian without localizing the stable tool payload default", async () => {
+    const russian = await createTestI18n("ru");
+    setup(
+      {
+        selectedVersionByFlow: new Map([
+          ["flow-missing", { versionId: "ver-1", versionTag: "v1" }],
+        ]),
+      },
+      [],
+      russian,
+    );
+
+    expect(screen.getAllByText("Неизвестный сценарий").length).toBeGreaterThan(
+      0,
+    );
+    expect(screen.queryByText("Unknown flow")).not.toBeInTheDocument();
+    expect(screen.getByText("Flow")).toBeInTheDocument();
   });
 });
 

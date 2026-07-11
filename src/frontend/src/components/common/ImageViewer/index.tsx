@@ -1,6 +1,6 @@
 import { saveAs } from "file-saver";
 import OpenSeadragon from "openseadragon";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import useAlertStore from "../../../stores/alertStore";
 import { Separator } from "../../ui/separator";
@@ -9,9 +9,7 @@ import ForwardedIconComponent from "../genericIconComponent";
 export default function ImageViewer({ image }: { image: string }) {
   const { t } = useTranslation();
   const viewerRef = useRef(null);
-  const [_errorDownloading, _setErrordownloading] = useState(false);
   const setErrorList = useAlertStore((state) => state.setErrorData);
-  const [_initialMsg, _setInicialMsg] = useState("Please build your flow");
 
   useEffect(() => {
     try {
@@ -98,7 +96,9 @@ export default function ImageViewer({ image }: { image: string }) {
       <div className="align-center my-2 mb-4 flex w-full justify-center">
         <div className="shadow-round-btn-shadow hover:shadow-round-btn-shadow flex w-[50%] items-center justify-center rounded-sm border bg-muted shadow-md transition-all">
           <button
+            type="button"
             id="zoom-in-button"
+            aria-label={t("canvas.zoomIn")}
             className="relative inline-flex w-full items-center justify-center px-3 py-3 text-sm font-semibold transition-all duration-500 ease-in-out hover:bg-hover"
           >
             <ForwardedIconComponent
@@ -110,7 +110,9 @@ export default function ImageViewer({ image }: { image: string }) {
             <Separator orientation="vertical" />
           </div>
           <button
+            type="button"
             id="zoom-out-button"
+            aria-label={t("canvas.zoomOut")}
             className="relative inline-flex w-full items-center justify-center px-3 py-3 text-sm font-semibold transition-all duration-500 ease-in-out hover:bg-hover"
           >
             <ForwardedIconComponent
@@ -122,7 +124,9 @@ export default function ImageViewer({ image }: { image: string }) {
             <Separator orientation="vertical" />
           </div>
           <button
+            type="button"
             id="home-button"
+            aria-label={t("canvas.resetZoomTooltip")}
             className="relative inline-flex w-full items-center justify-center px-3 py-3 text-sm font-semibold transition-all duration-500 ease-in-out hover:bg-hover"
           >
             <ForwardedIconComponent
@@ -134,7 +138,9 @@ export default function ImageViewer({ image }: { image: string }) {
             <Separator orientation="vertical" />
           </div>
           <button
+            type="button"
             id="full-page-button"
+            aria-label={t("playgroundComponent.enterFullscreen")}
             className="relative inline-flex w-full items-center justify-center px-3 py-3 text-sm font-semibold transition-all duration-500 ease-in-out hover:bg-hover"
           >
             <ForwardedIconComponent
@@ -147,6 +153,9 @@ export default function ImageViewer({ image }: { image: string }) {
           </div>
 
           <button
+            type="button"
+            aria-label={t("nodeToolbar.download")}
+            data-testid="image-download-button"
             onClick={download}
             className="relative inline-flex w-full items-center justify-center px-3 py-3 text-sm font-semibold transition-all duration-500 ease-in-out hover:bg-hover"
           >

@@ -35,7 +35,7 @@ const useFileDrop = (type?: string) => {
           })
             .then(() => {
               setSuccessData({
-                title: `All files uploaded successfully`,
+                title: t("files.filesUploadedSuccessfully"),
               });
             })
             .catch((error) => {

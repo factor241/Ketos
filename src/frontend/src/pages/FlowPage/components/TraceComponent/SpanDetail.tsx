@@ -2,6 +2,8 @@ import { useTranslation } from "react-i18next";
 import IconComponent from "@/components/common/genericIconComponent";
 import SimplifiedCodeTabComponent from "@/components/core/codeTabsComponent";
 import { Badge } from "@/components/ui/badge";
+import { formatNumber } from "@/utils/locale-format";
+import { cn } from "@/utils/utils";
 import {
   formatCost,
   formatJsonData,
@@ -58,8 +60,12 @@ export function SpanDetail({ span }: SpanDetailProps) {
           >
             <IconComponent
               name={iconName}
-              className={`h-4 w-4 ${colorClass} ${shouldSpin ? "animate-spin" : ""}`}
-              aria-label={span.status}
+              className={cn(
+                "h-4 w-4",
+                colorClass,
+                shouldSpin && "animate-spin",
+              )}
+              aria-label={getSpanStatusLabel(span.status)}
               dataTestId={`flow-log-status-${span.status}`}
               skipFallback
             />
@@ -105,7 +111,7 @@ export function SpanDetail({ span }: SpanDetailProps) {
                 label={t("trace.tokens")}
                 value={
                   hasTokenUsage
-                    ? span.tokenUsage!.totalTokens.toLocaleString()
+                    ? formatNumber(span.tokenUsage!.totalTokens)
                     : "\u2014"
                 }
                 icon="Coins"
@@ -114,7 +120,7 @@ export function SpanDetail({ span }: SpanDetailProps) {
                 label={t("trace.prompt")}
                 value={
                   hasTokenUsage
-                    ? span.tokenUsage!.promptTokens.toLocaleString()
+                    ? formatNumber(span.tokenUsage!.promptTokens)
                     : "\u2014"
                 }
                 icon="ArrowUp"
@@ -123,7 +129,7 @@ export function SpanDetail({ span }: SpanDetailProps) {
                 label={t("trace.completion")}
                 value={
                   hasTokenUsage
-                    ? span.tokenUsage!.completionTokens.toLocaleString()
+                    ? formatNumber(span.tokenUsage!.completionTokens)
                     : "\u2014"
                 }
                 icon="ArrowDown"

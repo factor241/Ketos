@@ -1,7 +1,7 @@
 """Tests for upload.py."""
 
 import json
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import upload as upload_mod
@@ -48,7 +48,7 @@ class TestUploadFrontend:
         mock_create.assert_called_once()
         mock_upload.assert_called_once_with({"hello": "Hello"})
 
-    def test_empty_json_file_uploads_empty_dict(self, tmp_path):
+    def test_empty_json_file_is_blocking(self, tmp_path):
         source = tmp_path / "en.json"
         source.write_text("{}", encoding="utf-8")
 
@@ -57,10 +57,26 @@ class TestUploadFrontend:
             patch.object(upload_mod, "create_bundle"),
             patch.object(upload_mod, "upload_strings") as mock_upload,
             patch.object(upload_mod, "GP_BUNDLE", "langflow-ui"),
+            pytest.raises(SystemExit) as exc_info,
         ):
             _run_frontend(str(source))
 
-        mock_upload.assert_called_once_with({})
+        assert exc_info.value.code == 1
+        mock_upload.assert_not_called()
+
+    def test_upload_response_cannot_echo_credentials_to_logs(self, tmp_path, capsys):
+        source = tmp_path / "en.json"
+        source.write_text(json.dumps({"hello": "Hello"}), encoding="utf-8")
+        sentinel = "gp-value-sentinel-12345"
+
+        with (
+            patch.object(upload_mod, "list_bundles", return_value={"bundleIds": ["langflow-ui"]}),
+            patch.object(upload_mod, "upload_strings", return_value={"debug": sentinel}),
+            patch.object(upload_mod, "GP_BUNDLE", "langflow-ui"),
+        ):
+            _run_frontend(str(source))
+
+        assert sentinel not in capsys.readouterr().out
 
     def test_raises_when_source_file_missing(self, tmp_path):
         missing = str(tmp_path / "missing.json")
@@ -77,6 +93,25 @@ class TestUploadFrontend:
 
 
 class TestUploadBackend:
+    def test_signed_backend_requests_use_common_tls_configuration(self, tmp_path):
+        response = MagicMock()
+        response.json.return_value = {"status": "ok"}
+        ca_bundle = str(tmp_path / "gp-ca.pem")
+
+        with (
+            patch.object(upload_mod, "get_headers", return_value={}),
+            patch.object(upload_mod, "get_tls_verify", return_value=ca_bundle) as tls_verify,
+            patch.object(upload_mod.requests, "put", return_value=response) as request,
+        ):
+            upload_mod.upload_backend_strings({"hello": "Hello"})
+            upload_mod.create_backend_bundle()
+
+        assert tls_verify.call_count == 2
+        assert [call.kwargs["verify"] for call in request.call_args_list] == [
+            ca_bundle,
+            ca_bundle,
+        ]
+
     def test_uploads_when_bundle_exists(self, tmp_path):
         source = tmp_path / "en.json"
         strings = {"components.ChatInput.display_name": "Chat Input"}

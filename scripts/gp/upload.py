@@ -20,6 +20,7 @@ from gp_client import (
     TARGET_LANGS,
     create_bundle,
     get_headers,
+    get_tls_verify,
     list_bundles,
     upload_strings,
 )
@@ -41,7 +42,7 @@ def upload_backend_strings(strings: dict, lang: str = "en") -> None:
         url,
         headers=get_headers(url, "PUT", strings),
         json=strings,
-        verify=False,  # noqa: S501
+        verify=get_tls_verify(),
         timeout=BACKEND_REQUEST_TIMEOUT,
     )
     response.raise_for_status()
@@ -54,7 +55,7 @@ def create_backend_bundle(source_lang: str = "en") -> dict:
         url,
         headers=get_headers(url, "PUT", body),
         json=body,
-        verify=False,  # noqa: S501
+        verify=get_tls_verify(),
         timeout=BACKEND_REQUEST_TIMEOUT,
     )
     response.raise_for_status()
@@ -76,6 +77,9 @@ def main() -> None:
             raise SystemExit(1)
 
         strings = json.loads(source_path.read_text(encoding="utf-8"))
+        if not isinstance(strings, dict) or not strings:
+            print("ERROR: source catalog must be a non-empty JSON object.")
+            raise SystemExit(1)
         print(f"Loaded {len(strings)} strings from {source_path}")
 
         existing = list_bundles()
@@ -87,8 +91,8 @@ def main() -> None:
             print(f"Bundle '{GP_BUNDLE}' already exists, skipping creation.")
 
         print(f"Uploading strings to GP bundle '{GP_BUNDLE}'...")
-        result = upload_strings(strings)
-        print(f"Done: {result}")
+        upload_strings(strings)
+        print("Done.")
 
     else:  # backend
         source_path = Path(args.source) if args.source else DEFAULT_BACKEND_SOURCE
@@ -97,6 +101,9 @@ def main() -> None:
             raise SystemExit(1)
 
         strings = json.loads(source_path.read_text(encoding="utf-8"))
+        if not isinstance(strings, dict) or not strings:
+            print("ERROR: source catalog must be a non-empty JSON object.")
+            raise SystemExit(1)
         print(f"Loaded {len(strings)} strings from {source_path}")
 
         existing = list_bundles()

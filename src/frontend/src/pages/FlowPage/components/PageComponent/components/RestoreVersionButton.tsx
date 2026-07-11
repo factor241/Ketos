@@ -45,17 +45,16 @@ export default function RestoreVersionButton({
         icon="RotateCcw"
         title={t("flow.restoreVersion")}
         description={
-          <>
-            Replace the current draft with{" "}
-            <span className="font-medium">{versionTag}</span>
-          </>
+          <>{t("flowVersion.replaceCurrentDraftWith", { versionTag })}</>
         }
         actionSlot={
           <CanvasBannerButton
             onClick={() => setShowConfirm(true)}
             disabled={isRestoring}
           >
-            {isRestoring ? "Restoring…" : "Restore"}
+            {isRestoring
+              ? t("flowVersion.restoring")
+              : t("nodeToolbar.restore")}
           </CanvasBannerButton>
         }
       />
@@ -74,8 +73,7 @@ export default function RestoreVersionButton({
                 </span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Restore <strong>{versionTag}</strong>? This will replace your
-                current canvas.
+                {t("flowVersion.restoreConfirm", { versionTag })}
               </p>
               <div className="flex items-center space-x-2">
                 <Checkbox
@@ -87,7 +85,7 @@ export default function RestoreVersionButton({
                   htmlFor="save-draft"
                   className="text-sm text-muted-foreground"
                 >
-                  Save current draft before restoring
+                  {t("flowVersion.saveDraftBeforeRestoring")}
                 </label>
               </div>
               <div className="flex justify-end gap-2">
@@ -98,10 +96,10 @@ export default function RestoreVersionButton({
                     setShowConfirm(false);
                   }}
                 >
-                  Cancel
+                  {t("modal.cancelButton")}
                 </Button>
                 <Button size="sm" onClick={handleRestore} loading={isRestoring}>
-                  Restore
+                  {t("nodeToolbar.restore")}
                 </Button>
               </div>
             </div>

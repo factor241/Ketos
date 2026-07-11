@@ -10,6 +10,7 @@ from mcp.server import NotificationOptions, Server
 from mcp.server.sse import SseServerTransport
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 
+from langflow.api.error_codes import ApiErrorCode, coded_http_error
 from langflow.api.utils import CurrentActiveMCPUser, raise_error_if_astra_cloud_env
 from langflow.api.v1.mcp_utils import (
     current_user_ctx,
@@ -149,10 +150,15 @@ async def handle_messages(request: Request):
         await sse.handle_post_message(request.scope, request.receive, request._send)  # noqa: SLF001
     except (BrokenResourceError, BrokenPipeError) as e:
         await logger.ainfo("MCP Server disconnected")
-        raise HTTPException(status_code=404, detail=f"MCP Server disconnected, error: {e}") from e
+        raise coded_http_error(
+            ApiErrorCode.MCP_SERVER_NOT_FOUND,
+            status_code=404,
+            detail="MCP Server disconnected.",
+            technical_detail=str(e),
+        ) from e
     except Exception as e:
         await logger.aerror(f"Internal server error: {e}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {e}") from e
+        raise coded_http_error(ApiErrorCode.SERVER_INTERNAL_ERROR, technical_detail=str(e)) from e
 
 
 ################################################################################
@@ -206,7 +212,11 @@ class StreamableHTTP:
     def get_manager(self) -> StreamableHTTPSessionManager:
         """Fetch the active Streamable HTTP session manager or raise if it is unavailable."""
         if not self._started or self.session_manager is None:
-            raise HTTPException(status_code=503, detail="MCP Streamable HTTP transport is not initialized")
+            raise coded_http_error(
+                ApiErrorCode.MCP_SERVER_NOT_FOUND,
+                status_code=503,
+                detail="MCP Streamable HTTP transport is not initialized",
+            )
         return self.session_manager
 
     async def stop(self) -> None:
@@ -286,7 +296,11 @@ async def _dispatch_streamable_http(
         raise
     except Exception as exc:
         await logger.aexception(f"Error handling Streamable HTTP request: {exc!s}")
-        raise HTTPException(status_code=500, detail="Internal server error in Streamable HTTP transport") from exc
+        raise coded_http_error(
+            ApiErrorCode.SERVER_INTERNAL_ERROR,
+            detail="Internal server error in Streamable HTTP transport",
+            technical_detail=str(exc),
+        ) from exc
     finally:
         current_user_ctx.reset(context_token)
 

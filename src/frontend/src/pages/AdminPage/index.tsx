@@ -34,6 +34,7 @@ import UserManagementModal from "../../modals/userManagementModal";
 import useAlertStore from "../../stores/alertStore";
 import type { Users } from "../../types/api";
 import type { UserInputType } from "../../types/components";
+import { getLocalizedApiErrorMessage } from "../../utils/localized-api-error";
 
 export default function AdminPage() {
   const { t } = useTranslation();
@@ -109,6 +110,12 @@ export default function AdminPage() {
     debouncedSearch(input);
   }
 
+  function getAdminErrorMessage(error: unknown) {
+    return getLocalizedApiErrorMessage(error, (key) => t(key), {
+      fallbackKey: "errors.requestFailed",
+    });
+  }
+
   function handleDeleteUser(user) {
     mutateDeleteUser(
       { user_id: user.id },
@@ -122,7 +129,7 @@ export default function AdminPage() {
         onError: (error) => {
           setErrorData({
             title: t("errors.deleteUser"),
-            list: [error["response"]["data"]["detail"]],
+            list: [getAdminErrorMessage(error)],
           });
         },
       },
@@ -142,7 +149,7 @@ export default function AdminPage() {
         onError: (error) => {
           setErrorData({
             title: t("errors.editUser"),
-            list: [error["response"]["data"]["detail"]],
+            list: [getAdminErrorMessage(error)],
           });
         },
       },
@@ -165,7 +172,7 @@ export default function AdminPage() {
         onError: (error) => {
           setErrorData({
             title: t("errors.editUser"),
-            list: [error["response"]["data"]["detail"]],
+            list: [getAdminErrorMessage(error)],
           });
         },
       },
@@ -188,7 +195,7 @@ export default function AdminPage() {
         onError: (error) => {
           setErrorData({
             title: t("errors.editUser"),
-            list: [error["response"]["data"]["detail"]],
+            list: [getAdminErrorMessage(error)],
           });
         },
       },
@@ -216,7 +223,7 @@ export default function AdminPage() {
             onError: (error) => {
               setErrorData({
                 title: t("errors.addUser"),
-                list: [error["response"]["data"]["detail"]],
+                list: [getAdminErrorMessage(error)],
               });
             },
           },
@@ -225,7 +232,7 @@ export default function AdminPage() {
       onError: (error) => {
         setErrorData({
           title: t("errors.addUser"),
-          list: [error["response"]["data"]["detail"]],
+          list: [getAdminErrorMessage(error)],
         });
       },
     });
@@ -237,7 +244,12 @@ export default function AdminPage() {
         <div className="admin-page-panel flex h-full flex-col pb-8">
           <div className="main-page-nav-arrangement">
             <span className="main-page-nav-title">
-              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={t("stepper.back")}
+                onClick={() => navigate(-1)}
+              >
                 <IconComponent name="ChevronLeft" className="w-5" />
               </Button>
               <IconComponent name="Shield" className="w-6" />
@@ -255,7 +267,11 @@ export default function AdminPage() {
                 onChange={(e) => handleFilterUsers(e.target.value)}
               />
               {inputValue.length > 0 ? (
-                <div
+                <Button
+                  unstyled
+                  type="button"
+                  aria-label={t("common.clearSearch")}
+                  data-testid="admin-clear-search-button"
                   className="cursor-pointer"
                   onClick={() => {
                     setInputValue("");
@@ -264,7 +280,7 @@ export default function AdminPage() {
                   }}
                 >
                   <IconComponent name="X" className="w-6 text-foreground" />
-                </div>
+                </Button>
               ) : (
                 <div>
                   <IconComponent

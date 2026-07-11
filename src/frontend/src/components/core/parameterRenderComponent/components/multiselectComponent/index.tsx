@@ -1,6 +1,7 @@
 import Fuse from "fuse.js";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getOptionLabel } from "@/utils/option-presentation";
 import { cn } from "../../../../../utils/utils";
 import { default as ForwardedIconComponent } from "../../../../common/genericIconComponent";
 import ShadTooltip from "../../../../common/shadTooltipComponent";
@@ -31,6 +32,7 @@ export default function MultiselectComponent({
   showParameter = true,
   hideOnSelection,
   inspectionPanel,
+  optionsMetaData = [],
 }: InputProps<string[], MultiselectComponentType>): JSX.Element | null {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -48,13 +50,24 @@ export default function MultiselectComponent({
 
   const [options, setOptions] = useState<string[]>(defaultOptions);
 
-  const fuseOptions = new Fuse(options, { keys: ["name", "value"] });
-  const fuseValues = new Fuse(treatedValue, { keys: ["name", "value"] });
+  const optionLabel = (option: string) =>
+    getOptionLabel(option, defaultOptions, optionsMetaData);
+  const fuseOptions = new Fuse(
+    options.map((option) => ({ value: option, label: optionLabel(option) })),
+    { keys: ["label", "value"] },
+  );
+  const fuseValues = new Fuse(
+    treatedValue.map((option) => ({
+      value: option,
+      label: optionLabel(option),
+    })),
+    { keys: ["label", "value"] },
+  );
 
   const searchRoleByTerm = async (v: string) => {
     const fuse = onlySelected ? fuseValues : fuseOptions;
     const searchValues = fuse.search(v);
-    let filtered: string[] = searchValues.map((search) => search.item);
+    let filtered: string[] = searchValues.map((search) => search.item.value);
     if (!filtered.includes(v) && combobox && v) filtered = [v, ...filtered];
     setFilteredOptions(
       v
@@ -126,7 +139,7 @@ export default function MultiselectComponent({
         <span className="truncate" data-testid={`value-dropdown-${id}`}>
           {treatedValue.length > 0 &&
           options.find((option) => treatedValue.includes(option))
-            ? treatedValue.join(", ")
+            ? treatedValue.map(optionLabel).join(", ")
             : t("multiselect.chooseOption")}
         </span>
         <ForwardedIconComponent
@@ -168,7 +181,11 @@ export default function MultiselectComponent({
       <CommandEmpty>{t("multiselect.noValuesFound")}</CommandEmpty>
       <CommandGroup>
         {filteredOptions.map((option, index) => (
-          <ShadTooltip key={index} delayDuration={700} content={option}>
+          <ShadTooltip
+            key={index}
+            delayDuration={700}
+            content={optionLabel(option)}
+          >
             <div>
               <CommandItem
                 value={option}
@@ -177,11 +194,11 @@ export default function MultiselectComponent({
                 data-testid={`${option}-${id ?? ""}-option`}
               >
                 {(customValues.includes(option) || searchValue === option) && (
-                  <span className="text-muted-foreground">
-                    {t("multiselect.textPrefix")}&nbsp;
+                  <span className="mr-1 text-muted-foreground">
+                    {t("multiselect.textPrefix")}
                   </span>
                 )}
-                <span className="truncate">{option}</span>
+                <span className="truncate">{optionLabel(option)}</span>
                 <ForwardedIconComponent
                   name="Check"
                   className={cn(
@@ -205,7 +222,7 @@ export default function MultiselectComponent({
     return (
       <div>
         <span className="text-sm italic">
-          No parameters are available for display.
+          {t("component.noParametersAvailable")}
         </span>
       </div>
     );

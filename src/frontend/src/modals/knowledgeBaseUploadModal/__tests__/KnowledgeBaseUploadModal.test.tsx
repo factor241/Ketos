@@ -524,7 +524,7 @@ describe("KnowledgeBaseUploadModal", () => {
       await user.click(screen.getByTestId("kb-create-button"));
       await waitFor(() =>
         expect(mockSetErrorData).toHaveBeenCalledWith({
-          title: "Knowledge base already exists",
+          title: "Failed to create knowledge base",
         }),
       );
     });

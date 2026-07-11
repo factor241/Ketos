@@ -1,12 +1,28 @@
-/**
- * Extracts a human-readable error message from an Axios error response.
- *
- * FastAPI validation errors return `detail` as an array of objects
- * (e.g. [{type, loc, msg, input, ctx}]). Directly coercing these
- * to a string produces "[object Object]". This helper normalises
- * all known shapes of `detail` into a readable string.
- */
+import {
+  getLocalizedApiErrorMessage,
+  type LocalizedApiErrorTranslate,
+} from "@/utils/localized-api-error";
+
+/** Resolves stable API codes for UI presentation, then uses a safe fallback. */
 export function extractApiErrorMessage(
+  error: { response?: { data?: { detail?: unknown } }; message?: string },
+  fallback: string,
+  translate?: LocalizedApiErrorTranslate,
+): string {
+  if (translate) {
+    return getLocalizedApiErrorMessage(error, translate, {
+      fallbackKey: "errors.requestFailed",
+    });
+  }
+
+  return fallback;
+}
+
+/**
+ * Normalizes raw legacy error payloads for diagnostics and logging only.
+ * Native UI call sites must use `extractApiErrorMessage` instead.
+ */
+export function extractApiErrorDiagnosticMessage(
   error: { response?: { data?: { detail?: unknown } }; message?: string },
   fallback: string,
 ): string {

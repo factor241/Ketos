@@ -733,6 +733,8 @@ def _decorate_template_with_extension(
     bundle: str,
     extension_version: str,
     namespaced_id: str,
+    locale_bundle: Any | None = None,
+    ru_missing: bool = True,
 ) -> dict[str, Any]:
     """Stamp the AC-required identity fields onto a frontend-node template.
 
@@ -744,6 +746,12 @@ def _decorate_template_with_extension(
     template["bundle"] = bundle
     template["extension_version"] = extension_version
     template["namespaced_id"] = namespaced_id
+    template["extension_ru_missing"] = ru_missing
+    if locale_bundle is not None:
+        model_dump = getattr(locale_bundle, "model_dump", None)
+        template["extension_locale_bundle"] = (
+            model_dump(mode="json") if callable(model_dump) else locale_bundle
+        )
     return template
 
 
@@ -1014,6 +1022,8 @@ async def import_extension_components(
                 bundle=loaded.bundle,
                 extension_version=loaded.extension_version,
                 namespaced_id=loaded.namespaced_id,
+                locale_bundle=loaded.locale_bundle,
+                ru_missing=loaded.ru_missing,
             )
     return components_dict
 
@@ -1060,6 +1070,8 @@ def refresh_bundle_cache_from_record(record: "BundleRecord") -> None:
             bundle=loaded.bundle,
             extension_version=loaded.extension_version,
             namespaced_id=loaded.namespaced_id,
+            locale_bundle=loaded.locale_bundle,
+            ru_missing=loaded.ru_missing,
         )
 
     expected = len(record.components)

@@ -22,6 +22,7 @@ import DeleteConfirmationModal from "@/modals/deleteConfirmationModal";
 import FilesContextMenuComponent from "@/modals/fileManagerModal/components/filesContextMenuComponent";
 import useAlertStore from "@/stores/alertStore";
 import type { FileType } from "@/types/file_management";
+import { formatDateTime } from "@/utils/locale-format";
 import { formatFileSize } from "@/utils/stringManipulation";
 import { FILE_ICONS } from "@/utils/styleUtils";
 import { cn } from "@/utils/utils";
@@ -166,7 +167,8 @@ const FilesTab = ({
             params.data.progress === -1 ? (
               <span className="text-xs text-primary">
                 {t("files.uploadFailed")}{" "}
-                <span
+                <button
+                  type="button"
                   className="cursor-pointer text-accent-pink-foreground underline"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -176,7 +178,7 @@ const FilesTab = ({
                   }}
                 >
                   {t("files.tryAgain")}
-                </span>
+                </button>
               </span>
             ) : (
               <></>
@@ -212,9 +214,7 @@ const FilesTab = ({
       headerName: t("files.columnModified"),
       field: "updated_at",
       valueFormatter: (params) => {
-        return params.data.progress
-          ? ""
-          : new Date(params.value + "Z").toLocaleString();
+        return params.data.progress ? "" : formatDateTime(`${params.value}Z`);
       },
       editable: false,
       flex: 1,
@@ -322,7 +322,9 @@ const FilesTab = ({
             {quantitySelected > 0 ? (
               <DeleteConfirmationModal
                 onConfirm={handleDelete}
-                description={"file" + (quantitySelected > 1 ? "s" : "")}
+                description={t("fileManager.deleteDescription", {
+                  count: quantitySelected,
+                })}
               >
                 <Button
                   variant="destructive"

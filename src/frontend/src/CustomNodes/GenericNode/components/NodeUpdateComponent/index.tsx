@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { useCanvasReadOnly } from "@/contexts/canvas-read-only-context";
 import { cn } from "@/utils/utils";
 
 export default function NodeUpdateComponent({
@@ -22,7 +23,8 @@ export default function NodeUpdateComponent({
   isRequired?: boolean;
 }) {
   const { t } = useTranslation();
-  const showUpdateAction = !blocked;
+  const isCanvasReadOnly = useCanvasReadOnly();
+  const showUpdateAction = !blocked && !isCanvasReadOnly;
 
   if (dismissed && isRequired) {
     return (
@@ -84,19 +86,21 @@ export default function NodeUpdateComponent({
         {showNode && label}
       </div>
 
-      <Button
-        variant="ghost"
-        size="icon"
-        className="shrink-0 !text-mmd"
-        onClick={(e) => {
-          e.stopPropagation();
-          setDismissAll(true);
-        }}
-        aria-label={t("node.dismissWarning")}
-        data-testid="dismiss-warning-bar"
-      >
-        {t("node.dismiss")}
-      </Button>
+      {!isCanvasReadOnly && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0 !text-mmd"
+          onClick={(e) => {
+            e.stopPropagation();
+            setDismissAll(true);
+          }}
+          aria-label={t("node.dismissWarning")}
+          data-testid="dismiss-warning-bar"
+        >
+          {t("node.dismiss")}
+        </Button>
+      )}
       {showUpdateAction && (
         <Button
           size="sm"

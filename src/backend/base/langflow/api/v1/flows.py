@@ -8,7 +8,7 @@ from typing import Annotated
 from uuid import UUID
 
 import orjson
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from fastapi_pagination import Page, Params
 from fastapi_pagination.ext.sqlmodel import apaginate
@@ -16,6 +16,7 @@ from lfx.services.cache.utils import CACHE_MISS
 from pydantic import ValidationError
 from sqlmodel import and_, col, select
 
+from langflow.api.error_codes import ApiErrorCode, coded_http_error
 from langflow.api.utils import (
     CurrentActiveUser,
     DbSession,
@@ -46,7 +47,6 @@ from langflow.api.v1.schemas import FlowListCreate
 from langflow.initial_setup.constants import STARTER_FOLDER_NAME
 from langflow.services.auth.utils import get_current_active_user
 from langflow.services.authorization import FlowAction, ensure_flow_permission, filter_visible_resources
-from langflow.services.authorization.fetch import deny_to_404
 from langflow.services.authorization.utils import _resolve_authz_domain
 from langflow.services.cache.service import ThreadingInMemoryCache
 from langflow.services.database.models.deployment.exceptions import (
@@ -83,17 +83,47 @@ __all__ = [
 
 
 def _handle_unique_constraint_error(exc: Exception, *, status_code: int = 400) -> HTTPException:
-    """Parse a UNIQUE constraint error and return an appropriate HTTPException."""
-    msg = str(exc)
-    if "UNIQUE constraint failed" not in msg:
-        return HTTPException(status_code=500, detail=msg)
-    columns = msg.split("UNIQUE constraint failed: ")[1].split(".")[1].split("\n")[0]
-    column = columns.split(",")[1] if "id" in columns.split(",")[0] else columns.split(",")[0]
-    return HTTPException(status_code=status_code, detail=f"{column.capitalize().replace('_', ' ')} must be unique")
+    """Map database diagnostics to a stable public envelope and keep raw text private."""
+    technical_detail = str(exc)
+    if "UNIQUE constraint failed" not in technical_detail:
+        return coded_http_error(
+            ApiErrorCode.SERVER_INTERNAL_ERROR,
+            detail="An internal error occurred while saving the flow.",
+            technical_detail=technical_detail,
+        )
+
+    normalized_detail = technical_detail.casefold()
+    if ".endpoint_name" in normalized_detail:
+        detail = "A flow with this endpoint already exists."
+    elif ".name" in normalized_detail:
+        detail = "A flow with this name already exists."
+    else:
+        detail = "Flow already exists."
+    return coded_http_error(
+        ApiErrorCode.FLOW_ALREADY_EXISTS,
+        detail=detail,
+        technical_detail=technical_detail,
+        status_code=status_code,
+    )
 
 
 # build router
 router = APIRouter(prefix="/flows", tags=["Flows"])
+
+
+def _flow_not_found_error(flow_id: UUID, *, detail: str = "Flow not found") -> HTTPException:
+    return coded_http_error(
+        ApiErrorCode.FLOW_NOT_FOUND,
+        params={"flow_id": str(flow_id)},
+        detail=detail,
+    )
+
+
+def _deny_to_flow_not_found(exc: HTTPException, flow_id: UUID, *, detail: str = "Flow not found") -> HTTPException:
+    """Preserve non-denial errors while hiding denied flow UUIDs behind a coded 404."""
+    if exc.status_code == status.HTTP_403_FORBIDDEN:
+        return _flow_not_found_error(flow_id, detail=detail)
+    return exc
 
 
 @router.post("/", response_model=FlowRead, status_code=201)
@@ -136,7 +166,8 @@ async def read_flows(
         starter_folder_id = starter_folder.id if starter_folder else None
 
         if not starter_folder and not default_folder:
-            raise HTTPException(
+            raise coded_http_error(
+                ApiErrorCode.REQUEST_BAD_REQUEST,
                 status_code=404,
                 detail="Starter project and default project not found. Please create a project and add flows to it.",
             )
@@ -207,7 +238,11 @@ async def read_flows(
         import logging as _logging
 
         _logging.getLogger(__name__).exception("Error listing flows")
-        raise HTTPException(status_code=500, detail="An internal error occurred while listing flows.") from e
+        raise coded_http_error(
+            ApiErrorCode.SERVER_INTERNAL_ERROR,
+            detail="An internal error occurred while listing flows.",
+            technical_detail=str(e),
+        ) from e
 
 
 @router.get("/{flow_id}", response_model=FlowRead, status_code=200)
@@ -264,9 +299,14 @@ async def read_public_flow(
     """Read a public flow without requiring authorization (public means public)."""
     flow = (await session.exec(select(Flow).where(Flow.id == flow_id))).first()
     if flow is None:
-        raise HTTPException(status_code=404, detail="Flow not found")
+        raise _flow_not_found_error(flow_id)
     if flow.access_type is not AccessTypeEnum.PUBLIC:
-        raise HTTPException(status_code=403, detail="Flow is not public")
+        raise coded_http_error(
+            ApiErrorCode.FLOW_INVALID,
+            params={"flow_id": str(flow_id)},
+            detail="Flow is not public",
+            status_code=403,
+        )
     return FlowRead.model_validate(flow, from_attributes=True)
 
 
@@ -300,7 +340,7 @@ async def update_flow(
                     folder_id=target_folder_id,
                 )
             except HTTPException as exc:
-                raise deny_to_404(exc, detail="Flow not found") from exc
+                raise _deny_to_flow_not_found(exc, flow_id) from exc
 
         # Explicit folder_id=None is ignored here because _patch_flow builds
         # update_data with exclude_none=True, so null folder_id is a no-op.
@@ -312,7 +352,7 @@ async def update_flow(
             # Re-load inside each attempt so retry after nested rollback never uses an expired ORM instance.
             db_flow_for_attempt = await _read_flow(session=session, flow_id=flow_id, user_id=current_user.id)
             if not db_flow_for_attempt:
-                raise HTTPException(status_code=404, detail="Flow not found")
+                raise _flow_not_found_error(flow_id)
             # TOCTOU: a concurrent PATCH could have moved this flow to a
             # different workspace/folder between the destination check above
             # and this retry attempt. Re-authorize against the freshly
@@ -328,7 +368,7 @@ async def update_flow(
                     folder_id=db_flow_for_attempt.folder_id,
                 )
             except HTTPException as exc:
-                raise deny_to_404(exc, detail="Flow not found") from exc
+                raise _deny_to_flow_not_found(exc, flow_id) from exc
             attempt_target_workspace_id = (
                 flow.workspace_id if flow.workspace_id is not None else db_flow_for_attempt.workspace_id
             )
@@ -347,7 +387,7 @@ async def update_flow(
                         folder_id=attempt_target_folder_id,
                     )
                 except HTTPException as exc:
-                    raise deny_to_404(exc, detail="Flow not found") from exc
+                    raise _deny_to_flow_not_found(exc, flow_id) from exc
             return await _patch_flow(
                 session=session,
                 db_flow=db_flow_for_attempt,
@@ -400,7 +440,7 @@ async def upsert_flow(
             authz = get_authorization_service()
             can_widen = await authz.supports_cross_user_fetch() and await authz.is_enabled()
             if not can_widen and existing_flow.user_id != current_user.id:
-                raise HTTPException(status_code=404, detail="Flow not found")
+                raise _flow_not_found_error(flow_id)
 
             try:
                 await ensure_flow_permission(
@@ -412,7 +452,7 @@ async def upsert_flow(
                     folder_id=existing_flow.folder_id,
                 )
             except HTTPException as exc:
-                raise deny_to_404(exc, detail="Flow not found") from exc
+                raise _deny_to_flow_not_found(exc, flow_id) from exc
 
             # Destination check (see update_flow above): if the payload moves
             # the flow into a new workspace/folder, also authorize WRITE at the
@@ -432,7 +472,7 @@ async def upsert_flow(
                         folder_id=target_folder_id,
                     )
                 except HTTPException as exc:
-                    raise deny_to_404(exc, detail="Flow not found") from exc
+                    raise _deny_to_flow_not_found(exc, flow_id) from exc
 
             # Sync deployment state before folder changes
             # Explicit folder_id=None is ignored here because _update_existing_flow
@@ -447,7 +487,7 @@ async def upsert_flow(
                 # Re-load inside each attempt so retry after nested rollback never uses an expired ORM instance.
                 existing_flow_for_attempt = await _read_flow(session=session, flow_id=flow_id, user_id=current_user.id)
                 if existing_flow_for_attempt is None:
-                    raise HTTPException(status_code=404, detail="Flow not found")
+                    raise _flow_not_found_error(flow_id)
                 return await _update_existing_flow(
                     session=session,
                     existing_flow=existing_flow_for_attempt,
@@ -536,12 +576,13 @@ async def create_flows(
     if requested_ids:
         existing_ids = (await session.exec(select(Flow.id).where(col(Flow.id).in_(requested_ids)))).all()
         if existing_ids:
-            conflict = ", ".join(str(i) for i in existing_ids)
-            msg = (
-                f"Flow(s) with the following IDs already exist: {conflict}. "
-                "Use the update endpoint or upload_file() for upsert semantics."
+            first_conflict = existing_ids[0]
+            raise coded_http_error(
+                ApiErrorCode.FLOW_ALREADY_EXISTS,
+                params={"flow_id": str(first_conflict)},
+                detail="One or more flows already exist. Use the update endpoint or upload for upsert semantics.",
+                status_code=422,
             )
-            raise HTTPException(status_code=422, detail=msg)
 
     db_flows = []
     for flow in flow_list.flows:
@@ -576,46 +617,60 @@ async def upload_file(
     # caller against ``domain="*", obj="flow:*"`` regardless of where the
     # uploaded flows actually land).
     if file is None:
-        raise HTTPException(status_code=400, detail="No file provided")
+        raise coded_http_error(ApiErrorCode.REQUEST_BAD_REQUEST, detail="No file provided")
 
     contents = await file.read()
 
     if not contents:
-        raise HTTPException(status_code=400, detail="The uploaded file is empty")
+        raise coded_http_error(ApiErrorCode.REQUEST_BAD_REQUEST, detail="The uploaded file is empty")
 
     if zipfile.is_zipfile(io.BytesIO(contents)):
         try:
             flows_data = await extract_flows_from_zip(contents)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e)) from e
+            raise coded_http_error(
+                ApiErrorCode.FLOW_INVALID,
+                detail="The uploaded file is not a valid ZIP archive.",
+                technical_detail=str(e),
+            ) from e
         if not flows_data:
-            raise HTTPException(status_code=400, detail="No valid flow JSON files found in the ZIP")
+            raise coded_http_error(
+                ApiErrorCode.FLOW_INVALID,
+                detail="No valid flow JSON files found in the ZIP",
+            )
         data = {"flows": flows_data}
     else:
         try:
             data = orjson.loads(contents)
         except orjson.JSONDecodeError as e:
-            raise HTTPException(status_code=400, detail=f"Invalid JSON file: {e}") from e
+            raise coded_http_error(
+                ApiErrorCode.FLOW_INVALID,
+                detail="Invalid JSON file.",
+                technical_detail=str(e),
+            ) from e
 
     # Normalise code fields: if exported with code-as-lines format, rejoin to
     # strings before creating the Pydantic models so the DB always stores strings.
     if not isinstance(data, dict):
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.FLOW_INVALID,
             status_code=422,
             detail="Invalid JSON: expected an object with 'flows' or a single flow object",
         )
     try:
         if "flows" in data:
             if not isinstance(data["flows"], list):
-                raise HTTPException(
+                raise coded_http_error(
+                    ApiErrorCode.FLOW_INVALID,
                     status_code=422,
                     detail="Invalid JSON: 'flows' must be a list of flow objects",
                 )
             non_dict = [i for i, f in enumerate(data["flows"]) if not isinstance(f, dict)]
             if non_dict:
-                raise HTTPException(
+                raise coded_http_error(
+                    ApiErrorCode.FLOW_INVALID,
                     status_code=422,
-                    detail=f"Invalid JSON: flows[{non_dict[0]}] is not an object",
+                    detail="Invalid JSON: an item in 'flows' is not an object",
                 )
             data = {**data, "flows": [normalize_code_for_import(f) for f in data["flows"]]}
             flow_list = FlowListCreate(**data)
@@ -624,7 +679,12 @@ async def upload_file(
     except HTTPException:
         raise
     except ValidationError as e:
-        raise HTTPException(status_code=422, detail=str(e)) from e
+        raise coded_http_error(
+            ApiErrorCode.FLOW_INVALID,
+            detail="The uploaded flow data failed validation.",
+            technical_detail=str(e),
+            status_code=422,
+        ) from e
 
     # TODO: Full-version import is planned as a follow-up feature.
     # When implemented, extract raw flow dicts here to read embedded "version"
@@ -708,7 +768,11 @@ async def delete_multiple_flows(
         import logging as _logging
 
         _logging.getLogger(__name__).exception("Error deleting multiple flows")
-        raise HTTPException(status_code=500, detail="An internal error occurred while deleting flows.") from exc
+        raise coded_http_error(
+            ApiErrorCode.SERVER_INTERNAL_ERROR,
+            detail="An internal error occurred while deleting flows.",
+            technical_detail=str(exc),
+        ) from exc
 
     return {"deleted": deleted_count}
 
@@ -735,7 +799,11 @@ async def download_multiple_file(
     flows = (await db.exec(stmt)).all()
 
     if not flows:
-        raise HTTPException(status_code=404, detail="No flows found.")
+        raise coded_http_error(
+            ApiErrorCode.REQUEST_BAD_REQUEST,
+            detail="No flows found.",
+            status_code=404,
+        )
 
     for flow in flows:
         # Plugin deny → 404 (UUID privacy).
@@ -749,7 +817,7 @@ async def download_multiple_file(
                 folder_id=flow.folder_id,
             )
         except HTTPException as exc:
-            raise deny_to_404(exc, detail="No flows found.") from exc
+            raise _deny_to_flow_not_found(exc, flow.id, detail="No flows found.") from exc
 
     return _build_flows_download_response(flows)
 
@@ -810,7 +878,11 @@ async def read_basic_examples(
                 import logging as _logging
 
                 _logging.getLogger(__name__).exception("Error loading basic examples")
-                raise HTTPException(status_code=500, detail="An internal error occurred while loading examples.") from e
+                raise coded_http_error(
+                    ApiErrorCode.SERVER_INTERNAL_ERROR,
+                    detail="An internal error occurred while loading examples.",
+                    technical_detail=str(e),
+                ) from e
 
         # Translate once per locale and cache the result
         # Why: cached uncompressed so the same result can be re-compressed per
@@ -846,11 +918,22 @@ async def expand_compact_flow_endpoint(
         await get_and_cache_all_types_dict(settings_service)
 
     if component_cache.all_types_dict is None:
-        raise HTTPException(status_code=500, detail="Component cache not initialized")
+        raise coded_http_error(
+            ApiErrorCode.SERVER_INTERNAL_ERROR,
+            detail="Component cache not initialized",
+        )
 
     try:
         return expand_compact_flow(compact_data, component_cache.all_types_dict)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise coded_http_error(
+            ApiErrorCode.FLOW_INVALID,
+            detail="Compact flow is invalid or references a component that was not found.",
+            technical_detail=str(e),
+        ) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise coded_http_error(
+            ApiErrorCode.SERVER_INTERNAL_ERROR,
+            detail="An internal error occurred while expanding the flow.",
+            technical_detail=str(e),
+        ) from e

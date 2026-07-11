@@ -6,32 +6,46 @@ import type { KnowledgeBaseInfo } from "@/controllers/API/queries/knowledge-base
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
 const mockCancelMutate = jest.fn();
+let cancelMutationOptions: { onError?: (error: unknown) => void } | undefined;
+type MutationCallbacks = {
+  onSuccess?: (...args: unknown[]) => unknown;
+  onError?: (error: unknown) => void;
+};
 jest.mock(
   "@/controllers/API/queries/knowledge-bases/use-cancel-ingestion",
   () => ({
-    useCancelIngestion: ({ onSuccess, onError }: any) => ({
-      mutate: (args: any) => {
-        mockCancelMutate(args);
-      },
-      isPending: false,
-      _onSuccess: onSuccess,
-      _onError: onError,
-    }),
+    useCancelIngestion: ({ onSuccess, onError }: MutationCallbacks) => {
+      cancelMutationOptions = { onError };
+      return {
+        mutate: (args: unknown) => {
+          mockCancelMutate(args);
+        },
+        isPending: false,
+        _onSuccess: onSuccess,
+        _onError: onError,
+      };
+    },
   }),
 );
 
 const mockDeleteMutate = jest.fn();
+const deleteMutationOptions: Array<{
+  onError?: (error: unknown) => void;
+}> = [];
 jest.mock(
   "@/controllers/API/queries/knowledge-bases/use-delete-knowledge-base",
   () => ({
-    useDeleteKnowledgeBase: ({ onSuccess, onError }: any) => ({
-      mutate: (args: any) => {
-        mockDeleteMutate(args);
-      },
-      isPending: false,
-      _onSuccess: onSuccess,
-      _onError: onError,
-    }),
+    useDeleteKnowledgeBase: ({ onSuccess, onError }: MutationCallbacks) => {
+      deleteMutationOptions.push({ onError });
+      return {
+        mutate: (args: unknown) => {
+          mockDeleteMutate(args);
+        },
+        isPending: false,
+        _onSuccess: onSuccess,
+        _onError: onError,
+      };
+    },
   }),
 );
 
@@ -83,7 +97,11 @@ const defaultOptions = {
   clearSelection: jest.fn(),
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  cancelMutationOptions = undefined;
+  deleteMutationOptions.length = 0;
+});
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 
@@ -264,6 +282,31 @@ describe("useKnowledgeBaseActions", () => {
       act(() => result.current.handleStopIngestion(kb));
       expect(mockCancelMutate).toHaveBeenCalledWith({
         kb_name: "my_ingesting_kb",
+      });
+    });
+
+    it("localizes a stable knowledge error code before the generic fallback", () => {
+      const qc = makeQueryClient();
+      renderHook(() => useKnowledgeBaseActions(defaultOptions), {
+        wrapper: createWrapper(qc),
+      });
+
+      act(() => {
+        cancelMutationOptions?.onError?.({
+          response: {
+            status: 404,
+            data: {
+              code: "knowledge.not_found",
+              detail: "provider-internal text",
+              params: { name: "my_kb" },
+            },
+          },
+        });
+      });
+
+      expect(mockSetErrorData).toHaveBeenCalledWith({
+        title: "Failed to cancel ingestion",
+        list: ["The knowledge base was not found."],
       });
     });
   });

@@ -9,6 +9,10 @@ from lfx.schema.dotdict import dotdict
 
 
 class CreateDataComponent(Component):
+    dynamic_i18n = {
+        "display_name": "Field {index}",
+        "info": "Key for field {index}.",
+    }
     display_name: str = "Create Data"
     description: str = "Dynamically create a Data with a specified number of fields."
     name: str = "CreateData"

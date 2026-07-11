@@ -76,12 +76,16 @@ jest.mock("../tweaksStore", () => ({
   },
 }));
 
+const mockTypesStoreState = {
+  data: {},
+  types: {},
+  templates: {},
+  componentDisplayNames: {} as import("@/types/api").ComponentDisplayNamesType,
+};
+
 jest.mock("../typesStore", () => ({
   useTypesStore: {
-    getState: () => ({
-      templates: {},
-      types: {},
-    }),
+    getState: () => mockTypesStoreState,
   },
 }));
 
@@ -94,11 +98,13 @@ jest.mock("@/utils/utils", () => ({
 // The store should handle missing utilities gracefully
 
 import { checkCodeValidity } from "@/CustomNodes/helpers/check-code-validity";
-import type { AllNodeType, EdgeType } from "@/types/flow";
+import { BuildStatus } from "@/constants/enums";
+import type { AllNodeType, EdgeType, NodeDataType } from "@/types/flow";
 import useFlowStore, {
   completeNodeUpdate,
   recomputeComponentsToUpdateIfNeeded,
   registerNodeUpdate,
+  syncNodeTranslations,
   waitForNodeUpdates,
 } from "../flowStore";
 import { useUtilityStore } from "../utilityStore";
@@ -129,6 +135,10 @@ describe("useFlowStore", () => {
 
     // Reset store state to basics
     act(() => {
+      mockTypesStoreState.data = {};
+      mockTypesStoreState.types = {};
+      mockTypesStoreState.templates = {};
+      mockTypesStoreState.componentDisplayNames = {};
       useUtilityStore.setState({ allowCustomComponents: true });
       useFlowStore.setState({
         playgroundPage: false,
@@ -1106,6 +1116,395 @@ describe("useFlowStore", () => {
       const latest = result.current.flowPool["node-99"].at(-1)!.data.logs;
       expect(latest["output_a"]).toEqual([mockLog]);
       expect(latest["output_b"]).toEqual([mockLog2]);
+    });
+  });
+
+  describe("localized component metadata synchronization", () => {
+    const makeDefinition = (
+      locale: "en" | "ru",
+      outputOrder: Array<"primary" | "secondary">,
+    ) => {
+      const labels =
+        locale === "ru"
+          ? {
+              name: "Демо",
+              description: "Описание",
+              prompt: "Запрос",
+              primary: "Первый",
+              secondary: "Второй",
+            }
+          : {
+              name: "Demo",
+              description: "Description",
+              prompt: "Prompt",
+              primary: "Primary",
+              secondary: "Secondary",
+            };
+
+      return {
+        display_name: labels.name,
+        description: labels.description,
+        template: {
+          prompt: {
+            name: "prompt",
+            type: "str",
+            display_name: labels.prompt,
+            info: `${labels.prompt} info`,
+            placeholder: labels.prompt,
+            value: "stable-user-value",
+          },
+        },
+        outputs: outputOrder.map((name) => ({
+          name,
+          types: ["Message"],
+          display_name: labels[name],
+          info: `${labels[name]} info`,
+          method: `build_${name}`,
+        })),
+      };
+    };
+
+    const makeNode = () =>
+      ({
+        id: "node-stable-id",
+        type: "genericNode",
+        position: { x: 10, y: 20 },
+        data: {
+          id: "node-stable-id",
+          type: "Demo",
+          selected_output: "secondary",
+          node: {
+            display_name: "Demo",
+            description: "Description",
+            template: {
+              prompt: {
+                name: "prompt",
+                type: "str",
+                display_name: "Prompt",
+                value: "stable-user-value",
+                options: ["stable-option"],
+              },
+            },
+            outputs: [
+              {
+                name: "secondary",
+                types: ["Message"],
+                display_name: "Secondary",
+                method: "build_secondary",
+                selected: "Message",
+              },
+              {
+                name: "removed_from_new_definition",
+                types: ["Data"],
+                display_name: "Legacy output",
+                method: "legacy_method",
+              },
+              {
+                name: "primary",
+                types: ["Message"],
+                display_name: "Primary",
+                method: "build_primary",
+              },
+            ],
+          },
+        },
+      }) as unknown as AllNodeType;
+
+    const protocolProjection = (node: AllNodeType) => {
+      const data = node.data as NodeDataType;
+      return {
+        id: node.id,
+        type: node.type,
+        dataId: data.id,
+        componentType: data.type,
+        selectedOutput: data.selected_output,
+        input: {
+          name: data.node?.template.prompt.name,
+          type: data.node?.template.prompt.type,
+          value: data.node?.template.prompt.value,
+          options: data.node?.template.prompt.options,
+        },
+        outputs: data.node?.outputs?.map((output) => ({
+          name: output.name,
+          types: output.types,
+          method: output.method,
+          selected: output.selected,
+        })),
+      };
+    };
+
+    const configureDefinition = (
+      locale: "en" | "ru",
+      outputOrder: Array<"primary" | "secondary">,
+    ) => {
+      mockTypesStoreState.types = { Demo: "processing" };
+      mockTypesStoreState.data = {
+        processing: { Demo: makeDefinition(locale, outputOrder) },
+      };
+      mockTypesStoreState.componentDisplayNames = {
+        demo: {
+          display_name: ["Demo", "Демо"],
+          description: ["Description", "Описание"],
+          fields: {
+            prompt: { display_name: ["Prompt", "Запрос"] },
+          },
+          outputs: {
+            primary: {
+              display_name: ["Primary", "Первый"],
+              info: ["Primary info", "Первый info"],
+            },
+            secondary: {
+              display_name: ["Secondary", "Второй"],
+              info: ["Secondary info", "Второй info"],
+            },
+          },
+        },
+      };
+    };
+
+    it("matches outputs by stable name through en→ru→en and preserves the graph ABI", () => {
+      const original = makeNode();
+      const protocolBefore = protocolProjection(original);
+      useFlowStore.setState({ nodes: [original] });
+
+      configureDefinition("ru", ["primary", "secondary"]);
+      syncNodeTranslations();
+
+      let translated = useFlowStore.getState().nodes[0];
+      expect(
+        translated.data.node?.outputs?.map((output) => [
+          output.name,
+          output.display_name,
+        ]),
+      ).toEqual([
+        ["secondary", "Второй"],
+        ["removed_from_new_definition", "Legacy output"],
+        ["primary", "Первый"],
+      ]);
+      expect(protocolProjection(translated)).toEqual(protocolBefore);
+
+      configureDefinition("en", ["secondary", "primary"]);
+      syncNodeTranslations();
+
+      translated = useFlowStore.getState().nodes[0];
+      expect(
+        translated.data.node?.outputs?.map((output) => [
+          output.name,
+          output.display_name,
+        ]),
+      ).toEqual([
+        ["secondary", "Secondary"],
+        ["removed_from_new_definition", "Legacy output"],
+        ["primary", "Primary"],
+      ]);
+      expect(protocolProjection(translated)).toEqual(protocolBefore);
+    });
+
+    it("preserves custom component and input display overrides in old flows", () => {
+      const node = makeNode();
+      node.data.node!.display_name = "My custom component";
+      node.data.node!.description = "My custom description";
+      node.data.node!.template.prompt.display_name = "My custom prompt";
+      useFlowStore.setState({ nodes: [node] });
+      configureDefinition("ru", ["primary", "secondary"]);
+
+      syncNodeTranslations();
+
+      const translated = useFlowStore.getState().nodes[0];
+      expect(translated.data.node).toMatchObject({
+        display_name: "My custom component",
+        description: "My custom description",
+        template: {
+          prompt: {
+            display_name: "My custom prompt",
+            value: "stable-user-value",
+          },
+        },
+      });
+    });
+
+    it("preserves custom output display and info overrides", () => {
+      const node = makeNode();
+      const primaryOutput = node.data.node!.outputs!.find(
+        (output) => output.name === "primary",
+      )!;
+      primaryOutput.display_name = "My custom output";
+      primaryOutput.info = "My custom output help";
+      useFlowStore.setState({ nodes: [node] });
+      configureDefinition("ru", ["primary", "secondary"]);
+
+      syncNodeTranslations();
+
+      const translatedOutputs =
+        useFlowStore.getState().nodes[0].data.node?.outputs;
+      expect(
+        translatedOutputs?.find((output) => output.name === "primary"),
+      ).toMatchObject({
+        name: "primary",
+        display_name: "My custom output",
+        info: "My custom output help",
+      });
+      expect(
+        translatedOutputs?.find((output) => output.name === "secondary"),
+      ).toMatchObject({
+        name: "secondary",
+        display_name: "Второй",
+        info: "Второй info",
+      });
+    });
+
+    it("refreshes every input presentation field and option label without changing raw values", () => {
+      const node = makeNode();
+      Object.assign(node.data.node!.template.prompt, {
+        info: "Prompt help",
+        placeholder: "Prompt placeholder",
+        helper_text: "Prompt helper",
+        refresh_button_text: "Refresh choices",
+        list_add_label: "Add prompt",
+        auth_tooltip: "Authentication help",
+        min_label: "Minimum",
+        max_label: "Maximum",
+        trigger_text: "Open choices",
+        options: ["fast", "accurate"],
+        options_metadata: [
+          { value: "fast", label: "Fast" },
+          { value: "accurate", label: "Accurate" },
+        ],
+        dialog_inputs: { title: "Choose a mode" },
+      });
+      useFlowStore.setState({ nodes: [node] });
+      mockTypesStoreState.types = { Demo: "processing" };
+      mockTypesStoreState.data = {
+        processing: {
+          Demo: {
+            display_name: "Демо",
+            description: "Описание",
+            template: {
+              prompt: {
+                name: "prompt",
+                type: "str",
+                display_name: "Запрос",
+                info: "Справка по запросу",
+                placeholder: "Введите запрос",
+                helper_text: "Подсказка по запросу",
+                refresh_button_text: "Обновить варианты",
+                list_add_label: "Добавить запрос",
+                auth_tooltip: "Справка по аутентификации",
+                min_label: "Минимум",
+                max_label: "Максимум",
+                trigger_text: "Открыть варианты",
+                value: "stable-user-value",
+                options: ["fast", "accurate"],
+                options_metadata: [
+                  { value: "fast", label: "Быстро" },
+                  { value: "accurate", label: "Точно" },
+                ],
+                dialog_inputs: { title: "Выберите режим" },
+              },
+            },
+            outputs: [],
+          },
+        },
+      };
+      mockTypesStoreState.componentDisplayNames = {
+        demo: {
+          display_name: ["Demo", "Демо"],
+          description: ["Description", "Описание"],
+          fields: {
+            prompt: {
+              display_name: ["Prompt", "Запрос"],
+              presentation: {
+                info: ["Prompt help", "Справка по запросу"],
+                placeholder: ["Prompt placeholder", "Введите запрос"],
+                helper_text: ["Prompt helper", "Подсказка по запросу"],
+                refresh_button_text: ["Refresh choices", "Обновить варианты"],
+                list_add_label: ["Add prompt", "Добавить запрос"],
+                auth_tooltip: [
+                  "Authentication help",
+                  "Справка по аутентификации",
+                ],
+                min_label: ["Minimum", "Минимум"],
+                max_label: ["Maximum", "Максимум"],
+                trigger_text: ["Open choices", "Открыть варианты"],
+                "options_metadata.label": [
+                  "Fast",
+                  "Accurate",
+                  "Быстро",
+                  "Точно",
+                ],
+                "dialog_inputs.title": ["Choose a mode", "Выберите режим"],
+              },
+            },
+          },
+          outputs: {},
+        },
+      } as unknown as import("@/types/api").ComponentDisplayNamesType;
+
+      syncNodeTranslations();
+
+      const prompt =
+        useFlowStore.getState().nodes[0].data.node!.template.prompt;
+      expect(prompt).toMatchObject({
+        display_name: "Запрос",
+        info: "Справка по запросу",
+        placeholder: "Введите запрос",
+        helper_text: "Подсказка по запросу",
+        refresh_button_text: "Обновить варианты",
+        list_add_label: "Добавить запрос",
+        auth_tooltip: "Справка по аутентификации",
+        min_label: "Минимум",
+        max_label: "Максимум",
+        trigger_text: "Открыть варианты",
+        value: "stable-user-value",
+        options: ["fast", "accurate"],
+        options_metadata: [
+          { value: "fast", label: "Быстро" },
+          { value: "accurate", label: "Точно" },
+        ],
+        dialog_inputs: { title: "Выберите режим" },
+      });
+    });
+
+    it("preserves existing output presentation for older metadata responses", () => {
+      const node = makeNode();
+      const primaryOutput = node.data.node!.outputs!.find(
+        (output) => output.name === "primary",
+      )!;
+      primaryOutput.display_name = "My old-client output";
+      primaryOutput.info = "My old-client help";
+      useFlowStore.setState({ nodes: [node] });
+      configureDefinition("ru", ["primary", "secondary"]);
+      delete mockTypesStoreState.componentDisplayNames.demo.outputs;
+
+      syncNodeTranslations();
+
+      expect(
+        useFlowStore
+          .getState()
+          .nodes[0].data.node?.outputs?.find(
+            (output) => output.name === "primary",
+          ),
+      ).toMatchObject({
+        name: "primary",
+        display_name: "My old-client output",
+        info: "My old-client help",
+      });
+    });
+  });
+
+  describe("build status timestamp storage", () => {
+    it("stores a locale-neutral ISO timestamp", () => {
+      const now = new Date("2026-07-11T07:30:00.000Z");
+      jest.spyOn(Date, "now").mockReturnValue(now.getTime());
+      const { result } = renderHook(() => useFlowStore());
+
+      act(() => {
+        result.current.updateBuildStatus(["node-iso"], BuildStatus.BUILT);
+      });
+
+      expect(result.current.flowBuildStatus["node-iso"].timestamp).toBe(
+        now.toISOString(),
+      );
     });
   });
 });

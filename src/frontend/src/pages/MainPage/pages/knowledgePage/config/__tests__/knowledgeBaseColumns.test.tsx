@@ -29,6 +29,7 @@ jest.mock("@/utils/styleUtils", () => ({
 }));
 
 import type { KnowledgeBaseInfo } from "@/controllers/API/queries/knowledge-bases/use-get-knowledge-bases";
+import ruTranslations from "@/locales/ru.json";
 import { createKnowledgeBaseColumns } from "../knowledgeBaseColumns";
 
 const makeKb = (
@@ -59,6 +60,27 @@ type StatusCellRendererProps = {
 };
 
 describe("createKnowledgeBaseColumns", () => {
+  it("renders the missing embedding model fallback in Russian", () => {
+    const t = (key: string) =>
+      ruTranslations[key as keyof typeof ruTranslations] ?? key;
+    const cols = createKnowledgeBaseColumns(undefined, t);
+    const modelColumn = cols.find(
+      (column) => column.headerName === "Модель эмбеддингов",
+    )!;
+    const CellRenderer = modelColumn.cellRenderer as React.ComponentType<{
+      data: KnowledgeBaseInfo;
+    }>;
+
+    render(
+      <CellRenderer
+        data={makeKb({ embedding_model: "", embedding_provider: "" })}
+      />,
+    );
+
+    expect(screen.getByText("Неизвестно")).toBeInTheDocument();
+    expect(screen.queryByText("Unknown")).not.toBeInTheDocument();
+  });
+
   it("returns 8 column definitions", () => {
     const cols = createKnowledgeBaseColumns();
     expect(cols).toHaveLength(8);

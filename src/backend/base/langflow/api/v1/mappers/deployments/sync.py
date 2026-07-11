@@ -30,6 +30,7 @@ from lfx.services.adapters.deployment.schema import (
 from lfx.services.deps import get_deployment_adapter
 from lfx.services.interfaces import DeploymentServiceProtocol
 
+from langflow.api.error_codes import ApiErrorCode, coded_http_error
 from langflow.services.adapters.deployment.context import deployment_provider_scope
 from langflow.services.database.models.deployment.crud import (
     delete_deployments_by_ids,
@@ -109,17 +110,19 @@ async def fetch_provider_resource_keys(
     except DeploymentServiceError as exc:
         http_status = http_status_for_deployment_error(exc)
         logger.exception("Adapter error (status=%s): %s", http_status, exc.message)
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.DEPLOYMENT_UPDATE_FAILED,
             status_code=http_status,
-            detail=exc.message,
+            technical_detail=str(exc),
         ) from exc
     except HTTPException:
         raise
     except Exception as exc:
         logger.exception("Provider list call failed for provider %s", provider_id)
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.SERVER_INTERNAL_ERROR,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while communicating with the deployment provider.",
+            technical_detail=str(exc),
         ) from exc
     error_msg = "Provider returned a deployment with an empty id."
     known_keys = {require_non_empty(str(item.id), error_msg) for item in provider_view.deployments}
@@ -146,17 +149,19 @@ async def fetch_provider_snapshot_keys(
     except DeploymentServiceError as exc:
         http_status = http_status_for_deployment_error(exc)
         logger.exception("Adapter error (status=%s): %s", http_status, exc.message)
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.DEPLOYMENT_UPDATE_FAILED,
             status_code=http_status,
-            detail=exc.message,
+            technical_detail=str(exc),
         ) from exc
     except HTTPException:
         raise
     except Exception as exc:
         logger.exception("Provider list_snapshots call failed for provider %s", provider_id)
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.SERVER_INTERNAL_ERROR,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while communicating with the deployment provider.",
+            technical_detail=str(exc),
         ) from exc
     return extract_verified_provider_snapshot_ids(snapshot_view)
 

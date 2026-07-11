@@ -1,10 +1,21 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/utils";
 
+export interface ListSelectionItem {
+  id?: string | number;
+  name: string;
+  icon?: string;
+  link?: string;
+  description?: string;
+  metaData?: string;
+}
+
 const ListItem = ({
   item,
+  label,
   isSelected,
   onClick,
   className,
@@ -14,7 +25,8 @@ const ListItem = ({
   isKeyboardNavActive,
   dataTestId,
 }: {
-  item: any;
+  item: ListSelectionItem;
+  label?: string;
   isSelected: boolean;
   onClick: () => void;
   className?: string;
@@ -24,10 +36,12 @@ const ListItem = ({
   isKeyboardNavActive: boolean;
   dataTestId: string;
 }) => {
+  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
   const itemRef = useRef<HTMLButtonElement>(null);
-  const formattedIcon =
-    item?.icon?.charAt(0).toUpperCase() + item?.icon?.slice(1);
+  const formattedIcon = item.icon
+    ? item.icon.charAt(0).toUpperCase() + item.icon.slice(1)
+    : "";
 
   // Clear hover state when keyboard navigation is active
   useEffect(() => {
@@ -79,7 +93,7 @@ const ListItem = ({
         )}
         <div className="flex w-full flex-col truncate">
           <div className="flex w-full items-center gap-2 truncate text-mmd font-medium">
-            <span className="truncate">{item.name}</span>
+            <span className="truncate">{label ?? item.name}</span>
             {"description" in item && item.description && (
               <span className="font-normal text-muted-foreground">
                 {item.description}
@@ -96,7 +110,7 @@ const ListItem = ({
         {isHovered || isFocused ? (
           <div className="ml-auto flex items-center justify-start rounded-md">
             <div className="flex items-center pr-1.5 text-mmd font-semibold text-muted-foreground">
-              Select
+              {t("common.select")}
             </div>
             <div className="flex items-center justify-center rounded-md">
               <ForwardedIconComponent

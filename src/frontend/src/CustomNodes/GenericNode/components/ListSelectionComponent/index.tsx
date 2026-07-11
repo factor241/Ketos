@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import SearchBarComponent from "@/components/core/parameterRenderComponent/components/searchBarComponent";
 import type { InputProps } from "@/components/core/parameterRenderComponent/types";
@@ -6,22 +7,24 @@ import { Button } from "@/components/ui/button";
 import { DialogFooter, DialogHeader } from "@/components/ui/dialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog-with-no-close";
 import { Input } from "@/components/ui/input";
-import { cn, testIdCase } from "@/utils/utils";
-import ListItem from "./ListItem";
+import { getOptionLabel } from "@/utils/option-presentation";
+import { testIdCase } from "@/utils/utils";
+import ListItem, { type ListSelectionItem } from "./ListItem";
 
 // Update interface with better types
 interface ListSelectionComponentProps {
   open: boolean;
   onClose: () => void;
-  options: any[];
-  setSelectedList: (action: any[]) => void;
-  selectedList: any[];
+  options: ListSelectionItem[];
+  setSelectedList: (action: ListSelectionItem[]) => void;
+  selectedList: ListSelectionItem[];
   searchCategories?: string[];
-  onSelection?: (action: any) => void;
+  onSelection?: (action: ListSelectionItem) => void;
   limit?: number;
   headerSearchPlaceholder?: string;
   addButtonText?: string;
   onAddButtonClick?: () => void;
+  optionsMetaData?: Array<Record<string, unknown>>;
 }
 
 const ListSelectionComponent = ({
@@ -33,14 +36,20 @@ const ListSelectionComponent = ({
   selectedList = [],
   options,
   limit = 1,
-  headerSearchPlaceholder = "Search...",
+  headerSearchPlaceholder,
   addButtonText,
   onAddButtonClick,
+  optionsMetaData = [],
   ...baseInputProps
-}: InputProps<any, ListSelectionComponentProps>) => {
+}: InputProps<unknown, ListSelectionComponentProps>) => {
+  const { t } = useTranslation();
+  const resolvedHeaderSearchPlaceholder =
+    headerSearchPlaceholder ?? t("sidebar.searchPlaceholder");
   const { nodeClass } = baseInputProps;
   const [search, setSearch] = useState("");
-  const [hoveredItem, setHoveredItem] = useState<any | null>(null);
+  const [hoveredItem, setHoveredItem] = useState<ListSelectionItem | null>(
+    null,
+  );
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
   const [isKeyboardNavActive, setIsKeyboardNavActive] = useState(false);
   const listContainerRef = useRef<HTMLDivElement>(null);
@@ -50,13 +59,17 @@ const ListSelectionComponent = ({
       return options;
     }
     const searchTerm = search.toLowerCase();
-    return options.filter((item) =>
-      item.name.toLowerCase().includes(searchTerm),
-    );
-  }, [options, search]);
+    return options.filter((item) => {
+      const label = getOptionLabel(item, options, optionsMetaData);
+      return (
+        item.name.toLowerCase().includes(searchTerm) ||
+        label.toLowerCase().includes(searchTerm)
+      );
+    });
+  }, [options, optionsMetaData, search]);
 
   const handleSelectAction = useCallback(
-    (action: any) => {
+    (action: ListSelectionItem) => {
       if (limit !== 1) {
         // Multiple selection mode
         const isAlreadySelected = selectedList.some(
@@ -192,7 +205,7 @@ const ListSelectionComponent = ({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="border-none focus:ring-0"
-                placeholder={headerSearchPlaceholder}
+                placeholder={resolvedHeaderSearchPlaceholder}
                 data-testid="search_bar_input"
               />
             </div>
@@ -219,6 +232,7 @@ const ListSelectionComponent = ({
               <ListItem
                 key={`${item.name}-${index}`}
                 item={item}
+                label={getOptionLabel(item, options, optionsMetaData)}
                 isSelected={
                   selectedList.some(
                     (selected) => selected.name === item.name,
@@ -244,7 +258,7 @@ const ListSelectionComponent = ({
             ))
           ) : (
             <div className="py-3 text-center text-muted-foreground">
-              No items match your search
+              {t("common.noItemsMatchSearch")}
             </div>
           )}
         </div>

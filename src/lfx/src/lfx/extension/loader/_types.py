@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from lfx.extension.errors import ExtensionError
+    from lfx.extension.manifest import LocaleBundle
 
 # ---------------------------------------------------------------------------
 # Slot names
@@ -78,6 +79,10 @@ class LoadedComponent:
     where the class-name set is unchanged but the backing source changed --
     without this, body edits surface to the API as ``components_added=[]``
     / ``components_removed=[]`` and the UI shows ``no component changes``."""
+    locale_bundle: LocaleBundle | None = None
+    """Validated, namespaced manifest catalogs carried into palette templates."""
+    ru_missing: bool = True
+    """Explicit marker used by the manifest's ``mark`` fallback policy."""
 
     def __post_init__(self) -> None:
         if self.slot == SLOT_EXTRA and self.distribution is not None:

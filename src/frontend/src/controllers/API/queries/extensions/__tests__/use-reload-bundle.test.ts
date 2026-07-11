@@ -92,7 +92,7 @@ describe("useReloadBundle", () => {
     const mutation = useReloadBundle({ onError });
     await expect(
       mutation.mutate({ extensionId: "lfx-openai", bundleName: "openai" }),
-    ).rejects.toThrow(/^reload-in-progress: already running$/);
+    ).rejects.toThrow(/^reload-in-progress$/);
     expect(onError).toHaveBeenCalled();
   });
 

@@ -41,7 +41,7 @@ export const ErrorView = ({
               <LogoIcon />
               <div className="flex items-center">
                 <TextShimmer className="" duration={1}>
-                  Flow running...
+                  {t("playground.flowRunning")}
                 </TextShimmer>
               </div>
             </motion.div>
@@ -71,7 +71,7 @@ export const ErrorView = ({
                             {content.component && (
                               <>
                                 <span>
-                                  An error occured in the{" "}
+                                  {t("playground.errorInComponentBefore")}{" "}
                                   <span
                                     className={cn(
                                       closeChat ?? "cursor-pointer underline",
@@ -85,18 +85,19 @@ export const ErrorView = ({
                                   >
                                     <strong>{content.component}</strong>
                                   </span>{" "}
-                                  Component, stopping your flow. See below for
-                                  more details.
+                                  {t("playground.errorInComponentAfter")}
                                 </span>
                               </>
                             )}
                           </div>
                           <div>
                             <h3 className="pb-3 font-semibold">
-                              Error details:
+                              {t("assistant.errorDetails")}:
                             </h3>
                             {content.field && (
-                              <p className="pb-1">Field: {content.field}</p>
+                              <p className="pb-1">
+                                {t("playground.fieldLabel")} {content.field}
+                              </p>
                             )}
                             {content.reason && (
                               <span className="">
@@ -178,7 +179,7 @@ export const ErrorView = ({
                             {content.solution && (
                               <div className="mt-4">
                                 <h3 className="pb-3 font-semibold">
-                                  Steps to fix:
+                                  {t("playground.stepsToFix")}:
                                 </h3>
                                 <ol className="list-decimal pl-5">
                                   <li>{t("instructions.checkSettings")}</li>

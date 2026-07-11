@@ -71,21 +71,22 @@ export default function DictAreaModal({
   const IteractiveReader = () => {
     return (
       <span>
-        Customize your dictionary, adding or editing key-value pairs as needed.
-        Supports adding new{" "}
-        <span
+        {t("dictAreaModal.descriptionPrefix")}{" "}
+        <button
+          type="button"
           onClick={() => handleChangeType("object")}
           className="cursor-pointer underline"
         >
-          objects &#123; &#125;
-        </span>{" "}
-        or{" "}
-        <span
+          {t("dictAreaModal.objects")}
+        </button>{" "}
+        {t("dictAreaModal.or")}{" "}
+        <button
+          type="button"
           onClick={() => handleChangeType("array")}
           className="cursor-pointer underline"
         >
-          arrays [].
-        </span>
+          {t("dictAreaModal.arrays")}
+        </button>
       </span>
     );
   };

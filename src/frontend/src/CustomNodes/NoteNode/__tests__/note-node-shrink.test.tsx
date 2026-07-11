@@ -9,6 +9,7 @@ import {
   NOTE_NODE_MIN_HEIGHT,
   NOTE_NODE_MIN_WIDTH,
 } from "@/constants/constants";
+import { CanvasReadOnlyProvider } from "@/contexts/canvas-read-only-context";
 import type { NoteDataType } from "@/types/flow";
 
 // Mock dependencies
@@ -22,9 +23,14 @@ const mockCurrentFlow = {
   },
 };
 
+type MockFlowStoreState = {
+  currentFlow: typeof mockCurrentFlow;
+  setNode: typeof mockSetNode;
+};
+
 jest.mock("@/stores/flowStore", () => ({
   __esModule: true,
-  default: (selector: (state: any) => any) =>
+  default: <T,>(selector: (state: MockFlowStoreState) => T): T =>
     selector({
       currentFlow: mockCurrentFlow,
       setNode: mockSetNode,
@@ -40,7 +46,10 @@ jest.mock("@xyflow/react", () => ({
   }: {
     minWidth: number;
     minHeight: number;
-    onResize: (event: any, params: { width: number; height: number }) => void;
+    onResize: (
+      event: unknown,
+      params: { width: number; height: number },
+    ) => void;
     isVisible?: boolean;
   }) => (
     <div
@@ -53,7 +62,7 @@ jest.mock("@xyflow/react", () => ({
 }));
 
 jest.mock("@/shared/hooks/use-alternate", () => ({
-  useAlternate: (initial: boolean) => [initial, jest.fn()],
+  useAlternate: (initial: boolean) => [initial, jest.fn(), jest.fn()],
 }));
 
 jest.mock("../NoteToolbarComponent", () => ({
@@ -67,7 +76,7 @@ jest.mock("../../GenericNode/components/NodeDescription", () => ({
 }));
 
 jest.mock("@/utils/utils", () => ({
-  cn: (...classes: any[]) => classes.filter(Boolean).join(" "),
+  cn: (...classes: unknown[]) => classes.filter(Boolean).join(" "),
 }));
 
 // Import component after mocks are set up
@@ -123,6 +132,23 @@ describe("NoteNode Shrink Behavior", () => {
       rerender(<NoteNode data={data} selected={false} />);
       resizer = screen.getByTestId("node-resizer");
       expect(resizer.dataset.isVisible).toBe("false");
+    });
+
+    it("hides resize and toolbar mutations in a read-only canvas", () => {
+      const data = createMockData();
+
+      render(
+        <CanvasReadOnlyProvider readOnly>
+          <NoteNode data={data} selected />
+        </CanvasReadOnlyProvider>,
+      );
+
+      expect(screen.getByTestId("node-resizer")).toHaveAttribute(
+        "data-is-visible",
+        "false",
+      );
+      expect(screen.queryByTestId("note-toolbar")).not.toBeInTheDocument();
+      expect(mockSetNode).not.toHaveBeenCalled();
     });
   });
 

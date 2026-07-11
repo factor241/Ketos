@@ -164,10 +164,11 @@ export interface AssistantModel {
   displayName: string;
 }
 
+export type AssistantSuggestionId = "build-agents" | "answer-questions";
+
 export interface AssistantSuggestion {
-  id: string;
+  id: AssistantSuggestionId;
   icon: string;
-  text: string;
 }
 
 export interface AssistantPanelProps {

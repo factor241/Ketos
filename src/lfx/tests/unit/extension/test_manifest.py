@@ -84,6 +84,150 @@ def test_minimal_manifest_round_trip() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Namespaced locale bundle
+# ---------------------------------------------------------------------------
+
+
+def test_manifest_without_locale_bundle_defaults_to_marked_ru_missing() -> None:
+    manifest = ExtensionManifest.model_validate(_VALID)
+
+    assert manifest.locale_bundle is None
+    assert manifest.ru_missing_policy == "mark"
+    assert manifest.ru_missing is True
+
+
+def test_locale_bundle_round_trips_flat_component_catalogs() -> None:
+    payload = _with(
+        _VALID,
+        locale_bundle={
+            "namespace": "lfx-openai",
+            "locales": {
+                "en": {"components.widget.display_name": "Widget"},
+                "ru": {"components.widget.display_name": "Виджет"},
+            },
+        },
+    )
+
+    manifest = ExtensionManifest.model_validate(payload)
+    dumped = manifest.model_dump(by_alias=True, mode="json")
+
+    assert manifest.locale_bundle is not None
+    assert manifest.locale_bundle.namespace == manifest.id
+    assert manifest.locale_bundle.locales["ru"]["components.widget.display_name"] == "Виджет"
+    assert manifest.ru_missing_policy == "mark"
+    assert manifest.ru_missing is False
+    assert dumped["locale_bundle"] == payload["locale_bundle"]
+    assert dumped["ru_missing_policy"] == "mark"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        _VALID,
+        _with(
+            _VALID,
+            locale_bundle={
+                "namespace": "lfx-openai",
+                "locales": {"en": {"components.widget.display_name": "Widget"}},
+            },
+        ),
+    ],
+)
+def test_ru_missing_policy_fail_rejects_absent_ru(payload: dict) -> None:
+    with pytest.raises(ValidationError, match=r"Russian locale.*required"):
+        ExtensionManifest.model_validate(_with(payload, ru_missing_policy="fail"))
+
+
+def test_ru_missing_policy_fail_accepts_ru_catalog() -> None:
+    payload = _with(
+        _VALID,
+        ru_missing_policy="fail",
+        locale_bundle={
+            "namespace": "lfx-openai",
+            "locales": {"ru": {"components.widget.display_name": "Виджет"}},
+        },
+    )
+
+    manifest = ExtensionManifest.model_validate(payload)
+
+    assert manifest.ru_missing is False
+    assert manifest.ru_missing_policy == "fail"
+
+
+@pytest.mark.parametrize("namespace", ["components", "lfx-other"])
+def test_locale_bundle_namespace_must_equal_extension_id(namespace: str) -> None:
+    payload = _with(
+        _VALID,
+        locale_bundle={
+            "namespace": namespace,
+            "locales": {"ru": {"components.widget.display_name": "Виджет"}},
+        },
+    )
+
+    with pytest.raises(ValidationError, match=r"namespace.*extension id"):
+        ExtensionManifest.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "catalog_key",
+    [
+        "apiErrors.extensions.invalidManifest",
+        "extensions.other.components.widget.display_name",
+        "components",
+        "core.components.widget.display_name",
+    ],
+)
+def test_locale_bundle_rejects_non_component_relative_keys(catalog_key: str) -> None:
+    payload = _with(
+        _VALID,
+        locale_bundle={
+            "namespace": "lfx-openai",
+            "locales": {"ru": {catalog_key: "Значение"}},
+        },
+    )
+
+    with pytest.raises(ValidationError, match="components"):
+        ExtensionManifest.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "locales",
+    [
+        {},
+        {"ru": {}},
+        {"": {"components.widget.display_name": "Виджет"}},
+        {"ru": {"components.widget.display_name": ""}},
+        {"ru": {"components.widget.display_name": "   "}},
+        {"ru": {"components.widget.display_name": {"nested": "value"}}},
+    ],
+)
+def test_locale_bundle_rejects_non_flat_or_empty_locale_maps(locales: dict) -> None:
+    payload = _with(
+        _VALID,
+        locale_bundle={"namespace": "lfx-openai", "locales": locales},
+    )
+
+    with pytest.raises(ValidationError):
+        ExtensionManifest.model_validate(payload)
+
+
+def test_locale_bundle_and_ru_policy_reject_unknown_values() -> None:
+    bad_bundle = _with(
+        _VALID,
+        locale_bundle={
+            "namespace": "lfx-openai",
+            "locales": {"ru": {"components.widget.display_name": "Виджет"}},
+            "unexpected": True,
+        },
+    )
+    with pytest.raises(ValidationError):
+        ExtensionManifest.model_validate(bad_bundle)
+
+    with pytest.raises(ValidationError):
+        ExtensionManifest.model_validate(_with(_VALID, ru_missing_policy="ignore"))
+
+
+# ---------------------------------------------------------------------------
 # v0 field validation -- malformed manifests
 # ---------------------------------------------------------------------------
 

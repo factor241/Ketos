@@ -103,8 +103,9 @@ export const createKnowledgeBaseColumns = (
       editable: false,
       cellClass: baseCellClass,
       cellRenderer: (params: { data: KnowledgeBaseInfo }) => {
-        const model = params.data.embedding_model || "Unknown";
-        const provider = params.data.embedding_provider || "Unknown";
+        const unknownLabel = t("knowledge.unknown");
+        const model = params.data.embedding_model || unknownLabel;
+        const provider = params.data.embedding_provider || unknownLabel;
 
         const providerIconMap: Record<string, string> = {
           OpenAI: "OpenAI",

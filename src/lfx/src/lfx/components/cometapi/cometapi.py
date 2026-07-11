@@ -27,6 +27,7 @@ class CometAPIComponent(LCModelComponent):
     description = "All AI Models in One API 500+ AI Models"
     icon = "CometAPI"
     name = "CometAPIModel"
+    dynamic_i18n = {"placeholder": "Select a model"}
 
     inputs = [
         *LCModelComponent.get_base_inputs(),

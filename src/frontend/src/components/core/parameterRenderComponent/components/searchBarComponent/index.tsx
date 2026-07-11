@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ForwardedIconComponent } from "@/components/common/genericIconComponent";
 import {
   DropdownMenu,
@@ -20,9 +21,11 @@ const SearchBarComponent = ({
   searchCategories,
   search,
   setSearch,
-  placeholder = "Search tools...",
+  placeholder,
   onCategoryChange,
 }: SearchBarComponentProps) => {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t("toolsModal.searchPlaceholder");
   const [selectedCategory, setSelectedCategory] = useState(
     searchCategories?.[0] || "All",
   );
@@ -64,7 +67,7 @@ const SearchBarComponent = ({
       )}
       <Input
         icon="search"
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         inputClassName="border-none focus:ring-0"

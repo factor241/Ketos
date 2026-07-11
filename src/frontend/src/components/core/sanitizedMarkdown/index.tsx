@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import Markdown from "react-markdown";
 import rehypeMathjax from "rehype-mathjax/browser";
 import rehypeRaw from "rehype-raw";
@@ -26,6 +27,7 @@ export const SanitizedMarkdown = ({
   emptyMessage,
   className,
 }: SanitizedMarkdownProps) => {
+  const { t } = useTranslation();
   const markdownRef = useRef<HTMLDivElement>(null);
   const [showWarning, setShowWarning] = useState(false);
 
@@ -58,8 +60,7 @@ export const SanitizedMarkdown = ({
     <div ref={markdownRef} className={className}>
       {showWarning && (
         <div className="text-muted-foreground text-sm p-2 border border-warning bg-warning/30 rounded mb-2">
-          ⚠️ The response was filtered by security sanitization and cannot be
-          displayed.
+          {t("chat.sanitizedResponseWarning")}
         </div>
       )}
       {!showWarning && (

@@ -1,10 +1,11 @@
 import i18n from "@/i18n";
+import { formatDateTime } from "@/utils/locale-format";
 
 export const formatDate = (dateStr?: string) => {
   if (!dateStr) return i18n.t("memory.never");
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return dateStr;
-  return d.toLocaleString(undefined, {
+  return formatDateTime(d, {
     month: "short",
     day: "numeric",
     hour: "2-digit",
@@ -23,7 +24,7 @@ export const formatTimestamp = (ts?: string) => {
   })();
   const d = new Date(normalized);
   if (Number.isNaN(d.getTime())) return ts;
-  return d.toLocaleString(undefined, {
+  return formatDateTime(d, {
     month: "short",
     day: "numeric",
     hour: "2-digit",

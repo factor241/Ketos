@@ -1,29 +1,79 @@
-import { extractApiErrorMessages } from "../apiError";
+import {
+  extractApiErrorDiagnosticMessages,
+  extractApiErrorMessages,
+} from "../apiError";
 
 describe("extractApiErrorMessages", () => {
-  it("returns a default message for non-object errors", () => {
-    expect(extractApiErrorMessages(null)).toEqual([
-      "An unknown error occurred",
+  it("resolves a stable code before legacy detail when a translator is provided", () => {
+    const translate = jest.fn((key: string) => `translated:${key}`);
+    const error = {
+      response: {
+        data: {
+          code: "files.storage_error",
+          detail: "raw storage exception",
+        },
+      },
+    };
+
+    expect(extractApiErrorMessages(error, translate)).toEqual([
+      "translated:apiErrors.files.storageError",
     ]);
-    expect(extractApiErrorMessages(undefined)).toEqual([
-      "An unknown error occurred",
-    ]);
-    expect(extractApiErrorMessages("boom")).toEqual([
-      "An unknown error occurred",
-    ]);
-    expect(extractApiErrorMessages(123)).toEqual(["An unknown error occurred"]);
+    expect(extractApiErrorMessages(error, translate)[0]).not.toContain(
+      "raw storage exception",
+    );
   });
 
-  it("prefers response.data.detail when it is a string", () => {
+  it("uses a localized generic fallback for a legacy response", () => {
+    const translate = jest.fn((key: string) => `translated:${key}`);
+
+    expect(
+      extractApiErrorMessages(
+        {
+          response: {
+            status: 418,
+            data: { detail: "raw legacy backend detail" },
+          },
+        },
+        translate,
+      ),
+    ).toEqual(["translated:errors.requestFailed"]);
+  });
+
+  it("uses the active app locale even when a caller omits a translator", () => {
+    expect(
+      extractApiErrorMessages({
+        response: { data: { code: "files.storage_error" } },
+      }),
+    ).toEqual(["The file could not be saved. Try again."]);
+  });
+
+  it("returns a localized safe fallback for non-object errors", () => {
+    expect(extractApiErrorMessages(null)).toEqual([
+      "The request could not be completed. Please try again.",
+    ]);
+    expect(extractApiErrorMessages(undefined)).toEqual([
+      "The request could not be completed. Please try again.",
+    ]);
+    expect(extractApiErrorMessages("boom")).toEqual([
+      "The request could not be completed. Please try again.",
+    ]);
+    expect(extractApiErrorMessages(123)).toEqual([
+      "The request could not be completed. Please try again.",
+    ]);
+  });
+
+  it("does not expose response.data.detail from the safe UI helper", () => {
     const error = {
       response: { data: { detail: "Server not found" } },
       message: "Network Error",
     };
 
-    expect(extractApiErrorMessages(error)).toEqual(["Server not found"]);
+    expect(extractApiErrorMessages(error)).toEqual([
+      "The request could not be completed. Please try again.",
+    ]);
   });
 
-  it("extracts msg fields from validation-error arrays", () => {
+  it("extracts msg fields only through the explicit diagnostic helper", () => {
     const error = {
       response: {
         data: {
@@ -32,7 +82,7 @@ describe("extractApiErrorMessages", () => {
       },
     };
 
-    expect(extractApiErrorMessages(error)).toEqual([
+    expect(extractApiErrorDiagnosticMessages(error)).toEqual([
       "Field 'name' is required",
       "Bad input",
     ]);
@@ -47,7 +97,10 @@ describe("extractApiErrorMessages", () => {
       },
     };
 
-    expect(extractApiErrorMessages(error)).toEqual(["First", "Second"]);
+    expect(extractApiErrorDiagnosticMessages(error)).toEqual([
+      "First",
+      "Second",
+    ]);
   });
 
   it("JSON-stringifies array objects without a msg field", () => {
@@ -59,7 +112,7 @@ describe("extractApiErrorMessages", () => {
       },
     };
 
-    expect(extractApiErrorMessages(error)).toEqual([
+    expect(extractApiErrorDiagnosticMessages(error)).toEqual([
       '{"code":500,"info":"crash"}',
     ]);
   });
@@ -74,7 +127,9 @@ describe("extractApiErrorMessages", () => {
       message: "Request failed",
     };
 
-    expect(extractApiErrorMessages(error)).toEqual(["Request failed"]);
+    expect(extractApiErrorDiagnosticMessages(error)).toEqual([
+      "Request failed",
+    ]);
   });
 
   it("falls back to error.message when detail is an empty array", () => {
@@ -87,13 +142,15 @@ describe("extractApiErrorMessages", () => {
       message: "Request failed",
     };
 
-    expect(extractApiErrorMessages(error)).toEqual(["Request failed"]);
+    expect(extractApiErrorDiagnosticMessages(error)).toEqual([
+      "Request failed",
+    ]);
   });
 
   it("falls back to error.message when no detail is present", () => {
-    expect(extractApiErrorMessages({ message: "Network Error" })).toEqual([
-      "Network Error",
-    ]);
+    expect(
+      extractApiErrorDiagnosticMessages({ message: "Network Error" }),
+    ).toEqual(["Network Error"]);
   });
 
   it("always returns at least one message", () => {

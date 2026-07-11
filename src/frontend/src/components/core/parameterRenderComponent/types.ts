@@ -159,12 +159,14 @@ export type InputGlobalComponentType = {
 };
 export type MultiselectComponentType = {
   options: string[];
+  optionsMetaData?: Array<Record<string, unknown>>;
   combobox?: boolean;
   hideOnSelection?: boolean;
 };
 
 export type TabComponentType = {
   options: string[];
+  optionsMetaData?: Array<Record<string, unknown>>;
 };
 
 export type NodeInfoType = {

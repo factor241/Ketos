@@ -493,7 +493,11 @@ class TestKnowledgeBaseAPI:
             },
         )
         assert response.status_code == 400
-        assert "at least 3 characters" in response.json()["detail"]
+        body = response.json()
+        assert "at least 3 characters" in body["detail"]
+        assert body["code"] == "knowledge.invalid_name"
+        assert body["params"] == {"min_length": 3}
+        assert "technical_detail" not in body
 
     @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_create_duplicate_kb(self, mock_root, client: AsyncClient, logged_in_headers, tmp_path):
@@ -512,7 +516,11 @@ class TestKnowledgeBaseAPI:
             },
         )
         assert response.status_code == 409
-        assert "already exists" in response.json()["detail"]
+        body = response.json()
+        assert "already exists" in body["detail"]
+        assert body["code"] == "knowledge.already_exists"
+        assert body["params"] == {"name": "Duplicate_KB"}
+        assert "technical_detail" not in body
 
     @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_create_duplicate_kb_rejects_existing_db_row_without_directory(
@@ -1954,7 +1962,10 @@ class TestCancelIngestion:
         )
 
         assert response.status_code == 404
-        assert "no ingestion job found" in response.json()["detail"].lower()
+        body = response.json()
+        assert "no ingestion job found" in body["detail"].lower()
+        assert body["code"] == "request.bad_request"
+        assert "technical_detail" not in body
 
     @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_cancel_ingestion_kb_not_found(self, mock_root, client: AsyncClient, logged_in_headers, tmp_path):

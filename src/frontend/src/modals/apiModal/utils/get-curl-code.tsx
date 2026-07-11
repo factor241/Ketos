@@ -3,6 +3,7 @@ import {
   getApiSampleHeaders,
   getBaseUrl,
 } from "@/customization/utils/custom-code-samples";
+import i18n from "@/i18n";
 import { GetCodeType } from "@/types/tweaks";
 import {
   getAllChatInputNodeIds,
@@ -52,12 +53,17 @@ export function getNewCurlCode({
   processedPayload,
   platform,
   shouldDisplayApiKey,
+  translate = (key) => i18n.t(key),
 }: {
   flowId: string;
   endpointName: string;
+  // biome-ignore lint/suspicious/noExplicitAny: legacy API sample payload supports arbitrary tweak shapes
   processedPayload: any;
   platform?: "unix" | "powershell";
   shouldDisplayApiKey: boolean;
+  translate?: (
+    key: "apiModal.uploadFilesStep" | "apiModal.executeFlowStep",
+  ) => string;
 }): { steps: { title: string; code: string }[] } | string {
   const baseUrl = getBaseUrl();
   const apiUrl = `${baseUrl}/api/v1/run/${endpointName || flowId}`;
@@ -70,7 +76,12 @@ export function getNewCurlCode({
       : "unix");
 
   // Check if there are file uploads
-  const tweaks = processedPayload.tweaks || {};
+  const tweaks =
+    processedPayload.tweaks &&
+    typeof processedPayload.tweaks === "object" &&
+    !Array.isArray(processedPayload.tweaks)
+      ? (processedPayload.tweaks as Record<string, unknown>)
+      : {};
   const hasFiles = hasFileTweaks(tweaks);
 
   // If no file uploads, use existing logic
@@ -231,8 +242,8 @@ ${allTweaks}
     // Return structured steps instead of concatenated string
     return {
       steps: [
-        { title: "Upload files to the server", code: uploadStep },
-        { title: "Execute the flow with uploaded files", code: executeStep },
+        { title: translate("apiModal.uploadFilesStep"), code: uploadStep },
+        { title: translate("apiModal.executeFlowStep"), code: executeStep },
       ],
     };
   } else {
@@ -257,8 +268,8 @@ ${allTweaks}
     // Return structured steps instead of concatenated string
     return {
       steps: [
-        { title: "Upload files to the server", code: uploadStep },
-        { title: "Execute the flow with uploaded files", code: executeStep },
+        { title: translate("apiModal.uploadFilesStep"), code: uploadStep },
+        { title: translate("apiModal.executeFlowStep"), code: executeStep },
       ],
     };
   }

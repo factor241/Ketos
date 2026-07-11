@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 import { ICON_STROKE_WIDTH } from "@/constants/constants";
 import DictAreaModal from "../../../../../modals/dictAreaModal";
@@ -19,12 +20,13 @@ export default function DictComponent({
   object | object[] | string,
   { name: string }
 >): JSX.Element | null {
+  const { t } = useTranslation();
   useEffect(() => {
     if (disabled || value === null) {
       handleOnNewValue({ value: {} }, { skipSnapshot: true });
     }
   }, [disabled]);
-  const placeholderName = `Edit ${toTitleCase(name)}`;
+  const placeholderName = t("input.editNamed", { name: toTitleCase(name) });
 
   if (!showParameter) {
     return null;

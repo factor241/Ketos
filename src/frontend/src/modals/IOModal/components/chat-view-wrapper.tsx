@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import ShadTooltip from "@/components/common/shadTooltipComponent";
+import { getSessionTitle } from "@/components/core/playgroundComponent/chat-view/chat-header/utils/get-session-title";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/utils/utils";
@@ -60,9 +61,7 @@ export const ChatViewWrapper = ({
               sidebarOpen ? "blur-sm lg:blur-0" : "",
             )}
           >
-            {visibleSession === currentFlowId
-              ? t("modal.io.defaultSession")
-              : `${visibleSession}`}
+            {getSessionTitle(visibleSession, currentFlowId)}
           </div>
         )}
         <div
@@ -81,6 +80,7 @@ export const ChatViewWrapper = ({
               className="mr-2 h-[32px] w-[32px] hover:bg-secondary-hover"
               variant="ghost"
               size="icon"
+              aria-label={t("modal.io.newChat")}
               onClick={() => {
                 setvisibleSession(undefined);
                 setSelectedViewField(undefined);

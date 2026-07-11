@@ -15,6 +15,10 @@ from lfx.schema.dotdict import dotdict
 
 
 class UpdateDataComponent(Component):
+    dynamic_i18n = {
+        "display_name": "Field {index}",
+        "info": "Key for field {index}.",
+    }
     display_name: str = "Update Data"
     description: str = "Dynamically update or append data with the specified fields."
     name: str = "UpdateData"

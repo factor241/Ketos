@@ -17,6 +17,7 @@ import type {
   signUpInputStateType,
   UserInputType,
 } from "../../types/components";
+import { getLocalizedApiErrorMessage } from "../../utils/localized-api-error";
 
 export default function SignUp(): JSX.Element {
   const [inputState, setInputState] =
@@ -61,14 +62,14 @@ export default function SignUp(): JSX.Element {
         navigate("/login");
       },
       onError: (error) => {
-        const {
-          response: {
-            data: { detail },
-          },
-        } = error;
         setErrorData({
           title: t("errors.signup"),
-          list: [detail],
+          list: [
+            getLocalizedApiErrorMessage(error, (key) => t(key), {
+              fallbackKey: "errors.requestFailed",
+              statusKeys: { 409: "auth.accountExists" },
+            }),
+          ],
         });
       },
     });

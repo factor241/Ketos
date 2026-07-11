@@ -37,10 +37,10 @@ const StoreApiKeyPage = () => {
       setLoadingApiKey(false);
       handleInput({ target: { name: "apikey", value: "" } });
     },
-    onError: (error) => {
+    onError: (_error) => {
       setErrorData({
         title: t("storeApiKey.saveError"),
-        list: [(error as any)?.response?.data?.detail],
+        list: [t("errors.requestFailed")],
       });
       setHasApiKey(false);
       setValidApiKey(false);

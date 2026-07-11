@@ -1,11 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
-import type { AxiosError } from "axios";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useCancelIngestion } from "@/controllers/API/queries/knowledge-bases/use-cancel-ingestion";
 import { useDeleteKnowledgeBase } from "@/controllers/API/queries/knowledge-bases/use-delete-knowledge-base";
 import type { KnowledgeBaseInfo } from "@/controllers/API/queries/knowledge-bases/use-get-knowledge-bases";
 import useAlertStore from "@/stores/alertStore";
+import { getLocalizedApiErrorMessage } from "@/utils/localized-api-error";
 import { isBusyStatus } from "../config/statusConfig";
 
 interface UseKnowledgeBaseActionsOptions {
@@ -40,13 +40,13 @@ export const useKnowledgeBaseActions = ({
       setSuccessData({ title: t("success.ingestionCancelled") });
       refetch();
     },
-    onError: (error: AxiosError<{ detail?: string }>) => {
+    onError: (error: unknown) => {
       setErrorData({
         title: t("errors.failedToCancelIngestion"),
         list: [
-          error?.response?.data?.detail ||
-            error?.message ||
-            t("knowledge.unknownError"),
+          getLocalizedApiErrorMessage(error, t, {
+            fallbackKey: "errors.requestFailed",
+          }),
         ],
       });
     },
@@ -58,13 +58,13 @@ export const useKnowledgeBaseActions = ({
     onSuccess: () => {
       setSuccessData({ title: t("success.knowledgeBaseDeleted") });
     },
-    onError: (error: AxiosError<{ detail?: string }>) => {
+    onError: (error: unknown) => {
       setErrorData({
         title: t("errors.failedToDeleteKnowledgeBase"),
         list: [
-          error?.response?.data?.detail ||
-            error?.message ||
-            t("knowledge.unknownError"),
+          getLocalizedApiErrorMessage(error, t, {
+            fallbackKey: "errors.requestFailed",
+          }),
         ],
       });
       refetch();
@@ -77,13 +77,13 @@ export const useKnowledgeBaseActions = ({
     onSuccess: () => {
       setSuccessData({ title: t("success.knowledgeBaseDeleted") });
     },
-    onError: (error: AxiosError<{ detail?: string }>) => {
+    onError: (error: unknown) => {
       setErrorData({
         title: t("knowledge.failedToDelete"),
         list: [
-          error?.response?.data?.detail ||
-            error?.message ||
-            t("knowledge.unknownError"),
+          getLocalizedApiErrorMessage(error, t, {
+            fallbackKey: "errors.requestFailed",
+          }),
         ],
       });
       refetch();

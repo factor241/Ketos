@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "case_id": "custom-label-flow",
+  "source_format_version": "1.2",
+  "topology": "text-regex-output",
+  "traits": ["custom-label", "custom-option-label"],
+  "stable_ids": {
+    "nodes": ["custom-input", "custom-regex", "custom-output"],
+    "edges": ["edge:custom-input:text:custom-regex:input_text", "edge:custom-regex:text:custom-output:input_value"]
+  },
+  "input": "Contact custom@example.com",
+  "overrides": {
+    "component_label": "Customer regex component",
+    "field_label": "Customer regex pattern",
+    "output_label": "Customer matched text"
+  },
+  "expected_runtime": { "result_name": "text", "text": "custom@example.com" }
+}

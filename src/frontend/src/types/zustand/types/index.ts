@@ -7,6 +7,7 @@ import type {
 export type TypesStoreType = {
   types: { [char: string]: string };
   setTypes: (newState: {}) => void;
+  resetTypes: () => void;
   templates: { [char: string]: APIClassType };
   setTemplates: (newState: {}) => void;
   data: APIDataType;

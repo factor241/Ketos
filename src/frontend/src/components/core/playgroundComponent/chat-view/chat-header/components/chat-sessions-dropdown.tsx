@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/utils/utils";
 import { useGetFlowId } from "../../../hooks/use-get-flow-id";
+import { getSessionTitle } from "../utils/get-session-title";
 
 interface ChatSessionsDropdownProps {
   sessions: string[];
@@ -69,7 +70,7 @@ export function ChatSessionsDropdown({
                       setOpen(false);
                     }}
                   >
-                    {session === currentFlowId ? "Default Session" : session}
+                    {getSessionTitle(session, currentFlowId)}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuGroup>
@@ -85,7 +86,7 @@ export function ChatSessionsDropdown({
                   }}
                 >
                   <ForwardedIconComponent name="Plus" className="h-4 w-4" />
-                  New Session
+                  {t("assistant.newSession")}
                 </DropdownMenuItem>
               </DropdownMenuGroup>
             </div>
@@ -100,7 +101,7 @@ export function ChatSessionsDropdown({
               }}
             >
               <ForwardedIconComponent name="Plus" className="h-4 w-4" />
-              New Session
+              {t("assistant.newSession")}
             </DropdownMenuItem>
           </div>
         )}

@@ -6,6 +6,7 @@ const setErrorDataMock = jest.fn();
 const setSuccessDataMock = jest.fn();
 const setNoticeDataMock = jest.fn();
 const setTypesMock = jest.fn();
+const translateMock = (key: string) => `translated:${key}`;
 
 jest.mock("@/controllers/API/api", () => ({
   api: { get: (...args: unknown[]) => apiGetMock(...args) },
@@ -17,6 +18,13 @@ jest.mock("@/controllers/API/helpers/constants", () => ({
 
 jest.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({ invalidateQueries: invalidateQueriesMock }),
+}));
+
+jest.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: translateMock,
+  }),
+  initReactI18next: { type: "3rdParty", init: jest.fn() },
 }));
 
 jest.mock("@/stores/alertStore", () => ({
@@ -214,14 +222,19 @@ describe("useExtensionEvents", () => {
     });
 
     const successCall = setSuccessDataMock.mock.calls[0]?.[0];
-    expect(successCall.title).toContain("Reloaded a");
+    expect(successCall.title).toBe("translated:extensions.reloadedNoChanges");
     // Diagnostics must be inlined on the success toast so a user who only
     // glances at the green toast still sees the warning.
     expect(successCall.list).toEqual(
       expect.arrayContaining([
-        "[reload-post-swap-hook-failed] Component cache rebuild raised",
-        "  Restart the worker if the palette looks stale",
+        "[reload-post-swap-hook-failed] translated:apiErrors.extensions.reloadFailed",
       ]),
+    );
+    expect(JSON.stringify(successCall)).not.toContain(
+      "Component cache rebuild raised",
+    );
+    expect(JSON.stringify(successCall)).not.toContain(
+      "Restart the worker if the palette looks stale",
     );
 
     // And the separate blue notice must fire so the warning lands in the
@@ -229,9 +242,9 @@ describe("useExtensionEvents", () => {
     // path now matches.
     expect(setNoticeDataMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: "Reloaded a with warnings",
+        title: "translated:extensions.reloadedWithWarnings",
         list: expect.arrayContaining([
-          "[reload-post-swap-hook-failed] Component cache rebuild raised",
+          "[reload-post-swap-hook-failed] translated:apiErrors.extensions.reloadFailed",
         ]),
       }),
     );
@@ -261,7 +274,7 @@ describe("useExtensionEvents", () => {
     });
 
     const successCall = setSuccessDataMock.mock.calls[0]?.[0];
-    expect(successCall.title).toContain("Reloaded a");
+    expect(successCall.title).toBe("translated:extensions.reloadedNoChanges");
     expect(successCall.list).toBeUndefined();
     expect(setNoticeDataMock).not.toHaveBeenCalled();
   });
@@ -397,12 +410,16 @@ describe("useExtensionEvents", () => {
 
     expect(setErrorDataMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        list: expect.arrayContaining(["Reload blew up"]),
+        title: "translated:extensions.error",
+        list: ["translated:extensions.reloadFailed"],
       }),
+    );
+    expect(JSON.stringify(setErrorDataMock.mock.calls)).not.toContain(
+      "Reload blew up",
     );
   });
 
-  it("should fall back to event type in error message when payload has no message", async () => {
+  it("should use a semantic fallback when payload has no message", async () => {
     await mountHook();
 
     apiGetMock.mockResolvedValueOnce({
@@ -424,9 +441,8 @@ describe("useExtensionEvents", () => {
 
     expect(setErrorDataMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        list: expect.arrayContaining([
-          "extension_error: check server logs for details",
-        ]),
+        title: "translated:extensions.error",
+        list: ["translated:extensions.reloadFailed"],
       }),
     );
   });

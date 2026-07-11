@@ -70,7 +70,7 @@ export default function TextModal({
                 setOpen(false);
               }}
             >
-              Save
+              {t("modal.saveButton")}
             </Button>
           )}
         </div>

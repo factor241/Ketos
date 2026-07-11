@@ -25,7 +25,7 @@ import IOKeyPairInput, {
 } from "@/modals/IOModal/components/IOFieldView/components/key-pair-input";
 import IOKeyPairInputWithVariables from "@/modals/IOModal/components/IOFieldView/components/key-pair-input-with-variables";
 import type { MCPServerType } from "@/types/mcp";
-import { extractMcpServersFromJson } from "@/utils/mcpUtils";
+import { extractMcpServersFromJson, McpImportError } from "@/utils/mcpUtils";
 import { parseString } from "@/utils/stringManipulation";
 
 const MCP_SETTINGS_PAGE = "/settings/mcp-servers";
@@ -220,10 +220,8 @@ export default function AddMcpServerModal({
         setStdioArgs([""]);
         setStdioEnv([{ key: "", value: "", id: nanoid(), error: false }]);
         setError(null);
-      } catch (err: unknown) {
-        setError(
-          err instanceof Error ? err.message : t("mcp.modal.errorFailedAdd"),
-        );
+      } catch (_error: unknown) {
+        setError(t("mcp.modal.errorFailedAdd"));
       }
       return;
     }
@@ -282,10 +280,8 @@ export default function AddMcpServerModal({
         setHttpEnv([{ key: "", value: "", id: nanoid(), error: false }]);
         setHttpHeaders([{ key: "", value: "", id: nanoid(), error: false }]);
         setError(null);
-      } catch (err: unknown) {
-        setError(
-          err instanceof Error ? err.message : t("mcp.modal.errorFailedAdd"),
-        );
+      } catch (_error: unknown) {
+        setError(t("mcp.modal.errorFailedAdd"));
       }
       return;
     }
@@ -302,7 +298,11 @@ export default function AddMcpServerModal({
       }));
     } catch (e: unknown) {
       setError(
-        e instanceof Error ? e.message : t("mcp.modal.errorNoServerFound"),
+        e instanceof McpImportError
+          ? e.translationKey === "mcp.modal.errorInvalidJson"
+            ? t("mcp.modal.errorInvalidJson")
+            : t("mcp.modal.errorNoServerFound")
+          : t("mcp.modal.errorNoServerFound"),
       );
       return;
     }

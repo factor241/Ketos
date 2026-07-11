@@ -46,8 +46,6 @@ export default function PaginatorComponent({
     paginate(1, Number(pageSize));
   };
 
-  const itemLabel =
-    isComponent === undefined ? "items" : isComponent ? "components" : "flows";
   const isEmpty = totalRowsCount === 0;
   const rangeStart = (pageIndex - 1) * pageSize + 1;
   const rangeEnd = Math.min(
@@ -70,7 +68,7 @@ export default function PaginatorComponent({
           <>
             {rangeStart}-{rangeEnd}{" "}
             <span className="text-muted-foreground">
-              of{" "}
+              {t("common.of")}{" "}
               {isComponent === undefined
                 ? t("paginator.ofItems", { total: totalRowsCount })
                 : isComponent

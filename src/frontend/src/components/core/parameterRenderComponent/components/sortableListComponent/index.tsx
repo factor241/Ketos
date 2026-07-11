@@ -2,8 +2,10 @@ import { isEqual } from "lodash";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { ReactSortable } from "react-sortablejs";
 import ListSelectionComponent from "@/CustomNodes/GenericNode/components/ListSelectionComponent";
+import type { ListSelectionItem } from "@/CustomNodes/GenericNode/components/ListSelectionComponent/ListItem";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import { Button } from "@/components/ui/button";
+import { getOptionLabel } from "@/utils/option-presentation";
 import { cn } from "@/utils/utils";
 import type { InputProps } from "../../types";
 import HelperTextComponent from "../helperTextComponent";
@@ -12,24 +14,51 @@ type SortableListComponentProps = {
   tooltip?: string;
   name?: string;
   helperText?: string;
-  helperMetadata?: any;
-  options?: any[];
+  helperMetadata?: Record<string, unknown>;
+  options?: SortableListItemData[];
+  optionsMetaData?: Array<Record<string, unknown>>;
   searchCategory?: string[];
   icon?: string;
   limit?: number;
 };
+
+type SortableListItemData = ListSelectionItem & {
+  chosen?: boolean;
+  selected?: boolean;
+};
+
+type SortableUiItem = SortableListItemData & { id: string | number };
+
+const SYNTHETIC_SORTABLE_ID_PREFIX = "__langflow_sortable_";
+
+function stripSortableState(item: SortableListItemData): SortableListItemData {
+  const result = { ...item };
+  delete result.chosen;
+  delete result.selected;
+  if (
+    typeof result.id === "string" &&
+    result.id.startsWith(SYNTHETIC_SORTABLE_ID_PREFIX)
+  ) {
+    delete result.id;
+  }
+  return result;
+}
 
 const SortableListItem = memo(
   ({
     data,
     index,
     onRemove,
+    label,
     limit = 1,
+    disabled,
   }: {
-    data: any;
+    data: SortableListItemData;
     index: number;
     onRemove: () => void;
+    label: string;
     limit?: number;
+    disabled?: boolean;
   }) => (
     <li
       className={cn(
@@ -57,7 +86,7 @@ const SortableListItem = memo(
             limit === 1 ? "max-w-56 pl-2" : "max-w-48",
           )}
         >
-          {data.name}
+          {label}
         </span>
       </div>
       <Button
@@ -70,6 +99,7 @@ const SortableListItem = memo(
             : "hover:text-destructive group-hover:opacity-100",
         )}
         onClick={onRemove}
+        disabled={disabled}
       >
         <ForwardedIconComponent name="x" className={cn("h-6 w-6")} />
       </Button>
@@ -84,43 +114,53 @@ const SortableListComponent = ({
   helperText = "",
   helperMetadata = { icon: undefined, variant: "muted-foreground" },
   options = [],
+  optionsMetaData = [],
   searchCategory = [],
   limit,
   id,
   showParameter = true,
+  disabled,
   ...baseInputProps
-}: InputProps<any, SortableListComponentProps>) => {
+}: InputProps<SortableListItemData[], SortableListComponentProps>) => {
   const { placeholder, handleOnNewValue, value } = baseInputProps;
   const [open, setOpen] = useState(false);
 
   // Convert value to an array if it exists, otherwise use empty array
   const listData = useMemo(() => (Array.isArray(value) ? value : []), [value]);
+  // ReactSortable annotates list items with transient `chosen` / `selected`
+  // fields. Give it presentation clones so persisted machine values and the
+  // caller-owned objects remain byte-for-byte stable.
+  const sortableListData = useMemo(
+    () =>
+      listData.map(
+        (item, index): SortableUiItem => ({
+          ...item,
+          id: item.id ?? `${SYNTHETIC_SORTABLE_ID_PREFIX}${index}`,
+        }),
+      ),
+    [listData],
+  );
 
   const createRemoveHandler = useCallback(
     (index: number) => () => {
+      if (disabled) return;
       const newList = listData.filter((_, i) => i !== index);
       handleOnNewValue({ value: newList });
     },
-    [listData, handleOnNewValue],
+    [disabled, listData, handleOnNewValue],
   );
 
   const setListDataHandler = useCallback(
-    (newList: any[]) => {
-      const sanitizedNewList = newList.map((item) => {
-        const { chosen, selected, ...rest } = item;
-        return rest;
-      });
-
-      const sanitizedListData = listData.map((item) => {
-        const { chosen, selected, ...rest } = item;
-        return rest;
-      });
+    (newList: SortableListItemData[]) => {
+      if (disabled) return;
+      const sanitizedNewList = newList.map(stripSortableState);
+      const sanitizedListData = listData.map(stripSortableState);
 
       if (!isEqual(sanitizedNewList, sanitizedListData)) {
         handleOnNewValue({ value: sanitizedNewList });
       }
     },
-    [listData, handleOnNewValue],
+    [disabled, listData, handleOnNewValue],
   );
 
   const handleCloseListSelectionDialog = useCallback(() => {
@@ -128,12 +168,13 @@ const SortableListComponent = ({
   }, []);
 
   const handleOpenListSelectionDialog = useCallback(() => {
+    if (disabled) return;
     if (helperText) {
       setShowHelperText(true);
     } else {
       setOpen(true);
     }
-  }, [helperText]);
+  }, [disabled, helperText]);
 
   const [showHelperText, setShowHelperText] = useState(false);
 
@@ -159,6 +200,7 @@ const SortableListComponent = ({
             size="xs"
             role="combobox"
             onClick={handleOpenListSelectionDialog}
+            disabled={disabled}
             className={cn(
               "dropdown-component-outline input-edit-node w-full",
               editNode ? "py-1" : "py-2",
@@ -183,18 +225,25 @@ const SortableListComponent = ({
 
       {listData.length > 0 && (
         <div className="flex w-full flex-col">
-          <ReactSortable
-            list={listData}
+          <ReactSortable<SortableUiItem>
+            disabled={disabled}
+            list={sortableListData}
             setList={setListDataHandler}
             className={"flex w-full flex-col"}
           >
-            {listData.map((data, index) => (
+            {sortableListData.map((data, index) => (
               <SortableListItem
                 key={`${data?.name || "item"}-${index}`}
                 data={data}
                 index={index}
                 onRemove={createRemoveHandler(index)}
+                label={getOptionLabel(
+                  listData[index],
+                  options,
+                  optionsMetaData,
+                )}
                 limit={limit}
+                disabled={disabled}
               />
             ))}
           </ReactSortable>
@@ -211,15 +260,17 @@ const SortableListComponent = ({
       )}
 
       <ListSelectionComponent
-        open={open}
+        open={disabled ? false : open}
         onClose={handleCloseListSelectionDialog}
         searchCategories={searchCategory}
         editNode={editNode}
         setSelectedList={setListDataHandler}
         selectedList={listData}
         options={options}
+        optionsMetaData={optionsMetaData}
         limit={limit}
         id={id}
+        disabled={disabled}
         {...baseInputProps}
       />
     </div>

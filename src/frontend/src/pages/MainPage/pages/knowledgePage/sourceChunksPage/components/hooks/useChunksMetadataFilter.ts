@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useGetKbMetadataKeys } from "@/controllers/API/queries/knowledge-bases/use-get-kb-metadata-keys";
+import { compareForPresentation } from "@/utils/locale-format";
 
 interface UseChunksMetadataFilterOptions {
   kbName: string;
@@ -40,7 +41,7 @@ export const useChunksMetadataFilter = ({
   );
 
   const availableKeys = useMemo(
-    () => Object.keys(metadataKeys?.keys ?? {}).sort(),
+    () => Object.keys(metadataKeys?.keys ?? {}).sort(compareForPresentation),
     [metadataKeys],
   );
 

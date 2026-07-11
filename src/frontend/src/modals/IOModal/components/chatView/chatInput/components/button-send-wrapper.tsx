@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import Loading from "@/components/ui/loading";
 import useFlowStore from "@/stores/flowStore";
 import { Button } from "../../../../../../components/ui/button";
@@ -27,6 +28,7 @@ const ButtonSendWrapper = ({
   chatValue,
   files,
 }: ButtonSendWrapperProps) => {
+  const { t } = useTranslation();
   const stopBuilding = useFlowStore((state) => state.stopBuilding);
 
   const isBuilding = useFlowStore((state) => state.isBuilding);
@@ -62,7 +64,7 @@ const ButtonSendWrapper = ({
     >
       <Case condition={showStopButton}>
         <div className="flex items-center gap-2 rounded-md text-sm font-medium">
-          Stop
+          {t("flowBuild.stop")}
           <Loading className="h-4 w-4" />
         </div>
       </Case>
@@ -77,7 +79,7 @@ const ButtonSendWrapper = ({
 
       <Case condition={showSendButton}>
         <div className="flex h-fit w-fit items-center gap-2 text-sm font-medium">
-          Send
+          {t("playground.sendButton")}
         </div>
       </Case>
     </Button>

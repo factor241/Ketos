@@ -74,33 +74,14 @@ const InputWrapper: React.FC<InputWrapperProps> = ({
     e.preventDefault();
   };
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement;
-    if (target.closest("textarea")) {
-      return;
-    }
-    if (e.key !== "Enter" && e.key !== " ") {
-      return;
-    }
-    e.preventDefault();
-    inputRef.current?.focus();
-    inputRef.current?.setSelectionRange(
-      inputRef.current.value.length,
-      inputRef.current.value.length,
-    );
-  };
-
   return (
     <div className="flex w-full flex-col-reverse">
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: mouse clicks on the visual shell delegate focus to the nested textarea; the shell must stay out of the accessibility tree because it also contains real buttons. */}
       <div
         data-testid="input-wrapper"
         className="flex w-full flex-col rounded-md border cursor-text border-input bg-muted p-4 hover:border-muted-foreground focus:border-[1.75px] has-[:focus]:border-primary"
         onClick={onClick}
         onMouseDown={onMouseDown}
-        onKeyDown={onKeyDown}
-        role="button"
-        tabIndex={0}
-        aria-label={t("playgroundComponent.focusChatInput")}
       >
         <TextAreaWrapper
           isBuilding={isBuilding}

@@ -53,6 +53,29 @@ def test_single_bundle_registers_component(tmp_path: Path) -> None:
     assert component.distribution is None
 
 
+def test_locale_bundle_and_missing_marker_flow_to_loaded_components(tmp_path: Path) -> None:
+    manifest = {
+        **_BASE_MANIFEST,
+        "locale_bundle": {
+            "namespace": "lfx-pilot",
+            "locales": {
+                "en": {"components.pilotthing.display_name": "Pilot"},
+                "ru": {"components.pilotthing.display_name": "Пилот"},
+            },
+        },
+    }
+    root = make_extension(tmp_path, manifest=manifest)
+
+    result = load_extension(root)
+
+    assert result.ok, result.errors
+    component = result.components[0]
+    assert component.locale_bundle is not None
+    assert component.locale_bundle.namespace == "lfx-pilot"
+    assert component.locale_bundle.locales["ru"]["components.pilotthing.display_name"] == "Пилот"
+    assert component.ru_missing is False
+
+
 def test_components_path_shorthand(tmp_path: Path) -> None:
     """Manifest with bundle path = ``./components/`` (the recommended layout)."""
     manifest = {**_BASE_MANIFEST, "bundles": [{"name": "pilot", "path": "components"}]}

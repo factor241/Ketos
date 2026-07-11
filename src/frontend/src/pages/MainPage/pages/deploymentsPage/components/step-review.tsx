@@ -4,7 +4,6 @@ import { useParams } from "react-router-dom";
 import { useGetRefreshFlowsQuery } from "@/controllers/API/queries/flows/use-get-refresh-flows-query";
 import { useFolderStore } from "@/stores/foldersStore";
 import { useDeploymentStepper } from "../contexts/deployment-stepper-context";
-import { UNKNOWN_FLOW_NAME } from "../types";
 import { ReviewDetachingSection } from "./step-review/review-detaching-section";
 import { ReviewFlowConfigCard } from "./step-review/review-flow-config-card";
 import { ReviewSummaryCard } from "./step-review/review-summary-card";
@@ -54,6 +53,7 @@ export default function StepReview() {
         removedFlowIds,
         selectedVersionByFlow,
         toolNameByFlow,
+        unknownFlowLabel: t("deployments.unknownFlow"),
       }),
     [
       allFlows,
@@ -62,6 +62,7 @@ export default function StepReview() {
       removedFlowIds,
       selectedVersionByFlow,
       toolNameByFlow,
+      t,
     ],
   );
   const removedReviewFlows = useMemo(
@@ -75,14 +76,14 @@ export default function StepReview() {
           const flowName =
             allFlows.find((flow) => flow.id === entry.flowId)?.name ??
             entry.flowName ??
-            UNKNOWN_FLOW_NAME;
+            t("deployments.unknownFlow");
           return {
             attachmentKey: normalizedAttachmentKey,
             flowName,
             versionLabel: entry.versionTag || entry.versionId,
           };
         }),
-    [allFlows, removedFlowIds, selectedVersionByFlow],
+    [allFlows, removedFlowIds, selectedVersionByFlow, t],
   );
 
   useEffect(() => {

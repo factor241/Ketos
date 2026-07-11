@@ -141,6 +141,10 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["langflow"]
+include = [
+    "langflow/locales/*.json",
+    "langflow/frontend/**/*",
+]
 
 
 [tool.pytest.ini_options]

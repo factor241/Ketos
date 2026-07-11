@@ -1,6 +1,7 @@
 import { type Connection, Handle, Position } from "@xyflow/react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { useCanvasReadOnly } from "@/contexts/canvas-read-only-context";
 import { useDarkStore } from "@/stores/darkStore";
 import useFlowStore from "@/stores/flowStore";
 import type { APIDataType } from "@/types/api";
@@ -196,6 +197,8 @@ const HandleRenderComponent = memo(function HandleRenderComponent({
   const isLocked = useFlowStore(
     useShallow((state) => state.currentFlow?.locked),
   );
+  const isCanvasReadOnly = useCanvasReadOnly();
+  const isInteractionLocked = Boolean(isLocked || isCanvasReadOnly);
 
   const edges = useFlowStore((state) => state.edges);
 
@@ -394,6 +397,7 @@ const HandleRenderComponent = memo(function HandleRenderComponent({
 
   const handleMouseDown = useCallback(
     (event: React.MouseEvent) => {
+      if (isInteractionLocked) return;
       if (event.button === 0) {
         setHandleDragging(currentFilter);
         const handleMouseUp = () => {
@@ -403,10 +407,11 @@ const HandleRenderComponent = memo(function HandleRenderComponent({
         document.addEventListener("mouseup", handleMouseUp);
       }
     },
-    [currentFilter, setHandleDragging],
+    [currentFilter, isInteractionLocked, setHandleDragging],
   );
 
   const handleClick = useCallback(() => {
+    if (isInteractionLocked) return;
     const nodes = useFlowStore.getState().nodes;
     setFilterEdge(groupByFamily(myData, tooltipTitle!, left, nodes!));
     setFilterType(currentFilter);
@@ -428,6 +433,7 @@ const HandleRenderComponent = memo(function HandleRenderComponent({
     filterOpenHandle,
     filterType,
     onConnect,
+    isInteractionLocked,
   ]);
 
   const handleMouseEnter = useCallback(() => setIsHovered(true), []);
@@ -441,7 +447,7 @@ const HandleRenderComponent = memo(function HandleRenderComponent({
   return (
     <div>
       <ShadTooltip
-        open={openTooltip && !isLocked}
+        open={openTooltip && !isInteractionLocked}
         setOpen={setOpenTooltip}
         styleClasses={cn("tooltip-fixed-width custom-scroll nowheel bottom-2")}
         delayDuration={1000}
@@ -462,7 +468,9 @@ const HandleRenderComponent = memo(function HandleRenderComponent({
           position={left ? Position.Left : Position.Right}
           id={myId}
           isValidConnection={(connection) =>
-            isLocked ? false : isValidConnection(connection as Connection)
+            isInteractionLocked
+              ? false
+              : isValidConnection(connection as Connection)
           }
           className={cn(
             `group/handle z-50 transition-all`,
@@ -470,7 +478,7 @@ const HandleRenderComponent = memo(function HandleRenderComponent({
           )}
           style={{
             ...BASE_HANDLE_STYLES,
-            pointerEvents: isLocked ? "none" : "auto",
+            pointerEvents: isInteractionLocked ? "none" : "auto",
           }}
           onClick={handleClick}
           onMouseUp={handleMouseUp}

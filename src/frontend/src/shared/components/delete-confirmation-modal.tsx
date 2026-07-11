@@ -56,7 +56,7 @@ const GeneralDeleteConfirmationModal = ({
           e.preventDefault();
           handleDelete(option);
         }}
-        description={'variable "' + option + '"'}
+        description={t("deleteModal.variableNamed", { name: option })}
         asChild
       >
         <button

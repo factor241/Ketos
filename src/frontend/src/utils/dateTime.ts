@@ -1,4 +1,4 @@
-const pad2 = (num: number): string => String(num).padStart(2, "0");
+import { formatDateTime, getIntlLocale } from "./locale-format";
 
 const hasExplicitTimezone = (value: string): boolean =>
   /([zZ]|[+-]\d{2}:?\d{2})$/.test(value);
@@ -28,7 +28,7 @@ export const formatSmartTimestamp = (value: unknown): string => {
 
   const now = new Date();
 
-  const time = new Intl.DateTimeFormat(undefined, {
+  const time = new Intl.DateTimeFormat(getIntlLocale(), {
     hour: "2-digit",
     hour12: false,
     minute: "2-digit",
@@ -37,15 +37,15 @@ export const formatSmartTimestamp = (value: unknown): string => {
   }).format(date);
 
   const isToday =
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate();
+    date.getUTCFullYear() === now.getUTCFullYear() &&
+    date.getUTCMonth() === now.getUTCMonth() &&
+    date.getUTCDate() === now.getUTCDate();
 
   if (isToday) return time;
 
-  const sameYear = date.getFullYear() === now.getFullYear();
+  const sameYear = date.getUTCFullYear() === now.getUTCFullYear();
   if (sameYear) {
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat(getIntlLocale(), {
       day: "2-digit",
       month: "short",
       hour: "2-digit",
@@ -56,6 +56,14 @@ export const formatSmartTimestamp = (value: unknown): string => {
     }).format(date);
   }
 
-  const ddmmyyyy = `${pad2(date.getDate())}/${pad2(date.getMonth() + 1)}/${date.getFullYear()}`;
-  return `${ddmmyyyy} ${time}`;
+  return formatDateTime(date, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    hour12: false,
+    minute: "2-digit",
+    second: "2-digit",
+    timeZone: "UTC",
+  });
 };

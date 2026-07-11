@@ -113,7 +113,13 @@ async def patch_user(
     if user.id == user_id and user_update.is_active is False:
         raise HTTPException(status_code=403, detail="You can't deactivate your own user account")
 
-    if not user.is_superuser and user_update.is_superuser:
+    privilege_fields = {"is_active", "is_superuser", "last_login_at"}
+    requested_privilege_changes = {
+        field_name
+        for field_name in user_update.model_fields_set & privilege_fields
+        if getattr(user_update, field_name) is not None
+    }
+    if not user.is_superuser and requested_privilege_changes:
         raise HTTPException(status_code=403, detail="Permission denied")
 
     if not user.is_superuser and user.id != user_id:

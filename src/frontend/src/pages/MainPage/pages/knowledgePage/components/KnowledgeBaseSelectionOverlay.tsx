@@ -1,4 +1,3 @@
-import type { AxiosError } from "axios";
 import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,10 @@ import type { KnowledgeBaseInfo } from "@/controllers/API/queries/knowledge-base
 import DeleteConfirmationModal from "@/modals/deleteConfirmationModal";
 import useAlertStore from "@/stores/alertStore";
 import { cn } from "@/utils/utils";
+import {
+  getSelectedKnowledgeBasesDeleteDescription,
+  type KnowledgeTranslator,
+} from "../utils/knowledge-copy";
 
 interface KnowledgeBaseSelectionOverlayProps {
   selectedFiles: KnowledgeBaseInfo[];
@@ -22,6 +25,7 @@ const KnowledgeBaseSelectionOverlay = ({
   onClearSelection,
 }: KnowledgeBaseSelectionOverlayProps) => {
   const { t } = useTranslation();
+  const translate = t as unknown as KnowledgeTranslator;
   const { setSuccessData, setErrorData } = useAlertStore((state) => ({
     setSuccessData: state.setSuccessData,
     setErrorData: state.setErrorData,
@@ -34,14 +38,10 @@ const KnowledgeBaseSelectionOverlay = ({
       });
       onClearSelection();
     },
-    onError: (error: AxiosError<{ detail?: string }>) => {
+    onError: (_error: unknown) => {
       setErrorData({
         title: t("knowledge.failedToDelete"),
-        list: [
-          error?.response?.data?.detail ||
-            error?.message ||
-            t("knowledge.unknownError"),
-        ],
+        list: [t("errors.requestFailed")],
       });
       onClearSelection();
     },
@@ -59,8 +59,6 @@ const KnowledgeBaseSelectionOverlay = ({
   };
 
   const isVisible = selectedFiles.length > 0;
-  const pluralSuffix = quantitySelected > 1 ? "s" : "";
-
   return (
     <div
       className={cn(
@@ -80,7 +78,10 @@ const KnowledgeBaseSelectionOverlay = ({
         <div className="flex items-center gap-2">
           <DeleteConfirmationModal
             onConfirm={handleBulkDelete}
-            description={`knowledge base${pluralSuffix}`}
+            description={getSelectedKnowledgeBasesDeleteDescription(
+              quantitySelected,
+              translate,
+            )}
           >
             <Button
               variant="destructive"

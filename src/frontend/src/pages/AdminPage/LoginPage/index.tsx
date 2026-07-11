@@ -13,6 +13,7 @@ import type {
   inputHandlerEventType,
   loginInputStateType,
 } from "../../../types/components";
+import { getLocalizedApiErrorMessage } from "../../../utils/localized-api-error";
 
 export default function LoginAdminPage() {
   const [inputState, setInputState] =
@@ -44,7 +45,12 @@ export default function LoginAdminPage() {
       onError: (error) => {
         setErrorData({
           title: t("errors.signin"),
-          list: [error["response"]["data"]["detail"]],
+          list: [
+            getLocalizedApiErrorMessage(error, (key) => t(key), {
+              fallbackKey: "errors.requestFailed",
+              statusKeys: { 401: "auth.invalidCredentials" },
+            }),
+          ],
         });
       },
     });

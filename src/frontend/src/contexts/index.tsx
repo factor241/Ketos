@@ -3,6 +3,7 @@ import { ReactFlowProvider } from "@xyflow/react";
 import type { ReactNode } from "react";
 import { GradientWrapper } from "@/components/common/GradientWrapper";
 import { CustomWrapper } from "@/customization/custom-wrapper";
+import { LanguagePreferenceProvider } from "@/hooks/use-language-preference";
 import { TooltipProvider } from "../components/ui/tooltip";
 import { ApiInterceptor } from "../controllers/API/api";
 import { AuthProvider } from "./authContext";
@@ -18,12 +19,14 @@ export default function ContextWrapper({ children }: { children: ReactNode }) {
         <GradientWrapper>
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
-              <TooltipProvider skipDelayDuration={0}>
-                <ReactFlowProvider>
-                  <ApiInterceptor />
-                  {children}
-                </ReactFlowProvider>
-              </TooltipProvider>
+              <LanguagePreferenceProvider>
+                <TooltipProvider skipDelayDuration={0}>
+                  <ReactFlowProvider>
+                    <ApiInterceptor />
+                    {children}
+                  </ReactFlowProvider>
+                </TooltipProvider>
+              </LanguagePreferenceProvider>
             </AuthProvider>
           </QueryClientProvider>
         </GradientWrapper>

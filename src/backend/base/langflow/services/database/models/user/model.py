@@ -2,11 +2,12 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, Relationship, SQLModel
 
 from langflow.schema.serialize import UUIDstr
+from langflow.utils.i18n import DEFAULT_LOCALE, normalize_supported_locale
 
 if TYPE_CHECKING:
     from langflow.services.database.models.api_key.model import ApiKey
@@ -30,6 +31,7 @@ class User(SQLModel, table=True):  # type: ignore[call-arg]
     username: str = Field(index=True, unique=True)
     password: str = Field()
     profile_image: str | None = Field(default=None, nullable=True)
+    preferred_locale: str | None = Field(default=None, nullable=True)
     is_active: bool = Field(default=False)
     is_superuser: bool = Field(default=False)
     create_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -81,6 +83,7 @@ class UserRead(SQLModel):
     id: UUID = Field(default_factory=uuid4)
     username: str = Field()
     profile_image: str | None = Field()
+    preferred_locale: str | None = Field(default=None, nullable=True)
     store_api_key: str | None = Field(nullable=True)
     is_active: bool = Field()
     is_superuser: bool = Field()
@@ -89,12 +92,31 @@ class UserRead(SQLModel):
     last_login_at: datetime | None = Field(nullable=True)
     optins: dict[str, Any] | None = Field(default=None)
 
+    @field_validator("preferred_locale")
+    @classmethod
+    def normalize_preferred_locale(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return normalize_supported_locale(value) or DEFAULT_LOCALE
+
 
 class UserUpdate(SQLModel):
     username: str | None = None
     profile_image: str | None = None
+    preferred_locale: str | None = None
     password: str | None = None
     is_active: bool | None = None
     is_superuser: bool | None = None
     last_login_at: datetime | None = None
     optins: dict[str, Any] | None = None
+
+    @field_validator("preferred_locale")
+    @classmethod
+    def validate_preferred_locale(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = normalize_supported_locale(value)
+        if normalized is None:
+            msg = "preferred_locale must be a supported locale"
+            raise ValueError(msg)
+        return normalized

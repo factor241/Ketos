@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -45,3 +46,16 @@ def test_as_async_url_rejects_unsupported_database() -> None:
 
     with pytest.raises(module.UnsupportedDatabaseError):
         module.as_async_url("mysql://localhost/proof")
+
+
+def test_write_evidence_persists_redacted_result(tmp_path: Path) -> None:
+    module = load_script()
+    output = tmp_path / "evidence" / "postgresql.json"
+    result = {
+        "database": "postgresql+psycopg://postgres:***@localhost/proof",
+        "status": "PASS",
+    }
+
+    module.write_evidence(result, output)
+
+    assert json.loads(output.read_text(encoding="utf-8")) == result  # noqa: S101

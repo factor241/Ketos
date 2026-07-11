@@ -1,0 +1,18 @@
+{
+  "crud_sequence": [
+    "ru",
+    "en",
+    "ru",
+    null
+  ],
+  "database": "postgresql+psycopg://postgres:***@127.0.0.1:55432/langflow_i18n",
+  "database_server_version": "16.14",
+  "dialect": "postgresql",
+  "downgrade_has_column": false,
+  "executed_at": "2026-07-11T20:12:18.660257+00:00",
+  "reupgrade_has_column": true,
+  "revision": "bb693ad2fbab",
+  "schema_version": 1,
+  "status": "PASS",
+  "upgrade_has_column": true
+}

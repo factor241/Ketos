@@ -4,7 +4,12 @@ on:
   pull_request:
     paths:
       - "src/lfx/src/lfx/components/**"
+      - "src/lfx/src/lfx/io/**"
       - "src/backend/base/langflow/initial_setup/starter_projects/**"
+      - "src/backend/base/langflow/utils/i18n.py"
+      - "scripts/gp/extract_backend_strings.py"
+      - "scripts/gp/bake_note_keys.py"
+      - "scripts/i18n/**"
 
 jobs:
   auto-commit:
@@ -37,7 +42,12 @@ jobs:
         run: uv sync --no-dev
 
       - name: Generate en.json
-        run: uv run python scripts/gp/extract_backend_strings.py
+        run: uv run python scripts/gp/extract_backend_strings.py --report-json /tmp/backend-extraction-report.json
+
+      - name: Verify extraction and locale contracts
+        run: |
+          uv run python scripts/gp/extract_backend_strings.py --check --report-json /tmp/backend-extraction-report.json
+          uv run python scripts/i18n/check_backend_locales.py
 
       - name: Commit updated files to PR branch if changed
         run: |
@@ -45,5 +55,5 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add src/backend/base/langflow/initial_setup/starter_projects/
           git add src/backend/base/langflow/locales/en.json
-          git diff --staged --quiet || git commit -m "chore: auto-bake note keys and regenerate backend locales/en.json [skip ci]"
+          git diff --staged --quiet || git commit -m "chore: auto-bake note keys and regenerate backend locales/en.json"
           git push

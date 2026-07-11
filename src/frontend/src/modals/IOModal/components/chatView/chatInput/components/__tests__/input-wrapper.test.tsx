@@ -126,7 +126,7 @@ describe("IOModal chat input wrapper", () => {
     expect(preventDefaultSpy).not.toHaveBeenCalled();
   });
 
-  it("should_prevent_default_and_move_cursor_to_end_when_space_is_pressed_outside_textarea", () => {
+  it("keeps the wrapper non-interactive and leaves keyboard input to the textarea", () => {
     const inputRef = React.createRef<HTMLTextAreaElement>();
     const fileInputRef = React.createRef<HTMLInputElement>();
     const realTextarea = document.createElement("textarea");
@@ -158,8 +158,10 @@ describe("IOModal chat input wrapper", () => {
 
     const { preventDefaultSpy } = dispatchOn(wrapper, "keydown", { key: " " });
 
-    expect(preventDefaultSpy).toHaveBeenCalled();
-    expect(selectionSpy).toHaveBeenCalledWith(3, 3);
+    expect(wrapper.getAttribute("role")).toBeNull();
+    expect(wrapper.getAttribute("tabindex")).toBeNull();
+    expect(preventDefaultSpy).not.toHaveBeenCalled();
+    expect(selectionSpy).not.toHaveBeenCalled();
   });
 
   it("should_not_prevent_default_on_unrelated_key_outside_textarea", () => {

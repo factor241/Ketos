@@ -73,6 +73,16 @@ export default function FileRendererComponent({
               : "",
           )}
           onClick={handleItemClick}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              handleItemClick();
+            }
+          }}
+          role="option"
+          tabIndex={file.disabled ? -1 : 0}
+          aria-selected={selectedFiles?.includes(file.path) ?? false}
+          aria-disabled={file.disabled}
           data-testid={`file-item-${file.name}`}
         >
           <div className="flex w-full items-center gap-4 overflow-hidden">
@@ -83,7 +93,6 @@ export default function FileRendererComponent({
                   file.progress !== undefined &&
                     "pointer-events-none cursor-not-allowed",
                 )}
-                onClick={(e) => e.stopPropagation()}
               >
                 <Checkbox
                   data-testid={`checkbox-${file.name}`}
@@ -91,6 +100,7 @@ export default function FileRendererComponent({
                   onCheckedChange={handleItemClick}
                   disabled={file.disabled}
                   className="focus-visible:ring-0"
+                  onClick={(event) => event.stopPropagation()}
                 />
               </div>
             )}
@@ -158,8 +168,9 @@ export default function FileRendererComponent({
               )}
               {file.progress !== undefined && file.progress === -1 ? (
                 <span className="text-mmd text-primary">
-                  Upload failed,{" "}
-                  <span
+                  {t("fileManager.errorUploadingFile")}{" "}
+                  <button
+                    type="button"
                     className="cursor-pointer text-accent-pink-foreground underline"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -168,8 +179,8 @@ export default function FileRendererComponent({
                       }
                     }}
                   >
-                    try again?
-                  </span>
+                    {t("common.retry")}
+                  </button>
                 </span>
               ) : (
                 <></>

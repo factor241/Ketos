@@ -10,6 +10,10 @@
 # 2. do not add --platform=$BUILDPLATFORM because the pydantic binaries must be resolved for the final architecture
 # Use a Python image with uv pre-installed
 FROM ghcr.io/astral-sh/uv:python3.14-trixie-slim AS builder
+ARG NODE_VERSION=22.14.0
+ARG NPM_VERSION=10.9.2
+ARG VITE_ENABLE_RUSSIAN_LOCALE=true
+ENV VITE_ENABLE_RUSSIAN_LOCALE=${VITE_ENABLE_RUSSIAN_LOCALE}
 
 # Install the project into `/app`
 WORKDIR /app
@@ -36,10 +40,11 @@ RUN apt-get update \
     && if [ "$ARCH" = "amd64" ]; then NODE_ARCH="x64"; \
        elif [ "$ARCH" = "arm64" ]; then NODE_ARCH="arm64"; \
        else NODE_ARCH="$ARCH"; fi \
-    && NODE_VERSION="22.14.0" \
     && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" \
     | tar -xJ -C /usr/local --strip-components=1 \
-    && npm install -g npm@latest \
+    && npm install -g "npm@${NPM_VERSION}" \
+    && test "$(node --version)" = "v${NODE_VERSION}" \
+    && test "$(npm --version)" = "${NPM_VERSION}" \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -87,6 +92,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Setup user, utilities and copy the virtual environment only
 ################################
 FROM python:3.14-slim-trixie AS runtime
+ARG NODE_VERSION=22.14.0
+ARG NPM_VERSION=10.9.2
 
 
 RUN apt-get update \
@@ -100,13 +107,11 @@ RUN ARCH=$(dpkg --print-architecture) \
     && if [ "$ARCH" = "amd64" ]; then NODE_ARCH="x64"; \
        elif [ "$ARCH" = "arm64" ]; then NODE_ARCH="arm64"; \
        else NODE_ARCH="$ARCH"; fi \
-    && NODE_VERSION=$(curl -fsSL https://nodejs.org/dist/latest-v22.x/ \
-                    | sed -nE "s/.*node-v([0-9]+\.[0-9]+\.[0-9]+)-linux-${NODE_ARCH}\.tar\.xz.*/\1/p" \
-                    | head -1) \
-    && if [ -z "$NODE_VERSION" ]; then echo "ERROR: Could not determine Node.js version" && exit 1; fi \
     && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" \
     | tar -xJ -C /usr/local --strip-components=1 \
-    && npm install -g npm@latest
+    && npm install -g "npm@${NPM_VERSION}" \
+    && test "$(node --version)" = "v${NODE_VERSION}" \
+    && test "$(npm --version)" = "${NPM_VERSION}"
 RUN useradd user -u 1000 -g 0 --no-create-home --home-dir /app/data
 
 COPY --from=builder --chown=1000 /app/.venv /app/.venv

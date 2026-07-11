@@ -24,6 +24,7 @@ export type AlertDropdownType = {
   children: JSX.Element;
   notificationRef?: React.RefObject<HTMLDivElement | null>;
   onClose?: () => void;
+  tooltipContent?: string;
 };
 export type AlertItemType = {
   type: "notice" | "error" | "success";

@@ -26,6 +26,10 @@ import BaseModal from "../baseModal";
 import ConfirmationModal from "../confirmationModal";
 import ExportModal from "../exportModal";
 import getTagsIds from "./utils/get-tags-ids";
+import {
+  getShareErrorTitle,
+  type ShareTranslator,
+} from "./utils/share-messages";
 
 export default function ShareModal({
   component,
@@ -111,7 +115,9 @@ export default function ShareModal({
       }
       setSuccessData({
         title: t("share.sharedSuccessfully", {
-          type: is_component ? t("deleteModal.component") : "Flow",
+          type: is_component
+            ? t("deleteModal.component")
+            : t("shareModal.workflow"),
         }),
       });
     }
@@ -123,10 +129,10 @@ export default function ShareModal({
         sharePublic,
       ).then(successShare, (err) => {
         setErrorData({
-          title:
-            t("errors.errorSharing") +
-            " " +
-            (is_component ? "component" : "flow"),
+          title: getShareErrorTitle(
+            is_component,
+            t as unknown as ShareTranslator,
+          ),
           list: [err["response"]["data"]["detail"]],
         });
       });
@@ -138,10 +144,10 @@ export default function ShareModal({
         unavaliableNames.find((e) => e.name === name)!.id,
       ).then(successShare, (err) => {
         setErrorData({
-          title:
-            t("errors.errorSharing") +
-            " " +
-            (is_component ? "component" : "flow"),
+          title: getShareErrorTitle(
+            is_component,
+            t as unknown as ShareTranslator,
+          ),
           list: [err["response"]["data"]["detail"]],
         });
       });

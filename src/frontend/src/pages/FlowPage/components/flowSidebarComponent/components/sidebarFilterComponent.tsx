@@ -14,7 +14,18 @@ export function SidebarFilterComponent({
 }) {
   const { t } = useTranslation();
   const tooltips = description.split("\n");
-  const plural = tooltips.length > 1 ? "s" : "";
+  const localizedName =
+    name === "Input"
+      ? tooltips.length > 1
+        ? t("sidebar.filter.inputs")
+        : t("sidebar.filter.input")
+      : name === "Output"
+        ? tooltips.length > 1
+          ? t("sidebar.filter.outputs")
+          : t("sidebar.filter.output")
+        : name === "Component"
+          ? t("updateComponent.componentHeader")
+          : name;
   return (
     <div
       className={`mb-0.5 flex w-full items-center overflow-hidden justify-between rounded border p-2 text-sm text-foreground`}
@@ -25,8 +36,7 @@ export function SidebarFilterComponent({
           className={`h-4 w-4 shrink-0 stroke-2`}
         />
         <div className="flex flex-1 overflow-hidden">
-          {name}
-          {plural}:{" "}
+          {localizedName}:{" "}
           <div className="flex-1 overflow-hidden truncate pl-1">
             {tooltips.join(", ")}
           </div>

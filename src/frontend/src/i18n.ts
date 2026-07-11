@@ -1,76 +1,116 @@
-import i18next from "i18next";
+import i18next, { type PostProcessorModule } from "i18next";
 import { initReactI18next } from "react-i18next";
+import {
+  DEFAULT_LANGUAGE,
+  getLanguageDefinition,
+  LANGUAGE_STORAGE_KEY,
+  normalizeLanguage,
+  syncDocumentLanguage,
+} from "./constants/languages";
+import {
+  createI18nDiagnostics,
+  isStrictRuTestMode,
+  shouldRecordFallback,
+} from "./i18n-diagnostics";
 import en from "./locales/en.json";
 
-const SUPPORTED_LANGUAGES = [
-  "en",
-  "de",
-  "es",
-  "fr",
-  "ja",
-  "pt",
-  "zh-Hans",
-] as const;
-
-const normalizeLanguage = (lang?: string | null): string => {
-  if (!lang) return "en";
-
-  if (
-    SUPPORTED_LANGUAGES.includes(lang as (typeof SUPPORTED_LANGUAGES)[number])
-  ) {
-    return lang;
-  }
-
-  const lowerLang = lang.toLowerCase();
-
-  if (["zh-hans", "zh-cn", "zh-sg"].includes(lowerLang)) {
-    return "zh-Hans";
-  }
-
-  const baseLang = lang.split("-")[0];
-
-  if (
-    SUPPORTED_LANGUAGES.includes(
-      baseLang as (typeof SUPPORTED_LANGUAGES)[number],
-    )
-  ) {
-    return baseLang;
-  }
-
-  return "en";
-};
-
 export const detectedLang = normalizeLanguage(
-  localStorage.getItem("languagePreference") || "en",
+  typeof localStorage === "undefined"
+    ? DEFAULT_LANGUAGE
+    : localStorage.getItem(LANGUAGE_STORAGE_KEY),
 );
 
 const i18n = i18next.createInstance();
+export const strictRuI18nTestMode = isStrictRuTestMode(import.meta.env);
+export const i18nDiagnostics = createI18nDiagnostics(strictRuI18nTestMode);
+
+if (typeof window !== "undefined") {
+  window.__LANGFLOW_I18N_DIAGNOSTICS__ = i18nDiagnostics;
+}
+
+const fallbackDiagnosticsProcessor: PostProcessorModule = {
+  type: "postProcessor",
+  name: "langflowFallbackDiagnostics",
+  process(value, key, options) {
+    const optionLocale = Array.isArray(options.lng)
+      ? options.lng[0]
+      : options.lng;
+    const locale =
+      i18n.resolvedLanguage || optionLocale || i18n.language || "unknown";
+    const resolvedKey = Array.isArray(key) ? key[0] : key;
+    const targetCatalog =
+      (i18n.getResourceBundle(locale, "translation") as
+        | Record<string, string>
+        | undefined) ?? {};
+    if (
+      shouldRecordFallback({
+        strict: strictRuI18nTestMode,
+        locale,
+        key: resolvedKey,
+        count: typeof options.count === "number" ? options.count : undefined,
+        sourceCatalog: en,
+        targetCatalog,
+      })
+    ) {
+      i18nDiagnostics.record("fallback", locale, resolvedKey);
+    }
+    return value;
+  },
+};
 
 // i18next hardcodes a Locize promotional message via console.info during init.
 // Suppress it by temporarily replacing console.info for the synchronous init call.
 const _consoleInfo = console.info.bind(console);
 console.info = () => {};
-i18n.use(initReactI18next).init({
-  resources: {
-    en: { translation: en },
-  },
-  lng: detectedLang,
-  fallbackLng: "en",
-  returnNull: false,
-  returnEmptyString: false,
-  interpolation: {
-    escapeValue: false,
-  },
-});
+i18n
+  .use(fallbackDiagnosticsProcessor)
+  .use(initReactI18next)
+  .init({
+    resources: {
+      en: { translation: en },
+    },
+    lng: DEFAULT_LANGUAGE,
+    fallbackLng: strictRuI18nTestMode ? false : "en",
+    saveMissing: strictRuI18nTestMode,
+    missingKeyHandler: (languages, _namespace, key) => {
+      const locale = Array.isArray(languages) ? languages[0] : languages;
+      i18nDiagnostics.record(
+        "missing",
+        locale || i18n.resolvedLanguage || "unknown",
+        key,
+      );
+    },
+    postProcess: [fallbackDiagnosticsProcessor.name],
+    returnNull: false,
+    returnEmptyString: false,
+    interpolation: {
+      escapeValue: false,
+    },
+  });
 console.info = _consoleInfo;
 
-export async function loadLanguage(lang: string): Promise<void> {
-  if (lang === "en") return;
-  if (i18n.hasResourceBundle(lang, "translation")) return;
+i18n.on("languageChanged", syncDocumentLanguage);
+syncDocumentLanguage(i18n.resolvedLanguage || i18n.language);
+
+function canonicalI18nextLanguageCode(language: string): string {
   try {
-    const messages = await import(`./locales/${lang}.json`);
-    i18n.addResourceBundle(lang, "translation", messages.default);
+    return Intl.getCanonicalLocales(language)[0] ?? language;
   } catch {
+    return language;
+  }
+}
+
+export async function loadLanguage(lang: string): Promise<void> {
+  const definition = getLanguageDefinition(lang);
+  const { code } = definition;
+  if (code === DEFAULT_LANGUAGE) return;
+  const resourceLanguage = canonicalI18nextLanguageCode(code);
+  if (i18n.hasResourceBundle(resourceLanguage, "translation")) return;
+  try {
+    const messages = await definition.loader();
+    i18n.addResourceBundle(resourceLanguage, "translation", messages.default);
+  } catch {
+    i18nDiagnostics.record("failed_loading", code, "translation");
     // Unknown locale — no bundle file exists. i18next's fallbackLng: "en" takes over.
   }
 }

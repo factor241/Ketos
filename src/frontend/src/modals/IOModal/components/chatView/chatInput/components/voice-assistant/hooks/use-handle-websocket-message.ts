@@ -37,10 +37,13 @@ export const useHandleWebsocketMessage = (
       if (data.response?.status_details?.error?.code) {
         const errorCode =
           data.response?.status_details?.error?.code?.replaceAll("_", " ");
-        setStatus(`API key error: ${errorCode}`);
-        showErrorAlert("API key error: " + errorCode, [
-          i18n.t("voiceAssistant.apiKeyError"),
-        ]);
+        setStatus(
+          i18n.t("voiceAssistant.apiKeyErrorTitle", { code: errorCode }),
+        );
+        showErrorAlert(
+          i18n.t("voiceAssistant.apiKeyErrorTitle", { code: errorCode }),
+          [i18n.t("voiceAssistant.apiKeyError")],
+        );
       }
       break;
 
@@ -123,15 +126,15 @@ export const useHandleWebsocketMessage = (
 
     case "error":
       if (data.code === "api_key_missing") {
-        setStatus("Error: " + "API key is missing");
-        showErrorAlert("API key not valid", [
+        setStatus(i18n.t("voiceAssistant.apiKeyMissing"));
+        showErrorAlert(i18n.t("voiceAssistant.apiKeyInvalid"), [
           i18n.t("voiceAssistant.apiKeyError"),
         ]);
         return;
       }
       if (data.error.message.toLowerCase().includes("api key")) {
-        setStatus("Error: " + "API key is missing");
-        showErrorAlert("API key not valid", [
+        setStatus(i18n.t("voiceAssistant.apiKeyMissing"));
+        showErrorAlert(i18n.t("voiceAssistant.apiKeyInvalid"), [
           i18n.t("voiceAssistant.apiKeyError"),
         ]);
         return;

@@ -2,6 +2,7 @@
 import { motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { BorderTrail } from "@/components/core/border-trail";
 import { useToolDurations } from "@/components/core/playgroundComponent/chat-view/chat-messages/hooks/use-tool-durations";
 import {
@@ -37,6 +38,7 @@ export function ContentBlockDisplay({
   playgroundPage,
   hideHeader = false,
 }: ContentBlockDisplayProps) {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Use shared hook for tool duration tracking
@@ -61,7 +63,8 @@ export function ContentBlockDisplay({
   }
 
   const headerIcon = state === "partial" ? "Bot" : "Check";
-  const headerTitle = state === "partial" ? "Steps" : "Finished";
+  const headerTitle =
+    state === "partial" ? t("chat.toolSteps") : t("chat.toolFinished");
 
   return (
     <div className="relative py-3">
@@ -130,7 +133,7 @@ export function ContentBlockDisplay({
                   const rawTitle =
                     content.header?.title ||
                     content.name ||
-                    `Tool ${flatIdx + 1}`;
+                    t("output.toolLabel", { index: flatIdx + 1 });
                   const toolTitle =
                     typeof rawTitle === "string"
                       ? formatToolTitle(rawTitle)
@@ -139,7 +142,9 @@ export function ContentBlockDisplay({
                     content.header?.icon === "GitBranch" ||
                     (typeof content.name === "string" &&
                       content.name.startsWith("Node "));
-                  const toolLabel = isAgentStep ? "Node" : "Called tool";
+                  const toolLabel = isAgentStep
+                    ? t("chat.agentNode")
+                    : t("chat.calledTool");
                   const toolDuration =
                     toolElapsedTimes[toolKey] ?? content.duration ?? 0;
 

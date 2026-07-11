@@ -51,7 +51,37 @@ jobs:
           GP_ADMIN_PASSWORD: ${{ secrets.GP_ADMIN_PASSWORD }}
           GP_INSTANCE: ${{ vars.GP_INSTANCE }}
           GP_BUNDLE: ${{ vars.GP_BUNDLE }}
-        run: python download.py --target frontend --output ../../src/frontend/src/locales/
+        run: |
+          python download.py --target frontend --lang ru --source ../../src/frontend/src/locales/en.json --output /tmp/gp-ru-frontend
+          python download.py --target frontend --source ../../src/frontend/src/locales/en.json --output ../../src/frontend/src/locales/
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: src/frontend
+        run: npm ci
+
+      - name: Validate frontend locale contracts
+        working-directory: src/frontend
+        run: npm run i18n:check && npm run i18n:check-keys
+
+      - name: Require CI-triggering PR token and linguistic reviewer
+        env:
+          GP_TRANSLATION_PR_TOKEN: ${{ secrets.GP_TRANSLATION_PR_TOKEN }}
+          GP_LINGUISTIC_REVIEWER: ${{ vars.GP_LINGUISTIC_REVIEWER }}
+        run: |
+          missing=""
+          [ -n "$GP_TRANSLATION_PR_TOKEN" ] || missing="$missing GP_TRANSLATION_PR_TOKEN"
+          [ -n "$GP_LINGUISTIC_REVIEWER" ] || missing="$missing GP_LINGUISTIC_REVIEWER"
+          if [ -n "$missing" ]; then
+            echo "Missing required configuration names:$missing"
+            exit 1
+          fi
 
       - name: Close stale translation PRs
         uses: actions/github-script@v8
@@ -78,36 +108,42 @@ jobs:
         id: create-pr
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch-token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GP_TRANSLATION_PR_TOKEN }}
+          branch-token: ${{ secrets.GP_TRANSLATION_PR_TOKEN }}
           base: ${{ steps.resolve-branch.outputs.branch }}
-          commit-message: "chore: update translations from Globalization Pipeline [skip ci]"
+          commit-message: "chore: update translations from Globalization Pipeline"
           title: "chore: update translations from Globalization Pipeline"
           body: |
             Automated PR to update locale files from IBM Globalization Pipeline.
 
             This PR was automatically created by the `gp-download` workflow.
+            Locale contracts must pass and linguistic review is required before merge.
+            Required checks: `CI Success` and `I18n Contract Gates`.
+            Manual gate: update the current catalog hash in `linguistic-review.md`, obtain `APPROVED`, then mark this draft ready.
+            Auto-merge must remain disabled.
             If no files changed, this PR will be empty and can be closed.
           branch: translations/update-gp
           branch-suffix: timestamp
           delete-branch: true
           maintainer-can-modify: true
+          draft: true
+          reviewers: ${{ vars.GP_LINGUISTIC_REVIEWER }}
           add-paths: src/frontend/src/locales/*.json
 
-      - name: Enable auto-merge
+      - name: Record translation PR gate state
         if: steps.create-pr.outputs.pull-request-number != ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GP_TRANSLATION_PR_TOKEN }}
         run: |
-          gh pr merge ${{ steps.create-pr.outputs.pull-request-number }} --auto --squash \
-            --repo ${{ github.repository }}
+          gh pr view "${{ steps.create-pr.outputs.pull-request-number }}" \
+            --repo "${{ github.repository }}" \
+            --json url,headRefOid,isDraft,reviewDecision,autoMergeRequest,statusCheckRollup
 
       - name: Report GP download failure
         if: failure()
         run: echo "::warning::GP translation download failed — translations may be out of date. Check the 'Download translations from GP' step above for details."
 
   download-backend:
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     name: Download backend translations from Globalization Pipeline
     environment: GP-test
@@ -152,7 +188,35 @@ jobs:
           GP_ADMIN_PASSWORD: ${{ secrets.GP_ADMIN_PASSWORD }}
           GP_INSTANCE: ${{ vars.GP_INSTANCE }}
           GP_BACKEND_BUNDLE: ${{ vars.GP_BACKEND_BUNDLE }}
-        run: python download.py --target backend
+        run: |
+          python download.py --target backend --lang ru --source ../../src/backend/base/langflow/locales/en.json --output /tmp/gp-ru-backend
+          python download.py --target backend --source ../../src/backend/base/langflow/locales/en.json
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: "3.12"
+
+      - name: Install backend workspace
+        run: uv sync --no-dev
+
+      - name: Validate backend locale contracts
+        run: uv run python scripts/i18n/check_backend_locales.py
+
+      - name: Require CI-triggering PR token and linguistic reviewer
+        env:
+          GP_TRANSLATION_PR_TOKEN: ${{ secrets.GP_TRANSLATION_PR_TOKEN }}
+          GP_LINGUISTIC_REVIEWER: ${{ vars.GP_LINGUISTIC_REVIEWER }}
+        run: |
+          missing=""
+          [ -n "$GP_TRANSLATION_PR_TOKEN" ] || missing="$missing GP_TRANSLATION_PR_TOKEN"
+          [ -n "$GP_LINGUISTIC_REVIEWER" ] || missing="$missing GP_LINGUISTIC_REVIEWER"
+          if [ -n "$missing" ]; then
+            echo "Missing required configuration names:$missing"
+            exit 1
+          fi
 
       - name: Close stale backend translation PRs
         uses: actions/github-script@v8
@@ -179,29 +243,36 @@ jobs:
         id: create-pr
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch-token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GP_TRANSLATION_PR_TOKEN }}
+          branch-token: ${{ secrets.GP_TRANSLATION_PR_TOKEN }}
           base: ${{ steps.resolve-branch.outputs.branch }}
-          commit-message: "chore: update backend translations from Globalization Pipeline [skip ci]"
+          commit-message: "chore: update backend translations from Globalization Pipeline"
           title: "chore: update backend translations from Globalization Pipeline"
           body: |
             Automated PR to update backend locale files from IBM Globalization Pipeline.
 
             This PR was automatically created by the `gp-download` workflow.
+            Locale contracts must pass and linguistic review is required before merge.
+            Required checks: `CI Success` and `I18n Contract Gates`.
+            Manual gate: update the current catalog hash in `linguistic-review.md`, obtain `APPROVED`, then mark this draft ready.
+            Auto-merge must remain disabled.
             If no files changed, this PR will be empty and can be closed.
           branch: translations/update-backend-gp
           branch-suffix: timestamp
           delete-branch: true
           maintainer-can-modify: true
+          draft: true
+          reviewers: ${{ vars.GP_LINGUISTIC_REVIEWER }}
           add-paths: src/backend/base/langflow/locales/*.json
 
-      - name: Enable auto-merge
+      - name: Record translation PR gate state
         if: steps.create-pr.outputs.pull-request-number != ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GP_TRANSLATION_PR_TOKEN }}
         run: |
-          gh pr merge ${{ steps.create-pr.outputs.pull-request-number }} --auto --squash \
-            --repo ${{ github.repository }}
+          gh pr view "${{ steps.create-pr.outputs.pull-request-number }}" \
+            --repo "${{ github.repository }}" \
+            --json url,headRefOid,isDraft,reviewDecision,autoMergeRequest,statusCheckRollup
 
       - name: Report GP backend download failure
         if: failure()

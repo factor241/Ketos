@@ -26,6 +26,7 @@ from lfx.base.vectorstores.chroma_security import chroma_client_create_collectio
 from lfx.log import logger
 from pydantic import BaseModel, Field
 
+from langflow.api.error_codes import ApiErrorCode, coded_http_error
 from langflow.api.utils import CurrentActiveUser, ingestion_run_service, knowledge_base_service
 from langflow.api.utils.kb_helpers import KBAnalysisHelper, KBIngestionHelper, KBStorageHelper
 from langflow.api.utils.kb_metadata import parse_per_file_metadata, parse_user_metadata
@@ -76,6 +77,24 @@ from langflow.utils.kb_constants import (
 KB_METADATA_KEYS_VALUES_CAP = 50
 
 router = APIRouter(tags=["Knowledge Bases"], prefix="/knowledge_bases", include_in_schema=False)
+
+
+def _knowledge_not_found_error(kb_name: str, *, detail: str | None = None):
+    return coded_http_error(
+        ApiErrorCode.KNOWLEDGE_NOT_FOUND,
+        params={"name": kb_name},
+        detail=detail,
+        status_code=HTTPStatus.NOT_FOUND,
+    )
+
+
+def _knowledge_internal_error(*, technical_detail: str, detail: str | None = None):
+    return coded_http_error(
+        ApiErrorCode.SERVER_INTERNAL_ERROR,
+        detail=detail,
+        status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+        technical_detail=technical_detail,
+    )
 
 
 @dataclass(frozen=True)
@@ -203,9 +222,11 @@ def _validate_kb_path_containment(kb_user_path: Path, kb_path: Path, kb_name: st
             kb_name,
             kb_path,
         )
-        raise HTTPException(
-            status_code=403,
+        raise coded_http_error(
+            ApiErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
             detail=f"Access denied for knowledge base '{kb_name}'.",
+            status_code=HTTPStatus.FORBIDDEN,
+            technical_detail=str(exc),
         ) from exc
 
 
@@ -229,7 +250,7 @@ def _resolve_kb_path(kb_name: str, owner_user) -> Path:
     _validate_kb_path_containment(kb_user_path, kb_path, kb_name, kb_user)
 
     if not kb_path.exists() or not kb_path.is_dir():
-        raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
+        raise _knowledge_not_found_error(kb_name, detail=f"Knowledge base '{kb_name}' not found")
     return kb_path
 
 
@@ -292,9 +313,10 @@ def _check_memory_base_association(kb_name: str, current_user: CurrentActiveUser
 
     metadata = KBAnalysisHelper.get_metadata(kb_path, fast=True)
     if _is_memory_base_associated(metadata):
-        raise HTTPException(
-            status_code=403,
+        raise coded_http_error(
+            ApiErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
             detail=f"Access denied: knowledge base '{kb_name}' is managed by a Memory Base.",
+            status_code=HTTPStatus.FORBIDDEN,
         )
 
 
@@ -316,9 +338,10 @@ def _assert_kb_not_memory_base(kb_name: str, owner_user) -> None:
         raise
     metadata = KBAnalysisHelper.get_metadata(kb_path, fast=True)
     if _is_memory_base_associated(metadata):
-        raise HTTPException(
-            status_code=403,
+        raise coded_http_error(
+            ApiErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
             detail=f"Access denied: knowledge base '{kb_name}' is managed by a Memory Base.",
+            status_code=HTTPStatus.FORBIDDEN,
         )
 
 
@@ -698,7 +721,12 @@ async def create_knowledge_base(
         )
         # Validate KB name
         if not kb_name or len(kb_name) < MIN_KB_NAME_LENGTH:
-            raise HTTPException(status_code=400, detail="Knowledge base name must be at least 3 characters")
+            raise coded_http_error(
+                ApiErrorCode.KNOWLEDGE_INVALID_NAME,
+                params={"min_length": MIN_KB_NAME_LENGTH},
+                detail="Knowledge base name must be at least 3 characters",
+                status_code=HTTPStatus.BAD_REQUEST,
+            )
 
         # Security: resolve paths and validate containment to prevent path traversal attacks.
         # A crafted kb_name like "../victim/evil" or an absolute path like "/tmp/evil" must be
@@ -712,7 +740,12 @@ async def create_knowledge_base(
         # sidecar directory was cleaned up out of band.
         existing_record = await knowledge_base_service.get_by_user_and_name(current_user.id, kb_name)
         if existing_record is not None:
-            raise HTTPException(status_code=409, detail=f"Knowledge base '{kb_name}' already exists")
+            raise coded_http_error(
+                ApiErrorCode.KNOWLEDGE_ALREADY_EXISTS,
+                params={"name": kb_name},
+                detail=f"Knowledge base '{kb_name}' already exists",
+                status_code=HTTPStatus.CONFLICT,
+            )
         if kb_path.exists():
             # No DB row but a directory survives.  Two paths fork here:
             # the dir is a leftover from a previous failed delete (carries
@@ -720,15 +753,22 @@ async def create_knowledge_base(
             # wants to reuse the name -- vs. a legitimate orphan from a
             # legacy export.  Only the sentinel case is safe to repurpose.
             if KBStorageHelper.is_kb_dir_deleted(kb_path):
-                raise HTTPException(
-                    status_code=409,
+                raise coded_http_error(
+                    ApiErrorCode.KNOWLEDGE_ALREADY_EXISTS,
+                    params={"name": kb_name},
                     detail=(
                         f"Knowledge base '{kb_name}' was recently deleted but its on-disk files "
                         "are still being released by another process. Restart the server (or wait "
                         "for the lock to clear) before recreating it with the same name."
                     ),
+                    status_code=HTTPStatus.CONFLICT,
                 )
-            raise HTTPException(status_code=409, detail=f"Knowledge base '{kb_name}' already exists")
+            raise coded_http_error(
+                ApiErrorCode.KNOWLEDGE_ALREADY_EXISTS,
+                params={"name": kb_name},
+                detail=f"Knowledge base '{kb_name}' already exists",
+                status_code=HTTPStatus.CONFLICT,
+            )
 
         # Create KB directory.  Clear any leftover sentinel just in case
         # mkdir is racing with a sentinel write from a concurrent delete
@@ -822,10 +862,12 @@ async def create_knowledge_base(
                 exc,
             )
             KBStorageHelper.delete_storage(kb_path, kb_name)
-            raise HTTPException(
-                status_code=500,
+            raise _knowledge_internal_error(
                 detail=(
                     f"Failed to persist knowledge base '{kb_name}' with backend '{backend_type_value}'. Please retry."
+                ),
+                technical_detail=(
+                    f"Failed to persist knowledge base '{kb_name}' with backend '{backend_type_value}': {exc}"
                 ),
             ) from exc
 
@@ -853,7 +895,10 @@ async def create_knowledge_base(
         if kb_path.exists():
             KBStorageHelper.delete_storage(kb_path, kb_name)
         await logger.aerror("Error creating knowledge base: %s", e)
-        raise HTTPException(status_code=500, detail="Internal error creating knowledge base") from e
+        raise _knowledge_internal_error(
+            detail="Internal error creating knowledge base",
+            technical_detail=f"Error creating knowledge base: {e}",
+        ) from e
 
 
 @router.post("/preview-chunks", status_code=HTTPStatus.OK)
@@ -877,7 +922,11 @@ async def preview_chunks(
     await _guard_kb_action(current_user=current_user, action=KnowledgeBaseAction.CREATE, kb_name=None)
     try:
         if not files:
-            raise HTTPException(status_code=400, detail="No files provided")
+            raise coded_http_error(
+                ApiErrorCode.KNOWLEDGE_NO_FILES,
+                detail="No files provided",
+                status_code=HTTPStatus.BAD_REQUEST,
+            )
 
         # Build separators list: user separator first, then defaults
         separators = None
@@ -965,7 +1014,10 @@ async def preview_chunks(
         raise
     except Exception as e:
         await logger.aerror("Error previewing chunks: %s", e)
-        raise HTTPException(status_code=500, detail="Error previewing chunks.") from e
+        raise _knowledge_internal_error(
+            detail="Error previewing chunks.",
+            technical_detail=str(e),
+        ) from e
     else:
         return {"files": file_previews}
 
@@ -1025,9 +1077,10 @@ async def ingest_files_to_knowledge_base(
         for uploaded_file in files:
             file_size = uploaded_file.size
             if file_size > max_file_size_upload * 1024 * 1024:
-                raise HTTPException(
-                    status_code=413,
+                raise coded_http_error(
+                    ApiErrorCode.REQUEST_BAD_REQUEST,
                     detail=f"File {uploaded_file.filename} exceeds the maximum upload size of {max_file_size_upload}MB",
+                    status_code=HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
                 )
             content = await uploaded_file.read()
             files_data.append((uploaded_file.filename or "unknown", content))
@@ -1055,9 +1108,10 @@ async def ingest_files_to_knowledge_base(
         # Read embedding metadata (Pass fast=False to ensure legacy KBs are migrated/detected)
         metadata = KBAnalysisHelper.get_metadata(kb_path, fast=False)
         if not metadata:
-            raise HTTPException(
-                status_code=400,
+            raise coded_http_error(
+                ApiErrorCode.REQUEST_BAD_REQUEST,
                 detail="Knowledge base missing embedding configuration. Please create a new KB or reconfigure it.",
+                status_code=HTTPStatus.BAD_REQUEST,
             )
 
         # ``model_selection`` is the canonical embedding-config payload.
@@ -1070,7 +1124,11 @@ async def ingest_files_to_knowledge_base(
             "provider": metadata.get("embedding_provider"),
         }
         if not model_selection.get("name") or not model_selection.get("provider"):
-            raise HTTPException(status_code=400, detail="Invalid embedding configuration")
+            raise coded_http_error(
+                ApiErrorCode.REQUEST_BAD_REQUEST,
+                detail="Invalid embedding configuration",
+                status_code=HTTPStatus.BAD_REQUEST,
+            )
 
         # Use ``KnowledgeBaseRecord.id`` (when present) as the Job's
         # ``asset_id`` so the read path can hit the indexed
@@ -1123,7 +1181,10 @@ async def ingest_files_to_knowledge_base(
         raise
     except Exception as e:
         await logger.aerror("Error ingesting files to knowledge base: %s", e)
-        raise HTTPException(status_code=500, detail="Error ingesting files to knowledge base.") from e
+        raise _knowledge_internal_error(
+            detail="Error ingesting files to knowledge base.",
+            technical_detail=str(e),
+        ) from e
 
 
 class IngestFolderRequest(BaseModel):
@@ -1207,18 +1268,20 @@ async def ingest_folder_to_knowledge_base(
         if payload.per_file_metadata:
             for filename, file_meta in payload.per_file_metadata.items():
                 if not isinstance(filename, str) or not filename:
-                    raise HTTPException(
-                        status_code=422,
+                    raise coded_http_error(
+                        ApiErrorCode.REQUEST_BAD_REQUEST,
                         detail="Per-file metadata keys must be non-empty filename strings.",
+                        status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
                     )
                 per_file_user_metadata[filename] = _validate_user_metadata(dict(file_meta or {}))
 
         kb_path = _resolve_kb_path(kb_name, _kb_guard.owner_user)
         metadata = KBAnalysisHelper.get_metadata(kb_path, fast=False)
         if not metadata:
-            raise HTTPException(
-                status_code=400,
+            raise coded_http_error(
+                ApiErrorCode.REQUEST_BAD_REQUEST,
                 detail="Knowledge base missing embedding configuration. Please create a new KB or reconfigure it.",
+                status_code=HTTPStatus.BAD_REQUEST,
             )
 
         model_selection = metadata.get("model_selection") or {
@@ -1226,7 +1289,11 @@ async def ingest_folder_to_knowledge_base(
             "provider": metadata.get("embedding_provider"),
         }
         if not model_selection.get("name") or not model_selection.get("provider"):
-            raise HTTPException(status_code=400, detail="Invalid embedding configuration")
+            raise coded_http_error(
+                ApiErrorCode.REQUEST_BAD_REQUEST,
+                detail="Invalid embedding configuration",
+                status_code=HTTPStatus.BAD_REQUEST,
+            )
 
         asset_id = await _resolve_kb_asset_id(
             kb_name=kb_name,
@@ -1253,7 +1320,11 @@ async def ingest_folder_to_knowledge_base(
         try:
             await folder_source.validate_config()
         except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise coded_http_error(
+                ApiErrorCode.REQUEST_BAD_REQUEST,
+                status_code=HTTPStatus.BAD_REQUEST,
+                technical_detail=str(exc),
+            ) from exc
 
         job_service = get_job_service()
         job_id = uuid.uuid4()
@@ -1292,7 +1363,10 @@ async def ingest_folder_to_knowledge_base(
         raise
     except Exception as e:
         await logger.aerror("Error ingesting folder to knowledge base: %s", e)
-        raise HTTPException(status_code=500, detail="Error ingesting folder to knowledge base.") from e
+        raise _knowledge_internal_error(
+            detail="Error ingesting folder to knowledge base.",
+            technical_detail=str(e),
+        ) from e
 
 
 @router.get("", status_code=HTTPStatus.OK)
@@ -1405,7 +1479,10 @@ async def list_knowledge_bases(
 
     except Exception as e:
         await logger.aerror("Error listing knowledge bases: %s", e)
-        raise HTTPException(status_code=500, detail="Error listing knowledge bases.") from e
+        raise _knowledge_internal_error(
+            detail="Error listing knowledge bases.",
+            technical_detail=f"Error listing knowledge bases: {e}",
+        ) from e
     else:
         return knowledge_bases
 
@@ -1469,7 +1546,10 @@ async def get_knowledge_base(kb_name: str, current_user: CurrentActiveUser) -> K
         raise
     except Exception as e:
         await logger.aerror("Error getting knowledge base '%s': %s", kb_name, e)
-        raise HTTPException(status_code=500, detail="Error getting knowledge base.") from e
+        raise _knowledge_internal_error(
+            detail="Error getting knowledge base.",
+            technical_detail=f"Error getting knowledge base '{kb_name}': {e}",
+        ) from e
 
 
 @router.get("/{kb_name}/chunks", status_code=HTTPStatus.OK, dependencies=[Depends(_check_memory_base_association)])
@@ -1638,7 +1718,10 @@ async def get_knowledge_base_chunks(
                     matched_count += 1
         except Exception as iter_error:
             await logger.aerror("iter_documents failed for '%s': %s", kb_name, iter_error)
-            raise HTTPException(status_code=500, detail="Error getting chunks.") from iter_error
+            raise _knowledge_internal_error(
+                detail="Error getting chunks.",
+                technical_detail=str(iter_error),
+            ) from iter_error
 
         chunks = [
             ChunkInfo(id=doc_id, content=content, char_count=len(content or ""), metadata=metadata)
@@ -1656,7 +1739,10 @@ async def get_knowledge_base_chunks(
         raise
     except Exception as e:
         await logger.aerror("Error getting chunks for '%s': %s", kb_name, e)
-        raise HTTPException(status_code=500, detail="Error getting chunks.") from e
+        raise _knowledge_internal_error(
+            detail="Error getting chunks.",
+            technical_detail=str(e),
+        ) from e
     finally:
         if backend is not None:
             try:
@@ -1766,7 +1852,10 @@ async def get_knowledge_base_metadata_keys(
                             bucket[stringified] = None
         except Exception as iter_error:
             await logger.aerror("iter_documents failed while listing metadata keys for '%s': %s", kb_name, iter_error)
-            raise HTTPException(status_code=500, detail="Error listing metadata keys.") from iter_error
+            raise _knowledge_internal_error(
+                detail="Error listing metadata keys.",
+                technical_detail=str(iter_error),
+            ) from iter_error
 
         return KbMetadataKeysResponse(
             keys={key: list(values.keys()) for key, values in sorted(distinct.items())},
@@ -1777,7 +1866,10 @@ async def get_knowledge_base_metadata_keys(
         raise
     except Exception as e:
         await logger.aerror("Error listing metadata keys for '%s': %s", kb_name, e)
-        raise HTTPException(status_code=500, detail="Error listing metadata keys.") from e
+        raise _knowledge_internal_error(
+            detail="Error listing metadata keys.",
+            technical_detail=str(e),
+        ) from e
     finally:
         if backend is not None:
             try:
@@ -1813,16 +1905,21 @@ async def ingest_via_connector(
 
         metadata = KBAnalysisHelper.get_metadata(kb_path, fast=False)
         if not metadata:
-            raise HTTPException(
-                status_code=400,
+            raise coded_http_error(
+                ApiErrorCode.REQUEST_BAD_REQUEST,
                 detail="Knowledge base missing embedding configuration. Please create a new KB or reconfigure it.",
+                status_code=HTTPStatus.BAD_REQUEST,
             )
         model_selection = metadata.get("model_selection") or {
             "name": metadata.get("embedding_model"),
             "provider": metadata.get("embedding_provider"),
         }
         if not model_selection.get("name") or not model_selection.get("provider"):
-            raise HTTPException(status_code=400, detail="Invalid embedding configuration")
+            raise coded_http_error(
+                ApiErrorCode.REQUEST_BAD_REQUEST,
+                detail="Invalid embedding configuration",
+                status_code=HTTPStatus.BAD_REQUEST,
+            )
         asset_id = await _resolve_kb_asset_id(
             kb_name=kb_name,
             current_user=current_user,
@@ -1836,12 +1933,20 @@ async def ingest_via_connector(
                 source_config=payload.source_config,
             )
         except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise coded_http_error(
+                ApiErrorCode.REQUEST_BAD_REQUEST,
+                status_code=HTTPStatus.BAD_REQUEST,
+                technical_detail=str(exc),
+            ) from exc
 
         try:
             await source.validate_config()
         except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise coded_http_error(
+                ApiErrorCode.REQUEST_BAD_REQUEST,
+                status_code=HTTPStatus.BAD_REQUEST,
+                technical_detail=str(exc),
+            ) from exc
 
         # Build an idempotency key over (user, kb, source, config) so
         # that a double-click on "Ingest" doesn't spawn two jobs for
@@ -1869,13 +1974,15 @@ async def ingest_via_connector(
                 dedupe_key=dedupe_key,
             )
         except DuplicateJobError as exc:
-            raise HTTPException(
+            raise coded_http_error(
+                ApiErrorCode.REQUEST_BAD_REQUEST,
                 status_code=HTTPStatus.CONFLICT,
                 detail=(
                     "An ingestion for this connector target is already "
                     "queued or running. Wait for it to finish before "
                     "starting another."
                 ),
+                technical_detail=str(exc),
             ) from exc
 
         task_service = get_task_service()
@@ -1902,7 +2009,10 @@ async def ingest_via_connector(
         raise
     except Exception as e:
         await logger.aerror("Error ingesting via connector to KB: %s", e)
-        raise HTTPException(status_code=500, detail="Error ingesting via connector.") from e
+        raise _knowledge_internal_error(
+            detail="Error ingesting via connector.",
+            technical_detail=str(e),
+        ) from e
 
 
 @router.get("/{kb_name}/runs", status_code=HTTPStatus.OK)
@@ -1953,7 +2063,11 @@ async def get_ingestion_run(
 
     row = await ingestion_run_service.get_run(run_id, user_id=_kb_guard.owner_user.id)
     if row is None or row.kb_name != kb_name:
-        raise HTTPException(status_code=404, detail="Ingestion run not found.")
+        raise coded_http_error(
+            ApiErrorCode.REQUEST_BAD_REQUEST,
+            detail="Ingestion run not found.",
+            status_code=HTTPStatus.NOT_FOUND,
+        )
 
     base = _run_row_to_info(row)
     items = [
@@ -2076,7 +2190,10 @@ async def delete_knowledge_base(
             await knowledge_base_service.delete_by_user_and_name(_kb_guard.owner_user.id, kb_name)
         except Exception as exc:
             await logger.aerror("KB DB delete failed for %s: %s", kb_name, exc)
-            raise HTTPException(status_code=500, detail="Error deleting knowledge base.") from exc
+            raise _knowledge_internal_error(
+                detail="Error deleting knowledge base.",
+                technical_detail=f"Error deleting knowledge base '{kb_name}' from database: {exc}",
+            ) from exc
 
         storage_warning: str | None = None
         if not KBStorageHelper.delete_storage(kb_path, kb_name):
@@ -2096,7 +2213,10 @@ async def delete_knowledge_base(
         raise
     except Exception as e:
         await logger.aerror("Error deleting knowledge base '%s': %s", kb_name, e)
-        raise HTTPException(status_code=500, detail="Error deleting knowledge base.") from e
+        raise _knowledge_internal_error(
+            detail="Error deleting knowledge base.",
+            technical_detail=f"Error deleting knowledge base '{kb_name}': {e}",
+        ) from e
     else:
         response: dict[str, str] = {"message": f"Knowledge base '{kb_name}' deleted successfully"}
         # Storage-cleanup failure first so it is the most visible to the
@@ -2214,8 +2334,10 @@ async def delete_knowledge_bases_bulk(
                 failed_kbs.append(kb_name)
 
         if not_found_kbs and deleted_count == 0 and not memory_base_kbs:
-            raise HTTPException(
-                status_code=404, detail="Knowledge bases not found: {}".format(", ".join(not_found_kbs))
+            raise coded_http_error(
+                ApiErrorCode.REQUEST_BAD_REQUEST,
+                detail="Knowledge bases not found: {}".format(", ".join(not_found_kbs)),
+                status_code=HTTPStatus.NOT_FOUND,
             )
 
         result: dict[str, object] = {
@@ -2236,7 +2358,10 @@ async def delete_knowledge_bases_bulk(
         raise
     except Exception as e:
         await logger.aerror("Error deleting knowledge bases: %s", e)
-        raise HTTPException(status_code=500, detail="Error deleting knowledge bases.") from e
+        raise _knowledge_internal_error(
+            detail="Error deleting knowledge bases.",
+            technical_detail=str(e),
+        ) from e
     else:
         return result
 
@@ -2268,14 +2393,22 @@ async def cancel_ingestion(
         latest_jobs = await job_service.get_latest_jobs_by_asset_ids([asset_id])
 
         if asset_id not in latest_jobs:
-            raise HTTPException(status_code=404, detail=f"No ingestion job found for the knowledge base {kb_name}")
+            raise coded_http_error(
+                ApiErrorCode.REQUEST_BAD_REQUEST,
+                detail=f"No ingestion job found for the knowledge base {kb_name}",
+                status_code=HTTPStatus.NOT_FOUND,
+            )
 
         job = latest_jobs[asset_id]
         job_status = job.status.value if hasattr(job.status, "value") else str(job.status)
 
         # Check if job is already completed or failed
         if job_status in ["completed", "failed", "cancelled", "timed_out"]:
-            raise HTTPException(status_code=400, detail=f"Cannot cancel job with status '{job_status}'")
+            raise coded_http_error(
+                ApiErrorCode.REQUEST_BAD_REQUEST,
+                detail=f"Cannot cancel job with status '{job_status}'",
+                status_code=HTTPStatus.BAD_REQUEST,
+            )
 
         revoked = await task_service.revoke_task(job.job_id)
         # Update status immediately so background task can see it
@@ -2313,6 +2446,9 @@ async def cancel_ingestion(
         raise
     except Exception as e:
         await logger.aerror("Error cancelling ingestion: %s", e)
-        raise HTTPException(status_code=500, detail="Error cancelling ingestion.") from e
+        raise _knowledge_internal_error(
+            detail="Error cancelling ingestion.",
+            technical_detail=str(e),
+        ) from e
     else:
         return {"message": message}

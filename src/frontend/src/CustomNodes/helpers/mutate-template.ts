@@ -1,9 +1,18 @@
-import type { UseMutationResult } from "@tanstack/react-query";
 import { cloneDeep, debounce } from "lodash";
 import { SAVE_DEBOUNCE_TIME } from "@/constants/constants";
+import type { APIClassType } from "@/types/api";
+import { getLocalizedApiErrorMessage } from "@/utils/localized-api-error";
 import i18n from "../../i18n";
-import type { APIClassType, ResponseErrorDetailAPI } from "@/types/api";
 import { updateHiddenOutputs } from "./update-hidden-outputs";
+
+type PostTemplateValueMutation = {
+  mutateAsync: (variables: {
+    value: unknown;
+    field_name?: string;
+    tool_mode?: boolean;
+    is_refresh?: boolean;
+  }) => Promise<APIClassType | undefined>;
+};
 
 // Map to store debounced functions for each node ID + parameter combination
 const debouncedFunctions = new Map<string, ReturnType<typeof debounce>>();
@@ -13,11 +22,7 @@ export const mutateTemplate = async (
   nodeId: string,
   node: APIClassType,
   setNodeClass,
-  postTemplateValue: UseMutationResult<
-    APIClassType | undefined,
-    ResponseErrorDetailAPI,
-    any
-  >,
+  postTemplateValue: PostTemplateValueMutation,
   setErrorData,
   parameterName?: string,
   callback?: () => void,
@@ -35,11 +40,7 @@ export const mutateTemplate = async (
           newValue,
           node: APIClassType,
           setNodeClass,
-          postTemplateValue: UseMutationResult<
-            APIClassType | undefined,
-            ResponseErrorDetailAPI,
-            any
-          >,
+          postTemplateValue: PostTemplateValueMutation,
           setErrorData,
           parameterName?: string,
           callback?: () => void,
@@ -73,13 +74,15 @@ export const mutateTemplate = async (
               }
             }
             callback?.();
-          } catch (e) {
-            const error = e as ResponseErrorDetailAPI;
+          } catch (error: unknown) {
             setErrorData({
               title: i18n.t("input.titleErrorUpdatingComponent"),
               list: [
-                error.response?.data?.detail ||
-                  i18n.t("input.errorUpdatingComponent"),
+                getLocalizedApiErrorMessage(
+                  error,
+                  (key, params) => i18n.t(key, params),
+                  { fallbackKey: "errors.requestFailed" },
+                ),
               ],
             });
           }

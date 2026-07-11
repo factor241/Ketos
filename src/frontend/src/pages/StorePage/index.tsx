@@ -50,7 +50,7 @@ export default function StorePage(): JSX.Element {
   const currentFlowId = useFlowsManagerStore((state) => state.currentFlowId);
   const [loading, setLoading] = useState(true);
   const { id } = useParams();
-  const [filteredCategories, setFilterCategories] = useState<any[]>([]);
+  const [filteredCategories, setFilterCategories] = useState<string[]>([]);
   const [inputText, setInputText] = useState<string>("");
   const [searchData, setSearchData] = useState<storeComponent[]>([]);
   const [totalRowsCount, setTotalRowsCount] = useState(0);
@@ -141,7 +141,7 @@ export default function StorePage(): JSX.Element {
           setLoading(false);
           setErrorData({
             title: t("errors.getComponents"),
-            list: [err?.response?.data?.detail ?? t("store.fetchErrorDetail")],
+            list: [t("errors.requestFailed")],
           });
         }
       });

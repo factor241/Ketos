@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import Loading from "@/components/ui/loading";
 import { Separator } from "@/components/ui/separator";
+import { formatDate as formatLocaleDate } from "@/utils/locale-format";
 import { cn } from "@/utils/utils";
 import type { ProviderAccount } from "../types";
 
@@ -22,7 +24,7 @@ interface ProviderCardProps {
 
 function formatDate(iso: string | null) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString(undefined, {
+  return formatLocaleDate(iso, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -52,6 +54,7 @@ export default function ProviderCard({
   onConfigure,
   onDelete,
 }: ProviderCardProps) {
+  const { t } = useTranslation();
   const endpoint = getProviderEndpoint(provider);
   const lastUpdated = formatDate(provider.updated_at ?? provider.created_at);
 
@@ -82,7 +85,9 @@ export default function ProviderCard({
 
       <CardContent className="space-y-4">
         <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">Endpoint</p>
+          <p className="text-sm text-muted-foreground">
+            {t("deployments.endpoint")}
+          </p>
           <p className="break-all text-sm text-foreground" title={endpoint}>
             {endpoint}
           </p>
@@ -90,11 +95,15 @@ export default function ProviderCard({
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">Last Updated</p>
+            <p className="text-sm text-muted-foreground">
+              {t("deployments.lastUpdated")}
+            </p>
             <p className="text-sm text-foreground">{lastUpdated}</p>
           </div>
           <div className="space-y-1 text-right">
-            <p className="text-sm text-muted-foreground">Deployments</p>
+            <p className="text-sm text-muted-foreground">
+              {t("deployments.subTabDeployments")}
+            </p>
             <p className="text-sm text-foreground">{deploymentCount}</p>
           </div>
         </div>
@@ -111,7 +120,7 @@ export default function ProviderCard({
           disabled={isDeleting}
         >
           <ForwardedIconComponent name="Settings" className="h-4 w-4" />
-          Configure
+          {t("deployments.configure")}
         </Button>
         <Button
           variant="outline"
@@ -125,7 +134,7 @@ export default function ProviderCard({
           ) : (
             <ForwardedIconComponent name="Trash2" className="h-4 w-4" />
           )}
-          Delete
+          {t("deployments.delete")}
         </Button>
       </CardFooter>
     </Card>

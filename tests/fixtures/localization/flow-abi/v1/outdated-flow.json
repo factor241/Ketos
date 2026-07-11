@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "case_id": "outdated-flow",
+  "source_format_version": "1.0",
+  "topology": "text-regex-output",
+  "traits": ["outdated", "replacement-metadata"],
+  "stable_ids": {
+    "nodes": ["outdated-input", "outdated-regex", "outdated-output"],
+    "edges": ["edge:outdated-input:text:outdated-regex:input_text", "edge:outdated-regex:text:outdated-output:input_value"]
+  },
+  "input": "Contact outdated@example.com",
+  "expected_runtime": { "result_name": "text", "text": "outdated@example.com" }
+}

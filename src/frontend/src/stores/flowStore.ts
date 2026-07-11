@@ -19,6 +19,7 @@ import {
   trackDataLoaded,
   trackFlowBuild,
 } from "@/customization/utils/analytics";
+import { getOptionMetadata } from "@/utils/option-presentation";
 import { brokenEdgeMessage } from "@/utils/utils";
 import { BuildStatus, EventDeliveryType } from "../constants/enums";
 import i18n from "../i18n";
@@ -898,25 +899,29 @@ const useFlowStore = create<FlowStoreType>((set, get) => ({
 
       if (blockedComponents.length > 0) {
         errorList.push(
-          `The following custom components cannot run while custom components are disabled: ${blockedComponents
-            .map((component) => component.display_name ?? component.id)
-            .join(", ")}`,
+          i18n.t("errors.customComponentsBlockedList", {
+            components: blockedComponents
+              .map((component) => component.display_name ?? component.id)
+              .join(", "),
+          }),
         );
       }
 
       if (outdatedComponents.length > 0) {
         errorList.push(
-          `The following components are outdated and must be updated: ${outdatedComponents
-            .map((component) => component.display_name ?? component.id)
-            .join(", ")}`,
+          i18n.t("errors.outdatedComponentsList", {
+            components: outdatedComponents
+              .map((component) => component.display_name ?? component.id)
+              .join(", "),
+          }),
         );
       }
 
       setErrorData({
         title:
           blockedComponents.length > 0
-            ? "Custom components are blocked while custom components are disabled"
-            : "Outdated components must be updated before building",
+            ? i18n.t("errors.customComponentsBlockedTitle")
+            : i18n.t("errors.outdatedComponentsTitle"),
         list: errorList,
       });
       get().setIsBuilding(false);
@@ -1218,7 +1223,7 @@ const useFlowStore = create<FlowStoreType>((set, get) => ({
         status,
       };
       if (status == BuildStatus.BUILT) {
-        const timestamp_string = new Date(Date.now()).toLocaleString();
+        const timestamp_string = new Date(Date.now()).toISOString();
         newFlowBuildStatus[id].timestamp = timestamp_string;
       }
     });
@@ -1360,6 +1365,75 @@ function normalizeComponentKey(name: string): string {
   return name.replace(/\s+/g, "").toLowerCase();
 }
 
+const INPUT_PRESENTATION_FIELDS = [
+  "display_name",
+  "info",
+  "placeholder",
+  "helper_text",
+  "refresh_button_text",
+  "list_add_label",
+  "auth_tooltip",
+  "min_label",
+  "max_label",
+  "trigger_text",
+] as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function canRefreshPresentationValue(
+  current: unknown,
+  knownValues: readonly string[] | undefined,
+): boolean {
+  return (
+    current === undefined ||
+    (typeof current === "string" && knownValues?.includes(current) === true)
+  );
+}
+
+function syncNestedPresentation(
+  current: unknown,
+  fresh: unknown,
+  path: string,
+  knownPresentation: Record<string, string[]>,
+): unknown {
+  if (typeof fresh === "string") {
+    return canRefreshPresentationValue(current, knownPresentation[path])
+      ? fresh
+      : current;
+  }
+  if (Array.isArray(fresh)) {
+    const currentList = Array.isArray(current) ? current : [];
+    return Array.from(
+      { length: Math.max(currentList.length, fresh.length) },
+      (_, index) =>
+        index >= fresh.length
+          ? currentList[index]
+          : syncNestedPresentation(
+              currentList[index],
+              fresh[index],
+              path,
+              knownPresentation,
+            ),
+    );
+  }
+  if (isRecord(fresh)) {
+    const currentRecord = isRecord(current) ? current : {};
+    const result: Record<string, unknown> = { ...currentRecord };
+    for (const [key, value] of Object.entries(fresh)) {
+      result[key] = syncNestedPresentation(
+        currentRecord[key],
+        value,
+        path ? `${path}.${key}` : key,
+        knownPresentation,
+      );
+    }
+    return result;
+  }
+  return current ?? fresh;
+}
+
 export function syncNodeTranslations(): void {
   const { nodes } = useFlowStore.getState();
   if (nodes.length === 0) return;
@@ -1437,36 +1511,120 @@ export function syncNodeTranslations(): void {
     const knownFields = componentDisplayNames[normKey]?.fields ?? {};
     for (const fieldName of Object.keys(updatedTemplate)) {
       const freshField = freshDef.template?.[fieldName];
-      if (freshField?.display_name !== undefined) {
-        const currentDisplayName = updatedTemplate[fieldName]?.display_name;
-        const knownFieldDisplayNames =
-          knownFields[fieldName]?.display_name ?? [];
-        const isKnownTranslation =
-          knownFieldDisplayNames.length === 0 ||
-          knownFieldDisplayNames.includes(currentDisplayName);
-        if (isKnownTranslation) {
-          updatedTemplate[fieldName] = {
-            ...updatedTemplate[fieldName],
-            display_name: freshField.display_name,
-            ...(freshField.info !== undefined && { info: freshField.info }),
-            ...(freshField.placeholder !== undefined && {
-              placeholder: freshField.placeholder,
-            }),
-          };
-        }
+      const currentField = updatedTemplate[fieldName];
+      if (!isRecord(freshField) || !isRecord(currentField)) continue;
+
+      const knownField = knownFields[fieldName];
+      const knownFieldDisplayNames = knownField?.display_name ?? [];
+      const knownPresentation = knownField?.presentation ?? {};
+      const currentDisplayName = currentField.display_name;
+      const legacyDisplayNameIsKnown =
+        currentDisplayName === undefined ||
+        (typeof currentDisplayName === "string" &&
+          knownFieldDisplayNames.includes(currentDisplayName));
+      const fieldUpdates: Record<string, unknown> = {};
+
+      for (const presentationField of INPUT_PRESENTATION_FIELDS) {
+        const freshValue = freshField[presentationField];
+        if (typeof freshValue !== "string") continue;
+
+        const knownValues =
+          presentationField === "display_name"
+            ? knownFieldDisplayNames
+            : knownPresentation[presentationField];
+        const legacyCompanionField =
+          (presentationField === "info" ||
+            presentationField === "placeholder") &&
+          knownValues === undefined &&
+          knownFieldDisplayNames.length > 0 &&
+          legacyDisplayNameIsKnown;
+        const canRefresh =
+          presentationField === "display_name"
+            ? legacyDisplayNameIsKnown
+            : canRefreshPresentationValue(
+                currentField[presentationField],
+                knownValues,
+              ) || legacyCompanionField;
+        if (canRefresh) fieldUpdates[presentationField] = freshValue;
+      }
+
+      const currentOptions = Array.isArray(currentField.options)
+        ? currentField.options
+        : [];
+      const freshOptions = Array.isArray(freshField.options)
+        ? freshField.options
+        : [];
+      const currentMetadata = Array.isArray(currentField.options_metadata)
+        ? currentField.options_metadata
+        : [];
+      const freshMetadata = Array.isArray(freshField.options_metadata)
+        ? freshField.options_metadata
+        : [];
+      if (currentOptions.length > 0 && freshMetadata.length > 0) {
+        fieldUpdates.options_metadata = currentOptions.map((option) => {
+          const currentEntry = getOptionMetadata(
+            option,
+            currentOptions,
+            currentMetadata,
+          );
+          const freshEntry = getOptionMetadata(
+            option,
+            freshOptions,
+            freshMetadata,
+          );
+          return freshEntry === undefined
+            ? currentEntry
+            : syncNestedPresentation(
+                currentEntry,
+                freshEntry,
+                "options_metadata",
+                knownPresentation,
+              );
+        });
+      }
+
+      for (const nestedField of [
+        "dialog_inputs",
+        "external_options",
+        "button_metadata",
+      ] as const) {
+        if (freshField[nestedField] === undefined) continue;
+        fieldUpdates[nestedField] = syncNestedPresentation(
+          currentField[nestedField],
+          freshField[nestedField],
+          nestedField,
+          knownPresentation,
+        );
+      }
+
+      if (Object.keys(fieldUpdates).length > 0) {
+        updatedTemplate[fieldName] = { ...currentField, ...fieldUpdates };
       }
     }
 
     // Update output display_names and info
-    const updatedOutputs = node.data.node!.outputs?.map((output, i) => {
-      const freshOut = freshDef.outputs?.[i];
+    const knownOutputs = componentDisplayNames[normKey]?.outputs ?? {};
+    const updatedOutputs = node.data.node!.outputs?.map((output) => {
+      const freshOut = freshDef.outputs?.find(
+        (candidate) => candidate.name === output.name,
+      );
+      const knownOutput = knownOutputs[output.name];
+      const knownOutputDisplayNames = knownOutput?.display_name ?? [];
+      const knownOutputInfo = knownOutput?.info ?? [];
+      const shouldTranslateOutputDisplayName =
+        output.display_name === undefined ||
+        knownOutputDisplayNames.includes(output.display_name);
+      const shouldTranslateOutputInfo =
+        output.info === undefined || knownOutputInfo.includes(output.info);
       return freshOut
         ? {
             ...output,
-            ...(freshOut.display_name !== undefined && {
-              display_name: freshOut.display_name,
-            }),
-            ...(freshOut.info !== undefined && { info: freshOut.info }),
+            ...(shouldTranslateOutputDisplayName &&
+              freshOut.display_name !== undefined && {
+                display_name: freshOut.display_name,
+              }),
+            ...(shouldTranslateOutputInfo &&
+              freshOut.info !== undefined && { info: freshOut.info }),
           }
         : output;
     });

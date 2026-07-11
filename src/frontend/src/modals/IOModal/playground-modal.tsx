@@ -26,7 +26,7 @@ import type { IOModalPropsType } from "../../types/components";
 import { cn, getNumberFromString } from "../../utils/utils";
 import BaseModal from "../baseModal";
 import { ChatViewWrapper } from "./components/chat-view-wrapper";
-import { createNewSessionName } from "./components/chatView/chatInput/components/voice-assistant/helpers/create-new-session-name";
+import { createNewSessionId } from "./components/chatView/chatInput/components/voice-assistant/helpers/create-new-session-name";
 import { SelectedViewField } from "./components/selected-view-field";
 import { SidebarOpenView } from "./components/sidebar-open-view";
 import { useGetFlowId } from "./hooks/useGetFlowId";
@@ -86,7 +86,8 @@ export default function IOModal({
   const [visibleSession, setvisibleSession] = useState<string | undefined>(
     currentFlowId,
   );
-  const PlaygroundTitle = playgroundPage && flowName ? flowName : "Playground";
+  const PlaygroundTitle =
+    playgroundPage && flowName ? flowName : t("playground.title");
 
   const {
     data: sessionsFromDb,
@@ -256,7 +257,7 @@ export default function IOModal({
 
   useEffect(() => {
     if (!visibleSession) {
-      setSessionId(createNewSessionName());
+      setSessionId(createNewSessionId());
       setCurrentSessionId(currentFlowId);
     } else if (visibleSession) {
       setSessionId(visibleSession);
@@ -401,6 +402,7 @@ export default function IOModal({
                       variant="ghost"
                       className="flex h-8 w-8 items-center justify-center !p-0"
                       onClick={() => setSidebarOpen(!sidebarOpen)}
+                      aria-label={t("modal.io.hideSidebar")}
                     >
                       <IconComponent
                         name={sidebarOpen ? "PanelLeftClose" : "PanelLeftOpen"}

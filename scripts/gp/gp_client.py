@@ -9,6 +9,7 @@ import hmac
 import json
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
@@ -20,13 +21,53 @@ GP_USER_ID = os.getenv("GP_ADMIN_USER_ID")
 GP_PASSWORD = os.getenv("GP_ADMIN_PASSWORD")
 GP_INSTANCE = os.getenv("GP_INSTANCE", "langflow-test")
 GP_BUNDLE = os.getenv("GP_BUNDLE", "langflow-ui")
-TARGET_LANGS = ["fr", "ja", "es", "de", "pt", "zh-Hans"]
+TARGET_LANGS = ["fr", "ja", "es", "de", "pt", "zh-Hans", "ru"]
 REQUEST_TIMEOUT = 30
-VERIFY_SSL = os.getenv("GP_VERIFY_SSL", "true").lower() != "false"
+
+
+def get_tls_verify() -> bool | str:
+    """Return the Requests TLS verification setting for every GP request.
+
+    Verification is mandatory. A private trust root can be supplied through
+    ``GP_CA_BUNDLE``; the legacy ``GP_VERIFY_SSL`` switch may only affirm TLS
+    verification and cannot disable it.
+    """
+    legacy_verify = os.getenv("GP_VERIFY_SSL")
+    if legacy_verify is not None:
+        normalized = legacy_verify.strip().lower()
+        if normalized in {"false", "0", "no", "off"}:
+            msg = "GP_VERIFY_SSL cannot disable TLS verification; configure GP_CA_BUNDLE instead"
+            raise RuntimeError(msg)
+        if normalized not in {"true", "1", "yes", "on"}:
+            msg = "GP_VERIFY_SSL must be a true value; configure GP_CA_BUNDLE for a private CA"
+            raise RuntimeError(msg)
+
+    configured_bundle = os.getenv("GP_CA_BUNDLE", "").strip()
+    if not configured_bundle:
+        return True
+
+    ca_bundle = Path(configured_bundle).expanduser().resolve()
+    if not ca_bundle.is_file():
+        msg = f"GP_CA_BUNDLE does not reference a readable file: {ca_bundle}"
+        raise RuntimeError(msg)
+    return str(ca_bundle)
+
+
+def require_credentials() -> None:
+    """Fail safely when GP HMAC credentials are not configured."""
+    missing = []
+    if not GP_USER_ID:
+        missing.append("GP_ADMIN_USER_ID")
+    if not GP_PASSWORD:
+        missing.append("GP_ADMIN_PASSWORD")
+    if missing:
+        msg = f"Missing required GP credential environment variables: {', '.join(missing)}"
+        raise RuntimeError(msg)
 
 
 def get_headers(url, method, body=None):
     """Generate GP-HMAC auth headers. url must be the full URL."""
+    require_credentials()
     date = datetime.now(timezone.utc)
     date_string = date.strftime("%a, %d %b %Y %H:%M:%S %Z").replace("UTC", "GMT")
 
@@ -58,7 +99,7 @@ def get_headers(url, method, body=None):
 def list_bundles():
     """List all bundles in the GP instance."""
     url = f"{BASE_URL}/{GP_INSTANCE}/v2/bundles"
-    response = requests.get(url, headers=get_headers(url, "GET"), verify=VERIFY_SSL, timeout=REQUEST_TIMEOUT)
+    response = requests.get(url, headers=get_headers(url, "GET"), verify=get_tls_verify(), timeout=REQUEST_TIMEOUT)
     response.raise_for_status()
     return response.json()
 
@@ -71,7 +112,7 @@ def create_bundle(source_lang="en"):
         url,
         headers=get_headers(url, "PUT", body),
         json=body,
-        verify=VERIFY_SSL,
+        verify=get_tls_verify(),
         timeout=REQUEST_TIMEOUT,
     )
     response.raise_for_status()
@@ -85,7 +126,7 @@ def upload_strings(strings, lang="en"):
         url,
         headers=get_headers(url, "PUT", strings),
         json=strings,
-        verify=VERIFY_SSL,
+        verify=get_tls_verify(),
         timeout=REQUEST_TIMEOUT,
     )
     response.raise_for_status()
@@ -95,6 +136,6 @@ def upload_strings(strings, lang="en"):
 def get_strings(lang):
     """Download translated strings for a language from GP."""
     url = f"{BASE_URL}/{GP_INSTANCE}/v2/bundles/{GP_BUNDLE}/{lang}"
-    response = requests.get(url, headers=get_headers(url, "GET"), verify=VERIFY_SSL, timeout=REQUEST_TIMEOUT)
+    response = requests.get(url, headers=get_headers(url, "GET"), verify=get_tls_verify(), timeout=REQUEST_TIMEOUT)
     response.raise_for_status()
     return response.json()

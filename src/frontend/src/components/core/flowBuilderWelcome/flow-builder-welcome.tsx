@@ -83,6 +83,24 @@ export function FlowBuilderWelcome({
   // Treat "still loading" as "has models" so we don't flash the empty state
   // for a frame while the providers request is in flight.
   const showNoProviderState = !isModelsLoading && !hasEnabledModels;
+  const getRailTooltip = (section: SidebarSection): string => {
+    switch (section) {
+      case "mcp":
+        return t("sidebar.nav.mcp");
+      case "bundles":
+        return t("sidebar.nav.bundles");
+      case "versions":
+        return t("sidebar.nav.versionHistory");
+      case "memories":
+        return t("memory.sidebarTitle");
+      case "traces":
+        return t("sidebar.nav.traces");
+      case "components":
+      case "search":
+      default:
+        return t("sidebar.nav.components");
+    }
+  };
 
   return (
     <div
@@ -92,7 +110,7 @@ export function FlowBuilderWelcome({
       <button
         type="button"
         data-testid="flow-builder-welcome-backdrop"
-        aria-label="Close welcome overlay"
+        aria-label={t("flowBuilderWelcome.closeOverlay")}
         className="absolute inset-0 cursor-default bg-background/70"
         onClick={onClose}
       />
@@ -112,7 +130,7 @@ export function FlowBuilderWelcome({
         onClick={(e) => e.stopPropagation()}
       >
         {NAV_ITEMS.map((item) => {
-          const tooltip = t(item.tooltip);
+          const tooltip = getRailTooltip(item.id);
           return (
             <ShadTooltip key={item.id} content={tooltip} side="right">
               <button
@@ -136,7 +154,6 @@ export function FlowBuilderWelcome({
       <div
         data-testid="flow-builder-welcome-panel"
         className="relative z-10 flex w-full max-w-[46rem] flex-col items-center gap-6 px-6"
-        onClick={(e) => e.stopPropagation()}
       >
         <h1 className="text-center text-4xl font-semibold text-foreground">
           {showNoProviderState

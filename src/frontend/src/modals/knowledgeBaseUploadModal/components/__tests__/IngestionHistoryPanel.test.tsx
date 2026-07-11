@@ -110,8 +110,8 @@ describe("IngestionHistoryPanel", () => {
     expect(rows).toHaveLength(2);
     expect(screen.getByText("File Upload")).toBeInTheDocument();
     expect(screen.getByText("Google Drive")).toBeInTheDocument();
-    expect(screen.getByText("succeeded")).toBeInTheDocument();
-    expect(screen.getByText("partial")).toBeInTheDocument();
+    expect(screen.getByText("Succeeded")).toBeInTheDocument();
+    expect(screen.getByText("Partially completed")).toBeInTheDocument();
   });
 
   it("prefers user-typed source_name over type label, with type as subtitle", () => {

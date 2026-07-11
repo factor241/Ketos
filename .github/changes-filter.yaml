@@ -25,6 +25,19 @@ frontend:
   - "**/lint-js.yml"
   - ".github/workflows/ci.yml"
   - "src/lfx/src/lfx/_assets/component_index.json"
+i18n-contracts:
+  - "scripts/i18n/**"
+  - "src/frontend/index.html"
+  - "src/frontend/package.json"
+  - "src/frontend/package-lock.json"
+  - "src/frontend/src/**"
+  - "src/backend/base/langflow/api/v1/endpoints.py"
+  - "src/backend/base/langflow/main.py"
+  - "src/backend/base/langflow/utils/i18n.py"
+  - "src/backend/tests/unit/test_i18n_strict_mode.py"
+  - "src/backend/tests/integration/test_i18n_strict_runtime.py"
+  - ".github/changes-filter.yaml"
+  - ".github/workflows/ci.yml"
 docs:
   - "docs/**"
 docker:

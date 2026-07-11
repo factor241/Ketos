@@ -1,7 +1,10 @@
+import type { TFunction } from "i18next";
 import { Check, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { FlowAction } from "@/controllers/API/queries/agentic";
 import useFlowStore from "@/stores/flowStore";
+import { formatNumber } from "@/utils/locale-format";
 import {
   GHOST_PRIMARY_BUTTON,
   GHOST_SECONDARY_BUTTON,
@@ -25,8 +28,8 @@ const CLAMP_STYLE = {
   overflow: "hidden",
 };
 
-function formatValue(value: unknown): string {
-  if (value === null || value === undefined) return "(empty)";
+function formatValue(value: unknown, t: TFunction): string {
+  if (value === null || value === undefined) return t("common.empty");
   if (typeof value === "string")
     return value.length > 60 ? value.slice(0, 57) + "..." : value;
   return String(value);
@@ -41,6 +44,7 @@ function FlowEditCard({
   onAccept: () => void;
   onDismiss: () => void;
 }) {
+  const { t } = useTranslation();
   const isPending = action.status === "pending";
   const [expanded, setExpanded] = useState(false);
   const fullNew = action.new_value == null ? "" : String(action.new_value);
@@ -70,7 +74,7 @@ function FlowEditCard({
             className="self-start text-xs font-medium text-primary hover:underline"
             onClick={() => setExpanded((v) => !v)}
           >
-            {expanded ? "Show less" : "Show more"}
+            {expanded ? t("common.showLess") : t("common.showMore")}
           </button>
         )}
       </div>
@@ -78,21 +82,21 @@ function FlowEditCard({
       {collapsed ? (
         <div className="flex items-center gap-2 rounded bg-muted/50 px-3 py-2 text-xs font-mono">
           <span className="text-destructive line-through">
-            {formatValue(action.old_value)}
+            {formatValue(action.old_value, t)}
           </span>
           <span className="text-muted-foreground">-&gt;</span>
           <span className="text-accent-emerald-foreground">
-            {formatValue(action.new_value)}
+            {formatValue(action.new_value, t)}
           </span>
         </div>
       ) : (
         <div className="flex max-h-72 flex-col gap-1 overflow-auto rounded bg-muted/50 px-3 py-2 text-xs font-mono">
           <span className="whitespace-pre-wrap break-words text-destructive line-through">
-            {fullOld || "(empty)"}
+            {fullOld || t("common.empty")}
           </span>
           <span className="text-muted-foreground">-&gt;</span>
           <span className="whitespace-pre-wrap break-words text-accent-emerald-foreground">
-            {fullNew || "(empty)"}
+            {fullNew || t("common.empty")}
           </span>
         </div>
       )}
@@ -105,7 +109,7 @@ function FlowEditCard({
             onClick={onAccept}
           >
             <Check className="h-3 w-3" />
-            Accept
+            {t("assistant.accept")}
           </button>
           <button
             type="button"
@@ -113,7 +117,7 @@ function FlowEditCard({
             onClick={onDismiss}
           >
             <X className="h-3 w-3" />
-            Dismiss
+            {t("common.dismiss")}
           </button>
         </div>
       )}
@@ -121,13 +125,13 @@ function FlowEditCard({
       {action.status === "applied" && (
         <div className="flex h-7 items-center gap-1 text-xs font-medium text-accent-emerald-foreground">
           <Check className="h-3 w-3" />
-          Applied
+          {t("assistant.applied")}
         </div>
       )}
 
       {action.status === "dismissed" && (
         <div className="flex h-7 items-center gap-1 text-xs font-medium text-muted-foreground/60 line-through">
-          Dismissed
+          {t("assistant.dismissed")}
         </div>
       )}
     </div>
@@ -138,6 +142,7 @@ export function FlowEditCarousel({
   actions,
   onUpdateAction,
 }: FlowEditCarouselProps) {
+  const { t } = useTranslation();
   const [currentIndex, setCurrentIndex] = useState(0);
   const setNodes = useFlowStore((state) => state.setNodes);
 
@@ -232,7 +237,7 @@ export function FlowEditCarousel({
       {/* Header with pagination */}
       <div className="mb-3 flex items-center justify-between">
         <span className="text-xs font-semibold text-foreground">
-          Proposed Changes
+          {t("assistant.proposedChanges")}
         </span>
         <div className="flex items-center gap-2">
           {actions.length > 1 && (
@@ -246,7 +251,7 @@ export function FlowEditCarousel({
                 <ChevronLeft className="h-3.5 w-3.5" />
               </button>
               <span className="text-xs text-muted-foreground">
-                {currentIndex + 1}/{actions.length}
+                {formatNumber(currentIndex + 1)}/{formatNumber(actions.length)}
               </span>
               <button
                 type="button"
@@ -266,7 +271,9 @@ export function FlowEditCarousel({
               className="ml-2 rounded-md bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               onClick={handleAcceptAll}
             >
-              Accept All ({pendingCount})
+              {t("assistant.acceptAll", {
+                count: formatNumber(pendingCount),
+              })}
             </button>
           )}
         </div>

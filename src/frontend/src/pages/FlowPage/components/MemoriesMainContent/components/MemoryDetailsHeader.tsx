@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import IconComponent from "@/components/common/genericIconComponent";
+import { getSessionTitle } from "@/components/core/playgroundComponent/chat-view/chat-header/utils/get-session-title";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -72,7 +73,7 @@ export function MemoryDetailsHeader({
     !selectedSession || selectedSession === ALL_SESSIONS_VALUE;
   const sessionLabel = isAllSessions
     ? t("memory.allSessions")
-    : selectedSession;
+    : getSessionTitle(selectedSession);
 
   return (
     <div className="flex items-end justify-between border-b border-border bg-background px-6 py-4">
@@ -161,7 +162,7 @@ export function MemoryDetailsHeader({
                         className="flex items-center justify-between"
                         onSelect={() => setSelectedSession(sid)}
                       >
-                        <span className="truncate">{sid}</span>
+                        <span className="truncate">{getSessionTitle(sid)}</span>
                         <IconComponent
                           name="Check"
                           className={
@@ -211,7 +212,7 @@ export function MemoryDetailsHeader({
             variant="ghost"
             size="icon"
             disabled={deleteMutation.isPending}
-            aria-label="Delete memory"
+            aria-label={t("memory.deleteButton")}
           >
             <IconComponent name="Trash2" className="h-4 w-4 text-destructive" />
           </Button>

@@ -238,8 +238,8 @@ export function useAssistantChat(): UseAssistantChatReturn {
         const echoUserId = uid.randomUUID(10);
         const ackId = uid.randomUUID(10);
         const announcement = next
-          ? "Skip-all mode enabled. Plans, flow proposals, and validated components will be approved automatically."
-          : "Skip-all mode disabled. Plans, flow proposals, and validated components will wait for your Continue click.";
+          ? t("assistant.skipAllEnabled")
+          : t("assistant.skipAllDisabled");
         setMessages((prev) => [
           ...prev,
           {
@@ -640,12 +640,14 @@ export function useAssistantChat(): UseAssistantChatReturn {
             content: code,
             validated: false,
             componentCode: code,
-            validationError: `Failed to add component: ${errorMessage}`,
+            validationError: t("assistant.failedToAddComponent", {
+              error: errorMessage,
+            }),
           },
         }));
       }
     },
-    [messages, validateComponent, addComponent, updateMessage],
+    [messages, validateComponent, addComponent, updateMessage, t],
   );
 
   const handleRetry = useCallback(

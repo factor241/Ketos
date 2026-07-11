@@ -82,9 +82,7 @@ const ProviderList = ({
         className="text-muted-foreground px-4 py-2 text-sm"
         data-testid="provider-list-empty"
       >
-        {t("modelProviders.noProvidersMatch", {
-          defaultValue: "No providers match your search.",
-        })}
+        {t("modelProviders.noProvidersMatch")}
       </div>
     );
   }

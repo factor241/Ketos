@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatDate as formatLocaleDate } from "@/utils/locale-format";
 import { cn } from "@/utils/utils";
 import {
   type Deployment,
@@ -62,7 +63,7 @@ function TypeBadge({ type }: { type: DeploymentType }) {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, {
+  return formatLocaleDate(iso, {
     year: "numeric",
     month: "short",
     day: "numeric",

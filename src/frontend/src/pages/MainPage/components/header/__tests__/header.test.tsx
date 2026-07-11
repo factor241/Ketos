@@ -1,5 +1,10 @@
+jest.unmock("react-i18next");
+
 import { act, render, screen } from "@testing-library/react";
+import { I18nextProvider } from "react-i18next";
+import i18n from "@/i18n";
 import { useUtilityStore } from "@/stores/utilityStore";
+import { createTestI18n } from "@/test-utils/create-test-i18n";
 import HeaderComponent from "../index";
 
 interface IconProps {
@@ -179,10 +184,29 @@ describe("HeaderComponent - TabIndex Behavior with Bulk Actions", () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     act(() => {
       useUtilityStore.setState({ featureFlags: {} });
     });
+    await i18n.changeLanguage("en");
+  });
+
+  it("renders the deployments beta badge in Russian", async () => {
+    const russian = await createTestI18n("ru");
+    act(() => {
+      useUtilityStore.setState({
+        featureFlags: { wxo_deployments: true },
+      });
+    });
+
+    render(
+      <I18nextProvider i18n={russian}>
+        <HeaderComponent {...defaultProps} flowType="deployments" />
+      </I18nextProvider>,
+    );
+
+    expect(screen.getByText("Бета")).toBeInTheDocument();
+    expect(screen.queryByText("Beta")).not.toBeInTheDocument();
   });
 
   describe("DeleteConfirmationModal TabIndex - No Selections", () => {

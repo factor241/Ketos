@@ -87,6 +87,16 @@ class MCPToolsComponent(ComponentWithCache):
     # (server_name, header-hash) pair is a distinct entry; without a bound a
     # tenant that rotates session tokens would grow this map without limit.
     SHARED_SERVERS_CACHE_MAX_ENTRIES: int = 64
+    dynamic_i18n = {
+        "placeholder": (
+            "Timeout updating tool list: {error}",
+            "Error updating tool list: {error}",
+            "Error loading tools for MCP server: {error}",
+            "Timeout loading tools when toggling tool mode: {error}",
+            "Error loading tools when toggling tool mode: {error}",
+            "Error on MCP Server",
+        )
+    }
 
     schema_inputs: list = []
     tools: list[StructuredTool] = []

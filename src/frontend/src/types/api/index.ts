@@ -19,7 +19,14 @@ export type ComponentDisplayNamesType = Record<
   {
     display_name: string[];
     description: string[];
-    fields?: Record<string, { display_name: string[] }>;
+    fields?: Record<
+      string,
+      {
+        display_name: string[];
+        presentation?: Record<string, string[]>;
+      }
+    >;
+    outputs?: Record<string, { display_name?: string[]; info?: string[] }>;
   }
 >;
 
@@ -187,6 +194,7 @@ export type changeUser = {
   is_superuser?: boolean;
   password?: string;
   profile_image?: string;
+  preferred_locale?: string | null;
   optins?: {
     github_starred?: boolean;
     discord_clicked?: boolean;
@@ -206,6 +214,7 @@ export type Users = {
   is_active: boolean;
   is_superuser: boolean;
   profile_image: string;
+  preferred_locale?: string | null;
   create_at: Date;
   updated_at: Date;
   optins?: {

@@ -13,6 +13,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { ICON_STROKE_WIDTH } from "@/constants/constants";
+import { useCanvasReadOnly } from "@/contexts/canvas-read-only-context";
 import { useShortcutsStore } from "@/stores/shortcuts";
 import type { targetHandleType } from "@/types/flow";
 import ForwardedIconComponent, {
@@ -139,6 +140,7 @@ function NodeOutputField({
   handleSelectOutput,
 }: NodeOutputFieldComponentType): JSX.Element {
   const { t } = useTranslation();
+  const isCanvasReadOnly = useCanvasReadOnly();
   const ref = useRef<HTMLDivElement>(null);
   const updateNodeInternals = useUpdateNodeInternals();
 
@@ -215,6 +217,7 @@ function NodeOutputField({
 
   const handleUpdateOutputHide = useCallback(
     (value?: boolean) => {
+      if (isCanvasReadOnly) return;
       setNode(data.id, (oldNode) => {
         if (oldNode.type !== "genericNode") return oldNode;
         const newNode = cloneDeep(oldNode);
@@ -234,7 +237,7 @@ function NodeOutputField({
       });
       updateNodeInternals(data.id);
     },
-    [data.id, index, setNode, updateNodeInternals],
+    [data.id, index, isCanvasReadOnly, setNode, updateNodeInternals],
   );
 
   useEffect(() => {
@@ -470,7 +473,7 @@ function NodeOutputField({
               </OutputModal>
               {looping && (
                 <Badge variant="pinkStatic" size="xq" className="px-1">
-                  Looping
+                  {t("node.looping")}
                 </Badge>
               )}
             </div>

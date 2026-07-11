@@ -66,6 +66,33 @@ def test_decorate_template_stamps_required_fields() -> None:
     assert decorated["display_name"] == "X"
 
 
+def test_decorate_template_stamps_serializable_extension_locale_contract() -> None:
+    from lfx.extension.manifest import LocaleBundle
+
+    locale_bundle = LocaleBundle.model_validate(
+        {
+            "namespace": "lfx-pilot",
+            "locales": {
+                "en": {"components.pilotthing.display_name": "Pilot"},
+                "ru": {"components.pilotthing.display_name": "Пилот"},
+            },
+        }
+    )
+
+    decorated = _decorate_template_with_extension(
+        {"display_name": "Pilot"},
+        extension_id="lfx-pilot",
+        bundle="pilot",
+        extension_version="1.2.3",
+        namespaced_id="ext:pilot:PilotThing@official",
+        locale_bundle=locale_bundle,
+        ru_missing=False,
+    )
+
+    assert decorated["extension_locale_bundle"] == locale_bundle.model_dump(mode="json")
+    assert decorated["extension_ru_missing"] is False
+
+
 @pytest.mark.asyncio
 async def test_import_extension_components_returns_empty_when_nothing_to_load() -> None:
     """No installed extensions and no inline paths -> empty mapping."""

@@ -216,14 +216,17 @@ describe("MemoryDetailsHeader", () => {
     ).toBeInTheDocument();
   });
 
-  it("calls onRefresh when the reload button is clicked", () => {
-    const onRefresh = jest.fn();
+  it("calls onRefresh when the reload button is clicked", async () => {
+    const onRefresh = jest.fn().mockResolvedValue(undefined);
     const props = makeProps({ onRefresh });
     render(<MemoryDetailsHeader {...props} />);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Reload sessions and messages" }),
-    );
+    const refreshButton = screen.getByRole("button", {
+      name: "Reload sessions and messages",
+    });
+
+    fireEvent.click(refreshButton);
     expect(onRefresh).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(refreshButton).not.toBeDisabled());
   });
 
   it("renders the RefreshCw icon inside the reload button", () => {
@@ -392,7 +395,7 @@ describe("MemoryDetailsHeader", () => {
       expect(mockSetSuccessData).not.toHaveBeenCalled();
     });
 
-    it("shows error toast with api message when onRefresh rejects", async () => {
+    it("shows a safe localized error toast when onRefresh rejects", async () => {
       const onRefresh = jest.fn().mockRejectedValue(new Error("timeout"));
       const props = makeProps({ onRefresh });
       render(<MemoryDetailsHeader {...props} />);
@@ -404,9 +407,12 @@ describe("MemoryDetailsHeader", () => {
       await waitFor(() => {
         expect(mockSetErrorData).toHaveBeenCalledWith({
           title: "Failed to refresh memory",
-          list: ["timeout"],
+          list: ["The request could not be completed. Please try again."],
         });
       });
+      expect(JSON.stringify(mockSetErrorData.mock.calls)).not.toContain(
+        "timeout",
+      );
     });
 
     it("re-enables the refresh button after onRefresh rejects", async () => {

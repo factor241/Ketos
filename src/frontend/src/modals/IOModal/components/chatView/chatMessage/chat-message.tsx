@@ -187,7 +187,9 @@ export default function ChatMessage({
   };
 
   const editedFlag = chat.edit ? (
-    <div className="text-sm text-muted-foreground">(Edited)</div>
+    <div className="text-sm text-muted-foreground">
+      {t("playground.edited")}
+    </div>
   ) : null;
 
   if (chat.category === "error") {
@@ -241,7 +243,7 @@ export default function ChatMessage({
                   <img
                     src={Robot}
                     className="absolute bottom-0 left-0 scale-[60%]"
-                    alt={"robot_image"}
+                    alt={t("playground.aiSender")}
                   />
                 )}
               </div>

@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getIntlLocale } from "@/utils/locale-format";
 
 interface SpeechRecognitionEvent extends Event {
   resultIndex: number;
@@ -86,7 +87,7 @@ export function useAudioRecording({
       // Configure speech recognition
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.lang = navigator.language || "en-US";
+      recognition.lang = getIntlLocale();
 
       recognition.onstart = () => {
         setState("recording");
@@ -152,7 +153,7 @@ export function useAudioRecording({
       };
 
       recognition.start();
-    } catch (error) {
+    } catch {
       isActiveRef.current = false;
       setState("idle");
       onError?.(t("chat.failedToStartSpeechRecognition"));

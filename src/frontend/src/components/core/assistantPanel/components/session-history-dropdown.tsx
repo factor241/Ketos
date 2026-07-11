@@ -2,7 +2,6 @@
  * Dropdown showing saved assistant sessions with switch and delete actions.
  */
 
-import moment from "moment";
 import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import ShadTooltip from "@/components/common/shadTooltipComponent";
@@ -15,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { formatRelativeTime } from "@/utils/locale-format";
 import { cn } from "@/utils/utils";
 import type { SessionHistoryEntry } from "../assistant-panel.types";
 
@@ -35,9 +35,6 @@ export function SessionHistoryDropdown({
 }: SessionHistoryDropdownProps) {
   const { t } = useTranslation();
   const hasSessions = sessions.length > 0;
-  // Expanded panel (has messages / height > min) → dropdown grows down; compact → grows up
-  const dropAlign = isExpanded ? "start" : "end";
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -109,7 +106,7 @@ export function SessionHistoryDropdown({
                       count: entry.messageCount,
                     })}
                     {" · "}
-                    {moment(entry.lastActiveAt).fromNow()}
+                    {formatRelativeTime(entry.lastActiveAt)}
                   </span>
                 </div>
                 <button

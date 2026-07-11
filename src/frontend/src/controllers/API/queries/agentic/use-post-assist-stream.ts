@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 import { getURL } from "../../helpers/constants";
 import type {
   AgenticAssistRequest,
@@ -46,7 +47,7 @@ function processSSELine(
   if (!event) {
     callbacks.onError?.({
       event: "error",
-      message: "Received malformed event from server",
+      message: i18n.t("errors.receivedMalformedEvent"),
     });
     return { done: false };
   }
@@ -71,7 +72,10 @@ function processSSELine(
       callbacks.onFileWritten?.(event);
       break;
     case "error":
-      callbacks.onError?.(event);
+      callbacks.onError?.({
+        event: "error",
+        message: i18n.t("assistant.streamError"),
+      });
       return { done: true };
     case "cancelled":
       callbacks.onCancelled?.(event);
@@ -100,20 +104,9 @@ export async function postAssistStream(
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    let errorMessage = "Request failed";
-
-    try {
-      const errorJson = JSON.parse(errorText);
-      errorMessage = errorJson.detail || errorJson.message || errorMessage;
-    } catch {
-      // Error response is plain text, not JSON - use as-is
-      errorMessage = errorText || errorMessage;
-    }
-
     callbacks.onError?.({
       event: "error",
-      message: errorMessage,
+      message: i18n.t("assistant.requestFailed"),
     });
     return;
   }
@@ -122,7 +115,7 @@ export async function postAssistStream(
   if (!reader) {
     callbacks.onError?.({
       event: "error",
-      message: "No response body",
+      message: i18n.t("errors.noResponseBody"),
     });
     return;
   }
@@ -170,8 +163,7 @@ export async function postAssistStream(
     // forever on a half-applied canvas.
     callbacks.onError?.({
       event: "error",
-      message:
-        "The assistant connection ended unexpectedly before completing. Please try again.",
+      message: i18n.t("assistant.connectionEnded"),
     });
   } finally {
     await reader.cancel();

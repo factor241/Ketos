@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import { Textarea } from "@/components/ui/textarea";
+import { useCanvasReadOnly } from "@/contexts/canvas-read-only-context";
 import useFlowStore from "@/stores/flowStore";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
 import { handleKeyDown } from "@/utils/reactflowUtils";
@@ -35,6 +36,7 @@ export default function NodeDescription({
   stickyNote?: boolean;
   setHasChangedNodeDescription?: (value: boolean) => void;
 }) {
+  const isCanvasReadOnly = useCanvasReadOnly();
   const [nodeDescription, setNodeDescription] = useState<string>(
     description ?? "",
   );
@@ -44,10 +46,10 @@ export default function NodeDescription({
   const [hasScroll, sethasScroll] = useState(false);
 
   useEffect(() => {
-    if (selected && editNameDescription) {
+    if (!isCanvasReadOnly && selected && editNameDescription) {
       takeSnapshot();
     }
-  }, [editNameDescription]);
+  }, [editNameDescription, isCanvasReadOnly, selected, takeSnapshot]);
 
   useEffect(() => {
     //timeout to wait for the dom to update
@@ -97,6 +99,7 @@ export default function NodeDescription({
   }, [description, emptyPlaceholder, mdClassName]);
 
   const handleBlurFn = () => {
+    if (isCanvasReadOnly) return;
     setNodeDescription(nodeDescription);
     setNode(nodeId, (old) => ({
       ...old,
@@ -114,6 +117,7 @@ export default function NodeDescription({
   };
 
   const handleKeyDownFn = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (isCanvasReadOnly) return;
     handleKeyDown(e, nodeDescription, "");
 
     if (e.key === "Escape") {
@@ -137,13 +141,14 @@ export default function NodeDescription({
   };
 
   const handleDoubleClickFn = () => {
-    if (stickyNote) {
+    if (!isCanvasReadOnly && stickyNote) {
       setEditNameDescription?.(true);
       takeSnapshot();
     }
   };
 
   const onChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (isCanvasReadOnly) return;
     setHasChangedNodeDescription?.(true);
     setNodeDescription(e.target.value);
   };
@@ -151,13 +156,15 @@ export default function NodeDescription({
   return (
     <div
       className={cn(
-        !editNameDescription ? "overflow-auto" : "overflow-hidden",
+        !editNameDescription || isCanvasReadOnly
+          ? "overflow-auto"
+          : "overflow-hidden",
         hasScroll ? "nowheel" : "",
         charLimit ? "flex flex-col" : "",
         "w-full",
       )}
     >
-      {editNameDescription ? (
+      {editNameDescription && !isCanvasReadOnly ? (
         <>
           <Textarea
             maxLength={charLimit}
@@ -198,6 +205,7 @@ export default function NodeDescription({
             "nodoubleclick generic-node-desc-text h-full cursor-grab text-muted-foreground word-break-break-word",
             description === "" || !description ? "font-light italic" : "",
             stickyNote && "text-base font-medium overflow-auto max-h-full",
+            isCanvasReadOnly && "cursor-default",
             placeholderClassName,
           )}
           onDoubleClick={handleDoubleClickFn}

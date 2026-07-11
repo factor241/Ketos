@@ -2,7 +2,10 @@ import { useTranslation } from "react-i18next";
 import langflowAssistantIcon from "@/assets/langflow_assistant.svg";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import { Button } from "@/components/ui/button";
-import { ASSISTANT_SUGGESTIONS } from "../assistant-panel.constants";
+import {
+  ASSISTANT_SUGGESTIONS,
+  getAssistantSuggestionText,
+} from "../assistant-panel.constants";
 
 interface AssistantEmptyStateProps {
   onSuggestionClick: (suggestion: string) => void;
@@ -30,13 +33,15 @@ export function AssistantEmptyState({
             key={suggestion.id}
             variant="outline"
             className="h-[46px] w-[265px] justify-start gap-2 rounded-xl border border-border bg-muted/50 px-3 text-[13px] font-medium leading-4 text-foreground hover:bg-muted"
-            onClick={() => onSuggestionClick(suggestion.text)}
+            onClick={() =>
+              onSuggestionClick(getAssistantSuggestionText(suggestion.id, t))
+            }
           >
             <ForwardedIconComponent
               name={suggestion.icon}
               className="h-5 w-5 text-foreground"
             />
-            {t(`assistant.suggestion.${suggestion.id}`)}
+            {getAssistantSuggestionText(suggestion.id, t)}
           </Button>
         ))}
       </div>

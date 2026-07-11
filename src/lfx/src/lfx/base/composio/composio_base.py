@@ -41,6 +41,14 @@ class ComposioBaseComponent(Component):
     """Base class for Composio components with common functionality."""
 
     default_tools_limit: int = 5
+    dynamic_i18n = {
+        "info": "Required: {info}",
+        "helper_text": "Missing required: {fields}",
+        "auth_tooltip": (
+            "Missing: {fields}",
+            "Error: {error}",
+        ),
+    }
 
     # Reserved attribute names that conflict with Component base class
     RESERVED_ATTRIBUTES: set[str] = {

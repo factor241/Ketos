@@ -24,6 +24,7 @@ export default function SettingsPage(): JSX.Element {
     href?: string;
     title: string;
     icon: React.ReactNode;
+    testId?: string;
   }[] = [];
 
   if (showGeneralSettings) {
@@ -40,6 +41,17 @@ export default function SettingsPage(): JSX.Element {
   }
 
   sidebarNavItems.push(
+    {
+      title: t("settings.languageTitle"),
+      href: "/settings/language",
+      testId: "sidebar-nav-language",
+      icon: (
+        <ForwardedIconComponent
+          name="Languages"
+          className="w-4 flex-shrink-0 justify-start stroke-[1.5]"
+        />
+      ),
+    },
     {
       title: t("settings.nav.mcpServers"),
       href: "/settings/mcp-servers",
@@ -126,7 +138,7 @@ export default function SettingsPage(): JSX.Element {
       description={t("settings.description")}
     >
       <SidebarProvider width="15rem" defaultOpen={false}>
-        <SideBarButtonsComponent items={sidebarNavItems} />
+        <SideBarButtonsComponent items={sidebarNavItems} wrapLabels />
         <main className="flex flex-1 overflow-hidden">
           <div className="flex flex-1 flex-col overflow-x-hidden pt-1">
             <Outlet />

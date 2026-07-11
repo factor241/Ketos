@@ -16,6 +16,15 @@ from lfx.schema.message import Message
 
 
 class DynamicCreateDataComponent(Component):
+    dynamic_i18n = {
+        "info": (
+            "{help_text} (Can connect to: {input_types})",
+            "{help_text} (Accepts: {input_types})",
+            "{help_text} (Data input)",
+            "{help_text} (Unknown type '{field_type}', defaulting to text)",
+        )
+    }
+    dynamic_i18n_verbatim = frozenset({"display_name"})
     display_name: str = "Dynamic Create Data"
     description: str = "Dynamically create a Data with a specified number of fields."
     name: str = "DynamicCreateData"

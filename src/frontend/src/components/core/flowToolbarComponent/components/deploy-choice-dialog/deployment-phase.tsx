@@ -86,7 +86,9 @@ export default function DeploymentPhaseContent({
                 >
                   <span className="text-sm font-medium">{displayName}</span>
                   <span className="text-xs text-muted-foreground">
-                    {deployment.type} deployment
+                    {t("deployments.deploymentTypeLabel", {
+                      type: deployment.type,
+                    })}
                   </span>
                 </Label>
               </div>

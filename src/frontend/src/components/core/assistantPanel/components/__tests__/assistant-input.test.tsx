@@ -94,7 +94,7 @@ describe("AssistantInput", () => {
       ).toBeInTheDocument();
     });
 
-    it("should show 'Generating flow...' during 'generating_flow' step", () => {
+    it("should show the localized flow-generation label during 'generating_flow' step", () => {
       // Regression: 'generating_flow' must behave like the other generating
       // steps (no rotating placeholder, static intent-specific text) so the
       // user sees a stable label instead of cycling random messages.
@@ -107,7 +107,7 @@ describe("AssistantInput", () => {
       );
 
       expect(
-        screen.getByPlaceholderText("Generating flow..."),
+        screen.getByPlaceholderText("Generating flow"),
       ).toBeInTheDocument();
     });
 
@@ -182,7 +182,7 @@ describe("AssistantInput", () => {
       );
 
       expect(
-        screen.getByPlaceholderText("Generating flow..."),
+        screen.getByPlaceholderText("Generating flow"),
       ).toBeInTheDocument();
     });
   });

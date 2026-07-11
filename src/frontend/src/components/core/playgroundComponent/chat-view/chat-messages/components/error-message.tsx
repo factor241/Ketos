@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { ForwardedIconComponent } from "@/components/common/genericIconComponent";
 import {
   Accordion,
@@ -24,6 +25,7 @@ interface ErrorViewProps {
  * Loading state shown while error is being processed.
  */
 function ErrorLoadingState() {
+  const { t } = useTranslation();
   return (
     <motion.div
       key="loading"
@@ -41,7 +43,7 @@ function ErrorLoadingState() {
       </div>
       <div className="flex items-center">
         <TextShimmer className="" duration={1}>
-          Flow running...
+          {t("playground.flowRunning")}
         </TextShimmer>
       </div>
     </motion.div>
@@ -64,6 +66,7 @@ function ErrorAccordion({
   closeChat,
   fitViewNode,
 }: ErrorAccordionProps) {
+  const { t } = useTranslation();
   const errorMessage = extractErrorMessage(content.reason) || content.component;
   const handleComponentClick = () => {
     fitViewNode(chat.properties?.source?.id ?? "");
@@ -82,7 +85,7 @@ function ErrorAccordion({
                   name="Indicator"
                 />
                 <span className="text-muted-foreground text-xs">
-                  An error occurred
+                  {t("playground.errorOccurred")}
                 </span>
               </div>
               <ForwardedIconComponent
@@ -96,7 +99,7 @@ function ErrorAccordion({
           <div className="space-y-2 px-3 pb-1">
             {content.field && (
               <p className="text-xs text-muted-foreground">
-                Field: {content.field}
+                {t("playground.fieldLabel")} {content.field}
               </p>
             )}
             {content.component && (

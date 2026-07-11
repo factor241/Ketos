@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 
 import orjson
 import sqlalchemy as sa
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, Request, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from lfx.custom.custom_component.component import Component
@@ -34,6 +34,7 @@ from lfx.utils.flow_validation import (
 )
 from sqlmodel import select
 
+from langflow.api.error_codes import ApiErrorCode, coded_http_error
 from langflow.api.utils import CurrentActiveUser, DbSession, extract_global_variables_from_headers, parse_value
 from langflow.api.v1.files import get_flow
 from langflow.api.v1.global_variable_defaults import apply_global_variable_defaults
@@ -176,7 +177,11 @@ async def get_all(request: Request):
     with display_names translated to the locale indicated by Accept-Language.
     """
     from langflow.interface.components import get_and_cache_all_types_dict
-    from langflow.utils.i18n import build_component_display_names, translate_component_dict
+    from langflow.utils.i18n import (
+        MissingSystemTranslationError,
+        build_component_display_names,
+        translate_component_dict,
+    )
 
     try:
         all_types_en = await get_and_cache_all_types_dict(settings_service=get_settings_service())
@@ -187,8 +192,18 @@ async def get_all(request: Request):
         component_display_names = build_component_display_names(all_types_en)
         return compress_response({**all_types, "component_display_names": component_display_names})
 
+    except MissingSystemTranslationError as exc:
+        # Strict translation mode is opt-in test instrumentation. Preserve a
+        # deterministic error identity through the real HTTP path without
+        # changing the normal compatibility fallback behavior.
+        raise coded_http_error(
+            ApiErrorCode.COMPONENT_UPDATE_FAILED,
+            status_code=500,
+            detail={"error": type(exc).__name__, "message": exc.args[0]},
+            technical_detail=f"{type(exc).__name__}: {exc}",
+        ) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise coded_http_error(ApiErrorCode.COMPONENT_UPDATE_FAILED, technical_detail=str(exc)) from exc
 
 
 def validate_input_and_tweaks(input_request: SimplifiedAPIRequest) -> None:
@@ -285,7 +300,8 @@ async def simple_run_flow(
 
         # Create a WORKFLOW job record so memory-base on_flow_output can track this run.
         if user_id is None:
-            raise HTTPException(
+            raise coded_http_error(
+                ApiErrorCode.AUTH_MISSING_CREDENTIALS,
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Authentication required to run flows.",
             )
@@ -644,7 +660,17 @@ async def _run_flow_internal(
         input_request = await parse_input_request_from_body(http_request)
 
     if flow is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flow not found")
+        flow_id = str(
+            http_request.path_params.get("flow_id_or_name")
+            or http_request.path_params.get("flow_id")
+            or "unknown"
+        )
+        raise coded_http_error(
+            ApiErrorCode.FLOW_NOT_FOUND,
+            params={"flow_id": flow_id},
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Flow not found",
+        )
 
     # Extract request-level variables from headers with prefix X-LANGFLOW-GLOBAL-VAR-*
     request_variables = extract_global_variables_from_headers(http_request.headers)
@@ -719,14 +745,34 @@ async def _run_flow_internal(
         )
         if "badly formed hexadecimal UUID string" in str(exc):
             # This means the Flow ID is not a valid UUID which means it can't find the flow
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            raise coded_http_error(
+                ApiErrorCode.FLOW_INVALID,
+                params={"flow_id": str(flow.id)},
+                status_code=status.HTTP_400_BAD_REQUEST,
+                technical_detail=str(exc),
+            ) from exc
         if isinstance(exc, CustomComponentValidationError):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            raise coded_http_error(
+                ApiErrorCode.COMPONENT_UPDATE_FAILED,
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+                technical_detail=str(exc),
+            ) from exc
         if "not found" in str(exc):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+            raise coded_http_error(
+                ApiErrorCode.FLOW_NOT_FOUND,
+                params={"flow_id": str(flow.id)},
+                status_code=status.HTTP_404_NOT_FOUND,
+                technical_detail=str(exc),
+            ) from exc
         raise APIException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, exception=exc, flow=flow) from exc
     except InvalidChatInputError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise coded_http_error(
+            ApiErrorCode.FLOW_INVALID,
+            params={"flow_id": str(flow.id)},
+            status_code=status.HTTP_400_BAD_REQUEST,
+            technical_detail=str(exc),
+        ) from exc
     except Exception as exc:
         background_tasks.add_task(
             telemetry_service.log_package_run,
@@ -861,7 +907,9 @@ async def simplified_run_flow_session(
     """
     # Feature flag: Only allow access if agentic_experience is enabled
     if not get_settings_service().settings.agentic_experience:
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.FLOW_NOT_FOUND,
+            params={"flow_id": str(flow.id)},
             status_code=status.HTTP_404_NOT_FOUND,
             detail="This endpoint is not available",
         )
@@ -988,11 +1036,11 @@ async def webhook_run_flow(
         data = await request.body()
     except Exception as exc:
         error_msg = str(exc)
-        raise HTTPException(status_code=500, detail=error_msg) from exc
+        raise coded_http_error(ApiErrorCode.SERVER_INTERNAL_ERROR, technical_detail=error_msg) from exc
 
     if not data:
         error_msg = "Request body is empty. You should provide a JSON payload containing the flow ID."
-        raise HTTPException(status_code=400, detail=error_msg)
+        raise coded_http_error(ApiErrorCode.REQUEST_BAD_REQUEST, status_code=400, detail=error_msg)
 
     try:
         # get all webhook components in the flow
@@ -1033,7 +1081,7 @@ async def webhook_run_flow(
         background_task.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
     except Exception as exc:
         error_msg = str(exc)
-        raise HTTPException(status_code=500, detail=error_msg) from exc
+        raise coded_http_error(ApiErrorCode.SERVER_INTERNAL_ERROR, technical_detail=error_msg) from exc
 
     return {"message": "Task started in the background", "status": "in progress"}
 
@@ -1120,11 +1168,16 @@ async def experimental_run_flow(
         try:
             session_data = await session_service.load_session(session_id, flow_id=flow_id_str)
         except Exception as exc:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+            raise coded_http_error(ApiErrorCode.SERVER_INTERNAL_ERROR, technical_detail=str(exc)) from exc
         graph, _artifacts = session_data or (None, None)
         if graph is None:
             msg = f"Session {session_id} not found"
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
+            raise coded_http_error(
+                ApiErrorCode.FLOW_NOT_FOUND,
+                params={"flow_id": flow_id_str},
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=msg,
+            )
     else:
         try:
             # Get the flow that matches the flow_id and belongs to the user
@@ -1136,26 +1189,46 @@ async def experimental_run_flow(
             if "badly formed hexadecimal UUID string" in str(exc):
                 await logger.aerror(f"Flow ID {flow_id_str} is not a valid UUID")
                 # This means the Flow ID is not a valid UUID which means it can't find the flow
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+                raise coded_http_error(
+                    ApiErrorCode.FLOW_NOT_FOUND,
+                    params={"flow_id": flow_id_str},
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    technical_detail=str(exc),
+                ) from exc
+            raise coded_http_error(ApiErrorCode.SERVER_INTERNAL_ERROR, technical_detail=str(exc)) from exc
         except Exception as exc:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+            raise coded_http_error(ApiErrorCode.SERVER_INTERNAL_ERROR, technical_detail=str(exc)) from exc
 
         if flow is None:
             msg = f"Flow {flow_id_str} not found"
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
+            raise coded_http_error(
+                ApiErrorCode.FLOW_NOT_FOUND,
+                params={"flow_id": flow_id_str},
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=msg,
+            )
 
         if flow.data is None:
             msg = f"Flow {flow_id_str} has no data"
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
+            raise coded_http_error(
+                ApiErrorCode.FLOW_INVALID,
+                params={"flow_id": flow_id_str},
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=msg,
+            )
         try:
             graph_data = flow.data
             graph_data = process_tweaks(graph_data, tweaks or {})
             graph = Graph.from_payload(graph_data, flow_id=flow_id_str)
         except CustomComponentValidationError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            raise coded_http_error(
+                ApiErrorCode.COMPONENT_UPDATE_FAILED,
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+                technical_detail=str(exc),
+            ) from exc
         except Exception as exc:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+            raise coded_http_error(ApiErrorCode.SERVER_INTERNAL_ERROR, technical_detail=str(exc)) from exc
 
     try:
         task_result, session_id = await run_graph_internal(
@@ -1167,7 +1240,7 @@ async def experimental_run_flow(
             stream=stream,
         )
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+        raise coded_http_error(ApiErrorCode.SERVER_INTERNAL_ERROR, technical_detail=str(exc)) from exc
 
     # Fire memory-base auto-capture hook — non-blocking background effect.
     try:
@@ -1200,7 +1273,8 @@ async def process(_flow_id) -> None:
     await logger.awarning(
         "The /process endpoint is deprecated and will be removed in a future version. Please use /run instead."
     )
-    raise HTTPException(
+    raise coded_http_error(
+        ApiErrorCode.REQUEST_BAD_REQUEST,
         status_code=status.HTTP_400_BAD_REQUEST,
         detail="The /process endpoint is deprecated and will be removed in a future version. Please use /run instead.",
     )
@@ -1212,7 +1286,8 @@ async def get_task_status(_task_id: str) -> TaskStatusResponse:
 
     This endpoint is deprecated and will be removed in a future version.
     """
-    raise HTTPException(
+    raise coded_http_error(
+        ApiErrorCode.REQUEST_BAD_REQUEST,
         status_code=status.HTTP_400_BAD_REQUEST,
         detail="The /task endpoint is deprecated and will be removed in a future version. Please use /run instead.",
     )
@@ -1241,10 +1316,12 @@ async def create_upload_file(
     try:
         max_file_size_upload = settings_service.settings.max_file_size_upload
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise coded_http_error(ApiErrorCode.FILE_STORAGE_ERROR, technical_detail=str(exc)) from exc
 
     if file.size is not None and file.size > max_file_size_upload * 1024 * 1024:
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.FILE_TOO_LARGE,
+            params={"name": file.filename, "max_size_mb": max_file_size_upload},
             status_code=413,
             detail=f"File size is larger than the maximum file size {max_file_size_upload}MB.",
         )
@@ -1259,7 +1336,7 @@ async def create_upload_file(
         )
     except Exception as exc:
         await logger.aexception("Error saving file")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise coded_http_error(ApiErrorCode.FILE_STORAGE_ERROR, technical_detail=str(exc)) from exc
 
 
 # get endpoint to return version of langflow
@@ -1283,9 +1360,10 @@ async def custom_component(
         get_component_hash_lookups_for_validation()
         all_known = component_cache.all_known_hashes
         if all_known is None:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            raise coded_http_error(
+                ApiErrorCode.COMPONENT_UPDATE_FAILED,
                 detail="Component templates are still initializing. Please try again in a few seconds.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
     # In admin-only mode, non-admin users may create/refresh only known server
@@ -1295,7 +1373,8 @@ async def custom_component(
         and not user.is_superuser
         and not code_hash_matches_any_template(raw_code.code, all_known)
     ):
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Custom component creation is restricted to administrators",
         )
@@ -1303,7 +1382,8 @@ async def custom_component(
     if not settings.allow_custom_components and not code_hash_matches_any_template(raw_code.code, all_known):
         # Allow updating to a known server template (core component update),
         # but block truly custom code.
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Custom component creation is disabled",
         )
@@ -1317,7 +1397,8 @@ async def custom_component(
     if _requires_component_hash_lookups(settings, user):
         effective_code = get_trusted_code_for_validation(raw_code.code)
         if effective_code is None:
-            raise HTTPException(
+            raise coded_http_error(
+                ApiErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Custom component creation is disabled",
             )
@@ -1338,10 +1419,11 @@ async def custom_component(
     type_ = get_instance_name(component_instance)
     locale = getattr(request.state, "locale", "en")
     if locale != "en":
-        from langflow.utils.i18n import translate_component_node
+        from langflow.utils.i18n import is_user_custom_component_node, translate_component_node
 
         try:
-            built_frontend_node = translate_component_node(type_, built_frontend_node, locale)
+            if not is_user_custom_component_node(built_frontend_node):
+                built_frontend_node = translate_component_node(type_, built_frontend_node, locale)
         except Exception:  # noqa: BLE001
             logger.exception("Failed to translate component node", extra={"locale": locale})
     return CustomComponentResponse(data=built_frontend_node, type=type_)
@@ -1369,9 +1451,10 @@ async def custom_component_update(
         get_component_hash_lookups_for_validation()
         all_known = component_cache.all_known_hashes
         if all_known is None:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            raise coded_http_error(
+                ApiErrorCode.COMPONENT_UPDATE_FAILED,
                 detail="Component templates are still initializing. Please try again in a few seconds.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
     # In admin-only mode, non-admin users may refresh/update only known server
@@ -1381,17 +1464,19 @@ async def custom_component_update(
         and not user.is_superuser
         and not code_hash_matches_any_template(code_request.code, all_known)
     ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+        raise coded_http_error(
+            ApiErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
             detail="Custom component editing is restricted to administrators",
+            status_code=status.HTTP_403_FORBIDDEN,
         )
 
     if not settings_service.settings.allow_custom_components and not code_hash_matches_any_template(
         code_request.code, all_known
     ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+        raise coded_http_error(
+            ApiErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
             detail="Custom component creation is disabled",
+            status_code=status.HTTP_403_FORBIDDEN,
         )
 
     # In restricted mode the request only reached here by matching a known
@@ -1402,9 +1487,10 @@ async def custom_component_update(
     if _requires_component_hash_lookups(settings_service.settings, user):
         effective_code = get_trusted_code_for_validation(code_request.code)
         if effective_code is None:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
+            raise coded_http_error(
+                ApiErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
                 detail="Custom component creation is disabled",
+                status_code=status.HTTP_403_FORBIDDEN,
             )
 
     try:
@@ -1476,21 +1562,31 @@ async def custom_component_update(
             )
 
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise coded_http_error(
+            ApiErrorCode.COMPONENT_UPDATE_FAILED,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            technical_detail=str(exc),
+        ) from exc
 
     locale = getattr(request.state, "locale", "en")
     if locale != "en":
-        from langflow.utils.i18n import translate_component_node
+        from langflow.utils.i18n import is_user_custom_component_node, translate_component_node
 
         try:
-            component_node = translate_component_node(get_instance_name(cc_instance), component_node, locale)
+            if not is_user_custom_component_node(component_node):
+                component_node = translate_component_node(get_instance_name(cc_instance), component_node, locale)
         except Exception:  # noqa: BLE001
             logger.exception("Failed to translate component node", extra={"locale": locale})
 
     try:
         return jsonable_encoder(component_node)
     except Exception as exc:
-        raise SerializationError.from_exception(exc, data=component_node) from exc
+        serialization_error = SerializationError.from_exception(exc, data=component_node)
+        raise coded_http_error(
+            ApiErrorCode.COMPONENT_UPDATE_FAILED,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            technical_detail=str(serialization_error),
+        ) from exc
 
 
 @router.get("/config")
@@ -1524,4 +1620,4 @@ async def get_config(
         return ConfigResponse.from_settings(settings_service.settings, settings_service.auth_settings)
 
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise coded_http_error(ApiErrorCode.SERVER_INTERNAL_ERROR, technical_detail=str(exc)) from exc

@@ -13,7 +13,7 @@ export default function CsvSelect({ node, handleChangeSelect }): JSX.Element {
   return (
     <>
       <div className="flex justify-between">
-        Expand the output to see the CSV
+        {t("playground.expandCsvOutput")}
       </div>
       <div className="flex items-center justify-between pt-5">
         <span>{t("modal.csvSeparator")} </span>

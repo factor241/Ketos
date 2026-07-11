@@ -36,7 +36,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 if sys.version_info >= (3, 11):
     import tomllib  # stdlib on 3.11+
@@ -92,6 +92,23 @@ _SEMVER_RE: re.Pattern[str] = re.compile(
     r"(?:\+(?:[0-9A-Za-z-]+)(?:\.[0-9A-Za-z-]+)*)?$"
 )
 """SemVer 2.0.0 pattern (https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string)."""
+
+_LOCALE_CODE_RE: str = r"^\S+$"
+"""Locale identifiers must be non-empty and contain no whitespace."""
+
+_COMPONENT_CATALOG_KEY_RE: str = r"^components\.\S+$"
+"""Extension catalogs contain only relative ``components.*`` keys."""
+
+_NON_BLANK_TEXT_RE: str = r"\S"
+"""Translated values must contain at least one non-whitespace character."""
+
+_LocaleCode = Annotated[StrictStr, Field(pattern=_LOCALE_CODE_RE)]
+_ComponentCatalogKey = Annotated[StrictStr, Field(pattern=_COMPONENT_CATALOG_KEY_RE)]
+_LocaleText = Annotated[StrictStr, Field(min_length=1, pattern=_NON_BLANK_TEXT_RE)]
+_FlatLocaleCatalog = Annotated[
+    dict[_ComponentCatalogKey, _LocaleText],
+    Field(min_length=1),
+]
 
 # Deferred manifest fields.  Validators reject any non-null value with
 # ``field-deferred-in-this-milestone``.  Listed here so tests can iterate and so
@@ -169,6 +186,76 @@ class Capabilities(BaseModel):
             "If true, the loader records that components in this bundle "
             "expect credential variables to be configured before use."
         ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# LocaleBundle
+# ---------------------------------------------------------------------------
+
+
+def _seal_locale_catalog_schema(schema: dict[str, Any]) -> None:
+    """Reject keys that do not match the locale and component-key patterns."""
+    locales = schema["properties"]["locales"]
+    locales["additionalProperties"] = False
+    for catalog in locales["patternProperties"].values():
+        catalog["additionalProperties"] = False
+
+
+class LocaleBundle(BaseModel):
+    """Namespaced, flat translation catalogs shipped by an Extension.
+
+    Catalog keys are relative to the extension namespace and therefore must
+    start with ``components.``.  Langflow composes the global namespace from
+    the owning manifest's ``id``; extensions cannot publish core catalog keys
+    or keys belonging to another extension.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        json_schema_extra=_seal_locale_catalog_schema,
+    )
+
+    namespace: StrictStr = Field(
+        ...,
+        pattern=_EXTENSION_ID_RE.pattern,
+        description="Namespace owner; must equal the containing extension manifest id.",
+    )
+    locales: dict[_LocaleCode, _FlatLocaleCatalog] = Field(
+        ...,
+        min_length=1,
+        description=(
+            "Non-empty locale catalogs. Each catalog is a flat map of relative "
+            "components.* keys to non-blank translated strings."
+        ),
+    )
+
+
+def _add_ru_missing_policy_schema(schema: dict[str, Any]) -> None:
+    """Publish the cross-field ``fail`` policy as JSON Schema conditionals."""
+    schema.setdefault("allOf", []).append(
+        {
+            "if": {
+                "properties": {"ru_missing_policy": {"const": "fail"}},
+                "required": ["ru_missing_policy"],
+            },
+            "then": {
+                "required": ["locale_bundle"],
+                "properties": {
+                    "locale_bundle": {
+                        "type": "object",
+                        "required": ["locales"],
+                        "properties": {
+                            "locales": {
+                                "type": "object",
+                                "required": ["ru"],
+                            }
+                        },
+                    }
+                },
+            },
+        }
     )
 
 
@@ -253,7 +340,8 @@ class ExtensionManifest(BaseModel):
     Required fields:
         - id, version, name, bundles, lfx
     Optional:
-        - description, capabilities, schema (``$schema``)
+        - description, capabilities, schema (``$schema``), locale_bundle,
+          ru_missing_policy
     Deferred (rejected with ``field-deferred-in-this-milestone`` when set):
         - services, routes, hooks, starter_projects, userConfig
     """
@@ -262,6 +350,7 @@ class ExtensionManifest(BaseModel):
         extra="forbid",
         frozen=True,
         populate_by_name=True,
+        json_schema_extra=_add_ru_missing_policy_schema,
         # ``$schema`` is allowed via alias on the dedicated field below.
     )
 
@@ -314,6 +403,18 @@ class ExtensionManifest(BaseModel):
         description="Optional declared capabilities (v0: requiresCredentials only).",
     )
 
+    locale_bundle: LocaleBundle | None = Field(
+        default=None,
+        description=("Optional namespaced translation catalogs. Its namespace must equal this manifest's id."),
+    )
+    ru_missing_policy: Literal["fail", "mark"] = Field(
+        default="mark",
+        description=(
+            "How to handle a missing Russian catalog: fail validation, or accept "
+            "the manifest and expose ru_missing=true."
+        ),
+    )
+
     # ------------------------------------------------------------------
     # Deferred fields.  We model them as ``None``-only so that downstream
     # tooling can distinguish "absent" from "explicitly set to a value the
@@ -347,8 +448,13 @@ class ExtensionManifest(BaseModel):
     # Validators
     # ------------------------------------------------------------------
 
+    @property
+    def ru_missing(self) -> bool:
+        """Whether this manifest lacks an explicit ``ru`` translation catalog."""
+        return self.locale_bundle is None or "ru" not in self.locale_bundle.locales
+
     @model_validator(mode="after")
-    def _validate_bundle_uniqueness(self) -> ExtensionManifest:
+    def _validate_manifest_contract(self) -> ExtensionManifest:
         # The list-length constraint (exactly one bundle in v0) is encoded on
         # the field above so it lands in the JSON Schema.  This validator covers
         # what Field constraints can't express: bundle names must be unique
@@ -357,6 +463,12 @@ class ExtensionManifest(BaseModel):
         names = [bundle.name for bundle in self.bundles]
         if len(set(names)) != len(names):
             msg = "Bundle names must be unique within an extension"
+            raise ValueError(msg)
+        if self.locale_bundle is not None and self.locale_bundle.namespace != self.id:
+            msg = "Locale bundle namespace must equal the containing extension id"
+            raise ValueError(msg)
+        if self.ru_missing_policy == "fail" and self.ru_missing:
+            msg = "Russian locale 'ru' is required when ru_missing_policy='fail'"
             raise ValueError(msg)
         return self
 

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "case_id": "legacy-flow",
+  "source_format_version": "1.1",
+  "topology": "text-regex-output",
+  "traits": ["legacy", "removed-output"],
+  "stable_ids": {
+    "nodes": ["legacy-input", "legacy-regex", "legacy-output"],
+    "edges": ["edge:legacy-input:text:legacy-regex:input_text", "edge:legacy-regex:text:legacy-output:input_value"]
+  },
+  "input": "Contact legacy@example.com",
+  "expected_runtime": { "result_name": "text", "text": "legacy@example.com" }
+}

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { FlowType } from "@/types/flow";
 import type { FlowVersionEntry } from "@/types/flow/version";
+import { formatDate as formatLocaleDate } from "@/utils/locale-format";
 import { cn } from "@/utils/utils";
 import {
   type ConnectionItem,
@@ -16,7 +17,7 @@ import {
 function formatDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("en-US", {
+  return formatLocaleDate(d, {
     year: "numeric",
     month: "long",
     day: "numeric",

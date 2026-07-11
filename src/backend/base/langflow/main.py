@@ -28,6 +28,7 @@ from pydantic_core import PydanticSerializationError
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 from langflow.api import health_check_router, log_router
+from langflow.api.error_codes import register_api_error_handlers
 from langflow.api.router import router
 from langflow.api.v1.mcp_projects import init_mcp_servers
 from langflow.initial_setup.setup import (
@@ -658,6 +659,7 @@ def create_app():
         lifespan=lifespan,
         root_path=settings.root_path,
     )
+    register_api_error_handlers(app)
     app.add_middleware(
         ContentSizeLimitMiddleware,
     )
@@ -768,31 +770,21 @@ def create_app():
 
         return await call_next(request)
 
-    _supported_locales: frozenset[str] | None = None
-
     @app.middleware("http")
     async def set_locale(request: Request, call_next):
-        """Parse Accept-Language header and store normalised locale in request.state.
+        """Negotiate one validated locale without doing a per-request DB lookup."""
+        from langflow.utils.i18n import resolve_accept_language
 
-        Handles quality values ("fr-FR,fr;q=0.9,en;q=0.8" → "fr") and preserves
-        zh-Hans as a full tag. All other locales are reduced to the language code.
-        Validates against the loaded locale files and falls back to "en" for unknown
-        values — prevents client-supplied headers from polluting the per-locale cache.
-        Result is available as request.state.locale in any endpoint.
-        """
-        nonlocal _supported_locales
-        if _supported_locales is None:
-            from langflow.utils.i18n import get_supported_locales
-
-            _supported_locales = frozenset(get_supported_locales())
-
-        accept_lang = request.headers.get("Accept-Language", "en")
-        primary = accept_lang.split(",")[0].strip()
-        locale = "zh-Hans" if primary.lower().startswith("zh-hans") else primary.split("-")[0]
-        if locale not in _supported_locales:
-            locale = "en"
+        locale = resolve_accept_language(request.headers.get("Accept-Language"))
         request.state.locale = locale
-        return await call_next(request)
+        response = await call_next(request)
+        response.headers["Content-Language"] = locale
+
+        vary_tokens = [token.strip() for token in response.headers.get("Vary", "").split(",") if token.strip()]
+        if not any(token.casefold() == "accept-language" for token in vary_tokens):
+            vary_tokens.append("Accept-Language")
+        response.headers["Vary"] = ", ".join(vary_tokens)
+        return response
 
     if prome_port_str := os.environ.get("LANGFLOW_PROMETHEUS_PORT"):
         # set here for create_app() entry point

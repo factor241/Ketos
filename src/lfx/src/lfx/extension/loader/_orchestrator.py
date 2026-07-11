@@ -50,6 +50,8 @@ from lfx.extension.manifest import (
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from lfx.extension.manifest import LocaleBundle
+
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +142,8 @@ def _load_bundle_directory(
     slot: Literal["official", "extra"],
     distribution: str | None,
     result: LoadResult,
+    locale_bundle: LocaleBundle | None = None,
+    ru_missing: bool = True,
     module_namespace: str = DEFAULT_MODULE_NAMESPACE,
 ) -> None:
     """Walk ``bundle_root``, import every .py file, register Component subclasses.
@@ -213,6 +217,8 @@ def _load_bundle_directory(
                 file_path=file_path,
                 distribution=distribution,
                 source_hash=source_hash,
+                locale_bundle=locale_bundle,
+                ru_missing=ru_missing,
             )
             existing = seen_classes.get(class_name)
             if existing is not None:
@@ -396,6 +402,8 @@ def load_extension(
         slot=slot,
         distribution=distribution,
         result=result,
+        locale_bundle=manifest.locale_bundle,
+        ru_missing=manifest.ru_missing,
         module_namespace=module_namespace,
     )
     return result

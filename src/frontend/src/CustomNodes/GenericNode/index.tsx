@@ -5,6 +5,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
+import { useCanvasReadOnly } from "@/contexts/canvas-read-only-context";
 import { usePostValidateComponentCode } from "@/controllers/API/queries/nodes/use-post-validate-component-code";
 import { CustomNodeStatus } from "@/customization/components/custom-NodeStatus";
 import UpdateComponentModal from "@/modals/updateComponentModal";
@@ -76,6 +77,7 @@ function GenericNode({
   yPos?: number;
 }): JSX.Element {
   const { t } = useTranslation();
+  const isCanvasReadOnly = useCanvasReadOnly();
   const [borderColor, setBorderColor] = useState<string>("");
   const [loadingUpdate, setLoadingUpdate] = useState(false);
   const [showHiddenOutputs, setShowHiddenOutputs] = useState(false);
@@ -169,12 +171,15 @@ function GenericNode({
         t("node.errorNoTemplateContact"),
       ],
     });
-    takeSnapshot();
-    deleteNode(data.id);
+    if (!isCanvasReadOnly) {
+      takeSnapshot();
+      deleteNode(data.id);
+    }
   }
 
   const handleUpdateCode = useCallback(
     (confirmed: boolean = false) => {
+      if (isCanvasReadOnly) return;
       if (!confirmed && hasBreakingChange) {
         setOpenUpdateModal(true);
         return;
@@ -229,14 +234,16 @@ function GenericNode({
       validateComponentCode,
       setErrorData,
       takeSnapshot,
+      isCanvasReadOnly,
     ],
   );
 
   const handleUpdateCodeWShortcut = useCallback(() => {
+    if (isCanvasReadOnly) return;
     if (isOutdated && selected) {
       handleUpdateCode();
     }
-  }, [isOutdated, selected, handleUpdateCode]);
+  }, [handleUpdateCode, isCanvasReadOnly, isOutdated, selected]);
 
   const update = useShortcutsStore((state) => state.update);
   useHotkeys(update, handleUpdateCodeWShortcut, { preventDefault: true });
@@ -290,6 +297,7 @@ function GenericNode({
 
   const handleSelectOutput = useCallback(
     (output) => {
+      if (isCanvasReadOnly || !output) return;
       setSelectedOutput(output);
 
       setEdges((eds) => {
@@ -345,7 +353,7 @@ function GenericNode({
       });
       updateNodeInternals(data.id);
     },
-    [data.id, setNode, setEdges, updateNodeInternals],
+    [data.id, isCanvasReadOnly, setNode, setEdges, updateNodeInternals],
   );
 
   useEffect(() => {
@@ -412,6 +420,7 @@ function GenericNode({
   );
 
   const memoizedNodeToolbarComponent = useMemo(() => {
+    if (isCanvasReadOnly) return <></>;
     const isRightClicked = rightClickedNodeId === data.id;
     const isSelectedSingle = selected && selectedNodesCount === 1;
     const shouldShowToolbar = isSelectedSingle || isRightClicked;
@@ -502,6 +511,7 @@ function GenericNode({
     toggleEditNameDescription,
     selectedNodesCount,
     rightClickedNodeId,
+    isCanvasReadOnly,
   ]);
   useEffect(() => {
     if (hiddenOutputs && hiddenOutputs.length === 0) {
@@ -514,18 +524,18 @@ function GenericNode({
     [handleUpdateCode],
   );
   const memoizedSetDismissAll = useCallback(() => {
+    if (isCanvasReadOnly) return;
     addDismissedNodes([data.id]);
     setNode(data.id, (old) => {
       const newNode = cloneDeep(old);
       (newNode.data as NodeDataType).node!.edited = true;
       return newNode;
     });
-  }, [addDismissedNodes, data.id, setNode]);
+  }, [addDismissedNodes, data.id, isCanvasReadOnly, setNode]);
 
-  const memoizedSetDismissAllLegacy = useCallback(
-    () => addDismissedNodesLegacy([data.id]),
-    [addDismissedNodesLegacy, data.id],
-  );
+  const memoizedSetDismissAllLegacy = useCallback(() => {
+    if (!isCanvasReadOnly) addDismissedNodesLegacy([data.id]);
+  }, [addDismissedNodesLegacy, data.id, isCanvasReadOnly]);
 
   return (
     <div className={cn(shouldShowUpdateComponent ? "relative -mt-10" : "")}>
@@ -537,7 +547,7 @@ function GenericNode({
           !hasOutputs && "pb-4",
         )}
       >
-        {openUpdateModal && (
+        {openUpdateModal && !isCanvasReadOnly && (
           <UpdateComponentModal
             open={openUpdateModal}
             setOpen={setOpenUpdateModal}
@@ -545,7 +555,7 @@ function GenericNode({
             components={componentUpdate ? [componentUpdate] : []}
           />
         )}
-        {memoizedNodeToolbarComponent}
+        {!isCanvasReadOnly && memoizedNodeToolbarComponent}
         {shouldShowUpdateComponent ? (
           <NodeUpdateComponent
             hasBreakingChange={hasBreakingChange}

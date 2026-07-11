@@ -1,7 +1,7 @@
 export type DeploymentProviderType = "watsonx" | "kubernetes";
 
+// This value is persisted in provider payloads and must never be localized.
 export const DEFAULT_FLOW_NAME = "Flow";
-export const UNKNOWN_FLOW_NAME = "Unknown flow";
 export const WXO_PROVIDER_KEY = "watsonx-orchestrate";
 
 export interface EnvVarEntry {

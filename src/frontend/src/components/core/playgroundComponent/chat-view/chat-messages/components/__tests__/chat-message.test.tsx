@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { formatTime } from "../../utils/format";
 import ChatMessage from "../chat-message";
 import ThinkingMessage from "../thinking-message";
 
@@ -218,7 +219,7 @@ describe("ThinkingMessage Component", () => {
 
     expect(screen.getByTestId("icon-Check")).toBeInTheDocument();
     expect(screen.getByText(/Finished in/)).toBeInTheDocument();
-    expect(screen.getByText(/5.0s/)).toBeInTheDocument();
+    expect(screen.getByText(formatTime(5000))).toBeInTheDocument();
   });
 
   it("does not show icon when thinking", () => {
@@ -237,13 +238,13 @@ describe("ThinkingMessage Component", () => {
   it("formats time in minutes when duration exceeds 60 seconds", () => {
     render(<ThinkingMessage isThinking={false} duration={90000} />);
 
-    expect(screen.getByText(/1m 30s/)).toBeInTheDocument();
+    expect(screen.getByText(formatTime(90000))).toBeInTheDocument();
   });
 
   it("shows 0s when duration is null and not thinking", () => {
     render(<ThinkingMessage isThinking={false} duration={null} />);
 
     expect(screen.getByText(/Finished in/)).toBeInTheDocument();
-    expect(screen.getByText(/0.0s/)).toBeInTheDocument();
+    expect(screen.getByText(formatTime(0))).toBeInTheDocument();
   });
 });

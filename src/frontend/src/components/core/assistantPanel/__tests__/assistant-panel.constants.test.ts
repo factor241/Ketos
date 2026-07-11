@@ -1,3 +1,4 @@
+import i18n, { loadLanguage } from "@/i18n";
 import {
   ASSISTANT_PLACEHOLDERS,
   ASSISTANT_SESSION_STORAGE_KEY_PREFIX,
@@ -6,6 +7,11 @@ import {
 } from "../assistant-panel.constants";
 
 describe("assistant-panel.constants", () => {
+  afterEach(async () => {
+    await i18n.changeLanguage("en");
+    jest.restoreAllMocks();
+  });
+
   describe("ASSISTANT_TITLE", () => {
     it("should be Langflow Assistant", () => {
       expect(ASSISTANT_TITLE).toBe("Langflow Assistant");
@@ -58,6 +64,14 @@ describe("assistant-panel.constants", () => {
       for (const result of results) {
         expect(ASSISTANT_PLACEHOLDERS).toContain(result);
       }
+    });
+
+    it("resolves the placeholder in the active locale at call time", async () => {
+      jest.spyOn(Math, "random").mockReturnValue(0);
+      await loadLanguage("ru");
+      await i18n.changeLanguage("ru");
+
+      expect(getAssistantPlaceholder()).toBe("Создать компонент агента…");
     });
   });
 });

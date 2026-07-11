@@ -61,6 +61,15 @@ class CustomComponent(BaseComponent):
     # True constants that should be shared (using ClassVar)
     _code_class_base_inheritance: ClassVar[str] = "CustomComponent"
     function_entrypoint_name: ClassVar[str] = "build"
+    dynamic_i18n: ClassVar[dict[str, str | tuple[str, ...]]] = {}
+    """Declarative presentation strings constructed indirectly by ``update_build_config``.
+
+    Keys are frontend presentation field names (for example ``helper_text``);
+    values are one string or an immutable tuple of variants. Built-in catalog
+    extraction registers these under the component's dynamic namespace.
+    """
+    dynamic_i18n_verbatim: ClassVar[frozenset[str]] = frozenset()
+    """Runtime presentation fields intentionally owned by users/providers."""
     name: str | None = None
     """The name of the component used to styles. Defaults to None."""
     display_name: str | None = None

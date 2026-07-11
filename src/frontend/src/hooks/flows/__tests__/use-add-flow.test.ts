@@ -154,7 +154,7 @@ function rejectAddFlow(error: unknown) {
 describe("useAddFlow — onError display", () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it("shows the plain string detail from a backend 422 as a readable message", async () => {
+  it("hides a plain legacy detail behind the localized fallback", async () => {
     rejectAddFlow({
       response: { data: { detail: "Endpoint name cannot contain dots" } },
     });
@@ -164,11 +164,14 @@ describe("useAddFlow — onError display", () => {
 
     expect(mockSetErrorData).toHaveBeenCalledWith({
       title: "Flow creation error",
-      list: ["Endpoint name cannot contain dots"],
+      list: ["The request could not be completed. Please try again."],
     });
+    expect(JSON.stringify(mockSetErrorData.mock.calls)).not.toContain(
+      "Endpoint name cannot contain dots",
+    );
   });
 
-  it("extracts msg from a Pydantic ValidationError detail array instead of showing [object Object]", async () => {
+  it("does not expose a Pydantic validation message in the native toast", async () => {
     rejectAddFlow({
       response: {
         data: {
@@ -188,11 +191,14 @@ describe("useAddFlow — onError display", () => {
 
     expect(mockSetErrorData).toHaveBeenCalledWith({
       title: "Flow creation error",
-      list: ["Endpoint name cannot contain dots"],
+      list: ["The request could not be completed. Please try again."],
     });
+    expect(JSON.stringify(mockSetErrorData.mock.calls)).not.toContain(
+      "Endpoint name cannot contain dots",
+    );
   });
 
-  it("shows all messages when the detail array has multiple validation errors", async () => {
+  it("does not expose multiple backend validation messages", async () => {
     rejectAddFlow({
       response: {
         data: {
@@ -217,11 +223,17 @@ describe("useAddFlow — onError display", () => {
 
     expect(mockSetErrorData).toHaveBeenCalledWith({
       title: "Flow creation error",
-      list: ["Endpoint cannot contain dots", "Name is required"],
+      list: ["The request could not be completed. Please try again."],
     });
+    expect(JSON.stringify(mockSetErrorData.mock.calls)).not.toContain(
+      "Endpoint cannot contain dots",
+    );
+    expect(JSON.stringify(mockSetErrorData.mock.calls)).not.toContain(
+      "Name is required",
+    );
   });
 
-  it("falls back to error.message when there is no response detail", async () => {
+  it("does not expose Error.message in the native toast", async () => {
     rejectAddFlow(new Error("Network Error"));
 
     const { result } = renderHook(() => useAddFlow());
@@ -229,11 +241,14 @@ describe("useAddFlow — onError display", () => {
 
     expect(mockSetErrorData).toHaveBeenCalledWith({
       title: "Flow creation error",
-      list: ["Network Error"],
+      list: ["The request could not be completed. Please try again."],
     });
+    expect(JSON.stringify(mockSetErrorData.mock.calls)).not.toContain(
+      "Network Error",
+    );
   });
 
-  it("shows a generic fallback for a completely unknown error shape", async () => {
+  it("shows a localized generic fallback for an unknown error shape", async () => {
     rejectAddFlow({ weird: "shape" });
 
     const { result } = renderHook(() => useAddFlow());
@@ -241,7 +256,7 @@ describe("useAddFlow — onError display", () => {
 
     expect(mockSetErrorData).toHaveBeenCalledWith({
       title: "Flow creation error",
-      list: ["An unknown error occurred"],
+      list: ["The request could not be completed. Please try again."],
     });
   });
 });

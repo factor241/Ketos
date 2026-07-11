@@ -15,7 +15,7 @@ const makeProps = (overrides = {}) => ({
   },
   apiKeyName: "",
   // Cast avoids the tsx-generic-vs-JSX ambiguity when used outside a function.
-  inputRef: { current: null } as React.RefObject<HTMLInputElement>,
+  inputRef: { current: null } as React.RefObject<HTMLInputElement | null>,
   setApiKeyName: jest.fn(),
   expiresAt: "",
   setExpiresAt: jest.fn(),
@@ -68,7 +68,11 @@ describe("FormKeyRender", () => {
     const setExpiresAt = jest.fn();
     const d = new Date();
     d.setDate(d.getDate() + 7);
-    const activeDate = d.toISOString().split("T")[0];
+    const activeDate = [
+      d.getFullYear(),
+      String(d.getMonth() + 1).padStart(2, "0"),
+      String(d.getDate()).padStart(2, "0"),
+    ].join("-");
     render(
       <FormKeyRender {...makeProps({ expiresAt: activeDate, setExpiresAt })} />,
     );

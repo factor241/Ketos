@@ -1,10 +1,10 @@
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { NEW_SESSION_NAME } from "@/constants/constants";
 import { useBulkDeleteSessions } from "@/controllers/API/queries/messages/use-bulk-delete-sessions";
 import { useDeleteSession } from "@/controllers/API/queries/messages/use-delete-sessions";
 import { useGetSessionsFromFlowQuery } from "@/controllers/API/queries/messages/use-get-sessions-from-flow";
 import { useUpdateSessionName } from "@/controllers/API/queries/messages/use-rename-session";
+import { createUniqueSessionId } from "@/modals/IOModal/components/chatView/chatInput/components/voice-assistant/helpers/create-new-session-name";
 import useAlertStore from "@/stores/alertStore";
 import { useMessagesStore } from "@/stores/messagesStore";
 import { useSessionManagerStore } from "@/stores/sessionManagerStore";
@@ -70,17 +70,7 @@ export function useSessionManager({ flowId }: UseSessionManagerProps) {
 
   const createSession = useCallback(() => {
     if (!flowId) return;
-    const newSessionPattern = new RegExp(`^${NEW_SESSION_NAME} (\\d+)$`);
-    const allSessions = getOrderedSessionIds();
-    const existingNumbers = allSessions
-      .map((s) => {
-        const match = s.match(newSessionPattern);
-        return match ? parseInt(match[1], 10) : -1;
-      })
-      .filter((n) => n >= 0);
-    const nextNumber =
-      existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 0;
-    const newId = `${NEW_SESSION_NAME} ${nextNumber}`;
+    const newId = createUniqueSessionId(getOrderedSessionIds());
 
     addSession({ id: newId, isLocal: true });
     setActiveSessionId(newId);

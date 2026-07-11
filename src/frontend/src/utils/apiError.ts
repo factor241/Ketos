@@ -1,3 +1,9 @@
+import i18n from "../i18n";
+import {
+  getLocalizedApiErrorMessage,
+  type LocalizedApiErrorTranslate,
+} from "./localized-api-error";
+
 /**
  * Shape produced by FastAPI validation errors and generic axios responses.
  * Kept internal — callers receive plain strings.
@@ -10,17 +16,28 @@ type ApiErrorShape = {
 };
 
 /**
- * Extracts one or more human-readable messages from an unknown API error.
- *
- * Handles three FastAPI / axios error shapes in priority order:
- *   1. `response.data.detail` — array of `{ msg }` objects (validation errors)
- *   2. `response.data.detail` — plain string
- *   3. `error.message`        — axios / native Error message
- *
- * Always returns at least one element so callers can spread directly into
- * `setErrorData({ list: extractApiErrorMessages(error) })`.
+ * Resolves a stable API code for UI presentation without exposing backend
+ * payloads. Legacy responses use a generic compatibility fallback.
  */
-export function extractApiErrorMessages(error: unknown): string[] {
+export function extractApiErrorMessages(
+  error: unknown,
+  translate?: LocalizedApiErrorTranslate,
+): string[] {
+  const activeTranslate: LocalizedApiErrorTranslate =
+    translate ?? ((key, params) => i18n.t(key, params));
+
+  return [
+    getLocalizedApiErrorMessage(error, activeTranslate, {
+      fallbackKey: "errors.requestFailed",
+    }),
+  ];
+}
+
+/**
+ * Extracts raw legacy response text for diagnostics and logging only.
+ * Native UI call sites must use `extractApiErrorMessages` instead.
+ */
+export function extractApiErrorDiagnosticMessages(error: unknown): string[] {
   if (!error || typeof error !== "object") {
     return ["An unknown error occurred"];
   }

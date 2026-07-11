@@ -6,10 +6,14 @@
 ################################
 
 # 1. force platform to the current architecture to increase build speed time on multi-platform builds
-FROM --platform=$BUILDPLATFORM node:lts-bookworm-slim AS builder-base
+FROM --platform=$BUILDPLATFORM node:22.14.0-bookworm-slim AS builder-base
+ARG VITE_ENABLE_RUSSIAN_LOCALE=true
+ENV VITE_ENABLE_RUSSIAN_LOCALE=${VITE_ENABLE_RUSSIAN_LOCALE}
 COPY src/frontend /frontend
 
-RUN cd /frontend && npm install && npm run build
+RUN cd /frontend \
+    && npm ci \
+    && ESBUILD_BINARY_PATH="" NODE_OPTIONS="--max-old-space-size=4096" JOBS=1 npm run build
 
 ################################
 # RUNTIME

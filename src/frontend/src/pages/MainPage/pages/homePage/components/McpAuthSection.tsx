@@ -3,7 +3,6 @@ import { ForwardedIconComponent } from "@/components/common/genericIconComponent
 import ShadTooltip from "@/components/common/shadTooltipComponent";
 import { Button } from "@/components/ui/button";
 import type { AuthSettingsType } from "@/types/mcp";
-import { AUTH_METHODS } from "@/utils/mcpUtils";
 import { cn } from "@/utils/utils";
 
 interface McpAuthSectionProps {
@@ -22,6 +21,18 @@ export const McpAuthSection = ({
   setAuthModalOpen,
 }: McpAuthSectionProps) => {
   const { t } = useTranslation();
+  const activeAuthLabel = (() => {
+    switch (currentAuthSettings?.auth_type) {
+      case "none":
+        return t("authModal.authMethod.none");
+      case "apikey":
+        return t("authModal.authMethod.apikey");
+      case "oauth":
+        return t("authModal.authMethod.oauth");
+      default:
+        return currentAuthSettings?.auth_type;
+    }
+  })();
   return (
     <div className="flex items-center justify-between">
       <span className="flex gap-2 items-center text-sm cursor-default">
@@ -64,11 +75,7 @@ export const McpAuthSection = ({
                 }
                 className={cn("h-4 w-4 shrink-0", isLoading && "animate-spin")}
               />
-              {isLoading
-                ? t("mcp.loading")
-                : AUTH_METHODS[
-                    currentAuthSettings?.auth_type as keyof typeof AUTH_METHODS
-                  ]?.label || currentAuthSettings?.auth_type}
+              {isLoading ? t("mcp.loading") : activeAuthLabel}
             </span>
           </ShadTooltip>
         )}

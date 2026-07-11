@@ -22,6 +22,7 @@ import {
   getDefaultDBProviderConfig,
   isDBProviderConfigured,
   resolveUIBackendType,
+  translateDBProviderDescription,
 } from "@/constants/dbProviderConstants";
 import { useGetGlobalVariables } from "@/controllers/API/queries/variables";
 import type { GlobalVariable } from "@/types/global_variables";
@@ -272,7 +273,7 @@ function DBProviderOptionItem({
             )}
           </div>
           <span className="truncate text-[11px] text-muted-foreground">
-            {provider.description}
+            {translateDBProviderDescription(t, provider.id)}
           </span>
         </div>
         <ForwardedIconComponent

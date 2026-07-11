@@ -111,6 +111,84 @@ def test_schema_validates_v0_example() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Namespaced locale bundle
+# ---------------------------------------------------------------------------
+
+
+_VALID_WITH_LOCALES = {
+    **_VALID,
+    "locale_bundle": {
+        "namespace": "lfx-openai",
+        "locales": {
+            "en": {"components.widget.display_name": "Widget"},
+            "ru": {"components.widget.display_name": "Виджет"},
+        },
+    },
+}
+
+
+def test_schema_publishes_locale_bundle_and_ru_policy() -> None:
+    schema = build_schema()
+
+    assert "locale_bundle" in schema["properties"]
+    assert schema["properties"]["ru_missing_policy"]["default"] == "mark"
+    assert set(schema["properties"]["ru_missing_policy"]["enum"]) == {"fail", "mark"}
+    assert "LocaleBundle" in schema["$defs"]
+    assert schema["$defs"]["LocaleBundle"]["additionalProperties"] is False
+
+
+def test_schema_validates_namespaced_locale_bundle() -> None:
+    _validator().validate(_VALID_WITH_LOCALES)
+
+
+@pytest.mark.parametrize(
+    "locale_bundle",
+    [
+        {"namespace": "lfx-openai", "locales": {}},
+        {"namespace": "lfx-openai", "locales": {"ru": {}}},
+        {
+            "namespace": "lfx-openai",
+            "locales": {"ru": {"apiErrors.extensions.invalidManifest": "Ошибка"}},
+        },
+        {
+            "namespace": "lfx-openai",
+            "locales": {"ru": {"extensions.other.components.widget.display_name": "Виджет"}},
+        },
+        {
+            "namespace": "lfx-openai",
+            "locales": {"ru": {"components.widget.display_name": ""}},
+        },
+        {
+            "namespace": "lfx-openai",
+            "locales": {"ru": {"components.widget.display_name": {"nested": "value"}}},
+        },
+    ],
+)
+def test_schema_rejects_non_flat_or_non_component_locale_catalogs(locale_bundle: dict[str, Any]) -> None:
+    with pytest.raises(jsonschema.ValidationError):
+        _validator().validate({**_VALID, "locale_bundle": locale_bundle})
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        {**_VALID, "ru_missing_policy": "fail"},
+        {
+            **_VALID,
+            "ru_missing_policy": "fail",
+            "locale_bundle": {
+                "namespace": "lfx-openai",
+                "locales": {"en": {"components.widget.display_name": "Widget"}},
+            },
+        },
+    ],
+)
+def test_schema_ru_missing_policy_fail_requires_ru(case: dict[str, Any]) -> None:
+    with pytest.raises(jsonschema.ValidationError):
+        _validator().validate(case)
+
+
+# ---------------------------------------------------------------------------
 # At least 10 malformed manifests with DISTINCT error paths.
 # ---------------------------------------------------------------------------
 

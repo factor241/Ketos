@@ -16,6 +16,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
+from langflow.api.error_codes import CodedHTTPException
 from langflow.api.v1.deployments import DeploymentTelemetryCtx
 from langflow.api.v1.mappers.deployments.contracts import ProviderSnapshotBinding
 from langflow.api.v1.mappers.deployments.watsonx_orchestrate import WatsonxOrchestrateDeploymentMapper
@@ -2022,7 +2023,7 @@ class TestUpdateDeploymentRollback:
         payload.display_name = None
         payload.description = None
 
-        with pytest.raises(RuntimeError, match="DB commit failed"):
+        with pytest.raises(CodedHTTPException) as exc_info:
             await update_deployment(
                 deployment_id=dep_row.id,
                 session=session,
@@ -2030,6 +2031,11 @@ class TestUpdateDeploymentRollback:
                 current_user=_fake_user(),
                 telemetry=_fake_telemetry(),
             )
+
+        assert exc_info.value.status_code == 500
+        assert exc_info.value.payload.code == "deployments.update_failed"
+        assert "DB commit failed" not in str(exc_info.value.payload.model_dump())
+        assert exc_info.value.technical_detail == "DB commit failed"
 
         mock_rollback.assert_awaited_once()
         assert mock_rollback.call_args.kwargs["deployment_db_id"] == dep_row.id
@@ -3297,11 +3303,13 @@ class TestHandleAdapterErrors:
     def test_maps_authentication_error_to_401(self):
         from langflow.api.v1.mappers.deployments.helpers import handle_adapter_errors
 
-        with pytest.raises(HTTPException) as exc_info, handle_adapter_errors():
+        with pytest.raises(CodedHTTPException) as exc_info, handle_adapter_errors():
             raise AuthenticationError(message="bad creds", error_code="authentication_error")
 
         assert exc_info.value.status_code == 401
-        assert "bad creds" in exc_info.value.detail
+        assert exc_info.value.payload.code == "deployments.update_failed"
+        assert exc_info.value.detail == "Deployment could not be updated."
+        assert exc_info.value.technical_detail == "bad creds"
 
     def test_maps_service_unavailable_to_503(self):
         from langflow.api.v1.mappers.deployments.helpers import handle_adapter_errors
@@ -3325,11 +3333,13 @@ class TestHandleAdapterErrors:
         deployment_mapper = MagicMock()
         deployment_mapper.format_conflict_detail.return_value = "friendly detail"
 
-        with pytest.raises(HTTPException) as exc_info, handle_adapter_errors(mapper=deployment_mapper):
+        with pytest.raises(CodedHTTPException) as exc_info, handle_adapter_errors(mapper=deployment_mapper):
             raise ResourceConflictError(message="raw provider conflict")
 
         assert exc_info.value.status_code == 409
         assert exc_info.value.detail == "friendly detail"
+        assert exc_info.value.payload.code == "deployments.conflict"
+        assert exc_info.value.technical_detail == "raw provider conflict"
         deployment_mapper.format_conflict_detail.assert_called_once_with(
             "raw provider conflict",
             resource=None,
@@ -3377,11 +3387,12 @@ class TestHandleAdapterErrors:
     def test_maps_conflict_without_mapper_passthrough(self):
         from langflow.api.v1.mappers.deployments.helpers import handle_adapter_errors
 
-        with pytest.raises(HTTPException) as exc_info, handle_adapter_errors():
+        with pytest.raises(CodedHTTPException) as exc_info, handle_adapter_errors():
             raise ResourceConflictError(message="raw provider conflict")
 
         assert exc_info.value.status_code == 409
-        assert exc_info.value.detail == "raw provider conflict"
+        assert exc_info.value.detail == "Deployment conflicts with the current state."
+        assert exc_info.value.technical_detail == "raw provider conflict"
 
     def test_passes_through_http_exception(self):
         from langflow.api.v1.mappers.deployments.helpers import handle_adapter_errors

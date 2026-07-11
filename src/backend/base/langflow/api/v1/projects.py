@@ -1,8 +1,19 @@
 import warnings
-from typing import Annotated, cast
+from typing import Annotated, TypeVar, cast
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi_pagination import Params
 from fastapi_pagination.ext.sqlmodel import apaginate
 from lfx.log.logger import logger
@@ -30,7 +41,12 @@ from langflow.api.v1.projects_mcp_helpers import (
     reconcile_mcp_server_for_auth_update,
     register_mcp_servers_for_project,
 )
-from langflow.initial_setup.constants import ASSISTANT_FOLDER_NAME, STARTER_FOLDER_NAME
+from langflow.initial_setup.constants import (
+    ASSISTANT_FOLDER_NAME,
+    ASSISTANT_FOLDER_NAME_I18N_KEY,
+    STARTER_FOLDER_NAME,
+    STARTER_FOLDER_NAME_I18N_KEY,
+)
 from langflow.services.auth.mcp_encryption import encrypt_auth_settings
 from langflow.services.authorization import (
     FlowAction,
@@ -47,7 +63,7 @@ from langflow.services.database.models.deployment.exceptions import (
 from langflow.services.database.models.deployment.guards import check_project_has_deployments
 from langflow.services.database.models.deployment.orm_guards import ensure_flow_moves_allowed
 from langflow.services.database.models.flow.model import Flow, FlowRead
-from langflow.services.database.models.folder.constants import DEFAULT_FOLDER_NAME
+from langflow.services.database.models.folder.constants import DEFAULT_FOLDER_NAME, DEFAULT_FOLDER_NAME_I18N_KEY
 from langflow.services.database.models.folder.model import (
     Folder,
     FolderCreate,
@@ -58,8 +74,29 @@ from langflow.services.database.models.folder.model import (
 from langflow.services.database.models.folder.pagination_model import FolderWithPaginatedFlows
 from langflow.services.deps import get_service, get_settings_service
 from langflow.services.schema import ServiceType
+from langflow.utils.i18n import translate
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
+
+FolderReadModel = TypeVar("FolderReadModel", FolderRead, FolderReadWithFlows)
+
+_SYSTEM_FOLDER_NAME_I18N_KEYS = {
+    DEFAULT_FOLDER_NAME: DEFAULT_FOLDER_NAME_I18N_KEY,
+    STARTER_FOLDER_NAME: STARTER_FOLDER_NAME_I18N_KEY,
+    ASSISTANT_FOLDER_NAME: ASSISTANT_FOLDER_NAME_I18N_KEY,
+}
+
+
+def _folder_read_for_locale(
+    folder: object,
+    locale: str,
+    model_type: type[FolderReadModel] = FolderRead,
+) -> FolderReadModel:
+    """Build a localized read model without changing the persisted folder name."""
+    folder_read = model_type.model_validate(folder, from_attributes=True)
+    key = _SYSTEM_FOLDER_NAME_I18N_KEYS.get(folder_read.name)
+    folder_read.display_name = translate(key, locale, folder_read.name) if key else folder_read.name
+    return folder_read
 
 
 def _escape_like(value: str) -> str:
@@ -209,6 +246,7 @@ async def create_project(
 @router.get("/", response_model=list[FolderRead], status_code=200)
 async def read_projects(
     *,
+    request: Request,
     session: DbSession,
     current_user: CurrentActiveUser,
 ):
@@ -237,7 +275,8 @@ async def read_projects(
         sorted_projects = sorted(projects, key=lambda x: x.name != DEFAULT_FOLDER_NAME)
 
         # Convert to FolderRead while session is still active to avoid detached instance errors
-        return [FolderRead.model_validate(project, from_attributes=True) for project in sorted_projects]
+        locale = getattr(request.state, "locale", "en")
+        return [_folder_read_for_locale(project, locale) for project in sorted_projects]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -245,6 +284,7 @@ async def read_projects(
 @router.get("/{project_id}", response_model=FolderWithPaginatedFlows | FolderReadWithFlows, status_code=200)
 async def read_project(
     *,
+    request: Request,
     session: DbSession,
     project_id: UUID,
     current_user: CurrentActiveUser,
@@ -255,6 +295,7 @@ async def read_project(
     is_flow: bool = False,
     search: str = "",
 ):
+    locale = getattr(request.state, "locale", "en")
     try:
         # Share-aware fetch: when an authorization plugin is
         # registered (``SUPPORTS_CROSS_USER_FETCH=True``) the project is
@@ -340,7 +381,10 @@ async def read_project(
                     act=FlowAction.READ,
                 )
 
-            return FolderWithPaginatedFlows(folder=FolderRead.model_validate(project), flows=paginated_flows)
+            return FolderWithPaginatedFlows(
+                folder=_folder_read_for_locale(project, locale),
+                flows=paginated_flows,
+            )
 
         # If no pagination requested, return flows visible to the caller.
         if treat_as_shared:
@@ -363,7 +407,7 @@ async def read_project(
         project.flows = visible_flows
 
         # Convert to FolderReadWithFlows while session is still active to avoid detached instance errors
-        return FolderReadWithFlows.model_validate(project, from_attributes=True)
+        return _folder_read_for_locale(project, locale, FolderReadWithFlows)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

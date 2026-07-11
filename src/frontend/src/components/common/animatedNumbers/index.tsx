@@ -5,6 +5,7 @@ import {
   useTransform,
 } from "framer-motion";
 import { useEffect, useState } from "react";
+import { formatNumber } from "@/utils/locale-format";
 import { cn } from "@/utils/utils";
 
 type AnimatedNumberProps = {
@@ -22,7 +23,7 @@ export function AnimatedNumber({
 }: AnimatedNumberProps) {
   const spring = useSpring(value, springOptions);
   const display = useTransform(spring, (current) =>
-    Math.round(current).toLocaleString(),
+    formatNumber(Math.round(current)),
   );
 
   useEffect(() => {

@@ -20,6 +20,10 @@ import {
   OPENSEARCH_VARIABLES,
   parseBooleanGlobalVariable,
   toAPIBackendType,
+  translateDBProviderDescription,
+  translateDBProviderFieldHelperText,
+  translateDBProviderFieldLabel,
+  translateDBProviderFieldPlaceholder,
 } from "@/constants/dbProviderConstants";
 import { VARIABLE_CATEGORY } from "@/constants/providerConstants";
 import { useTestDBProviderConnection } from "@/controllers/API/queries/knowledge-bases/use-test-kb-connection";
@@ -33,18 +37,6 @@ import type { GlobalVariable } from "@/types/global_variables";
 import { cn } from "@/utils/utils";
 
 const MASKED_VALUE = "••••••••";
-
-type ApiError = {
-  response?: {
-    data?: {
-      detail?: string;
-    };
-  };
-};
-
-const getErrorDetail = (error: unknown) =>
-  (error as ApiError)?.response?.data?.detail ||
-  "An unexpected error occurred. Please try again.";
 
 export default function DBProvidersPage() {
   const { t } = useTranslation();
@@ -209,15 +201,20 @@ export default function DBProvidersPage() {
       setErrorData({
         title: t("settings.dbProviders.errorMissingConfig"),
         list: [
-          `${selectedProvider.label} requires ${selectedProvider.configFields
-            .filter(
-              (field): field is DBProviderTextField =>
-                field.kind !== "boolean" &&
-                field.required &&
-                !getFieldValue(field).trim(),
-            )
-            .map((field) => field.label)
-            .join(", ")}.`,
+          t("settings.dbProviders.requiredFields", {
+            provider: selectedProvider.label,
+            fields: selectedProvider.configFields
+              .filter(
+                (field): field is DBProviderTextField =>
+                  field.kind !== "boolean" &&
+                  field.required &&
+                  !getFieldValue(field).trim(),
+              )
+              .map((field) =>
+                translateDBProviderFieldLabel(t, field.variableKey),
+              )
+              .join(", "),
+          }),
         ],
       });
       return false;
@@ -273,10 +270,10 @@ export default function DBProvidersPage() {
         });
       }
       return true;
-    } catch (error: unknown) {
+    } catch (_error: unknown) {
       setErrorData({
         title: t("settings.dbProviders.errorSaving"),
-        list: [getErrorDetail(error)],
+        list: [t("errors.requestFailed")],
       });
       return false;
     }
@@ -288,15 +285,20 @@ export default function DBProvidersPage() {
       setErrorData({
         title: t("settings.dbProviders.errorMissingConfig"),
         list: [
-          `${selectedProvider.label} requires ${selectedProvider.configFields
-            .filter(
-              (field): field is DBProviderTextField =>
-                field.kind !== "boolean" &&
-                field.required &&
-                !getFieldValue(field).trim(),
-            )
-            .map((field) => field.label)
-            .join(", ")}.`,
+          t("settings.dbProviders.requiredFields", {
+            provider: selectedProvider.label,
+            fields: selectedProvider.configFields
+              .filter(
+                (field): field is DBProviderTextField =>
+                  field.kind !== "boolean" &&
+                  field.required &&
+                  !getFieldValue(field).trim(),
+              )
+              .map((field) =>
+                translateDBProviderFieldLabel(t, field.variableKey),
+              )
+              .join(", "),
+          }),
         ],
       });
       return;
@@ -342,27 +344,19 @@ export default function DBProvidersPage() {
         backend_config: backendConfig,
       });
       if (response.ok) {
-        // ``setSuccessData`` only takes a title; pack any backend
-        // detail (cluster name, version) into the title so it shows.
         setSuccessData({
-          title: response.message
-            ? t("settings.dbProviders.connectionSuccessfulWith", {
-                message: response.message,
-              })
-            : t("settings.dbProviders.connectionSuccessful"),
+          title: t("settings.dbProviders.connectionSuccessful"),
         });
       } else {
         setErrorData({
           title: t("settings.dbProviders.connectionFailed"),
-          list: [
-            response.message || t("settings.dbProviders.connectionRejected"),
-          ],
+          list: [t("settings.dbProviders.connectionRejected")],
         });
       }
-    } catch (error: unknown) {
+    } catch (_error: unknown) {
       setErrorData({
         title: t("settings.dbProviders.errorTesting"),
-        list: [getErrorDetail(error)],
+        list: [t("errors.requestFailed")],
       });
     }
   };
@@ -374,10 +368,10 @@ export default function DBProvidersPage() {
       setSelectedProviderId("chroma");
       setHasManuallySelectedProvider(false);
       setSuccessData({ title: t("settings.dbProviders.chromaSelected") });
-    } catch (error: unknown) {
+    } catch (_error: unknown) {
       setErrorData({
         title: t("settings.dbProviders.errorSelectingChroma"),
-        list: [getErrorDetail(error)],
+        list: [t("errors.requestFailed")],
       });
     }
   };
@@ -650,9 +644,7 @@ function ProviderConfigurationPanel({
               )}
             </div>
             <span className="pt-1 text-[13px] text-muted-foreground">
-              {t(`settings.dbProviders.providers.${provider.id}.description`, {
-                defaultValue: provider.description,
-              })}
+              {translateDBProviderDescription(t, provider.id)}
             </span>
           </div>
         </div>
@@ -800,13 +792,11 @@ function TextFieldRow({
   return (
     <label className="flex flex-col gap-1">
       <span className="text-[12px] font-medium text-muted-foreground">
-        {t(`settings.dbProviders.fields.${field.variableKey}.label`, {
-          defaultValue: field.label,
-        })}
+        {translateDBProviderFieldLabel(t, field.variableKey)}
         {field.required && <span className="ml-1 text-destructive">*</span>}
       </span>
       <Input
-        placeholder={field.placeholder}
+        placeholder={translateDBProviderFieldPlaceholder(t, field)}
         value={inputValue}
         type={field.isSecret ? "password" : "text"}
         disabled={disabled}
@@ -838,15 +828,11 @@ function BooleanFieldRow({
     <div className="flex items-start justify-between gap-4 rounded-md border border-border bg-muted/20 px-3 py-2">
       <div className="flex min-w-0 flex-col">
         <span className="text-[12px] font-medium">
-          {t(`settings.dbProviders.fields.${field.variableKey}.label`, {
-            defaultValue: field.label,
-          })}
+          {translateDBProviderFieldLabel(t, field.variableKey)}
         </span>
-        {field.helperText && (
+        {field.helperTextKey && (
           <span className="pt-0.5 text-[11px] text-muted-foreground">
-            {t(`settings.dbProviders.fields.${field.variableKey}.helperText`, {
-              defaultValue: field.helperText,
-            })}
+            {translateDBProviderFieldHelperText(t, field.variableKey)}
           </span>
         )}
         <span className="pt-1 text-[11px] text-muted-foreground">
@@ -858,7 +844,7 @@ function BooleanFieldRow({
         checked={value}
         onCheckedChange={onChange}
         disabled={disabled}
-        aria-label={field.label}
+        aria-label={translateDBProviderFieldLabel(t, field.variableKey)}
         data-testid={`db-provider-toggle-${field.variableKey}`}
       />
     </div>

@@ -16,6 +16,7 @@ from lfx.services.adapters.deployment.schema import (
     DeploymentUpdateResult,
 )
 
+from langflow.api.error_codes import ApiErrorCode, coded_http_error
 from langflow.api.utils import CurrentActiveUser, DbSession, DbSessionReadOnly
 from langflow.api.v1.mappers.deployments import get_deployment_mapper
 from langflow.api.v1.mappers.deployments.helpers import (
@@ -68,7 +69,6 @@ from langflow.api.v1.schemas.deployments import (
 )
 from langflow.services.adapters.deployment.context import deployment_provider_scope
 from langflow.services.authorization import DeploymentAction, ensure_deployment_permission, filter_visible_resources
-from langflow.services.authorization.fetch import deny_to_404
 from langflow.services.authorization.utils import _resolve_authz_domain
 from langflow.services.database.models.deployment.crud import (
     count_deployments_by_provider,
@@ -160,6 +160,17 @@ snapshot_update_telemetry = _make_telemetry_dep("snapshot.update", "log_package_
 
 router = APIRouter(prefix="/deployments", tags=["Deployments"], include_in_schema=False)
 
+
+def _deployment_not_found_error(deployment_id: UUID, *, technical_detail: str | None = None):
+    return coded_http_error(
+        ApiErrorCode.DEPLOYMENT_NOT_FOUND,
+        params={"deployment_id": str(deployment_id)},
+        detail="Deployment not found.",
+        status_code=status.HTTP_404_NOT_FOUND,
+        technical_detail=technical_detail,
+    )
+
+
 DeploymentProviderAccountIdQuery = Annotated[
     UUID,
     Query(description="Langflow DB provider-account UUID (`deployment_provider_account.id`)."),
@@ -207,9 +218,11 @@ def _field_was_explicitly_set(model: object, field_name: str) -> bool:
 def _raise_http_for_provider_account_value_error(exc: ValueError) -> None:
     message = str(exc).lower()
     if "already exists" in message or "conflicts with an existing record" in message:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+        raise coded_http_error(
+            ApiErrorCode.DEPLOYMENT_CONFLICT,
             detail="Provider account is already tracked by user.",
+            status_code=status.HTTP_409_CONFLICT,
+            technical_detail=str(exc),
         ) from exc
     raise_http_for_value_error(exc)
 
@@ -289,9 +302,12 @@ async def _delete_local_deployment_row_with_commit_retry(
                 deployment_id,
                 resource_key,
             )
-            raise HTTPException(
+            raise coded_http_error(
+                ApiErrorCode.DEPLOYMENT_UPDATE_FAILED,
+                params={"deployment_id": str(deployment_id)},
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Deployment was deleted from the provider, but local cleanup failed. Retry the delete request.",
+                technical_detail=str(exc),
             ) from exc
 
 
@@ -366,7 +382,11 @@ async def get_provider_account(
 ):
     provider_account = await get_provider_account_row_by_id(session, provider_id=provider_id, user_id=current_user.id)
     if provider_account is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Deployment provider account not found.")
+        raise coded_http_error(
+            ApiErrorCode.REQUEST_BAD_REQUEST,
+            detail="Deployment provider account not found.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
     return get_deployment_mapper(provider_account.provider_key).resolve_provider_account_response(provider_account)
 
 
@@ -394,9 +414,10 @@ async def delete_provider_account(
         user_id=current_user.id,
     )
     if deployment_count > 0:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+        raise coded_http_error(
+            ApiErrorCode.DEPLOYMENT_CONFLICT,
             detail="Cannot delete provider account while deployments still exist.",
+            status_code=status.HTTP_409_CONFLICT,
         )
     try:
         await delete_provider_account_row(session, provider_account=provider_account)
@@ -437,9 +458,11 @@ async def update_provider_account(
         except ValueError as exc:
             _raise_http_for_provider_account_value_error(exc)
         except NotImplementedError as exc:
-            raise HTTPException(
+            raise coded_http_error(
+                ApiErrorCode.DEPLOYMENT_UPDATE_FAILED,
                 status_code=status.HTTP_501_NOT_IMPLEMENTED,
                 detail="This operation is not supported by the deployment provider.",
+                technical_detail=str(exc),
             ) from exc
         if verify_input is not None:
             with handle_adapter_errors(mapper=deployment_mapper):
@@ -491,10 +514,12 @@ async def create_deployment(
             resource_key=str(existing_resource_key),
         )
         if existing_deployment is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
+            raise coded_http_error(
+                ApiErrorCode.DEPLOYMENT_CONFLICT,
+                params={"deployment_id": str(existing_deployment.id)},
                 detail=f"The agent '{existing_resource_key}' is already managed by Langflow. "
                 "Update it to make changes, or delete the existing deployment first.",
+                status_code=status.HTTP_409_CONFLICT,
             )
         with handle_adapter_errors(mapper=deployment_mapper), deployment_provider_scope(provider_id):
             existing_provider_resource = await deployment_adapter.get(
@@ -589,7 +614,12 @@ async def create_deployment(
                 db=session,
             )
         if isinstance(exc, AttachmentConflictError):
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+            raise coded_http_error(
+                ApiErrorCode.DEPLOYMENT_CONFLICT,
+                params={"deployment_id": str(deployment_row.id)},
+                status_code=status.HTTP_409_CONFLICT,
+                technical_detail=str(exc),
+            ) from exc
         raise
     return deployment_mapper.shape_deployment_create_result(
         provider_create_result, deployment_row, provider_key=provider_account.provider_key
@@ -645,22 +675,26 @@ async def list_deployments(
     project_id: ProjectIdQuery = None,
 ):
     if flow_ids and flow_version_ids:
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.REQUEST_BAD_REQUEST,
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="flow_ids and flow_version_ids are mutually exclusive.",
         )
     if load_from_provider and flow_version_ids:
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.REQUEST_BAD_REQUEST,
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="flow_version_ids filtering is not supported when loading deployments directly from the provider.",
         )
     if load_from_provider and flow_ids:
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.REQUEST_BAD_REQUEST,
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="flow_ids filtering is not supported when loading deployments directly from the provider.",
         )
     if load_from_provider and project_id is not None:
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.REQUEST_BAD_REQUEST,
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="project_id filtering is not supported when loading deployments directly from the provider.",
         )
@@ -818,7 +852,7 @@ async def create_deployment_run(
             project_id=deployment_row.project_id,
         )
     except HTTPException as exc:
-        raise deny_to_404(exc, detail="Deployment not found.") from exc
+        raise _deployment_not_found_error(deployment_id, technical_detail=str(exc)) from exc
     telemetry.provider = _provider_key
     telemetry.wxo_tenant_id = provider_tenant_id
     adapter_execution_payload = await deployment_mapper.resolve_execution_create(
@@ -874,7 +908,7 @@ async def get_deployment_run(
             project_id=deployment_row.project_id,
         )
     except HTTPException as exc:
-        raise deny_to_404(exc, detail="Deployment not found.") from exc
+        raise _deployment_not_found_error(deployment_id, technical_detail=str(exc)) from exc
     execution_lookup_id = run_id.strip()
     with (
         handle_adapter_errors(mapper=deployment_mapper),
@@ -944,7 +978,7 @@ async def list_deployment_configs(
                 project_id=deployment_row.project_id,
             )
         except HTTPException as exc:
-            raise deny_to_404(exc, detail="Deployment not found.") from exc
+            raise _deployment_not_found_error(deployment_id, technical_detail=str(exc)) from exc
         if provider_account is None:
             # Provider account is owner-scoped to the deployment owner.
             provider_account = await get_owned_provider_account_or_404(
@@ -953,10 +987,11 @@ async def list_deployment_configs(
                 db=session,
             )
         elif deployment_row.deployment_provider_account_id != provider_account.id:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found for provider.")
+            raise _deployment_not_found_error(deployment_id)
 
     if provider_account is None:
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.REQUEST_BAD_REQUEST,
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Either provider_id or deployment_id must be provided.",
         )
@@ -1014,7 +1049,7 @@ async def list_deployment_snapshots(
                 project_id=deployment_row.project_id,
             )
         except HTTPException as exc:
-            raise deny_to_404(exc, detail="Deployment not found.") from exc
+            raise _deployment_not_found_error(deployment_id, technical_detail=str(exc)) from exc
 
     provider_owner_id = deployment_row.user_id if deployment_row is not None else current_user.id
     provider_account = await get_owned_provider_account_or_404(
@@ -1024,7 +1059,7 @@ async def list_deployment_snapshots(
     )
 
     if deployment_row is not None and deployment_row.deployment_provider_account_id != provider_account.id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found for provider.")
+        raise _deployment_not_found_error(deployment_id)
 
     deployment_adapter = resolve_deployment_adapter(provider_account.provider_key)
     deployment_mapper = get_deployment_mapper(provider_account.provider_key)
@@ -1088,7 +1123,8 @@ async def update_snapshot(
         provider_snapshot_id=snapshot_id,
     )
     if not all_candidates:
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.REQUEST_BAD_REQUEST,
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No attachment found for provider_snapshot_id '{snapshot_id}'.",
         )
@@ -1099,7 +1135,8 @@ async def update_snapshot(
         # one group (the actor's), which keeps OSS behaviour unchanged.
         all_candidates = [c for c in all_candidates if c.user_id == current_user.id]
         if not all_candidates:
-            raise HTTPException(
+            raise coded_http_error(
+                ApiErrorCode.REQUEST_BAD_REQUEST,
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"No attachment found for provider_snapshot_id '{snapshot_id}'.",
             )
@@ -1161,12 +1198,14 @@ async def update_snapshot(
             authorized_groups.append((owner_id, owner_deployments))
 
     if not authorized_groups:
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.REQUEST_BAD_REQUEST,
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No attachment found for provider_snapshot_id '{snapshot_id}'.",
         )
     if len(authorized_groups) > 1:
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.DEPLOYMENT_CONFLICT,
             status_code=status.HTTP_409_CONFLICT,
             detail=(
                 f"Provider snapshot '{snapshot_id}' is attached to multiple owners' "
@@ -1194,7 +1233,8 @@ async def update_snapshot(
     # cleaning up snapshot id collisions).
     provider_account_ids = {d.deployment_provider_account_id for d in resolved_deployments}
     if len(provider_account_ids) > 1:
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.DEPLOYMENT_CONFLICT,
             status_code=status.HTTP_409_CONFLICT,
             detail=(
                 f"Provider snapshot '{snapshot_id}' is attached to deployments across "
@@ -1221,12 +1261,14 @@ async def update_snapshot(
         user_id=owner_id,
     )
     if flow_version is None:
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.REQUEST_BAD_REQUEST,
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Flow version '{body.flow_version_id}' not found.",
         )
     if flow_version.data is None:
-        raise HTTPException(
+        raise coded_http_error(
+            ApiErrorCode.REQUEST_BAD_REQUEST,
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Flow version '{body.flow_version_id}' has no data.",
         )
@@ -1381,7 +1423,7 @@ async def get_deployment(
             project_id=deployment_row.project_id,
         )
     except HTTPException as exc:
-        raise deny_to_404(exc, detail="Deployment not found.") from exc
+        raise _deployment_not_found_error(deployment_id, technical_detail=str(exc)) from exc
 
     # All provider/owner-scoped DB operations below use the deployment owner.
     # The actor (current_user) only governs authorization/audit — the data
@@ -1447,7 +1489,7 @@ async def update_deployment(
             project_id=deployment_row.project_id,
         )
     except HTTPException as exc:
-        raise deny_to_404(exc, detail="Deployment not found.") from exc
+        raise _deployment_not_found_error(deployment_id, technical_detail=str(exc)) from exc
     telemetry.provider = provider_key
     telemetry.wxo_tenant_id = provider_tenant_id
     deployment_row_id = deployment_row.id
@@ -1529,8 +1571,20 @@ async def update_deployment(
             db=session,
         )
         if isinstance(exc, AttachmentConflictError):
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
-        raise
+            raise coded_http_error(
+                ApiErrorCode.DEPLOYMENT_CONFLICT,
+                params={"deployment_id": str(deployment_row_id)},
+                status_code=status.HTTP_409_CONFLICT,
+                technical_detail=str(exc),
+            ) from exc
+        if isinstance(exc, HTTPException):
+            raise
+        raise coded_http_error(
+            ApiErrorCode.DEPLOYMENT_UPDATE_FAILED,
+            params={"deployment_id": str(deployment_row_id)},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            technical_detail=str(exc),
+        ) from exc
 
     return deployment_mapper.shape_deployment_update_result(
         update_result,
@@ -1563,7 +1617,7 @@ async def delete_deployment(
             project_id=deployment_row.project_id,
         )
     except HTTPException as exc:
-        raise deny_to_404(exc, detail="Deployment not found.") from exc
+        raise _deployment_not_found_error(deployment_id, technical_detail=str(exc)) from exc
     telemetry.provider = _provider_key
     telemetry.wxo_tenant_id = provider_tenant_id
     if include_provider:
@@ -1636,7 +1690,7 @@ async def list_deployment_flow_versions(
             project_id=deployment_row.project_id,
         )
     except HTTPException as exc:
-        raise deny_to_404(exc, detail="Deployment not found.") from exc
+        raise _deployment_not_found_error(deployment_id, technical_detail=str(exc)) from exc
     with (
         handle_adapter_errors(mapper=deployment_mapper),
         deployment_provider_scope(deployment_row.deployment_provider_account_id),

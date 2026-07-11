@@ -1,8 +1,10 @@
 import { act, renderHook } from "@testing-library/react";
+import i18n from "@/i18n";
 import { useAudioRecording } from "../use-audio-recording";
 
 // Mock SpeechRecognition
 class MockSpeechRecognition {
+  static latest: MockSpeechRecognition | null = null;
   continuous = false;
   interimResults = false;
   lang = "";
@@ -24,6 +26,10 @@ class MockSpeechRecognition {
   abort = jest.fn(() => {
     this.onend?.();
   });
+
+  constructor() {
+    MockSpeechRecognition.latest = this;
+  }
 }
 
 describe("useAudioRecording", () => {
@@ -38,6 +44,10 @@ describe("useAudioRecording", () => {
     (
       window as Window & { webkitSpeechRecognition?: unknown }
     ).webkitSpeechRecognition = undefined;
+  });
+
+  afterEach(async () => {
+    await i18n.changeLanguage("en");
   });
 
   it("returns isSupported as false when SpeechRecognition is not available", () => {
@@ -115,6 +125,25 @@ describe("useAudioRecording", () => {
 
     expect(result.current.state).toBe("recording");
     expect(result.current.isRecording).toBe(true);
+  });
+
+  it("uses the selected UI locale as the speech-recognition fallback", async () => {
+    await i18n.changeLanguage("ru");
+    (window as Window & { SpeechRecognition?: unknown }).SpeechRecognition =
+      MockSpeechRecognition;
+
+    const { result } = renderHook(() =>
+      useAudioRecording({
+        onTranscriptionComplete: mockOnTranscriptionComplete,
+        onError: mockOnError,
+      }),
+    );
+
+    act(() => {
+      result.current.startRecording();
+    });
+
+    expect(MockSpeechRecognition.latest?.lang).toBe("ru-RU");
   });
 
   it("stops recording and sets state to processing", () => {

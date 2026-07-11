@@ -1,6 +1,7 @@
 import { NodeToolbar } from "@xyflow/react";
 import { useEffect, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { useTranslation } from "react-i18next";
 import ShadTooltip from "../../../../components/common/shadTooltipComponent";
 import { Button } from "../../../../components/ui/button";
 import { GradientGroup } from "../../../../icons/GradientSparkles";
@@ -12,6 +13,7 @@ export default function SelectionMenu({
   isVisible,
   lastSelection,
 }) {
+  const { t } = useTranslation();
   const edges = useFlowStore((state) => state.edges);
   const unselectAll = useFlowStore((state) => state.unselectAll);
   const [disable, setDisable] = useState<boolean>(
@@ -88,7 +90,7 @@ export default function SelectionMenu({
                   className="text-primary"
                   disabled={disable}
                 />
-                Group
+                {t("shortcuts.name.group")}
               </Button>
             </ShadTooltip>
           ) : (
@@ -109,7 +111,7 @@ export default function SelectionMenu({
                 className="text-primary"
                 disabled={disable}
               />
-              Group
+              {t("shortcuts.name.group")}
             </Button>
           )}
         </div>

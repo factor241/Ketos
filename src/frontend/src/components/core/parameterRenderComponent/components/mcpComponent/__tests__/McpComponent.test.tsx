@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import type { APIClassType } from "@/types/api";
@@ -9,6 +9,7 @@ const mockMutateTemplate = jest.fn();
 const mockUpdateBuildStatus = jest.fn();
 const mockSetErrorData = jest.fn();
 const mockPostTemplateValue = { mutateAsync: jest.fn() };
+const mockAddMcpServer = jest.fn();
 
 jest.mock("@/CustomNodes/helpers/mutate-template", () => ({
   mutateTemplate: (...args: unknown[]) => mockMutateTemplate(...args),
@@ -31,7 +32,7 @@ jest.mock("@/controllers/API/queries/mcp/use-get-mcp-servers", () => ({
 
 jest.mock("@/controllers/API/queries/mcp/use-add-mcp-server", () => ({
   useAddMCPServer: jest.fn(() => ({
-    mutate: jest.fn(),
+    mutate: mockAddMcpServer,
   })),
 }));
 
@@ -156,5 +157,110 @@ describe("McpComponent", () => {
     });
 
     expect(mockMutateTemplate.mock.calls[0][3]).toEqual(expect.any(Function));
+  });
+
+  it("does not continue a refresh after becoming disabled", async () => {
+    let resolveRefetch!: (value: object) => void;
+    mockRefetchMCPServers.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveRefetch = resolve;
+      }),
+    );
+    const nodeClass = {
+      template: { code: { value: "code" } },
+      tool_mode: false,
+    } as APIClassType;
+    const props = {
+      id: "mcp-server",
+      value: { name: "broken-server", config: {} },
+      handleOnNewValue: jest.fn(),
+      editNode: false,
+      nodeId: "MCPTools-1",
+      nodeClass,
+      handleNodeClass: jest.fn(),
+    };
+    const user = userEvent.setup();
+    const { rerender } = render(<McpComponent {...props} disabled={false} />);
+
+    await user.click(screen.getByTestId("refresh-mcp-server-button"));
+    rerender(<McpComponent {...props} disabled />);
+    resolveRefetch({});
+
+    await waitFor(() => expect(mockRefetchMCPServers).toHaveBeenCalled());
+    expect(mockMutateTemplate).not.toHaveBeenCalled();
+  });
+
+  it("does not apply an in-flight refresh after becoming disabled", async () => {
+    let completeMutation: () => void = () => undefined;
+    mockMutateTemplate.mockImplementationOnce(
+      (
+        _value,
+        _nodeId,
+        nodeClass,
+        setNodeClass,
+        _postTemplateValue,
+        _setErrorData,
+        _parameterName,
+        callback,
+      ) =>
+        new Promise<void>((resolve) => {
+          completeMutation = () => {
+            setNodeClass(nodeClass);
+            callback();
+            resolve();
+          };
+        }),
+    );
+    const nodeClass = {
+      template: { code: { value: "code" } },
+      tool_mode: false,
+    } as APIClassType;
+    const handleNodeClass = jest.fn();
+    const props = {
+      id: "mcp-server",
+      value: { name: "broken-server", config: {} },
+      handleOnNewValue: jest.fn(),
+      editNode: false,
+      nodeId: "MCPTools-1",
+      nodeClass,
+      handleNodeClass,
+    };
+    const user = userEvent.setup();
+    const { rerender } = render(<McpComponent {...props} disabled={false} />);
+
+    await user.click(screen.getByTestId("refresh-mcp-server-button"));
+    await waitFor(() => expect(mockMutateTemplate).toHaveBeenCalled());
+    rerender(<McpComponent {...props} disabled />);
+    await act(async () => completeMutation());
+
+    expect(handleNodeClass).not.toHaveBeenCalled();
+  });
+
+  it("does not apply a late save success after becoming disabled", async () => {
+    const nodeClass = {
+      template: { code: { value: "code" } },
+      tool_mode: false,
+    } as APIClassType;
+    const handleOnNewValue = jest.fn();
+    const props = {
+      id: "mcp-server",
+      value: { name: "new-server", config: { command: "serve" } },
+      handleOnNewValue,
+      editNode: false,
+      nodeId: "MCPTools-1",
+      nodeClass,
+      handleNodeClass: jest.fn(),
+    };
+    const user = userEvent.setup();
+    const { rerender } = render(<McpComponent {...props} disabled={false} />);
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    const mutationOptions = mockAddMcpServer.mock.calls[0][1] as {
+      onSuccess: () => void;
+    };
+    rerender(<McpComponent {...props} disabled />);
+    act(() => mutationOptions.onSuccess());
+
+    expect(handleOnNewValue).not.toHaveBeenCalled();
   });
 });

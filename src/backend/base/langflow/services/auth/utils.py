@@ -146,12 +146,26 @@ def _auth_error_to_http(e: AuthenticationError) -> HTTPException:
 
     Langflow returns 403 for missing/invalid credentials; 401 for invalid/expired tokens.
     """
+    # Local import avoids an auth -> schema -> lfx component-index cycle while
+    # the backend translation extractor is importing component modules.
+    from langflow.api.error_codes import ApiErrorCode, coded_http_error
+
+    status_code = status.HTTP_401_UNAUTHORIZED
     if isinstance(
         e,
         (MissingCredentialsError, InvalidCredentialsError, InsufficientPermissionsError),
     ):
-        return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message)
-    return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=e.message)
+        status_code = status.HTTP_403_FORBIDDEN
+    code_by_legacy_error = {
+        "invalid_credentials": ApiErrorCode.AUTH_INVALID_CREDENTIALS,
+        "missing_credentials": ApiErrorCode.AUTH_MISSING_CREDENTIALS,
+        "inactive_user": ApiErrorCode.AUTH_INACTIVE_USER,
+        "insufficient_permissions": ApiErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
+        "token_expired": ApiErrorCode.AUTH_TOKEN_EXPIRED,
+        "invalid_token": ApiErrorCode.AUTH_INVALID_TOKEN,
+    }
+    code = code_by_legacy_error.get(e.error_code, ApiErrorCode.AUTH_INVALID_TOKEN)
+    return coded_http_error(code, detail=e.message, status_code=status_code)
 
 
 async def get_current_user(

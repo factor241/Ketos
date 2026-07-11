@@ -1,3 +1,4 @@
+import i18n, { loadLanguage } from "@/i18n";
 import {
   downloadJson,
   endOfDay,
@@ -21,6 +22,26 @@ jest.mock("@/utils/dateTime", () => ({
 }));
 
 describe("traceViewHelpers", () => {
+  beforeAll(async () => {
+    await loadLanguage("ru");
+    const additions = JSON.parse(
+      readFileSync(
+        resolve(
+          __dirname,
+          "../../../../../../../../.superpowers/sdd/task-12-locale-additions.json",
+        ),
+        "utf8",
+      ),
+    ) as Record<string, { en: string; ru: string }>;
+    for (const [key, value] of Object.entries(additions)) {
+      i18n.addResource("en", "translation", key, value.en);
+      i18n.addResource("ru", "translation", key, value.ru);
+    }
+  });
+
+  afterEach(async () => {
+    await i18n.changeLanguage("en");
+  });
   describe("downloadJson", () => {
     const originalCreateObjectURL = (
       URL as unknown as { createObjectURL?: unknown }
@@ -179,16 +200,29 @@ describe("traceViewHelpers", () => {
 
   describe("getSpanStatusLabel", () => {
     it("maps span statuses to user-facing labels", () => {
-      expect(getSpanStatusLabel("ok")).toBe("success");
-      expect(getSpanStatusLabel("error")).toBe("error");
-      expect(getSpanStatusLabel("unset")).toBe("running");
+      expect(getSpanStatusLabel("ok")).toBe("Success");
+      expect(getSpanStatusLabel("error")).toBe("Error");
+      expect(getSpanStatusLabel("unset")).toBe("Running...");
+    });
+
+    it("localizes presentation labels without changing the raw status", async () => {
+      const status = "ok" as const;
+      await i18n.changeLanguage("ru");
+
+      expect(getSpanStatusLabel(status)).toBe("Успех");
+      expect(status).toBe("ok");
     });
   });
 
   describe("formatTokens", () => {
     it("formats token counts", () => {
       expect(formatTokens(12)).toBe("12");
-      expect(formatTokens(1250)).toBe("1.3k");
+      expect(formatTokens(1250)).toBe(
+        new Intl.NumberFormat("en-US", {
+          notation: "compact",
+          maximumFractionDigits: 1,
+        }).format(1250),
+      );
     });
 
     it("returns null for undefined input", () => {
@@ -231,8 +265,36 @@ describe("traceViewHelpers", () => {
 
   describe("formatTotalLatency", () => {
     it("formats total latency", () => {
-      expect(formatTotalLatency(800)).toBe("800 ms");
-      expect(formatTotalLatency(1200)).toBe("1.20 s");
+      expect(formatTotalLatency(800)).toBe(
+        new Intl.NumberFormat("en-US", {
+          style: "unit",
+          unit: "millisecond",
+          unitDisplay: "short",
+        }).format(800),
+      );
+      expect(formatTotalLatency(1200)).toBe(
+        new Intl.NumberFormat("en-US", {
+          style: "unit",
+          unit: "second",
+          unitDisplay: "short",
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(1.2),
+      );
+    });
+
+    it("uses the active locale for latency units", async () => {
+      await i18n.changeLanguage("ru");
+
+      expect(formatTotalLatency(1200)).toBe(
+        new Intl.NumberFormat("ru-RU", {
+          style: "unit",
+          unit: "second",
+          unitDisplay: "short",
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(1.2),
+      );
     });
   });
 
@@ -264,6 +326,16 @@ describe("traceViewHelpers", () => {
       const obj: { self?: unknown } = {};
       obj.self = obj;
       expect(formatIOPreview(obj)).toBe("[Complex Object]");
+    });
+
+    it("localizes only empty-state labels and preserves raw payload text", async () => {
+      const providerPayload = "Success from provider";
+      await i18n.changeLanguage("ru");
+
+      expect(formatIOPreview({})).toBe("Пусто");
+      expect(formatIOPreview({ output: providerPayload })).toBe(
+        providerPayload,
+      );
     });
   });
 
@@ -336,3 +408,6 @@ describe("traceViewHelpers", () => {
     });
   });
 });
+
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";

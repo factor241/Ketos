@@ -1,6 +1,6 @@
+import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import { Badge } from "@/components/ui/badge";
-import { UNKNOWN_FLOW_NAME } from "../../types";
 import ConnectionItem from "./connection-item";
 
 interface FlowVersionItemProps {
@@ -16,6 +16,7 @@ export default function FlowVersionItem({
   toolName,
   connectionNames,
 }: FlowVersionItemProps) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
       <div className="flex items-center gap-2">
@@ -24,7 +25,7 @@ export default function FlowVersionItem({
           className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
         />
         <span className="text-sm font-medium text-foreground">
-          {flowName ?? UNKNOWN_FLOW_NAME}
+          {flowName ?? t("deployments.unknownFlow")}
         </span>
         <Badge
           variant="secondaryStatic"

@@ -14,6 +14,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi import HTTPException
+from langflow.api.error_codes import CodedHTTPException
 from langflow.api.v1.mappers.deployments.base import BaseDeploymentMapper
 from langflow.api.v1.mappers.deployments.contracts import (
     CreateSnapshotBinding,
@@ -245,7 +246,7 @@ class TestFetchProviderResourceKeys:
 
         from langflow.api.v1.mappers.deployments.helpers import fetch_provider_resource_keys
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(CodedHTTPException) as exc_info:
             await fetch_provider_resource_keys(
                 deployment_adapter=adapter,
                 user_id=uuid4(),
@@ -255,6 +256,9 @@ class TestFetchProviderResourceKeys:
             )
 
         assert exc_info.value.status_code == 500
+        assert exc_info.value.payload.code == "server.internal_error"
+        assert exc_info.value.detail == "Internal server error."
+        assert exc_info.value.technical_detail == "provider down"
 
     @pytest.mark.asyncio
     async def test_provider_deployment_service_error_uses_mapped_http_status(self):
@@ -263,7 +267,7 @@ class TestFetchProviderResourceKeys:
 
         from langflow.api.v1.mappers.deployments.helpers import fetch_provider_resource_keys
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(CodedHTTPException) as exc_info:
             await fetch_provider_resource_keys(
                 deployment_adapter=adapter,
                 user_id=uuid4(),
@@ -273,7 +277,9 @@ class TestFetchProviderResourceKeys:
             )
 
         assert exc_info.value.status_code == 503
-        assert exc_info.value.detail == "provider down"
+        assert exc_info.value.payload.code == "deployments.update_failed"
+        assert exc_info.value.detail == "Deployment could not be updated."
+        assert exc_info.value.technical_detail == "provider down"
 
     @pytest.mark.asyncio
     async def test_passes_resource_keys_as_deployment_ids(self):
@@ -1318,7 +1324,7 @@ class TestFetchProviderSnapshotKeys:
 
         from langflow.api.v1.mappers.deployments.sync import fetch_provider_snapshot_keys
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(CodedHTTPException) as exc_info:
             await fetch_provider_snapshot_keys(
                 deployment_adapter=adapter,
                 user_id=uuid4(),
@@ -1328,6 +1334,9 @@ class TestFetchProviderSnapshotKeys:
             )
 
         assert exc_info.value.status_code == 500
+        assert exc_info.value.payload.code == "server.internal_error"
+        assert exc_info.value.detail == "Internal server error."
+        assert exc_info.value.technical_detail == "provider down"
 
     @pytest.mark.asyncio
     async def test_falsy_snapshot_id_from_provider_raises_value_error(self):

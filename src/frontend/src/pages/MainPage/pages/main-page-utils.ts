@@ -1,6 +1,12 @@
 import type { FlowType } from "@/types/flow";
 import type { FolderType } from "../entities";
 
+export function getFolderDisplayName(
+  folder: Pick<FolderType, "display_name" | "name">,
+): string {
+  return folder.display_name?.trim() || folder.name;
+}
+
 export function shouldShowMainContent(
   flows: FlowType[] | undefined,
   examples: FlowType[] | undefined,

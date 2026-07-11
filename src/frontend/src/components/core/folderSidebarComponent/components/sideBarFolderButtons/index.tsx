@@ -36,6 +36,7 @@ import { createFileUpload } from "@/helpers/create-file-upload";
 import { getObjectsFromFilelist } from "@/helpers/get-objects-from-filelist";
 import useUploadFlow from "@/hooks/flows/use-upload-flow";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { getFolderDisplayName } from "@/pages/MainPage/pages/main-page-utils";
 import useAuthStore from "@/stores/authStore";
 import type { FlowType } from "@/types/flow";
 import type { FolderType } from "../../../../../pages/MainPage/entities";
@@ -455,7 +456,7 @@ const SideBarFoldersButtonsComponent = ({
                                   />
                                 ) : (
                                   <span className="block w-0 grow truncate text-sm opacity-100">
-                                    {item.name}
+                                    {getFolderDisplayName(item)}
                                   </span>
                                 )}
                               </div>

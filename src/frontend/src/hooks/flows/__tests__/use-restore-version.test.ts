@@ -120,7 +120,7 @@ describe("useRestoreVersion", () => {
     expect(onSuccessMock).toHaveBeenCalled();
   });
 
-  it("shows error when API returns null data", async () => {
+  it("uses a safe localized fallback when restored data is invalid", async () => {
     apiPostMock.mockResolvedValueOnce({
       data: { id: "flow-1", data: null },
     });
@@ -134,18 +134,21 @@ describe("useRestoreVersion", () => {
     // Should NOT apply to canvas
     expect(applyFlowToCanvasMock).not.toHaveBeenCalled();
 
-    // Should show error with our guard message
     expect(setErrorDataMock).toHaveBeenCalledWith({
       title: "Failed to restore version",
-      list: ["Restored version contains no flow data"],
+      list: ["The request could not be completed. Please try again."],
     });
 
     expect(result.current.isRestoring).toBe(false);
   });
 
-  it("shows API error detail when API call fails", async () => {
+  it("localizes a stable API error code without exposing detail", async () => {
+    const rawDetail = "Version lookup database traceback";
     apiPostMock.mockRejectedValueOnce({
-      response: { data: { detail: "Version not found" } },
+      response: {
+        status: 404,
+        data: { code: "flows.not_found", detail: rawDetail },
+      },
     });
 
     const { result } = renderHook(() => useRestoreVersion("flow-1"));
@@ -158,11 +161,14 @@ describe("useRestoreVersion", () => {
 
     expect(setErrorDataMock).toHaveBeenCalledWith({
       title: "Failed to restore version",
-      list: ["Version not found"],
+      list: ["The flow was not found."],
     });
+    expect(JSON.stringify(setErrorDataMock.mock.calls)).not.toContain(
+      rawDetail,
+    );
   });
 
-  it("shows applyFlowToCanvas error message (not API detail) when canvas apply throws", async () => {
+  it("does not expose an applyFlowToCanvas exception in the UI", async () => {
     apiPostMock.mockResolvedValueOnce({
       data: { id: "flow-1", data: { nodes: [{ id: "n1" }], edges: [] } },
     });
@@ -176,10 +182,9 @@ describe("useRestoreVersion", () => {
       await result.current.restore("entry-1");
     });
 
-    // Should show the thrown error message, not an empty API detail
     expect(setErrorDataMock).toHaveBeenCalledWith({
       title: "Failed to restore version",
-      list: ["processFlows destroyed all nodes — aborting"],
+      list: ["The request could not be completed. Please try again."],
     });
   });
 
@@ -226,7 +231,7 @@ describe("useRestoreVersion", () => {
     expect(onSuccessMock).not.toHaveBeenCalled();
   });
 
-  it("falls back to 'Unknown error' when error has no message or API detail", async () => {
+  it("uses the localized request fallback for an unknown error", async () => {
     apiPostMock.mockRejectedValueOnce({});
 
     const { result } = renderHook(() => useRestoreVersion("flow-1"));
@@ -237,7 +242,7 @@ describe("useRestoreVersion", () => {
 
     expect(setErrorDataMock).toHaveBeenCalledWith({
       title: "Failed to restore version",
-      list: ["Unknown error"],
+      list: ["The request could not be completed. Please try again."],
     });
   });
 });

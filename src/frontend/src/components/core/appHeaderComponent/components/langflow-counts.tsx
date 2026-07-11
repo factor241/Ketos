@@ -5,15 +5,15 @@ import { Button } from "@/components/ui/button";
 import { DISCORD_URL, GITHUB_URL } from "@/constants/constants";
 import { Case } from "@/shared/components/caseComponent";
 import { useDarkStore } from "@/stores/darkStore";
-import { formatNumber } from "@/utils/utils";
+import { formatCompactNumber } from "@/utils/locale-format";
 
 export const LangflowCounts = () => {
   const { t } = useTranslation();
   const stars: number | undefined = useDarkStore((state) => state.stars);
   const discordCount: number = useDarkStore((state) => state.discordCount);
 
-  const formattedStars = formatNumber(stars);
-  const formattedDiscordCount = formatNumber(discordCount);
+  const formattedStars = formatCompactNumber(stars);
+  const formattedDiscordCount = formatCompactNumber(discordCount);
 
   return (
     <div className="flex items-center gap-3">
@@ -24,6 +24,7 @@ export const LangflowCounts = () => {
       >
         <Button
           unstyled
+          aria-label={t("header.goToGithub")}
           onClick={() => window.open(GITHUB_URL, "_blank")}
           className="hit-area-hover flex items-center gap-2 rounded-md p-1 text-muted-foreground"
         >
@@ -45,6 +46,7 @@ export const LangflowCounts = () => {
       >
         <Button
           unstyled
+          aria-label={t("header.goToDiscord")}
           onClick={() => window.open(DISCORD_URL, "_blank")}
           className="hit-area-hover flex items-center gap-2 rounded-md p-1 text-muted-foreground"
         >

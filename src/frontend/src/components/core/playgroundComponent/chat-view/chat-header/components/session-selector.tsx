@@ -6,6 +6,7 @@ import { useUpdateSessionName } from "@/controllers/API/queries/messages/use-ren
 import { useVoiceStore } from "@/stores/voiceStore";
 import { cn } from "@/utils/utils";
 import { useSessionHasMessages } from "../hooks/use-session-has-messages";
+import { getSessionTitle } from "../utils/get-session-title";
 import { SessionMoreMenu } from "./session-more-menu";
 import { SessionRename } from "./session-rename";
 
@@ -103,6 +104,7 @@ export function SessionSelector({
   const canModifySession = !isDefaultSession;
   const canDeleteSession = hasMessages || !isDefaultSession;
   const canRenameSession = canModifySession && hasMessages;
+  const sessionTitle = getSessionTitle(session, currentFlowId);
 
   return (
     <div
@@ -165,10 +167,10 @@ export function SessionSelector({
               />
             </div>
           ) : (
-            <ShadTooltip styleClasses="z-50" content={session}>
+            <ShadTooltip styleClasses="z-50" content={sessionTitle}>
               <div className="relative w-full overflow-hidden">
                 <span className="w-full truncate bg-transparent text-mmd">
-                  {isDefaultSession ? t("chat.defaultSession") : session}
+                  {sessionTitle}
                 </span>
               </div>
             </ShadTooltip>

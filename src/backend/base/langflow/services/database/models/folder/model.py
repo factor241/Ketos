@@ -49,11 +49,13 @@ class FolderCreate(FolderBase):
 class FolderRead(FolderBase):
     id: UUID
     parent_id: UUID | None = Field()
+    display_name: str | None = None
 
 
 class FolderReadWithFlows(FolderBase):
     id: UUID
     parent_id: UUID | None = Field()
+    display_name: str | None = None
     flows: list[FlowRead] = Field(default=[])
 
 

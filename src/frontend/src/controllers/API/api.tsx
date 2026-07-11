@@ -6,12 +6,14 @@ import axios, {
 import * as fetchIntercept from "fetch-intercept";
 import { useEffect } from "react";
 import { IS_AUTO_LOGIN } from "@/constants/constants";
+import { normalizeLanguage } from "@/constants/languages";
 import { baseURL } from "@/customization/constants";
 import { useCustomApiHeaders } from "@/customization/hooks/use-custom-api-headers";
 import {
   getAxiosWithCredentials,
   getFetchCredentials,
 } from "@/customization/utils/get-fetch-credentials";
+import i18n from "@/i18n";
 import useAuthStore from "@/stores/authStore";
 import { useUtilityStore } from "@/stores/utilityStore";
 import { BuildStatus, type EventDeliveryType } from "../../constants/enums";
@@ -25,6 +27,39 @@ const api: AxiosInstance = axios.create({
   baseURL: baseURL,
   withCredentials: getAxiosWithCredentials(),
 });
+
+const getRuntimeOrigin = (): string =>
+  typeof window === "undefined" ? "http://localhost" : window.location.origin;
+
+export function isTrustedApiURL(
+  url: string,
+  appOrigin = getRuntimeOrigin(),
+  configuredBaseURL = baseURL,
+): boolean {
+  try {
+    const applicationURL = new URL(appOrigin);
+    const configuredURL = configuredBaseURL
+      ? new URL(configuredBaseURL, applicationURL)
+      : applicationURL;
+    const requestURL = new URL(url, configuredURL);
+    return (
+      (requestURL.protocol === "http:" || requestURL.protocol === "https:") &&
+      [applicationURL.origin, configuredURL.origin].includes(requestURL.origin)
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function getLocaleHeadersForURL(
+  url: string,
+  language: string,
+  appOrigin = getRuntimeOrigin(),
+  configuredBaseURL = baseURL,
+): Record<string, string> {
+  if (!isTrustedApiURL(url, appOrigin, configuredBaseURL)) return {};
+  return { "Accept-Language": normalizeLanguage(language) };
+}
 
 // URL fragments for auth-maintenance endpoints. A 401/403 on any of these
 // must NOT trigger the refresh-then-retry branch — that path itself goes
@@ -78,7 +113,9 @@ function ApiInterceptor() {
         // Browser automatically sends cookies with requests (including HttpOnly cookies)
         // No need to manually add Authorization header from cookies
 
-        if (!isExternalURL(url)) {
+        if (isTrustedApiURL(url)) {
+          config ??= {};
+          config.headers ??= {};
           for (const [key, value] of Object.entries(customHeaders)) {
             config.headers[key] = value;
           }
@@ -146,49 +183,6 @@ function ApiInterceptor() {
       },
     );
 
-    const isAuthorizedURL = (url) => {
-      const authorizedDomains = [
-        "https://raw.githubusercontent.com/langflow-ai/langflow_examples/main/examples",
-        "https://api.github.com/repos/langflow-ai/langflow_examples/contents/examples",
-        "https://api.github.com/repos/langflow-ai/langflow",
-        "auto_login",
-      ];
-
-      const authorizedEndpoints = ["auto_login"];
-
-      try {
-        const parsedURL = new URL(url);
-        const isDomainAllowed = authorizedDomains.some(
-          (domain) => parsedURL.origin === new URL(domain).origin,
-        );
-        const isEndpointAllowed = authorizedEndpoints.some((endpoint) =>
-          parsedURL.pathname.includes(endpoint),
-        );
-
-        return isDomainAllowed || isEndpointAllowed;
-      } catch (_e) {
-        // Invalid URL
-        return false;
-      }
-    };
-
-    // Check for external url which we don't want to add custom headers to
-    const isExternalURL = (url: string): boolean => {
-      const EXTERNAL_DOMAINS = [
-        "https://raw.githubusercontent.com",
-        "https://api.github.com",
-        "https://api.segment.io",
-        "https://cdn.sprig.com",
-      ];
-
-      try {
-        const parsedURL = new URL(url);
-        return EXTERNAL_DOMAINS.some((domain) => parsedURL.origin === domain);
-      } catch (_e) {
-        return false;
-      }
-    };
-
     // Request interceptor to add custom headers
     // Browser automatically sends cookies (including HttpOnly) with requests
     const requestInterceptor = api.interceptors.request.use(
@@ -202,11 +196,7 @@ function ApiInterceptor() {
           console.error(error.message);
         }
 
-        const currentOrigin = window.location.origin;
-        const requestUrl = new URL(config?.url as string, currentOrigin);
-
-        const urlIsFromCurrentOrigin = requestUrl.origin === currentOrigin;
-        if (urlIsFromCurrentOrigin) {
+        if (isTrustedApiURL(config?.url ?? "")) {
           for (const [key, value] of Object.entries(customHeaders)) {
             config.headers[key] = value;
           }
@@ -324,6 +314,7 @@ async function performStreamingRequest({
     "Content-Type": "application/json",
     // this flag is fundamental to ensure server stops tasks when client disconnects
     Connection: "close",
+    ...getLocaleHeadersForURL(url, i18n.language),
   };
 
   const params: RequestInit = {

@@ -1,5 +1,11 @@
+jest.unmock("react-i18next");
+
 import { render, screen } from "@testing-library/react";
+import type { i18n as I18nInstance } from "i18next";
+import { I18nextProvider } from "react-i18next";
 import type { DeploymentFlowVersionItem } from "@/controllers/API/queries/deployments/use-get-deployment-attachments";
+import i18n from "@/i18n";
+import { createTestI18n } from "@/test-utils/create-test-i18n";
 
 jest.mock(
   "@/components/common/genericIconComponent",
@@ -29,16 +35,39 @@ function makeFlowVersion(
 function renderList(
   flowVersions: DeploymentFlowVersionItem[] = [],
   getConnectionNames: (fv: DeploymentFlowVersionItem) => string[] = () => [],
+  translationInstance?: I18nInstance,
 ) {
   return render(
-    <DeploymentFlowList
-      flowVersions={flowVersions}
-      getConnectionNames={getConnectionNames}
-    />,
+    translationInstance ? (
+      <I18nextProvider i18n={translationInstance}>
+        <DeploymentFlowList
+          flowVersions={flowVersions}
+          getConnectionNames={getConnectionNames}
+        />
+      </I18nextProvider>
+    ) : (
+      <DeploymentFlowList
+        flowVersions={flowVersions}
+        getConnectionNames={getConnectionNames}
+      />
+    ),
   );
 }
 
 describe("DeploymentFlowList", () => {
+  afterEach(async () => {
+    await i18n.changeLanguage("en");
+  });
+
+  it("renders the missing-flow presentation fallback in Russian", async () => {
+    const russian = await createTestI18n("ru");
+
+    renderList([makeFlowVersion({ flow_name: null })], () => [], russian);
+
+    expect(screen.getByText("Неизвестный сценарий")).toBeInTheDocument();
+    expect(screen.queryByText("Unknown flow")).not.toBeInTheDocument();
+  });
+
   it("shows the empty state when there are no attached flows", () => {
     renderList([]);
 

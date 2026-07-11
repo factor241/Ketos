@@ -107,7 +107,7 @@ export const BotMessage = memo(
 
     const editedFlag = chat.edit ? (
       <div className="mt-2 text-xs text-muted-foreground text-right">
-        (Edited)
+        {t("playground.edited")}
       </div>
     ) : null;
 
@@ -155,7 +155,7 @@ export const BotMessage = memo(
 
               <div className="flex w-full flex-col min-w-0">
                 <span className="text-sm font-medium text-foreground mb-1">
-                  {chat.sender_name ?? "AI"}
+                  {chat.sender_name ?? t("playground.aiSender")}
                 </span>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   {!thinkingActive && displayTime > 0 && (

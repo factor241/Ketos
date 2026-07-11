@@ -1,6 +1,4 @@
-import { render, waitFor } from "@testing-library/react";
-import React from "react";
-import * as ReactSortableModule from "react-sortablejs";
+import { render, screen, waitFor } from "@testing-library/react";
 import SortableListComponent from "./index";
 
 // Mock ListSelectionComponent to avoid its complexity
@@ -33,6 +31,7 @@ describe("SortableListComponent reproduction", () => {
       value: [{ name: "item1" }, { name: "item2" }],
       handleOnNewValue: handleOnNewValue,
       disabled: false,
+      editNode: false,
       recommended: false,
       placeholder: "Select items",
       isList: true,
@@ -54,6 +53,33 @@ describe("SortableListComponent reproduction", () => {
       );
     }
 
+    expect(handleOnNewValue).not.toHaveBeenCalled();
+  });
+
+  it("renders localized object labels without changing selected raw objects", () => {
+    const handleOnNewValue = jest.fn();
+    const selected = { id: "provider-1", name: "OpenAI", link: "stable" };
+
+    render(
+      <SortableListComponent
+        id="providers"
+        value={[selected]}
+        options={[selected]}
+        optionsMetaData={[{ label: "OpenAI — провайдер" }]}
+        placeholder="Select items"
+        handleOnNewValue={handleOnNewValue}
+        disabled={false}
+        editNode={false}
+        limit={10}
+      />,
+    );
+
+    expect(screen.getByText("OpenAI — провайдер")).toBeInTheDocument();
+    expect(selected).toEqual({
+      id: "provider-1",
+      name: "OpenAI",
+      link: "stable",
+    });
     expect(handleOnNewValue).not.toHaveBeenCalled();
   });
 });

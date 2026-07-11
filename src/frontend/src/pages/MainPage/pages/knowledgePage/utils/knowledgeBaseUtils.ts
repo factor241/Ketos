@@ -1,9 +1,6 @@
-/**
- * Helper function to format numbers with commas
- */
-export const formatNumber = (num: number): string => {
-  return new Intl.NumberFormat().format(num);
-};
+import { formatNumber } from "@/utils/locale-format";
+
+export { formatNumber };
 
 /**
  * Format average chunk size with units

@@ -271,7 +271,7 @@ describe("Edit mode", () => {
     expect(screen.getByText("Configure Environment")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Update environment name or rotate API key. Service instance URL is fixed after creation.",
+        "Update the environment name or rotate the API key. The service instance URL cannot be changed after creation.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByDisplayValue("Production WxO")).toBeInTheDocument();

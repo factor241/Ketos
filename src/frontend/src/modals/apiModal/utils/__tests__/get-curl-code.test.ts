@@ -235,6 +235,32 @@ describe("getNewCurlCode", () => {
   });
 
   describe("File upload handling - ChatInput files (v1 API) - Unix", () => {
+    it("localizes user-facing multi-step titles without changing code payloads", () => {
+      const translate = (key: string) =>
+        ({
+          "apiModal.uploadFilesStep": "Загрузить файлы на сервер",
+          "apiModal.executeFlowStep":
+            "Выполнить сценарий с загруженными файлами",
+        })[key] ?? key;
+
+      const result = getNewCurlCode({
+        ...baseOptions,
+        platform: "unix",
+        translate,
+        processedPayload: {
+          ...baseOptions.processedPayload,
+          tweaks: { chatNode1: { files: "image.jpg" } },
+        },
+      }) as { steps: { title: string; code: string }[] };
+
+      expect(result.steps.map((step) => step.title)).toEqual([
+        "Загрузить файлы на сервер",
+        "Выполнить сценарий с загруженными файлами",
+      ]);
+      expect(result.steps[0].code).toContain("/api/v1/files/upload/");
+      expect(result.steps[1].code).toContain("/api/v1/run/");
+    });
+
     it("should generate multi-step code for single ChatInput file", () => {
       const result = getNewCurlCode({
         ...baseOptions,
@@ -688,7 +714,7 @@ describe("getNewCurlCode", () => {
           tweaks: {
             fileNode1: { path: ["file.pdf"] },
           },
-        } as any,
+        },
       }) as { steps: { title: string; code: string }[] };
 
       expect(result.steps[1].code).toContain('"output_type": "chat"');
@@ -786,7 +812,7 @@ describe("getNewCurlCode", () => {
 
       expect(typeof result).toBe("object");
       expect(result).toHaveProperty("steps");
-      expect(Array.isArray((result as any).steps)).toBe(true);
+      expect(Array.isArray((result as { steps: unknown }).steps)).toBe(true);
     });
   });
 

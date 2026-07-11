@@ -25,6 +25,7 @@ from langflow.services.database.models.base import orjson_dumps
 from langflow.services.database.models.flow.model import FlowCreate, FlowRead
 from langflow.services.database.models.user.model import UserRead
 from langflow.services.tracing.schema import Log
+from langflow.utils.i18n import DEFAULT_LOCALE, SUPPORTED_LOCALES
 
 
 class BuildStatus(Enum):
@@ -398,6 +399,8 @@ class BaseConfigResponse(BaseModel):
     # Mirrors ``LANGFLOW_AUTHZ_ENABLED``. EE/custom frontends gate the Access
     # Control settings entry on this flag; OSS UI ignores it until wired.
     authz_enabled: bool = False
+    supported_locales: list[str]
+    default_locale: str
 
 
 class PublicConfigResponse(BaseConfigResponse):
@@ -431,6 +434,8 @@ class PublicConfigResponse(BaseConfigResponse):
             enable_extension_reload=settings.enable_extension_reload,
             allow_custom_components=settings.allow_custom_components,
             authz_enabled=bool(getattr(auth_settings, "AUTHZ_ENABLED", False)),
+            supported_locales=list(SUPPORTED_LOCALES),
+            default_locale=DEFAULT_LOCALE,
         )
 
 
@@ -503,6 +508,8 @@ class ConfigResponse(BaseConfigResponse):
             hide_starter_projects=settings.hide_starter_projects or settings.embedded_mode,
             mcp_servers_locked=settings.mcp_servers_locked,
             custom_component_admin_only=settings.custom_component_admin_only,
+            supported_locales=list(SUPPORTED_LOCALES),
+            default_locale=DEFAULT_LOCALE,
         )
 
 

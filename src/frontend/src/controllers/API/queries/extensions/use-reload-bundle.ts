@@ -1,4 +1,5 @@
 import type { UseMutationResult } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import type { useMutationFunctionType } from "@/types/api";
 import { api } from "../../api";
 import { getURL } from "../../helpers/constants";
@@ -45,6 +46,7 @@ export const useReloadBundle: useMutationFunctionType<
   ReloadBundleVariables,
   ReloadBundleResponse
 > = (options?) => {
+  const { t } = useTranslation();
   const { mutate } = UseRequestProcessor();
 
   async function reloadBundle(
@@ -67,8 +69,9 @@ export const useReloadBundle: useMutationFunctionType<
         typeof detail === "object" &&
         (detail as ReloadInProgressDetail).code === "reload-in-progress"
       ) {
-        const inProgress = detail as ReloadInProgressDetail;
-        throw new Error(`reload-in-progress: ${inProgress.message}`);
+        // Keep the branch sentinel stable, but never promote the raw backend
+        // message into a user-facing Error string.
+        throw new Error("reload-in-progress");
       }
 
       // 422 carries the full ReloadResult in detail.result so structural
@@ -86,6 +89,7 @@ export const useReloadBundle: useMutationFunctionType<
         extractApiErrorMessage(
           error as Parameters<typeof extractApiErrorMessage>[0],
           "Failed to reload bundle",
+          (key, params) => t(key, params),
         ),
       );
     }

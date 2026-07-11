@@ -341,12 +341,10 @@ export default function StepAttachFlows() {
         snapshot.id,
         snapshot.version_tag,
       );
-    } catch (err: unknown) {
-      const detail = (err as { response?: { data?: { detail?: string } } })
-        ?.response?.data?.detail;
+    } catch (_err: unknown) {
       setErrorData({
         title: t("deployments.createVersionFromDraftError"),
-        ...(detail ? { list: [detail] } : {}),
+        list: [t("errors.requestFailed")],
       });
     }
   }, [

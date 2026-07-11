@@ -15,6 +15,7 @@ export default function WebhookFieldComponent({
   id = "",
   nodeInformationMetadata,
   showParameter = true,
+  disabled,
   ...baseInputProps
 }: InputProps<string, TextAreaComponentType>): JSX.Element | null {
   const { userData } = useContext(AuthContext);
@@ -62,6 +63,7 @@ export default function WebhookFieldComponent({
             value={value}
             editNode={editNode}
             handleOnNewValue={handleOnNewValue}
+            disabled={disabled}
             {...baseInputProps}
           />
         </div>
@@ -74,6 +76,7 @@ export default function WebhookFieldComponent({
             value={value}
             editNode={editNode}
             handleOnNewValue={handleOnNewValue}
+            disabled={disabled}
             {...baseInputProps}
             nodeInformationMetadata={nodeInformationMetadata}
           />
@@ -82,7 +85,11 @@ export default function WebhookFieldComponent({
 
       {showGenerateToken && (
         <div>
-          <SecretKeyModalButton userId={userId} modalProps={modalProps} />
+          <SecretKeyModalButton
+            userId={userId}
+            modalProps={modalProps}
+            disabled={disabled}
+          />
         </div>
       )}
     </div>

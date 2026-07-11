@@ -38,6 +38,8 @@ class GraphDumpResponse(BaseModel):
     is_component: bool | None = None
     name: str | None = None
     description: str | None = None
+    name_i18n_key: str | None = None
+    description_i18n_key: str | None = None
     endpoint_name: str | None = None
 
 
@@ -45,7 +47,7 @@ class GraphDumpResponse(BaseModel):
 async def get_starter_projects(request: Request) -> list[GraphDumpResponse]:
     """Get a list of starter projects."""
     from langflow.initial_setup.load import get_starter_projects_dump
-    from langflow.utils.i18n import translate_flow_notes
+    from langflow.utils.i18n import translate, translate_flow_notes
 
     locale = getattr(request.state, "locale", "en")
 
@@ -58,6 +60,10 @@ async def get_starter_projects(request: Request) -> list[GraphDumpResponse]:
         for item in raw_data:
             nodes = item.get("data", {}).get("nodes", [])
             translated_nodes = translate_flow_notes(nodes, locale)
+            name = item.get("name")
+            description = item.get("description")
+            name_i18n_key = item.get("name_i18n_key")
+            description_i18n_key = item.get("description_i18n_key")
 
             # Create GraphData
             graph_data = GraphData(
@@ -70,8 +76,14 @@ async def get_starter_projects(request: Request) -> list[GraphDumpResponse]:
             graph_dump = GraphDumpResponse(
                 data=graph_data,
                 is_component=item.get("is_component"),
-                name=item.get("name"),
-                description=item.get("description"),
+                name=translate(name_i18n_key, locale, name) if name_i18n_key and name else name,
+                description=(
+                    translate(description_i18n_key, locale, description)
+                    if description_i18n_key and description
+                    else description
+                ),
+                name_i18n_key=name_i18n_key,
+                description_i18n_key=description_i18n_key,
                 endpoint_name=item.get("endpoint_name"),
             )
             results.append(graph_dump)

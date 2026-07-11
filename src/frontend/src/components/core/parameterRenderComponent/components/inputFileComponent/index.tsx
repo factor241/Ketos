@@ -8,6 +8,7 @@ import { createFileUpload } from "@/helpers/create-file-upload";
 import FileManagerModal from "@/modals/fileManagerModal";
 import FilesRendererComponent from "@/modals/fileManagerModal/components/filesRendererComponent";
 import useFileSizeValidator from "@/shared/hooks/use-file-size-validator";
+import { getLocalizedApiErrorMessage } from "@/utils/localized-api-error";
 import { cn } from "@/utils/utils";
 import useAlertStore from "../../../../../stores/alertStore";
 import useFlowsManagerStore from "../../../../../stores/flowsManagerStore";
@@ -101,7 +102,13 @@ export default function InputFileComponent({
                         console.error(t("errors.uploadFile"));
                         setErrorData({
                           title: t("errors.upload"),
-                          list: [error.response?.data?.detail],
+                          list: [
+                            getLocalizedApiErrorMessage(
+                              error,
+                              (key, params) => t(key, params),
+                              { fallbackKey: "errors.requestFailed" },
+                            ),
+                          ],
                         });
                       },
                     },

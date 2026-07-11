@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "description": "Dependency-free Langflow localization ABI corpus",
+  "cases": [
+    { "case_id": "old-flow", "fixture": "old-flow.json" },
+    { "case_id": "outdated-flow", "fixture": "outdated-flow.json" },
+    { "case_id": "legacy-flow", "fixture": "legacy-flow.json" },
+    { "case_id": "custom-label-flow", "fixture": "custom-label-flow.json" },
+    { "case_id": "assistant-modified-flow", "fixture": "assistant-modified-flow.json" },
+    { "case_id": "output-reordered-flow", "fixture": "output-reordered-flow.json" }
+  ]
+}

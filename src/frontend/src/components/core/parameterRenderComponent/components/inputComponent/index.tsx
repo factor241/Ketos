@@ -1,5 +1,6 @@
 import * as Form from "@radix-ui/react-form";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import { Input } from "@/components/ui/input";
 import { ICON_STROKE_WIDTH } from "@/constants/constants";
@@ -108,7 +109,7 @@ function FormInputBranch({
           password && !editNode ? "pr-10" : "",
           className!,
         )}
-        placeholder={password && editNode ? "Key" : placeholder}
+        placeholder={placeholder}
         onCopy={(e) => {
           e.preventDefault();
         }}
@@ -132,7 +133,7 @@ export default function InputComponent({
   allowAutofill = false,
   password,
   editNode = false,
-  placeholder = "Type something...",
+  placeholder,
   className,
   id = "",
   blurOnEnter = false,
@@ -143,7 +144,7 @@ export default function InputComponent({
   setSelectedOptions,
   options = [],
   disabledOptions,
-  optionsPlaceholder = "Search options...",
+  optionsPlaceholder,
   optionsButton,
   optionButton,
   objectOptions,
@@ -160,6 +161,10 @@ export default function InputComponent({
 }: InputComponentType & {
   disabledOptions?: Record<string, string>;
 }): JSX.Element {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t("input.placeholder");
+  const resolvedOptionsPlaceholder =
+    optionsPlaceholder ?? t("input.searchOptions");
   const [pwdVisible, setPwdVisible] = useState(false);
   const refInput = useRef<HTMLInputElement>(null);
   const [showOptions, setShowOptions] = useState<boolean>(false);
@@ -190,7 +195,11 @@ export default function InputComponent({
           required={required}
           editNode={editNode}
           className={className}
-          placeholder={placeholder}
+          placeholder={
+            password && editNode
+              ? t("input.keyPlaceholder")
+              : resolvedPlaceholder
+          }
           blurOnEnter={blurOnEnter}
           name={name}
           id={id}
@@ -220,9 +229,9 @@ export default function InputComponent({
               disabled={disabled}
               setShowOptions={setShowOptions}
               required={required}
-              placeholder={placeholder}
+              placeholder={resolvedPlaceholder}
               blurOnEnter={blurOnEnter}
-              optionsPlaceholder={optionsPlaceholder}
+              optionsPlaceholder={resolvedOptionsPlaceholder}
               className={className}
               inspectionPanel={inspectionPanel}
             />
@@ -248,11 +257,11 @@ export default function InputComponent({
               password={password}
               pwdVisible={pwdVisible}
               editNode={editNode}
-              placeholder={placeholder}
+              placeholder={resolvedPlaceholder}
               blurOnEnter={blurOnEnter}
               options={options}
               disabledOptions={disabledOptions}
-              optionsPlaceholder={optionsPlaceholder}
+              optionsPlaceholder={resolvedOptionsPlaceholder}
               nodeStyle={nodeStyle}
               popoverWidth={popoverWidth}
               commandWidth={commandWidth}

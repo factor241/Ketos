@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from slowapi.errors import RateLimitExceeded
 from slowapi.wrappers import Limit
 
+from langflow.api.error_codes import ApiErrorCode, coded_http_error
 from langflow.api.utils import DbSession
 from langflow.api.v1.schemas import Token
 from langflow.initial_setup.setup import get_or_create_default_folder
@@ -85,9 +86,10 @@ async def login_to_get_access_token(
         from loguru import logger
 
         logger.error(f"Authentication error: {exc}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        raise coded_http_error(
+            ApiErrorCode.SERVER_INTERNAL_ERROR,
             detail="An error occurred during authentication",
+            technical_detail=str(exc),
         ) from exc
 
     if user:
@@ -130,7 +132,8 @@ async def login_to_get_access_token(
             await initialize_agentic_user_variables(user.id, db)
 
         return tokens
-    raise HTTPException(
+    raise coded_http_error(
+        ApiErrorCode.AUTH_INVALID_CREDENTIALS,
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Incorrect username or password",
         headers={"WWW-Authenticate": "Bearer"},
@@ -190,7 +193,8 @@ async def auto_login(response: Response, db: DbSession):
 
         return tokens
 
-    raise HTTPException(
+    raise coded_http_error(
+        ApiErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
         status_code=status.HTTP_403_FORBIDDEN,
         detail={
             "message": "Auto login is disabled.",
@@ -231,8 +235,8 @@ async def refresh_token(
             domain=auth_settings.COOKIE_DOMAIN,
         )
         return tokens
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
+    raise coded_http_error(
+        ApiErrorCode.AUTH_INVALID_TOKEN,
         detail="Invalid refresh token",
         headers={"WWW-Authenticate": "Bearer"},
     )

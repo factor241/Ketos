@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
 import { cn } from "../../../utils/utils";
 import IconComponent from "../../common/genericIconComponent";
@@ -12,6 +13,7 @@ export default function CardsWrapComponent({
   children: JSX.Element | JSX.Element[];
   dragMessage?: string;
 }) {
+  const { t } = useTranslation();
   const [isDragging, setIsDragging] = useState(false);
   const isIOModalOpen = useFlowsManagerStore((state) => state.IOModalOpen);
   useEffect(() => {
@@ -81,7 +83,7 @@ export default function CardsWrapComponent({
       {isDragging ? (
         <>
           <IconComponent name="ArrowUpToLine" className="h-12 w-12 stroke-1" />
-          {dragMessage ? dragMessage : "Drop your file here"}
+          {dragMessage ? dragMessage : t("ioModal.dropFileHere")}
         </>
       ) : (
         children

@@ -28,8 +28,6 @@ export const useStartConversation = (
     const audioSettings = JSON.parse(
       getLocalStorage("lf_audio_settings_playground") || "{}",
     );
-    const _audioLanguage =
-      getLocalStorage("lf_audio_language_playground") || "en-US";
 
     wsRef.current = new WebSocket(url);
 
@@ -70,7 +68,7 @@ export const useStartConversation = (
         // 1000 is normal closure
         console.warn(`WebSocket closed with code ${event.code}`);
       }
-      setStatus(`Disconnected (${event.code})`);
+      setStatus(i18n.t("voiceAssistant.disconnected", { code: event.code }));
       stopRecording();
     };
 

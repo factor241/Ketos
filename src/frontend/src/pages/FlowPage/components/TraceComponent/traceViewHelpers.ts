@@ -1,3 +1,9 @@
+import i18n from "@/i18n";
+import {
+  formatCurrency,
+  formatDate as formatLocaleDate,
+  formatNumber,
+} from "@/utils/locale-format";
 import type { Span, SpanType, StatusIconProps } from "./types";
 
 export const getSpanIcon = (type: SpanType): string => {
@@ -33,11 +39,11 @@ export const getStatusVariant = (
 export const getSpanStatusLabel = (status: Span["status"]): string => {
   switch (status) {
     case "ok":
-      return "success";
+      return i18n.t("trace.success");
     case "error":
-      return "error";
+      return i18n.t("trace.error");
     case "unset":
-      return "running";
+      return i18n.t("chat.runningStatus");
     default:
       return status;
   }
@@ -45,19 +51,21 @@ export const getSpanStatusLabel = (status: Span["status"]): string => {
 
 export const formatTokens = (tokens: number | undefined): string | null => {
   if (tokens == null) return null;
-  if (tokens < 1000) return `${tokens}`;
-  return `${(tokens / 1000).toFixed(1)}k`;
+  return formatNumber(tokens, {
+    notation: tokens < 1000 ? "standard" : "compact",
+    maximumFractionDigits: tokens < 1000 ? 0 : 1,
+  });
 };
 
 export const getSpanTypeLabel = (type: SpanType): string => {
   const labelMap: Record<SpanType, string> = {
-    agent: "Agent",
-    chain: "Chain",
+    agent: i18n.t("trace.spanType.agent"),
+    chain: i18n.t("trace.spanType.chain"),
     llm: "LLM",
-    tool: "Tool",
-    retriever: "Retriever",
-    embedding: "Embedding",
-    parser: "Parser",
+    tool: i18n.t("trace.spanType.tool"),
+    retriever: i18n.t("trace.spanType.retriever"),
+    embedding: i18n.t("trace.spanType.embedding"),
+    parser: i18n.t("trace.spanType.parser"),
     none: "",
   };
   const label = labelMap[type];
@@ -65,9 +73,12 @@ export const getSpanTypeLabel = (type: SpanType): string => {
 };
 
 export const formatCost = (cost: number | undefined): string => {
-  if (cost === undefined || cost === 0) return "$0.00";
-  if (cost < 0.01) return `$${cost.toFixed(6)}`;
-  return `$${cost.toFixed(4)}`;
+  const value = cost ?? 0;
+  const fractionDigits = value > 0 && value < 0.01 ? 6 : value === 0 ? 2 : 4;
+  return formatCurrency(value, "USD", {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  });
 };
 
 export const formatJsonData = (data: Record<string, unknown>): string => {
@@ -81,14 +92,25 @@ export const formatJsonData = (data: Record<string, unknown>): string => {
 export const formatTotalLatency = (latencyMs: number | null): string => {
   if (latencyMs === null) return "";
   if (!Number.isFinite(latencyMs)) return "";
-  if (latencyMs < 1000) return `${Math.round(latencyMs)} ms`;
-  return `${(latencyMs / 1000).toFixed(2)} s`;
+  if (latencyMs < 1000)
+    return formatNumber(Math.round(latencyMs), {
+      style: "unit",
+      unit: "millisecond",
+      unitDisplay: "short",
+    });
+  return formatNumber(latencyMs / 1000, {
+    style: "unit",
+    unit: "second",
+    unitDisplay: "short",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 };
 
 export const formatIOPreview = (
   data: Record<string, unknown> | string | null,
 ): string => {
-  if (!data) return "N/A";
+  if (!data) return i18n.t("trace.notAvailable");
 
   if (typeof data === "string") {
     const strData = data as string;
@@ -131,10 +153,10 @@ export const formatIOPreview = (
 
   try {
     const str = JSON.stringify(data);
-    if (str === "{}") return "Empty";
+    if (str === "{}") return i18n.t("common.empty");
     return str.length > 150 ? str.substring(0, 150) + "..." : str;
   } catch {
-    return "[Complex Object]";
+    return i18n.t("trace.complexObject");
   }
 };
 
@@ -187,12 +209,6 @@ export const endOfDay = (date: Date) => {
   return d;
 };
 
-const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-});
-
 export const formatDateLabel = (value: string): string => {
   if (!value) return "";
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -200,7 +216,11 @@ export const formatDateLabel = (value: string): string => {
     ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
     : new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
-  return DATE_FORMATTER.format(parsed);
+  return formatLocaleDate(parsed, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 };
 
 export const toUtcIsoForDate = (

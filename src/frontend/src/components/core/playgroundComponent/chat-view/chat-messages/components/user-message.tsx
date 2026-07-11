@@ -97,7 +97,7 @@ export const UserMessage = memo(
 
     const editedFlag = chat.edit ? (
       <div className="mt-2 text-xs text-muted-foreground text-right">
-        (Edited)
+        {t("playground.edited")}
       </div>
     ) : null;
 
@@ -141,7 +141,7 @@ export const UserMessage = memo(
             {/* Content */}
             <div className="flex w-[94%] flex-col gap-2">
               <span className="text-sm font-medium text-foreground">
-                {chat.sender_name ?? "User"}
+                {chat.sender_name ?? t("assistant.user")}
               </span>
               <div className="form-modal-chat-text-position flex-grow">
                 <div className="flex w-full flex-col">

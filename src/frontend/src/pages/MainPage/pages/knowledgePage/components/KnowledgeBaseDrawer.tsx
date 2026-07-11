@@ -29,13 +29,21 @@ const KnowledgeBaseDrawer = ({
     knowledgeBase.backend_type,
     knowledgeBase.backend_config as Record<string, unknown> | undefined,
   );
-  const backendTarget = getKnowledgeBaseBackendTarget(knowledgeBase);
+  const backendTarget = getKnowledgeBaseBackendTarget(
+    knowledgeBase,
+    t("knowledge.backendStoredLocally"),
+  );
 
   return (
     <div className="flex h-full w-80 flex-col border-l bg-background">
       <div className="flex items-center justify-between pt-4 px-4">
         <h3 className="font-semibold">{knowledgeBase.name}</h3>
-        <Button variant="ghost" size="iconSm" onClick={onClose}>
+        <Button
+          variant="ghost"
+          size="iconSm"
+          onClick={onClose}
+          aria-label={t("common.close")}
+        >
           <ForwardedIconComponent name="X" className="h-4 w-4" />
         </Button>
       </div>

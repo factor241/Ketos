@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import sqlite3
-import tempfile
 import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, get_args
+
+from kfx.config.paths import ketos_temp_dir
 
 from ketos.services.base import Service
 
@@ -65,7 +66,7 @@ class FlowEventsService(Service):
 
     def __init__(self, cache_dir: str | Path | None = None) -> None:
         if cache_dir is None:
-            cache_dir = Path(tempfile.gettempdir()) / "ketos_flow_events"
+            cache_dir = ketos_temp_dir(create=True) / "flow_events"
         cache_dir = Path(cache_dir)
         cache_dir.mkdir(parents=True, exist_ok=True)
         self._db_path = cache_dir / "flow_events.sqlite"

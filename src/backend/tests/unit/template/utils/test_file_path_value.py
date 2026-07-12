@@ -5,7 +5,7 @@ from kfx.template import utils as template_utils
 
 
 def _set_cache_dir(monkeypatch, cache_dir: Path) -> None:
-    monkeypatch.setattr(template_utils, "user_cache_dir", lambda _app_name, _app_author: str(cache_dir))
+    monkeypatch.setattr(template_utils, "ketos_cache_dir", lambda: cache_dir)
 
 
 def test_get_file_path_value_accepts_existing_cache_file(tmp_path: Path, monkeypatch) -> None:

@@ -10,14 +10,14 @@ This is a transitional shim that goes away once PR #13031
 that PR's contract:
 
     Env var:  KETOS_FS_TOOL_BASE_DIR  (same name PR #13031 uses)
-    Default:  ~/.ketos/fs_tool/fs_sandbox  (same default PR #13031 uses)
+    Default:  ``KETOS_DATA_DIR/assistant/fs_sandbox``.
 
 Resolution order:
     1. If the isolation module from PR #13031 is importable, return None —
        the FileSystemTool now self-resolves a per-user namespace and any
        injected root_path would be misinterpreted as a relative sub_path.
     2. KETOS_FS_TOOL_BASE_DIR env var (after expanduser + strip), if set.
-    3. ~/.ketos/fs_tool/fs_sandbox.
+    3. The canonical Ketos data root.
 
 The directory is created (idempotently) before the path is returned so the
 component never sees a non-existent root.
@@ -29,9 +29,10 @@ import importlib.util
 import os
 from pathlib import Path
 
+from kfx.config.paths import ketos_data_dir
+
 BASE_DIR_ENV = "KETOS_FS_TOOL_BASE_DIR"
-# Sub-path under the user's home, mirrored from PR #13031's default.
-DEFAULT_BASE_SUBPATH = Path(".ketos") / "fs_tool" / "fs_sandbox"
+DEFAULT_BASE_SUBPATH = Path("assistant") / "fs_sandbox"
 # When this module exists in the runtime, PR #13031's per-user isolation
 # is active and the FileSystemTool resolves its own sandbox.
 ISOLATION_MODULE = "kfx.components.tools._filesystem_isolation"
@@ -61,7 +62,7 @@ def resolve_assistant_fs_root() -> Path | None:
         return None
 
     raw = os.environ.get(BASE_DIR_ENV, "").strip()
-    candidate = Path(raw).expanduser() if raw else Path.home() / DEFAULT_BASE_SUBPATH
+    candidate = Path(raw).expanduser() if raw else ketos_data_dir() / DEFAULT_BASE_SUBPATH
 
     resolved = candidate.resolve()
     resolved.mkdir(parents=True, exist_ok=True)

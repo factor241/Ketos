@@ -6,16 +6,17 @@ import importlib
 from pathlib import Path
 from typing import Any
 
+from kfx.config.paths import ketos_config_dir
 from kfx.log.logger import logger
 
 
 def resolve_config_dir(config_dir: Path | str | None, *, settings_service: Any | None = None) -> Path:
-    """Resolve config directory using explicit value, settings, then cwd.
+    """Resolve config directory using explicit value, settings, then Ketos config home.
 
     Resolution order:
     1. ``config_dir`` argument (if provided)
     2. ``settings_service.settings.config_dir`` (if present)
-    3. Current working directory
+    3. Canonical Ketos config directory
     """
     if config_dir is not None:
         return Path(config_dir)
@@ -25,9 +26,9 @@ def resolve_config_dir(config_dir: Path | str | None, *, settings_service: Any |
     if settings_config_dir:
         return Path(settings_config_dir)
 
-    cwd = Path.cwd()
-    logger.debug(f"No config_dir provided and no settings config_dir found; falling back to cwd: {cwd}")
-    return cwd
+    default_dir = ketos_config_dir()
+    logger.debug(f"No config_dir provided and no settings config_dir found; using Ketos config: {default_dir}")
+    return default_dir
 
 
 def get_preferred_config_source(

@@ -11,9 +11,8 @@ from __future__ import annotations
 
 import asyncio
 import shutil
-import tempfile
 import warnings
-from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
@@ -29,6 +28,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession as SQLModelAsyncSession
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class _FakeSettings:
@@ -817,10 +819,6 @@ async def test_teardown_spills_remaining_buffer(tmp_path: Path) -> None:
 
     # Clean up the outbox directory tree.
     shutil.rmtree(outbox, ignore_errors=True)
-    # Also clean up our potential tempfile fallback if used.
-    fallback = Path(tempfile.gettempdir()) / "ketos_telemetry_outbox"
-    if fallback.exists() and fallback.is_dir() and not any(fallback.iterdir()):
-        fallback.rmdir()
 
 
 async def test_retention_sweep_caps_vertex_builds_per_vertex(writer_with_engine) -> None:

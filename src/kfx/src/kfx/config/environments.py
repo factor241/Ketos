@@ -3,11 +3,8 @@
 Config file lookup order
 ------------------------
 1.  Explicit path given via ``--environments-file`` / ``environments_file`` parameter.
-2.  ``.kfx/environments.yaml`` in the current working directory, then each
-    parent directory up to the first ``.git`` boundary (project root discovery).
-3.  ``~/.kfx/environments.yaml`` (user-level config).
-4.  ``ketos-environments.toml`` in the current working directory
-    (backward-compatible with the ketos-sdk TOML format).
+2.  The canonical Ketos config directory: ``environments.yaml`` /
+    ``environments.yml`` / ``ketos-environments.toml``.
 
 YAML file format
 ----------------
@@ -42,6 +39,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from kfx.config.paths import ketos_config_dir
 
 # ---------------------------------------------------------------------------
 # Public types
@@ -79,7 +78,6 @@ class KetosEnvironment:
 
 _YAML_NAMES: tuple[str, ...] = ("environments.yaml", "environments.yml")
 _TOML_FALLBACK = "ketos-environments.toml"
-_KFX_DIR = ".kfx"
 
 
 def _find_config_file(override: Path | None) -> Path | None:
@@ -102,25 +100,13 @@ def _find_config_file(override: Path | None) -> Path | None:
             raise ConfigError(msg)
         return override
 
-    # Walk up from cwd looking for .kfx/environments.yaml
-    cwd = Path.cwd()
-    for directory in (cwd, *cwd.parents):
-        for name in _YAML_NAMES:
-            candidate = directory / _KFX_DIR / name
-            if candidate.is_file():
-                return candidate
-        # Stop walking at a git root or the filesystem root
-        if (directory / ".git").is_dir() or directory.parent == directory:
-            break
-
-    # User-level YAML
+    config_dir = ketos_config_dir()
     for name in _YAML_NAMES:
-        user_yaml = Path.home() / _KFX_DIR / name
+        user_yaml = config_dir / name
         if user_yaml.is_file():
             return user_yaml
 
-    # Backward-compat: ketos-environments.toml in cwd
-    toml_fallback = cwd / _TOML_FALLBACK
+    toml_fallback = config_dir / _TOML_FALLBACK
     if toml_fallback.is_file():
         return toml_fallback
 
@@ -253,7 +239,7 @@ def resolve_environment(
        file discovered by the lookup order described in this module's docstring.
     3. **Env-var fallback** — if no config file exists and no *env* was
        requested, fall back to ``KETOS_URL`` / ``KETOS_API_KEY`` (or
-       ``KFX_URL`` / ``KFX_API_KEY``) env vars before raising.
+       env vars before raising.
 
     Parameters
     ----------
@@ -294,15 +280,15 @@ def resolve_environment(
 
     if config_path is None:
         # No config file found — try env-var fallback before giving up
-        lf_url = os.environ.get("KETOS_URL") or os.environ.get("KFX_URL")
+        lf_url = os.environ.get("KETOS_URL")
         if lf_url and env is None:
-            lf_key = api_key or os.environ.get("KETOS_API_KEY") or os.environ.get("KFX_API_KEY")
+            lf_key = api_key or os.environ.get("KETOS_API_KEY")
             return KetosEnvironment(name="__env__", url=lf_url, api_key=lf_key)
 
         if env is not None:
             msg = (
                 f"Environment {env!r} requested but no config file was found.\n"
-                f"  • Create .kfx/environments.yaml in your project root, or\n"
+                f"  • Create environments.yaml in {ketos_config_dir()}, or\n"
                 f"  • Pass --target <url> [--api-key <key>] for inline configuration.\n"
                 f"  • Run 'kfx init' to scaffold a project with a config template."
             )
@@ -311,7 +297,7 @@ def resolve_environment(
         msg = (
             "No --env, --target URL, or config file found.\n"
             "Options:\n"
-            "  • kfx <cmd> --env <name>              (requires .kfx/environments.yaml)\n"
+            "  • kfx <cmd> --env <name>              (requires canonical Ketos config)\n"
             "  • kfx <cmd> --target <url>             (inline, no config file needed)\n"
             "  • export KETOS_URL=<url>            (env-var fallback)\n"
             "  • kfx init                             (scaffold a project with a template)"

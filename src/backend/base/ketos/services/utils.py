@@ -142,9 +142,8 @@ async def setup_superuser(settings_service: SettingsService, session: AsyncSessi
     if settings_service.auth_settings.AUTO_LOGIN:
         await logger.adebug("AUTO_LOGIN is set to True. Creating default superuser with full initialization.")
         # Use file lock to prevent race conditions in multi-worker environments
-        from tempfile import gettempdir
-
         from filelock import FileLock
+        from kfx.config.paths import ketos_temp_dir
 
         username = settings_service.auth_settings.SUPERUSER or DEFAULT_SUPERUSER
         configured_password = _secret_value(settings_service.auth_settings.SUPERUSER_PASSWORD)
@@ -156,7 +155,7 @@ async def setup_superuser(settings_service: SettingsService, session: AsyncSessi
         password = get_auto_login_superuser_password(settings_service.auth_settings)
 
         # Use file lock similar to starter projects
-        lock_file = Path(gettempdir()) / "ketos_auto_login_superuser.lock"
+        lock_file = ketos_temp_dir(create=True) / "auto_login_superuser.lock"
         lock = FileLock(lock_file, timeout=5)
 
         try:
@@ -615,9 +614,7 @@ def register_all_service_factories() -> None:
     # ``_discover_from_config``). Plain entry-point discovery uses
     # ``override=False`` and would lose to this default — the supported
     # override path is the ``kfx.toml`` config, matching SSO.
-    service_manager.register_service_class(
-        ServiceType.AUTHORIZATION_SERVICE, KetosAuthorizationService, override=True
-    )
+    service_manager.register_service_class(ServiceType.AUTHORIZATION_SERVICE, KetosAuthorizationService, override=True)
     service_manager.register_factory(authorization_factory.AuthorizationServiceFactory())
     service_manager.register_factory(mcp_composer_factory.MCPComposerServiceFactory())
     service_manager.set_factory_registered()

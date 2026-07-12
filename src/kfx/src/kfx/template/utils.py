@@ -2,8 +2,7 @@
 
 from pathlib import Path
 
-from platformdirs import user_cache_dir
-
+from kfx.config.paths import ketos_cache_dir
 from kfx.schema.data import Data
 
 
@@ -16,7 +15,7 @@ def get_file_path_value(file_path):
     """Get the file path value if the file exists, else return empty string."""
     try:
         path = Path(file_path).resolve()
-        cache_dir = Path(user_cache_dir("ketos", "ketos")).resolve()
+        cache_dir = ketos_cache_dir().resolve()
     except (OSError, RuntimeError, TypeError, ValueError):
         return ""
 

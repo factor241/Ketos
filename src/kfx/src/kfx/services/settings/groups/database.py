@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from shutil import copy2
 
 from pydantic import BaseModel, field_validator
 
@@ -12,12 +11,8 @@ class DatabaseSettings(BaseModel):
     """Database connection, pooling, and migration settings.
 
     Note: ``database_url`` is validated at the :class:`Settings` level because
-    it reads ``config_dir`` from :class:`PathSettings`.
+    it reads ``data_dir`` from :class:`PathSettings`.
     """
-
-    save_db_in_config_dir: bool = False
-    """Define if ketos database should be saved in KETOS_CONFIG_DIR or in the ketos directory
-    (i.e. in the package directory)."""
 
     database_url: str | None = None
     """Database URL for Ketos. If not provided, Ketos will use a SQLite database.
@@ -39,11 +34,6 @@ class DatabaseSettings(BaseModel):
     db_connect_timeout: int = 30
     """The number of seconds to wait before giving up on a lock to released or establishing a connection to the
     database."""
-
-    migration_lock_namespace: str | None = None
-    """Optional namespace identifier for PostgreSQL advisory lock during migrations.
-    If not provided, a hash of the database URL will be used. Useful when multiple Ketos
-    instances share the same database and need coordinated migration locking."""
 
     sqlite_pragmas: dict | None = {"synchronous": "NORMAL", "journal_mode": "WAL", "busy_timeout": 30000}
     """SQLite pragmas to use when connecting to the database."""
@@ -97,61 +87,10 @@ class DatabaseSettings(BaseModel):
             value = ketos_database_url
             logger.debug("Using KETOS_DATABASE_URL env variable")
         else:
-            if not info.data.get("config_dir"):
-                msg = "config_dir not set, please set it or provide a database_url"
+            if not info.data.get("data_dir"):
+                msg = "data_dir not set, please set it or provide a database_url"
                 raise ValueError(msg)
-
-            from kfx.utils.version import get_version_info
-            from kfx.utils.version import is_pre_release as ketos_is_pre_release
-
-            version = get_version_info()["version"]
-            is_pre_release = ketos_is_pre_release(version)
-
-            if info.data["save_db_in_config_dir"]:
-                database_dir = info.data["config_dir"]
-            else:
-                try:
-                    import ketos
-
-                    database_dir = Path(ketos.__file__).parent.resolve()
-                except ImportError:
-                    database_dir = Path(__file__).parent.parent.parent.parent.resolve()
-
-            pre_db_file_name = "ketos-pre.db"
-            db_file_name = "ketos.db"
-            new_pre_path = f"{database_dir}/{pre_db_file_name}"
-            new_path = f"{database_dir}/{db_file_name}"
-            final_path = None
-            if is_pre_release:
-                if Path(new_pre_path).exists():
-                    final_path = new_pre_path
-                elif Path(new_path).exists() and info.data["save_db_in_config_dir"]:
-                    logger.debug("Copying existing database to new location")
-                    copy2(new_path, new_pre_path)
-                    logger.debug(f"Copied existing database to {new_pre_path}")
-                elif Path(f"./{db_file_name}").exists() and info.data["save_db_in_config_dir"]:
-                    logger.debug("Copying existing database to new location")
-                    copy2(f"./{db_file_name}", new_pre_path)
-                    logger.debug(f"Copied existing database to {new_pre_path}")
-                else:
-                    logger.debug(f"Creating new database at {new_pre_path}")
-                    final_path = new_pre_path
-            elif Path(new_path).exists():
-                final_path = new_path
-            elif Path(f"./{db_file_name}").exists():
-                try:
-                    logger.debug("Copying existing database to new location")
-                    copy2(f"./{db_file_name}", new_path)
-                    logger.debug(f"Copied existing database to {new_path}")
-                except OSError:
-                    logger.exception("Failed to copy database, using default path")
-                    new_path = f"./{db_file_name}"
-            else:
-                final_path = new_path
-
-            if final_path is None:
-                final_path = new_pre_path if is_pre_release else new_path
-
-            value = f"sqlite:///{final_path}"
+            database_path = Path(info.data["data_dir"]) / "ketos.db"
+            value = f"sqlite:///{database_path}"
 
         return value

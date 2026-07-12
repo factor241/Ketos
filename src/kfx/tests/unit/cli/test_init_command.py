@@ -13,8 +13,8 @@ import pytest
 import typer
 from kfx.__main__ import app
 from kfx.cli.init import (
-    _ENVIRONMENTS_YAML,
     _GITIGNORE,
+    _PROJECT_MARKER,
     _TEMPLATES_DIR,
     _TEST_FLOWS_PY,
     _copy_template,
@@ -246,20 +246,18 @@ class TestInitCommandRequiredFiles:
 
     def test_creates_environments_yaml(self, tmp_path: Path) -> None:
         _run_init(tmp_path)
-        assert (tmp_path / ".kfx" / "environments.yaml").exists()
+        assert (tmp_path / ".kfx" / "project.toml").exists()
 
     def test_environments_yaml_has_expected_content(self, tmp_path: Path) -> None:
         _run_init(tmp_path)
-        content = (tmp_path / ".kfx" / "environments.yaml").read_text(encoding="utf-8")
-        assert "environments:" in content
-        assert "local:" in content
-        assert "staging:" in content
-        assert "production:" in content
+        content = (tmp_path / ".kfx" / "project.toml").read_text(encoding="utf-8")
+        assert "[project]" in content
+        assert "format = 1" in content
 
     def test_environments_yaml_content_matches_template(self, tmp_path: Path) -> None:
         _run_init(tmp_path)
-        content = (tmp_path / ".kfx" / "environments.yaml").read_text(encoding="utf-8")
-        assert content == _ENVIRONMENTS_YAML
+        content = (tmp_path / ".kfx" / "project.toml").read_text(encoding="utf-8")
+        assert content == _PROJECT_MARKER
 
     def test_creates_gitignore(self, tmp_path: Path) -> None:
         _run_init(tmp_path)
@@ -362,7 +360,7 @@ class TestInitCommandExampleTrue:
 
     def test_other_files_still_created_with_example(self, tmp_path: Path) -> None:
         init_command(project_dir=tmp_path, github_actions=False, overwrite=False, example=True)
-        assert (tmp_path / ".kfx" / "environments.yaml").exists()
+        assert (tmp_path / ".kfx" / "project.toml").exists()
         assert (tmp_path / "tests" / "test_flows.py").exists()
         assert (tmp_path / "tests" / "__init__.py").exists()
 
@@ -377,7 +375,7 @@ class TestInitCommandExampleTrue:
                 overwrite=False,
                 example=True,
             )
-        assert (tmp_path / "proj" / ".kfx" / "environments.yaml").exists()
+        assert (tmp_path / "proj" / ".kfx" / "project.toml").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -400,7 +398,7 @@ class TestInitCommandExampleFalse:
 
     def test_other_files_still_created_without_example(self, tmp_path: Path) -> None:
         _run_init(tmp_path, example=False)
-        assert (tmp_path / ".kfx" / "environments.yaml").exists()
+        assert (tmp_path / ".kfx" / "project.toml").exists()
         assert (tmp_path / "tests" / "test_flows.py").exists()
         assert (tmp_path / "tests" / "__init__.py").exists()
         assert (tmp_path / ".gitignore").exists()
@@ -452,7 +450,7 @@ class TestInitCommandGitHubActions:
             # Should not raise
             init_command(project_dir=tmp_path / "proj", github_actions=True, overwrite=False, example=False)
         # The project's other files should still be scaffolded
-        assert (tmp_path / "proj" / ".kfx" / "environments.yaml").exists()
+        assert (tmp_path / "proj" / ".kfx" / "project.toml").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -527,7 +525,7 @@ class TestInitCommandNonEmptyGuard:
         (tmp_path / "existing.txt").write_text("data", encoding="utf-8")
         # Should not raise
         init_command(project_dir=tmp_path, github_actions=False, overwrite=True, example=False)
-        assert (tmp_path / ".kfx" / "environments.yaml").exists()
+        assert (tmp_path / ".kfx" / "project.toml").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -537,12 +535,12 @@ class TestInitCommandNonEmptyGuard:
 
 class TestInitCommandOverwrite:
     def test_overwrite_replaces_environments_yaml(self, tmp_path: Path) -> None:
-        env_yaml = tmp_path / ".kfx" / "environments.yaml"
+        env_yaml = tmp_path / ".kfx" / "project.toml"
         env_yaml.parent.mkdir(parents=True)
         env_yaml.write_text("# old content\n", encoding="utf-8")
         init_command(project_dir=tmp_path, github_actions=False, overwrite=True, example=False)
         content = env_yaml.read_text(encoding="utf-8")
-        assert content == _ENVIRONMENTS_YAML
+        assert content == _PROJECT_MARKER
 
     def test_overwrite_replaces_test_flows_py(self, tmp_path: Path) -> None:
         tests_dir = tmp_path / "tests"
@@ -557,10 +555,10 @@ class TestInitCommandOverwrite:
         """_write skips existing files when overwrite=False (tested via the helper directly)."""
         target = tmp_path
         created: list[tuple[str, str]] = []
-        dest = tmp_path / ".kfx" / "environments.yaml"
+        dest = tmp_path / ".kfx" / "project.toml"
         dest.parent.mkdir(parents=True)
         dest.write_text("# custom content\n", encoding="utf-8")
-        _write(dest, _ENVIRONMENTS_YAML, "label", created, target=target, overwrite=False)
+        _write(dest, _PROJECT_MARKER, "label", created, target=target, overwrite=False)
         # Original content must be preserved
         assert dest.read_text(encoding="utf-8") == "# custom content\n"
         assert created == []
@@ -595,7 +593,7 @@ class TestInitCLI:
         proj = tmp_path / "proj"
         result = runner.invoke(app, ["init", str(proj)])
         assert result.exit_code == 0, result.output
-        assert (proj / ".kfx" / "environments.yaml").exists()
+        assert (proj / ".kfx" / "project.toml").exists()
 
     def test_basic_init_creates_test_flows_py(self, tmp_path: Path) -> None:
         proj = tmp_path / "proj"
@@ -636,7 +634,7 @@ class TestInitCLI:
         (proj / "some-file.txt").write_text("existing", encoding="utf-8")
         result = runner.invoke(app, ["init", str(proj), "--no-github-actions", "--no-example", "--overwrite"])
         assert result.exit_code == 0, result.output
-        assert (proj / ".kfx" / "environments.yaml").exists()
+        assert (proj / ".kfx" / "project.toml").exists()
 
     def test_non_empty_dir_without_overwrite_exits_nonzero(self, tmp_path: Path) -> None:
         proj = tmp_path / "proj"
@@ -650,7 +648,7 @@ class TestInitCLI:
         monkeypatch.chdir(tmp_path)
         result = runner.invoke(app, ["init", "--no-github-actions", "--no-example"])
         assert result.exit_code == 0, result.output
-        assert (tmp_path / ".kfx" / "environments.yaml").exists()
+        assert (tmp_path / ".kfx" / "project.toml").exists()
 
     def test_init_output_mentions_next_steps(self, tmp_path: Path) -> None:
         result = runner.invoke(app, ["init", str(tmp_path / "proj"), "--no-github-actions"])

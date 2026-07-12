@@ -37,9 +37,9 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from platformdirs import user_cache_dir
 
 from kfx.base.models.model_metadata import create_model_metadata
+from kfx.config.paths import ketos_cache_dir
 from kfx.log.logger import logger
 
 # models.dev exposes pinned-date snapshots (e.g. ``claude-opus-4-5-20251101``,
@@ -87,10 +87,10 @@ MODELS_DEV_PROVIDER_KEYS: dict[str, str] = {
 def _snapshot_dir() -> Path:
     """Return the directory where the disk snapshot lives.
 
-    Resolved via ``platformdirs.user_cache_dir`` so deployments inherit their
+    Resolved via the canonical Ketos cache topology.
     platform's conventional cache root. Creates the directory on first use.
     """
-    cache_root = Path(user_cache_dir("ketos", "ketos"))
+    cache_root = ketos_cache_dir()
     snapshot_dir = cache_root / MODELS_DEV_SNAPSHOT_SUBDIR
     snapshot_dir.mkdir(parents=True, exist_ok=True)
     return snapshot_dir

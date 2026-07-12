@@ -3,9 +3,9 @@ from pathlib import Path
 
 import aiofiles
 from PIL import Image as PILImage
-from platformdirs import user_cache_dir
 from pydantic import BaseModel
 
+from kfx.config.paths import ketos_cache_dir
 from kfx.services.deps import get_storage_service
 from kfx.utils.image import create_image_content_dict
 
@@ -32,7 +32,7 @@ def get_file_paths(files: list[str | dict]):
         # Extract paths from dicts if present
 
         extracted_files = []
-        cache_dir = Path(user_cache_dir("ketos"))
+        cache_dir = ketos_cache_dir()
 
         for file in files:
             if not file:  # Skip empty/None files

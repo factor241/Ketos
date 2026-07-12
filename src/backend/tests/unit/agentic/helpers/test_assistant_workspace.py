@@ -2,7 +2,7 @@
 
 Forward-compatible with PR #13031 (per-user FileSystemTool isolation):
 - Env var name (KETOS_FS_TOOL_BASE_DIR) and default path (~/.ketos/fs_tool/fs_sandbox)
-  match the contract that PR #13031 introduces.
+    use the Ketos data root contract.
 - When PR #13031 ships its isolation module, this resolver returns None so the
   flow_preparation injector skips writing root_path and lets the component
   resolve its own per-user namespace.
@@ -19,6 +19,7 @@ from ketos.agentic.helpers.assistant_workspace import (
     ISOLATION_MODULE,
     resolve_assistant_fs_root,
 )
+from kfx.config.paths import ketos_data_dir
 
 
 class TestResolveAssistantFsRoot:
@@ -52,7 +53,7 @@ class TestResolveAssistantFsRoot:
     def test_should_resolve_to_default_when_env_unset(self, _isolate_env):  # noqa: PT019
         result = resolve_assistant_fs_root()
 
-        assert result == (_isolate_env / DEFAULT_BASE_SUBPATH).resolve()
+        assert result == (ketos_data_dir() / DEFAULT_BASE_SUBPATH).resolve()
 
     def test_should_resolve_to_env_var_when_set(self, tmp_path, monkeypatch):
         target = tmp_path / "custom"
@@ -104,7 +105,7 @@ class TestResolveAssistantFsRoot:
 
         result = resolve_assistant_fs_root()
 
-        assert result == (_isolate_env / DEFAULT_BASE_SUBPATH).resolve()
+        assert result == (ketos_data_dir() / DEFAULT_BASE_SUBPATH).resolve()
 
     def test_should_create_parent_dirs_when_missing(self, tmp_path, monkeypatch):
         target = tmp_path / "deep" / "nested" / "workspace"

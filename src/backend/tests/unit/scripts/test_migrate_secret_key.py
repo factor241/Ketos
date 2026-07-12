@@ -440,11 +440,11 @@ class TestKeyFileManagement:
 
     def test_get_config_dir_default(self, migrate_module, monkeypatch):
         """Test default config directory uses platformdirs."""
-        from platformdirs import user_cache_dir
+        from platformdirs import user_config_path
 
         monkeypatch.delenv("KETOS_CONFIG_DIR", raising=False)
         result = migrate_module.get_config_dir()
-        expected = Path(user_cache_dir("ketos", "ketos"))
+        expected = Path(user_config_path("ketos", "Ketos"))
         assert result == expected
 
     def test_get_config_dir_from_env(self, migrate_module, monkeypatch):
@@ -452,6 +452,16 @@ class TestKeyFileManagement:
         monkeypatch.setenv("KETOS_CONFIG_DIR", "/custom/config")
         result = migrate_module.get_config_dir()
         assert result == Path("/custom/config")
+
+    def test_old_config_environment_has_no_effect(self, migrate_module, monkeypatch):
+        old_prefix = "LANG" + "FLOW"
+        monkeypatch.setenv(f"{old_prefix}_CONFIG_DIR", "/pre-cutover/config")
+        monkeypatch.delenv("KETOS_CONFIG_DIR", raising=False)
+        assert migrate_module.get_config_dir() == migrate_module.get_default_config_dir()
+
+    def test_default_database_is_only_ketos_data_database(self, migrate_module, tmp_path):
+        (tmp_path / "ketos.db").touch()
+        assert migrate_module.get_default_database_url(tmp_path) == f"sqlite:///{tmp_path / 'ketos.db'}"
 
 
 @pytest.mark.usefixtures("client")

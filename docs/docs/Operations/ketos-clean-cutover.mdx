@@ -1,0 +1,59 @@
+---
+title: Ketos clean cutover
+description: Destructive procedure for starting Ketos with isolated configuration and state.
+---
+
+# Ketos clean cutover
+
+Ketos does not read or migrate pre-cutover environment variables, config files,
+databases, caches, or runtime keys. Perform this procedure in a maintenance
+window. The archive is a rollback artifact, not a runtime input.
+
+## 1. Stop and prove quiescence
+
+Stop every web process, worker, scheduler, and migration job. Confirm there are
+no remaining Ketos or pre-cutover processes and no open database sessions. Do
+not change the PostgreSQL migration-lock namespace while any process is alive.
+
+## 2. Archive outside the repository
+
+Archive the complete pre-cutover config, data, database, uploaded files,
+extension registry, logs, and relevant Redis export to encrypted storage
+**outside this repository**. Record checksums and ownership/permissions. Test
+that the archive can be listed and restored before deleting anything.
+
+## 3. Delete pre-cutover local and distributed state
+
+Delete the pre-cutover local directories, SQLite database (including WAL/SHM),
+temporary files, and caches. From a maintenance Redis connection, inventory
+keys first, then delete every pre-cutover application key, queue, channel, and
+consumer-group entry. Do not flush a shared Redis database.
+
+The Ketos roots are independent:
+
+```bash
+export KETOS_CONFIG_DIR=/srv/ketos/config
+export KETOS_DATA_DIR=/srv/ketos/data
+export KETOS_CACHE_DIR=/srv/ketos/cache
+export KETOS_TEMP_DIR=/srv/ketos/temp
+```
+
+Do not place any of these directories inside the source checkout. Do not copy
+files from the archive into them.
+
+## 4. Initialize clean Ketos state
+
+Create empty roots with least-privilege ownership, configure only `KETOS_*`
+variables, and start a single Ketos process so it initializes `ketos.db` and
+runs schema migrations. Verify the health endpoint and schema revision, then
+start workers. Confirm Redis contains only `ketos:` application keys and that
+no state appeared in the current working directory or installed package.
+
+## Rollback
+
+Stop all Ketos processes, archive the failed clean-state attempt separately,
+delete the four Ketos roots and Ketos Redis keys, then restore the verified
+pre-cutover archive to its original external locations. Restore the matching
+database and Redis snapshot as one consistency unit before restarting the
+previous release. Never merge the two states and never point Ketos at the
+rollback archive.

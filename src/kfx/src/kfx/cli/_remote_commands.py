@@ -18,7 +18,7 @@ def register(app: typer.Typer) -> None:
             None,
             "--env",
             "-e",
-            help="Environment name from .kfx/environments.yaml. Uses [defaults] if omitted.",
+            help="Environment name from KETOS_CONFIG_DIR/environments.yaml. Uses [defaults] if omitted.",
         ),
         dir_path: str | None = typer.Option(
             None,
@@ -74,7 +74,7 @@ def register(app: typer.Typer) -> None:
             None,
             "--env",
             "-e",
-            help="Environment name from .kfx/environments.yaml. Use --target for inline configuration.",
+            help="Environment name from KETOS_CONFIG_DIR/environments.yaml. Use --target for inline configuration.",
         ),
         dir_path: str | None = typer.Option(
             None,
@@ -141,15 +141,13 @@ def register(app: typer.Typer) -> None:
             strip_secrets=strip_secrets,
         )
 
-    @app.command(
-        name="pull", help="Pull flows from a remote Ketos instance to local files", rich_help_panel="Remote"
-    )
+    @app.command(name="pull", help="Pull flows from a remote Ketos instance to local files", rich_help_panel="Remote")
     def pull_command_wrapper(
         env: str | None = typer.Option(
             None,
             "--env",
             "-e",
-            help="Environment name from .kfx/environments.yaml. Uses [defaults] if omitted.",
+            help="Environment name from KETOS_CONFIG_DIR/environments.yaml. Uses [defaults] if omitted.",
         ),
         output_dir: str | None = typer.Option(
             None,
@@ -241,7 +239,10 @@ def register(app: typer.Typer) -> None:
             None,
             "--env",
             "-e",
-            help="Environment name from .kfx/environments.yaml (required for remote mode unless --target is used).",
+            help=(
+                "Environment name from KETOS_CONFIG_DIR/environments.yaml "
+                "(required for remote mode unless --target is used)."
+            ),
         ),
         flow_id: str | None = typer.Option(
             None,

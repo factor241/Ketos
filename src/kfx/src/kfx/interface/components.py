@@ -213,9 +213,9 @@ def _read_component_index(custom_path: str | None = None) -> dict | None:
 
 def _get_cache_path() -> Path:
     """Get the path for the cached component index in the user's cache directory."""
-    from platformdirs import user_cache_dir
+    from kfx.config.paths import ketos_cache_dir
 
-    cache_dir = Path(user_cache_dir("kfx", "ketos"))
+    cache_dir = ketos_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
     return cache_dir / "component_index.json"
 
@@ -749,9 +749,7 @@ def _decorate_template_with_extension(
     template["extension_ru_missing"] = ru_missing
     if locale_bundle is not None:
         model_dump = getattr(locale_bundle, "model_dump", None)
-        template["extension_locale_bundle"] = (
-            model_dump(mode="json") if callable(model_dump) else locale_bundle
-        )
+        template["extension_locale_bundle"] = model_dump(mode="json") if callable(model_dump) else locale_bundle
     return template
 
 

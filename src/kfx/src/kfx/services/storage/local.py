@@ -36,7 +36,7 @@ class LocalStorageService(StorageService, Service):
         """
         # Initialize base class with services
         super().__init__(session_service, settings_service)
-        # Base class already sets self.data_dir as anyio.Path from settings_service.settings.config_dir
+        # Base class isolates uploaded files under the canonical Ketos data root.
 
     async def _validated_path(self, flow_id: str, file_name: str) -> anyio.Path:
         """Return a path inside the flow directory or raise if traversal is attempted.

@@ -11,7 +11,7 @@ from ketos.services.storage.local import LocalStorageService
 def mock_settings_service():
     """Create a mock settings service."""
     settings_service = Mock()
-    settings_service.settings.config_dir = "/tmp/ketos_test"  # noqa: S108
+    settings_service.settings.data_dir = "/tmp/ketos_test"  # noqa: S108
     return settings_service
 
 
@@ -24,8 +24,8 @@ def mock_session_service():
 @pytest.fixture
 async def local_storage_service(mock_session_service, mock_settings_service, tmp_path):
     """Create a LocalStorageService instance for testing."""
-    # Override the config dir to use tmp_path
-    mock_settings_service.settings.config_dir = str(tmp_path)
+    # Override the data dir to use tmp_path
+    mock_settings_service.settings.data_dir = str(tmp_path)
     service = LocalStorageService(mock_session_service, mock_settings_service)
     yield service
     # Cleanup

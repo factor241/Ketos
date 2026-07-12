@@ -1,10 +1,10 @@
 import re
 import threading
 from contextlib import contextmanager
-from pathlib import Path
 
 from filelock import FileLock
-from platformdirs import user_cache_dir
+
+from kfx.config.paths import ketos_cache_dir
 
 
 class KeyedMemoryLockManager:
@@ -34,7 +34,7 @@ class KeyedWorkerLockManager:
     """A manager for acquiring locks between workers based on a key."""
 
     def __init__(self) -> None:
-        self.locks_dir = Path(user_cache_dir("ketos", ensure_exists=True)) / "worker_locks"
+        self.locks_dir = ketos_cache_dir(create=True) / "worker_locks"
 
     @staticmethod
     def _validate_key(key: str) -> bool:

@@ -23,38 +23,10 @@ from rich.tree import Tree
 console = Console()
 
 # ---------------------------------------------------------------------------
-# Templates embedded as strings (environments config and test stubs)
+# Templates embedded as strings (project marker and test stubs)
 # ---------------------------------------------------------------------------
 
-_ENVIRONMENTS_YAML = """\
-# .kfx/environments.yaml
-#
-# Configure your Ketos instances here.
-# Safe to commit — API keys are NEVER stored in this file.
-# The api_key_env value is the NAME of an environment variable that holds
-# the actual API key; set that variable in your shell or CI secrets.
-#
-# Quick start:
-#   1. Open Ketos → Settings → API Keys → Create a new key
-#   2. export KETOS_LOCAL_API_KEY=<your key>
-#   3. kfx export --env local --flow-id <uuid> --output-dir flows/
-
-environments:
-  local:
-    url: http://localhost:7860
-    api_key_env: KETOS_LOCAL_API_KEY
-
-  staging:
-    url: https://staging.ketos.example.com
-    api_key_env: KETOS_STAGING_API_KEY
-
-  production:
-    url: https://ketos.example.com
-    api_key_env: KETOS_PROD_API_KEY
-
-defaults:
-  environment: local
-"""
+_PROJECT_MARKER = "[project]\nformat = 1\n"
 
 _TEST_FLOWS_PY = '''\
 """Integration tests for Ketos flows.
@@ -93,7 +65,7 @@ def test_flow_output_quality(flow_runner):
 
 _GITIGNORE = """\
 # Ketos credentials -- never commit API keys
-# (ketos-environments.toml may contain literal keys; .kfx/environments.yaml is safe to commit)
+# Explicit environment files may contain literal keys and should not be committed.
 ketos-environments.toml
 """
 
@@ -202,15 +174,16 @@ def init_command(
     _write(target / "tests" / "__init__.py", "", "", **kw)
     _write(target / "tests" / "test_flows.py", _TEST_FLOWS_PY, "flow_runner example tests", **kw)
 
-    # .kfx/environments.yaml
+    # .kfx/project.toml is a project marker only. Environment configuration
+    # lives exclusively under KETOS_CONFIG_DIR or an explicit CLI path.
     _write(
-        target / ".kfx" / "environments.yaml",
-        _ENVIRONMENTS_YAML,
-        "edit with your instance URLs + API key env var names (safe to commit)",
+        target / ".kfx" / "project.toml",
+        _PROJECT_MARKER,
+        "KFX project marker",
         **kw,
     )
 
-    # .gitignore — keep ketos-environments.toml ignored for backward compat
+    # .gitignore — keep explicitly supplied credential files out of commits
     gitignore = target / ".gitignore"
     if gitignore.exists():
         existing_content = gitignore.read_text(encoding="utf-8")
@@ -244,7 +217,7 @@ def init_command(
     # Next-steps guide
     console.print()
     console.print("[bold green]✓ Project scaffolded.[/bold green]  Next steps:\n")
-    console.print("  1. Edit [bold].kfx/environments.yaml[/bold] with your instance URL")
+    console.print("  1. Configure [bold]KETOS_CONFIG_DIR/environments.yaml[/bold] with your instance URL")
     console.print("  2. [bold]export KETOS_LOCAL_API_KEY=<key>[/bold]   (Settings → API Keys)")
     if example:
         console.print("  3. [bold]kfx validate flows/hello-world.json[/bold]  (check the starter flow)")

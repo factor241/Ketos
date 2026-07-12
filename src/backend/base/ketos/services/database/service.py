@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-import os
 import re
 import sqlite3
 import sys
 import time
-from contextlib import asynccontextmanager, contextmanager, nullcontext
+from contextlib import asynccontextmanager, nullcontext
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -39,6 +38,8 @@ from ketos.services.database.session import NoopSession
 from ketos.services.database.utils import Result, TableResults
 from ketos.services.deps import get_settings_service
 from ketos.services.utils import teardown_superuser
+from ketos.utils.migration_lock import normalize_sync_postgres_url as _normalize_sync_postgres_url
+from ketos.utils.migration_lock import postgres_migration_lock as _postgres_migration_lock
 
 if TYPE_CHECKING:
     from kfx.services.settings.service import SettingsService
@@ -49,119 +50,6 @@ class UnsupportedPostgreSQLVersionError(Exception):
 
 
 _PG_VERSION_QUERY = sa.text("SELECT current_setting('server_version_num'), current_setting('server_version')")
-
-# Stable namespace for the schema-migration advisory lock. The lock serializes
-# concurrent ``alembic upgrade`` runs across workers so they do not race to
-# CREATE TYPE / CREATE TABLE on a fresh database. Picked once and never changed
-# so independent processes converge on the same lock; the value itself is
-# arbitrary, just has to fit in a Postgres bigint and not collide with other
-# advisory locks the application takes (currently none).
-_MIGRATION_ADVISORY_LOCK_ID = 0x4C616E67666C6F77  # ASCII "Ketos"
-_MIGRATION_LOCK_DEFAULT_TIMEOUT_S = 300.0
-_MIGRATION_LOCK_POLL_INTERVAL_S = 2.0
-
-
-def _migration_lock_timeout_s() -> float:
-    raw = os.getenv("KETOS_MIGRATION_LOCK_TIMEOUT_S")
-    if raw is None:
-        return _MIGRATION_LOCK_DEFAULT_TIMEOUT_S
-    try:
-        return float(raw)
-    except ValueError:
-        logger.warning(
-            "Ignoring invalid KETOS_MIGRATION_LOCK_TIMEOUT_S=%r; falling back to %.0fs.",
-            raw,
-            _MIGRATION_LOCK_DEFAULT_TIMEOUT_S,
-        )
-        return _MIGRATION_LOCK_DEFAULT_TIMEOUT_S
-
-
-def _acquire_migration_lock_or_raise(conn, lock_id: int) -> None:
-    """Acquire the advisory lock with a bounded wait, logging progress.
-
-    Blocking ``pg_advisory_lock`` has no upper bound and ``lock_timeout`` does
-    not apply to advisory locks, so a worker hung mid-migration would silently
-    block every other worker forever. Instead poll ``pg_try_advisory_lock`` with
-    a configurable timeout and log when we're waiting, so operators see why
-    boot is stuck.
-    """
-    if conn.execute(sa.text(f"SELECT pg_try_advisory_lock({lock_id})")).scalar():
-        return
-
-    timeout = _migration_lock_timeout_s()
-    logger.info(
-        "Migration advisory lock %s held by another worker; waiting up to %.0fs.",
-        lock_id,
-        timeout,
-    )
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        time.sleep(_MIGRATION_LOCK_POLL_INTERVAL_S)
-        if conn.execute(sa.text(f"SELECT pg_try_advisory_lock({lock_id})")).scalar():
-            logger.info("Acquired migration advisory lock %s after waiting.", lock_id)
-            return
-
-    msg = (
-        f"Could not acquire migration advisory lock {lock_id} within "
-        f"{timeout:.0f}s. Another worker is likely hung mid-migration. "
-        "Investigate the worker holding the lock or restart the deployment "
-        "with a single worker so migrations can run cleanly. Override the "
-        "wait via KETOS_MIGRATION_LOCK_TIMEOUT_S (seconds) if your migration "
-        "legitimately needs longer."
-    )
-    raise RuntimeError(msg)
-
-
-def _normalize_sync_postgres_url(database_url: str) -> str:
-    """Return a sync-driver Postgres URL from a possibly async one.
-
-    Strips the ``+asyncpg`` / ``+aiosqlite`` suffix and upgrades the legacy
-    ``postgres://`` scheme to ``postgresql://`` so :func:`sa.create_engine`
-    picks the default sync driver. Centralised so the advisory-lock helper and
-    the table-creation lock path stay in sync with :func:`check_postgresql_version_sync`.
-    """
-    sync_url = database_url
-    if sync_url.startswith("postgres://"):
-        sync_url = "postgresql://" + sync_url.split("://", 1)[1]
-    for async_driver in ("+asyncpg", "+aiosqlite"):
-        sync_url = sync_url.replace(async_driver, "")
-    return sync_url
-
-
-@contextmanager
-def _postgres_migration_lock(database_url: str):
-    """Hold a Postgres session-level advisory lock for the duration of the block.
-
-    Workers starting concurrently against a fresh PostgreSQL each call
-    ``command.upgrade("head")``; without coordination they race on
-    ``CREATE TYPE`` / ``CREATE TABLE`` and the losers fail with
-    ``UniqueViolation``. Holding a session-level advisory lock serialises the
-    upgrade so only one worker mutates the schema at a time; the others wait
-    here (bounded, with progress logging) and then find the schema already at
-    head.
-
-    No-op for non-PostgreSQL URLs. SQLite has no advisory locks (and Ketos
-    runs single-process on it anyway).
-    """
-    if not database_url.startswith(("postgresql", "postgres")):
-        yield
-        return
-
-    engine = sa.create_engine(_normalize_sync_postgres_url(database_url))
-    try:
-        with engine.connect() as conn:
-            logger.debug("Acquiring migration advisory lock %s", _MIGRATION_ADVISORY_LOCK_ID)
-            _acquire_migration_lock_or_raise(conn, _MIGRATION_ADVISORY_LOCK_ID)
-            try:
-                yield
-            finally:
-                logger.debug("Releasing migration advisory lock %s", _MIGRATION_ADVISORY_LOCK_ID)
-                # Session-level locks auto-release on connection close, but
-                # explicit unlock keeps the connection reusable if alembic
-                # internals ever hand us one back.
-                conn.execute(sa.text(f"SELECT pg_advisory_unlock({_MIGRATION_ADVISORY_LOCK_ID})"))
-    finally:
-        engine.dispose()
 
 
 def _check_version_row(version_num_str: str, version_str: str) -> None:
@@ -638,6 +526,9 @@ class DatabaseService(Service):
         with _postgres_migration_lock(self.database_url), buffer_context as buffer:
             alembic_cfg = Config(stdout=buffer)
             # alembic_cfg.attributes["connection"] = session
+            alembic_cfg.attributes["ketos_migration_lock_held"] = self.database_url.startswith(
+                ("postgresql", "postgres")
+            )
             alembic_cfg.set_main_option("script_location", str(self.script_location))
             alembic_cfg.set_main_option("sqlalchemy.url", self.database_url.replace("%", "%%"))
 

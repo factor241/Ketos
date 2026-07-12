@@ -10,7 +10,7 @@ Paths that have moved or been deleted surface as
 
 State file shape (kebab-case path under the ketos user-cache dir)::
 
-    <user_cache_dir>/extensions/dev_extensions.json
+    <ketos_cache_dir>/extensions/dev_extensions.json
 
 ::
 
@@ -79,7 +79,7 @@ def _default_state_dir() -> Path:
     Resolution order:
         1. ``KETOS_DEV_EXTENSIONS_DIR`` (test seam + override).
         2. ``KETOS_CONFIG_DIR/extensions`` if ``KETOS_CONFIG_DIR`` is set.
-        3. ``platformdirs.user_cache_dir("ketos", "ketos")/extensions``.
+        3. Canonical ``KETOS_CACHE_DIR/extensions``.
 
     Created lazily on first write.
     """
@@ -91,9 +91,9 @@ def _default_state_dir() -> Path:
     if config_dir:
         return Path(config_dir) / "extensions"
 
-    from platformdirs import user_cache_dir
+    from kfx.config.paths import ketos_cache_dir
 
-    return Path(user_cache_dir("ketos", "ketos")) / "extensions"
+    return ketos_cache_dir() / "extensions"
 
 
 def state_file_path(state_dir: Path | None = None) -> Path:

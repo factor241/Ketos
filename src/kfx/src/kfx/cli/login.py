@@ -167,7 +167,7 @@ def login_command(
             err_console.print()
             err_console.print("[bold]How to fix:[/bold]")
             err_console.print("  • Make sure your Ketos instance is running")
-            err_console.print("  • Check the URL in your .kfx/environments.yaml")
+            err_console.print("  • Check the URL in your canonical Ketos environments file")
             err_console.print("  • If running locally: [bold]ketos run[/bold] or [bold]kfx serve <flow.json>[/bold]")
             raise typer.Exit(1)
 
@@ -207,7 +207,7 @@ def login_command(
 
     if env_cfg.name in ("__inline__", "__env__") and env_cfg.api_key:
         console.print()
-        console.print("[dim]Tip: to avoid passing credentials each time, add to .kfx/environments.yaml:[/dim]")
+        console.print("[dim]Tip: configure the canonical Ketos environments file to avoid repeated flags:[/dim]")
         env_display = env or "myenv"
         console.print("[dim]  environments:[/dim]")
         console.print(f"[dim]    {env_display}:[/dim]")

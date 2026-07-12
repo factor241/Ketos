@@ -1,19 +1,18 @@
 import base64
 import contextlib
 import hashlib
-import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from fastapi import UploadFile
-from platformdirs import user_cache_dir
+from kfx.config.paths import ketos_cache_dir
 
 if TYPE_CHECKING:
     from ketos.api.v1.schemas import BuildStatus
 
 CACHE: dict[str, Any] = {}
 
-CACHE_DIR = user_cache_dir("ketos", "ketos")
+CACHE_DIR = str(ketos_cache_dir())
 
 PREFIX = "ketos_cache"
 
@@ -33,7 +32,7 @@ def create_cache_folder(func):
 
 @create_cache_folder
 def clear_old_cache_files(max_cache_size: int = 3) -> None:
-    cache_dir = Path(tempfile.gettempdir()) / PREFIX
+    cache_dir = Path(CACHE_DIR) / PREFIX
     cache_files = list(cache_dir.glob("*.dill"))
 
     if len(cache_files) > max_cache_size:

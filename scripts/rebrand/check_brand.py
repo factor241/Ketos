@@ -542,6 +542,14 @@ def is_official_url(value: str) -> bool:
     return bool(_OFFICIAL_URL_RE.search(value))
 
 
+def _is_scanner_internal(relative: str) -> bool:
+    """Return whether a tracked path is scanner data that must not scan itself."""
+    return relative in {
+        "brand/legacy-langflow-contract.yaml",
+        "scripts/rebrand/check_brand.py",
+    } or relative.startswith("scripts/rebrand/tests/")
+
+
 def inventory_repository(repo: Path | str) -> dict[str, Any]:
     """Return deterministic tracked-file occurrences and their baseline counts."""
     root = Path(repo).resolve()
@@ -557,6 +565,8 @@ def inventory_repository(repo: Path | str) -> dict[str, Any]:
     brand_path_count = 0
 
     for relative, content in _tracked_blobs(root):
+        if _is_scanner_internal(relative):
+            continue
         if _BRAND_RE.search(relative):
             brand_path_count += 1
         lines = _text_lines(content)

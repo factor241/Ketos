@@ -33,5 +33,5 @@ jobs:
       - name: Test brand contracts and scanner
         run: uv run pytest scripts/rebrand/tests -q
 
-      - name: Reject new or reclassified Langflow residue
+      - name: Reject new or reclassified legacy-brand residue
         run: uv run python scripts/rebrand/check_brand.py --profile stage0

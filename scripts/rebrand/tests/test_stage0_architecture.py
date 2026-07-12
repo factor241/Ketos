@@ -206,3 +206,20 @@ def test_cli_supports_freeze_and_all_profiles(git_repo: Path, tmp_path: Path) ->
             capture_output=True,
         )
         assert help_run.returncode == 0
+
+
+def test_scanner_contract_and_fixture_internals_are_hard_excluded(git_repo: Path) -> None:
+    commit_files(
+        git_repo,
+        {
+            "brand/legacy-langflow-contract.yaml": "LANGFLOW_API_KEY\n",
+            "scripts/rebrand/check_brand.py": "pattern = 'langflow'\n",
+            "scripts/rebrand/tests/test_fixture.py": "legacy = 'Langflow'\n",
+            "src/app.py": "PRODUCT = 'Ketos'\n",
+        },
+    )
+
+    inventory = load_scanner().inventory_repository(git_repo)
+
+    assert inventory["occurrences"] == []
+    assert inventory["baseline"]["brand_line_count"] == 0

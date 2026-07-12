@@ -2,7 +2,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from lfx.components.git import GitLoaderComponent
+from kfx.components.git import GitLoaderComponent
 
 
 @pytest.fixture

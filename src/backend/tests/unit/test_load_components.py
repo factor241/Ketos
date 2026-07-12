@@ -2,8 +2,8 @@
 import asyncio
 
 import pytest
-from lfx.constants import BASE_COMPONENTS_PATH
-from lfx.interface.components import aget_all_types_dict, import_langflow_components
+from kfx.constants import BASE_COMPONENTS_PATH
+from kfx.interface.components import aget_all_types_dict, import_ketos_components
 
 
 class TestComponentLoading:
@@ -16,9 +16,9 @@ class TestComponentLoading:
 
     @pytest.mark.no_blockbuster
     @pytest.mark.asyncio
-    async def test_import_langflow_components_basic(self):
-        """Test basic functionality of import_langflow_components."""
-        result = await import_langflow_components()
+    async def test_import_ketos_components_basic(self):
+        """Test basic functionality of import_ketos_components."""
+        result = await import_ketos_components()
 
         assert isinstance(result, dict), "Result should be a dictionary"
         assert "components" in result, "Result should have 'components' key"
@@ -39,9 +39,9 @@ class TestComponentLoading:
     @pytest.mark.asyncio
     async def test_component_template_structure(self):
         """Test that component templates have expected structure."""
-        langflow_result = await import_langflow_components()
+        ketos_result = await import_ketos_components()
 
-        for category, components in langflow_result["components"].items():
+        for category, components in ketos_result["components"].items():
             assert isinstance(components, dict), f"Category {category} should contain dict of components"
 
             for comp_name, comp_template in components.items():
@@ -60,28 +60,28 @@ class TestComponentLoading:
     async def test_concurrent_loading(self, base_components_path):
         """Test concurrent execution of both loading methods."""
         tasks = [
-            import_langflow_components(),
+            import_ketos_components(),
             aget_all_types_dict(base_components_path),
-            import_langflow_components(),
+            import_ketos_components(),
         ]
 
         results = await asyncio.gather(*tasks)
 
-        langflow_result1, all_types_result, langflow_result2 = results
+        ketos_result1, all_types_result, ketos_result2 = results
 
-        assert isinstance(langflow_result1, dict)
-        assert isinstance(langflow_result2, dict)
+        assert isinstance(ketos_result1, dict)
+        assert isinstance(ketos_result2, dict)
         assert isinstance(all_types_result, dict)
 
-        assert "components" in langflow_result1
-        assert "components" in langflow_result2
+        assert "components" in ketos_result1
+        assert "components" in ketos_result2
 
-        categories1 = set(langflow_result1["components"].keys())
-        categories2 = set(langflow_result2["components"].keys())
+        categories1 = set(ketos_result1["components"].keys())
+        categories2 = set(ketos_result2["components"].keys())
 
         for category in categories1.intersection(categories2):
-            comps1 = set(langflow_result1["components"][category].keys())
-            comps2 = set(langflow_result2["components"][category].keys())
+            comps1 = set(ketos_result1["components"][category].keys())
+            comps2 = set(ketos_result2["components"][category].keys())
             if comps1 != comps2:
                 missing_in_2 = comps1 - comps2
                 missing_in_1 = comps2 - comps1
@@ -105,14 +105,14 @@ class TestComponentLoading:
             await aget_all_types_dict([""])
         assert "path" in str(exc_info.value).lower(), f"Path-related error expected, got: {exc_info.value}"
 
-        result = await import_langflow_components()
+        result = await import_ketos_components()
         assert isinstance(result, dict)
         assert "components" in result
 
     @pytest.mark.benchmark
     async def test_component_loading_performance(self):
         """Test the performance of component loading."""
-        await import_langflow_components()
+        await import_ketos_components()
 
     @pytest.mark.no_blockbuster
     @pytest.mark.asyncio
@@ -120,11 +120,11 @@ class TestComponentLoading:
         """Test that _process_single_module catches all exceptions during module import and component building.
 
         This ensures that if a component fails to import or build (e.g., due to network errors,
-        missing dependencies, or initialization failures), it doesn't crash Langflow startup.
+        missing dependencies, or initialization failures), it doesn't crash Ketos startup.
         """
         from unittest.mock import patch
 
-        from lfx.interface.components import _process_single_module
+        from kfx.interface.components import _process_single_module
 
         exception_cases = [
             (ImportError("Missing dependency: some_package"), "ImportError"),
@@ -138,11 +138,11 @@ class TestComponentLoading:
 
         for exception, name in exception_cases:
             with patch("importlib.import_module", side_effect=exception):
-                result = _process_single_module("lfx.components.test_module")
+                result = _process_single_module("kfx.components.test_module")
                 assert result is None, f"Should return None when {name} occurs"
 
         from urllib3.exceptions import MaxRetryError
 
         with patch("importlib.import_module", side_effect=MaxRetryError(None, "", reason="Connection timeout")):
-            result = _process_single_module("lfx.components.test_module")
+            result = _process_single_module("kfx.components.test_module")
             assert result is None, "Should return None when MaxRetryError occurs"

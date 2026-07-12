@@ -1,10 +1,10 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from lfx.components.llm_operations.lambda_filter import LambdaFilterComponent
-from lfx.schema import Data
-from lfx.schema.dataframe import DataFrame
-from lfx.schema.message import Message
+from kfx.components.llm_operations.lambda_filter import LambdaFilterComponent
+from kfx.schema import Data
+from kfx.schema.dataframe import DataFrame
+from kfx.schema.message import Message
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -563,7 +563,7 @@ class TestConvertResultToMessage(TestLambdaFilterComponent):
 class TestProcessAsDataIntegration(TestLambdaFilterComponent):
     """Integration tests for process_as_data method."""
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     async def test_should_return_filtered_data_when_lambda_is_valid(
         self, mock_get_model_class, component_class, default_kwargs, mock_llm
     ):
@@ -584,7 +584,7 @@ class TestProcessAsDataIntegration(TestLambdaFilterComponent):
         assert filtered_items[0]["name"] == "test2"
         assert filtered_items[0]["value"] == 20
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     async def test_should_raise_error_when_lambda_not_found_in_response(
         self, mock_get_model_class, component_class, default_kwargs, mock_llm
     ):
@@ -614,7 +614,7 @@ class TestProcessAsMessageIntegration(TestLambdaFilterComponent):
             "max_size": 30000,
         }
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     async def test_should_transform_message_when_input_is_message(
         self, mock_get_model_class, component_class, message_kwargs, mock_llm
     ):
@@ -631,7 +631,7 @@ class TestProcessAsMessageIntegration(TestLambdaFilterComponent):
         assert isinstance(result, Message)
         assert result.text == "HELLO WORLD"
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     async def test_should_join_multiple_messages_when_input_is_list_of_messages(
         self, mock_get_model_class, component_class, model_metadata, mock_llm
     ):
@@ -660,7 +660,7 @@ class TestProcessAsMessageIntegration(TestLambdaFilterComponent):
 class TestProcessAsDataframeIntegration(TestLambdaFilterComponent):
     """Integration tests for process_as_dataframe method."""
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     async def test_should_return_dataframe_when_lambda_returns_list_of_dicts(
         self, mock_get_model_class, component_class, default_kwargs, mock_llm
     ):
@@ -680,7 +680,7 @@ class TestProcessAsDataframeIntegration(TestLambdaFilterComponent):
 class TestLargeDataset(TestLambdaFilterComponent):
     """Tests for handling large datasets."""
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     async def test_should_filter_large_dataset_when_data_exceeds_max_size(
         self, mock_get_model_class, component_class, default_kwargs, mock_llm
     ):
@@ -707,7 +707,7 @@ class TestLargeDataset(TestLambdaFilterComponent):
 class TestComplexDataStructure(TestLambdaFilterComponent):
     """Tests for handling complex nested data structures."""
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     async def test_should_handle_nested_data_when_structure_is_complex(
         self, mock_get_model_class, component_class, default_kwargs, mock_llm
     ):

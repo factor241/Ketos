@@ -1,8 +1,8 @@
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
-from lfx.components.flow_controls.conditional_router import ConditionalRouterComponent
-from lfx.schema.message import Message
+from kfx.components.flow_controls.conditional_router import ConditionalRouterComponent
+from kfx.schema.message import Message
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -349,7 +349,7 @@ class TestConditionalRouterComponent(ComponentTestBaseWithoutClient):
 
     async def test_false_response_preserves_override_with_content_blocks(self, component_class, default_kwargs):
         """An override Message with empty text but content blocks must be preserved, not dropped."""
-        from lfx.schema.content_block import ContentBlock
+        from kfx.schema.content_block import ContentBlock
 
         component = await self.component_setup(component_class, default_kwargs)
         component.input_text = "passthrough text"

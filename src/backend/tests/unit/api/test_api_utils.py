@@ -1,10 +1,10 @@
 from unittest.mock import patch
 
 import pytest
-from langflow.api.utils import get_suggestion_message, remove_api_keys
-from langflow.api.utils.core import build_content_disposition
-from langflow.services.database.models.flow.utils import get_outdated_components
-from langflow.utils.version import get_version_info
+from ketos.api.utils import get_suggestion_message, remove_api_keys
+from ketos.api.utils.core import build_content_disposition
+from ketos.services.database.models.flow.utils import get_outdated_components
+from ketos.utils.version import get_version_info
 
 
 def test_get_suggestion_message():
@@ -39,7 +39,7 @@ def test_get_outdated_components():
     expected_outdated_components = ["component3"]
 
     with patch(
-        "langflow.services.database.models.flow.utils.get_components_versions", return_value=mock_component_versions
+        "ketos.services.database.models.flow.utils.get_components_versions", return_value=mock_component_versions
     ):
         # Call the function with the mock flow
         result = get_outdated_components(flow)

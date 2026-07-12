@@ -5,8 +5,8 @@ import traceback
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from langflow.services.telemetry.schema import ExceptionPayload
-from langflow.services.telemetry.service import TelemetryService
+from ketos.services.telemetry.schema import ExceptionPayload
+from ketos.services.telemetry.service import TelemetryService
 
 
 class TestExceptionTelemetry:
@@ -81,7 +81,7 @@ class TestExceptionTelemetry:
         telemetry_service.do_not_track = False
         telemetry_service.client_type = "oss"
         telemetry_service.common_telemetry_fields = {
-            "langflow_version": "1.0.0",
+            "ketos_version": "1.0.0",
             "platform": "python_package",
             "os": "linux",
         }
@@ -117,7 +117,7 @@ class TestExceptionTelemetry:
         assert params["exceptionContext"] == "handler"
         assert params["stackTraceHash"] == "abc123"
         assert params["clientType"] == "oss"
-        assert params["langflow_version"] == "1.0.0"
+        assert params["ketos_version"] == "1.0.0"
         assert params["platform"] == "python_package"
         assert params["os"] == "linux"
         assert "timestamp" in params
@@ -131,7 +131,7 @@ class TestExceptionTelemetry:
         telemetry_service.do_not_track = True
         telemetry_service.client_type = "oss"
         telemetry_service.common_telemetry_fields = {
-            "langflow_version": "1.0.0",
+            "ketos_version": "1.0.0",
             "platform": "python_package",
             "os": "linux",
         }
@@ -186,7 +186,7 @@ class TestExceptionTelemetry:
         telemetry_service.do_not_track = False
         telemetry_service.client_type = "oss"
         telemetry_service.common_telemetry_fields = {
-            "langflow_version": "1.0.0",
+            "ketos_version": "1.0.0",
             "platform": "python_package",
             "os": "linux",
         }
@@ -221,7 +221,7 @@ class TestExceptionTelemetry:
         telemetry_service.do_not_track = False
         telemetry_service.client_type = "oss"
         telemetry_service.common_telemetry_fields = {
-            "langflow_version": "1.0.0",
+            "ketos_version": "1.0.0",
             "platform": "python_package",
             "os": "linux",
         }
@@ -258,7 +258,7 @@ class TestExceptionTelemetry:
         telemetry_service.do_not_track = False
         telemetry_service.client_type = "oss"
         telemetry_service.common_telemetry_fields = {
-            "langflow_version": "1.0.0",
+            "ketos_version": "1.0.0",
             "platform": "python_package",
             "os": "linux",
         }
@@ -295,7 +295,7 @@ class TestExceptionTelemetry:
         telemetry_service.do_not_track = False
         telemetry_service.client_type = "oss"
         telemetry_service.common_telemetry_fields = {
-            "langflow_version": "1.0.0",
+            "ketos_version": "1.0.0",
             "platform": "python_package",
             "os": "linux",
         }

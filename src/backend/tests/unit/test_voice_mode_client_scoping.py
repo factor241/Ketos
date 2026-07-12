@@ -5,7 +5,7 @@ singleton), and the voice/TTS config caches must be keyed by the authenticated
 user, not just the client-supplied session_id.
 """
 
-import langflow.api.v1.voice_mode as vm
+import ketos.api.v1.voice_mode as vm
 import pytest
 
 

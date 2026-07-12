@@ -11,7 +11,7 @@ Regression for GHSA-rcjh-r59h-gq37 (defense in depth at the S3 backend).
 from unittest.mock import Mock
 
 import pytest
-from langflow.services.storage.s3 import S3StorageService
+from ketos.services.storage.s3 import S3StorageService
 
 
 @pytest.fixture
@@ -19,7 +19,7 @@ def mock_settings_service(tmp_path):
     """Settings configured for S3 with a stable bucket / prefix."""
     settings_service = Mock()
     settings_service.settings.config_dir = str(tmp_path)
-    settings_service.settings.object_storage_bucket_name = "langflow-unit-test-bucket"
+    settings_service.settings.object_storage_bucket_name = "ketos-unit-test-bucket"
     settings_service.settings.object_storage_prefix = "test-prefix"
     settings_service.settings.object_storage_tags = {}
     return settings_service

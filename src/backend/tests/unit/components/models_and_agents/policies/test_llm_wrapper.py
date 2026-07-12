@@ -5,15 +5,15 @@ import pytest
 try:
     import toolguard  # noqa: F401
 except ImportError:
-    # toolguard is an optional extra (langflow-base[toolguard]); skip if not
+    # toolguard is an optional extra (ketos-base[toolguard]); skip if not
     # installed. Gated off Python 3.14 because it depends on litellm, which has
-    # no 3.14-compatible release (see langflow-base pyproject). The component
+    # no 3.14-compatible release (see ketos-base pyproject). The component
     # imported below pulls in toolguard at module load.
     pytest.skip("toolguard not available", allow_module_level=True)
 
 from langchain_core.messages import AIMessage
 from langchain_core.outputs import ChatGeneration, LLMResult
-from lfx.components.models_and_agents.policies.llm_wrapper import LangchainModelWrapper
+from kfx.components.models_and_agents.policies.llm_wrapper import LangchainModelWrapper
 
 
 @pytest.fixture

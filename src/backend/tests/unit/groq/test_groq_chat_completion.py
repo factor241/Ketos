@@ -4,7 +4,7 @@ import sys
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from lfx.base.models.groq_model_discovery import GroqModelDiscovery
+from kfx.base.models.groq_model_discovery import GroqModelDiscovery
 
 
 class TestChatCompletionDetection:
@@ -60,7 +60,7 @@ class TestChatCompletionDetection:
             with pytest.raises(ImportError):
                 discovery._test_chat_completion("test-model")
 
-    @patch("lfx.base.models.groq_model_discovery.requests.get")
+    @patch("kfx.base.models.groq_model_discovery.requests.get")
     @patch("groq.Groq")
     def test_chat_failure_marks_model_not_supported(
         self,
@@ -113,7 +113,7 @@ class TestChatCompletionDetection:
         assert models["speech-model-v1"]["not_supported"] is True
         assert "tool_calling" not in models["speech-model-v1"]
 
-    @patch("lfx.base.models.groq_model_discovery.requests.get")
+    @patch("kfx.base.models.groq_model_discovery.requests.get")
     @patch("groq.Groq")
     def test_transient_chat_error_does_not_exclude_model(
         self,

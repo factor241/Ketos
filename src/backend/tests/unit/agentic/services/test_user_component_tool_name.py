@@ -11,7 +11,7 @@ path (``load_registry_with_user_overlay`` →
 ``build_custom_component_template``) and asserts the final tool name is
 derived from the class name, NOT the generic method. The unit-level
 behavior of the rename rule is covered in
-``src/lfx/tests/unit/custom/component/test_tool_name_fallback.py``;
+``src/kfx/tests/unit/custom/component/test_tool_name_fallback.py``;
 this file is the integration glue.
 """
 
@@ -21,10 +21,10 @@ import secrets
 from typing import TYPE_CHECKING
 
 import pytest
-from langflow.agentic.services.user_components import register_user_component
-from langflow.agentic.services.user_components_overlay import load_registry_with_user_overlay
-from lfx.custom.custom_component.component import Component
-from lfx.custom.utils import build_custom_component_template
+from ketos.agentic.services.user_components import register_user_component
+from ketos.agentic.services.user_components_overlay import load_registry_with_user_overlay
+from kfx.custom.custom_component.component import Component
+from kfx.custom.utils import build_custom_component_template
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -42,7 +42,7 @@ def isolated_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     FileSystemTool's auto-login path, which is not relevant here — and
     pulling it into a conftest would couple unrelated test files.
     """
-    monkeypatch.setenv("LANGFLOW_FS_TOOL_BASE_DIR", str(tmp_path))
+    monkeypatch.setenv("KETOS_FS_TOOL_BASE_DIR", str(tmp_path))
     (tmp_path / ".fs_pepper").write_bytes(secrets.token_bytes(32))
     return tmp_path
 
@@ -51,9 +51,9 @@ def isolated_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 # method name. The class name is the only meaningful identifier.
 _RANDOM_MENU_ITEM_CODE = (
     "import random\n"
-    "from lfx.custom import Component\n"
-    "from lfx.io import Output\n"
-    "from lfx.schema import Message\n"
+    "from kfx.custom import Component\n"
+    "from kfx.io import Output\n"
+    "from kfx.schema import Message\n"
     "\n"
     "class RandomMenuItem(Component):\n"
     "    display_name = 'RandomMenuItem'\n"

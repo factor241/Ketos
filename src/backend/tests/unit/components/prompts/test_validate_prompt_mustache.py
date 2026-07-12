@@ -9,7 +9,7 @@ accepted during save but causing "Complex mustache syntax is not allowed" errors
 """
 
 import pytest
-from lfx.base.prompts.api_utils import validate_prompt
+from kfx.base.prompts.api_utils import validate_prompt
 
 
 class TestValidatePromptMustache:

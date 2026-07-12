@@ -3,9 +3,9 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pytest
-from langflow.services.telemetry.opentelemetry import OpenTelemetry
-from langflow.services.telemetry.schema import DeploymentPayload
-from langflow.services.telemetry.service import TelemetryService
+from ketos.services.telemetry.opentelemetry import OpenTelemetry
+from ketos.services.telemetry.schema import DeploymentPayload
+from ketos.services.telemetry.service import TelemetryService
 
 
 @pytest.fixture

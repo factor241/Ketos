@@ -8,14 +8,14 @@ from uuid import UUID, uuid4
 import orjson
 import pytest
 from httpx import AsyncClient
-from langflow.api.v1.schemas import FlowListCreate, ResultDataResponse
-from langflow.initial_setup.setup import load_starter_projects
-from langflow.services.database.models.base import orjson_dumps
-from langflow.services.database.models.flow import Flow, FlowCreate, FlowUpdate
-from langflow.services.database.models.folder.model import FolderCreate
-from langflow.services.database.utils import session_getter
-from langflow.services.deps import get_db_service
-from lfx.graph.utils import log_transaction, log_vertex_build
+from ketos.api.v1.schemas import FlowListCreate, ResultDataResponse
+from ketos.initial_setup.setup import load_starter_projects
+from ketos.services.database.models.base import orjson_dumps
+from ketos.services.database.models.flow import Flow, FlowCreate, FlowUpdate
+from ketos.services.database.models.folder.model import FolderCreate
+from ketos.services.database.utils import session_getter
+from ketos.services.deps import get_db_service
+from kfx.graph.utils import log_transaction, log_vertex_build
 
 
 @pytest.fixture(scope="module")
@@ -859,7 +859,7 @@ async def test_upload_zip_with_invalid_json(client: AsyncClient, json_flow: str,
 @pytest.mark.usefixtures("session")
 async def test_upload_zip_exceeding_max_entries(client: AsyncClient, json_flow: str, logged_in_headers, monkeypatch):
     """ZIP with more JSON entries than the limit raises 400."""
-    import langflow.api.utils.zip_utils as zip_utils_mod
+    import ketos.api.utils.zip_utils as zip_utils_mod
 
     monkeypatch.setattr(zip_utils_mod, "MAX_ZIP_ENTRIES", 3)
 
@@ -884,7 +884,7 @@ async def test_upload_zip_exceeding_max_entries(client: AsyncClient, json_flow: 
 @pytest.mark.usefixtures("session")
 async def test_upload_zip_with_oversized_entry(client: AsyncClient, json_flow: str, logged_in_headers, monkeypatch):
     """Entries exceeding size limit are skipped; smaller valid entries are processed."""
-    import langflow.api.utils.zip_utils as zip_utils_mod
+    import ketos.api.utils.zip_utils as zip_utils_mod
 
     flow = orjson.loads(json_flow)
     data = flow["data"]
@@ -918,7 +918,7 @@ async def test_upload_zip_with_oversized_entry(client: AsyncClient, json_flow: s
 @pytest.mark.usefixtures("session")
 async def test_upload_zip_with_mixed_valid_invalid(client: AsyncClient, json_flow: str, logged_in_headers, monkeypatch):
     """Mix of valid flows, invalid JSON, and oversized entries → only valid flows returned."""
-    import langflow.api.utils.zip_utils as zip_utils_mod
+    import ketos.api.utils.zip_utils as zip_utils_mod
 
     flow = orjson.loads(json_flow)
     data = flow["data"]
@@ -1431,7 +1431,7 @@ async def test_read_folder_with_component_filter(client: AsyncClient, json_flow:
 
 def test_transaction_excludes_code_key(session):
     """Test that the code key is excluded from transaction inputs when logged to the database."""
-    from langflow.services.database.models.transactions.model import TransactionTable
+    from ketos.services.database.models.transactions.model import TransactionTable
 
     # Create a flow to associate with the transaction
     flow = Flow(name=str(uuid4()), description="Test flow", data={})

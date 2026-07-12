@@ -6,7 +6,7 @@ Tests the event formatting functions used for streaming responses.
 import json
 
 import pytest
-from langflow.agentic.helpers.sse import (
+from ketos.agentic.helpers.sse import (
     format_complete_event,
     format_error_event,
     format_flow_update_event,
@@ -374,7 +374,7 @@ class TestBugsAndEdgeCases:
 
     def test_format_cancelled_event_structure(self):
         """format_cancelled_event should return well-formed SSE event."""
-        from langflow.agentic.helpers.sse import format_cancelled_event
+        from ketos.agentic.helpers.sse import format_cancelled_event
 
         result = format_cancelled_event()
         assert result.startswith("data: ")

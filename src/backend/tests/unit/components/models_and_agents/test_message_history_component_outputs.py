@@ -1,4 +1,4 @@
-from lfx.components.models_and_agents.memory import MemoryComponent
+from kfx.components.models_and_agents.memory import MemoryComponent
 
 
 def test_message_history_update_outputs_sets_types_and_selected_for_retrieve_mode():

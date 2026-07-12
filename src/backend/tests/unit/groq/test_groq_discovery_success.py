@@ -2,7 +2,7 @@
 
 from unittest.mock import Mock, patch
 
-from lfx.base.models.groq_model_discovery import GroqModelDiscovery
+from kfx.base.models.groq_model_discovery import GroqModelDiscovery
 
 
 class TestGroqModelDiscoverySuccess:
@@ -26,7 +26,7 @@ class TestGroqModelDiscoverySuccess:
         discovery = GroqModelDiscovery(api_key=mock_api_key, base_url=custom_url)
         assert discovery.base_url == custom_url
 
-    @patch("lfx.base.models.groq_model_discovery.requests.get")
+    @patch("kfx.base.models.groq_model_discovery.requests.get")
     @patch("groq.Groq")
     def test_fetch_available_models_success(
         self, mock_groq, mock_get, mock_api_key, mock_groq_models_response, mock_groq_client_tool_calling_success
@@ -51,7 +51,7 @@ class TestGroqModelDiscoverySuccess:
         assert "whisper-large-v3" in models
         mock_get.assert_called_once()
 
-    @patch("lfx.base.models.groq_model_discovery.requests.get")
+    @patch("kfx.base.models.groq_model_discovery.requests.get")
     @patch("groq.Groq")
     def test_get_models_categorizes_llm_and_non_llm(
         self,
@@ -141,7 +141,7 @@ class TestGroqModelDiscoverySuccess:
 
         assert loaded is None
 
-    @patch("lfx.base.models.groq_model_discovery.requests.get")
+    @patch("kfx.base.models.groq_model_discovery.requests.get")
     @patch("groq.Groq")
     def test_get_models_uses_cache_when_available(self, mock_groq, mock_get, mock_api_key, mock_cache_file):
         """Test that get_models uses cache when available and not expired."""
@@ -157,7 +157,7 @@ class TestGroqModelDiscoverySuccess:
         assert "llama-3.1-8b-instant" in models
         assert "llama-3.3-70b-versatile" in models
 
-    @patch("lfx.base.models.groq_model_discovery.requests.get")
+    @patch("kfx.base.models.groq_model_discovery.requests.get")
     @patch("groq.Groq")
     def test_force_refresh_bypasses_cache(
         self,

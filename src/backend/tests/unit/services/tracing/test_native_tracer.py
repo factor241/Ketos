@@ -9,9 +9,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
-from langflow.services.database.models.traces.model import SpanStatus, SpanType
-from langflow.services.tracing.native import NativeTracer
-from langflow.services.tracing.span_sorting import resolve_span_uuids, topological_sort_spans
+from ketos.services.database.models.traces.model import SpanStatus, SpanType
+from ketos.services.tracing.native import NativeTracer
+from ketos.services.tracing.span_sorting import resolve_span_uuids, topological_sort_spans
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -43,25 +43,25 @@ def _make_tracer(
 class TestIsEnabled:
     def test_enabled_by_default(self):
         with patch.dict(os.environ, {}, clear=False):
-            os.environ.pop("LANGFLOW_NATIVE_TRACING", None)
+            os.environ.pop("KETOS_NATIVE_TRACING", None)
             assert NativeTracer._is_enabled() is True
 
     @pytest.mark.parametrize("value", ["false", "False", "FALSE", "0", "no"])
     def test_disabled_by_env_var(self, value):
-        with patch.dict(os.environ, {"LANGFLOW_NATIVE_TRACING": value}):
+        with patch.dict(os.environ, {"KETOS_NATIVE_TRACING": value}):
             assert NativeTracer._is_enabled() is False
 
     @pytest.mark.parametrize("value", ["true", "True", "1", "yes"])
     def test_enabled_by_env_var(self, value):
-        with patch.dict(os.environ, {"LANGFLOW_NATIVE_TRACING": value}):
+        with patch.dict(os.environ, {"KETOS_NATIVE_TRACING": value}):
             assert NativeTracer._is_enabled() is True
 
     def test_ready_property_reflects_is_enabled(self):
-        with patch.dict(os.environ, {"LANGFLOW_NATIVE_TRACING": "false"}):
+        with patch.dict(os.environ, {"KETOS_NATIVE_TRACING": "false"}):
             tracer = _make_tracer()
             assert tracer.ready is False
 
-        with patch.dict(os.environ, {"LANGFLOW_NATIVE_TRACING": "true"}):
+        with patch.dict(os.environ, {"KETOS_NATIVE_TRACING": "true"}):
             tracer = _make_tracer()
             assert tracer.ready is True
 
@@ -137,7 +137,7 @@ class TestAddEndTrace:
         assert tracer._current_component_id == "comp-1"
 
     def test_add_trace_noop_when_not_ready(self):
-        with patch.dict(os.environ, {"LANGFLOW_NATIVE_TRACING": "false"}):
+        with patch.dict(os.environ, {"KETOS_NATIVE_TRACING": "false"}):
             tracer = _make_tracer()
         tracer.add_trace("comp-1", "Comp", "chain", {})
         assert "comp-1" not in tracer.spans
@@ -182,7 +182,7 @@ class TestAddEndTrace:
         assert len(tracer.completed_spans) == 0
 
     def test_end_trace_noop_when_not_ready(self):
-        with patch.dict(os.environ, {"LANGFLOW_NATIVE_TRACING": "false"}):
+        with patch.dict(os.environ, {"KETOS_NATIVE_TRACING": "false"}):
             tracer = _make_tracer()
         tracer.end_trace("comp-1", "Comp")
         assert len(tracer.completed_spans) == 0
@@ -265,7 +265,7 @@ class TestEnd:
 
     @pytest.mark.asyncio
     async def test_end_noop_when_not_ready(self):
-        with patch.dict(os.environ, {"LANGFLOW_NATIVE_TRACING": "false"}):
+        with patch.dict(os.environ, {"KETOS_NATIVE_TRACING": "false"}):
             tracer = _make_tracer()
         tracer.end(inputs={}, outputs={})
         assert tracer._flush_task is None
@@ -275,7 +275,7 @@ class TestEnd:
         tracer.add_trace("comp-1", "Comp (comp-1)", "chain", {})
         tracer.end_trace("comp-1", "Comp")
 
-        with patch("langflow.services.tracing.native.logger") as mock_logger:
+        with patch("ketos.services.tracing.native.logger") as mock_logger:
             with patch("asyncio.get_running_loop", side_effect=RuntimeError("no loop")):
                 tracer.end(inputs={}, outputs={})
             mock_logger.error.assert_called_once()
@@ -336,8 +336,8 @@ class TestFlushToDatabase:
         mock_session.__aexit__ = AsyncMock(return_value=False)
 
         with (
-            patch("langflow.services.tracing.native.logger") as mock_logger,
-            patch("lfx.services.deps.session_scope", return_value=mock_session),
+            patch("ketos.services.tracing.native.logger") as mock_logger,
+            patch("kfx.services.deps.session_scope", return_value=mock_session),
         ):
             await tracer._flush_to_database()
 
@@ -356,7 +356,7 @@ class TestFlushToDatabase:
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("lfx.services.deps.session_scope", return_value=mock_session):
+        with patch("kfx.services.deps.session_scope", return_value=mock_session):
             await tracer._flush_to_database()
 
         # merge should be called at least twice: once for trace, once for span
@@ -387,7 +387,7 @@ class TestFlushToDatabase:
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("lfx.services.deps.session_scope", return_value=mock_session):
+        with patch("kfx.services.deps.session_scope", return_value=mock_session):
             # Should not raise even with non-UUID span id
             await tracer._flush_to_database()
 
@@ -411,11 +411,11 @@ class TestFlushToDatabase:
 
         mock_session.merge = capture_merge
 
-        with patch("lfx.services.deps.session_scope", return_value=mock_session):
+        with patch("kfx.services.deps.session_scope", return_value=mock_session):
             await tracer._flush_to_database()
 
         # First merged object is the TraceTable
-        from langflow.services.database.models.traces.model import TraceTable
+        from ketos.services.database.models.traces.model import TraceTable
 
         trace_obj = next((o for o in captured_traces if isinstance(o, TraceTable)), None)
         assert trace_obj is not None
@@ -466,10 +466,10 @@ class TestFlushToDatabase:
 
         mock_session.merge = capture_merge
 
-        with patch("lfx.services.deps.session_scope", return_value=mock_session):
+        with patch("kfx.services.deps.session_scope", return_value=mock_session):
             await tracer._flush_to_database()
 
-        from langflow.services.database.models.traces.model import TraceTable
+        from ketos.services.database.models.traces.model import TraceTable
 
         trace_obj = next((o for o in captured_traces if isinstance(o, TraceTable)), None)
         assert trace_obj is not None
@@ -496,7 +496,7 @@ class TestLangchainSpans:
         assert tracer.langchain_spans[span_id]["model_name"] == "gpt-4"
 
     def test_add_langchain_span_noop_when_not_ready(self):
-        with patch.dict(os.environ, {"LANGFLOW_NATIVE_TRACING": "false"}):
+        with patch.dict(os.environ, {"KETOS_NATIVE_TRACING": "false"}):
             tracer = _make_tracer()
         span_id = uuid4()
         tracer.add_langchain_span(span_id, "LLM", "llm", {})
@@ -552,7 +552,7 @@ class TestLangchainSpans:
         assert len(tracer.completed_spans) == 0
 
     def test_end_langchain_span_noop_when_not_ready(self):
-        with patch.dict(os.environ, {"LANGFLOW_NATIVE_TRACING": "false"}):
+        with patch.dict(os.environ, {"KETOS_NATIVE_TRACING": "false"}):
             tracer = _make_tracer()
         tracer.end_langchain_span(uuid4())
         assert len(tracer.completed_spans) == 0
@@ -574,7 +574,7 @@ class TestLangchainSpans:
 
 class TestGetLangchainCallback:
     def test_returns_none_when_not_ready(self):
-        with patch.dict(os.environ, {"LANGFLOW_NATIVE_TRACING": "false"}):
+        with patch.dict(os.environ, {"KETOS_NATIVE_TRACING": "false"}):
             tracer = _make_tracer()
         assert tracer.get_langchain_callback() is None
 
@@ -582,12 +582,12 @@ class TestGetLangchainCallback:
         tracer = _make_tracer()
         callback = tracer.get_langchain_callback()
         assert callback is not None
-        from langflow.services.tracing.native_callback import NativeCallbackHandler
+        from ketos.services.tracing.native_callback import NativeCallbackHandler
 
         assert isinstance(callback, NativeCallbackHandler)
 
     def test_callback_has_parent_span_id_when_component_active(self):
-        from langflow.services.tracing.native_callback import NativeCallbackHandler
+        from ketos.services.tracing.native_callback import NativeCallbackHandler
 
         tracer = _make_tracer()
         tracer._current_component_id = "comp-1"
@@ -597,7 +597,7 @@ class TestGetLangchainCallback:
         assert callback.parent_span_id is not None
 
     def test_callback_has_no_parent_span_id_when_no_component(self):
-        from langflow.services.tracing.native_callback import NativeCallbackHandler
+        from ketos.services.tracing.native_callback import NativeCallbackHandler
 
         tracer = _make_tracer()
         tracer._current_component_id = None
@@ -737,12 +737,12 @@ class TestResolveSpanUuids:
     def test_non_uuid_string_id_uses_uuid5(self):
         from uuid import uuid5 as _uuid5
 
-        from langflow.services.tracing.span_sorting import LANGFLOW_SPAN_NAMESPACE
+        from ketos.services.tracing.span_sorting import KETOS_SPAN_NAMESPACE
 
         trace_id = uuid4()
         spans = [{"id": "not-a-uuid", "name": "span"}]
         result = resolve_span_uuids(spans, trace_id)
-        expected = _uuid5(LANGFLOW_SPAN_NAMESPACE, f"{trace_id}-not-a-uuid")
+        expected = _uuid5(KETOS_SPAN_NAMESPACE, f"{trace_id}-not-a-uuid")
         assert result[0][1] == expected
 
     def test_parent_as_uuid_instance(self):
@@ -764,13 +764,13 @@ class TestResolveSpanUuids:
     def test_parent_as_non_uuid_string(self):
         from uuid import uuid5 as _uuid5
 
-        from langflow.services.tracing.span_sorting import LANGFLOW_SPAN_NAMESPACE
+        from ketos.services.tracing.span_sorting import KETOS_SPAN_NAMESPACE
 
         trace_id = uuid4()
         span_id = uuid4()
         spans = [{"id": str(span_id), "name": "span", "parent_span_id": "invalid-parent"}]
         result = resolve_span_uuids(spans, trace_id)
-        expected_parent = _uuid5(LANGFLOW_SPAN_NAMESPACE, f"{trace_id}-invalid-parent")
+        expected_parent = _uuid5(KETOS_SPAN_NAMESPACE, f"{trace_id}-invalid-parent")
         assert result[0][2] == expected_parent
 
     def test_no_parent_span_id_key(self):
@@ -843,10 +843,10 @@ class TestFlushParentChildOrder:
 
         mock_session.merge = capture_merge
 
-        with patch("lfx.services.deps.session_scope", return_value=mock_session):
+        with patch("kfx.services.deps.session_scope", return_value=mock_session):
             await tracer._flush_to_database()
 
-        from langflow.services.database.models.traces.model import SpanTable
+        from ketos.services.database.models.traces.model import SpanTable
 
         span_objects = [o for o in merged_objects if isinstance(o, SpanTable)]
         assert len(span_objects) == 2

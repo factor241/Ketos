@@ -1,9 +1,9 @@
 import os
 
 import pytest
-from langflow.initial_setup.setup import load_starter_projects
-from langflow.load import aload_flow_from_json
-from lfx.graph import Graph
+from ketos.initial_setup.setup import load_starter_projects
+from ketos.load import aload_flow_from_json
+from kfx.graph import Graph
 
 # TODO: UPDATE BASIC EXAMPLE
 # def test_load_flow_from_json():

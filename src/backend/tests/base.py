@@ -5,7 +5,7 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-from lfx.custom.custom_component.component import Component
+from kfx.custom.custom_component.component import Component
 from typing_extensions import TypedDict
 
 from tests.constants import SUPPORTED_VERSIONS

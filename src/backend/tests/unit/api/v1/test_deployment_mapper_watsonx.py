@@ -8,13 +8,13 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
-from langflow.api.v1.mappers.deployments import get_mapper
-from langflow.api.v1.mappers.deployments.base import (
+from ketos.api.v1.mappers.deployments import get_mapper
+from ketos.api.v1.mappers.deployments.base import (
     BaseDeploymentMapper,
     OuterRequestValidationError,
     OuterRequestValidationNotConfiguredError,
 )
-from langflow.api.v1.mappers.deployments.contracts import (
+from ketos.api.v1.mappers.deployments.contracts import (
     CreatedSnapshotIds,
     CreateSnapshotBindings,
     FlowVersionPatch,
@@ -22,7 +22,7 @@ from langflow.api.v1.mappers.deployments.contracts import (
 )
 
 try:
-    from langflow.services.adapters.deployment.watsonx_orchestrate import (
+    from ketos.services.adapters.deployment.watsonx_orchestrate import (
         WatsonxOrchestrateDeploymentService,  # noqa: F401
     )
 except ModuleNotFoundError:
@@ -31,25 +31,25 @@ except ModuleNotFoundError:
         allow_module_level=True,
     )
 
-from langflow.api.v1.mappers.deployments.watsonx_orchestrate import WatsonxOrchestrateDeploymentMapper
-from langflow.api.v1.mappers.deployments.watsonx_orchestrate.payloads import (
+from ketos.api.v1.mappers.deployments.watsonx_orchestrate import WatsonxOrchestrateDeploymentMapper
+from ketos.api.v1.mappers.deployments.watsonx_orchestrate.payloads import (
     WatsonxApiDeploymentCreatePayload,
     WatsonxApiDeploymentListItemProviderData,
     WatsonxApiDeploymentUpdatePayload,
     WatsonxApiDeploymentUpdateResultData,
 )
-from langflow.api.v1.schemas.deployments import (
+from ketos.api.v1.schemas.deployments import (
     DeploymentCreateRequest,
     DeploymentProviderAccountUpdateRequest,
     DeploymentUpdateRequest,
 )
-from langflow.services.adapters.deployment.watsonx_orchestrate.constants import (
+from ketos.services.adapters.deployment.watsonx_orchestrate.constants import (
     WATSONX_ORCHESTRATE_DEPLOYMENT_ADAPTER_KEY,
 )
-from langflow.services.adapters.deployment.watsonx_orchestrate.payloads import (
+from ketos.services.adapters.deployment.watsonx_orchestrate.payloads import (
     WatsonxDeploymentUpdateResultData,
 )
-from lfx.services.adapters.deployment.schema import (
+from kfx.services.adapters.deployment.schema import (
     ConfigListItem,
     ConfigListResult,
     DeploymentCreateResult,
@@ -62,8 +62,8 @@ from lfx.services.adapters.deployment.schema import (
     SnapshotItem,
     SnapshotListResult,
 )
-from lfx.services.adapters.payload import AdapterPayloadValidationError, PayloadSlot
-from lfx.services.adapters.schema import AdapterType
+from kfx.services.adapters.payload import AdapterPayloadValidationError, PayloadSlot
+from kfx.services.adapters.schema import AdapterType
 from pydantic import BaseModel, ValidationError
 
 TEST_WXO_LLM = "ibm/granite-3.3-8b"
@@ -1451,7 +1451,7 @@ def test_watsonx_mapper_existing_resource_result_preserves_description_before_db
 
 
 def test_watsonx_mapper_resolve_verify_credentials_for_update_returns_none_without_provider_data() -> None:
-    from langflow.services.database.models.deployment_provider_account.model import DeploymentProviderAccount
+    from ketos.services.database.models.deployment_provider_account.model import DeploymentProviderAccount
 
     mapper = WatsonxOrchestrateDeploymentMapper()
     existing_account = DeploymentProviderAccount(
@@ -1470,7 +1470,7 @@ def test_watsonx_mapper_resolve_verify_credentials_for_update_returns_none_witho
 
 
 def test_watsonx_mapper_resolve_verify_credentials_for_update_prefers_new_provider_data() -> None:
-    from langflow.services.database.models.deployment_provider_account.model import DeploymentProviderAccount
+    from ketos.services.database.models.deployment_provider_account.model import DeploymentProviderAccount
 
     mapper = WatsonxOrchestrateDeploymentMapper()
     existing_account = DeploymentProviderAccount(
@@ -1496,7 +1496,7 @@ def test_watsonx_mapper_resolve_verify_credentials_for_update_prefers_new_provid
 
 def test_watsonx_mapper_resolve_verify_credentials_for_update_rejects_url_update() -> None:
     """WatsonxApiProviderAccountUpdate (extra='forbid') rejects url in provider_data."""
-    from langflow.services.database.models.deployment_provider_account.model import DeploymentProviderAccount
+    from ketos.services.database.models.deployment_provider_account.model import DeploymentProviderAccount
 
     mapper = WatsonxOrchestrateDeploymentMapper()
     existing_account = DeploymentProviderAccount(
@@ -1523,7 +1523,7 @@ def test_watsonx_mapper_resolve_verify_credentials_for_update_rejects_url_update
 
 def test_watsonx_mapper_resolve_verify_credentials_for_update_rejects_tenant_id_update() -> None:
     """WatsonxApiProviderAccountUpdate (extra='forbid') rejects tenant_id in provider_data."""
-    from langflow.services.database.models.deployment_provider_account.model import DeploymentProviderAccount
+    from ketos.services.database.models.deployment_provider_account.model import DeploymentProviderAccount
 
     mapper = WatsonxOrchestrateDeploymentMapper()
     existing_account = DeploymentProviderAccount(
@@ -1800,8 +1800,8 @@ def test_watsonx_mapper_create_model_uses_adapter_result_description() -> None:
     result = DeploymentCreateResult(
         id="provider-id",
         type=DeploymentType.AGENT,
-        name="langflow_OK_AGENT_6_cea1e533",
-        description="Langflow deployment OK AGENT 6",
+        name="ketos_OK_AGENT_6_cea1e533",
+        description="Ketos deployment OK AGENT 6",
         provider_result={
             "display_name": "OK AGENT 6",
             "app_ids": [],
@@ -1819,7 +1819,7 @@ def test_watsonx_mapper_create_model_uses_adapter_result_description() -> None:
     assert deployment.resource_key == "provider-id"
     assert deployment.display_name == "OK AGENT 6"
     assert deployment.deployment_type == DeploymentType.AGENT
-    assert deployment.description == "Langflow deployment OK AGENT 6"
+    assert deployment.description == "Ketos deployment OK AGENT 6"
 
 
 def test_watsonx_mapper_create_model_passes_adapter_result_description() -> None:
@@ -1827,7 +1827,7 @@ def test_watsonx_mapper_create_model_passes_adapter_result_description() -> None
     result = DeploymentCreateResult(
         id="provider-id",
         type=DeploymentType.AGENT,
-        name="langflow_OK_AGENT_6_cea1e533",
+        name="ketos_OK_AGENT_6_cea1e533",
         description="x" * 501,
         provider_result={
             "display_name": "OK AGENT 6",
@@ -1982,7 +1982,7 @@ async def test_watsonx_mapper_translates_create_bind_into_raw_tool_payload() -> 
     assert raw_provider_data["project_id"] == str(project_id)
     assert raw_provider_data["source_ref"] == str(flow_version_id)
     assert raw_provider_data["tool_display_name"] == "Flow A"
-    assert raw_provider_data["tool_name"].startswith("langflow_Flow_A_")
+    assert raw_provider_data["tool_name"].startswith("ketos_Flow_A_")
     assert raw_tool_name == "Flow A"
     assert provider_data["operations"][0]["tool"]["name_of_raw"] == raw_provider_data["tool_name"]
 
@@ -2033,7 +2033,7 @@ async def test_watsonx_mapper_translates_create_bind_with_tool_display_name_over
     raw_tool_name = provider_data["tools"]["raw_payloads"][0]["name"]
     raw_provider_data = provider_data["tools"]["raw_payloads"][0]["provider_data"]
     assert raw_provider_data["tool_display_name"] == "My Create Tool"
-    assert raw_provider_data["tool_name"].startswith("langflow_My_Create_Tool_")
+    assert raw_provider_data["tool_name"].startswith("ketos_My_Create_Tool_")
     assert raw_tool_name == "Flow A"
     assert provider_data["operations"][0]["op"] == "bind"
     assert provider_data["operations"][0]["tool"]["name_of_raw"] == raw_provider_data["tool_name"]
@@ -2213,7 +2213,7 @@ async def test_watsonx_mapper_create_skips_empty_bind_operations_but_keeps_raw_t
     assert raw_provider_data["project_id"] == str(project_id)
     assert raw_provider_data["source_ref"] == str(flow_version_id)
     assert raw_provider_data["tool_display_name"] == "Flow A"
-    assert raw_provider_data["tool_name"].startswith("langflow_Flow_A_")
+    assert raw_provider_data["tool_name"].startswith("ketos_Flow_A_")
     assert raw_tool_name == "Flow A"
 
 
@@ -2263,7 +2263,7 @@ async def test_watsonx_mapper_translates_flow_version_bind_into_raw_tool_payload
     assert raw_provider_data["project_id"] == str(project_id)
     assert raw_provider_data["source_ref"] == str(flow_version_id)
     assert raw_provider_data["tool_display_name"] == "Flow A"
-    assert raw_provider_data["tool_name"].startswith("langflow_Flow_A_")
+    assert raw_provider_data["tool_name"].startswith("ketos_Flow_A_")
     assert raw_tool_name == "Flow A"
     assert provider_data["operations"][0]["tool"]["name_of_raw"] == raw_provider_data["tool_name"]
 
@@ -2760,7 +2760,7 @@ def test_wxo_mapper_provider_account_response_includes_tenant_id() -> None:
 
 def test_watsonx_mapper_trusts_top_level_deployment_id() -> None:
     """WXO mapper inherits base behavior: trust result.deployment_id directly."""
-    from lfx.services.adapters.deployment.schema import ExecutionStatusResult
+    from kfx.services.adapters.deployment.schema import ExecutionStatusResult
 
     mapper = WatsonxOrchestrateDeploymentMapper()
     result = ExecutionStatusResult(
@@ -2778,8 +2778,8 @@ def test_watsonx_mapper_trusts_top_level_deployment_id() -> None:
 
 def test_wxo_mapper_verify_credentials_create_filters_non_credential_fields() -> None:
     """WXO mapper forwards only credential fields to adapter verification."""
-    from langflow.api.v1.schemas.deployments import DeploymentProviderAccountCreateRequest
-    from lfx.services.adapters.deployment.schema import VerifyCredentials
+    from ketos.api.v1.schemas.deployments import DeploymentProviderAccountCreateRequest
+    from kfx.services.adapters.deployment.schema import VerifyCredentials
 
     mapper = WatsonxOrchestrateDeploymentMapper()
     payload = DeploymentProviderAccountCreateRequest(
@@ -2801,8 +2801,8 @@ def test_wxo_mapper_verify_credentials_create_filters_non_credential_fields() ->
 
 def test_wxo_mapper_verify_credentials_create_accepts_missing_tenant() -> None:
     """Verify-credentials path only parses; tenant validation is deferred to resolve_provider_account_create."""
-    from langflow.api.v1.schemas.deployments import DeploymentProviderAccountCreateRequest
-    from lfx.services.adapters.deployment.schema import VerifyCredentials
+    from ketos.api.v1.schemas.deployments import DeploymentProviderAccountCreateRequest
+    from kfx.services.adapters.deployment.schema import VerifyCredentials
 
     mapper = WatsonxOrchestrateDeploymentMapper()
     payload = DeploymentProviderAccountCreateRequest(
@@ -2821,7 +2821,7 @@ def test_wxo_mapper_verify_credentials_create_accepts_missing_tenant() -> None:
 
 def test_wxo_mapper_provider_account_create_requires_tenant() -> None:
     """Create path rejects payloads with no explicit or URL-derived tenant."""
-    from langflow.api.v1.schemas.deployments import DeploymentProviderAccountCreateRequest
+    from ketos.api.v1.schemas.deployments import DeploymentProviderAccountCreateRequest
 
     mapper = WatsonxOrchestrateDeploymentMapper()
     payload = DeploymentProviderAccountCreateRequest(
@@ -2860,7 +2860,7 @@ def test_wxo_mapper_resolve_credentials_rejects_tenant_metadata() -> None:
 
 def test_wxo_mapper_verify_credentials_create_rejects_unknown_fields() -> None:
     """Mapper rejects unexpected provider_data keys."""
-    from langflow.api.v1.schemas.deployments import DeploymentProviderAccountCreateRequest
+    from ketos.api.v1.schemas.deployments import DeploymentProviderAccountCreateRequest
 
     mapper = WatsonxOrchestrateDeploymentMapper()
     payload = DeploymentProviderAccountCreateRequest(
@@ -2906,7 +2906,7 @@ def test_wxo_mapper_resolve_credentials_rejects_empty() -> None:
 
 
 def test_wxo_mapper_provider_account_create_assembles_model() -> None:
-    from langflow.api.v1.schemas.deployments import DeploymentProviderAccountCreateRequest
+    from ketos.api.v1.schemas.deployments import DeploymentProviderAccountCreateRequest
 
     mapper = WatsonxOrchestrateDeploymentMapper()
     payload = DeploymentProviderAccountCreateRequest(
@@ -2926,7 +2926,7 @@ def test_wxo_mapper_provider_account_create_assembles_model() -> None:
 
 
 def test_wxo_mapper_provider_account_create_uses_url_tenant_fallback() -> None:
-    from langflow.api.v1.schemas.deployments import DeploymentProviderAccountCreateRequest
+    from ketos.api.v1.schemas.deployments import DeploymentProviderAccountCreateRequest
 
     mapper = WatsonxOrchestrateDeploymentMapper()
     payload = DeploymentProviderAccountCreateRequest(
@@ -2958,7 +2958,7 @@ def _make_wxo_existing_account():
 
 def test_wxo_mapper_update_allows_name_changes_only_for_non_credential_fields() -> None:
     """Provider-account update keeps URL/tenant immutable."""
-    from langflow.api.v1.schemas.deployments import DeploymentProviderAccountUpdateRequest
+    from ketos.api.v1.schemas.deployments import DeploymentProviderAccountUpdateRequest
 
     mapper = WatsonxOrchestrateDeploymentMapper()
     payload = DeploymentProviderAccountUpdateRequest(name="renamed")
@@ -2973,8 +2973,8 @@ def test_wxo_mapper_update_allows_name_changes_only_for_non_credential_fields() 
 
 def test_wxo_mapper_resolve_verify_credentials_rejects_extra_fields() -> None:
     """WXO slot uses extra='forbid' so unexpected credential fields are rejected."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.payloads import PAYLOAD_SCHEMAS
-    from lfx.services.adapters.payload import AdapterPayloadValidationError
+    from ketos.services.adapters.deployment.watsonx_orchestrate.payloads import PAYLOAD_SCHEMAS
+    from kfx.services.adapters.payload import AdapterPayloadValidationError
 
     slot = PAYLOAD_SCHEMAS.verify_credentials
     assert slot is not None
@@ -3470,7 +3470,7 @@ async def test_watsonx_mapper_tool_display_name_override_generates_valid_technic
     raw_payload = provider_data["tools"]["raw_payloads"][0]
     assert raw_tool_name == raw_payload["provider_data"]["tool_name"]
     assert raw_payload["provider_data"]["source_ref"] == str(flow_version_id)
-    assert raw_payload["provider_data"]["tool_name"].startswith("langflow_valid_name_")
+    assert raw_payload["provider_data"]["tool_name"].startswith("ketos_valid_name_")
 
 
 # ---------------------------------------------------------------------------
@@ -3688,7 +3688,7 @@ async def test_watsonx_mapper_translates_remove_tool_by_id_into_provider_operati
 
 def test_watsonx_created_tool_includes_tool_id() -> None:
     """WatsonxApiCreatedTool requires tool_id and non-null flow_version_id."""
-    from langflow.api.v1.mappers.deployments.watsonx_orchestrate.payloads import WatsonxApiCreatedTool
+    from ketos.api.v1.mappers.deployments.watsonx_orchestrate.payloads import WatsonxApiCreatedTool
 
     binding = WatsonxApiCreatedTool(
         flow_version_id=uuid4(),
@@ -3719,7 +3719,7 @@ def test_watsonx_mapper_shapes_update_response_with_tool_id() -> None:
         updated_at=timestamp,
     )
 
-    from langflow.services.adapters.deployment.watsonx_orchestrate.payloads import (
+    from ketos.services.adapters.deployment.watsonx_orchestrate.payloads import (
         PAYLOAD_SCHEMAS as WXO_SCHEMAS,
     )
 
@@ -3763,7 +3763,7 @@ def test_watsonx_mapper_shapes_update_response_with_non_uuid_source_ref() -> Non
         updated_at=timestamp,
     )
 
-    from langflow.services.adapters.deployment.watsonx_orchestrate.payloads import (
+    from ketos.services.adapters.deployment.watsonx_orchestrate.payloads import (
         PAYLOAD_SCHEMAS as WXO_SCHEMAS,
     )
 
@@ -3797,7 +3797,7 @@ def test_watsonx_mapper_update_snapshot_bindings_filters_non_uuid_source_refs() 
     mapper = WatsonxOrchestrateDeploymentMapper()
     flow_version_id = uuid4()
 
-    from langflow.services.adapters.deployment.watsonx_orchestrate.payloads import (
+    from ketos.services.adapters.deployment.watsonx_orchestrate.payloads import (
         PAYLOAD_SCHEMAS as WXO_SCHEMAS,
     )
 

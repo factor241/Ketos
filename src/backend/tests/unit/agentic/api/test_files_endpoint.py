@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 import pytest
 from fastapi import HTTPException
 from fastapi.responses import Response
-from langflow.agentic.api.files_router import get_file
+from ketos.agentic.api.files_router import get_file
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -39,7 +39,7 @@ def _write_sandbox_file(sandbox_root: Path, user_id: str, relative_path: str, co
     # Force the FileSystemToolComponent to be the single source of truth for
     # path layout — instantiate it, validate the root, then write our fixture
     # into the same directory.
-    from lfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
+    from kfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
 
     fs = FileSystemToolComponent()
     fs._user_id = user_id
@@ -54,15 +54,15 @@ def _write_sandbox_file(sandbox_root: Path, user_id: str, relative_path: str, co
 def isolated_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Point the FS tool sandbox at a fresh tmp_path with AUTO_LOGIN disabled.
 
-    Why not ``monkeypatch.setenv("LANGFLOW_AUTO_LOGIN", "false")``: the settings
+    Why not ``monkeypatch.setenv("KETOS_AUTO_LOGIN", "false")``: the settings
     service is a process-wide singleton that caches ``AUTO_LOGIN`` on first
     access. The env var revert at test teardown doesn't un-cache the value,
     so subsequent tests in the suite (e.g., the flow_builder filesystem-tool
     tests) would inherit ``AUTO_LOGIN=False`` and fail because they don't
     bind a user_id. We pin the per-instance method instead — no global state.
     """
-    monkeypatch.setenv("LANGFLOW_FS_TOOL_BASE_DIR", str(tmp_path))
-    from lfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
+    monkeypatch.setenv("KETOS_FS_TOOL_BASE_DIR", str(tmp_path))
+    from kfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
 
     monkeypatch.setattr(
         FileSystemToolComponent,
@@ -185,7 +185,7 @@ class TestSizeAndBinaryGuards:
 
     @pytest.mark.asyncio
     async def test_should_return_413_when_file_exceeds_max_size(self, isolated_sandbox, monkeypatch):
-        from lfx.components.tools import filesystem as fs_module
+        from kfx.components.tools import filesystem as fs_module
 
         # Reduce the cap so we can exercise the limit cheaply.
         monkeypatch.setattr(fs_module, "MAX_FILE_SIZE_BYTES", 16)

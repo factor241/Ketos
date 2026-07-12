@@ -5,8 +5,8 @@ CASCADE delete, unique constraints, and default values.
 """
 
 import pytest
-from langflow.services.database.models.auth.sso import SSOConfig, SSOUserProfile
-from langflow.services.database.models.user.model import User
+from ketos.services.database.models.auth.sso import SSOConfig, SSOUserProfile
+from ketos.services.database.models.user.model import User
 from sqlalchemy import event
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import create_async_engine

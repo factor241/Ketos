@@ -4,7 +4,7 @@ Every starter project that ships an ``Agent`` node MUST embed the post-PR-13358
 ``AgentComponent`` code — the one whose ``_get_llm`` hard-codes ``stream=True``.
 Without this, users importing a starter template inherit the legacy streaming
 bug (``openrag_agent.json``-class regression) on the very first flow they
-encounter inside Langflow, before the backward-compat shim in
+encounter inside Ketos, before the backward-compat shim in
 ``ToolCallingAgentComponent`` even has a chance to kick in (it covers the
 ToolCallingAgent-Classic path; starter projects targeting the modern LangGraph
 ``AgentComponent`` build a different runnable, so the shim does NOT apply).
@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-STARTER_PROJECTS_DIR = Path(__file__).resolve().parents[3] / "base" / "langflow" / "initial_setup" / "starter_projects"
+STARTER_PROJECTS_DIR = Path(__file__).resolve().parents[3] / "base" / "ketos" / "initial_setup" / "starter_projects"
 
 
 def _starter_project_files() -> list[Path]:
@@ -55,7 +55,7 @@ def test_should_embed_stream_true_in_get_llm_when_starter_project_contains_agent
     r"""Every bundled Agent must ship ``_get_llm`` that hard-codes ``stream=True``.
 
     The starter project JSONs embed a frozen snapshot of the ``AgentComponent``
-    class body in ``template['code']['value']``. Langflow ``exec``\s that snapshot
+    class body in ``template['code']['value']``. Ketos ``exec``\s that snapshot
     when the flow loads, so a stale snapshot bypasses any fix made in the live
     ``agent.py`` source — exactly the regression that broke ``openrag_agent.json``
     (code_hash ``154c71cf7441``) and prompted the backward-compat shim in

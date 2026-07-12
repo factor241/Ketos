@@ -5,9 +5,9 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 from dotenv import load_dotenv
-from langflow.load import run_flow_from_json
-from langflow.load.utils import GET_FLOW_ERROR_BODY_LIMIT, GET_FLOW_TIMEOUT, get_flow
-from lfx.load.utils import UploadError
+from ketos.load import run_flow_from_json
+from ketos.load.utils import GET_FLOW_ERROR_BODY_LIMIT, GET_FLOW_TIMEOUT, get_flow
+from kfx.load.utils import UploadError
 
 
 def test_run_flow_from_json_params():
@@ -90,7 +90,7 @@ def test_get_flow_uses_bounded_http_timeout():
     response.status_code = httpx.codes.OK
     response.json.return_value = {"name": "Remote Flow"}
 
-    with patch("langflow.load.utils.httpx.get", return_value=response) as mock_get:
+    with patch("ketos.load.utils.httpx.get", return_value=response) as mock_get:
         result = get_flow("http://host", "flow-1")
 
     assert result["name"] == "Remote Flow"
@@ -103,7 +103,7 @@ def test_get_flow_raises_upload_error_with_response_body_on_http_error():
     response.status_code = httpx.codes.INTERNAL_SERVER_ERROR
     response.text = "database unavailable"
 
-    with patch("langflow.load.utils.httpx.get", return_value=response), pytest.raises(UploadError) as exc_info:
+    with patch("ketos.load.utils.httpx.get", return_value=response), pytest.raises(UploadError) as exc_info:
         get_flow("http://host", "flow-1")
 
     message = str(exc_info.value)
@@ -113,7 +113,7 @@ def test_get_flow_raises_upload_error_with_response_body_on_http_error():
 
 def test_get_flow_raises_upload_error_on_timeout():
     with (
-        patch("langflow.load.utils.httpx.get", side_effect=httpx.ReadTimeout("slow host")),
+        patch("ketos.load.utils.httpx.get", side_effect=httpx.ReadTimeout("slow host")),
         pytest.raises(UploadError) as exc_info,
     ):
         get_flow("http://host", "flow-1")
@@ -126,7 +126,7 @@ def test_get_flow_truncates_large_response_body_in_error():
     response.status_code = httpx.codes.INTERNAL_SERVER_ERROR
     response.text = "x" * (GET_FLOW_ERROR_BODY_LIMIT * 10)
 
-    with patch("langflow.load.utils.httpx.get", return_value=response), pytest.raises(UploadError) as exc_info:
+    with patch("ketos.load.utils.httpx.get", return_value=response), pytest.raises(UploadError) as exc_info:
         get_flow("http://host", "flow-1")
 
     message = str(exc_info.value)

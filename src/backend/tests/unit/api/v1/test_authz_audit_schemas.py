@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
-from langflow.api.v1.authz_audit import AuthzAuditLogRead, AuthzAuditPage
+from ketos.api.v1.authz_audit import AuthzAuditLogRead, AuthzAuditPage
 from pydantic import ValidationError
 
 

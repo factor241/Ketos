@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from lfx.components.models_and_agents import EmbeddingModelComponent
+from kfx.components.models_and_agents import EmbeddingModelComponent
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -45,7 +45,7 @@ class TestEmbeddingModelComponent(ComponentTestBaseWithoutClient):
         """Return the file names mapping for version-specific files."""
         return []
 
-    @patch("lfx.components.models_and_agents.embedding_model.get_embeddings")
+    @patch("kfx.components.models_and_agents.embedding_model.get_embeddings")
     def test_build_embeddings_openai(self, mock_get_embeddings, component_class, default_kwargs):
         """Test that build_embeddings delegates to get_embeddings with correct kwargs."""
         mock_instance = MagicMock()
@@ -77,7 +77,7 @@ class TestEmbeddingModelComponent(ComponentTestBaseWithoutClient):
         # Result should be whatever get_embeddings returns
         assert result == mock_instance
 
-    @patch("lfx.base.models.unified_models.get_api_key_for_provider")
+    @patch("kfx.base.models.unified_models.get_api_key_for_provider")
     def test_build_embeddings_openai_missing_api_key(self, mock_get_api_key, component_class, default_kwargs):
         # Setup mock to return None (no API key)
         mock_get_api_key.return_value = None
@@ -96,8 +96,8 @@ class TestEmbeddingModelComponent(ComponentTestBaseWithoutClient):
         with pytest.raises(ValueError, match="An embedding model selection is required"):
             component.build_embeddings()
 
-    @patch("lfx.base.models.unified_models.get_api_key_for_provider")
-    @patch("lfx.base.models.unified_models.get_embedding_class")
+    @patch("kfx.base.models.unified_models.get_api_key_for_provider")
+    @patch("kfx.base.models.unified_models.get_embedding_class")
     def test_build_embeddings_unknown_embedding_class(
         self, mock_get_embedding_class, mock_get_api_key, component_class, default_kwargs
     ):
@@ -122,7 +122,7 @@ class TestEmbeddingModelComponent(ComponentTestBaseWithoutClient):
         with pytest.raises(ValueError, match="Unknown embedding class: UnknownEmbeddingClass"):
             component.build_embeddings()
 
-    @patch("lfx.components.models_and_agents.embedding_model.get_embeddings")
+    @patch("kfx.components.models_and_agents.embedding_model.get_embeddings")
     def test_build_embeddings_google(self, mock_get_embeddings, component_class):
         """Test that build_embeddings passes correct params for Google provider."""
         mock_instance = MagicMock()
@@ -166,7 +166,7 @@ class TestEmbeddingModelComponent(ComponentTestBaseWithoutClient):
 
         assert result == mock_instance
 
-    @patch("lfx.components.models_and_agents.embedding_model.get_embeddings")
+    @patch("kfx.components.models_and_agents.embedding_model.get_embeddings")
     def test_build_embeddings_passes_watsonx_params(self, mock_get_embeddings, component_class):
         """Test that watsonx-specific params are forwarded to get_embeddings."""
         mock_get_embeddings.return_value = MagicMock()
@@ -206,7 +206,7 @@ class TestEmbeddingModelComponent(ComponentTestBaseWithoutClient):
         assert call_kwargs["watsonx_url"] == "https://us-south.ml.cloud.ibm.com"
         assert call_kwargs["watsonx_project_id"] == "my-project-id"
 
-    @patch("lfx.components.models_and_agents.embedding_model.get_embeddings")
+    @patch("kfx.components.models_and_agents.embedding_model.get_embeddings")
     def test_build_embeddings_passes_all_optional_params(self, mock_get_embeddings, component_class, default_kwargs):
         """Test that all optional parameters are forwarded correctly."""
         mock_get_embeddings.return_value = MagicMock()

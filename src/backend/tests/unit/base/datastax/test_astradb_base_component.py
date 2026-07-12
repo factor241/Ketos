@@ -5,7 +5,7 @@ import pytest
 
 # Assuming the component is imported from the module
 # Adjust the import path as needed
-from lfx.base.datastax import AstraDBBaseComponent
+from kfx.base.datastax import AstraDBBaseComponent
 
 
 @pytest.fixture
@@ -125,7 +125,7 @@ def mock_build_config():
 class TestCloudProviderMapping:
     """Tests for cloud provider mapping."""
 
-    @patch("lfx.base.datastax.astradb_base.DataAPIClient")
+    @patch("kfx.base.datastax.astradb_base.DataAPIClient")
     def test_map_cloud_providers_structure(self, mock_client_class):
         """Test that map_cloud_providers returns correct structure."""
         # Mock the admin client and its methods
@@ -152,7 +152,7 @@ class TestCloudProviderMapping:
         assert "Google Cloud Platform" in providers
         assert "Microsoft Azure" in providers
 
-    @patch("lfx.base.datastax.astradb_base.DataAPIClient")
+    @patch("kfx.base.datastax.astradb_base.DataAPIClient")
     def test_map_cloud_providers_prod_content(self, mock_client_class):
         """Test production environment cloud providers."""
         # Mock the admin client and its methods
@@ -186,7 +186,7 @@ class TestCloudProviderMapping:
         assert "us-east-2" in providers["Amazon Web Services"]["regions"]
         assert "us-west-2" in providers["Amazon Web Services"]["regions"]
 
-    @patch("lfx.base.datastax.astradb_base.DataAPIClient")
+    @patch("kfx.base.datastax.astradb_base.DataAPIClient")
     def test_map_cloud_providers_dev_content(self, mock_client_class):
         """Test development environment cloud providers."""
         # Mock the admin client and its methods
@@ -305,7 +305,7 @@ class TestDatabaseCreation:
     """Tests for database creation."""
 
     @pytest.mark.asyncio
-    @patch("lfx.base.datastax.astradb_base.DataAPIClient")
+    @patch("kfx.base.datastax.astradb_base.DataAPIClient")
     async def test_create_database_api_success(self, mock_client_class):
         """Test successful database creation."""
         mock_admin = Mock()
@@ -337,7 +337,7 @@ class TestCollectionCreation:
     """Tests for collection creation."""
 
     @pytest.mark.asyncio
-    @patch("lfx.base.datastax.astradb_base._AstraDBCollectionEnvironment")
+    @patch("kfx.base.datastax.astradb_base._AstraDBCollectionEnvironment")
     @patch.object(AstraDBBaseComponent, "get_vectorize_providers")
     async def test_create_collection_api_with_vectorize(self, mock_get_providers, mock_env_class):
         """Test collection creation with vectorize options."""
@@ -363,7 +363,7 @@ class TestCollectionCreation:
         assert call_kwargs["collection_vector_service_options"] is not None
 
     @pytest.mark.asyncio
-    @patch("lfx.base.datastax.astradb_base._AstraDBCollectionEnvironment")
+    @patch("kfx.base.datastax.astradb_base._AstraDBCollectionEnvironment")
     async def test_create_collection_api_with_dimension(self, mock_env_class):
         """Test collection creation with explicit dimension."""
         await AstraDBBaseComponent.create_collection_api(
@@ -453,7 +453,7 @@ class TestUpdateBuildConfig:
 class TestGetDatabaseObject:
     """Tests for getting database object."""
 
-    @patch("lfx.base.datastax.astradb_base.DataAPIClient")
+    @patch("kfx.base.datastax.astradb_base.DataAPIClient")
     def test_get_database_object_success(self, mock_client_class, mock_component):
         """Test successful database object retrieval."""
         mock_database = Mock()
@@ -467,7 +467,7 @@ class TestGetDatabaseObject:
             db = mock_component.get_database_object()
             assert db == mock_database
 
-    @patch("lfx.base.datastax.astradb_base.DataAPIClient")
+    @patch("kfx.base.datastax.astradb_base.DataAPIClient")
     def test_get_database_object_with_custom_endpoint(self, mock_client_class, mock_component):
         """Test database object retrieval with custom endpoint."""
         mock_database = Mock()
@@ -478,7 +478,7 @@ class TestGetDatabaseObject:
             db = mock_component.get_database_object(api_endpoint="https://custom.endpoint.com")
             assert db == mock_database
 
-    @patch("lfx.base.datastax.astradb_base.DataAPIClient")
+    @patch("kfx.base.datastax.astradb_base.DataAPIClient")
     def test_get_database_object_error(self, mock_client_class, mock_component):
         """Test database object retrieval error handling."""
         mock_client_class.side_effect = Exception("Connection error")

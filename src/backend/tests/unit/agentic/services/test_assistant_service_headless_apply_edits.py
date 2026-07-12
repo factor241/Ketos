@@ -6,7 +6,7 @@ proposal — never written to the working flow (no UI to approve it) and narrate
 as "(pending user approval)".
 
 The streaming entrypoint takes ``apply_edits_immediately``. When set it:
-  1. flips the lfx ``set_apply_edits_live`` switch so the propose tools apply
+  1. flips the kfx ``set_apply_edits_live`` switch so the propose tools apply
      the change live instead of queuing a review card, and
   2. injects a headless directive into the agent input so the LLM reports the
      edit as DONE rather than proposed.
@@ -19,10 +19,10 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from langflow.agentic.services.assistant_service import execute_flow_with_validation_streaming
-from langflow.agentic.services.flow_types import IntentResult
+from ketos.agentic.services.assistant_service import execute_flow_with_validation_streaming
+from ketos.agentic.services.flow_types import IntentResult
 
-MODULE = "langflow.agentic.services.assistant_service"
+MODULE = "ketos.agentic.services.assistant_service"
 
 
 def _intent(intent: str) -> IntentResult:

@@ -13,14 +13,14 @@ from typing import Any
 
 import fakeredis.aioredis as fakeredis_aio
 import pytest
-from langflow.api.build import (
+from ketos.api.build import (
     cancel_flow_build,
     create_flow_response,
     get_flow_events_response,
 )
-from langflow.api.utils import EventDeliveryType
-from langflow.events.event_manager import EventManager
-from langflow.services.job_queue.service import (
+from ketos.api.utils import EventDeliveryType
+from ketos.events.event_manager import EventManager
+from ketos.services.job_queue.service import (
     _STREAM_SENTINEL_DATA,
     JobQueueService,
     RedisJobQueueService,
@@ -124,7 +124,7 @@ async def test_redis_queue_wrapper_reads_events():
     """RedisQueueWrapper delivers events published to the Redis Stream."""
     fake_client = fakeredis_aio.FakeRedis()
     job_id = str(uuid.uuid4())
-    stream_key = f"langflow:queue:{job_id}"
+    stream_key = f"ketos:queue:{job_id}"
 
     wrapper = RedisQueueWrapper(job_id, fake_client, ttl=60)
 
@@ -153,7 +153,7 @@ async def test_redis_queue_wrapper_self_terminates_on_key_deletion():
     """RedisQueueWrapper sends the end-of-stream sentinel when the key is deleted."""
     fake_client = fakeredis_aio.FakeRedis()
     job_id = str(uuid.uuid4())
-    stream_key = f"langflow:queue:{job_id}"
+    stream_key = f"ketos:queue:{job_id}"
 
     wrapper = RedisQueueWrapper(job_id, fake_client, ttl=60)
 
@@ -183,7 +183,7 @@ async def test_redis_queue_wrapper_empty_reflects_buffer():
     """
     fake_client = fakeredis_aio.FakeRedis()
     job_id = str(uuid.uuid4())
-    stream_key = f"langflow:queue:{job_id}"
+    stream_key = f"ketos:queue:{job_id}"
 
     wrapper = RedisQueueWrapper(job_id, fake_client, ttl=60)
     # Before the first XREAD completes, empty() returns False regardless of
@@ -245,7 +245,7 @@ async def test_redis_service_create_and_publish():
         service.start_job(job_id, _build())
         await asyncio.sleep(0.2)
 
-        stream_key = f"langflow:queue:{job_id}"
+        stream_key = f"ketos:queue:{job_id}"
         messages = await fake_client.xrange(stream_key)
         assert len(messages) >= 2  # at least one event + sentinel
     finally:
@@ -258,7 +258,7 @@ async def test_redis_service_cross_worker_get_queue_data():
     service, fake_client = await _make_service()
     try:
         job_id = str(uuid.uuid4())
-        stream_key = f"langflow:queue:{job_id}"
+        stream_key = f"ketos:queue:{job_id}"
 
         # Simulate another worker having published events to this stream.
         await fake_client.xadd(stream_key, {"event_id": "e1", "data": b"bytes", "ts": "1.0"})
@@ -315,7 +315,7 @@ async def test_redis_service_reuses_consumer_wrapper_for_sequential_polls():
     service, fake_client = await _make_service()
     try:
         job_id = str(uuid.uuid4())
-        stream_key = f"langflow:queue:{job_id}"
+        stream_key = f"ketos:queue:{job_id}"
 
         await fake_client.xadd(stream_key, {"event_id": "e1", "data": b"first", "ts": "1.0"})
         await fake_client.xadd(stream_key, {"event_id": "e2", "data": b"second", "ts": "2.0"})
@@ -378,8 +378,8 @@ async def test_redis_service_cleanup_deletes_redis_keys():
         service.start_job(job_id, _noop())
         await asyncio.sleep(0.05)
 
-        stream_key = f"langflow:queue:{job_id}"
-        owner_key = f"langflow:owner:{job_id}"
+        stream_key = f"ketos:queue:{job_id}"
+        owner_key = f"ketos:owner:{job_id}"
 
         # Manually create the keys to verify deletion.
         await fake_client.xadd(stream_key, {"event_id": "e1", "data": b"x", "ts": "1.0"})
@@ -407,8 +407,8 @@ async def test_redis_service_cleanup_deletes_redis_keys_when_cancelled():
         service.start_job(job_id, _long_running())
         await asyncio.sleep(0.05)
 
-        stream_key = f"langflow:queue:{job_id}"
-        owner_key = f"langflow:owner:{job_id}"
+        stream_key = f"ketos:queue:{job_id}"
+        owner_key = f"ketos:owner:{job_id}"
 
         await fake_client.xadd(stream_key, {"event_id": "e1", "data": b"x", "ts": "1.0"})
         await fake_client.set(owner_key, "some-user")
@@ -483,7 +483,7 @@ async def test_redis_service_owner_stored_in_redis():
         await service.register_job_owner(job_id, user_id)
 
         # Verify Redis key was written.
-        raw = await fake_client.get(f"langflow:owner:{job_id}")
+        raw = await fake_client.get(f"ketos:owner:{job_id}")
         assert raw is not None
         assert str(user_id) == raw.decode()
 
@@ -546,7 +546,7 @@ async def test_redis_service_owner_cleaned_up_after_cleanup_job():
         await service.cleanup_job(job_id)
 
         assert await service.get_job_owner(job_id) is None
-        assert not await fake_client.exists(f"langflow:owner:{job_id}")
+        assert not await fake_client.exists(f"ketos:owner:{job_id}")
     finally:
         await _stop_service(service)
 
@@ -578,7 +578,7 @@ async def test_redis_service_bridge_publishes_sentinel_on_end():
         # Wait long enough for the bridge to publish.
         await asyncio.sleep(0.2)
 
-        stream_key = f"langflow:queue:{job_id}"
+        stream_key = f"ketos:queue:{job_id}"
         messages = await fake_client.xrange(stream_key)
         assert messages, "Expected at least one message in the stream"
         last_fields = messages[-1][1]
@@ -617,7 +617,7 @@ async def test_redis_cross_worker_streaming_response_allows_missing_event_task()
     service, fake_client = await _make_service()
     try:
         job_id = str(uuid.uuid4())
-        stream_key = f"langflow:queue:{job_id}"
+        stream_key = f"ketos:queue:{job_id}"
         await fake_client.xadd(stream_key, {"event_id": "e1", "data": b"payload\n", "ts": "1.0"})
         await fake_client.xadd(
             stream_key,
@@ -1312,7 +1312,7 @@ async def test_streaming_heartbeat_runs_independent_of_event_yield(monkeypatch):
     of whether the queue is producing events, so the polling watchdog can tell
     that the streaming client is still attached even during a long silent step.
     """
-    from langflow.api import build as build_module
+    from ketos.api import build as build_module
 
     # Patch the heartbeat interval down so the spawned task actually fires
     # within the test budget. Without this the verification below would
@@ -1512,7 +1512,7 @@ async def test_metrics_snapshot_exposes_cancel_stats_and_counters():
 @pytest.mark.asyncio
 async def test_metrics_snapshot_for_in_memory_queue():
     """Base service snapshot reports the memory backend and active job count."""
-    from langflow.services.job_queue.service import JobQueueService
+    from ketos.services.job_queue.service import JobQueueService
 
     svc = JobQueueService()
     svc.start()
@@ -1759,7 +1759,7 @@ async def test_redis_service_signal_cancel_flushes_sentinel_to_consumer():
         await publisher.signal_cancel(job_id)
 
         # Bridge has up to a few hundred ms to drain the sentinel into Redis.
-        stream_key = f"langflow:queue:{job_id}"
+        stream_key = f"ketos:queue:{job_id}"
         deadline = asyncio.get_event_loop().time() + 2.0
         last_fields: dict[bytes, bytes] | None = None
         while asyncio.get_event_loop().time() < deadline:
@@ -1921,7 +1921,7 @@ async def test_get_flow_events_response_rejects_unknown_event_delivery():
     from enum import Enum
 
     from fastapi import HTTPException
-    from langflow.services.job_queue.service import JobQueueService
+    from ketos.services.job_queue.service import JobQueueService
 
     service = JobQueueService()
     job_id = str(uuid.uuid4())
@@ -1945,7 +1945,7 @@ async def test_get_flow_events_response_rejects_unknown_event_delivery():
         assert exc_info.value.status_code == 400
         detail = str(exc_info.value.detail)
         assert "Unsupported event_delivery" in detail
-        assert "LANGFLOW_EVENT_DELIVERY" in detail
+        assert "KETOS_EVENT_DELIVERY" in detail
         for known in ("streaming", "direct", "polling"):
             assert known in detail
     finally:
@@ -1962,7 +1962,7 @@ async def test_task_service_launch_does_not_trigger_polling_watchdog(monkeypatch
     load testing on the /api/v1/run path where every internal task was being
     reclaimed.
     """
-    from langflow.services.task.service import TaskService
+    from ketos.services.task.service import TaskService
 
     shared_client = fakeredis_aio.FakeRedis()
     svc = RedisJobQueueService(
@@ -1980,7 +1980,7 @@ async def test_task_service_launch_does_not_trigger_polling_watchdog(monkeypatch
 
     # Patch get_queue_service so TaskService.fire_and_forget_task wires through
     # to our test instance instead of the global one.
-    monkeypatch.setattr("langflow.services.task.service.get_queue_service", lambda: svc)
+    monkeypatch.setattr("ketos.services.task.service.get_queue_service", lambda: svc)
 
     # Minimal settings_service stub: TaskService only needs .settings.celery_enabled.
     class _StubSettings:
@@ -2109,9 +2109,9 @@ async def test_generate_flow_events_calls_end_all_traces_on_cancel(monkeypatch):
     from unittest.mock import AsyncMock, MagicMock
 
     from fastapi import BackgroundTasks
-    from langflow.api.build import generate_flow_events
-    from langflow.events.event_manager import EventManager
-    from lfx.schema.schema import InputValueRequest
+    from ketos.api.build import generate_flow_events
+    from ketos.events.event_manager import EventManager
+    from kfx.schema.schema import InputValueRequest
 
     # ── trace spy ────────────────────────────────────────────────────────────
     traces_ended = asyncio.Event()
@@ -2173,17 +2173,17 @@ async def test_generate_flow_events_calls_end_all_traces_on_cancel(monkeypatch):
     mock_job_svc = MagicMock()
     mock_job_svc.create_job = AsyncMock(side_effect=Exception("skip in test"))
 
-    monkeypatch.setattr("langflow.api.build.get_chat_service", lambda: mock_chat)
-    monkeypatch.setattr("langflow.api.build.get_telemetry_service", lambda: mock_telemetry)
-    monkeypatch.setattr("langflow.api.build.session_scope", _fake_session_scope)
+    monkeypatch.setattr("ketos.api.build.get_chat_service", lambda: mock_chat)
+    monkeypatch.setattr("ketos.api.build.get_telemetry_service", lambda: mock_telemetry)
+    monkeypatch.setattr("ketos.api.build.session_scope", _fake_session_scope)
     monkeypatch.setattr(
-        "langflow.api.build.build_graph_from_db",
+        "ketos.api.build.build_graph_from_db",
         AsyncMock(return_value=mock_graph),
     )
-    monkeypatch.setattr("langflow.api.build.get_job_service", lambda: mock_job_svc)
-    monkeypatch.setattr("langflow.api.build.get_task_service", lambda: MagicMock())
-    monkeypatch.setattr("langflow.api.build.get_memory_base_service", lambda: MagicMock())
-    monkeypatch.setattr("langflow.api.build.get_top_level_vertices", lambda *_: [])
+    monkeypatch.setattr("ketos.api.build.get_job_service", lambda: mock_job_svc)
+    monkeypatch.setattr("ketos.api.build.get_task_service", lambda: MagicMock())
+    monkeypatch.setattr("ketos.api.build.get_memory_base_service", lambda: MagicMock())
+    monkeypatch.setattr("ketos.api.build.get_top_level_vertices", lambda *_: [])
 
     # ── wire up the event manager ─────────────────────────────────────────────
     main_queue: asyncio.Queue = asyncio.Queue()
@@ -2234,7 +2234,7 @@ async def test_fill_from_redis_last_id_not_advanced_before_put_completes(monkeyp
     """
     fake_client = fakeredis_aio.FakeRedis()
     job_id = str(uuid.uuid4())
-    stream_key = f"langflow:queue:{job_id}"
+    stream_key = f"ketos:queue:{job_id}"
 
     # Pre-populate two events before the wrapper starts so both land in the
     # same XREAD batch.

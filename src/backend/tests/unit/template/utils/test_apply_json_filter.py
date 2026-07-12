@@ -1,8 +1,8 @@
 # import pytest
 # from hypothesis import assume, example, given
 # from hypothesis import strategies as st
-# from lfx.schema.data import Data
-# from lfx.template.utils import apply_json_filter
+# from kfx.schema.data import Data
+# from kfx.template.utils import apply_json_filter
 
 
 # # Helper function to create nested dictionaries

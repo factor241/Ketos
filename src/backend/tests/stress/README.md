@@ -5,7 +5,7 @@
 fixes against it.
 
 It bypasses the FastAPI / locust / flow-execution layer and hammers
-`transaction_service.log_transaction()` and `lfx.graph.utils.log_vertex_build()`
+`transaction_service.log_transaction()` and `kfx.graph.utils.log_vertex_build()`
 directly from many concurrent coroutines, which mirrors what the per-vertex
 `BackgroundTasks` workers do during heavy flow load (but without needing an
 OpenAI key or a real flow to run).
@@ -21,12 +21,12 @@ uv run python src/backend/tests/stress/stress_telemetry_writes.py \
 
 ```bash
 # Start a throwaway Postgres
-docker run --rm -d --name langflow-pg-test -p 55432:5432 \
-    -e POSTGRES_PASSWORD=langflow -e POSTGRES_USER=langflow \
-    -e POSTGRES_DB=langflow postgres:16
+docker run --rm -d --name ketos-pg-test -p 55432:5432 \
+    -e POSTGRES_PASSWORD=ketos -e POSTGRES_USER=ketos \
+    -e POSTGRES_DB=ketos postgres:16
 
-export DB_URL="postgresql+psycopg://langflow:langflow@localhost:55432/langflow"  # pragma: allowlist secret
-# (or any standard postgres DSN, e.g. "$LANGFLOW_DATABASE_URL" if set)
+export DB_URL="postgresql+psycopg://ketos:ketos@localhost:55432/ketos"  # pragma: allowlist secret
+# (or any standard postgres DSN, e.g. "$KETOS_DATABASE_URL" if set)
 uv run python src/backend/tests/stress/stress_telemetry_writes.py \
     --concurrency 200 --seconds 15
 ```
@@ -34,8 +34,8 @@ uv run python src/backend/tests/stress/stress_telemetry_writes.py \
 ## Toggle the writer off to reproduce the legacy failure mode
 
 ```bash
-LANGFLOW_TELEMETRY_WRITER_ENABLED=false \
-LANGFLOW_DB_CONNECTION_SETTINGS='{"pool_size":5,"max_overflow":5,"pool_timeout":3}' \
+KETOS_TELEMETRY_WRITER_ENABLED=false \
+KETOS_DB_CONNECTION_SETTINGS='{"pool_size":5,"max_overflow":5,"pool_timeout":3}' \
     uv run python src/backend/tests/stress/stress_telemetry_writes.py \
         --concurrency 500 --seconds 15
 ```

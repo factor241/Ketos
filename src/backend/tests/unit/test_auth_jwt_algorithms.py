@@ -25,7 +25,7 @@ class TestAuthSettingsAlgorithms:
 
     def test_default_algorithm_is_hs256(self):
         """Default algorithm should be HS256 for backward compatibility (when not overridden by env)."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Explicitly set HS256 to test the setting works (env var may override default)
@@ -34,7 +34,7 @@ class TestAuthSettingsAlgorithms:
 
     def test_hs256_generates_secret_key(self):
         """HS256 should generate a secret key automatically."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
 
         with tempfile.TemporaryDirectory() as tmpdir:
             settings = AuthSettings(CONFIG_DIR=tmpdir, ALGORITHM="HS256")
@@ -44,7 +44,7 @@ class TestAuthSettingsAlgorithms:
 
     def test_rs256_generates_rsa_key_pair(self):
         """RS256 should generate RSA key pair automatically."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
 
         with tempfile.TemporaryDirectory() as tmpdir:
             settings = AuthSettings(CONFIG_DIR=tmpdir, ALGORITHM="RS256")
@@ -59,7 +59,7 @@ class TestAuthSettingsAlgorithms:
 
     def test_rs512_generates_rsa_key_pair(self):
         """RS512 should generate RSA key pair automatically."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
 
         with tempfile.TemporaryDirectory() as tmpdir:
             settings = AuthSettings(CONFIG_DIR=tmpdir, ALGORITHM="RS512")
@@ -74,7 +74,7 @@ class TestAuthSettingsAlgorithms:
 
     def test_rsa_keys_persisted_to_files(self):
         """RSA keys should be persisted to files in CONFIG_DIR."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
 
         with tempfile.TemporaryDirectory() as tmpdir:
             settings = AuthSettings(CONFIG_DIR=tmpdir, ALGORITHM="RS256")
@@ -91,7 +91,7 @@ class TestAuthSettingsAlgorithms:
 
     def test_rsa_keys_loaded_from_existing_files(self):
         """RSA keys should be loaded from existing files."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # First run - generate keys
@@ -107,8 +107,8 @@ class TestAuthSettingsAlgorithms:
 
     def test_custom_private_key_derives_public_key(self):
         """When custom private key is provided, public key should be derived."""
-        from lfx.services.settings.auth import AuthSettings
-        from lfx.services.settings.utils import generate_rsa_key_pair
+        from kfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.utils import generate_rsa_key_pair
 
         custom_private, expected_public = generate_rsa_key_pair()
 
@@ -124,7 +124,7 @@ class TestAuthSettingsAlgorithms:
 
     def test_no_config_dir_generates_keys_in_memory(self):
         """Without CONFIG_DIR, keys should be generated in memory."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
 
         settings = AuthSettings(CONFIG_DIR="", ALGORITHM="RS256")
 
@@ -134,7 +134,7 @@ class TestAuthSettingsAlgorithms:
 
     def test_hs256_does_not_generate_rsa_keys(self):
         """HS256 should not trigger RSA key generation."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
 
         with tempfile.TemporaryDirectory() as tmpdir:
             AuthSettings(CONFIG_DIR=tmpdir, ALGORITHM="HS256")
@@ -148,7 +148,7 @@ class TestAuthSettingsAlgorithms:
 
     def test_invalid_algorithm_rejected(self):
         """Invalid algorithm should be rejected by pydantic."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
         from pydantic import ValidationError
 
         with tempfile.TemporaryDirectory() as tmpdir, pytest.raises(ValidationError):
@@ -160,7 +160,7 @@ class TestRSAKeyGeneration:
 
     def test_generate_rsa_key_pair_returns_valid_keys(self):
         """Generated keys should be valid PEM format."""
-        from lfx.services.settings.utils import generate_rsa_key_pair
+        from kfx.services.settings.utils import generate_rsa_key_pair
 
         private_key, public_key = generate_rsa_key_pair()
 
@@ -171,7 +171,7 @@ class TestRSAKeyGeneration:
 
     def test_generated_keys_are_unique(self):
         """Each call should generate unique keys."""
-        from lfx.services.settings.utils import generate_rsa_key_pair
+        from kfx.services.settings.utils import generate_rsa_key_pair
 
         private1, public1 = generate_rsa_key_pair()
         private2, public2 = generate_rsa_key_pair()
@@ -181,7 +181,7 @@ class TestRSAKeyGeneration:
 
     def test_generated_keys_can_sign_and_verify(self):
         """Generated keys should work for JWT signing and verification."""
-        from lfx.services.settings.utils import generate_rsa_key_pair
+        from kfx.services.settings.utils import generate_rsa_key_pair
 
         private_key, public_key = generate_rsa_key_pair()
 
@@ -201,7 +201,7 @@ class TestTokenCreation:
 
     def _create_mock_settings_service(self, algorithm, tmpdir):
         """Helper to create mock settings service."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
 
         settings = AuthSettings(CONFIG_DIR=tmpdir, ALGORITHM=algorithm)
 
@@ -211,14 +211,14 @@ class TestTokenCreation:
 
     def test_create_token_hs256(self):
         """Token creation with HS256 should use secret key."""
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import create_token
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import create_token
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_settings_service = self._create_mock_settings_service("HS256", tmpdir)
             mock_auth_service = AuthService(mock_settings_service)
 
-            with patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service):
+            with patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service):
                 token = create_token(
                     data={"sub": "9cd4172c-0190-4124-a749-671d23e3c6dd", "type": "access"},
                     expires_delta=timedelta(hours=1),
@@ -231,14 +231,14 @@ class TestTokenCreation:
 
     def test_create_token_rs256(self):
         """Token creation with RS256 should use private key."""
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import create_token
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import create_token
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_settings_service = self._create_mock_settings_service("RS256", tmpdir)
             mock_auth_service = AuthService(mock_settings_service)
 
-            with patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service):
+            with patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service):
                 token = create_token(
                     data={"sub": "user-456", "type": "access"},
                     expires_delta=timedelta(hours=1),
@@ -251,14 +251,14 @@ class TestTokenCreation:
 
     def test_create_token_rs512(self):
         """Token creation with RS512 should use private key."""
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import create_token
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import create_token
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_settings_service = self._create_mock_settings_service("RS512", tmpdir)
             mock_auth_service = AuthService(mock_settings_service)
 
-            with patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service):
+            with patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service):
                 token = create_token(
                     data={"sub": "user-789", "type": "access"},
                     expires_delta=timedelta(hours=1),
@@ -271,14 +271,14 @@ class TestTokenCreation:
 
     def test_token_contains_expiration(self):
         """Created token should contain expiration claim."""
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import create_token
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import create_token
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_settings_service = self._create_mock_settings_service("HS256", tmpdir)
             mock_auth_service = AuthService(mock_settings_service)
 
-            with patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service):
+            with patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service):
                 token = create_token(
                     data={"sub": "9cd4172c-0190-4124-a749-671d23e3c6dd", "type": "access"},
                     expires_delta=timedelta(hours=1),
@@ -294,7 +294,7 @@ class TestTokenVerification:
 
     def _create_mock_settings_service(self, algorithm, tmpdir):
         """Helper to create mock settings service."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
 
         settings = AuthSettings(CONFIG_DIR=tmpdir, ALGORITHM=algorithm)
 
@@ -305,8 +305,8 @@ class TestTokenVerification:
     @pytest.mark.asyncio
     async def test_verify_hs256_token_success(self):
         """Valid HS256 token should be verified successfully."""
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import create_token, get_current_user_from_access_token
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import create_token, get_current_user_from_access_token
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_settings_service = self._create_mock_settings_service("HS256", tmpdir)
@@ -324,8 +324,8 @@ class TestTokenVerification:
                 return mock_user
 
             with (
-                patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service),
-                patch("langflow.services.auth.service.get_user_by_id", side_effect=mock_get_user_by_id),
+                patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service),
+                patch("ketos.services.auth.service.get_user_by_id", side_effect=mock_get_user_by_id),
             ):
                 token = create_token(
                     data={"sub": "9cd4172c-0190-4124-a749-671d23e3c6dd", "type": "access"},
@@ -338,8 +338,8 @@ class TestTokenVerification:
     @pytest.mark.asyncio
     async def test_verify_rs256_token_success(self):
         """Valid RS256 token should be verified successfully."""
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import create_token, get_current_user_from_access_token
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import create_token, get_current_user_from_access_token
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_settings_service = self._create_mock_settings_service("RS256", tmpdir)
@@ -356,8 +356,8 @@ class TestTokenVerification:
                 return mock_user
 
             with (
-                patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service),
-                patch("langflow.services.auth.service.get_user_by_id", side_effect=mock_get_user_by_id),
+                patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service),
+                patch("ketos.services.auth.service.get_user_by_id", side_effect=mock_get_user_by_id),
             ):
                 token = create_token(
                     data={"sub": "user-456", "type": "access"},
@@ -370,8 +370,8 @@ class TestTokenVerification:
     @pytest.mark.asyncio
     async def test_verify_rs512_token_success(self):
         """Valid RS512 token should be verified successfully."""
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import create_token, get_current_user_from_access_token
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import create_token, get_current_user_from_access_token
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_settings_service = self._create_mock_settings_service("RS512", tmpdir)
@@ -388,8 +388,8 @@ class TestTokenVerification:
                 return mock_user
 
             with (
-                patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service),
-                patch("langflow.services.auth.service.get_user_by_id", side_effect=mock_get_user_by_id),
+                patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service),
+                patch("ketos.services.auth.service.get_user_by_id", side_effect=mock_get_user_by_id),
             ):
                 token = create_token(
                     data={"sub": "user-789", "type": "access"},
@@ -405,7 +405,7 @@ class TestAuthenticationFailures:
 
     def _create_mock_settings_service(self, algorithm, tmpdir, **overrides):
         """Helper to create mock settings service with optional overrides."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
 
         settings = AuthSettings(CONFIG_DIR=tmpdir, ALGORITHM=algorithm)
 
@@ -420,8 +420,8 @@ class TestAuthenticationFailures:
     @pytest.mark.asyncio
     async def test_missing_public_key_rs256_raises_401(self):
         """Missing public key for RS256 should raise 401."""
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import get_current_user_from_access_token
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import get_current_user_from_access_token
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_settings_service = self._create_mock_settings_service("RS256", tmpdir, PUBLIC_KEY="")
@@ -429,7 +429,7 @@ class TestAuthenticationFailures:
 
             mock_db = AsyncMock()
 
-            with patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service):
+            with patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service):
                 with pytest.raises(HTTPException) as exc_info:
                     await get_current_user_from_access_token("some-token", mock_db)
 
@@ -439,9 +439,9 @@ class TestAuthenticationFailures:
     @pytest.mark.asyncio
     async def test_missing_secret_key_hs256_raises_401(self):
         """Missing secret key for HS256 should raise 401."""
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import get_current_user_from_access_token
-        from lfx.services.settings.auth import JWTAlgorithm
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import get_current_user_from_access_token
+        from kfx.services.settings.auth import JWTAlgorithm
 
         # Create a fully mocked settings service without using AuthSettings
         mock_auth_settings = MagicMock()
@@ -456,7 +456,7 @@ class TestAuthenticationFailures:
 
         mock_db = AsyncMock()
 
-        with patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service):
+        with patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service):
             with pytest.raises(HTTPException) as exc_info:
                 await get_current_user_from_access_token("some-token", mock_db)
 
@@ -466,15 +466,15 @@ class TestAuthenticationFailures:
     @pytest.mark.asyncio
     async def test_invalid_token_raises_401(self):
         """Invalid token should raise 401."""
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import get_current_user_from_access_token
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import get_current_user_from_access_token
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_settings_service = self._create_mock_settings_service("HS256", tmpdir)
             mock_auth_service = AuthService(mock_settings_service)
             mock_db = AsyncMock()
 
-            with patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service):
+            with patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service):
                 with pytest.raises(HTTPException) as exc_info:
                     await get_current_user_from_access_token("invalid-token-format", mock_db)
 
@@ -484,8 +484,8 @@ class TestAuthenticationFailures:
     @pytest.mark.asyncio
     async def test_token_signed_with_wrong_key_raises_401(self):
         """Token signed with different key should raise 401."""
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import get_current_user_from_access_token
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import get_current_user_from_access_token
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_settings_service = self._create_mock_settings_service("HS256", tmpdir)
@@ -500,7 +500,7 @@ class TestAuthenticationFailures:
 
             mock_db = AsyncMock()
 
-            with patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service):
+            with patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service):
                 with pytest.raises(HTTPException) as exc_info:
                     await get_current_user_from_access_token(wrong_token, mock_db)
 
@@ -509,15 +509,15 @@ class TestAuthenticationFailures:
     @pytest.mark.asyncio
     async def test_expired_token_raises_401(self):
         """Expired token should raise 401."""
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import create_token, get_current_user_from_access_token
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import create_token, get_current_user_from_access_token
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_settings_service = self._create_mock_settings_service("HS256", tmpdir)
             mock_auth_service = AuthService(mock_settings_service)
             mock_db = AsyncMock()
 
-            with patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service):
+            with patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service):
                 # Create token that's already expired
                 token = create_token(
                     data={"sub": "9cd4172c-0190-4124-a749-671d23e3c6dd", "type": "access"},
@@ -534,8 +534,8 @@ class TestAuthenticationFailures:
     @pytest.mark.asyncio
     async def test_token_without_user_id_raises_401(self):
         """Token without user ID should raise 401."""
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import get_current_user_from_access_token
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import get_current_user_from_access_token
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_settings_service = self._create_mock_settings_service("HS256", tmpdir)
@@ -550,7 +550,7 @@ class TestAuthenticationFailures:
 
             mock_db = AsyncMock()
 
-            with patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service):
+            with patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service):
                 with pytest.raises(HTTPException) as exc_info:
                     await get_current_user_from_access_token(token, mock_db)
 
@@ -560,8 +560,8 @@ class TestAuthenticationFailures:
     @pytest.mark.asyncio
     async def test_token_without_type_raises_401(self):
         """Token without type should raise 401."""
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import get_current_user_from_access_token
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import get_current_user_from_access_token
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_settings_service = self._create_mock_settings_service("HS256", tmpdir)
@@ -576,7 +576,7 @@ class TestAuthenticationFailures:
 
             mock_db = AsyncMock()
 
-            with patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service):
+            with patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service):
                 with pytest.raises(HTTPException) as exc_info:
                     await get_current_user_from_access_token(token, mock_db)
 
@@ -591,8 +591,8 @@ class TestAuthenticationFailures:
         """Token for non-existent user should raise 403 (InvalidCredentialsError)."""
         from uuid import uuid4
 
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import create_token, get_current_user_from_access_token
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import create_token, get_current_user_from_access_token
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_settings_service = self._create_mock_settings_service("HS256", tmpdir)
@@ -607,8 +607,8 @@ class TestAuthenticationFailures:
                 return None
 
             with (
-                patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service),
-                patch("langflow.services.auth.service.get_user_by_id", side_effect=mock_get_user_by_id),
+                patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service),
+                patch("ketos.services.auth.service.get_user_by_id", side_effect=mock_get_user_by_id),
             ):
                 token = create_token(
                     data={"sub": user_id, "type": "access"},
@@ -626,8 +626,8 @@ class TestAuthenticationFailures:
         """Token for inactive user should raise 401."""
         from uuid import uuid4
 
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import create_token, get_current_user_from_access_token
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import create_token, get_current_user_from_access_token
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_settings_service = self._create_mock_settings_service("HS256", tmpdir)
@@ -647,8 +647,8 @@ class TestAuthenticationFailures:
                 return mock_user
 
             with (
-                patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service),
-                patch("langflow.services.auth.service.get_user_by_id", side_effect=mock_get_user_by_id),
+                patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service),
+                patch("ketos.services.auth.service.get_user_by_id", side_effect=mock_get_user_by_id),
             ):
                 token = create_token(
                     data={"sub": user_id, "type": "access"},
@@ -667,7 +667,7 @@ class TestRefreshTokenVerification:
 
     def _create_mock_settings_service(self, algorithm, tmpdir):
         """Helper to create mock settings service."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
 
         settings = AuthSettings(CONFIG_DIR=tmpdir, ALGORITHM=algorithm)
 
@@ -678,8 +678,8 @@ class TestRefreshTokenVerification:
     @pytest.mark.asyncio
     async def test_refresh_token_rs256_success(self):
         """Valid RS256 refresh token should create new tokens."""
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import create_refresh_token, create_token
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import create_refresh_token, create_token
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_settings_service = self._create_mock_settings_service("RS256", tmpdir)
@@ -696,8 +696,8 @@ class TestRefreshTokenVerification:
                 return mock_user
 
             with (
-                patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service),
-                patch("langflow.services.auth.service.get_user_by_id", side_effect=mock_get_user_by_id),
+                patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service),
+                patch("ketos.services.auth.service.get_user_by_id", side_effect=mock_get_user_by_id),
             ):
                 # Create refresh token
                 refresh_token = create_token(
@@ -715,15 +715,15 @@ class TestRefreshTokenVerification:
     @pytest.mark.asyncio
     async def test_refresh_token_wrong_type_raises_401(self):
         """Access token used as refresh token should raise 401."""
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import create_refresh_token, create_token
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import create_refresh_token, create_token
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_settings_service = self._create_mock_settings_service("HS256", tmpdir)
             mock_auth_service = AuthService(mock_settings_service)
             mock_db = AsyncMock()
 
-            with patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service):
+            with patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service):
                 # Create access token (not refresh)
                 access_token = create_token(
                     data={"sub": "9cd4172c-0190-4124-a749-671d23e3c6dd", "type": "access"},
@@ -742,7 +742,7 @@ class TestAlgorithmMismatch:
 
     def test_hs256_token_fails_with_rs256_verification(self):
         """Token created with HS256 should fail RS256 verification."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create token with HS256
@@ -762,7 +762,7 @@ class TestAlgorithmMismatch:
 
     def test_rs256_token_fails_with_hs256_verification(self):
         """Token created with RS256 should fail HS256 verification."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create token with RS256
@@ -790,7 +790,7 @@ class TestKeyPersistence:
 
     def test_secret_key_file_created(self):
         """Secret key should be saved to file."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
 
         with tempfile.TemporaryDirectory() as tmpdir:
             AuthSettings(CONFIG_DIR=tmpdir, ALGORITHM="HS256")
@@ -800,7 +800,7 @@ class TestKeyPersistence:
 
     def test_rsa_key_files_created(self):
         """RSA keys should be saved to files."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
 
         with tempfile.TemporaryDirectory() as tmpdir:
             AuthSettings(CONFIG_DIR=tmpdir, ALGORITHM="RS256")
@@ -813,7 +813,7 @@ class TestKeyPersistence:
 
     def test_keys_reloaded_on_restart(self):
         """Keys should be consistent across settings reloads."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # First load
@@ -835,7 +835,7 @@ class TestEdgeCases:
 
     def test_empty_config_dir_string(self):
         """Empty CONFIG_DIR string should work (in-memory keys)."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
 
         settings = AuthSettings(CONFIG_DIR="", ALGORITHM="RS256")
         assert settings.PRIVATE_KEY.get_secret_value() is not None
@@ -844,11 +844,11 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_token_with_extra_claims(self):
         """Token with extra claims should still work."""
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import get_current_user_from_access_token
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import get_current_user_from_access_token
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            from lfx.services.settings.auth import AuthSettings
+            from kfx.services.settings.auth import AuthSettings
 
             settings = AuthSettings(CONFIG_DIR=tmpdir, ALGORITHM="HS256")
 
@@ -878,19 +878,19 @@ class TestEdgeCases:
                 return mock_user
 
             with (
-                patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service),
-                patch("langflow.services.auth.service.get_user_by_id", side_effect=mock_get_user_by_id),
+                patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service),
+                patch("ketos.services.auth.service.get_user_by_id", side_effect=mock_get_user_by_id),
             ):
                 user = await get_current_user_from_access_token(token, mock_db)
                 assert user == mock_user
 
     def test_very_long_user_id(self):
         """Very long user ID should work."""
-        from langflow.services.auth.service import AuthService
-        from langflow.services.auth.utils import create_token
+        from ketos.services.auth.service import AuthService
+        from ketos.services.auth.utils import create_token
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            from lfx.services.settings.auth import AuthSettings
+            from kfx.services.settings.auth import AuthSettings
 
             settings = AuthSettings(CONFIG_DIR=tmpdir, ALGORITHM="HS256")
 
@@ -900,7 +900,7 @@ class TestEdgeCases:
 
             long_user_id = "a" * 1000
 
-            with patch("langflow.services.auth.utils.get_auth_service", return_value=mock_auth_service):
+            with patch("ketos.services.auth.utils.get_auth_service", return_value=mock_auth_service):
                 token = create_token(
                     data={"sub": long_user_id, "type": "access"},
                     expires_delta=timedelta(hours=1),
@@ -915,7 +915,7 @@ class TestJWTKeyHelpers:
 
     def _create_mock_settings_service(self, algorithm, tmpdir):
         """Helper to create mock settings service."""
-        from lfx.services.settings.auth import AuthSettings
+        from kfx.services.settings.auth import AuthSettings
 
         settings = AuthSettings(CONFIG_DIR=tmpdir, ALGORITHM=algorithm)
 
@@ -925,7 +925,7 @@ class TestJWTKeyHelpers:
 
     def test_get_jwt_verification_key_hs256_returns_secret_key(self):
         """HS256 should return secret key for verification."""
-        from langflow.services.auth.utils import get_jwt_verification_key
+        from ketos.services.auth.utils import get_jwt_verification_key
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_service = self._create_mock_settings_service("HS256", tmpdir)
@@ -937,7 +937,7 @@ class TestJWTKeyHelpers:
 
     def test_get_jwt_verification_key_rs256_returns_public_key(self):
         """RS256 should return public key for verification."""
-        from langflow.services.auth.utils import get_jwt_verification_key
+        from ketos.services.auth.utils import get_jwt_verification_key
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_service = self._create_mock_settings_service("RS256", tmpdir)
@@ -949,7 +949,7 @@ class TestJWTKeyHelpers:
 
     def test_get_jwt_verification_key_rs512_returns_public_key(self):
         """RS512 should return public key for verification."""
-        from langflow.services.auth.utils import get_jwt_verification_key
+        from ketos.services.auth.utils import get_jwt_verification_key
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_service = self._create_mock_settings_service("RS512", tmpdir)
@@ -961,7 +961,7 @@ class TestJWTKeyHelpers:
 
     def test_get_jwt_verification_key_missing_public_key_raises_error(self):
         """Missing public key for asymmetric algorithm should raise JWTKeyError."""
-        from langflow.services.auth.utils import JWTKeyError, get_jwt_verification_key
+        from ketos.services.auth.utils import JWTKeyError, get_jwt_verification_key
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_service = self._create_mock_settings_service("RS256", tmpdir)
@@ -975,8 +975,8 @@ class TestJWTKeyHelpers:
 
     def test_get_jwt_verification_key_missing_secret_key_raises_error(self):
         """Missing secret key for HS256 should raise JWTKeyError."""
-        from langflow.services.auth.utils import JWTKeyError, get_jwt_verification_key
-        from lfx.services.settings.auth import JWTAlgorithm
+        from ketos.services.auth.utils import JWTKeyError, get_jwt_verification_key
+        from kfx.services.settings.auth import JWTAlgorithm
 
         mock_auth_settings = MagicMock()
         mock_auth_settings.ALGORITHM = JWTAlgorithm.HS256
@@ -994,7 +994,7 @@ class TestJWTKeyHelpers:
 
     def test_get_jwt_signing_key_hs256_returns_secret_key(self):
         """HS256 should return secret key for signing."""
-        from langflow.services.auth.utils import get_jwt_signing_key
+        from ketos.services.auth.utils import get_jwt_signing_key
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_service = self._create_mock_settings_service("HS256", tmpdir)
@@ -1005,7 +1005,7 @@ class TestJWTKeyHelpers:
 
     def test_get_jwt_signing_key_rs256_returns_private_key(self):
         """RS256 should return private key for signing."""
-        from langflow.services.auth.utils import get_jwt_signing_key
+        from ketos.services.auth.utils import get_jwt_signing_key
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_service = self._create_mock_settings_service("RS256", tmpdir)
@@ -1017,7 +1017,7 @@ class TestJWTKeyHelpers:
 
     def test_get_jwt_signing_key_rs512_returns_private_key(self):
         """RS512 should return private key for signing."""
-        from langflow.services.auth.utils import get_jwt_signing_key
+        from ketos.services.auth.utils import get_jwt_signing_key
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_service = self._create_mock_settings_service("RS512", tmpdir)
@@ -1029,7 +1029,7 @@ class TestJWTKeyHelpers:
 
     def test_verification_and_signing_keys_work_together_hs256(self):
         """Verification and signing keys should work together for HS256."""
-        from langflow.services.auth.utils import get_jwt_signing_key, get_jwt_verification_key
+        from ketos.services.auth.utils import get_jwt_signing_key, get_jwt_verification_key
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_service = self._create_mock_settings_service("HS256", tmpdir)
@@ -1049,7 +1049,7 @@ class TestJWTKeyHelpers:
 
     def test_verification_and_signing_keys_work_together_rs256(self):
         """Verification and signing keys should work together for RS256."""
-        from langflow.services.auth.utils import get_jwt_signing_key, get_jwt_verification_key
+        from ketos.services.auth.utils import get_jwt_signing_key, get_jwt_verification_key
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_service = self._create_mock_settings_service("RS256", tmpdir)

@@ -1,9 +1,9 @@
 import re
 
 import pytest
-from lfx.components.processing.parser import ParserComponent
-from lfx.schema import Data, DataFrame
-from lfx.schema.message import Message
+from kfx.components.processing.parser import ParserComponent
+from kfx.schema import Data, DataFrame
+from kfx.schema.message import Message
 
 from tests.base import ComponentTestBaseWithoutClient
 

@@ -2,7 +2,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from lfx.components.models_and_agents.policies_component import (
+from kfx.components.models_and_agents.policies_component import (
     MODE_GENERATE,
     MODE_GUARD,
     STEP2,
@@ -71,7 +71,7 @@ async def test_guard_tools_blocked_when_custom_components_disabled(mock_componen
     from types import SimpleNamespace
 
     monkeypatch.setattr(
-        "lfx.services.deps.get_settings_service",
+        "kfx.services.deps.get_settings_service",
         lambda: SimpleNamespace(settings=SimpleNamespace(allow_custom_components=False)),
     )
 
@@ -96,7 +96,7 @@ async def test_guard_tools_allowed_when_custom_components_enabled(mock_component
     from types import SimpleNamespace
 
     monkeypatch.setattr(
-        "lfx.services.deps.get_settings_service",
+        "kfx.services.deps.get_settings_service",
         lambda: SimpleNamespace(settings=SimpleNamespace(allow_custom_components=True)),
     )
 
@@ -207,8 +207,8 @@ async def test_cache_mode_corrupted_cache(mock_component):
 #     with (
 #         patch.object(Path, "exists", return_value=True),
 #         patch.object(mock_component, "make_toolguard_result") as mock_make_result,
-#         patch("lfx.components.models_and_agents.policies_component.load_toolguards_from_memory") as mock_load_memory,
-#         patch("lfx.components.models_and_agents.policies_component.GuardedTool") as mock_guarded_tool,
+#         patch("kfx.components.models_and_agents.policies_component.load_toolguards_from_memory") as mock_load_memory,
+#         patch("kfx.components.models_and_agents.policies_component.GuardedTool") as mock_guarded_tool,
 #     ):
 #         mock_tg_result = MagicMock()
 #         mock_make_result.return_value = mock_tg_result

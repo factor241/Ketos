@@ -6,10 +6,10 @@ from uuid import uuid4
 import anyio
 import pytest
 from fastapi import HTTPException
-from langflow.api.v1.flows_helpers import _new_flow, _save_flow_to_fs
-from langflow.services.database.models.flow.model import Flow, FlowCreate
-from langflow.services.database.models.user.model import User
-from langflow.services.storage.service import StorageService
+from ketos.api.v1.flows_helpers import _new_flow, _save_flow_to_fs
+from ketos.services.database.models.flow.model import Flow, FlowCreate
+from ketos.services.database.models.user.model import User
+from ketos.services.storage.service import StorageService
 
 
 @pytest.fixture
@@ -45,7 +45,7 @@ async def test_new_flow_with_validate_folder_rejects_unknown_folder(async_sessio
     )
 
     with (
-        patch("langflow.api.v1.flows_helpers.get_default_folder_id", new=AsyncMock()) as mock_default_folder_id,
+        patch("ketos.api.v1.flows_helpers.get_default_folder_id", new=AsyncMock()) as mock_default_folder_id,
         pytest.raises(HTTPException) as exc_info,
     ):
         await _new_flow(
@@ -72,7 +72,7 @@ async def test_save_flow_to_fs_returns_500_on_os_error(current_user, storage_ser
     )
 
     with (
-        patch("langflow.api.v1.flows_helpers.aiofiles.open", side_effect=OSError("disk full")),
+        patch("ketos.api.v1.flows_helpers.aiofiles.open", side_effect=OSError("disk full")),
         pytest.raises(HTTPException) as exc_info,
     ):
         await _save_flow_to_fs(flow, current_user.id, storage_service)

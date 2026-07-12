@@ -8,9 +8,9 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
-from langflow.services.authorization.fetch import authorized_or_owner_scoped, deny_to_404
-from langflow.services.database.models.flow.model import Flow
-from lfx.services.authorization.base import BaseAuthorizationService
+from ketos.services.authorization.fetch import authorized_or_owner_scoped, deny_to_404
+from ketos.services.database.models.flow.model import Flow
+from kfx.services.authorization.base import BaseAuthorizationService
 
 # Reuse the live Flow model so the test exercises a real SQLAlchemy
 # InstrumentedAttribute path. The session is fake — only the compiled SQL
@@ -74,7 +74,7 @@ async def test_owner_scoped_when_service_does_not_support_cross_user_fetch():
     session = _FakeSession(returns=object())
     service = _StubService(supports_cross_user=False)
     with patch(
-        "langflow.services.authorization.fetch.get_authorization_service",
+        "ketos.services.authorization.fetch.get_authorization_service",
         return_value=service,
     ):
         await authorized_or_owner_scoped(
@@ -95,7 +95,7 @@ async def test_id_only_when_service_supports_cross_user_fetch():
     session = _FakeSession(returns=object())
     service = _StubService(supports_cross_user=True)
     with patch(
-        "langflow.services.authorization.fetch.get_authorization_service",
+        "ketos.services.authorization.fetch.get_authorization_service",
         return_value=service,
     ):
         await authorized_or_owner_scoped(

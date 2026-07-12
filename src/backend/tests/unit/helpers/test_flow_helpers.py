@@ -3,15 +3,15 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi import HTTPException
-from langflow.helpers.flow import (
+from ketos.helpers.flow import (
     get_flow_by_id_or_endpoint_name,
     get_flow_by_id_or_name,
     list_flows,
     list_flows_by_flow_folder,
     list_flows_by_folder_id,
 )
-from langflow.schema.data import Data
-from langflow.services.database.models.flow.model import Flow
+from ketos.schema.data import Data
+from ketos.services.database.models.flow.model import Flow
 
 
 class TestListFlows:
@@ -34,7 +34,7 @@ class TestListFlows:
         mock_flow2 = MagicMock(spec=Flow)
         mock_flow2.to_data = MagicMock(return_value=Data(data={"name": "Flow 2"}))
 
-        with patch("langflow.helpers.flow.session_scope") as mock_session_scope:
+        with patch("ketos.helpers.flow.session_scope") as mock_session_scope:
             mock_session = MagicMock()
             mock_result = MagicMock()
             mock_result.all = MagicMock(return_value=[mock_flow1, mock_flow2])
@@ -77,7 +77,7 @@ class TestListFlowsByFlowFolder:
         mock_row2 = MagicMock()
         mock_row2._mapping = {"id": str(uuid4()), "name": "Flow 2", "updated_at": "2024-01-02"}
 
-        with patch("langflow.helpers.flow.session_scope") as mock_session_scope:
+        with patch("ketos.helpers.flow.session_scope") as mock_session_scope:
             mock_session = MagicMock()
             mock_result = MagicMock()
             mock_result.all = MagicMock(return_value=[mock_row1, mock_row2])
@@ -98,7 +98,7 @@ class TestListFlowsByFlowFolder:
         flow_id = str(uuid4())
         order_params = {"column": "name", "direction": "asc"}
 
-        with patch("langflow.helpers.flow.session_scope") as mock_session_scope:
+        with patch("ketos.helpers.flow.session_scope") as mock_session_scope:
             mock_session = MagicMock()
             mock_result = MagicMock()
             mock_result.all = MagicMock(return_value=[])
@@ -136,7 +136,7 @@ class TestListFlowsByFolderId:
         mock_row1 = MagicMock()
         mock_row1._mapping = {"id": str(uuid4()), "name": "Flow 1"}
 
-        with patch("langflow.helpers.flow.session_scope") as mock_session_scope:
+        with patch("ketos.helpers.flow.session_scope") as mock_session_scope:
             mock_session = MagicMock()
             mock_result = MagicMock()
             mock_result.all = MagicMock(return_value=[mock_row1])
@@ -174,7 +174,7 @@ class TestGetFlowByIdOrName:
         mock_flow = MagicMock(spec=Flow)
         mock_flow.to_data = MagicMock(return_value=Data(data={"name": "Test Flow"}))
 
-        with patch("langflow.helpers.flow.session_scope") as mock_session_scope:
+        with patch("ketos.helpers.flow.session_scope") as mock_session_scope:
             mock_session = MagicMock()
             mock_result = MagicMock()
             mock_result.first = MagicMock(return_value=mock_flow)
@@ -196,7 +196,7 @@ class TestGetFlowByIdOrName:
         mock_flow = MagicMock(spec=Flow)
         mock_flow.to_data = MagicMock(return_value=Data(data={"name": flow_name}))
 
-        with patch("langflow.helpers.flow.session_scope") as mock_session_scope:
+        with patch("ketos.helpers.flow.session_scope") as mock_session_scope:
             mock_session = MagicMock()
             mock_result = MagicMock()
             mock_result.first = MagicMock(return_value=mock_flow)
@@ -219,7 +219,7 @@ class TestGetFlowByIdOrName:
         mock_flow = MagicMock(spec=Flow)
         mock_flow.to_data = MagicMock(return_value=Data(data={"id": flow_id, "name": flow_name}))
 
-        with patch("langflow.helpers.flow.session_scope") as mock_session_scope:
+        with patch("ketos.helpers.flow.session_scope") as mock_session_scope:
             mock_session = MagicMock()
             mock_result = MagicMock()
             mock_result.first = MagicMock(return_value=mock_flow)
@@ -247,7 +247,7 @@ class TestGetFlowByIdOrEndpointName:
     @staticmethod
     def _patch_session(mock_session):
         """Patch session_scope to yield the provided mock session."""
-        patcher = patch("langflow.helpers.flow.session_scope")
+        patcher = patch("ketos.helpers.flow.session_scope")
         mock_scope = patcher.start()
         mock_scope.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_scope.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -275,7 +275,7 @@ class TestGetFlowByIdOrEndpointName:
 
         patcher = self._patch_session(mock_session)
         try:
-            with patch("langflow.helpers.flow.FlowRead") as mock_flow_read:
+            with patch("ketos.helpers.flow.FlowRead") as mock_flow_read:
                 mock_flow_read.model_validate = MagicMock(return_value="validated_flow")
                 result = await get_flow_by_id_or_endpoint_name(str(flow_id), str(owner_id))
                 assert result == "validated_flow"
@@ -342,7 +342,7 @@ class TestGetFlowByIdOrEndpointName:
 
         patcher = self._patch_session(mock_session)
         try:
-            with patch("langflow.helpers.flow.FlowRead") as mock_flow_read:
+            with patch("ketos.helpers.flow.FlowRead") as mock_flow_read:
                 mock_flow_read.model_validate = MagicMock(return_value="validated_flow")
                 # user_id=None: any flow is returned.
                 result = await get_flow_by_id_or_endpoint_name(str(flow_id), user_id=None)
@@ -407,7 +407,7 @@ class TestGetFlowByIdOrEndpointName:
 
         patcher = self._patch_session(mock_session)
         try:
-            with patch("langflow.helpers.flow.FlowRead") as mock_flow_read:
+            with patch("ketos.helpers.flow.FlowRead") as mock_flow_read:
                 mock_flow_read.model_validate = MagicMock(return_value="validated_flow")
                 result = await get_flow_by_id_or_endpoint_name("webhook-ep", user_id=None)
                 assert result == "validated_flow"
@@ -462,7 +462,7 @@ class TestGetFlowByIdOrEndpointName:
 
         patcher = self._patch_session(mock_session)
         try:
-            with patch("langflow.services.deps.get_authorization_service", return_value=stub_authz):  # noqa: SIM117
+            with patch("ketos.services.deps.get_authorization_service", return_value=stub_authz):  # noqa: SIM117
                 with pytest.raises(HTTPException) as exc_info:
                     await get_flow_by_id_or_endpoint_name(str(flow_id), str(attacker_id))
             assert exc_info.value.status_code == 404
@@ -493,8 +493,8 @@ class TestGetFlowByIdOrEndpointName:
 
         patcher = self._patch_session(mock_session)
         try:
-            with patch("langflow.services.deps.get_authorization_service", return_value=stub_authz):  # noqa: SIM117
-                with patch("langflow.helpers.flow.FlowRead") as mock_flow_read:
+            with patch("ketos.services.deps.get_authorization_service", return_value=stub_authz):  # noqa: SIM117
+                with patch("ketos.helpers.flow.FlowRead") as mock_flow_read:
                     mock_flow_read.model_validate = MagicMock(return_value="validated_flow")
                     result = await get_flow_by_id_or_endpoint_name(
                         str(flow_id),

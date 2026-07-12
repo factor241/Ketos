@@ -9,7 +9,7 @@ so the caller can deliver an honest caveat — never loop on this.
 
 from __future__ import annotations
 
-from langflow.agentic.services.flow_agent_model import (
+from ketos.agentic.services.flow_agent_model import (
     AgentModelOutcome,
     ensure_agent_models,
     find_agents_missing_model,

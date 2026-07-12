@@ -10,13 +10,13 @@ import pytest
 @pytest.fixture
 def enable_rate_limiting(monkeypatch):
     """Enable rate limiting for tests that need to verify rate limit behavior."""
-    monkeypatch.setenv("LANGFLOW_RATE_LIMIT_ENABLED", "true")
+    monkeypatch.setenv("KETOS_RATE_LIMIT_ENABLED", "true")
 
 
 @pytest.fixture
 def limiter_snapshot():
     """Fixture to snapshot and restore the global limiter singleton."""
-    import langflow.services.rate_limit.service as rate_limit_module
+    import ketos.services.rate_limit.service as rate_limit_module
 
     original_limiter = rate_limit_module._limiter
     # Force recreation of limiter for each test to ensure clean state
@@ -30,7 +30,7 @@ class TestRateLimitService:
 
     def test_rate_limiter_is_configured(self, enable_rate_limiting):  # noqa: ARG002
         """Test that rate limiter singleton is properly configured."""
-        from langflow.services.rate_limit import get_rate_limiter
+        from ketos.services.rate_limit import get_rate_limiter
 
         limiter = get_rate_limiter()
 
@@ -41,7 +41,7 @@ class TestRateLimitService:
 
     def test_rate_limiter_is_singleton(self, enable_rate_limiting):  # noqa: ARG002
         """Test that get_rate_limiter returns the same instance."""
-        from langflow.services.rate_limit import get_rate_limiter
+        from ketos.services.rate_limit import get_rate_limiter
 
         limiter1 = get_rate_limiter()
         limiter2 = get_rate_limiter()
@@ -50,7 +50,7 @@ class TestRateLimitService:
 
     def test_rate_limit_string_default(self, enable_rate_limiting):  # noqa: ARG002
         """Test that default rate limit string is correct."""
-        from langflow.services.rate_limit.service import get_rate_limit_string
+        from ketos.services.rate_limit.service import get_rate_limit_string
 
         rate_limit = get_rate_limit_string()
 
@@ -58,7 +58,7 @@ class TestRateLimitService:
 
     def test_rate_limiter_uses_remote_address_by_default(self, enable_rate_limiting):  # noqa: ARG002
         """Test that rate limiter uses get_remote_address when trust_proxy is false."""
-        from langflow.services.rate_limit import get_rate_limiter
+        from ketos.services.rate_limit import get_rate_limiter
         from slowapi.util import get_remote_address
 
         limiter = get_rate_limiter()
@@ -76,7 +76,7 @@ class TestRateLimitService:
         # Mock settings to enable trust_proxy
         from unittest.mock import MagicMock
 
-        from langflow.services.rate_limit.service import get_client_ip
+        from ketos.services.rate_limit.service import get_client_ip
 
         mock_settings = MagicMock()
         mock_settings.rate_limit_trust_proxy = True
@@ -85,9 +85,9 @@ class TestRateLimitService:
         mock_settings_service = MagicMock()
         mock_settings_service.settings = mock_settings
 
-        monkeypatch.setattr("langflow.services.rate_limit.service.get_settings_service", lambda: mock_settings_service)
+        monkeypatch.setattr("ketos.services.rate_limit.service.get_settings_service", lambda: mock_settings_service)
 
-        from langflow.services.rate_limit import get_rate_limiter
+        from ketos.services.rate_limit import get_rate_limiter
 
         limiter = get_rate_limiter()
 
@@ -100,7 +100,7 @@ class TestIPExtraction:
 
     def test_get_client_ip_from_x_forwarded_for_single(self):
         """Test IP extraction from X-Forwarded-For with single IP."""
-        from langflow.services.rate_limit.service import get_client_ip
+        from ketos.services.rate_limit.service import get_client_ip
 
         request = Mock()
         request.headers = {"X-Forwarded-For": "203.0.113.1"}
@@ -112,7 +112,7 @@ class TestIPExtraction:
 
     def test_get_client_ip_from_x_forwarded_for_chain_uses_rightmost(self):
         """Test IP extraction from X-Forwarded-For uses rightmost IP (trusted proxy)."""
-        from langflow.services.rate_limit.service import get_client_ip
+        from ketos.services.rate_limit.service import get_client_ip
 
         request = Mock()
         request.headers = {"X-Forwarded-For": "203.0.113.1, 198.51.100.1, 192.0.2.1"}
@@ -125,7 +125,7 @@ class TestIPExtraction:
 
     def test_get_client_ip_from_x_forwarded_for_with_spaces(self):
         """Test IP extraction handles spaces in X-Forwarded-For."""
-        from langflow.services.rate_limit.service import get_client_ip
+        from ketos.services.rate_limit.service import get_client_ip
 
         request = Mock()
         request.headers = {"X-Forwarded-For": "  203.0.113.1  ,  198.51.100.1  "}
@@ -138,7 +138,7 @@ class TestIPExtraction:
 
     def test_get_client_ip_from_direct_connection(self):
         """Test IP extraction from direct client connection (no proxy)."""
-        from langflow.services.rate_limit.service import get_client_ip
+        from ketos.services.rate_limit.service import get_client_ip
 
         request = Mock()
         request.headers = {}
@@ -150,7 +150,7 @@ class TestIPExtraction:
 
     def test_get_client_ip_fallback_to_unknown(self):
         """Test IP extraction returns 'unknown' when no client info available."""
-        from langflow.services.rate_limit.service import get_client_ip
+        from ketos.services.rate_limit.service import get_client_ip
 
         request = Mock()
         request.headers = {}
@@ -162,7 +162,7 @@ class TestIPExtraction:
 
     def test_get_client_ip_prefers_x_forwarded_for(self):
         """Test that X-Forwarded-For takes precedence over direct client IP."""
-        from langflow.services.rate_limit.service import get_client_ip
+        from ketos.services.rate_limit.service import get_client_ip
 
         request = Mock()
         request.headers = {"X-Forwarded-For": "203.0.113.1"}
@@ -185,7 +185,7 @@ class TestRateLimitIntegration:
         Requires limiter_snapshot fixture to ensure clean state and avoid interference from other tests.
         """
         from fastapi.testclient import TestClient
-        from langflow.main import create_app
+        from ketos.main import create_app
 
         # Create a fresh app instance for this test
         app = create_app()
@@ -215,8 +215,8 @@ class TestRateLimitIntegration:
     @pytest.mark.asyncio
     async def test_login_endpoint_has_rate_limiter_applied(self, enable_rate_limiting):  # noqa: ARG002
         """Test that the login endpoint has rate limiting applied via app.state.limiter."""
-        from langflow.api.v1.login import get_limiter_from_app, login_to_get_access_token
-        from langflow.main import create_app
+        from ketos.api.v1.login import get_limiter_from_app, login_to_get_access_token
+        from ketos.main import create_app
 
         # Create app to ensure limiter is attached to app.state
         app = create_app()

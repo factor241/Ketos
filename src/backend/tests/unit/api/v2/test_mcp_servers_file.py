@@ -7,11 +7,11 @@ import pytest
 from fastapi import HTTPException, UploadFile
 
 # Module under test
-from langflow.api.v2.files import upload_user_file
-from langflow.api.v2.mcp import get_mcp_file
+from ketos.api.v2.files import upload_user_file
+from ketos.api.v2.mcp import get_mcp_file
 
 if TYPE_CHECKING:
-    from langflow.services.database.models.file.model import File as UserFile
+    from ketos.services.database.models.file.model import File as UserFile
 
 
 class FakeStorageService:  # Minimal stub for storage interactions
@@ -324,7 +324,7 @@ async def test_concurrent_update_server_should_not_lose_servers(
     import copy
     from unittest.mock import MagicMock, patch
 
-    from langflow.api.v2.mcp import update_server
+    from ketos.api.v2.mcp import update_server
 
     # Shared mutable state simulating the MCP config file on disk
     config_state = {"mcpServers": {"server_a": {"command": "echo", "args": ["a"]}}}
@@ -343,7 +343,7 @@ async def test_concurrent_update_server_should_not_lose_servers(
         return server_list.get("mcpServers", {}).get(name)
 
     with patch.multiple(
-        "langflow.api.v2.mcp",
+        "ketos.api.v2.mcp",
         get_server_list=mock_get_server_list,
         upload_server_config=mock_upload_server_config,
         get_server=mock_get_server,
@@ -377,7 +377,7 @@ async def test_concurrent_update_server_should_not_lose_servers(
 
 def test_enforce_immutable_server_name_rejects_mismatch():
     """A body name that differs from the URL name is an explicit 422, not a silent no-op."""
-    from langflow.api.v2.mcp import _enforce_immutable_server_name
+    from ketos.api.v2.mcp import _enforce_immutable_server_name
 
     with pytest.raises(HTTPException) as exc_info:
         _enforce_immutable_server_name("old-name", {"name": "new-name", "url": "http://localhost:9000"})
@@ -390,7 +390,7 @@ def test_enforce_immutable_server_name_rejects_mismatch():
 
 def test_enforce_immutable_server_name_strips_matching_name():
     """A redundant matching name is dropped so it never pollutes the stored config."""
-    from langflow.api.v2.mcp import _enforce_immutable_server_name
+    from ketos.api.v2.mcp import _enforce_immutable_server_name
 
     cleaned = _enforce_immutable_server_name("srv", {"name": "srv", "command": "npx", "args": ["-y", "x"]})
 
@@ -400,7 +400,7 @@ def test_enforce_immutable_server_name_strips_matching_name():
 
 def test_enforce_immutable_server_name_passthrough_without_name():
     """Configs without a name field are returned unchanged."""
-    from langflow.api.v2.mcp import _enforce_immutable_server_name
+    from ketos.api.v2.mcp import _enforce_immutable_server_name
 
     config = {"command": "npx", "args": ["-y", "x"]}
 
@@ -417,13 +417,13 @@ async def test_patch_server_rejects_name_change(session, storage_service, settin
     """
     from unittest.mock import AsyncMock, patch
 
-    from langflow.api.v2.mcp import update_server_endpoint
-    from langflow.api.v2.schemas import MCPServerConfig
+    from ketos.api.v2.mcp import update_server_endpoint
+    from ketos.api.v2.schemas import MCPServerConfig
 
     body = MCPServerConfig(name="new-name", url="http://localhost:9000")
 
     with (
-        patch("langflow.api.v2.mcp.update_server", new=AsyncMock()) as mock_update,
+        patch("ketos.api.v2.mcp.update_server", new=AsyncMock()) as mock_update,
         pytest.raises(HTTPException) as exc_info,
     ):
         await update_server_endpoint(
@@ -446,12 +446,12 @@ async def test_patch_server_strips_matching_name_before_persist(
     """A PATCH body that echoes the URL name must not persist ``name`` as stray config."""
     from unittest.mock import AsyncMock, patch
 
-    from langflow.api.v2.mcp import update_server_endpoint
-    from langflow.api.v2.schemas import MCPServerConfig
+    from ketos.api.v2.mcp import update_server_endpoint
+    from ketos.api.v2.schemas import MCPServerConfig
 
     body = MCPServerConfig(name="srv", url="http://localhost:9000")
 
-    with patch("langflow.api.v2.mcp.update_server", new=AsyncMock(return_value={"ok": True})) as mock_update:
+    with patch("ketos.api.v2.mcp.update_server", new=AsyncMock(return_value={"ok": True})) as mock_update:
         await update_server_endpoint(
             server_name="srv",
             server_config=body,
@@ -472,13 +472,13 @@ async def test_post_server_rejects_name_mismatch(session, storage_service, setti
     """POST with a body name different from the URL must 422 (same guard as PATCH)."""
     from unittest.mock import AsyncMock, patch
 
-    from langflow.api.v2.mcp import add_server
-    from langflow.api.v2.schemas import MCPServerConfig
+    from ketos.api.v2.mcp import add_server
+    from ketos.api.v2.schemas import MCPServerConfig
 
     body = MCPServerConfig(name="different", url="http://localhost:9000")
 
     with (
-        patch("langflow.api.v2.mcp.update_server", new=AsyncMock()) as mock_update,
+        patch("ketos.api.v2.mcp.update_server", new=AsyncMock()) as mock_update,
         pytest.raises(HTTPException) as exc_info,
     ):
         await add_server(

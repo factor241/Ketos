@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 from langchain_core.embeddings import Embeddings
-from lfx.base.embeddings.embeddings_class import EmbeddingsWithModels
+from kfx.base.embeddings.embeddings_class import EmbeddingsWithModels
 
 
 # Test fixture: Create a simple mock embeddings class for testing

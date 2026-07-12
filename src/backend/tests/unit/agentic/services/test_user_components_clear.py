@@ -11,7 +11,7 @@ import secrets
 from typing import TYPE_CHECKING
 
 import pytest
-from langflow.agentic.services.user_components import (
+from ketos.agentic.services.user_components import (
     clear_user_components,
     register_user_component,
 )
@@ -20,9 +20,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 SAMPLE_CODE = (
-    "from lfx.custom import Component\n"
-    "from lfx.io import FloatInput, Output\n"
-    "from lfx.schema import Data\n"
+    "from kfx.custom import Component\n"
+    "from kfx.io import FloatInput, Output\n"
+    "from kfx.schema import Data\n"
     "\n"
     "class SumComponent(Component):\n"
     "    inputs = [FloatInput(name='a'), FloatInput(name='b')]\n"
@@ -34,10 +34,10 @@ SAMPLE_CODE = (
 
 @pytest.fixture
 def isolated_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setenv("LANGFLOW_FS_TOOL_BASE_DIR", str(tmp_path))
+    monkeypatch.setenv("KETOS_FS_TOOL_BASE_DIR", str(tmp_path))
     (tmp_path / ".fs_pepper").write_bytes(secrets.token_bytes(32))
 
-    from lfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
+    from kfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
 
     monkeypatch.setattr(
         FileSystemToolComponent,
@@ -49,10 +49,10 @@ def isolated_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 @pytest.fixture
 def shared_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setenv("LANGFLOW_FS_TOOL_BASE_DIR", str(tmp_path))
+    monkeypatch.setenv("KETOS_FS_TOOL_BASE_DIR", str(tmp_path))
     (tmp_path / ".fs_pepper").write_bytes(secrets.token_bytes(32))
 
-    from lfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
+    from kfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
 
     monkeypatch.setattr(
         FileSystemToolComponent,
@@ -80,7 +80,7 @@ class TestClearUserComponentsHappyPath:
         assert deleted == 2
         # The directory still exists (we wipe contents, not the dir itself
         # — keeps the loader's walk simple on the next register call).
-        from langflow.agentic.services.user_components import (
+        from ketos.agentic.services.user_components import (
             get_user_components_dir,
         )
 
@@ -147,7 +147,7 @@ class TestClearUserComponentsIsolation:
             class_name="SumComponent",
             code=SAMPLE_CODE,
         )
-        from langflow.agentic.services.user_components import (
+        from ketos.agentic.services.user_components import (
             get_user_components_dir,
         )
 
@@ -184,7 +184,7 @@ class TestClearUserComponentsRefusal:
             class_name="SumComponent",
             code=SAMPLE_CODE,
         )
-        from langflow.agentic.services.user_components import (
+        from ketos.agentic.services.user_components import (
             get_user_components_dir,
         )
 

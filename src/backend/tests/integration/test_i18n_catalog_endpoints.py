@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from langflow.api.v1.starter_projects import get_starter_projects
-from langflow.initial_setup.load import get_starter_projects_dump
-from langflow.utils import i18n as i18n_utils
+from ketos.api.v1.starter_projects import get_starter_projects
+from ketos.initial_setup.load import get_starter_projects_dump
+from ketos.utils import i18n as i18n_utils
 from starlette.requests import Request
 
 
@@ -49,7 +49,7 @@ async def test_python_built_starter_endpoint_localizes_name_description_and_note
         },
     }
 
-    monkeypatch.setattr("langflow.initial_setup.load.get_starter_projects_dump", lambda: [raw])
+    monkeypatch.setattr("ketos.initial_setup.load.get_starter_projects_dump", lambda: [raw])
 
     result = await get_starter_projects(_request("ru"))
 

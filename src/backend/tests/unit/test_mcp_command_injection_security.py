@@ -12,7 +12,7 @@ in MCPServerConfig schema.
 """
 
 import pytest
-from langflow.api.v2.schemas import ALLOWED_MCP_COMMANDS, DANGEROUS_ENV_VARS, MCPServerConfig
+from ketos.api.v2.schemas import ALLOWED_MCP_COMMANDS, DANGEROUS_ENV_VARS, MCPServerConfig
 from pydantic import ValidationError
 
 
@@ -244,7 +244,7 @@ class TestMCPCommandInjectionSecurity:
     def test_poc_touch_command_rejected(self):
         """Test that the PoC 'touch' command from the security advisory is rejected."""
         with pytest.raises(ValidationError) as exc_info:
-            MCPServerConfig(command="touch", args=["/tmp/pwned_langflow"])  # noqa: S108
+            MCPServerConfig(command="touch", args=["/tmp/pwned_ketos"])  # noqa: S108
 
         error_msg = str(exc_info.value)
         assert "touch" in error_msg

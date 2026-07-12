@@ -1,6 +1,6 @@
 """validate_flow_spec — Tier-1 static validation of a built flow.
 
-Thin wrapper that reuses Langflow's existing CLI validator
+Thin wrapper that reuses Ketos's existing CLI validator
 (``validate_flow_file`` + the STRUCTURAL→REQUIRED_INPUTS semantic
 checks) on an in-memory flow dict, with ZERO LLM tokens. Its own
 responsibility is only: serialize → delegate → map to a small stable
@@ -13,16 +13,16 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from langflow.agentic.services.flow_static_validation import (
+from ketos.agentic.services.flow_static_validation import (
     FlowValidationReport,
     validate_flow_spec,
 )
 
-MODULE = "langflow.agentic.services.flow_static_validation"
+MODULE = "ketos.agentic.services.flow_static_validation"
 
 
 def _fake_result(*, errors=(), warnings=()):
-    from lfx.cli.validation.core import ValidationIssue, ValidationResult
+    from kfx.cli.validation.core import ValidationIssue, ValidationResult
 
     res = ValidationResult(path=Path("x"))
     for msg, node in errors:
@@ -99,7 +99,7 @@ class TestValidateFlowSpecContract:
 
 class TestValidateFlowSpecRealReuse:
     def test_should_flag_an_unknown_component_type_via_the_real_validator(self):
-        # No mock — proves the real lfx validator is actually wired.
+        # No mock — proves the real kfx validator is actually wired.
         flow = {
             "id": "flow-1",  # _REQUIRED_TOP_LEVEL = {"id", "name", "data"}
             "name": "f",

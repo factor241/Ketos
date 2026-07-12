@@ -10,7 +10,7 @@ from textwrap import dedent
 from unittest.mock import patch
 
 import pytest
-from langflow.agentic.helpers.validation import (
+from ketos.agentic.helpers.validation import (
     _extract_class_name_regex,
     _extract_io_names,
     _extract_output_methods,
@@ -19,7 +19,7 @@ from langflow.agentic.helpers.validation import (
     validate_component_runtime,
 )
 
-MODULE = "langflow.agentic.helpers.validation"
+MODULE = "ketos.agentic.helpers.validation"
 
 
 def _parse(code: str) -> ast.Module:
@@ -185,7 +185,7 @@ class TestValidateComponentCode:
         generated code, an attacker who can influence LLM output can achieve
         arbitrary server-side code execution.
         """
-        env_key = "_LANGFLOW_SECURITY_VALIDATION_TEST"
+        env_key = "_KETOS_SECURITY_VALIDATION_TEST"
         os.environ.pop(env_key, None)
 
         malicious_code = f"""
@@ -343,9 +343,9 @@ class TestValidateComponentRuntimeExecution:
         """
         buggy_code = dedent(
             """
-            from lfx.custom import Component
-            from lfx.schema.data import Data
-            from lfx.template.field.base import Output
+            from kfx.custom import Component
+            from kfx.schema.data import Data
+            from kfx.template.field.base import Output
 
 
             class DummyScraper(Component):
@@ -383,9 +383,9 @@ class TestValidateComponentRuntimeExecution:
         """
         buggy_code = dedent(
             """
-            from lfx.custom import Component
-            from lfx.schema.message import Message
-            from lfx.template.field.base import Output
+            from kfx.custom import Component
+            from kfx.schema.message import Message
+            from kfx.template.field.base import Output
 
 
             class DummyMessageComponent(Component):
@@ -417,9 +417,9 @@ class TestValidateComponentRuntimeExecution:
         """
         good_code = dedent(
             """
-            from lfx.custom import Component
-            from lfx.schema.data import Data
-            from lfx.template.field.base import Output
+            from kfx.custom import Component
+            from kfx.schema.data import Data
+            from kfx.template.field.base import Output
 
 
             class GoodScraper(Component):
@@ -455,9 +455,9 @@ class TestValidateComponentRuntimeExecution:
         """
         buggy_code = dedent(
             """
-            from lfx.custom import Component
-            from lfx.io import MessageTextInput, Output
-            from lfx.schema.data import Data
+            from kfx.custom import Component
+            from kfx.io import MessageTextInput, Output
+            from kfx.schema.data import Data
 
 
             class AnimalOnomatopoeia(Component):
@@ -488,9 +488,9 @@ class TestValidateComponentRuntimeExecution:
         """
         good_code = dedent(
             """
-            from lfx.custom import Component
-            from lfx.io import MessageTextInput, Output
-            from lfx.schema.data import Data
+            from kfx.custom import Component
+            from kfx.io import MessageTextInput, Output
+            from kfx.schema.data import Data
 
 
             class AnimalEcho(Component):
@@ -519,9 +519,9 @@ class TestValidateComponentRuntimeExecution:
         """
         good_code = dedent(
             """
-            from lfx.custom import Component
-            from lfx.io import DictInput, Output
-            from lfx.schema.data import Data
+            from kfx.custom import Component
+            from kfx.io import DictInput, Output
+            from kfx.schema.data import Data
 
 
             class ConfigEcho(Component):

@@ -16,8 +16,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from lfx.base.mcp import util
-from lfx.base.mcp.util import (
+from kfx.base.mcp import util
+from kfx.base.mcp.util import (
     MCPSessionManager,
     MCPSseClient,
     MCPStdioClient,
@@ -29,7 +29,7 @@ from lfx.base.mcp.util import (
     update_tools,
     validate_headers,
 )
-from lfx.schema.data import Data
+from kfx.schema.data import Data
 
 
 def test_validate_mcp_stdio_env_rejects_shellopts_ps4_combo():
@@ -50,7 +50,7 @@ def test_validate_mcp_stdio_env_allows_regular_env():
 
 
 # Binaries that would indicate a shell interpreter is being interposed between
-# Langflow and the MCP server process. After the shell=False refactor none of
+# Ketos and the MCP server process. After the shell=False refactor none of
 # these should ever appear as the launched command.
 _SHELL_INTERPRETERS = frozenset({"bash", "sh", "zsh", "cmd", "cmd.exe", "powershell", "powershell.exe", "/bin/sh"})
 
@@ -304,7 +304,7 @@ class TestMCPSessionManager:
         """Concurrent get_session calls for the same server must share one session.
 
         Regression test for the race condition reported in
-        https://github.com/langflow-ai/langflow/issues/9860 where two MCPTools
+        https://github.com/ketos-ai/ketos/issues/9860 where two MCPTools
         components pointing at the same SSE URL would race on session
         creation/cleanup under concurrent flow execution and intermittently
         fail with errors such as:
@@ -725,7 +725,7 @@ class TestGlobalVariableResolution:
 
     def test_resolve_global_variables_basic(self):
         """Test basic global variable resolution in headers."""
-        from lfx.base.mcp.util import _resolve_global_variables_in_headers
+        from kfx.base.mcp.util import _resolve_global_variables_in_headers
 
         headers = {"x-api-key": "MY_API_KEY", "authorization": "MY_TOKEN"}
         request_variables = {"MY_API_KEY": "secret-key-123", "MY_TOKEN": "token-456"}  # pragma: allowlist secret
@@ -736,7 +736,7 @@ class TestGlobalVariableResolution:
 
     def test_resolve_global_variables_no_variables(self):
         """Test header resolution when no request_variables provided."""
-        from lfx.base.mcp.util import _resolve_global_variables_in_headers
+        from kfx.base.mcp.util import _resolve_global_variables_in_headers
 
         headers = {"x-api-key": "MY_API_KEY", "content-type": "application/json"}
 
@@ -750,7 +750,7 @@ class TestGlobalVariableResolution:
 
     def test_resolve_global_variables_partial_match(self):
         """Test resolution when only some headers match variables."""
-        from lfx.base.mcp.util import _resolve_global_variables_in_headers
+        from kfx.base.mcp.util import _resolve_global_variables_in_headers
 
         headers = {
             "x-api-key": "MY_API_KEY",  # matches
@@ -769,7 +769,7 @@ class TestGlobalVariableResolution:
 
     def test_resolve_global_variables_non_string_values(self):
         """Test that non-string header values are preserved."""
-        from lfx.base.mcp.util import _resolve_global_variables_in_headers
+        from kfx.base.mcp.util import _resolve_global_variables_in_headers
 
         headers = {"x-api-key": "MY_KEY", "x-number": 123, "x-none": None}
         request_variables = {"MY_KEY": "resolved"}
@@ -812,7 +812,7 @@ class TestGlobalVariableResolution:
 
     def test_resolve_global_variables_case_sensitive_matching(self):
         """Test that variable name matching is case-sensitive."""
-        from lfx.base.mcp.util import _resolve_global_variables_in_headers
+        from kfx.base.mcp.util import _resolve_global_variables_in_headers
 
         headers = {"x-api-key": "my_api_key", "x-token": "MY_API_KEY"}
         request_variables = {"MY_API_KEY": "resolved-uppercase"}  # pragma: allowlist secret
@@ -824,14 +824,14 @@ class TestGlobalVariableResolution:
 
     def test_resolve_global_variables_empty_headers(self):
         """Test resolution with empty headers."""
-        from lfx.base.mcp.util import _resolve_global_variables_in_headers
+        from kfx.base.mcp.util import _resolve_global_variables_in_headers
 
         result = _resolve_global_variables_in_headers({}, {"VAR": "value"})
         assert result == {}
 
     def test_resolve_global_variables_special_characters(self):
         """Test resolution with special characters in values."""
-        from lfx.base.mcp.util import _resolve_global_variables_in_headers
+        from kfx.base.mcp.util import _resolve_global_variables_in_headers
 
         headers = {"authorization": "MY_TOKEN"}
         request_variables = {"MY_TOKEN": "Bearer token-with-special!@#$%^&*()_+-=[]{}|;:,.<>?"}
@@ -1180,7 +1180,7 @@ class TestUpdateToolsPerToolResilience:
         mock_stdio.connect_to_server.return_value = [good_tool_a, bad_tool, good_tool_b]
         mock_stdio._connected = True
 
-        from lfx.schema.json_schema import create_input_schema_from_json_schema as real_converter
+        from kfx.schema.json_schema import create_input_schema_from_json_schema as real_converter
 
         def selective_converter(schema):
             if schema is bad_tool.inputSchema:
@@ -1189,8 +1189,8 @@ class TestUpdateToolsPerToolResilience:
             return real_converter(schema)
 
         with (
-            patch("lfx.base.mcp.util.create_input_schema_from_json_schema", side_effect=selective_converter),
-            patch("lfx.base.mcp.util.logger") as mock_logger,
+            patch("kfx.base.mcp.util.create_input_schema_from_json_schema", side_effect=selective_converter),
+            patch("kfx.base.mcp.util.logger") as mock_logger,
         ):
             mode, tool_list, tool_cache = await update_tools(
                 server_name="linear-like",
@@ -1214,7 +1214,7 @@ class TestUpdateToolsPerToolResilience:
     @pytest.mark.asyncio
     async def test_resilience_under_many_mixed_tools(self):
         """Stress: 20 tools, 10 healthy + 10 broken with varied error types — all 10 good survive."""
-        from lfx.schema.json_schema import create_input_schema_from_json_schema as real_converter
+        from kfx.schema.json_schema import create_input_schema_from_json_schema as real_converter
 
         error_types = [TypeError, AttributeError, KeyError, NameError, RecursionError]
         tools = []
@@ -1241,7 +1241,7 @@ class TestUpdateToolsPerToolResilience:
         mock_stdio.connect_to_server.return_value = tools
         mock_stdio._connected = True
 
-        with patch("lfx.base.mcp.util.create_input_schema_from_json_schema", side_effect=selective_converter):
+        with patch("kfx.base.mcp.util.create_input_schema_from_json_schema", side_effect=selective_converter):
             _, tool_list, tool_cache = await update_tools(
                 server_name="stress",
                 server_config={"command": "fake-cmd", "args": []},
@@ -1416,7 +1416,7 @@ class TestFieldNameConversion:
 
     def test_json_schema_alias_functionality(self):
         """Test that JSON schema creation includes aliases for camelCase field names."""
-        from lfx.schema.json_schema import create_input_schema_from_json_schema
+        from kfx.schema.json_schema import create_input_schema_from_json_schema
         from pydantic import ValidationError
 
         # Create a JSON schema with snake_case field names
@@ -1458,7 +1458,7 @@ class TestFieldNameConversion:
         """Test that tools provide helpful error messages when called with no arguments."""
         from unittest.mock import AsyncMock
 
-        from lfx.schema.json_schema import create_input_schema_from_json_schema
+        from kfx.schema.json_schema import create_input_schema_from_json_schema
 
         # Create a JSON schema with required fields
         test_schema = {
@@ -1544,7 +1544,7 @@ class TestToolExecutionWithFieldConversion:
         tool_func = util.create_tool_func("test_tool", test_schema, mock_client)
 
         # Mock run_until_complete from async_helpers
-        with patch("lfx.base.mcp.util.run_until_complete", return_value="tool_result") as mock_run_until_complete:
+        with patch("kfx.base.mcp.util.run_until_complete", return_value="tool_result") as mock_run_until_complete:
             # Test with camelCase arguments
             result = tool_func(weatherMain="Snow", topN=6)
 
@@ -1680,7 +1680,7 @@ class TestToolExecutionWithFieldConversion:
         tool_func = util.create_tool_func("test_tool", test_schema, mock_client)
 
         # Mock run_until_complete from async_helpers
-        with patch("lfx.base.mcp.util.run_until_complete", return_value="sync_result") as mock_run_until_complete:
+        with patch("kfx.base.mcp.util.run_until_complete", return_value="sync_result") as mock_run_until_complete:
             # Test with camelCase fields
             result = tool_func(userName="testuser", maxResults=10)
 
@@ -2553,7 +2553,7 @@ class TestMCPStructuredTool:
         # We need to recreate it here since it's defined inline in the update_tools function
         from langchain_core.runnables import RunnableConfig
         from langchain_core.tools import StructuredTool
-        from lfx.base.mcp.util import create_tool_coroutine, create_tool_func
+        from kfx.base.mcp.util import create_tool_coroutine, create_tool_func
 
         class MCPStructuredTool(StructuredTool):
             _tool_call_id_key = "_lf_tool_call_id"
@@ -2575,7 +2575,7 @@ class TestMCPStructuredTool:
                 return tool_args, tool_kwargs
 
             def _run(self, *args, config: RunnableConfig, run_manager=None, **kwargs):
-                from lfx.base.mcp.util import _convert_mcp_result
+                from kfx.base.mcp.util import _convert_mcp_result
 
                 tool_call_id = kwargs.pop(self._tool_call_id_key, None)
                 raw = super()._run(*args, config=config, run_manager=run_manager, **kwargs)
@@ -2583,7 +2583,7 @@ class TestMCPStructuredTool:
                 return converted, raw
 
             async def _arun(self, *args, config: RunnableConfig, run_manager=None, **kwargs):
-                from lfx.base.mcp.util import _convert_mcp_result
+                from kfx.base.mcp.util import _convert_mcp_result
 
                 tool_call_id = kwargs.pop(self._tool_call_id_key, None)
                 raw = await super()._arun(*args, config=config, run_manager=run_manager, **kwargs)
@@ -2594,8 +2594,8 @@ class TestMCPStructuredTool:
                 if not input_dict or not isinstance(input_dict, dict):
                     return input_dict
 
-                from lfx.base.agents.utils import maybe_unflatten_dict
-                from lfx.base.mcp.util import _camel_to_snake
+                from kfx.base.agents.utils import maybe_unflatten_dict
+                from kfx.base.mcp.util import _camel_to_snake
 
                 converted_dict = {}
                 original_fields = set(self.args_schema.model_fields.keys())
@@ -2671,8 +2671,8 @@ class TestMCPStructuredTool:
 
     def test_convert_parameters_flattened_input_produces_nested(self):
         """Test flattened keys (params.search, params.per_page) become nested structure."""
-        from lfx.base.agents.utils import maybe_unflatten_dict
-        from lfx.base.mcp.util import _camel_to_snake
+        from kfx.base.agents.utils import maybe_unflatten_dict
+        from kfx.base.mcp.util import _camel_to_snake
         from pydantic import Field, create_model
 
         schema = create_model(
@@ -2819,7 +2819,7 @@ class TestMCPStructuredTool:
         extra_kwargs = {"extra": "param"}
 
         # Mock run_until_complete from async_helpers
-        with patch("lfx.base.mcp.util.run_until_complete", return_value="tool_result"):
+        with patch("kfx.base.mcp.util.run_until_complete", return_value="tool_result"):
             # Just verify that the method completes successfully with config/kwargs
             mcp_tool.run(input_data, config=config, **extra_kwargs)
 
@@ -2893,8 +2893,8 @@ class TestNormalizeArgumentsForMcp:
         assert result == {"params": {"x": 1}}
         assert isinstance(result["params"], dict)
 
-    def test_langflow_data_to_dict_when_dict_expected(self):
-        """Test Langflow Data/JSON connected to a dict MCP parameter unwraps to its payload."""
+    def test_ketos_data_to_dict_when_dict_expected(self):
+        """Test Ketos Data/JSON connected to a dict MCP parameter unwraps to its payload."""
         from pydantic import BaseModel, Field
 
         class Schema(BaseModel):
@@ -3289,7 +3289,7 @@ class TestSnakeToCamelConversion:
 
     def test_snake_to_camel_basic(self):
         """Test basic snake_case to camelCase conversion."""
-        from lfx.schema.json_schema import _snake_to_camel
+        from kfx.schema.json_schema import _snake_to_camel
 
         assert _snake_to_camel("weather_main") == "weatherMain"
         assert _snake_to_camel("top_n") == "topN"
@@ -3299,7 +3299,7 @@ class TestSnakeToCamelConversion:
 
     def test_snake_to_camel_single_word(self):
         """Test single word conversion (should remain unchanged)."""
-        from lfx.schema.json_schema import _snake_to_camel
+        from kfx.schema.json_schema import _snake_to_camel
 
         assert _snake_to_camel("simple") == "simple"
         assert _snake_to_camel("name") == "name"
@@ -3307,13 +3307,13 @@ class TestSnakeToCamelConversion:
 
     def test_snake_to_camel_empty_string(self):
         """Test empty string handling."""
-        from lfx.schema.json_schema import _snake_to_camel
+        from kfx.schema.json_schema import _snake_to_camel
 
         assert _snake_to_camel("") == ""
 
     def test_snake_to_camel_leading_underscores(self):
         """Test that leading underscores are preserved."""
-        from lfx.schema.json_schema import _snake_to_camel
+        from kfx.schema.json_schema import _snake_to_camel
 
         # Single leading underscore (private convention)
         assert _snake_to_camel("_my_variable") == "_myVariable"
@@ -3329,7 +3329,7 @@ class TestSnakeToCamelConversion:
 
     def test_snake_to_camel_trailing_underscores(self):
         """Test that trailing underscores are preserved."""
-        from lfx.schema.json_schema import _snake_to_camel
+        from kfx.schema.json_schema import _snake_to_camel
 
         # Single trailing underscore (keyword conflict avoidance)
         assert _snake_to_camel("class_") == "class_"
@@ -3341,7 +3341,7 @@ class TestSnakeToCamelConversion:
 
     def test_snake_to_camel_both_leading_and_trailing(self):
         """Test preservation of both leading and trailing underscores."""
-        from lfx.schema.json_schema import _snake_to_camel
+        from kfx.schema.json_schema import _snake_to_camel
 
         assert _snake_to_camel("_my_class_") == "_myClass_"
         assert _snake_to_camel("__private_type__") == "__privateType__"
@@ -3349,7 +3349,7 @@ class TestSnakeToCamelConversion:
 
     def test_snake_to_camel_only_underscores(self):
         """Test strings that are only underscores."""
-        from lfx.schema.json_schema import _snake_to_camel
+        from kfx.schema.json_schema import _snake_to_camel
 
         assert _snake_to_camel("_") == "_"
         assert _snake_to_camel("__") == "__"
@@ -3357,7 +3357,7 @@ class TestSnakeToCamelConversion:
 
     def test_snake_to_camel_multiple_consecutive_underscores(self):
         """Test handling of multiple consecutive underscores in the middle."""
-        from lfx.schema.json_schema import _snake_to_camel
+        from kfx.schema.json_schema import _snake_to_camel
 
         # Multiple underscores should be treated as separators
         # Note: This tests current behavior - we may want to normalize this
@@ -3366,7 +3366,7 @@ class TestSnakeToCamelConversion:
 
     def test_snake_to_camel_edge_cases(self):
         """Test various edge cases."""
-        from lfx.schema.json_schema import _snake_to_camel
+        from kfx.schema.json_schema import _snake_to_camel
 
         # Single character components
         assert _snake_to_camel("a_b_c") == "aBC"
@@ -3380,7 +3380,7 @@ class TestSnakeToCamelConversion:
 
     def test_snake_to_camel_with_api_field_names(self):
         """Test conversion of common API field names that should preserve underscores."""
-        from lfx.schema.json_schema import _snake_to_camel
+        from kfx.schema.json_schema import _snake_to_camel
 
         # MongoDB-style IDs
         assert _snake_to_camel("_id") == "_id"
@@ -3405,7 +3405,7 @@ class TestStripNoneRecursive:
 
     def test_should_remove_none_from_flat_dict(self):
         """Top-level None values must be stripped."""
-        from lfx.base.mcp.util import _strip_none_recursive
+        from kfx.base.mcp.util import _strip_none_recursive
 
         # Arrange
         data = {"name": "chart", "style": None, "title": "My Chart"}
@@ -3419,7 +3419,7 @@ class TestStripNoneRecursive:
 
     def test_should_remove_none_from_nested_objects_in_arrays(self):
         """The exact bug scenario: data[N].group = null inside an array."""
-        from lfx.base.mcp.util import _strip_none_recursive
+        from kfx.base.mcp.util import _strip_none_recursive
 
         # Arrange — reproduces the exact payload from the bug report
         data = {
@@ -3448,7 +3448,7 @@ class TestStripNoneRecursive:
 
     def test_should_handle_deeply_nested_none(self):
         """None values several levels deep must also be stripped."""
-        from lfx.base.mcp.util import _strip_none_recursive
+        from kfx.base.mcp.util import _strip_none_recursive
 
         # Arrange
         data = {
@@ -3466,7 +3466,7 @@ class TestStripNoneRecursive:
 
     def test_should_preserve_falsy_non_none_values(self):
         """Zero, empty string, False, empty list, empty dict must NOT be stripped."""
-        from lfx.base.mcp.util import _strip_none_recursive
+        from kfx.base.mcp.util import _strip_none_recursive
 
         # Arrange
         data = {
@@ -3491,7 +3491,7 @@ class TestStripNoneRecursive:
 
     def test_should_return_primitives_unchanged(self):
         """Non-dict, non-list values pass through unchanged."""
-        from lfx.base.mcp.util import _strip_none_recursive
+        from kfx.base.mcp.util import _strip_none_recursive
 
         assert _strip_none_recursive("hello") == "hello"
         assert _strip_none_recursive(42) == 42
@@ -3499,14 +3499,14 @@ class TestStripNoneRecursive:
 
     def test_should_handle_empty_structures(self):
         """Empty dict and empty list return empty."""
-        from lfx.base.mcp.util import _strip_none_recursive
+        from kfx.base.mcp.util import _strip_none_recursive
 
         assert _strip_none_recursive({}) == {}
         assert _strip_none_recursive([]) == []
 
     def test_should_handle_list_of_primitives_with_none(self):
         """None items inside a plain list are NOT removed (only dict keys)."""
-        from lfx.base.mcp.util import _strip_none_recursive
+        from kfx.base.mcp.util import _strip_none_recursive
 
         # Arrange — list items that are None stay (we only strip dict keys)
         data = [1, None, "hello", None]
@@ -3550,34 +3550,34 @@ class TestConvertMcpResult:
 
     def test_should_return_empty_string_for_none_result(self):
         """None result must return empty string without raising."""
-        from lfx.base.mcp.util import _convert_mcp_result
+        from kfx.base.mcp.util import _convert_mcp_result
 
         assert _convert_mcp_result(None) == ""
 
     def test_should_return_empty_string_for_empty_content(self):
         """Result with empty content list must return empty string."""
-        from lfx.base.mcp.util import _convert_mcp_result
+        from kfx.base.mcp.util import _convert_mcp_result
 
         result = self._make_result([])
         assert _convert_mcp_result(result) == ""
 
     def test_should_return_empty_string_for_missing_content_attr(self):
         """Result without a content attribute must return empty string."""
-        from lfx.base.mcp.util import _convert_mcp_result
+        from kfx.base.mcp.util import _convert_mcp_result
 
         result = MagicMock(spec=[])  # no attributes
         assert _convert_mcp_result(result) == ""
 
     def test_should_return_plain_string_for_single_text_block(self):
         """Single text block must return a plain string (backward compatible)."""
-        from lfx.base.mcp.util import _convert_mcp_result
+        from kfx.base.mcp.util import _convert_mcp_result
 
         result = self._make_result([self._make_text_block("hello world")])
         assert _convert_mcp_result(result) == "hello world"
 
     def test_should_join_multiple_text_blocks_with_newline(self):
         """Multiple text blocks must be joined with newline."""
-        from lfx.base.mcp.util import _convert_mcp_result
+        from kfx.base.mcp.util import _convert_mcp_result
 
         result = self._make_result(
             [
@@ -3589,7 +3589,7 @@ class TestConvertMcpResult:
 
     def test_should_convert_image_block_to_image_url_format(self):
         """Image content must be converted to LangChain image_url format."""
-        from lfx.base.mcp.util import _convert_mcp_result
+        from kfx.base.mcp.util import _convert_mcp_result
 
         # Arrange — reproduces the exact scenario from issue #11812
         b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwADhQGAWjR9awAAAABJRU5ErkJggg=="
@@ -3606,7 +3606,7 @@ class TestConvertMcpResult:
 
     def test_should_handle_mixed_text_and_image_blocks(self):
         """Mixed text + image content must return a list preserving order."""
-        from lfx.base.mcp.util import _convert_mcp_result
+        from kfx.base.mcp.util import _convert_mcp_result
 
         b64 = "abc123=="
         result = self._make_result(
@@ -3628,7 +3628,7 @@ class TestConvertMcpResult:
 
     def test_should_default_mime_type_to_image_png_when_missing(self):
         """Image block with no mimeType must default to image/png."""
-        from lfx.base.mcp.util import _convert_mcp_result
+        from kfx.base.mcp.util import _convert_mcp_result
 
         block = MagicMock()
         block.type = "image"
@@ -3642,7 +3642,7 @@ class TestConvertMcpResult:
 
     def test_should_handle_multiple_image_blocks(self):
         """Multiple image blocks must all be converted."""
-        from lfx.base.mcp.util import _convert_mcp_result
+        from kfx.base.mcp.util import _convert_mcp_result
 
         result = self._make_result(
             [
@@ -3667,7 +3667,7 @@ class TestConvertMcpResult:
         """A resource-only result must not be dropped — serialised as JSON text block."""
         import json
 
-        from lfx.base.mcp.util import _convert_mcp_result
+        from kfx.base.mcp.util import _convert_mcp_result
 
         resource = self._make_resource_block()
         result = self._make_result([resource])
@@ -3685,7 +3685,7 @@ class TestConvertMcpResult:
         """Mixed image + resource must produce a list with both blocks, nothing dropped."""
         import json
 
-        from lfx.base.mcp.util import _convert_mcp_result
+        from kfx.base.mcp.util import _convert_mcp_result
 
         b64 = "abc123=="
         image = self._make_image_block(data=b64, mime="image/png")
@@ -3711,7 +3711,7 @@ class TestConvertMcpResult:
         """Block without model_dump must still produce a text fallback, not raise."""
         import json
 
-        from lfx.base.mcp.util import _convert_mcp_result
+        from kfx.base.mcp.util import _convert_mcp_result
 
         block = MagicMock(spec=[])  # no model_dump attribute
         block.type = "audio"
@@ -3900,7 +3900,7 @@ class TestStreamableHttpTransportPolicy:
             stream_cm.return_value.__aenter__ = AsyncMock(return_value=(MagicMock(), MagicMock(), None))
             stream_cm.return_value.__aexit__ = AsyncMock(return_value=None)
             with (
-                patch("lfx.base.mcp.util.ClientSession", return_value=fake),
+                patch("kfx.base.mcp.util.ClientSession", return_value=fake),
                 patch("mcp.client.streamable_http.streamablehttp_client", stream_cm),
                 patch("mcp.client.sse.sse_client") as sse_cm,
             ):
@@ -3926,7 +3926,7 @@ class TestStreamableHttpTransportPolicy:
             stream_cm.return_value.__aenter__ = AsyncMock(side_effect=ConnectionError("connection refused"))
             stream_cm.return_value.__aexit__ = AsyncMock(return_value=None)
             with (
-                patch("lfx.base.mcp.util.ClientSession", return_value=fake),
+                patch("kfx.base.mcp.util.ClientSession", return_value=fake),
                 patch("mcp.client.streamable_http.streamablehttp_client", stream_cm),
                 patch("mcp.client.sse.sse_client") as sse_cm,
             ):
@@ -3957,7 +3957,7 @@ class TestStreamableHttpTransportPolicy:
             sse_cm.return_value.__aenter__ = AsyncMock(return_value=(MagicMock(), MagicMock()))
             sse_cm.return_value.__aexit__ = AsyncMock(return_value=None)
             with (
-                patch("lfx.base.mcp.util.ClientSession", side_effect=client_session_factory),
+                patch("kfx.base.mcp.util.ClientSession", side_effect=client_session_factory),
                 patch("mcp.client.streamable_http.streamablehttp_client", stream_cm),
                 patch("mcp.client.sse.sse_client", sse_cm),
             ):

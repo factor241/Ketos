@@ -18,14 +18,14 @@ if TYPE_CHECKING:
     from pathlib import Path
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
-from lfx.base.knowledge_bases.backends import (
+from kfx.base.knowledge_bases.backends import (
     BackendType,
     ChromaBackend,
     ChromaCloudBackend,
     ChromaLocalBackend,
     IngestedDocument,
 )
-from lfx.base.knowledge_bases.backends.base import (
+from kfx.base.knowledge_bases.backends.base import (
     METADATA_KEY_JOB_ID,
     METADATA_KEY_SOURCE,
     METADATA_KEY_SOURCE_TYPE,
@@ -318,7 +318,7 @@ class TestChromaCloudMode:
         with (
             patch("chromadb.CloudClient", return_value=mock_client) as mock_cloud,
             patch("chromadb.PersistentClient") as mock_local,
-            patch("lfx.base.knowledge_bases.backends.chroma.Chroma", return_value=MagicMock()) as mock_chroma,
+            patch("kfx.base.knowledge_bases.backends.chroma.Chroma", return_value=MagicMock()) as mock_chroma,
         ):
             bk._build_vector_store()
 

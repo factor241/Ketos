@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
 
 import pytest
-from langflow.services.transaction.service import TransactionService
-from lfx.services.interfaces import TransactionServiceProtocol
+from ketos.services.transaction.service import TransactionService
+from kfx.services.interfaces import TransactionServiceProtocol
 
 
 class TestTransactionService:
@@ -56,7 +56,7 @@ class TestTransactionService:
     @pytest.mark.asyncio
     async def test_should_not_log_when_disabled(self, service_disabled: TransactionService) -> None:
         """Verify log_transaction does nothing when transactions are disabled."""
-        with patch("langflow.services.transaction.service.session_scope") as mock_session:
+        with patch("ketos.services.transaction.service.session_scope") as mock_session:
             await service_disabled.log_transaction(
                 flow_id="test-flow-id",
                 vertex_id="test-vertex-id",
@@ -73,8 +73,8 @@ class TestTransactionService:
         mock_crud = AsyncMock()
 
         with (
-            patch("langflow.services.transaction.service.session_scope") as mock_session_scope,
-            patch("langflow.services.transaction.service.crud_log_transaction", mock_crud) as mock_log,
+            patch("ketos.services.transaction.service.session_scope") as mock_session_scope,
+            patch("ketos.services.transaction.service.crud_log_transaction", mock_crud) as mock_log,
         ):
             mock_session_scope.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_scope.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -101,8 +101,8 @@ class TestTransactionService:
         mock_crud = AsyncMock()
 
         with (
-            patch("langflow.services.transaction.service.session_scope") as mock_session_scope,
-            patch("langflow.services.transaction.service.crud_log_transaction", mock_crud),
+            patch("ketos.services.transaction.service.session_scope") as mock_session_scope,
+            patch("ketos.services.transaction.service.crud_log_transaction", mock_crud),
         ):
             mock_session_scope.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_scope.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -126,8 +126,8 @@ class TestTransactionService:
         mock_crud = AsyncMock()
 
         with (
-            patch("langflow.services.transaction.service.session_scope") as mock_session_scope,
-            patch("langflow.services.transaction.service.crud_log_transaction", mock_crud),
+            patch("ketos.services.transaction.service.session_scope") as mock_session_scope,
+            patch("ketos.services.transaction.service.crud_log_transaction", mock_crud),
         ):
             mock_session_scope.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_scope.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -153,8 +153,8 @@ class TestTransactionService:
         mock_crud = AsyncMock()
 
         with (
-            patch("langflow.services.transaction.service.session_scope") as mock_session_scope,
-            patch("langflow.services.transaction.service.crud_log_transaction", mock_crud),
+            patch("ketos.services.transaction.service.session_scope") as mock_session_scope,
+            patch("ketos.services.transaction.service.crud_log_transaction", mock_crud),
         ):
             mock_session_scope.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_scope.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -175,7 +175,7 @@ class TestTransactionService:
     @pytest.mark.asyncio
     async def test_should_not_raise_on_database_error(self, service: TransactionService) -> None:
         """Verify log_transaction handles database errors gracefully."""
-        with patch("langflow.services.transaction.service.session_scope") as mock_session_scope:
+        with patch("ketos.services.transaction.service.session_scope") as mock_session_scope:
             mock_session_scope.side_effect = Exception("Database error")
 
             # Should not raise

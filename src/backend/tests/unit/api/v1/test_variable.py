@@ -5,7 +5,7 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException, status
 from httpx import AsyncClient
-from langflow.services.variable.constants import CREDENTIAL_TYPE, GENERIC_TYPE
+from ketos.services.variable.constants import CREDENTIAL_TYPE, GENERIC_TYPE
 
 pytestmark = pytest.mark.no_blockbuster
 
@@ -98,7 +98,7 @@ async def test_create_variable__httpexception(client: AsyncClient, credential_va
     status_code = 418
     generic_message = "I'm a teapot"
 
-    with mock.patch("langflow.services.auth.utils.encrypt_api_key") as m:
+    with mock.patch("ketos.services.auth.utils.encrypt_api_key") as m:
         m.side_effect = HTTPException(status_code=status_code, detail=generic_message)
         response = await client.post("api/v1/variables/", json=credential_variable, headers=logged_in_headers)
         result = response.json()
@@ -111,7 +111,7 @@ async def test_create_variable__httpexception(client: AsyncClient, credential_va
 async def test_create_variable__exception(client: AsyncClient, credential_variable, logged_in_headers):
     generic_message = "Generic error message"
 
-    with mock.patch("langflow.services.auth.utils.encrypt_api_key") as m:
+    with mock.patch("ketos.services.auth.utils.encrypt_api_key") as m:
         m.side_effect = Exception(generic_message)
         response = await client.post("api/v1/variables/", json=credential_variable, headers=logged_in_headers)
         result = response.json()
@@ -170,7 +170,7 @@ async def test_read_variables__(client: AsyncClient, logged_in_headers):
     generic_message = "Generic error message"
 
     with mock.patch(
-        "langflow.services.variable.service.DatabaseVariableService.get_all",
+        "ketos.services.variable.service.DatabaseVariableService.get_all",
         new_callable=mock.AsyncMock,
         side_effect=Exception(generic_message),
     ):
@@ -538,7 +538,7 @@ async def test_delete_provider_credential_cleans_up_disabled_models(client: Asyn
         created_var = create_response.json()
 
     # Disable some OpenAI models
-    with mock.patch("lfx.base.models.unified_models.validate_model_provider_key"):
+    with mock.patch("kfx.base.models.unified_models.validate_model_provider_key"):
         disable_response = await client.post(
             "api/v1/models/enabled_models",
             json=[
@@ -592,7 +592,7 @@ async def test_delete_provider_credential_cleans_up_enabled_models(client: Async
         created_var = create_response.json()
 
     # Enable some non-default OpenAI models (explicitly enable models that aren't default)
-    with mock.patch("lfx.base.models.unified_models.validate_model_provider_key"):
+    with mock.patch("kfx.base.models.unified_models.validate_model_provider_key"):
         enable_response = await client.post(
             "api/v1/models/enabled_models",
             json=[
@@ -662,11 +662,11 @@ async def test_detect_env_vars_endpoint__returns_detected_names(client: AsyncCli
 
     with (
         mock.patch(
-            "langflow.api.v1.variable.get_flow_version_entries_by_ids",
+            "ketos.api.v1.variable.get_flow_version_entries_by_ids",
             new_callable=mock.AsyncMock,
             return_value={flow_version_id: flow_version},
         ),
-        mock.patch("langflow.api.v1.variable.get_variable_service", return_value=variable_service),
+        mock.patch("ketos.api.v1.variable.get_variable_service", return_value=variable_service),
     ):
         response = await client.post(
             "api/v1/variables/detections",
@@ -686,11 +686,11 @@ async def test_detect_env_vars_endpoint__rejects_missing_nodes(client: AsyncClie
 
     with (
         mock.patch(
-            "langflow.api.v1.variable.get_flow_version_entries_by_ids",
+            "ketos.api.v1.variable.get_flow_version_entries_by_ids",
             new_callable=mock.AsyncMock,
             return_value={flow_version_id: flow_version},
         ),
-        mock.patch("langflow.api.v1.variable.get_variable_service", return_value=variable_service),
+        mock.patch("ketos.api.v1.variable.get_variable_service", return_value=variable_service),
     ):
         response = await client.post(
             "api/v1/variables/detections",
@@ -742,9 +742,9 @@ def patch_variable_authz(monkeypatch):
     (``guards``) plus the guard's settings probe, and silences audit writes so
     no background DB task is spawned.
     """
-    from langflow.services.authorization import audit as authz_audit
-    from langflow.services.authorization import fetch as authz_fetch
-    from langflow.services.authorization import guards as authz_guards
+    from ketos.services.authorization import audit as authz_audit
+    from ketos.services.authorization import fetch as authz_fetch
+    from ketos.services.authorization import guards as authz_guards
 
     async def _noop_audit(**_kwargs):
         return None
@@ -765,9 +765,9 @@ def patch_variable_authz(monkeypatch):
 
 async def _create_user_and_headers(client: AsyncClient, username: str) -> dict[str, str]:
     """Create a second active user and return its bearer-auth headers."""
-    from langflow.services.auth.utils import get_password_hash
-    from langflow.services.database.models.user.model import User
-    from langflow.services.deps import session_scope
+    from ketos.services.auth.utils import get_password_hash
+    from ketos.services.database.models.user.model import User
+    from ketos.services.deps import session_scope
 
     login_data = {"username": username, "password": "testpassword"}  # pragma: allowlist secret
     async with session_scope() as session:

@@ -5,8 +5,8 @@ from unittest import mock
 import pytest
 from fastapi import status
 from httpx import AsyncClient
-from langflow.services.variable.constants import CREDENTIAL_TYPE
-from lfx.base.models.unified_models import get_model_provider_variable_mapping
+from ketos.services.variable.constants import CREDENTIAL_TYPE
+from kfx.base.models.unified_models import get_model_provider_variable_mapping
 
 # Get provider to variable name mapping
 _provider_variable_mapping = get_model_provider_variable_mapping()
@@ -92,14 +92,14 @@ async def test_enabled_providers_after_credential_creation(client: AsyncClient, 
     # Create OpenAI credential using variables endpoint
     variable_payload = _create_variable_payload(openai_credential["provider"], openai_credential["value"])
     # Mock API validation - mock where it's used (in the variable endpoint)
-    with mock.patch("langflow.api.v1.variable.validate_model_provider_key") as mock_validate:
+    with mock.patch("ketos.api.v1.variable.validate_model_provider_key") as mock_validate:
         mock_validate.return_value = None  # validate_model_provider_key returns None on success
         create_response = await client.post("api/v1/variables/", json=variable_payload, headers=logged_in_headers)
     assert create_response.status_code == status.HTTP_201_CREATED
 
     # Check status after credential creation
     # Mock validation for enabled_providers endpoint as well
-    with mock.patch("lfx.base.models.unified_models.validate_model_provider_key") as mock_validate:
+    with mock.patch("kfx.base.models.unified_models.validate_model_provider_key") as mock_validate:
         mock_validate.return_value = None
         after_response = await client.get("api/v1/models/enabled_providers", headers=logged_in_headers)
     after_result = after_response.json()
@@ -134,14 +134,14 @@ async def test_enabled_providers_multiple_credentials(
     google_var = _create_variable_payload(google_credential["provider"], google_credential["value"])
 
     # Mock API validations
-    with mock.patch("langflow.api.v1.variable.validate_model_provider_key") as mock_validate:
+    with mock.patch("ketos.api.v1.variable.validate_model_provider_key") as mock_validate:
         mock_validate.return_value = None
         await client.post("api/v1/variables/", json=openai_var, headers=logged_in_headers)
         await client.post("api/v1/variables/", json=anthropic_var, headers=logged_in_headers)
         await client.post("api/v1/variables/", json=google_var, headers=logged_in_headers)
 
     # Check enabled providers - mock validation for enabled_providers endpoint
-    with mock.patch("lfx.base.models.unified_models.validate_model_provider_key") as mock_validate:
+    with mock.patch("kfx.base.models.unified_models.validate_model_provider_key") as mock_validate:
         mock_validate.return_value = None
         response = await client.get("api/v1/models/enabled_providers", headers=logged_in_headers)
     result = response.json()
@@ -169,14 +169,14 @@ async def test_enabled_providers_after_credential_deletion(client: AsyncClient, 
     # Create credential using variables endpoint
     variable_payload = _create_variable_payload(openai_credential["provider"], openai_credential["value"])
     # Mock API validation
-    with mock.patch("langflow.api.v1.variable.validate_model_provider_key") as mock_validate:
+    with mock.patch("ketos.api.v1.variable.validate_model_provider_key") as mock_validate:
         mock_validate.return_value = None
         create_response = await client.post("api/v1/variables/", json=variable_payload, headers=logged_in_headers)
     created_credential = create_response.json()
     credential_id = created_credential["id"]
 
     # Verify enabled - mock validation for enabled_providers endpoint as well
-    with mock.patch("lfx.base.models.unified_models.validate_model_provider_key") as mock_validate:
+    with mock.patch("kfx.base.models.unified_models.validate_model_provider_key") as mock_validate:
         mock_validate.return_value = None
         enabled_response = await client.get("api/v1/models/enabled_providers", headers=logged_in_headers)
     enabled_result = enabled_response.json()
@@ -215,13 +215,13 @@ async def test_enabled_providers_filter_by_specific_providers(
     anthropic_var = _create_variable_payload(anthropic_credential["provider"], anthropic_credential["value"])
 
     # Mock API validations
-    with mock.patch("langflow.api.v1.variable.validate_model_provider_key") as mock_validate:
+    with mock.patch("ketos.api.v1.variable.validate_model_provider_key") as mock_validate:
         mock_validate.return_value = None
         await client.post("api/v1/variables/", json=openai_var, headers=logged_in_headers)
         await client.post("api/v1/variables/", json=anthropic_var, headers=logged_in_headers)
 
     # Request specific providers (only providers that are in the mapping) - mock validation
-    with mock.patch("lfx.base.models.unified_models.validate_model_provider_key") as mock_validate:
+    with mock.patch("kfx.base.models.unified_models.validate_model_provider_key") as mock_validate:
         mock_validate.return_value = None
         response = await client.get(
             "api/v1/models/enabled_providers?providers=OpenAI&providers=Anthropic", headers=logged_in_headers
@@ -260,7 +260,7 @@ async def test_variables_credential_redaction(client: AsyncClient, openai_creden
     # Create a credential using variables endpoint
     variable_payload = _create_variable_payload(openai_credential["provider"], openai_credential["value"])
     # Mock API validation
-    with mock.patch("langflow.api.v1.variable.validate_model_provider_key") as mock_validate:
+    with mock.patch("ketos.api.v1.variable.validate_model_provider_key") as mock_validate:
         mock_validate.return_value = None
         create_response = await client.post("api/v1/variables/", json=variable_payload, headers=logged_in_headers)
     assert create_response.status_code == status.HTTP_201_CREATED
@@ -304,7 +304,7 @@ async def test_variables_multiple_credentials_all_redacted(
     anthropic_var = _create_variable_payload(anthropic_credential["provider"], anthropic_credential["value"])
 
     # Mock API validations
-    with mock.patch("langflow.api.v1.variable.validate_model_provider_key") as mock_validate:
+    with mock.patch("ketos.api.v1.variable.validate_model_provider_key") as mock_validate:
         mock_validate.return_value = None
         create_response1 = await client.post("api/v1/variables/", json=openai_var, headers=logged_in_headers)
         create_response2 = await client.post("api/v1/variables/", json=anthropic_var, headers=logged_in_headers)
@@ -338,12 +338,12 @@ async def test_enabled_providers_reflects_models_endpoint(client: AsyncClient, o
     # Create credential using variables endpoint
     variable_payload = _create_variable_payload(openai_credential["provider"], openai_credential["value"])
     # Mock API validation
-    with mock.patch("langflow.api.v1.variable.validate_model_provider_key") as mock_validate:
+    with mock.patch("ketos.api.v1.variable.validate_model_provider_key") as mock_validate:
         mock_validate.return_value = None
         await client.post("api/v1/variables/", json=variable_payload, headers=logged_in_headers)
 
     # Get enabled providers and models - mock validation in unified_models so providers are marked enabled
-    with mock.patch("lfx.base.models.unified_models.validate_model_provider_key") as mock_validate:
+    with mock.patch("kfx.base.models.unified_models.validate_model_provider_key") as mock_validate:
         mock_validate.return_value = None
 
         enabled_response = await client.get("api/v1/models/enabled_providers", headers=logged_in_headers)
@@ -382,7 +382,7 @@ async def test_security_credential_value_never_exposed_in_variables_endpoint(
     # Create credential using variables endpoint
     variable_payload = _create_variable_payload(openai_credential["provider"], openai_credential["value"])
     # Mock API validation
-    with mock.patch("langflow.api.v1.variable.validate_model_provider_key") as mock_validate:
+    with mock.patch("ketos.api.v1.variable.validate_model_provider_key") as mock_validate:
         mock_validate.return_value = None
         create_response = await client.post("api/v1/variables/", json=variable_payload, headers=logged_in_headers)
     assert create_response.status_code == status.HTTP_201_CREATED
@@ -481,7 +481,7 @@ async def test_provider_variable_mapping_multi_variable_provider(client: AsyncCl
 @pytest.mark.usefixtures("active_user")
 async def test_backward_compatible_variable_mapping(client: AsyncClient, logged_in_headers):  # noqa: ARG001
     """Test that get_model_provider_variable_mapping() still returns primary variable (backward compat)."""
-    from lfx.base.models.unified_models import get_model_provider_variable_mapping
+    from kfx.base.models.unified_models import get_model_provider_variable_mapping
 
     mapping = get_model_provider_variable_mapping()
 
@@ -516,11 +516,11 @@ async def test_list_models_returns_live_ollama_models_when_configured(client: As
 
     with (
         mock.patch(
-            "langflow.api.v1.models.get_enabled_providers",
+            "ketos.api.v1.models.get_enabled_providers",
             side_effect=mock_get_enabled_providers,
         ),
         mock.patch(
-            "lfx.base.models.model_utils.get_live_models_for_provider",
+            "kfx.base.models.model_utils.get_live_models_for_provider",
             side_effect=mock_get_live_models,
         ),
     ):
@@ -563,11 +563,11 @@ async def test_list_models_marks_live_only_provider_enabled(client: AsyncClient,
 
     with (
         mock.patch(
-            "langflow.api.v1.models.get_enabled_providers",
+            "ketos.api.v1.models.get_enabled_providers",
             side_effect=mock_get_enabled_providers,
         ),
         mock.patch(
-            "lfx.base.models.model_utils.get_live_models_for_provider",
+            "kfx.base.models.model_utils.get_live_models_for_provider",
             side_effect=mock_get_live_models,
         ),
     ):
@@ -595,11 +595,11 @@ async def test_list_models_ollama_empty_when_live_fetch_returns_empty(client: As
 
     with (
         mock.patch(
-            "langflow.api.v1.models.get_enabled_providers",
+            "ketos.api.v1.models.get_enabled_providers",
             side_effect=mock_get_enabled_providers,
         ),
         mock.patch(
-            "lfx.base.models.model_utils.get_live_models_for_provider",
+            "kfx.base.models.model_utils.get_live_models_for_provider",
             return_value=[],
         ),
     ):

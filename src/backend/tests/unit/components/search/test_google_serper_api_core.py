@@ -1,8 +1,8 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from lfx.components.google.google_serper_api_core import GoogleSerperAPICore
-from lfx.schema import DataFrame
+from kfx.components.google.google_serper_api_core import GoogleSerperAPICore
+from kfx.schema import DataFrame
 
 
 @pytest.fixture

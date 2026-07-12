@@ -288,7 +288,7 @@ class TestLoopComponentOutputsConfig:
 
     def test_loop_component_has_allows_loop_output(self):
         """Test that Loop component has allows_loop=True on item output."""
-        from lfx.components.flow_controls import LoopComponent
+        from kfx.components.flow_controls import LoopComponent
 
         component = LoopComponent()
         outputs = component.outputs
@@ -301,7 +301,7 @@ class TestLoopComponentOutputsConfig:
 
     def test_loop_component_done_output_no_loop(self):
         """Test that Loop component done output does NOT allow loop."""
-        from lfx.components.flow_controls import LoopComponent
+        from kfx.components.flow_controls import LoopComponent
 
         component = LoopComponent()
         outputs = component.outputs

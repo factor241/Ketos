@@ -2,9 +2,9 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
-from lfx.components.llm_operations.guardrails import GuardrailsComponent
-from lfx.schema import Data
-from lfx.schema.message import Message
+from kfx.components.llm_operations.guardrails import GuardrailsComponent
+from kfx.schema import Data
+from kfx.schema.message import Message
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -211,7 +211,7 @@ class TestGuardrailsComponent(ComponentTestBaseWithoutClient):
     # LLM Validation Tests
     # ===================
 
-    @patch("lfx.components.llm_operations.guardrails.get_llm")
+    @patch("kfx.components.llm_operations.guardrails.get_llm")
     def test_validation_passes_with_clean_input(self, mock_get_llm, mock_llm, default_kwargs):
         """Test that validation passes when LLM returns NO."""
         mock_get_llm.return_value = mock_llm
@@ -222,7 +222,7 @@ class TestGuardrailsComponent(ComponentTestBaseWithoutClient):
 
         assert result is True
 
-    @patch("lfx.components.llm_operations.guardrails.get_llm")
+    @patch("kfx.components.llm_operations.guardrails.get_llm")
     def test_validation_fails_when_llm_detects_violation(self, mock_get_llm, mock_llm_detect_violation, default_kwargs):
         """Test that validation fails when LLM returns YES."""
         mock_get_llm.return_value = mock_llm_detect_violation
@@ -234,7 +234,7 @@ class TestGuardrailsComponent(ComponentTestBaseWithoutClient):
         assert result is False
         assert len(component._failed_checks) > 0
 
-    @patch("lfx.components.llm_operations.guardrails.get_llm")
+    @patch("kfx.components.llm_operations.guardrails.get_llm")
     def test_validation_caches_result(self, mock_get_llm, mock_llm, default_kwargs):
         """Test that validation result is cached and LLM is not called twice."""
         mock_get_llm.return_value = mock_llm
@@ -253,7 +253,7 @@ class TestGuardrailsComponent(ComponentTestBaseWithoutClient):
     # LLM Response Parsing Tests
     # ===================
 
-    @patch("lfx.components.llm_operations.guardrails.get_llm")
+    @patch("kfx.components.llm_operations.guardrails.get_llm")
     def test_parse_yes_response(self, mock_get_llm, default_kwargs):
         """Test parsing LLM response starting with YES."""
         mock_llm = MagicMock()
@@ -265,7 +265,7 @@ class TestGuardrailsComponent(ComponentTestBaseWithoutClient):
 
         assert passed is False
 
-    @patch("lfx.components.llm_operations.guardrails.get_llm")
+    @patch("kfx.components.llm_operations.guardrails.get_llm")
     def test_parse_no_response(self, mock_get_llm, default_kwargs):
         """Test parsing LLM response starting with NO."""
         mock_llm = MagicMock()
@@ -277,7 +277,7 @@ class TestGuardrailsComponent(ComponentTestBaseWithoutClient):
 
         assert passed is True
 
-    @patch("lfx.components.llm_operations.guardrails.get_llm")
+    @patch("kfx.components.llm_operations.guardrails.get_llm")
     def test_parse_ambiguous_response_defaults_to_pass(self, mock_get_llm, default_kwargs):
         """Test that ambiguous LLM response defaults to pass (NO)."""
         mock_llm = MagicMock()
@@ -293,7 +293,7 @@ class TestGuardrailsComponent(ComponentTestBaseWithoutClient):
     # Input Sanitization Tests
     # ===================
 
-    @patch("lfx.components.llm_operations.guardrails.get_llm")
+    @patch("kfx.components.llm_operations.guardrails.get_llm")
     def test_input_sanitizes_delimiter_injection(self, mock_get_llm, mock_llm, default_kwargs):
         """Test that delimiter sequences are sanitized from input."""
         mock_get_llm.return_value = mock_llm
@@ -329,7 +329,7 @@ class TestGuardrailsComponent(ComponentTestBaseWithoutClient):
         hidden_outputs = [output for output in component.outputs if output.hidden]
         assert hidden_outputs == []
 
-    @patch("lfx.components.llm_operations.guardrails.get_llm")
+    @patch("kfx.components.llm_operations.guardrails.get_llm")
     def test_pass_message_returns_raw_text_on_success(self, mock_get_llm, mock_llm, default_kwargs):
         """Test that pass_message returns raw Message text when validation passes."""
         mock_get_llm.return_value = mock_llm
@@ -342,7 +342,7 @@ class TestGuardrailsComponent(ComponentTestBaseWithoutClient):
         assert isinstance(result, Message)
         assert result.text == default_kwargs["input_text"]
 
-    @patch("lfx.components.llm_operations.guardrails.get_llm")
+    @patch("kfx.components.llm_operations.guardrails.get_llm")
     def test_fail_message_returns_justification_on_failure(
         self, mock_get_llm, mock_llm_detect_violation, default_kwargs
     ):
@@ -359,7 +359,7 @@ class TestGuardrailsComponent(ComponentTestBaseWithoutClient):
         assert result.text
         assert "PII" in result.text
 
-    @patch("lfx.components.llm_operations.guardrails.get_llm")
+    @patch("kfx.components.llm_operations.guardrails.get_llm")
     def test_pass_message_returns_empty_on_failure(self, mock_get_llm, mock_llm_detect_violation, default_kwargs):
         """Test that pass_message stops pass outputs when validation fails."""
         mock_get_llm.return_value = mock_llm_detect_violation
@@ -373,7 +373,7 @@ class TestGuardrailsComponent(ComponentTestBaseWithoutClient):
         assert result.text == ""
         component.stop.assert_any_call("pass_result")
 
-    @patch("lfx.components.llm_operations.guardrails.get_llm")
+    @patch("kfx.components.llm_operations.guardrails.get_llm")
     def test_fail_message_returns_empty_on_success(self, mock_get_llm, mock_llm, default_kwargs):
         """Test that fail_message stops fail outputs when validation passes."""
         mock_get_llm.return_value = mock_llm
@@ -387,7 +387,7 @@ class TestGuardrailsComponent(ComponentTestBaseWithoutClient):
         assert result.text == ""
         component.stop.assert_any_call("failed_result")
 
-    @patch("lfx.components.llm_operations.guardrails.get_llm")
+    @patch("kfx.components.llm_operations.guardrails.get_llm")
     def test_result_data_returns_pass_payload_on_success(self, mock_get_llm, mock_llm, default_kwargs):
         """Test that result_data returns Data with pass payload when validation passes."""
         mock_get_llm.return_value = mock_llm
@@ -402,7 +402,7 @@ class TestGuardrailsComponent(ComponentTestBaseWithoutClient):
         assert result.data.get("text") == default_kwargs["input_text"]
         assert "justification" not in result.data
 
-    @patch("lfx.components.llm_operations.guardrails.get_llm")
+    @patch("kfx.components.llm_operations.guardrails.get_llm")
     def test_result_data_returns_fail_payload_on_failure(self, mock_get_llm, mock_llm_detect_violation, default_kwargs):
         """Test that result_data returns Data with fail payload when validation fails."""
         mock_get_llm.return_value = mock_llm_detect_violation
@@ -421,7 +421,7 @@ class TestGuardrailsComponent(ComponentTestBaseWithoutClient):
     # Custom Guardrail Tests
     # ===================
 
-    @patch("lfx.components.llm_operations.guardrails.get_llm")
+    @patch("kfx.components.llm_operations.guardrails.get_llm")
     def test_custom_guardrail_is_included_when_enabled(self, mock_get_llm, mock_llm, default_kwargs):
         """Test that custom guardrail is added to checks when enabled."""
         mock_get_llm.return_value = mock_llm
@@ -468,7 +468,7 @@ class TestGuardrailsComponent(ComponentTestBaseWithoutClient):
     # Error Handling Tests
     # ===================
 
-    @patch("lfx.components.llm_operations.guardrails.get_llm")
+    @patch("kfx.components.llm_operations.guardrails.get_llm")
     def test_llm_empty_response_raises_error(self, mock_get_llm, default_kwargs):
         """Test that empty LLM response raises RuntimeError."""
         mock_llm = MagicMock()
@@ -480,7 +480,7 @@ class TestGuardrailsComponent(ComponentTestBaseWithoutClient):
         with pytest.raises(RuntimeError, match="empty response"):
             component._check_guardrail(mock_llm, "test", "PII", "personal info")
 
-    @patch("lfx.components.llm_operations.guardrails.get_llm")
+    @patch("kfx.components.llm_operations.guardrails.get_llm")
     def test_no_llm_configured_fails_validation(self, mock_get_llm, default_kwargs):
         """Test that validation fails when no LLM is configured."""
         mock_get_llm.return_value = None
@@ -490,7 +490,7 @@ class TestGuardrailsComponent(ComponentTestBaseWithoutClient):
         with pytest.raises(ValueError, match="No LLM provided"):
             component._run_validation()
 
-    @patch("lfx.components.llm_operations.guardrails.get_llm")
+    @patch("kfx.components.llm_operations.guardrails.get_llm")
     def test_llm_api_error_detected(self, mock_get_llm, default_kwargs):
         """Test that API errors in LLM response are detected."""
         mock_llm = MagicMock()
@@ -506,7 +506,7 @@ class TestGuardrailsComponent(ComponentTestBaseWithoutClient):
     # Fail Fast Behavior Tests
     # ===================
 
-    @patch("lfx.components.llm_operations.guardrails.get_llm")
+    @patch("kfx.components.llm_operations.guardrails.get_llm")
     def test_fail_fast_stops_on_first_failure(self, mock_get_llm, default_kwargs):
         """Test that validation stops on first failed check."""
         mock_llm = MagicMock()

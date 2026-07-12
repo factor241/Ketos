@@ -4,7 +4,7 @@ import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from langflow.utils.mcp_cleanup import (
+from ketos.utils.mcp_cleanup import (
     _kill_mcp_processes,
     _terminate_child_mcp_processes,
     _terminate_orphaned_mcp_processes,
@@ -28,11 +28,11 @@ class TestCleanupMcpSessions:
 
         with (
             patch(
-                "langflow.services.deps.get_shared_component_cache_service",
+                "ketos.services.deps.get_shared_component_cache_service",
                 return_value=mock_cache_service,
             ),
-            patch("langflow.utils.mcp_cleanup._kill_mcp_processes", new_callable=AsyncMock) as mock_kill,
-            patch("lfx.base.mcp.util.MCPSessionManager", new=type(mock_session_manager)),
+            patch("ketos.utils.mcp_cleanup._kill_mcp_processes", new_callable=AsyncMock) as mock_kill,
+            patch("kfx.base.mcp.util.MCPSessionManager", new=type(mock_session_manager)),
         ):
             await cleanup_mcp_sessions()
 
@@ -46,12 +46,12 @@ class TestCleanupMcpSessions:
         cache_miss_sentinel = object()
 
         with (
-            patch("lfx.services.cache.utils.CACHE_MISS", cache_miss_sentinel),
+            patch("kfx.services.cache.utils.CACHE_MISS", cache_miss_sentinel),
             patch(
-                "langflow.services.deps.get_shared_component_cache_service",
+                "ketos.services.deps.get_shared_component_cache_service",
                 return_value=mock_cache_service,
             ),
-            patch("langflow.utils.mcp_cleanup._kill_mcp_processes", new_callable=AsyncMock) as mock_kill,
+            patch("ketos.utils.mcp_cleanup._kill_mcp_processes", new_callable=AsyncMock) as mock_kill,
         ):
             mock_cache_service.get.return_value = cache_miss_sentinel
 
@@ -63,8 +63,8 @@ class TestCleanupMcpSessions:
     async def test_cleanup_handles_import_error(self):
         """Test cleanup handles import errors gracefully."""
         with (
-            patch.dict("sys.modules", {"lfx.base.mcp.util": None}),
-            patch("langflow.utils.mcp_cleanup._kill_mcp_processes", new_callable=AsyncMock) as mock_kill,
+            patch.dict("sys.modules", {"kfx.base.mcp.util": None}),
+            patch("ketos.utils.mcp_cleanup._kill_mcp_processes", new_callable=AsyncMock) as mock_kill,
         ):
             # Should not raise, should silently continue
             await cleanup_mcp_sessions()
@@ -80,11 +80,11 @@ class TestCleanupMcpSessions:
 
         with (
             patch(
-                "langflow.services.deps.get_shared_component_cache_service",
+                "ketos.services.deps.get_shared_component_cache_service",
                 return_value=mock_cache_service,
             ),
-            patch("langflow.utils.mcp_cleanup._kill_mcp_processes", new_callable=AsyncMock) as mock_kill,
-            patch("lfx.base.mcp.util.MCPSessionManager", new=type(mock_session_manager)),
+            patch("ketos.utils.mcp_cleanup._kill_mcp_processes", new_callable=AsyncMock) as mock_kill,
+            patch("kfx.base.mcp.util.MCPSessionManager", new=type(mock_session_manager)),
         ):
             # Should not raise
             await cleanup_mcp_sessions()
@@ -118,12 +118,12 @@ class TestKillMcpProcesses:
             patch.object(sys, "platform", "darwin"),
             patch.dict("sys.modules", {"psutil": mock_psutil}),
             patch(
-                "langflow.utils.mcp_cleanup._terminate_child_mcp_processes",
+                "ketos.utils.mcp_cleanup._terminate_child_mcp_processes",
                 new_callable=AsyncMock,
                 return_value=2,
             ) as mock_child,
             patch(
-                "langflow.utils.mcp_cleanup._terminate_orphaned_mcp_processes",
+                "ketos.utils.mcp_cleanup._terminate_orphaned_mcp_processes",
                 new_callable=AsyncMock,
                 return_value=1,
             ) as mock_orphan,
@@ -141,16 +141,16 @@ class TestKillMcpProcesses:
             patch.object(sys, "platform", "darwin"),
             patch.dict("sys.modules", {"psutil": mock_psutil}),
             patch(
-                "langflow.utils.mcp_cleanup._terminate_child_mcp_processes",
+                "ketos.utils.mcp_cleanup._terminate_child_mcp_processes",
                 new_callable=AsyncMock,
                 return_value=3,
             ),
             patch(
-                "langflow.utils.mcp_cleanup._terminate_orphaned_mcp_processes",
+                "ketos.utils.mcp_cleanup._terminate_orphaned_mcp_processes",
                 new_callable=AsyncMock,
                 return_value=2,
             ),
-            patch("langflow.utils.mcp_cleanup.logger") as mock_logger,
+            patch("ketos.utils.mcp_cleanup.logger") as mock_logger,
         ):
             mock_logger.ainfo = AsyncMock()
 
@@ -168,16 +168,16 @@ class TestKillMcpProcesses:
             patch.object(sys, "platform", "darwin"),
             patch.dict("sys.modules", {"psutil": mock_psutil}),
             patch(
-                "langflow.utils.mcp_cleanup._terminate_child_mcp_processes",
+                "ketos.utils.mcp_cleanup._terminate_child_mcp_processes",
                 new_callable=AsyncMock,
                 return_value=0,
             ),
             patch(
-                "langflow.utils.mcp_cleanup._terminate_orphaned_mcp_processes",
+                "ketos.utils.mcp_cleanup._terminate_orphaned_mcp_processes",
                 new_callable=AsyncMock,
                 return_value=0,
             ),
-            patch("langflow.utils.mcp_cleanup.logger") as mock_logger,
+            patch("ketos.utils.mcp_cleanup.logger") as mock_logger,
         ):
             mock_logger.ainfo = AsyncMock()
 
@@ -211,7 +211,7 @@ class TestTerminateChildMcpProcesses:
         mock_psutil.TimeoutExpired = Exception
 
         with patch(
-            "langflow.utils.mcp_cleanup._try_terminate_mcp_process",
+            "ketos.utils.mcp_cleanup._try_terminate_mcp_process",
             new_callable=AsyncMock,
             side_effect=[True, False],
         ):
@@ -271,7 +271,7 @@ class TestTerminateOrphanedMcpProcesses:
         mock_psutil.ZombieProcess = Exception
 
         with patch(
-            "langflow.utils.mcp_cleanup._try_terminate_mcp_process",
+            "ketos.utils.mcp_cleanup._try_terminate_mcp_process",
             new_callable=AsyncMock,
             side_effect=[True, False],  # Only first call (orphan_mcp) returns True
         ):
@@ -298,7 +298,7 @@ class TestTerminateOrphanedMcpProcesses:
         mock_psutil.ZombieProcess = Exception
 
         with patch(
-            "langflow.utils.mcp_cleanup._try_terminate_mcp_process",
+            "ketos.utils.mcp_cleanup._try_terminate_mcp_process",
             new_callable=AsyncMock,
         ) as mock_terminate:
             count = await _terminate_orphaned_mcp_processes(mock_psutil)
@@ -485,11 +485,11 @@ class TestMcpCleanupIntegration:
 
         with (
             patch(
-                "langflow.services.deps.get_shared_component_cache_service",
+                "ketos.services.deps.get_shared_component_cache_service",
                 return_value=mock_cache_service,
             ),
-            patch("langflow.utils.mcp_cleanup._kill_mcp_processes", new_callable=AsyncMock),
-            patch("lfx.base.mcp.util.MCPSessionManager", new=type(mock_session_manager)),
+            patch("ketos.utils.mcp_cleanup._kill_mcp_processes", new_callable=AsyncMock),
+            patch("kfx.base.mcp.util.MCPSessionManager", new=type(mock_session_manager)),
         ):
             # Should complete without raising
             await cleanup_mcp_sessions()
@@ -501,11 +501,11 @@ class TestMcpCleanupIntegration:
 
         with (
             patch(
-                "langflow.services.deps.get_shared_component_cache_service",
+                "ketos.services.deps.get_shared_component_cache_service",
                 return_value=mock_cache_service,
             ),
             patch(
-                "langflow.utils.mcp_cleanup._kill_mcp_processes",
+                "ketos.utils.mcp_cleanup._kill_mcp_processes",
                 new_callable=AsyncMock,
                 side_effect=Exception("Kill error"),
             ),
@@ -520,11 +520,11 @@ class TestMcpCleanupIntegration:
 
         with (
             patch(
-                "langflow.services.deps.get_shared_component_cache_service",
+                "ketos.services.deps.get_shared_component_cache_service",
                 return_value=mock_cache_service,
             ),
-            patch("langflow.utils.mcp_cleanup._kill_mcp_processes", new_callable=AsyncMock),
-            patch("langflow.utils.mcp_cleanup.logger") as mock_logger,
+            patch("ketos.utils.mcp_cleanup._kill_mcp_processes", new_callable=AsyncMock),
+            patch("ketos.utils.mcp_cleanup.logger") as mock_logger,
         ):
             mock_logger.awarning = AsyncMock()
             mock_logger.aerror = AsyncMock()

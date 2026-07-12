@@ -1,7 +1,7 @@
 from unittest.mock import Mock
 
-from langflow.schema.dotdict import dotdict
-from langflow.utils.component_utils import (
+from ketos.schema.dotdict import dotdict
+from ketos.utils.component_utils import (
     DEFAULT_FIELDS,
     add_fields,
     delete_fields,

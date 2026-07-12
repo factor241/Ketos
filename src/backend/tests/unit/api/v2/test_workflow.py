@@ -32,11 +32,11 @@ from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
-from langflow.exceptions.api import WorkflowValidationError
-from langflow.services.database.models.flow.model import Flow
-from langflow.services.database.models.jobs.model import Job, JobType
-from lfx.schema.workflow import JobStatus
-from lfx.services.deps import session_scope
+from ketos.exceptions.api import WorkflowValidationError
+from ketos.services.database.models.flow.model import Flow
+from ketos.services.database.models.jobs.model import Job, JobType
+from kfx.schema.workflow import JobStatus
+from kfx.services.deps import session_scope
 from sqlalchemy.exc import OperationalError
 
 
@@ -59,7 +59,7 @@ class TestWorkflowDeveloperAPIProtection:
     @pytest.fixture
     def mock_settings_dev_api_disabled(self):
         """Mock settings with developer API disabled."""
-        with patch("langflow.api.v2.workflow.get_settings_service") as mock_get_settings_service:
+        with patch("ketos.api.v2.workflow.get_settings_service") as mock_get_settings_service:
             mock_service = MagicMock()
             mock_settings = MagicMock()
             mock_settings.developer_api_enabled = False
@@ -116,7 +116,7 @@ class TestWorkflowDeveloperAPIProtection:
     @pytest.fixture
     def mock_settings_dev_api_enabled(self):
         """Mock settings with developer API enabled."""
-        with patch("langflow.api.v2.workflow.get_settings_service") as mock_get_settings_service:
+        with patch("ketos.api.v2.workflow.get_settings_service") as mock_get_settings_service:
             mock_service = MagicMock()
             mock_settings = MagicMock()
             mock_settings.developer_api_enabled = True
@@ -336,7 +336,7 @@ class TestWorkflowErrorHandling:
     @pytest.fixture
     def mock_settings_dev_api_enabled(self):
         """Mock settings with developer API enabled."""
-        with patch("langflow.api.v2.workflow.get_settings_service") as mock_get_settings_service:
+        with patch("ketos.api.v2.workflow.get_settings_service") as mock_get_settings_service:
             mock_service = MagicMock()
             mock_settings = MagicMock()
             mock_settings.developer_api_enabled = True
@@ -374,7 +374,7 @@ class TestWorkflowErrorHandling:
         request_data = {"flow_id": flow_id, "background": False, "stream": False, "inputs": None}
 
         # Mock get_flow_by_id_or_endpoint_name to raise OperationalError
-        with patch("langflow.api.v2.workflow.get_flow_by_id_or_endpoint_name") as mock_get_flow:
+        with patch("ketos.api.v2.workflow.get_flow_by_id_or_endpoint_name") as mock_get_flow:
             mock_get_flow.side_effect = OperationalError("statement", "params", "orig")
 
             headers = {"x-api-key": created_api_key.api_key}
@@ -502,8 +502,8 @@ class TestWorkflowErrorHandling:
 
             # Temporarily reduce timeout for testing
             with (
-                patch("langflow.api.v2.workflow.execute_sync_workflow", side_effect=slow_execution),
-                patch("langflow.api.v2.workflow.EXECUTION_TIMEOUT", 0.5),  # 0.5 second timeout
+                patch("ketos.api.v2.workflow.execute_sync_workflow", side_effect=slow_execution),
+                patch("ketos.api.v2.workflow.EXECUTION_TIMEOUT", 0.5),  # 0.5 second timeout
             ):
                 headers = {"x-api-key": created_api_key.api_key}
                 response = await client.post("api/v2/workflows", json=request_data, headers=headers)
@@ -672,7 +672,7 @@ class TestWorkflowErrorHandling:
             request_data = {"flow_id": str(flow_id), "background": False, "stream": False, "inputs": None}
 
             # Mock execute_sync_workflow to raise WorkflowValidationError
-            with patch("langflow.api.v2.workflow.execute_sync_workflow") as mock_execute:
+            with patch("ketos.api.v2.workflow.execute_sync_workflow") as mock_execute:
                 mock_execute.side_effect = WorkflowValidationError("Test validation error")
 
                 headers = {"x-api-key": created_api_key.api_key}
@@ -702,7 +702,7 @@ class TestWorkflowSyncExecution:
     @pytest.fixture
     def mock_settings_dev_api_enabled(self):
         """Mock settings with developer API enabled."""
-        with patch("langflow.api.v2.workflow.get_settings_service") as mock_get_settings_service:
+        with patch("ketos.api.v2.workflow.get_settings_service") as mock_get_settings_service:
             mock_service = MagicMock()
             mock_settings = MagicMock()
             mock_settings.developer_api_enabled = True
@@ -784,7 +784,7 @@ class TestWorkflowSyncExecution:
             request_data = {"flow_id": str(flow_id), "background": False, "stream": False, "inputs": None}
 
             # Mock run_graph_internal to raise a component execution error
-            with patch("langflow.api.v2.workflow.run_graph_internal") as mock_run:
+            with patch("ketos.api.v2.workflow.run_graph_internal") as mock_run:
                 mock_run.side_effect = Exception("Component execution failed: LLM API key not configured")
 
                 headers = {"x-api-key": created_api_key.api_key}
@@ -851,7 +851,7 @@ class TestWorkflowSyncExecution:
             mock_run_output = MagicMock()
             mock_run_output.outputs = [mock_result_data]
 
-            with patch("langflow.api.v2.workflow.run_graph_internal") as mock_run:
+            with patch("ketos.api.v2.workflow.run_graph_internal") as mock_run:
                 # run_graph_internal returns tuple[list[RunOutputs], str]
                 mock_run.return_value = ([mock_run_output], "session-456")
 
@@ -920,9 +920,9 @@ class TestWorkflowSyncExecution:
             mock_task_service.fire_and_forget_task = AsyncMock()
 
             with (
-                patch("langflow.api.v2.workflow.Graph.from_payload", return_value=graph) as mock_from_payload,
-                patch("langflow.api.v2.workflow.get_job_service", return_value=mock_job_service),
-                patch("langflow.api.v2.workflow.get_task_service", return_value=mock_task_service),
+                patch("ketos.api.v2.workflow.Graph.from_payload", return_value=graph) as mock_from_payload,
+                patch("ketos.api.v2.workflow.get_job_service", return_value=mock_job_service),
+                patch("ketos.api.v2.workflow.get_task_service", return_value=mock_task_service),
             ):
                 headers = {"x-api-key": created_api_key.api_key}
                 response = await client.post("api/v2/workflows", json=request_data, headers=headers)
@@ -944,7 +944,7 @@ class TestWorkflowSyncExecution:
         created_api_key,
         mock_settings_dev_api_enabled,  # noqa: ARG002
     ):
-        """V2 workflows still read X-LANGFLOW-GLOBAL-VAR-* headers for one release.
+        """V2 workflows still read X-KETOS-GLOBAL-VAR-* headers for one release.
 
         Legacy headers are honored so existing callers don't silently lose their
         global variables, but a deprecation warning is emitted. Body globals
@@ -981,15 +981,15 @@ class TestWorkflowSyncExecution:
             mock_task_service.fire_and_forget_task = AsyncMock()
 
             with (
-                patch("langflow.api.v2.workflow.Graph.from_payload", return_value=graph) as mock_from_payload,
-                patch("langflow.api.v2.workflow.get_job_service", return_value=mock_job_service),
-                patch("langflow.api.v2.workflow.get_task_service", return_value=mock_task_service),
-                patch("langflow.api.v2.workflow.logger.warning") as mock_warning,
+                patch("ketos.api.v2.workflow.Graph.from_payload", return_value=graph) as mock_from_payload,
+                patch("ketos.api.v2.workflow.get_job_service", return_value=mock_job_service),
+                patch("ketos.api.v2.workflow.get_task_service", return_value=mock_task_service),
+                patch("ketos.api.v2.workflow.logger.warning") as mock_warning,
             ):
                 headers = {
                     "x-api-key": created_api_key.api_key,
-                    "X-LANGFLOW-GLOBAL-VAR-FILENAME": "header-loses.pdf",
-                    "X-LANGFLOW-GLOBAL-VAR-OWNER_NAME": "header-only",
+                    "X-KETOS-GLOBAL-VAR-FILENAME": "header-loses.pdf",
+                    "X-KETOS-GLOBAL-VAR-OWNER_NAME": "header-only",
                 }
                 response = await client.post("api/v2/workflows", json=request_data, headers=headers)
 
@@ -1014,7 +1014,7 @@ class TestWorkflowSyncExecution:
         mock_settings_dev_api_enabled,  # noqa: ARG002
     ):
         """Body globals values are bounded; oversized values are rejected at validation."""
-        from lfx.schema.workflow import GLOBAL_VALUE_MAX_LEN
+        from kfx.schema.workflow import GLOBAL_VALUE_MAX_LEN
 
         flow_id = uuid4()
 
@@ -1097,7 +1097,7 @@ class TestWorkflowSyncExecution:
             mock_run_output = MagicMock()
             mock_run_output.outputs = [mock_result_data]
 
-            with patch("langflow.api.v2.workflow.run_graph_internal") as mock_run:
+            with patch("ketos.api.v2.workflow.run_graph_internal") as mock_run:
                 # run_graph_internal returns tuple[list[RunOutputs], str]
                 mock_run.return_value = ([mock_run_output], "session-789")
 
@@ -1162,7 +1162,7 @@ class TestWorkflowSyncExecution:
             mock_run_output = MagicMock()
             mock_run_output.outputs = [mock_result_data]
 
-            with patch("langflow.api.v2.workflow.run_graph_internal") as mock_run:
+            with patch("ketos.api.v2.workflow.run_graph_internal") as mock_run:
                 # run_graph_internal returns tuple[list[RunOutputs], str]
                 mock_run.return_value = ([mock_run_output], "session-101")
 
@@ -1221,7 +1221,7 @@ class TestWorkflowSyncExecution:
             mock_file_output.component_id = "SaveToFile-bbb"
             mock_file_output.outputs = {"message": {"message": "File saved successfully", "type": "text"}}
 
-            with patch("langflow.api.v2.workflow.run_graph_internal") as mock_run:
+            with patch("ketos.api.v2.workflow.run_graph_internal") as mock_run:
                 # run_graph_internal returns tuple[list[RunOutputs], str]
                 mock_run.return_value = ([mock_chat_output, mock_file_output], "session-202")
 
@@ -1323,7 +1323,7 @@ class TestWorkflowBackgroundQueueing:
     @pytest.fixture
     def mock_settings_dev_api_enabled(self):
         """Mock settings with developer API enabled."""
-        with patch("langflow.api.v2.workflow.get_settings_service") as mock_get_settings_service:
+        with patch("ketos.api.v2.workflow.get_settings_service") as mock_get_settings_service:
             mock_service = MagicMock()
             mock_settings = MagicMock()
             mock_settings.developer_api_enabled = True
@@ -1364,8 +1364,8 @@ class TestWorkflowBackgroundQueueing:
             # Mock uuid4 to return a predictable job_id
             mock_job_id = "550e8400-e29b-41d4-a716-446655440001"
             with (
-                patch("langflow.api.v2.workflow.get_task_service") as mock_get_task_service,
-                patch("langflow.api.v2.workflow.uuid4", return_value=UUID(mock_job_id)),
+                patch("ketos.api.v2.workflow.get_task_service") as mock_get_task_service,
+                patch("ketos.api.v2.workflow.uuid4", return_value=UUID(mock_job_id)),
             ):
                 mock_task_service = MagicMock()
                 # fire_and_forget_task is now awaited but its return value is not used for the job_id in response
@@ -1431,9 +1431,9 @@ class TestWorkflowBackgroundQueueing:
             mock_task_service.fire_and_forget_task = AsyncMock()
 
             with (
-                patch("langflow.api.v2.workflow.Graph.from_payload", return_value=graph) as mock_from_payload,
-                patch("langflow.api.v2.workflow.get_job_service", return_value=mock_job_service),
-                patch("langflow.api.v2.workflow.get_task_service", return_value=mock_task_service),
+                patch("ketos.api.v2.workflow.Graph.from_payload", return_value=graph) as mock_from_payload,
+                patch("ketos.api.v2.workflow.get_job_service", return_value=mock_job_service),
+                patch("ketos.api.v2.workflow.get_task_service", return_value=mock_task_service),
             ):
                 response = await client.post("api/v2/workflows", json=request_data, headers=headers)
 
@@ -1489,7 +1489,7 @@ class TestWorkflowBackgroundQueueing:
             request_data = {"flow_id": str(flow_id), "background": True}
             headers = {"x-api-key": created_api_key.api_key}
 
-            with patch("langflow.api.v2.workflow.get_task_service") as mock_get_task_service:
+            with patch("ketos.api.v2.workflow.get_task_service") as mock_get_task_service:
                 mock_task_service = MagicMock()
                 mock_task_service.fire_and_forget_task.side_effect = Exception("Queueing failed")
                 mock_get_task_service.return_value = mock_task_service
@@ -1528,7 +1528,7 @@ class TestWorkflowBackgroundQueueing:
             request_data = {"flow_id": str(flow_id), "background": False}
             headers = {"x-api-key": created_api_key.api_key}
 
-            with patch("langflow.api.v2.workflow.run_graph_internal") as mock_run:
+            with patch("ketos.api.v2.workflow.run_graph_internal") as mock_run:
                 mock_run.side_effect = Exception("Internal execution engine failure")
                 response = await client.post("api/v2/workflows", json=request_data, headers=headers)
 
@@ -1550,7 +1550,7 @@ class TestWorkflowStatus:
     @pytest.fixture
     def mock_settings_dev_api_enabled(self):
         """Mock settings with developer API enabled."""
-        with patch("langflow.api.v2.workflow.get_settings_service") as mock_get_settings_service:
+        with patch("ketos.api.v2.workflow.get_settings_service") as mock_get_settings_service:
             mock_service = MagicMock()
             mock_settings = MagicMock()
             mock_settings.developer_api_enabled = True
@@ -1576,7 +1576,7 @@ class TestWorkflowStatus:
         mock_job.user_id = None
         mock_job.created_timestamp = datetime.now(timezone.utc)
 
-        with patch("langflow.api.v2.workflow.get_job_service") as mock_get_job_service:
+        with patch("ketos.api.v2.workflow.get_job_service") as mock_get_job_service:
             mock_service = MagicMock()
             mock_service.get_job_by_job_id = AsyncMock(return_value=mock_job)
             mock_get_job_service.return_value = mock_service
@@ -1599,7 +1599,7 @@ class TestWorkflowStatus:
         """Test GET /workflow returns 404 for a non-existent job."""
         job_id = uuid4()
 
-        with patch("langflow.api.v2.workflow.get_job_service") as mock_get_job_service:
+        with patch("ketos.api.v2.workflow.get_job_service") as mock_get_job_service:
             mock_service = MagicMock()
             mock_service.get_job_by_job_id = AsyncMock(return_value=None)
             mock_get_job_service.return_value = mock_service
@@ -1626,7 +1626,7 @@ class TestWorkflowStatus:
         mock_job.type = JobType.WORKFLOW
         mock_job.user_id = None
 
-        with patch("langflow.api.v2.workflow.get_job_service") as mock_get_job_service:
+        with patch("ketos.api.v2.workflow.get_job_service") as mock_get_job_service:
             mock_service = MagicMock()
             mock_service.get_job_by_job_id = AsyncMock(return_value=mock_job)
             mock_get_job_service.return_value = mock_service
@@ -1657,9 +1657,9 @@ class TestWorkflowStatus:
         mock_job.user_id = None
 
         with (
-            patch("langflow.api.v2.workflow.get_job_service") as mock_get_job_service,
-            patch("langflow.api.v2.workflow.get_flow_by_id_or_endpoint_name") as mock_get_flow,
-            patch("langflow.api.v2.workflow.reconstruct_workflow_response_from_job_id") as mock_reconstruct,
+            patch("ketos.api.v2.workflow.get_job_service") as mock_get_job_service,
+            patch("ketos.api.v2.workflow.get_flow_by_id_or_endpoint_name") as mock_get_flow,
+            patch("ketos.api.v2.workflow.reconstruct_workflow_response_from_job_id") as mock_reconstruct,
         ):
             mock_service = MagicMock()
             mock_service.get_job_by_job_id = AsyncMock(return_value=mock_job)
@@ -1696,7 +1696,7 @@ class TestWorkflowStatus:
         mock_job.type = JobType.WORKFLOW
         mock_job.user_id = None
 
-        with patch("langflow.api.v2.workflow.get_job_service") as mock_get_job_service:
+        with patch("ketos.api.v2.workflow.get_job_service") as mock_get_job_service:
             mock_service = MagicMock()
             mock_service.get_job_by_job_id = AsyncMock(return_value=mock_job)
             mock_get_job_service.return_value = mock_service
@@ -1718,7 +1718,7 @@ class TestWorkflowStop:
     @pytest.fixture
     def mock_settings_dev_api_enabled(self):
         """Mock settings with developer API enabled."""
-        with patch("langflow.api.v2.workflow.get_settings_service") as mock_get_settings_service:
+        with patch("ketos.api.v2.workflow.get_settings_service") as mock_get_settings_service:
             mock_service = MagicMock()
             mock_settings = MagicMock()
             mock_settings.developer_api_enabled = True
@@ -1742,8 +1742,8 @@ class TestWorkflowStop:
         mock_job.user_id = None
 
         with (
-            patch("langflow.api.v2.workflow.get_job_service") as mock_get_job_service,
-            patch("langflow.api.v2.workflow.get_task_service") as mock_get_task_service,
+            patch("ketos.api.v2.workflow.get_job_service") as mock_get_job_service,
+            patch("ketos.api.v2.workflow.get_task_service") as mock_get_task_service,
         ):
             mock_job_service = MagicMock()
             mock_job_service.get_job_by_job_id = AsyncMock(return_value=mock_job)
@@ -1773,7 +1773,7 @@ class TestWorkflowStop:
         """Test POST /workflow/stop returns 404 for non-existent job."""
         job_id = str(uuid4())
 
-        with patch("langflow.api.v2.workflow.get_job_service") as mock_get_job_service:
+        with patch("ketos.api.v2.workflow.get_job_service") as mock_get_job_service:
             mock_service = MagicMock()
             mock_service.get_job_by_job_id = AsyncMock(return_value=None)
             mock_get_job_service.return_value = mock_service
@@ -1800,7 +1800,7 @@ class TestWorkflowStop:
         mock_job.type = JobType.WORKFLOW
         mock_job.user_id = None
 
-        with patch("langflow.api.v2.workflow.get_job_service") as mock_get_job_service:
+        with patch("ketos.api.v2.workflow.get_job_service") as mock_get_job_service:
             mock_service = MagicMock()
             mock_service.get_job_by_job_id = AsyncMock(return_value=mock_job)
             mock_get_job_service.return_value = mock_service
@@ -1824,7 +1824,7 @@ class TestWorkflowIDORProtection:
 
     @pytest.fixture
     def mock_settings_dev_api_enabled(self):
-        with patch("langflow.api.v2.workflow.get_settings_service") as mock_get_settings:
+        with patch("ketos.api.v2.workflow.get_settings_service") as mock_get_settings:
             mock_service = MagicMock()
             mock_settings = MagicMock()
             mock_settings.developer_api_enabled = True
@@ -2180,7 +2180,7 @@ class TestWorkflowIDORProtection:
 
         try:
             # Mock only the task service to prevent real background execution
-            with patch("langflow.api.v2.workflow.get_task_service") as mock_task_svc:
+            with patch("ketos.api.v2.workflow.get_task_service") as mock_task_svc:
                 mock_task_service = MagicMock()
                 mock_task_service.fire_and_forget_task = AsyncMock()
                 mock_task_svc.return_value = mock_task_service

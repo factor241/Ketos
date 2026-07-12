@@ -1,6 +1,6 @@
-from lfx.components.processing.dynamic_create_data import DynamicCreateDataComponent
-from lfx.schema.data import Data
-from lfx.schema.message import Message
+from kfx.components.processing.dynamic_create_data import DynamicCreateDataComponent
+from kfx.schema.data import Data
+from kfx.schema.message import Message
 
 
 class TestDynamicCreateDataComponent:

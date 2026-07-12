@@ -9,7 +9,7 @@ from uuid import UUID
 
 import pytest
 from fastapi import HTTPException, status
-from lfx.services.adapters.deployment.exceptions import (
+from kfx.services.adapters.deployment.exceptions import (
     AuthorizationError,
     CredentialResolutionError,
     DeploymentError,
@@ -22,7 +22,7 @@ from lfx.services.adapters.deployment.exceptions import (
     ResourceConflictError,
     ResourceNotFoundError,
 )
-from lfx.services.adapters.deployment.schema import (
+from kfx.services.adapters.deployment.schema import (
     BaseDeploymentData,
     BaseDeploymentDataUpdate,
     BaseFlowArtifact,
@@ -44,24 +44,24 @@ from lfx.services.adapters.deployment.schema import (
 from pydantic import ValidationError
 
 try:
-    from langflow.services.adapters.deployment.watsonx_orchestrate import WatsonxOrchestrateDeploymentService
+    from ketos.services.adapters.deployment.watsonx_orchestrate import WatsonxOrchestrateDeploymentService
 except ModuleNotFoundError:
     pytest.skip(
         "Skipping Watsonx deployment tests: optional IBM SDK dependencies not available.",
         allow_module_level=True,
     )
 
-tools_module = importlib.import_module("langflow.services.adapters.deployment.watsonx_orchestrate.core.tools")
-service_module = importlib.import_module("langflow.services.adapters.deployment.watsonx_orchestrate.service")
-update_core_module = importlib.import_module("langflow.services.adapters.deployment.watsonx_orchestrate.core.update")
-create_core_module = importlib.import_module("langflow.services.adapters.deployment.watsonx_orchestrate.core.create")
-shared_core_module = importlib.import_module("langflow.services.adapters.deployment.watsonx_orchestrate.core.shared")
-payloads_module = importlib.import_module("langflow.services.adapters.deployment.watsonx_orchestrate.payloads")
-client_module = importlib.import_module("langflow.services.adapters.deployment.watsonx_orchestrate.client")
-types_module = importlib.import_module("langflow.services.adapters.deployment.watsonx_orchestrate.types")
-deployment_context_module = importlib.import_module("langflow.services.adapters.deployment.context")
+tools_module = importlib.import_module("ketos.services.adapters.deployment.watsonx_orchestrate.core.tools")
+service_module = importlib.import_module("ketos.services.adapters.deployment.watsonx_orchestrate.service")
+update_core_module = importlib.import_module("ketos.services.adapters.deployment.watsonx_orchestrate.core.update")
+create_core_module = importlib.import_module("ketos.services.adapters.deployment.watsonx_orchestrate.core.create")
+shared_core_module = importlib.import_module("ketos.services.adapters.deployment.watsonx_orchestrate.core.shared")
+payloads_module = importlib.import_module("ketos.services.adapters.deployment.watsonx_orchestrate.payloads")
+client_module = importlib.import_module("ketos.services.adapters.deployment.watsonx_orchestrate.client")
+types_module = importlib.import_module("ketos.services.adapters.deployment.watsonx_orchestrate.types")
+deployment_context_module = importlib.import_module("ketos.services.adapters.deployment.context")
 WxOCredentials = importlib.import_module(
-    "langflow.services.adapters.deployment.watsonx_orchestrate.types"
+    "ketos.services.adapters.deployment.watsonx_orchestrate.types"
 ).WxOCredentials
 
 # Aliases for classes used in tests (module-level to satisfy N806).
@@ -80,8 +80,8 @@ def _normalized_provider_app_id(app_id: str) -> str:
     return payloads_module.validate_wxo_name(app_id, field_label="Connection app id")
 
 
-def _assert_langflow_agent_name(agent_name: str, *, display_name: str | None = None) -> None:
-    prefix = "langflow_"
+def _assert_ketos_agent_name(agent_name: str, *, display_name: str | None = None) -> None:
+    prefix = "ketos_"
     assert agent_name.startswith(prefix)
     if display_name is not None:
         normalized_display_name = payloads_module.normalize_wxo_name(display_name).strip("_")
@@ -95,11 +95,11 @@ def _assert_langflow_agent_name(agent_name: str, *, display_name: str | None = N
 
 def _agent_technical_name(display_name: str = "my deployment") -> str:
     normalized_display_name = payloads_module.normalize_wxo_name(display_name).strip("_")
-    return f"langflow_{normalized_display_name}_1234abcd"
+    return f"ketos_{normalized_display_name}_1234abcd"
 
 
 def _reload_wxo_auth_modules():
-    constants_module = importlib.import_module("langflow.services.adapters.deployment.watsonx_orchestrate.constants")
+    constants_module = importlib.import_module("ketos.services.adapters.deployment.watsonx_orchestrate.constants")
     importlib.reload(constants_module)
     return importlib.reload(client_module)
 
@@ -387,7 +387,7 @@ def _create_provider_spec(
 
 @pytest.mark.anyio
 async def test_process_config_uses_raw_payload_but_overrides_name(monkeypatch):
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.config import process_config
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.config import process_config
 
     captured = {}
 
@@ -397,7 +397,7 @@ async def test_process_config_uses_raw_payload_but_overrides_name(monkeypatch):
         return config.name
 
     monkeypatch.setattr(
-        "langflow.services.adapters.deployment.watsonx_orchestrate.core.config.create_config",
+        "ketos.services.adapters.deployment.watsonx_orchestrate.core.config.create_config",
         mock_create_config,
     )
 
@@ -422,7 +422,7 @@ async def test_process_config_uses_raw_payload_but_overrides_name(monkeypatch):
 
 @pytest.mark.anyio
 async def test_process_config_rejects_reference_id():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.config import process_config
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.config import process_config
 
     with pytest.raises(InvalidDeploymentOperationError, match="Config reference binding is not supported"):
         await process_config(
@@ -505,11 +505,11 @@ async def test_resolve_runtime_credentials_supports_variable_and_raw_sources(mon
         return f"resolved::{variable_name}"
 
     monkeypatch.setattr(
-        "langflow.services.adapters.deployment.watsonx_orchestrate.client.resolve_variable_value",
+        "ketos.services.adapters.deployment.watsonx_orchestrate.client.resolve_variable_value",
         mock_resolve_variable_value,
     )
 
-    from langflow.services.adapters.deployment.watsonx_orchestrate.client import resolve_runtime_credentials
+    from ketos.services.adapters.deployment.watsonx_orchestrate.client import resolve_runtime_credentials
 
     runtime_credentials = await resolve_runtime_credentials(
         user_id="user-1",
@@ -531,7 +531,7 @@ async def test_update_rejects_legacy_top_level_snapshot_or_config(monkeypatch):
     service = WatsonxOrchestrateDeploymentService(DummySettingsService())
     fake_clients = SimpleNamespace(
         agent=FakeAgentClient({"id": "dep-1", "tools": ["tool-1"]}),
-        tool=FakeToolClient([{"id": "tool-1", "binding": {"langflow": {"connections": {}}}}]),
+        tool=FakeToolClient([{"id": "tool-1", "binding": {"ketos": {"connections": {}}}}]),
         connections=FakeConnectionsClient(),
     )
 
@@ -553,7 +553,7 @@ async def test_update_rejects_legacy_top_level_config_section(monkeypatch):
     service = WatsonxOrchestrateDeploymentService(DummySettingsService())
     fake_clients = SimpleNamespace(
         agent=FakeAgentClient({"id": "dep-1", "tools": ["tool-1"]}),
-        tool=FakeToolClient([{"id": "tool-1", "binding": {"langflow": {"connections": {}}}}]),
+        tool=FakeToolClient([{"id": "tool-1", "binding": {"ketos": {"connections": {}}}}]),
         connections=FakeConnectionsClient(),
     )
 
@@ -576,8 +576,8 @@ async def test_update_provider_data_binds_existing_tool_and_updates_agent_tools(
     fake_agent = FakeAgentClient({"id": "dep-1", "display_name": "Existing Agent", "tools": ["tool-1"]})
     fake_tool = FakeToolClient(
         [
-            {"id": "tool-1", "name": "tool-1", "binding": {"langflow": {"connections": {}}}},
-            {"id": "tool-3", "name": "tool-3", "binding": {"langflow": {"connections": {}}}},
+            {"id": "tool-1", "name": "tool-1", "binding": {"ketos": {"connections": {}}}},
+            {"id": "tool-3", "name": "tool-3", "binding": {"ketos": {"connections": {}}}},
         ]
     )
     fake_clients = SimpleNamespace(
@@ -623,7 +623,7 @@ async def test_update_provider_data_binds_existing_tool_and_updates_agent_tools(
     assert result.provider_result.display_name == "Existing Agent"
     assert [tool_id for tool_id, _payload in fake_tool.update_calls] == ["tool-3"]
     _, updated_tool_payload = fake_tool.update_calls[0]
-    assert updated_tool_payload["binding"]["langflow"]["connections"]["cfg-new"] == "conn-new"
+    assert updated_tool_payload["binding"]["ketos"]["connections"]["cfg-new"] == "conn-new"
     _, agent_payload = fake_agent.update_calls[0]
     assert agent_payload["tools"] == ["tool-1", "tool-3"]
     assert agent_payload["llm"] == TEST_WXO_LLM
@@ -640,7 +640,7 @@ async def test_update_provider_data_bind_unbind_and_rename_preserves_connection_
                 "name": "tool-1",
                 "display_name": "tool-1",
                 "binding": {
-                    "langflow": {
+                    "ketos": {
                         "connections": {"cfg-keep": "conn-keep", "cfg-remove": "conn-remove"},
                     }
                 },
@@ -689,9 +689,9 @@ async def test_update_provider_data_bind_unbind_and_rename_preserves_connection_
     assert [tool_id for tool_id, _payload in fake_tool.update_calls] == ["tool-1"]
 
     _, rename_payload = fake_tool.update_calls[0]
-    _assert_langflow_agent_name(rename_payload["name"], display_name="Renamed Tool")
+    _assert_ketos_agent_name(rename_payload["name"], display_name="Renamed Tool")
     assert rename_payload["display_name"] == "Renamed Tool"
-    assert rename_payload["binding"]["langflow"]["connections"] == {
+    assert rename_payload["binding"]["ketos"]["connections"] == {
         "cfg-keep": "conn-keep",
         "cfg-add": "conn-add",
     }
@@ -728,7 +728,7 @@ async def test_update_provider_data_llm_only_updates_agent(monkeypatch):
 async def test_update_provider_data_accepts_missing_llm(monkeypatch):
     service = WatsonxOrchestrateDeploymentService(DummySettingsService())
     fake_agent = FakeAgentClient({"id": "dep-1", "tools": ["tool-1"]})
-    fake_tool = FakeToolClient([{"id": "tool-1", "name": "tool-1", "binding": {"langflow": {"connections": {}}}}])
+    fake_tool = FakeToolClient([{"id": "tool-1", "name": "tool-1", "binding": {"ketos": {"connections": {}}}}])
     fake_connections = FakeConnectionsClient(existing_app_id="cfg-1")
 
     async def mock_get_provider_clients(*, user_id, db):  # noqa: ARG001
@@ -994,7 +994,7 @@ async def test_update_provider_data_put_tools_with_llm_updates_agent(monkeypatch
 async def test_update_provider_data_creates_raw_tools_without_operations(monkeypatch):
     service = WatsonxOrchestrateDeploymentService(DummySettingsService())
     fake_agent = FakeAgentClient({"id": "dep-1", "display_name": "Existing Agent", "tools": ["tool-1"]})
-    fake_tool = FakeToolClient([{"id": "tool-1", "name": "tool-1", "binding": {"langflow": {"connections": {}}}}])
+    fake_tool = FakeToolClient([{"id": "tool-1", "name": "tool-1", "binding": {"ketos": {"connections": {}}}}])
     fake_connections = FakeConnectionsClient()
     fake_clients = SimpleNamespace(
         agent=fake_agent,
@@ -1061,7 +1061,7 @@ async def test_update_provider_data_creates_raw_tools_without_operations(monkeyp
 async def test_update_provider_data_creates_raw_connection_and_raw_tool(monkeypatch):
     service = WatsonxOrchestrateDeploymentService(DummySettingsService())
     fake_agent = FakeAgentClient({"id": "dep-1", "tools": ["tool-1"]})
-    fake_tool = FakeToolClient([{"id": "tool-1", "name": "tool-1", "binding": {"langflow": {"connections": {}}}}])
+    fake_tool = FakeToolClient([{"id": "tool-1", "name": "tool-1", "binding": {"ketos": {"connections": {}}}}])
     fake_connections = FakeConnectionsClient()
     fake_clients = SimpleNamespace(
         agent=fake_agent,
@@ -1154,7 +1154,7 @@ async def test_update_provider_data_creates_raw_connection_and_raw_tool(monkeypa
 async def test_update_provider_data_binds_existing_tool_using_provider_app_id_for_raw_connection(monkeypatch):
     service = WatsonxOrchestrateDeploymentService(DummySettingsService())
     fake_agent = FakeAgentClient({"id": "dep-1", "tools": ["tool-1"]})
-    fake_tool = FakeToolClient([{"id": "tool-1", "name": "tool-1", "binding": {"langflow": {"connections": {}}}}])
+    fake_tool = FakeToolClient([{"id": "tool-1", "name": "tool-1", "binding": {"ketos": {"connections": {}}}}])
     fake_connections = FakeConnectionsClient()
     fake_clients = SimpleNamespace(
         agent=fake_agent,
@@ -1207,7 +1207,7 @@ async def test_update_provider_data_binds_existing_tool_using_provider_app_id_fo
 
     assert [tool_id for tool_id, _payload in fake_tool.update_calls] == ["tool-1"]
     _, updated_tool_payload = fake_tool.update_calls[0]
-    assert updated_tool_payload["binding"]["langflow"]["connections"] == {"cfg": "conn-cfg"}
+    assert updated_tool_payload["binding"]["ketos"]["connections"] == {"cfg": "conn-cfg"}
     assert captured["created_app_id"] == "cfg"
 
 
@@ -1220,10 +1220,10 @@ async def test_update_provider_data_mixed_operations_preserve_encounter_order(mo
             {
                 "id": "tool-1",
                 "name": "tool-1",
-                "binding": {"langflow": {"connections": {"cfg-1": "conn-old-1", "cfg-2": "conn-old-2"}}},
+                "binding": {"ketos": {"connections": {"cfg-1": "conn-old-1", "cfg-2": "conn-old-2"}}},
             },
-            {"id": "tool-2", "name": "tool-2", "binding": {"langflow": {"connections": {}}}},
-            {"id": "tool-3", "name": "tool-3", "binding": {"langflow": {"connections": {}}}},
+            {"id": "tool-2", "name": "tool-2", "binding": {"ketos": {"connections": {}}}},
+            {"id": "tool-3", "name": "tool-3", "binding": {"ketos": {"connections": {}}}},
         ]
     )
     fake_clients = SimpleNamespace(
@@ -1274,11 +1274,11 @@ async def test_update_provider_data_mixed_operations_preserve_encounter_order(mo
     assert set(update_calls_by_id) == {"tool-3", "tool-1"}
 
     tool3_payload = update_calls_by_id["tool-3"]
-    assert list(tool3_payload["binding"]["langflow"]["connections"]) == ["cfg-2", "cfg-1"]
-    assert tool3_payload["binding"]["langflow"]["connections"] == {"cfg-2": "conn-cfg-2", "cfg-1": "conn-cfg-1"}
+    assert list(tool3_payload["binding"]["ketos"]["connections"]) == ["cfg-2", "cfg-1"]
+    assert tool3_payload["binding"]["ketos"]["connections"] == {"cfg-2": "conn-cfg-2", "cfg-1": "conn-cfg-1"}
 
     tool1_payload = update_calls_by_id["tool-1"]
-    assert tool1_payload["binding"]["langflow"]["connections"] == {}
+    assert tool1_payload["binding"]["ketos"]["connections"] == {}
 
     _, agent_payload = fake_agent.update_calls[0]
     assert agent_payload["tools"] == ["tool-1", "tool-3"]
@@ -1512,7 +1512,7 @@ def test_build_provider_create_plan_creates_unbound_raw_tools_without_bind_opera
     assert plan.raw_tools_to_create[0].app_ids == []
     assert plan.selected_operation_app_ids == []
     assert plan.existing_tool_ids == []
-    _assert_langflow_agent_name(plan.deployment_name, display_name="my deployment")
+    _assert_ketos_agent_name(plan.deployment_name, display_name="my deployment")
 
 
 @pytest.mark.parametrize("display_name", ["123 starts with digits", "!!!"])
@@ -1656,7 +1656,7 @@ def test_build_provider_create_plan_generates_technical_name_from_display_name(d
         provider_create=provider_create,
     )
 
-    _assert_langflow_agent_name(plan.deployment_name, display_name=display_name)
+    _assert_ketos_agent_name(plan.deployment_name, display_name=display_name)
     assert plan.display_name == display_name
 
 
@@ -1692,7 +1692,7 @@ def test_build_provider_create_plan_uses_resource_fallback_for_symbol_only_displ
         provider_create=provider_create,
     )
 
-    assert plan.deployment_name.startswith("langflow_agent_")
+    assert plan.deployment_name.startswith("ketos_agent_")
     assert plan.display_name == display_name
 
 
@@ -1720,7 +1720,7 @@ def test_build_provider_create_plan_attaches_existing_tool_without_connection_up
 
 @pytest.mark.anyio
 async def test_update_existing_tool_connection_deltas_uses_bind_order_in_errors():
-    fake_tool = FakeToolClient([{"id": "tool-c", "name": "tool-c", "binding": {"langflow": {"connections": {}}}}])
+    fake_tool = FakeToolClient([{"id": "tool-c", "name": "tool-c", "binding": {"ketos": {"connections": {}}}}])
     clients = SimpleNamespace(tool=fake_tool)
     delta = update_core_module.ToolConnectionOps()
     delta.bind.extend(["cfg-missing-first", "cfg-present"])
@@ -1811,11 +1811,11 @@ async def test_apply_provider_create_plan_binds_raw_tools_with_provider_app_ids(
     assert fake_clients.agent.create_calls
     assert fake_clients.agent.create_calls[0]["name"] == _agent_technical_name()
     assert fake_clients.agent.create_calls[0]["display_name"] == "my deployment"
-    assert fake_clients.agent.create_calls[0]["description"] == "Langflow deployment my deployment"
+    assert fake_clients.agent.create_calls[0]["description"] == "Ketos deployment my deployment"
     assert fake_clients.agent.create_calls[0]["tools"] == ["created-tool-1"]
     assert fake_clients.agent.create_calls[0]["llm"] == TEST_WXO_LLM
     assert result.agent_id == "dep-created"
-    assert result.description == "Langflow deployment my deployment"
+    assert result.description == "Ketos deployment my deployment"
     assert result.app_ids == ["cfg"]
     assert [(binding.tool_id, binding.app_ids) for binding in result.tool_app_bindings] == [("created-tool-1", ["cfg"])]
     assert [(binding.source_ref, binding.tool_id) for binding in result.tools_with_refs] == [
@@ -1845,7 +1845,7 @@ async def test_apply_provider_create_plan_rolls_back_mutated_existing_tools_with
                 "name": "tool-1",
                 "display_name": "Tool 1",
                 "description": "desc",
-                "binding": {"langflow": {"connections": {"old": "conn-old"}}},
+                "binding": {"ketos": {"connections": {"old": "conn-old"}}},
                 "created_at": "read-only-field",
             }
         ]
@@ -1888,8 +1888,8 @@ async def test_apply_provider_create_plan_rolls_back_mutated_existing_tools_with
     rollback_payload = fake_tool.update_calls[1][1]
     assert "id" not in first_payload
     assert "created_at" not in first_payload
-    assert first_payload["binding"]["langflow"]["connections"]["cfg-1"] == "conn-new"
-    assert rollback_payload["binding"]["langflow"]["connections"] == {"old": "conn-old"}
+    assert first_payload["binding"]["ketos"]["connections"]["cfg-1"] == "conn-new"
+    assert rollback_payload["binding"]["ketos"]["connections"] == {"old": "conn-old"}
 
 
 @pytest.mark.anyio
@@ -2273,7 +2273,7 @@ async def test_apply_provider_update_plan_rolls_back_successfully_created_raw_co
     }
     fake_clients = SimpleNamespace(
         agent=FakeAgentClient(agent),
-        tool=FakeToolClient([{"id": "tool-existing-1", "binding": {"langflow": {"connections": {}}}}]),
+        tool=FakeToolClient([{"id": "tool-existing-1", "binding": {"ketos": {"connections": {}}}}]),
         connections=FakeConnectionsClient(),
     )
     captured: dict[str, Any] = {}
@@ -2361,7 +2361,7 @@ async def test_apply_provider_update_plan_rolls_back_all_journaled_raw_connectio
     }
     fake_clients = SimpleNamespace(
         agent=FakeAgentClient(agent),
-        tool=FakeToolClient([{"id": "tool-existing-1", "binding": {"langflow": {"connections": {}}}}]),
+        tool=FakeToolClient([{"id": "tool-existing-1", "binding": {"ketos": {"connections": {}}}}]),
         connections=FakeConnectionsClient(),
     )
     captured: dict[str, Any] = {}
@@ -2450,7 +2450,7 @@ async def test_apply_provider_update_plan_rolls_back_journaled_app_ids_when_crea
     }
     fake_clients = SimpleNamespace(
         agent=FakeAgentClient(agent),
-        tool=FakeToolClient([{"id": "tool-existing-1", "binding": {"langflow": {"connections": {}}}}]),
+        tool=FakeToolClient([{"id": "tool-existing-1", "binding": {"ketos": {"connections": {}}}}]),
         connections=FakeConnectionsClient(),
     )
     captured: dict[str, Any] = {}
@@ -2566,7 +2566,7 @@ async def test_create_provider_data_prefixes_tool_and_deployment_names_but_not_c
     assert fake_clients.connections.create_calls == [{"app_id": "cfg"}]
     assert captured["connections"] == {"cfg": "conn-cfg"}
     assert fake_clients.agent.create_calls
-    assert fake_clients.agent.create_calls[0]["name"] == "langflow_my_deployment_abcdef12"
+    assert fake_clients.agent.create_calls[0]["name"] == "ketos_my_deployment_abcdef12"
     assert fake_clients.agent.create_calls[0]["display_name"] == "my deployment"
     assert fake_clients.agent.create_calls[0]["description"] == "desc"
     assert fake_clients.agent.create_calls[0]["tools"] == ["created-tool-1"]
@@ -2581,7 +2581,7 @@ async def test_create_provider_data_prefixes_tool_and_deployment_names_but_not_c
     assert provider_result["tool_app_bindings"] == [{"tool_id": "created-tool-1", "app_ids": ["cfg"]}]
     assert provider_result["tools_with_refs"] == [{"source_ref": "fv-create-service-1", "tool_id": "created-tool-1"}]
     assert result.type == DeploymentType.AGENT
-    assert result.name == "langflow_my_deployment_abcdef12"
+    assert result.name == "ketos_my_deployment_abcdef12"
     assert result.description == "desc"
 
 
@@ -2652,7 +2652,7 @@ async def test_update_provider_data_maps_raw_connection_conflict_to_deployment_c
     service = WatsonxOrchestrateDeploymentService(DummySettingsService())
     fake_clients = SimpleNamespace(
         agent=FakeAgentClient({"id": "dep-1", "tools": ["tool-1"]}),
-        tool=FakeToolClient([{"id": "tool-1", "binding": {"langflow": {"connections": {}}}}]),
+        tool=FakeToolClient([{"id": "tool-1", "binding": {"ketos": {"connections": {}}}}]),
         connections=FakeConnectionsClient(),
     )
 
@@ -2826,7 +2826,7 @@ async def test_update_provider_data_validation_errors_raise_invalid_content(
     service = WatsonxOrchestrateDeploymentService(DummySettingsService())
     fake_clients = SimpleNamespace(
         agent=FakeAgentClient({"id": "dep-1", "tools": ["tool-1"]}),
-        tool=FakeToolClient([{"id": "tool-1", "binding": {"langflow": {"connections": {}}}}]),
+        tool=FakeToolClient([{"id": "tool-1", "binding": {"ketos": {"connections": {}}}}]),
         connections=FakeConnectionsClient(),
     )
 
@@ -2861,7 +2861,7 @@ async def test_update_provider_data_rolls_back_mutated_tools_with_writable_paylo
                 "name": "tool-1",
                 "display_name": "Tool 1",
                 "description": "desc",
-                "binding": {"langflow": {"connections": {"old": "conn-old"}}},
+                "binding": {"ketos": {"connections": {"old": "conn-old"}}},
                 "created_at": "read-only-field",
             }
         ]
@@ -2908,13 +2908,13 @@ async def test_update_provider_data_rolls_back_mutated_tools_with_writable_paylo
     rollback_payload = fake_tool.update_calls[1][1]
     assert "id" not in first_payload
     assert "created_at" not in first_payload
-    assert first_payload["binding"]["langflow"]["connections"]["cfg-1"] == "conn-new"
-    assert rollback_payload["binding"]["langflow"]["connections"] == {"old": "conn-old"}
+    assert first_payload["binding"]["ketos"]["connections"]["cfg-1"] == "conn-new"
+    assert rollback_payload["binding"]["ketos"]["connections"] == {"old": "conn-old"}
 
 
 @pytest.mark.anyio
 async def test_update_provider_data_rolls_back_partially_created_raw_tools(monkeypatch):
-    core_tools_module = importlib.import_module("langflow.services.adapters.deployment.watsonx_orchestrate.core.tools")
+    core_tools_module = importlib.import_module("ketos.services.adapters.deployment.watsonx_orchestrate.core.tools")
 
     service = WatsonxOrchestrateDeploymentService(DummySettingsService())
     fake_connections = FakeConnectionsClient()
@@ -3001,7 +3001,7 @@ async def test_update_provider_data_rolls_back_partially_created_raw_tools(monke
 
 @pytest.mark.anyio
 async def test_create_provider_data_rolls_back_partially_created_raw_tools(monkeypatch):
-    core_tools_module = importlib.import_module("langflow.services.adapters.deployment.watsonx_orchestrate.core.tools")
+    core_tools_module = importlib.import_module("ketos.services.adapters.deployment.watsonx_orchestrate.core.tools")
 
     service = WatsonxOrchestrateDeploymentService(DummySettingsService())
     fake_connections = FakeConnectionsClient()
@@ -3110,7 +3110,7 @@ async def test_create_provider_data_rolls_back_partially_created_raw_tools(monke
 
 @pytest.mark.anyio
 async def test_process_raw_flows_with_app_id_awaits_connection_validation(monkeypatch):
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core import tools as tools_core_module
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core import tools as tools_core_module
 
     fake_clients = SimpleNamespace(
         tool=SimpleNamespace(),
@@ -3133,7 +3133,7 @@ async def test_process_raw_flows_with_app_id_awaits_connection_validation(monkey
         return []
 
     monkeypatch.setattr(
-        "langflow.services.adapters.deployment.watsonx_orchestrate.core.config.validate_connection",
+        "ketos.services.adapters.deployment.watsonx_orchestrate.core.config.validate_connection",
         mock_validate_connection,
     )
     monkeypatch.setattr(
@@ -3154,7 +3154,7 @@ async def test_process_raw_flows_with_app_id_awaits_connection_validation(monkey
 
 @pytest.mark.anyio
 async def test_process_raw_flows_with_app_id_returns_source_ref_bindings(monkeypatch):
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core import tools as tools_core_module
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core import tools as tools_core_module
 
     fake_clients = SimpleNamespace(
         tool=SimpleNamespace(),
@@ -3173,7 +3173,7 @@ async def test_process_raw_flows_with_app_id_returns_source_ref_bindings(monkeyp
         return ["tool-1", "tool-2"]
 
     monkeypatch.setattr(
-        "langflow.services.adapters.deployment.watsonx_orchestrate.core.config.validate_connection",
+        "ketos.services.adapters.deployment.watsonx_orchestrate.core.config.validate_connection",
         mock_validate_connection,
     )
     monkeypatch.setattr(
@@ -3233,7 +3233,7 @@ async def test_process_raw_flows_with_app_id_returns_source_ref_bindings(monkeyp
 
 @pytest.mark.anyio
 async def test_process_raw_flows_with_app_id_accepts_typed_provider_data(monkeypatch):
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core import tools as tools_core_module
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core import tools as tools_core_module
 
     fake_clients = SimpleNamespace(
         tool=SimpleNamespace(),
@@ -3252,7 +3252,7 @@ async def test_process_raw_flows_with_app_id_accepts_typed_provider_data(monkeyp
         return ["tool-1"]
 
     monkeypatch.setattr(
-        "langflow.services.adapters.deployment.watsonx_orchestrate.core.config.validate_connection",
+        "ketos.services.adapters.deployment.watsonx_orchestrate.core.config.validate_connection",
         mock_validate_connection,
     )
     monkeypatch.setattr(
@@ -3287,7 +3287,7 @@ async def test_process_raw_flows_with_app_id_accepts_typed_provider_data(monkeyp
 
 @pytest.mark.anyio
 async def test_process_raw_flows_with_app_id_rejects_plain_dict_provider_data(monkeypatch):
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core import tools as tools_core_module
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core import tools as tools_core_module
 
     fake_clients = SimpleNamespace(
         tool=SimpleNamespace(),
@@ -3306,7 +3306,7 @@ async def test_process_raw_flows_with_app_id_rejects_plain_dict_provider_data(mo
         return ["tool-1"]
 
     monkeypatch.setattr(
-        "langflow.services.adapters.deployment.watsonx_orchestrate.core.config.validate_connection",
+        "ketos.services.adapters.deployment.watsonx_orchestrate.core.config.validate_connection",
         mock_validate_connection,
     )
     monkeypatch.setattr(
@@ -3376,19 +3376,19 @@ def test_create_wxo_flow_tool_keeps_load_from_db_global_values_unprefixed(monkey
         )
     )
 
-    def mock_create_langflow_tool(*, tool_definition, connections, show_details):  # noqa: ARG001
+    def mock_create_ketos_tool(*, tool_definition, connections, show_details):  # noqa: ARG001
         assert show_details is False
         captured_tool_definition.update(tool_definition)
         return fake_tool
 
-    monkeypatch.setattr(tools_module, "create_langflow_tool", mock_create_langflow_tool)
+    monkeypatch.setattr(tools_module, "create_ketos_tool", mock_create_ketos_tool)
     monkeypatch.setattr(
         tools_module,
-        "build_langflow_artifact_bytes",
+        "build_ketos_artifact_bytes",
         lambda **kwargs: b"artifact",  # noqa: ARG005
     )
 
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.tools import create_wxo_flow_tool
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.tools import create_wxo_flow_tool
 
     create_wxo_flow_tool(
         flow_payload=flow_payload,
@@ -3445,19 +3445,19 @@ def test_create_wxo_flow_tool_excludes_provider_data_from_artifact(monkeypatch):
         )
     )
 
-    def mock_create_langflow_tool(*, tool_definition, connections, show_details):  # noqa: ARG001
+    def mock_create_ketos_tool(*, tool_definition, connections, show_details):  # noqa: ARG001
         assert show_details is False
         captured_flow_definition.update(tool_definition)
         return fake_tool
 
-    monkeypatch.setattr(tools_module, "create_langflow_tool", mock_create_langflow_tool)
+    monkeypatch.setattr(tools_module, "create_ketos_tool", mock_create_ketos_tool)
     monkeypatch.setattr(
         tools_module,
-        "build_langflow_artifact_bytes",
+        "build_ketos_artifact_bytes",
         lambda **kwargs: b"artifact",  # noqa: ARG005
     )
 
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.tools import create_wxo_flow_tool
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.tools import create_wxo_flow_tool
 
     create_wxo_flow_tool(
         flow_payload=flow_payload,
@@ -3479,7 +3479,7 @@ def test_create_wxo_flow_tool_requires_provider_data_project_id():
         tags=[],
     )
 
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.tools import create_wxo_flow_tool
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.tools import create_wxo_flow_tool
 
     with pytest.raises(
         InvalidContentError,
@@ -3513,16 +3513,16 @@ def test_create_wxo_flow_tool_normalizes_name_for_raw_payload(monkeypatch):
     )
     monkeypatch.setattr(
         tools_module,
-        "create_langflow_tool",
+        "create_ketos_tool",
         lambda **kwargs: fake_tool,  # noqa: ARG005
     )
     monkeypatch.setattr(
         tools_module,
-        "build_langflow_artifact_bytes",
+        "build_ketos_artifact_bytes",
         lambda **kwargs: b"artifact",  # noqa: ARG005
     )
 
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.tools import create_wxo_flow_tool
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.tools import create_wxo_flow_tool
 
     tool_payload, artifact_bytes = create_wxo_flow_tool(
         flow_payload=flow_payload,
@@ -3530,7 +3530,7 @@ def test_create_wxo_flow_tool_normalizes_name_for_raw_payload(monkeypatch):
     )
 
     assert tool_payload["name"] == "basicllmwxo"
-    assert tool_payload["binding"]["langflow"]["project_id"] == "project-123"
+    assert tool_payload["binding"]["ketos"]["project_id"] == "project-123"
     assert artifact_bytes == b"artifact"
 
 
@@ -3555,12 +3555,12 @@ def test_create_wxo_flow_tool_uses_provider_data_technical_name(monkeypatch):
     )
     monkeypatch.setattr(
         tools_module,
-        "create_langflow_tool",
+        "create_ketos_tool",
         lambda **kwargs: fake_tool,  # noqa: ARG005
     )
     monkeypatch.setattr(
         tools_module,
-        "build_langflow_artifact_bytes",
+        "build_ketos_artifact_bytes",
         lambda **kwargs: b"artifact",  # noqa: ARG005
     )
 
@@ -3569,7 +3569,7 @@ def test_create_wxo_flow_tool_uses_provider_data_technical_name(monkeypatch):
         connections={},
     )
 
-    _assert_langflow_agent_name(tool_payload["name"], display_name="Basic LLM wxO")
+    _assert_ketos_agent_name(tool_payload["name"], display_name="Basic LLM wxO")
     assert tool_payload["display_name"] == "Basic LLM wxO"
     assert artifact_bytes == b"artifact"
 
@@ -3806,7 +3806,7 @@ async def test_list_configs_single_deployment_scope(monkeypatch):
                 "id": "tool-1",
                 "name": "tool-one",
                 "binding": {
-                    "langflow": {
+                    "ketos": {
                         "connections": {
                             "cfg-1": "conn-1",
                         }
@@ -3853,8 +3853,8 @@ async def test_list_configs_deployment_scope_filters_to_key_value_creds(monkeypa
     fake_agent = FakeAgentClient({"id": "dep-1", "tools": ["tool-1", "tool-2"]})
     fake_tool = FakeToolClient(
         [
-            {"id": "tool-1", "name": "tool-one", "binding": {"langflow": {"connections": {"cfg-1": "conn-1"}}}},
-            {"id": "tool-2", "name": "tool-two", "binding": {"langflow": {"connections": {"cfg-2": "conn-2"}}}},
+            {"id": "tool-1", "name": "tool-one", "binding": {"ketos": {"connections": {"cfg-1": "conn-1"}}}},
+            {"id": "tool-2", "name": "tool-two", "binding": {"ketos": {"connections": {"cfg-2": "conn-2"}}}},
         ]
     )
     connections_client = FakeConnectionsClient()
@@ -3901,7 +3901,7 @@ async def test_list_configs_deployment_scope_warns_on_stale_tool_ids(monkeypatch
             {
                 "id": "tool-1",
                 "name": "tool-one",
-                "binding": {"langflow": {"connections": {"cfg-1": "conn-1"}}},
+                "binding": {"ketos": {"connections": {"cfg-1": "conn-1"}}},
             }
         ]
     )
@@ -3951,7 +3951,7 @@ async def test_list_configs_deployment_scope_fails_fast_when_type_enrichment_fai
             {
                 "id": "tool-1",
                 "name": "tool-one",
-                "binding": {"langflow": {"connections": {"cfg-1": "conn-1"}}},
+                "binding": {"ketos": {"connections": {"cfg-1": "conn-1"}}},
             }
         ]
     )
@@ -3989,7 +3989,7 @@ async def test_list_configs_deployment_scope_accepts_schema_compatible_detailed_
             {
                 "id": "tool-1",
                 "name": "tool-one",
-                "binding": {"langflow": {"connections": {"cfg-1": "conn-1"}}},
+                "binding": {"ketos": {"connections": {"cfg-1": "conn-1"}}},
             }
         ]
     )
@@ -4028,7 +4028,7 @@ async def test_list_configs_deployment_scope_warns_when_referenced_connection_mi
             {
                 "id": "tool-1",
                 "name": "tool-one",
-                "binding": {"langflow": {"connections": {"cfg-1": "conn-1"}}},
+                "binding": {"ketos": {"connections": {"cfg-1": "conn-1"}}},
             }
         ]
     )
@@ -4197,7 +4197,7 @@ async def test_list_configs_deployment_scope_trusts_non_list_tools_payload(monke
             [
                 {
                     "id": "tool-1",
-                    "binding": {"langflow": {"connections": {"cfg-1": "conn-1"}}},
+                    "binding": {"ketos": {"connections": {"cfg-1": "conn-1"}}},
                 }
             ]
         ),
@@ -4311,8 +4311,8 @@ async def test_list_configs_deployment_scope_uses_latest_binding_for_same_app(mo
         agent=FakeAgentClient({"id": "dep-1", "tools": ["tool-1", "tool-2"]}),
         tool=FakeToolClient(
             [
-                {"id": "tool-1", "binding": {"langflow": {"connections": {"cfg-1": "conn-1"}}}},
-                {"id": "tool-2", "binding": {"langflow": {"connections": {"cfg-1": "conn-2"}}}},
+                {"id": "tool-1", "binding": {"ketos": {"connections": {"cfg-1": "conn-1"}}}},
+                {"id": "tool-2", "binding": {"ketos": {"connections": {"cfg-1": "conn-2"}}}},
             ]
         ),
         connections=connections_client,
@@ -4366,7 +4366,7 @@ async def test_list_configs_deployment_scope_skips_enrichment_when_no_connection
 @pytest.mark.anyio
 async def test_list_configs_deployment_scope_raises_on_malformed_detailed_connection(monkeypatch):
     service = WatsonxOrchestrateDeploymentService(DummySettingsService())
-    fake_tool = FakeToolClient([{"id": "tool-1", "binding": {"langflow": {"connections": {"cfg-1": "conn-1"}}}}])
+    fake_tool = FakeToolClient([{"id": "tool-1", "binding": {"ketos": {"connections": {"cfg-1": "conn-1"}}}}])
     connections_client = FakeConnectionsClient()
     monkeypatch.setattr(
         connections_client,
@@ -4426,7 +4426,7 @@ async def test_list_configs_scopes_return_same_normalized_item_shape(monkeypatch
                     "id": "tool-1",
                     "name": "Tool One",
                     "display_name": "Tool One",
-                    "binding": {"langflow": {"connections": {"cfg-1": "conn-1"}}},
+                    "binding": {"ketos": {"connections": {"cfg-1": "conn-1"}}},
                 }
             ]
         ),
@@ -4545,7 +4545,7 @@ async def test_list_snapshots_single_deployment_scope_extracts_connections(monke
                     "id": "tool-1",
                     "name": "Tool One",
                     "display_name": "Tool One",
-                    "binding": {"langflow": {"connections": {"cfg-1": "conn-1"}}},
+                    "binding": {"ketos": {"connections": {"cfg-1": "conn-1"}}},
                 }
             ]
         ),
@@ -4807,7 +4807,7 @@ async def test_list_snapshots_without_deployment_id_lists_tenant_scope(monkeypat
                     "id": "tool-1",
                     "name": "Tool One",
                     "display_name": "Tool One",
-                    "binding": {"langflow": {"connections": {"cfg-1": "conn-1"}}},
+                    "binding": {"ketos": {"connections": {"cfg-1": "conn-1"}}},
                 },
                 {"id": "tool-2", "name": "Tool Two", "display_name": "Tool Two"},
             ]
@@ -4926,14 +4926,14 @@ async def test_verify_tools_by_ids_returns_tool_metadata_provider_data():
                     "id": "tool-1",
                     "name": "Tool One",
                     "display_name": "Tool One",
-                    "binding": {"langflow": {"connections": {"cfg-1": "conn-1"}}},
+                    "binding": {"ketos": {"connections": {"cfg-1": "conn-1"}}},
                     "extra": "ignored",
                 },
                 {
                     "id": "tool-2",
                     "name": "Tool Two",
                     "display_name": "Tool Two",
-                    "binding": {"langflow": {"connections": {}}},
+                    "binding": {"ketos": {"connections": {}}},
                     "extra": "ignored",
                 },
             ]
@@ -4960,7 +4960,7 @@ async def test_verify_tools_by_ids_tolerates_malformed_connections_payload():
                     "id": "tool-1",
                     "name": "Tool One",
                     "display_name": "Tool One",
-                    "binding": {"langflow": {"connections": ["not-a-dict"]}},
+                    "binding": {"ketos": {"connections": ["not-a-dict"]}},
                 }
             ]
         )
@@ -4982,7 +4982,7 @@ async def test_verify_tools_by_ids_preserves_provider_connection_values():
                     "id": "tool-1",
                     "name": "Tool One",
                     "display_name": "Tool One",
-                    "binding": {"langflow": {"connections": {"cfg-1": "   "}}},
+                    "binding": {"ketos": {"connections": {"cfg-1": "   "}}},
                 }
             ]
         )
@@ -5009,7 +5009,7 @@ async def test_verify_tools_by_ids_preserves_provider_connection_mapping():
                     "name": "Tool One",
                     "display_name": "Tool One",
                     "binding": {
-                        "langflow": {
+                        "ketos": {
                             "connections": {
                                 "cfg-1": "conn-1",
                                 "cfg-2": "   ",
@@ -5046,7 +5046,7 @@ async def test_verify_tools_by_ids_preserves_provider_connection_mapping():
 
 @pytest.mark.anyio
 async def test_retry_with_backoff_succeeds_on_first_try():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.retry import retry_with_backoff
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.retry import retry_with_backoff
 
     call_count = 0
 
@@ -5062,7 +5062,7 @@ async def test_retry_with_backoff_succeeds_on_first_try():
 
 @pytest.mark.anyio
 async def test_retry_with_backoff_forwards_args_and_kwargs():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.retry import retry_with_backoff
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.retry import retry_with_backoff
 
     received: list[tuple[str, str]] = []
 
@@ -5079,7 +5079,7 @@ async def test_retry_with_backoff_forwards_args_and_kwargs():
 async def test_retry_create_with_to_thread_forwards_kwargs():
     import asyncio
 
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.retry import retry_create
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.retry import retry_create
 
     def sync_add(a: int, *, b: int) -> int:
         return a + b
@@ -5090,7 +5090,7 @@ async def test_retry_create_with_to_thread_forwards_kwargs():
 
 @pytest.mark.anyio
 async def test_retry_with_backoff_retries_then_succeeds():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.retry import retry_with_backoff
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.retry import retry_with_backoff
 
     call_count = 0
 
@@ -5109,7 +5109,7 @@ async def test_retry_with_backoff_retries_then_succeeds():
 
 @pytest.mark.anyio
 async def test_retry_with_backoff_gives_up_after_max_attempts():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.retry import retry_with_backoff
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.retry import retry_with_backoff
 
     call_count = 0
 
@@ -5126,7 +5126,7 @@ async def test_retry_with_backoff_gives_up_after_max_attempts():
 
 @pytest.mark.anyio
 async def test_retry_with_backoff_respects_should_retry_predicate():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.retry import retry_with_backoff
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.retry import retry_with_backoff
 
     call_count = 0
 
@@ -5146,7 +5146,7 @@ async def test_retry_with_backoff_respects_should_retry_predicate():
 
 
 def test_is_retryable_create_exception_non_retryable_status_codes():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.retry import is_retryable_create_exception
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.retry import is_retryable_create_exception
 
     non_retryable = {400, 401, 403, 404, 409, 422}
     for code in non_retryable:
@@ -5155,7 +5155,7 @@ def test_is_retryable_create_exception_non_retryable_status_codes():
 
 
 def test_is_retryable_create_exception_retryable_status_codes():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.retry import is_retryable_create_exception
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.retry import is_retryable_create_exception
 
     for code in (500, 502, 503, 429):
         exc = HTTPException(status_code=code)
@@ -5163,7 +5163,7 @@ def test_is_retryable_create_exception_retryable_status_codes():
 
 
 def test_is_retryable_create_exception_domain_exceptions_not_retryable():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.retry import is_retryable_create_exception
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.retry import is_retryable_create_exception
 
     assert is_retryable_create_exception(ResourceConflictError()) is False
     assert is_retryable_create_exception(InvalidContentError()) is False
@@ -5171,14 +5171,14 @@ def test_is_retryable_create_exception_domain_exceptions_not_retryable():
 
 
 def test_is_retryable_create_exception_generic_exception_is_retryable():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.retry import is_retryable_create_exception
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.retry import is_retryable_create_exception
 
     assert is_retryable_create_exception(RuntimeError("boom")) is True
 
 
 @pytest.mark.anyio
 async def test_rollback_created_resources_deletes_all(monkeypatch):
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core import retry as retry_module
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core import retry as retry_module
 
     deleted = {"agents": [], "tools": [], "configs": []}
 
@@ -5210,7 +5210,7 @@ async def test_rollback_created_resources_deletes_all(monkeypatch):
 
 @pytest.mark.anyio
 async def test_rollback_continues_after_individual_failures(monkeypatch):
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core import retry as retry_module
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core import retry as retry_module
 
     deleted = {"configs": []}
 
@@ -5243,7 +5243,7 @@ async def test_rollback_continues_after_individual_failures(monkeypatch):
 
 @pytest.mark.anyio
 async def test_rollback_update_resources_restores_then_deletes(monkeypatch):
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core import retry as retry_module
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core import retry as retry_module
 
     restored: list[tuple[str, dict]] = []
     deleted = {"tools": [], "configs": []}
@@ -5492,11 +5492,11 @@ async def test_delete_only_deletes_agent_not_tools_or_configs(monkeypatch):
         [
             {
                 "id": "tool-1",
-                "binding": {"langflow": {"connections": {"app-1": {}}}},
+                "binding": {"ketos": {"connections": {"app-1": {}}}},
             },
             {
                 "id": "tool-2",
-                "binding": {"langflow": {"connections": {"app-2": {}}}},
+                "binding": {"ketos": {"connections": {"app-2": {}}}},
             },
         ]
     )
@@ -5530,7 +5530,7 @@ async def test_get_status_not_configured():
 @pytest.mark.anyio
 async def test_update_deployment_display_name_and_description_renames_technical_agent(monkeypatch):
     service = WatsonxOrchestrateDeploymentService(DummySettingsService())
-    fake_agent = FakeAgentClient({"id": "dep-1", "name": "langflow_old_name_87654321", "tools": ["tool-1"]})
+    fake_agent = FakeAgentClient({"id": "dep-1", "name": "ketos_old_name_87654321", "tools": ["tool-1"]})
     fake_clients = SimpleNamespace(
         agent=fake_agent,
         tool=FakeToolClient([{"id": "tool-1"}]),
@@ -5559,7 +5559,7 @@ async def test_update_deployment_display_name_and_description_renames_technical_
     agent_id, payload = fake_agent.update_calls[0]
     assert agent_id == "dep-1"
     assert payload["display_name"] == "new name"
-    assert payload["name"] == "langflow_new_name_abcdef12"
+    assert payload["name"] == "ketos_new_name_abcdef12"
     assert payload["description"] == "new desc"
     assert result.provider_result is not None
     assert result.provider_result.name == payload["name"]
@@ -5679,7 +5679,7 @@ def test_build_update_payload_uses_resource_fallback_for_symbol_only_display_nam
 
     payload = update_core_module.build_update_payload_from_spec(None, core_update=core_update)
 
-    assert payload == {"display_name": "!!!", "name": "langflow_agent_abcdef12"}
+    assert payload == {"display_name": "!!!", "name": "ketos_agent_abcdef12"}
 
 
 @pytest.mark.anyio
@@ -5943,7 +5943,7 @@ async def test_update_spec_only_description_sends_update(monkeypatch):
 
 
 def test_get_authenticator_ibm_cloud():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.client import get_authenticator
+    from ketos.services.adapters.deployment.watsonx_orchestrate.client import get_authenticator
 
     auth = get_authenticator("https://api.region-foobar.cloud.ibm.com", "test-key")
     from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
@@ -5952,7 +5952,7 @@ def test_get_authenticator_ibm_cloud():
 
 
 def test_get_authenticator_mcsp():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.client import get_authenticator
+    from ketos.services.adapters.deployment.watsonx_orchestrate.client import get_authenticator
 
     auth = get_authenticator("https://api.wxo.ibm.com", "test-key")
     from ibm_cloud_sdk_core.authenticators import MCSPAuthenticator
@@ -5961,8 +5961,8 @@ def test_get_authenticator_mcsp():
 
 
 def test_get_authenticator_unknown_url():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.client import get_authenticator
-    from lfx.services.adapters.deployment.exceptions import AuthSchemeError
+    from ketos.services.adapters.deployment.watsonx_orchestrate.client import get_authenticator
+    from kfx.services.adapters.deployment.exceptions import AuthSchemeError
 
     with pytest.raises(AuthSchemeError, match="Could not determine"):
         get_authenticator("https://example.com", "test-key")
@@ -5984,22 +5984,22 @@ def test_get_authenticator_unknown_url():
 )
 def test_get_authenticator_rejects_substring_bypass(bypass_url):
     """Regression for CodeQL py/incomplete-url-substring-sanitization: scheme selection must be hostname-based."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.client import get_authenticator
-    from lfx.services.adapters.deployment.exceptions import AuthSchemeError
+    from ketos.services.adapters.deployment.watsonx_orchestrate.client import get_authenticator
+    from kfx.services.adapters.deployment.exceptions import AuthSchemeError
 
     with pytest.raises(AuthSchemeError, match="Could not determine"):
         get_authenticator(bypass_url, "test-key")
 
 
 def test_get_authenticator_sets_http_timeout_on_iam():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.client import get_authenticator
+    from ketos.services.adapters.deployment.watsonx_orchestrate.client import get_authenticator
 
     auth = get_authenticator("https://api.region-foobar.cloud.ibm.com", "test-key")
     assert auth.token_manager.http_config == {"timeout": (10, 30)}
 
 
 def test_get_authenticator_sets_http_timeout_on_mcsp():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.client import get_authenticator
+    from ketos.services.adapters.deployment.watsonx_orchestrate.client import get_authenticator
 
     auth = get_authenticator("https://api.wxo.ibm.com", "test-key")
     assert auth.token_manager.http_config == {"timeout": (10, 30)}
@@ -6186,7 +6186,7 @@ async def test_deployment_provider_scope_rejects_mixed_users_within_same_scope(m
 
 @pytest.mark.anyio
 async def test_resolve_wxo_client_credentials_reads_provider_url_from_account(monkeypatch):
-    from langflow.services.database.models.deployment_provider_account.model import DeploymentProviderAccount
+    from ketos.services.database.models.deployment_provider_account.model import DeploymentProviderAccount
 
     provider_account = DeploymentProviderAccount(
         id=UUID("00000000-0000-0000-0000-000000000099"),
@@ -6264,7 +6264,7 @@ def test_wxo_client_initializes_subclients_eagerly(monkeypatch):
 
 
 def test_normalize_wxo_name():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.payloads import normalize_wxo_name
+    from ketos.services.adapters.deployment.watsonx_orchestrate.payloads import normalize_wxo_name
 
     assert normalize_wxo_name("Hello World!") == "Hello_World"
     assert normalize_wxo_name("test-name-123") == "test_name_123"
@@ -6273,21 +6273,21 @@ def test_normalize_wxo_name():
 
 
 def test_validate_wxo_name_valid():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.payloads import validate_wxo_name
+    from ketos.services.adapters.deployment.watsonx_orchestrate.payloads import validate_wxo_name
 
     assert validate_wxo_name("my_deployment", field_label="Tool name") == "my_deployment"
     assert validate_wxo_name("My Deployment!", field_label="Tool name") == "My_Deployment"
 
 
 def test_validate_wxo_name_empty():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.payloads import validate_wxo_name
+    from ketos.services.adapters.deployment.watsonx_orchestrate.payloads import validate_wxo_name
 
     with pytest.raises(InvalidContentError, match="Tool name must include at least one alphanumeric character"):
         validate_wxo_name("!!!", field_label="Tool name")
 
 
 def test_validate_wxo_name_starts_with_digit():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.payloads import validate_wxo_name
+    from ketos.services.adapters.deployment.watsonx_orchestrate.payloads import validate_wxo_name
 
     with pytest.raises(InvalidContentError, match="Tool name must start with a letter"):
         validate_wxo_name("123abc", field_label="Tool name")
@@ -6414,53 +6414,53 @@ async def test_create_agent_deployment_maps_agent_conflict_with_structured_resou
 
 
 def test_extract_error_detail_json_string():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.utils import extract_error_detail
+    from ketos.services.adapters.deployment.watsonx_orchestrate.utils import extract_error_detail
 
     assert extract_error_detail('{"detail": "something went wrong"}') == "something went wrong"
 
 
 def test_extract_error_detail_json_list():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.utils import extract_error_detail
+    from ketos.services.adapters.deployment.watsonx_orchestrate.utils import extract_error_detail
 
     assert extract_error_detail('{"detail": [{"msg": "field required"}]}') == "field required"
 
 
 def test_extract_error_detail_json_dict():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.utils import extract_error_detail
+    from ketos.services.adapters.deployment.watsonx_orchestrate.utils import extract_error_detail
 
     result = extract_error_detail('{"detail": {"msg": "invalid"}}')
     assert result == "invalid"
 
 
 def test_extract_error_detail_non_json():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.utils import extract_error_detail
+    from ketos.services.adapters.deployment.watsonx_orchestrate.utils import extract_error_detail
 
     assert extract_error_detail("plain text error") == "plain text error"
 
 
 def test_extract_error_detail_with_null_detail_falls_back_to_body():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.utils import extract_error_detail
+    from ketos.services.adapters.deployment.watsonx_orchestrate.utils import extract_error_detail
 
     assert extract_error_detail('{"detail": null}') == '{"detail": null}'
 
 
 def test_extract_error_detail_uses_message_field_when_detail_missing():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.utils import extract_error_detail
+    from ketos.services.adapters.deployment.watsonx_orchestrate.utils import extract_error_detail
 
     payload = '{"statusCode":409,"message":"The connection ID already exists.","details":"duplicate"}'
     assert extract_error_detail(payload) == "The connection ID already exists."
 
 
 def test_dedupe_list():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.utils import dedupe_list
+    from ketos.services.adapters.deployment.watsonx_orchestrate.utils import dedupe_list
 
     assert dedupe_list(["a", "b", "a", "c", "b"]) == ["a", "b", "c"]
     assert dedupe_list([]) == []
 
 
 def test_raise_as_deployment_error_wraps_service_error_by_default():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.constants import ErrorPrefix
-    from langflow.services.adapters.deployment.watsonx_orchestrate.utils import raise_as_deployment_error
+    from ketos.services.adapters.deployment.watsonx_orchestrate.constants import ErrorPrefix
+    from ketos.services.adapters.deployment.watsonx_orchestrate.utils import raise_as_deployment_error
 
     original = InvalidContentError(message="invalid payload")
 
@@ -6473,8 +6473,8 @@ def test_raise_as_deployment_error_wraps_service_error_by_default():
 
 
 def test_raise_as_deployment_error_reraises_allowed_service_error():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.constants import ErrorPrefix
-    from langflow.services.adapters.deployment.watsonx_orchestrate.utils import raise_as_deployment_error
+    from ketos.services.adapters.deployment.watsonx_orchestrate.constants import ErrorPrefix
+    from ketos.services.adapters.deployment.watsonx_orchestrate.utils import raise_as_deployment_error
 
     original = InvalidContentError(message="invalid payload")
 
@@ -6489,8 +6489,8 @@ def test_raise_as_deployment_error_reraises_allowed_service_error():
 
 def test_raise_as_deployment_error_client_api_falls_back_to_raw_body():
     from ibm_watsonx_orchestrate_clients.tools.tool_client import ClientAPIException
-    from langflow.services.adapters.deployment.watsonx_orchestrate.constants import ErrorPrefix
-    from langflow.services.adapters.deployment.watsonx_orchestrate.utils import raise_as_deployment_error
+    from ketos.services.adapters.deployment.watsonx_orchestrate.constants import ErrorPrefix
+    from ketos.services.adapters.deployment.watsonx_orchestrate.utils import raise_as_deployment_error
 
     resp = SimpleNamespace(status_code=500, text='{"error":"boom"}')
     exc = ClientAPIException(response=resp)
@@ -6504,8 +6504,8 @@ def test_raise_as_deployment_error_client_api_falls_back_to_raw_body():
 
 
 def test_raise_as_deployment_error_http_exception_uses_detail():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.constants import ErrorPrefix
-    from langflow.services.adapters.deployment.watsonx_orchestrate.utils import raise_as_deployment_error
+    from ketos.services.adapters.deployment.watsonx_orchestrate.constants import ErrorPrefix
+    from ketos.services.adapters.deployment.watsonx_orchestrate.utils import raise_as_deployment_error
 
     exc = HTTPException(status_code=400, detail="bad request")
 
@@ -6519,8 +6519,8 @@ def test_raise_as_deployment_error_http_exception_uses_detail():
 
 def test_raise_as_deployment_error_maps_not_found():
     from ibm_watsonx_orchestrate_clients.tools.tool_client import ClientAPIException
-    from langflow.services.adapters.deployment.watsonx_orchestrate.constants import ErrorPrefix
-    from langflow.services.adapters.deployment.watsonx_orchestrate.utils import raise_as_deployment_error
+    from ketos.services.adapters.deployment.watsonx_orchestrate.constants import ErrorPrefix
+    from ketos.services.adapters.deployment.watsonx_orchestrate.utils import raise_as_deployment_error
 
     resp = SimpleNamespace(status_code=500, text='{"detail":"Agent \'abc\' not found"}')
     exc = ClientAPIException(response=resp)
@@ -6535,8 +6535,8 @@ def test_raise_as_deployment_error_maps_not_found():
 
 def test_raise_as_deployment_error_maps_conflict():
     from ibm_watsonx_orchestrate_clients.tools.tool_client import ClientAPIException
-    from langflow.services.adapters.deployment.watsonx_orchestrate.constants import ErrorPrefix
-    from langflow.services.adapters.deployment.watsonx_orchestrate.utils import raise_as_deployment_error
+    from ketos.services.adapters.deployment.watsonx_orchestrate.constants import ErrorPrefix
+    from ketos.services.adapters.deployment.watsonx_orchestrate.utils import raise_as_deployment_error
 
     resp = SimpleNamespace(status_code=500, text='{"detail":"resource already exists"}')
     exc = ClientAPIException(response=resp)
@@ -6553,8 +6553,8 @@ def test_raise_as_deployment_error_maps_conflict():
 
 def test_raise_as_deployment_error_maps_unprocessable_content():
     from ibm_watsonx_orchestrate_clients.tools.tool_client import ClientAPIException
-    from langflow.services.adapters.deployment.watsonx_orchestrate.constants import ErrorPrefix
-    from langflow.services.adapters.deployment.watsonx_orchestrate.utils import raise_as_deployment_error
+    from ketos.services.adapters.deployment.watsonx_orchestrate.constants import ErrorPrefix
+    from ketos.services.adapters.deployment.watsonx_orchestrate.utils import raise_as_deployment_error
 
     resp = SimpleNamespace(status_code=422, text='{"detail":"unprocessable"}')
     exc = ClientAPIException(response=resp)
@@ -6569,8 +6569,8 @@ def test_raise_as_deployment_error_maps_unprocessable_content():
 
 def test_raise_as_deployment_error_maps_forbidden_to_authorization_error():
     from ibm_watsonx_orchestrate_clients.tools.tool_client import ClientAPIException
-    from langflow.services.adapters.deployment.watsonx_orchestrate.constants import ErrorPrefix
-    from langflow.services.adapters.deployment.watsonx_orchestrate.utils import raise_as_deployment_error
+    from ketos.services.adapters.deployment.watsonx_orchestrate.constants import ErrorPrefix
+    from ketos.services.adapters.deployment.watsonx_orchestrate.utils import raise_as_deployment_error
 
     resp = SimpleNamespace(status_code=403, text='{"detail":"forbidden"}')
     exc = ClientAPIException(response=resp)
@@ -6584,7 +6584,7 @@ def test_raise_as_deployment_error_maps_forbidden_to_authorization_error():
 
 
 def test_build_agent_payload_from_values_structure():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.utils import build_agent_payload_from_values
+    from ketos.services.adapters.deployment.watsonx_orchestrate.utils import build_agent_payload_from_values
 
     payload = build_agent_payload_from_values(
         agent_name="agent_name",
@@ -6601,7 +6601,7 @@ def test_build_agent_payload_from_values_structure():
 
 
 def test_build_agent_payload_from_values_uses_display_name_for_default_description():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.utils import build_agent_payload_from_values
+    from ketos.services.adapters.deployment.watsonx_orchestrate.utils import build_agent_payload_from_values
 
     payload = build_agent_payload_from_values(
         agent_name="agent_name",
@@ -6611,7 +6611,7 @@ def test_build_agent_payload_from_values_uses_display_name_for_default_descripti
         llm=TEST_WXO_LLM,
     )
 
-    assert payload["description"] == "Langflow deployment Agent Name"
+    assert payload["description"] == "Ketos deployment Agent Name"
 
 
 # ---------------------------------------------------------------------------
@@ -6620,7 +6620,7 @@ def test_build_agent_payload_from_values_uses_display_name_for_default_descripti
 
 
 def test_normalize_optional_text_strips_and_returns_none_for_empty():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.config import normalize_optional_text
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.config import normalize_optional_text
 
     assert normalize_optional_text(None) is None
     assert normalize_optional_text("") is None
@@ -6630,7 +6630,7 @@ def test_normalize_optional_text_strips_and_returns_none_for_empty():
 
 
 def test_normalize_optional_text_rejects_non_str():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.config import normalize_optional_text
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.config import normalize_optional_text
 
     with pytest.raises(TypeError, match=r"expected str \| None"):
         normalize_optional_text(("value",))
@@ -6641,7 +6641,7 @@ def test_normalize_optional_text_rejects_non_str():
 def test_normalize_optional_text_handles_str_enum():
     from enum import Enum
 
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.config import normalize_optional_text
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.config import normalize_optional_text
 
     class FakeEnum(str, Enum):
         KEY_VALUE = "key_value_creds"
@@ -6650,9 +6650,9 @@ def test_normalize_optional_text_handles_str_enum():
 
 
 def test_build_config_list_item_valid():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.config import build_config_list_item
-    from langflow.services.adapters.deployment.watsonx_orchestrate.payloads import WatsonxConfigItemProviderData
-    from lfx.services.adapters.payload import PayloadSlot
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.config import build_config_list_item
+    from ketos.services.adapters.deployment.watsonx_orchestrate.payloads import WatsonxConfigItemProviderData
+    from kfx.services.adapters.payload import PayloadSlot
 
     slot = PayloadSlot(WatsonxConfigItemProviderData)
     item = build_config_list_item(
@@ -6670,9 +6670,9 @@ def test_build_config_list_item_valid():
 
 
 def test_build_config_list_item_missing_environment_for_key_value_creds():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.config import build_config_list_item
-    from langflow.services.adapters.deployment.watsonx_orchestrate.payloads import WatsonxConfigItemProviderData
-    from lfx.services.adapters.payload import PayloadSlot
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.config import build_config_list_item
+    from ketos.services.adapters.deployment.watsonx_orchestrate.payloads import WatsonxConfigItemProviderData
+    from kfx.services.adapters.payload import PayloadSlot
 
     slot = PayloadSlot(WatsonxConfigItemProviderData)
     with pytest.raises(InvalidContentError, match="key_value_creds connection without a required environment"):
@@ -6686,9 +6686,9 @@ def test_build_config_list_item_missing_environment_for_key_value_creds():
 
 
 def test_build_config_list_item_invalid_payload():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.config import build_config_list_item
-    from langflow.services.adapters.deployment.watsonx_orchestrate.payloads import WatsonxConfigItemProviderData
-    from lfx.services.adapters.payload import PayloadSlot
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.config import build_config_list_item
+    from ketos.services.adapters.deployment.watsonx_orchestrate.payloads import WatsonxConfigItemProviderData
+    from kfx.services.adapters.payload import PayloadSlot
 
     slot = PayloadSlot(WatsonxConfigItemProviderData)
     with pytest.raises(InvalidContentError, match="invalid config item provider_data payload"):
@@ -6704,7 +6704,7 @@ def test_build_config_list_item_invalid_payload():
 def test_warn_if_expected_ids_missing_logs_warning(caplog):
     import logging
 
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.config import warn_if_expected_ids_missing
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.config import warn_if_expected_ids_missing
 
     with caplog.at_level(logging.WARNING):
         warn_if_expected_ids_missing(
@@ -6720,7 +6720,7 @@ def test_warn_if_expected_ids_missing_logs_warning(caplog):
 def test_warn_if_expected_ids_missing_no_warning_when_all_resolved(caplog):
     import logging
 
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.config import warn_if_expected_ids_missing
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.config import warn_if_expected_ids_missing
 
     with caplog.at_level(logging.WARNING):
         warn_if_expected_ids_missing(
@@ -6738,42 +6738,42 @@ def test_warn_if_expected_ids_missing_no_warning_when_all_resolved(caplog):
 
 
 def test_resolve_execution_message_string():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import resolve_execution_message
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import resolve_execution_message
 
     result = resolve_execution_message("hello")
     assert result == {"role": "user", "content": "hello"}
 
 
 def test_resolve_execution_message_dict_with_role_content():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import resolve_execution_message
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import resolve_execution_message
 
     msg = {"role": "assistant", "content": "hi"}
     assert resolve_execution_message(msg) == msg
 
 
 def test_resolve_execution_message_dict_with_nested_message():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import resolve_execution_message
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import resolve_execution_message
 
     msg = {"message": {"role": "user", "content": "nested"}}
     assert resolve_execution_message(msg) == {"role": "user", "content": "nested"}
 
 
 def test_resolve_execution_message_empty_string_raises():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import resolve_execution_message
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import resolve_execution_message
 
     with pytest.raises(ValueError, match="must not be empty"):
         resolve_execution_message("   ")
 
 
 def test_resolve_execution_message_none_raises():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import resolve_execution_message
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import resolve_execution_message
 
     with pytest.raises(ValueError, match="requires input content"):
         resolve_execution_message(None)
 
 
 def test_create_agent_run_result_empty_raises():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import create_agent_run_result
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import create_agent_run_result
 
     with pytest.raises(DeploymentError, match="empty response"):
         create_agent_run_result(None)
@@ -6782,21 +6782,21 @@ def test_create_agent_run_result_empty_raises():
 
 
 def test_create_agent_run_result_with_run_id():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import create_agent_run_result
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import create_agent_run_result
 
     result = create_agent_run_result({"status": "running", "run_id": "r-1"})
     assert result == {"status": "running", "execution_id": "r-1"}
 
 
 def test_create_agent_run_result_extracts_thread_id():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import create_agent_run_result
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import create_agent_run_result
 
     result = create_agent_run_result({"status": "running", "run_id": "r-1", "thread_id": "t-1"})
     assert result["thread_id"] == "t-1"
 
 
 def test_create_agent_run_result_omits_thread_id_when_absent():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import create_agent_run_result
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import create_agent_run_result
 
     result = create_agent_run_result({"status": "running", "run_id": "r-1"})
     assert "thread_id" not in result
@@ -6808,7 +6808,7 @@ def test_create_agent_run_result_omits_thread_id_when_absent():
 
 
 def test_get_agent_environments_dedupes_preserving_order():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.status import get_agent_environments
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.status import get_agent_environments
 
     agent = {
         "environments": [
@@ -6822,20 +6822,20 @@ def test_get_agent_environments_dedupes_preserving_order():
 
 
 def test_get_agent_environments_returns_empty_list_when_provider_returns_empty():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.status import get_agent_environments
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.status import get_agent_environments
 
     assert get_agent_environments({"environments": []}) == []
 
 
 def test_get_agent_environments_raises_when_environments_key_missing():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.status import get_agent_environments
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.status import get_agent_environments
 
     with pytest.raises(KeyError):
         get_agent_environments({})
 
 
 def test_get_agent_environments_raises_when_env_entry_missing_name():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.status import get_agent_environments
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.status import get_agent_environments
 
     with pytest.raises(KeyError):
         get_agent_environments({"environments": [{"not_name": "draft"}]})
@@ -6846,18 +6846,18 @@ def test_get_agent_environments_raises_when_env_entry_missing_name():
 # ---------------------------------------------------------------------------
 
 
-def test_build_langflow_artifact_bytes_structure():
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.tools import (
-        build_langflow_artifact_bytes,
+def test_build_ketos_artifact_bytes_structure():
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.tools import (
+        build_ketos_artifact_bytes,
     )
 
     flow_definition = {"nodes": [{"id": "n1"}], "edges": []}
     tool = SimpleNamespace(
         __tool_spec__=SimpleNamespace(name="test_tool"),
-        requirements=["lfx>=0.3.0"],
+        requirements=["kfx>=0.3.0"],
     )
 
-    artifact_bytes = build_langflow_artifact_bytes(
+    artifact_bytes = build_ketos_artifact_bytes(
         tool=tool,
         flow_definition=flow_definition,
     )
@@ -6918,7 +6918,7 @@ async def test_teardown_succeeds():
 @pytest.mark.anyio
 async def test_get_agent_run_empty_response_raises(monkeypatch):
     """get_agent_run raises DeploymentError when provider returns empty payload."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import get_agent_run
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import get_agent_run
 
     async def fake_to_thread(fn, *args, **kwargs):  # noqa: ARG001
         return None
@@ -6938,7 +6938,7 @@ def test_retry_rollback_uses_retryable_filter():
     Validates that the filter correctly identifies non-retryable HTTP status codes
     (via HTTPException, which is checked by is_retryable_create_exception).
     """
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.retry import is_retryable_create_exception
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.retry import is_retryable_create_exception
 
     # Non-retryable status codes should not be retried
     for code in [400, 401, 403, 404, 409, 422]:
@@ -6953,7 +6953,7 @@ def test_retry_rollback_uses_retryable_filter():
         )
 
     # Domain exceptions that are non-retryable
-    from lfx.services.adapters.deployment.exceptions import InvalidContentError, ResourceConflictError
+    from kfx.services.adapters.deployment.exceptions import InvalidContentError, ResourceConflictError
 
     assert not is_retryable_create_exception(ResourceConflictError())
     assert not is_retryable_create_exception(InvalidContentError())
@@ -6965,8 +6965,8 @@ def test_retry_rollback_uses_retryable_filter():
 @pytest.mark.anyio
 async def test_credential_resolution_catches_arbitrary_exceptions(monkeypatch):
     """resolve_wxo_client_credentials wraps unexpected exceptions as CredentialResolutionError."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.client import resolve_wxo_client_credentials
-    from lfx.services.adapters.deployment.exceptions import CredentialResolutionError
+    from ketos.services.adapters.deployment.watsonx_orchestrate.client import resolve_wxo_client_credentials
+    from kfx.services.adapters.deployment.exceptions import CredentialResolutionError
 
     class FakeSQLAlchemyError(Exception):
         pass
@@ -6976,7 +6976,7 @@ async def test_credential_resolution_catches_arbitrary_exceptions(monkeypatch):
         raise FakeSQLAlchemyError(error_message)
 
     monkeypatch.setattr(
-        "langflow.services.adapters.deployment.watsonx_orchestrate.client.get_provider_account_by_id",
+        "ketos.services.adapters.deployment.watsonx_orchestrate.client.get_provider_account_by_id",
         mock_get_provider,
     )
 
@@ -6990,7 +6990,7 @@ async def test_credential_resolution_catches_arbitrary_exceptions(monkeypatch):
 
 def test_wxo_client_eagerly_constructs_sub_clients():
     """WxOClient eagerly builds tool/connections/agent from instance_url and authenticator."""
-    types_module = importlib.import_module("langflow.services.adapters.deployment.watsonx_orchestrate.types")
+    types_module = importlib.import_module("ketos.services.adapters.deployment.watsonx_orchestrate.types")
     wxo_client_cls = types_module.WxOClient
     from ibm_cloud_sdk_core.authenticators import NoAuthAuthenticator
 
@@ -7005,7 +7005,7 @@ def test_wxo_client_eagerly_constructs_sub_clients():
 
 def test_wxo_client_is_frozen():
     """WxOClient is frozen and rejects post-construction mutation."""
-    types_module = importlib.import_module("langflow.services.adapters.deployment.watsonx_orchestrate.types")
+    types_module = importlib.import_module("ketos.services.adapters.deployment.watsonx_orchestrate.types")
     wxo_client_cls = types_module.WxOClient
     from ibm_cloud_sdk_core.authenticators import NoAuthAuthenticator
 
@@ -7016,7 +7016,7 @@ def test_wxo_client_is_frozen():
 
 def test_wxo_client_strips_trailing_slash():
     """WxOClient normalizes instance_url by stripping trailing slashes."""
-    types_module = importlib.import_module("langflow.services.adapters.deployment.watsonx_orchestrate.types")
+    types_module = importlib.import_module("ketos.services.adapters.deployment.watsonx_orchestrate.types")
     wxo_client_cls = types_module.WxOClient
     from ibm_cloud_sdk_core.authenticators import NoAuthAuthenticator
 
@@ -7026,7 +7026,7 @@ def test_wxo_client_strips_trailing_slash():
 
 def test_wxo_client_rejects_empty_url():
     """WxOClient rejects empty instance_url at construction."""
-    types_module = importlib.import_module("langflow.services.adapters.deployment.watsonx_orchestrate.types")
+    types_module = importlib.import_module("ketos.services.adapters.deployment.watsonx_orchestrate.types")
     wxo_client_cls = types_module.WxOClient
     from ibm_cloud_sdk_core.authenticators import NoAuthAuthenticator
 
@@ -7059,7 +7059,7 @@ def test_raise_for_status_separates_status_codes_from_string_heuristics():
     Now, the 404 status code check is standalone, and 'not found' string heuristic only
     fires as a fallback for unmapped status codes.
     """
-    from lfx.services.adapters.deployment.exceptions import ResourceNotFoundError, raise_as_deployment_error
+    from kfx.services.adapters.deployment.exceptions import ResourceNotFoundError, raise_as_deployment_error
 
     # status_code=404 raises ResourceNotFoundError regardless of detail text
     with pytest.raises(ResourceNotFoundError):
@@ -7094,7 +7094,7 @@ async def test_create_maps_409_conflict_to_deployment_conflict_error():
                 response=SimpleNamespace(status_code=409, text='{"detail":"already exists"}')
             ),
         ),
-        tool=FakeToolClient([{"id": "tool-existing-1", "binding": {"langflow": {}}}]),
+        tool=FakeToolClient([{"id": "tool-existing-1", "binding": {"ketos": {}}}]),
         connections=FakeConnectionsClient(existing_app_id="app-existing-1"),
     )
     _attach_provider_clients(service, clients)
@@ -7172,7 +7172,7 @@ async def test_create_maps_422_to_invalid_content_error():
                 response=SimpleNamespace(status_code=422, text='{"detail":"validation error"}')
             ),
         ),
-        tool=FakeToolClient([{"id": "tool-existing-1", "binding": {"langflow": {}}}]),
+        tool=FakeToolClient([{"id": "tool-existing-1", "binding": {"ketos": {}}}]),
         connections=FakeConnectionsClient(existing_app_id="app-existing-1"),
     )
     _attach_provider_clients(service, clients)
@@ -7258,73 +7258,73 @@ async def test_update_rejects_empty_provider_data_with_no_spec_changes(monkeypat
 
 
 # ---------------------------------------------------------------------------
-# Test Coverage Gap #4: extract_langflow_artifact_from_zip — all error paths
+# Test Coverage Gap #4: extract_ketos_artifact_from_zip — all error paths
 # ---------------------------------------------------------------------------
 
 
-def test_extract_langflow_artifact_from_zip_success():
-    """extract_langflow_artifact_from_zip returns parsed JSON from a valid zip."""
+def test_extract_ketos_artifact_from_zip_success():
+    """extract_ketos_artifact_from_zip returns parsed JSON from a valid zip."""
     import json
 
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.tools import (
-        extract_langflow_artifact_from_zip,
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.tools import (
+        extract_ketos_artifact_from_zip,
     )
 
     flow_data = {"name": "test_flow", "nodes": []}
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
         zf.writestr("flow.json", json.dumps(flow_data))
-    result = extract_langflow_artifact_from_zip(buf.getvalue(), snapshot_id="snap-1")
+    result = extract_ketos_artifact_from_zip(buf.getvalue(), snapshot_id="snap-1")
     assert result == flow_data
 
 
-def test_extract_langflow_artifact_from_zip_no_json():
-    """extract_langflow_artifact_from_zip raises InvalidContentError when no JSON in zip."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.tools import (
-        extract_langflow_artifact_from_zip,
+def test_extract_ketos_artifact_from_zip_no_json():
+    """extract_ketos_artifact_from_zip raises InvalidContentError when no JSON in zip."""
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.tools import (
+        extract_ketos_artifact_from_zip,
     )
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
         zf.writestr("readme.txt", "hello")
     with pytest.raises(InvalidContentError, match="does not include a flow JSON"):
-        extract_langflow_artifact_from_zip(buf.getvalue(), snapshot_id="snap-1")
+        extract_ketos_artifact_from_zip(buf.getvalue(), snapshot_id="snap-1")
 
 
-def test_extract_langflow_artifact_from_zip_bad_zip():
-    """extract_langflow_artifact_from_zip raises InvalidContentError for invalid zip data."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.tools import (
-        extract_langflow_artifact_from_zip,
+def test_extract_ketos_artifact_from_zip_bad_zip():
+    """extract_ketos_artifact_from_zip raises InvalidContentError for invalid zip data."""
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.tools import (
+        extract_ketos_artifact_from_zip,
     )
 
     with pytest.raises(InvalidContentError, match="not a valid zip"):
-        extract_langflow_artifact_from_zip(b"not a zip file", snapshot_id="snap-1")
+        extract_ketos_artifact_from_zip(b"not a zip file", snapshot_id="snap-1")
 
 
-def test_extract_langflow_artifact_from_zip_invalid_utf8():
-    """extract_langflow_artifact_from_zip raises InvalidContentError for non-UTF-8 content."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.tools import (
-        extract_langflow_artifact_from_zip,
+def test_extract_ketos_artifact_from_zip_invalid_utf8():
+    """extract_ketos_artifact_from_zip raises InvalidContentError for non-UTF-8 content."""
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.tools import (
+        extract_ketos_artifact_from_zip,
     )
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
         zf.writestr("flow.json", b"\xff\xfe invalid utf-8")
     with pytest.raises(InvalidContentError, match="not valid UTF-8"):
-        extract_langflow_artifact_from_zip(buf.getvalue(), snapshot_id="snap-1")
+        extract_ketos_artifact_from_zip(buf.getvalue(), snapshot_id="snap-1")
 
 
-def test_extract_langflow_artifact_from_zip_invalid_json():
-    """extract_langflow_artifact_from_zip raises InvalidContentError for malformed JSON."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.tools import (
-        extract_langflow_artifact_from_zip,
+def test_extract_ketos_artifact_from_zip_invalid_json():
+    """extract_ketos_artifact_from_zip raises InvalidContentError for malformed JSON."""
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.tools import (
+        extract_ketos_artifact_from_zip,
     )
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
         zf.writestr("flow.json", "not valid json {{{")
     with pytest.raises(InvalidContentError, match="invalid JSON"):
-        extract_langflow_artifact_from_zip(buf.getvalue(), snapshot_id="snap-1")
+        extract_ketos_artifact_from_zip(buf.getvalue(), snapshot_id="snap-1")
 
 
 # ---------------------------------------------------------------------------
@@ -7335,7 +7335,7 @@ def test_extract_langflow_artifact_from_zip_invalid_json():
 @pytest.mark.anyio
 async def test_validate_connection_missing_connection():
     """validate_connection raises InvalidContentError when connection not found."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.config import validate_connection
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.config import validate_connection
 
     connections_client = FakeConnectionsClient()  # no existing connections
 
@@ -7346,7 +7346,7 @@ async def test_validate_connection_missing_connection():
 @pytest.mark.anyio
 async def test_validate_connection_missing_config(monkeypatch):
     """validate_connection raises InvalidContentError when config not found."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.config import validate_connection
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.config import validate_connection
 
     connections_client = FakeConnectionsClient(existing_app_id="my_app")
 
@@ -7362,7 +7362,7 @@ async def test_validate_connection_missing_config(monkeypatch):
 @pytest.mark.anyio
 async def test_validate_connection_wrong_security_scheme(monkeypatch):
     """validate_connection raises InvalidContentError for non-key-value security scheme."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.config import validate_connection
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.config import validate_connection
 
     connections_client = FakeConnectionsClient(existing_app_id="my_app")
 
@@ -7379,7 +7379,7 @@ async def test_validate_connection_wrong_security_scheme(monkeypatch):
 async def test_validate_connection_missing_credentials(monkeypatch):
     """validate_connection raises InvalidContentError when credentials are missing."""
     from ibm_watsonx_orchestrate_core.types.connections import ConnectionSecurityScheme
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.config import validate_connection
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.config import validate_connection
 
     connections_client = FakeConnectionsClient(existing_app_id="my_app")
 
@@ -7403,7 +7403,7 @@ async def test_validate_connection_missing_credentials(monkeypatch):
 
 def test_create_agent_run_result_raises_on_missing_run_id():
     """create_agent_run_result raises DeploymentError when response has no execution identifier."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import create_agent_run_result
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import create_agent_run_result
 
     with pytest.raises(DeploymentError, match="did not return an execution identifier"):
         create_agent_run_result({"status": "accepted"})
@@ -7411,7 +7411,7 @@ def test_create_agent_run_result_raises_on_missing_run_id():
 
 def test_create_agent_run_result_extracts_run_id():
     """create_agent_run_result translates WXO run_id to execution_id."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import create_agent_run_result
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import create_agent_run_result
 
     result = create_agent_run_result({"status": "accepted", "run_id": "run-123"})
     assert result["execution_id"] == "run-123"
@@ -7420,7 +7420,7 @@ def test_create_agent_run_result_extracts_run_id():
 
 def test_create_agent_run_result_falls_back_to_id_field():
     """create_agent_run_result uses 'id' field when 'run_id' is absent."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import create_agent_run_result
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import create_agent_run_result
 
     result = create_agent_run_result({"status": "running", "id": "id-456"})
     assert result["execution_id"] == "id-456"
@@ -7433,7 +7433,7 @@ def test_create_agent_run_result_falls_back_to_id_field():
 
 def test_require_single_deployment_id_rejects_multiple_ids():
     """require_single_deployment_id raises InvalidContentError for multiple IDs."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.utils import require_single_deployment_id
+    from ketos.services.adapters.deployment.watsonx_orchestrate.utils import require_single_deployment_id
 
     params = ConfigListParams(deployment_ids=["id-1", "id-2"])
     with pytest.raises(InvalidContentError, match="exactly one deployment_id"):
@@ -7453,7 +7453,7 @@ async def test_create_preserves_exception_chain_on_unexpected_error():
     original_error = RuntimeError("unexpected db error")
     clients = FakeWXOClients(
         agent=FakeAgentClient({"id": "dep-1", "tools": []}, create_exception=original_error),
-        tool=FakeToolClient([{"id": "tool-existing-1", "binding": {"langflow": {}}}]),
+        tool=FakeToolClient([{"id": "tool-existing-1", "binding": {"ketos": {}}}]),
         connections=FakeConnectionsClient(existing_app_id="app-existing-1"),
     )
     _attach_provider_clients(service, clients)
@@ -7517,10 +7517,10 @@ def test_ensure_dict_logs_warning_on_non_dict():
     """_ensure_dict logs a warning when replacing a non-dict value."""
     from unittest.mock import patch
 
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.tools import _ensure_dict
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.tools import _ensure_dict
 
     parent = {"binding": "not a dict"}
-    with patch("langflow.services.adapters.deployment.watsonx_orchestrate.core.tools.logger") as mock_logger:
+    with patch("ketos.services.adapters.deployment.watsonx_orchestrate.core.tools.logger") as mock_logger:
         result = _ensure_dict(parent, "binding")
     assert result == {}
     assert parent["binding"] == {}
@@ -7540,7 +7540,7 @@ async def test_get_agent_run_translates_run_id_to_execution_id(monkeypatch):
     """get_agent_run maps WXO id to execution_id and passes through other fields."""
     import asyncio as _asyncio
 
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import get_agent_run
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import get_agent_run
 
     wxo_payload = {
         "id": "r-42",
@@ -7573,7 +7573,7 @@ async def test_get_agent_run_passes_through_error_fields(monkeypatch):
     """get_agent_run forwards failed_at, cancelled_at, and last_error."""
     import asyncio as _asyncio
 
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import get_agent_run
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import get_agent_run
 
     wxo_payload = {
         "id": "r-fail",
@@ -7606,7 +7606,7 @@ async def test_get_agent_run_falls_back_to_param_run_id(monkeypatch):
     """get_agent_run uses the run_id parameter when WXO payload omits id."""
     import asyncio as _asyncio
 
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import get_agent_run
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import get_agent_run
 
     wxo_payload = {"status": "in_progress", "agent_id": "agent-1"}
 
@@ -7630,7 +7630,7 @@ async def test_get_agent_run_falls_back_to_param_run_id(monkeypatch):
 
 def test_build_orchestrate_run_payload_uses_message_directly():
     """build_orchestrate_run_payload passes message from provider_data when present."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import build_orchestrate_run_payload
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import build_orchestrate_run_payload
 
     message = {"role": "user", "content": "direct message"}
     result = build_orchestrate_run_payload(
@@ -7644,7 +7644,7 @@ def test_build_orchestrate_run_payload_uses_message_directly():
 
 def test_build_orchestrate_run_payload_falls_back_to_deployment_id():
     """build_orchestrate_run_payload uses deployment_id when agent_id is absent."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import build_orchestrate_run_payload
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import build_orchestrate_run_payload
 
     result = build_orchestrate_run_payload(
         provider_data={"input": "hello"},
@@ -7657,7 +7657,7 @@ def test_build_orchestrate_run_payload_falls_back_to_deployment_id():
 
 def test_build_orchestrate_run_payload_excludes_extra_fields():
     """build_orchestrate_run_payload does not forward extra fields besides thread_id."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import build_orchestrate_run_payload
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import build_orchestrate_run_payload
 
     result = build_orchestrate_run_payload(
         provider_data={
@@ -7678,7 +7678,7 @@ def test_build_orchestrate_run_payload_excludes_extra_fields():
 
 def test_build_orchestrate_run_payload_omits_thread_id_when_absent():
     """build_orchestrate_run_payload does not include thread_id when not provided."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.core.execution import build_orchestrate_run_payload
+    from ketos.services.adapters.deployment.watsonx_orchestrate.core.execution import build_orchestrate_run_payload
 
     result = build_orchestrate_run_payload(
         provider_data={"input": "hi"},
@@ -7695,7 +7695,7 @@ def test_build_orchestrate_run_payload_omits_thread_id_when_absent():
 
 def test_adapter_execution_schema_parses_all_explicit_fields():
     """WatsonxAgentExecutionResultData parses all execution response fields."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.payloads import WatsonxAgentExecutionResultData
+    from ketos.services.adapters.deployment.watsonx_orchestrate.payloads import WatsonxAgentExecutionResultData
 
     data = {
         "execution_id": "e-1",
@@ -7719,7 +7719,7 @@ def test_adapter_execution_schema_parses_all_explicit_fields():
 
 def test_adapter_execution_schema_has_no_run_id_field():
     """WatsonxAgentExecutionResultData does not expose run_id as a named field."""
-    from langflow.services.adapters.deployment.watsonx_orchestrate.payloads import WatsonxAgentExecutionResultData
+    from ketos.services.adapters.deployment.watsonx_orchestrate.payloads import WatsonxAgentExecutionResultData
 
     assert "run_id" not in WatsonxAgentExecutionResultData.model_fields
 
@@ -7731,7 +7731,7 @@ def test_adapter_execution_schema_has_no_run_id_field():
 
 def test_api_execution_create_schema_parses_all_explicit_fields():
     """WatsonxApiAgentExecutionCreateResultData parses all execution response fields."""
-    from langflow.api.v1.mappers.deployments.watsonx_orchestrate.payloads import (
+    from ketos.api.v1.mappers.deployments.watsonx_orchestrate.payloads import (
         WatsonxApiAgentExecutionCreateResultData,
     )
 
@@ -7751,7 +7751,7 @@ def test_api_execution_create_schema_parses_all_explicit_fields():
 
 def test_api_execution_status_schema_parses_all_explicit_fields():
     """WatsonxApiAgentExecutionStatusResultData parses all execution response fields."""
-    from langflow.api.v1.mappers.deployments.watsonx_orchestrate.payloads import (
+    from ketos.api.v1.mappers.deployments.watsonx_orchestrate.payloads import (
         WatsonxApiAgentExecutionStatusResultData,
     )
 
@@ -7774,7 +7774,7 @@ def test_api_execution_status_schema_parses_all_explicit_fields():
 
 def test_api_execution_schemas_have_no_run_id_field():
     """Neither create nor status schema exposes run_id as a named field."""
-    from langflow.api.v1.mappers.deployments.watsonx_orchestrate.payloads import (
+    from ketos.api.v1.mappers.deployments.watsonx_orchestrate.payloads import (
         WatsonxApiAgentExecutionCreateResultData,
         WatsonxApiAgentExecutionStatusResultData,
     )
@@ -7783,9 +7783,9 @@ def test_api_execution_schemas_have_no_run_id_field():
     assert "run_id" not in WatsonxApiAgentExecutionStatusResultData.model_fields
 
 
-def test_api_execution_schemas_omit_langflow_owned_fields():
-    """deployment_id (Langflow DB UUID) belongs on the top-level response, not in provider_data."""
-    from langflow.api.v1.mappers.deployments.watsonx_orchestrate.payloads import (
+def test_api_execution_schemas_omit_ketos_owned_fields():
+    """deployment_id (Ketos DB UUID) belongs on the top-level response, not in provider_data."""
+    from ketos.api.v1.mappers.deployments.watsonx_orchestrate.payloads import (
         WatsonxApiAgentExecutionCreateResultData,
         WatsonxApiAgentExecutionStatusResultData,
     )
@@ -7798,7 +7798,7 @@ def test_api_execution_schemas_omit_langflow_owned_fields():
 
 def test_api_execution_schema_validates_provider_owned_id_fields_without_rewriting():
     """Both create and status schemas reject blank provider IDs without stripping valid values."""
-    from langflow.api.v1.mappers.deployments.watsonx_orchestrate.payloads import (
+    from ketos.api.v1.mappers.deployments.watsonx_orchestrate.payloads import (
         WatsonxApiAgentExecutionCreateResultData,
         WatsonxApiAgentExecutionStatusResultData,
     )
@@ -7832,7 +7832,7 @@ def test_api_execution_schema_validates_provider_owned_id_fields_without_rewriti
 
 def test_shape_execution_create_result_maps_all_fields():
     """shape_execution_create_result maps adapter fields to API response."""
-    from langflow.api.v1.mappers.deployments.watsonx_orchestrate.mapper import WatsonxOrchestrateDeploymentMapper
+    from ketos.api.v1.mappers.deployments.watsonx_orchestrate.mapper import WatsonxOrchestrateDeploymentMapper
 
     mapper = WatsonxOrchestrateDeploymentMapper()
     deployment_id = UUID("00000000-0000-0000-0000-000000000001")
@@ -7860,7 +7860,7 @@ def test_shape_execution_create_result_maps_all_fields():
 
 def test_shape_execution_status_result_maps_all_fields():
     """shape_execution_status_result maps adapter fields to API response."""
-    from langflow.api.v1.mappers.deployments.watsonx_orchestrate.mapper import WatsonxOrchestrateDeploymentMapper
+    from ketos.api.v1.mappers.deployments.watsonx_orchestrate.mapper import WatsonxOrchestrateDeploymentMapper
 
     mapper = WatsonxOrchestrateDeploymentMapper()
     deployment_id = UUID("00000000-0000-0000-0000-000000000002")
@@ -7889,7 +7889,7 @@ def test_shape_execution_status_result_maps_all_fields():
 
 def test_shape_execution_status_result_none_execution_id():
     """When adapter has no execution_id, provider_data includes it as None."""
-    from langflow.api.v1.mappers.deployments.watsonx_orchestrate.mapper import WatsonxOrchestrateDeploymentMapper
+    from ketos.api.v1.mappers.deployments.watsonx_orchestrate.mapper import WatsonxOrchestrateDeploymentMapper
 
     mapper = WatsonxOrchestrateDeploymentMapper()
     deployment_id = UUID("00000000-0000-0000-0000-000000000003")
@@ -7919,7 +7919,7 @@ def test_shape_execution_status_result_none_execution_id():
 @pytest.mark.anyio
 async def test_verify_credentials_success(monkeypatch):
     """verify_credentials returns VerifyCredentialsResult on valid credentials."""
-    from lfx.services.adapters.deployment.schema import VerifyCredentials, VerifyCredentialsResult
+    from kfx.services.adapters.deployment.schema import VerifyCredentials, VerifyCredentialsResult
 
     class FakeTokenManager:
         def get_token(self):
@@ -7948,8 +7948,8 @@ async def test_verify_credentials_success(monkeypatch):
 async def test_verify_credentials_invalid_key_raises(monkeypatch):
     """verify_credentials raises AuthenticationError when provider rejects credentials."""
     from ibm_cloud_sdk_core import ApiException
-    from lfx.services.adapters.deployment.exceptions import AuthenticationError
-    from lfx.services.adapters.deployment.schema import VerifyCredentials
+    from kfx.services.adapters.deployment.exceptions import AuthenticationError
+    from kfx.services.adapters.deployment.schema import VerifyCredentials
 
     class FakeTokenManager:
         def get_token(self):
@@ -7977,8 +7977,8 @@ async def test_verify_credentials_invalid_key_raises(monkeypatch):
 async def test_verify_credentials_instance_probe_forbidden(monkeypatch):
     """403 from wxO models probe maps to AuthorizationError (wrong instance for key)."""
     from ibm_watsonx_orchestrate_clients.tools.tool_client import ClientAPIException
-    from lfx.services.adapters.deployment.exceptions import AuthorizationError
-    from lfx.services.adapters.deployment.schema import VerifyCredentials
+    from kfx.services.adapters.deployment.exceptions import AuthorizationError
+    from kfx.services.adapters.deployment.schema import VerifyCredentials
     from requests import Response
 
     class FakeTokenManager:
@@ -8013,8 +8013,8 @@ async def test_verify_credentials_instance_probe_forbidden(monkeypatch):
 @pytest.mark.anyio
 async def test_verify_credentials_malformed_key_from_authenticator_constructor_raises():
     """verify_credentials raises InvalidContentError when authenticator creation fails validation."""
-    from lfx.services.adapters.deployment.exceptions import InvalidContentError
-    from lfx.services.adapters.deployment.schema import VerifyCredentials
+    from kfx.services.adapters.deployment.exceptions import InvalidContentError
+    from kfx.services.adapters.deployment.schema import VerifyCredentials
 
     svc = WatsonxOrchestrateDeploymentService(settings_service=DummySettingsService())
     payload = VerifyCredentials(
@@ -8029,8 +8029,8 @@ async def test_verify_credentials_malformed_key_from_authenticator_constructor_r
 @pytest.mark.anyio
 async def test_verify_credentials_missing_provider_data_raises():
     """verify_credentials raises when provider_data is missing."""
-    from lfx.services.adapters.deployment.schema import VerifyCredentials
-    from lfx.services.adapters.payload import AdapterPayloadMissingError
+    from kfx.services.adapters.deployment.schema import VerifyCredentials
+    from kfx.services.adapters.payload import AdapterPayloadMissingError
 
     svc = WatsonxOrchestrateDeploymentService(settings_service=DummySettingsService())
     payload = VerifyCredentials(
@@ -8044,8 +8044,8 @@ async def test_verify_credentials_missing_provider_data_raises():
 @pytest.mark.anyio
 async def test_verify_credentials_bad_auth_scheme_raises():
     """verify_credentials raises AuthSchemeError for unrecognised URLs."""
-    from lfx.services.adapters.deployment.exceptions import AuthSchemeError
-    from lfx.services.adapters.deployment.schema import VerifyCredentials
+    from kfx.services.adapters.deployment.exceptions import AuthSchemeError
+    from kfx.services.adapters.deployment.schema import VerifyCredentials
 
     svc = WatsonxOrchestrateDeploymentService(settings_service=DummySettingsService())
     payload = VerifyCredentials(
@@ -8059,8 +8059,8 @@ async def test_verify_credentials_bad_auth_scheme_raises():
 @pytest.mark.anyio
 async def test_verify_credentials_authenticator_construction_unexpected_error(monkeypatch):
     """verify_credentials raises DeploymentError when get_authenticator() throws unexpectedly."""
-    from lfx.services.adapters.deployment.exceptions import DeploymentError
-    from lfx.services.adapters.deployment.schema import VerifyCredentials
+    from kfx.services.adapters.deployment.exceptions import DeploymentError
+    from kfx.services.adapters.deployment.schema import VerifyCredentials
 
     def _exploding_authenticator(**_kwargs):
         msg = "something unexpected"
@@ -8085,8 +8085,8 @@ async def test_verify_credentials_authenticator_construction_unexpected_error(mo
 async def test_verify_credentials_forbidden_key_raises(monkeypatch):
     """verify_credentials raises AuthorizationError when provider returns 403."""
     from ibm_cloud_sdk_core import ApiException
-    from lfx.services.adapters.deployment.exceptions import AuthorizationError
-    from lfx.services.adapters.deployment.schema import VerifyCredentials
+    from kfx.services.adapters.deployment.exceptions import AuthorizationError
+    from kfx.services.adapters.deployment.schema import VerifyCredentials
 
     class FakeTokenManager:
         def get_token(self):
@@ -8113,8 +8113,8 @@ async def test_verify_credentials_forbidden_key_raises(monkeypatch):
 @pytest.mark.anyio
 async def test_verify_credentials_provider_unreachable(monkeypatch):
     """verify_credentials raises DeploymentError on network failure."""
-    from lfx.services.adapters.deployment.exceptions import DeploymentError
-    from lfx.services.adapters.deployment.schema import VerifyCredentials
+    from kfx.services.adapters.deployment.exceptions import DeploymentError
+    from kfx.services.adapters.deployment.schema import VerifyCredentials
 
     class FakeTokenManager:
         def get_token(self):
@@ -8140,17 +8140,17 @@ async def test_verify_credentials_provider_unreachable(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Ownership checks: binding.langflow verification
+# Ownership checks: binding.ketos verification
 # ---------------------------------------------------------------------------
 
 
-def _make_langflow_tool(tool_id: str, *, connections: dict[str, str] | None = None) -> dict[str, Any]:
-    """Build a tool dict that looks Langflow-managed (has binding.langflow)."""
+def _make_ketos_tool(tool_id: str, *, connections: dict[str, str] | None = None) -> dict[str, Any]:
+    """Build a tool dict that looks Ketos-managed (has binding.ketos)."""
     return {
         "id": tool_id,
         "name": f"tool_{tool_id}",
         "binding": {
-            "langflow": {
+            "ketos": {
                 "project_id": "proj-1",
                 "connections": connections or {},
             }
@@ -8159,7 +8159,7 @@ def _make_langflow_tool(tool_id: str, *, connections: dict[str, str] | None = No
 
 
 def _make_external_tool(tool_id: str) -> dict[str, Any]:
-    """Build a tool dict that is NOT Langflow-managed (no binding.langflow)."""
+    """Build a tool dict that is NOT Ketos-managed (no binding.ketos)."""
     return {
         "id": tool_id,
         "name": f"external_{tool_id}",
@@ -8173,15 +8173,15 @@ def _make_unbound_tool(tool_id: str) -> dict[str, Any]:
 
 
 @pytest.mark.anyio
-async def test_update_connection_deltas_rejects_non_langflow_tool():
-    """_update_existing_tools must refuse to modify tools without binding.langflow."""
+async def test_update_connection_deltas_rejects_non_ketos_tool():
+    """_update_existing_tools must refuse to modify tools without binding.ketos."""
     _update_deltas = update_core_module._update_existing_tools
 
     external_tool = _make_external_tool("ext-1")
     clients = FakeWXOClients(tool=FakeToolClient([external_tool]))
 
     ops = ToolConnectionOps(bind=OrderedUniqueStrs.from_values(["app-1"]))
-    with pytest.raises(InvalidContentError, match="does not have a Langflow binding"):
+    with pytest.raises(InvalidContentError, match="does not have a Ketos binding"):
         await _update_deltas(
             clients=clients,
             existing_tool_deltas={"ext-1": ops},
@@ -8194,11 +8194,11 @@ async def test_update_connection_deltas_rejects_non_langflow_tool():
 
 
 @pytest.mark.anyio
-async def test_update_connection_deltas_accepts_langflow_tool():
-    """_update_existing_tools succeeds for tools with binding.langflow."""
+async def test_update_connection_deltas_accepts_ketos_tool():
+    """_update_existing_tools succeeds for tools with binding.ketos."""
     _update_deltas = update_core_module._update_existing_tools
 
-    lf_tool = _make_langflow_tool("lf-1")
+    lf_tool = _make_ketos_tool("lf-1")
     clients = FakeWXOClients(tool=FakeToolClient([lf_tool]))
 
     ops = ToolConnectionOps(bind=OrderedUniqueStrs.from_values(["app-1"]))
@@ -8217,14 +8217,14 @@ async def test_update_connection_deltas_accepts_langflow_tool():
 
 
 @pytest.mark.anyio
-async def test_bind_existing_tools_for_create_rejects_non_langflow_tool():
-    """_bind_existing_tools_for_create must refuse to modify tools without binding.langflow."""
+async def test_bind_existing_tools_for_create_rejects_non_ketos_tool():
+    """_bind_existing_tools_for_create must refuse to modify tools without binding.ketos."""
     _bind_existing = create_core_module._bind_existing_tools_for_create
 
     external_tool = _make_external_tool("ext-1")
     clients = FakeWXOClients(tool=FakeToolClient([external_tool]))
 
-    with pytest.raises(InvalidContentError, match="does not have a Langflow binding"):
+    with pytest.raises(InvalidContentError, match="does not have a Ketos binding"):
         await _bind_existing(
             clients=clients,
             existing_tool_bindings={"ext-1": ["app-1"]},
@@ -8235,11 +8235,11 @@ async def test_bind_existing_tools_for_create_rejects_non_langflow_tool():
 
 
 @pytest.mark.anyio
-async def test_bind_existing_tools_for_create_accepts_langflow_tool():
-    """_bind_existing_tools_for_create succeeds for tools with binding.langflow."""
+async def test_bind_existing_tools_for_create_accepts_ketos_tool():
+    """_bind_existing_tools_for_create succeeds for tools with binding.ketos."""
     _bind_existing = create_core_module._bind_existing_tools_for_create
 
-    lf_tool = _make_langflow_tool("lf-1")
+    lf_tool = _make_ketos_tool("lf-1")
     clients = FakeWXOClients(tool=FakeToolClient([lf_tool]))
 
     original_tools: dict[str, dict] = {}
@@ -8255,14 +8255,14 @@ async def test_bind_existing_tools_for_create_accepts_langflow_tool():
 
 
 @pytest.mark.anyio
-async def test_update_existing_tool_connection_bindings_rejects_non_langflow_tool():
-    """update_existing_tool_connection_bindings must refuse to modify tools without binding.langflow."""
+async def test_update_existing_tool_connection_bindings_rejects_non_ketos_tool():
+    """update_existing_tool_connection_bindings must refuse to modify tools without binding.ketos."""
     _update_bindings = tools_module.update_existing_tool_connection_bindings
 
     external_tool = _make_external_tool("ext-1")
     clients = FakeWXOClients(tool=FakeToolClient([external_tool]))
 
-    with pytest.raises(InvalidContentError, match="does not have a Langflow binding"):
+    with pytest.raises(InvalidContentError, match="does not have a Ketos binding"):
         await _update_bindings(
             clients=clients,
             existing_target_tool_ids=["ext-1"],
@@ -8279,7 +8279,7 @@ async def test_update_existing_tool_connection_bindings_rejects_unbound_tool():
     bare_tool = _make_unbound_tool("bare-1")
     clients = FakeWXOClients(tool=FakeToolClient([bare_tool]))
 
-    with pytest.raises(InvalidContentError, match="does not have a Langflow binding"):
+    with pytest.raises(InvalidContentError, match="does not have a Ketos binding"):
         await _update_bindings(
             clients=clients,
             existing_target_tool_ids=["bare-1"],
@@ -8294,11 +8294,11 @@ async def test_update_existing_tool_connection_bindings_rejects_unbound_tool():
 
 
 @pytest.mark.anyio
-async def test_apply_tool_renames_succeeds_for_langflow_tool():
-    """_update_existing_tools renames a Langflow-owned tool on the agent."""
+async def test_apply_tool_renames_succeeds_for_ketos_tool():
+    """_update_existing_tools renames a Ketos-owned tool on the agent."""
     _apply_renames = update_core_module._update_existing_tools
 
-    lf_tool = _make_langflow_tool("lf-1")
+    lf_tool = _make_ketos_tool("lf-1")
     clients = FakeWXOClients(tool=FakeToolClient([lf_tool]))
 
     original_tools: dict[str, dict] = {}
@@ -8314,7 +8314,7 @@ async def test_apply_tool_renames_succeeds_for_langflow_tool():
     assert clients.tool.update_calls
     tool_id, payload = clients.tool.update_calls[0]
     assert tool_id == "lf-1"
-    _assert_langflow_agent_name(payload["name"], display_name="New Name")
+    _assert_ketos_agent_name(payload["name"], display_name="New Name")
     assert payload["display_name"] == "New Name"
     assert "lf-1" in original_tools
 
@@ -8324,7 +8324,7 @@ async def test_apply_tool_renames_uses_loaded_tool_without_fetching():
     """Rename should reuse the update-apply tool map instead of fetching the tool again."""
     _apply_renames = update_core_module._update_existing_tools
 
-    lf_tool = _make_langflow_tool("lf-1")
+    lf_tool = _make_ketos_tool("lf-1")
     fake_tool = FakeToolClient([])
     clients = FakeWXOClients(tool=fake_tool)
 
@@ -8343,14 +8343,14 @@ async def test_apply_tool_renames_uses_loaded_tool_without_fetching():
 
 
 @pytest.mark.anyio
-async def test_apply_tool_renames_rejects_non_langflow_tool():
-    """_update_existing_tools must refuse to rename tools without binding.langflow."""
+async def test_apply_tool_renames_rejects_non_ketos_tool():
+    """_update_existing_tools must refuse to rename tools without binding.ketos."""
     _apply_renames = update_core_module._update_existing_tools
 
     external_tool = _make_external_tool("ext-1")
     clients = FakeWXOClients(tool=FakeToolClient([external_tool]))
 
-    with pytest.raises(InvalidContentError, match="does not have a Langflow binding"):
+    with pytest.raises(InvalidContentError, match="does not have a Ketos binding"):
         await _apply_renames(
             clients=clients,
             existing_tool_deltas={},
@@ -8387,7 +8387,7 @@ async def test_apply_tool_renames_captures_original_for_rollback():
     """_update_existing_tools must capture original payload before renaming for rollback."""
     _apply_renames = update_core_module._update_existing_tools
 
-    lf_tool = _make_langflow_tool("lf-1")
+    lf_tool = _make_ketos_tool("lf-1")
     lf_tool["name"] = "original_name"
     lf_tool["display_name"] = "original_name"
     clients = FakeWXOClients(tool=FakeToolClient([lf_tool]))
@@ -8410,7 +8410,7 @@ async def test_apply_tool_renames_preserves_latest_connections_when_original_alr
     """Rename should keep connection updates already applied earlier in the transaction."""
     _apply_renames = update_core_module._update_existing_tools
 
-    lf_tool = _make_langflow_tool("lf-1", connections={"app-1": "conn-1", "app-2": "conn-2"})
+    lf_tool = _make_ketos_tool("lf-1", connections={"app-1": "conn-1", "app-2": "conn-2"})
     lf_tool["name"] = "current_name"
     lf_tool["display_name"] = "current_name"
     clients = FakeWXOClients(tool=FakeToolClient([lf_tool]))
@@ -8421,7 +8421,7 @@ async def test_apply_tool_renames_preserves_latest_connections_when_original_alr
             "id": "lf-1",
             "name": "pre_delta_name",
             "display_name": "pre_delta_name",
-            "binding": {"langflow": {"project_id": "proj-1", "connections": {"app-1": "conn-1"}}},
+            "binding": {"ketos": {"project_id": "proj-1", "connections": {"app-1": "conn-1"}}},
         }
     }
     await _apply_renames(
@@ -8435,12 +8435,12 @@ async def test_apply_tool_renames_preserves_latest_connections_when_original_alr
     )
 
     _, payload = clients.tool.update_calls[0]
-    _assert_langflow_agent_name(payload["name"], display_name="New Name")
+    _assert_ketos_agent_name(payload["name"], display_name="New Name")
     assert payload["display_name"] == "New Name"
-    assert payload["binding"]["langflow"]["connections"] == {"app-1": "conn-1", "app-2": "conn-2"}
+    assert payload["binding"]["ketos"]["connections"] == {"app-1": "conn-1", "app-2": "conn-2"}
     # Pre-captured rollback state must remain unchanged.
     assert original_tools["lf-1"]["name"] == "pre_delta_name"
-    assert original_tools["lf-1"]["binding"]["langflow"]["connections"] == {"app-1": "conn-1"}
+    assert original_tools["lf-1"]["binding"]["ketos"]["connections"] == {"app-1": "conn-1"}
 
 
 @pytest.mark.anyio
@@ -8449,7 +8449,7 @@ async def test_apply_tool_renames_preserves_latest_connections_for_add_and_remov
     _apply_renames = update_core_module._update_existing_tools
 
     # Simulate post-delta provider state (one app removed, one app added).
-    lf_tool = _make_langflow_tool("lf-1", connections={"cfg-keep": "conn-keep", "cfg-add": "conn-add"})
+    lf_tool = _make_ketos_tool("lf-1", connections={"cfg-keep": "conn-keep", "cfg-add": "conn-add"})
     lf_tool["name"] = "current_name"
     lf_tool["display_name"] = "current_name"
     clients = FakeWXOClients(tool=FakeToolClient([lf_tool]))
@@ -8461,7 +8461,7 @@ async def test_apply_tool_renames_preserves_latest_connections_for_add_and_remov
             "name": "pre_delta_name",
             "display_name": "pre_delta_name",
             "binding": {
-                "langflow": {
+                "ketos": {
                     "project_id": "proj-1",
                     "connections": {"cfg-keep": "conn-keep", "cfg-remove": "conn-remove"},
                 }
@@ -8479,11 +8479,11 @@ async def test_apply_tool_renames_preserves_latest_connections_for_add_and_remov
     )
 
     _, payload = clients.tool.update_calls[0]
-    _assert_langflow_agent_name(payload["name"], display_name="Renamed Tool")
+    _assert_ketos_agent_name(payload["name"], display_name="Renamed Tool")
     assert payload["display_name"] == "Renamed Tool"
-    assert payload["binding"]["langflow"]["connections"] == {"cfg-keep": "conn-keep", "cfg-add": "conn-add"}
+    assert payload["binding"]["ketos"]["connections"] == {"cfg-keep": "conn-keep", "cfg-add": "conn-add"}
     # Rollback snapshot remains pre-delta.
-    assert original_tools["lf-1"]["binding"]["langflow"]["connections"] == {
+    assert original_tools["lf-1"]["binding"]["ketos"]["connections"] == {
         "cfg-keep": "conn-keep",
         "cfg-remove": "conn-remove",
     }
@@ -8502,7 +8502,7 @@ def test_flow_artifact_provider_data_generates_provider_technical_name():
         tool_display_name="My Flow",
     )
 
-    _assert_langflow_agent_name(provider_data.tool_name, display_name="My Flow")
+    _assert_ketos_agent_name(provider_data.tool_name, display_name="My Flow")
 
 
 def test_flow_artifact_provider_data_uses_resource_fallback_for_symbol_only_label():
@@ -8513,7 +8513,7 @@ def test_flow_artifact_provider_data_uses_resource_fallback_for_symbol_only_labe
         tool_display_name="!@#$%",
     )
 
-    assert provider_data.tool_name.startswith("langflow_tool_")
+    assert provider_data.tool_name.startswith("ketos_tool_")
     assert (
         payloads_module.validate_wxo_name(provider_data.tool_name, field_label="Tool name") == provider_data.tool_name
     )
@@ -8527,7 +8527,7 @@ def test_flow_artifact_provider_data_accepts_leading_digit_display_label():
         tool_display_name="123flow",
     )
 
-    assert provider_data.tool_name.startswith("langflow_123flow_")
+    assert provider_data.tool_name.startswith("ketos_123flow_")
     assert (
         payloads_module.validate_wxo_name(provider_data.tool_name, field_label="Tool name") == provider_data.tool_name
     )
@@ -8606,23 +8606,23 @@ def test_build_update_plan_without_renames_has_empty_dict():
 
 
 # ---------------------------------------------------------------------------
-# WXO_LFX_REQUIREMENT_OVERRIDE
+# WXO_KFX_REQUIREMENT_OVERRIDE
 # ---------------------------------------------------------------------------
 
 
-def test_resolve_lfx_requirement_uses_override(monkeypatch):
-    """_resolve_lfx_requirement returns the env var value when set."""
-    _resolve = tools_module._resolve_lfx_requirement
+def test_resolve_kfx_requirement_uses_override(monkeypatch):
+    """_resolve_kfx_requirement returns the env var value when set."""
+    _resolve = tools_module._resolve_kfx_requirement
 
-    monkeypatch.setenv("WXO_LFX_REQUIREMENT_OVERRIDE", "lfx-nightly==0.4.0.dev32")
-    assert _resolve() == "lfx-nightly==0.4.0.dev32"
+    monkeypatch.setenv("WXO_KFX_REQUIREMENT_OVERRIDE", "kfx-nightly==0.4.0.dev32")
+    assert _resolve() == "kfx-nightly==0.4.0.dev32"
 
 
-def test_resolve_lfx_requirement_ignores_blank_override(monkeypatch):
-    """_resolve_lfx_requirement ignores empty/whitespace-only override."""
-    _resolve = tools_module._resolve_lfx_requirement
+def test_resolve_kfx_requirement_ignores_blank_override(monkeypatch):
+    """_resolve_kfx_requirement ignores empty/whitespace-only override."""
+    _resolve = tools_module._resolve_kfx_requirement
 
-    monkeypatch.setenv("WXO_LFX_REQUIREMENT_OVERRIDE", "   ")
+    monkeypatch.setenv("WXO_KFX_REQUIREMENT_OVERRIDE", "   ")
     # Should not return blank — should fall through to installed version or raise
     result = _resolve()
     assert result.strip()
@@ -8647,7 +8647,7 @@ def test_rename_tool_provider_payload_parses():
 
 def test_flow_version_list_item_includes_tool_names_in_provider_data():
     """DeploymentFlowVersionListItem serializes provider tool metadata under provider_data."""
-    from langflow.api.v1.schemas.deployments import DeploymentFlowVersionListItem
+    from ketos.api.v1.schemas.deployments import DeploymentFlowVersionListItem
 
     item = DeploymentFlowVersionListItem(
         id="00000000-0000-0000-0000-000000000001",
@@ -8663,7 +8663,7 @@ def test_flow_version_list_item_includes_tool_names_in_provider_data():
 
 def test_flow_version_list_item_provider_data_defaults_to_none():
     """DeploymentFlowVersionListItem defaults provider_data to None."""
-    from langflow.api.v1.schemas.deployments import DeploymentFlowVersionListItem
+    from ketos.api.v1.schemas.deployments import DeploymentFlowVersionListItem
 
     item = DeploymentFlowVersionListItem(
         id="00000000-0000-0000-0000-000000000001",

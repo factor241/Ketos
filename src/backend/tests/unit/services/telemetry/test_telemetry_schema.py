@@ -6,7 +6,7 @@ Testing library and framework: pytest
 import re
 
 import pytest
-from langflow.services.telemetry.schema import (
+from ketos.services.telemetry.schema import (
     ComponentPayload,
     DeploymentPayload,
     EmailPayload,
@@ -283,7 +283,7 @@ class TestVersionPayload:
     def test_version_payload_initialization(self):
         """Test VersionPayload initialization with valid parameters."""
         payload = VersionPayload(
-            package="langflow",
+            package="ketos",
             version="1.0.0",
             platform="Linux-5.4.0",
             python="3.9",
@@ -294,7 +294,7 @@ class TestVersionPayload:
             client_type="oss",
         )
 
-        assert payload.package == "langflow"
+        assert payload.package == "ketos"
         assert payload.version == "1.0.0"
         assert payload.platform == "Linux-5.4.0"
         assert payload.python == "3.9"
@@ -307,7 +307,7 @@ class TestVersionPayload:
     def test_version_payload_initialization_with_all_required_fields(self):
         """Test VersionPayload initialization with all required fields."""
         payload = VersionPayload(
-            package="langflow",
+            package="ketos",
             version="1.0.0",
             platform="Windows",
             python="3.8",
@@ -317,14 +317,14 @@ class TestVersionPayload:
             backend_only=True,
         )
 
-        assert payload.package == "langflow"
+        assert payload.package == "ketos"
         assert payload.version == "1.0.0"
         assert payload.client_type is None  # Default value
 
     def test_version_payload_serialization(self):
         """Test VersionPayload serialization to dictionary."""
         payload = VersionPayload(
-            package="langflow",
+            package="ketos",
             version="1.5.2",
             platform="macOS-12.0",
             python="3.10",
@@ -337,7 +337,7 @@ class TestVersionPayload:
 
         data = payload.model_dump(by_alias=True)
 
-        assert data["package"] == "langflow"
+        assert data["package"] == "ketos"
         assert data["version"] == "1.5.2"
         assert data["platform"] == "macOS-12.0"
         assert data["python"] == "3.10"
@@ -350,7 +350,7 @@ class TestVersionPayload:
     def test_version_payload_with_special_characters(self):
         """Test VersionPayload with special characters in strings."""
         payload = VersionPayload(
-            package="langflow-dev",
+            package="ketos-dev",
             version="1.0.0-beta.1",
             platform="Windows 10 Pro",
             python="3.9.7",
@@ -360,7 +360,7 @@ class TestVersionPayload:
             backend_only=False,
         )
 
-        assert payload.package == "langflow-dev"
+        assert payload.package == "ketos-dev"
         assert payload.version == "1.0.0-beta.1"
         assert payload.platform == "Windows 10 Pro"
 
@@ -588,7 +588,7 @@ class TestPayloadEdgeCases:
     def test_version_payload_with_unicode_strings(self):
         """Test VersionPayload with unicode strings."""
         payload = VersionPayload(
-            package="langflow-🚀",
+            package="ketos-🚀",
             version="1.0.0-测试",
             platform="Linux-测试系统",
             python="3.9",
@@ -598,7 +598,7 @@ class TestPayloadEdgeCases:
             backend_only=False,
         )
 
-        assert payload.package == "langflow-🚀"
+        assert payload.package == "ketos-🚀"
         assert payload.version == "1.0.0-测试"
         assert payload.platform == "Linux-测试系统"
 
@@ -650,7 +650,7 @@ class TestPayloadEdgeCases:
 
         # Test VersionPayload
         version_payload = VersionPayload(
-            package="langflow",
+            package="ketos",
             version="1.0.0",
             platform="Linux",
             python="3.9",
@@ -734,7 +734,7 @@ class TestPayloadIntegration:
         """Simulate a complete telemetry workflow with all payload types."""
         # 1. Version payload (startup)
         version_payload = VersionPayload(
-            package="langflow",
+            package="ketos",
             version="1.0.0",
             platform="Linux",
             python="3.9",
@@ -871,7 +871,7 @@ def sample_shutdown_payload():
 def sample_version_payload():
     """Fixture providing sample version payload for tests."""
     return VersionPayload(
-        package="langflow",
+        package="ketos",
         version="1.0.0",
         platform="Linux-5.4.0",
         python="3.9",
@@ -938,7 +938,7 @@ class TestPayloadPerformance:
 
         # Create complex payload
         payload = VersionPayload(
-            package="langflow",
+            package="ketos",
             version="1.0.0",
             platform="Linux-5.4.0-x86_64-with-glibc2.31",
             python="3.9.7",

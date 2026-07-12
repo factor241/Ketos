@@ -5,10 +5,10 @@ from textwrap import dedent
 
 import pytest
 from langchain_core.documents import Document
-from lfx.custom import Component, CustomComponent
-from lfx.custom.code_parser.code_parser import CodeParser, CodeSyntaxError
-from lfx.custom.custom_component.base_component import BaseComponent, ComponentCodeNullError
-from lfx.custom.utils import build_custom_component_template
+from kfx.custom import Component, CustomComponent
+from kfx.custom.code_parser.code_parser import CodeParser, CodeSyntaxError
+from kfx.custom.custom_component.base_component import BaseComponent, ComponentCodeNullError
+from kfx.custom.utils import build_custom_component_template
 
 
 @pytest.fixture
@@ -19,9 +19,9 @@ def code_component_with_multiple_outputs():
 
 
 code_default = """
-from langflow.custom import CustomComponent
+from ketos.custom import CustomComponent
 
-from lfx.field_typing import BaseLanguageModel
+from kfx.field_typing import BaseLanguageModel
 from langchain_classic.chains import LLMChain
 from langchain_core.prompts import PromptTemplate
 from langchain_core.documents import Document
@@ -137,7 +137,7 @@ def test_code_parser_parse_functions():
 
 def test_code_parser_parse_classes():
     """Test the parse_classes method of the CodeParser class."""
-    parser = CodeParser("from langflow.custom import Component\n\nclass Test(Component): pass")
+    parser = CodeParser("from ketos.custom import Component\n\nclass Test(Component): pass")
     tree = parser.get_tree()
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef):
@@ -316,7 +316,7 @@ def test_custom_component_get_code_tree_syntax_error():
 def test_custom_component_get_function_entrypoint_args_no_args():
     """Test CustomComponent.get_function_entrypoint_args with a build method with no arguments."""
     my_code = """
-from langflow.custom import CustomComponent
+from ketos.custom import CustomComponent
 class MyMainClass(CustomComponent):
     def build():
         pass"""
@@ -329,7 +329,7 @@ class MyMainClass(CustomComponent):
 def test_custom_component_get_function_entrypoint_return_type_no_return_type():
     """Test CustomComponent.get_function_entrypoint_return_type with a build method with no return type."""
     my_code = """
-from langflow.custom import CustomComponent
+from ketos.custom import CustomComponent
 class MyClass(CustomComponent):
     def build():
         pass"""
@@ -416,7 +416,7 @@ def test_custom_component_multiple_outputs(code_component_with_multiple_outputs)
 def test_custom_component_subclass_from_lctoolcomponent():
     # Import LCToolComponent and create a subclass
     code = dedent("""
-    from lfx.base.langchain_utilities.model import LCToolComponent
+    from kfx.base.langchain_utilities.model import LCToolComponent
     from langchain_core.tools import Tool
     class MyComponent(LCToolComponent):
         name: str = "MyComponent"
@@ -438,9 +438,9 @@ def test_custom_component_subclass_from_lctoolcomponent():
 def test_build_custom_component_template_includes_metadata_with_module():
     """Test that build_custom_component_template includes metadata when module_name is provided."""
     code = dedent("""
-    from lfx.custom import Component
-    from lfx.inputs import MessageTextInput
-    from lfx.template.field.base import Output
+    from kfx.custom import Component
+    from kfx.inputs import MessageTextInput
+    from kfx.template.field.base import Output
 
     class TestMetadataComponent(Component):
         display_name = "Test Metadata Component"
@@ -478,8 +478,8 @@ def test_build_custom_component_template_includes_metadata_with_module():
 def test_build_custom_component_template_always_has_metadata():
     """Test that build_custom_component_template always generates metadata, even when module_name is None."""
     code = dedent("""
-    from lfx.custom import Component
-    from lfx.template.field.base import Output
+    from kfx.custom import Component
+    from kfx.template.field.base import Output
 
     class TestAlwaysMetadata(Component):
         display_name = "Test Always Metadata"
@@ -511,8 +511,8 @@ def test_build_custom_component_template_always_has_metadata():
 def test_build_custom_component_template_metadata_hash_changes():
     """Test that code hash changes when component code changes."""
     code_v1 = dedent("""
-    from lfx.custom import Component
-    from lfx.template.field.base import Output
+    from kfx.custom import Component
+    from kfx.template.field.base import Output
 
     class VersionComponent(Component):
         display_name = "Version Component"
@@ -527,8 +527,8 @@ def test_build_custom_component_template_metadata_hash_changes():
     """)
 
     code_v2 = dedent("""
-    from lfx.custom import Component
-    from lfx.template.field.base import Output
+    from kfx.custom import Component
+    from kfx.template.field.base import Output
 
     class VersionComponent(Component):
         display_name = "Version Component"
@@ -563,8 +563,8 @@ def test_build_custom_component_template_metadata_hash_changes():
 def test_build_custom_component_template_metadata_unicode():
     """Test that metadata generation works with unicode characters in code."""
     code = dedent("""
-    from lfx.custom import Component
-    from lfx.template.field.base import Output
+    from kfx.custom import Component
+    from kfx.template.field.base import Output
 
     class UnicodeComponent(Component):
         display_name = "Unicode Test 🌟"
@@ -597,9 +597,9 @@ def test_build_custom_component_template_metadata_unicode():
 def test_build_custom_component_template_component_always_has_metadata():
     """Test that build_custom_component_template always returns metadata for Component path."""
     code = dedent("""
-    from lfx.custom import Component
-    from lfx.inputs import MessageTextInput
-    from lfx.template.field.base import Output
+    from kfx.custom import Component
+    from kfx.inputs import MessageTextInput
+    from kfx.template.field.base import Output
 
     class TestComponentMetadata(Component):
         display_name = "Test Component Metadata"
@@ -634,8 +634,8 @@ def test_metadata_always_returned_comprehensive():
     """Comprehensive test to verify metadata is ALWAYS returned in all scenarios."""
     # Test scenario 1: Component with module_name provided
     code1 = dedent("""
-    from lfx.custom import Component
-    from lfx.template.field.base import Output
+    from kfx.custom import Component
+    from kfx.template.field.base import Output
 
     class TestWithModule(Component):
         display_name = "Test With Module"
@@ -667,9 +667,9 @@ def test_metadata_always_returned_comprehensive():
 
     # Test scenario 3: Component with inputs and outputs
     code3 = dedent("""
-    from lfx.custom import Component
-    from lfx.inputs import MessageTextInput
-    from lfx.template.field.base import Output
+    from kfx.custom import Component
+    from kfx.inputs import MessageTextInput
+    from kfx.template.field.base import Output
 
     class TestWithInputs(Component):
         display_name = "Test With Inputs"

@@ -1,7 +1,7 @@
 """Unit tests for the LangWatch tracer's handling of a missing ``langwatch`` package.
 
 ``langwatch`` is an optional dependency that caps ``requires-python`` at ``<3.14`` upstream,
-so it is excluded from Python 3.14+ environments such as the official Langflow Docker images.
+so it is excluded from Python 3.14+ environments such as the official Ketos Docker images.
 When ``LANGWATCH_API_KEY`` is set but the package cannot be imported, the tracer must disable
 itself gracefully and emit a single actionable warning instead of failing silently.
 """
@@ -11,8 +11,8 @@ import uuid
 from unittest.mock import patch
 
 import pytest
-from langflow.services.tracing import langwatch as langwatch_module
-from langflow.services.tracing.langwatch import LangWatchTracer
+from ketos.services.tracing import langwatch as langwatch_module
+from ketos.services.tracing.langwatch import LangWatchTracer
 
 
 @pytest.fixture(autouse=True)

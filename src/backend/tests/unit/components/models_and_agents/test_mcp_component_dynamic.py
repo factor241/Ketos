@@ -17,9 +17,9 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from lfx.base.agents.utils import safe_cache_get, safe_cache_set
-from lfx.base.tools.constants import TOOL_OUTPUT_NAME
-from lfx.components.models_and_agents.mcp_component import MCPToolsComponent
+from kfx.base.agents.utils import safe_cache_get, safe_cache_set
+from kfx.base.tools.constants import TOOL_OUTPUT_NAME
+from kfx.components.models_and_agents.mcp_component import MCPToolsComponent
 
 
 def _make_tool(name: str) -> MagicMock:
@@ -370,7 +370,7 @@ class TestToolsetOutputNotCached:
 
         # Short-circuit the super() call; this test isolates the override behaviour.
         with patch(
-            "lfx.custom.custom_component.component_with_cache.ComponentWithCache.map_outputs",
+            "kfx.custom.custom_component.component_with_cache.ComponentWithCache.map_outputs",
             return_value=None,
         ):
             component.map_outputs()

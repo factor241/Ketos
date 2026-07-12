@@ -1,8 +1,8 @@
 """Tests for NoopTransactionService."""
 
 import pytest
-from lfx.services.interfaces import TransactionServiceProtocol
-from lfx.services.transaction.service import NoopTransactionService
+from kfx.services.interfaces import TransactionServiceProtocol
+from kfx.services.transaction.service import NoopTransactionService
 
 
 class TestNoopTransactionService:

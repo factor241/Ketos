@@ -8,7 +8,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi import status
-from lfx.services.settings.feature_flags import FEATURE_FLAGS
+from kfx.services.settings.feature_flags import FEATURE_FLAGS
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
@@ -24,7 +24,7 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture
 def mock_telemetry_service():
-    with patch("langflow.api.v1.deployments.get_telemetry_service") as mock_get:
+    with patch("ketos.api.v1.deployments.get_telemetry_service") as mock_get:
         mock_ts = AsyncMock()
         mock_get.return_value = mock_ts
         yield mock_ts
@@ -32,7 +32,7 @@ def mock_telemetry_service():
 
 @pytest.fixture
 def mock_adapter():
-    with patch("langflow.api.v1.deployments.resolve_deployment_adapter") as mock_resolve:
+    with patch("ketos.api.v1.deployments.resolve_deployment_adapter") as mock_resolve:
         mock_ad = AsyncMock()
         mock_resolve.return_value = mock_ad
         yield mock_ad
@@ -40,7 +40,7 @@ def mock_adapter():
 
 @pytest.fixture
 def mock_mapper():
-    with patch("langflow.api.v1.deployments.get_deployment_mapper") as mock_get:
+    with patch("ketos.api.v1.deployments.get_deployment_mapper") as mock_get:
         mock_map = MagicMock()
         # Ensure it returns something valid for verify_credentials
         mock_map.resolve_verify_credentials_for_create.return_value = {}
@@ -83,45 +83,45 @@ def mock_mapper():
 @pytest.fixture
 def mock_db_crud(mock_mapper):
     with ExitStack() as stack:
-        mock_create = stack.enter_context(patch("langflow.api.v1.deployments.create_provider_account_row"))
-        mock_get_owned = stack.enter_context(patch("langflow.api.v1.deployments.get_owned_provider_account_or_404"))
-        _mock_del_prov = stack.enter_context(patch("langflow.api.v1.deployments.delete_provider_account_row"))
-        _mock_upd_prov = stack.enter_context(patch("langflow.api.v1.deployments.update_provider_account_row"))
+        mock_create = stack.enter_context(patch("ketos.api.v1.deployments.create_provider_account_row"))
+        mock_get_owned = stack.enter_context(patch("ketos.api.v1.deployments.get_owned_provider_account_or_404"))
+        _mock_del_prov = stack.enter_context(patch("ketos.api.v1.deployments.delete_provider_account_row"))
+        _mock_upd_prov = stack.enter_context(patch("ketos.api.v1.deployments.update_provider_account_row"))
         mock_proj_id = stack.enter_context(
-            patch("langflow.api.v1.deployments.resolve_project_id_for_deployment_create")
+            patch("ketos.api.v1.deployments.resolve_project_id_for_deployment_create")
         )
-        mock_create_dep = stack.enter_context(patch("langflow.api.v1.deployments.create_deployment_db"))
-        _mock_attach = stack.enter_context(patch("langflow.api.v1.deployments.attach_flow_versions"))
-        mock_res_am = stack.enter_context(patch("langflow.api.v1.deployments.resolve_adapter_mapper_from_deployment"))
-        mock_res_patch = stack.enter_context(patch("langflow.api.v1.deployments.resolve_flow_version_patch_for_update"))
+        mock_create_dep = stack.enter_context(patch("ketos.api.v1.deployments.create_deployment_db"))
+        _mock_attach = stack.enter_context(patch("ketos.api.v1.deployments.attach_flow_versions"))
+        mock_res_am = stack.enter_context(patch("ketos.api.v1.deployments.resolve_adapter_mapper_from_deployment"))
+        mock_res_patch = stack.enter_context(patch("ketos.api.v1.deployments.resolve_flow_version_patch_for_update"))
         _mock_val_proj = stack.enter_context(
-            patch("langflow.api.v1.deployments.validate_project_scoped_flow_version_ids")
+            patch("ketos.api.v1.deployments.validate_project_scoped_flow_version_ids")
         )
         mock_list_att = stack.enter_context(
-            patch("langflow.api.v1.deployments.list_deployment_attachments_for_flow_version_ids")
+            patch("ketos.api.v1.deployments.list_deployment_attachments_for_flow_version_ids")
         )
         _mock_apply_patch = stack.enter_context(
-            patch("langflow.api.v1.deployments.apply_flow_version_patch_attachments")
+            patch("ketos.api.v1.deployments.apply_flow_version_patch_attachments")
         )
-        mock_upd_dep = stack.enter_context(patch("langflow.api.v1.deployments.update_deployment_db"))
-        mock_res_ad = stack.enter_context(patch("langflow.api.v1.deployments.resolve_adapter_from_deployment"))
+        mock_upd_dep = stack.enter_context(patch("ketos.api.v1.deployments.update_deployment_db"))
+        mock_res_ad = stack.enter_context(patch("ketos.api.v1.deployments.resolve_adapter_from_deployment"))
         _mock_del_dep = stack.enter_context(
-            patch("langflow.api.v1.deployments._delete_local_deployment_row_with_commit_retry")
+            patch("ketos.api.v1.deployments._delete_local_deployment_row_with_commit_retry")
         )
         mock_list_att_by_snapshot = stack.enter_context(
-            patch("langflow.api.v1.deployments.list_attachments_by_provider_snapshot_id")
+            patch("ketos.api.v1.deployments.list_attachments_by_provider_snapshot_id")
         )
         mock_get_dep_row = stack.enter_context(
-            patch("langflow.services.database.models.deployment.crud.get_deployment")
+            patch("ketos.services.database.models.deployment.crud.get_deployment")
         )
         mock_get_fv = stack.enter_context(
-            patch("langflow.services.database.models.flow_version.crud.get_flow_version_entry")
+            patch("ketos.services.database.models.flow_version.crud.get_flow_version_entry")
         )
         mock_upd_fv = stack.enter_context(
-            patch("langflow.api.v1.deployments.update_flow_version_by_provider_snapshot_id")
+            patch("ketos.api.v1.deployments.update_flow_version_by_provider_snapshot_id")
         )
         mock_count_deps = stack.enter_context(
-            patch("langflow.api.v1.deployments._count_provider_deployments_after_reconciliation")
+            patch("ketos.api.v1.deployments._count_provider_deployments_after_reconciliation")
         )
 
         mock_create.return_value = AsyncMock(

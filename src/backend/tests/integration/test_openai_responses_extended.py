@@ -5,7 +5,7 @@ import pathlib
 import pytest
 from dotenv import load_dotenv
 from httpx import AsyncClient
-from lfx.log.logger import logger
+from kfx.log.logger import logger
 
 
 # Load environment variables from .env file
@@ -33,7 +33,7 @@ load_env_vars()
 
 
 async def create_global_variable(client: AsyncClient, headers, name, value, variable_type="credential"):
-    """Create a global variable in Langflow."""
+    """Create a global variable in Ketos."""
     payload = {"name": name, "value": value, "type": variable_type, "default_fields": []}
 
     response = await client.post("/api/v1/variables/", json=payload, headers=headers)
@@ -64,7 +64,7 @@ async def load_and_prepare_flow(client: AsyncClient, created_api_key):
     template_path = (
         pathlib.Path(__file__).resolve().parent.parent.parent
         / "base"
-        / "langflow"
+        / "ketos"
         / "initial_setup"
         / "starter_projects"
         / "Basic Prompting.json"
@@ -126,7 +126,7 @@ async def load_and_prepare_agent_flow(client: AsyncClient, created_api_key):
     template_path = (
         pathlib.Path(__file__).resolve().parent.parent.parent
         / "base"
-        / "langflow"
+        / "ketos"
         / "initial_setup"
         / "starter_projects"
         / "Simple Agent.json"

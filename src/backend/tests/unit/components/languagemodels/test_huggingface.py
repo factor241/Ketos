@@ -1,5 +1,5 @@
-from lfx.components.huggingface.huggingface import DEFAULT_MODEL, HuggingFaceEndpointsComponent
-from lfx.inputs.inputs import DictInput, DropdownInput, FloatInput, IntInput, SecretStrInput, SliderInput, StrInput
+from kfx.components.huggingface.huggingface import DEFAULT_MODEL, HuggingFaceEndpointsComponent
+from kfx.inputs.inputs import DictInput, DropdownInput, FloatInput, IntInput, SecretStrInput, SliderInput, StrInput
 
 
 def test_huggingface_inputs():

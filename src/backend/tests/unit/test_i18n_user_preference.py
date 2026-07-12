@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from langflow.services.database.models.user.model import User, UserRead, UserUpdate
-from langflow.utils import i18n as i18n_utils
+from ketos.services.database.models.user.model import User, UserRead, UserUpdate
+from ketos.utils import i18n as i18n_utils
 from pydantic import ValidationError
 
 if TYPE_CHECKING:

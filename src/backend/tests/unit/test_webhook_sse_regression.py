@@ -88,13 +88,13 @@ async def test_should_not_return_403_on_sse_endpoint_when_webhook_auth_enable_is
     added_webhook_test,
     created_api_key,
 ):
-    """SSE auth is independent of LANGFLOW_WEBHOOK_AUTH_ENABLE.
+    """SSE auth is independent of KETOS_WEBHOOK_AUTH_ENABLE.
 
     `WEBHOOK_AUTH_ENABLE` controls the POST /webhook endpoint (allow/deny public
     execution). It must not interfere with SSE subscription: the SSE endpoint always
     requires a logged-in user who owns the flow, regardless of the flag.
     """
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings_service = get_settings_service()
     original = settings_service.auth_settings.WEBHOOK_AUTH_ENABLE

@@ -1,4 +1,4 @@
-"""Regression test for https://github.com/langflow-ai/langflow/issues/13955.
+"""Regression test for https://github.com/ketos-ai/ketos/issues/13955.
 
 "Clear all" traces (DELETE /api/v1/traces, `delete_traces_by_flow` in
 api/v1/traces.py) issues a bulk `DELETE FROM trace WHERE flow_id = ...`. That
@@ -16,8 +16,8 @@ so the cascade happens regardless of how the DELETE was issued.
 from __future__ import annotations
 
 import pytest
-from langflow.services.database.models.flow.model import Flow
-from langflow.services.database.models.traces.model import SpanTable, TraceTable
+from ketos.services.database.models.flow.model import Flow
+from ketos.services.database.models.traces.model import SpanTable, TraceTable
 from sqlalchemy import delete, event
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import StaticPool

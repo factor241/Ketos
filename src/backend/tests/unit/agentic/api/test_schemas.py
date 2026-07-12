@@ -4,7 +4,7 @@ Tests the Pydantic models used for request/response validation.
 """
 
 import pytest
-from langflow.agentic.api.schemas import AssistantRequest, StepType, ValidationResult
+from ketos.agentic.api.schemas import AssistantRequest, StepType, ValidationResult
 from pydantic import ValidationError
 
 

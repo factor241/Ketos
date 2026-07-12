@@ -9,8 +9,8 @@ import pandas as pd
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from langchain_core.documents import Document
-from langflow.serialization.constants import MAX_ITEMS_LENGTH, MAX_TEXT_LENGTH
-from langflow.serialization.serialization import serialize, serialize_or_str
+from ketos.serialization.constants import MAX_ITEMS_LENGTH, MAX_TEXT_LENGTH
+from ketos.serialization.serialization import serialize, serialize_or_str
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic.v1 import BaseModel as PydanticV1BaseModel
 

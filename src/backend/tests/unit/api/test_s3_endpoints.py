@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
-from langflow.services.storage.s3 import S3StorageService
+from ketos.services.storage.s3 import S3StorageService
 
 
 class TestS3FileEndpoints:
@@ -49,8 +49,8 @@ class TestS3FileEndpoints:
     async def test_download_file_parses_path_correctly(self, mock_storage_service, mock_settings):
         """Test that download_file correctly extracts filename from path."""
         with (
-            patch("langflow.services.deps.get_storage_service", return_value=mock_storage_service),
-            patch("langflow.services.deps.get_settings_service", return_value=mock_settings),
+            patch("ketos.services.deps.get_storage_service", return_value=mock_storage_service),
+            patch("ketos.services.deps.get_settings_service", return_value=mock_settings),
         ):
             mock_user = MagicMock()
             mock_user.id = "user_123"
@@ -62,11 +62,11 @@ class TestS3FileEndpoints:
             mock_file.user_id = "user_123"
 
             with (
-                patch("langflow.api.v2.files.fetch_file_object", return_value=mock_file),
-                patch("langflow.api.v2.files.CurrentActiveUser", return_value=mock_user),
-                patch("langflow.api.v2.files.ensure_file_permission", new=AsyncMock()),
+                patch("ketos.api.v2.files.fetch_file_object", return_value=mock_file),
+                patch("ketos.api.v2.files.CurrentActiveUser", return_value=mock_user),
+                patch("ketos.api.v2.files.ensure_file_permission", new=AsyncMock()),
             ):
-                from langflow.api.v2.files import download_file
+                from ketos.api.v2.files import download_file
 
                 await download_file(
                     file_id="test-id",
@@ -83,8 +83,8 @@ class TestS3FileEndpoints:
     async def test_download_file_returns_streaming_response(self, mock_storage_service, mock_settings):
         """Test that download_file returns StreamingResponse for file downloads."""
         with (
-            patch("langflow.services.deps.get_storage_service", return_value=mock_storage_service),
-            patch("langflow.services.deps.get_settings_service", return_value=mock_settings),
+            patch("ketos.services.deps.get_storage_service", return_value=mock_storage_service),
+            patch("ketos.services.deps.get_settings_service", return_value=mock_settings),
         ):
             mock_user = MagicMock()
             mock_user.id = "user_123"
@@ -95,12 +95,12 @@ class TestS3FileEndpoints:
             mock_file.user_id = "user_123"
 
             with (
-                patch("langflow.api.v2.files.fetch_file_object", return_value=mock_file),
-                patch("langflow.api.v2.files.CurrentActiveUser", return_value=mock_user),
-                patch("langflow.api.v2.files.ensure_file_permission", new=AsyncMock()),
+                patch("ketos.api.v2.files.fetch_file_object", return_value=mock_file),
+                patch("ketos.api.v2.files.CurrentActiveUser", return_value=mock_user),
+                patch("ketos.api.v2.files.ensure_file_permission", new=AsyncMock()),
             ):
                 from fastapi.responses import StreamingResponse
-                from langflow.api.v2.files import download_file
+                from ketos.api.v2.files import download_file
 
                 response = await download_file(
                     file_id="test-id",
@@ -120,8 +120,8 @@ class TestS3FileEndpoints:
     async def test_download_file_returns_content_string(self, mock_storage_service, mock_settings):
         """Test that download_file returns decoded content when return_content=True."""
         with (
-            patch("langflow.services.deps.get_storage_service", return_value=mock_storage_service),
-            patch("langflow.services.deps.get_settings_service", return_value=mock_settings),
+            patch("ketos.services.deps.get_storage_service", return_value=mock_storage_service),
+            patch("ketos.services.deps.get_settings_service", return_value=mock_settings),
         ):
             mock_user = MagicMock()
             mock_user.id = "user_123"
@@ -132,11 +132,11 @@ class TestS3FileEndpoints:
             mock_file.user_id = "user_123"
 
             with (
-                patch("langflow.api.v2.files.fetch_file_object", return_value=mock_file),
-                patch("langflow.api.v2.files.CurrentActiveUser", return_value=mock_user),
-                patch("langflow.api.v2.files.ensure_file_permission", new=AsyncMock()),
+                patch("ketos.api.v2.files.fetch_file_object", return_value=mock_file),
+                patch("ketos.api.v2.files.CurrentActiveUser", return_value=mock_user),
+                patch("ketos.api.v2.files.ensure_file_permission", new=AsyncMock()),
             ):
-                from langflow.api.v2.files import download_file
+                from ketos.api.v2.files import download_file
 
                 result = await download_file(
                     file_id="test-id",
@@ -154,8 +154,8 @@ class TestS3FileEndpoints:
     async def test_delete_file_calls_storage_with_correct_params(self, mock_storage_service, mock_settings):
         """Test that delete_file correctly parses path and calls storage service."""
         with (
-            patch("langflow.services.deps.get_storage_service", return_value=mock_storage_service),
-            patch("langflow.services.deps.get_settings_service", return_value=mock_settings),
+            patch("ketos.services.deps.get_storage_service", return_value=mock_storage_service),
+            patch("ketos.services.deps.get_settings_service", return_value=mock_settings),
         ):
             mock_user = MagicMock()
             mock_user.id = "user_123"
@@ -169,11 +169,11 @@ class TestS3FileEndpoints:
             mock_session.delete = AsyncMock()
 
             with (
-                patch("langflow.api.v2.files.fetch_file_object", return_value=mock_file),
-                patch("langflow.api.v2.files.CurrentActiveUser", return_value=mock_user),
-                patch("langflow.api.v2.files.ensure_file_permission", new=AsyncMock()),
+                patch("ketos.api.v2.files.fetch_file_object", return_value=mock_file),
+                patch("ketos.api.v2.files.CurrentActiveUser", return_value=mock_user),
+                patch("ketos.api.v2.files.ensure_file_permission", new=AsyncMock()),
             ):
-                from langflow.api.v2.files import delete_file
+                from ketos.api.v2.files import delete_file
 
                 await delete_file(
                     file_id="test-id",
@@ -195,8 +195,8 @@ class TestS3FileEndpoints:
         mock_storage_service.get_file.side_effect = FileNotFoundError("File not found in S3")
 
         with (
-            patch("langflow.services.deps.get_storage_service", return_value=mock_storage_service),
-            patch("langflow.services.deps.get_settings_service", return_value=mock_settings),
+            patch("ketos.services.deps.get_storage_service", return_value=mock_storage_service),
+            patch("ketos.services.deps.get_settings_service", return_value=mock_settings),
         ):
             mock_user = MagicMock()
             mock_user.id = "user_123"
@@ -207,11 +207,11 @@ class TestS3FileEndpoints:
             mock_file.user_id = "user_123"
 
             with (
-                patch("langflow.api.v2.files.fetch_file_object", return_value=mock_file),
-                patch("langflow.api.v2.files.CurrentActiveUser", return_value=mock_user),
-                patch("langflow.api.v2.files.ensure_file_permission", new=AsyncMock()),
+                patch("ketos.api.v2.files.fetch_file_object", return_value=mock_file),
+                patch("ketos.api.v2.files.CurrentActiveUser", return_value=mock_user),
+                patch("ketos.api.v2.files.ensure_file_permission", new=AsyncMock()),
             ):
-                from langflow.api.v2.files import download_file
+                from ketos.api.v2.files import download_file
 
                 # API should convert FileNotFoundError to HTTPException with 404 status
                 with pytest.raises(HTTPException) as exc_info:
@@ -230,8 +230,8 @@ class TestS3FileEndpoints:
     async def test_upload_saves_to_storage_service(self, mock_storage_service, mock_settings):
         """Test that file upload correctly saves to storage service."""
         with (
-            patch("langflow.services.deps.get_storage_service", return_value=mock_storage_service),
-            patch("langflow.services.deps.get_settings_service", return_value=mock_settings),
+            patch("ketos.services.deps.get_storage_service", return_value=mock_storage_service),
+            patch("ketos.services.deps.get_settings_service", return_value=mock_settings),
         ):
             mock_user = MagicMock()
             mock_user.id = "user_123"
@@ -241,8 +241,8 @@ class TestS3FileEndpoints:
             mock_file.size = 1024
             mock_file.read = AsyncMock(return_value=b"file content")
 
-            with patch("langflow.api.v2.files.upload_user_file"):
-                from langflow.api.v2.files import save_file_routine
+            with patch("ketos.api.v2.files.upload_user_file"):
+                from ketos.api.v2.files import save_file_routine
 
                 await save_file_routine(mock_file, mock_storage_service, mock_user, file_name="upload.txt")
 

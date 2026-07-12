@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy import create_engine, text
 
 # Migration filenames start with a digit, so we must import via importlib.
-_MIGRATION = importlib.import_module("langflow.alembic.versions.d306e5c17c41_add_api_key_hash_column_to_apikey_table")
+_MIGRATION = importlib.import_module("ketos.alembic.versions.d306e5c17c41_add_api_key_hash_column_to_apikey_table")
 _backfill_hashes = _MIGRATION._backfill_hashes
 _hash_key = _MIGRATION._hash_key
 

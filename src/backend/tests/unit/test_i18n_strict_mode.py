@@ -4,7 +4,7 @@ import asyncio
 import copy
 
 import pytest
-from langflow.utils import i18n as i18n_utils
+from ketos.utils import i18n as i18n_utils
 
 
 @pytest.fixture(autouse=True)

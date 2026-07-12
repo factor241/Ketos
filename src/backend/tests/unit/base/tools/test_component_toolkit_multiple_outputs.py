@@ -11,10 +11,10 @@ THEN:  ValueError: "When passing a tool name or description, there must be
 EXPECTED: Tools are created with prefixed names to disambiguate them.
 """
 
-from lfx.base.tools.component_tool import ComponentToolkit
-from lfx.custom.custom_component.component import Component
-from lfx.io import MessageTextInput, Output
-from lfx.schema.message import Message
+from kfx.base.tools.component_tool import ComponentToolkit
+from kfx.custom.custom_component.component import Component
+from kfx.io import MessageTextInput, Output
+from kfx.schema.message import Message
 
 
 class MultiOutputComponent(Component):

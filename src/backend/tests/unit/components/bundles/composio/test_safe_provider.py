@@ -13,7 +13,7 @@ import pytest
 composio = pytest.importorskip("composio", reason="composio extra not installed in this env")
 pytest.importorskip("composio_langchain", reason="composio extra not installed in this env")
 
-from lfx.base.composio.safe_provider import SafeLangchainProvider, _sanitize_schema  # noqa: E402
+from kfx.base.composio.safe_provider import SafeLangchainProvider, _sanitize_schema  # noqa: E402
 
 
 class TestSanitizeSchema:
@@ -105,7 +105,7 @@ class TestSafeLangchainProviderRegression:
         """
         from composio.core.models._files import FileHelper
 
-        assert getattr(FileHelper, "_lfx_safe_patched", False) is True
+        assert getattr(FileHelper, "_kfx_safe_patched", False) is True
 
     def test_file_helper_uploads_no_keyerror_on_untyped_property(self):
         """End-to-end guard against the original KeyError site.
@@ -152,7 +152,7 @@ class TestSafeLangchainProviderRegression:
         """
         from composio.utils import shared as composio_shared
 
-        assert getattr(composio_shared, "_lfx_safe_patched", False) is True
+        assert getattr(composio_shared, "_kfx_safe_patched", False) is True
 
     def test_pydantic_builder_no_keyerror_on_untyped_property(self):
         """End-to-end guard for the third KeyError site.

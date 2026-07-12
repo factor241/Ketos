@@ -22,8 +22,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pytest
-from lfx.components.files_and_knowledge import _kb_paths
-from lfx.components.files_and_knowledge.memory_retrieval import (
+from kfx.components.files_and_knowledge import _kb_paths
+from kfx.components.files_and_knowledge.memory_retrieval import (
     MemoryBaseComponent,
     _coerce_uuid,
     _distance_to_similarity,
@@ -73,7 +73,7 @@ class _Scope:
 
 def _patched_session_scope(db) -> object:
     return patch(
-        "lfx.components.files_and_knowledge.memory_retrieval.session_scope",
+        "kfx.components.files_and_knowledge.memory_retrieval.session_scope",
         return_value=_Scope(db),
     )
 
@@ -224,7 +224,7 @@ class TestLoadKbMetadata:
     def test_no_api_key_skips_decrypt(self, tmp_path: Path):
         payload = {"embedding_provider": "OpenAI", "embedding_model": "x"}
         (tmp_path / "embedding_metadata.json").write_text(json.dumps(payload))
-        with patch("lfx.components.files_and_knowledge._kb_paths.decrypt_api_key") as decrypt:
+        with patch("kfx.components.files_and_knowledge._kb_paths.decrypt_api_key") as decrypt:
             result = _kb_paths.load_kb_metadata(tmp_path, log_label="x")
             decrypt.assert_not_called()
         assert result == payload
@@ -233,7 +233,7 @@ class TestLoadKbMetadata:
         payload = {"embedding_provider": "OpenAI", "api_key": "ENCRYPTED"}  # pragma: allowlist secret
         (tmp_path / "embedding_metadata.json").write_text(json.dumps(payload))
         with patch(
-            "lfx.components.files_and_knowledge._kb_paths.decrypt_api_key",
+            "kfx.components.files_and_knowledge._kb_paths.decrypt_api_key",
             return_value="plain",
         ):
             result = _kb_paths.load_kb_metadata(tmp_path, log_label="x")
@@ -243,7 +243,7 @@ class TestLoadKbMetadata:
         payload = {"embedding_provider": "OpenAI", "api_key": "ENCRYPTED"}  # pragma: allowlist secret
         (tmp_path / "embedding_metadata.json").write_text(json.dumps(payload))
         with patch(
-            "lfx.components.files_and_knowledge._kb_paths.decrypt_api_key",
+            "kfx.components.files_and_knowledge._kb_paths.decrypt_api_key",
             side_effect=ValueError("bad token"),
         ):
             result = _kb_paths.load_kb_metadata(tmp_path, log_label="x")
@@ -255,7 +255,7 @@ class TestRootPathCache:
         _kb_paths.reset_knowledge_bases_root_path_cache()
         first = tmp_path / "first"
         second = tmp_path / "second"
-        with patch("lfx.components.files_and_knowledge._kb_paths.get_settings_service") as gs:
+        with patch("kfx.components.files_and_knowledge._kb_paths.get_settings_service") as gs:
             gs.return_value.settings.knowledge_bases_dir = str(first)
             assert _kb_paths.get_knowledge_bases_root_path() == first
             # Cached value is returned even if settings change.
@@ -267,7 +267,7 @@ class TestRootPathCache:
 
     def test_unset_directory_raises(self):
         _kb_paths.reset_knowledge_bases_root_path_cache()
-        with patch("lfx.components.files_and_knowledge._kb_paths.get_settings_service") as gs:
+        with patch("kfx.components.files_and_knowledge._kb_paths.get_settings_service") as gs:
             gs.return_value.settings.knowledge_bases_dir = ""
             with pytest.raises(ValueError, match="Knowledge bases directory"):
                 _kb_paths.get_knowledge_bases_root_path()
@@ -379,7 +379,7 @@ class TestMemoryBaseRetrievalInvariants:
         with (
             _patched_session_scope(db),
             patch(
-                "lfx.components.files_and_knowledge.memory_retrieval.get_user_by_id",
+                "kfx.components.files_and_knowledge.memory_retrieval.get_user_by_id",
                 new=AsyncMock(return_value=None),
             ),
             pytest.raises(ValueError, match="owner account"),
@@ -396,19 +396,19 @@ class TestMemoryBaseRetrievalInvariants:
         with (
             _patched_session_scope(db),
             patch(
-                "lfx.components.files_and_knowledge.memory_retrieval.get_user_by_id",
+                "kfx.components.files_and_knowledge.memory_retrieval.get_user_by_id",
                 new=AsyncMock(return_value=owner),
             ),
             patch(
-                "lfx.components.files_and_knowledge.memory_retrieval.get_knowledge_bases_root_path",
+                "kfx.components.files_and_knowledge.memory_retrieval.get_knowledge_bases_root_path",
                 return_value=Path(),
             ),
             patch(
-                "lfx.components.files_and_knowledge.memory_retrieval.validate_kb_path",
+                "kfx.components.files_and_knowledge.memory_retrieval.validate_kb_path",
                 return_value=None,
             ),
             patch(
-                "lfx.components.files_and_knowledge.memory_retrieval.load_kb_metadata",
+                "kfx.components.files_and_knowledge.memory_retrieval.load_kb_metadata",
                 return_value={},
             ),
             pytest.raises(ValueError, match="no embedding metadata"),
@@ -425,15 +425,15 @@ class TestMemoryBaseRetrievalInvariants:
         with (
             _patched_session_scope(db),
             patch(
-                "lfx.components.files_and_knowledge.memory_retrieval.get_user_by_id",
+                "kfx.components.files_and_knowledge.memory_retrieval.get_user_by_id",
                 new=AsyncMock(return_value=owner),
             ),
             patch(
-                "lfx.components.files_and_knowledge.memory_retrieval.get_knowledge_bases_root_path",
+                "kfx.components.files_and_knowledge.memory_retrieval.get_knowledge_bases_root_path",
                 return_value=Path(),
             ),
             patch(
-                "lfx.components.files_and_knowledge.memory_retrieval.validate_kb_path",
+                "kfx.components.files_and_knowledge.memory_retrieval.validate_kb_path",
                 side_effect=ValueError("escapes root"),
             ),
             pytest.raises(ValueError, match="not accessible"),
@@ -447,27 +447,27 @@ class TestMemoryBaseRetrievalBehavior:
         for cm in (
             _patched_session_scope(db),
             patch(
-                "lfx.components.files_and_knowledge.memory_retrieval.get_user_by_id",
+                "kfx.components.files_and_knowledge.memory_retrieval.get_user_by_id",
                 new=AsyncMock(return_value=owner),
             ),
             patch(
-                "lfx.components.files_and_knowledge.memory_retrieval.get_knowledge_bases_root_path",
+                "kfx.components.files_and_knowledge.memory_retrieval.get_knowledge_bases_root_path",
                 return_value=Path(),
             ),
             patch(
-                "lfx.components.files_and_knowledge.memory_retrieval.validate_kb_path",
+                "kfx.components.files_and_knowledge.memory_retrieval.validate_kb_path",
                 return_value=None,
             ),
             patch(
-                "lfx.components.files_and_knowledge.memory_retrieval.load_kb_metadata",
+                "kfx.components.files_and_knowledge.memory_retrieval.load_kb_metadata",
                 return_value=metadata,
             ),
             patch(
-                "lfx.components.files_and_knowledge.memory_retrieval.KBIngestionHelper.build_embeddings",
+                "kfx.components.files_and_knowledge.memory_retrieval.KBIngestionHelper.build_embeddings",
                 new=AsyncMock(return_value=MagicMock()),
             ),
             patch(
-                "lfx.components.files_and_knowledge.memory_retrieval.Chroma",
+                "kfx.components.files_and_knowledge.memory_retrieval.Chroma",
                 return_value=fake_chroma,
             ),
         ):

@@ -8,23 +8,23 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
-from langflow.api.v1.mappers.deployments import get_mapper_registry
-from langflow.api.v1.mappers.deployments.base import BaseDeploymentMapper, DeploymentApiPayloads
-from langflow.api.v1.mappers.deployments.contracts import (
+from ketos.api.v1.mappers.deployments import get_mapper_registry
+from ketos.api.v1.mappers.deployments.base import BaseDeploymentMapper, DeploymentApiPayloads
+from ketos.api.v1.mappers.deployments.contracts import (
     CreatedSnapshotIds,
     CreateSnapshotBindings,
     FlowVersionPatch,
     UpdateSnapshotBindings,
 )
-from langflow.api.v1.mappers.deployments.registry import DeploymentMapperRegistry
-from langflow.api.v1.schemas.deployments import (
+from ketos.api.v1.mappers.deployments.registry import DeploymentMapperRegistry
+from ketos.api.v1.schemas.deployments import (
     DeploymentCreateRequest,
     DeploymentProviderAccountCreateRequest,
     DeploymentUpdateRequest,
     RunCreateRequest,
 )
-from lfx.services.adapters.deployment.payloads import DeploymentPayloadSchemas
-from lfx.services.adapters.deployment.schema import (
+from kfx.services.adapters.deployment.payloads import DeploymentPayloadSchemas
+from kfx.services.adapters.deployment.schema import (
     DeploymentCreateResult,
     DeploymentGetResult,
     DeploymentListResult,
@@ -36,8 +36,8 @@ from lfx.services.adapters.deployment.schema import (
     SnapshotItem,
     SnapshotListResult,
 )
-from lfx.services.adapters.payload import AdapterPayloadValidationError, PayloadSlot, PayloadSlotPolicy
-from lfx.services.adapters.schema import AdapterType
+from kfx.services.adapters.payload import AdapterPayloadValidationError, PayloadSlot, PayloadSlotPolicy
+from kfx.services.adapters.schema import AdapterType
 from pydantic import BaseModel
 
 
@@ -749,7 +749,7 @@ def test_mapper_registry_get_returns_cached_instance_for_key() -> None:
 
 def test_base_mapper_resolve_verify_credentials_raises_not_implemented() -> None:
     """Base mapper does not implement create credential verification."""
-    from langflow.api.v1.schemas.deployments import DeploymentProviderAccountCreateRequest
+    from ketos.api.v1.schemas.deployments import DeploymentProviderAccountCreateRequest
 
     mapper = BaseDeploymentMapper()
     payload = DeploymentProviderAccountCreateRequest(
@@ -821,7 +821,7 @@ def _make_existing_account():
 
 def test_base_mapper_resolve_provider_account_update_name_only() -> None:
     """Only name is set; no other fields should appear."""
-    from langflow.api.v1.schemas.deployments import DeploymentProviderAccountUpdateRequest
+    from ketos.api.v1.schemas.deployments import DeploymentProviderAccountUpdateRequest
 
     mapper = BaseDeploymentMapper()
     payload = DeploymentProviderAccountUpdateRequest(name="new-name")
@@ -834,7 +834,7 @@ def test_base_mapper_resolve_provider_account_update_name_only() -> None:
 
 def test_base_mapper_resolve_provider_account_update_provider_data_raises() -> None:
     """Base mapper cannot resolve provider_data — raises NotImplementedError."""
-    from langflow.api.v1.schemas.deployments import DeploymentProviderAccountUpdateRequest
+    from ketos.api.v1.schemas.deployments import DeploymentProviderAccountUpdateRequest
 
     mapper = BaseDeploymentMapper()
     payload = DeploymentProviderAccountUpdateRequest(provider_data={"api_key": "key"})

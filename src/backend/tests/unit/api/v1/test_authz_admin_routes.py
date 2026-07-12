@@ -148,7 +148,7 @@ def _make_role_row(
 
 @pytest.fixture
 def stub_authz(monkeypatch):
-    from langflow.api.v1 import authz_me, authz_role_assignments, authz_roles, authz_teams
+    from ketos.api.v1 import authz_me, authz_role_assignments, authz_roles, authz_teams
 
     def _apply(*, allow: bool = True) -> _StubAuthz:
         stub = _StubAuthz(allow=allow)
@@ -166,7 +166,7 @@ def stub_authz(monkeypatch):
 
 def test_role_create_accepts_canonical_permission_slugs():
     """``<resource>:<action>`` slugs from the system-role catalog parse cleanly."""
-    from langflow.api.v1.schemas.authz_roles import RoleCreate
+    from ketos.api.v1.schemas.authz_roles import RoleCreate
 
     payload = RoleCreate(
         name="ops",
@@ -209,7 +209,7 @@ def test_role_create_accepts_canonical_permission_slugs():
 )
 def test_role_create_rejects_non_canonical_permission_slugs(bad_slug):
     """Anything outside the canonical ``<resource>:<action>`` form is 422 at the API boundary."""
-    from langflow.api.v1.schemas.authz_roles import RoleCreate
+    from ketos.api.v1.schemas.authz_roles import RoleCreate
     from pydantic import ValidationError
 
     with pytest.raises(ValidationError):
@@ -240,7 +240,7 @@ def test_role_create_rejects_non_canonical_permission_slugs(bad_slug):
 )
 def test_role_create_accepts_per_resource_action_pairs(good_slug):
     """Per-resource validation must still accept every (resource, action) the enums define."""
-    from langflow.api.v1.schemas.authz_roles import RoleCreate
+    from ketos.api.v1.schemas.authz_roles import RoleCreate
 
     payload = RoleCreate(name="ok", permissions=[good_slug])
     assert payload.permissions == [good_slug]
@@ -248,7 +248,7 @@ def test_role_create_accepts_per_resource_action_pairs(good_slug):
 
 def test_role_update_validates_permissions_when_provided():
     """RoleUpdate also runs the slug validator (so PATCH cannot smuggle bad slugs in)."""
-    from langflow.api.v1.schemas.authz_roles import RoleUpdate
+    from ketos.api.v1.schemas.authz_roles import RoleUpdate
     from pydantic import ValidationError
 
     # None is still allowed (the handler maps it to a 400 separately).
@@ -264,8 +264,8 @@ def test_role_update_validates_permissions_when_provided():
 
 @pytest.mark.asyncio
 async def test_create_role_requires_superuser(stub_authz):
-    from langflow.api.v1 import authz_roles
-    from langflow.api.v1.schemas.authz_roles import RoleCreate
+    from ketos.api.v1 import authz_roles
+    from ketos.api.v1.schemas.authz_roles import RoleCreate
 
     stub_authz()
     session = _FakeAsyncSession()
@@ -281,9 +281,9 @@ async def test_create_role_requires_superuser(stub_authz):
 
 @pytest.mark.asyncio
 async def test_create_role_persists_and_invalidates(stub_authz):
-    from langflow.api.v1 import authz_roles
-    from langflow.api.v1.schemas.authz_roles import RoleCreate
-    from langflow.services.database.models.auth import AuthzRole  # noqa: F401 — keeps import path live
+    from ketos.api.v1 import authz_roles
+    from ketos.api.v1.schemas.authz_roles import RoleCreate
+    from ketos.services.database.models.auth import AuthzRole  # noqa: F401 — keeps import path live
 
     authz = stub_authz()
     session = _FakeAsyncSession()
@@ -300,8 +300,8 @@ async def test_create_role_persists_and_invalidates(stub_authz):
 
 @pytest.mark.asyncio
 async def test_create_role_409_on_name_conflict(stub_authz):
-    from langflow.api.v1 import authz_roles
-    from langflow.api.v1.schemas.authz_roles import RoleCreate
+    from ketos.api.v1 import authz_roles
+    from ketos.api.v1.schemas.authz_roles import RoleCreate
 
     stub_authz()
     session = _FakeAsyncSession(commit_raises=IntegrityError("dup", {}, Exception()))
@@ -317,9 +317,9 @@ async def test_create_role_409_on_name_conflict(stub_authz):
 
 @pytest.mark.asyncio
 async def test_update_role_blocks_system_role(stub_authz):
-    from langflow.api.v1 import authz_roles
-    from langflow.api.v1.schemas.authz_roles import RoleUpdate
-    from langflow.services.database.models.auth import AuthzRole
+    from ketos.api.v1 import authz_roles
+    from ketos.api.v1.schemas.authz_roles import RoleUpdate
+    from ketos.services.database.models.auth import AuthzRole
 
     stub_authz()
     role_id = uuid4()
@@ -349,9 +349,9 @@ async def test_update_role_blocks_system_role(stub_authz):
 @pytest.mark.asyncio
 async def test_update_role_clears_description_via_explicit_null(stub_authz):
     """PATCH with description=null clears the field — presence check honors null."""
-    from langflow.api.v1 import authz_roles
-    from langflow.api.v1.schemas.authz_roles import RoleUpdate
-    from langflow.services.database.models.auth import AuthzRole
+    from ketos.api.v1 import authz_roles
+    from ketos.api.v1.schemas.authz_roles import RoleUpdate
+    from ketos.services.database.models.auth import AuthzRole
 
     stub_authz()
     role_id = uuid4()
@@ -380,9 +380,9 @@ async def test_update_role_clears_description_via_explicit_null(stub_authz):
 @pytest.mark.asyncio
 async def test_update_role_clears_parent_via_explicit_null(stub_authz):
     """PATCH with parent_role_id=null removes the parent (no validation needed)."""
-    from langflow.api.v1 import authz_roles
-    from langflow.api.v1.schemas.authz_roles import RoleUpdate
-    from langflow.services.database.models.auth import AuthzRole
+    from ketos.api.v1 import authz_roles
+    from ketos.api.v1.schemas.authz_roles import RoleUpdate
+    from ketos.services.database.models.auth import AuthzRole
 
     stub_authz()
     role_id = uuid4()
@@ -410,9 +410,9 @@ async def test_update_role_clears_parent_via_explicit_null(stub_authz):
 @pytest.mark.asyncio
 async def test_update_role_omitted_fields_untouched(stub_authz):
     """Omitting a field leaves the existing row value alone (no clearing)."""
-    from langflow.api.v1 import authz_roles
-    from langflow.api.v1.schemas.authz_roles import RoleUpdate
-    from langflow.services.database.models.auth import AuthzRole
+    from ketos.api.v1 import authz_roles
+    from ketos.api.v1.schemas.authz_roles import RoleUpdate
+    from ketos.services.database.models.auth import AuthzRole
 
     stub_authz()
     role_id = uuid4()
@@ -444,9 +444,9 @@ async def test_update_role_omitted_fields_untouched(stub_authz):
 @pytest.mark.asyncio
 async def test_update_role_rejects_null_name(stub_authz):
     """Explicit name=null returns 400 (DB column is NOT NULL)."""
-    from langflow.api.v1 import authz_roles
-    from langflow.api.v1.schemas.authz_roles import RoleUpdate
-    from langflow.services.database.models.auth import AuthzRole
+    from ketos.api.v1 import authz_roles
+    from ketos.api.v1.schemas.authz_roles import RoleUpdate
+    from ketos.services.database.models.auth import AuthzRole
 
     stub_authz()
     role_id = uuid4()
@@ -475,9 +475,9 @@ async def test_update_role_rejects_null_name(stub_authz):
 @pytest.mark.asyncio
 async def test_update_role_clears_permissions_via_empty_list(stub_authz):
     """An empty permissions list is the natural 'clear' — distinct from null."""
-    from langflow.api.v1 import authz_roles
-    from langflow.api.v1.schemas.authz_roles import RoleUpdate
-    from langflow.services.database.models.auth import AuthzRole
+    from ketos.api.v1 import authz_roles
+    from ketos.api.v1.schemas.authz_roles import RoleUpdate
+    from ketos.services.database.models.auth import AuthzRole
 
     stub_authz()
     role_id = uuid4()
@@ -504,9 +504,9 @@ async def test_update_role_clears_permissions_via_empty_list(stub_authz):
 @pytest.mark.asyncio
 async def test_update_role_rejects_null_permissions(stub_authz):
     """Explicit permissions=null returns 400 (DB column is nullable=False)."""
-    from langflow.api.v1 import authz_roles
-    from langflow.api.v1.schemas.authz_roles import RoleUpdate
-    from langflow.services.database.models.auth import AuthzRole
+    from ketos.api.v1 import authz_roles
+    from ketos.api.v1.schemas.authz_roles import RoleUpdate
+    from ketos.services.database.models.auth import AuthzRole
 
     stub_authz()
     role_id = uuid4()
@@ -536,9 +536,9 @@ async def test_update_role_rejects_null_permissions(stub_authz):
 
 @pytest.mark.asyncio
 async def test_update_role_rejects_self_parent(stub_authz):
-    from langflow.api.v1 import authz_roles
-    from langflow.api.v1.schemas.authz_roles import RoleUpdate
-    from langflow.services.database.models.auth import AuthzRole
+    from ketos.api.v1 import authz_roles
+    from ketos.api.v1.schemas.authz_roles import RoleUpdate
+    from ketos.services.database.models.auth import AuthzRole
 
     stub_authz()
     role_id = uuid4()
@@ -567,8 +567,8 @@ async def test_update_role_rejects_self_parent(stub_authz):
 
 @pytest.mark.asyncio
 async def test_delete_role_409_when_assigned(stub_authz):
-    from langflow.api.v1 import authz_roles
-    from langflow.services.database.models.auth import AuthzRole, AuthzRoleAssignment  # noqa: F401
+    from ketos.api.v1 import authz_roles
+    from ketos.services.database.models.auth import AuthzRole, AuthzRoleAssignment  # noqa: F401
 
     stub_authz()
     role_id = uuid4()
@@ -590,8 +590,8 @@ async def test_delete_role_409_when_assigned(stub_authz):
 
 @pytest.mark.asyncio
 async def test_delete_role_blocks_system_role(stub_authz):
-    from langflow.api.v1 import authz_roles
-    from langflow.services.database.models.auth import AuthzRole
+    from ketos.api.v1 import authz_roles
+    from ketos.services.database.models.auth import AuthzRole
 
     stub_authz()
     role_id = uuid4()
@@ -612,7 +612,7 @@ async def test_delete_role_blocks_system_role(stub_authz):
 
 def test_role_assignment_create_global_must_omit_domain_id():
     """``domain_type='global'`` with a ``domain_id`` is a 422 — the row would not match any domain."""
-    from langflow.api.v1.schemas.authz_role_assignments import RoleAssignmentCreate
+    from ketos.api.v1.schemas.authz_role_assignments import RoleAssignmentCreate
     from pydantic import ValidationError
 
     # Allowed: global + null id
@@ -630,7 +630,7 @@ def test_role_assignment_create_global_must_omit_domain_id():
 @pytest.mark.parametrize("domain_type", ["org", "workspace", "project"])
 def test_role_assignment_create_scoped_requires_domain_id(domain_type):
     """Scoped ``domain_type`` values without ``domain_id`` are 422."""
-    from langflow.api.v1.schemas.authz_role_assignments import RoleAssignmentCreate
+    from ketos.api.v1.schemas.authz_role_assignments import RoleAssignmentCreate
     from pydantic import ValidationError
 
     # Allowed when paired with an id
@@ -651,7 +651,7 @@ def test_role_assignment_create_scoped_requires_domain_id(domain_type):
 
 def test_role_assignment_create_rejects_unknown_domain_type():
     """Free-form ``domain_type`` strings are 422 (typo guard)."""
-    from langflow.api.v1.schemas.authz_role_assignments import RoleAssignmentCreate
+    from ketos.api.v1.schemas.authz_role_assignments import RoleAssignmentCreate
     from pydantic import ValidationError
 
     with pytest.raises(ValidationError):
@@ -665,7 +665,7 @@ def test_role_assignment_create_rejects_unknown_domain_type():
 
 @pytest.mark.asyncio
 async def test_list_assignments_non_superuser_blocked_from_other_user(stub_authz):
-    from langflow.api.v1 import authz_role_assignments
+    from ketos.api.v1 import authz_role_assignments
 
     stub_authz()
     session = _FakeAsyncSession()
@@ -683,7 +683,7 @@ async def test_list_assignments_non_superuser_blocked_from_other_user(stub_authz
 
 @pytest.mark.asyncio
 async def test_list_assignments_self_allowed_for_non_superuser(stub_authz):
-    from langflow.api.v1 import authz_role_assignments
+    from ketos.api.v1 import authz_role_assignments
 
     stub_authz()
     session = _FakeAsyncSession(exec_results=[[]])  # empty list
@@ -700,7 +700,7 @@ async def test_list_assignments_self_allowed_for_non_superuser(stub_authz):
 @pytest.mark.asyncio
 async def test_list_assignments_no_user_id_defaults_to_self(stub_authz):
     """Omitting ``user_id`` scopes to the caller — no superuser required."""
-    from langflow.api.v1 import authz_role_assignments
+    from ketos.api.v1 import authz_role_assignments
 
     stub_authz()
     session = _FakeAsyncSession(exec_results=[[]])
@@ -717,8 +717,8 @@ async def test_list_assignments_no_user_id_defaults_to_self(stub_authz):
 
 @pytest.mark.asyncio
 async def test_create_assignment_invalid_user_404(stub_authz):
-    from langflow.api.v1 import authz_role_assignments
-    from langflow.api.v1.schemas.authz_role_assignments import RoleAssignmentCreate
+    from ketos.api.v1 import authz_role_assignments
+    from ketos.api.v1.schemas.authz_role_assignments import RoleAssignmentCreate
 
     stub_authz()
     session = _FakeAsyncSession()  # get() returns None
@@ -737,10 +737,10 @@ async def test_create_assignment_invalid_user_404(stub_authz):
 
 @pytest.mark.asyncio
 async def test_create_assignment_invokes_invalidate_user(stub_authz):
-    from langflow.api.v1 import authz_role_assignments
-    from langflow.api.v1.schemas.authz_role_assignments import RoleAssignmentCreate
-    from langflow.services.database.models.auth import AuthzRole
-    from langflow.services.database.models.user.model import User
+    from ketos.api.v1 import authz_role_assignments
+    from ketos.api.v1.schemas.authz_role_assignments import RoleAssignmentCreate
+    from ketos.services.database.models.auth import AuthzRole
+    from ketos.services.database.models.user.model import User
 
     authz = stub_authz()
     target_user = SimpleNamespace(id=uuid4())
@@ -792,9 +792,9 @@ def _make_team_row(
 @pytest.mark.asyncio
 async def test_update_team_clears_description_via_explicit_null(stub_authz):
     """PATCH with description=null clears the field via presence check."""
-    from langflow.api.v1 import authz_teams
-    from langflow.api.v1.schemas.authz_teams import TeamUpdate
-    from langflow.services.database.models.auth import AuthzTeam
+    from ketos.api.v1 import authz_teams
+    from ketos.api.v1.schemas.authz_teams import TeamUpdate
+    from ketos.services.database.models.auth import AuthzTeam
 
     stub_authz()
     team_id = uuid4()
@@ -816,9 +816,9 @@ async def test_update_team_clears_description_via_explicit_null(stub_authz):
 @pytest.mark.asyncio
 async def test_update_team_omitted_description_untouched(stub_authz):
     """Omitting description leaves the existing value alone."""
-    from langflow.api.v1 import authz_teams
-    from langflow.api.v1.schemas.authz_teams import TeamUpdate
-    from langflow.services.database.models.auth import AuthzTeam
+    from ketos.api.v1 import authz_teams
+    from ketos.api.v1.schemas.authz_teams import TeamUpdate
+    from ketos.services.database.models.auth import AuthzTeam
 
     stub_authz()
     team_id = uuid4()
@@ -841,9 +841,9 @@ async def test_update_team_omitted_description_untouched(stub_authz):
 @pytest.mark.asyncio
 async def test_update_team_display_only_change_skips_invalidate_all(stub_authz):
     """Renaming or re-describing a team doesn't touch policy — no cache flush."""
-    from langflow.api.v1 import authz_teams
-    from langflow.api.v1.schemas.authz_teams import TeamUpdate
-    from langflow.services.database.models.auth import AuthzTeam
+    from ketos.api.v1 import authz_teams
+    from ketos.api.v1.schemas.authz_teams import TeamUpdate
+    from ketos.services.database.models.auth import AuthzTeam
 
     authz = stub_authz()
     team_id = uuid4()
@@ -863,9 +863,9 @@ async def test_update_team_display_only_change_skips_invalidate_all(stub_authz):
 @pytest.mark.asyncio
 async def test_update_team_adom_change_triggers_invalidate_all(stub_authz):
     """``adom_name`` is the slug a plugin may compile against — invalidate on change."""
-    from langflow.api.v1 import authz_teams
-    from langflow.api.v1.schemas.authz_teams import TeamUpdate
-    from langflow.services.database.models.auth import AuthzTeam
+    from ketos.api.v1 import authz_teams
+    from ketos.api.v1.schemas.authz_teams import TeamUpdate
+    from ketos.services.database.models.auth import AuthzTeam
 
     authz = stub_authz()
     team_id = uuid4()
@@ -885,9 +885,9 @@ async def test_update_team_adom_change_triggers_invalidate_all(stub_authz):
 @pytest.mark.asyncio
 async def test_update_team_is_active_change_triggers_invalidate_all(stub_authz):
     """Deactivating a team must take effect on the next enforce call."""
-    from langflow.api.v1 import authz_teams
-    from langflow.api.v1.schemas.authz_teams import TeamUpdate
-    from langflow.services.database.models.auth import AuthzTeam
+    from ketos.api.v1 import authz_teams
+    from ketos.api.v1.schemas.authz_teams import TeamUpdate
+    from ketos.services.database.models.auth import AuthzTeam
 
     authz = stub_authz()
     team_id = uuid4()
@@ -906,8 +906,8 @@ async def test_update_team_is_active_change_triggers_invalidate_all(stub_authz):
 
 @pytest.mark.asyncio
 async def test_create_team_requires_superuser(stub_authz):
-    from langflow.api.v1 import authz_teams
-    from langflow.api.v1.schemas.authz_teams import TeamCreate
+    from ketos.api.v1 import authz_teams
+    from ketos.api.v1.schemas.authz_teams import TeamCreate
 
     stub_authz()
     session = _FakeAsyncSession()
@@ -921,10 +921,10 @@ async def test_create_team_requires_superuser(stub_authz):
 
 @pytest.mark.asyncio
 async def test_add_member_invalidates_target_user(stub_authz):
-    from langflow.api.v1 import authz_teams
-    from langflow.api.v1.schemas.authz_teams import TeamMemberCreate
-    from langflow.services.database.models.auth import AuthzTeam
-    from langflow.services.database.models.user.model import User
+    from ketos.api.v1 import authz_teams
+    from ketos.api.v1.schemas.authz_teams import TeamMemberCreate
+    from ketos.services.database.models.auth import AuthzTeam
+    from ketos.services.database.models.user.model import User
 
     authz = stub_authz()
     team = SimpleNamespace(id=uuid4(), team_name="Eng")
@@ -947,10 +947,10 @@ async def test_add_member_invalidates_target_user(stub_authz):
 
 @pytest.mark.asyncio
 async def test_add_member_duplicate_returns_409(stub_authz):
-    from langflow.api.v1 import authz_teams
-    from langflow.api.v1.schemas.authz_teams import TeamMemberCreate
-    from langflow.services.database.models.auth import AuthzTeam
-    from langflow.services.database.models.user.model import User
+    from ketos.api.v1 import authz_teams
+    from ketos.api.v1.schemas.authz_teams import TeamMemberCreate
+    from ketos.services.database.models.auth import AuthzTeam
+    from ketos.services.database.models.user.model import User
 
     stub_authz()
     team = SimpleNamespace(id=uuid4(), team_name="Eng")
@@ -980,8 +980,8 @@ async def test_add_member_duplicate_returns_409(stub_authz):
 
 @pytest.mark.asyncio
 async def test_me_permissions_returns_per_resource_actions(stub_authz):
-    from langflow.api.v1 import authz_me
-    from langflow.api.v1.authz_me import EffectivePermissionsRequest
+    from ketos.api.v1 import authz_me
+    from ketos.api.v1.authz_me import EffectivePermissionsRequest
 
     authz = stub_authz()
     resource_ids = [uuid4(), uuid4()]
@@ -1003,8 +1003,8 @@ async def test_me_permissions_returns_per_resource_actions(stub_authz):
 
 @pytest.mark.asyncio
 async def test_me_permissions_caps_resource_ids_at_500(stub_authz):
-    from langflow.api.v1 import authz_me
-    from langflow.api.v1.authz_me import EffectivePermissionsRequest
+    from ketos.api.v1 import authz_me
+    from ketos.api.v1.authz_me import EffectivePermissionsRequest
 
     stub_authz()
     user = _make_user()
@@ -1021,8 +1021,8 @@ async def test_me_permissions_caps_resource_ids_at_500(stub_authz):
 
 @pytest.mark.asyncio
 async def test_me_permissions_empty_request_returns_empty(stub_authz):
-    from langflow.api.v1 import authz_me
-    from langflow.api.v1.authz_me import EffectivePermissionsRequest
+    from ketos.api.v1 import authz_me
+    from ketos.api.v1.authz_me import EffectivePermissionsRequest
 
     stub_authz()
     user = _make_user()
@@ -1037,7 +1037,7 @@ async def test_me_permissions_empty_request_returns_empty(stub_authz):
 
 def test_me_permissions_actions_normalized_and_deduped():
     """`["READ", "read", " Write "]` -> `["read", "write"]`."""
-    from langflow.api.v1.authz_me import EffectivePermissionsRequest
+    from ketos.api.v1.authz_me import EffectivePermissionsRequest
 
     body = EffectivePermissionsRequest(
         resource_type="flow",
@@ -1049,7 +1049,7 @@ def test_me_permissions_actions_normalized_and_deduped():
 
 def test_me_permissions_actions_empty_after_normalization_becomes_none():
     """All-whitespace input collapses to None so the handler falls back to defaults."""
-    from langflow.api.v1.authz_me import EffectivePermissionsRequest
+    from ketos.api.v1.authz_me import EffectivePermissionsRequest
 
     body = EffectivePermissionsRequest(
         resource_type="flow",
@@ -1061,7 +1061,7 @@ def test_me_permissions_actions_empty_after_normalization_becomes_none():
 
 def test_me_permissions_actions_over_cap_rejected():
     """More than 10 unique actions -> ValidationError (HTTP 422 at request boundary)."""
-    from langflow.api.v1.authz_me import EffectivePermissionsRequest
+    from ketos.api.v1.authz_me import EffectivePermissionsRequest
     from pydantic import ValidationError
 
     with pytest.raises(ValidationError) as excinfo:
@@ -1075,7 +1075,7 @@ def test_me_permissions_actions_over_cap_rejected():
 
 def test_me_permissions_actions_dedupe_keeps_under_cap():
     """A 50-entry input with only 3 distinct values normalizes successfully."""
-    from langflow.api.v1.authz_me import EffectivePermissionsRequest
+    from ketos.api.v1.authz_me import EffectivePermissionsRequest
 
     body = EffectivePermissionsRequest(
         resource_type="flow",
@@ -1087,7 +1087,7 @@ def test_me_permissions_actions_dedupe_keeps_under_cap():
 
 def test_me_permissions_actions_none_stays_none():
     """Omitting actions stays None so the handler substitutes _DEFAULT_ACTIONS."""
-    from langflow.api.v1.authz_me import EffectivePermissionsRequest
+    from ketos.api.v1.authz_me import EffectivePermissionsRequest
 
     body = EffectivePermissionsRequest(resource_type="flow", resource_ids=[uuid4()])
     assert body.actions is None
@@ -1096,8 +1096,8 @@ def test_me_permissions_actions_none_stays_none():
 @pytest.mark.asyncio
 async def test_me_permissions_handler_uses_normalized_actions(stub_authz):
     """The handler passes the normalized list (not the raw input) to the service."""
-    from langflow.api.v1 import authz_me
-    from langflow.api.v1.authz_me import EffectivePermissionsRequest
+    from ketos.api.v1 import authz_me
+    from ketos.api.v1.authz_me import EffectivePermissionsRequest
 
     authz = stub_authz()
     # Capture what the handler forwards to get_effective_permissions.
@@ -1158,7 +1158,7 @@ class _FailingInvalidateUserAuthz(_StubAuthz):
 @pytest.fixture
 def failing_invalidate_authz(monkeypatch):
     """Install a stub whose invalidate_user raises; assert no 5xx leaks out."""
-    from langflow.api.v1 import authz_role_assignments, authz_roles, authz_teams
+    from ketos.api.v1 import authz_role_assignments, authz_roles, authz_teams
 
     def _apply(*, fail_invalidate_all: bool = False) -> _FailingInvalidateUserAuthz:
         stub = _FailingInvalidateUserAuthz(fail_invalidate_all=fail_invalidate_all)
@@ -1172,10 +1172,10 @@ def failing_invalidate_authz(monkeypatch):
 @pytest.mark.asyncio
 async def test_create_assignment_succeeds_when_invalidate_user_fails(failing_invalidate_authz):
     """Grant: DB write is durable, so a plugin invalidation failure must NOT 5xx."""
-    from langflow.api.v1 import authz_role_assignments
-    from langflow.api.v1.schemas.authz_role_assignments import RoleAssignmentCreate
-    from langflow.services.database.models.auth import AuthzRole
-    from langflow.services.database.models.user.model import User
+    from ketos.api.v1 import authz_role_assignments
+    from ketos.api.v1.schemas.authz_role_assignments import RoleAssignmentCreate
+    from ketos.services.database.models.auth import AuthzRole
+    from ketos.services.database.models.user.model import User
 
     authz = failing_invalidate_authz()
     target_user = SimpleNamespace(id=uuid4())
@@ -1201,8 +1201,8 @@ async def test_create_assignment_succeeds_when_invalidate_user_fails(failing_inv
 @pytest.mark.asyncio
 async def test_delete_assignment_succeeds_when_invalidate_user_fails(failing_invalidate_authz):
     """Revoke: stale cache risk is sharpest here — must still report success and flush."""
-    from langflow.api.v1 import authz_role_assignments
-    from langflow.services.database.models.auth import AuthzRoleAssignment
+    from ketos.api.v1 import authz_role_assignments
+    from ketos.services.database.models.auth import AuthzRoleAssignment
 
     authz = failing_invalidate_authz()
     assignment_id = uuid4()
@@ -1231,8 +1231,8 @@ async def test_delete_assignment_succeeds_when_invalidate_user_fails(failing_inv
 @pytest.mark.asyncio
 async def test_delete_assignment_succeeds_when_both_invalidations_fail(failing_invalidate_authz):
     """Total invalidation failure is logged but still doesn't propagate — DB is durable."""
-    from langflow.api.v1 import authz_role_assignments
-    from langflow.services.database.models.auth import AuthzRoleAssignment
+    from ketos.api.v1 import authz_role_assignments
+    from ketos.services.database.models.auth import AuthzRoleAssignment
 
     authz = failing_invalidate_authz(fail_invalidate_all=True)
     assignment_id = uuid4()
@@ -1261,7 +1261,7 @@ async def test_delete_assignment_succeeds_when_both_invalidations_fail(failing_i
 @pytest.mark.asyncio
 async def test_remove_member_succeeds_when_invalidate_user_fails(failing_invalidate_authz):
     """Team membership revoke: same stale-cache concern as role-assignment revoke."""
-    from langflow.api.v1 import authz_teams
+    from ketos.api.v1 import authz_teams
 
     authz = failing_invalidate_authz()
     team_id = uuid4()
@@ -1290,7 +1290,7 @@ async def test_remove_member_succeeds_when_invalidate_user_fails(failing_invalid
 @pytest.mark.asyncio
 async def test_safe_invalidate_user_falls_back_to_invalidate_all():
     """Helper-level test: invalidate_user raises, invalidate_all is attempted."""
-    from langflow.services.authorization.invalidation import safe_invalidate_user
+    from ketos.services.authorization.invalidation import safe_invalidate_user
 
     stub = _FailingInvalidateUserAuthz()
     user_id = uuid4()
@@ -1304,7 +1304,7 @@ async def test_safe_invalidate_user_falls_back_to_invalidate_all():
 @pytest.mark.asyncio
 async def test_safe_invalidate_user_swallows_invalidate_all_failure():
     """Helper-level test: both invalidations fail; the helper still returns cleanly."""
-    from langflow.services.authorization.invalidation import safe_invalidate_user
+    from ketos.services.authorization.invalidation import safe_invalidate_user
 
     stub = _FailingInvalidateUserAuthz(fail_invalidate_all=True)
     user_id = uuid4()
@@ -1317,7 +1317,7 @@ async def test_safe_invalidate_user_swallows_invalidate_all_failure():
 @pytest.mark.asyncio
 async def test_safe_invalidate_user_happy_path_skips_invalidate_all():
     """Helper-level test: successful invalidate_user does NOT trigger fallback."""
-    from langflow.services.authorization.invalidation import safe_invalidate_user
+    from ketos.services.authorization.invalidation import safe_invalidate_user
 
     stub = _StubAuthz()
     user_id = uuid4()
@@ -1338,7 +1338,7 @@ async def test_safe_invalidate_user_happy_path_skips_invalidate_all():
 @pytest.mark.asyncio
 async def test_list_roles_passes_limit_offset_to_query(stub_authz):
     """Listing roles applies the limit/offset args to the SQL statement."""
-    from langflow.api.v1 import authz_roles
+    from ketos.api.v1 import authz_roles
 
     stub_authz()
     # Record the executed statement so we can inspect the LIMIT/OFFSET clause.
@@ -1365,7 +1365,7 @@ async def test_list_roles_passes_limit_offset_to_query(stub_authz):
 
 @pytest.mark.asyncio
 async def test_list_teams_passes_limit_offset_to_query(stub_authz):
-    from langflow.api.v1 import authz_teams
+    from ketos.api.v1 import authz_teams
 
     stub_authz()
     captured: dict = {}
@@ -1391,8 +1391,8 @@ async def test_list_teams_passes_limit_offset_to_query(stub_authz):
 
 @pytest.mark.asyncio
 async def test_list_members_passes_limit_offset_to_query(stub_authz):
-    from langflow.api.v1 import authz_teams
-    from langflow.services.database.models.auth import AuthzTeam
+    from ketos.api.v1 import authz_teams
+    from ketos.services.database.models.auth import AuthzTeam
 
     stub_authz()
     team_id = uuid4()
@@ -1421,7 +1421,7 @@ async def test_list_members_passes_limit_offset_to_query(stub_authz):
 
 @pytest.mark.asyncio
 async def test_list_assignments_passes_limit_offset_to_query(stub_authz):
-    from langflow.api.v1 import authz_role_assignments
+    from ketos.api.v1 import authz_role_assignments
 
     stub_authz()
     captured: dict = {}
@@ -1448,9 +1448,9 @@ async def test_list_assignments_passes_limit_offset_to_query(stub_authz):
 @pytest.mark.parametrize(
     "endpoint_module",
     [
-        "langflow.api.v1.authz_roles",
-        "langflow.api.v1.authz_teams",
-        "langflow.api.v1.authz_role_assignments",
+        "ketos.api.v1.authz_roles",
+        "ketos.api.v1.authz_teams",
+        "ketos.api.v1.authz_role_assignments",
     ],
 )
 def test_list_endpoint_pagination_bounds_match_convention(endpoint_module):

@@ -11,7 +11,7 @@ from collections import defaultdict
 from unittest.mock import Mock, patch
 
 import pytest
-from lfx.components.datastax.astradb_data_api import (
+from kfx.components.datastax.astradb_data_api import (
     ALL_OPERATIONS,
     DEFAULT_COUNT_UPPER_BOUND,
     OP_COUNT,
@@ -30,7 +30,7 @@ from lfx.components.datastax.astradb_data_api import (
     _coerce_documents,
     _stringify,
 )
-from lfx.schema.data import Data
+from kfx.schema.data import Data
 
 # ----------------------------------------------------------------------
 # Fixtures
@@ -597,7 +597,7 @@ class TestCreateCollectionAstrapyOnly:
     """The override must not touch ``langchain-astradb``."""
 
     @pytest.mark.asyncio
-    @patch("lfx.components.datastax.astradb_data_api.DataAPIClient")
+    @patch("kfx.components.datastax.astradb_data_api.DataAPIClient")
     async def test_bring_your_own_dimension(self, mock_client_cls):
         mock_db = Mock()
         mock_client_cls.return_value.get_database.return_value = mock_db
@@ -622,7 +622,7 @@ class TestCreateCollectionAstrapyOnly:
         assert definition.vector.service is None
 
     @pytest.mark.asyncio
-    @patch("lfx.components.datastax.astradb_data_api.DataAPIClient")
+    @patch("kfx.components.datastax.astradb_data_api.DataAPIClient")
     @patch.object(AstraDBDataAPIComponent, "get_vectorize_providers")
     async def test_vectorize_provider(self, mock_providers, mock_client_cls):
         mock_db = Mock()
@@ -648,7 +648,7 @@ class TestCreateCollectionAstrapyOnly:
         assert definition.vector.service.model_name == "nv-embed-qa"
 
     @pytest.mark.asyncio
-    @patch("lfx.components.datastax.astradb_data_api.DataAPIClient")
+    @patch("kfx.components.datastax.astradb_data_api.DataAPIClient")
     async def test_plain_collection_no_vector(self, mock_client_cls):
         """No dimension and no vectorize provider --> plain collection, no definition."""
         mock_db = Mock()
@@ -675,7 +675,7 @@ class TestCreateCollectionAstrapyOnly:
             )
 
     @pytest.mark.asyncio
-    @patch("lfx.components.datastax.astradb_data_api.DataAPIClient")
+    @patch("kfx.components.datastax.astradb_data_api.DataAPIClient")
     @patch.object(AstraDBDataAPIComponent, "get_vectorize_providers")
     async def test_unknown_provider_rejected(self, mock_providers, mock_client_cls):
         mock_client_cls.return_value.get_database.return_value = Mock()
@@ -691,7 +691,7 @@ class TestCreateCollectionAstrapyOnly:
             )
 
     @pytest.mark.asyncio
-    @patch("lfx.components.datastax.astradb_data_api.DataAPIClient")
+    @patch("kfx.components.datastax.astradb_data_api.DataAPIClient")
     async def test_no_langchain_astradb_import(self, mock_client_cls, monkeypatch):
         """The override must not import ``langchain_astradb``.
 

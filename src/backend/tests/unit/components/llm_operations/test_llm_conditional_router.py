@@ -1,8 +1,8 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from lfx.components.llm_operations.llm_conditional_router import SmartRouterComponent
-from lfx.schema.message import Message
+from kfx.components.llm_operations.llm_conditional_router import SmartRouterComponent
+from kfx.schema.message import Message
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -120,7 +120,7 @@ class TestSmartRouterComponent(ComponentTestBaseWithoutClient):
         mock_response.content = "Positive"
         mock_llm.invoke.return_value = mock_response
 
-        with patch("lfx.components.llm_operations.llm_conditional_router.get_llm", return_value=mock_llm):
+        with patch("kfx.components.llm_operations.llm_conditional_router.get_llm", return_value=mock_llm):
             result1 = component._get_categorization()
             result2 = component._get_categorization()
 

@@ -11,8 +11,8 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from langflow.agentic.services.helpers import intent_classification
-from langflow.agentic.services.helpers.intent_classification import classify_intent
+from ketos.agentic.services.helpers import intent_classification
+from ketos.agentic.services.helpers.intent_classification import classify_intent
 
 
 class TestClassifyIntentTimeout:

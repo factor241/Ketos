@@ -3,8 +3,8 @@ import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
-from langflow.io import Output
-from lfx.components.files_and_knowledge.file import FileComponent
+from ketos.io import Output
+from kfx.components.files_and_knowledge.file import FileComponent
 
 
 class TestFileComponentFrontendMetadata:
@@ -589,8 +589,8 @@ class TestFileComponentToolMode:
 
     # ==================== Cloud Storage Temp File Cleanup Tests ====================
 
-    @patch("lfx.base.data.cloud_storage_utils.create_s3_client")
-    @patch("lfx.base.data.cloud_storage_utils.validate_aws_credentials")
+    @patch("kfx.base.data.cloud_storage_utils.create_s3_client")
+    @patch("kfx.base.data.cloud_storage_utils.validate_aws_credentials")
     def test_s3_temp_file_cleanup_on_download_failure(self, mock_validate, mock_create_client):  # noqa: ARG002
         """Test that temp file is cleaned up when S3 download fails."""
         from pathlib import Path
@@ -625,7 +625,7 @@ class TestFileComponentToolMode:
         new_temp_files = temp_files_after - temp_files_before
         assert len(new_temp_files) == 0, f"Temp files not cleaned up: {new_temp_files}"
 
-    @patch("lfx.base.data.cloud_storage_utils.create_google_drive_service")
+    @patch("kfx.base.data.cloud_storage_utils.create_google_drive_service")
     def test_google_drive_temp_file_cleanup_on_download_failure(self, mock_create_service):
         """Test that temp file is cleaned up when Google Drive download fails."""
         from pathlib import Path

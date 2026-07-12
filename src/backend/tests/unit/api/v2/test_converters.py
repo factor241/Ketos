@@ -27,7 +27,7 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-from langflow.api.v2.converters import (
+from ketos.api.v2.converters import (
     _build_metadata_for_non_output,
     _extract_file_path,
     _extract_model_source,
@@ -40,7 +40,7 @@ from langflow.api.v2.converters import (
     parse_flat_inputs,
     run_response_to_workflow_response,
 )
-from lfx.schema.workflow import (
+from kfx.schema.workflow import (
     ErrorDetail,
     JobStatus,
     WorkflowExecutionRequest,
@@ -301,7 +301,7 @@ class TestExtractNestedValue:
 
     def test_extract_from_result_data_object(self):
         """Test extracting from ResultData object with attributes."""
-        # Simulating ResultData from lfx.graph.schema
+        # Simulating ResultData from kfx.graph.schema
         obj = Mock()
         obj.outputs = {"message": {"text": "output text"}}
         obj.results = {"data": "result data"}
@@ -311,7 +311,7 @@ class TestExtractNestedValue:
 
     def test_extract_text_from_output_value(self):
         """Test extracting from OutputValue structure."""
-        # OutputValue structure from lfx.schema.schema
+        # OutputValue structure from kfx.schema.schema
         data = {"message": {"text": "Hello World"}, "type": "message"}
         result = _extract_nested_value(data, "message", "text")
         assert result == "Hello World"
@@ -456,7 +456,7 @@ class TestExtractTextFromMessage:
 
     def test_extract_from_output_value_message_structure(self):
         """Test extracting from OutputValue message structure."""
-        # OutputValue from lfx.schema.schema
+        # OutputValue from kfx.schema.schema
         content = {
             "message": {
                 "message": "Output value message",

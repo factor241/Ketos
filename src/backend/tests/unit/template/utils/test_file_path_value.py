@@ -1,7 +1,7 @@
 import platform
 from pathlib import Path
 
-from lfx.template import utils as template_utils
+from kfx.template import utils as template_utils
 
 
 def _set_cache_dir(monkeypatch, cache_dir: Path) -> None:

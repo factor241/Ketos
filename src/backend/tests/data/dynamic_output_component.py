@@ -1,14 +1,14 @@
 from typing import Any
 
-from lfx.custom import Component
-from lfx.io import BoolInput, MessageTextInput, Output
-from lfx.schema import Data
+from kfx.custom import Component
+from kfx.io import BoolInput, MessageTextInput, Output
+from kfx.schema import Data
 
 
 class DynamicOutputComponent(Component):
     display_name = "Dynamic Output Component"
     description = "Use as a template to create your own component."
-    documentation: str = "https://docs.langflow.org/components-custom-components"
+    documentation: str = "https://docs.ketos.test/components-custom-components"
     icon = "custom_components"
     name = "DynamicOutputComponent"
 

@@ -8,11 +8,11 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
-from langflow.api.v1.schemas.deployments import DetectVarsRequest
-from langflow.api.v1.variable import detect_env_vars
+from ketos.api.v1.schemas.deployments import DetectVarsRequest
+from ketos.api.v1.variable import detect_env_vars
 from pydantic import ValidationError
 
-MODULE = "langflow.api.v1.variable"
+MODULE = "ketos.api.v1.variable"
 
 
 def _flow_version_with_data(data: object) -> SimpleNamespace:

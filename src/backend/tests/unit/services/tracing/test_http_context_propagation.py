@@ -17,7 +17,7 @@ class TestHTTPClientInstrumentationManager:
     @pytest.fixture(autouse=True)
     def reset_manager(self):
         """Reset the singleton manager between tests."""
-        from langflow.services.tracing.http_instrumentation import HTTPClientInstrumentationManager
+        from ketos.services.tracing.http_instrumentation import HTTPClientInstrumentationManager
 
         HTTPClientInstrumentationManager._instance = None
         yield
@@ -32,7 +32,7 @@ class TestHTTPClientInstrumentationManager:
             mock_requests.return_value.instrument = MagicMock()
             mock_urllib3.return_value.instrument = MagicMock()
 
-            from langflow.services.tracing.http_instrumentation import get_http_instrumentation_manager
+            from ketos.services.tracing.http_instrumentation import get_http_instrumentation_manager
 
             manager = get_http_instrumentation_manager()
 
@@ -54,7 +54,7 @@ class TestHTTPClientInstrumentationManager:
             mock_urllib3.return_value.instrument = MagicMock()
             mock_urllib3.return_value.uninstrument = MagicMock()
 
-            from langflow.services.tracing.http_instrumentation import get_http_instrumentation_manager
+            from ketos.services.tracing.http_instrumentation import get_http_instrumentation_manager
 
             manager = get_http_instrumentation_manager()
 
@@ -85,7 +85,7 @@ class TestHTTPClientInstrumentationManager:
             mock_urllib3.return_value.instrument = MagicMock()
             mock_urllib3.return_value.uninstrument = MagicMock()
 
-            from langflow.services.tracing.http_instrumentation import get_http_instrumentation_manager
+            from ketos.services.tracing.http_instrumentation import get_http_instrumentation_manager
 
             manager = get_http_instrumentation_manager()
 
@@ -106,14 +106,14 @@ class TestHTTPClientInstrumentationManager:
         with (
             patch("opentelemetry.instrumentation.requests.RequestsInstrumentor") as mock_requests,
             patch("opentelemetry.instrumentation.urllib3.URLLib3Instrumentor") as mock_urllib3,
-            patch("langflow.services.tracing.http_instrumentation.logger") as mock_logger,
+            patch("ketos.services.tracing.http_instrumentation.logger") as mock_logger,
         ):
             mock_requests.return_value.instrument = MagicMock()
             mock_requests.return_value.uninstrument = MagicMock(side_effect=RuntimeError("test error"))
             mock_urllib3.return_value.instrument = MagicMock()
             mock_urllib3.return_value.uninstrument = MagicMock()
 
-            from langflow.services.tracing.http_instrumentation import get_http_instrumentation_manager
+            from ketos.services.tracing.http_instrumentation import get_http_instrumentation_manager
 
             manager = get_http_instrumentation_manager()
 
@@ -131,7 +131,7 @@ class TestArizePhoenixHttpInstrumentation:
     @pytest.fixture(autouse=True)
     def reset_manager(self):
         """Reset the singleton manager between tests."""
-        from langflow.services.tracing.http_instrumentation import HTTPClientInstrumentationManager
+        from ketos.services.tracing.http_instrumentation import HTTPClientInstrumentationManager
 
         HTTPClientInstrumentationManager._instance = None
         yield
@@ -166,7 +166,7 @@ class TestArizePhoenixHttpInstrumentation:
             mock_requests_inst.return_value.instrument = MagicMock()
             mock_urllib3_inst.return_value.instrument = MagicMock()
 
-            from langflow.services.tracing.arize_phoenix import ArizePhoenixTracer
+            from ketos.services.tracing.arize_phoenix import ArizePhoenixTracer
 
             tracer = ArizePhoenixTracer(
                 trace_name="test - abc123",
@@ -191,7 +191,7 @@ class TestArizePhoenixHttpInstrumentation:
             mock_urllib3_inst.return_value.instrument = MagicMock()
             mock_urllib3_inst.return_value.uninstrument = MagicMock()
 
-            from langflow.services.tracing.arize_phoenix import ArizePhoenixTracer
+            from ketos.services.tracing.arize_phoenix import ArizePhoenixTracer
 
             tracer = ArizePhoenixTracer(
                 trace_name="test - abc123",
@@ -223,7 +223,7 @@ class TestLangWatchHttpInstrumentation:
     @pytest.fixture(autouse=True)
     def reset_manager(self):
         """Reset the singleton manager between tests."""
-        from langflow.services.tracing.http_instrumentation import HTTPClientInstrumentationManager
+        from ketos.services.tracing.http_instrumentation import HTTPClientInstrumentationManager
 
         HTTPClientInstrumentationManager._instance = None
         yield
@@ -253,7 +253,7 @@ class TestLangWatchHttpInstrumentation:
     def test_instrument_http_clients_called_on_setup(self, mock_langwatch_imports):
         """Verify that HTTP client instrumentors are called during tracer setup."""
         _ = mock_langwatch_imports
-        from langflow.services.tracing.langwatch import LangWatchTracer
+        from ketos.services.tracing.langwatch import LangWatchTracer
 
         LangWatchTracer.tracer_provider = None
 
@@ -278,7 +278,7 @@ class TestLangWatchHttpInstrumentation:
     def test_uninstrument_http_clients_called_on_end(self, mock_langwatch_imports):
         """Verify that HTTP client instrumentors are uninstrumented when tracer ends."""
         _ = mock_langwatch_imports
-        from langflow.services.tracing.langwatch import LangWatchTracer
+        from ketos.services.tracing.langwatch import LangWatchTracer
 
         LangWatchTracer.tracer_provider = None
 

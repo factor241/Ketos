@@ -16,11 +16,11 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
-from langflow.api.error_codes import CodedHTTPException
-from langflow.api.v1.deployments import DeploymentTelemetryCtx
-from langflow.api.v1.mappers.deployments.contracts import ProviderSnapshotBinding
-from langflow.api.v1.mappers.deployments.watsonx_orchestrate import WatsonxOrchestrateDeploymentMapper
-from langflow.api.v1.schemas.deployments import (
+from ketos.api.error_codes import CodedHTTPException
+from ketos.api.v1.deployments import DeploymentTelemetryCtx
+from ketos.api.v1.mappers.deployments.contracts import ProviderSnapshotBinding
+from ketos.api.v1.mappers.deployments.watsonx_orchestrate import WatsonxOrchestrateDeploymentMapper
+from ketos.api.v1.schemas.deployments import (
     DeploymentCreateRequest,
     DeploymentListItem,
     DeploymentLlmListResponse,
@@ -29,15 +29,15 @@ from langflow.api.v1.schemas.deployments import (
     DeploymentUpdateRequest,
     SnapshotUpdateRequest,
 )
-from langflow.services.database.models.deployment.exceptions import DeploymentGuardError
-from langflow.services.database.models.deployment_provider_account.schemas import DeploymentProviderKey
-from lfx.services.adapters.deployment.exceptions import (
+from ketos.services.database.models.deployment.exceptions import DeploymentGuardError
+from ketos.services.database.models.deployment_provider_account.schemas import DeploymentProviderKey
+from kfx.services.adapters.deployment.exceptions import (
     AuthenticationError,
     DeploymentNotFoundError,
     ResourceConflictError,
     ServiceUnavailableError,
 )
-from lfx.services.adapters.deployment.schema import (
+from kfx.services.adapters.deployment.schema import (
     ConfigListItem,
     ConfigListResult,
     DeploymentCreateResult,
@@ -51,8 +51,8 @@ from lfx.services.adapters.deployment.schema import (
     SnapshotListResult,
 )
 
-ROUTES_MODULE = "langflow.api.v1.deployments"
-HELPERS_MODULE = "langflow.api.v1.mappers.deployments.helpers"
+ROUTES_MODULE = "ketos.api.v1.deployments"
+HELPERS_MODULE = "ketos.api.v1.mappers.deployments.helpers"
 
 
 # ---------------------------------------------------------------------------
@@ -155,7 +155,7 @@ class TestCreateDeploymentRollback:
         mock_rollback,
     ):
         """When session.commit() fails, rollback_provider_create is called."""
-        from langflow.api.v1.deployments import create_deployment
+        from ketos.api.v1.deployments import create_deployment
 
         pa = _fake_provider_account()
         mock_get_pa.return_value = pa
@@ -216,7 +216,7 @@ class TestCreateDeploymentRollback:
         mock_rollback,
     ):
         """On successful commit, rollback is NOT called."""
-        from langflow.api.v1.deployments import create_deployment
+        from ketos.api.v1.deployments import create_deployment
 
         pa = _fake_provider_account()
         mock_get_pa.return_value = pa
@@ -276,7 +276,7 @@ class TestCreateDeploymentExistingAgent:
         mock_create_db,
         mock_attach,
     ):
-        from langflow.api.v1.deployments import create_deployment
+        from ketos.api.v1.deployments import create_deployment
 
         pa = _fake_provider_account()
         mock_get_pa.return_value = pa
@@ -345,7 +345,7 @@ class TestCreateDeploymentExistingAgent:
         mock_validate_fv,
         mock_create_db,
     ):
-        from langflow.api.v1.deployments import create_deployment
+        from ketos.api.v1.deployments import create_deployment
 
         pa = _fake_provider_account()
         mock_get_pa.return_value = pa
@@ -389,7 +389,7 @@ class TestCreateDeploymentExistingAgent:
         mock_resolve_adapter,
         mock_create_db,
     ):
-        from langflow.api.v1.deployments import create_deployment
+        from ketos.api.v1.deployments import create_deployment
 
         pa = _fake_provider_account()
         mock_get_pa.return_value = pa
@@ -435,7 +435,7 @@ class TestListDeploymentsLoadFromProvider:
         mock_resolve_adapter,
         mock_list_synced,
     ):
-        from langflow.api.v1.deployments import list_deployments
+        from ketos.api.v1.deployments import list_deployments
 
         pa = _fake_provider_account()
         mock_get_pa.return_value = pa
@@ -477,7 +477,7 @@ class TestListDeploymentsLoadFromProvider:
 
     @pytest.mark.asyncio
     async def test_load_from_provider_rejects_flow_version_filters(self):
-        from langflow.api.v1.deployments import list_deployments
+        from ketos.api.v1.deployments import list_deployments
 
         with pytest.raises(HTTPException) as exc_info:
             await list_deployments(
@@ -493,7 +493,7 @@ class TestListDeploymentsLoadFromProvider:
 
     @pytest.mark.asyncio
     async def test_load_from_provider_rejects_flow_ids_filter(self):
-        from langflow.api.v1.deployments import list_deployments
+        from ketos.api.v1.deployments import list_deployments
 
         with pytest.raises(HTTPException) as exc_info:
             await list_deployments(
@@ -516,7 +516,7 @@ class TestListDeploymentsLoadFromProvider:
 class TestListDeploymentsFlowIdsFilter:
     @pytest.mark.asyncio
     async def test_flow_ids_and_flow_version_ids_mutually_exclusive(self):
-        from langflow.api.v1.deployments import list_deployments
+        from ketos.api.v1.deployments import list_deployments
 
         with pytest.raises(HTTPException) as exc_info:
             await list_deployments(
@@ -535,7 +535,7 @@ class TestListDeploymentsFlowIdsFilter:
     @pytest.mark.asyncio
     @patch(f"{ROUTES_MODULE}.flow_version_ids_for_flows", new_callable=AsyncMock, return_value=[])
     async def test_flow_ids_no_versions_returns_empty(self, mock_fv_for_flows):
-        from langflow.api.v1.deployments import list_deployments
+        from ketos.api.v1.deployments import list_deployments
 
         result = await list_deployments(
             provider_id=uuid4(),
@@ -565,7 +565,7 @@ class TestListDeploymentsFlowIdsFilter:
         mock_resolve_adapter,
         mock_list_synced,
     ):
-        from langflow.api.v1.deployments import list_deployments
+        from ketos.api.v1.deployments import list_deployments
 
         fv_id = uuid4()
         mock_fv_for_flows.return_value = [fv_id]
@@ -604,7 +604,7 @@ class TestListDeploymentsProjectIdFilter:
     @pytest.mark.asyncio
     async def test_load_from_provider_rejects_project_id(self):
         """project_id filtering is not supported when load_from_provider=true."""
-        from langflow.api.v1.deployments import list_deployments
+        from ketos.api.v1.deployments import list_deployments
 
         with pytest.raises(HTTPException) as exc_info:
             await list_deployments(
@@ -632,7 +632,7 @@ class TestListDeploymentsProjectIdFilter:
         mock_list_synced,
     ):
         """When project_id is supplied it is forwarded to list_deployments_synced."""
-        from langflow.api.v1.deployments import list_deployments
+        from ketos.api.v1.deployments import list_deployments
 
         pa = _fake_provider_account()
         mock_get_pa.return_value = pa
@@ -669,7 +669,7 @@ class TestListDeploymentsProjectIdFilter:
         mock_list_synced,
     ):
         """When project_id is not supplied, None is forwarded (no filter)."""
-        from langflow.api.v1.deployments import list_deployments
+        from ketos.api.v1.deployments import list_deployments
 
         pa = _fake_provider_account()
         mock_get_pa.return_value = pa
@@ -720,8 +720,8 @@ class TestListDeploymentsMetadataSync:
         mock_count_attachments,
         mock_count,
     ):
-        from langflow.api.v1.deployments import list_deployments
-        from langflow.api.v1.mappers.deployments.base import BaseDeploymentMapper
+        from ketos.api.v1.deployments import list_deployments
+        from ketos.api.v1.mappers.deployments.base import BaseDeploymentMapper
 
         class _Mapper(BaseDeploymentMapper):
             def extract_snapshot_bindings(self, provider_view):
@@ -780,8 +780,8 @@ class TestListDeploymentsMetadataSync:
 
         def _apply_metadata_batch(*_args, **kwargs):
             update = kwargs["deployment_updates"][0]
-            update.langflow_db_row.display_name = update.display_name
-            update.langflow_db_row.description = update.description
+            update.ketos_db_row.display_name = update.display_name
+            update.ketos_db_row.description = update.description
 
         mock_get_pa.return_value = pa
         mock_resolve_adapter.return_value = AsyncMock()
@@ -823,7 +823,7 @@ class TestConfigAndSnapshotListRoutes:
         mock_get_mapper,
         mock_resolve_adapter,
     ):
-        from langflow.api.v1.deployments import list_deployment_configs
+        from ketos.api.v1.deployments import list_deployment_configs
 
         pa = _fake_provider_account()
         mock_get_pa.return_value = pa
@@ -877,7 +877,7 @@ class TestConfigAndSnapshotListRoutes:
         mock_resolve_adapter,
         mock_get_deployment,
     ):
-        from langflow.api.v1.deployments import list_deployment_snapshots
+        from ketos.api.v1.deployments import list_deployment_snapshots
 
         pa = _fake_provider_account()
         deployment = _fake_deployment_row(resource_key="dep-key")
@@ -938,8 +938,8 @@ class TestConfigAndSnapshotListRoutes:
 
 class TestUpdateSnapshotRoute:
     @pytest.mark.asyncio
-    @patch("langflow.services.database.models.flow_version.crud.get_flow_version_entry", new_callable=AsyncMock)
-    @patch("langflow.services.database.models.deployment.crud.get_deployment", new_callable=AsyncMock)
+    @patch("ketos.services.database.models.flow_version.crud.get_flow_version_entry", new_callable=AsyncMock)
+    @patch("ketos.services.database.models.deployment.crud.get_deployment", new_callable=AsyncMock)
     @patch(f"{ROUTES_MODULE}.update_flow_version_by_provider_snapshot_id", new_callable=AsyncMock)
     @patch(f"{ROUTES_MODULE}.resolve_deployment_adapter")
     @patch(f"{ROUTES_MODULE}.get_deployment_mapper")
@@ -957,7 +957,7 @@ class TestUpdateSnapshotRoute:
         mock_get_deployment_row,
         mock_get_flow_version,
     ):
-        from langflow.api.v1.deployments import update_snapshot
+        from ketos.api.v1.deployments import update_snapshot
 
         user = _fake_user()
         flow_id = uuid4()
@@ -1022,8 +1022,8 @@ class TestUpdateSnapshotRoute:
         session.rollback.assert_not_awaited()
 
     @pytest.mark.asyncio
-    @patch("langflow.services.database.models.flow_version.crud.get_flow_version_entry", new_callable=AsyncMock)
-    @patch("langflow.services.database.models.deployment.crud.get_deployment", new_callable=AsyncMock)
+    @patch("ketos.services.database.models.flow_version.crud.get_flow_version_entry", new_callable=AsyncMock)
+    @patch("ketos.services.database.models.deployment.crud.get_deployment", new_callable=AsyncMock)
     @patch(f"{ROUTES_MODULE}.update_flow_version_by_provider_snapshot_id", new_callable=AsyncMock)
     @patch(f"{ROUTES_MODULE}.resolve_deployment_adapter")
     @patch(f"{ROUTES_MODULE}.get_deployment_mapper")
@@ -1041,7 +1041,7 @@ class TestUpdateSnapshotRoute:
         mock_get_deployment_row,
         mock_get_flow_version,
     ):
-        from langflow.api.v1.deployments import update_snapshot
+        from ketos.api.v1.deployments import update_snapshot
 
         user = _fake_user()
         flow_id = uuid4()
@@ -1098,8 +1098,8 @@ class TestUpdateSnapshotRoute:
         assert adapter.update_snapshot.await_count == 2
 
     @pytest.mark.asyncio
-    @patch("langflow.services.database.models.flow_version.crud.get_flow_version_entry", new_callable=AsyncMock)
-    @patch("langflow.services.database.models.deployment.crud.get_deployment", new_callable=AsyncMock)
+    @patch("ketos.services.database.models.flow_version.crud.get_flow_version_entry", new_callable=AsyncMock)
+    @patch("ketos.services.database.models.deployment.crud.get_deployment", new_callable=AsyncMock)
     @patch(f"{ROUTES_MODULE}.resolve_deployment_adapter")
     @patch(f"{ROUTES_MODULE}.get_owned_provider_account_or_404", new_callable=AsyncMock)
     @patch(f"{ROUTES_MODULE}.validate_project_scoped_flow_version_ids", new_callable=AsyncMock)
@@ -1113,7 +1113,7 @@ class TestUpdateSnapshotRoute:
         mock_get_deployment_row,
         mock_get_flow_version,
     ):
-        from langflow.api.v1.deployments import update_snapshot
+        from ketos.api.v1.deployments import update_snapshot
 
         user = _fake_user()
         target_flow_version_id = uuid4()
@@ -1168,7 +1168,7 @@ class TestUpdateSnapshotRoute:
     @pytest.mark.asyncio
     @patch(f"{ROUTES_MODULE}.ensure_deployment_permission", new_callable=AsyncMock)
     @patch(f"{ROUTES_MODULE}.get_authorization_service")
-    @patch("langflow.services.database.models.deployment.crud.get_deployment", new_callable=AsyncMock)
+    @patch("ketos.services.database.models.deployment.crud.get_deployment", new_callable=AsyncMock)
     @patch(f"{ROUTES_MODULE}.list_attachments_by_provider_snapshot_id", new_callable=AsyncMock)
     async def test_share_aware_zero_authorized_groups_returns_404(
         self,
@@ -1178,7 +1178,7 @@ class TestUpdateSnapshotRoute:
         mock_ensure_perm,
     ):
         """Share-aware: candidates from two owners; neither authorizes → 404 (no info leak)."""
-        from langflow.api.v1.deployments import update_snapshot
+        from ketos.api.v1.deployments import update_snapshot
 
         user = _fake_user()
         alice_id = uuid4()
@@ -1224,7 +1224,7 @@ class TestUpdateSnapshotRoute:
         assert "owner" not in exc_info.value.detail.lower()
 
     @pytest.mark.asyncio
-    @patch("langflow.services.database.models.flow_version.crud.get_flow_version_entry", new_callable=AsyncMock)
+    @patch("ketos.services.database.models.flow_version.crud.get_flow_version_entry", new_callable=AsyncMock)
     @patch(f"{ROUTES_MODULE}.update_flow_version_by_provider_snapshot_id", new_callable=AsyncMock)
     @patch(f"{ROUTES_MODULE}.resolve_deployment_adapter")
     @patch(f"{ROUTES_MODULE}.get_deployment_mapper")
@@ -1232,7 +1232,7 @@ class TestUpdateSnapshotRoute:
     @patch(f"{ROUTES_MODULE}.validate_project_scoped_flow_version_ids", new_callable=AsyncMock)
     @patch(f"{ROUTES_MODULE}.ensure_deployment_permission", new_callable=AsyncMock)
     @patch(f"{ROUTES_MODULE}.get_authorization_service")
-    @patch("langflow.services.database.models.deployment.crud.get_deployment", new_callable=AsyncMock)
+    @patch("ketos.services.database.models.deployment.crud.get_deployment", new_callable=AsyncMock)
     @patch(f"{ROUTES_MODULE}.list_attachments_by_provider_snapshot_id", new_callable=AsyncMock)
     async def test_share_aware_one_authorized_group_ignores_unauthorized_collision(
         self,
@@ -1248,7 +1248,7 @@ class TestUpdateSnapshotRoute:
         mock_get_flow_version,
     ):
         """An unrelated owner with the same snapshot id must NOT block a legitimate share-holder."""
-        from langflow.api.v1.deployments import update_snapshot
+        from ketos.api.v1.deployments import update_snapshot
 
         user = _fake_user()
         target_flow_version_id = uuid4()
@@ -1327,7 +1327,7 @@ class TestUpdateSnapshotRoute:
     @pytest.mark.asyncio
     @patch(f"{ROUTES_MODULE}.ensure_deployment_permission", new_callable=AsyncMock)
     @patch(f"{ROUTES_MODULE}.get_authorization_service")
-    @patch("langflow.services.database.models.deployment.crud.get_deployment", new_callable=AsyncMock)
+    @patch("ketos.services.database.models.deployment.crud.get_deployment", new_callable=AsyncMock)
     @patch(f"{ROUTES_MODULE}.list_attachments_by_provider_snapshot_id", new_callable=AsyncMock)
     async def test_share_aware_multiple_authorized_groups_returns_409(
         self,
@@ -1337,7 +1337,7 @@ class TestUpdateSnapshotRoute:
         mock_ensure_perm,
     ):
         """Actor has WRITE on two unrelated owners' snapshots — route must refuse with 409."""
-        from langflow.api.v1.deployments import update_snapshot
+        from ketos.api.v1.deployments import update_snapshot
 
         user = _fake_user()
         alice_id = uuid4()
@@ -1382,7 +1382,7 @@ class TestUpdateSnapshotRoute:
     @pytest.mark.asyncio
     @patch(f"{ROUTES_MODULE}.ensure_deployment_permission", new_callable=AsyncMock)
     @patch(f"{ROUTES_MODULE}.get_authorization_service")
-    @patch("langflow.services.database.models.deployment.crud.get_deployment", new_callable=AsyncMock)
+    @patch("ketos.services.database.models.deployment.crud.get_deployment", new_callable=AsyncMock)
     @patch(f"{ROUTES_MODULE}.list_attachments_by_provider_snapshot_id", new_callable=AsyncMock)
     async def test_one_owner_spanning_multiple_provider_accounts_returns_409(
         self,
@@ -1396,7 +1396,7 @@ class TestUpdateSnapshotRoute:
         The external snapshot update can only run against one adapter, but the DB
         rewrite would otherwise corrupt rows tied to the second provider account.
         """
-        from langflow.api.v1.deployments import update_snapshot
+        from ketos.api.v1.deployments import update_snapshot
 
         user = _fake_user()
         owner_id = user.id  # actor is the owner (OSS-path-compatible)
@@ -1455,7 +1455,7 @@ class TestListDeploymentFlowVersionsRoute:
         mock_resolve,
         mock_list_flow_versions_synced,
     ):
-        from langflow.api.v1.deployments import list_deployment_flow_versions
+        from ketos.api.v1.deployments import list_deployment_flow_versions
 
         deployment_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -1536,7 +1536,7 @@ class TestProviderAccountRoutes:
         mock_update_provider_account,
     ):
         """PATCH skips credential verification when only name changes."""
-        from langflow.api.v1.deployments import update_provider_account
+        from ketos.api.v1.deployments import update_provider_account
 
         existing_account = _fake_provider_account()
         mock_get_provider_account.return_value = existing_account
@@ -1571,7 +1571,7 @@ class TestProviderAccountRoutes:
         mock_update_provider_account,
     ):
         """PATCH verifies new credentials before persisting them."""
-        from langflow.api.v1.deployments import update_provider_account
+        from ketos.api.v1.deployments import update_provider_account
 
         existing_account = _fake_provider_account()
         mock_get_provider_account.return_value = existing_account
@@ -1610,7 +1610,7 @@ class TestProviderAccountRoutes:
         mock_create_provider_account,
     ):
         """POST converts duplicate provider-account conflicts into 409 responses."""
-        from langflow.api.v1.deployments import create_provider_account
+        from ketos.api.v1.deployments import create_provider_account
 
         mapper = MagicMock()
         mapper.resolve_verify_credentials_for_create.return_value = MagicMock()
@@ -1654,7 +1654,7 @@ class TestProviderAccountRoutes:
         mock_update_provider_account,
     ):
         """PATCH converts duplicate provider-account conflicts into 409 responses."""
-        from langflow.api.v1.deployments import update_provider_account
+        from ketos.api.v1.deployments import update_provider_account
 
         existing_account = _fake_provider_account()
         mock_get_provider_account.return_value = existing_account
@@ -1693,7 +1693,7 @@ class TestProviderAccountRoutes:
         mock_update_provider_account,
     ):
         """PATCH preserves raw guard-shaped DB exceptions without rewriting them."""
-        from langflow.api.v1.deployments import update_provider_account
+        from ketos.api.v1.deployments import update_provider_account
 
         existing_account = _fake_provider_account()
         mock_get_provider_account.return_value = existing_account
@@ -1735,7 +1735,7 @@ class TestProviderAccountRoutes:
         mock_update_provider_account,
     ):
         """PATCH preserves ORM-raised DeploymentGuardError exceptions."""
-        from langflow.api.v1.deployments import update_provider_account
+        from ketos.api.v1.deployments import update_provider_account
 
         existing_account = _fake_provider_account()
         mock_get_provider_account.return_value = existing_account
@@ -1780,7 +1780,7 @@ class TestProviderAccountRoutes:
         mock_delete_provider_account,
     ):
         """DELETE refuses to remove provider accounts that still own deployments."""
-        from langflow.api.v1.deployments import delete_provider_account
+        from ketos.api.v1.deployments import delete_provider_account
 
         existing_account = _fake_provider_account()
         mock_get_provider_account.return_value = existing_account
@@ -1817,7 +1817,7 @@ class TestProviderAccountRoutes:
         mock_delete_provider_account,
     ):
         """DELETE can proceed when reconciliation shows only stale local deployments remain."""
-        from langflow.api.v1.deployments import delete_provider_account
+        from ketos.api.v1.deployments import delete_provider_account
 
         existing_account = _fake_provider_account()
         mock_get_provider_account.return_value = existing_account
@@ -1863,8 +1863,8 @@ class TestProviderAccountRoutes:
         with status 401, the reconciliation is silently dropped, and the stale local
         count blocks every provider-account delete with a 409.
         """
-        from langflow.api.v1.deployments import delete_provider_account
-        from langflow.services.adapters.deployment.context import DeploymentProviderIDContext
+        from ketos.api.v1.deployments import delete_provider_account
+        from ketos.services.adapters.deployment.context import DeploymentProviderIDContext
 
         existing_account = _fake_provider_account()
         mock_get_provider_account.return_value = existing_account
@@ -1916,8 +1916,8 @@ class TestProviderAccountRoutes:
         The handler must surface the safe 409 (rather than crash) and must NOT delete the
         provider account row while local deployments are still tracked.
         """
-        from langflow.api.v1.deployments import delete_provider_account
-        from lfx.services.adapters.deployment.exceptions import CredentialResolutionError
+        from ketos.api.v1.deployments import delete_provider_account
+        from kfx.services.adapters.deployment.exceptions import CredentialResolutionError
 
         existing_account = _fake_provider_account()
         mock_get_provider_account.return_value = existing_account
@@ -1957,7 +1957,7 @@ class TestProviderAccountRoutes:
         mock_delete_provider_account,
     ):
         """When the local count is 0 we must not hit the provider; just delete the row."""
-        from langflow.api.v1.deployments import delete_provider_account
+        from ketos.api.v1.deployments import delete_provider_account
 
         existing_account = _fake_provider_account()
         mock_get_provider_account.return_value = existing_account
@@ -2004,7 +2004,7 @@ class TestUpdateDeploymentRollback:
         mock_rollback,
     ):
         """When session.commit() fails, rollback_provider_update is called."""
-        from langflow.api.v1.deployments import update_deployment
+        from ketos.api.v1.deployments import update_deployment
 
         dep_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -2063,7 +2063,7 @@ class TestUpdateDeploymentRollback:
         mock_rollback,
     ):
         """On successful commit, rollback is NOT called."""
-        from langflow.api.v1.deployments import update_deployment
+        from ketos.api.v1.deployments import update_deployment
 
         dep_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -2121,7 +2121,7 @@ class TestUpdateDeploymentAlreadyAttachedFiltering:
         When some bind flow version IDs already have DB attachments, only the
         truly new ones are passed to resolve_added_snapshot_bindings_for_update.
         """
-        from langflow.api.v1.deployments import update_deployment
+        from ketos.api.v1.deployments import update_deployment
 
         dep_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -2181,7 +2181,7 @@ class TestUpdateDeploymentAlreadyAttachedFiltering:
         When all bind flow versions already have attachments, an empty list
         is passed to resolve_added_snapshot_bindings_for_update.
         """
-        from langflow.api.v1.deployments import update_deployment
+        from ketos.api.v1.deployments import update_deployment
 
         dep_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -2237,7 +2237,7 @@ class TestUpdateDeploymentAlreadyAttachedFiltering:
         mock_apply_patch,  # noqa: ARG002
     ):
         """When no bind flow versions have existing attachments, all are passed through."""
-        from langflow.api.v1.deployments import update_deployment
+        from ketos.api.v1.deployments import update_deployment
 
         dep_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -2292,7 +2292,7 @@ class TestUpdateDeploymentMetadataPersistence:
         mock_update_db,
     ):
         """PATCH should persist provider-returned metadata, even when the DB row is stale."""
-        from langflow.api.v1.deployments import update_deployment
+        from ketos.api.v1.deployments import update_deployment
 
         dep_row = _fake_deployment_row(display_name="old-name", description="old-description")
         updated_row = _fake_deployment_row(
@@ -2356,8 +2356,8 @@ class TestGetDeploymentSync:
         mock_delete_row,
     ):
         """When the provider raises DeploymentNotFoundError, the DB row is deleted and 404 returned."""
-        from langflow.api.v1.deployments import get_deployment
-        from langflow.api.v1.mappers.deployments.base import BaseDeploymentMapper
+        from ketos.api.v1.deployments import get_deployment
+        from ketos.api.v1.mappers.deployments.base import BaseDeploymentMapper
 
         dep_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -2386,8 +2386,8 @@ class TestGetDeploymentSync:
         mock_delete_row,
     ):
         """When adapter.get() raises a non-404 DeploymentServiceError, the DB row is kept."""
-        from langflow.api.v1.deployments import get_deployment
-        from langflow.api.v1.mappers.deployments.base import BaseDeploymentMapper
+        from ketos.api.v1.deployments import get_deployment
+        from ketos.api.v1.mappers.deployments.base import BaseDeploymentMapper
 
         dep_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -2411,8 +2411,8 @@ class TestGetDeploymentSync:
         mock_delete_row,
     ):
         """When adapter.get() raises ServiceUnavailableError, 503 is returned and row is kept."""
-        from langflow.api.v1.deployments import get_deployment
-        from langflow.api.v1.mappers.deployments.base import BaseDeploymentMapper
+        from ketos.api.v1.deployments import get_deployment
+        from ketos.api.v1.mappers.deployments.base import BaseDeploymentMapper
 
         dep_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -2437,8 +2437,8 @@ class TestGetDeploymentSync:
         mock_count_att,  # noqa: ARG002
         mock_delete_unbound,  # noqa: ARG002
     ):
-        from langflow.api.v1.deployments import get_deployment
-        from langflow.api.v1.mappers.deployments.base import BaseDeploymentMapper
+        from ketos.api.v1.deployments import get_deployment
+        from ketos.api.v1.mappers.deployments.base import BaseDeploymentMapper
 
         class _MapperForGet(BaseDeploymentMapper):
             def shape_deployment_get_data(self, provider_data, *, name=None):  # noqa: ARG002
@@ -2508,8 +2508,8 @@ class TestGetDeploymentSync:
         mock_count_att,  # noqa: ARG002
         mock_delete_unbound,  # noqa: ARG002
     ):
-        from langflow.api.v1.deployments import get_deployment
-        from langflow.api.v1.mappers.deployments.base import BaseDeploymentMapper
+        from ketos.api.v1.deployments import get_deployment
+        from ketos.api.v1.mappers.deployments.base import BaseDeploymentMapper
 
         class _MapperForGet(BaseDeploymentMapper):
             def shape_deployment_get_data(self, provider_data, *, name=None):  # noqa: ARG002
@@ -2572,7 +2572,7 @@ class TestGetDeploymentSync:
         mock_delete_unbound,
     ):
         """Binding-aware sync corrects attached_count in the response."""
-        from langflow.api.v1.deployments import get_deployment
+        from ketos.api.v1.deployments import get_deployment
 
         dep_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -2614,7 +2614,7 @@ class TestGetDeploymentSync:
         mock_delete_unbound,
     ):
         """NotImplemented mapper GET sync fails because binding-aware sync is required."""
-        from langflow.api.v1.deployments import get_deployment
+        from ketos.api.v1.deployments import get_deployment
 
         dep_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -2656,7 +2656,7 @@ class TestGetDeploymentSync:
         mock_delete_unbound,
     ):
         """When binding-aware sync raises, response uses unverified attachment count."""
-        from langflow.api.v1.deployments import get_deployment
+        from ketos.api.v1.deployments import get_deployment
 
         dep_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -2699,7 +2699,7 @@ class TestGetDeploymentSync:
         mock_delete_unbound,
     ):
         """When sync and fallback count both fail, return an explicit count error."""
-        from langflow.api.v1.deployments import get_deployment
+        from ketos.api.v1.deployments import get_deployment
 
         dep_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -2745,7 +2745,7 @@ class TestGetDeploymentSync:
         mock_delete_unbound,
     ):
         """Binding-aware sync sends authoritative bindings and returns corrected count."""
-        from langflow.api.v1.deployments import get_deployment
+        from ketos.api.v1.deployments import get_deployment
 
         dep_row = _fake_deployment_row(resource_key="agent-rk-1")
         adapter = AsyncMock()
@@ -2793,7 +2793,7 @@ class TestDeleteDeployment:
         mock_delete_row,
     ):
         """Delete is idempotent when the provider agent is already gone."""
-        from langflow.api.v1.deployments import delete_deployment
+        from ketos.api.v1.deployments import delete_deployment
 
         dep_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -2821,7 +2821,7 @@ class TestDeleteDeployment:
         mock_delete_row,
     ):
         """Delete keeps the DB row when the provider call fails for non-404 reasons."""
-        from langflow.api.v1.deployments import delete_deployment
+        from ketos.api.v1.deployments import delete_deployment
 
         dep_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -2848,7 +2848,7 @@ class TestDeleteDeployment:
         mock_delete_row,
     ):
         """A failed local commit after provider delete triggers one cleanup retry."""
-        from langflow.api.v1.deployments import delete_deployment
+        from ketos.api.v1.deployments import delete_deployment
 
         dep_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -2876,7 +2876,7 @@ class TestDeleteDeployment:
         mock_delete_row,
     ):
         """If cleanup still fails after retry, the route surfaces a 500."""
-        from langflow.api.v1.deployments import delete_deployment
+        from ketos.api.v1.deployments import delete_deployment
 
         dep_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -2904,7 +2904,7 @@ class TestDeleteDeployment:
         mock_delete_row,
     ):
         """include_provider=True (default) calls adapter.delete to remove provider resources."""
-        from langflow.api.v1.deployments import delete_deployment
+        from ketos.api.v1.deployments import delete_deployment
 
         dep_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -2934,7 +2934,7 @@ class TestDeleteDeployment:
         mock_delete_row,
     ):
         """include_provider=False skips the adapter entirely — only the DB row is removed."""
-        from langflow.api.v1.deployments import delete_deployment
+        from ketos.api.v1.deployments import delete_deployment
 
         dep_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -2982,7 +2982,7 @@ class TestCreateDeploymentProjectValidation:
         mock_validate_fv,
     ):
         """validate_project_scoped_flow_version_ids is called before the adapter create."""
-        from langflow.api.v1.deployments import create_deployment
+        from ketos.api.v1.deployments import create_deployment
 
         pa = _fake_provider_account()
         mock_get_pa.return_value = pa
@@ -3028,7 +3028,7 @@ class TestCreateDeploymentProjectValidation:
         mock_validate_fv,
     ):
         """When the mapper returns no flow_version_ids, validation still runs (it short-circuits internally)."""
-        from langflow.api.v1.deployments import create_deployment
+        from ketos.api.v1.deployments import create_deployment
 
         pa = _fake_provider_account()
         mock_get_pa.return_value = pa
@@ -3081,7 +3081,7 @@ class TestCreateDeploymentSchemaValidation:
         mock_validate_fv,
     ):
         """Mapper-level schema failures on create surface as HTTP 422."""
-        from langflow.api.v1.deployments import create_deployment
+        from ketos.api.v1.deployments import create_deployment
 
         pa = _fake_provider_account()
         mock_get_pa.return_value = pa
@@ -3129,7 +3129,7 @@ class TestUpdateDeploymentProjectValidation:
         mock_validate_fv,
     ):
         """validate_project_scoped_flow_version_ids is called before the adapter update."""
-        from langflow.api.v1.deployments import update_deployment
+        from ketos.api.v1.deployments import update_deployment
 
         dep_row = _fake_deployment_row()
         adapter = AsyncMock()
@@ -3176,7 +3176,7 @@ class TestListDeploymentLlms:
         mock_get_mapper,
         mock_resolve_adapter,
     ):
-        from langflow.api.v1.deployments import list_deployment_llms
+        from ketos.api.v1.deployments import list_deployment_llms
 
         provider_account = _fake_provider_account()
         mock_get_provider_account.return_value = provider_account
@@ -3216,7 +3216,7 @@ class TestListDeploymentLlms:
         mock_get_mapper,
         mock_resolve_adapter,
     ):
-        from langflow.api.v1.deployments import list_deployment_llms
+        from ketos.api.v1.deployments import list_deployment_llms
 
         provider_account = _fake_provider_account()
         mock_get_provider_account.return_value = provider_account
@@ -3246,7 +3246,7 @@ class TestListDeploymentLlms:
 
 class TestResolveDeploymentAdapter:
     def test_empty_provider_key_raises_400(self):
-        from langflow.api.v1.mappers.deployments.helpers import resolve_deployment_adapter
+        from ketos.api.v1.mappers.deployments.helpers import resolve_deployment_adapter
 
         with pytest.raises(HTTPException) as exc_info:
             resolve_deployment_adapter("")
@@ -3255,7 +3255,7 @@ class TestResolveDeploymentAdapter:
         assert "provider_key" in exc_info.value.detail.lower()
 
     def test_whitespace_only_provider_key_raises_400(self):
-        from langflow.api.v1.mappers.deployments.helpers import resolve_deployment_adapter
+        from ketos.api.v1.mappers.deployments.helpers import resolve_deployment_adapter
 
         with pytest.raises(HTTPException) as exc_info:
             resolve_deployment_adapter("   ")
@@ -3264,7 +3264,7 @@ class TestResolveDeploymentAdapter:
 
     @patch(f"{HELPERS_MODULE}.get_deployment_adapter", return_value=None)
     def test_unknown_provider_key_raises_503(self, _mock_get):  # noqa: PT019
-        from langflow.api.v1.mappers.deployments.helpers import resolve_deployment_adapter
+        from ketos.api.v1.mappers.deployments.helpers import resolve_deployment_adapter
 
         with pytest.raises(HTTPException) as exc_info:
             resolve_deployment_adapter("nonexistent_provider")
@@ -3274,7 +3274,7 @@ class TestResolveDeploymentAdapter:
 
     @patch(f"{HELPERS_MODULE}.get_deployment_adapter", side_effect=RuntimeError("registry boom"))
     def test_adapter_lookup_error_raises_500(self, _mock_get):  # noqa: PT019
-        from langflow.api.v1.mappers.deployments.helpers import resolve_deployment_adapter
+        from ketos.api.v1.mappers.deployments.helpers import resolve_deployment_adapter
 
         with pytest.raises(HTTPException) as exc_info:
             resolve_deployment_adapter("bad_key")
@@ -3283,7 +3283,7 @@ class TestResolveDeploymentAdapter:
 
     @patch(f"{HELPERS_MODULE}.get_deployment_adapter")
     def test_valid_provider_key_returns_adapter(self, mock_get):
-        from langflow.api.v1.mappers.deployments.helpers import resolve_deployment_adapter
+        from ketos.api.v1.mappers.deployments.helpers import resolve_deployment_adapter
 
         sentinel = MagicMock()
         mock_get.return_value = sentinel
@@ -3301,7 +3301,7 @@ class TestResolveDeploymentAdapter:
 
 class TestHandleAdapterErrors:
     def test_maps_authentication_error_to_401(self):
-        from langflow.api.v1.mappers.deployments.helpers import handle_adapter_errors
+        from ketos.api.v1.mappers.deployments.helpers import handle_adapter_errors
 
         with pytest.raises(CodedHTTPException) as exc_info, handle_adapter_errors():
             raise AuthenticationError(message="bad creds", error_code="authentication_error")
@@ -3312,7 +3312,7 @@ class TestHandleAdapterErrors:
         assert exc_info.value.technical_detail == "bad creds"
 
     def test_maps_service_unavailable_to_503(self):
-        from langflow.api.v1.mappers.deployments.helpers import handle_adapter_errors
+        from ketos.api.v1.mappers.deployments.helpers import handle_adapter_errors
 
         with pytest.raises(HTTPException) as exc_info, handle_adapter_errors():
             raise ServiceUnavailableError(message="provider down")
@@ -3320,7 +3320,7 @@ class TestHandleAdapterErrors:
         assert exc_info.value.status_code == 503
 
     def test_maps_not_found_to_404(self):
-        from langflow.api.v1.mappers.deployments.helpers import handle_adapter_errors
+        from ketos.api.v1.mappers.deployments.helpers import handle_adapter_errors
 
         with pytest.raises(HTTPException) as exc_info, handle_adapter_errors():
             raise DeploymentNotFoundError(message="gone")
@@ -3328,7 +3328,7 @@ class TestHandleAdapterErrors:
         assert exc_info.value.status_code == 404
 
     def test_maps_conflict_with_mapper_formatter(self):
-        from langflow.api.v1.mappers.deployments.helpers import handle_adapter_errors
+        from ketos.api.v1.mappers.deployments.helpers import handle_adapter_errors
 
         deployment_mapper = MagicMock()
         deployment_mapper.format_conflict_detail.return_value = "friendly detail"
@@ -3347,7 +3347,7 @@ class TestHandleAdapterErrors:
         )
 
     def test_maps_conflict_passes_structured_resource_to_mapper_formatter(self):
-        from langflow.api.v1.mappers.deployments.helpers import handle_adapter_errors
+        from ketos.api.v1.mappers.deployments.helpers import handle_adapter_errors
 
         deployment_mapper = MagicMock()
         deployment_mapper.format_conflict_detail.return_value = "friendly detail"
@@ -3364,7 +3364,7 @@ class TestHandleAdapterErrors:
         )
 
     def test_maps_conflict_passes_structured_resource_name_to_mapper_formatter(self):
-        from langflow.api.v1.mappers.deployments.helpers import handle_adapter_errors
+        from ketos.api.v1.mappers.deployments.helpers import handle_adapter_errors
 
         deployment_mapper = MagicMock()
         deployment_mapper.format_conflict_detail.return_value = "friendly detail"
@@ -3385,7 +3385,7 @@ class TestHandleAdapterErrors:
         )
 
     def test_maps_conflict_without_mapper_passthrough(self):
-        from langflow.api.v1.mappers.deployments.helpers import handle_adapter_errors
+        from ketos.api.v1.mappers.deployments.helpers import handle_adapter_errors
 
         with pytest.raises(CodedHTTPException) as exc_info, handle_adapter_errors():
             raise ResourceConflictError(message="raw provider conflict")
@@ -3395,7 +3395,7 @@ class TestHandleAdapterErrors:
         assert exc_info.value.technical_detail == "raw provider conflict"
 
     def test_passes_through_http_exception(self):
-        from langflow.api.v1.mappers.deployments.helpers import handle_adapter_errors
+        from ketos.api.v1.mappers.deployments.helpers import handle_adapter_errors
 
         with pytest.raises(HTTPException) as exc_info, handle_adapter_errors():
             raise HTTPException(status_code=418, detail="teapot")
@@ -3403,7 +3403,7 @@ class TestHandleAdapterErrors:
         assert exc_info.value.status_code == 418
 
     def test_maps_not_implemented_to_501(self):
-        from langflow.api.v1.mappers.deployments.helpers import handle_adapter_errors
+        from ketos.api.v1.mappers.deployments.helpers import handle_adapter_errors
 
         msg = "nope"
         with pytest.raises(HTTPException) as exc_info, handle_adapter_errors():

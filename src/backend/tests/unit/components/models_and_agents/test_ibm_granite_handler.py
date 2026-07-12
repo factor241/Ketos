@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from langchain_core.messages import AIMessage
-from lfx.components.langchain_utilities.ibm_granite_handler import (
+from kfx.components.langchain_utilities.ibm_granite_handler import (
     PLACEHOLDER_PATTERN,
     create_granite_agent,
     detect_placeholder_in_args,
@@ -703,7 +703,7 @@ class TestCreateGraniteAgentDynamicInvoke:
         # We need to invoke the first part (RunnableLambda)
         # This will raise because ToolsAgentOutputParser expects AIMessage with tool_calls
         with (
-            patch("lfx.components.langchain_utilities.ibm_granite_handler.format_to_tool_messages", return_value=[]),
+            patch("kfx.components.langchain_utilities.ibm_granite_handler.format_to_tool_messages", return_value=[]),
             contextlib.suppress(Exception),
         ):
             agent.invoke(inputs)
@@ -720,7 +720,7 @@ class TestCreateGraniteAgentDynamicInvoke:
         inputs = {"input": "test", "intermediate_steps": [("action1", "result1"), ("action2", "result2")]}
 
         with (
-            patch("lfx.components.langchain_utilities.ibm_granite_handler.format_to_tool_messages", return_value=[]),
+            patch("kfx.components.langchain_utilities.ibm_granite_handler.format_to_tool_messages", return_value=[]),
             contextlib.suppress(Exception),
         ):
             agent.invoke(inputs)
@@ -740,7 +740,7 @@ class TestCreateGraniteAgentDynamicInvoke:
         inputs = {"input": "test", "intermediate_steps": []}
 
         with (
-            patch("lfx.components.langchain_utilities.ibm_granite_handler.format_to_tool_messages", return_value=[]),
+            patch("kfx.components.langchain_utilities.ibm_granite_handler.format_to_tool_messages", return_value=[]),
             contextlib.suppress(Exception),
         ):
             agent.invoke(inputs)
@@ -759,7 +759,7 @@ class TestToolCallingAgentIntegration:
 
     def test_watsonx_detection_in_create_agent_runnable(self):
         """Test that WatsonX models are detected in create_agent_runnable."""
-        from lfx.components.langchain_utilities import ToolCallingAgentComponent
+        from kfx.components.langchain_utilities import ToolCallingAgentComponent
 
         # Create a mock WatsonX LLM (simulating ChatWatsonx)
         mock_llm = Mock()
@@ -775,7 +775,7 @@ class TestToolCallingAgentIntegration:
 
         with (
             patch.object(component, "_get_llm", return_value=mock_llm),
-            patch("lfx.components.langchain_utilities.tool_calling.create_granite_agent") as mock_create,
+            patch("kfx.components.langchain_utilities.tool_calling.create_granite_agent") as mock_create,
         ):
             mock_create.return_value = Mock()
 
@@ -786,7 +786,7 @@ class TestToolCallingAgentIntegration:
 
     def test_watsonx_llama_uses_default_agent(self):
         """Test that Llama model on WatsonX uses default agent (not Granite-specific)."""
-        from lfx.components.langchain_utilities import ToolCallingAgentComponent
+        from kfx.components.langchain_utilities import ToolCallingAgentComponent
 
         # Create a mock WatsonX LLM with Llama model (non-Granite)
         mock_llm = Mock()
@@ -802,7 +802,7 @@ class TestToolCallingAgentIntegration:
 
         with (
             patch.object(component, "_get_llm", return_value=mock_llm),
-            patch("lfx.components.langchain_utilities.tool_calling.create_tool_calling_agent") as mock_default,
+            patch("kfx.components.langchain_utilities.tool_calling.create_tool_calling_agent") as mock_default,
         ):
             mock_default.return_value = Mock()
 
@@ -813,7 +813,7 @@ class TestToolCallingAgentIntegration:
 
     def test_non_watsonx_uses_default_agent(self):
         """Test that non-WatsonX models use the default agent creation."""
-        from lfx.components.langchain_utilities import ToolCallingAgentComponent
+        from kfx.components.langchain_utilities import ToolCallingAgentComponent
 
         # Create a mock non-WatsonX LLM (e.g., OpenAI)
         mock_llm = Mock()
@@ -830,7 +830,7 @@ class TestToolCallingAgentIntegration:
 
         with (
             patch.object(component, "_get_llm", return_value=mock_llm),
-            patch("lfx.components.langchain_utilities.tool_calling.create_tool_calling_agent") as mock_create,
+            patch("kfx.components.langchain_utilities.tool_calling.create_tool_calling_agent") as mock_create,
         ):
             mock_create.return_value = Mock()
 
@@ -841,7 +841,7 @@ class TestToolCallingAgentIntegration:
 
     def test_system_prompt_enhanced_for_watsonx(self):
         """Test that system prompt is enhanced for WatsonX models."""
-        from lfx.components.langchain_utilities import ToolCallingAgentComponent
+        from kfx.components.langchain_utilities import ToolCallingAgentComponent
 
         mock_llm = Mock()
         mock_llm.__class__.__name__ = "ChatWatsonx"
@@ -856,7 +856,7 @@ class TestToolCallingAgentIntegration:
 
         with (
             patch.object(component, "_get_llm", return_value=mock_llm),
-            patch("lfx.components.langchain_utilities.tool_calling.create_granite_agent") as mock_create,
+            patch("kfx.components.langchain_utilities.tool_calling.create_granite_agent") as mock_create,
         ):
             mock_create.return_value = Mock()
 
@@ -869,7 +869,7 @@ class TestToolCallingAgentIntegration:
 
     def test_system_prompt_not_enhanced_without_tools(self):
         """Test that system prompt is not enhanced when no tools."""
-        from lfx.components.langchain_utilities import ToolCallingAgentComponent
+        from kfx.components.langchain_utilities import ToolCallingAgentComponent
 
         mock_llm = Mock()
         mock_llm.__class__.__name__ = "ChatWatsonx"
@@ -882,7 +882,7 @@ class TestToolCallingAgentIntegration:
 
         with (
             patch.object(component, "_get_llm", return_value=mock_llm),
-            patch("lfx.components.langchain_utilities.tool_calling.create_tool_calling_agent") as mock_create,
+            patch("kfx.components.langchain_utilities.tool_calling.create_tool_calling_agent") as mock_create,
         ):
             mock_create.return_value = Mock()
 

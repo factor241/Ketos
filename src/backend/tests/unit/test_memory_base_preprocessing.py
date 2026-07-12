@@ -1,4 +1,4 @@
-"""Unit tests for langflow.services.memory_base.preprocessing.
+"""Unit tests for ketos.services.memory_base.preprocessing.
 
 Coverage:
 - is_kill_phrase: exact-match rule, case-insensitivity, substring rejection,
@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from langflow.services.database.models.message.model import MessageTable
+from ketos.services.database.models.message.model import MessageTable
 
 # ------------------------------------------------------------------ #
 #  Shared helpers                                                      #
@@ -51,7 +51,7 @@ def _make_message(
 
 class TestIsKillPhrase:
     def _call(self, response: str, kill_phrase: str) -> bool:
-        from langflow.services.memory_base.preprocessing import is_kill_phrase
+        from ketos.services.memory_base.preprocessing import is_kill_phrase
 
         return is_kill_phrase(response, kill_phrase)
 
@@ -120,7 +120,7 @@ class TestIsKillPhrase:
 
 class TestFormatBatch:
     def _call(self, messages: list) -> str:
-        from langflow.services.memory_base.preprocessing import _format_batch
+        from ketos.services.memory_base.preprocessing import _format_batch
 
         return _format_batch(messages)
 
@@ -206,7 +206,7 @@ class TestFormatBatch:
 
 class TestBuildModelConfig:
     def _call(self, provider: str, model_name: str, param_mapping: dict | None = None) -> list:
-        from langflow.services.memory_base.preprocessing import _build_model_config
+        from ketos.services.memory_base.preprocessing import _build_model_config
 
         if param_mapping is None:
             param_mapping = {
@@ -215,7 +215,7 @@ class TestBuildModelConfig:
                 "model_name_param": "model",
             }
         with patch(
-            "langflow.services.memory_base.preprocessing.get_provider_param_mapping",
+            "ketos.services.memory_base.preprocessing.get_provider_param_mapping",
             return_value=param_mapping,
         ):
             return _build_model_config(provider, model_name)
@@ -312,26 +312,26 @@ class TestRunPreprocessing:
     def _standard_patches(self, mock_llm: MagicMock):
         return [
             patch(
-                "langflow.services.memory_base.preprocessing.infer_llm_provider",
+                "ketos.services.memory_base.preprocessing.infer_llm_provider",
                 return_value="OpenAI",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.get_api_key_for_provider",
+                "ketos.services.memory_base.preprocessing.get_api_key_for_provider",
                 return_value="sk-fake-key",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.LanguageModelComponent",
+                "ketos.services.memory_base.preprocessing.LanguageModelComponent",
                 return_value=mock_llm,
             ),
         ]
 
     @pytest.mark.asyncio
     async def test_empty_messages_returns_skipped_without_llm_call(self):
-        from langflow.services.memory_base.preprocessing import run_preprocessing
+        from ketos.services.memory_base.preprocessing import run_preprocessing
 
         llm_cls = MagicMock()
         with patch(
-            "langflow.services.memory_base.preprocessing.LanguageModelComponent",
+            "ketos.services.memory_base.preprocessing.LanguageModelComponent",
             llm_cls,
         ):
             result = await run_preprocessing(
@@ -349,20 +349,20 @@ class TestRunPreprocessing:
 
     @pytest.mark.asyncio
     async def test_normal_response_returns_ingested(self):
-        from langflow.services.memory_base.preprocessing import run_preprocessing
+        from ketos.services.memory_base.preprocessing import run_preprocessing
 
         mock_llm = self._mock_llm("This conversation is about Python async patterns.")
         with (
             patch(
-                "langflow.services.memory_base.preprocessing.infer_llm_provider",
+                "ketos.services.memory_base.preprocessing.infer_llm_provider",
                 return_value="OpenAI",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.get_api_key_for_provider",
+                "ketos.services.memory_base.preprocessing.get_api_key_for_provider",
                 return_value="sk-fake",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.LanguageModelComponent",
+                "ketos.services.memory_base.preprocessing.LanguageModelComponent",
                 return_value=mock_llm,
             ),
         ):
@@ -380,20 +380,20 @@ class TestRunPreprocessing:
 
     @pytest.mark.asyncio
     async def test_kill_phrase_response_returns_skipped(self):
-        from langflow.services.memory_base.preprocessing import run_preprocessing
+        from ketos.services.memory_base.preprocessing import run_preprocessing
 
         mock_llm = self._mock_llm("NO_INGEST")
         with (
             patch(
-                "langflow.services.memory_base.preprocessing.infer_llm_provider",
+                "ketos.services.memory_base.preprocessing.infer_llm_provider",
                 return_value="OpenAI",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.get_api_key_for_provider",
+                "ketos.services.memory_base.preprocessing.get_api_key_for_provider",
                 return_value="sk-fake",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.LanguageModelComponent",
+                "ketos.services.memory_base.preprocessing.LanguageModelComponent",
                 return_value=mock_llm,
             ),
         ):
@@ -410,20 +410,20 @@ class TestRunPreprocessing:
 
     @pytest.mark.asyncio
     async def test_kill_phrase_raw_response_preserved(self):
-        from langflow.services.memory_base.preprocessing import run_preprocessing
+        from ketos.services.memory_base.preprocessing import run_preprocessing
 
         mock_llm = self._mock_llm("NO_INGEST")
         with (
             patch(
-                "langflow.services.memory_base.preprocessing.infer_llm_provider",
+                "ketos.services.memory_base.preprocessing.infer_llm_provider",
                 return_value="OpenAI",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.get_api_key_for_provider",
+                "ketos.services.memory_base.preprocessing.get_api_key_for_provider",
                 return_value="sk-fake",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.LanguageModelComponent",
+                "ketos.services.memory_base.preprocessing.LanguageModelComponent",
                 return_value=mock_llm,
             ),
         ):
@@ -439,20 +439,20 @@ class TestRunPreprocessing:
 
     @pytest.mark.asyncio
     async def test_kill_phrase_on_line_in_multiline_response_returns_skipped(self):
-        from langflow.services.memory_base.preprocessing import run_preprocessing
+        from ketos.services.memory_base.preprocessing import run_preprocessing
 
         mock_llm = self._mock_llm("Some preamble text\nNO_INGEST\nsome trailer")
         with (
             patch(
-                "langflow.services.memory_base.preprocessing.infer_llm_provider",
+                "ketos.services.memory_base.preprocessing.infer_llm_provider",
                 return_value="OpenAI",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.get_api_key_for_provider",
+                "ketos.services.memory_base.preprocessing.get_api_key_for_provider",
                 return_value="sk-fake",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.LanguageModelComponent",
+                "ketos.services.memory_base.preprocessing.LanguageModelComponent",
                 return_value=mock_llm,
             ),
         ):
@@ -468,21 +468,21 @@ class TestRunPreprocessing:
 
     @pytest.mark.asyncio
     async def test_infer_llm_provider_called_with_model_name(self):
-        from langflow.services.memory_base.preprocessing import run_preprocessing
+        from ketos.services.memory_base.preprocessing import run_preprocessing
 
         mock_llm = self._mock_llm("summary")
         infer_mock = MagicMock(return_value="OpenAI")
         with (
             patch(
-                "langflow.services.memory_base.preprocessing.infer_llm_provider",
+                "ketos.services.memory_base.preprocessing.infer_llm_provider",
                 infer_mock,
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.get_api_key_for_provider",
+                "ketos.services.memory_base.preprocessing.get_api_key_for_provider",
                 return_value="sk-fake",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.LanguageModelComponent",
+                "ketos.services.memory_base.preprocessing.LanguageModelComponent",
                 return_value=mock_llm,
             ),
         ):
@@ -498,22 +498,22 @@ class TestRunPreprocessing:
 
     @pytest.mark.asyncio
     async def test_api_key_fetched_for_resolved_provider(self):
-        from langflow.services.memory_base.preprocessing import run_preprocessing
+        from ketos.services.memory_base.preprocessing import run_preprocessing
 
         mock_llm = self._mock_llm("summary")
         key_mock = MagicMock(return_value="sk-real-key")
         user_id = uuid.uuid4()
         with (
             patch(
-                "langflow.services.memory_base.preprocessing.infer_llm_provider",
+                "ketos.services.memory_base.preprocessing.infer_llm_provider",
                 return_value="OpenAI",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.get_api_key_for_provider",
+                "ketos.services.memory_base.preprocessing.get_api_key_for_provider",
                 key_mock,
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.LanguageModelComponent",
+                "ketos.services.memory_base.preprocessing.LanguageModelComponent",
                 return_value=mock_llm,
             ),
         ):
@@ -529,20 +529,20 @@ class TestRunPreprocessing:
 
     @pytest.mark.asyncio
     async def test_llm_set_called_with_batch_text_as_input_value(self):
-        from langflow.services.memory_base.preprocessing import run_preprocessing
+        from ketos.services.memory_base.preprocessing import run_preprocessing
 
         mock_llm = self._mock_llm("summary")
         with (
             patch(
-                "langflow.services.memory_base.preprocessing.infer_llm_provider",
+                "ketos.services.memory_base.preprocessing.infer_llm_provider",
                 return_value="OpenAI",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.get_api_key_for_provider",
+                "ketos.services.memory_base.preprocessing.get_api_key_for_provider",
                 return_value="sk-fake",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.LanguageModelComponent",
+                "ketos.services.memory_base.preprocessing.LanguageModelComponent",
                 return_value=mock_llm,
             ),
         ):
@@ -560,20 +560,20 @@ class TestRunPreprocessing:
 
     @pytest.mark.asyncio
     async def test_system_message_includes_kill_phrase_suffix(self):
-        from langflow.services.memory_base.preprocessing import run_preprocessing
+        from ketos.services.memory_base.preprocessing import run_preprocessing
 
         mock_llm = self._mock_llm("summary")
         with (
             patch(
-                "langflow.services.memory_base.preprocessing.infer_llm_provider",
+                "ketos.services.memory_base.preprocessing.infer_llm_provider",
                 return_value="OpenAI",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.get_api_key_for_provider",
+                "ketos.services.memory_base.preprocessing.get_api_key_for_provider",
                 return_value="sk-fake",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.LanguageModelComponent",
+                "ketos.services.memory_base.preprocessing.LanguageModelComponent",
                 return_value=mock_llm,
             ),
         ):
@@ -592,20 +592,20 @@ class TestRunPreprocessing:
 
     @pytest.mark.asyncio
     async def test_system_message_is_just_suffix_when_instructions_none(self):
-        from langflow.services.memory_base.preprocessing import run_preprocessing
+        from ketos.services.memory_base.preprocessing import run_preprocessing
 
         mock_llm = self._mock_llm("summary")
         with (
             patch(
-                "langflow.services.memory_base.preprocessing.infer_llm_provider",
+                "ketos.services.memory_base.preprocessing.infer_llm_provider",
                 return_value="OpenAI",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.get_api_key_for_provider",
+                "ketos.services.memory_base.preprocessing.get_api_key_for_provider",
                 return_value="sk-fake",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.LanguageModelComponent",
+                "ketos.services.memory_base.preprocessing.LanguageModelComponent",
                 return_value=mock_llm,
             ),
         ):
@@ -623,20 +623,20 @@ class TestRunPreprocessing:
 
     @pytest.mark.asyncio
     async def test_temperature_set_to_0_1(self):
-        from langflow.services.memory_base.preprocessing import run_preprocessing
+        from ketos.services.memory_base.preprocessing import run_preprocessing
 
         mock_llm = self._mock_llm("summary")
         with (
             patch(
-                "langflow.services.memory_base.preprocessing.infer_llm_provider",
+                "ketos.services.memory_base.preprocessing.infer_llm_provider",
                 return_value="OpenAI",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.get_api_key_for_provider",
+                "ketos.services.memory_base.preprocessing.get_api_key_for_provider",
                 return_value="sk-fake",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.LanguageModelComponent",
+                "ketos.services.memory_base.preprocessing.LanguageModelComponent",
                 return_value=mock_llm,
             ),
         ):
@@ -653,7 +653,7 @@ class TestRunPreprocessing:
 
     @pytest.mark.asyncio
     async def test_message_text_none_falls_back_to_str(self):
-        from langflow.services.memory_base.preprocessing import run_preprocessing
+        from ketos.services.memory_base.preprocessing import run_preprocessing
 
         mock_llm = MagicMock()
         mock_msg = MagicMock()
@@ -664,15 +664,15 @@ class TestRunPreprocessing:
 
         with (
             patch(
-                "langflow.services.memory_base.preprocessing.infer_llm_provider",
+                "ketos.services.memory_base.preprocessing.infer_llm_provider",
                 return_value="OpenAI",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.get_api_key_for_provider",
+                "ketos.services.memory_base.preprocessing.get_api_key_for_provider",
                 return_value="sk-fake",
             ),
             patch(
-                "langflow.services.memory_base.preprocessing.LanguageModelComponent",
+                "ketos.services.memory_base.preprocessing.LanguageModelComponent",
                 return_value=mock_llm,
             ),
         ):

@@ -8,8 +8,8 @@ fetch (``_fetch_url_with_pinning``) and, for SSRF, validating direct IPs.
 """
 
 import pytest
-from lfx.components.data_source.url import URLComponent
-from lfx.schema import DataFrame
+from kfx.components.data_source.url import URLComponent
+from kfx.schema import DataFrame
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -42,7 +42,7 @@ def _per_url_fetch(pages: dict):
 @pytest.fixture
 def disable_ssrf(monkeypatch):
     """Disable SSRF protection so ``ensure_url`` skips DNS resolution."""
-    monkeypatch.setenv("LANGFLOW_SSRF_PROTECTION_ENABLED", "false")
+    monkeypatch.setenv("KETOS_SSRF_PROTECTION_ENABLED", "false")
 
 
 class TestURLComponent(ComponentTestBaseWithoutClient):
@@ -233,8 +233,8 @@ class TestURLComponentSSRFProtection:
     @pytest.fixture(autouse=True)
     def enable_ssrf(self, monkeypatch):
         """Enable SSRF protection with an empty allowlist for these tests."""
-        monkeypatch.setenv("LANGFLOW_SSRF_PROTECTION_ENABLED", "true")
-        monkeypatch.delenv("LANGFLOW_SSRF_ALLOWED_HOSTS", raising=False)
+        monkeypatch.setenv("KETOS_SSRF_PROTECTION_ENABLED", "true")
+        monkeypatch.delenv("KETOS_SSRF_ALLOWED_HOSTS", raising=False)
 
     def test_ensure_url_blocks_localhost(self):
         """Loopback addresses are blocked."""

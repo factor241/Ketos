@@ -1,4 +1,4 @@
-"""Unit tests for langflow.services.tracing.repository.
+"""Unit tests for ketos.services.tracing.repository.
 
 Covers:
 - fetch_trace_summary_data: token aggregation, I/O extraction, empty input
@@ -13,7 +13,7 @@ from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
-from langflow.services.tracing.formatting import TraceSummaryData
+from ketos.services.tracing.formatting import TraceSummaryData
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -135,7 +135,7 @@ class TestFetchTraceSummaryData:
 
     @pytest.mark.asyncio
     async def test_should_return_empty_dict_for_no_trace_ids(self):
-        from langflow.services.tracing.repository import fetch_trace_summary_data
+        from ketos.services.tracing.repository import fetch_trace_summary_data
 
         session = _make_session([])
         result = await fetch_trace_summary_data(session, [])
@@ -144,7 +144,7 @@ class TestFetchTraceSummaryData:
     @pytest.mark.asyncio
     async def test_should_aggregate_tokens_from_leaf_spans_only(self):
         """Parent spans must not be counted to avoid double-counting."""
-        from langflow.services.tracing.repository import fetch_trace_summary_data
+        from ketos.services.tracing.repository import fetch_trace_summary_data
 
         trace_id = uuid4()
         parent_span_id = uuid4()
@@ -165,7 +165,7 @@ class TestFetchTraceSummaryData:
 
     @pytest.mark.asyncio
     async def test_should_sum_tokens_from_multiple_leaf_spans(self):
-        from langflow.services.tracing.repository import fetch_trace_summary_data
+        from ketos.services.tracing.repository import fetch_trace_summary_data
 
         trace_id = uuid4()
         leaf1_id = uuid4()
@@ -180,7 +180,7 @@ class TestFetchTraceSummaryData:
 
     @pytest.mark.asyncio
     async def test_should_handle_spans_with_no_token_attributes(self):
-        from langflow.services.tracing.repository import fetch_trace_summary_data
+        from ketos.services.tracing.repository import fetch_trace_summary_data
 
         trace_id = uuid4()
         span_id = uuid4()
@@ -191,7 +191,7 @@ class TestFetchTraceSummaryData:
 
     @pytest.mark.asyncio
     async def test_should_handle_spans_with_none_attributes(self):
-        from langflow.services.tracing.repository import fetch_trace_summary_data
+        from ketos.services.tracing.repository import fetch_trace_summary_data
 
         trace_id = uuid4()
         span_id = uuid4()
@@ -202,7 +202,7 @@ class TestFetchTraceSummaryData:
 
     @pytest.mark.asyncio
     async def test_should_separate_summaries_by_trace_id(self):
-        from langflow.services.tracing.repository import fetch_trace_summary_data
+        from ketos.services.tracing.repository import fetch_trace_summary_data
 
         trace_a = uuid4()
         trace_b = uuid4()
@@ -220,7 +220,7 @@ class TestFetchTraceSummaryData:
     @pytest.mark.asyncio
     async def test_should_use_llm_usage_total_tokens_attribute(self):
         """Prefer OTel GenAI token attributes over legacy 'total_tokens'."""
-        from langflow.services.tracing.repository import fetch_trace_summary_data
+        from ketos.services.tracing.repository import fetch_trace_summary_data
 
         trace_id = uuid4()
         span_id = uuid4()
@@ -242,7 +242,7 @@ class TestFetchTraceSummaryData:
 
     @pytest.mark.asyncio
     async def test_should_return_none_input_when_no_chat_input_span(self):
-        from langflow.services.tracing.repository import fetch_trace_summary_data
+        from ketos.services.tracing.repository import fetch_trace_summary_data
 
         trace_id = uuid4()
         span_id = uuid4()
@@ -253,7 +253,7 @@ class TestFetchTraceSummaryData:
 
     @pytest.mark.asyncio
     async def test_should_return_none_output_when_no_finished_root_spans(self):
-        from langflow.services.tracing.repository import fetch_trace_summary_data
+        from ketos.services.tracing.repository import fetch_trace_summary_data
 
         trace_id = uuid4()
         span_id = uuid4()

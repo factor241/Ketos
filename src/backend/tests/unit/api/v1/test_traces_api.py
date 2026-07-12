@@ -1,4 +1,4 @@
-"""Unit tests for langflow.api.v1.traces HTTP handlers.
+"""Unit tests for ketos.api.v1.traces HTTP handlers.
 
 Covers:
 - get_traces: happy path, timeout, DB error, unexpected error, query sanitization
@@ -21,9 +21,9 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from langflow.api.v1.traces import router
-from langflow.services.auth.utils import get_current_active_user
-from langflow.services.database.models.traces.model import (
+from ketos.api.v1.traces import router
+from ketos.services.auth.utils import get_current_active_user
+from ketos.services.database.models.traces.model import (
     SpanStatus,
     TraceListResponse,
     TraceRead,
@@ -104,7 +104,7 @@ class TestGetTraces:
         async def _fetch(*_args, **_kwargs):
             return response_data
 
-        with patch("langflow.api.v1.traces.fetch_traces", side_effect=_fetch):
+        with patch("ketos.api.v1.traces.fetch_traces", side_effect=_fetch):
             resp = client.get(self._PATH)
 
         assert resp.status_code == 200
@@ -117,7 +117,7 @@ class TestGetTraces:
         async def _fetch(*_args, **_kwargs):
             raise asyncio.TimeoutError
 
-        with patch("langflow.api.v1.traces.fetch_traces", side_effect=_fetch):
+        with patch("ketos.api.v1.traces.fetch_traces", side_effect=_fetch):
             resp = client.get(self._PATH)
 
         assert resp.status_code == 200
@@ -129,7 +129,7 @@ class TestGetTraces:
             msg = "no such table"
             raise OperationalError(msg, None, None)
 
-        with patch("langflow.api.v1.traces.fetch_traces", side_effect=_fetch):
+        with patch("ketos.api.v1.traces.fetch_traces", side_effect=_fetch):
             resp = client.get(self._PATH)
 
         assert resp.status_code == 200
@@ -140,7 +140,7 @@ class TestGetTraces:
             msg = "relation does not exist"
             raise ProgrammingError(msg, None, None)
 
-        with patch("langflow.api.v1.traces.fetch_traces", side_effect=_fetch):
+        with patch("ketos.api.v1.traces.fetch_traces", side_effect=_fetch):
             resp = client.get(self._PATH)
 
         assert resp.status_code == 200
@@ -151,7 +151,7 @@ class TestGetTraces:
             msg = "boom"
             raise RuntimeError(msg)
 
-        with patch("langflow.api.v1.traces.fetch_traces", side_effect=_fetch):
+        with patch("ketos.api.v1.traces.fetch_traces", side_effect=_fetch):
             resp = client.get(self._PATH)
 
         assert resp.status_code == 500
@@ -164,7 +164,7 @@ class TestGetTraces:
             captured.append(query)
             return _empty_list_response()
 
-        with patch("langflow.api.v1.traces.fetch_traces", side_effect=_fetch):
+        with patch("ketos.api.v1.traces.fetch_traces", side_effect=_fetch):
             client.get(self._PATH, params={"query": "hello\x00world"})
 
         assert captured == ["helloworld"]
@@ -177,7 +177,7 @@ class TestGetTraces:
             captured.append(query)
             return _empty_list_response()
 
-        with patch("langflow.api.v1.traces.fetch_traces", side_effect=_fetch):
+        with patch("ketos.api.v1.traces.fetch_traces", side_effect=_fetch):
             client.get(self._PATH, params={"query": "   "})
 
         assert captured == [None]
@@ -189,7 +189,7 @@ class TestGetTraces:
             captured.append(flow_id)
             return _empty_list_response()
 
-        with patch("langflow.api.v1.traces.fetch_traces", side_effect=_fetch):
+        with patch("ketos.api.v1.traces.fetch_traces", side_effect=_fetch):
             client.get(self._PATH, params={"flow_id": str(_FAKE_FLOW_ID)})
 
         assert captured == [_FAKE_FLOW_ID]
@@ -201,7 +201,7 @@ class TestGetTraces:
             captured.append(status)
             return _empty_list_response()
 
-        with patch("langflow.api.v1.traces.fetch_traces", side_effect=_fetch):
+        with patch("ketos.api.v1.traces.fetch_traces", side_effect=_fetch):
             client.get(self._PATH, params={"status": "ok"})
 
         assert captured == [SpanStatus.OK]
@@ -210,7 +210,7 @@ class TestGetTraces:
         async def _fetch(*_args, **_kwargs):
             return _empty_list_response()
 
-        with patch("langflow.api.v1.traces.fetch_traces", side_effect=_fetch):
+        with patch("ketos.api.v1.traces.fetch_traces", side_effect=_fetch):
             resp = client.get(self._PATH, params={"page": 0})
 
         assert resp.status_code == 200
@@ -219,7 +219,7 @@ class TestGetTraces:
         async def _fetch(*_args, **_kwargs):
             return _empty_list_response()
 
-        with patch("langflow.api.v1.traces.fetch_traces", side_effect=_fetch):
+        with patch("ketos.api.v1.traces.fetch_traces", side_effect=_fetch):
             resp = client.get(self._PATH, params={"size": 201})
 
         assert resp.status_code == 422
@@ -235,7 +235,7 @@ class TestGetTrace:
         async def _fetch(_user_id, _trace_id):
             return trace
 
-        with patch("langflow.api.v1.traces.fetch_single_trace", side_effect=_fetch):
+        with patch("ketos.api.v1.traces.fetch_single_trace", side_effect=_fetch):
             resp = client.get(self._path())
 
         assert resp.status_code == 200
@@ -247,7 +247,7 @@ class TestGetTrace:
         async def _fetch(_user_id, _trace_id):
             return None
 
-        with patch("langflow.api.v1.traces.fetch_single_trace", side_effect=_fetch):
+        with patch("ketos.api.v1.traces.fetch_single_trace", side_effect=_fetch):
             resp = client.get(self._path())
 
         assert resp.status_code == 404
@@ -257,7 +257,7 @@ class TestGetTrace:
         async def _fetch(_user_id, _trace_id):
             raise asyncio.TimeoutError
 
-        with patch("langflow.api.v1.traces.fetch_single_trace", side_effect=_fetch):
+        with patch("ketos.api.v1.traces.fetch_single_trace", side_effect=_fetch):
             resp = client.get(self._path())
 
         assert resp.status_code == 504
@@ -268,7 +268,7 @@ class TestGetTrace:
             msg = "no such table"
             raise OperationalError(msg, None, None)
 
-        with patch("langflow.api.v1.traces.fetch_single_trace", side_effect=_fetch):
+        with patch("ketos.api.v1.traces.fetch_single_trace", side_effect=_fetch):
             resp = client.get(self._path())
 
         assert resp.status_code == 500
@@ -279,7 +279,7 @@ class TestGetTrace:
             msg = "unexpected"
             raise RuntimeError(msg)
 
-        with patch("langflow.api.v1.traces.fetch_single_trace", side_effect=_fetch):
+        with patch("ketos.api.v1.traces.fetch_single_trace", side_effect=_fetch):
             resp = client.get(self._path())
 
         assert resp.status_code == 500
@@ -296,7 +296,7 @@ class TestGetTrace:
             captured.append(user_id)
             return _make_trace_read()
 
-        with patch("langflow.api.v1.traces.fetch_single_trace", side_effect=_fetch):
+        with patch("ketos.api.v1.traces.fetch_single_trace", side_effect=_fetch):
             client.get(self._path())
 
         assert captured == [_FAKE_USER_ID]
@@ -324,7 +324,7 @@ class TestDeleteTrace:
         fake_trace = MagicMock()
         scope, session = self._make_session_scope(fake_trace)
 
-        with patch("langflow.api.v1.traces.session_scope", scope):
+        with patch("ketos.api.v1.traces.session_scope", scope):
             resp = client.delete(self._path())
 
         assert resp.status_code == 204
@@ -333,7 +333,7 @@ class TestDeleteTrace:
     def test_should_return_404_when_trace_not_found(self, client: TestClient):
         scope, _ = self._make_session_scope(None)
 
-        with patch("langflow.api.v1.traces.session_scope", scope):
+        with patch("ketos.api.v1.traces.session_scope", scope):
             resp = client.delete(self._path())
 
         assert resp.status_code == 404
@@ -346,7 +346,7 @@ class TestDeleteTrace:
             raise RuntimeError(msg)
             yield  # type: ignore[misc]
 
-        with patch("langflow.api.v1.traces.session_scope", _scope):
+        with patch("ketos.api.v1.traces.session_scope", _scope):
             resp = client.delete(self._path())
 
         assert resp.status_code == 500
@@ -378,7 +378,7 @@ class TestDeleteTracesByFlow:
         fake_flow = MagicMock()
         scope, session = self._make_session_scope(fake_flow)
 
-        with patch("langflow.api.v1.traces.session_scope", scope):
+        with patch("ketos.api.v1.traces.session_scope", scope):
             resp = client.delete(self._PATH, params={"flow_id": str(_FAKE_FLOW_ID)})
 
         assert resp.status_code == 204
@@ -387,7 +387,7 @@ class TestDeleteTracesByFlow:
     def test_should_return_404_when_flow_not_found(self, client: TestClient):
         scope, _ = self._make_session_scope(None)
 
-        with patch("langflow.api.v1.traces.session_scope", scope):
+        with patch("ketos.api.v1.traces.session_scope", scope):
             resp = client.delete(self._PATH, params={"flow_id": str(_FAKE_FLOW_ID)})
 
         assert resp.status_code == 404
@@ -408,7 +408,7 @@ class TestDeleteTracesByFlow:
             raise RuntimeError(msg)
             yield  # type: ignore[misc]
 
-        with patch("langflow.api.v1.traces.session_scope", _scope):
+        with patch("ketos.api.v1.traces.session_scope", _scope):
             resp = client.delete(self._PATH, params={"flow_id": str(_FAKE_FLOW_ID)})
 
         assert resp.status_code == 500
@@ -419,7 +419,7 @@ class TestDeleteTracesByFlow:
         fake_flow = MagicMock()
         scope, session = self._make_session_scope(fake_flow)
 
-        with patch("langflow.api.v1.traces.session_scope", scope):
+        with patch("ketos.api.v1.traces.session_scope", scope):
             client.delete(self._PATH, params={"flow_id": str(_FAKE_FLOW_ID)})
 
         session.execute.assert_awaited_once()

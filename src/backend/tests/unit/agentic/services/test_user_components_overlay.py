@@ -12,10 +12,10 @@ import secrets
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
-import lfx.custom.utils as lfx_utils
+import kfx.custom.utils as kfx_utils
 import pytest
-from langflow.agentic.services.user_components import register_user_component
-from langflow.agentic.services.user_components_overlay import (
+from ketos.agentic.services.user_components import register_user_component
+from ketos.agentic.services.user_components_overlay import (
     load_registry_with_user_overlay,
 )
 
@@ -23,9 +23,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 SAMPLE_CODE = (
-    "from lfx.custom import Component\n"
-    "from lfx.io import FloatInput, Output\n"
-    "from lfx.schema import Data\n"
+    "from kfx.custom import Component\n"
+    "from kfx.io import FloatInput, Output\n"
+    "from kfx.schema import Data\n"
     "\n"
     "class SumComponent(Component):\n"
     "    display_name = 'Sum'\n"
@@ -39,10 +39,10 @@ SAMPLE_CODE = (
 
 @pytest.fixture
 def isolated_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setenv("LANGFLOW_FS_TOOL_BASE_DIR", str(tmp_path))
+    monkeypatch.setenv("KETOS_FS_TOOL_BASE_DIR", str(tmp_path))
     (tmp_path / ".fs_pepper").write_bytes(secrets.token_bytes(32))
 
-    from lfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
+    from kfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
 
     monkeypatch.setattr(
         FileSystemToolComponent,
@@ -54,8 +54,8 @@ def isolated_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     # ``_current_user_id_var`` ContextVar set OR leak ``_OVERLAY_ENTRY_CACHE``
     # entries that point at sandboxes from a prior tmp_path. Reset both so
     # this fixture is robust to whatever ordering pytest-xdist picks.
-    from langflow.agentic.services.user_components_context import reset_current_user_id
-    from langflow.agentic.services.user_components_overlay import _OVERLAY_ENTRY_CACHE
+    from ketos.agentic.services.user_components_context import reset_current_user_id
+    from ketos.agentic.services.user_components_overlay import _OVERLAY_ENTRY_CACHE
 
     reset_current_user_id()
     _OVERLAY_ENTRY_CACHE.clear()
@@ -73,11 +73,11 @@ class TestOverlayEntryCaching:
     """
 
     def test_overlay_built_once_then_rebuilt_when_file_changes(self, isolated_sandbox: Path) -> None:  # noqa: ARG002
-        real_build = lfx_utils.build_custom_component_template
+        real_build = kfx_utils.build_custom_component_template
 
         register_user_component(user_id="user-alice", class_name="SumComponent", code=SAMPLE_CODE)
 
-        with patch.object(lfx_utils, "build_custom_component_template", side_effect=real_build) as spy:
+        with patch.object(kfx_utils, "build_custom_component_template", side_effect=real_build) as spy:
             load_registry_with_user_overlay(user_id="user-alice")
             load_registry_with_user_overlay(user_id="user-alice")
             # Second lookup hits the cache — no re-introspection.
@@ -192,9 +192,9 @@ class TestRegistryOverlay:
         # "Attribute build_output not found in <Class>". The overlay must
         # reflect the user class's ACTUAL outputs, not the base scaffold.
         code = (
-            "from lfx.custom import Component\n"
-            "from lfx.io import MessageTextInput, Output\n"
-            "from lfx.schema import Message\n"
+            "from kfx.custom import Component\n"
+            "from kfx.io import MessageTextInput, Output\n"
+            "from kfx.schema import Message\n"
             "\n"
             "class PrimeChecker(Component):\n"
             "    display_name = 'PrimeChecker'\n"
@@ -224,12 +224,12 @@ class TestRegistryOverlay:
         # node whose output method is the one the user's class defines
         # (so the run engine doesn't raise "Attribute build_output not
         # found in <Class>").
-        from lfx.graph.flow_builder.builder import build_flow_from_spec
+        from kfx.graph.flow_builder.builder import build_flow_from_spec
 
         code = (
-            "from lfx.custom import Component\n"
-            "from lfx.io import MessageTextInput, Output\n"
-            "from lfx.schema import Message\n"
+            "from kfx.custom import Component\n"
+            "from kfx.io import MessageTextInput, Output\n"
+            "from kfx.schema import Message\n"
             "\n"
             "class PrimeChecker(Component):\n"
             "    display_name = 'PrimeChecker'\n"
@@ -270,14 +270,14 @@ class TestRegistryOverlay:
         # compile the node's real code and call a method that exists.
         import uuid
 
-        from langflow.agentic.services.flow_run import run_working_flow
-        from lfx.graph.flow_builder.builder import build_flow_from_spec
+        from ketos.agentic.services.flow_run import run_working_flow
+        from kfx.graph.flow_builder.builder import build_flow_from_spec
 
         code = (
             "from math import isqrt\n"
-            "from lfx.custom import Component\n"
-            "from lfx.io import MessageTextInput, Output\n"
-            "from lfx.schema import Message\n"
+            "from kfx.custom import Component\n"
+            "from kfx.io import MessageTextInput, Output\n"
+            "from kfx.schema import Message\n"
             "\n"
             "class PrimeChecker(Component):\n"
             "    display_name = 'PrimeChecker'\n"
@@ -342,14 +342,14 @@ class TestRegistryOverlay:
         # result. The overlay must introspect the REAL template.
         import uuid
 
-        from langflow.agentic.services.flow_run import run_working_flow
-        from lfx.graph.flow_builder.builder import build_flow_from_spec
+        from ketos.agentic.services.flow_run import run_working_flow
+        from kfx.graph.flow_builder.builder import build_flow_from_spec
 
         code = (
             "from math import isqrt\n"
-            "from lfx.custom import Component\n"
-            "from lfx.io import IntInput, Output\n"
-            "from lfx.schema import Message\n"
+            "from kfx.custom import Component\n"
+            "from kfx.io import IntInput, Output\n"
+            "from kfx.schema import Message\n"
             "\n"
             "class PrimeChecker(Component):\n"
             "    display_name = 'PrimeChecker'\n"
@@ -421,7 +421,7 @@ class TestRegistryOverlay:
             code=SAMPLE_CODE,
         )
         # Plant a corrupt file directly under the user's components dir.
-        from langflow.agentic.services.user_components import (
+        from ketos.agentic.services.user_components import (
             _resolve_components_dir,
         )
 

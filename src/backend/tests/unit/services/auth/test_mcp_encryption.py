@@ -5,13 +5,13 @@ from unittest.mock import patch
 
 import pytest
 from cryptography.fernet import Fernet
-from langflow.services.auth.mcp_encryption import (
+from ketos.services.auth.mcp_encryption import (
     decrypt_auth_settings,
     encrypt_auth_settings,
     is_encrypted,
 )
-from langflow.services.auth.service import AuthService
-from lfx.services.settings.auth import AuthSettings
+from ketos.services.auth.service import AuthService
+from kfx.services.settings.auth import AuthSettings
 from pydantic import SecretStr
 
 
@@ -53,7 +53,7 @@ def sample_auth_settings():
 class TestMCPEncryption:
     """Test MCP encryption functionality."""
 
-    @patch("langflow.services.auth.utils.get_auth_service")
+    @patch("ketos.services.auth.utils.get_auth_service")
     def test_encrypt_auth_settings(self, mock_get_auth, mock_auth_service, sample_auth_settings):
         """Test that sensitive fields are encrypted."""
         mock_get_auth.return_value = mock_auth_service
@@ -70,7 +70,7 @@ class TestMCPEncryption:
         assert encrypted["oauth_host"] == sample_auth_settings["oauth_host"]
         assert encrypted["oauth_client_id"] == sample_auth_settings["oauth_client_id"]
 
-    @patch("langflow.services.auth.utils.get_auth_service")
+    @patch("ketos.services.auth.utils.get_auth_service")
     def test_decrypt_auth_settings(self, mock_get_auth, mock_auth_service, sample_auth_settings):
         """Test that encrypted fields can be decrypted."""
         mock_get_auth.return_value = mock_auth_service
@@ -99,7 +99,7 @@ class TestMCPEncryption:
         result = encrypt_auth_settings({})
         assert result == {}
 
-    @patch("langflow.services.auth.utils.get_auth_service")
+    @patch("ketos.services.auth.utils.get_auth_service")
     def test_idempotent_encryption(self, mock_get_auth, mock_auth_service, sample_auth_settings):
         """Test that encrypting already encrypted data doesn't double-encrypt."""
         mock_get_auth.return_value = mock_auth_service
@@ -113,7 +113,7 @@ class TestMCPEncryption:
         # Should be the same
         assert encrypted_once == encrypted_twice
 
-    @patch("langflow.services.auth.utils.get_auth_service")
+    @patch("ketos.services.auth.utils.get_auth_service")
     def test_partial_auth_settings(self, mock_get_auth, mock_auth_service):
         """Test encryption with only some sensitive fields present."""
         mock_get_auth.return_value = mock_auth_service
@@ -133,7 +133,7 @@ class TestMCPEncryption:
         assert encrypted["auth_type"] == partial_settings["auth_type"]
         assert encrypted["username"] == partial_settings["username"]
 
-    @patch("langflow.services.auth.utils.get_auth_service")
+    @patch("ketos.services.auth.utils.get_auth_service")
     def test_backward_compatibility(self, mock_get_auth, mock_auth_service):
         """Test that plaintext data is handled gracefully during decryption."""
         mock_get_auth.return_value = mock_auth_service
@@ -151,7 +151,7 @@ class TestMCPEncryption:
         # Should return the same data
         assert decrypted == plaintext_settings
 
-    @patch("langflow.services.auth.utils.get_auth_service")
+    @patch("ketos.services.auth.utils.get_auth_service")
     def test_is_encrypted(self, mock_get_auth, mock_auth_service):
         """Test the is_encrypted helper function."""
         mock_get_auth.return_value = mock_auth_service

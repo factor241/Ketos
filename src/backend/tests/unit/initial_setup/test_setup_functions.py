@@ -3,13 +3,13 @@ from copy import deepcopy
 from uuid import uuid4
 
 import pytest
-from langflow.initial_setup.setup import (
+from ketos.initial_setup.setup import (
     get_or_create_default_folder,
     session_scope,
     update_projects_components_with_latest_component_versions,
 )
-from langflow.services.database.models.folder.constants import DEFAULT_FOLDER_NAME
-from langflow.services.database.models.folder.model import Folder, FolderRead
+from ketos.services.database.models.folder.constants import DEFAULT_FOLDER_NAME
+from ketos.services.database.models.folder.model import Folder, FolderRead
 from sqlmodel import select
 
 

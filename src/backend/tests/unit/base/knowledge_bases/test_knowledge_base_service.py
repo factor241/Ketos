@@ -11,8 +11,8 @@ import json
 from typing import TYPE_CHECKING
 
 import pytest
-from langflow.api.utils import knowledge_base_service
-from langflow.services.database.models.knowledge_base import KnowledgeBaseStatus
+from ketos.api.utils import knowledge_base_service
+from ketos.services.database.models.knowledge_base import KnowledgeBaseStatus
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -147,7 +147,7 @@ class TestNormalization:
         import uuid
         from datetime import datetime, timezone
 
-        from langflow.services.database.models.knowledge_base import KnowledgeBaseRecord
+        from ketos.services.database.models.knowledge_base import KnowledgeBaseRecord
 
         record = KnowledgeBaseRecord(
             id=uuid.uuid4(),
@@ -199,7 +199,7 @@ class TestNormalization:
     def test_record_to_metadata_dict_maps_zero_chunk_ready_kb_to_empty_status(self):
         import uuid
 
-        from langflow.services.database.models.knowledge_base import KnowledgeBaseRecord
+        from ketos.services.database.models.knowledge_base import KnowledgeBaseRecord
 
         record = KnowledgeBaseRecord(
             id=uuid.uuid4(),
@@ -294,7 +294,7 @@ class TestBackfillFromDisk:
                 "source_types": ["file_upload"],
             }
 
-        monkeypatch.setattr("langflow.api.utils.kb_helpers.KBAnalysisHelper.get_metadata", fake_get_metadata)
+        monkeypatch.setattr("ketos.api.utils.kb_helpers.KBAnalysisHelper.get_metadata", fake_get_metadata)
 
         inserted = await knowledge_base_service.backfill_from_disk(user_id=active_user.id, kb_user_root=kb_root)
         assert inserted == 1
@@ -346,7 +346,7 @@ class TestBackfillFromDisk:
         must NOT re-insert such directories or the deleted KB would
         reappear on every server restart.
         """
-        from langflow.api.utils.kb_helpers import KB_DELETED_SENTINEL
+        from ketos.api.utils.kb_helpers import KB_DELETED_SENTINEL
 
         kb_root = tmp_path / active_user.username
         kb_root.mkdir()
@@ -364,8 +364,8 @@ class TestBackfillFromDisk:
 
 class TestBackfillAllUsersFromDisk:
     async def test_backfill_all_users_scans_each_user_root(self, active_user, tmp_path: Path):
-        from langflow.services.database.models.user.model import User
-        from langflow.services.deps import get_auth_service, session_scope
+        from ketos.services.database.models.user.model import User
+        from ketos.services.deps import get_auth_service, session_scope
 
         other_username = "phase15_other_user"
         other_user_id = None

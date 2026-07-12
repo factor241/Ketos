@@ -5,8 +5,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 import requests
-from lfx.components.data_source.rss import RSSReaderComponent
-from lfx.schema import DataFrame
+from kfx.components.data_source.rss import RSSReaderComponent
+from kfx.schema import DataFrame
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -49,7 +49,7 @@ class TestRSSReaderComponent(ComponentTestBaseWithoutClient):
 
         SSRF behavior is covered separately in ``TestRSSReaderSSRFProtection``.
         """
-        with patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "false"}):
+        with patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "false"}):
             yield
 
     @pytest.fixture
@@ -183,7 +183,7 @@ class TestRSSReaderSSRFProtection:
     def test_blocks_cloud_metadata_endpoint(self):
         """The cloud metadata endpoint is blocked; no request is made."""
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             patch("requests.get") as mock_get,
         ):
             component = RSSReaderComponent(rss_url="http://169.254.169.254/latest/meta-data/iam/security-credentials/")
@@ -197,7 +197,7 @@ class TestRSSReaderSSRFProtection:
     def test_blocks_localhost(self):
         """A loopback feed URL is blocked; no request is made."""
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             patch("requests.get") as mock_get,
         ):
             component = RSSReaderComponent(rss_url="http://127.0.0.1:8080/feed.xml")
@@ -209,7 +209,7 @@ class TestRSSReaderSSRFProtection:
     def test_blocks_private_network(self):
         """An RFC1918 feed URL is blocked; no request is made."""
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             patch("requests.get") as mock_get,
         ):
             component = RSSReaderComponent(rss_url="http://192.168.1.1/feed.xml")
@@ -223,7 +223,7 @@ class TestRSSReaderSSRFProtection:
         redirect = _mock_response(302, location="http://169.254.169.254/latest/meta-data/")
 
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             patch("socket.getaddrinfo", side_effect=_resolve_public),
             patch("requests.get", return_value=redirect) as mock_get,
         ):
@@ -237,7 +237,7 @@ class TestRSSReaderSSRFProtection:
     def test_allows_public_feed(self):
         """A legitimate public RSS feed is fetched and parsed with SSRF protection enabled."""
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             patch("socket.getaddrinfo", side_effect=_resolve_public),
             patch("requests.get", return_value=_mock_response(200, content=_VALID_RSS)),
         ):
@@ -251,7 +251,7 @@ class TestRSSReaderSSRFProtection:
     def test_protection_disabled_allows_internal(self):
         """With SSRF protection disabled, internal URLs are reachable (user opted out)."""
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "false"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "false"}),
             patch("requests.get", return_value=_mock_response(200, content=_VALID_RSS)) as mock_get,
         ):
             component = RSSReaderComponent(rss_url="http://127.0.0.1:8080/feed.xml")

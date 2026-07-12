@@ -9,7 +9,7 @@ Usage:
     uv run python src/backend/tests/stress/stress_telemetry_writes.py \
         --concurrency 200 --seconds 30
 
-    DB_URL=$LANGFLOW_DATABASE_URL \
+    DB_URL=$KETOS_DATABASE_URL \
     uv run python src/backend/tests/stress/stress_telemetry_writes.py \
         --concurrency 500 --seconds 30
 
@@ -28,19 +28,19 @@ import traceback
 from collections import Counter
 from uuid import uuid4
 
-# Configure env BEFORE importing langflow so settings pick up the DB URL.
+# Configure env BEFORE importing ketos so settings pick up the DB URL.
 DB_URL = os.environ.get("DB_URL", "sqlite:///./stress.db")
-os.environ.setdefault("LANGFLOW_DATABASE_URL", DB_URL)
-os.environ.setdefault("LANGFLOW_TRANSACTIONS_STORAGE_ENABLED", "true")
-os.environ.setdefault("LANGFLOW_VERTEX_BUILDS_STORAGE_ENABLED", "true")
+os.environ.setdefault("KETOS_DATABASE_URL", DB_URL)
+os.environ.setdefault("KETOS_TRANSACTIONS_STORAGE_ENABLED", "true")
+os.environ.setdefault("KETOS_VERTEX_BUILDS_STORAGE_ENABLED", "true")
 # Auto-login keeps service init from blocking on user setup paths.
-os.environ.setdefault("LANGFLOW_AUTO_LOGIN", "true")
+os.environ.setdefault("KETOS_AUTO_LOGIN", "true")
 
 
 async def setup() -> tuple[object, object]:
-    from langflow.services.deps import get_db_service, get_settings_service
-    from langflow.services.manager import get_service_manager
-    from langflow.services.utils import initialize_services
+    from ketos.services.deps import get_db_service, get_settings_service
+    from ketos.services.manager import get_service_manager
+    from ketos.services.utils import initialize_services
 
     settings = get_settings_service().settings
     print(f"[setup] DB_URL={settings.database_url}")
@@ -51,7 +51,7 @@ async def setup() -> tuple[object, object]:
     await db_service.create_db_and_tables()
 
     if getattr(settings, "telemetry_writer_enabled", False):
-        from langflow.services.deps import get_telemetry_writer_service
+        from ketos.services.deps import get_telemetry_writer_service
 
         writer = get_telemetry_writer_service()
         if writer is not None and writer.is_enabled():
@@ -81,8 +81,8 @@ async def worker(
     counters: Counter,
     error_samples: dict[str, str],
 ) -> None:
-    from lfx.graph.utils import log_vertex_build
-    from lfx.services.deps import get_transaction_service
+    from kfx.graph.utils import log_vertex_build
+    from kfx.services.deps import get_transaction_service
 
     tx_service = get_transaction_service()
     i = 0
@@ -170,7 +170,7 @@ async def main_async(args) -> int:
 
     writer = None
     try:
-        from langflow.services.deps import get_telemetry_writer_service
+        from ketos.services.deps import get_telemetry_writer_service
 
         writer = get_telemetry_writer_service()
     except Exception:

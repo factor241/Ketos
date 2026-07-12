@@ -2,11 +2,11 @@ from datetime import datetime, timezone
 
 import filelock
 import pytest
-from langflow.services.auth.utils import verify_password
-from langflow.services.database.models.user.model import User
-from langflow.services.deps import get_auth_service, get_settings_service, session_scope
-from langflow.services.utils import SetupSuperuserResult, setup_superuser, teardown_superuser
-from lfx.services.settings.constants import (
+from ketos.services.auth.utils import verify_password
+from ketos.services.database.models.user.model import User
+from ketos.services.deps import get_auth_service, get_settings_service, session_scope
+from ketos.services.utils import SetupSuperuserResult, setup_superuser, teardown_superuser
+from kfx.services.settings.constants import (
     DEFAULT_SUPERUSER,
     DEFAULT_SUPERUSER_PASSWORD,
     LEGACY_DEFAULT_SUPERUSER_PASSWORD,
@@ -25,14 +25,14 @@ async def initialized_services(monkeypatch, tmp_path):
     LifespanManager. This avoids the heavy lifespan startup/shutdown (MCP servers,
     background tasks, streamable HTTP) that causes hangs on CI Linux.
     """
-    from langflow.services.utils import initialize_services, teardown_services
-    from lfx.services.manager import get_service_manager
+    from ketos.services.utils import initialize_services, teardown_services
+    from kfx.services.manager import get_service_manager
 
     db_path = tmp_path / "test.db"
-    monkeypatch.setenv("LANGFLOW_DATABASE_URL", f"sqlite:///{db_path}")
-    monkeypatch.setenv("LANGFLOW_AUTO_LOGIN", "false")
-    monkeypatch.setenv("LANGFLOW_SUPERUSER", DEFAULT_SUPERUSER)
-    monkeypatch.setenv("LANGFLOW_SUPERUSER_PASSWORD", "test-superuser-password")
+    monkeypatch.setenv("KETOS_DATABASE_URL", f"sqlite:///{db_path}")
+    monkeypatch.setenv("KETOS_AUTO_LOGIN", "false")
+    monkeypatch.setenv("KETOS_SUPERUSER", DEFAULT_SUPERUSER)
+    monkeypatch.setenv("KETOS_SUPERUSER_PASSWORD", "test-superuser-password")
 
     get_service_manager().factories.clear()
     get_service_manager().services.clear()
@@ -70,7 +70,7 @@ async def test_initialize_services_creates_default_superuser_when_auto_login_tru
 @pytest.mark.asyncio
 @pytest.mark.timeout(30)
 async def test_setup_superuser_auto_login_rotates_legacy_default_password(initialized_services):  # noqa: ARG001
-    """AUTO_LOGIN startup rotates old langflow/langflow hashes left by previous releases."""
+    """AUTO_LOGIN startup rotates old ketos/ketos hashes left by previous releases."""
     settings = get_settings_service()
     settings.auth_settings.AUTO_LOGIN = True
     settings.auth_settings.SUPERUSER = DEFAULT_SUPERUSER
@@ -109,7 +109,7 @@ async def test_setup_superuser_auto_login_rotates_legacy_default_password(initia
 async def test_setup_superuser_rotates_legacy_default_password_when_auto_login_false(
     initialized_services,  # noqa: ARG001
 ):
-    """Authenticated startup rotates old langflow/langflow hashes to the configured password."""
+    """Authenticated startup rotates old ketos/ketos hashes to the configured password."""
     settings = get_settings_service()
     settings.auth_settings.AUTO_LOGIN = False
     settings.auth_settings.SUPERUSER = DEFAULT_SUPERUSER
@@ -285,7 +285,7 @@ async def test_setup_superuser_rejects_legacy_default_password_when_auto_login_f
 async def test_setup_superuser_auto_login_ignores_configured_legacy_default_password(
     initialized_services,  # noqa: ARG001
 ):
-    """AUTO_LOGIN startup must not persist langflow/langflow even when env config provides it."""
+    """AUTO_LOGIN startup must not persist ketos/ketos even when env config provides it."""
     settings = get_settings_service()
     settings.auth_settings.AUTO_LOGIN = True
     settings.auth_settings.SUPERUSER = DEFAULT_SUPERUSER

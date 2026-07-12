@@ -1,4 +1,4 @@
-"""Tests for migrate_orphaned_mcp_servers_config in langflow.services.utils.
+"""Tests for migrate_orphaned_mcp_servers_config in ketos.services.utils.
 
 Verifies that MCP server config files written under a previous default
 superuser's UUID are picked up and migrated to the new default superuser
@@ -17,25 +17,25 @@ import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
-from langflow.services.database.models.file.model import File as UserFile
-from langflow.services.deps import get_settings_service, session_scope
-from langflow.services.utils import migrate_orphaned_mcp_servers_config
+from ketos.services.database.models.file.model import File as UserFile
+from ketos.services.deps import get_settings_service, session_scope
+from ketos.services.utils import migrate_orphaned_mcp_servers_config
 from sqlmodel import select
 
 
 @pytest.fixture
 async def initialized_services(monkeypatch, tmp_path):
     """Initialize DB + services with an isolated config dir."""
-    from langflow.services.utils import initialize_services, teardown_services
-    from lfx.services.manager import get_service_manager
+    from ketos.services.utils import initialize_services, teardown_services
+    from kfx.services.manager import get_service_manager
 
     db_path = tmp_path / "test.db"
     config_dir = tmp_path / "config"
     config_dir.mkdir(parents=True, exist_ok=True)
 
-    monkeypatch.setenv("LANGFLOW_DATABASE_URL", f"sqlite:///{db_path}")
-    monkeypatch.setenv("LANGFLOW_CONFIG_DIR", str(config_dir))
-    monkeypatch.setenv("LANGFLOW_AUTO_LOGIN", "true")
+    monkeypatch.setenv("KETOS_DATABASE_URL", f"sqlite:///{db_path}")
+    monkeypatch.setenv("KETOS_CONFIG_DIR", str(config_dir))
+    monkeypatch.setenv("KETOS_AUTO_LOGIN", "true")
 
     get_service_manager().factories.clear()
     get_service_manager().services.clear()
@@ -73,8 +73,8 @@ async def test_migrate_orphaned_mcp_servers_config_recovers_previous_user_config
     settings = get_settings_service()
 
     async with session_scope() as session:
-        from langflow.services.database.models.user.model import User
-        from lfx.services.settings.constants import DEFAULT_SUPERUSER
+        from ketos.services.database.models.user.model import User
+        from kfx.services.settings.constants import DEFAULT_SUPERUSER
 
         user = (await session.exec(select(User).where(User.username == DEFAULT_SUPERUSER))).first()
         assert user is not None, "default superuser should exist after initialize_services"
@@ -122,8 +122,8 @@ async def test_migrate_orphaned_mcp_servers_config_skips_when_multiple_orphans(
     settings = get_settings_service()
 
     async with session_scope() as session:
-        from langflow.services.database.models.user.model import User
-        from lfx.services.settings.constants import DEFAULT_SUPERUSER
+        from ketos.services.database.models.user.model import User
+        from kfx.services.settings.constants import DEFAULT_SUPERUSER
 
         user = (await session.exec(select(User).where(User.username == DEFAULT_SUPERUSER))).first()
         migrated = await migrate_orphaned_mcp_servers_config(session, settings, user)
@@ -163,8 +163,8 @@ async def test_migrate_orphaned_mcp_servers_config_no_orphans_is_noop(
     settings = get_settings_service()
 
     async with session_scope() as session:
-        from langflow.services.database.models.user.model import User
-        from lfx.services.settings.constants import DEFAULT_SUPERUSER
+        from ketos.services.database.models.user.model import User
+        from kfx.services.settings.constants import DEFAULT_SUPERUSER
 
         user = (await session.exec(select(User).where(User.username == DEFAULT_SUPERUSER))).first()
         migrated = await migrate_orphaned_mcp_servers_config(session, settings, user)
@@ -190,8 +190,8 @@ async def test_migrate_orphaned_mcp_servers_config_self_heals_missing_db_row(
     settings = get_settings_service()
 
     async with session_scope() as session:
-        from langflow.services.database.models.user.model import User
-        from lfx.services.settings.constants import DEFAULT_SUPERUSER
+        from ketos.services.database.models.user.model import User
+        from kfx.services.settings.constants import DEFAULT_SUPERUSER
 
         user = (await session.exec(select(User).where(User.username == DEFAULT_SUPERUSER))).first()
 
@@ -227,8 +227,8 @@ async def test_migrate_orphaned_mcp_servers_config_skips_when_row_already_presen
     settings = get_settings_service()
 
     async with session_scope() as session:
-        from langflow.services.database.models.user.model import User
-        from lfx.services.settings.constants import DEFAULT_SUPERUSER
+        from ketos.services.database.models.user.model import User
+        from kfx.services.settings.constants import DEFAULT_SUPERUSER
 
         user = (await session.exec(select(User).where(User.username == DEFAULT_SUPERUSER))).first()
 

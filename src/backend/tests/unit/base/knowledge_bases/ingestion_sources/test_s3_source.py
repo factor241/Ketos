@@ -2,7 +2,7 @@
 
 The S3 / Google Drive / OneDrive / SharePoint sources ship as stubs in
 this phase (see each module's docstring under
-``lfx.base.knowledge_bases.ingestion_sources``). These tests pin the
+``kfx.base.knowledge_bases.ingestion_sources``). These tests pin the
 "intentionally disabled" contract:
 
 * the classes still import (preserves enum + type compatibility),
@@ -14,7 +14,7 @@ this phase (see each module's docstring under
 from __future__ import annotations
 
 import pytest
-from lfx.base.knowledge_bases.ingestion_sources import (
+from kfx.base.knowledge_bases.ingestion_sources import (
     GoogleDriveSource,
     OneDriveSource,
     S3Source,

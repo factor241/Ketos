@@ -18,12 +18,12 @@ runs real.
 
 from unittest.mock import patch
 
-from langflow.agentic.services.provider_service import (
+from ketos.agentic.services.provider_service import (
     get_default_model,
     get_provider_model_candidates,
 )
 
-MODULE = "langflow.agentic.services.provider_service"
+MODULE = "ketos.agentic.services.provider_service"
 
 INSTALLED_OLLAMA_MODELS = [
     {"name": "gpt-oss:20b", "tool_calling": True},
@@ -214,7 +214,7 @@ class TestLiveFetchFailOpen:
     """C2/C9: any exception from the live-fetch boundary degrades to catalog behavior (fail-open)."""
 
     def test_should_return_empty_when_live_fetch_raises_unexpected_error(self):
-        from langflow.agentic.services.provider_service import list_installed_tool_calling_models
+        from ketos.agentic.services.provider_service import list_installed_tool_calling_models
 
         with patch(
             f"{MODULE}.get_live_models_for_provider",

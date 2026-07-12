@@ -1,7 +1,7 @@
 from typing import Any
 
 import pytest
-from lfx.components.datastax import AstraDBVectorStoreComponent
+from kfx.components.datastax import AstraDBVectorStoreComponent
 
 from tests.base import ComponentTestBaseWithoutClient, VersionComponentMapping
 

@@ -3,11 +3,11 @@
 from uuid import uuid4
 
 import pytest
-from langflow.memory import aadd_messages, aget_messages, astore_message
-from langflow.schema.message import Message
-from langflow.services.database.models.message import MessageCreate, MessageRead
-from langflow.services.database.models.message.model import MessageTable
-from langflow.services.deps import session_scope
+from ketos.memory import aadd_messages, aget_messages, astore_message
+from ketos.schema.message import Message
+from ketos.services.database.models.message import MessageCreate, MessageRead
+from ketos.services.database.models.message.model import MessageTable
+from ketos.services.deps import session_scope
 
 
 @pytest.fixture
@@ -19,7 +19,7 @@ def sample_session_metadata():
         "region": "us-east-1",
         "retention_profile": "standard",
         "data_flags": {"pii": True, "sensitive": False},
-        "custom_fields": {"department": "engineering", "project": "langflow"},
+        "custom_fields": {"department": "engineering", "project": "ketos"},
     }
 
 
@@ -327,7 +327,7 @@ async def test_session_metadata_retrieval():
 @pytest.mark.usefixtures("client")
 async def test_messageupdate_with_session_metadata(sample_session_metadata):
     """Test MessageUpdate schema with session_metadata."""
-    from langflow.services.database.models.message.model import MessageUpdate
+    from ketos.services.database.models.message.model import MessageUpdate
 
     message_update = MessageUpdate(
         text="Updated text",

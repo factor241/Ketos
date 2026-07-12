@@ -1,4 +1,4 @@
-"""Comprehensive tests for lfx.log.logger module.
+"""Comprehensive tests for kfx.log.logger module.
 
 This test suite covers all aspects of the logger module including:
 - configure() function with all parameters and edge cases
@@ -20,7 +20,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 import structlog
-from lfx.log.logger import (
+from kfx.log.logger import (
     LOG_LEVEL_MAP,
     VALID_LOG_LEVELS,
     InterceptHandler,
@@ -105,9 +105,9 @@ class TestConfigure:
                     logging.root.removeHandler(handler)
 
     def test_configure_routes_loguru_messages_to_log_file(self):
-        """Test configure() routes Loguru messages through Langflow logging."""
+        """Test configure() routes Loguru messages through Ketos logging."""
         with tempfile.TemporaryDirectory() as tmp_dir:
-            log_file_path = Path(tmp_dir) / "langflow.log"
+            log_file_path = Path(tmp_dir) / "ketos.log"
 
             for handler in logging.root.handlers[:]:
                 if isinstance(handler, logging.handlers.RotatingFileHandler):
@@ -238,42 +238,42 @@ class TestConfigure:
                 if isinstance(handler, logging.handlers.RotatingFileHandler):
                     logging.root.removeHandler(handler)
 
-    @patch.dict(os.environ, {"LANGFLOW_LOG_LEVEL": "WARNING"})
+    @patch.dict(os.environ, {"KETOS_LOG_LEVEL": "WARNING"})
     def test_configure_env_variable_override(self):
-        """Test configure() respects LANGFLOW_LOG_LEVEL environment variable."""
+        """Test configure() respects KETOS_LOG_LEVEL environment variable."""
         configure()  # Should use WARNING from env var
 
         config = structlog._config
         assert config is not None
         # The wrapper_class should be configured for WARNING level
 
-    @patch.dict(os.environ, {"LANGFLOW_LOG_FILE": "/tmp/test.log"})  # noqa: S108
+    @patch.dict(os.environ, {"KETOS_LOG_FILE": "/tmp/test.log"})  # noqa: S108
     def test_configure_env_log_file_override(self):
-        """Test configure() respects LANGFLOW_LOG_FILE environment variable."""
+        """Test configure() respects KETOS_LOG_FILE environment variable."""
         configure()
 
         config = structlog._config
         assert config is not None
 
-    @patch.dict(os.environ, {"LANGFLOW_LOG_ENV": "container"})
+    @patch.dict(os.environ, {"KETOS_LOG_ENV": "container"})
     def test_configure_env_log_env_override(self):
-        """Test configure() respects LANGFLOW_LOG_ENV environment variable."""
+        """Test configure() respects KETOS_LOG_ENV environment variable."""
         configure()
 
         config = structlog._config
         assert config is not None
 
-    @patch.dict(os.environ, {"LANGFLOW_LOG_FORMAT": "custom"})
+    @patch.dict(os.environ, {"KETOS_LOG_FORMAT": "custom"})
     def test_configure_env_log_format_override(self):
-        """Test configure() respects LANGFLOW_LOG_FORMAT environment variable."""
+        """Test configure() respects KETOS_LOG_FORMAT environment variable."""
         configure()
 
         config = structlog._config
         assert config is not None
 
-    @patch.dict(os.environ, {"LANGFLOW_PRETTY_LOGS": "false"})
+    @patch.dict(os.environ, {"KETOS_PRETTY_LOGS": "false"})
     def test_configure_env_pretty_logs_disabled(self):
-        """Test configure() respects LANGFLOW_PRETTY_LOGS=false."""
+        """Test configure() respects KETOS_PRETTY_LOGS=false."""
         configure()
 
         config = structlog._config
@@ -674,13 +674,13 @@ class TestProductionObservability:
         assert rec["exception"][0]["exc_type"] == "ConnectionError"
 
     def test_per_logger_level_overrides_via_env(self, monkeypatch):
-        monkeypatch.setenv("LANGFLOW_LOG_LEVELS", "noisy.lib=WARNING,other=ERROR")
+        monkeypatch.setenv("KETOS_LOG_LEVELS", "noisy.lib=WARNING,other=ERROR")
         configure(log_env="container", log_level="DEBUG", cache=False)
         assert logging.getLogger("noisy.lib").level == logging.WARNING
         assert logging.getLogger("other").level == logging.ERROR
 
     def test_extra_redact_keys_via_env(self, capsys, monkeypatch):
-        monkeypatch.setenv("LANGFLOW_LOG_REDACT_KEYS", "session_id,internal_key")
+        monkeypatch.setenv("KETOS_LOG_REDACT_KEYS", "session_id,internal_key")
         configure(log_env="container", log_level="DEBUG", cache=False)
         log = structlog.get_logger("redact.extra")
         records = self._emit_and_parse(
@@ -712,9 +712,9 @@ class TestProductionObservability:
         assert "sk-do-not-leak" not in rendered  # pragma: allowlist secret
 
     def test_traceback_locals_enabled_via_opt_in(self, capsys, monkeypatch):
-        # LANGFLOW_LOG_TRACE_LOCALS=true is the explicit opt-in for local
+        # KETOS_LOG_TRACE_LOCALS=true is the explicit opt-in for local
         # debugging. Verifies the opt-in actually flips the safe default.
-        monkeypatch.setenv("LANGFLOW_LOG_TRACE_LOCALS", "true")
+        monkeypatch.setenv("KETOS_LOG_TRACE_LOCALS", "true")
         configure(log_env="container", log_level="DEBUG", cache=False)
         log = structlog.get_logger("locals.optin")
 
@@ -743,7 +743,7 @@ class TestProductionObservability:
     def test_intercept_handler_not_installed_in_pretty_mode(self, monkeypatch):
         # Pretty/console mode must NOT route stdlib through structlog,
         # otherwise dev terminals get duplicated lines.
-        monkeypatch.setenv("LANGFLOW_PRETTY_LOGS", "true")
+        monkeypatch.setenv("KETOS_PRETTY_LOGS", "true")
         configure(log_env="", log_level="DEBUG", cache=False)
         handlers = [h for h in logging.root.handlers if isinstance(h, InterceptHandler)]
         assert handlers == []
@@ -783,25 +783,25 @@ class TestProductionObservability:
         with Path(os.devnull).open("w") as devnull, contextlib.redirect_stderr(devnull):
             handler.emit(record)
 
-    def test_service_info_defaults_to_langflow(self, capsys):
+    def test_service_info_defaults_to_ketos(self, capsys):
         configure(log_env="container", log_level="DEBUG", cache=False)
         log = structlog.get_logger("svc.default")
         records = self._emit_and_parse(capsys, lambda: log.info("hi"))
         rec = records[-1]
-        assert rec["service"] == "langflow"
+        assert rec["service"] == "ketos"
         # version/environment are omitted when unset.
         assert "version" not in rec
         assert "environment" not in rec
 
     def test_service_info_from_env_appears_in_records(self, capsys, monkeypatch):
-        monkeypatch.setenv("LANGFLOW_SERVICE_NAME", "lfx-runner")
-        monkeypatch.setenv("LANGFLOW_VERSION", "1.2.3")
-        monkeypatch.setenv("LANGFLOW_ENVIRONMENT", "staging")
+        monkeypatch.setenv("KETOS_SERVICE_NAME", "kfx-runner")
+        monkeypatch.setenv("KETOS_VERSION", "1.2.3")
+        monkeypatch.setenv("KETOS_ENVIRONMENT", "staging")
         configure(log_env="container", log_level="DEBUG", cache=False)
         log = structlog.get_logger("svc.env")
         records = self._emit_and_parse(capsys, lambda: log.info("hi"))
         rec = records[-1]
-        assert rec["service"] == "lfx-runner"
+        assert rec["service"] == "kfx-runner"
         assert rec["version"] == "1.2.3"
         assert rec["environment"] == "staging"
 
@@ -809,10 +809,10 @@ class TestProductionObservability:
         # Typos like `WARN` instead of `WARNING` must surface, not silently
         # drop. Operators need feedback that their config didn't apply.
         monkeypatch.setenv(
-            "LANGFLOW_LOG_LEVELS",
+            "KETOS_LOG_LEVELS",
             "sqlalchemy.engine=WARN,good=INFO,broken,=NOLEVEL,empty=,a=NOTALEVEL",
         )
-        with pytest.warns(UserWarning, match="LANGFLOW_LOG_LEVELS"):
+        with pytest.warns(UserWarning, match="KETOS_LOG_LEVELS"):
             configure(log_env="container", log_level="DEBUG", cache=False)
         # Valid entry still applied past the bad ones.
         assert logging.getLogger("good").level == logging.INFO
@@ -1162,7 +1162,7 @@ def test_init_default():
 
 
 def test_init_with_env_variable():
-    with patch.dict(os.environ, {"LANGFLOW_LOG_RETRIEVER_BUFFER_SIZE": "100"}):
+    with patch.dict(os.environ, {"KETOS_LOG_RETRIEVER_BUFFER_SIZE": "100"}):
         buffer = SizedLogBuffer()
         assert buffer.max == 100
 
@@ -1586,8 +1586,8 @@ class TestBufferWriterBytesSerializationFix:
 class TestFileModeStdlibUnification:
     """JSON file mode must route third-party stdlib logs through structlog too.
 
-    Regression coverage for the bug where ``LANGFLOW_LOG_ENV=container`` plus
-    ``LANGFLOW_LOG_FILE`` skipped the stdlib path entirely: uvicorn, sqlalchemy,
+    Regression coverage for the bug where ``KETOS_LOG_ENV=container`` plus
+    ``KETOS_LOG_FILE`` skipped the stdlib path entirely: uvicorn, sqlalchemy,
     httpx, asyncio wrote plain text straight to the file, bypassing both JSON
     rendering and PII redaction.
     """
@@ -1612,7 +1612,7 @@ class TestFileModeStdlibUnification:
     def test_container_file_mode_stdlib_logs_are_json_with_logger_name(self):
         """A third-party stdlib log lands in the file as JSON carrying its logger name."""
         with tempfile.TemporaryDirectory() as tmp_dir:
-            log_file_path = Path(tmp_dir) / "langflow.log"
+            log_file_path = Path(tmp_dir) / "ketos.log"
             configure(log_env="container", log_level="INFO", log_file=log_file_path, cache=False)
 
             logging.getLogger("sqlalchemy.engine").warning("connecting to pool")
@@ -1624,12 +1624,12 @@ class TestFileModeStdlibUnification:
             assert sa[0]["event"] == "connecting to pool"
             assert sa[0]["level"] == "warning"
             # Service metadata is attached to stdlib records too.
-            assert sa[0]["service"] == "langflow"
+            assert sa[0]["service"] == "ketos"
 
     def test_container_file_mode_redacts_stdlib_extra(self):
         """PII redaction applies to structured fields on stdlib records in file mode."""
         with tempfile.TemporaryDirectory() as tmp_dir:
-            log_file_path = Path(tmp_dir) / "langflow.log"
+            log_file_path = Path(tmp_dir) / "ketos.log"
             configure(log_env="container", log_level="INFO", log_file=log_file_path, cache=False)
 
             logging.getLogger("httpx").warning(
@@ -1645,16 +1645,16 @@ class TestFileModeStdlibUnification:
     def test_container_file_mode_app_logs_still_json_and_redacted(self):
         """Application logs keep their JSON + redaction in file mode (structlog path)."""
         with tempfile.TemporaryDirectory() as tmp_dir:
-            log_file_path = Path(tmp_dir) / "langflow.log"
+            log_file_path = Path(tmp_dir) / "ketos.log"
             configure(log_env="container", log_level="INFO", log_file=log_file_path, cache=False)
 
-            structlog.get_logger("langflow.api").info(
+            structlog.get_logger("ketos.api").info(
                 "incoming",
                 api_key="sk-do-not-leak",  # pragma: allowlist secret
             )
 
             records = self._read_records(log_file_path)
-            app = [r for r in records if r.get("logger") == "langflow.api"]
+            app = [r for r in records if r.get("logger") == "ketos.api"]
             assert app, f"app record missing; loggers seen: {[r.get('logger') for r in records]}"
             assert app[0]["event"] == "incoming"
             assert app[0].get("api_key") == "***"
@@ -1707,7 +1707,7 @@ class TestConfigureEarlyReturnFingerprint:
         file stayed empty.
         """
         with tempfile.TemporaryDirectory() as tmp_dir:
-            log_file_path = Path(tmp_dir) / "langflow.log"
+            log_file_path = Path(tmp_dir) / "ketos.log"
 
             # First call: console mode at INFO, no file handler.
             configure(log_level="INFO", log_env="", cache=False)
@@ -1748,9 +1748,9 @@ class TestConfigureEarlyReturnFingerprint:
         assert first is second, "identical configure() rebuilt the pipeline; early-return regressed"
 
     def test_same_level_new_output_file_takes_effect(self):
-        """Same level, new output_file must reconfigure (the lfx.run.base path).
+        """Same level, new output_file must reconfigure (the kfx.run.base path).
 
-        lfx.run.base calls configure(log_level=..., output_file=sys.stderr) at
+        kfx.run.base calls configure(log_level=..., output_file=sys.stderr) at
         fixed levels; a level-only early-return would pin logs to the first
         call's stream. output_file is part of the fingerprint, so the second
         call rebuilds (fresh processors list) and logs reach the new stream.
@@ -1825,7 +1825,7 @@ class TestStdlibLevelNameMutationRobustness:
         assert logging.getLevelName(logging.WARNING) != "WARNING"
 
         with tempfile.TemporaryDirectory() as tmp_dir:
-            log_file_path = Path(tmp_dir) / "langflow.log"
+            log_file_path = Path(tmp_dir) / "ketos.log"
             configure(log_env="container", log_level="INFO", log_file=log_file_path, cache=False)
 
             logging.getLogger("sqlalchemy.engine").warning("connecting to pool")

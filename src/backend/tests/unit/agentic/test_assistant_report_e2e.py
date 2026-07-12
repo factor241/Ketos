@@ -20,9 +20,9 @@ Report → scenario map:
 from __future__ import annotations
 
 import pytest
-from langflow.agentic.services.conversation_buffer import ConversationTurn
-from langflow.agentic.services.helpers.intent_classification import classify_intent
-from langflow.agentic.services.helpers.intent_context import build_intent_context
+from ketos.agentic.services.conversation_buffer import ConversationTurn
+from ketos.agentic.services.helpers.intent_classification import classify_intent
+from ketos.agentic.services.helpers.intent_context import build_intent_context
 
 from tests.api_keys import has_api_key
 
@@ -70,7 +70,7 @@ class TestIntentRoutingRealLLM:
             api_key_var=_KEY,
             context=context,
         )
-        assert result.intent != "off_topic", f"Langflow-related request misrouted to off_topic ({result.intent})"
+        assert result.intent != "off_topic", f"Ketos-related request misrouted to off_topic ({result.intent})"
 
     async def test_genuinely_off_topic_still_off_topic(self):
         # Guard: the WS-1 changes must not over-correct real off-topic asks.
@@ -99,7 +99,7 @@ class TestNoFakeSuccessRealAgent:
     """RC-2 — a real build_flow run drives the canvas or errors loudly, never a silent text complete (report #1/#4)."""
 
     async def test_real_build_emits_flow_activity_not_silent_text(self):
-        from langflow.agentic.services.assistant_service import (
+        from ketos.agentic.services.assistant_service import (
             execute_flow_with_validation_streaming,
         )
 
@@ -142,8 +142,8 @@ class TestLegacyFilterReal:
     """
 
     def test_real_registry_search_excludes_legacy_but_describe_resolves(self):
-        from lfx.graph.flow_builder.builder import load_local_registry
-        from lfx.mcp.registry import describe_component, search_registry
+        from kfx.graph.flow_builder.builder import load_local_registry
+        from kfx.mcp.registry import describe_component, search_registry
 
         registry = load_local_registry()
         # Strictly legacy (and NOT beta-only) — beta is now allowed in search.
@@ -164,8 +164,8 @@ class TestLegacyFilterReal:
         assert described.get("legacy") is True
 
     def test_real_registry_search_includes_beta(self):
-        from lfx.graph.flow_builder.builder import load_local_registry
-        from lfx.mcp.registry import search_registry
+        from kfx.graph.flow_builder.builder import load_local_registry
+        from kfx.mcp.registry import search_registry
 
         registry = load_local_registry()
         beta_name = next(
@@ -184,13 +184,13 @@ class TestRuntimeValidationReal:
     async def test_rejects_output_returning_non_dict_from_input(self):
         from textwrap import dedent
 
-        from langflow.agentic.helpers.validation import validate_component_runtime
+        from ketos.agentic.helpers.validation import validate_component_runtime
 
         buggy = dedent(
             """
-            from lfx.custom import Component
-            from lfx.io import MessageTextInput, Output
-            from lfx.schema.data import Data
+            from kfx.custom import Component
+            from kfx.io import MessageTextInput, Output
+            from kfx.schema.data import Data
 
 
             class AnimalOnomatopoeia(Component):
@@ -209,13 +209,13 @@ class TestRuntimeValidationReal:
     async def test_accepts_valid_component(self):
         from textwrap import dedent
 
-        from langflow.agentic.helpers.validation import validate_component_runtime
+        from ketos.agentic.helpers.validation import validate_component_runtime
 
         good = dedent(
             """
-            from lfx.custom import Component
-            from lfx.io import MessageTextInput, Output
-            from lfx.schema.data import Data
+            from kfx.custom import Component
+            from kfx.io import MessageTextInput, Output
+            from kfx.schema.data import Data
 
 
             class AnimalEcho(Component):
@@ -236,16 +236,16 @@ class TestUserComponentOverlayReal:
     """RC-3 — real register then real overlay lookup makes a user component usable in a later build (report #3)."""
 
     def test_registered_component_is_discoverable_by_class_name(self, tmp_path, monkeypatch):
-        monkeypatch.setenv("LANGFLOW_FS_TOOL_BASE_DIR", str(tmp_path))
-        from langflow.agentic.services.user_components import register_user_component
-        from langflow.agentic.services.user_components_overlay import (
+        monkeypatch.setenv("KETOS_FS_TOOL_BASE_DIR", str(tmp_path))
+        from ketos.agentic.services.user_components import register_user_component
+        from ketos.agentic.services.user_components_overlay import (
             load_registry_with_user_overlay,
         )
 
         code = (
-            "from lfx.custom import Component\n"
-            "from lfx.io import Output\n"
-            "from lfx.schema.data import Data\n\n\n"
+            "from kfx.custom import Component\n"
+            "from kfx.io import Output\n"
+            "from kfx.schema.data import Data\n\n\n"
             "class SumComponent(Component):\n"
             "    display_name = 'Sum'\n"
             "    description = 'adds a and b'\n"
@@ -345,7 +345,7 @@ class TestRunFlowIntentRealLLM:
         # off_topic/question, which would strand the deferred run. Stable
         # invariant: classified as a flow request even through the real
         # provider entrypoint (it's a deterministic short-circuit).
-        from langflow.agentic.services.flow_types import EDIT_CONTINUATION_INPUT
+        from ketos.agentic.services.flow_types import EDIT_CONTINUATION_INPUT
 
         result = await classify_intent(
             text=EDIT_CONTINUATION_INPUT,
@@ -381,8 +381,8 @@ class TestRealEngineRunReturnsResult:
     async def test_real_minimal_flow_runs_and_returns_result(self):
         import uuid
 
-        from langflow.agentic.services.flow_run import run_working_flow
-        from lfx.graph.flow_builder.builder import build_flow_from_spec, load_local_registry
+        from ketos.agentic.services.flow_run import run_working_flow
+        from kfx.graph.flow_builder.builder import build_flow_from_spec, load_local_registry
 
         spec = (
             "name: Echo\n"

@@ -1,1 +1,1 @@
-"""Template testing module for Langflow."""
+"""Template testing module for Ketos."""

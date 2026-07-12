@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import importlib
 
-_MIGRATION = importlib.import_module("langflow.alembic.versions.7c8d9e0f1a2b_authz_foundations")
+_MIGRATION = importlib.import_module("ketos.alembic.versions.7c8d9e0f1a2b_authz_foundations")
 
 
 def test_three_system_roles_are_seeded():

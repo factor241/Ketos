@@ -2,13 +2,13 @@
 
 from unittest.mock import MagicMock, Mock, patch
 
-from lfx.base.models.groq_model_discovery import GroqModelDiscovery
+from kfx.base.models.groq_model_discovery import GroqModelDiscovery
 
 
 class TestGroqModelDiscoveryEdgeCases:
     """Test edge cases in model discovery."""
 
-    @patch("lfx.base.models.groq_model_discovery.requests.get")
+    @patch("kfx.base.models.groq_model_discovery.requests.get")
     def test_empty_model_list_from_api(self, mock_get, mock_api_key, temp_cache_dir):
         """Test handling of empty model list from API."""
         # Mock empty response
@@ -51,7 +51,7 @@ class TestGroqModelDiscoveryEdgeCases:
         assert cache_file.parent.exists()
         assert cache_file.exists()
 
-    @patch("lfx.base.models.groq_model_discovery.requests.get")
+    @patch("kfx.base.models.groq_model_discovery.requests.get")
     @patch("groq.Groq")
     def test_preview_model_detection(
         self,
@@ -86,7 +86,7 @@ class TestGroqModelDiscoveryEdgeCases:
         # Models with "/" should be marked as preview
         assert models["meta-llama/llama-3.2-90b-preview"]["preview"] is True
 
-    @patch("lfx.base.models.groq_model_discovery.requests.get")
+    @patch("kfx.base.models.groq_model_discovery.requests.get")
     @patch("groq.Groq")
     def test_mixed_tool_calling_support(
         self,

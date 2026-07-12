@@ -1,8 +1,8 @@
 import pytest
-from langflow.services.auth.utils import create_user_longterm_token
-from langflow.services.deps import get_settings_service
-from langflow.services.utils import initialize_services
-from lfx.services.deps import session_scope
+from ketos.services.auth.utils import create_user_longterm_token
+from ketos.services.deps import get_settings_service
+from ketos.services.utils import initialize_services
+from kfx.services.deps import session_scope
 
 
 @pytest.mark.skip(reason="MCP Projects can only create long-term tokens if AUTO_LOGIN is enabled")

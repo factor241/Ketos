@@ -1,6 +1,6 @@
 import pytest
 import sqlalchemy as sa
-from langflow.alembic.migration_validator import MigrationValidator
+from ketos.alembic.migration_validator import MigrationValidator
 from sqlalchemy import Column, Integer, MetaData, String, Table, create_engine, text
 
 

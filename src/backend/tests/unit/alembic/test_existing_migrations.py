@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from langflow.alembic.migration_validator import MigrationValidator
+from ketos.alembic.migration_validator import MigrationValidator
 
 
 @pytest.fixture
@@ -106,7 +106,7 @@ class TestExistingMigrations:
     def test_legacy_migrations_flagged(self):
         """Ensure legacy migrations are flagged for missing phase markers."""
         workspace_root = Path(__file__).resolve().parents[5]
-        migrations_dir = workspace_root / "src/backend/base/langflow/alembic/versions"
+        migrations_dir = workspace_root / "src/backend/base/ketos/alembic/versions"
 
         validator = MigrationValidator(strict_mode=False)
 

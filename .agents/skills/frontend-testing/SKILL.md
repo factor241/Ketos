@@ -1,4 +1,4 @@
-# Frontend Testing Skill - Langflow
+# Frontend Testing Skill - Ketos
 
 ## When to Apply
 
@@ -290,7 +290,7 @@ npm test -- --coverage --collectCoverageFrom='src/path/to/file.ts' src/path/to/_
 - [Async Testing](references/async-testing.md) - Patterns for async operations, timers, and waitFor
 - [Common Patterns](references/common-patterns.md) - Query priority, events, forms, modals, data-driven tests
 - [Test Checklist](references/checklist.md) - Pre-submission verification checklist
-- [Domain Components](references/domain-components.md) - Langflow-specific component testing patterns
+- [Domain Components](references/domain-components.md) - Ketos-specific component testing patterns
 - [Component Template](assets/component-test.template.tsx) - Starter template for component tests
 - [Hook Template](assets/hook-test.template.ts) - Starter template for hook tests
 - [Utility Template](assets/utility-test.template.ts) - Starter template for utility tests

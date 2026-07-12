@@ -1,6 +1,6 @@
 ---
 name: frontend-query-mutation
-description: Guide for implementing Langflow frontend query and mutation patterns with Axios and TanStack React Query v5. Trigger when creating or updating API hooks in controllers/API/queries, consuming UseRequestProcessor in components, deciding whether to use useQuery or useMutation, handling conditional queries, cache invalidation, mutation error handling, or migrating legacy API calls to the query hook pattern.
+description: Guide for implementing Ketos frontend query and mutation patterns with Axios and TanStack React Query v5. Trigger when creating or updating API hooks in controllers/API/queries, consuming UseRequestProcessor in components, deciding whether to use useQuery or useMutation, handling conditional queries, cache invalidation, mutation error handling, or migrating legacy API calls to the query hook pattern.
 ---
 
 # Frontend Query & Mutation
@@ -15,7 +15,7 @@ description: Guide for implementing Langflow frontend query and mutation pattern
 
 ## Architecture Overview
 
-Langflow uses **Axios + TanStack React Query v5** for data fetching. There is no oRPC or contract layer. The architecture is:
+Ketos uses **Axios + TanStack React Query v5** for data fetching. There is no oRPC or contract layer. The architecture is:
 
 ```
 Component
@@ -48,7 +48,7 @@ Component
    - Use the `api` Axios instance for all HTTP calls.
    - Use `getURL()` for constructing API paths.
    - Type the hook with `useQueryFunctionType` or `useMutationFunctionType`.
-3. Preserve Langflow conventions.
+3. Preserve Ketos conventions.
    - Query keys are arrays with the hook name: `["useGetFlows"]`.
    - Mutations invalidate related queries in `onSettled`.
    - Zustand store updates happen in the query/mutation function, not in components.
@@ -69,4 +69,4 @@ Component
 - Use `references/query-patterns.md` for hook structure, naming conventions, directory layout, and anti-patterns.
 - Use `references/runtime-rules.md` for conditional queries, invalidation, `mutate` versus `mutateAsync`, error handling, and streaming requests.
 
-Treat this skill as the single query and mutation entry point for Langflow frontend work. Keep detailed rules in the reference files instead of duplicating them in project docs.
+Treat this skill as the single query and mutation entry point for Ketos frontend work. Keep detailed rules in the reference files instead of duplicating them in project docs.

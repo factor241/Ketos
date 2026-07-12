@@ -1,0 +1,22 @@
+---
+title: Environment variables
+slug: /operations/environment
+---
+
+Current Ketos-owned settings use the `KETOS_` prefix. Common local settings:
+
+| Variable | Purpose |
+| --- | --- |
+| `KETOS_HOST` | Bind host |
+| `KETOS_PORT` | HTTP port |
+| `KETOS_LOG_LEVEL` | Runtime log level |
+| `KETOS_DATABASE_URL` | SQLAlchemy database URL |
+| `KETOS_CONFIG_DIR` | Configuration directory |
+| `KETOS_COMPONENTS_PATH` | Extra local component roots |
+| `KETOS_API_KEY_SOURCE` | API key source (`db` or `env`) |
+| `KETOS_API_KEY` | Local environment-backed API key |
+| `KETOS_CORS_ORIGINS` | Explicit allowed origins |
+| `KETOS_AUTHZ_ENABLED` | Authorization plugin enforcement switch |
+| `KETOS_ENABLE_EXTENSION_RELOAD` | Local extension reload endpoint switch |
+
+Keep secrets in an untracked `.env`. Production CORS must name explicit origins.

@@ -1,17 +1,15 @@
 {
   "version": "0.2.0",
   "configurations": [
-
     {
-      "name": "Debug Backend",
+      "name": "Debug Ketos backend",
       "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
       "preLaunchTask": "Install Backend",
-
       "args": [
         "--factory",
-        "langflow.main:create_app",
+        "ketos.main:create_app",
         "--port",
         "7860",
         "--reload",
@@ -22,73 +20,40 @@
         "--reload-include",
         "./src/backend/*",
         "--reload-include",
-        "./src/lfx/*",
+        "./src/kfx/*",
         "--reload-exclude",
-        "*.db*",
-        "--reload-exclude",
-        "./tmp_toolguard/*"
+        "*.db*"
       ],
-      "jinja": true,
       "justMyCode": false,
       "env": {
-        "LANGFLOW_LOG_LEVEL": "debug",
-        "LANGFLOW_PROMETHEUS_PORT": "9090"
+        "KETOS_LOG_LEVEL": "debug",
+        "KETOS_PROMETHEUS_PORT": "9090"
       },
       "envFile": "${workspaceFolder}/.env"
     },
     {
-      "name": "Debug CLI",
+      "name": "Debug Ketos CLI",
       "type": "debugpy",
       "request": "launch",
-      "module": "langflow",
-      "args": [
-        "run",
-        "--frontend-path",
-        "${workspaceFolder}/src/backend/base/langflow/frontend",
-        "--env-file",
-        "${workspaceFolder}/.env"
-      ],
-      // "python": "/path/to/your/python_env/python", // Replace with the path to your Python executable
-      "jinja": true,
+      "module": "ketos",
+      "args": ["run", "--env-file", "${workspaceFolder}/.env"],
       "justMyCode": false
     },
     {
-      "name": "Python: Remote Attach",
-      "type": "debugpy",
-      "request": "attach",
-      "justMyCode": true,
-      "connect": {
-        "port": 5678
-      },
-      "pathMappings": [
-        {
-          "localRoot": "${workspaceFolder}",
-          "remoteRoot": "."
-        }
-      ]
-    },
-    {
-      "name": "Debug Frontend",
+      "name": "Debug frontend",
       "type": "chrome",
       "request": "launch",
       "url": "http://localhost:3000/",
-      "webRoot": "${workspaceRoot}/src/frontend"
+      "webRoot": "${workspaceFolder}/src/frontend"
     },
     {
-      "name": "Python: Debug Tests",
+      "name": "Debug current Python test",
       "type": "debugpy",
       "request": "launch",
       "program": "${file}",
       "purpose": ["debug-test"],
       "console": "integratedTerminal",
       "justMyCode": false
-    },
-    {
-    "name": "Python Debugger: Python File",
-    "type": "python",
-    "request": "launch",
-    "program": "${file}",
-    "console": "integratedTerminal"
-}
+    }
   ]
 }

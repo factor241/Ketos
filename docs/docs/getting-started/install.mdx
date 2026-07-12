@@ -1,0 +1,25 @@
+---
+title: Install and run Ketos
+slug: /getting-started/install
+---
+
+Use Python 3.10-3.14, `uv >=0.4`, Node.js `>=20.19.0`, npm `>=10.9`, and
+`make`.
+
+```bash
+make init
+make run_cli
+```
+
+For frontend and backend hot reload:
+
+```bash
+# terminal 1
+make backend
+
+# terminal 2
+make frontend
+```
+
+The backend listens on `http://127.0.0.1:7860`; Vite listens on
+`http://127.0.0.1:3000`.

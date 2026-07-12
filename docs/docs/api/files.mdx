@@ -1,0 +1,21 @@
+---
+title: Flow files API
+slug: /api/files
+---
+
+Authenticated flow file operations are mounted below `/api/v1/files`:
+
+- `POST /api/v1/files/upload/{flow_id}`
+- `GET /api/v1/files/list/{flow_id}`
+- `GET /api/v1/files/download/{flow_id}/{file_name}`
+- `DELETE /api/v1/files/delete/{flow_id}/{file_name}`
+
+Example upload:
+
+```bash
+curl --fail-with-body \
+  --request POST \
+  --url "${KETOS_BASE_URL:-http://127.0.0.1:7860}/api/v1/files/upload/${KETOS_FLOW_ID}" \
+  --header "x-api-key: ${KETOS_API_KEY}" \
+  --form "file=@./document.pdf"
+```

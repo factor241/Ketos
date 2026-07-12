@@ -1,6 +1,6 @@
 # Сопровождение русской локализации
 
-Русский входит в обязательный список целевых языков IBM Globalization Pipeline для frontend-пакета `langflow-ui` и backend-пакета `langflow-ui-backend-v2`. Оба пакета проходят один и тот же управляемый цикл; локальный `ru.json`, созданный в обход этого цикла, не считается готовым к выпуску.
+Русский входит в обязательный список целевых языков IBM Globalization Pipeline для frontend-пакета `ketos-ui` и backend-пакета `ketos-ui-backend-v2`. Оба пакета проходят один и тот же управляемый цикл; локальный `ru.json`, созданный в обход этого цикла, не считается готовым к выпуску.
 
 ## Цикл обновления
 
@@ -9,8 +9,8 @@
 
    ```bash
    cd scripts/gp
-   python upload.py --target frontend --source ../../src/frontend/src/locales/en.json
-   python upload.py --target backend
+   uv run python upload.py --target frontend --source ../../src/frontend/src/locales/en.json
+   uv run python upload.py --target backend
    ```
 
 3. Дождаться полного статуса перевода. Для backend при наличии разрешённых GP credentials:
@@ -25,8 +25,8 @@
 
    ```bash
    cd scripts/gp
-   python download.py --target frontend --lang ru --source ../../src/frontend/src/locales/en.json --output ../../src/frontend/src/locales
-   python download.py --target backend --lang ru --source ../../src/backend/base/langflow/locales/en.json --output ../../src/backend/base/langflow/locales
+   uv run python download.py --target frontend --lang ru --source ../../src/frontend/src/locales/en.json --output ../../src/frontend/src/locales
+   uv run python download.py --target backend --lang ru --source ../../src/backend/base/ketos/locales/en.json --output ../../src/backend/base/ketos/locales
    ```
 
    Download атомарен на уровне запуска: пустой каталог, missing source key, пустое значение, credential match или ошибка любого выбранного языка завершают команду ошибкой до записи файлов. Дополнительные plural keys допустимы на этом слое и отдельно проверяются locale gates. Существующий проверенный каталог при этом не перезаписывается.
@@ -75,7 +75,7 @@ Presence проверяется только по именам и boolean-сос
 Этот gate выполняется только в разрешённом secret environment. Локальные mocks и unit tests не заменяют его. До начала зафиксировать reviewable commit; для каждого шага сохранить exit code, UTC timestamps и URL/ID Actions run, но не command environment.
 
 ```text
-R6 LIVE GP EVIDENCE
+LIVE GP EVIDENCE
 status: PASS | BLOCKED | FAIL
 commit_sha: <40 hex>
 gp_run_url: <https://github.com/.../actions/runs/...>
@@ -107,12 +107,12 @@ frontend:
 backend:
   bundle_name: <non-secret name>
   target_language: ru
-  source_path: src/backend/base/langflow/locales/en.json
+  source_path: src/backend/base/ketos/locales/en.json
   source_sha256: <sha256>
   upload_exit: <integer>
   status_exit: <integer>
   status_result: COMPLETE | INCOMPLETE | ERROR
-  downloaded_path: src/backend/base/langflow/locales/ru.json
+  downloaded_path: src/backend/base/ketos/locales/ru.json
   target_sha256: <sha256>
   diff_name_status_path: <artifact path>
 
@@ -148,13 +148,13 @@ secret_safety:
 ```bash
 uv run pytest scripts/gp/tests -q
 cd scripts/gp
-python upload.py --target frontend --source ../../src/frontend/src/locales/en.json
-python upload.py --target backend --source ../../src/backend/base/langflow/locales/en.json
+uv run python upload.py --target frontend --source ../../src/frontend/src/locales/en.json
+uv run python upload.py --target backend --source ../../src/backend/base/ketos/locales/en.json
 cd ../..
 uv run python scripts/gp/check_backend_status.py --lang ru
 cd scripts/gp
-python download.py --target frontend --lang ru --source ../../src/frontend/src/locales/en.json --output ../../src/frontend/src/locales
-python download.py --target backend --lang ru --source ../../src/backend/base/langflow/locales/en.json --output ../../src/backend/base/langflow/locales
+uv run python download.py --target frontend --lang ru --source ../../src/frontend/src/locales/en.json --output ../../src/frontend/src/locales
+uv run python download.py --target backend --lang ru --source ../../src/backend/base/ketos/locales/en.json --output ../../src/backend/base/ketos/locales
 ```
 
 После download выполнить locale gates из шага 5. Translation PR должен быть создан fine-grained PAT как draft, запрашивать `GP_LINGUISTIC_REVIEWER`, иметь `autoMergeRequest=null` и получить на том же head SHA успешные `CI Success` и `I18n Contract Gates`. Reviewer записывает `APPROVED` для точного target SHA-256; исторический APPROVED другого hash не принимается. Только после этого draft можно вручную перевести в ready-for-review и слить по branch protection.

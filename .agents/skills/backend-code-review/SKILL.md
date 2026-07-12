@@ -11,7 +11,7 @@ Use this skill whenever the user asks to **review, analyze, or improve** backend
 
 - **Pending-change review**: when the user asks to review current changes (inspect staged/working-tree files slated for commit to get the changes).
 - **Code snippets review**: when the user pastes code snippets (e.g., a function/class/module excerpt) into the chat and asks for a review.
-- **File-focused review**: when the user points to specific files and asks for a review of those files (one file or a small, explicit set of files, e.g., `src/backend/base/langflow/api/v1/flows.py`).
+- **File-focused review**: when the user points to specific files and asks for a review of those files (one file or a small, explicit set of files, e.g., `src/backend/base/ketos/api/v1/flows.py`).
 
 Do NOT use this skill when:
 
@@ -33,9 +33,9 @@ Notes when using this skill:
 
 ## Checklist
 
-- db schema design: if the review scope includes code/files under `src/backend/base/langflow/services/database/models/` or Alembic migrations under `src/backend/base/langflow/alembic/versions/`, follow [references/db-schema-rule.md](references/db-schema-rule.md) to perform the review
+- db schema design: if the review scope includes code/files under `src/backend/base/ketos/services/database/models/` or Alembic migrations under `src/backend/base/ketos/alembic/versions/`, follow [references/db-schema-rule.md](references/db-schema-rule.md) to perform the review
 - architecture: if the review scope involves route/service/model layering, dependency direction, or moving responsibilities across modules, follow [references/architecture-rule.md](references/architecture-rule.md) to perform the review
-- service abstraction: if the review scope contains table/model operations (e.g., `select(...)`, `session.execute(...)`, joins, CRUD) and is not already inside a service under `src/backend/base/langflow/services/`, follow [references/repositories-rule.md](references/repositories-rule.md) to perform the review
+- service abstraction: if the review scope contains table/model operations (e.g., `select(...)`, `session.execute(...)`, joins, CRUD) and is not already inside a service under `src/backend/base/ketos/services/`, follow [references/repositories-rule.md](references/repositories-rule.md) to perform the review
 - sqlalchemy patterns: if the review scope involves SQLAlchemy/SQLModel session/query usage, db transaction/crud usage, `session_scope()` usage, or raw SQL usage, follow [references/sqlalchemy-rule.md](references/sqlalchemy-rule.md) to perform the review
 
 ## General Review Rules
@@ -88,7 +88,7 @@ Check for:
 ### 4. File Structure Review
 
 Check for:
-- Production files exceeding ~500 lines of code (excluding imports, types, and docstrings). Files above 600 lines are a red flag and should be split by responsibility. Why: Files above 500 lines have statistically higher defect rates and take longer to review. They signal multiple responsibilities (SRP violation). In Langflow, services like `DatabaseService` that grow beyond this limit should have their CRUD operations extracted to dedicated modules.
+- Production files exceeding ~500 lines of code (excluding imports, types, and docstrings). Files above 600 lines are a red flag and should be split by responsibility. Why: Files above 500 lines have statistically higher defect rates and take longer to review. They signal multiple responsibilities (SRP violation). In Ketos, services like `DatabaseService` that grow beyond this limit should have their CRUD operations extracted to dedicated modules.
 - Test files exceeding ~1000 lines. Split by logical grouping if exceeded.
 - No more than 5 functions with different responsibilities in a single file (per AGENTS-example.md).
 - Each file has a single reason to exist and a single reason to change (SRP).
@@ -122,7 +122,7 @@ Check for:
 ### 6. Observability Review
 
 Check for:
-- Use the async logger from `lfx.log.logger` with `a`-prefixed methods (`adebug`, `ainfo`, `awarning`, `aerror`, `aexception`). Never use `print()` or stdlib `logging`.
+- Use the async logger from `kfx.log.logger` with `a`-prefixed methods (`adebug`, `ainfo`, `awarning`, `aerror`, `aexception`). Never use `print()` or stdlib `logging`.
 - Log at key decision points and boundaries, not inside tight loops
 - Include: operation name, relevant IDs, outcome (success/failure), duration if relevant
 - Correct log levels: ERROR (broken, needs attention), WARN (degraded but recoverable), INFO (significant events), DEBUG (diagnostic, off in prod)
@@ -134,7 +134,7 @@ Check for:
 
 For pending-change reviews, verify the author has run:
 - `make format_backend` (Ruff formatter) — inconsistent formatting creates noisy diffs that hide real changes in code review. Format first, review second.
-- `make lint` (MyPy type checking) — type errors caught at lint time are 10x cheaper to fix than runtime crashes in production. Langflow services use duck typing via `Service` base class; MyPy catches mismatches early.
+- `make lint` (MyPy type checking) — type errors caught at lint time are 10x cheaper to fix than runtime crashes in production. Ketos services use duck typing via `Service` base class; MyPy catches mismatches early.
 - `make unit_tests` (pytest) — a failing test means the change breaks existing behavior. Never merge with failing tests; investigate whether the code or the test is wrong.
 
 ## Required Output Format

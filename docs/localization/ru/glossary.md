@@ -1,4 +1,4 @@
-# Глоссарий русской локализации Langflow
+# Глоссарий русской локализации Ketos
 
 Этот файл является нормативным источником терминов для frontend UI, backend presentation metadata, встроенного контента и native error messages. Если контекст требует другого перевода, сначала добавляется отдельная строка с точным контекстом и письменным review; локальная импровизация запрещена.
 
@@ -30,7 +30,7 @@
 | Tool | Инструмент | Тул | «Добавить инструмент» |
 | Toolset | Набор инструментов | Тулсет | «Подключить набор инструментов» |
 | Assistant | Помощник | Ассистент, кроме product name | «Открыть помощника» |
-| Langflow Assistant | Langflow Assistant | Помощник Langflow | Точное название продукта |
+| Ketos Assistant | Ketos Assistant | Помощник Ketos | Точное название продукта |
 | Settings | Настройки | Установки | «Открыть настройки» |
 | Shortcut | Сочетание клавиш | Шорткат | «Настроить сочетания клавиш» |
 | Starter Flow | Готовый сценарий | Стартер, стартовый флоу | «Выберите готовый сценарий» |
@@ -89,7 +89,7 @@
 
 Без перевода и изменения регистра сохраняются:
 
-- `Langflow`, `Langflow Assistant`;
+- `Ketos`, `Ketos Assistant`;
 - `API`, `MCP`, `LLM`, `JSON`, `NDJSON`, `YAML`, `CSV`, `SQL`, `SSE`, `WebSocket`, `UUID`, `OAuth`, `URL`, `TLS`, `OpenAI`;
 - `GitHub`, `Discord`, `OpenSearch`, `Chroma Cloud`, `Chroma Local`, `Astra DB`, `MongoDB Atlas`, `Postgres`, `pgvector`;
 - provider/model/client names, включая `Claude`, `Claude Code`, `Cursor`, `Windsurf`, `watsonx Orchestrate`, `Bob (IBM)`;

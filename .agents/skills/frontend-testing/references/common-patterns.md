@@ -1,6 +1,6 @@
 # Common Testing Patterns
 
-Frequently used patterns for testing Langflow React components with Jest and React Testing Library.
+Frequently used patterns for testing Ketos React components with Jest and React Testing Library.
 
 ## Query Priority
 
@@ -176,7 +176,7 @@ describe("LoginForm", () => {
 
 ## Modal/Dialog Testing
 
-Langflow uses Radix UI dialogs:
+Ketos uses Radix UI dialogs:
 
 ```typescript
 describe("ConfirmDialog", () => {
@@ -316,7 +316,7 @@ describe("ItemList", () => {
 
 ## Testing Tooltips
 
-Langflow uses Radix tooltips which require hover:
+Ketos uses Radix tooltips which require hover:
 
 ```typescript
 it("should show tooltip on hover", async () => {
@@ -363,7 +363,7 @@ describe("ErrorBoundary", () => {
 
 ## Testing Custom data-testid Attributes
 
-Langflow components frequently use `data-testid` for testing. Common patterns:
+Ketos components frequently use `data-testid` for testing. Common patterns:
 
 ```typescript
 // Input components

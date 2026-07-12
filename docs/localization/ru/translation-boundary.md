@@ -1,4 +1,4 @@
-# Граница русской локализации Langflow
+# Граница русской локализации Ketos
 
 Этот документ фиксирует, какие строки принадлежат системе и обязаны иметь семантический ключ, а какие должны оставаться неизменными. Он применяется к frontend, backend metadata, встроенным шаблонам, accessibility-текстам, ошибкам и расширениям.
 
@@ -12,8 +12,8 @@
   ```text
   ## main...origin/main
   ?? FRONTEND_ARCHITECTURE_AUDIT.md
-  ?? LANGFLOW_BACKEND_ARCHITECTURE_AUDIT.md
-  ?? LANGFLOW_RUSSIAN_LOCALIZATION_PLAN.md
+  ?? KETOS_BACKEND_ARCHITECTURE_AUDIT.md
+  ?? KETOS_RENAME_REMAINING_WORK_PLAN.md
   ?? graphify-out/
   ```
 
@@ -24,7 +24,7 @@
 
 ## Решающее правило
 
-Строка переводится, если Langflow владеет её смыслом и показывает её пользователю как часть продукта. Строка остаётся verbatim, если она принадлежит пользователю, внешнему провайдеру, машинному контракту или диагностическому payload. Сомнительная строка не попадает в allowlist автоматически: владелец поверхности обязан классифицировать её и оставить проверяемое обоснование.
+Строка переводится, если Ketos владеет её смыслом и показывает её пользователю как часть продукта. Строка остаётся verbatim, если она принадлежит пользователю, внешнему провайдеру, машинному контракту или диагностическому payload. Сомнительная строка не попадает в allowlist автоматически: владелец поверхности обязан классифицировать её и оставить проверяемое обоснование.
 
 ## Классы текста
 
@@ -35,7 +35,7 @@
 | `backend_metadata` | Да | display name/description/input/output labels встроенных компонентов, starter flows, system notes с `i18n_key` | локализуется только presentation field; `name`, method, type и raw value неизменны |
 | `user` | Нет | названия сценариев, custom labels, prompts, code, имена файлов, пользовательские заметки | показывать verbatim; локализация wrapper UI не изменяет содержимое |
 | `protocol` | Нет | route, API field, enum, event/status/type, query/cache key, UUID, model ID | byte-identical во frontend, backend, сохранённом Flow JSON и transport |
-| `brand` | Обычно нет | Langflow, GitHub, Discord, названия моделей и провайдеров | точное brand name может быть allowlisted; окружающее предложение переводится |
+| `brand` | Обычно нет | Ketos, GitHub, Discord, названия моделей и провайдеров | точное brand name может быть allowlisted; окружающее предложение переводится |
 | `extension` | По ownership | bundled extension UI либо имеет namespaced `ru` bundle, либо получает явную untranslated policy | extension не может перекрывать core namespace; user extension без bundle остаётся verbatim |
 | `diagnostic` | Нет по умолчанию | traceback, provider error, log, raw payload, `technical_detail` | не выдавать как системный локализованный message; показывать только в явном diagnostics UI |
 
@@ -56,7 +56,7 @@
 
 ## Frontend
 
-Ключ обязателен для JSXText, visible attributes, placeholders, tooltips, badges, menu items, table columns, validation/help text, alert/toast content, dialog chrome и статического HTML. `index.html` должен получать корректный `lang`; `<title>Langflow</title>` является точным brand name, но `noscript`-текст переводится.
+Ключ обязателен для JSXText, visible attributes, placeholders, tooltips, badges, menu items, table columns, validation/help text, alert/toast content, dialog chrome и статического HTML. `index.html` должен получать корректный `lang`; `<title>Ketos</title>` является точным brand name, но `noscript`-текст переводится.
 
 Пользовательские данные и raw provider output не передаются в `t()` как ключи. Динамические предложения системы строятся из семантического ключа и typed params. Интерполяционные tokens и numeric `<Trans>` tags сохраняются точно.
 
@@ -74,7 +74,7 @@ Native UI error обязан иметь стабильные `code` и `params`.
 
 ## Protected tokens
 
-Внутри переводимого предложения без изменения сохраняются: `Langflow`, `API`, `MCP`, `LLM`, `JSON`, `YAML`, `CSV`, `SQL`, `SSE`, `WebSocket`, `UUID`, `OAuth`, `URL`, `GitHub`, `Discord`, имена провайдеров/моделей, code identifiers и расширения файлов. Protected token не освобождает всё предложение от перевода.
+Внутри переводимого предложения без изменения сохраняются: `Ketos`, `API`, `MCP`, `LLM`, `JSON`, `YAML`, `CSV`, `SQL`, `SSE`, `WebSocket`, `UUID`, `OAuth`, `URL`, `GitHub`, `Discord`, имена провайдеров/моделей, code identifiers и расширения файлов. Protected token не освобождает всё предложение от перевода.
 
 ## Allowlist policy
 
@@ -98,7 +98,7 @@ prod_globs=(--glob '*.{ts,tsx,js,jsx}' --glob '!**/__tests__/**' --glob '!**/*.t
 
 AST baseline использует фактически установленный TypeScript compiler API `5.9.3` (package constraint `^5.4.5`), production `*.ts`/`*.tsx`, исключает tests/mocks/stories/locales и считает alphabetic JSXText плюс literal visible attributes `title`, `placeholder`, `aria-label`, `alt`, `label`, `description`, `tooltip`, `headerName`, `emptyMessage`, `buttonText`, `helperText`, `caption`. Полный machine-readable predicate, exclusions, patterns и ожидаемые counts находятся в `scan_contract` файла `scripts/i18n/allowlists/frontend-hardcoded.json`; на baseline ожидаются 1 397 файлов, 201 JSXText и 21 visible attribute.
 
-Статический `src/frontend/index.html` проверяется отдельным `static_html_inventory`: runtime `lang` принадлежит Task 4, точный brand title allowlisted, а `<noscript>` является system-owned debt Task 9. Эти строки не входят в исторический raw count `239/94`, область которого — `src/frontend/src`.
+Статический `src/frontend/index.html` проверяется отдельным `static_html_inventory`: runtime `lang` принадлежит frontend cutover, точный brand title allowlisted, а `<noscript>` является system-owned test-corpus debt. Эти строки не входят в исторический raw count `239/94`, область которого — `src/frontend/src`.
 
 Outside-modal overlay inventory строится отдельным source pass по production `*.ts`/`*.tsx`: Radix `Dialog`/`Popover`/`DropdownMenu`/`ContextMenu`, custom `createPortal`, `role="dialog"` и feature-owned listbox/menu implementations. Повторные tooltip-only usages покрываются shared primitives, но каждый feature popover/menu/dialog имеет собственную строку manifest; независимые состояния одного source (например, два Flow Insights dialogs и deploy-choice phases) перечисляются отдельно. На baseline manifest содержит 57 overlay-state строк и 5 shared primitive строк.
 

@@ -1,0 +1,158 @@
+{
+  "version": 1,
+  "description": "Exact, one-way upstream-to-Ketos namespace cutover mappings",
+  "mappings": {
+    "paths": [
+      {"from": ["src/backend/base/", "lang", "flow"], "to": ["src/backend/base/ketos"]},
+      {"from": ["src/backend/", "lang", "flow"], "to": ["src/backend/ketos"]},
+      {"from": ["src/", "l", "fx/src/", "l", "fx"], "to": ["src/kfx/src/kfx"]},
+      {"from": ["src/", "l", "fx"], "to": ["src/kfx"]},
+      {"from": ["src/sdk/src/", "lang", "flow_sdk"], "to": ["src/sdk/src/ketos_sdk"]},
+      {"from": ["src/", "lang", "flow-stepflow"], "to": ["src/ketos-stepflow"]},
+      {"from": ["src/bundles/arxiv/src/", "l", "fx_bundle_arxiv"], "to": ["src/bundles/arxiv/src/kfx_bundle_arxiv"]},
+      {"from": ["src/bundles/docling/src/", "l", "fx_bundle_docling"], "to": ["src/bundles/docling/src/kfx_bundle_docling"]},
+      {"from": ["src/bundles/duckduckgo/src/", "l", "fx_bundle_duckduckgo"], "to": ["src/bundles/duckduckgo/src/kfx_bundle_duckduckgo"]},
+      {"from": ["src/bundles/ibm/src/", "l", "fx_bundle_ibm"], "to": ["src/bundles/ibm/src/kfx_bundle_ibm"]}
+    ],
+    "imports": [
+      {"from": ["lang", "flow"], "to": ["ketos"]},
+      {"from": ["l", "fx"], "to": ["kfx"]},
+      {"from": ["lang", "flow_sdk"], "to": ["ketos_sdk"]},
+      {"from": ["lang", "flow_stepflow"], "to": ["ketos_stepflow"]},
+      {"from": ["l", "fx_bundle_arxiv"], "to": ["kfx_bundle_arxiv"]},
+      {"from": ["l", "fx_bundle_docling"], "to": ["kfx_bundle_docling"]},
+      {"from": ["l", "fx_bundle_duckduckgo"], "to": ["kfx_bundle_duckduckgo"]},
+      {"from": ["l", "fx_bundle_ibm"], "to": ["kfx_bundle_ibm"]}
+    ],
+    "symbols": [
+      {"from": ["Lang", "flow"], "to": ["Ketos"]},
+      {"from": ["Lang", "Flow"], "to": ["Ketos"]},
+      {"from": ["LANG", "FLOW"], "to": ["KETOS"]},
+      {"from": ["L", "FX"], "to": ["KFX"]}
+    ],
+    "products": [
+      {"from": ["Lang", "flow"], "to": ["Ketos"]},
+      {"from": ["Lang", "Flow"], "to": ["Ketos"]},
+      {"from": ["L", "FX"], "to": ["KFX"]}
+    ],
+    "distributions": [
+      {"from": ["lang", "flow"], "to": ["ketos"]},
+      {"from": ["lang", "flow-base"], "to": ["ketos-base"]},
+      {"from": ["lang", "flow-sdk"], "to": ["ketos-sdk"]},
+      {"from": ["lang", "flow-stepflow"], "to": ["ketos-stepflow"]},
+      {"from": ["l", "fx"], "to": ["kfx"]}
+    ],
+    "env_keys": [
+      {"from": ["LANG", "FLOW_"], "to": ["KETOS_"]},
+      {"from": ["L", "FX_"], "to": ["KFX_"]}
+    ],
+    "headers": [
+      {"from": ["x-lang", "flow-"], "to": ["x-ketos-"]}
+    ],
+    "urls": [
+      {"from": ["https://", "lang", "flow.org"], "to": ["https://ketos.test"]},
+      {"from": ["https://docs.", "lang", "flow.org"], "to": ["https://docs.ketos.test"]},
+      {"from": ["https://github.com/", "lang", "flow-ai/", "lang", "flow"], "to": ["https://git.ketos.test/ketos/ketos"]},
+      {"from": ["https://github.com/", "lang", "flow-ai/", "lang", "flow/issues"], "to": ["https://git.ketos.test/ketos/ketos/issues"]},
+      {"from": ["https://schemas.", "lang", "flow.org/extension/v1.json"], "to": ["https://schemas.ketos.test/extension/v1.json"]}
+    ],
+    "queues": [
+      {"from": ["lang", "flow"], "to": ["ketos"]},
+      {"from": ["lang", "flow:"], "to": ["ketos:"]}
+    ],
+    "extension_groups": [
+      {"from": ["l", "fx.components"], "to": ["ketos.extensions"]},
+      {"from": ["lang", "flow.components"], "to": ["ketos.extensions"]},
+      {"from": ["tool.lang", "flow.extension"], "to": ["tool.ketos.extension"]},
+      {"from": ["tool.", "l", "fx.extension"], "to": ["tool.ketos.extension"]}
+    ],
+    "config_values": [
+      {"from": ["~/.config/", "lang", "flow"], "to": ["~/.config/ketos"]},
+      {"from": ["~/.", "lang", "flow"], "to": ["~/.ketos"]},
+      {"from": ["lang", "flow.db"], "to": ["ketos.db"]},
+      {"from": ["lang", "flow-environments.toml"], "to": ["ketos-environments.toml"]},
+      {"from": ["__", "lang", "flow_type__"], "to": ["__ketos_type__"]}
+    ]
+  },
+  "protected_names": ["LangChain", "LangSmith", "LangWatch"],
+  "immutable_legal_paths": [
+    "LICENSE",
+    "NOTICE",
+    "src/ketos-stepflow/LICENSE",
+    "src/ketos-stepflow/NOTICE"
+  ],
+  "refused_roots": [
+    ".git",
+    ".hg",
+    ".svn",
+    ".venv",
+    "venv",
+    "node_modules",
+    "vendor",
+    "dist",
+    "build",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".cache",
+    "graphify-out"
+  ],
+  "generated_paths": [
+    "openapi.json",
+    "**/openapi.json",
+    "**/component_index.json",
+    "**/package-lock.json",
+    "uv.lock",
+    "**/sbom*.json",
+    "**/*.generated.*",
+    "**/generated/**"
+  ],
+  "owners": {
+    "root_workspace": {
+      "owner": "integration",
+      "paths": ["pyproject.toml", "uv.lock", "Makefile*", "package*.json"]
+    },
+    "backend": {
+      "owner": "task4_backend",
+      "paths": [
+        {"join": ["src/backend/base/", "lang", "flow/**"]},
+        {"join": ["src/backend/", "lang", "flow/**"]}
+      ]
+    },
+    "executor_bundles": {
+      "owner": "task5_executor",
+      "paths": [
+        {"join": ["src/", "l", "fx/**"]},
+        {"join": ["src/bundles/*/src/", "l", "fx_*"]}
+      ]
+    },
+    "extensions": {
+      "owner": "task12_extensions",
+      "paths": [
+        "src/kfx/src/kfx/extension/**",
+        "src/bundles/arxiv/**",
+        "src/bundles/docling/**",
+        "src/bundles/duckduckgo/**",
+        "src/bundles/ibm/**",
+        "**/extension.json"
+      ],
+      "semantics": ["discovery", "schema", "runtime"]
+    },
+    "generated_registry": {
+      "owner": "task15_fixtures_generation",
+      "paths": ["**/openapi.json", "**/component_index.json", "**/generated/**", "**/sbom*.json"]
+    }
+  },
+  "handoffs": {
+    "task4_to_integration": {
+      "root_metapackage": "ketos",
+      "root_files": ["pyproject.toml", "uv.lock"]
+    },
+    "task5_to_integration": {
+      "root_metapackage": "kfx",
+      "root_files": ["pyproject.toml", "uv.lock"],
+      "bundle_owner": "task5_executor"
+    }
+  }
+}

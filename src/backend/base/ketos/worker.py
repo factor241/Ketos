@@ -11,12 +11,12 @@ if TYPE_CHECKING:
     from kfx.graph.vertex.base import Vertex
 
 
-@celery_app.task(acks_late=True)
+@celery_app.task(name="ketos.worker.tasks.test_celery", acks_late=True)
 def test_celery(word: str) -> str:
     return f"test task return {word}"
 
 
-@celery_app.task(bind=True, soft_time_limit=30, max_retries=3)
+@celery_app.task(name="ketos.worker.tasks.build_vertex", bind=True, soft_time_limit=30, max_retries=3)
 def build_vertex(self, vertex: Vertex) -> Vertex:
     """Build a vertex.
 
@@ -31,7 +31,7 @@ def build_vertex(self, vertex: Vertex) -> Vertex:
     return vertex
 
 
-@celery_app.task(acks_late=True)
+@celery_app.task(name="ketos.worker.tasks.process_graph_cached_task", acks_late=True)
 def process_graph_cached_task() -> dict[str, Any]:
     msg = "This task is not implemented yet"
     raise NotImplementedError(msg)

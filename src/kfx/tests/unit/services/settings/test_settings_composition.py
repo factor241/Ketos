@@ -233,7 +233,7 @@ def test_critical_defaults_unchanged():
     assert settings.allow_custom_components is True
     assert settings.mcp_server_enabled is True
     assert settings.mcp_composer_enabled is True
-    assert settings.do_not_track is False
+    assert settings.do_not_track is True
     assert settings.dev is False
     assert settings.agentic_experience is False
     assert settings.developer_api_enabled is False

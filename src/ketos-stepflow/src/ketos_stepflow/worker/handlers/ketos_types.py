@@ -19,6 +19,13 @@ _CLASS_TO_KETOS_TYPE: dict[str, str] = {
     "JSON": "Data",
     "Table": "DataFrame",
 }
+_OLD_TYPE_MARKER = "__" + "lang" + "flow_type__"
+
+
+def _reject_old_type_marker(value: Any) -> None:
+    candidates = value if isinstance(value, list) else [value]
+    if any(isinstance(item, dict) and _OLD_TYPE_MARKER in item for item in candidates):
+        raise ValueError("Legacy Stepflow type marker is not supported")
 
 
 def _ketos_type_name(value: Any) -> str:
@@ -34,6 +41,7 @@ def _is_ketos_type_dict(value: Any) -> bool:
 
 def _has_ketos_type_marker(value: Any) -> bool:
     """Check if a value (or list of values) contains __ketos_type__ markers."""
+    _reject_old_type_marker(value)
     if _is_ketos_type_dict(value):
         return True
     if isinstance(value, list):

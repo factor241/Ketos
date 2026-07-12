@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 import tomllib
+from fastapi.testclient import TestClient
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -128,6 +129,28 @@ def test_bundle_uses_canonical_kfx_distribution_module_and_extension_entrypoint(
 
 def test_shipping_python_sources_contain_no_old_product_brand() -> None:
     assert _old_brand_hits_in_source() == []
+
+
+def test_kfx_serve_rejects_old_product_headers() -> None:
+    from kfx.cli.serve_app import FlowRegistry, create_multi_serve_app
+
+    app = create_multi_serve_app(registry=FlowRegistry())
+    old_header = "x-" + "lang" + "flow-global-var-secret"
+    response = TestClient(app).get("/flows", headers={old_header: "secret"})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Legacy HTTP headers are not supported"
+
+
+def test_scarf_network_is_opt_in() -> None:
+    from kfx.services.settings.groups.telemetry import TelemetrySettings
+    from kfx.services.telemetry.service import TelemetryService
+
+    assert TelemetrySettings().do_not_track is True
+    service = TelemetryService()
+    service.start()
+    assert service.do_not_track is True
+    assert service._client is None
 
 
 def test_built_wheels_contain_no_old_product_brand(tmp_path: Path) -> None:

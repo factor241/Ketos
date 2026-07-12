@@ -9,6 +9,7 @@ import tarfile
 import zipfile
 from pathlib import Path
 
+import pytest
 import tomllib
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -45,10 +46,86 @@ def test_stepflow_protocol_is_ketos_only() -> None:
     assert f'"{OLD_SLUG}"' not in source_text.lower()
 
 
+def test_old_stepflow_type_marker_is_rejected() -> None:
+    from ketos_stepflow.worker.handlers.ketos_types import KetosTypeInputHandler
+
+    old_marker = "__" + OLD_SLUG + "_type__"
+    handler = KetosTypeInputHandler()
+    with pytest.raises(ValueError, match="Legacy Stepflow type marker"):
+        handler.matches(template_field={}, value={old_marker: "Message", "text": "no"})
+
+
+@pytest.mark.parametrize(
+    "value,kind",
+    [
+        (OLD_SLUG + "_node", "step ID"),
+        ("/" + OLD_SLUG + "/core/prompt", "component route"),
+        (OLD_SLUG, "queue"),
+    ],
+)
+def test_old_stepflow_protocol_values_are_rejected(value: str, kind: str) -> None:
+    from ketos_stepflow.protocol import validate_component_route, validate_queue_name, validate_step_id
+
+    validators = {
+        "step ID": validate_step_id,
+        "component route": validate_component_route,
+        "queue": validate_queue_name,
+    }
+    with pytest.raises(ValueError, match=f"Legacy Stepflow {kind}"):
+        validators[kind](value)
+
+
+def test_stepflow_workflow_tweaks_reject_old_ids_and_routes() -> None:
+    from ketos_stepflow.translation.stepflow_tweaks import apply_stepflow_tweaks_to_dict
+
+    old_id = OLD_SLUG + "_node"
+    old_route = "/" + OLD_SLUG + "/core/prompt"
+    with pytest.raises(ValueError, match="Legacy Stepflow step ID"):
+        apply_stepflow_tweaks_to_dict({"steps": [{"id": old_id, "component": "/ketos/core/prompt"}]})
+    with pytest.raises(ValueError, match="Legacy Stepflow component route"):
+        apply_stepflow_tweaks_to_dict({"steps": [{"id": "ketos_node", "component": old_route}]})
+
+
+def test_stepflow_observability_defaults_to_ketos_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics.export import InMemoryMetricReader
+    from opentelemetry.sdk.resources import Resource
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+    from stepflow_py.worker.observability import ObservabilityConfig
+
+    from ketos_stepflow.worker import __main__ as worker_main
+
+    monkeypatch.delenv("STEPFLOW_SERVICE_NAME", raising=False)
+    assert worker_main.configure_observability_environment() == "ketos-stepflow"
+    config = ObservabilityConfig()
+    resource = Resource.create({"service.name": config.service_name})
+
+    span_exporter = InMemorySpanExporter()
+    tracer_provider = TracerProvider(resource=resource)
+    tracer_provider.add_span_processor(SimpleSpanProcessor(span_exporter))
+    with tracer_provider.get_tracer("task11").start_as_current_span("runtime-cutover"):
+        pass
+
+    metric_reader = InMemoryMetricReader()
+    meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
+    meter_provider.get_meter("task11").create_counter("runtime.cutover").add(1)
+    metrics = metric_reader.get_metrics_data()
+
+    assert span_exporter.get_finished_spans()[0].resource.attributes["service.name"] == "ketos-stepflow"
+    assert metrics.resource_metrics[0].resource.attributes["service.name"] == "ketos-stepflow"
+
+
 def test_old_brand_is_confined_to_package_notice() -> None:
     violations: list[str] = []
     for path in PACKAGE_ROOT.rglob("*"):
-        if not path.is_file() or path.name == "NOTICE" or "__pycache__" in path.parts:
+        if (
+            not path.is_file()
+            or path.name == "NOTICE"
+            or "__pycache__" in path.parts
+            or ".pytest_cache" in path.parts
+        ):
             continue
         if OLD_BRAND.search(path.read_text(errors="replace")):
             violations.append(path.relative_to(REPO_ROOT).as_posix())

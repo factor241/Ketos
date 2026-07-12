@@ -1161,7 +1161,8 @@ async def test_init_mcp_servers_reconciles_existing_apikey_project_server_config
         project.auth_settings = {"auth_type": "apikey"}
         session.add(project)
 
-    server_name = f"lf-{sanitize_mcp_name(user_test_project.name)[: (MAX_MCP_SERVER_NAME_LENGTH - 4)]}"
+    prefix = "ketos-"
+    server_name = f"{prefix}{sanitize_mcp_name(user_test_project.name)[: MAX_MCP_SERVER_NAME_LENGTH - len(prefix)]}"
     streamable_http_url = await get_project_streamable_http_url(user_test_project.id)
     stale_server_config = {
         "command": "uvx",
@@ -1216,7 +1217,8 @@ async def test_patch_project_mcp_settings_syncs_server_config_for_apikey(
         add_projects_to_mcp_servers=True,
     )
 
-    server_name = f"lf-{sanitize_mcp_name(user_test_project.name)[: (MAX_MCP_SERVER_NAME_LENGTH - 4)]}"
+    prefix = "ketos-"
+    server_name = f"{prefix}{sanitize_mcp_name(user_test_project.name)[: MAX_MCP_SERVER_NAME_LENGTH - len(prefix)]}"
     streamable_http_url = await get_project_streamable_http_url(user_test_project.id)
     # Seed the server registry with a config that does NOT yet include the apikey header.
     stale_server_config = {

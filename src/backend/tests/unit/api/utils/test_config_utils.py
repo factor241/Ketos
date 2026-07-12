@@ -135,7 +135,7 @@ class TestValidateMcpServerForProject:
 
             assert result.server_exists is False
             assert result.project_id_matches is False
-            assert result.server_name == "lf-test_project"
+            assert result.server_name == "ketos-test_project"
             assert result.existing_config is None
             assert result.conflict_message == ""
 
@@ -149,7 +149,9 @@ class TestValidateMcpServerForProject:
 
         # Create MCP server via API
         response = await client.post(
-            "/api/v2/mcp/servers/lf-test_project", json=server_config, headers={"x-api-key": created_api_key.api_key}
+            "/api/v2/mcp/servers/ketos-test_project",
+            json=server_config,
+            headers={"x-api-key": created_api_key.api_key},
         )
         assert response.status_code == 200
 
@@ -165,12 +167,12 @@ class TestValidateMcpServerForProject:
 
             assert result.server_exists is True
             assert result.project_id_matches is True
-            assert result.server_name == "lf-test_project"
+            assert result.server_name == "ketos-test_project"
             assert result.existing_config == server_config
             assert result.conflict_message == ""
 
         # Cleanup - delete the server
-        await client.delete("/api/v2/mcp/servers/lf-test_project", headers={"x-api-key": created_api_key.api_key})
+        await client.delete("/api/v2/mcp/servers/ketos-test_project", headers={"x-api-key": created_api_key.api_key})
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("transport", ["streamable", "sse"])
@@ -179,7 +181,7 @@ class TestValidateMcpServerForProject:
     ):
         """Test validation when server exists but project ID doesn't match."""
         other_project_id = uuid4()
-        server_name = "lf-test_project"
+        server_name = "ketos-test_project"
         _, server_config = _build_server_config(client.base_url, other_project_id, transport)
 
         # Create MCP server with different project ID via API
@@ -215,7 +217,7 @@ class TestValidateMcpServerForProject:
     ):
         """Test different conflict messages for different operations."""
         other_project_id = uuid4()
-        server_name = "lf-test_project"
+        server_name = "ketos-test_project"
         _, server_config = _build_server_config(client.base_url, other_project_id, transport)
 
         # Create MCP server with different project ID via API
@@ -271,7 +273,7 @@ class TestValidateMcpServerForProject:
                 # Should return result allowing operation to proceed on validation failure
                 assert result.server_exists is False
                 assert result.project_id_matches is False
-                assert result.server_name == "lf-test_project"
+                assert result.server_name == "ketos-test_project"
                 assert result.existing_config is None
                 assert result.conflict_message == ""
 

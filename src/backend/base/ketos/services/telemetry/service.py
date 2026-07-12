@@ -41,7 +41,7 @@ class TelemetryService(Service):
         self.settings_service = settings_service
         self.base_url = settings_service.settings.telemetry_base_url
         self.telemetry_queue: asyncio.Queue = asyncio.Queue()
-        self.client = httpx.AsyncClient(timeout=10.0)  # Set a reasonable timeout
+        self.client: httpx.AsyncClient | None = None
         self.running = False
         self._stopping = False
 
@@ -75,7 +75,7 @@ class TelemetryService(Service):
                 self.telemetry_queue.task_done()
 
     async def send_telemetry_data(self, payload: BaseModel, path: str | None = None) -> None:
-        if self.do_not_track:
+        if self.do_not_track or not self.base_url or self.client is None:
             await logger.adebug("Telemetry tracking is disabled.")
             return
 
@@ -125,7 +125,7 @@ class TelemetryService(Service):
         await self._queue_event(payload)
 
     async def _queue_event(self, payload) -> None:
-        if self.do_not_track or self._stopping:
+        if self.do_not_track or not self.base_url or self._stopping:
             return
         await self.telemetry_queue.put(payload)
 
@@ -221,9 +221,10 @@ class TelemetryService(Service):
         await self._queue_event((self.send_telemetry_data, payload, "exception"))
 
     def start(self) -> None:
-        if self.running or self.do_not_track:
+        if self.running or self.do_not_track or not self.base_url:
             return
         try:
+            self.client = httpx.AsyncClient(timeout=10.0)
             self.running = True
             self._start_time = datetime.now(timezone.utc)
             self.worker_task = asyncio.create_task(self.telemetry_worker())
@@ -270,7 +271,9 @@ class TelemetryService(Service):
                     self.log_package_email_task,
                     "Cancel telemetry log package email task",
                 )
-            await self.client.aclose()
+            if self.client is not None:
+                await self.client.aclose()
+                self.client = None
         except Exception:  # noqa: BLE001
             await logger.aexception("Error stopping tracing service")
 

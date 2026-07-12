@@ -1,22 +1,24 @@
-"""Async HTTP client for the Langflow REST API.
+"""Sync HTTP client for the Ketos REST API.
 
-Preferred usage via the short alias::
+Usage::
 
-    from langflow_sdk import AsyncClient
+    from ketos_sdk import KetosClient
 
-    async with AsyncClient("https://langflow.example.com", api_key="...") as client:
-        flows = await client.list_flows()
+    client = KetosClient("https://ketos.example.com", api_key="...")
+    flows  = client.list_flows()
+    result = client.run_flow("my-endpoint", RunRequest(input_value="Hello"))
+
+The async counterpart lives in :mod:`ketos_sdk._async_client`.
 """
 
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from langflow_sdk._client_common import _ClientCommon
-from langflow_sdk._http import (
+from ketos_sdk._client_common import _ClientCommon
+from ketos_sdk._http import (
     _DEFAULT_TIMEOUT,
     _build_headers,
     _connection_error,
@@ -24,8 +26,7 @@ from langflow_sdk._http import (
     _raise_for_status,
     _raise_for_status_code,
 )
-from langflow_sdk.background_job import BackgroundJob
-from langflow_sdk.models import (
+from ketos_sdk.models import (
     Flow,
     FlowCreate,
     FlowUpdate,
@@ -39,22 +40,28 @@ from langflow_sdk.models import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import Iterator
     from pathlib import Path
     from uuid import UUID
 
     from typing_extensions import Self
 
 
-class AsyncLangflowClient(_ClientCommon):
-    """Async client for the Langflow REST API.
+# ---------------------------------------------------------------------------
+# Synchronous client
+# ---------------------------------------------------------------------------
 
-    Prefer the short alias :data:`AsyncClient` for new code::
 
-        from langflow_sdk import AsyncClient
+class KetosClient(_ClientCommon):
+    """Synchronous client for the Ketos REST API.
 
-        async with AsyncClient("https://langflow.example.com", api_key="...") as client:
-            flows = await client.list_flows()
+    Use the canonical client class directly::
+
+        from ketos_sdk import KetosClient
+
+        client = KetosClient("https://ketos.example.com", api_key="...")
+        flows  = client.list_flows()
+        result = client.run_flow("my-endpoint", RunRequest(input_value="Hello"))
     """
 
     def __init__(
@@ -62,32 +69,36 @@ class AsyncLangflowClient(_ClientCommon):
         base_url: str,
         api_key: str | None = None,
         timeout: float = _DEFAULT_TIMEOUT,
-        httpx_client: httpx.AsyncClient | None = None,
+        httpx_client: httpx.Client | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
         self._owns_client = httpx_client is None
-        self._http = httpx_client or httpx.AsyncClient(
-            base_url=self._base_url,
-            headers=_build_headers(api_key),
-            timeout=timeout,
-        )
+        if httpx_client is None:
+            self._http = httpx.Client(
+                base_url=self._base_url,
+                headers=_build_headers(api_key),
+                timeout=timeout,
+            )
+        else:
+            self._http = httpx_client
+            self._http.headers.update(_build_headers(api_key))
 
-    async def aclose(self) -> None:
+    def close(self) -> None:
         if self._owns_client:
-            await self._http.aclose()
+            self._http.close()
 
-    async def __aenter__(self) -> Self:
+    def __enter__(self) -> Self:
         return self
 
-    async def __aexit__(self, *_: object) -> None:
-        await self.aclose()
+    def __exit__(self, *_: object) -> None:
+        self.close()
 
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
 
-    async def _request(
+    def _request(
         self,
         method: str,
         path: str,
@@ -98,7 +109,7 @@ class AsyncLangflowClient(_ClientCommon):
         headers: dict[str, str] | None = None,
     ) -> httpx.Response:
         try:
-            response = await self._http.request(
+            response = self._http.request(
                 method,
                 path,
                 json=json,
@@ -117,7 +128,7 @@ class AsyncLangflowClient(_ClientCommon):
     # Flows
     # ------------------------------------------------------------------
 
-    async def list_flows(
+    def list_flows(
         self,
         *,
         folder_id: UUID | str | None = None,
@@ -128,7 +139,7 @@ class AsyncLangflowClient(_ClientCommon):
         page: int = 1,
         size: int = 50,
     ) -> list[Flow]:
-        resp = await self._request(
+        resp = self._request(
             "GET",
             "/api/v1/flows/",
             params=self._build_flow_list_params(
@@ -143,47 +154,51 @@ class AsyncLangflowClient(_ClientCommon):
         )
         return self._validate_model_list(Flow, resp.json())
 
-    async def get_flow(self, flow_id: UUID | str) -> Flow:
-        resp = await self._request("GET", f"/api/v1/flows/{flow_id}")
+    def get_flow(self, flow_id: UUID | str) -> Flow:
+        resp = self._request("GET", f"/api/v1/flows/{flow_id}")
         return self._validate_model(Flow, resp.json())
 
-    async def create_flow(self, flow: FlowCreate) -> Flow:
-        resp = await self._request("POST", "/api/v1/flows/", json=self._model_payload(flow))
+    def create_flow(self, flow: FlowCreate) -> Flow:
+        resp = self._request("POST", "/api/v1/flows/", json=self._model_payload(flow))
         return self._validate_model(Flow, resp.json())
 
-    async def update_flow(self, flow_id: UUID | str, update: FlowUpdate) -> Flow:
-        resp = await self._request(
+    def update_flow(self, flow_id: UUID | str, update: FlowUpdate) -> Flow:
+        resp = self._request(
             "PATCH",
             f"/api/v1/flows/{flow_id}",
             json=self._model_payload(update),
         )
         return self._validate_model(Flow, resp.json())
 
-    async def upsert_flow(self, flow_id: UUID | str, flow: FlowCreate) -> tuple[Flow, bool]:
-        """Create-or-update by stable ID. Returns ``(flow, created)``."""
-        resp = await self._request(
+    def upsert_flow(self, flow_id: UUID | str, flow: FlowCreate) -> tuple[Flow, bool]:
+        """Create-or-update a flow by its stable ID.
+
+        Returns ``(flow, created)`` where ``created`` is ``True`` when a new
+        flow was inserted and ``False`` when an existing one was updated.
+        """
+        resp = self._request(
             "PUT",
             f"/api/v1/flows/{flow_id}",
             json=self._model_payload(flow),
         )
         return self._upsert_result(Flow, resp)
 
-    async def delete_flow(self, flow_id: UUID | str) -> None:
-        await self._request("DELETE", f"/api/v1/flows/{flow_id}")
+    def delete_flow(self, flow_id: UUID | str) -> None:
+        self._request("DELETE", f"/api/v1/flows/{flow_id}")
 
-    async def run_flow(
+    def run_flow(
         self,
         flow_id_or_endpoint: UUID | str,
         request: RunRequest,
     ) -> RunResponse:
-        resp = await self._request(
+        resp = self._request(
             "POST",
             f"/api/v1/run/{flow_id_or_endpoint}",
             json=self._model_payload(request),
         )
         return self._validate_model(RunResponse, resp.json())
 
-    async def run(
+    def run(
         self,
         flow_id_or_endpoint: UUID | str,
         input_value: str = "",
@@ -197,10 +212,10 @@ class AsyncLangflowClient(_ClientCommon):
         Convenience wrapper around :meth:`run_flow` that accepts plain keyword
         arguments instead of a :class:`RunRequest`::
 
-            result = await client.run("my-flow", input_value="Hello")
+            result = client.run("my-flow", input_value="Hello")
             print(result.first_text_output())
         """
-        return await self.run_flow(
+        return self.run_flow(
             flow_id_or_endpoint,
             self._build_run_request(
                 input_value=input_value,
@@ -210,51 +225,6 @@ class AsyncLangflowClient(_ClientCommon):
             ),
         )
 
-    async def run_background(
-        self,
-        flow_id_or_endpoint: UUID | str,
-        input_value: str = "",
-        *,
-        input_type: str = "chat",
-        output_type: str = "chat",
-        tweaks: dict[str, Any] | None = None,
-    ) -> BackgroundJob:
-        """Start a flow run as a background asyncio task and return immediately.
-
-        The returned :class:`BackgroundJob` lets you poll status or await
-        completion without blocking the event loop::
-
-            job = await client.run_background("my-flow", input_value="Hello!")
-
-            # ...do other work...
-
-            response = await job.wait_for_completion(timeout=60.0)
-            print(response.get_chat_output())
-
-        Args:
-            flow_id_or_endpoint: Flow UUID or named endpoint.
-            input_value: Text input passed to the flow.
-            input_type: Langflow input type (default ``"chat"``).
-            output_type: Langflow output type (default ``"chat"``).
-            tweaks: Optional component tweaks dict.
-
-        Returns:
-            A :class:`BackgroundJob` wrapping the in-flight asyncio task.
-
-        Adapted from ``BackgroundJob`` in langflow-ai/sdk PR #1
-        (Janardan Singh Kavia, IBM Corp., Apache 2.0).
-        """
-        task: asyncio.Task[RunResponse] = asyncio.create_task(
-            self.run(
-                flow_id_or_endpoint,
-                input_value,
-                input_type=input_type,
-                output_type=output_type,
-                tweaks=tweaks,
-            )
-        )
-        return BackgroundJob(task)
-
     def stream(
         self,
         flow_id_or_endpoint: UUID | str,
@@ -263,18 +233,18 @@ class AsyncLangflowClient(_ClientCommon):
         input_type: str = "chat",
         output_type: str = "chat",
         tweaks: dict[str, Any] | None = None,
-    ) -> AsyncIterator[StreamChunk]:
+    ) -> Iterator[StreamChunk]:
         """Stream a flow run, yielding :class:`StreamChunk` objects as they arrive.
 
         Uses server-sent events (SSE) to receive incremental output::
 
-            async for chunk in client.stream("my-flow", input_value="Hello"):
+            for chunk in client.stream("my-flow", input_value="Hello"):
                 if chunk.is_token:
                     print(chunk.text, end="", flush=True)
                 elif chunk.is_end:
                     response = chunk.final_response()
         """
-        return self._aiter_stream(
+        return self._iter_stream(
             f"/api/v1/run/{flow_id_or_endpoint}",
             self._build_stream_payload(
                 input_value=input_value,
@@ -284,14 +254,14 @@ class AsyncLangflowClient(_ClientCommon):
             ),
         )
 
-    async def _aiter_stream(self, path: str, payload: dict[str, Any]) -> AsyncIterator[StreamChunk]:
-        """Open a streaming POST request and async-yield parsed event chunks."""
+    def _iter_stream(self, path: str, payload: dict[str, Any]) -> Iterator[StreamChunk]:
+        """Open a streaming POST request and yield parsed event chunks."""
         try:
-            async with self._http.stream("POST", path, json=payload) as response:
+            with self._http.stream("POST", path, json=payload) as response:
                 if not response.is_success:
-                    body = await response.aread()
+                    body = response.read()
                     _raise_for_status_code(response.status_code, self._extract_error_detail(body))
-                async for line in response.aiter_lines():
+                for line in response.iter_lines():
                     raw = line.strip()
                     if not raw:
                         continue
@@ -302,43 +272,47 @@ class AsyncLangflowClient(_ClientCommon):
             raise _connection_error(self._base_url, exc) from exc
 
     # ------------------------------------------------------------------
-    # Projects
+    # Projects (Folders)
     # ------------------------------------------------------------------
 
-    async def list_projects(self) -> list[Project]:
-        resp = await self._request("GET", "/api/v1/projects/")
+    def list_projects(self) -> list[Project]:
+        resp = self._request("GET", "/api/v1/projects/")
         return self._validate_model_list(Project, resp.json())
 
-    async def get_project(self, project_id: UUID | str) -> ProjectWithFlows:
-        resp = await self._request("GET", f"/api/v1/projects/{project_id}")
+    def get_project(self, project_id: UUID | str) -> ProjectWithFlows:
+        resp = self._request("GET", f"/api/v1/projects/{project_id}")
         return self._validate_model(ProjectWithFlows, resp.json())
 
-    async def create_project(self, project: ProjectCreate) -> Project:
-        resp = await self._request("POST", "/api/v1/projects/", json=self._model_payload(project))
+    def create_project(self, project: ProjectCreate) -> Project:
+        resp = self._request("POST", "/api/v1/projects/", json=self._model_payload(project))
         return self._validate_model(Project, resp.json())
 
-    async def update_project(self, project_id: UUID | str, update: ProjectUpdate) -> Project:
-        resp = await self._request(
+    def update_project(self, project_id: UUID | str, update: ProjectUpdate) -> Project:
+        resp = self._request(
             "PATCH",
             f"/api/v1/projects/{project_id}",
             json=self._model_payload(update),
         )
         return self._validate_model(Project, resp.json())
 
-    async def delete_project(self, project_id: UUID | str) -> None:
-        await self._request("DELETE", f"/api/v1/projects/{project_id}")
+    def delete_project(self, project_id: UUID | str) -> None:
+        self._request("DELETE", f"/api/v1/projects/{project_id}")
 
-    async def download_project(self, project_id: UUID | str) -> dict[str, bytes]:
+    def download_project(self, project_id: UUID | str) -> dict[str, bytes]:
         """Download all flows in a project.
+
+        Returns a mapping of ``{flow_name: raw_json_bytes}`` extracted from
+        the ZIP archive returned by the server.
 
         Raises :class:`ValueError` if the archive contains more than 500
         entries or any single entry exceeds 50 MB (zip-bomb protection).
         """
-        resp = await self._request("GET", f"/api/v1/projects/download/{project_id}")
+        resp = self._request("GET", f"/api/v1/projects/download/{project_id}")
         return self._extract_project_archive(resp.content)
 
-    async def upload_project(self, zip_bytes: bytes) -> list[Flow]:
-        resp = await self._request(
+    def upload_project(self, zip_bytes: bytes) -> list[Flow]:
+        """Upload a project ZIP archive and return the created flows."""
+        resp = self._request(
             "POST",
             "/api/v1/projects/upload/",
             content=zip_bytes,
@@ -350,18 +324,20 @@ class AsyncLangflowClient(_ClientCommon):
     # File I/O helpers
     # ------------------------------------------------------------------
 
-    async def push(self, path: str | Path) -> tuple[Flow, bool]:
+    def push(self, path: str | Path) -> tuple[Flow, bool]:
         """Upload or update a flow from a local JSON file.
 
-        The ``id`` field embedded in the file is used for upsert.
-        Returns ``(flow, created)``::
+        The ``id`` field embedded in the file is used for upsert
+        (create-or-update via ``PUT /api/v1/flows/{id}``).
+        Returns ``(flow, created)`` where ``created`` is ``True`` when the
+        flow was newly created and ``False`` when it was updated::
 
-            flow, created = await client.push("flows/my-flow.json")
+            flow, created = client.push("flows/my-flow.json")
         """
         flow_id, flow_create = self._load_flow_file(path)
-        return await self.upsert_flow(flow_id, flow_create)
+        return self.upsert_flow(flow_id, flow_create)
 
-    async def pull(
+    def pull(
         self,
         flow_id: UUID | str,
         *,
@@ -369,25 +345,30 @@ class AsyncLangflowClient(_ClientCommon):
     ) -> dict[str, Any]:
         """Download a flow and return it as a normalized dict.
 
-        Strips volatile fields, clears secrets, and sorts keys.
-        When *output* is given the JSON is also written to that path::
+        Strips volatile fields (``updated_at``, ``user_id``, ...), clears
+        secrets, and sorts keys for stable diffs.  When *output* is given the
+        normalized JSON is also written to that file path::
 
-            data = await client.pull("my-flow-id")
-            await client.pull("my-flow-id", output="flows/my-flow.json")
+            data = client.pull("my-flow-id")
+            client.pull("my-flow-id", output="flows/my-flow.json")
         """
-        flow = await self.get_flow(flow_id)
+        flow = self.get_flow(flow_id)
         return self._normalize_and_write_flow(flow.model_dump(mode="json"), output=output)
 
-    async def push_project(self, directory: str | Path) -> list[tuple[Flow, bool]]:
-        """Push all ``*.json`` flow files in *directory* to the server concurrently.
+    def push_project(self, directory: str | Path) -> list[tuple[Flow, bool]]:
+        """Push all ``*.json`` flow files in *directory* to the server.
 
-        Returns a list of ``(flow, created)`` pairs in sorted filename order::
+        Each file is upserted using the ``id`` field it contains.
+        Returns a list of ``(flow, created)`` pairs in the order files were
+        processed::
 
-            results = await client.push_project("flows/my-project/")
+            results = client.push_project("flows/my-project/")
+            for flow, created in results:
+                print("created" if created else "updated", flow.name)
         """
-        return list(await asyncio.gather(*[self.push(path) for path in self._project_json_paths(directory)]))
+        return [self.push(path) for path in self._project_json_paths(directory)]
 
-    async def pull_project(
+    def pull_project(
         self,
         project_id: UUID | str,
         *,
@@ -395,29 +376,23 @@ class AsyncLangflowClient(_ClientCommon):
     ) -> dict[str, Path]:
         """Download all flows in a project and write them to *output_dir*.
 
-        Each flow is normalized before being written as ``<flow-name>.json``.
-        Returns ``{flow_name: file_path}``.
+        Each flow is normalized (volatile fields stripped, keys sorted) before
+        being written as ``<flow-name>.json``.  *output_dir* is created if it
+        does not exist.  Returns a mapping of ``{flow_name: file_path}``.
 
         .. note::
-            Flows with duplicate names overwrite each other.  See
-            :meth:`LangflowClient.pull_project` for details.
+            If two flows in the project share the same name the second one
+            overwrites the first on disk and in the returned mapping.  Flow
+            names within a project should be unique; this situation indicates
+            a data problem on the server.
 
         ::
 
-            written = await client.pull_project("project-id", output_dir="flows/")
+            written = client.pull_project("project-id", output_dir="flows/")
+            for name, path in written.items():
+                print(name, "->", path)
         """
-        return self._write_project_flows(await self.download_project(project_id), output_dir=output_dir)
+        return self._write_project_flows(self.download_project(project_id), output_dir=output_dir)
 
 
-# ---------------------------------------------------------------------------
-# Short alias  (preferred for new code)
-# ---------------------------------------------------------------------------
-
-#: Short alias for :class:`AsyncLangflowClient`.
-#:
-#: Example::
-#:
-#:     from langflow_sdk import AsyncClient
-#:     async with AsyncClient("https://langflow.example.com", api_key="...") as c:
-#:         flows = await c.list_flows()
-AsyncClient = AsyncLangflowClient
+__all__ = ["KetosClient"]

@@ -1,6 +1,6 @@
-"""Unit tests for BackgroundJob and AsyncLangflowClient.run_background.
+"""Unit tests for BackgroundJob and AsyncKetosClient.run_background.
 
-All tests run entirely in-process; no real Langflow instance required.
+All tests run entirely in-process; no real Ketos instance required.
 The async client's ``run`` method is patched directly so only the asyncio
 task lifecycle and BackgroundJob status logic is under test.
 """
@@ -12,9 +12,9 @@ import contextlib
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from langflow_sdk.background_job import BackgroundJob
-from langflow_sdk.exceptions import LangflowTimeoutError
-from langflow_sdk.models import RunOutput, RunResponse
+from ketos_sdk.background_job import BackgroundJob
+from ketos_sdk.exceptions import KetosTimeoutError
+from ketos_sdk.models import RunOutput, RunResponse
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -155,10 +155,10 @@ class TestWaitForCompletion:
         assert result.get_chat_output() == "Done!"
 
     @pytest.mark.asyncio
-    async def test_raises_langflow_timeout_error_on_expiry(self):
+    async def test_raises_ketos_timeout_error_on_expiry(self):
         task = asyncio.create_task(_slow_success(5.0))
         job = BackgroundJob(task)
-        with pytest.raises(LangflowTimeoutError):
+        with pytest.raises(KetosTimeoutError):
             await job.wait_for_completion(timeout=0.01)
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError, Exception):
@@ -169,7 +169,7 @@ class TestWaitForCompletion:
         """wait_for_completion uses shield() so the task survives a timeout."""
         task = asyncio.create_task(_slow_success(5.0))
         job = BackgroundJob(task)
-        with pytest.raises(LangflowTimeoutError):
+        with pytest.raises(KetosTimeoutError):
             await job.wait_for_completion(timeout=0.01)
         # Task should still be alive — shield protects it from cancellation
         assert not task.done() or not task.cancelled()
@@ -238,16 +238,16 @@ class TestCancel:
 
 
 # ---------------------------------------------------------------------------
-# AsyncLangflowClient.run_background integration
+# AsyncKetosClient.run_background integration
 # ---------------------------------------------------------------------------
 
 
 class TestRunBackground:
     @pytest.mark.asyncio
     async def test_returns_background_job_instance(self):
-        from langflow_sdk.client import AsyncLangflowClient
+        from ketos_sdk._async_client import AsyncKetosClient
 
-        client = AsyncLangflowClient("http://langflow.test", api_key="test-key")  # pragma: allowlist secret
+        client = AsyncKetosClient("http://ketos.test", api_key="test-key")  # pragma: allowlist secret
         with patch.object(client, "run", new_callable=AsyncMock, return_value=_RUN_RESPONSE):
             job = await client.run_background("my-flow", input_value="Hello")
         assert isinstance(job, BackgroundJob)
@@ -256,9 +256,9 @@ class TestRunBackground:
 
     @pytest.mark.asyncio
     async def test_run_background_calls_run_with_correct_args(self):
-        from langflow_sdk.client import AsyncLangflowClient
+        from ketos_sdk._async_client import AsyncKetosClient
 
-        client = AsyncLangflowClient("http://langflow.test", api_key="test-key")  # pragma: allowlist secret
+        client = AsyncKetosClient("http://ketos.test", api_key="test-key")  # pragma: allowlist secret
         mock_run = AsyncMock(return_value=_RUN_RESPONSE)
         with patch.object(client, "run", mock_run):
             job = await client.run_background(
@@ -279,13 +279,13 @@ class TestRunBackground:
 
     @pytest.mark.asyncio
     async def test_run_background_job_is_running_immediately(self):
-        from langflow_sdk.client import AsyncLangflowClient
+        from ketos_sdk._async_client import AsyncKetosClient
 
         async def _slow_run(*_args, **_kwargs) -> RunResponse:
             await asyncio.sleep(5.0)
             return _RUN_RESPONSE
 
-        client = AsyncLangflowClient("http://langflow.test", api_key="test-key")  # pragma: allowlist secret
+        client = AsyncKetosClient("http://ketos.test", api_key="test-key")  # pragma: allowlist secret
         with patch.object(client, "run", side_effect=_slow_run):
             job = await client.run_background("my-flow", input_value="Hi")
         assert job.is_running() is True
@@ -294,9 +294,9 @@ class TestRunBackground:
 
     @pytest.mark.asyncio
     async def test_run_background_completion_result_matches_run(self):
-        from langflow_sdk.client import AsyncLangflowClient
+        from ketos_sdk._async_client import AsyncKetosClient
 
-        client = AsyncLangflowClient("http://langflow.test", api_key="test-key")  # pragma: allowlist secret
+        client = AsyncKetosClient("http://ketos.test", api_key="test-key")  # pragma: allowlist secret
         with patch.object(client, "run", new_callable=AsyncMock, return_value=_RUN_RESPONSE):
             job = await client.run_background("my-flow")
             response = await job.wait_for_completion()
@@ -305,12 +305,12 @@ class TestRunBackground:
 
     @pytest.mark.asyncio
     async def test_run_background_exported_from_package(self):
-        from langflow_sdk import BackgroundJob as ExportedBackgroundJob
+        from ketos_sdk import BackgroundJob as ExportedBackgroundJob
 
         assert ExportedBackgroundJob is BackgroundJob
 
     @pytest.mark.asyncio
-    async def test_langflow_timeout_error_exported_from_package(self):
-        from langflow_sdk import LangflowTimeoutError as ExportedError
+    async def test_ketos_timeout_error_exported_from_package(self):
+        from ketos_sdk import KetosTimeoutError as ExportedError
 
-        assert ExportedError is LangflowTimeoutError
+        assert ExportedError is KetosTimeoutError

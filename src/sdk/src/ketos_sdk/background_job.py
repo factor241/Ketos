@@ -2,12 +2,12 @@
 
 Wraps an :class:`asyncio.Task` so callers can start a flow run and poll or
 await it without blocking the event loop.  Mirrors the ``BackgroundJob`` API
-from langflow-ai/sdk PR #1 (Janardan Singh Kavia, IBM Corp., Apache 2.0)
-adapted for the Langflow V1 ``/api/v1/run/{id}`` endpoint.
+from ketos-ai/sdk PR #1 (Janardan Singh Kavia, IBM Corp., Apache 2.0)
+adapted for the Ketos V1 ``/api/v1/run/{id}`` endpoint.
 
 Typical usage::
 
-    async with AsyncClient("https://langflow.example.com", api_key="...") as client:
+    async with AsyncKetosClient("https://ketos.example.com", api_key="...") as client:
         job = await client.run_background("my-flow", input_value="Hello!")
 
         # Option 1 — poll status without blocking
@@ -25,20 +25,20 @@ import asyncio
 import contextlib
 from typing import TYPE_CHECKING
 
-from langflow_sdk.exceptions import LangflowTimeoutError
+from ketos_sdk.exceptions import KetosTimeoutError
 
 if TYPE_CHECKING:
-    from langflow_sdk.models import RunResponse
+    from ketos_sdk.models import RunResponse
 
 
 class BackgroundJob:
-    """Non-blocking handle for an in-flight :meth:`AsyncLangflowClient.run` call.
+    """Non-blocking handle for an in-flight :meth:`AsyncKetosClient.run` call.
 
-    Returned by :meth:`AsyncLangflowClient.run_background`.  The underlying
+    Returned by :meth:`AsyncKetosClient.run_background`.  The underlying
     network request runs in an :class:`asyncio.Task` so the caller's event
     loop remains free.
 
-    Adapted from ``BackgroundJob`` in langflow-ai/sdk PR #1
+    Adapted from ``BackgroundJob`` in ketos-ai/sdk PR #1
     (Janardan Singh Kavia, IBM Corp., Apache 2.0).
     """
 
@@ -74,14 +74,14 @@ class BackgroundJob:
 
         Args:
             timeout: Maximum seconds to wait.  ``None`` (default) means wait
-                     indefinitely.  Raises :exc:`LangflowTimeoutError` on
+                     indefinitely.  Raises :exc:`KetosTimeoutError` on
                      expiry.
 
         Returns:
             The :class:`RunResponse` from the completed flow run.
 
         Raises:
-            LangflowTimeoutError: If *timeout* elapses before the run finishes.
+            KetosTimeoutError: If *timeout* elapses before the run finishes.
             Exception: Any exception raised by the underlying flow run is
                 re-raised as-is.
         """
@@ -93,7 +93,7 @@ class BackgroundJob:
                 "The run is still in flight — call wait_for_completion() again "
                 "or cancel() to abort."
             )
-            raise LangflowTimeoutError(msg) from exc
+            raise KetosTimeoutError(msg) from exc
 
     async def cancel(self) -> bool:
         """Request cancellation of the background task.

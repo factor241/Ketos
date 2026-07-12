@@ -1,4 +1,4 @@
-"""Shared helpers used by both sync and async Langflow SDK clients."""
+"""Shared helpers used by both sync and async Ketos SDK clients."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ import zipfile
 from pathlib import Path
 from typing import Any, TypeVar
 
-from langflow_sdk._http import _HTTP_201_CREATED, _logger
-from langflow_sdk.models import FlowCreate, RunRequest, StreamChunk
-from langflow_sdk.serialization import flow_to_json, normalize_flow
+from ketos_sdk._http import _HTTP_201_CREATED, _logger
+from ketos_sdk.models import FlowCreate, RunRequest, StreamChunk
+from ketos_sdk.serialization import flow_to_json, normalize_flow
 
 _ModelT = TypeVar("_ModelT")
 

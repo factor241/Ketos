@@ -7,15 +7,15 @@ from typing import Any
 
 import httpx
 import pytest
-from langflow_sdk import AsyncClient, Client, StreamChunk
-from langflow_sdk.exceptions import LangflowAuthError, LangflowConnectionError, LangflowHTTPError
-from langflow_sdk.models import RunResponse
+from ketos_sdk import AsyncKetosClient, KetosClient, StreamChunk
+from ketos_sdk.exceptions import KetosAuthError, KetosConnectionError, KetosHTTPError
+from ketos_sdk.models import RunResponse
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-_BASE_URL = "http://langflow.test"
+_BASE_URL = "http://ketos.test"
 _FLOW_ID = "00000000-0000-0000-0000-000000000001"
 _RUN_ENDPOINT = f"/api/v1/run/{_FLOW_ID}"
 
@@ -67,14 +67,14 @@ class _AsyncMockTransport(httpx.AsyncBaseTransport):
         )
 
 
-def _sync_client(transport: _MockTransport) -> Client:
+def _sync_client(transport: _MockTransport) -> KetosClient:
     http = httpx.Client(base_url=_BASE_URL, transport=transport)
-    return Client(_BASE_URL, httpx_client=http)
+    return KetosClient(_BASE_URL, httpx_client=http)
 
 
-def _async_client(transport: _AsyncMockTransport) -> AsyncClient:
+def _async_client(transport: _AsyncMockTransport) -> AsyncKetosClient:
     http = httpx.AsyncClient(base_url=_BASE_URL, transport=transport)
-    return AsyncClient(_BASE_URL, httpx_client=http)
+    return AsyncKetosClient(_BASE_URL, httpx_client=http)
 
 
 # ---------------------------------------------------------------------------
@@ -175,7 +175,7 @@ def test_stream_chunk_empty_data_defaults() -> None:
 
 
 # ---------------------------------------------------------------------------
-# LangflowClient.stream() tests
+# KetosClient.stream() tests
 # ---------------------------------------------------------------------------
 
 
@@ -238,7 +238,7 @@ def test_sync_stream_sets_stream_true_in_payload() -> None:
             return httpx.Response(200, content=b"", headers={"content-type": "text/event-stream"}, request=request)
 
     http = httpx.Client(base_url=_BASE_URL, transport=_CapturingTransport())
-    client = Client(_BASE_URL, httpx_client=http)
+    client = KetosClient(_BASE_URL, httpx_client=http)
     list(client.stream(_FLOW_ID, input_value="hello"))
     client.close()
 
@@ -252,7 +252,7 @@ def test_sync_stream_sets_stream_true_in_payload() -> None:
 def test_sync_stream_raises_auth_error_on_401() -> None:
     body = json.dumps({"detail": "Unauthorized"}).encode()
     client = _sync_client(_MockTransport(status=401, content=body, headers={"content-type": "application/json"}))
-    with pytest.raises(LangflowAuthError):
+    with pytest.raises(KetosAuthError):
         list(client.stream(_FLOW_ID, input_value="hi"))
     client.close()
 
@@ -261,7 +261,7 @@ def test_sync_stream_raises_auth_error_on_401() -> None:
 def test_sync_stream_raises_http_error_on_500() -> None:
     body = json.dumps({"detail": "Internal server error"}).encode()
     client = _sync_client(_MockTransport(status=500, content=body, headers={"content-type": "application/json"}))
-    with pytest.raises(LangflowHTTPError):
+    with pytest.raises(KetosHTTPError):
         list(client.stream(_FLOW_ID, input_value="hi"))
     client.close()
 
@@ -274,8 +274,8 @@ def test_sync_stream_raises_connection_error() -> None:
             raise httpx.ConnectError(msg)
 
     http = httpx.Client(base_url=_BASE_URL, transport=_ErrorTransport())
-    client = Client(_BASE_URL, httpx_client=http)
-    with pytest.raises(LangflowConnectionError):
+    client = KetosClient(_BASE_URL, httpx_client=http)
+    with pytest.raises(KetosConnectionError):
         list(client.stream(_FLOW_ID, input_value="hi"))
     client.close()
 
@@ -290,7 +290,7 @@ def test_sync_stream_passes_tweaks() -> None:
             return httpx.Response(200, content=b"", headers={"content-type": "text/event-stream"}, request=request)
 
     http = httpx.Client(base_url=_BASE_URL, transport=_CapturingTransport())
-    client = Client(_BASE_URL, httpx_client=http)
+    client = KetosClient(_BASE_URL, httpx_client=http)
     list(client.stream(_FLOW_ID, tweaks={"MyComponent": {"key": "val"}}))
     client.close()
 
@@ -299,7 +299,7 @@ def test_sync_stream_passes_tweaks() -> None:
 
 
 # ---------------------------------------------------------------------------
-# LangflowClient.run() convenience tests
+# KetosClient.run() convenience tests
 # ---------------------------------------------------------------------------
 
 
@@ -328,7 +328,7 @@ def test_sync_run_sends_correct_payload() -> None:
             )
 
     http = httpx.Client(base_url=_BASE_URL, transport=_CapturingTransport())
-    client = Client(_BASE_URL, httpx_client=http)
+    client = KetosClient(_BASE_URL, httpx_client=http)
     client.run(_FLOW_ID, input_value="test", input_type="text", output_type="text")
     client.close()
 
@@ -341,7 +341,7 @@ def test_sync_run_sends_correct_payload() -> None:
 
 
 # ---------------------------------------------------------------------------
-# AsyncLangflowClient.stream() tests
+# AsyncKetosClient.stream() tests
 # ---------------------------------------------------------------------------
 
 
@@ -374,7 +374,7 @@ async def test_async_stream_skips_blank_lines() -> None:
 async def test_async_stream_raises_auth_error_on_401() -> None:
     body = json.dumps({"detail": "Unauthorized"}).encode()
     client = _async_client(_AsyncMockTransport(status=401, content=body, headers={"content-type": "application/json"}))
-    with pytest.raises(LangflowAuthError):
+    with pytest.raises(KetosAuthError):
         async for _ in client.stream(_FLOW_ID, input_value="hi"):
             pass
     await client.aclose()
@@ -388,8 +388,8 @@ async def test_async_stream_raises_connection_error() -> None:
             raise httpx.ConnectError(msg)
 
     http = httpx.AsyncClient(base_url=_BASE_URL, transport=_AsyncErrorTransport())
-    client = AsyncClient(_BASE_URL, httpx_client=http)
-    with pytest.raises(LangflowConnectionError):
+    client = AsyncKetosClient(_BASE_URL, httpx_client=http)
+    with pytest.raises(KetosConnectionError):
         async for _ in client.stream(_FLOW_ID, input_value="hi"):
             pass
     await client.aclose()
@@ -405,7 +405,7 @@ async def test_async_stream_sets_stream_true_in_payload() -> None:
             return httpx.Response(200, content=b"", headers={"content-type": "text/event-stream"}, request=request)
 
     http = httpx.AsyncClient(base_url=_BASE_URL, transport=_AsyncCapturingTransport())
-    client = AsyncClient(_BASE_URL, httpx_client=http)
+    client = AsyncKetosClient(_BASE_URL, httpx_client=http)
     async for _ in client.stream(_FLOW_ID, input_value="hello"):
         pass
     await client.aclose()
@@ -416,7 +416,7 @@ async def test_async_stream_sets_stream_true_in_payload() -> None:
 
 
 # ---------------------------------------------------------------------------
-# AsyncLangflowClient.run() convenience tests
+# AsyncKetosClient.run() convenience tests
 # ---------------------------------------------------------------------------
 
 
@@ -445,7 +445,7 @@ async def test_async_run_does_not_set_stream_true() -> None:
             )
 
     http = httpx.AsyncClient(base_url=_BASE_URL, transport=_AsyncCapturingTransport())
-    client = AsyncClient(_BASE_URL, httpx_client=http)
+    client = AsyncKetosClient(_BASE_URL, httpx_client=http)
     await client.run(_FLOW_ID, input_value="async test")
     await client.aclose()
 
@@ -460,6 +460,6 @@ async def test_async_run_does_not_set_stream_true() -> None:
 
 @pytest.mark.unit
 def test_stream_chunk_importable_from_package() -> None:
-    import langflow_sdk
+    import ketos_sdk
 
-    assert langflow_sdk.StreamChunk is StreamChunk
+    assert ketos_sdk.StreamChunk is StreamChunk

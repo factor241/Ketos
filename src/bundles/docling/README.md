@@ -1,6 +1,6 @@
 # Docling Bundle
 
-Docling components for Langflow packaged as a standalone Extension Bundle.
+Docling components for Ketos packaged as a standalone Extension Bundle.
 
 ## Components
 
@@ -11,23 +11,23 @@ Docling components for Langflow packaged as a standalone Extension Bundle.
 
 ## Install
 
-The bundle is installed with Langflow in the 1.10 workspace. The base package includes `docling-core` for the `DoclingDocument` schema. For standalone local conversion:
+The bundle is installed with Ketos in the 1.10 workspace. The base package includes `docling-core` for the `DoclingDocument` schema. For standalone local conversion:
 
 ```bash
-uv pip install "lfx-docling[local]"
+uv pip install "kfx-docling[local]"
 ```
 
 Chunking and picture-description support use separate optional extras. Chunking
 does not install the full local converter/OCR stack:
 
 ```bash
-uv pip install "lfx-docling[chunking]"
-uv pip install "lfx-docling[image-description]"
+uv pip install "kfx-docling[chunking]"
+uv pip install "kfx-docling[image-description]"
 ```
 
 ## Develop
 
 ```bash
-uv run lfx extension validate src/bundles/docling/src/lfx_docling
+uv run kfx extension validate src/bundles/docling/src/kfx_docling
 uv run pytest src/bundles/docling/tests
 ```

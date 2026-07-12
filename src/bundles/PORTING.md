@@ -1,7 +1,7 @@
-# Porting a component from `lfx.components.<provider>` to `src/bundles/<provider>`
+# Porting a component from `kfx.components.<provider>` to `src/bundles/<provider>`
 
 This is the step-by-step recipe for extracting a provider package from the
-in-tree `src/lfx/src/lfx/components/<provider>/` directory into a standalone
+in-tree `src/kfx/src/kfx/components/<provider>/` directory into a standalone
 Extension Bundle distribution under `src/bundles/<provider>/`. The DuckDuckGo
 bundle ([`src/bundles/duckduckgo`](duckduckgo/)) is the reference
 implementation; every section below maps to a single, copy-pasteable change
@@ -18,19 +18,19 @@ describes — review the diff before committing.
 
 Before you start, confirm the component is a good fit:
 
-- [ ] The provider directory `src/lfx/src/lfx/components/<provider>/` exists
+- [ ] The provider directory `src/kfx/src/kfx/components/<provider>/` exists
       and contains one or more `Component` subclasses.
-- [ ] Imports from `lfx.*` only (no `from langflow...`); the bundle is
-      installed against the public `BUNDLE_API` surface, not Langflow internals.
-      Check with: `grep -r "from langflow" src/lfx/src/lfx/components/<provider>/`
-- [ ] No deactivated / legacy duplicate exists under `src/lfx/src/lfx/components/deactivated/<provider>/`.
+- [ ] Imports from `kfx.*` only (no `from ketos...`); the bundle is
+      installed against the public `BUNDLE_API` surface, not Ketos internals.
+      Check with: `grep -r "from ketos" src/kfx/src/kfx/components/<provider>/`
+- [ ] No deactivated / legacy duplicate exists under `src/kfx/src/kfx/components/deactivated/<provider>/`.
 - [ ] The runtime dependencies the component pulls in (e.g. `langchain-community`,
       a vendor SDK) can be declared in the bundle's `pyproject.toml` without
-      cycling through `lfx` or `langflow-base`.
+      cycling through `kfx` or `ketos-base`.
 
 Pick the **bundle name** (snake_case, lowercase, matches the directory name —
 e.g. `duckduckgo`, `arxiv`, `wikipedia`) and the **distribution name**
-(`lfx-<bundle>`, e.g. `lfx-duckduckgo`). These two strings are the only
+(`kfx-<bundle>`, e.g. `kfx-duckduckgo`). These two strings are the only
 identifiers you'll repeat throughout the port.
 
 ---
@@ -45,7 +45,7 @@ src/bundles/<bundle>/
 ├── README.md
 ├── pyproject.toml
 └── src/
-    └── lfx_<bundle>/
+    └── kfx_<bundle>/
         ├── __init__.py
         ├── extension.json
         └── components/
@@ -54,12 +54,12 @@ src/bundles/<bundle>/
                 └── <source>.py        # one file per component class
 ```
 
-> **Why nested `src/lfx_<bundle>/components/<bundle>/`?** The outer
-> `lfx_<bundle>` is the importable Python package (matches the wheel layout
+> **Why nested `src/kfx_<bundle>/components/<bundle>/`?** The outer
+> `kfx_<bundle>` is the importable Python package (matches the wheel layout
 > `importlib.metadata.files()` walks). The inner `components/<bundle>/`
 > is the path declared in `extension.json:bundles[].path` — keeping it as
 > `components/<bundle>` means saved flows that referenced
-> `lfx.components.<bundle>.<file>.<Class>` migrate cleanly via a single
+> `kfx.components.<bundle>.<file>.<Class>` migrate cleanly via a single
 > import-path entry in the migration table.
 
 ### 1a. `pyproject.toml`
@@ -67,45 +67,45 @@ src/bundles/<bundle>/
 Copy [`src/bundles/duckduckgo/pyproject.toml`](duckduckgo/pyproject.toml) and
 substitute names + the runtime-dep block. The non-obvious bits:
 
-- `dependencies` lists every runtime dep the component imports. Floor `lfx`
-  at the current Langflow/LFX `major.minor` line and cap below the next `lfx`
-  major — e.g. `"lfx>=1.10.0,<2.0.0"`. You normally don't hand-write this:
-  `port_bundle.py` fills it in from `src/lfx/pyproject.toml` at port time, and
+- `dependencies` lists every runtime dep the component imports. Floor `kfx`
+  at the current Ketos/KFX `major.minor` line and cap below the next `kfx`
+  major — e.g. `"kfx>=1.10.0,<2.0.0"`. You normally don't hand-write this:
+  `port_bundle.py` fills it in from `src/kfx/pyproject.toml` at port time, and
   `make patch` re-syncs every existing bundle via
-  [`scripts/ci/sync_bundle_lfx_pin.py`](../../scripts/ci/sync_bundle_lfx_pin.py).
+  [`scripts/ci/sync_bundle_kfx_pin.py`](../../scripts/ci/sync_bundle_kfx_pin.py).
   Fine-grained BUNDLE_API compatibility is enforced separately via
-  `extension.json`'s `"lfx": {"compat": [...]}` contract against the running
-  lfx's `BUNDLE_API_VERSION`, not the version cap.
+  `extension.json`'s `"kfx": {"compat": [...]}` contract against the running
+  kfx's `BUNDLE_API_VERSION`, not the version cap.
 - **Platform-gated deps:** if a runtime dep has no wheel on some platform
   (e.g. `ibm-db` ships none for linux/aarch64), gate it with a PEP 508 marker
-  so `pip install langflow` still succeeds there, e.g.
+  so `pip install ketos` still succeeds there, e.g.
   `"ibm-db>=3.2.9,<4.0.0; sys_platform != 'linux' or platform_machine != 'aarch64'"`.
   Import that dep *lazily* (inside the method that uses it, not at module top
   level) so the bundle still loads on the excluded platform and the affected
   component degrades gracefully instead of breaking discovery. The
-  cross-platform install test gates a hard-dep bundle through langflow's main
+  cross-platform install test gates a hard-dep bundle through ketos's main
   install; if the **bundle itself** (not just a transitive dep) cannot install
   on a platform, also add the same marker to its dependency line in the root
-  [`pyproject.toml`](../../pyproject.toml) so langflow does not require it there.
-- `[project.entry-points."langflow.extensions"]`: `<dist-name> = "lfx_<bundle>"`.
-  This is what `lfx.extension.loader._plugins._manifest_via_entry_point`
+  [`pyproject.toml`](../../pyproject.toml) so ketos does not require it there.
+- `[project.entry-points."ketos.extensions"]`: `<dist-name> = "kfx_<bundle>"`.
+  This is what `kfx.extension.loader._plugins._manifest_via_entry_point`
   reads to find the manifest; an editable install with no `dist.files`
   visibility falls back to this entry point.
 - `[tool.hatch.build.targets.wheel]` MUST include
-  `src/lfx_<bundle>/extension.json` and the components glob — wheel
+  `src/kfx_<bundle>/extension.json` and the components glob — wheel
   installs read the manifest via `dist.files` and skip the bundle if the
   file isn't packaged.
 
-### 1b. `src/lfx_<bundle>/extension.json`
+### 1b. `src/kfx_<bundle>/extension.json`
 
 ```json
 {
-  "$schema": "https://schemas.langflow.org/extension/v1.json",
-  "id": "lfx-<bundle>",
+  "$schema": "https://schemas.ketos.test/extension/v1.json",
+  "id": "kfx-<bundle>",
   "version": "0.1.0",
   "name": "<Human-readable bundle name>",
   "description": "<One-line description>.",
-  "lfx": { "compat": ["1"] },
+  "kfx": { "compat": ["1"] },
   "bundles": [
     { "name": "<bundle>", "path": "components/<bundle>" }
   ]
@@ -117,21 +117,21 @@ is the snake_case bundle name used in saved-flow IDs
 (`ext:<bundle>:<Class>@official`). They differ by one character (`-` vs
 `_`); don't mix them up.
 
-### 1c. `src/lfx_<bundle>/__init__.py`
+### 1c. `src/kfx_<bundle>/__init__.py`
 
 Re-export the component class(es) from the package root so
-`lfx_<bundle>.<Class>` resolves. The migration table's `bare_class_name`
+`kfx_<bundle>.<Class>` resolves. The migration table's `bare_class_name`
 entry depends on this import working.
 
 ```python
-"""lfx-<bundle>: <description>."""
+"""kfx-<bundle>: <description>."""
 
-from lfx_<bundle>.components.<bundle>.<source> import <Class>
+from kfx_<bundle>.components.<bundle>.<source> import <Class>
 
 __all__ = ["<Class>"]
 ```
 
-### 1d. `src/lfx_<bundle>/components/<bundle>/__init__.py`
+### 1d. `src/kfx_<bundle>/components/<bundle>/__init__.py`
 
 ```python
 from .<source> import <Class>
@@ -139,12 +139,12 @@ from .<source> import <Class>
 __all__ = ["<Class>"]
 ```
 
-### 1e. `src/lfx_<bundle>/components/<bundle>/<source>.py`
+### 1e. `src/kfx_<bundle>/components/<bundle>/<source>.py`
 
 This is the **moved** file. Copy it byte-for-byte from
-`src/lfx/src/lfx/components/<bundle>/<source>.py` — do **not** rewrite
-imports. The component's `from lfx.*` imports work unchanged because
-`lfx` is a runtime dep of the bundle.
+`src/kfx/src/kfx/components/<bundle>/<source>.py` — do **not** rewrite
+imports. The component's `from kfx.*` imports work unchanged because
+`kfx` is a runtime dep of the bundle.
 
 ### 1f. `README.md`
 
@@ -159,18 +159,18 @@ as the template.
 Delete the whole legacy directory:
 
 ```bash
-git rm -r src/lfx/src/lfx/components/<bundle>/
+git rm -r src/kfx/src/kfx/components/<bundle>/
 ```
 
 Then surgically remove the three references in
-[`src/lfx/src/lfx/components/__init__.py`](../lfx/src/lfx/components/__init__.py):
+[`src/kfx/src/kfx/components/__init__.py`](../kfx/src/kfx/components/__init__.py):
 
 1. The `<bundle>,` line in the import block (around line 10).
 2. The `"<bundle>": "__module__",` entry in the type-mapping dict.
 3. The `"<bundle>",` string in the `__all__`-style list.
 
 > **Sanity check:** after the edit,
-> `grep -n "<bundle>" src/lfx/src/lfx/components/__init__.py` returns
+> `grep -n "<bundle>" src/kfx/src/kfx/components/__init__.py` returns
 > nothing.
 
 ---
@@ -182,22 +182,22 @@ Then surgically remove the three references in
 Three edits — all mechanical:
 
 ```toml
-# 1. Add to [project] dependencies (regular dep so `pip install langflow`
+# 1. Add to [project] dependencies (regular dep so `pip install ketos`
 #    still pulls the component in -- no user-visible change at install time).
 dependencies = [
-    "langflow-base[complete]>=0.10.0",
-    "lfx-duckduckgo>=0.1.0",
-    "lfx-<bundle>>=0.1.0",                 # <-- add this line
+    "ketos-base[complete]>=0.10.0",
+    "kfx-duckduckgo>=0.1.0",
+    "kfx-<bundle>>=0.1.0",                 # <-- add this line
 ]
 
 # 2. Add to [tool.uv.sources]
-lfx-<bundle> = { workspace = true }
+kfx-<bundle> = { workspace = true }
 
 # 3. Add to [tool.uv.workspace] members
 members = [
     "src/backend/base",
     ".",
-    "src/lfx",
+    "src/kfx",
     "src/sdk",
     "src/bundles/duckduckgo",
     "src/bundles/<bundle>",                # <-- add this line
@@ -206,8 +206,8 @@ members = [
 
 ### 3b. `src/backend/base/pyproject.toml` (optional)
 
-Only touch this if the component had a `langflow-base[<bundle>]` extra.
-Remove the extra and any `langflow-base[<bundle>]` reference from
+Only touch this if the component had a `ketos-base[<bundle>]` extra.
+Remove the extra and any `ketos-base[<bundle>]` reference from
 `complete`. The duckduckgo port did this; if the component had no extras
 (e.g. arxiv), skip this section entirely.
 
@@ -223,7 +223,7 @@ git add uv.lock
 ## 4. Add migration entries
 
 Append to
-[`src/lfx/src/lfx/extension/migration/migration_table.json`](../lfx/src/lfx/extension/migration/migration_table.json).
+[`src/kfx/src/kfx/extension/migration/migration_table.json`](../kfx/src/kfx/extension/migration/migration_table.json).
 The schema requires **three** legacy forms covering every shape a saved
 flow may have used:
 
@@ -234,12 +234,12 @@ flow may have used:
   "added_in": "<release>"
 },
 {
-  "import_path": "lfx.components.<bundle>.<source>.<Class>",
+  "import_path": "kfx.components.<bundle>.<source>.<Class>",
   "target": "ext:<bundle>:<Class>@official",
   "added_in": "<release>"
 },
 {
-  "import_path": "lfx.components.<bundle>.<Class>",
+  "import_path": "kfx.components.<bundle>.<Class>",
   "target": "ext:<bundle>:<Class>@official",
   "added_in": "<release>"
 },
@@ -267,10 +267,10 @@ The pre-built component index drives lazy loading; the moved component's
 old entry must be removed.
 
 ```bash
-LFX_DEV=1 uv run python scripts/build_component_index.py
+KFX_DEV=1 uv run python scripts/build_component_index.py
 ```
 
-`LFX_DEV=1` forces dynamic discovery via `pkgutil.walk_packages`; without
+`KFX_DEV=1` forces dynamic discovery via `pkgutil.walk_packages`; without
 it the script reads the existing index and reproduces the stale entry
 even when the source module is gone.
 
@@ -282,15 +282,15 @@ else, your local checkout has unrelated drift.
 ## 6. Add an integration test
 
 Create
-`src/lfx/tests/integration/extension/test_pilot_<bundle>_upgrade.py`,
+`src/kfx/tests/integration/extension/test_pilot_<bundle>_upgrade.py`,
 modelled on
-[`test_pilot_duckduckgo_upgrade.py`](../lfx/tests/integration/extension/test_pilot_duckduckgo_upgrade.py).
+[`test_pilot_duckduckgo_upgrade.py`](../kfx/tests/integration/extension/test_pilot_duckduckgo_upgrade.py).
 The four test cases that matter:
 
 1. Bare class name → canonical ID.
 2. Full import path → canonical ID.
 3. Package-level import path → canonical ID.
-4. The `lfx-<bundle>` distribution is importable AND ships
+4. The `kfx-<bundle>` distribution is importable AND ships
    `extension.json` in a location `importlib.metadata.files` can discover
    (or, for editable installs, that `direct_url.json` resolves).
 
@@ -324,42 +324,42 @@ wrong:
 ```bash
 # 1. The bundle's manifest is structurally valid.  Point ``validate`` at
 #    the package directory (where extension.json lives), not the bundle
-#    root -- the manifest is nested inside ``src/lfx_<bundle>/`` so the
+#    root -- the manifest is nested inside ``src/kfx_<bundle>/`` so the
 #    wheel ships it.  The validator accepts both ``def build(self): ...``
 #    and ``outputs = [Output(method="...")]`` shapes; a component that
 #    uses neither will fail with ``build-method-missing`` -- add an
 #    ``outputs`` declaration in that case.
-uv run lfx extension validate src/bundles/<bundle>/src/lfx_<bundle>
+uv run kfx extension validate src/bundles/<bundle>/src/kfx_<bundle>
 
 # 2. Workspace resolves and the bundle is importable.
 uv sync
-uv run python -c "from lfx_<bundle> import <Class>; print(<Class>.__name__)"
+uv run python -c "from kfx_<bundle> import <Class>; print(<Class>.__name__)"
 
 # 3. Migration table parses and the new entries are visible.
-uv run pytest src/lfx/tests/unit/extension/migration -q
+uv run pytest src/kfx/tests/unit/extension/migration -q
 
 # 4. Loader discovers the editable install via direct_url.json.
 uv run python -c "
-from lfx.extension.loader._plugins import installed_extension_roots
+from kfx.extension.loader._plugins import installed_extension_roots
 roots = installed_extension_roots()
-assert 'lfx-<bundle>' in roots, roots
-print('discovered:', roots['lfx-<bundle>'])
+assert 'kfx-<bundle>' in roots, roots
+print('discovered:', roots['kfx-<bundle>'])
 "
 
 # 5. The integration test passes.
-uv run pytest src/lfx/tests/integration/extension/test_pilot_<bundle>_upgrade.py -q
+uv run pytest src/kfx/tests/integration/extension/test_pilot_<bundle>_upgrade.py -q
 
 # 6. Ruff is clean across the touched Python files.  (Don't pass the
 #    JSON migration table to ruff -- it lints it as Python and complains
 #    about the top-level expression.)
-uv run ruff check src/bundles/<bundle> src/lfx/src/lfx/components/__init__.py src/lfx/tests/integration/extension/test_pilot_<bundle>_upgrade.py
+uv run ruff check src/bundles/<bundle> src/kfx/src/kfx/components/__init__.py src/kfx/tests/integration/extension/test_pilot_<bundle>_upgrade.py
 ```
 
 **End-to-end smoke test** (optional but cheap): start a dev server with
 the bundle on the palette and click Reload.
 
 ```bash
-uv run lfx extension dev src/bundles/<bundle>
+uv run kfx extension dev src/bundles/<bundle>
 # In a browser at http://localhost:7860:
 #   - Confirm <Class> appears under the <bundle> bundle group.
 #   - Right-click the <bundle> header -> Reload. No errors.
@@ -382,26 +382,26 @@ Dockerfiles need an extra line:
   already in the base lock.
 
 If your bundle has no extras and its deps are already in
-`langflow-base[complete]`, the `--no-deps` install is enough.
+`ketos-base[complete]`, the `--no-deps` install is enough.
 
 ---
 
 ## Common pitfalls
 
-- **Component imports `from langflow...`**: the bundle is installed against
-  `lfx`, not `langflow`. Either rewrite the import to use the public
+- **Component imports `from ketos...`**: the bundle is installed against
+  `kfx`, not `ketos`. Either rewrite the import to use the public
   `BUNDLE_API` surface or leave the component in-tree.
 - **`extension.json` not in the wheel**: `dist.files` doesn't surface it,
   so non-editable installs skip the bundle. Confirm the `[tool.hatch.build.targets.wheel] include` glob picks it up.
 - **Bundle name has a hyphen**: only the *distribution* name uses
-  hyphens (`lfx-duckduckgo`); the *bundle* name is snake_case
+  hyphens (`kfx-duckduckgo`); the *bundle* name is snake_case
   (`duckduckgo`). The schema rejects hyphens in `bundles[].name`.
-- **Forgot the `langflow.extensions` entry-point**: editable installs
+- **Forgot the `ketos.extensions` entry-point**: editable installs
   fail discovery silently — `installed_extension_roots()` returns an
   empty dict and the bundle never enters the registry.
 - **Migration entries missing**: saved flows still validate, but the
   palette can't render the legacy node — the user sees a "component not
-  found" toast. The four-entry block in step 4 covers every shape Langflow
+  found" toast. The four-entry block in step 4 covers every shape Ketos
   has serialized in the past.
 
 ---

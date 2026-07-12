@@ -1,4 +1,4 @@
-# M1 dogfood checklist — `lfx-duckduckgo` pilot bundle
+# M1 dogfood checklist — `kfx-duckduckgo` pilot bundle
 
 > **Status:** :hourglass: **OPEN** — the runtime half of the DuckDuckGo
 > pilot has not been signed off. A non-Extension-team engineer must
@@ -10,12 +10,12 @@ Per the Bundle Separation Developer Guide, the M1 proof-of-delivery
 gate has two halves:
 
 1. **Deserialize + build pipeline (automated)** — lives in
-   [`src/lfx/tests/integration/extension/test_pilot_duckduckgo_upgrade.py`](../../lfx/tests/integration/extension/test_pilot_duckduckgo_upgrade.py)
+   [`src/kfx/tests/integration/extension/test_pilot_duckduckgo_upgrade.py`](../../kfx/tests/integration/extension/test_pilot_duckduckgo_upgrade.py)
    and covers:
    - Every legacy reference form (bare class name, full import path,
      package-level import path, pre-Phase-A slot ID) rewrites to
      `ext:duckduckgo:DuckDuckGoSearchComponent@official`.
-   - The `lfx-duckduckgo` distribution is importable and ships its
+   - The `kfx-duckduckgo` distribution is importable and ships its
      manifest where `importlib.metadata.files()` can discover it.
    - The loader resolves the migration target to a
      `DuckDuckGoSearchComponent` class built from the same source file as
@@ -50,16 +50,16 @@ in advance. A pre-checked checklist is not evidence.
 | --- | --- |
 | Run by | _engineer name + handle_ |
 | Date | _YYYY-MM-DD_ |
-| Pre-migration Langflow version | `1.9.x` (last release before the pilot landed) |
-| Post-migration Langflow version | this branch / `1.10.x` |
+| Pre-migration Ketos version | `1.9.x` (last release before the pilot landed) |
+| Post-migration Ketos version | this branch / `1.10.x` |
 | Result | _pass / fail_ |
 | Notes | _free text_ |
 
 ### Steps
 
 1. **Pre-migration save.**
-   - [ ] `pip install langflow==<pre-migration version>` in a clean venv
-   - [ ] `langflow run` and open the UI
+   - [ ] `pip install ketos==<pre-migration version>` in a clean venv
+   - [ ] `ketos run` and open the UI
    - [ ] Drag a **DuckDuckGo Search** component onto the canvas, set
          `query` to a string that produces deterministic-enough output
          (e.g. `"site:wikipedia.org claude shannon"`)
@@ -72,13 +72,13 @@ in advance. A pre-checked checklist is not evidence.
          a file alongside the saved flow JSON
 
 3. **Upgrade.**
-   - [ ] In a separate clean venv: `pip install langflow==<this branch>`
-         (which transitively pulls in `lfx-duckduckgo`)
-   - [ ] Confirm `lfx extension list --format=json` shows
-         `lfx-duckduckgo` at slot `@official`
+   - [ ] In a separate clean venv: `pip install ketos==<this branch>`
+         (which transitively pulls in `kfx-duckduckgo`)
+   - [ ] Confirm `kfx extension list --format=json` shows
+         `kfx-duckduckgo` at slot `@official`
 
 4. **Post-migration load.**
-   - [ ] `langflow run`, open the saved flow JSON from step 1
+   - [ ] `ketos run`, open the saved flow JSON from step 1
    - [ ] Confirm the canvas renders the DuckDuckGo node intact
          (no red placeholder; no "component not found" toast)
    - [ ] Inspect the loaded node's `data.type` field — it should be
@@ -116,5 +116,5 @@ Any of:
 
 If any of these fail, **do not merge**.  File a follow-up that captures
 the failure mode in
-[`test_pilot_duckduckgo_upgrade.py`](../../lfx/tests/integration/extension/test_pilot_duckduckgo_upgrade.py)
+[`test_pilot_duckduckgo_upgrade.py`](../../kfx/tests/integration/extension/test_pilot_duckduckgo_upgrade.py)
 so the regression is locked in.

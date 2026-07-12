@@ -1,7 +1,7 @@
 """Optional OPENAI_BASE_URL — point the OpenAI provider at a compatible server.
 
 User report (Discord, 2026-06-11): "i can't set up custom provider or add
-base url to openai for langflow assistant." Verified live (2026-06-12):
+base url to openai for ketos assistant." Verified live (2026-06-12):
 the OpenAI provider declares only OPENAI_API_KEY, a saved OPENAI_BASE_URL
 global variable is ignored everywhere, and key validation always hits
 api.openai.com — so a key for a local OpenAI-compatible server (vLLM,
@@ -18,22 +18,22 @@ fetch — external servers CI cannot reproduce.
 
 from unittest.mock import MagicMock, patch
 
-from lfx.base.models.model_metadata import (
+from kfx.base.models.model_metadata import (
     CONDITIONAL_LIVE_MODEL_PROVIDERS,
     LIVE_MODEL_PROVIDERS,
 )
-from lfx.base.models.model_utils import (
+from kfx.base.models.model_utils import (
     fetch_live_openai_compatible_models,
     replace_with_live_models,
 )
-from lfx.base.models.unified_models import (
+from kfx.base.models.unified_models import (
     get_model_provider_variable_mapping,
     get_provider_all_variables,
     get_provider_required_variable_keys,
     validate_model_provider_key,
 )
-from lfx.base.models.unified_models.instantiation import get_llm
-from lfx.utils.util import transform_localhost_url
+from kfx.base.models.unified_models.instantiation import get_llm
+from kfx.utils.util import transform_localhost_url
 
 USER_ID = "00000000-0000-0000-0000-000000000001"
 CUSTOM_BASE_URL = "http://localhost:11434/v1"
@@ -66,7 +66,7 @@ class TestProviderMetadata:
 class TestGetLlmBaseUrl:
     def test_should_pass_base_url_to_chat_openai_when_variable_is_set(self):
         with patch(
-            "lfx.base.models.unified_models.get_all_variables_for_provider",
+            "kfx.base.models.unified_models.get_all_variables_for_provider",
             return_value={"OPENAI_API_KEY": "sk-test", "OPENAI_BASE_URL": CUSTOM_BASE_URL},
         ):
             llm = get_llm(OPENAI_MODEL_SPEC, USER_ID, api_key="sk-test")
@@ -75,7 +75,7 @@ class TestGetLlmBaseUrl:
 
     def test_should_not_set_base_url_when_variable_is_absent(self):
         with patch(
-            "lfx.base.models.unified_models.get_all_variables_for_provider",
+            "kfx.base.models.unified_models.get_all_variables_for_provider",
             return_value={"OPENAI_API_KEY": "sk-test"},
         ):
             llm = get_llm(OPENAI_MODEL_SPEC, USER_ID, api_key="sk-test")
@@ -106,7 +106,7 @@ class TestKeyValidationWithBaseUrl:
 class TestLiveOpenAICompatibleModels:
     def test_should_return_empty_when_no_base_url_is_configured(self):
         with patch(
-            "lfx.base.models.model_utils.get_provider_variable_value",
+            "kfx.base.models.model_utils.get_provider_variable_value",
             return_value=None,
         ):
             assert fetch_live_openai_compatible_models(USER_ID, "llm") == []
@@ -117,7 +117,7 @@ class TestLiveOpenAICompatibleModels:
         response.raise_for_status.return_value = None
         with (
             patch(
-                "lfx.base.models.model_utils.get_provider_variable_value",
+                "kfx.base.models.model_utils.get_provider_variable_value",
                 side_effect=lambda _uid, key: CUSTOM_BASE_URL if key == "OPENAI_BASE_URL" else "sk-test",
             ),
             patch("requests.get", return_value=response) as http_get,
@@ -130,7 +130,7 @@ class TestLiveOpenAICompatibleModels:
 
     def test_should_not_list_embeddings_from_the_custom_server(self):
         with patch(
-            "lfx.base.models.model_utils.get_provider_variable_value",
+            "kfx.base.models.model_utils.get_provider_variable_value",
             return_value=CUSTOM_BASE_URL,
         ):
             assert fetch_live_openai_compatible_models(USER_ID, "embeddings") == []
@@ -151,7 +151,7 @@ class TestConditionalLiveReplacement:
     def test_should_keep_static_catalog_when_openai_live_fetch_is_empty(self):
         catalog = [{"provider": "OpenAI", "models": [{"model_name": "gpt-4o-mini", "metadata": {}}]}]
         with patch(
-            "lfx.base.models.model_utils.get_live_models_for_provider",
+            "kfx.base.models.model_utils.get_live_models_for_provider",
             return_value=[],
         ):
             replace_with_live_models(catalog, USER_ID, ["OpenAI"], model_type="llm")
@@ -162,7 +162,7 @@ class TestConditionalLiveReplacement:
         catalog = [{"provider": "OpenAI", "models": [{"model_name": "gpt-4o-mini", "metadata": {}}]}]
         live = [{"name": "gpt-oss:20b", "provider": "OpenAI", "tool_calling": True}]
         with patch(
-            "lfx.base.models.model_utils.get_live_models_for_provider",
+            "kfx.base.models.model_utils.get_live_models_for_provider",
             return_value=live,
         ):
             replace_with_live_models(catalog, USER_ID, ["OpenAI"], model_type="llm")
@@ -174,7 +174,7 @@ class TestMalformedModelsPayload:
     """C7: a non-conforming /models payload from an arbitrary server degrades to [], not raises."""
 
     def _fetch(self, payload):
-        from lfx.base.models import model_utils
+        from kfx.base.models import model_utils
 
         class FakeResp:
             def raise_for_status(self):
@@ -213,7 +213,7 @@ class TestBaseUrlNormalizationParity:
         chat_openai = MagicMock()
         with (
             patch("langchain_openai.ChatOpenAI", chat_openai),
-            patch("lfx.utils.util.transform_localhost_url", return_value=self.TRANSFORMED),
+            patch("kfx.utils.util.transform_localhost_url", return_value=self.TRANSFORMED),
         ):
             validate_model_provider_key(
                 "OpenAI",
@@ -225,7 +225,7 @@ class TestBaseUrlNormalizationParity:
 
     def test_get_llm_normalizes_base_url(self):
         with patch(
-            "lfx.base.models.unified_models.get_all_variables_for_provider",
+            "kfx.base.models.unified_models.get_all_variables_for_provider",
             return_value={"OPENAI_API_KEY": "sk-test", "OPENAI_BASE_URL": CUSTOM_BASE_URL},
         ):
             llm = get_llm(OPENAI_MODEL_SPEC, USER_ID, api_key="sk-test")

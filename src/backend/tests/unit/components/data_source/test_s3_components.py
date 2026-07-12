@@ -7,10 +7,10 @@ from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from lfx.components.files_and_knowledge.file import FileComponent
-from lfx.components.files_and_knowledge.save_file import SaveToFileComponent
-from lfx.components.langchain_utilities.csv_agent import CSVAgentComponent
-from lfx.components.langchain_utilities.json_agent import JsonAgentComponent
+from kfx.components.files_and_knowledge.file import FileComponent
+from kfx.components.files_and_knowledge.save_file import SaveToFileComponent
+from kfx.components.langchain_utilities.csv_agent import CSVAgentComponent
+from kfx.components.langchain_utilities.json_agent import JsonAgentComponent
 
 
 @contextmanager
@@ -21,15 +21,15 @@ def mock_s3_environment(settings, storage_service):
     calls across the codebase to enable S3 testing.
     """
     patches = [
-        patch("lfx.services.deps.get_settings_service", return_value=settings),
-        patch("lfx.base.data.base_file.get_settings_service", return_value=settings),
-        patch("lfx.base.data.storage_utils.get_settings_service", return_value=settings),
-        patch("lfx.base.data.storage_utils.get_storage_service", return_value=storage_service),
-        patch("lfx.base.data.utils.get_settings_service", return_value=settings),
-        patch("lfx.components.files_and_knowledge.file.get_settings_service", return_value=settings),
-        patch("lfx.components.files_and_knowledge.file.get_storage_service", return_value=storage_service),
-        patch("lfx.components.langchain_utilities.csv_agent.get_settings_service", return_value=settings),
-        patch("lfx.components.langchain_utilities.json_agent.get_settings_service", return_value=settings),
+        patch("kfx.services.deps.get_settings_service", return_value=settings),
+        patch("kfx.base.data.base_file.get_settings_service", return_value=settings),
+        patch("kfx.base.data.storage_utils.get_settings_service", return_value=settings),
+        patch("kfx.base.data.storage_utils.get_storage_service", return_value=storage_service),
+        patch("kfx.base.data.utils.get_settings_service", return_value=settings),
+        patch("kfx.components.files_and_knowledge.file.get_settings_service", return_value=settings),
+        patch("kfx.components.files_and_knowledge.file.get_storage_service", return_value=storage_service),
+        patch("kfx.components.langchain_utilities.csv_agent.get_settings_service", return_value=settings),
+        patch("kfx.components.langchain_utilities.json_agent.get_settings_service", return_value=settings),
     ]
 
     # Start all patches
@@ -97,9 +97,9 @@ class TestS3CompatibleComponents:
         with (
             mock_s3_environment(s3_settings, mock_storage_service),
             patch(
-                "lfx.components.files_and_knowledge.file.parse_storage_path", return_value=("user_123", "document.pdf")
+                "kfx.components.files_and_knowledge.file.parse_storage_path", return_value=("user_123", "document.pdf")
             ) as mock_parse,
-            patch("lfx.components.files_and_knowledge.file.NamedTemporaryFile") as mock_temp,
+            patch("kfx.components.files_and_knowledge.file.NamedTemporaryFile") as mock_temp,
         ):
             mock_temp.return_value.__enter__.return_value = mock_temp_file
 
@@ -116,7 +116,7 @@ class TestS3CompatibleComponents:
     @pytest.mark.asyncio
     async def test_file_component_get_local_file_for_docling_local(self, local_settings):
         """Test FileComponent._get_local_file_for_docling with local paths."""
-        with patch("lfx.services.deps.get_settings_service", return_value=local_settings):
+        with patch("kfx.services.deps.get_settings_service", return_value=local_settings):
             component = FileComponent()
             local_path = "/local/path/document.pdf"
 
@@ -134,24 +134,24 @@ class TestS3CompatibleComponents:
         mock_s3_client.put_object.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
 
         with (
-            patch("lfx.services.deps.get_settings_service", return_value=s3_settings),
+            patch("kfx.services.deps.get_settings_service", return_value=s3_settings),
             patch("boto3.client", return_value=mock_s3_client),
         ):
             component = SaveToFileComponent()
 
             # Mock database and storage services
             with (
-                patch("lfx.services.deps.session_scope"),
+                patch("kfx.services.deps.session_scope"),
                 patch(
-                    "langflow.services.database.models.user.crud.get_user_by_id", new_callable=AsyncMock
+                    "ketos.services.database.models.user.crud.get_user_by_id", new_callable=AsyncMock
                 ) as mock_get_user,
-                patch("langflow.api.v2.files.upload_user_file", new_callable=AsyncMock) as mock_upload,
+                patch("ketos.api.v2.files.upload_user_file", new_callable=AsyncMock) as mock_upload,
             ):
                 mock_get_user.return_value = MagicMock()
                 mock_upload.return_value = "s3_file.txt"
 
                 # Test with DataFrame
-                from langflow.schema import Data, DataFrame
+                from ketos.schema import Data, DataFrame
 
                 test_data = DataFrame(data=[Data(data={"text": "test content"})])
                 component.input = test_data  # Use 'input' not 'data'
@@ -173,13 +173,13 @@ class TestS3CompatibleComponents:
     @pytest.mark.asyncio
     async def test_csv_agent_s3_file_handling(self, s3_settings):
         """Test CSVAgentComponent with S3 files."""
-        with patch("lfx.services.deps.get_settings_service", return_value=s3_settings):
+        with patch("kfx.services.deps.get_settings_service", return_value=s3_settings):
             component = CSVAgentComponent()
             component.set_attributes({"llm": MagicMock(), "path": "user_123/data.csv", "verbose": False})
 
             # Mock storage utils
             with patch(
-                "lfx.base.data.storage_utils.read_file_bytes", new_callable=AsyncMock, return_value=b"name,age\nJohn,30"
+                "kfx.base.data.storage_utils.read_file_bytes", new_callable=AsyncMock, return_value=b"name,age\nJohn,30"
             ):
                 local_path = component._get_local_path()
 
@@ -189,13 +189,13 @@ class TestS3CompatibleComponents:
     @pytest.mark.asyncio
     async def test_json_agent_s3_file_handling(self, s3_settings):
         """Test JsonAgentComponent with S3 files."""
-        with patch("lfx.services.deps.get_settings_service", return_value=s3_settings):
+        with patch("kfx.services.deps.get_settings_service", return_value=s3_settings):
             component = JsonAgentComponent()
             component.set_attributes({"llm": MagicMock(), "path": "user_123/data.json", "verbose": False})
 
             # Mock storage utils
             with patch(
-                "lfx.base.data.storage_utils.read_file_bytes", new_callable=AsyncMock, return_value=b'{"key": "value"}'
+                "kfx.base.data.storage_utils.read_file_bytes", new_callable=AsyncMock, return_value=b'{"key": "value"}'
             ):
                 local_path = component._get_local_path()
 
@@ -205,7 +205,7 @@ class TestS3CompatibleComponents:
     @pytest.mark.asyncio
     async def test_components_work_in_local_mode(self, local_settings):
         """Test that components work in local mode."""
-        with patch("langflow.services.deps.get_settings_service", return_value=local_settings):
+        with patch("ketos.services.deps.get_settings_service", return_value=local_settings):
             component = FileComponent()
             component.file_path = "/local/path/file.txt"
 
@@ -215,7 +215,7 @@ class TestS3CompatibleComponents:
     @pytest.mark.asyncio
     async def test_s3_path_parsing(self, s3_settings):
         """Test S3 path parsing in components."""
-        with patch("lfx.services.deps.get_settings_service", return_value=s3_settings):
+        with patch("kfx.services.deps.get_settings_service", return_value=s3_settings):
             # Test various S3 path formats
             test_paths = ["user_123/file.txt", "flow_456/document.pdf", "user_789/folder/subfolder/file.json"]
 
@@ -304,10 +304,10 @@ class TestS3CompatibleComponents:
     @pytest.mark.asyncio
     async def test_csv_to_data_fileinput_local_only(self, s3_settings, local_settings):
         """Test CSVToDataComponent with FileInput - always treats as local."""
-        from lfx.components.data_source.csv_to_data import CSVToDataComponent
+        from kfx.components.data_source.csv_to_data import CSVToDataComponent
 
         # Test with S3 storage - FileInput should still be treated as local
-        with patch("lfx.services.deps.get_settings_service", return_value=s3_settings):
+        with patch("kfx.services.deps.get_settings_service", return_value=s3_settings):
             component = CSVToDataComponent()
             component.csv_file = "/local/path/data.csv"
 
@@ -323,7 +323,7 @@ class TestS3CompatibleComponents:
                 assert result[0].data == {"name": "John", "age": "30"}
 
         # Test with local storage
-        with patch("lfx.services.deps.get_settings_service", return_value=local_settings):
+        with patch("kfx.services.deps.get_settings_service", return_value=local_settings):
             component = CSVToDataComponent()
             component.csv_file = "/local/path/data.csv"
 
@@ -339,7 +339,7 @@ class TestS3CompatibleComponents:
     @pytest.mark.asyncio
     async def test_csv_to_data_path_s3_key(self, s3_settings, mock_storage_service):
         """Test CSVToDataComponent with text path input - handles S3 keys."""
-        from lfx.components.data_source.csv_to_data import CSVToDataComponent
+        from kfx.components.data_source.csv_to_data import CSVToDataComponent
 
         mock_storage_service.get_file.return_value = b"name,age\nBob,35"
 
@@ -357,14 +357,14 @@ class TestS3CompatibleComponents:
     @pytest.mark.asyncio
     async def test_csv_to_data_path_local(self, local_settings):
         """Test CSVToDataComponent with text path input - handles local paths."""
-        from lfx.components.data_source.csv_to_data import CSVToDataComponent
+        from kfx.components.data_source.csv_to_data import CSVToDataComponent
 
         with (
-            patch("lfx.services.deps.get_settings_service", return_value=local_settings),
-            patch("lfx.base.data.storage_utils.get_settings_service", return_value=local_settings),
-            patch("lfx.base.data.storage_utils.read_file_text", new_callable=AsyncMock) as mock_read_file,
+            patch("kfx.services.deps.get_settings_service", return_value=local_settings),
+            patch("kfx.base.data.storage_utils.get_settings_service", return_value=local_settings),
+            patch("kfx.base.data.storage_utils.read_file_text", new_callable=AsyncMock) as mock_read_file,
             patch(
-                "lfx.components.data_source.csv_to_data.read_file_text", new_callable=AsyncMock
+                "kfx.components.data_source.csv_to_data.read_file_text", new_callable=AsyncMock
             ) as mock_read_file_component,
         ):
             mock_read_file.return_value = "name,age\nAlice,28"
@@ -381,10 +381,10 @@ class TestS3CompatibleComponents:
     @pytest.mark.asyncio
     async def test_json_to_data_fileinput_local_only(self, s3_settings, local_settings):
         """Test JSONToDataComponent with FileInput - always treats as local."""
-        from lfx.components.data_source.json_to_data import JSONToDataComponent
+        from kfx.components.data_source.json_to_data import JSONToDataComponent
 
         # Test with S3 storage - FileInput should still be treated as local
-        with patch("lfx.services.deps.get_settings_service", return_value=s3_settings):
+        with patch("kfx.services.deps.get_settings_service", return_value=s3_settings):
             component = JSONToDataComponent()
             component.json_file = "/local/path/data.json"
 
@@ -396,13 +396,13 @@ class TestS3CompatibleComponents:
                 result = component.convert_json_to_data()
 
                 # Should read from local filesystem, not S3
-                from lfx.schema.data import Data
+                from kfx.schema.data import Data
 
                 assert isinstance(result, Data)
                 assert result.data == {"key": "value"}
 
         # Test with local storage
-        with patch("lfx.services.deps.get_settings_service", return_value=local_settings):
+        with patch("kfx.services.deps.get_settings_service", return_value=local_settings):
             component = JSONToDataComponent()
             component.json_file = "/local/path/data.json"
 
@@ -412,7 +412,7 @@ class TestS3CompatibleComponents:
             ):
                 result = component.convert_json_to_data()
 
-                from lfx.schema.data import Data
+                from kfx.schema.data import Data
 
                 assert isinstance(result, Data)
                 assert result.data == {"name": "test"}
@@ -420,7 +420,7 @@ class TestS3CompatibleComponents:
     @pytest.mark.asyncio
     async def test_json_to_data_path_s3_key(self, s3_settings, mock_storage_service):
         """Test JSONToDataComponent with text path input - handles S3 keys."""
-        from lfx.components.data_source.json_to_data import JSONToDataComponent
+        from kfx.components.data_source.json_to_data import JSONToDataComponent
 
         mock_storage_service.get_file.return_value = b'{"key": "s3_value"}'
 
@@ -431,7 +431,7 @@ class TestS3CompatibleComponents:
             result = component.convert_json_to_data()
 
             # Should read from S3
-            from lfx.schema.data import Data
+            from kfx.schema.data import Data
 
             assert isinstance(result, Data)
             assert result.data == {"key": "s3_value"}
@@ -440,14 +440,14 @@ class TestS3CompatibleComponents:
     @pytest.mark.asyncio
     async def test_json_to_data_path_local(self, local_settings):
         """Test JSONToDataComponent with text path input - handles local paths."""
-        from lfx.components.data_source.json_to_data import JSONToDataComponent
+        from kfx.components.data_source.json_to_data import JSONToDataComponent
 
         with (
-            patch("lfx.services.deps.get_settings_service", return_value=local_settings),
-            patch("lfx.base.data.storage_utils.get_settings_service", return_value=local_settings),
-            patch("lfx.base.data.storage_utils.read_file_text", new_callable=AsyncMock) as mock_read_file,
+            patch("kfx.services.deps.get_settings_service", return_value=local_settings),
+            patch("kfx.base.data.storage_utils.get_settings_service", return_value=local_settings),
+            patch("kfx.base.data.storage_utils.read_file_text", new_callable=AsyncMock) as mock_read_file,
             patch(
-                "lfx.components.data_source.json_to_data.read_file_text", new_callable=AsyncMock
+                "kfx.components.data_source.json_to_data.read_file_text", new_callable=AsyncMock
             ) as mock_read_file_component,
         ):
             mock_read_file.return_value = '{"local": "data"}'
@@ -458,7 +458,7 @@ class TestS3CompatibleComponents:
             result = component.convert_json_to_data()
 
             # Should read from local filesystem
-            from lfx.schema.data import Data
+            from kfx.schema.data import Data
 
             assert isinstance(result, Data)
             assert result.data == {"local": "data"}

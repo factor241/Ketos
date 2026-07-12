@@ -10,12 +10,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from langflow.utils.i18n import translate_component_node
-from lfx.components.input_output import ChatInput, ChatOutput, TextInputComponent, TextOutputComponent
-from lfx.components.models_and_agents import PromptComponent
-from lfx.components.processing.regex import RegexExtractorComponent
-from lfx.graph import Graph
-from lfx.schema.message import Message
+from ketos.utils.i18n import translate_component_node
+from kfx.components.input_output import ChatInput, ChatOutput, TextInputComponent, TextOutputComponent
+from kfx.components.models_and_agents import PromptComponent
+from kfx.components.processing.regex import RegexExtractorComponent
+from kfx.graph import Graph
+from kfx.schema.message import Message
 
 from tests.integration.utils import run_flow
 

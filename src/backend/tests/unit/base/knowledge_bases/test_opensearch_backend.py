@@ -19,8 +19,8 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from lfx.base.knowledge_bases.backends import OpenSearchBackend
-from lfx.base.knowledge_bases.backends.opensearch import (
+from kfx.base.knowledge_bases.backends import OpenSearchBackend
+from kfx.base.knowledge_bases.backends.opensearch import (
     DEFAULT_TEXT_FIELD,
     DEFAULT_VECTOR_FIELD,
 )
@@ -308,7 +308,7 @@ class TestOpenSearchSimilaritySearchFilterHandling:
     forwards ``filter=None`` (or an empty dict), every KB retrieval against
     OpenSearch would fail — silently looking like 'no results' to any
     component that swallows the error downstream. These tests guard the
-    canonical case Langflow itself relies on at
+    canonical case Ketos itself relies on at
     ``components/files_and_knowledge/retrieval.py``, which never passes a
     filter at all.
     """

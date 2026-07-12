@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, mock_open, patch
 
 import numpy as np
 import pytest
-from langflow.utils.voice_utils import (
+from ketos.utils.voice_utils import (
     BYTES_PER_16K_FRAME,
     BYTES_PER_24K_FRAME,
     BYTES_PER_SAMPLE,
@@ -153,7 +153,7 @@ class TestResample24kTo16k:
         ratio = len(result_samples) / len(samples_24k)
         assert abs(ratio - 2 / 3) < 0.001
 
-    @patch("langflow.utils.voice_utils.resample")
+    @patch("ketos.utils.voice_utils.resample")
     def test_resample_function_called(self, mock_resample):
         """Test that scipy.signal.resample is called correctly."""
         mock_resample.return_value = np.zeros(320, dtype=np.int16)
@@ -182,8 +182,8 @@ class TestWriteAudioToFile:
         audio_base64 = base64.b64encode(audio_data).decode("utf-8")
 
         with (
-            patch("langflow.utils.voice_utils.asyncio.to_thread") as mock_to_thread,
-            patch("langflow.utils.voice_utils.logger") as mock_logger,
+            patch("ketos.utils.voice_utils.asyncio.to_thread") as mock_to_thread,
+            patch("ketos.utils.voice_utils.logger") as mock_logger,
         ):
             mock_to_thread.return_value = None
             mock_logger.ainfo = AsyncMock()
@@ -206,7 +206,7 @@ class TestWriteAudioToFile:
         audio_data = b"\x05\x06\x07\x08"
         audio_base64 = base64.b64encode(audio_data).decode("utf-8")
 
-        with patch("langflow.utils.voice_utils.asyncio.to_thread") as mock_to_thread:
+        with patch("ketos.utils.voice_utils.asyncio.to_thread") as mock_to_thread:
             mock_to_thread.return_value = None
 
             await write_audio_to_file(audio_base64)
@@ -220,7 +220,7 @@ class TestWriteAudioToFile:
         """Test error handling for invalid base64."""
         invalid_base64 = "invalid base64 string!!!"
 
-        with patch("langflow.utils.voice_utils.logger") as mock_logger:
+        with patch("ketos.utils.voice_utils.logger") as mock_logger:
             mock_logger.aerror = AsyncMock()
             await write_audio_to_file(invalid_base64, "test.raw")
 
@@ -236,8 +236,8 @@ class TestWriteAudioToFile:
         audio_base64 = base64.b64encode(audio_data).decode("utf-8")
 
         with (
-            patch("langflow.utils.voice_utils.asyncio.to_thread") as mock_to_thread,
-            patch("langflow.utils.voice_utils.logger") as mock_logger,
+            patch("ketos.utils.voice_utils.asyncio.to_thread") as mock_to_thread,
+            patch("ketos.utils.voice_utils.logger") as mock_logger,
         ):
             mock_to_thread.side_effect = OSError("File write error")
             # Mock the async logger methods
@@ -257,8 +257,8 @@ class TestWriteAudioToFile:
         audio_base64 = base64.b64encode(empty_audio).decode("utf-8")
 
         with (
-            patch("langflow.utils.voice_utils.asyncio.to_thread") as mock_to_thread,
-            patch("langflow.utils.voice_utils.logger") as mock_logger,
+            patch("ketos.utils.voice_utils.asyncio.to_thread") as mock_to_thread,
+            patch("ketos.utils.voice_utils.logger") as mock_logger,
         ):
             mock_to_thread.return_value = None
             mock_logger.ainfo = AsyncMock()
@@ -276,8 +276,8 @@ class TestWriteAudioToFile:
         audio_base64 = base64.b64encode(large_audio).decode("utf-8")
 
         with (
-            patch("langflow.utils.voice_utils.asyncio.to_thread") as mock_to_thread,
-            patch("langflow.utils.voice_utils.logger") as mock_logger,
+            patch("ketos.utils.voice_utils.asyncio.to_thread") as mock_to_thread,
+            patch("ketos.utils.voice_utils.logger") as mock_logger,
         ):
             mock_to_thread.return_value = None
             mock_logger.ainfo = AsyncMock()
@@ -299,7 +299,7 @@ class TestWriteBytesToFile:
         filename = "test_output.raw"
 
         mock_file = mock_open()
-        with patch("langflow.utils.voice_utils.Path.open", mock_file):
+        with patch("ketos.utils.voice_utils.Path.open", mock_file):
             _write_bytes_to_file(test_data, filename)
 
             # Verify file was opened in append binary mode
@@ -312,7 +312,7 @@ class TestWriteBytesToFile:
         test_data = b"\x06\x07\x08"
         filename = "test/path/file.raw"
 
-        with patch("langflow.utils.voice_utils.Path") as mock_path:
+        with patch("ketos.utils.voice_utils.Path") as mock_path:
             mock_path_instance = MagicMock()
             mock_path.return_value = mock_path_instance
 
@@ -329,7 +329,7 @@ class TestWriteBytesToFile:
         filename = "empty.raw"
 
         mock_file = mock_open()
-        with patch("langflow.utils.voice_utils.Path.open", mock_file):
+        with patch("ketos.utils.voice_utils.Path.open", mock_file):
             _write_bytes_to_file(empty_data, filename)
 
             # Should still attempt to write empty data
@@ -341,7 +341,7 @@ class TestWriteBytesToFile:
         filename = "large.raw"
 
         mock_file = mock_open()
-        with patch("langflow.utils.voice_utils.Path.open", mock_file):
+        with patch("ketos.utils.voice_utils.Path.open", mock_file):
             _write_bytes_to_file(large_data, filename)
 
             # Should write all data
@@ -353,7 +353,7 @@ class TestWriteBytesToFile:
         filename = "append_test.raw"
 
         mock_file = mock_open()
-        with patch("langflow.utils.voice_utils.Path.open", mock_file):
+        with patch("ketos.utils.voice_utils.Path.open", mock_file):
             _write_bytes_to_file(test_data, filename)
 
             # Verify append binary mode
@@ -365,7 +365,7 @@ class TestWriteBytesToFile:
         filename = "context_test.raw"
 
         mock_file = mock_open()
-        with patch("langflow.utils.voice_utils.Path.open", mock_file):
+        with patch("ketos.utils.voice_utils.Path.open", mock_file):
             _write_bytes_to_file(test_data, filename)
 
             # Verify context manager was used (enter and exit called)
@@ -379,7 +379,7 @@ class TestWriteBytesToFile:
         filename = "multi_test.raw"
 
         mock_file = mock_open()
-        with patch("langflow.utils.voice_utils.Path.open", mock_file):
+        with patch("ketos.utils.voice_utils.Path.open", mock_file):
             _write_bytes_to_file(data1, filename)
             _write_bytes_to_file(data2, filename)
 

@@ -1,7 +1,7 @@
-"""The Langflow Assistant must be callable from external MCP clients.
+"""The Ketos Assistant must be callable from external MCP clients.
 
 User report (Discord, 2026-06-11): "i can't call the assistant by mcp."
-Verified live (2026-06-12): the ``langflow-agentic`` MCP server exposes 18
+Verified live (2026-06-12): the ``ketos-agentic`` MCP server exposes 18
 tools (templates, components, flow inspection) but none invokes the
 assistant; the assistant is HTTP-only.
 
@@ -27,7 +27,7 @@ from uuid import uuid4
 
 import pytest
 
-RUNNER_MODULE = "langflow.agentic.utils.assistant_runner"
+RUNNER_MODULE = "ketos.agentic.utils.assistant_runner"
 
 NEW_FLOW_DATA = {"nodes": [{"id": "ChatInput-abc"}], "edges": []}
 
@@ -39,7 +39,7 @@ EVENTS_WITH_FLOW = [
 
 EVENTS_TEXT_ONLY = [
     {"event": "progress", "step": "generating"},
-    {"event": "complete", "data": {"result": "Langflow is a visual flow builder."}},
+    {"event": "complete", "data": {"result": "Ketos is a visual flow builder."}},
 ]
 
 INCREMENTAL_NODE_A = {"id": "ChatInput-abc", "data": {"id": "ChatInput-abc", "type": "ChatInput"}}
@@ -79,7 +79,7 @@ def _context_stub() -> SimpleNamespace:
 class TestRunAssistantToolRegistration:
     @pytest.mark.asyncio
     async def test_should_expose_run_assistant_tool_on_the_agentic_mcp_server(self):
-        from langflow.agentic.mcp.server import mcp
+        from ketos.agentic.mcp.server import mcp
 
         tools = await mcp.list_tools()
         tool_names = [tool.name for tool in tools]
@@ -90,7 +90,7 @@ class TestRunAssistantToolRegistration:
 class TestRunAssistantAndPersist:
     @pytest.mark.asyncio
     async def test_should_create_a_new_flow_when_no_flow_id_is_given(self):
-        from langflow.agentic.utils.assistant_runner import run_assistant_and_persist
+        from ketos.agentic.utils.assistant_runner import run_assistant_and_persist
 
         user_id = uuid4()
         created_flow = SimpleNamespace(id=uuid4(), name="Assistant Flow", data=None, user_id=user_id)
@@ -128,7 +128,7 @@ class TestRunAssistantAndPersist:
 
     @pytest.mark.asyncio
     async def test_should_persist_canvas_changes_on_an_existing_flow(self):
-        from langflow.agentic.utils.assistant_runner import run_assistant_and_persist
+        from ketos.agentic.utils.assistant_runner import run_assistant_and_persist
 
         user_id = uuid4()
         flow = SimpleNamespace(id=uuid4(), name="My Flow", data={"nodes": [], "edges": []}, user_id=user_id)
@@ -161,7 +161,7 @@ class TestRunAssistantAndPersist:
 
     @pytest.mark.asyncio
     async def test_should_not_touch_the_flow_when_assistant_only_answers_text(self):
-        from langflow.agentic.utils.assistant_runner import run_assistant_and_persist
+        from ketos.agentic.utils.assistant_runner import run_assistant_and_persist
 
         user_id = uuid4()
         original_data = {"nodes": [], "edges": []}
@@ -182,18 +182,18 @@ class TestRunAssistantAndPersist:
             result = await run_assistant_and_persist(
                 session=session,
                 user_id=user_id,
-                instruction="What is Langflow?",
+                instruction="What is Ketos?",
                 flow_id=str(flow.id),
             )
 
         assert flow.data is original_data
         assert result["flow_changed"] is False
-        assert result["result"] == "Langflow is a visual flow builder."
+        assert result["result"] == "Ketos is a visual flow builder."
 
     @pytest.mark.asyncio
     async def test_should_persist_canvas_when_agent_emits_incremental_events(self):
         """Observed live (2026-06-12, LM Studio): incremental-only build was discarded."""
-        from langflow.agentic.utils.assistant_runner import run_assistant_and_persist
+        from ketos.agentic.utils.assistant_runner import run_assistant_and_persist
 
         user_id = uuid4()
         flow = SimpleNamespace(id=uuid4(), name="My Flow", data={"nodes": [], "edges": []}, user_id=user_id)
@@ -225,7 +225,7 @@ class TestRunAssistantAndPersist:
 
     @pytest.mark.asyncio
     async def test_should_compose_incremental_events_on_top_of_existing_flow_data(self):
-        from langflow.agentic.utils.assistant_runner import run_assistant_and_persist
+        from ketos.agentic.utils.assistant_runner import run_assistant_and_persist
 
         user_id = uuid4()
         existing_node = {"id": "Prompt-xyz", "data": {"id": "Prompt-xyz", "type": "Prompt Template"}}
@@ -260,7 +260,7 @@ class TestRunAssistantAndPersist:
     @pytest.mark.asyncio
     async def test_should_reject_a_flow_owned_by_another_user(self):
         from fastapi import HTTPException
-        from langflow.agentic.utils.assistant_runner import run_assistant_and_persist
+        from ketos.agentic.utils.assistant_runner import run_assistant_and_persist
 
         flow = SimpleNamespace(id=uuid4(), name="Not yours", data=None, user_id=uuid4())
         session = AsyncMock()
@@ -281,7 +281,7 @@ class TestRunAssistantAndPersist:
         # Wiring guard (Bug #13641): the runner must tell the streaming service it
         # is headless so the propose tools apply edits live and narrate them as
         # done instead of "(pending user approval)".
-        from langflow.agentic.utils.assistant_runner import run_assistant_and_persist
+        from ketos.agentic.utils.assistant_runner import run_assistant_and_persist
 
         user_id = uuid4()
         flow = SimpleNamespace(id=uuid4(), name="My Flow", data={"nodes": [], "edges": []}, user_id=user_id)
@@ -344,7 +344,7 @@ class TestRunAssistantAppliesProposedFieldEdits:
                 "action": "edit_field",
                 "component_id": "Agent-1",
                 "field": "system_prompt",
-                "old_value": "You are a Langflow Agent.",
+                "old_value": "You are a Ketos Agent.",
                 "new_value": self.MARKER,
                 "patch": [
                     {
@@ -359,18 +359,18 @@ class TestRunAssistantAppliesProposedFieldEdits:
 
     @pytest.mark.asyncio
     async def test_should_persist_proposed_edit_when_working_flow_omits_it(self):
-        from langflow.agentic.utils import assistant_runner
+        from ketos.agentic.utils import assistant_runner
 
         user_id = uuid4()
         flow = SimpleNamespace(
-            id=uuid4(), name="My Flow", data=self._agent_data("You are a Langflow Agent."), user_id=user_id
+            id=uuid4(), name="My Flow", data=self._agent_data("You are a Ketos Agent."), user_id=user_id
         )
         session = AsyncMock()
         session.get = AsyncMock(return_value=flow)
 
         # The working flow snapshot still holds the OLD prompt — the proposal was
         # never applied to it (the bug). The runner must apply the edit_field.
-        working_without_edit = {"data": self._agent_data("You are a Langflow Agent.")}
+        working_without_edit = {"data": self._agent_data("You are a Ketos Agent.")}
 
         with (
             patch.object(
@@ -400,11 +400,11 @@ class TestRunAssistantAppliesProposedFieldEdits:
     async def test_should_apply_proposed_edit_on_the_event_replay_fallback(self):
         # No working-flow snapshot (empty) → the runner falls back to canvas.data
         # built from the flow's initial data; the edit_field must still land.
-        from langflow.agentic.utils import assistant_runner
+        from ketos.agentic.utils import assistant_runner
 
         user_id = uuid4()
         flow = SimpleNamespace(
-            id=uuid4(), name="My Flow", data=self._agent_data("You are a Langflow Agent."), user_id=user_id
+            id=uuid4(), name="My Flow", data=self._agent_data("You are a Ketos Agent."), user_id=user_id
         )
         session = AsyncMock()
         session.get = AsyncMock(return_value=flow)
@@ -454,7 +454,7 @@ class TestRunAssistantPersistsAuthoritativeWorkingFlow:
 
     @pytest.mark.asyncio
     async def test_should_persist_working_flow_snapshot_when_agent_configured_and_removed(self):
-        from langflow.agentic.utils import assistant_runner
+        from ketos.agentic.utils import assistant_runner
 
         user_id = uuid4()
         flow = SimpleNamespace(
@@ -497,7 +497,7 @@ class TestRunAssistantPersistsAuthoritativeWorkingFlow:
 
     @pytest.mark.asyncio
     async def test_should_fall_back_to_event_replay_when_working_flow_is_empty(self):
-        from langflow.agentic.utils import assistant_runner
+        from ketos.agentic.utils import assistant_runner
 
         user_id = uuid4()
         flow = SimpleNamespace(id=uuid4(), name="My Flow", data={"nodes": [], "edges": []}, user_id=user_id)

@@ -8,7 +8,7 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException, status
 from httpx import AsyncClient
-from langflow.api.v1.mcp_projects import (
+from ketos.api.v1.mcp_projects import (
     ProjectMCPServer,
     _args_reference_urls,
     get_project_mcp_server,
@@ -18,17 +18,17 @@ from langflow.api.v1.mcp_projects import (
     project_mcp_servers,
     project_sse_transports,
 )
-from langflow.api.v2.mcp import is_mcp_servers_locked
-from langflow.services.auth.utils import create_user_longterm_token, get_password_hash
-from langflow.services.database.models.flow import Flow
-from langflow.services.database.models.folder import Folder
-from langflow.services.database.models.user.model import User
-from langflow.services.deps import get_settings_service
-from lfx.base.mcp.constants import MAX_MCP_SERVER_NAME_LENGTH
-from lfx.base.mcp.util import sanitize_mcp_name
-from lfx.services.deps import session_scope
-from lfx.services.mcp_composer.service import COMPOSER_BACKEND_AUTH_HEADER
-from lfx.services.settings.base import Settings
+from ketos.api.v2.mcp import is_mcp_servers_locked
+from ketos.services.auth.utils import create_user_longterm_token, get_password_hash
+from ketos.services.database.models.flow import Flow
+from ketos.services.database.models.folder import Folder
+from ketos.services.database.models.user.model import User
+from ketos.services.deps import get_settings_service
+from kfx.base.mcp.constants import MAX_MCP_SERVER_NAME_LENGTH
+from kfx.base.mcp.util import sanitize_mcp_name
+from kfx.services.deps import session_scope
+from kfx.services.mcp_composer.service import COMPOSER_BACKEND_AUTH_HEADER
+from kfx.services.settings.base import Settings
 from mcp.server.sse import SseServerTransport
 from sqlmodel import select
 
@@ -59,10 +59,10 @@ def _set_startup_mcp_settings(
 @pytest.mark.parametrize(
     ("args", "urls", "expected"),
     [
-        (None, ["https://langflow.local/sse"], False),
-        ([], ["https://langflow.local/sse"], False),
-        ([123, {"url": "foo"}], ["https://langflow.local/sse"], False),
-        (["https://langflow.local/sse", 42], ["https://langflow.local/sse"], True),
+        (None, ["https://ketos.local/sse"], False),
+        ([], ["https://ketos.local/sse"], False),
+        ([123, {"url": "foo"}], ["https://ketos.local/sse"], False),
+        (["https://ketos.local/sse", 42], ["https://ketos.local/sse"], True),
         (["alpha", "beta"], [], False),
     ],
 )
@@ -99,7 +99,7 @@ def mock_flow(active_user, mock_project):
 
 @pytest.fixture
 def mock_project_mcp_server():
-    with patch("langflow.api.v1.mcp_projects.ProjectMCPServer") as mock:
+    with patch("ketos.api.v1.mcp_projects.ProjectMCPServer") as mock:
         server_instance = MagicMock()
         server_instance.server = MagicMock()
         server_instance.server.name = "test-server"
@@ -122,7 +122,7 @@ class AsyncContextManagerMock:
 
 @pytest.fixture
 def mock_sse_transport():
-    with patch("langflow.api.v1.mcp_projects.SseServerTransport") as mock:
+    with patch("ketos.api.v1.mcp_projects.SseServerTransport") as mock:
         transport_instance = MagicMock()
         # Create an async context manager for connect_sse
         connect_sse_mock = AsyncContextManagerMock()
@@ -135,7 +135,7 @@ def mock_sse_transport():
 @pytest.fixture
 def mock_streamable_http_manager():
     """Mock StreamableHTTPSessionManager used by ProjectMCPServer."""
-    with patch("langflow.api.v1.mcp_projects.StreamableHTTPSessionManager") as mock_class:
+    with patch("ketos.api.v1.mcp_projects.StreamableHTTPSessionManager") as mock_class:
         manager_instance = MagicMock()
 
         # Mock the run() method to return an async context manager
@@ -156,7 +156,7 @@ def mock_streamable_http_manager():
 
 @pytest.fixture(autouse=True)
 def mock_current_user_ctx(active_user):
-    with patch("langflow.api.v1.mcp_projects.current_user_ctx") as mock:
+    with patch("ketos.api.v1.mcp_projects.current_user_ctx") as mock:
         mock.get.return_value = active_user
         mock.set = MagicMock(return_value="dummy_token")
         mock.reset = MagicMock()
@@ -165,7 +165,7 @@ def mock_current_user_ctx(active_user):
 
 @pytest.fixture(autouse=True)
 def mock_current_project_ctx(mock_project):
-    with patch("langflow.api.v1.mcp_projects.current_project_ctx") as mock:
+    with patch("ketos.api.v1.mcp_projects.current_project_ctx") as mock:
         mock.get.return_value = mock_project.id
         mock.set = MagicMock(return_value="dummy_token")
         mock.reset = MagicMock()
@@ -215,8 +215,8 @@ async def other_test_project(other_test_user):
 @pytest.fixture(autouse=True)
 def disable_mcp_composer_by_default():
     """Auto-fixture to disable MCP Composer for all tests by default."""
-    with patch("langflow.api.v1.mcp_projects.get_settings_service") as mock_get_settings:
-        from langflow.services.deps import get_settings_service
+    with patch("ketos.api.v1.mcp_projects.get_settings_service") as mock_get_settings:
+        from ketos.services.deps import get_settings_service
 
         real_service = get_settings_service()
 
@@ -235,8 +235,8 @@ def disable_mcp_composer_by_default():
 @pytest.fixture
 def enable_mcp_composer():
     """Fixture to explicitly enable MCP Composer for specific tests."""
-    with patch("langflow.api.v1.mcp_projects.get_settings_service") as mock_get_settings:
-        from langflow.services.deps import get_settings_service
+    with patch("ketos.api.v1.mcp_projects.get_settings_service") as mock_get_settings:
+        from ketos.services.deps import get_settings_service
 
         real_service = get_settings_service()
 
@@ -267,7 +267,7 @@ async def test_handle_project_streamable_messages_success(
 
 async def _set_project_auth_type(project_id, auth_type: str) -> None:
     """Persist an auth_settings value for the given project."""
-    from langflow.services.auth.mcp_encryption import encrypt_auth_settings
+    from ketos.services.auth.mcp_encryption import encrypt_auth_settings
 
     async with session_scope() as session:
         project = await session.get(Folder, project_id)
@@ -371,7 +371,7 @@ async def test_streamable_oauth_project_accepts_valid_composer_backend_token(
     composer_service = MagicMock()
     composer_service.validate_backend_auth_token.return_value = True
 
-    with patch("langflow.api.v1.mcp_projects.get_service", return_value=composer_service):
+    with patch("ketos.api.v1.mcp_projects.get_service", return_value=composer_service):
         response = await client.post(
             f"api/v1/mcp/project/{user_test_project.id}/streamable",
             headers={COMPOSER_BACKEND_AUTH_HEADER: "valid-composer-token"},
@@ -782,7 +782,7 @@ async def test_update_project_auth_settings_encryption(
     assert data["auth_settings"]["auth_type"] == "oauth"
 
     # Verify that decryption is working by checking the actual decrypted value in the backend
-    from langflow.services.auth.mcp_encryption import decrypt_auth_settings
+    from ketos.services.auth.mcp_encryption import decrypt_auth_settings
 
     async with session_scope() as session:
         project = await session.get(Folder, user_test_project.id)
@@ -820,7 +820,7 @@ async def test_project_sse_creation(user_test_project):
     assert mcp_server is project_mcp_servers[project_id_str]
     assert isinstance(mcp_server, ProjectMCPServer)
     assert mcp_server.project_id == project_id
-    assert mcp_server.server.name == f"langflow-mcp-project-{project_id}"
+    assert mcp_server.server.name == f"ketos-mcp-project-{project_id}"
 
     # Test that getting the same SSE transport and MCP server again returns the cached instances
     sse_transport2 = get_project_sse(project_id)
@@ -846,7 +846,7 @@ async def test_project_session_manager_lifespan_handles_cleanup(user_test_projec
             lifecycle_events.append("exit")
 
     monkeypatch.setattr(
-        "langflow.api.v1.mcp_projects.StreamableHTTPSessionManager.run",
+        "ketos.api.v1.mcp_projects.StreamableHTTPSessionManager.run",
         lambda self: fake_run(),  # noqa: ARG005
     )
 
@@ -862,23 +862,23 @@ def _prepare_install_test_env(monkeypatch, tmp_path, filename="cursor.json"):
     config_path = tmp_path / filename
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
-    monkeypatch.setattr("langflow.api.v1.mcp_projects.get_client_ip", lambda request: "127.0.0.1")  # noqa: ARG005
+    monkeypatch.setattr("ketos.api.v1.mcp_projects.get_client_ip", lambda request: "127.0.0.1")  # noqa: ARG005
 
     async def fake_get_config_path(client_name):  # noqa: ARG001
         return config_path
 
-    monkeypatch.setattr("langflow.api.v1.mcp_projects.get_config_path", fake_get_config_path)
-    monkeypatch.setattr("langflow.api.v1.mcp_projects.platform.system", lambda: "Linux")
-    monkeypatch.setattr("langflow.api.v1.mcp_projects.should_use_mcp_composer", lambda project: False)  # noqa: ARG005
+    monkeypatch.setattr("ketos.api.v1.mcp_projects.get_config_path", fake_get_config_path)
+    monkeypatch.setattr("ketos.api.v1.mcp_projects.platform.system", lambda: "Linux")
+    monkeypatch.setattr("ketos.api.v1.mcp_projects.should_use_mcp_composer", lambda project: False)  # noqa: ARG005
 
     async def fake_streamable(project_id):
-        return f"https://langflow.local/api/v1/mcp/project/{project_id}/streamable"
+        return f"https://ketos.local/api/v1/mcp/project/{project_id}/streamable"
 
     async def fake_sse(project_id):
-        return f"https://langflow.local/api/v1/mcp/project/{project_id}/sse"
+        return f"https://ketos.local/api/v1/mcp/project/{project_id}/sse"
 
-    monkeypatch.setattr("langflow.api.v1.mcp_projects.get_project_streamable_http_url", fake_streamable)
-    monkeypatch.setattr("langflow.api.v1.mcp_projects.get_project_sse_url", fake_sse)
+    monkeypatch.setattr("ketos.api.v1.mcp_projects.get_project_streamable_http_url", fake_streamable)
+    monkeypatch.setattr("ketos.api.v1.mcp_projects.get_project_sse_url", fake_sse)
 
     class DummyAuth:
         AUTO_LOGIN = True
@@ -886,7 +886,7 @@ def _prepare_install_test_env(monkeypatch, tmp_path, filename="cursor.json"):
 
     dummy_settings = SimpleNamespace(host="localhost", port=9999, mcp_composer_enabled=False)
     dummy_service = SimpleNamespace(settings=dummy_settings, auth_settings=DummyAuth())
-    monkeypatch.setattr("langflow.api.v1.mcp_projects.get_settings_service", lambda: dummy_service)
+    monkeypatch.setattr("ketos.api.v1.mcp_projects.get_settings_service", lambda: dummy_service)
 
     return config_path
 
@@ -905,7 +905,7 @@ async def test_is_mcp_servers_locked_respects_explicit_true_flag():
 async def test_settings_model_declares_mcp_servers_locked_field(monkeypatch):
     """Regression guard: mcp lock must be configurable via Settings/env vars."""
     assert "mcp_servers_locked" in Settings.model_fields
-    monkeypatch.setenv("LANGFLOW_MCP_SERVERS_LOCKED", "true")
+    monkeypatch.setenv("KETOS_MCP_SERVERS_LOCKED", "true")
     assert Settings().mcp_servers_locked is True
 
 
@@ -914,12 +914,12 @@ async def test_v2_mcp_servers_locked_blocks_non_superuser_add_patch_delete(
     logged_in_headers,
     monkeypatch,
 ):
-    monkeypatch.setattr("langflow.api.v2.mcp.is_mcp_servers_locked", lambda _settings: True)
+    monkeypatch.setattr("ketos.api.v2.mcp.is_mcp_servers_locked", lambda _settings: True)
 
     server_name = f"lf-lock-test-{uuid4().hex[:8]}"
     server_config = {
         "command": "uvx",
-        "args": ["mcp-proxy", "--transport", "sse", "https://langflow.local/sse"],
+        "args": ["mcp-proxy", "--transport", "sse", "https://ketos.local/sse"],
     }
 
     response = await client.post(f"/api/v2/mcp/servers/{server_name}", json=server_config, headers=logged_in_headers)
@@ -940,10 +940,10 @@ async def test_v2_mcp_servers_locked_allows_superuser_add_patch_delete(
     client: AsyncClient,
     monkeypatch,
 ):
-    monkeypatch.setattr("langflow.api.v2.mcp.is_mcp_servers_locked", lambda _settings: True)
+    monkeypatch.setattr("ketos.api.v2.mcp.is_mcp_servers_locked", lambda _settings: True)
 
     username = f"super_lock_{uuid4().hex[:8]}"
-    login_password = f"lfx-{uuid4().hex[:12]}"
+    login_password = f"kfx-{uuid4().hex[:12]}"
     async with session_scope() as session:
         super_user = User(
             username=username,
@@ -961,7 +961,7 @@ async def test_v2_mcp_servers_locked_allows_superuser_add_patch_delete(
     server_name = f"lf-lock-super-{uuid4().hex[:8]}"
     server_config = {
         "command": "uvx",
-        "args": ["mcp-proxy", "--transport", "sse", "https://langflow.local/sse"],
+        "args": ["mcp-proxy", "--transport", "sse", "https://ketos.local/sse"],
     }
 
     response = await client.post(
@@ -1077,7 +1077,7 @@ async def test_init_mcp_servers_error_handling():
         return original_get_project_sse(project_id)
 
     # Apply the patch
-    with patch("langflow.api.v1.mcp_projects.get_project_sse", side_effect=mock_get_project_sse):
+    with patch("ketos.api.v1.mcp_projects.get_project_sse", side_effect=mock_get_project_sse):
         # This should not raise any exception, as the error should be caught
         await init_mcp_servers()
 
@@ -1098,7 +1098,7 @@ async def test_init_mcp_servers_error_handling_streamable():
         return original_get_project_mcp_server(project_id)
 
     # Apply the patch
-    with patch("langflow.api.v1.mcp_projects.get_project_mcp_server", side_effect=mock_get_project_mcp_server):
+    with patch("ketos.api.v1.mcp_projects.get_project_mcp_server", side_effect=mock_get_project_mcp_server):
         # This should not raise any exception, as the error should be caught
         await init_mcp_servers()
 
@@ -1117,12 +1117,12 @@ async def test_init_mcp_servers_reconciles_project_server_auth_when_oauth_falls_
         session.add(project)
 
     with (
-        patch("langflow.api.v1.mcp_projects.get_project_sse"),
-        patch("langflow.api.v1.mcp_projects.get_project_mcp_server"),
-        patch("langflow.api.v1.mcp_projects.auto_configure_starter_projects_mcp", new=AsyncMock()),
-        patch("langflow.api.v1.mcp_projects.get_settings_service") as mock_get_settings,
+        patch("ketos.api.v1.mcp_projects.get_project_sse"),
+        patch("ketos.api.v1.mcp_projects.get_project_mcp_server"),
+        patch("ketos.api.v1.mcp_projects.auto_configure_starter_projects_mcp", new=AsyncMock()),
+        patch("ketos.api.v1.mcp_projects.get_settings_service") as mock_get_settings,
         patch(
-            "langflow.api.v1.projects_mcp_helpers.register_mcp_servers_for_project",
+            "ketos.api.v1.projects_mcp_helpers.register_mcp_servers_for_project",
             new=AsyncMock(return_value=True),
         ),
     ):
@@ -1174,9 +1174,9 @@ async def test_init_mcp_servers_reconciles_existing_apikey_project_server_config
 
     try:
         with (
-            patch("langflow.api.v1.mcp_projects.get_project_sse"),
-            patch("langflow.api.v1.mcp_projects.get_project_mcp_server"),
-            patch("langflow.api.v1.mcp_projects.auto_configure_starter_projects_mcp", new=AsyncMock()),
+            patch("ketos.api.v1.mcp_projects.get_project_sse"),
+            patch("ketos.api.v1.mcp_projects.get_project_mcp_server"),
+            patch("ketos.api.v1.mcp_projects.auto_configure_starter_projects_mcp", new=AsyncMock()),
         ):
             await init_mcp_servers()
 
@@ -1205,7 +1205,7 @@ async def test_patch_project_mcp_settings_syncs_server_config_for_apikey(
 
     Regression test for the PATCH-path gap where auth_settings was updated in the DB but the
     corresponding MCP server config was never reconciled, leaving args without --headers x-api-key
-    and causing subsequent startup reconciliation to generate duplicate Langflow API keys.
+    and causing subsequent startup reconciliation to generate duplicate Ketos API keys.
     """
     project_sse_transports.clear()
     project_mcp_servers.clear()
@@ -1248,7 +1248,7 @@ async def test_patch_project_mcp_settings_syncs_server_config_for_apikey(
         assert streamable_http_url in server_args
 
         # PATCHing again with the same auth should be a no-op — no duplicate key creation.
-        with patch("langflow.api.v1.projects_mcp_helpers.create_api_key") as mock_create_api_key:
+        with patch("ketos.api.v1.projects_mcp_helpers.create_api_key") as mock_create_api_key:
             response = await client.patch(
                 f"/api/v1/mcp/project/{user_test_project.id}",
                 headers=logged_in_headers,
@@ -1281,15 +1281,15 @@ async def test_init_mcp_servers_rolls_back_auth_update_when_reconciliation_fails
         session.add(project)
 
     with (
-        patch("langflow.api.v1.mcp_projects.get_project_sse"),
-        patch("langflow.api.v1.mcp_projects.get_project_mcp_server"),
-        patch("langflow.api.v1.mcp_projects.auto_configure_starter_projects_mcp", new=AsyncMock()),
+        patch("ketos.api.v1.mcp_projects.get_project_sse"),
+        patch("ketos.api.v1.mcp_projects.get_project_mcp_server"),
+        patch("ketos.api.v1.mcp_projects.auto_configure_starter_projects_mcp", new=AsyncMock()),
         patch(
-            "langflow.api.v1.projects_mcp_helpers.create_api_key",
+            "ketos.api.v1.projects_mcp_helpers.create_api_key",
             new=AsyncMock(return_value=SimpleNamespace(api_key="generated-key")),
         ),
         patch(
-            "langflow.api.v1.projects_mcp_helpers.update_server",
+            "ketos.api.v1.projects_mcp_helpers.update_server",
             new=AsyncMock(side_effect=RuntimeError("server sync failed")),
         ),
     ):
@@ -1453,17 +1453,17 @@ def _prepare_installed_check_env(monkeypatch, tmp_path):
     async def fake_get_config_path(client_name):
         return client_paths[client_name]
 
-    monkeypatch.setattr("langflow.api.v1.mcp_projects.get_config_path", fake_get_config_path)
-    monkeypatch.setattr("langflow.api.v1.mcp_projects.should_use_mcp_composer", lambda project: False)  # noqa: ARG005
+    monkeypatch.setattr("ketos.api.v1.mcp_projects.get_config_path", fake_get_config_path)
+    monkeypatch.setattr("ketos.api.v1.mcp_projects.should_use_mcp_composer", lambda project: False)  # noqa: ARG005
 
     async def fake_streamable(project_id):
-        return f"https://langflow.local/api/v1/mcp/project/{project_id}/streamable"
+        return f"https://ketos.local/api/v1/mcp/project/{project_id}/streamable"
 
     async def fake_sse(project_id):
-        return f"https://langflow.local/api/v1/mcp/project/{project_id}/sse"
+        return f"https://ketos.local/api/v1/mcp/project/{project_id}/sse"
 
-    monkeypatch.setattr("langflow.api.v1.mcp_projects.get_project_streamable_http_url", fake_streamable)
-    monkeypatch.setattr("langflow.api.v1.mcp_projects.get_project_sse_url", fake_sse)
+    monkeypatch.setattr("ketos.api.v1.mcp_projects.get_project_streamable_http_url", fake_streamable)
+    monkeypatch.setattr("ketos.api.v1.mcp_projects.get_project_sse_url", fake_sse)
 
     return client_paths
 
@@ -1519,7 +1519,7 @@ async def test_should_report_installed_true_when_config_file_contains_matching_u
     # Write config files with matching URLs for all clients
     project_id = user_test_project.id
     for path in client_paths.values():
-        config = {"mcpServers": {"lf-test": {"args": [f"https://langflow.local/api/v1/mcp/project/{project_id}/sse"]}}}
+        config = {"mcpServers": {"lf-test": {"args": [f"https://ketos.local/api/v1/mcp/project/{project_id}/sse"]}}}
         path.write_text(json.dumps(config))
 
     response = await client.get(
@@ -1590,17 +1590,17 @@ async def test_should_report_available_false_when_app_directory_does_not_exist(
     async def fake_get_config_path(client_name):
         return nonexistent_paths[client_name]
 
-    monkeypatch.setattr("langflow.api.v1.mcp_projects.get_config_path", fake_get_config_path)
-    monkeypatch.setattr("langflow.api.v1.mcp_projects.should_use_mcp_composer", lambda project: False)  # noqa: ARG005
+    monkeypatch.setattr("ketos.api.v1.mcp_projects.get_config_path", fake_get_config_path)
+    monkeypatch.setattr("ketos.api.v1.mcp_projects.should_use_mcp_composer", lambda project: False)  # noqa: ARG005
 
     async def fake_streamable(project_id):
-        return f"https://langflow.local/api/v1/mcp/project/{project_id}/streamable"
+        return f"https://ketos.local/api/v1/mcp/project/{project_id}/streamable"
 
     async def fake_sse(project_id):
-        return f"https://langflow.local/api/v1/mcp/project/{project_id}/sse"
+        return f"https://ketos.local/api/v1/mcp/project/{project_id}/sse"
 
-    monkeypatch.setattr("langflow.api.v1.mcp_projects.get_project_streamable_http_url", fake_streamable)
-    monkeypatch.setattr("langflow.api.v1.mcp_projects.get_project_sse_url", fake_sse)
+    monkeypatch.setattr("ketos.api.v1.mcp_projects.get_project_streamable_http_url", fake_streamable)
+    monkeypatch.setattr("ketos.api.v1.mcp_projects.get_project_sse_url", fake_sse)
 
     response = await client.get(
         f"/api/v1/mcp/project/{user_test_project.id}/installed",
@@ -1663,7 +1663,7 @@ async def test_handle_list_tools_filters_by_user_id_for_defense_in_depth(
     WHEN:  handle_list_tools is called with a project_id and a specific user context
     THEN:  Only flows from that project AND owned by that user are returned
     """
-    from langflow.api.v1.mcp_utils import current_user_ctx, handle_list_tools
+    from ketos.api.v1.mcp_utils import current_user_ctx, handle_list_tools
 
     # Create flows for both users in their respective projects
     user_flow_id = uuid4()
@@ -1764,12 +1764,12 @@ async def test_v2_mcp_servers_unlocked_allows_non_superuser_add_patch_delete(
     monkeypatch,
 ):
     """When is_mcp_servers_locked returns False the gate must not block normal users."""
-    monkeypatch.setattr("langflow.api.v2.mcp.is_mcp_servers_locked", lambda _settings: False)
+    monkeypatch.setattr("ketos.api.v2.mcp.is_mcp_servers_locked", lambda _settings: False)
 
     server_name = f"lf-unlock-test-{uuid4().hex[:8]}"
     server_config = {
         "command": "uvx",
-        "args": ["mcp-proxy", "--transport", "sse", "https://langflow.local/sse"],
+        "args": ["mcp-proxy", "--transport", "sse", "https://ketos.local/sse"],
     }
 
     response = await client.post(f"/api/v2/mcp/servers/{server_name}", json=server_config, headers=logged_in_headers)

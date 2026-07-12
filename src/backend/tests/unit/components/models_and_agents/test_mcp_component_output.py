@@ -3,8 +3,8 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from lfx.components.models_and_agents.mcp_component import MCPToolsComponent
-from lfx.schema.dataframe import DataFrame
+from kfx.components.models_and_agents.mcp_component import MCPToolsComponent
+from kfx.schema.dataframe import DataFrame
 
 
 class TestMCPComponentOutputProcessing:

@@ -3,10 +3,10 @@ from io import StringIO
 
 import pandas as pd
 import pytest
-from lfx.components.processing.converter import TypeConverterComponent
-from lfx.schema.data import Data
-from lfx.schema.dataframe import DataFrame
-from lfx.schema.message import Message
+from kfx.components.processing.converter import TypeConverterComponent
+from kfx.schema.data import Data
+from kfx.schema.dataframe import DataFrame
+from kfx.schema.message import Message
 
 from tests.base import ComponentTestBaseWithoutClient
 

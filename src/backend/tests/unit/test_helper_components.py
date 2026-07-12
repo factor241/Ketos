@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from lfx.components import helpers, processing
-from lfx.custom.utils import build_custom_component_template
-from lfx.schema import Data
-from lfx.schema.message import Message
+from kfx.components import helpers, processing
+from kfx.custom.utils import build_custom_component_template
+from kfx.schema import Data
+from kfx.schema.message import Message
 
 # def test_update_data_component():
 #     # Arrange

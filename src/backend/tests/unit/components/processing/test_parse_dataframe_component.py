@@ -2,9 +2,9 @@ import asyncio
 
 import pandas as pd
 import pytest
-from lfx.components.processing.parse_dataframe import ParseDataFrameComponent
-from lfx.schema import DataFrame
-from lfx.schema.message import Message
+from kfx.components.processing.parse_dataframe import ParseDataFrameComponent
+from kfx.schema import DataFrame
+from kfx.schema.message import Message
 
 from tests.base import ComponentTestBaseWithoutClient
 

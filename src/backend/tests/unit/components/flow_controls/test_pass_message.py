@@ -1,6 +1,6 @@
 import pytest
-from langflow.schema.message import Message
-from lfx.components.flow_controls.pass_message import PassMessageComponent
+from ketos.schema.message import Message
+from kfx.components.flow_controls.pass_message import PassMessageComponent
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -167,7 +167,7 @@ class TestPassMessageComponent(ComponentTestBaseWithoutClient):
         # Should have Message return annotation
         assert (
             sig.return_annotation == Message
-            or str(sig.return_annotation) == "<class 'langflow.schema.message.Message'>"
+            or str(sig.return_annotation) == "<class 'ketos.schema.message.Message'>"
         )
 
     async def test_component_legacy_status(self, component_class, default_kwargs):
@@ -179,7 +179,7 @@ class TestPassMessageComponent(ComponentTestBaseWithoutClient):
     async def test_component_inheritance(self, component_class, default_kwargs):
         """Test that component properly inherits from Component base class."""
         component = await self.component_setup(component_class, default_kwargs)
-        from langflow.custom.custom_component.component import Component
+        from ketos.custom.custom_component.component import Component
 
         assert isinstance(component, Component)
 

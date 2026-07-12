@@ -8,9 +8,9 @@ import sys
 import time
 
 import pytest
-from langflow.components.data import APIRequestComponent
-from langflow.components.models_and_agents import AgentComponent  # Backwards compatibility alias
-from langflow.components.openai import OpenAIModelComponent
+from kfx.components.data import APIRequestComponent
+from kfx.components.models_and_agents import AgentComponent
+from kfx.components.openai import OpenAIModelComponent
 
 
 class TestDynamicImportIntegration:
@@ -20,7 +20,7 @@ class TestDynamicImportIntegration:
         """Test that component discovery mechanisms still work after refactor."""
         # This tests that the existing component discovery logic
         # can still find and load components
-        from langflow import components
+        from kfx import components
 
         # Test that we can discover components through the main module
         openai_module = components.openai
@@ -32,10 +32,10 @@ class TestDynamicImportIntegration:
     def test_existing_import_patterns_work(self):
         """Test that all existing import patterns continue to work."""
         # Test direct imports
-        import langflow.components.data as data_comp
+        import kfx.components.data as data_comp
 
         # Test module imports
-        import langflow.components.openai as openai_comp
+        import kfx.components.openai as openai_comp
 
         # All should work
         assert OpenAIModelComponent is not None
@@ -49,13 +49,13 @@ class TestDynamicImportIntegration:
         # Test that we can create component instances
         # (Note: Some components may require specific initialization parameters)
 
-        from langflow.components.helpers import CalculatorComponent
+        from kfx.components.helpers import CalculatorComponent
 
         # Should be able to access the class
         assert CalculatorComponent is not None
         assert callable(CalculatorComponent)
 
-    def test_template_creation_compatibility(self):
+    def test_template_creation_with_dynamic_imports(self):
         """Test that template creation still works with dynamic imports."""
         # Test accessing component attributes needed for templates
 
@@ -82,12 +82,12 @@ class TestDynamicImportIntegration:
     def test_multiple_import_styles_same_result(self):
         """Test that different import styles yield the same component."""
         # Import the same component in different ways
-        from langflow import components
-        from langflow.components.openai import OpenAIModelComponent as DirectImport
+        from kfx import components
+        from kfx.components.openai import OpenAIModelComponent as DirectImport
 
         dynamic_import = components.openai.OpenAIModelComponent
 
-        import langflow.components.openai as openai_module
+        import kfx.components.openai as openai_module
 
         module_import = openai_module.OpenAIModelComponent
 
@@ -101,9 +101,9 @@ class TestDynamicImportIntegration:
         # This test measures the difference in import time
         # Fresh modules to test startup behavior
         modules_to_clean = [
-            "langflow.components.vectorstores",
-            "langflow.components.tools",
-            "langflow.components.langchain_utilities",
+            "kfx.components.vectorstores",
+            "kfx.components.tools",
+            "kfx.components.langchain_utilities",
         ]
 
         for module_name in modules_to_clean:
@@ -112,7 +112,7 @@ class TestDynamicImportIntegration:
 
         # Time the import of a large module
         start_time = time.time()
-        from langflow.components import chroma
+        from kfx.components import chroma
 
         import_time = time.time() - start_time
 
@@ -133,7 +133,7 @@ class TestDynamicImportIntegration:
 
     def test_memory_usage_efficiency(self):
         """Test that memory usage is more efficient with lazy loading."""
-        from langflow.components import processing
+        from kfx.components import processing
 
         # Count currently loaded components
         initial_component_count = len([k for k in processing.__dict__ if k.endswith("Component")])
@@ -156,7 +156,7 @@ class TestDynamicImportIntegration:
 
     def test_error_handling_in_realistic_scenarios(self):
         """Test error handling in realistic usage scenarios."""
-        from langflow import components
+        from kfx import components
 
         # Test accessing non-existent component category
         with pytest.raises(AttributeError):
@@ -168,8 +168,8 @@ class TestDynamicImportIntegration:
 
     def test_ide_autocomplete_support(self):
         """Test that IDE autocomplete support still works."""
-        import langflow.components.openai as openai_components
-        from langflow import components
+        import kfx.components.openai as openai_components
+        from kfx import components
 
         # __dir__ should return all available components/modules
         main_dir = dir(components)
@@ -185,7 +185,7 @@ class TestDynamicImportIntegration:
         """Test that concurrent access to components works correctly."""
         import threading
 
-        from langflow.components import helpers
+        from kfx.components import helpers
 
         results = []
         errors = []
@@ -223,8 +223,8 @@ class TestDynamicImportIntegration:
         # circular dependency issues
 
         # These imports should work without circular import errors
-        from langflow import components
-        from langflow.components import openai
+        from kfx import components
+        from kfx.components import openai
 
         # Access components in different orders
         model1 = components.openai.OpenAIModelComponent
@@ -236,7 +236,7 @@ class TestDynamicImportIntegration:
 
     def test_large_scale_component_access(self):
         """Test accessing many components doesn't cause issues."""
-        from langflow.components import datastax
+        from kfx.components import datastax
 
         # Access multiple components rapidly
         components_accessed = []
@@ -269,21 +269,21 @@ class TestDynamicImportIntegration:
         # Module path should be correct
         assert "openai" in OpenAIModelComponent.__module__
 
-    def test_backwards_compatibility_comprehensive(self):
-        """Comprehensive test of backwards compatibility."""
-        # Test all major import patterns that should still work
+    def test_canonical_import_patterns_comprehensive(self):
+        """Exercise the supported KFX component import patterns."""
+        # Test all major canonical import patterns.
 
         # 1. Direct component imports
-        from langflow.components.data import APIRequestComponent
+        from kfx.components.data import APIRequestComponent
 
         assert AgentComponent is not None
         assert APIRequestComponent is not None
 
         # 2. Module imports
         # 3. Main module access
-        import langflow.components as comp
-        import langflow.components.helpers as helpers_mod
-        import langflow.components.openai as openai_mod
+        import kfx.components as comp
+        import kfx.components.helpers as helpers_mod
+        import kfx.components.openai as openai_mod
 
         # 4. Nested access
         nested_component = comp.openai.OpenAIModelComponent
@@ -296,7 +296,7 @@ class TestDynamicImportIntegration:
 
     def test_deprecated_astra_assistants_removed(self):
         """Test that deprecated Astra Assistants components are no longer importable."""
-        from langflow.components import datastax
+        from kfx.components import datastax
 
         removed_components = [
             "AssistantsCreateAssistant",
@@ -312,7 +312,7 @@ class TestDynamicImportIntegration:
 
     def test_datastax_remaining_components_accessible(self):
         """Test that all non-deprecated datastax components are still accessible."""
-        from langflow.components import datastax
+        from kfx.components import datastax
 
         expected_components = [
             "AstraDBVectorStoreComponent",
@@ -331,47 +331,47 @@ class TestDynamicImportIntegration:
             assert component is not None, f"Component {name} should not be None"
 
     def test_getenvvar_component_removed(self):
-        """Test that the removed GetEnvVar component cannot be imported from lfx datastax."""
+        """Test that the removed GetEnvVar component cannot be imported from kfx datastax."""
         import importlib
 
-        import lfx.components.datastax as lfx_datastax
+        import kfx.components.datastax as kfx_datastax
 
         with pytest.raises(AttributeError):
-            _ = lfx_datastax.GetEnvVar
+            _ = kfx_datastax.GetEnvVar
 
-        assert not hasattr(lfx_datastax, "GetEnvVar"), "GetEnvVar should have been removed from lfx.components.datastax"
+        assert not hasattr(kfx_datastax, "GetEnvVar"), "GetEnvVar should have been removed from kfx.components.datastax"
 
         with pytest.raises((ImportError, ModuleNotFoundError)):
-            importlib.import_module("lfx.components.datastax.getenvvar")
+            importlib.import_module("kfx.components.datastax.getenvvar")
 
     def test_python_code_structured_tool_removed(self):
-        """Test that the removed PythonCodeStructuredTool component cannot be imported from lfx tools.
+        """Test that the removed PythonCodeStructuredTool component cannot be imported from kfx tools.
 
         Security follow-up to report H1-3754930: this legacy component ``exec()``'d
         attacker-controlled ``tool_code`` at flow-build time and was reachable as an
         unauthenticated RCE through public flows. It was first neutered to a
         non-executable stub (#13538) and is now fully removed. The node ``type`` is
         still blocked on the unauthenticated public path (see
-        ``lfx.utils.flow_validation.CODE_EXECUTION_COMPONENT_TYPES``) so stored code in
+        ``kfx.utils.flow_validation.CODE_EXECUTION_COMPONENT_TYPES``) so stored code in
         any saved flow that still references it cannot execute on that path.
         """
         import importlib
 
-        import lfx.components.tools as lfx_tools
+        import kfx.components.tools as kfx_tools
 
         with pytest.raises(AttributeError):
-            _ = lfx_tools.PythonCodeStructuredTool
+            _ = kfx_tools.PythonCodeStructuredTool
 
-        assert not hasattr(lfx_tools, "PythonCodeStructuredTool"), (
-            "PythonCodeStructuredTool should have been removed from lfx.components.tools"
+        assert not hasattr(kfx_tools, "PythonCodeStructuredTool"), (
+            "PythonCodeStructuredTool should have been removed from kfx.components.tools"
         )
 
         with pytest.raises((ImportError, ModuleNotFoundError)):
-            importlib.import_module("lfx.components.tools.python_code_structured_tool")
+            importlib.import_module("kfx.components.tools.python_code_structured_tool")
 
     def test_datastax_dir_excludes_deprecated(self):
         """Test that dir(datastax) does not list deprecated components."""
-        from langflow.components import datastax
+        from kfx.components import datastax
 
         exported = dir(datastax)
         deprecated = {

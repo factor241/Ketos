@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, patch
 
 import fakeredis
 import pytest
-from langflow.services.cache.service import RedisCache
-from lfx.services.cache.utils import CACHE_MISS
+from ketos.services.cache.service import RedisCache
+from kfx.services.cache.utils import CACHE_MISS
 
 
 @pytest.mark.asyncio
@@ -53,7 +53,7 @@ class TestRedisCacheTeardown:
 
     async def test_is_external_async_base_cache_service(self):
         """Test that RedisCache is an instance of ExternalAsyncBaseCacheService."""
-        from langflow.services.cache.base import ExternalAsyncBaseCacheService
+        from ketos.services.cache.base import ExternalAsyncBaseCacheService
 
         with patch("redis.asyncio.StrictRedis") as mock_redis_class:
             mock_client = AsyncMock()
@@ -77,7 +77,7 @@ class TestRedisCacheTeardown:
         ``teardown`` is now an abstract method on ``ExternalAsyncBaseCacheService``,
         so preload can call it directly without ``getattr`` fallbacks.
         """
-        from langflow.services.cache.base import ExternalAsyncBaseCacheService
+        from ketos.services.cache.base import ExternalAsyncBaseCacheService
 
         with patch("redis.asyncio.StrictRedis") as mock_redis_class:
             mock_client = AsyncMock()
@@ -117,7 +117,7 @@ class TestRedisCacheDeserializationIntegrity:
     async def test_get_rejects_payload_without_valid_hmac(self):
         """A payload lacking a valid HMAC tag must not be deserialized (no gadget run)."""
         import dill
-        from lfx.services.cache.utils import CACHE_MISS
+        from kfx.services.cache.utils import CACHE_MISS
 
         _MARKER_PATH_HOLDER.clear()
         with patch("redis.asyncio.StrictRedis") as mock_redis_class:
@@ -137,7 +137,7 @@ class TestRedisCacheDeserializationIntegrity:
 
     async def test_get_rejects_payload_shorter_than_tag(self):
         """A value too short to even hold a tag is a miss (cheapest attacker write)."""
-        from lfx.services.cache.utils import CACHE_MISS
+        from kfx.services.cache.utils import CACHE_MISS
 
         with patch("redis.asyncio.StrictRedis") as mock_redis_class:
             mock_client = AsyncMock()
@@ -180,7 +180,7 @@ class TestRedisCacheDeserializationIntegrity:
         legitimately-signed payload from key ``a`` into the slot for key ``b``
         (cross-key substitution) is rejected as a miss instead of deserialized.
         """
-        from lfx.services.cache.utils import CACHE_MISS
+        from kfx.services.cache.utils import CACHE_MISS
 
         with patch("redis.asyncio.StrictRedis") as mock_redis_class:
             mock_client = AsyncMock()
@@ -218,7 +218,7 @@ class TestRedisCacheSerialization:
     Live objects built during a flow run (e.g. an LLM client holding an
     ``ssl.SSLContext``, httpx clients, thread locks) cannot be serialized. The
     cache write must not crash the flow build; the value should simply be
-    skipped. See https://github.com/langflow-ai/langflow/issues/13764.
+    skipped. See https://github.com/ketos-ai/ketos/issues/13764.
     """
 
     def _cache(self) -> RedisCache:

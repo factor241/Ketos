@@ -1,3 +1,3 @@
-"""Tests for Langflow components."""
+"""Tests for Ketos components."""
 
 # Made with Bob

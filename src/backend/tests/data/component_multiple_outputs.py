@@ -1,6 +1,6 @@
-from lfx.custom import Component
-from lfx.inputs.inputs import IntInput, MessageTextInput
-from lfx.template.field.base import Output
+from kfx.custom import Component
+from kfx.inputs.inputs import IntInput, MessageTextInput
+from kfx.template.field.base import Output
 
 
 class MultipleOutputsComponent(Component):

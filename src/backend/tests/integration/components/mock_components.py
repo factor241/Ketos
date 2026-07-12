@@ -1,9 +1,9 @@
 import json
 
-from lfx.custom import Component
-from lfx.inputs import BoolInput, StrInput
-from lfx.schema import Data
-from lfx.template import Output
+from kfx.custom import Component
+from kfx.inputs import BoolInput, StrInput
+from kfx.schema import Data
+from kfx.template import Output
 
 
 class TextToData(Component):

@@ -3,8 +3,8 @@
 from unittest.mock import Mock
 
 import pytest
-from langflow.services.storage.local import LocalStorageService
-from langflow.services.storage.s3 import S3StorageService
+from ketos.services.storage.local import LocalStorageService
+from ketos.services.storage.s3 import S3StorageService
 
 
 class TestLocalStorageParseFilePath:
@@ -113,10 +113,10 @@ class TestS3StorageParseFilePath:
 
         # Test with nested flow_id (real-world example from logs)
         flow_id, file_name = service.parse_file_path(
-            "files-test-1/afffa27a-a9f0-4511-b1a9-7e6cb2b3df05/2025-12-07_14-47-29_langflow_pid_mem_usage.png"
+            "files-test-1/afffa27a-a9f0-4511-b1a9-7e6cb2b3df05/2025-12-07_14-47-29_ketos_pid_mem_usage.png"
         )
         assert flow_id == "afffa27a-a9f0-4511-b1a9-7e6cb2b3df05"
-        assert file_name == "2025-12-07_14-47-29_langflow_pid_mem_usage.png"
+        assert file_name == "2025-12-07_14-47-29_ketos_pid_mem_usage.png"
 
     def test_parse_nested_flow_id_without_prefix(self):
         """Test parsing nested flow_id without prefix."""
@@ -131,10 +131,10 @@ class TestS3StorageParseFilePath:
 
         # Test without prefix (as seen in error logs)
         flow_id, file_name = service.parse_file_path(
-            "afffa27a-a9f0-4511-b1a9-7e6cb2b3df05/2025-12-07_14-47-29_langflow_pid_mem_usage.png"
+            "afffa27a-a9f0-4511-b1a9-7e6cb2b3df05/2025-12-07_14-47-29_ketos_pid_mem_usage.png"
         )
         assert flow_id == "afffa27a-a9f0-4511-b1a9-7e6cb2b3df05"
-        assert file_name == "2025-12-07_14-47-29_langflow_pid_mem_usage.png"
+        assert file_name == "2025-12-07_14-47-29_ketos_pid_mem_usage.png"
 
     def test_parse_just_filename(self):
         """Test parsing just a filename with no directory."""
@@ -222,17 +222,17 @@ class TestParseFilePathRoundTrip:
 
         # Build a path with nested flow_id
         full_path = service.build_full_path(
-            "afffa27a-a9f0-4511-b1a9-7e6cb2b3df05", "2025-12-07_14-47-29_langflow_pid_mem_usage.png"
+            "afffa27a-a9f0-4511-b1a9-7e6cb2b3df05", "2025-12-07_14-47-29_ketos_pid_mem_usage.png"
         )
         assert (
             full_path
-            == "files-test-1/afffa27a-a9f0-4511-b1a9-7e6cb2b3df05/2025-12-07_14-47-29_langflow_pid_mem_usage.png"
+            == "files-test-1/afffa27a-a9f0-4511-b1a9-7e6cb2b3df05/2025-12-07_14-47-29_ketos_pid_mem_usage.png"
         )
 
         # Parse it back
         flow_id, file_name = service.parse_file_path(full_path)
         assert flow_id == "afffa27a-a9f0-4511-b1a9-7e6cb2b3df05"
-        assert file_name == "2025-12-07_14-47-29_langflow_pid_mem_usage.png"
+        assert file_name == "2025-12-07_14-47-29_ketos_pid_mem_usage.png"
 
 
 class TestLocalStorageParseFilePathWindowsCompatibility:
@@ -318,12 +318,12 @@ class TestLocalStorageParseFilePathWindowsCompatibility:
         """Test parsing Windows path with UUID flow_id (real-world scenario)."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "C:\\Users\\user\\AppData\\Local\\langflow"
+        mock_settings.settings.config_dir = "C:\\Users\\user\\AppData\\Local\\ketos"
 
         service = LocalStorageService(mock_session, mock_settings)
 
         flow_id, file_name = service.parse_file_path(
-            "C:\\Users\\user\\AppData\\Local\\langflow\\afffa27a-a9f0-4511-b1a9-7e6cb2b3df05\\uploaded_file.png"
+            "C:\\Users\\user\\AppData\\Local\\ketos\\afffa27a-a9f0-4511-b1a9-7e6cb2b3df05\\uploaded_file.png"
         )
         assert flow_id == "afffa27a-a9f0-4511-b1a9-7e6cb2b3df05"
         assert file_name == "uploaded_file.png"

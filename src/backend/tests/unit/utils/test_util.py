@@ -2,8 +2,8 @@ import inspect
 from unittest.mock import Mock, patch
 
 import pytest
-from langflow.schema.data import Data
-from langflow.utils.util import (
+from ketos.schema.data import Data
+from ketos.utils.util import (
     add_options_to_field,
     build_loader_repr_from_data,
     build_template_from_function,
@@ -106,10 +106,10 @@ class TestBuildTemplateFromFunction:
         with pytest.raises(ValueError, match="TestName not found"):
             build_template_from_function("TestName", type_dict)
 
-    @patch("lfx.utils.util.parse")
-    @patch("lfx.utils.util.get_default_factory")
-    @patch("lfx.utils.util.get_base_classes")
-    @patch("lfx.utils.util.format_dict")
+    @patch("kfx.utils.util.parse")
+    @patch("kfx.utils.util.get_default_factory")
+    @patch("kfx.utils.util.get_base_classes")
+    @patch("kfx.utils.util.format_dict")
     def test_successful_template_build(
         self, mock_format_dict, mock_get_base_classes, mock_get_default_factory, mock_parse
     ):
@@ -160,9 +160,9 @@ class TestBuildTemplateFromFunction:
         type_dict = {"test_type": mock_loader}
 
         with (
-            patch("lfx.utils.util.parse") as mock_parse,
-            patch("lfx.utils.util.get_base_classes") as mock_get_base_classes,
-            patch("lfx.utils.util.format_dict") as mock_format_dict,
+            patch("kfx.utils.util.parse") as mock_parse,
+            patch("kfx.utils.util.get_base_classes") as mock_get_base_classes,
+            patch("kfx.utils.util.format_dict") as mock_format_dict,
         ):
             mock_parse.return_value = Mock(short_description="Test", params={})
             mock_get_base_classes.return_value = ["BaseClass"]
@@ -197,9 +197,9 @@ class TestBuildTemplateFromMethod:
         ):
             build_template_from_method("TestClass", "test_method", type_dict)
 
-    @patch("lfx.utils.util.parse")
-    @patch("lfx.utils.util.get_base_classes")
-    @patch("lfx.utils.util.format_dict")
+    @patch("kfx.utils.util.parse")
+    @patch("kfx.utils.util.get_base_classes")
+    @patch("kfx.utils.util.format_dict")
     def test_successful_method_template_build(self, mock_format_dict, mock_get_base_classes, mock_parse):
         """Test successful method template building."""
         # Create mock class with method
@@ -397,10 +397,10 @@ class TestFormatDict:
         test_dict = {"_type": "test_type", "field1": {"type": "str", "required": True}}
 
         with (
-            patch("lfx.utils.util.get_type") as mock_get_type,
-            patch("lfx.utils.util.should_show_field") as mock_show,
-            patch("lfx.utils.util.is_password_field") as mock_password,
-            patch("lfx.utils.util.is_multiline_field") as mock_multiline,
+            patch("kfx.utils.util.get_type") as mock_get_type,
+            patch("kfx.utils.util.should_show_field") as mock_show,
+            patch("kfx.utils.util.is_password_field") as mock_password,
+            patch("kfx.utils.util.is_multiline_field") as mock_multiline,
         ):
             mock_get_type.return_value = "str"
             mock_show.return_value = True
@@ -419,7 +419,7 @@ class TestFormatDict:
         """Test that BaseModel types are skipped."""
         test_dict = {"field1": {"type": "SomeBaseModel"}}
 
-        with patch("langflow.utils.util.get_type", return_value="SomeBaseModel"):
+        with patch("ketos.utils.util.get_type", return_value="SomeBaseModel"):
             result = format_dict(test_dict)
 
             # BaseModel fields are continued/skipped, so they retain original structure
@@ -573,7 +573,7 @@ class TestUtilityFunctions:
         """Test adding options to specific fields."""
         value = {}
 
-        with patch("lfx.utils.util.constants") as mock_constants:
+        with patch("kfx.utils.util.constants") as mock_constants:
             mock_constants.OPENAI_MODELS = ["gpt-3.5-turbo", "gpt-4"]
 
             add_options_to_field(value, "OpenAI", "model_name")
@@ -616,7 +616,7 @@ class TestUpdateSettings:
     """Test cases for update_settings function."""
 
     @pytest.mark.asyncio
-    @patch("lfx.utils.util.get_settings_service")
+    @patch("kfx.utils.util.get_settings_service")
     async def test_update_settings_basic(self, mock_get_service):
         """Test basic settings update."""
         mock_service = Mock()
@@ -634,7 +634,7 @@ class TestUpdateSettings:
         mock_settings.update_settings.assert_any_call(cache="redis")
 
     @pytest.mark.asyncio
-    @patch("lfx.utils.util.get_settings_service")
+    @patch("kfx.utils.util.get_settings_service")
     async def test_update_settings_from_yaml(self, mock_get_service):
         """Test updating settings from YAML config."""
         mock_service = Mock()

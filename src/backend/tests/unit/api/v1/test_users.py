@@ -24,7 +24,7 @@ async def test_add_user_public_signup(client: AsyncClient):
 
 async def test_add_user_signup_refused_when_disabled(client: AsyncClient):
     """Public registration must be refused (403) when ENABLE_SIGNUP is False."""
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     auth_settings = get_settings_service().auth_settings
     original_signup = auth_settings.ENABLE_SIGNUP
@@ -42,7 +42,7 @@ async def test_add_user_signup_refused_when_disabled(client: AsyncClient):
 
 async def test_add_user_signup_refused_when_auto_login(client: AsyncClient):
     """Public registration must be refused (403) when AUTO_LOGIN is enabled."""
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     auth_settings = get_settings_service().auth_settings
     original_auto_login = auth_settings.AUTO_LOGIN
@@ -66,7 +66,7 @@ async def test_add_user_superuser_succeeds_when_signup_disabled(client: AsyncCli
     Disabling public sign up must only block the anonymous path; it must not break the
     admin "add user" flow (AdminPage -> useAddUser -> POST /api/v1/users/).
     """
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     auth_settings = get_settings_service().auth_settings
     original_signup = auth_settings.ENABLE_SIGNUP
@@ -98,7 +98,7 @@ async def test_add_user_non_superuser_refused_when_signup_disabled(client: Async
 
     Only superusers may bypass the gate; being merely authenticated is not enough.
     """
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     auth_settings = get_settings_service().auth_settings
     original_signup = auth_settings.ENABLE_SIGNUP

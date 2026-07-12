@@ -10,7 +10,7 @@ auto-assign / honest-caveat decision.
 
 from __future__ import annotations
 
-from langflow.agentic.services.flow_agent_model import find_agents_missing_model
+from ketos.agentic.services.flow_agent_model import find_agents_missing_model
 
 
 def _flow(nodes):

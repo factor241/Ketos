@@ -6,7 +6,7 @@ import time
 from unittest.mock import patch
 
 import pytest
-from lfx.utils.async_helpers import run_until_complete
+from kfx.utils.async_helpers import run_until_complete
 
 
 class TestRunUntilComplete:

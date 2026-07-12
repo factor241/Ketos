@@ -7,14 +7,14 @@ from dataclasses import dataclass, field
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from langflow.agentic.services.flow_run import (
+from ketos.agentic.services.flow_run import (
     MAX_RESULT_CHARS,
     extract_graph_token_usage,
     extract_run_result_text,
     run_working_flow,
 )
 
-MODULE = "langflow.agentic.services.flow_run"
+MODULE = "ketos.agentic.services.flow_run"
 
 
 # Lightweight stand-ins mirroring the real shapes:

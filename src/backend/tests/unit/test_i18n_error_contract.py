@@ -8,15 +8,15 @@ from pathlib import Path
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from langflow.api.error_codes import (
+from ketos.api.error_codes import (
     API_ERROR_REGISTRY,
     ApiErrorCode,
     coded_http_error,
     normalize_validation_errors,
     register_api_error_handlers,
 )
-from langflow.schema.errors import ApiErrorResponse
-from langflow.services.auth.exceptions import (
+from ketos.schema.errors import ApiErrorResponse
+from ketos.services.auth.exceptions import (
     InactiveUserError,
     InsufficientPermissionsError,
     InvalidCredentialsError,
@@ -24,7 +24,7 @@ from langflow.services.auth.exceptions import (
     MissingCredentialsError,
     TokenExpiredError,
 )
-from langflow.services.auth.utils import _auth_error_to_http
+from ketos.services.auth.utils import _auth_error_to_http
 from pydantic import ValidationError
 
 
@@ -78,7 +78,7 @@ def test_coded_http_error_preserves_english_compatibility_without_exposing_techn
 )
 def test_migrated_coded_error_sites_do_not_promote_exception_text_to_compatibility_detail(relative_path):
     """Raw provider/runtime diagnostics must stay in technical_detail only."""
-    api_root = Path(__file__).parents[2] / "base" / "langflow"
+    api_root = Path(__file__).parents[2] / "base" / "ketos"
     source_path = api_root / relative_path
     tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
     parents = {child: parent for parent in ast.walk(tree) for child in ast.iter_child_nodes(parent)}
@@ -133,7 +133,7 @@ def test_migrated_coded_error_sites_do_not_promote_exception_text_to_compatibili
 
 def test_user_owned_custom_component_validation_detail_remains_a_legacy_compatibility_field():
     """Stable codes are additive; user-authored validation output remains verbatim for old clients."""
-    source_path = Path(__file__).parents[2] / "base" / "langflow" / "api" / "v1" / "endpoints.py"
+    source_path = Path(__file__).parents[2] / "base" / "ketos" / "api" / "v1" / "endpoints.py"
     tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
     parents = {child: parent for parent in ast.walk(tree) for child in ast.iter_child_nodes(parent)}
     preserved_sites: list[int] = []
@@ -191,7 +191,7 @@ def test_user_owned_custom_component_validation_detail_remains_a_legacy_compatib
 )
 def test_named_native_ui_routes_use_stable_error_envelopes(relative_path):
     """Every UI-facing raise in the named native migration wave carries a stable code."""
-    api_root = Path(__file__).parents[2] / "base" / "langflow"
+    api_root = Path(__file__).parents[2] / "base" / "ketos"
     source_path = api_root / relative_path
     tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
     raw_http_raises = [

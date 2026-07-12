@@ -1,7 +1,7 @@
 from unittest.mock import Mock, patch
 
 import pytest
-from lfx.utils.async_helpers import run_until_complete, timeout_context
+from kfx.utils.async_helpers import run_until_complete, timeout_context
 
 
 class TestTimeoutContext:

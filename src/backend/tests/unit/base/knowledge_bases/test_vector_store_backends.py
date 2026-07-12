@@ -2,7 +2,7 @@
 
 The Astra / MongoDB / Postgres backends ship as stubs in this phase
 (see each module's docstring under
-``lfx.base.knowledge_bases.backends``). These tests pin the
+``kfx.base.knowledge_bases.backends``). These tests pin the
 "intentionally disabled" contract so accidental re-registration or
 silent re-introduction of partial implementations fails loudly:
 
@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-from lfx.base.knowledge_bases.backends import (
+from kfx.base.knowledge_bases.backends import (
     AstraBackend,
     BackendType,
     MongoDBBackend,

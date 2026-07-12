@@ -12,12 +12,12 @@ import pytest
 from asgi_lifespan import LifespanManager
 from fastapi import status
 from httpx import ASGITransport, AsyncClient
-from langflow.main import create_app
-from langflow.services.auth.utils import get_password_hash
-from langflow.services.database.models.api_key.model import ApiKey
-from langflow.services.database.models.flow.model import Flow, FlowCreate
-from langflow.services.database.models.user.model import User, UserRead
-from lfx.services.deps import session_scope
+from ketos.main import create_app
+from ketos.services.auth.utils import get_password_hash
+from ketos.services.database.models.api_key.model import ApiKey
+from ketos.services.database.models.flow.model import Flow, FlowCreate
+from ketos.services.database.models.user.model import User, UserRead
+from kfx.services.deps import session_scope
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
@@ -153,14 +153,14 @@ async def files_flow(
 
 @pytest.fixture
 def max_file_size_upload_fixture(monkeypatch):
-    monkeypatch.setenv("LANGFLOW_MAX_FILE_SIZE_UPLOAD", "1")
+    monkeypatch.setenv("KETOS_MAX_FILE_SIZE_UPLOAD", "1")
     yield
     monkeypatch.undo()
 
 
 @pytest.fixture
 def max_file_size_upload_10mb_fixture(monkeypatch):
-    monkeypatch.setenv("LANGFLOW_MAX_FILE_SIZE_UPLOAD", "10")
+    monkeypatch.setenv("KETOS_MAX_FILE_SIZE_UPLOAD", "10")
     yield
     monkeypatch.undo()
 
@@ -178,11 +178,11 @@ async def files_client_fixture(
         def init_app():
             db_dir = tempfile.mkdtemp()
             db_path = Path(db_dir) / "test.db"
-            monkeypatch.setenv("LANGFLOW_DATABASE_URL", f"sqlite:///{db_path}")
-            monkeypatch.setenv("LANGFLOW_AUTO_LOGIN", "false")
-            monkeypatch.setenv("LANGFLOW_SUPERUSER", "langflow")
-            monkeypatch.setenv("LANGFLOW_SUPERUSER_PASSWORD", "test-superuser-password")
-            from lfx.services.manager import get_service_manager
+            monkeypatch.setenv("KETOS_DATABASE_URL", f"sqlite:///{db_path}")
+            monkeypatch.setenv("KETOS_AUTO_LOGIN", "false")
+            monkeypatch.setenv("KETOS_SUPERUSER", "ketos")
+            monkeypatch.setenv("KETOS_SUPERUSER_PASSWORD", "test-superuser-password")
+            from kfx.services.manager import get_service_manager
 
             get_service_manager().factories.clear()
             get_service_manager().services.clear()  # Clear the services cache
@@ -348,7 +348,7 @@ async def test_upload_file_size_limit(files_client, files_created_api_key, files
 async def setup_profile_pictures(monkeypatch):
     """Fixture to set up profile pictures in a temporary config directory.
 
-    This fixture must run before files_client to set LANGFLOW_CONFIG_DIR
+    This fixture must run before files_client to set KETOS_CONFIG_DIR
     before app initialization.
 
     Args:
@@ -381,7 +381,7 @@ async def setup_profile_pictures(monkeypatch):
     (people_dir / "001-person.svg").write_bytes(person_svg)
 
     # Override the config_dir setting BEFORE app initialization
-    monkeypatch.setenv("LANGFLOW_CONFIG_DIR", str(config_path))
+    monkeypatch.setenv("KETOS_CONFIG_DIR", str(config_path))
 
     yield config_path
 
@@ -500,7 +500,7 @@ async def test_profile_pictures_with_s3_storage(setup_profile_pictures, files_cl
         monkeypatch: For overriding environment variables
     """
     # Set storage type to S3 (simulating S3 configuration)
-    monkeypatch.setenv("LANGFLOW_STORAGE_TYPE", "s3")
+    monkeypatch.setenv("KETOS_STORAGE_TYPE", "s3")
 
     # List should still work (from local filesystem)
     response = await files_client.get("api/v1/files/profile_pictures/list")
@@ -562,7 +562,7 @@ async def empty_config_dir(monkeypatch):
     (config_path / "profile_pictures").mkdir(parents=True, exist_ok=True)
 
     # Override the config_dir setting BEFORE app initialization
-    monkeypatch.setenv("LANGFLOW_CONFIG_DIR", str(config_path))
+    monkeypatch.setenv("KETOS_CONFIG_DIR", str(config_path))
 
     yield config_path
 
@@ -768,7 +768,7 @@ async def partial_config_dir(monkeypatch):
     # Note: Space directory is NOT created intentionally
 
     # Override the config_dir setting BEFORE app initialization
-    monkeypatch.setenv("LANGFLOW_CONFIG_DIR", str(config_path))
+    monkeypatch.setenv("KETOS_CONFIG_DIR", str(config_path))
 
     yield config_path
 

@@ -2,7 +2,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 import sqlalchemy as sa
-from langflow.utils.migration import column_exists, constraint_exists, foreign_key_exists, table_exists
+from ketos.utils.migration import column_exists, constraint_exists, foreign_key_exists, table_exists
 
 
 class TestTableExists:

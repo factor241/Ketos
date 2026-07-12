@@ -13,9 +13,9 @@ from unittest.mock import patch
 import httpcore
 import httpx
 import pytest
-from lfx.components.data_source.api_request import APIRequestComponent
-from lfx.components.data_source.url import URLComponent
-from lfx.schema import Data
+from kfx.components.data_source.api_request import APIRequestComponent
+from kfx.components.data_source.url import URLComponent
+from kfx.schema import Data
 
 
 class TestDNSRebindingProtection:
@@ -83,7 +83,7 @@ class TestDNSRebindingProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             patch.object(httpcore.AnyIOBackend, "connect_tcp", mock_connect_tcp),
         ):
             # Execute the request
@@ -142,7 +142,7 @@ class TestDNSRebindingProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             patch.object(httpcore.AnyIOBackend, "connect_tcp", mock_connect_tcp),
         ):
             result = await component.make_api_request()
@@ -170,7 +170,7 @@ class TestDNSRebindingProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             patch("httpx.AsyncClient.request", return_value=mock_response) as mock_request,
         ):
             result = await component.make_api_request()
@@ -194,7 +194,7 @@ class TestDNSRebindingProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "false"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "false"}),
             patch("httpx.AsyncClient.request", return_value=mock_response) as mock_request,
         ):
             result = await component.make_api_request()
@@ -218,7 +218,7 @@ class TestDNSRebindingProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
         ):
             # Should raise ValueError due to SSRF protection
             with pytest.raises(ValueError, match="SSRF Protection"):
@@ -257,7 +257,7 @@ class TestDNSRebindingProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             patch.object(httpcore.AnyIOBackend, "connect_tcp", mock_connect_tcp),
         ):
             result = await component.make_api_request()
@@ -293,13 +293,13 @@ class TestDNSRebindingProtection:
             patch.dict(
                 os.environ,
                 {
-                    "LANGFLOW_SSRF_PROTECTION_ENABLED": "true",
-                    "LANGFLOW_SSRF_ALLOWED_HOSTS": "internal.example.com,10.0.0.1",
+                    "KETOS_SSRF_PROTECTION_ENABLED": "true",
+                    "KETOS_SSRF_ALLOWED_HOSTS": "internal.example.com,10.0.0.1",
                 },
             ),
             # Patch get_allowed_hosts to return the allowlist directly
             patch(
-                "lfx.utils.ssrf_protection.get_allowed_hosts",
+                "kfx.utils.ssrf_protection.get_allowed_hosts",
                 return_value=["internal.example.com", "10.0.0.1"],
             ),
             patch.object(httpx.AsyncHTTPTransport, "handle_async_request", mock_handle_async_request),
@@ -360,7 +360,7 @@ class TestDNSRebindingProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             patch.object(httpcore.AnyIOBackend, "connect_tcp", mock_connect_tcp),
         ):
             # Execute the request
@@ -417,7 +417,7 @@ class TestDNSRebindingProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             patch.object(httpcore.AnyIOBackend, "connect_tcp", mock_connect_tcp),
         ):
             result = await component.make_api_request()
@@ -486,7 +486,7 @@ class TestURLComponentDNSRebindingProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             patch.object(httpcore.AnyIOBackend, "connect_tcp", mock_connect_tcp),
         ):
             # Create URL component
@@ -541,7 +541,7 @@ class TestURLComponentDNSRebindingProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo_localhost),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
         ):
             component = URLComponent()
             component.urls = ["http://localhost-test.example/"]
@@ -572,7 +572,7 @@ class TestURLComponentDNSRebindingProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo_metadata),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
         ):
             component = URLComponent()
             component.urls = ["http://metadata.example/"]
@@ -623,7 +623,7 @@ class TestURLComponentDNSRebindingProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             patch.object(httpcore.AnyIOBackend, "connect_tcp", mock_connect_tcp),
         ):
             component = URLComponent()
@@ -668,7 +668,7 @@ class TestURLComponentDNSRebindingProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
         ):
             component = URLComponent()
             component.urls = ["http://mixed-dns.example/"]
@@ -703,7 +703,7 @@ class TestURLComponentDNSRebindingProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
         ):
             component = URLComponent()
             component.urls = ["http://ipv4-mapped.example/"]
@@ -737,7 +737,7 @@ class TestURLComponentDNSRebindingProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
         ):
             component = URLComponent()
             component.urls = ["http://ipv4-mapped-private.example/"]
@@ -791,7 +791,7 @@ class TestURLComponentDNSRebindingProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             patch.object(httpcore.AnyIOBackend, "connect_tcp", mock_connect_tcp),
         ):
             component = URLComponent()
@@ -851,7 +851,7 @@ class TestURLComponentDNSRebindingProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             patch.object(httpcore.AnyIOBackend, "connect_tcp", mock_connect_tcp),
         ):
             component = URLComponent()
@@ -930,7 +930,7 @@ class TestURLComponentDNSRebindingProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             patch.object(httpcore.AnyIOBackend, "connect_tcp", mock_connect_tcp),
         ):
             component = URLComponent()
@@ -998,7 +998,7 @@ class TestAPIRequestDNSRebindingEdgeCases:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
         ):
             with pytest.raises(ValueError, match=r"SSRF Protection.*127\.0\.0\.1"):
                 await component.make_api_request()
@@ -1013,7 +1013,7 @@ class TestAPIRequestDNSRebindingEdgeCases:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
         ):
             with pytest.raises(ValueError, match="SSRF Protection"):
                 await component.make_api_request()
@@ -1028,7 +1028,7 @@ class TestAPIRequestDNSRebindingEdgeCases:
 
         with (
             patch("socket.getaddrinfo", side_effect=mock_getaddrinfo),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
         ):
             with pytest.raises(ValueError, match="SSRF Protection"):
                 await component.make_api_request()

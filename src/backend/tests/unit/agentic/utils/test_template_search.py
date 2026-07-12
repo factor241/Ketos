@@ -7,7 +7,7 @@ template structure validation, search functionality, edge cases, and integration
 import tempfile
 
 import pytest
-from langflow.agentic.utils import (
+from ketos.agentic.utils import (
     get_all_tags,
     get_template_by_id,
     get_templates_count,

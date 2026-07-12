@@ -5,10 +5,10 @@ import pytest
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
-from lfx.base.models.anthropic_constants import ANTHROPIC_MODELS
-from lfx.base.models.google_generative_ai_constants import GOOGLE_GENERATIVE_AI_MODELS
-from lfx.base.models.openai_constants import OPENAI_REASONING_MODEL_NAMES
-from lfx.components.models_and_agents import LanguageModelComponent
+from kfx.base.models.anthropic_constants import ANTHROPIC_MODELS
+from kfx.base.models.google_generative_ai_constants import GOOGLE_GENERATIVE_AI_MODELS
+from kfx.base.models.openai_constants import OPENAI_REASONING_MODEL_NAMES
+from kfx.components.models_and_agents import LanguageModelComponent
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -71,7 +71,7 @@ class TestLanguageModelComponent(ComponentTestBaseWithoutClient):
             pytest.skip("GOOGLE_API_KEY environment variable not set")
         return api_key
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     async def test_openai_model_creation(self, mock_get_model_class, component_class, default_kwargs):
         """Test that the component returns an instance of ChatOpenAI for OpenAI provider."""
         # Setup mock
@@ -109,7 +109,7 @@ class TestLanguageModelComponent(ComponentTestBaseWithoutClient):
         assert call_kwargs["max_tokens"] == 500
         assert model == mock_instance
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     async def test_anthropic_model_creation(self, mock_get_model_class, component_class):
         """Test that the component returns an instance of ChatAnthropic for Anthropic provider."""
         # Setup mock
@@ -154,7 +154,7 @@ class TestLanguageModelComponent(ComponentTestBaseWithoutClient):
         assert call_kwargs["api_key"] == "sk-ant-test-key"
         assert model == mock_instance
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     async def test_google_model_creation(self, mock_get_model_class, component_class):
         """Test that the component returns an instance of ChatGoogleGenerativeAI for Google provider."""
         # Setup mock
@@ -202,7 +202,7 @@ class TestLanguageModelComponent(ComponentTestBaseWithoutClient):
         assert call_kwargs["google_api_key"] == "google-test-key"
         assert model == mock_instance
 
-    @patch("lfx.base.models.unified_models.get_api_key_for_provider", return_value=None)
+    @patch("kfx.base.models.unified_models.get_api_key_for_provider", return_value=None)
     async def test_build_model_openai_missing_api_key(self, mock_get_api_key, component_class, default_kwargs):  # noqa: ARG002
         component = component_class(**default_kwargs)
         component.api_key = None
@@ -210,7 +210,7 @@ class TestLanguageModelComponent(ComponentTestBaseWithoutClient):
         with pytest.raises(ValueError, match="OpenAI API key is required when using OpenAI provider"):
             component.build_model()
 
-    @patch("lfx.base.models.unified_models.get_api_key_for_provider", return_value=None)
+    @patch("kfx.base.models.unified_models.get_api_key_for_provider", return_value=None)
     async def test_build_model_anthropic_missing_api_key(self, mock_get_api_key, component_class):  # noqa: ARG002
         component = component_class(
             model=[
@@ -230,7 +230,7 @@ class TestLanguageModelComponent(ComponentTestBaseWithoutClient):
         with pytest.raises(ValueError, match="Anthropic API key is required when using Anthropic provider"):
             component.build_model()
 
-    @patch("lfx.base.models.unified_models.get_api_key_for_provider", return_value=None)
+    @patch("kfx.base.models.unified_models.get_api_key_for_provider", return_value=None)
     async def test_build_model_google_missing_api_key(self, mock_get_api_key, component_class):  # noqa: ARG002
         component = component_class(
             model=[
@@ -278,7 +278,7 @@ class TestLanguageModelComponent(ComponentTestBaseWithoutClient):
         with pytest.raises(ValueError, match="No model class defined for test-model"):
             component.build_model()
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     async def test_reasoning_model_no_temperature(self, mock_get_model_class, component_class):
         """Test that reasoning models don't include temperature parameter."""
         # Setup mock
@@ -384,7 +384,7 @@ class TestLanguageModelComponent(ComponentTestBaseWithoutClient):
         """Helper to get a fresh build_config dict from the component's frontend node."""
         return component.to_frontend_node()["data"]["node"]["template"]
 
-    @patch("lfx.base.models.unified_models.get_language_model_options")
+    @patch("kfx.base.models.unified_models.get_language_model_options")
     async def test_update_build_config_shows_ollama_url_when_ollama_selected(
         self, mock_opts, component_class, default_kwargs
     ):
@@ -402,7 +402,7 @@ class TestLanguageModelComponent(ComponentTestBaseWithoutClient):
         assert updated["base_url_ibm_watsonx"]["show"] is False
         assert updated["project_id"]["show"] is False
 
-    @patch("lfx.base.models.unified_models.get_language_model_options")
+    @patch("kfx.base.models.unified_models.get_language_model_options")
     async def test_update_build_config_hides_ollama_url_when_openai_selected(
         self, mock_opts, component_class, default_kwargs
     ):
@@ -420,7 +420,7 @@ class TestLanguageModelComponent(ComponentTestBaseWithoutClient):
         assert updated["base_url_ibm_watsonx"]["show"] is False
         assert updated["project_id"]["show"] is False
 
-    @patch("lfx.base.models.unified_models.get_language_model_options")
+    @patch("kfx.base.models.unified_models.get_language_model_options")
     async def test_update_build_config_shows_watsonx_fields_when_watsonx_selected(
         self, mock_opts, component_class, default_kwargs
     ):
@@ -439,7 +439,7 @@ class TestLanguageModelComponent(ComponentTestBaseWithoutClient):
         assert updated["project_id"]["show"] is True
         assert updated["ollama_base_url"]["show"] is False
 
-    @patch("lfx.base.models.unified_models.get_language_model_options")
+    @patch("kfx.base.models.unified_models.get_language_model_options")
     async def test_update_build_config_hides_all_provider_fields_with_no_model(
         self, mock_opts, component_class, default_kwargs
     ):

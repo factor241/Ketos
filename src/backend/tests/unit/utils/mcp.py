@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from langflow.api.v1.mcp_projects import (
+from ketos.api.v1.mcp_projects import (
     project_mcp_servers,
     start_project_task_group,
     stop_project_task_group,

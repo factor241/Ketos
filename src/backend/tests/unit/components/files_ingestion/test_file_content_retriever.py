@@ -13,11 +13,11 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from lfx.components.files_ingestion.file_content_retriever import FileContentRetrieverComponent
-from lfx.schema.data import Data
-from lfx.schema.dataframe import DataFrame
-from lfx.schema.message import Message
-from lfx.serialization.serialization import serialize
+from kfx.components.files_ingestion.file_content_retriever import FileContentRetrieverComponent
+from kfx.schema.data import Data
+from kfx.schema.dataframe import DataFrame
+from kfx.schema.message import Message
+from kfx.serialization.serialization import serialize
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -110,11 +110,11 @@ class TestFileContentRetrieverComponent(ComponentTestBaseWithoutClient):
     def test_retrieve_content_with_dataframe_input(self, component_class):
         """Test retrieving content from DataFrame input - converts to string."""
         df = pd.DataFrame({"col1": [1, 2], "col2": ["a", "b"]})
-        langflow_df = DataFrame(df)
-        langflow_df.attrs["source_file_path"] = "data.csv"
+        ketos_df = DataFrame(df)
+        ketos_df.attrs["source_file_path"] = "data.csv"
 
         component = component_class()
-        component.set_attributes({"file_data": [langflow_df]})
+        component.set_attributes({"file_data": [ketos_df]})
         result = component.retrieve_content(file_path="data.csv")
 
         assert isinstance(result, Message)
@@ -124,13 +124,13 @@ class TestFileContentRetrieverComponent(ComponentTestBaseWithoutClient):
     def test_retrieve_content_mixed_data_and_dataframe(self, component_class):
         """Test with mixed Data and DataFrame inputs."""
         df = pd.DataFrame({"col1": [1, 2]})
-        langflow_df = DataFrame(df)
-        langflow_df.attrs["source_file_path"] = "data.csv"
+        ketos_df = DataFrame(df)
+        ketos_df.attrs["source_file_path"] = "data.csv"
 
         data_obj = Data(text="text content", data={"file_path": "file.txt"})
 
         component = component_class()
-        component.set_attributes({"file_data": [langflow_df, data_obj]})
+        component.set_attributes({"file_data": [ketos_df, data_obj]})
         result = component.retrieve_content(file_path="file.txt")
 
         assert result.text == "text content"
@@ -345,15 +345,15 @@ class TestFileContentRetrieverComponent(ComponentTestBaseWithoutClient):
     def test_as_dataframe_returns_existing_dataframe(self, component_class):
         """Test that existing DataFrame is returned directly without conversion."""
         df = pd.DataFrame({"col1": [1, 2, 3], "col2": ["a", "b", "c"]})
-        langflow_df = DataFrame(df)
-        langflow_df.attrs["source_file_path"] = "data.csv"
+        ketos_df = DataFrame(df)
+        ketos_df.attrs["source_file_path"] = "data.csv"
 
         component = component_class()
-        component.set_attributes({"file_data": [langflow_df]})
+        component.set_attributes({"file_data": [ketos_df]})
 
         result = component.retrieve_content_as_dataframe(file_path="data.csv")
 
-        assert result is langflow_df
+        assert result is ketos_df
         assert len(result) == 3
 
     def test_as_dataframe_returns_dataframe_with_file_path_in_columns(self, component_class):
@@ -368,11 +368,11 @@ class TestFileContentRetrieverComponent(ComponentTestBaseWithoutClient):
                 "text": [csv_text],
             }
         )
-        langflow_df = DataFrame(df)
+        ketos_df = DataFrame(df)
         # Note: NO source_file_path in attrs, only in columns
 
         component = component_class()
-        component.set_attributes({"file_data": [langflow_df]})
+        component.set_attributes({"file_data": [ketos_df]})
 
         # The component extracts text from rows with file_path column
         # Since it's CSV, it should parse the text into a DataFrame
@@ -682,7 +682,7 @@ class TestFileContentRetrieverPersistence:
 
     @pytest.fixture
     def component_class(self):
-        from lfx.components.files_ingestion.file_content_retriever import FileContentRetrieverComponent
+        from kfx.components.files_ingestion.file_content_retriever import FileContentRetrieverComponent
 
         return FileContentRetrieverComponent
 

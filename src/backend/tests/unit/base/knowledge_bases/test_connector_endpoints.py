@@ -47,8 +47,8 @@ class TestConnectorCatalog:
 
 
 class TestConnectorIngest:
-    @patch("langflow.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_unknown_source_type_returns_400(
         self,
         mock_root,
@@ -85,8 +85,8 @@ class TestConnectorIngest:
         assert "nonsense" in response.json()["detail"].lower()
 
     @pytest.mark.parametrize("source_type", _STUBBED_SOURCE_TYPES)
-    @patch("langflow.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_stubbed_source_type_returns_400(
         self,
         mock_root,
@@ -144,11 +144,11 @@ class TestConnectorIngest:
 
 
 class TestFolderIngest:
-    @patch("langflow.api.v1.knowledge_bases.get_task_service")
-    @patch("langflow.api.v1.knowledge_bases.get_job_service")
-    @patch("langflow.api.v1.knowledge_bases.get_settings_service")
-    @patch("langflow.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.get_task_service")
+    @patch("ketos.api.v1.knowledge_bases.get_job_service")
+    @patch("ketos.api.v1.knowledge_bases.get_settings_service")
+    @patch("ketos.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_dispatches_folder_source_with_settings_allow_list(
         self,
         mock_root,
@@ -200,10 +200,10 @@ class TestFolderIngest:
         assert passed_source.source_config["path"] == str(folder)
         assert passed_source.source_config["allowed_roots"] == [str(allowed_root)]
 
-    @patch("langflow.api.v1.knowledge_bases.get_job_service")
-    @patch("langflow.api.v1.knowledge_bases.get_settings_service")
-    @patch("langflow.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.get_job_service")
+    @patch("ketos.api.v1.knowledge_bases.get_settings_service")
+    @patch("ketos.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_rejects_folder_outside_settings_allow_list_before_job(
         self,
         mock_root,
@@ -242,8 +242,8 @@ class TestFolderIngest:
         assert "outside the configured allow-list" in response.json()["detail"]
         mock_job_service.assert_not_called()
 
-    @patch("langflow.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_folder_ingest_with_real_settings_returns_400_not_500(
         self,
         mock_root,
@@ -265,10 +265,10 @@ class TestFolderIngest:
         the sibling ``/ingest/connector`` route — instead of a 500.
         """
         # The regression depends on an *empty* allow-list (the default). Clear any
-        # ``LANGFLOW_KB_ALLOWED_FOLDER_ROOTS`` a developer may have exported so the
+        # ``KETOS_KB_ALLOWED_FOLDER_ROOTS`` a developer may have exported so the
         # test deterministically hits the empty-allow-list gate rather than the
         # "outside the configured allow-list" branch.
-        monkeypatch.delenv("LANGFLOW_KB_ALLOWED_FOLDER_ROOTS", raising=False)
+        monkeypatch.delenv("KETOS_KB_ALLOWED_FOLDER_ROOTS", raising=False)
 
         mock_root.return_value = tmp_path
         kb_dir = tmp_path / active_user.username / "folder_kb_real_settings"
@@ -291,7 +291,7 @@ class TestFolderIngest:
         # Assert the *specific* empty-allow-list message so the test pins the
         # regression path (real Settings → empty default → actionable 400) rather
         # than the generic substring shared with the "outside the allow-list" branch.
-        assert "Configure LANGFLOW_KB_ALLOWED_FOLDER_ROOTS" in response.json()["detail"]
+        assert "Configure KETOS_KB_ALLOWED_FOLDER_ROOTS" in response.json()["detail"]
 
     async def test_folder_ingest_rejects_unbounded_chunk_parameters(self, client: AsyncClient, logged_in_headers):
         response = await client.post(
@@ -307,8 +307,8 @@ class TestFolderIngest:
         assert response.status_code == 422
         assert "chunk_size" in response.text
 
-    @patch("langflow.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_folder_ingest_blocked_for_memory_base_kb(
         self,
         mock_root,
@@ -340,8 +340,8 @@ class TestFolderIngest:
         assert response.status_code == 403
         assert "managed by a Memory Base" in response.json()["detail"]
 
-    @patch("langflow.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_connector_ingest_blocked_for_memory_base_kb(
         self,
         mock_root,

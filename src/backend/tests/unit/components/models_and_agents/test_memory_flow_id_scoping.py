@@ -1,9 +1,9 @@
 """Tests that MemoryComponent scopes chat history retrieval by flow_id.
 
-Regression test for https://github.com/langflow-ai/langflow/issues/13059
+Regression test for https://github.com/ketos-ai/ketos/issues/13059
 
 Before the fix, ``MemoryComponent.retrieve_messages`` called
-``aget_messages`` without ``flow_id``. Because the Langflow playground assigns
+``aget_messages`` without ``flow_id``. Because the Ketos playground assigns
 default session names (e.g. "New Session 0") that are not unique across flows,
 this caused chat history from Flow A to leak into Flow B whenever both used
 the same session name. The Agent component is affected because it delegates
@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
 import pytest
-from lfx.components.models_and_agents.memory import (
+from kfx.components.models_and_agents.memory import (
     MAX_CHAT_HISTORY_FETCH_LIMIT,
     MemoryComponent,
     _coerce_flow_id_to_uuid,
@@ -67,7 +67,7 @@ class TestCoerceFlowIdToUuid:
         that issue #13059 closed. The log call uses ``error`` level + a
         structured ``event`` tag so observability pipelines can alert.
         """
-        with patch("lfx.components.models_and_agents.memory.logger") as mock_logger:
+        with patch("kfx.components.models_and_agents.memory.logger") as mock_logger:
             _coerce_flow_id_to_uuid("not-a-uuid")
 
         mock_logger.error.assert_called_once()
@@ -85,7 +85,7 @@ class TestRetrieveMessagesPassesFlowId:
         component = _build_component(flow_id=flow_id_str)
 
         with patch(
-            "lfx.components.models_and_agents.memory.aget_messages",
+            "kfx.components.models_and_agents.memory.aget_messages",
             new=AsyncMock(return_value=[]),
         ) as mock_get:
             await component.retrieve_messages()
@@ -111,7 +111,7 @@ class TestRetrieveMessagesPassesFlowId:
         shared_session = "New Session 0"
 
         with patch(
-            "lfx.components.models_and_agents.memory.aget_messages",
+            "kfx.components.models_and_agents.memory.aget_messages",
             new=AsyncMock(return_value=[]),
         ) as mock_get:
             await _build_component(flow_id=flow_a, session_id=shared_session).retrieve_messages()
@@ -131,7 +131,7 @@ class TestRetrieveMessagesPassesFlowId:
         component = _build_component(flow_id=None)
 
         with patch(
-            "lfx.components.models_and_agents.memory.aget_messages",
+            "kfx.components.models_and_agents.memory.aget_messages",
             new=AsyncMock(return_value=[]),
         ) as mock_get:
             await component.retrieve_messages()
@@ -144,7 +144,7 @@ class TestRetrieveMessagesPassesFlowId:
         component = _build_component(flow_id="not-a-uuid")
 
         with patch(
-            "lfx.components.models_and_agents.memory.aget_messages",
+            "kfx.components.models_and_agents.memory.aget_messages",
             new=AsyncMock(return_value=[]),
         ) as mock_get:
             await component.retrieve_messages()
@@ -166,7 +166,7 @@ class TestRetrieveMessagesPassesFlowId:
         component.set(memory=_FakeExternalMemory())
 
         with patch(
-            "lfx.components.models_and_agents.memory.aget_messages",
+            "kfx.components.models_and_agents.memory.aget_messages",
             new=AsyncMock(return_value=[]),
         ) as mock_get:
             await component.retrieve_messages()
@@ -187,7 +187,7 @@ class TestRetrieveMessagesPassesFlowId:
         # The mock returns DESC-ordered data (most recent first), as the DB would.
         desc_rows = [SimpleNamespace(id=f"msg-{i}") for i in (4, 3, 2, 1, 0)]
         with patch(
-            "lfx.components.models_and_agents.memory.aget_messages",
+            "kfx.components.models_and_agents.memory.aget_messages",
             new=AsyncMock(return_value=desc_rows),
         ) as mock_get:
             result = await component.retrieve_messages()
@@ -202,7 +202,7 @@ class TestRetrieveMessagesPassesFlowId:
         component.set(order="Descending")
         desc_rows = [SimpleNamespace(id=f"msg-{i}") for i in (4, 3, 2, 1, 0)]
         with patch(
-            "lfx.components.models_and_agents.memory.aget_messages",
+            "kfx.components.models_and_agents.memory.aget_messages",
             new=AsyncMock(return_value=desc_rows),
         ):
             result = await component.retrieve_messages()
@@ -229,11 +229,11 @@ class TestStoreMessagePassesFlowId:
         stored = SimpleNamespace(id="stored-1")
         with (
             patch(
-                "lfx.components.models_and_agents.memory.astore_message",
+                "kfx.components.models_and_agents.memory.astore_message",
                 new=AsyncMock(return_value=None),
             ) as mock_store,
             patch(
-                "lfx.components.models_and_agents.memory.aget_messages",
+                "kfx.components.models_and_agents.memory.aget_messages",
                 new=AsyncMock(return_value=[stored]),
             ) as mock_get,
         ):
@@ -266,11 +266,11 @@ class TestStoreMessagePassesFlowId:
         stored = SimpleNamespace(id="stored-1")
         with (
             patch(
-                "lfx.components.models_and_agents.memory.astore_message",
+                "kfx.components.models_and_agents.memory.astore_message",
                 new=AsyncMock(return_value=None),
             ) as mock_store,
             patch(
-                "lfx.components.models_and_agents.memory.aget_messages",
+                "kfx.components.models_and_agents.memory.aget_messages",
                 new=AsyncMock(return_value=[stored]),
             ),
         ):
@@ -291,7 +291,7 @@ class TestAgetAgentChatHistoryHelper:
         flow_id_str = "44444444-4444-4444-4444-444444444444"
 
         with patch(
-            "lfx.components.models_and_agents.memory.aget_messages",
+            "kfx.components.models_and_agents.memory.aget_messages",
             new=AsyncMock(return_value=[]),
         ) as mock_get:
             await aget_agent_chat_history(
@@ -319,7 +319,7 @@ class TestAgetAgentChatHistoryHelper:
         memory unexpectedly got full history back.
         """
         with patch(
-            "lfx.components.models_and_agents.memory.aget_messages",
+            "kfx.components.models_and_agents.memory.aget_messages",
             new=AsyncMock(return_value=[SimpleNamespace(id=f"msg-{i}") for i in range(5)]),
         ) as mock_get:
             result = await aget_agent_chat_history(
@@ -337,7 +337,7 @@ class TestAgetAgentChatHistoryHelper:
         desc_rows = [SimpleNamespace(id=f"msg-{i}") for i in (4, 3)]
 
         with patch(
-            "lfx.components.models_and_agents.memory.aget_messages",
+            "kfx.components.models_and_agents.memory.aget_messages",
             new=AsyncMock(return_value=desc_rows),
         ) as mock_get:
             result = await aget_agent_chat_history(
@@ -356,7 +356,7 @@ class TestAgetAgentChatHistoryHelper:
         desc_rows = [SimpleNamespace(id=f"msg-{i}") for i in (2, 1, 0)]
 
         with patch(
-            "lfx.components.models_and_agents.memory.aget_messages",
+            "kfx.components.models_and_agents.memory.aget_messages",
             new=AsyncMock(return_value=desc_rows),
         ) as mock_get:
             result = await aget_agent_chat_history(
@@ -372,7 +372,7 @@ class TestAgetAgentChatHistoryHelper:
     @pytest.mark.asyncio
     async def test_invalid_flow_id_falls_back_to_unscoped_query(self):
         with patch(
-            "lfx.components.models_and_agents.memory.aget_messages",
+            "kfx.components.models_and_agents.memory.aget_messages",
             new=AsyncMock(return_value=[]),
         ) as mock_get:
             await aget_agent_chat_history(
@@ -395,9 +395,9 @@ class TestAgetAgentChatHistoryHelper:
         # Simulate the DB returning exactly the ceiling — older rows truncated.
         rows = [SimpleNamespace(id=f"msg-{i}") for i in range(MAX_CHAT_HISTORY_FETCH_LIMIT)]
         with (
-            patch("lfx.components.models_and_agents.memory.logger") as mock_logger,
+            patch("kfx.components.models_and_agents.memory.logger") as mock_logger,
             patch(
-                "lfx.components.models_and_agents.memory.aget_messages",
+                "kfx.components.models_and_agents.memory.aget_messages",
                 new=AsyncMock(return_value=rows),
             ),
         ):
@@ -417,9 +417,9 @@ class TestAgetAgentChatHistoryHelper:
         """The ceiling warning is for ``n_messages=None`` only — explicit limits are honored."""
         rows = [SimpleNamespace(id=f"msg-{i}") for i in range(MAX_CHAT_HISTORY_FETCH_LIMIT)]
         with (
-            patch("lfx.components.models_and_agents.memory.logger") as mock_logger,
+            patch("kfx.components.models_and_agents.memory.logger") as mock_logger,
             patch(
-                "lfx.components.models_and_agents.memory.aget_messages",
+                "kfx.components.models_and_agents.memory.aget_messages",
                 new=AsyncMock(return_value=rows),
             ),
         ):
@@ -437,7 +437,7 @@ class TestAgentGetMemoryDataIntegration:
 
     @staticmethod
     def _make_agent(flow_id: str | UUID | None, session_id: str = "New Session 0", n_messages: int = 10):
-        from lfx.components.models_and_agents.agent import AgentComponent
+        from kfx.components.models_and_agents.agent import AgentComponent
 
         agent = AgentComponent.__new__(AgentComponent)
         agent._vertex = SimpleNamespace(graph=SimpleNamespace(flow_id=flow_id, session_id=session_id))
@@ -452,7 +452,7 @@ class TestAgentGetMemoryDataIntegration:
         agent = self._make_agent(flow_id=flow_id_str)
 
         with patch(
-            "lfx.components.models_and_agents.agent.aget_agent_chat_history",
+            "kfx.components.models_and_agents.agent.aget_agent_chat_history",
             new=AsyncMock(return_value=[]),
         ) as mock_helper:
             await agent.get_memory_data()
@@ -472,7 +472,7 @@ class TestAgentGetMemoryDataIntegration:
         old = SimpleNamespace(id="old-msg-id", text="earlier")
 
         with patch(
-            "lfx.components.models_and_agents.agent.aget_agent_chat_history",
+            "kfx.components.models_and_agents.agent.aget_agent_chat_history",
             new=AsyncMock(return_value=[old, current]),
         ):
             result = await agent.get_memory_data()
@@ -486,7 +486,7 @@ class TestAgentGetMemoryDataIntegration:
 
         # Patch the underlying DB query so a regression resurfaces as a real call.
         with patch(
-            "lfx.components.models_and_agents.memory.aget_messages",
+            "kfx.components.models_and_agents.memory.aget_messages",
             new=AsyncMock(return_value=[SimpleNamespace(id=f"msg-{i}") for i in range(5)]),
         ) as mock_get:
             result = await agent.get_memory_data()
@@ -501,7 +501,7 @@ class TestCugaGetMemoryDataIntegration:
     @staticmethod
     def _make_cuga(flow_id: str | UUID | None, session_id: str = "shared", n_messages: int = 10):
         try:
-            from lfx.components.cuga import cuga_agent
+            from kfx.components.cuga import cuga_agent
         except Exception as exc:  # pragma: no cover - optional deps
             pytest.skip(f"cuga_agent not importable in this env: {exc}")
 
@@ -517,7 +517,7 @@ class TestCugaGetMemoryDataIntegration:
         agent = self._make_cuga(flow_id=flow_id_str)
 
         with patch(
-            "lfx.components.cuga.cuga_agent.aget_agent_chat_history",
+            "kfx.components.cuga.cuga_agent.aget_agent_chat_history",
             new=AsyncMock(return_value=[]),
         ) as mock_helper:
             await agent.get_memory_data()
@@ -531,7 +531,7 @@ class TestCugaGetMemoryDataIntegration:
         agent = self._make_cuga(flow_id="dddddddd-dddd-dddd-dddd-dddddddddddd", n_messages=0)
 
         with patch(
-            "lfx.components.models_and_agents.memory.aget_messages",
+            "kfx.components.models_and_agents.memory.aget_messages",
             new=AsyncMock(return_value=[SimpleNamespace(id=f"msg-{i}") for i in range(3)]),
         ) as mock_get:
             result = await agent.get_memory_data()

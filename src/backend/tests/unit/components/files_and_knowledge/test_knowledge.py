@@ -21,14 +21,14 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from lfx.components.files_and_knowledge.ingestion import KnowledgeIngestionComponent
-from lfx.components.files_and_knowledge.knowledge import (
+from kfx.components.files_and_knowledge.ingestion import KnowledgeIngestionComponent
+from kfx.components.files_and_knowledge.knowledge import (
     MODE_INGEST,
     MODE_RETRIEVE,
     KnowledgeComponent,
     _is_retrieve_mode,
 )
-from lfx.components.files_and_knowledge.retrieval import KnowledgeBaseComponent
+from kfx.components.files_and_knowledge.retrieval import KnowledgeBaseComponent
 
 
 # ---------------------------------------------------------------------------
@@ -108,7 +108,7 @@ class TestModeDrivenInputVisibility:
         ``update_build_config`` calls the astra-cloud gate as its first
         action — in tests we just need it to be a no-op.
         """
-        with patch("lfx.components.files_and_knowledge.knowledge.raise_error_if_astra_cloud_disable_component") as gate:
+        with patch("kfx.components.files_and_knowledge.knowledge.raise_error_if_astra_cloud_disable_component") as gate:
             gate.return_value = None
             yield
 
@@ -299,7 +299,7 @@ class TestLegacySubclassesPinMode:
         ``test_retrieval.py`` imports these helpers from the retrieval
         module — the back-compat re-export must keep that working.
         """
-        from lfx.components.files_and_knowledge.retrieval import (
+        from kfx.components.files_and_knowledge.retrieval import (
             _chunk_matches_filter,
             _parse_metadata_filter,
         )
@@ -426,13 +426,13 @@ class TestExtractSourceTypesFromInput:
 
     def test_extracts_from_message_data_dict(self) -> None:
         """Mirror the shape ``BaseFileComponent._extract_file_metadata`` stamps onto a Message."""
-        from lfx.schema.message import Message
+        from kfx.schema.message import Message
 
         msg = Message(text="hello", file_path="/uploads/report.pdf", filename="report.pdf", mimetype="application/pdf")
         assert KnowledgeComponent._extract_source_types_from_input(msg) == {"pdf"}
 
     def test_extracts_from_data_object(self) -> None:
-        from lfx.schema.data import Data
+        from kfx.schema.data import Data
 
         data = Data(data={"text": "...", "file_path": "/uploads/notes.txt"})
         assert KnowledgeComponent._extract_source_types_from_input(data) == {"txt"}
@@ -442,7 +442,7 @@ class TestExtractSourceTypesFromInput:
         assert KnowledgeComponent._extract_source_types_from_input(payload) == {"pptx"}
 
     def test_extracts_from_list_of_messages(self) -> None:
-        from lfx.schema.message import Message
+        from kfx.schema.message import Message
 
         msgs = [
             Message(text="a", file_path="a.pdf"),
@@ -452,7 +452,7 @@ class TestExtractSourceTypesFromInput:
 
     def test_returns_empty_for_text_only_message(self) -> None:
         """A bare ``Message(text="...")`` carries no file hints — extractor must not invent any."""
-        from lfx.schema.message import Message
+        from kfx.schema.message import Message
 
         assert KnowledgeComponent._extract_source_types_from_input(Message(text="just text")) == set()
 

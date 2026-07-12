@@ -12,12 +12,12 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from langflow.agentic.services.assistant_service import (
+from ketos.agentic.services.assistant_service import (
     execute_flow_with_validation_streaming,
 )
-from langflow.agentic.services.flow_types import IntentResult
+from ketos.agentic.services.flow_types import IntentResult
 
-MODULE = "langflow.agentic.services.assistant_service"
+MODULE = "ketos.agentic.services.assistant_service"
 
 
 def _intent(intent: str) -> IntentResult:

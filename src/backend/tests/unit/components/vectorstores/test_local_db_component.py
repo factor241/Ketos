@@ -5,9 +5,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from langchain_core.embeddings import Embeddings
-from langflow.services.cache.utils import CACHE_DIR
-from lfx.components.vectorstores.local_db import LocalDBComponent
-from lfx.schema.data import Data
+from ketos.services.cache.utils import CACHE_DIR
+from kfx.components.vectorstores.local_db import LocalDBComponent
+from kfx.schema.data import Data
 
 from tests.base import ComponentTestBaseWithoutClient, VersionComponentMapping
 
@@ -90,7 +90,7 @@ class TestLocalDBComponent(ComponentTestBaseWithoutClient):
     @pytest.fixture
     def default_kwargs(self, tmp_path: Path) -> dict[str, Any]:
         """Return the default kwargs for the component."""
-        from lfx.components.openai.openai import OpenAIEmbeddingsComponent
+        from kfx.components.openai.openai import OpenAIEmbeddingsComponent
 
         from tests.api_keys import get_openai_api_key
 
@@ -441,7 +441,7 @@ class TestLocalDBComponent(ComponentTestBaseWithoutClient):
         updated_config = component.update_build_config(build_config, "new_collection", "existing_collections")
         assert updated_config["collection_name"]["value"] == "new_collection"
 
-    @patch("lfx.components.vectorstores.local_db.LocalDBComponent.list_existing_collections")
+    @patch("kfx.components.vectorstores.local_db.LocalDBComponent.list_existing_collections")
     def test_list_existing_collections(self, mock_list: MagicMock, component_class: type[LocalDBComponent]) -> None:
         """Test the list_existing_collections method."""
         mock_list.return_value = ["collection1", "collection2", "collection3"]

@@ -1,5 +1,5 @@
-from lfx.schema.data import Data
-from lfx.schema.table import Column
+from kfx.schema.data import Data
+from kfx.schema.table import Column
 
 from tests.unit.components.data_source.table_schema_demo_component import TableSchemaDemoComponent
 

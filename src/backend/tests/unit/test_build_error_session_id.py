@@ -14,7 +14,7 @@ build (after the graph is built), where graph.session_id IS available.
 
 import uuid
 
-from lfx.schema.message import ErrorMessage
+from kfx.schema.message import ErrorMessage
 
 
 class TestBuildErrorSessionIdPropagation:

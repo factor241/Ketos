@@ -5,7 +5,7 @@ Tests the graph construction and model configuration for the translation flow.
 
 from unittest.mock import MagicMock, patch
 
-from langflow.agentic.flows.translation_flow import (
+from ketos.agentic.flows.translation_flow import (
     TRANSLATION_PROMPT,
     _build_model_config,
     get_graph,
@@ -79,10 +79,10 @@ class TestGetGraph:
     def test_should_create_graph_with_default_provider(self):
         """Should create graph with OpenAI as default provider."""
         with (
-            patch("langflow.agentic.flows.translation_flow.ChatInput"),
-            patch("langflow.agentic.flows.translation_flow.ChatOutput"),
-            patch("langflow.agentic.flows.translation_flow.LanguageModelComponent") as mock_llm,
-            patch("langflow.agentic.flows.translation_flow.Graph"),
+            patch("ketos.agentic.flows.translation_flow.ChatInput"),
+            patch("ketos.agentic.flows.translation_flow.ChatOutput"),
+            patch("ketos.agentic.flows.translation_flow.LanguageModelComponent") as mock_llm,
+            patch("ketos.agentic.flows.translation_flow.Graph"),
         ):
             mock_llm_instance = MagicMock()
             mock_llm.return_value = mock_llm_instance
@@ -97,10 +97,10 @@ class TestGetGraph:
     def test_should_use_provided_provider_and_model(self):
         """Should use provided provider and model_name."""
         with (
-            patch("langflow.agentic.flows.translation_flow.ChatInput"),
-            patch("langflow.agentic.flows.translation_flow.ChatOutput"),
-            patch("langflow.agentic.flows.translation_flow.LanguageModelComponent") as mock_llm,
-            patch("langflow.agentic.flows.translation_flow.Graph"),
+            patch("ketos.agentic.flows.translation_flow.ChatInput"),
+            patch("ketos.agentic.flows.translation_flow.ChatOutput"),
+            patch("ketos.agentic.flows.translation_flow.LanguageModelComponent") as mock_llm,
+            patch("ketos.agentic.flows.translation_flow.Graph"),
         ):
             mock_llm_instance = MagicMock()
             mock_llm.return_value = mock_llm_instance
@@ -115,10 +115,10 @@ class TestGetGraph:
     def test_should_include_api_key_when_provided(self):
         """Should include api_key in LLM config when api_key_var is provided."""
         with (
-            patch("langflow.agentic.flows.translation_flow.ChatInput"),
-            patch("langflow.agentic.flows.translation_flow.ChatOutput"),
-            patch("langflow.agentic.flows.translation_flow.LanguageModelComponent") as mock_llm,
-            patch("langflow.agentic.flows.translation_flow.Graph"),
+            patch("ketos.agentic.flows.translation_flow.ChatInput"),
+            patch("ketos.agentic.flows.translation_flow.ChatOutput"),
+            patch("ketos.agentic.flows.translation_flow.LanguageModelComponent") as mock_llm,
+            patch("ketos.agentic.flows.translation_flow.Graph"),
         ):
             mock_llm_instance = MagicMock()
             mock_llm.return_value = mock_llm_instance
@@ -132,10 +132,10 @@ class TestGetGraph:
     def test_should_not_include_api_key_when_not_provided(self):
         """Should not include api_key when api_key_var is None."""
         with (
-            patch("langflow.agentic.flows.translation_flow.ChatInput"),
-            patch("langflow.agentic.flows.translation_flow.ChatOutput"),
-            patch("langflow.agentic.flows.translation_flow.LanguageModelComponent") as mock_llm,
-            patch("langflow.agentic.flows.translation_flow.Graph"),
+            patch("ketos.agentic.flows.translation_flow.ChatInput"),
+            patch("ketos.agentic.flows.translation_flow.ChatOutput"),
+            patch("ketos.agentic.flows.translation_flow.LanguageModelComponent") as mock_llm,
+            patch("ketos.agentic.flows.translation_flow.Graph"),
         ):
             mock_llm_instance = MagicMock()
             mock_llm.return_value = mock_llm_instance
@@ -148,10 +148,10 @@ class TestGetGraph:
     def test_should_set_low_temperature(self):
         """Should set low temperature for consistent JSON output."""
         with (
-            patch("langflow.agentic.flows.translation_flow.ChatInput"),
-            patch("langflow.agentic.flows.translation_flow.ChatOutput"),
-            patch("langflow.agentic.flows.translation_flow.LanguageModelComponent") as mock_llm,
-            patch("langflow.agentic.flows.translation_flow.Graph"),
+            patch("ketos.agentic.flows.translation_flow.ChatInput"),
+            patch("ketos.agentic.flows.translation_flow.ChatOutput"),
+            patch("ketos.agentic.flows.translation_flow.LanguageModelComponent") as mock_llm,
+            patch("ketos.agentic.flows.translation_flow.Graph"),
         ):
             mock_llm_instance = MagicMock()
             mock_llm.return_value = mock_llm_instance
@@ -164,10 +164,10 @@ class TestGetGraph:
     def test_should_set_system_message(self):
         """Should set system_message to TRANSLATION_PROMPT."""
         with (
-            patch("langflow.agentic.flows.translation_flow.ChatInput"),
-            patch("langflow.agentic.flows.translation_flow.ChatOutput"),
-            patch("langflow.agentic.flows.translation_flow.LanguageModelComponent") as mock_llm,
-            patch("langflow.agentic.flows.translation_flow.Graph"),
+            patch("ketos.agentic.flows.translation_flow.ChatInput"),
+            patch("ketos.agentic.flows.translation_flow.ChatOutput"),
+            patch("ketos.agentic.flows.translation_flow.LanguageModelComponent") as mock_llm,
+            patch("ketos.agentic.flows.translation_flow.Graph"),
         ):
             mock_llm_instance = MagicMock()
             mock_llm.return_value = mock_llm_instance
@@ -180,10 +180,10 @@ class TestGetGraph:
     def test_should_configure_chat_input(self):
         """Should configure ChatInput with correct settings."""
         with (
-            patch("langflow.agentic.flows.translation_flow.ChatInput") as mock_chat_input,
-            patch("langflow.agentic.flows.translation_flow.ChatOutput"),
-            patch("langflow.agentic.flows.translation_flow.LanguageModelComponent"),
-            patch("langflow.agentic.flows.translation_flow.Graph"),
+            patch("ketos.agentic.flows.translation_flow.ChatInput") as mock_chat_input,
+            patch("ketos.agentic.flows.translation_flow.ChatOutput"),
+            patch("ketos.agentic.flows.translation_flow.LanguageModelComponent"),
+            patch("ketos.agentic.flows.translation_flow.Graph"),
         ):
             mock_input_instance = MagicMock()
             mock_chat_input.return_value = mock_input_instance
@@ -198,10 +198,10 @@ class TestGetGraph:
     def test_should_configure_chat_output(self):
         """Should configure ChatOutput with correct settings."""
         with (
-            patch("langflow.agentic.flows.translation_flow.ChatInput"),
-            patch("langflow.agentic.flows.translation_flow.ChatOutput") as mock_chat_output,
-            patch("langflow.agentic.flows.translation_flow.LanguageModelComponent"),
-            patch("langflow.agentic.flows.translation_flow.Graph"),
+            patch("ketos.agentic.flows.translation_flow.ChatInput"),
+            patch("ketos.agentic.flows.translation_flow.ChatOutput") as mock_chat_output,
+            patch("ketos.agentic.flows.translation_flow.LanguageModelComponent"),
+            patch("ketos.agentic.flows.translation_flow.Graph"),
         ):
             mock_output_instance = MagicMock()
             mock_chat_output.return_value = mock_output_instance
@@ -217,10 +217,10 @@ class TestGetGraph:
     def test_should_create_graph_with_start_and_end(self):
         """Should create Graph with chat_input as start and chat_output as end."""
         with (
-            patch("langflow.agentic.flows.translation_flow.ChatInput") as mock_chat_input,
-            patch("langflow.agentic.flows.translation_flow.ChatOutput") as mock_chat_output,
-            patch("langflow.agentic.flows.translation_flow.LanguageModelComponent"),
-            patch("langflow.agentic.flows.translation_flow.Graph") as mock_graph_class,
+            patch("ketos.agentic.flows.translation_flow.ChatInput") as mock_chat_input,
+            patch("ketos.agentic.flows.translation_flow.ChatOutput") as mock_chat_output,
+            patch("ketos.agentic.flows.translation_flow.LanguageModelComponent"),
+            patch("ketos.agentic.flows.translation_flow.Graph") as mock_graph_class,
         ):
             mock_input = MagicMock()
             mock_output = MagicMock()

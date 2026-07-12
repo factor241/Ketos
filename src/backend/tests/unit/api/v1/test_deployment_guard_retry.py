@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from langflow.services.database.models.deployment.exceptions import (
+from ketos.services.database.models.deployment.exceptions import (
     DeploymentGuardError,
 )
 
@@ -18,9 +18,9 @@ class _AsyncNoopSavepoint:
 
 
 @pytest.mark.asyncio
-@patch("langflow.api.v1.mappers.deployments.sync.sync_flow_deployment_state", new_callable=AsyncMock)
+@patch("ketos.api.v1.mappers.deployments.sync.sync_flow_deployment_state", new_callable=AsyncMock)
 async def test_flows_retry_on_deployment_guard_succeeds_after_sync(mock_sync_flow_deployment_state):
-    from langflow.api.v1.mappers.deployments.sync import retry_flow_operation_on_deployment_guard
+    from ketos.api.v1.mappers.deployments.sync import retry_flow_operation_on_deployment_guard
 
     db = MagicMock()
     db.begin_nested.return_value = _AsyncNoopSavepoint()
@@ -50,9 +50,9 @@ async def test_flows_retry_on_deployment_guard_succeeds_after_sync(mock_sync_flo
 
 
 @pytest.mark.asyncio
-@patch("langflow.api.v1.mappers.deployments.sync.sync_flow_deployment_state", new_callable=AsyncMock)
+@patch("ketos.api.v1.mappers.deployments.sync.sync_flow_deployment_state", new_callable=AsyncMock)
 async def test_flows_retry_on_deployment_guard_error_instance_succeeds_after_sync(mock_sync_flow_deployment_state):
-    from langflow.api.v1.mappers.deployments.sync import retry_flow_operation_on_deployment_guard
+    from ketos.api.v1.mappers.deployments.sync import retry_flow_operation_on_deployment_guard
 
     db = MagicMock()
     db.begin_nested.return_value = _AsyncNoopSavepoint()
@@ -82,9 +82,9 @@ async def test_flows_retry_on_deployment_guard_error_instance_succeeds_after_syn
 
 
 @pytest.mark.asyncio
-@patch("langflow.api.v1.mappers.deployments.sync.sync_flow_deployment_state", new_callable=AsyncMock)
+@patch("ketos.api.v1.mappers.deployments.sync.sync_flow_deployment_state", new_callable=AsyncMock)
 async def test_flows_retry_on_deployment_guard_propagates_second_guard(mock_sync_flow_deployment_state):
-    from langflow.api.v1.mappers.deployments.sync import retry_flow_operation_on_deployment_guard
+    from ketos.api.v1.mappers.deployments.sync import retry_flow_operation_on_deployment_guard
 
     db = MagicMock()
     db.begin_nested.return_value = _AsyncNoopSavepoint()
@@ -117,9 +117,9 @@ async def test_flows_retry_on_deployment_guard_propagates_second_guard(mock_sync
 
 
 @pytest.mark.asyncio
-@patch("langflow.api.v1.mappers.deployments.sync.sync_flow_deployment_state", new_callable=AsyncMock)
+@patch("ketos.api.v1.mappers.deployments.sync.sync_flow_deployment_state", new_callable=AsyncMock)
 async def test_flows_retry_success_on_first_attempt_skips_sync(mock_sync_flow_deployment_state):
-    from langflow.api.v1.mappers.deployments.sync import retry_flow_operation_on_deployment_guard
+    from ketos.api.v1.mappers.deployments.sync import retry_flow_operation_on_deployment_guard
 
     db = MagicMock()
     db.begin_nested.return_value = _AsyncNoopSavepoint()
@@ -139,9 +139,9 @@ async def test_flows_retry_success_on_first_attempt_skips_sync(mock_sync_flow_de
 
 
 @pytest.mark.asyncio
-@patch("langflow.api.v1.mappers.deployments.sync.sync_flow_deployment_state", new_callable=AsyncMock)
+@patch("ketos.api.v1.mappers.deployments.sync.sync_flow_deployment_state", new_callable=AsyncMock)
 async def test_flows_retry_non_guard_error_propagates_without_sync(mock_sync_flow_deployment_state):
-    from langflow.api.v1.mappers.deployments.sync import retry_flow_operation_on_deployment_guard
+    from ketos.api.v1.mappers.deployments.sync import retry_flow_operation_on_deployment_guard
 
     db = MagicMock()
     db.begin_nested.return_value = _AsyncNoopSavepoint()
@@ -161,9 +161,9 @@ async def test_flows_retry_non_guard_error_propagates_without_sync(mock_sync_flo
 
 
 @pytest.mark.asyncio
-@patch("langflow.api.v1.mappers.deployments.sync.sync_flow_deployment_state", new_callable=AsyncMock)
+@patch("ketos.api.v1.mappers.deployments.sync.sync_flow_deployment_state", new_callable=AsyncMock)
 async def test_flows_retry_guard_with_none_flow_ids_skips_sync(mock_sync_flow_deployment_state):
-    from langflow.api.v1.mappers.deployments.sync import retry_flow_operation_on_deployment_guard
+    from ketos.api.v1.mappers.deployments.sync import retry_flow_operation_on_deployment_guard
 
     db = MagicMock()
     db.begin_nested.return_value = _AsyncNoopSavepoint()
@@ -191,9 +191,9 @@ async def test_flows_retry_guard_with_none_flow_ids_skips_sync(mock_sync_flow_de
 
 
 @pytest.mark.asyncio
-@patch("langflow.api.v1.mappers.deployments.sync.sync_flow_deployment_state", new_callable=AsyncMock)
+@patch("ketos.api.v1.mappers.deployments.sync.sync_flow_deployment_state", new_callable=AsyncMock)
 async def test_flows_retry_guard_with_empty_flow_ids_skips_sync(mock_sync_flow_deployment_state):
-    from langflow.api.v1.mappers.deployments.sync import retry_flow_operation_on_deployment_guard
+    from ketos.api.v1.mappers.deployments.sync import retry_flow_operation_on_deployment_guard
 
     db = MagicMock()
     db.begin_nested.return_value = _AsyncNoopSavepoint()
@@ -221,9 +221,9 @@ async def test_flows_retry_guard_with_empty_flow_ids_skips_sync(mock_sync_flow_d
 
 
 @pytest.mark.asyncio
-@patch("langflow.api.v1.mappers.deployments.sync.sync_flow_deployment_state", new_callable=AsyncMock)
+@patch("ketos.api.v1.mappers.deployments.sync.sync_flow_deployment_state", new_callable=AsyncMock)
 async def test_flows_retry_propagates_sync_failure(mock_sync_flow_deployment_state):
-    from langflow.api.v1.mappers.deployments.sync import retry_flow_operation_on_deployment_guard
+    from ketos.api.v1.mappers.deployments.sync import retry_flow_operation_on_deployment_guard
 
     db = MagicMock()
     db.begin_nested.return_value = _AsyncNoopSavepoint()
@@ -253,9 +253,9 @@ async def test_flows_retry_propagates_sync_failure(mock_sync_flow_deployment_sta
 
 
 @pytest.mark.asyncio
-@patch("langflow.api.v1.mappers.deployments.sync.sync_project_deployments", new_callable=AsyncMock)
+@patch("ketos.api.v1.mappers.deployments.sync.sync_project_deployments", new_callable=AsyncMock)
 async def test_projects_retry_on_deployment_guard_uses_project_sync(mock_sync_project_deployments):
-    from langflow.api.v1.mappers.deployments.sync import retry_project_operation_on_deployment_guard
+    from ketos.api.v1.mappers.deployments.sync import retry_project_operation_on_deployment_guard
 
     db = MagicMock()
     db.begin_nested.return_value = _AsyncNoopSavepoint()
@@ -283,9 +283,9 @@ async def test_projects_retry_on_deployment_guard_uses_project_sync(mock_sync_pr
 
 
 @pytest.mark.asyncio
-@patch("langflow.api.v1.mappers.deployments.sync.sync_project_deployments", new_callable=AsyncMock)
+@patch("ketos.api.v1.mappers.deployments.sync.sync_project_deployments", new_callable=AsyncMock)
 async def test_projects_retry_on_deployment_guard_error_instance_uses_project_sync(mock_sync_project_deployments):
-    from langflow.api.v1.mappers.deployments.sync import retry_project_operation_on_deployment_guard
+    from ketos.api.v1.mappers.deployments.sync import retry_project_operation_on_deployment_guard
 
     db = MagicMock()
     db.begin_nested.return_value = _AsyncNoopSavepoint()
@@ -313,9 +313,9 @@ async def test_projects_retry_on_deployment_guard_error_instance_uses_project_sy
 
 
 @pytest.mark.asyncio
-@patch("langflow.api.v1.mappers.deployments.sync.sync_project_deployments", new_callable=AsyncMock)
+@patch("ketos.api.v1.mappers.deployments.sync.sync_project_deployments", new_callable=AsyncMock)
 async def test_projects_retry_success_on_first_attempt_skips_sync(mock_sync_project_deployments):
-    from langflow.api.v1.mappers.deployments.sync import retry_project_operation_on_deployment_guard
+    from ketos.api.v1.mappers.deployments.sync import retry_project_operation_on_deployment_guard
 
     db = MagicMock()
     db.begin_nested.return_value = _AsyncNoopSavepoint()
@@ -334,9 +334,9 @@ async def test_projects_retry_success_on_first_attempt_skips_sync(mock_sync_proj
 
 
 @pytest.mark.asyncio
-@patch("langflow.api.v1.mappers.deployments.sync.sync_project_deployments", new_callable=AsyncMock)
+@patch("ketos.api.v1.mappers.deployments.sync.sync_project_deployments", new_callable=AsyncMock)
 async def test_projects_retry_non_guard_error_propagates_without_sync(mock_sync_project_deployments):
-    from langflow.api.v1.mappers.deployments.sync import retry_project_operation_on_deployment_guard
+    from ketos.api.v1.mappers.deployments.sync import retry_project_operation_on_deployment_guard
 
     db = MagicMock()
     db.begin_nested.return_value = _AsyncNoopSavepoint()
@@ -356,9 +356,9 @@ async def test_projects_retry_non_guard_error_propagates_without_sync(mock_sync_
 
 
 @pytest.mark.asyncio
-@patch("langflow.api.v1.mappers.deployments.sync.sync_project_deployments", new_callable=AsyncMock)
+@patch("ketos.api.v1.mappers.deployments.sync.sync_project_deployments", new_callable=AsyncMock)
 async def test_projects_retry_propagates_sync_failure(mock_sync_project_deployments):
-    from langflow.api.v1.mappers.deployments.sync import retry_project_operation_on_deployment_guard
+    from ketos.api.v1.mappers.deployments.sync import retry_project_operation_on_deployment_guard
 
     db = MagicMock()
     db.begin_nested.return_value = _AsyncNoopSavepoint()

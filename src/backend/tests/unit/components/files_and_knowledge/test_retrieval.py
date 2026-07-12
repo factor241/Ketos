@@ -4,7 +4,7 @@ Pre-port this file was ~938 lines and tested a hand-rolled per-
 provider ``_build_embeddings`` + ``_resolve_api_key`` +
 ``_resolve_provider_variables`` surface. All three are gone now —
 retrieval delegates credential resolution to
-``lfx.base.models.unified_models.get_embeddings`` (same as ingestion)
+``kfx.base.models.unified_models.get_embeddings`` (same as ingestion)
 and vector access to the configured backend registry entry.
 
 The rewritten suite covers the actual retrieval contract:
@@ -29,9 +29,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
-from lfx.base.knowledge_bases.backends import ChromaLocalBackend
-from lfx.base.knowledge_bases.knowledge_base_utils import get_knowledge_bases
-from lfx.components.files_and_knowledge.retrieval import KnowledgeBaseComponent
+from kfx.base.knowledge_bases.backends import ChromaLocalBackend
+from kfx.base.knowledge_bases.knowledge_base_utils import get_knowledge_bases
+from kfx.components.files_and_knowledge.retrieval import KnowledgeBaseComponent
 
 from tests.base import ComponentTestBaseWithClient
 
@@ -64,7 +64,7 @@ class TestKnowledgeBaseComponent(ComponentTestBaseWithClient):
     @pytest.fixture(autouse=True)
     def mock_knowledge_base_path(self, tmp_path):
         """Pin the KB root at a fresh tmp dir for every test."""
-        with patch("lfx.components.files_and_knowledge._kb_paths._KNOWLEDGE_BASES_ROOT_PATH", tmp_path):
+        with patch("kfx.components.files_and_knowledge._kb_paths._KNOWLEDGE_BASES_ROOT_PATH", tmp_path):
             yield
 
     @pytest.fixture
@@ -122,14 +122,14 @@ class TestKnowledgeBaseComponent(ComponentTestBaseWithClient):
 
         Regression for the dropdown showing entries (e.g. ``api_baseline_*``,
         ``customer_sales_history_*``) that no longer exist on the Knowledge
-        management page. Before the fix, the lfx helper scanned the disk
+        management page. Before the fix, the kfx helper scanned the disk
         unconditionally, so any directory left over from a delete that did
         not write the ``.kb_deleted`` sentinel (legacy delete, direct
         ``DELETE FROM knowledge_base``, DB reset, etc.) would re-surface in
         the canvas dropdown but not on the management page (which is
         DB-first). The two surfaces must agree.
         """
-        from langflow.api.utils import knowledge_base_service
+        from ketos.api.utils import knowledge_base_service
 
         # Disk has both a "real" KB (with a DB row) and a leftover stale dir.
         (tmp_path / active_user.username / "real_kb").mkdir(parents=True, exist_ok=True)
@@ -148,7 +148,7 @@ class TestKnowledgeBaseComponent(ComponentTestBaseWithClient):
         Matches the listing endpoint's behavior — those KBs are exposed
         through the Memory Base APIs, not the generic KB dropdown.
         """
-        from langflow.api.utils import knowledge_base_service
+        from ketos.api.utils import knowledge_base_service
 
         await knowledge_base_service.create_record(user_id=active_user.id, name="regular_kb")
         await knowledge_base_service.create_record(user_id=active_user.id, name="memory_kb", source_types=["memory"])
@@ -228,7 +228,7 @@ class TestKnowledgeBaseComponent(ComponentTestBaseWithClient):
             "metadata": {"embedding_class": "OpenAIEmbeddings"},
         }
         with patch(
-            "lfx.components.files_and_knowledge.knowledge.get_embedding_model_options",
+            "kfx.components.files_and_knowledge.knowledge.get_embedding_model_options",
             return_value=[catalog_entry],
         ):
             resolved = component._resolve_model_selection(
@@ -261,7 +261,7 @@ class TestKnowledgeBaseComponent(ComponentTestBaseWithClient):
             },
         }
         with patch(
-            "lfx.components.files_and_knowledge.knowledge.get_embedding_model_options",
+            "kfx.components.files_and_knowledge.knowledge.get_embedding_model_options",
             return_value=[catalog_entry],
         ):
             resolved = component._resolve_model_selection({"model_selection": persisted})
@@ -303,7 +303,7 @@ class TestKnowledgeBaseComponent(ComponentTestBaseWithClient):
             },
         }
         with patch(
-            "lfx.components.files_and_knowledge.knowledge.get_embedding_model_options",
+            "kfx.components.files_and_knowledge.knowledge.get_embedding_model_options",
             return_value=[catalog_entry],
         ):
             resolved = component._resolve_model_selection({"model_selection": persisted})
@@ -320,7 +320,7 @@ class TestKnowledgeBaseComponent(ComponentTestBaseWithClient):
         component = component_class(**default_kwargs)
         with (
             patch(
-                "lfx.components.files_and_knowledge.knowledge.get_embedding_model_options",
+                "kfx.components.files_and_knowledge.knowledge.get_embedding_model_options",
                 return_value=[],
             ),
             pytest.raises(ValueError, match="no longer available"),
@@ -353,7 +353,7 @@ class TestKnowledgeBaseComponent(ComponentTestBaseWithClient):
         mock_vertex.graph.user_id = None
         component._vertex = mock_vertex
 
-        with patch("lfx.components.files_and_knowledge.knowledge.session_scope") as mock_session_scope:
+        with patch("kfx.components.files_and_knowledge.knowledge.session_scope") as mock_session_scope:
             mock_session_scope.return_value.__aenter__ = AsyncMock(return_value=AsyncMock())
             mock_session_scope.return_value.__aexit__ = AsyncMock(return_value=False)
             with pytest.raises(ValueError, match="User ID is required"):
@@ -362,9 +362,9 @@ class TestKnowledgeBaseComponent(ComponentTestBaseWithClient):
     async def test_retrieve_data_missing_user_record_raises(self, component_class, default_kwargs):
         component = component_class(**default_kwargs)
         with (
-            patch("lfx.components.files_and_knowledge.knowledge.session_scope") as mock_session_scope,
+            patch("kfx.components.files_and_knowledge.knowledge.session_scope") as mock_session_scope,
             patch(
-                "langflow.services.database.models.user.crud.get_user_by_id",
+                "ketos.services.database.models.user.crud.get_user_by_id",
                 return_value=None,
             ),
         ):
@@ -400,21 +400,21 @@ class TestKnowledgeBaseComponent(ComponentTestBaseWithClient):
         backend_instance.teardown = AsyncMock()
 
         with (
-            patch("lfx.components.files_and_knowledge.knowledge.session_scope") as mock_session_scope,
+            patch("kfx.components.files_and_knowledge.knowledge.session_scope") as mock_session_scope,
             patch(
-                "langflow.services.database.models.user.crud.get_user_by_id",
+                "ketos.services.database.models.user.crud.get_user_by_id",
                 return_value=user_record,
             ),
             patch(
-                "lfx.components.files_and_knowledge.knowledge._get_knowledge_bases_root_path",
+                "kfx.components.files_and_knowledge.knowledge._get_knowledge_bases_root_path",
                 return_value=Path(default_kwargs["kb_root_path"]),
             ),
             patch(
-                "lfx.components.files_and_knowledge.knowledge.get_embeddings",
+                "kfx.components.files_and_knowledge.knowledge.get_embeddings",
                 return_value=MagicMock(),
             ),
             patch(
-                "lfx.components.files_and_knowledge.knowledge.create_backend",
+                "kfx.components.files_and_knowledge.knowledge.create_backend",
                 return_value=backend_instance,
             ),
         ):
@@ -454,21 +454,21 @@ class TestKnowledgeBaseComponent(ComponentTestBaseWithClient):
         backend_instance.teardown = AsyncMock()
 
         with (
-            patch("lfx.components.files_and_knowledge.knowledge.session_scope") as mock_session_scope,
+            patch("kfx.components.files_and_knowledge.knowledge.session_scope") as mock_session_scope,
             patch(
-                "langflow.services.database.models.user.crud.get_user_by_id",
+                "ketos.services.database.models.user.crud.get_user_by_id",
                 return_value=user_record,
             ),
             patch(
-                "lfx.components.files_and_knowledge.knowledge._get_knowledge_bases_root_path",
+                "kfx.components.files_and_knowledge.knowledge._get_knowledge_bases_root_path",
                 return_value=Path(default_kwargs["kb_root_path"]),
             ),
             patch(
-                "lfx.components.files_and_knowledge.knowledge.get_embeddings",
+                "kfx.components.files_and_knowledge.knowledge.get_embeddings",
                 return_value=MagicMock(),
             ),
             patch(
-                "lfx.components.files_and_knowledge.knowledge.create_backend",
+                "kfx.components.files_and_knowledge.knowledge.create_backend",
                 return_value=backend_instance,
             ),
         ):
@@ -499,21 +499,21 @@ class TestKnowledgeBaseComponent(ComponentTestBaseWithClient):
         backend_instance.teardown = AsyncMock()
 
         with (
-            patch("lfx.components.files_and_knowledge.knowledge.session_scope") as mock_session_scope,
+            patch("kfx.components.files_and_knowledge.knowledge.session_scope") as mock_session_scope,
             patch(
-                "langflow.services.database.models.user.crud.get_user_by_id",
+                "ketos.services.database.models.user.crud.get_user_by_id",
                 return_value=user_record,
             ),
             patch(
-                "lfx.components.files_and_knowledge.knowledge._get_knowledge_bases_root_path",
+                "kfx.components.files_and_knowledge.knowledge._get_knowledge_bases_root_path",
                 return_value=Path(default_kwargs["kb_root_path"]),
             ),
             patch(
-                "lfx.components.files_and_knowledge.knowledge.get_embeddings",
+                "kfx.components.files_and_knowledge.knowledge.get_embeddings",
                 return_value=MagicMock(),
             ),
             patch(
-                "lfx.components.files_and_knowledge.knowledge.create_backend",
+                "kfx.components.files_and_knowledge.knowledge.create_backend",
                 return_value=backend_instance,
             ),
         ):
@@ -544,21 +544,21 @@ class TestKnowledgeBaseComponent(ComponentTestBaseWithClient):
         backend_instance.teardown = AsyncMock()
 
         with (
-            patch("lfx.components.files_and_knowledge.knowledge.session_scope") as mock_session_scope,
+            patch("kfx.components.files_and_knowledge.knowledge.session_scope") as mock_session_scope,
             patch(
-                "langflow.services.database.models.user.crud.get_user_by_id",
+                "ketos.services.database.models.user.crud.get_user_by_id",
                 return_value=user_record,
             ),
             patch(
-                "lfx.components.files_and_knowledge.knowledge._get_knowledge_bases_root_path",
+                "kfx.components.files_and_knowledge.knowledge._get_knowledge_bases_root_path",
                 return_value=Path(default_kwargs["kb_root_path"]),
             ),
             patch(
-                "lfx.components.files_and_knowledge.knowledge.get_embeddings",
+                "kfx.components.files_and_knowledge.knowledge.get_embeddings",
                 return_value=MagicMock(),
             ) as mock_get_embeddings,
             patch(
-                "lfx.components.files_and_knowledge.knowledge.create_backend",
+                "kfx.components.files_and_knowledge.knowledge.create_backend",
                 return_value=backend_instance,
             ),
         ):
@@ -613,21 +613,21 @@ class TestKnowledgeBaseComponent(ComponentTestBaseWithClient):
 
         component = component_class(**default_kwargs)
         with (
-            patch("lfx.components.files_and_knowledge.knowledge.session_scope") as mock_session_scope,
+            patch("kfx.components.files_and_knowledge.knowledge.session_scope") as mock_session_scope,
             patch(
-                "langflow.services.database.models.user.crud.get_user_by_id",
+                "ketos.services.database.models.user.crud.get_user_by_id",
                 return_value=user_record,
             ),
             patch(
-                "lfx.components.files_and_knowledge.knowledge._get_knowledge_bases_root_path",
+                "kfx.components.files_and_knowledge.knowledge._get_knowledge_bases_root_path",
                 return_value=Path(default_kwargs["kb_root_path"]),
             ),
             patch(
-                "lfx.components.files_and_knowledge.knowledge.get_embeddings",
+                "kfx.components.files_and_knowledge.knowledge.get_embeddings",
                 return_value=embeddings,
             ),
             patch(
-                "lfx.components.files_and_knowledge.knowledge.create_backend",
+                "kfx.components.files_and_knowledge.knowledge.create_backend",
                 side_effect=_make_backend,
             ),
         ):
@@ -706,22 +706,22 @@ class TestEmbeddingMatchKey:
     """Unit coverage for the ``_id``-or-content join key used by the embedding merge."""
 
     def test_prefers_id_when_present(self):
-        from lfx.components.files_and_knowledge.knowledge import _embedding_match_key
+        from kfx.components.files_and_knowledge.knowledge import _embedding_match_key
 
         assert _embedding_match_key("some text", {"_id": "abc", "source": "s"}) == ("id", "abc")
 
     def test_falls_back_to_content_without_id(self):
-        from lfx.components.files_and_knowledge.knowledge import _embedding_match_key
+        from kfx.components.files_and_knowledge.knowledge import _embedding_match_key
 
         assert _embedding_match_key("some text", {"source": "s"}) == ("content", "some text")
 
     def test_handles_missing_metadata(self):
-        from lfx.components.files_and_knowledge.knowledge import _embedding_match_key
+        from kfx.components.files_and_knowledge.knowledge import _embedding_match_key
 
         assert _embedding_match_key("some text", None) == ("content", "some text")
 
     def test_id_and_content_key_spaces_do_not_collide(self):
-        from lfx.components.files_and_knowledge.knowledge import _embedding_match_key
+        from kfx.components.files_and_knowledge.knowledge import _embedding_match_key
 
         # A chunk whose content equals another chunk's _id must not cross-match.
         id_key = _embedding_match_key("payload", {"_id": "payload"})
@@ -739,38 +739,38 @@ class TestMetadataFilterHelpers:
     """
 
     def test_parse_returns_empty_when_unset(self):
-        from lfx.components.files_and_knowledge.retrieval import _parse_metadata_filter
+        from kfx.components.files_and_knowledge.retrieval import _parse_metadata_filter
 
         assert _parse_metadata_filter(None) == {}
         assert _parse_metadata_filter("") == {}
         assert _parse_metadata_filter("   ") == {}
 
     def test_parse_normalizes_scalar_to_list(self):
-        from lfx.components.files_and_knowledge.retrieval import _parse_metadata_filter
+        from kfx.components.files_and_knowledge.retrieval import _parse_metadata_filter
 
         assert _parse_metadata_filter('{"tag": "invoice"}') == {"tag": ["invoice"]}
 
     def test_parse_preserves_array_values(self):
-        from lfx.components.files_and_knowledge.retrieval import _parse_metadata_filter
+        from kfx.components.files_and_knowledge.retrieval import _parse_metadata_filter
 
         assert _parse_metadata_filter('{"tag": ["a", "b"]}') == {"tag": ["a", "b"]}
 
     def test_parse_swallows_invalid_json(self):
-        from lfx.components.files_and_knowledge.retrieval import _parse_metadata_filter
+        from kfx.components.files_and_knowledge.retrieval import _parse_metadata_filter
 
         # Malformed JSON returns an empty filter so retrieval falls back to
         # the unfiltered path rather than blowing up the canvas run.
         assert _parse_metadata_filter("{not-json") == {}
 
     def test_parse_swallows_non_dict(self):
-        from lfx.components.files_and_knowledge.retrieval import _parse_metadata_filter
+        from kfx.components.files_and_knowledge.retrieval import _parse_metadata_filter
 
         assert _parse_metadata_filter("[1, 2, 3]") == {}
 
     def test_chunk_match_requires_every_key(self):
         import json
 
-        from lfx.components.files_and_knowledge.retrieval import _chunk_matches_filter
+        from kfx.components.files_and_knowledge.retrieval import _chunk_matches_filter
 
         meta = {"source_metadata": json.dumps({"tag": "invoice", "year": "2026"})}
         assert _chunk_matches_filter(meta, {"tag": ["invoice"], "year": ["2026"]}) is True
@@ -780,7 +780,7 @@ class TestMetadataFilterHelpers:
     def test_chunk_match_array_value(self):
         import json
 
-        from lfx.components.files_and_knowledge.retrieval import _chunk_matches_filter
+        from kfx.components.files_and_knowledge.retrieval import _chunk_matches_filter
 
         meta = {"source_metadata": json.dumps({"tag": ["invoice", "audit"]})}
         # Array stored, scalar filter — overlap returns True.
@@ -789,12 +789,12 @@ class TestMetadataFilterHelpers:
         assert _chunk_matches_filter(meta, {"tag": ["report", "audit"]}) is True
 
     def test_chunk_match_missing_metadata_is_false(self):
-        from lfx.components.files_and_knowledge.retrieval import _chunk_matches_filter
+        from kfx.components.files_and_knowledge.retrieval import _chunk_matches_filter
 
         assert _chunk_matches_filter({}, {"tag": ["invoice"]}) is False
         assert _chunk_matches_filter(None, {"tag": ["invoice"]}) is False
 
     def test_chunk_match_empty_filter_passes_through(self):
-        from lfx.components.files_and_knowledge.retrieval import _chunk_matches_filter
+        from kfx.components.files_and_knowledge.retrieval import _chunk_matches_filter
 
         assert _chunk_matches_filter({"source_metadata": "{}"}, {}) is True

@@ -14,7 +14,7 @@ agent decides to say. A SUCCESSFUL generation must emit nothing.
 from __future__ import annotations
 
 import pytest
-from langflow.agentic.services.component_events import (
+from ketos.agentic.services.component_events import (
     drain_component_events,
     reset_component_events,
 )
@@ -28,13 +28,13 @@ def fresh_component_events():
 
 
 async def test_should_emit_validation_failed_signal_when_generation_fails(monkeypatch, fresh_component_events):  # noqa: ARG001
-    from lfx.mcp.flow_builder_tools.run_tools import GenerateComponent
+    from kfx.mcp.flow_builder_tools.run_tools import GenerateComponent
 
     async def _failed_generation(**_kwargs):
         return {"validated": False, "validation_error": "Output method 'run' has no return statement"}
 
     monkeypatch.setattr(
-        "langflow.agentic.services.assistant_service.execute_flow_with_validation",
+        "ketos.agentic.services.assistant_service.execute_flow_with_validation",
         _failed_generation,
     )
 
@@ -52,13 +52,13 @@ async def test_should_emit_validation_failed_signal_when_generation_fails(monkey
 
 
 async def test_should_not_emit_signal_when_generation_succeeds(monkeypatch, fresh_component_events):  # noqa: ARG001
-    from lfx.mcp.flow_builder_tools.run_tools import GenerateComponent
+    from kfx.mcp.flow_builder_tools.run_tools import GenerateComponent
 
     async def _ok_generation(**_kwargs):
         return {"validated": True, "class_name": "FooTool", "component_code": "class FooTool: ..."}
 
     monkeypatch.setattr(
-        "langflow.agentic.services.assistant_service.execute_flow_with_validation",
+        "ketos.agentic.services.assistant_service.execute_flow_with_validation",
         _ok_generation,
     )
 

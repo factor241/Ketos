@@ -1,4 +1,4 @@
-"""Tests for lfx.base.models.model_utils.get_provider_variable_value (BUG-01).
+"""Tests for kfx.base.models.model_utils.get_provider_variable_value (BUG-01).
 
 Knowledge component retrieval crashed with ``ValueError: OLLAMA_BASE_URL
 variable not found`` for any user that hadn't configured Ollama, even when
@@ -15,8 +15,8 @@ unavailable — which would silently skip these tests too.
 
 from __future__ import annotations
 
-from lfx.base.models import model_utils
-from lfx.base.models.model_utils import get_provider_variable_value
+from kfx.base.models import model_utils
+from kfx.base.models.model_utils import get_provider_variable_value
 
 
 class TestGetProviderVariableValue:

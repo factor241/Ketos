@@ -1,4 +1,4 @@
-from lfx.components import prototypes
+from kfx.components import prototypes
 
 
 def test_python_function_component():

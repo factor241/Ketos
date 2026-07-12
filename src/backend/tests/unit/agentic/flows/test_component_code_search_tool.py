@@ -1,6 +1,6 @@
 """GH #13618 — component_code_search tool silently reports an empty library.
 
-The inline ``DataFrameKeywordSearch`` component in ``LangflowAssistant.json``
+The inline ``DataFrameKeywordSearch`` component in ``KetosAssistant.json``
 combines three defects into a confidently wrong "the component library is
 empty" answer:
 
@@ -20,10 +20,10 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from langflow.schema import DataFrame
-from lfx.custom.eval import eval_custom_component_code
+from ketos.schema import DataFrame
+from kfx.custom.eval import eval_custom_component_code
 
-FLOW_PATH = Path(__file__).parents[4] / "base" / "langflow" / "agentic" / "flows" / "LangflowAssistant.json"
+FLOW_PATH = Path(__file__).parents[4] / "base" / "ketos" / "agentic" / "flows" / "KetosAssistant.json"
 
 MIN_ENUMERATION_CANDIDATES = 10
 
@@ -34,7 +34,7 @@ def _keyword_search_template() -> dict:
         node_data = node.get("data", {})
         if node_data.get("type") == "DataFrameKeywordSearch":
             return node_data["node"]["template"]
-    msg = "DataFrameKeywordSearch node not found in LangflowAssistant.json"
+    msg = "DataFrameKeywordSearch node not found in KetosAssistant.json"
     raise AssertionError(msg)
 
 

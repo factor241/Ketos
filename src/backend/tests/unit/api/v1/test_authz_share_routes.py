@@ -8,9 +8,9 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi import HTTPException
-from langflow.api.v1 import authz_shares as shares_module
-from langflow.api.v1.schemas.authz_shares import ShareCreate, ShareUpdate
-from langflow.services.database.models.auth import AuthzShare, SharePermissionLevel, ShareScope
+from ketos.api.v1 import authz_shares as shares_module
+from ketos.api.v1.schemas.authz_shares import ShareCreate, ShareUpdate
+from ketos.services.database.models.auth import AuthzShare, SharePermissionLevel, ShareScope
 
 pytestmark = pytest.mark.no_blockbuster
 
@@ -82,9 +82,9 @@ class _StubAuthz:
 @pytest.fixture
 def patch_authz(monkeypatch):
     """Install a stub authz service into the shares module and the split helper modules."""
-    from langflow.services.authorization import audit as authz_audit
-    from langflow.services.authorization import guards as authz_guards
-    from langflow.services.authorization import listing as authz_listing
+    from ketos.services.authorization import audit as authz_audit
+    from ketos.services.authorization import guards as authz_guards
+    from ketos.services.authorization import listing as authz_listing
 
     def _apply(*, cross_user: bool = False, enabled: bool = False, allow: bool = True) -> _StubAuthz:
         stub = _StubAuthz(cross_user=cross_user, enabled=enabled, allow=allow)
@@ -119,7 +119,7 @@ def _make_user(*, is_superuser: bool = False) -> SimpleNamespace:
 
 
 def _make_flow_owned_by(owner_id: UUID) -> Any:
-    from langflow.services.database.models.flow.model import Flow
+    from ketos.services.database.models.flow.model import Flow
 
     return SimpleNamespace(_model=Flow, id=uuid4(), user_id=owner_id)
 
@@ -142,7 +142,7 @@ def _payload_for(resource_id: UUID) -> ShareCreate:
 @pytest.mark.asyncio
 async def test_create_share_blocks_non_owner_under_oss_passthrough(patch_authz, silence_audit):  # noqa: ARG001
     """A non-owner cannot mint a share row for another user's flow under OSS."""
-    from langflow.services.database.models.flow.model import Flow
+    from ketos.services.database.models.flow.model import Flow
 
     patch_authz(cross_user=False, enabled=False)
 
@@ -164,7 +164,7 @@ async def test_create_share_blocks_non_owner_under_oss_passthrough(patch_authz, 
 @pytest.mark.asyncio
 async def test_create_share_allows_owner_under_oss_passthrough(patch_authz, silence_audit):  # noqa: ARG001
     """The resource owner can mint a share row under OSS pass-through."""
-    from langflow.services.database.models.flow.model import Flow
+    from ketos.services.database.models.flow.model import Flow
 
     patch_authz(cross_user=False, enabled=False)
 
@@ -183,7 +183,7 @@ async def test_create_share_allows_owner_under_oss_passthrough(patch_authz, sile
 @pytest.mark.asyncio
 async def test_create_share_allows_superuser_under_oss_passthrough(patch_authz, silence_audit):  # noqa: ARG001
     """A superuser can mint a share row for a resource they don't own."""
-    from langflow.services.database.models.flow.model import Flow
+    from ketos.services.database.models.flow.model import Flow
 
     patch_authz(cross_user=False, enabled=False)
 
@@ -222,7 +222,7 @@ async def test_create_share_returns_404_when_resource_missing(patch_authz, silen
 @pytest.mark.asyncio
 async def test_update_share_blocks_non_owner_under_oss_passthrough(patch_authz, silence_audit):  # noqa: ARG001
     """A non-owner cannot PATCH a share on another user's resource under OSS."""
-    from langflow.services.database.models.flow.model import Flow
+    from ketos.services.database.models.flow.model import Flow
 
     patch_authz(cross_user=False, enabled=False)
 
@@ -257,7 +257,7 @@ async def test_update_share_blocks_non_owner_under_oss_passthrough(patch_authz, 
 @pytest.mark.asyncio
 async def test_update_share_allows_owner_under_oss_passthrough(patch_authz, silence_audit):  # noqa: ARG001
     """The resource owner can PATCH a share on their resource under OSS."""
-    from langflow.services.database.models.flow.model import Flow
+    from ketos.services.database.models.flow.model import Flow
 
     patch_authz(cross_user=False, enabled=False)
 
@@ -294,7 +294,7 @@ async def test_update_share_allows_owner_under_oss_passthrough(patch_authz, sile
 @pytest.mark.asyncio
 async def test_delete_share_blocks_non_owner_under_oss_passthrough(patch_authz, silence_audit):  # noqa: ARG001
     """A non-owner cannot DELETE a share on another user's resource under OSS."""
-    from langflow.services.database.models.flow.model import Flow
+    from ketos.services.database.models.flow.model import Flow
 
     patch_authz(cross_user=False, enabled=False)
 
@@ -323,7 +323,7 @@ async def test_delete_share_blocks_non_owner_under_oss_passthrough(patch_authz, 
 @pytest.mark.asyncio
 async def test_delete_share_allows_owner_under_oss_passthrough(patch_authz, silence_audit):  # noqa: ARG001
     """The resource owner can DELETE a share on their resource under OSS."""
-    from langflow.services.database.models.flow.model import Flow
+    from ketos.services.database.models.flow.model import Flow
 
     patch_authz(cross_user=False, enabled=False)
 
@@ -359,7 +359,7 @@ async def test_floor_is_skipped_when_plugin_active(patch_authz, silence_audit): 
     another user's resource. ``ensure_share_permission`` (mocked to allow here)
     becomes the authoritative check.
     """
-    from langflow.services.database.models.flow.model import Flow
+    from ketos.services.database.models.flow.model import Flow
 
     patch_authz(cross_user=True, enabled=True)
 
@@ -387,7 +387,7 @@ async def test_create_share_invokes_plugin_enforce_for_non_owner(patch_authz, si
     rows once the OSS floor was bypassed.  The fix passes the *resource*
     owner so only the resource owner gets the override.
     """
-    from langflow.services.database.models.flow.model import Flow
+    from ketos.services.database.models.flow.model import Flow
 
     stub = patch_authz(cross_user=True, enabled=True)
 
@@ -408,7 +408,7 @@ async def test_create_share_invokes_plugin_enforce_for_non_owner(patch_authz, si
 @pytest.mark.asyncio
 async def test_create_share_denied_when_plugin_denies_non_owner(patch_authz, silence_audit):  # noqa: ARG001
     """Regression: plugin deny on share-create must yield 403 and no DB write."""
-    from langflow.services.database.models.flow.model import Flow
+    from ketos.services.database.models.flow.model import Flow
 
     patch_authz(cross_user=True, enabled=True, allow=False)
 
@@ -428,7 +428,7 @@ async def test_create_share_denied_when_plugin_denies_non_owner(patch_authz, sil
 @pytest.mark.asyncio
 async def test_update_share_invokes_plugin_enforce_for_share_creator(patch_authz, silence_audit):  # noqa: ARG001
     """Regression: share *creator* who is not the resource owner must hit plugin enforce()."""
-    from langflow.services.database.models.flow.model import Flow
+    from ketos.services.database.models.flow.model import Flow
 
     stub = patch_authz(cross_user=True, enabled=True)
 
@@ -462,7 +462,7 @@ async def test_update_share_invokes_plugin_enforce_for_share_creator(patch_authz
 @pytest.mark.asyncio
 async def test_delete_share_denied_when_plugin_denies_share_creator(patch_authz, silence_audit):  # noqa: ARG001
     """Regression: share creator can no longer bypass plugin policy on DELETE."""
-    from langflow.services.database.models.flow.model import Flow
+    from ketos.services.database.models.flow.model import Flow
 
     patch_authz(cross_user=True, enabled=True, allow=False)
 
@@ -605,7 +605,7 @@ class _QueueSession(_FakeAsyncSession):
 @pytest.mark.asyncio
 async def test_get_share_team_member_can_see(patch_authz, silence_audit):  # noqa: ARG001
     """A team member (neither owner nor creator) can read a TEAM-scope share."""
-    from langflow.services.database.models.flow.model import Flow
+    from ketos.services.database.models.flow.model import Flow
 
     patch_authz(cross_user=False, enabled=False)
 
@@ -632,7 +632,7 @@ async def test_get_share_team_member_can_see(patch_authz, silence_audit):  # noq
 @pytest.mark.asyncio
 async def test_get_share_team_non_member_gets_404(patch_authz, silence_audit):  # noqa: ARG001
     """A non-member sees 404 (not 403) for a TEAM-scope share — UUID privacy."""
-    from langflow.services.database.models.flow.model import Flow
+    from ketos.services.database.models.flow.model import Flow
 
     patch_authz(cross_user=False, enabled=False)
 
@@ -660,7 +660,7 @@ async def test_get_share_team_non_member_gets_404(patch_authz, silence_audit):  
 @pytest.mark.asyncio
 async def test_list_shares_filters_by_visibility_for_non_superuser(patch_authz, silence_audit):  # noqa: ARG001
     """list_shares returns only rows the (non-superuser) caller may see."""
-    from langflow.services.database.models.flow.model import Flow
+    from ketos.services.database.models.flow.model import Flow
 
     patch_authz(cross_user=False, enabled=False)
 

@@ -6,9 +6,9 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
-from langflow.services.authorization import guards as authz_guards
-from langflow.services.authorization import listing as authz_listing
-from langflow.services.authorization.actions import FlowAction
+from ketos.services.authorization import guards as authz_guards
+from ketos.services.authorization import listing as authz_listing
+from ketos.services.authorization.actions import FlowAction
 
 from ._common import (
     _StubAuthorizationService,

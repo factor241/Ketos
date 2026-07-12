@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
-from lfx.components.processing.dataframe_operations import DataFrameOperationsComponent
-from lfx.schema.dataframe import DataFrame
+from kfx.components.processing.dataframe_operations import DataFrameOperationsComponent
+from kfx.schema.dataframe import DataFrame
 
 
 @pytest.fixture

@@ -11,17 +11,17 @@ import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from langflow.agentic.helpers.input_sanitization import REFUSAL_MESSAGE
-from langflow.agentic.services.assistant_service import (
+from ketos.agentic.helpers.input_sanitization import REFUSAL_MESSAGE
+from ketos.agentic.services.assistant_service import (
     execute_flow_with_validation,
     execute_flow_with_validation_streaming,
 )
-from langflow.agentic.services.flow_types import (
+from ketos.agentic.services.flow_types import (
     OFF_TOPIC_REFUSAL_MESSAGE,
     IntentResult,
 )
 
-MODULE = "langflow.agentic.services.assistant_service"
+MODULE = "ketos.agentic.services.assistant_service"
 
 
 def _make_intent(intent="question", translation="test"):
@@ -164,7 +164,7 @@ class TestOffTopicIntegration:
         ):
             gen = execute_flow_with_validation_streaming(
                 flow_filename="TestFlow",
-                input_value="What is Langflow?",
+                input_value="What is Ketos?",
                 global_variables={},
             )
             events = await _collect_events(gen)
@@ -185,9 +185,9 @@ class TestCodeSecurityIntegration:
 
         dangerous_code = """```python
 import os
-from lfx.custom import Component
-from lfx.io import MessageTextInput, Output
-from lfx.schema import Data
+from kfx.custom import Component
+from kfx.io import MessageTextInput, Output
+from kfx.schema import Data
 
 class DangerousComponent(Component):
     display_name = "Dangerous"
@@ -225,9 +225,9 @@ class DangerousComponent(Component):
     async def test_non_streaming_should_block_dangerous_code(self):
         """Non-streaming: generated code with exec should be blocked."""
         dangerous_code = """```python
-from lfx.custom import Component
-from lfx.io import MessageTextInput, Output
-from lfx.schema import Data
+from kfx.custom import Component
+from kfx.io import MessageTextInput, Output
+from kfx.schema import Data
 
 class EvalComponent(Component):
     display_name = "Eval"
@@ -258,9 +258,9 @@ class EvalComponent(Component):
         mock_classify = AsyncMock(return_value=_make_intent(intent="generate_component"))
 
         safe_code = """```python
-from lfx.custom import Component
-from lfx.io import MessageTextInput, Output
-from lfx.schema import Data
+from kfx.custom import Component
+from kfx.io import MessageTextInput, Output
+from kfx.schema import Data
 
 class SafeComponent(Component):
     display_name = "Safe"

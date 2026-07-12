@@ -1,8 +1,8 @@
 """RunFlow MCP tool — the agent-facing piece.
 
-Lives in lfx.mcp.flow_builder_tools but is exercised here (backend tree)
-because it lazily imports langflow.agentic.services.flow_run, which the
-isolated lfx suite cannot resolve.
+Lives in kfx.mcp.flow_builder_tools but is exercised here (backend tree)
+because it lazily imports ketos.agentic.services.flow_run, which the
+isolated kfx suite cannot resolve.
 """
 
 from __future__ import annotations
@@ -10,14 +10,14 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import AsyncMock, patch
 
-from lfx.mcp.flow_builder_tools import (
+from kfx.mcp.flow_builder_tools import (
     RunFlow,
     drain_flow_events,
     init_working_flow,
     reset_working_flow,
 )
 
-RWF = "langflow.agentic.services.flow_run.run_working_flow"
+RWF = "ketos.agentic.services.flow_run.run_working_flow"
 
 
 def _run(tool: RunFlow):
@@ -157,7 +157,7 @@ class TestRunFlowInjectsVerifiedModel:
         reset_working_flow()
 
     def teardown_method(self):
-        from langflow.agentic.services.agent_run_context import reset_agent_run_model
+        from ketos.agentic.services.agent_run_context import reset_agent_run_model
 
         reset_working_flow()
         reset_agent_run_model()
@@ -177,7 +177,7 @@ class TestRunFlowInjectsVerifiedModel:
         }
 
     def test_injects_the_assistants_verified_model_into_modelless_agent_before_running(self):
-        from langflow.agentic.services.agent_run_context import set_agent_run_model
+        from ketos.agentic.services.agent_run_context import set_agent_run_model
 
         set_agent_run_model("OpenAI", "gpt-4o", "OPENAI_API_KEY")
         init_working_flow(self._agent_flow(), "flow-1")
@@ -222,7 +222,7 @@ class TestRunFlowEnforcesRequestedModel:
         reset_working_flow()
 
     def teardown_method(self):
-        from langflow.agentic.services.agent_run_context import (
+        from ketos.agentic.services.agent_run_context import (
             reset_agent_run_model,
             reset_requested_agent_model,
         )
@@ -249,7 +249,7 @@ class TestRunFlowEnforcesRequestedModel:
         }
 
     def test_enforces_the_user_named_model_over_the_runtime_model(self):
-        from langflow.agentic.services.agent_run_context import (
+        from ketos.agentic.services.agent_run_context import (
             set_agent_run_model,
             set_requested_agent_model,
         )
@@ -272,7 +272,7 @@ class TestRunFlowEnforcesRequestedModel:
         assert model_value[0]["provider"] == "OpenAI"
 
     def test_enforces_user_model_even_when_agent_left_it_empty(self):
-        from langflow.agentic.services.agent_run_context import (
+        from ketos.agentic.services.agent_run_context import (
             set_agent_run_model,
             set_requested_agent_model,
         )
@@ -291,7 +291,7 @@ class TestRunFlowEnforcesRequestedModel:
     def test_falls_back_to_runtime_model_when_no_model_was_requested(self):
         # Regression guard: with no explicit request, the existing behavior
         # (fill an empty model with the verified runtime model) is preserved.
-        from langflow.agentic.services.agent_run_context import set_agent_run_model
+        from ketos.agentic.services.agent_run_context import set_agent_run_model
 
         set_agent_run_model("OpenAI", "gpt-5.5", "OPENAI_API_KEY")
         init_working_flow(self._agent_flow(""), "flow-1")

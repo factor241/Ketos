@@ -2,14 +2,14 @@ from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
-from langflow.services.database.models.flow.model import FlowCreate
-from lfx.components.flow_controls.run_flow import RunFlowComponent
-from lfx.components.input_output import ChatInput, ChatOutput, TextInputComponent, TextOutputComponent
-from lfx.graph.graph.base import Graph
-from lfx.helpers.flow import run_flow
-from lfx.schema.data import Data
-from lfx.schema.dotdict import dotdict
-from lfx.schema.message import Message
+from ketos.services.database.models.flow.model import FlowCreate
+from kfx.components.flow_controls.run_flow import RunFlowComponent
+from kfx.components.input_output import ChatInput, ChatOutput, TextInputComponent, TextOutputComponent
+from kfx.graph.graph.base import Graph
+from kfx.helpers.flow import run_flow
+from kfx.schema.data import Data
+from kfx.schema.dotdict import dotdict
+from kfx.schema.message import Message
 
 
 class TestRunFlowEndToEnd:

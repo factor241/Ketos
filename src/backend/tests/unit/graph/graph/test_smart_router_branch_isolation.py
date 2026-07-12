@@ -1,6 +1,6 @@
 """Graph-level regression tests for Smart Router branch isolation.
 
-Reproduces https://github.com/langflow-ai/langflow/issues/13440: the branch that the
+Reproduces https://github.com/ketos-ai/ketos/issues/13440: the branch that the
 LLM does *not* select must not continue into its downstream nodes. The bug only surfaced
 once a branch reconverged on a shared downstream node, because ``stop()`` alone marks a
 branch INACTIVE for a single scheduling pass and that state is reset between passes -- a
@@ -16,12 +16,12 @@ shared path with the same reconvergence scenario: it would have failed before th
 because the merge node was excluded along with the unselected branch and never ran.
 """
 
-from lfx.components.flow_controls.conditional_router import ConditionalRouterComponent
-from lfx.components.llm_operations.llm_conditional_router import SmartRouterComponent
-from lfx.custom.custom_component.component import Component
-from lfx.graph.graph.base import Graph
-from lfx.io import HandleInput, MessageTextInput, Output
-from lfx.schema.message import Message
+from kfx.components.flow_controls.conditional_router import ConditionalRouterComponent
+from kfx.components.llm_operations.llm_conditional_router import SmartRouterComponent
+from kfx.custom.custom_component.component import Component
+from kfx.graph.graph.base import Graph
+from kfx.io import HandleInput, MessageTextInput, Output
+from kfx.schema.message import Message
 
 
 class _StubbedSmartRouter(SmartRouterComponent):

@@ -1,7 +1,7 @@
 import pytest
-from lfx.components.models_and_agents import PromptComponent
-from lfx.components.openai.openai_chat_model import OpenAIModelComponent
-from lfx.components.processing import OutputParserComponent
+from kfx.components.models_and_agents import PromptComponent
+from kfx.components.openai.openai_chat_model import OpenAIModelComponent
+from kfx.components.processing import OutputParserComponent
 
 from tests.integration.utils import ComponentInputHandle, run_single_component
 

@@ -20,12 +20,12 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from langflow.agentic.services.assistant_service import (
+from ketos.agentic.services.assistant_service import (
     execute_flow_with_validation_streaming,
 )
-from langflow.agentic.services.flow_types import IntentResult
+from ketos.agentic.services.flow_types import IntentResult
 
-MODULE = "langflow.agentic.services.assistant_service"
+MODULE = "ketos.agentic.services.assistant_service"
 
 
 def _make_intent(intent: str) -> IntentResult:
@@ -115,8 +115,8 @@ async def test_should_not_guard_question_intent_text_only():
 
     def streaming_factory(**_kw):
         async def gen():
-            yield "token", "Langflow is a visual framework."
-            yield "end", {"result": "Langflow is a visual framework."}
+            yield "token", "Ketos is a visual framework."
+            yield "end", {"result": "Ketos is a visual framework."}
 
         return gen()
 
@@ -129,7 +129,7 @@ async def test_should_not_guard_question_intent_text_only():
         events = await _collect(
             execute_flow_with_validation_streaming(
                 flow_filename="TestFlow",
-                input_value="what is langflow?",
+                input_value="what is ketos?",
                 global_variables={},
                 max_retries=2,
             )

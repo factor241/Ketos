@@ -13,7 +13,7 @@ async def test_get_starter_projects(client: AsyncClient, logged_in_headers):
 
 
 def test_starter_projects_keep_optional_crewai_exports_lazy():
-    from langflow.initial_setup import starter_projects
+    from ketos.initial_setup import starter_projects
 
     optional_crewai_starters = {
         "complex_agent_graph",

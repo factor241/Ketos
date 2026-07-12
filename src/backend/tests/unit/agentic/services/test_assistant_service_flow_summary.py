@@ -12,7 +12,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from uuid import uuid4
 
-from langflow.agentic.services import assistant_service
+from ketos.agentic.services import assistant_service
 
 
 class _FakeFlow:
@@ -37,7 +37,7 @@ def _patch_session(monkeypatch, flow, *, entered_flag=None):
             entered_flag.append(True)
         yield _FakeSession(flow)
 
-    monkeypatch.setattr("lfx.services.deps.session_scope", _scope)
+    monkeypatch.setattr("kfx.services.deps.session_scope", _scope)
 
 
 class TestFlowSummaryOwnership:
@@ -97,7 +97,7 @@ class TestFlowSummaryHardCap:
     """
 
     async def test_should_truncate_when_summary_exceeds_max_chars(self, monkeypatch):
-        from langflow.agentic.services.flow_types import MAX_CANVAS_SUMMARY_CHARS
+        from ketos.agentic.services.flow_types import MAX_CANVAS_SUMMARY_CHARS
 
         owner = uuid4()
         flow = _FakeFlow(user_id=owner, data={"nodes": [], "edges": []})
@@ -114,7 +114,7 @@ class TestFlowSummaryHardCap:
         assert result.endswith("[truncated]"), "expected truncation marker so the agent knows data was clipped"
 
     async def test_should_pass_through_when_summary_is_within_cap(self, monkeypatch):
-        from langflow.agentic.services.flow_types import MAX_CANVAS_SUMMARY_CHARS
+        from ketos.agentic.services.flow_types import MAX_CANVAS_SUMMARY_CHARS
 
         owner = uuid4()
         flow = _FakeFlow(user_id=owner, data={"nodes": [], "edges": []})

@@ -3,7 +3,7 @@
 When startup fails before bundle loading assigns ``temp_dirs``, the shutdown
 ``finally`` block in ``lifespan`` iterates ``temp_dirs`` during temp-file cleanup.
 Previously ``temp_dirs`` was only bound inside the ``try``, so an early failure
-(such as an unresolvable ``LANGFLOW_DATABASE_URL``) caused the cleanup to raise
+(such as an unresolvable ``KETOS_DATABASE_URL``) caused the cleanup to raise
 ``UnboundLocalError: cannot access local variable 'temp_dirs'`` -- a second,
 confusing error logged on top of the real one.
 
@@ -11,12 +11,12 @@ Binding ``temp_dirs = []`` before the ``try`` fixes this. This test drives the
 real ``lifespan`` context manager with a failing ``initialize_services`` and
 asserts the cleanup path no longer raises.
 
-Issue: https://github.com/langflow-ai/langflow/issues/13634
+Issue: https://github.com/ketos-ai/ketos/issues/13634
 """
 
 from unittest.mock import AsyncMock
 
-import langflow.main as main_module
+import ketos.main as main_module
 import pytest
 
 

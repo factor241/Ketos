@@ -2,9 +2,9 @@
 
 Covers what the original hand-rolled registry couldn't do:
 
-* Third-party entry-point registration under ``lfx.ingestion_source.adapters``.
+* Third-party entry-point registration under ``kfx.ingestion_source.adapters``.
 * TOML config-file registration under ``[ingestion_source.adapters]`` in
-  ``lfx.toml`` (and the ``[tool.lfx.ingestion_source.adapters]`` fallback
+  ``kfx.toml`` (and the ``[tool.kfx.ingestion_source.adapters]`` fallback
   in ``pyproject.toml``).
 
 Behavioral parity with the pre-AdapterRegistry registry is covered in
@@ -17,15 +17,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-from lfx.base.knowledge_bases.ingestion_sources import registry as ingestion_registry
-from lfx.base.knowledge_bases.ingestion_sources.base import (
+from kfx.base.knowledge_bases.ingestion_sources import registry as ingestion_registry
+from kfx.base.knowledge_bases.ingestion_sources.base import (
     IngestionItem,
     IngestionItemContent,
     KBIngestionSource,
     SourceType,
 )
-from lfx.services.adapters import registry as adapter_registry_mod
-from lfx.services.adapters.schema import AdapterType
+from kfx.services.adapters import registry as adapter_registry_mod
+from kfx.services.adapters.schema import AdapterType
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -70,7 +70,7 @@ async def _reset_registry(monkeypatch, tmp_path):
 
     The built-ins (``FileUploadSource``, ``FolderSource``, …) register
     via module-level side effects in
-    ``lfx.base.knowledge_bases.ingestion_sources.__init__``. That
+    ``kfx.base.knowledge_bases.ingestion_sources.__init__``. That
     ``import`` fires exactly once per process, so after a reset the
     built-ins would stay missing and leak into sibling tests that
     assume a populated registry. We reinstall them explicitly in the
@@ -82,7 +82,7 @@ async def _reset_registry(monkeypatch, tmp_path):
     # ``_ensure_discovered`` routes config lookup through the settings
     # service → config_dir path. Point that at ``tmp_path`` so TOML
     # files laid down by tests are the ones the registry reads.
-    import lfx.base.knowledge_bases.ingestion_sources.registry as reg
+    import kfx.base.knowledge_bases.ingestion_sources.registry as reg
 
     monkeypatch.setattr(
         reg,
@@ -100,7 +100,7 @@ def _reinstall_builtin_sources() -> None:
     """Re-register the built-in sources.
 
     These normally register via module-level side effects in
-    ``lfx.base.knowledge_bases.ingestion_sources.__init__`` at import
+    ``kfx.base.knowledge_bases.ingestion_sources.__init__`` at import
     time; after ``_reset_registries`` we reinstall them explicitly.
 
     In this phase only ``file_upload`` and ``folder`` are registered.
@@ -108,8 +108,8 @@ def _reinstall_builtin_sources() -> None:
     re-registered because the production import path doesn't register
     them either — see the ``__init__`` module's docstring.
     """
-    from lfx.base.knowledge_bases.ingestion_sources.file_upload import FileUploadSource
-    from lfx.base.knowledge_bases.ingestion_sources.folder import FolderSource
+    from kfx.base.knowledge_bases.ingestion_sources.file_upload import FileUploadSource
+    from kfx.base.knowledge_bases.ingestion_sources.folder import FolderSource
 
     ingestion_registry.register_source(SourceType.FILE_UPLOAD, FileUploadSource)
     ingestion_registry.register_source(SourceType.FOLDER, FolderSource)
@@ -124,7 +124,7 @@ def _make_ensure_discovered(config_dir):
     """
     import threading
 
-    from lfx.base.knowledge_bases.ingestion_sources import registry as reg
+    from kfx.base.knowledge_bases.ingestion_sources import registry as reg
 
     lock = threading.Lock()
 
@@ -149,7 +149,7 @@ def test_entry_point_registers_plugin_source(monkeypatch):
     """Third-party entry points should appear in the registry on first lookup.
 
     A package publishing an entry point under
-    ``lfx.ingestion_source.adapters`` should register lazily when
+    ``kfx.ingestion_source.adapters`` should register lazily when
     ``get_source_class`` is called for the first time.
     """
 
@@ -174,7 +174,7 @@ def test_builtin_sources_are_not_shadowed_by_entry_points(monkeypatch):
     """
     # Ensure the built-in is registered first (as it would be in
     # production — modules self-register at import time).
-    from lfx.base.knowledge_bases.ingestion_sources.folder import FolderSource
+    from kfx.base.knowledge_bases.ingestion_sources.folder import FolderSource
 
     ingestion_registry.register_source(SourceType.FOLDER, FolderSource)
 
@@ -193,10 +193,10 @@ def test_builtin_sources_are_not_shadowed_by_entry_points(monkeypatch):
 # --------------------------------------------------------------------- #
 
 
-def test_lfx_toml_registers_plugin_source(tmp_path, monkeypatch):
-    """``lfx.toml`` entries register with ``override=True``.
+def test_kfx_toml_registers_plugin_source(tmp_path, monkeypatch):
+    """``kfx.toml`` entries register with ``override=True``.
 
-    ``[ingestion_source.adapters]`` in ``lfx.toml`` should register the
+    ``[ingestion_source.adapters]`` in ``kfx.toml`` should register the
     referenced class at higher priority than entry points (config files
     are the highest-priority discovery source).
     """
@@ -208,7 +208,7 @@ def test_lfx_toml_registers_plugin_source(tmp_path, monkeypatch):
     fake_module._StubSource = _StubSource
     sys.modules["fake_plugin_pkg.ingestion"] = fake_module
 
-    (tmp_path / "lfx.toml").write_text(
+    (tmp_path / "kfx.toml").write_text(
         '[ingestion_source.adapters]\nnotion = "fake_plugin_pkg.ingestion:_StubSource"\n'
     )
 

@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from langflow.utils.schemas import ChatOutputResponse, ContainsEnumMeta, DataOutputResponse, File
+from ketos.utils.schemas import ChatOutputResponse, ContainsEnumMeta, DataOutputResponse, File
 from pydantic import ValidationError
 
 
@@ -121,8 +121,8 @@ class TestChatOutputResponse:
         files = [{"path": "/documents/report.pdf"}]
 
         with (
-            patch("langflow.utils.schemas.TEXT_FILE_TYPES", ["pdf", "txt"]),
-            patch("langflow.utils.schemas.IMG_FILE_TYPES", ["jpg", "png"]),
+            patch("ketos.utils.schemas.TEXT_FILE_TYPES", ["pdf", "txt"]),
+            patch("ketos.utils.schemas.IMG_FILE_TYPES", ["jpg", "png"]),
         ):
             response = ChatOutputResponse(message="Test", files=files, type="text")
 
@@ -150,8 +150,8 @@ class TestChatOutputResponse:
         files = [{"path": "/unknown/file.xyz"}]
 
         with (
-            patch("langflow.utils.schemas.TEXT_FILE_TYPES", ["txt"]),
-            patch("langflow.utils.schemas.IMG_FILE_TYPES", ["jpg"]),
+            patch("ketos.utils.schemas.TEXT_FILE_TYPES", ["txt"]),
+            patch("ketos.utils.schemas.IMG_FILE_TYPES", ["jpg"]),
             pytest.raises(ValidationError, match="File type is required"),
         ):
             ChatOutputResponse(message="Test", files=files, type="text")
@@ -175,8 +175,8 @@ class TestChatOutputResponse:
         files = [{"path": "/images/photo_jpg_compressed"}]
 
         with (
-            patch("langflow.utils.schemas.TEXT_FILE_TYPES", ["txt"]),
-            patch("langflow.utils.schemas.IMG_FILE_TYPES", ["jpg", "png"]),
+            patch("ketos.utils.schemas.TEXT_FILE_TYPES", ["txt"]),
+            patch("ketos.utils.schemas.IMG_FILE_TYPES", ["jpg", "png"]),
         ):
             response = ChatOutputResponse(message="Test", files=files, type="text")
 

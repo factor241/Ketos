@@ -1,9 +1,9 @@
 from unittest.mock import Mock, patch
 
 import pytest
-from lfx.components.langchain_utilities import ToolCallingAgentComponent
-from lfx.components.openai.openai_chat_model import OpenAIModelComponent
-from lfx.components.tools.calculator import CalculatorToolComponent
+from kfx.components.langchain_utilities import ToolCallingAgentComponent
+from kfx.components.openai.openai_chat_model import OpenAIModelComponent
+from kfx.components.tools.calculator import CalculatorToolComponent
 
 
 class TestToolCallingAgentUpdateBuildConfig:
@@ -18,7 +18,7 @@ class TestToolCallingAgentUpdateBuildConfig:
     def _get_build_config(self, component):
         return component.to_frontend_node()["data"]["node"]["template"]
 
-    @patch("lfx.components.langchain_utilities.tool_calling.get_language_model_options")
+    @patch("kfx.components.langchain_utilities.tool_calling.get_language_model_options")
     def test_shows_watsonx_fields_when_watsonx_selected(self, mock_opts):
         """Selecting IBM WatsonX should show base_url_ibm_watsonx and project_id."""
         watsonx_model = [{"name": "ibm/granite-13b-chat-v2", "provider": "IBM WatsonX", "metadata": {}}]
@@ -33,7 +33,7 @@ class TestToolCallingAgentUpdateBuildConfig:
         assert updated["project_id"]["show"] is True
         assert "ollama_base_url" not in updated
 
-    @patch("lfx.components.langchain_utilities.tool_calling.get_language_model_options")
+    @patch("kfx.components.langchain_utilities.tool_calling.get_language_model_options")
     def test_hides_watsonx_fields_when_openai_selected(self, mock_opts):
         """Selecting OpenAI should hide all provider-specific fields."""
         openai_model = [{"name": "gpt-4o", "provider": "OpenAI", "metadata": {}}]
@@ -47,7 +47,7 @@ class TestToolCallingAgentUpdateBuildConfig:
         assert updated["project_id"]["show"] is False
         assert "ollama_base_url" not in updated
 
-    @patch("lfx.components.langchain_utilities.tool_calling.get_language_model_options")
+    @patch("kfx.components.langchain_utilities.tool_calling.get_language_model_options")
     def test_hides_all_provider_fields_with_no_model_selected(self, mock_opts):
         """With no model selected, all provider-specific fields should be hidden."""
         mock_opts.return_value = []
@@ -107,7 +107,7 @@ class TestToolCallingAgentBackwardCompatStreaming:
         with (
             patch.object(component, "_get_llm", return_value=legacy_llm),
             patch(
-                "lfx.components.langchain_utilities.tool_calling.create_tool_calling_agent",
+                "kfx.components.langchain_utilities.tool_calling.create_tool_calling_agent",
                 side_effect=_capture,
             ),
         ):
@@ -137,7 +137,7 @@ class TestToolCallingAgentBackwardCompatStreaming:
         with (
             patch.object(component, "_get_llm", return_value=modern_llm),
             patch(
-                "lfx.components.langchain_utilities.tool_calling.create_tool_calling_agent",
+                "kfx.components.langchain_utilities.tool_calling.create_tool_calling_agent",
                 return_value=Mock(),
             ),
         ):
@@ -175,7 +175,7 @@ class TestToolCallingAgentBackwardCompatStreaming:
         with (
             patch.object(component, "_get_llm", return_value=llm_obj),
             patch(
-                "lfx.components.langchain_utilities.tool_calling.create_tool_calling_agent",
+                "kfx.components.langchain_utilities.tool_calling.create_tool_calling_agent",
                 return_value=Mock(),
             ),
         ):
@@ -219,7 +219,7 @@ class TestToolCallingAgentBackwardCompatStreaming:
         with (
             patch.object(component, "_get_llm", return_value=llm_obj),
             patch(
-                "lfx.components.langchain_utilities.tool_calling.create_tool_calling_agent",
+                "kfx.components.langchain_utilities.tool_calling.create_tool_calling_agent",
                 return_value=Mock(),
             ),
         ):
@@ -249,7 +249,7 @@ class TestToolCallingAgentBackwardCompatStreaming:
         with (
             patch.object(component, "_get_llm", return_value=llm),
             patch(
-                "lfx.components.langchain_utilities.tool_calling.create_tool_calling_agent",
+                "kfx.components.langchain_utilities.tool_calling.create_tool_calling_agent",
                 return_value=Mock(),
             ),
         ):
@@ -287,11 +287,11 @@ class TestToolCallingAgentBackwardCompatStreaming:
         with (
             patch.object(component, "_get_llm", return_value=granite_llm),
             patch(
-                "lfx.components.langchain_utilities.tool_calling.create_granite_agent",
+                "kfx.components.langchain_utilities.tool_calling.create_granite_agent",
                 side_effect=_capture_granite,
             ),
             patch(
-                "lfx.components.langchain_utilities.tool_calling.is_granite_model",
+                "kfx.components.langchain_utilities.tool_calling.is_granite_model",
                 return_value=True,
             ),
         ):

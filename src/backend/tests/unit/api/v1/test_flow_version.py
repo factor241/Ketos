@@ -60,7 +60,7 @@ async def _patch_flow_data(client: AsyncClient, headers: dict, flow_id: str, dat
 
 
 def _set_deployments_feature_flag(monkeypatch: pytest.MonkeyPatch, *, enabled: bool) -> None:
-    from lfx.services.settings.feature_flags import FEATURE_FLAGS
+    from kfx.services.settings.feature_flags import FEATURE_FLAGS
 
     monkeypatch.setattr(FEATURE_FLAGS, "wxo_deployments", enabled)
 
@@ -99,7 +99,7 @@ async def test_list_versions_empty(client: AsyncClient, logged_in_headers):
 
 async def test_list_versions_response_includes_max_entries(client: AsyncClient, logged_in_headers, monkeypatch):
     """The list endpoint should return max_entries from settings."""
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings = get_settings_service().settings
     monkeypatch.setattr(settings, "max_flow_version_entries_per_flow", 25)
@@ -504,7 +504,7 @@ async def test_snapshot_preserves_full_node_metadata(client: AsyncClient, logged
 async def test_version_limit_enforcement(client: AsyncClient, logged_in_headers, monkeypatch):
     """Creating snapshots beyond the configured limit prunes the oldest entries."""
     # Set a small limit for testing
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings = get_settings_service().settings
     monkeypatch.setattr(settings, "max_flow_version_entries_per_flow", 3)
@@ -522,7 +522,7 @@ async def test_version_limit_enforcement(client: AsyncClient, logged_in_headers,
 
 async def test_version_limit_keeps_newest(client: AsyncClient, logged_in_headers, monkeypatch):
     """After pruning, the remaining entries should be the most recent by version_number."""
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings = get_settings_service().settings
     monkeypatch.setattr(settings, "max_flow_version_entries_per_flow", 3)
@@ -541,7 +541,7 @@ async def test_version_limit_keeps_newest(client: AsyncClient, logged_in_headers
 
 async def test_pruning_deletes_oldest_by_data_content(client: AsyncClient, logged_in_headers, monkeypatch):
     """Verify that pruned entries are truly the oldest by checking surviving data content."""
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings = get_settings_service().settings
     monkeypatch.setattr(settings, "max_flow_version_entries_per_flow", 2)
@@ -573,7 +573,7 @@ async def test_pruning_deletes_oldest_by_data_content(client: AsyncClient, logge
 
 async def test_lowered_limit_prunes_excess_on_next_snapshot(client: AsyncClient, logged_in_headers, monkeypatch):
     """Lowering the limit after entries exist should prune excess on the next snapshot."""
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings = get_settings_service().settings
 
@@ -614,8 +614,8 @@ async def test_activate_version_with_null_data(client: AsyncClient, logged_in_he
     """Activating a version whose data is None should return 400."""
     from uuid import UUID
 
-    from langflow.services.database.models.flow_version.model import FlowVersion
-    from langflow.services.deps import session_scope
+    from ketos.services.database.models.flow_version.model import FlowVersion
+    from ketos.services.deps import session_scope
     from sqlmodel import select
 
     flow = await _create_flow(client, logged_in_headers)
@@ -805,8 +805,8 @@ async def test_activate_with_deeply_nested_data(client: AsyncClient, logged_in_h
 
 async def test_version_number_is_always_positive(client: AsyncClient, logged_in_headers):
     """get_next_version_number always returns >= 1, even for a brand-new flow."""
-    from langflow.services.database.models.flow_version.crud import get_next_version_number
-    from langflow.services.deps import session_scope
+    from ketos.services.database.models.flow_version.crud import get_next_version_number
+    from ketos.services.deps import session_scope
 
     flow = await _create_flow(client, logged_in_headers)
 
@@ -826,7 +826,7 @@ async def test_version_number_is_always_positive(client: AsyncClient, logged_in_
 
 async def test_rapid_snapshots_with_low_limit(client: AsyncClient, logged_in_headers, monkeypatch):
     """Creating many snapshots rapidly with a low limit should work without errors."""
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings = get_settings_service().settings
     monkeypatch.setattr(settings, "max_flow_version_entries_per_flow", 2)
@@ -858,7 +858,7 @@ async def test_rapid_snapshots_with_low_limit(client: AsyncClient, logged_in_hea
 
 async def _attach_version_to_deployment(session, *, user_id, flow_version_id, deployment_id, provider_snapshot_id=None):
     """Create a FlowVersionDeploymentAttachment row directly in the DB."""
-    from langflow.services.database.models.flow_version_deployment_attachment.crud import (
+    from ketos.services.database.models.flow_version_deployment_attachment.crud import (
         create_deployment_attachment,
     )
 
@@ -873,8 +873,8 @@ async def _attach_version_to_deployment(session, *, user_id, flow_version_id, de
 
 async def _create_deployment_row(session, *, user_id, project_id, provider_account_id, name, resource_key):
     """Create a Deployment row directly in the DB."""
-    from langflow.services.database.models.deployment.crud import create_deployment
-    from lfx.services.adapters.deployment.schema import DeploymentType
+    from ketos.services.database.models.deployment.crud import create_deployment
+    from kfx.services.adapters.deployment.schema import DeploymentType
 
     return await create_deployment(
         session,
@@ -891,7 +891,7 @@ async def _create_provider_account_row(session, *, user_id):
     """Create a DeploymentProviderAccount row directly in the DB."""
     from uuid import uuid4
 
-    from langflow.services.database.models.deployment_provider_account.crud import create_provider_account
+    from ketos.services.database.models.deployment_provider_account.crud import create_provider_account
 
     suffix = uuid4()
     return await create_provider_account(
@@ -922,7 +922,7 @@ async def test_list_versions_is_deployed_scoped_to_provider(client: AsyncClient,
     """Provider-scoped status only reflects deployments under the selected provider."""
     from uuid import UUID
 
-    from langflow.services.deps import session_scope
+    from ketos.services.deps import session_scope
 
     _set_deployments_feature_flag(monkeypatch, enabled=True)
     flow = await _create_flow(client, logged_in_headers)
@@ -930,7 +930,7 @@ async def test_list_versions_is_deployed_scoped_to_provider(client: AsyncClient,
     snap2 = await _create_snapshot(client, logged_in_headers, flow["id"], description="undeployed")
 
     async with session_scope() as session:
-        from langflow.services.database.models.flow.model import Flow
+        from ketos.services.database.models.flow.model import Flow
         from sqlmodel import select
 
         flow_row = (await session.exec(select(Flow).where(Flow.id == UUID(flow["id"])))).one()
@@ -981,7 +981,7 @@ async def test_list_versions_plain_mode_returns_all(client: AsyncClient, logged_
     """Without provider scoping, all versions are returned without deployment status."""
     from uuid import UUID
 
-    from langflow.services.deps import session_scope
+    from ketos.services.deps import session_scope
 
     _set_deployments_feature_flag(monkeypatch, enabled=True)
     flow = await _create_flow(client, logged_in_headers)
@@ -989,7 +989,7 @@ async def test_list_versions_plain_mode_returns_all(client: AsyncClient, logged_
     await _create_snapshot(client, logged_in_headers, flow["id"], description="draft")
 
     async with session_scope() as session:
-        from langflow.services.database.models.flow.model import Flow
+        from ketos.services.database.models.flow.model import Flow
         from sqlmodel import select
 
         flow_row = (await session.exec(select(Flow).where(Flow.id == UUID(flow["id"])))).one()
@@ -1035,14 +1035,14 @@ async def test_list_versions_hides_deployment_state_when_feature_disabled(
 ):
     from uuid import UUID
 
-    from langflow.services.deps import session_scope
+    from ketos.services.deps import session_scope
 
     _set_deployments_feature_flag(monkeypatch, enabled=False)
     flow = await _create_flow(client, logged_in_headers)
     snap = await _create_snapshot(client, logged_in_headers, flow["id"])
 
     async with session_scope() as session:
-        from langflow.services.database.models.flow.model import Flow
+        from ketos.services.database.models.flow.model import Flow
         from sqlmodel import select
 
         flow_row = (await session.exec(select(Flow).where(Flow.id == UUID(flow["id"])))).one()
@@ -1109,8 +1109,8 @@ async def test_list_versions_rejects_unknown_provider_id(client: AsyncClient, lo
 async def test_list_versions_rejects_foreign_provider_id(client: AsyncClient, logged_in_headers, monkeypatch):
     from uuid import uuid4
 
-    from langflow.services.database.models.user.model import User
-    from langflow.services.deps import session_scope
+    from ketos.services.database.models.user.model import User
+    from ketos.services.deps import session_scope
 
     _set_deployments_feature_flag(monkeypatch, enabled=True)
     flow = await _create_flow(client, logged_in_headers)
@@ -1141,7 +1141,7 @@ async def test_list_versions_rejects_foreign_provider_id(client: AsyncClient, lo
 # Sync-on-read: stale attachment pruning via provider verification
 # ---------------------------------------------------------------------------
 
-SYNC_MODULE = "langflow.api.v1.flow_version.sync_flow_version_attachments"
+SYNC_MODULE = "ketos.api.v1.flow_version.sync_flow_version_attachments"
 
 
 async def test_list_versions_sync_prunes_stale_attachment(client: AsyncClient, logged_in_headers, monkeypatch):
@@ -1149,7 +1149,7 @@ async def test_list_versions_sync_prunes_stale_attachment(client: AsyncClient, l
     from unittest.mock import AsyncMock, patch
     from uuid import UUID
 
-    from langflow.services.deps import session_scope
+    from ketos.services.deps import session_scope
 
     _set_deployments_feature_flag(monkeypatch, enabled=True)
     flow = await _create_flow(client, logged_in_headers)
@@ -1157,7 +1157,7 @@ async def test_list_versions_sync_prunes_stale_attachment(client: AsyncClient, l
 
     # Set up a deployed version with a provider_snapshot_id.
     async with session_scope() as session:
-        from langflow.services.database.models.flow.model import Flow
+        from ketos.services.database.models.flow.model import Flow
         from sqlmodel import select
 
         flow_row = (await session.exec(select(Flow).where(Flow.id == UUID(flow["id"])))).one()
@@ -1193,7 +1193,7 @@ async def test_list_versions_sync_prunes_stale_attachment(client: AsyncClient, l
         assert entries[0]["is_deployed"] is True
 
     async def _prune_sync(*_args, **_kwargs):
-        from langflow.services.database.models.flow_version_deployment_attachment.crud import (
+        from ketos.services.database.models.flow_version_deployment_attachment.crud import (
             delete_deployment_attachment,
         )
 
@@ -1221,13 +1221,13 @@ async def test_list_versions_sync_failure_does_not_block_response(client: AsyncC
     from unittest.mock import AsyncMock, patch
     from uuid import UUID
 
-    from langflow.services.deps import session_scope
+    from ketos.services.deps import session_scope
 
     _set_deployments_feature_flag(monkeypatch, enabled=True)
     flow = await _create_flow(client, logged_in_headers)
     await _create_snapshot(client, logged_in_headers, flow["id"])
     async with session_scope() as session:
-        from langflow.services.database.models.flow.model import Flow
+        from ketos.services.database.models.flow.model import Flow
         from sqlmodel import select
 
         flow_row = (await session.exec(select(Flow).where(Flow.id == UUID(flow["id"])))).one()
@@ -1263,14 +1263,14 @@ async def test_get_single_version_reports_unknown_deployment_status_when_attache
     """Single-version reads return unknown deployment status even when attached."""
     from uuid import UUID
 
-    from langflow.services.deps import session_scope
+    from ketos.services.deps import session_scope
 
     _set_deployments_feature_flag(monkeypatch, enabled=True)
     flow = await _create_flow(client, logged_in_headers)
     snap = await _create_snapshot(client, logged_in_headers, flow["id"])
 
     async with session_scope() as session:
-        from langflow.services.database.models.flow.model import Flow
+        from ketos.services.database.models.flow.model import Flow
         from sqlmodel import select
 
         flow_row = (await session.exec(select(Flow).where(Flow.id == UUID(flow["id"])))).one()
@@ -1301,14 +1301,14 @@ async def test_get_single_version_reports_unknown_deployment_status_when_feature
     """Feature-flag state does not change single-version deployment status behavior."""
     from uuid import UUID
 
-    from langflow.services.deps import session_scope
+    from ketos.services.deps import session_scope
 
     _set_deployments_feature_flag(monkeypatch, enabled=False)
     flow = await _create_flow(client, logged_in_headers)
     snap = await _create_snapshot(client, logged_in_headers, flow["id"])
 
     async with session_scope() as session:
-        from langflow.services.database.models.flow.model import Flow
+        from ketos.services.database.models.flow.model import Flow
         from sqlmodel import select
 
         flow_row = (await session.exec(select(Flow).where(Flow.id == UUID(flow["id"])))).one()
@@ -1356,15 +1356,15 @@ async def test_get_single_version_does_not_trigger_sync_prune(client: AsyncClien
     from unittest.mock import AsyncMock, patch
     from uuid import UUID
 
-    from langflow.services.deps import session_scope
+    from ketos.services.deps import session_scope
 
     _set_deployments_feature_flag(monkeypatch, enabled=True)
     flow = await _create_flow(client, logged_in_headers)
     snap = await _create_snapshot(client, logged_in_headers, flow["id"])
 
     async with session_scope() as session:
-        from langflow.services.database.models.flow.model import Flow
-        from langflow.services.database.models.flow_version_deployment_attachment.model import (
+        from ketos.services.database.models.flow.model import Flow
+        from ketos.services.database.models.flow_version_deployment_attachment.model import (
             FlowVersionDeploymentAttachment,
         )
         from sqlmodel import select
@@ -1395,7 +1395,7 @@ async def test_get_single_version_does_not_trigger_sync_prune(client: AsyncClien
         mock_sync.assert_not_awaited()
 
     async with session_scope() as session:
-        from langflow.services.database.models.flow_version_deployment_attachment.model import (
+        from ketos.services.database.models.flow_version_deployment_attachment.model import (
             FlowVersionDeploymentAttachment,
         )
         from sqlmodel import select
@@ -1414,7 +1414,7 @@ async def test_get_flow_version_entries_by_ids_rejects_oversized_batch():
     from unittest.mock import AsyncMock
     from uuid import uuid4
 
-    from langflow.services.database.models.flow_version.crud import get_flow_version_entries_by_ids
+    from ketos.services.database.models.flow_version.crud import get_flow_version_entries_by_ids
 
     session = AsyncMock()
     version_ids = [uuid4() for _ in range(51)]

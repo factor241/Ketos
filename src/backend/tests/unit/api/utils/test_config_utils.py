@@ -3,16 +3,16 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
-from langflow.api.utils.mcp.config_utils import (
+from ketos.api.utils.mcp.config_utils import (
     MCPServerValidationResult,
     auto_configure_starter_projects_mcp,
     validate_mcp_server_for_project,
 )
-from langflow.services.database.models.flow.model import Flow
-from langflow.services.database.models.folder.constants import DEFAULT_FOLDER_NAME
-from langflow.services.database.models.folder.model import Folder
-from langflow.services.database.models.user.model import User
-from langflow.services.deps import session_scope
+from ketos.services.database.models.flow.model import Flow
+from ketos.services.database.models.folder.constants import DEFAULT_FOLDER_NAME
+from ketos.services.database.models.folder.model import Folder
+from ketos.services.database.models.user.model import User
+from ketos.services.deps import session_scope
 from sqlmodel import select
 
 
@@ -123,7 +123,7 @@ class TestValidateMcpServerForProject:
     @pytest.mark.asyncio
     async def test_validate_server_not_exists(self, active_user, test_project, client: AsyncClient):  # noqa: ARG002
         """Test validation when server doesn't exist."""
-        from langflow.services.deps import get_settings_service, get_storage_service
+        from ketos.services.deps import get_settings_service, get_storage_service
 
         async with session_scope() as session:
             storage_service = get_storage_service()
@@ -153,7 +153,7 @@ class TestValidateMcpServerForProject:
         )
         assert response.status_code == 200
 
-        from langflow.services.deps import get_settings_service, get_storage_service
+        from ketos.services.deps import get_settings_service, get_storage_service
 
         async with session_scope() as session:
             storage_service = get_storage_service()
@@ -188,7 +188,7 @@ class TestValidateMcpServerForProject:
         )
         assert response.status_code == 200
 
-        from langflow.services.deps import get_settings_service, get_storage_service
+        from ketos.services.deps import get_settings_service, get_storage_service
 
         async with session_scope() as session:
             storage_service = get_storage_service()
@@ -224,7 +224,7 @@ class TestValidateMcpServerForProject:
         )
         assert response.status_code == 200
 
-        from langflow.services.deps import get_settings_service, get_storage_service
+        from ketos.services.deps import get_settings_service, get_storage_service
 
         async with session_scope() as session:
             storage_service = get_storage_service()
@@ -254,14 +254,14 @@ class TestValidateMcpServerForProject:
     @pytest.mark.asyncio
     async def test_validate_server_exception_handling(self, active_user, test_project, client: AsyncClient):  # noqa: ARG002
         """Test exception handling during validation."""
-        from langflow.services.deps import get_settings_service, get_storage_service
+        from ketos.services.deps import get_settings_service, get_storage_service
 
         async with session_scope() as session:
             storage_service = get_storage_service()
             settings_service = get_settings_service()
 
             # Mock get_server_list to raise an exception
-            with patch("langflow.api.utils.mcp.config_utils.get_server_list") as mock_get_server_list:
+            with patch("ketos.api.utils.mcp.config_utils.get_server_list") as mock_get_server_list:
                 mock_get_server_list.side_effect = Exception("Test error")
 
                 result = await validate_mcp_server_for_project(
@@ -338,7 +338,7 @@ class TestAutoConfigureStarterProjectsMcp:
     async def test_auto_configure_disabled(self, client: AsyncClient):  # noqa: ARG002
         """Test auto-configure when add_projects_to_mcp_servers is disabled."""
         async with session_scope() as session:
-            from langflow.services.deps import get_settings_service
+            from ketos.services.deps import get_settings_service
 
             settings_service = get_settings_service()
             original_setting = settings_service.settings.add_projects_to_mcp_servers
@@ -359,7 +359,7 @@ class TestAutoConfigureStarterProjectsMcp:
     async def test_auto_configure_no_users(self, client: AsyncClient):  # noqa: ARG002
         """Test auto-configure when no users exist."""
         async with session_scope() as session:
-            from langflow.services.deps import get_settings_service
+            from ketos.services.deps import get_settings_service
 
             settings_service = get_settings_service()
             original_setting = settings_service.settings.add_projects_to_mcp_servers
@@ -388,7 +388,7 @@ class TestAutoConfigureStarterProjectsMcp:
         _, starter_folder, flow = sample_user_with_starter_project
 
         async with session_scope() as session:
-            from langflow.services.deps import get_settings_service
+            from ketos.services.deps import get_settings_service
 
             settings_service = get_settings_service()
             original_setting = settings_service.settings.add_projects_to_mcp_servers
@@ -420,7 +420,7 @@ class TestAutoConfigureStarterProjectsMcp:
         user_id = uuid4()
 
         async with session_scope() as session:
-            from langflow.services.deps import get_settings_service
+            from ketos.services.deps import get_settings_service
 
             settings_service = get_settings_service()
             original_setting = settings_service.settings.add_projects_to_mcp_servers
@@ -667,7 +667,7 @@ class TestMCPWithDefaultFolderName:
 
         try:
             async with session_scope() as session:
-                from langflow.services.deps import get_settings_service
+                from ketos.services.deps import get_settings_service
 
                 settings_service = get_settings_service()
                 original_setting = settings_service.settings.add_projects_to_mcp_servers
@@ -734,7 +734,7 @@ class TestMCPWithDefaultFolderName:
 
         try:
             # Trigger migration by calling get_or_create_default_folder
-            from langflow.initial_setup.setup import get_or_create_default_folder
+            from ketos.initial_setup.setup import get_or_create_default_folder
 
             async with session_scope() as session:
                 migrated_folder = await get_or_create_default_folder(session, user_id)
@@ -743,7 +743,7 @@ class TestMCPWithDefaultFolderName:
 
             # Now test that MCP can find the migrated folder
             async with session_scope() as session:
-                from langflow.services.deps import get_settings_service
+                from ketos.services.deps import get_settings_service
 
                 settings_service = get_settings_service()
                 original_setting = settings_service.settings.add_projects_to_mcp_servers
@@ -806,7 +806,7 @@ class TestMCPWithDefaultFolderName:
 
         try:
             async with session_scope() as session:
-                from langflow.services.deps import get_settings_service
+                from ketos.services.deps import get_settings_service
 
                 settings_service = get_settings_service()
                 original_setting = settings_service.settings.add_projects_to_mcp_servers

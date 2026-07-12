@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
-from langflow.services.authorization.service import LangflowAuthorizationService
+from ketos.services.authorization.service import KetosAuthorizationService
 
 
 @pytest.fixture
@@ -15,7 +15,7 @@ def authz_service():
             AUTHZ_SUPERUSER_BYPASS=True,
         )
     )
-    return LangflowAuthorizationService(settings)
+    return KetosAuthorizationService(settings)
 
 
 @pytest.mark.anyio
@@ -38,7 +38,7 @@ async def test_enforce_allows_non_superuser_when_enabled():
             AUTHZ_SUPERUSER_BYPASS=True,
         )
     )
-    service = LangflowAuthorizationService(settings)
+    service = KetosAuthorizationService(settings)
     user_id = uuid4()
     assert await service.enforce(
         user_id=user_id,
@@ -78,7 +78,7 @@ async def test_batch_enforce_allows_non_superuser_when_enabled():
             AUTHZ_SUPERUSER_BYPASS=True,
         )
     )
-    service = LangflowAuthorizationService(settings)
+    service = KetosAuthorizationService(settings)
     requests = [("flow:a", "read"), ("flow:b", "write")]
     result = await service.batch_enforce(
         user_id=uuid4(),
@@ -109,7 +109,7 @@ async def test_get_allowed_actions_returns_all_actions():
             AUTHZ_SUPERUSER_BYPASS=True,
         )
     )
-    service = LangflowAuthorizationService(settings)
+    service = KetosAuthorizationService(settings)
     actions = ["read", "write", "delete"]
     result = await service.get_allowed_actions(
         user_id=uuid4(),

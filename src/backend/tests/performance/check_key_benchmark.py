@@ -5,11 +5,11 @@ import time
 import uuid
 
 import pytest
-from langflow.services.auth import utils as auth_utils
-from langflow.services.database.models.api_key import crud as api_key_crud
-from langflow.services.database.models.api_key.model import ApiKey
-from langflow.services.database.models.user.model import User
-from langflow.services.deps import get_settings_service
+from ketos.services.auth import utils as auth_utils
+from ketos.services.database.models.api_key import crud as api_key_crud
+from ketos.services.database.models.api_key.model import ApiKey
+from ketos.services.database.models.user.model import User
+from ketos.services.deps import get_settings_service
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 logger = logging.getLogger(__name__)

@@ -4,9 +4,9 @@ from unittest.mock import MagicMock, patch
 
 import openai
 import pytest
-from langflow.helpers.base_model import build_model_from_schema
-from langflow.inputs.inputs import TableInput
-from lfx.components.llm_operations.structured_output import StructuredOutputComponent
+from ketos.helpers.base_model import build_model_from_schema
+from ketos.inputs.inputs import TableInput
+from kfx.components.llm_operations.structured_output import StructuredOutputComponent
 from pydantic import BaseModel
 
 from tests.base import ComponentTestBaseWithoutClient
@@ -76,7 +76,7 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             }
         ]
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_successful_structured_output_generation_with_patch_with_config(self, mock_get_model_class, mock_llm):
         def mock_get_chat_result(runnable, system_message, input_value, config, **kwargs):  # noqa: ARG001
             class MockBaseModel(BaseModel):
@@ -115,12 +115,12 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             system_prompt="Test system prompt",
         )
 
-        with patch("lfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
+        with patch("kfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
             result = component.build_structured_output_base()
             assert isinstance(result, list)
             assert result == [{"field": "value"}]
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_raises_value_error_for_unsupported_language_model(self, mock_get_model_class):
         # Mocking an incompatible language model that doesn't support with_structured_output
         class IncompatibleModel:
@@ -228,7 +228,7 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
         output_model = build_model_from_schema(schema)
         assert isinstance(output_model, type)
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_empty_output_schema(self, mock_get_model_class, mock_llm, mock_model_classes):
         mock_get_model_class.return_value = mock_model_classes(mock_llm)
 
@@ -254,7 +254,7 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
         with pytest.raises(ValueError, match="Output schema cannot be empty"):
             component.build_structured_output()
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_invalid_output_schema_type(self, mock_get_model_class, mock_llm, mock_model_classes):
         mock_get_model_class.return_value = mock_model_classes(mock_llm)
 
@@ -280,8 +280,8 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
         with pytest.raises(ValueError, match="Invalid type: invalid_type"):
             component.build_structured_output()
 
-    @patch("lfx.components.llm_operations.structured_output.get_chat_result")
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.components.llm_operations.structured_output.get_chat_result")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_nested_output_schema(
         self, mock_get_model_class, mock_get_chat_result, mock_llm, mock_model_classes, model_metadata
     ):
@@ -325,8 +325,8 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
         assert isinstance(result, list)
         assert result == [{"parent": {"child": "value"}}]
 
-    @patch("lfx.components.llm_operations.structured_output.get_chat_result")
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.components.llm_operations.structured_output.get_chat_result")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_large_input_value(
         self, mock_get_model_class, mock_get_chat_result, mock_llm, mock_model_classes, model_metadata
     ):
@@ -464,7 +464,7 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
         for expected_age in expected_ages:
             assert expected_age in ages
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_multiple_patterns_with_duplicates_and_variations(
         self, mock_get_model_class, mock_llm, mock_model_classes, model_metadata
     ):
@@ -503,11 +503,11 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             system_prompt="Remove exact duplicates but keep variations that have different field values.",
         )
 
-        with patch("lfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
+        with patch("kfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
             result = component.build_structured_output()
 
             # Check that result is a Data object
-            from lfx.schema.data import Data
+            from kfx.schema.data import Data
 
             assert isinstance(result, Data)
 
@@ -753,7 +753,7 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
                 ]
             ), f"Unexpected error: {error_msg}"
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_structured_output_returns_dict_when_no_objects_key(
         self, mock_get_model_class, mock_llm, mock_model_classes, model_metadata
     ):
@@ -779,13 +779,13 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             system_prompt="Test system prompt",
         )
 
-        with patch("lfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
+        with patch("kfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
             result = component.build_structured_output_base()
             # Should return the dict directly since there's no "objects" key
             assert isinstance(result, dict)
             assert result == {"field": "value", "another_field": "another_value"}
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_structured_output_returns_direct_response_when_not_dict(
         self, mock_get_model_class, mock_llm, mock_model_classes, model_metadata
     ):
@@ -806,13 +806,13 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             system_prompt="Test system prompt",
         )
 
-        with patch("lfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
+        with patch("kfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
             result = component.build_structured_output_base()
             # Should return the string directly
             assert isinstance(result, str)
             assert result == "Simple string response"
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_structured_output_handles_empty_responses_array(
         self, mock_get_model_class, mock_llm, mock_model_classes, model_metadata
     ):
@@ -839,7 +839,7 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             system_prompt="Test system prompt",
         )
 
-        with patch("lfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
+        with patch("kfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
             result = component.build_structured_output_base()
             # Should return the entire result dict when responses is empty
             assert isinstance(result, dict)
@@ -847,7 +847,7 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             assert "responses" in result
             assert "fallback_data" in result
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_build_structured_output_fails_when_base_returns_non_list(
         self, mock_get_model_class, mock_llm, mock_model_classes, model_metadata
     ):
@@ -874,12 +874,12 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
         )
 
         with (
-            patch("lfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result),
+            patch("kfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result),
             pytest.raises(ValueError, match="No structured output returned"),
         ):
             component.build_structured_output()
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_build_structured_output_returns_data_with_dict(
         self, mock_get_model_class, mock_llm, mock_model_classes, model_metadata
     ):
@@ -912,11 +912,11 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             system_prompt="Test system prompt",
         )
 
-        with patch("lfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
+        with patch("kfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
             result = component.build_structured_output()
 
             # Check that result is a Data object
-            from lfx.schema.data import Data
+            from kfx.schema.data import Data
 
             assert isinstance(result, Data)
 
@@ -932,7 +932,7 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             assert result.data["field"] == "value2"
             assert result.data["number"] == 24
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_build_structured_output_returns_multiple_objects(
         self, mock_get_model_class, mock_llm, mock_model_classes, model_metadata
     ):
@@ -970,11 +970,11 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             system_prompt="Extract ALL relevant instances that match the schema",
         )
 
-        with patch("lfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
+        with patch("kfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
             result = component.build_structured_output()
 
             # Check that result is a Data object
-            from lfx.schema.data import Data
+            from kfx.schema.data import Data
 
             assert isinstance(result, Data)
 
@@ -988,7 +988,7 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             assert result.data["results"][1] == {"name": "Jane", "age": 25}
             assert result.data["results"][2] == {"name": "Bob", "age": 35}
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_build_structured_output_returns_data_with_single_item(
         self, mock_get_model_class, mock_llm, mock_model_classes, model_metadata
     ):
@@ -1020,11 +1020,11 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             system_prompt="Extract person info",
         )
 
-        with patch("lfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
+        with patch("kfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
             result = component.build_structured_output()
 
             # Check that result is a Data object
-            from lfx.schema.data import Data
+            from kfx.schema.data import Data
 
             assert isinstance(result, Data)
 
@@ -1034,7 +1034,7 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             # Check the content matches exactly
             assert result.data == {"name": "John Doe", "age": 30}
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_build_structured_output_data_object_properties(
         self, mock_get_model_class, mock_llm, mock_model_classes, model_metadata
     ):
@@ -1067,11 +1067,11 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             system_prompt="Extract product info",
         )
 
-        with patch("lfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
+        with patch("kfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
             result = component.build_structured_output()
 
             # Check that result is a Data object
-            from lfx.schema.data import Data
+            from kfx.schema.data import Data
 
             assert isinstance(result, Data)
 
@@ -1092,7 +1092,7 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
                 text_repr = result.get_text()
                 assert isinstance(text_repr, str)
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_build_structured_dataframe_returns_dataframe_with_single_data(
         self, mock_get_model_class, mock_llm, mock_model_classes, model_metadata
     ):
@@ -1124,11 +1124,11 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             system_prompt="Test system prompt",
         )
 
-        with patch("lfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
+        with patch("kfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
             result = component.build_structured_dataframe()
 
             # Check that result is a DataFrame object
-            from lfx.schema.dataframe import DataFrame
+            from kfx.schema.dataframe import DataFrame
 
             assert isinstance(result, DataFrame)
             assert len(result) == 1
@@ -1140,7 +1140,7 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             assert len(data_list) == 1
             assert data_list[0].data == {"field": "value2", "number": 24}
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_build_structured_dataframe_returns_dataframe_with_multiple_data(
         self, mock_get_model_class, mock_llm, mock_model_classes, model_metadata
     ):
@@ -1178,11 +1178,11 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             system_prompt="Test system prompt",
         )
 
-        with patch("lfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
+        with patch("kfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result):
             result = component.build_structured_dataframe()
 
             # Check that result is a DataFrame object
-            from lfx.schema.dataframe import DataFrame
+            from kfx.schema.dataframe import DataFrame
 
             assert isinstance(result, DataFrame)
             assert len(result) == 3
@@ -1200,7 +1200,7 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             assert data_list[1].data == {"name": "Jane", "age": 25}
             assert data_list[2].data == {"name": "Bob", "age": 35}
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_build_structured_dataframe_fails_when_base_returns_non_list(
         self, mock_get_model_class, mock_llm, mock_model_classes, model_metadata
     ):
@@ -1226,12 +1226,12 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
         )
 
         with (
-            patch("lfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result),
+            patch("kfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result),
             pytest.raises(ValueError, match="No structured output returned"),
         ):
             component.build_structured_dataframe()
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_build_structured_dataframe_fails_when_empty_output(
         self, mock_get_model_class, mock_llm, mock_model_classes, model_metadata
     ):
@@ -1261,12 +1261,12 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
         )
 
         with (
-            patch("lfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result),
+            patch("kfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result),
             pytest.raises(ValueError, match="No structured output returned"),
         ):
             component.build_structured_dataframe()
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_fallback_to_langchain_on_trustcall_generic_exception(
         self, mock_get_model_class, mock_llm, mock_model_classes, model_metadata
     ):
@@ -1298,7 +1298,7 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             mock_trustcall.assert_called_once()
             mock_langchain.assert_called_once()
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_fallback_both_methods_fail_raises_value_error(
         self, mock_get_model_class, mock_llm, mock_model_classes, model_metadata
     ):
@@ -1337,7 +1337,7 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             assert "fallback with_structured_output also failed" in error_msg
             assert "Langchain parsing error" in error_msg
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_langchain_fallback_processes_basemodel_response(
         self, mock_get_model_class, mock_llm, mock_model_classes, model_metadata
     ):
@@ -1365,7 +1365,7 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             assert isinstance(result, list)
             assert result == [{"field": "test_value"}]
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_langchain_fallback_processes_dict_response(
         self, mock_get_model_class, mock_llm, mock_model_classes, model_metadata
     ):
@@ -1392,7 +1392,7 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             # When langchain returns dict, it's returned as-is
             assert result == {"field": "dict_value"}
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_fallback_error_message_includes_both_errors(
         self, mock_get_model_class, mock_llm, mock_model_classes, model_metadata
     ):
@@ -1431,7 +1431,7 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
             assert "fallback with_structured_output also failed" in error_msg
             assert "Langchain parsing error" in error_msg
 
-    @patch("lfx.base.models.unified_models.get_model_class")
+    @patch("kfx.base.models.unified_models.get_model_class")
     def test_trustcall_success_no_fallback_attempted(
         self, mock_get_model_class, mock_llm, mock_model_classes, model_metadata
     ):
@@ -1460,7 +1460,7 @@ class TestStructuredOutputComponent(ComponentTestBaseWithoutClient):
         )
 
         with (
-            patch("lfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result),
+            patch("kfx.components.llm_operations.structured_output.get_chat_result", mock_get_chat_result),
             patch.object(component, "_extract_output_with_langchain") as mock_lc_fallback,
         ):
             result = component.build_structured_output_base()

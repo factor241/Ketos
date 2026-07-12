@@ -7,8 +7,8 @@ classifies user intent as component generation or question.
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from langflow.agentic.services.flow_types import IntentResult
-from langflow.agentic.services.helpers.intent_classification import classify_intent
+from ketos.agentic.services.flow_types import IntentResult
+from ketos.agentic.services.helpers.intent_classification import classify_intent
 
 
 class TestClassifyIntent:
@@ -20,7 +20,7 @@ class TestClassifyIntent:
         mock_result = {"result": '{"translation": "create a component", "intent": "generate_component"}'}
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -38,7 +38,7 @@ class TestClassifyIntent:
         mock_result = {"result": '{"translation": "how to create a component", "intent": "question"}'}
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -67,7 +67,7 @@ class TestClassifyIntent:
         mock_result = {"result": "This is not valid JSON response"}
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -85,7 +85,7 @@ class TestClassifyIntent:
         mock_result = {"result": '```json\n{"translation": "create a component", "intent": "generate_component"}\n```'}
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -105,7 +105,7 @@ class TestClassifyIntent:
         }
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -122,7 +122,7 @@ class TestClassifyIntent:
         mock_result = {"result": 'I would classify this as "intent": "build_flow"'}
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -139,7 +139,7 @@ class TestClassifyIntent:
         mock_result = {"result": 'Classification: "intent": "run_flow"'}
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -153,7 +153,7 @@ class TestClassifyIntent:
         mock_result = {"result": 'Classification: "intent": "off_topic"'}
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -175,7 +175,7 @@ class TestClassifyIntent:
         }
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -196,7 +196,7 @@ class TestClassifyIntent:
         }
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -212,7 +212,7 @@ class TestClassifyIntent:
     async def test_should_default_to_question_on_flow_error(self):
         """Should default to question intent when flow execution fails."""
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             side_effect=Exception("Flow execution failed"),
         ):
@@ -230,7 +230,7 @@ class TestClassifyIntent:
         mock_result = {"result": ""}
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -248,7 +248,7 @@ class TestClassifyIntent:
         mock_result = {"result": '{"intent": "question"}'}
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -266,7 +266,7 @@ class TestClassifyIntent:
         mock_result = {"result": '{"translation": "translated text"}'}
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -284,7 +284,7 @@ class TestClassifyIntent:
         mock_result = {"result": '{"translation": "test", "intent": "question"}'}
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ) as mock_execute:
@@ -312,7 +312,7 @@ class TestClassifyIntent:
         mock_result = {"result": '{"translation": "test", "intent": "question"}'}
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ) as mock_execute:
@@ -333,7 +333,7 @@ class TestClassifyIntent:
         mock_result = {"result": '{"translation": "test", "intent": "question"}'}
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ) as mock_execute:
@@ -365,7 +365,7 @@ class TestCompoundComponentFlowClassification:
             'build a flow with it and run it with 14", "intent": "component_then_flow"}'
         }
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -379,7 +379,7 @@ class TestCompoundComponentFlowClassification:
     async def test_non_json_fallback_extracts_component_then_flow(self):
         mock_result = {"result": 'I would classify this as "intent": "component_then_flow"'}
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -401,7 +401,7 @@ class TestDeterministicRunFlowDetection:
     async def test_rescues_run_request_only_when_classifier_says_question(self):
         # LLM (mock) returns the flaky "question" for an explicit run.
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value={"result": '{"translation": "run the flow", "intent": "question"}'},
         ):
@@ -428,7 +428,7 @@ class TestDeterministicRunFlowDetection:
             ("このフローを実行して", "run this flow"),
         ):
             with patch(
-                "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+                "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
                 new_callable=AsyncMock,
                 return_value={"result": f'{{"translation": "{english}", "intent": "question"}}'},
             ):
@@ -441,7 +441,7 @@ class TestDeterministicRunFlowDetection:
         # run phrase but the classifier confidently says component_then_flow.
         # The detector must NOT downgrade it to run_flow.
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value={"result": '{"translation": "x", "intent": "component_then_flow"}'},
         ):
@@ -454,7 +454,7 @@ class TestDeterministicRunFlowDetection:
     @pytest.mark.asyncio
     async def test_does_not_override_a_confident_build_flow_classification(self):
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value={"result": '{"translation": "x", "intent": "build_flow"}'},
         ):
@@ -468,7 +468,7 @@ class TestDeterministicRunFlowDetection:
     async def test_non_run_requests_still_go_through_the_llm(self):
         mock_result = {"result": '{"translation": "build a chatbot flow", "intent": "build_flow"}'}
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ) as mock_execute:
@@ -480,7 +480,7 @@ class TestDeterministicRunFlowDetection:
     async def test_flow_word_without_run_verb_is_not_forced(self):
         mock_result = {"result": '{"translation": "what does this flow do", "intent": "build_flow"}'}
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ) as mock_execute:
@@ -502,10 +502,10 @@ class TestDeterministicEditContinuation:
 
     @pytest.mark.asyncio
     async def test_continuation_signal_forces_flow_request_without_llm(self):
-        from langflow.agentic.services.flow_types import EDIT_CONTINUATION_INPUT
+        from ketos.agentic.services.flow_types import EDIT_CONTINUATION_INPUT
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
         ) as mock_execute:
             result = await classify_intent(text=EDIT_CONTINUATION_INPUT, global_variables={})
@@ -528,10 +528,10 @@ class TestDeterministicPlanApproval:
 
     @pytest.mark.asyncio
     async def test_plan_approval_signal_forces_flow_request_without_llm(self):
-        from langflow.agentic.services.flow_types import PLAN_APPROVAL_INPUT
+        from ketos.agentic.services.flow_types import PLAN_APPROVAL_INPUT
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
         ) as mock_execute:
             result = await classify_intent(text=PLAN_APPROVAL_INPUT, global_variables={})
@@ -556,7 +556,7 @@ class TestClassifyIntentWithContext:
         mock_result = {"result": '{"translation": "test", "intent": "question"}'}
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ) as mock_execute:
@@ -571,7 +571,7 @@ class TestClassifyIntentWithContext:
         context = "[Session context — ...\nUser: build a chatbot\nAssistant: done\n[End of session context]"
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ) as mock_execute:
@@ -591,7 +591,7 @@ class TestClassifyIntentWithContext:
         mock_result = {"result": '{"translation": "add a second agent", "intent": "build_flow"}'}
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -648,7 +648,7 @@ class TestClassifyIntentTokenUsage:
         }
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -665,7 +665,7 @@ class TestClassifyIntentTokenUsage:
         mock_result = {"result": '{"translation": "hi", "intent": "question"}'}
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -678,7 +678,7 @@ class TestClassifyIntentTokenUsage:
         import asyncio
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             side_effect=asyncio.TimeoutError(),
         ):
@@ -700,7 +700,7 @@ class TestClassifyIntentTokenUsage:
         }
 
         with patch(
-            "langflow.agentic.services.helpers.intent_classification.execute_flow_file",
+            "ketos.agentic.services.helpers.intent_classification.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):

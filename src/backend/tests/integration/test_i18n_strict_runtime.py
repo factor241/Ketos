@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from httpx import AsyncClient
-from langflow.utils import i18n as i18n_utils
+from ketos.utils import i18n as i18n_utils
 
 
 @pytest.mark.asyncio
@@ -26,7 +26,7 @@ async def test_strict_ru_missing_component_translation_fails_real_endpoint_deter
         }
 
     monkeypatch.setattr(
-        "langflow.interface.components.get_and_cache_all_types_dict",
+        "ketos.interface.components.get_and_cache_all_types_dict",
         get_types,
     )
     monkeypatch.setattr(i18n_utils, "_translations", {"en": {}, "ru": {}})

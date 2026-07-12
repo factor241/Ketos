@@ -13,13 +13,13 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-from lfx.base.knowledge_bases.backends import (
+from kfx.base.knowledge_bases.backends import (
     BackendType,
     ChromaBackend,
     OpenSearchBackend,
     TestConnectionResult,
 )
-from lfx.base.knowledge_bases.backends.base import BaseVectorStoreBackend
+from kfx.base.knowledge_bases.backends.base import BaseVectorStoreBackend
 
 if TYPE_CHECKING:
     from pathlib import Path

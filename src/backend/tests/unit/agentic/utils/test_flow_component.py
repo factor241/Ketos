@@ -9,14 +9,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
-from langflow.agentic.utils.flow_component import (
+from ketos.agentic.utils.flow_component import (
     get_component_details,
     get_component_field_value,
     list_component_fields,
     update_component_field_value,
 )
 
-MODULE = "langflow.agentic.utils.flow_component"
+MODULE = "ketos.agentic.utils.flow_component"
 
 FLOW_ID = str(uuid4())
 USER_ID = str(uuid4())

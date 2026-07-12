@@ -1,8 +1,8 @@
 from unittest.mock import patch
 
 import pytest
-from langflow.schema.data import Data
-from lfx.components.flow_controls.listen import ListenComponent
+from ketos.schema.data import Data
+from kfx.components.flow_controls.listen import ListenComponent
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -188,7 +188,7 @@ class TestListenComponent(ComponentTestBaseWithoutClient):
     async def test_component_inheritance(self, component_class, default_kwargs):
         """Test that component properly inherits from Component base class."""
         component = await self.component_setup(component_class, default_kwargs)
-        from langflow.custom import Component
+        from ketos.custom import Component
 
         assert isinstance(component, Component)
 

@@ -7,12 +7,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from fastapi import HTTPException
-from langflow.api.v1.flows import _deny_to_flow_not_found, _flow_not_found_error, _handle_unique_constraint_error
+from ketos.api.v1.flows import _deny_to_flow_not_found, _flow_not_found_error, _handle_unique_constraint_error
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
 
-FLOWS_SOURCE = Path(__file__).parents[4] / "base" / "langflow" / "api" / "v1" / "flows.py"
+FLOWS_SOURCE = Path(__file__).parents[4] / "base" / "ketos" / "api" / "v1" / "flows.py"
 
 
 def test_flows_routes_do_not_construct_raw_http_exceptions_or_use_legacy_deny_adapter():

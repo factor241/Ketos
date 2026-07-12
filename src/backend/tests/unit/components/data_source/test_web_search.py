@@ -2,8 +2,8 @@ from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
-from lfx.components.data_source.web_search import WebSearchComponent
-from lfx.schema import DataFrame
+from kfx.components.data_source.web_search import WebSearchComponent
+from kfx.schema import DataFrame
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -112,7 +112,7 @@ class TestWebSearchComponent(ComponentTestBaseWithoutClient):
         assert result["query"]["info"] == "RSS feed URL to parse"
         assert result["query"]["display_name"] == "RSS Feed URL"
 
-    @patch("lfx.components.data.web_search.requests.get")
+    @patch("kfx.components.data.web_search.requests.get")
     def test_perform_web_search_success(self, mock_get):
         """Test successful web search."""
         component = WebSearchComponent()
@@ -147,7 +147,7 @@ class TestWebSearchComponent(ComponentTestBaseWithoutClient):
         assert result.iloc[0]["snippet"] == "Test snippet content"
         assert "Page content" in result.iloc[0]["content"]
 
-    @patch("lfx.components.data.web_search.requests.get")
+    @patch("kfx.components.data.web_search.requests.get")
     def test_perform_web_search_no_results(self, mock_get):
         """Test web search with no results."""
         component = WebSearchComponent()
@@ -166,7 +166,7 @@ class TestWebSearchComponent(ComponentTestBaseWithoutClient):
         assert isinstance(result, DataFrame)
         assert "No results found" in result.iloc[0]["snippet"]
 
-    @patch("lfx.components.data.web_search.requests.get")
+    @patch("kfx.components.data.web_search.requests.get")
     def test_perform_web_search_request_error(self, mock_get):
         """Test web search with request error."""
         component = WebSearchComponent()
@@ -182,7 +182,7 @@ class TestWebSearchComponent(ComponentTestBaseWithoutClient):
         assert isinstance(result, DataFrame)
         assert "Connection error" in result.iloc[0]["snippet"]
 
-    @patch("lfx.components.data.web_search.requests.get")
+    @patch("kfx.components.data.web_search.requests.get")
     def test_perform_news_search_with_query(self, mock_get):
         """Test news search with query."""
         component = WebSearchComponent()
@@ -214,7 +214,7 @@ class TestWebSearchComponent(ComponentTestBaseWithoutClient):
         assert result.iloc[0]["link"] == "https://news.example.com"
         assert result.iloc[0]["summary"] == "Test news description"
 
-    @patch("lfx.components.data.web_search.requests.get")
+    @patch("kfx.components.data.web_search.requests.get")
     def test_perform_news_search_with_topic(self, mock_get):
         """Test news search with topic."""
         component = WebSearchComponent()
@@ -247,7 +247,7 @@ class TestWebSearchComponent(ComponentTestBaseWithoutClient):
         call_args = mock_get.call_args[0][0]
         assert "topic/TECHNOLOGY" in call_args
 
-    @patch("lfx.components.data.web_search.requests.get")
+    @patch("kfx.components.data.web_search.requests.get")
     def test_perform_news_search_no_params(self, mock_get):  # noqa: ARG002
         """Test news search with no parameters."""
         component = WebSearchComponent()
@@ -258,7 +258,7 @@ class TestWebSearchComponent(ComponentTestBaseWithoutClient):
         assert isinstance(result, DataFrame)
         assert "No search parameters provided" in result.iloc[0]["summary"]
 
-    @patch("lfx.components.data.web_search.requests.get")
+    @patch("kfx.components.data.web_search.requests.get")
     def test_perform_rss_read_success(self, mock_get):
         """Test successful RSS feed reading."""
         component = WebSearchComponent()
@@ -295,7 +295,7 @@ class TestWebSearchComponent(ComponentTestBaseWithoutClient):
         assert result.iloc[0]["title"] == "RSS Item 1"
         assert result.iloc[1]["title"] == "RSS Item 2"
 
-    @patch("lfx.components.data.web_search.requests.get")
+    @patch("kfx.components.data.web_search.requests.get")
     def test_perform_rss_read_empty_response(self, mock_get):
         """Test RSS read with empty response."""
         component = WebSearchComponent()
@@ -312,7 +312,7 @@ class TestWebSearchComponent(ComponentTestBaseWithoutClient):
         assert isinstance(result, DataFrame)
         assert "Empty response received" in result.iloc[0]["summary"]
 
-    @patch("lfx.components.data.web_search.requests.get")
+    @patch("kfx.components.data.web_search.requests.get")
     def test_perform_rss_read_invalid_xml(self, mock_get):
         """Test RSS read with invalid XML - returns empty DataFrame when no items found."""
         component = WebSearchComponent()
@@ -401,7 +401,7 @@ class TestWebSearchComponent(ComponentTestBaseWithoutClient):
         with pytest.raises(ValueError, match="Empty search query"):
             component.perform_web_search()
 
-    @patch("lfx.components.data.web_search.requests.get")
+    @patch("kfx.components.data.web_search.requests.get")
     def test_news_search_with_location(self, mock_get):
         """Test news search with location parameter."""
         component = WebSearchComponent()

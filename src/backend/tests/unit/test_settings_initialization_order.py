@@ -20,8 +20,8 @@ class TestSettingsInitializationOrder:
 
     def test_is_settings_service_initialized_returns_false_initially(self):
         """Test that is_settings_service_initialized returns False before initialization."""
-        from langflow.services.deps import is_settings_service_initialized
-        from lfx.services.manager import get_service_manager
+        from ketos.services.deps import is_settings_service_initialized
+        from kfx.services.manager import get_service_manager
 
         # Clear services
         service_manager = get_service_manager()
@@ -32,8 +32,8 @@ class TestSettingsInitializationOrder:
 
     def test_is_settings_service_initialized_returns_true_after_init(self):
         """Test that is_settings_service_initialized returns True after initialization."""
-        from langflow.services.deps import get_settings_service, is_settings_service_initialized
-        from lfx.services.manager import get_service_manager
+        from ketos.services.deps import get_settings_service, is_settings_service_initialized
+        from kfx.services.manager import get_service_manager
 
         # Clear services
         service_manager = get_service_manager()
@@ -47,9 +47,9 @@ class TestSettingsInitializationOrder:
 
     def test_is_settings_service_initialized_checks_service_manager(self):
         """Test that the function checks the service manager directly."""
-        from langflow.services.deps import is_settings_service_initialized
-        from langflow.services.schema import ServiceType
-        from lfx.services.manager import get_service_manager
+        from ketos.services.deps import is_settings_service_initialized
+        from ketos.services.schema import ServiceType
+        from kfx.services.manager import get_service_manager
 
         # Clear services
         service_manager = get_service_manager()
@@ -68,8 +68,8 @@ class TestSettingsInitializationOrder:
     def test_dotenv_loading_before_settings_init(self, tmp_path):
         """Test the complete flow: load .env, then initialize settings."""
         from dotenv import load_dotenv
-        from langflow.services.deps import get_settings_service, is_settings_service_initialized
-        from lfx.services.manager import get_service_manager
+        from ketos.services.deps import get_settings_service, is_settings_service_initialized
+        from kfx.services.manager import get_service_manager
 
         # Clear services
         service_manager = get_service_manager()
@@ -77,7 +77,7 @@ class TestSettingsInitializationOrder:
 
         # Create .env file
         env_file = tmp_path / ".env.test"
-        env_file.write_text("LANGFLOW_SAVE_DB_IN_CONFIG_DIR=true\n")
+        env_file.write_text("KETOS_SAVE_DB_IN_CONFIG_DIR=true\n")
 
         # Step 1: Check settings not initialized
         assert is_settings_service_initialized() is False
@@ -89,7 +89,7 @@ class TestSettingsInitializationOrder:
         assert is_settings_service_initialized() is False
 
         # Step 4: Env var is available
-        assert os.environ.get("LANGFLOW_SAVE_DB_IN_CONFIG_DIR") == "true"
+        assert os.environ.get("KETOS_SAVE_DB_IN_CONFIG_DIR") == "true"
 
         # Step 5: Initialize settings
         settings = get_settings_service()
@@ -99,21 +99,21 @@ class TestSettingsInitializationOrder:
         assert settings is not None
 
         # Clean up
-        if "LANGFLOW_SAVE_DB_IN_CONFIG_DIR" in os.environ:
-            del os.environ["LANGFLOW_SAVE_DB_IN_CONFIG_DIR"]
+        if "KETOS_SAVE_DB_IN_CONFIG_DIR" in os.environ:
+            del os.environ["KETOS_SAVE_DB_IN_CONFIG_DIR"]
 
     def test_cli_check_pattern_success_case(self, tmp_path):
         """Test the CLI check pattern when settings are NOT initialized (success case)."""
         from dotenv import load_dotenv
-        from langflow.services.deps import is_settings_service_initialized
-        from lfx.services.manager import get_service_manager
+        from ketos.services.deps import is_settings_service_initialized
+        from kfx.services.manager import get_service_manager
 
         # Clear services to ensure settings are NOT initialized
         service_manager = get_service_manager()
         service_manager.services.clear()
 
         env_file = tmp_path / ".env.cli"
-        env_file.write_text("LANGFLOW_DATABASE_URL=sqlite:///./test.db\n")
+        env_file.write_text("KETOS_DATABASE_URL=sqlite:///./test.db\n")
 
         # Verify settings are not initialized
         assert is_settings_service_initialized() is False
@@ -126,16 +126,16 @@ class TestSettingsInitializationOrder:
             else:
                 # This is the success case - load the env file
                 load_dotenv(env_file, override=True)
-                assert os.environ.get("LANGFLOW_DATABASE_URL") == "sqlite:///./test.db"
+                assert os.environ.get("KETOS_DATABASE_URL") == "sqlite:///./test.db"
 
         # Clean up
-        if "LANGFLOW_DATABASE_URL" in os.environ:
-            del os.environ["LANGFLOW_DATABASE_URL"]
+        if "KETOS_DATABASE_URL" in os.environ:
+            del os.environ["KETOS_DATABASE_URL"]
 
     def test_cli_check_pattern_error_case(self, tmp_path):
         """Test the CLI check pattern when settings ARE initialized (error case)."""
-        from langflow.services.deps import get_settings_service, is_settings_service_initialized
-        from lfx.services.manager import get_service_manager
+        from ketos.services.deps import get_settings_service, is_settings_service_initialized
+        from kfx.services.manager import get_service_manager
 
         # Clear services
         service_manager = get_service_manager()
@@ -146,7 +146,7 @@ class TestSettingsInitializationOrder:
         assert is_settings_service_initialized() is True
 
         env_file = tmp_path / ".env.cli"
-        env_file.write_text("LANGFLOW_DATABASE_URL=sqlite:///./test.db\n")
+        env_file.write_text("KETOS_DATABASE_URL=sqlite:///./test.db\n")
 
         # Simulate the CLI check pattern
         if env_file:
@@ -165,8 +165,8 @@ class TestSettingsInitializationOrder:
 
     def test_error_message_when_settings_already_initialized(self, tmp_path):
         """Test that we get a clear error when trying to load .env after settings init."""
-        from langflow.services.deps import get_settings_service, is_settings_service_initialized
-        from lfx.services.manager import get_service_manager
+        from ketos.services.deps import get_settings_service, is_settings_service_initialized
+        from kfx.services.manager import get_service_manager
 
         # Clear services
         service_manager = get_service_manager()
@@ -176,7 +176,7 @@ class TestSettingsInitializationOrder:
         get_settings_service()
 
         env_file = tmp_path / ".env.late"
-        env_file.write_text("LANGFLOW_DATABASE_URL=sqlite:///./test.db\n")
+        env_file.write_text("KETOS_DATABASE_URL=sqlite:///./test.db\n")
 
         # Now try to use the CLI pattern
         if env_file:
@@ -199,7 +199,7 @@ class TestSettingsServiceSingleton:
 
     def test_settings_service_is_singleton(self):
         """Test that multiple calls return the same instance."""
-        from langflow.services.deps import get_settings_service
+        from ketos.services.deps import get_settings_service
 
         service1 = get_settings_service()
         service2 = get_settings_service()
@@ -209,9 +209,9 @@ class TestSettingsServiceSingleton:
 
     def test_settings_service_singleton_across_imports(self):
         """Test singleton behavior across different import paths."""
-        from langflow.services.deps import get_settings_service
-        from langflow.services.schema import ServiceType
-        from lfx.services.manager import get_service_manager
+        from ketos.services.deps import get_settings_service
+        from ketos.services.schema import ServiceType
+        from kfx.services.manager import get_service_manager
 
         service1 = get_settings_service()
         service_manager = get_service_manager()
@@ -237,16 +237,16 @@ class TestCLISubprocessIntegration:
         env_file = tmp_path / "integration_test.env"
         env_file.write_text(
             f"""
-LANGFLOW_DATABASE_URL=sqlite:///{db_path}
-LANGFLOW_AUTO_SAVING=false
-LANGFLOW_AUTO_LOGIN=false
-LANGFLOW_SUPERUSER=langflow
-LANGFLOW_SUPERUSER_PASSWORD=test-superuser-password
-LANGFLOW_LOG_LEVEL=ERROR
+KETOS_DATABASE_URL=sqlite:///{db_path}
+KETOS_AUTO_SAVING=false
+KETOS_AUTO_LOGIN=false
+KETOS_SUPERUSER=ketos
+KETOS_SUPERUSER_PASSWORD=test-superuser-password
+KETOS_LOG_LEVEL=ERROR
         """.strip()
         )
 
-        # Create a test script that starts langflow and checks if the database was created
+        # Create a test script that starts ketos and checks if the database was created
         # at the location specified in the env file
         test_script = tmp_path / "verify_startup.py"
         test_script.write_text(
@@ -257,14 +257,14 @@ import subprocess
 import signal
 from pathlib import Path
 
-# Start langflow run with --env-file in background
+# Start ketos run with --env-file in background
 db_path = Path(r"{db_path}")
 env_file = Path(r"{env_file}")
 
 # Start the server
 proc = subprocess.Popen(
     [
-        sys.executable, "-m", "langflow", "run", "--env-file", str(env_file),
+        sys.executable, "-m", "ketos", "run", "--env-file", str(env_file),
         "--host", "127.0.0.1", "--port", "17860", "--backend-only"
     ],
     stdout=subprocess.PIPE,

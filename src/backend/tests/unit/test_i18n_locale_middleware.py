@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-from langflow.utils import i18n as i18n_utils
+from ketos.utils import i18n as i18n_utils
 
 if TYPE_CHECKING:
     from httpx import AsyncClient

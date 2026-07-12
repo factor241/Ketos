@@ -16,11 +16,11 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-# The lfx tests are blocked from the main venv by the package-isolation
+# The kfx tests are blocked from the main venv by the package-isolation
 # conftest, but importing the module itself works fine — we just can't
 # colocate the test with the production code. Place the test where the
 # main test runner reaches it.
-from lfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
+from kfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -35,7 +35,7 @@ def _make_component(
 ) -> FileSystemToolComponent:
     """Build a FileSystemToolComponent pinned to a fresh sandbox.
 
-    The component bypasses the LangflowClient by binding ``_user_id``
+    The component bypasses the KetosClient by binding ``_user_id``
     directly and overriding ``_resolve_auto_login``. We seed a pepper
     file so the hash is reproducible across tests; otherwise the first
     write creates one and subsequent runs see a different namespace.
@@ -44,7 +44,7 @@ def _make_component(
     pepper_path = base_dir / ".fs_pepper"
     if not pepper_path.exists():
         pepper_path.write_bytes(secrets.token_bytes(32))
-    monkeypatch.setenv("LANGFLOW_FS_TOOL_BASE_DIR", str(base_dir))
+    monkeypatch.setenv("KETOS_FS_TOOL_BASE_DIR", str(base_dir))
     component = FileSystemToolComponent()
     monkeypatch.setattr(
         FileSystemToolComponent,

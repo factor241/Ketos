@@ -1,7 +1,7 @@
 import multiprocessing
 import time
 
-from lfx.services.extension_events.service import ExtensionEventsService
+from kfx.services.extension_events.service import ExtensionEventsService
 
 
 def _worker_emit(cache_dir, event_type, payload):

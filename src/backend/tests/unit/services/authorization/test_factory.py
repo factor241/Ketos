@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from langflow.services.authorization.factory import AuthorizationServiceFactory
-from langflow.services.authorization.service import LangflowAuthorizationService
-from lfx.services.authorization.base import BaseAuthorizationService
+from ketos.services.authorization.factory import AuthorizationServiceFactory
+from ketos.services.authorization.service import KetosAuthorizationService
+from kfx.services.authorization.base import BaseAuthorizationService
 
 
 def _make_settings_service(*, authz_enabled: bool = False, superuser_bypass: bool = True) -> SimpleNamespace:
@@ -23,7 +23,7 @@ def test_create_returns_base_authorization_service():
     factory = AuthorizationServiceFactory()
     service = factory.create(_make_settings_service())
     assert isinstance(service, BaseAuthorizationService)
-    assert isinstance(service, LangflowAuthorizationService)
+    assert isinstance(service, KetosAuthorizationService)
 
 
 def test_create_uses_injected_settings_service():
@@ -36,7 +36,7 @@ def test_create_uses_injected_settings_service():
 
 def test_factory_name_matches_service_type():
     """Factory exposes the canonical authorization service type name."""
-    from langflow.services.schema import ServiceType
+    from ketos.services.schema import ServiceType
 
     factory = AuthorizationServiceFactory()
     assert factory.name == ServiceType.AUTHORIZATION_SERVICE.value

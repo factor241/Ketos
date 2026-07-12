@@ -8,7 +8,7 @@ from httpx import AsyncClient
 async def test_get_messages_requires_auth(client: AsyncClient):
     """Test that GET /monitor/messages requires authentication."""
     response = await client.get("api/v1/monitor/messages")
-    # Langflow returns 403 for missing/invalid authentication
+    # Ketos returns 403 for missing/invalid authentication
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
@@ -16,21 +16,21 @@ async def test_get_transactions_requires_auth(client: AsyncClient):
     """Test that GET /monitor/transactions requires authentication."""
     # Include required query parameter
     response = await client.get("api/v1/monitor/transactions?flow_id=00000000-0000-0000-0000-000000000000")
-    # Langflow returns 403 for missing/invalid authentication
+    # Ketos returns 403 for missing/invalid authentication
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 async def test_delete_messages_session_requires_auth(client: AsyncClient):
     """Test that DELETE /monitor/messages/session/{session_id} requires authentication."""
     response = await client.delete("api/v1/monitor/messages/session/test-session")
-    # Langflow returns 403 for missing/invalid authentication
+    # Ketos returns 403 for missing/invalid authentication
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 async def test_get_messages_with_fake_token(client: AsyncClient):
     """Test that GET /monitor/messages rejects fake tokens."""
     response = await client.get("api/v1/monitor/messages", headers={"Authorization": "Bearer fake-token"})
-    # Langflow returns 401 for invalid Bearer tokens (JWT validation fails)
+    # Ketos returns 401 for invalid Bearer tokens (JWT validation fails)
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
@@ -40,7 +40,7 @@ async def test_get_transactions_with_fake_token(client: AsyncClient):
         "api/v1/monitor/transactions?flow_id=00000000-0000-0000-0000-000000000000",
         headers={"Authorization": "Bearer fake-token"},
     )
-    # Langflow returns 401 for invalid Bearer tokens (JWT validation fails)
+    # Ketos returns 401 for invalid Bearer tokens (JWT validation fails)
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
@@ -49,7 +49,7 @@ async def test_delete_messages_session_with_fake_token(client: AsyncClient):
     response = await client.delete(
         "api/v1/monitor/messages/session/test-session", headers={"Authorization": "Bearer fake-token"}
     )
-    # Langflow returns 401 for invalid Bearer tokens (JWT validation fails)
+    # Ketos returns 401 for invalid Bearer tokens (JWT validation fails)
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 

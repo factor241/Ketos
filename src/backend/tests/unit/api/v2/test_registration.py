@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, mock_open, patch
 import pytest
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
-from langflow.api.v2.registration import (
+from ketos.api.v2.registration import (
     RegisterRequest,
     RegisterResponse,
     _ensure_registration_file,
@@ -12,7 +12,7 @@ from langflow.api.v2.registration import (
     router,
     save_registration,
 )
-from langflow.main import create_app
+from ketos.main import create_app
 
 
 @pytest.fixture
@@ -59,7 +59,7 @@ class TestDataModels:
 class TestHelperFunctions:
     """Test helper functions."""
 
-    @patch("langflow.api.v2.registration.REGISTRATION_FILE")
+    @patch("ketos.api.v2.registration.REGISTRATION_FILE")
     def test_ensure_registration_file_creates_directory(self, mock_file):
         """Test that _ensure_registration_file creates directory with proper permissions."""
         mock_parent = MagicMock()
@@ -70,8 +70,8 @@ class TestHelperFunctions:
         mock_parent.mkdir.assert_called_once_with(parents=True, exist_ok=True)
         mock_parent.chmod.assert_called_once_with(0o700)
 
-    @patch("langflow.api.v2.registration.REGISTRATION_FILE")
-    @patch("langflow.api.v2.registration.logger")
+    @patch("ketos.api.v2.registration.REGISTRATION_FILE")
+    @patch("ketos.api.v2.registration.logger")
     def test_ensure_registration_file_handles_error(self, mock_logger, mock_file):
         """Test that _ensure_registration_file handles errors properly."""
         mock_file.parent.mkdir.side_effect = Exception("Permission denied")
@@ -81,7 +81,7 @@ class TestHelperFunctions:
 
         mock_logger.error.assert_called()
 
-    @patch("langflow.api.v2.registration.REGISTRATION_FILE")
+    @patch("ketos.api.v2.registration.REGISTRATION_FILE")
     def test_load_registration_file_not_exists(self, mock_file):
         """Test load_registration when file doesn't exist."""
         mock_file.exists.return_value = False
@@ -90,7 +90,7 @@ class TestHelperFunctions:
 
         assert result is None
 
-    @patch("langflow.api.v2.registration.REGISTRATION_FILE")
+    @patch("ketos.api.v2.registration.REGISTRATION_FILE")
     def test_load_registration_empty_file(self, mock_file):
         """Test load_registration with empty file."""
         mock_file.exists.return_value = True
@@ -100,7 +100,7 @@ class TestHelperFunctions:
 
         assert result is None
 
-    @patch("langflow.api.v2.registration.REGISTRATION_FILE")
+    @patch("ketos.api.v2.registration.REGISTRATION_FILE")
     def test_load_registration_valid_file(self, mock_file):
         """Test load_registration with valid JSON file."""
         mock_file.exists.return_value = True
@@ -118,8 +118,8 @@ class TestHelperFunctions:
 
         assert result == registration_data
 
-    @patch("langflow.api.v2.registration.REGISTRATION_FILE")
-    @patch("langflow.api.v2.registration.logger")
+    @patch("ketos.api.v2.registration.REGISTRATION_FILE")
+    @patch("ketos.api.v2.registration.logger")
     def test_load_registration_corrupted_file(self, mock_logger, mock_file):
         """Test load_registration with corrupted JSON file."""
         mock_file.exists.return_value = True
@@ -131,10 +131,10 @@ class TestHelperFunctions:
         assert result is None
         mock_logger.error.assert_called()
 
-    @patch("langflow.api.v2.registration._ensure_registration_file")
-    @patch("langflow.api.v2.registration.load_registration")
-    @patch("langflow.api.v2.registration.REGISTRATION_FILE")
-    @patch("langflow.api.v2.registration.logger")
+    @patch("ketos.api.v2.registration._ensure_registration_file")
+    @patch("ketos.api.v2.registration.load_registration")
+    @patch("ketos.api.v2.registration.REGISTRATION_FILE")
+    @patch("ketos.api.v2.registration.logger")
     def test_save_registration_new(self, mock_logger, mock_file, mock_load, mock_ensure):
         """Test save_registration with new registration."""
         mock_load.return_value = None
@@ -149,10 +149,10 @@ class TestHelperFunctions:
         mock_load.assert_called_once()
         mock_logger.info.assert_called_with("Registration saved: new@example.com")
 
-    @patch("langflow.api.v2.registration._ensure_registration_file")
-    @patch("langflow.api.v2.registration.load_registration")
-    @patch("langflow.api.v2.registration.REGISTRATION_FILE")
-    @patch("langflow.api.v2.registration.logger")
+    @patch("ketos.api.v2.registration._ensure_registration_file")
+    @patch("ketos.api.v2.registration.load_registration")
+    @patch("ketos.api.v2.registration.REGISTRATION_FILE")
+    @patch("ketos.api.v2.registration.logger")
     def test_save_registration_replace_existing(self, mock_logger, mock_file, mock_load, mock_ensure):  # noqa: ARG002
         """Test save_registration replacing existing registration."""
         mock_load.return_value = {"email": "old@example.com", "registered_at": "2024-01-01T00:00:00Z"}
@@ -166,8 +166,8 @@ class TestHelperFunctions:
         # Check for replacement log
         assert any("Replacing registration" in str(call) for call in mock_logger.info.call_args_list)
 
-    @patch("langflow.api.v2.registration._ensure_registration_file")
-    @patch("langflow.api.v2.registration.logger")
+    @patch("ketos.api.v2.registration._ensure_registration_file")
+    @patch("ketos.api.v2.registration.logger")
     def test_save_registration_handles_error(self, mock_logger, mock_ensure):
         """Test save_registration handles errors properly."""
         mock_ensure.side_effect = Exception("Permission denied")
@@ -183,14 +183,14 @@ class TestAPIEndpoints:
     """Test API endpoints."""
 
     @pytest.mark.asyncio
-    @patch("langflow.api.v2.registration.save_registration")
+    @patch("ketos.api.v2.registration.save_registration")
     async def test_register_user_success(self, mock_save):
         """Test successful user registration."""
         mock_save.return_value = True
 
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
-        from langflow.services.auth.utils import get_current_active_user
+        from ketos.services.auth.utils import get_current_active_user
 
         app = FastAPI()
         app.include_router(router)
@@ -207,12 +207,12 @@ class TestAPIEndpoints:
         assert data["email"] == "test@example.com"
 
     @pytest.mark.asyncio
-    @patch("langflow.api.v2.registration.save_registration")
+    @patch("ketos.api.v2.registration.save_registration")
     async def test_register_user_invalid_email(self, mock_save):  # noqa: ARG002
         """Test registration with invalid email."""
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
-        from langflow.services.auth.utils import get_current_active_user
+        from ketos.services.auth.utils import get_current_active_user
 
         app = FastAPI()
         app.include_router(router)
@@ -227,14 +227,14 @@ class TestAPIEndpoints:
         assert response.status_code == 422  # Validation error
 
     @pytest.mark.asyncio
-    @patch("langflow.api.v2.registration.save_registration")
+    @patch("ketos.api.v2.registration.save_registration")
     async def test_register_user_save_fails(self, mock_save):
         """Test registration when save fails."""
         mock_save.side_effect = Exception("Save failed")
 
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
-        from langflow.services.auth.utils import get_current_active_user
+        from ketos.services.auth.utils import get_current_active_user
 
         app = FastAPI()
         app.include_router(router)
@@ -250,12 +250,12 @@ class TestAPIEndpoints:
         assert "Registration failed" in response.json()["detail"]
 
     @pytest.mark.asyncio
-    @patch("langflow.api.v2.registration.save_registration")
+    @patch("ketos.api.v2.registration.save_registration")
     async def test_register_user_requires_auth(self, mock_save):
         """POST /registration/ must require authentication (no anonymous email registration)."""
         from fastapi import FastAPI, HTTPException
         from fastapi.testclient import TestClient
-        from langflow.services.auth.utils import get_current_active_user
+        from ketos.services.auth.utils import get_current_active_user
 
         def _deny():
             raise HTTPException(status_code=403, detail="Not authenticated")
@@ -273,14 +273,14 @@ class TestAPIEndpoints:
         mock_save.assert_not_called()
 
     @pytest.mark.asyncio
-    @patch("langflow.api.v2.registration.load_registration")
+    @patch("ketos.api.v2.registration.load_registration")
     async def test_get_registration_exists(self, mock_load):
         """Test getting existing registration."""
         mock_load.return_value = {"email": "test@example.com", "registered_at": "2024-01-01T00:00:00Z"}
 
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
-        from langflow.services.auth.utils import get_current_active_user
+        from ketos.services.auth.utils import get_current_active_user
 
         app = FastAPI()
         app.include_router(router)
@@ -298,14 +298,14 @@ class TestAPIEndpoints:
         assert data["registered_at"] == "2024-01-01T00:00:00Z"
 
     @pytest.mark.asyncio
-    @patch("langflow.api.v2.registration.load_registration")
+    @patch("ketos.api.v2.registration.load_registration")
     async def test_get_registration_not_exists(self, mock_load):
         """Test getting registration when none exists."""
         mock_load.return_value = None
 
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
-        from langflow.services.auth.utils import get_current_active_user
+        from ketos.services.auth.utils import get_current_active_user
 
         app = FastAPI()
         app.include_router(router)
@@ -321,14 +321,14 @@ class TestAPIEndpoints:
         assert response.json() == {"message": "No user registered"}
 
     @pytest.mark.asyncio
-    @patch("langflow.api.v2.registration.load_registration")
+    @patch("ketos.api.v2.registration.load_registration")
     async def test_get_registration_error(self, mock_load):
         """Test get registration when load fails."""
         mock_load.side_effect = Exception("Load failed")
 
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
-        from langflow.services.auth.utils import get_current_active_user
+        from ketos.services.auth.utils import get_current_active_user
 
         app = FastAPI()
         app.include_router(router)
@@ -351,7 +351,7 @@ class TestIntegration:
         """Test complete registration flow with actual file operations."""
         # Set up temporary file path
         test_file = tmp_path / "registration.json"
-        monkeypatch.setattr("langflow.api.v2.registration.REGISTRATION_FILE", test_file)
+        monkeypatch.setattr("ketos.api.v2.registration.REGISTRATION_FILE", test_file)
 
         # Test save and load
         assert save_registration("test@example.com") is True
@@ -372,11 +372,11 @@ class TestIntegration:
         """Test API endpoints with actual file operations."""
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
-        from langflow.services.auth.utils import get_current_active_user
+        from ketos.services.auth.utils import get_current_active_user
 
         # Set up temporary file path
         test_file = tmp_path / "registration.json"
-        monkeypatch.setattr("langflow.api.v2.registration.REGISTRATION_FILE", test_file)
+        monkeypatch.setattr("ketos.api.v2.registration.REGISTRATION_FILE", test_file)
 
         app = FastAPI()
         app.include_router(router)

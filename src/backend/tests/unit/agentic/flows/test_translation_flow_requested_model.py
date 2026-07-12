@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 
-from langflow.agentic.flows.translation_flow import TRANSLATION_PROMPT
+from ketos.agentic.flows.translation_flow import TRANSLATION_PROMPT
 
 
 def test_prompt_should_declare_requested_model_in_output_format():

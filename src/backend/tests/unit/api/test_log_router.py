@@ -4,9 +4,9 @@ import pytest
 from fastapi import FastAPI, HTTPException, status
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
-from langflow.api.log_router import log_router
-from langflow.services.auth.utils import get_current_active_superuser, get_current_active_user
-from lfx.log.logger import log_buffer
+from ketos.api.log_router import log_router
+from ketos.services.auth.utils import get_current_active_superuser, get_current_active_user
+from kfx.log.logger import log_buffer
 
 
 @pytest.fixture(autouse=True)

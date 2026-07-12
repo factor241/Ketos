@@ -1,10 +1,10 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from lfx.components.xai.xai import XAIModelComponent
-from lfx.custom.custom_component.component import Component
-from lfx.custom.utils import build_custom_component_template
-from lfx.inputs.inputs import (
+from kfx.components.xai.xai import XAIModelComponent
+from kfx.custom.custom_component.component import Component
+from kfx.custom.utils import build_custom_component_template
+from kfx.inputs.inputs import (
     BoolInput,
     DictInput,
     DropdownInput,
@@ -104,10 +104,10 @@ class TestXAIComponent(ComponentTestBaseWithoutClient):
         http_client = MagicMock()
         http_async_client = MagicMock()
         mock_client_kwargs = mocker.patch(
-            "lfx.components.xai.xai.ssrf_protected_openai_clients_for_url",
+            "kfx.components.xai.xai.ssrf_protected_openai_clients_for_url",
             return_value={"http_client": http_client, "http_async_client": http_async_client},
         )
-        mock_chat_openai = mocker.patch("lfx.components.xai.xai.ChatOpenAI", return_value=MagicMock())
+        mock_chat_openai = mocker.patch("kfx.components.xai.xai.ChatOpenAI", return_value=MagicMock())
         model = component.build_model()
         mock_client_kwargs.assert_called_once_with("https://api.x.ai/v1")
         mock_chat_openai.assert_called_once_with(
@@ -125,7 +125,7 @@ class TestXAIComponent(ComponentTestBaseWithoutClient):
 
     def test_get_models(self):
         component = XAIModelComponent()
-        with patch("lfx.components.xai.xai.ssrf_safe_httpx_get") as mock_get:
+        with patch("kfx.components.xai.xai.ssrf_safe_httpx_get") as mock_get:
             mock_response = MagicMock()
             mock_response.json.return_value = {
                 "models": [
@@ -165,7 +165,7 @@ class TestXAIComponent(ComponentTestBaseWithoutClient):
         component.seed = 1
 
         mocker.patch(
-            "lfx.components.xai.xai.ChatOpenAI",
+            "kfx.components.xai.xai.ChatOpenAI",
             side_effect=BadRequestError(
                 message="Invalid API key",
                 response=MagicMock(),
@@ -190,7 +190,7 @@ class TestXAIComponent(ComponentTestBaseWithoutClient):
         mock_instance = MagicMock()
         mock_bound_instance = MagicMock()
         mock_instance.bind.return_value = mock_bound_instance
-        mocker.patch("lfx.components.xai.xai.ChatOpenAI", return_value=mock_instance)
+        mocker.patch("kfx.components.xai.xai.ChatOpenAI", return_value=mock_instance)
 
         model = component.build_model()
         mock_instance.bind.assert_called_once_with(response_format={"type": "json_object"})

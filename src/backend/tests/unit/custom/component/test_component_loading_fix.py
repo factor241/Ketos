@@ -10,12 +10,12 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from lfx.interface.components import (
+from kfx.interface.components import (
     component_cache,
     get_and_cache_all_types_dict,
 )
-from lfx.services.settings.base import BASE_COMPONENTS_PATH
-from lfx.services.settings.service import SettingsService
+from kfx.services.settings.base import BASE_COMPONENTS_PATH
+from kfx.services.settings.service import SettingsService
 
 
 class TestComponentLoadingFix:
@@ -36,8 +36,8 @@ class TestComponentLoadingFix:
         return ["/custom/path1", "/custom/path2"]
 
     @pytest.fixture
-    def mock_langflow_components(self):
-        """Create mock langflow components response."""
+    def mock_ketos_components(self):
+        """Create mock ketos components response."""
         return {
             "components": {
                 "category1": {
@@ -69,7 +69,7 @@ class TestComponentLoadingFix:
 
     @pytest.mark.asyncio
     async def test_base_components_path_filtering(
-        self, mock_settings_service, mock_langflow_components, mock_custom_components
+        self, mock_settings_service, mock_ketos_components, mock_custom_components
     ):
         """Test that BASE_COMPONENTS_PATH is properly filtered out from custom components paths."""
         # Setup: Include BASE_COMPONENTS_PATH in the components_path list
@@ -77,8 +77,8 @@ class TestComponentLoadingFix:
         mock_settings_service.settings.lazy_load_components = False
 
         with (
-            patch("lfx.interface.components.import_langflow_components", return_value=mock_langflow_components),
-            patch("lfx.interface.components.aget_all_types_dict") as mock_aget_all_types_dict,
+            patch("kfx.interface.components.import_ketos_components", return_value=mock_ketos_components),
+            patch("kfx.interface.components.aget_all_types_dict") as mock_aget_all_types_dict,
         ):
             # Mock aget_all_types_dict to return custom components
             mock_aget_all_types_dict.return_value = mock_custom_components
@@ -89,7 +89,7 @@ class TestComponentLoadingFix:
             # Verify that aget_all_types_dict was called with filtered paths (BASE_COMPONENTS_PATH excluded)
             mock_aget_all_types_dict.assert_called_once_with(["/custom/path1", "/custom/path2"])
 
-            # Verify result contains both langflow and custom components
+            # Verify result contains both ketos and custom components
             assert "category1" in result
             assert "category2" in result
             assert "custom_category" in result
@@ -97,15 +97,15 @@ class TestComponentLoadingFix:
             assert "CustomComponent1" in result["custom_category"]
 
     @pytest.mark.asyncio
-    async def test_only_base_components_path_in_list(self, mock_settings_service, mock_langflow_components):
+    async def test_only_base_components_path_in_list(self, mock_settings_service, mock_ketos_components):
         """Test behavior when components_path contains only BASE_COMPONENTS_PATH."""
         # Setup: Only BASE_COMPONENTS_PATH in the list
         mock_settings_service.settings.components_path = [BASE_COMPONENTS_PATH]
         mock_settings_service.settings.lazy_load_components = False
 
         with (
-            patch("lfx.interface.components.import_langflow_components", return_value=mock_langflow_components),
-            patch("lfx.interface.components.aget_all_types_dict") as mock_aget_all_types_dict,
+            patch("kfx.interface.components.import_ketos_components", return_value=mock_ketos_components),
+            patch("kfx.interface.components.aget_all_types_dict") as mock_aget_all_types_dict,
         ):
             # Execute the function
             result = await get_and_cache_all_types_dict(mock_settings_service)
@@ -113,22 +113,22 @@ class TestComponentLoadingFix:
             # Verify that aget_all_types_dict was NOT called (no custom paths after filtering)
             mock_aget_all_types_dict.assert_not_called()
 
-            # Verify result contains only langflow components
+            # Verify result contains only ketos components
             assert "category1" in result
             assert "category2" in result
             assert "Component1" in result["category1"]
             assert "Component3" in result["category2"]
 
     @pytest.mark.asyncio
-    async def test_empty_components_path(self, mock_settings_service, mock_langflow_components):
+    async def test_empty_components_path(self, mock_settings_service, mock_ketos_components):
         """Test behavior when components_path is empty."""
         # Setup: Empty components_path
         mock_settings_service.settings.components_path = []
         mock_settings_service.settings.lazy_load_components = False
 
         with (
-            patch("lfx.interface.components.import_langflow_components", return_value=mock_langflow_components),
-            patch("lfx.interface.components.aget_all_types_dict") as mock_aget_all_types_dict,
+            patch("kfx.interface.components.import_ketos_components", return_value=mock_ketos_components),
+            patch("kfx.interface.components.aget_all_types_dict") as mock_aget_all_types_dict,
         ):
             # Execute the function
             result = await get_and_cache_all_types_dict(mock_settings_service)
@@ -136,21 +136,21 @@ class TestComponentLoadingFix:
             # Verify that aget_all_types_dict was NOT called
             mock_aget_all_types_dict.assert_not_called()
 
-            # Verify result contains only langflow components
+            # Verify result contains only ketos components
             assert "category1" in result
             assert "category2" in result
             assert "Component1" in result["category1"]
 
     @pytest.mark.asyncio
-    async def test_none_components_path(self, mock_settings_service, mock_langflow_components):
+    async def test_none_components_path(self, mock_settings_service, mock_ketos_components):
         """Test behavior when components_path is None."""
         # Setup: None components_path
         mock_settings_service.settings.components_path = None
         mock_settings_service.settings.lazy_load_components = False
 
         with (
-            patch("lfx.interface.components.import_langflow_components", return_value=mock_langflow_components),
-            patch("lfx.interface.components.aget_all_types_dict") as mock_aget_all_types_dict,
+            patch("kfx.interface.components.import_ketos_components", return_value=mock_ketos_components),
+            patch("kfx.interface.components.aget_all_types_dict") as mock_aget_all_types_dict,
         ):
             # Execute the function
             result = await get_and_cache_all_types_dict(mock_settings_service)
@@ -158,12 +158,12 @@ class TestComponentLoadingFix:
             # Verify that aget_all_types_dict was NOT called
             mock_aget_all_types_dict.assert_not_called()
 
-            # Verify result contains only langflow components
+            # Verify result contains only ketos components
             assert "category1" in result
             assert "category2" in result
 
     @pytest.mark.asyncio
-    async def test_lazy_loading_mode_with_base_path_filtering(self, mock_settings_service, mock_langflow_components):
+    async def test_lazy_loading_mode_with_base_path_filtering(self, mock_settings_service, mock_ketos_components):
         """Test that lazy loading mode uses aget_component_metadata with filtered paths."""
         # Setup: Enable lazy loading and include BASE_COMPONENTS_PATH
         mock_settings_service.settings.lazy_load_components = True
@@ -176,8 +176,8 @@ class TestComponentLoadingFix:
         }
 
         with (
-            patch("lfx.interface.components.import_langflow_components", return_value=mock_langflow_components),
-            patch("lfx.interface.components.aget_component_metadata", return_value=mock_metadata) as mock_aget_metadata,
+            patch("kfx.interface.components.import_ketos_components", return_value=mock_ketos_components),
+            patch("kfx.interface.components.aget_component_metadata", return_value=mock_metadata) as mock_aget_metadata,
         ):
             # Execute the function
             result = await get_and_cache_all_types_dict(mock_settings_service)
@@ -185,13 +185,13 @@ class TestComponentLoadingFix:
             # Verify that aget_component_metadata was called with the full path (not filtered in lazy mode)
             mock_aget_metadata.assert_called_once_with([BASE_COMPONENTS_PATH, "/custom/path1"])
 
-            # Verify result contains both langflow and custom components
+            # Verify result contains both ketos and custom components
             assert "category1" in result
             assert "custom_category" in result
 
     @pytest.mark.asyncio
     async def test_multiple_custom_paths_with_base_path(
-        self, mock_settings_service, mock_langflow_components, mock_custom_components
+        self, mock_settings_service, mock_ketos_components, mock_custom_components
     ):
         """Test filtering with multiple custom paths and BASE_COMPONENTS_PATH."""
         # Setup: Multiple paths including BASE_COMPONENTS_PATH
@@ -200,9 +200,9 @@ class TestComponentLoadingFix:
         mock_settings_service.settings.lazy_load_components = False
 
         with (
-            patch("lfx.interface.components.import_langflow_components", return_value=mock_langflow_components),
+            patch("kfx.interface.components.import_ketos_components", return_value=mock_ketos_components),
             patch(
-                "lfx.interface.components.aget_all_types_dict", return_value=mock_custom_components
+                "kfx.interface.components.aget_all_types_dict", return_value=mock_custom_components
             ) as mock_aget_all_types_dict,
         ):
             # Execute the function
@@ -214,20 +214,20 @@ class TestComponentLoadingFix:
 
             # Verify result structure
             assert isinstance(result, dict)
-            assert "category1" in result  # From langflow components
+            assert "category1" in result  # From ketos components
             assert "custom_category" in result  # From custom components
 
     @pytest.mark.asyncio
-    async def test_component_merging_logic(self, mock_settings_service, mock_langflow_components):
-        """Test that langflow and custom components are properly merged."""
+    async def test_component_merging_logic(self, mock_settings_service, mock_ketos_components):
+        """Test that ketos and custom components are properly merged."""
         # Setup
         mock_settings_service.settings.components_path = ["/custom/path1"]
         mock_settings_service.settings.lazy_load_components = False
 
         # Create overlapping component names to test merging behavior
         overlapping_custom_components = {
-            "category1": {  # Same category as langflow
-                "Component1": {"display_name": "CustomComponent1", "type": "category1"},  # Same name as langflow
+            "category1": {  # Same category as ketos
+                "Component1": {"display_name": "CustomComponent1", "type": "category1"},  # Same name as ketos
                 "Component4": {"display_name": "Component4", "type": "category1"},  # New component
             },
             "new_category": {
@@ -236,22 +236,22 @@ class TestComponentLoadingFix:
         }
 
         with (
-            patch("lfx.interface.components.import_langflow_components", return_value=mock_langflow_components),
-            patch("lfx.interface.components.aget_all_types_dict", return_value=overlapping_custom_components),
+            patch("kfx.interface.components.import_ketos_components", return_value=mock_ketos_components),
+            patch("kfx.interface.components.aget_all_types_dict", return_value=overlapping_custom_components),
         ):
             # Execute the function
             result = await get_and_cache_all_types_dict(mock_settings_service)
 
-            # Verify that custom components override langflow components with same name
+            # Verify that custom components override ketos components with same name
             assert "category1" in result
-            assert "category2" in result  # From langflow
+            assert "category2" in result  # From ketos
             assert "new_category" in result  # From custom
 
-            # Custom category should completely override langflow category
+            # Custom category should completely override ketos category
             assert result["category1"]["Component1"]["display_name"] == "CustomComponent1"
 
             # Only components from custom category should remain in category1
-            assert "Component2" not in result["category1"]  # Langflow component is replaced by custom category
+            assert "Component2" not in result["category1"]  # Ketos component is replaced by custom category
             assert "Component4" in result["category1"]  # New custom component
 
             # New custom component should be added
@@ -261,15 +261,15 @@ class TestComponentLoadingFix:
             assert result["new_category"]["NewComponent"]["display_name"] == "NewComponent"
 
     @pytest.mark.asyncio
-    async def test_component_cache_behavior(self, mock_settings_service, mock_langflow_components):
+    async def test_component_cache_behavior(self, mock_settings_service, mock_ketos_components):
         """Test that component cache is properly used and populated."""
         # Setup
         mock_settings_service.settings.components_path = ["/custom/path1"]
         mock_settings_service.settings.lazy_load_components = False
 
         with (
-            patch("lfx.interface.components.import_langflow_components", return_value=mock_langflow_components),
-            patch("lfx.interface.components.aget_all_types_dict", return_value={}),
+            patch("kfx.interface.components.import_ketos_components", return_value=mock_ketos_components),
+            patch("kfx.interface.components.aget_all_types_dict", return_value={}),
         ):
             # First call - should populate cache
             result1 = await get_and_cache_all_types_dict(mock_settings_service)
@@ -286,16 +286,16 @@ class TestComponentLoadingFix:
             assert result1 is result2  # Same object reference
 
     @pytest.mark.asyncio
-    async def test_logging_behavior(self, mock_settings_service, mock_langflow_components, mock_custom_components):
+    async def test_logging_behavior(self, mock_settings_service, mock_ketos_components, mock_custom_components):
         """Test that appropriate logging messages are generated."""
         # Setup
         mock_settings_service.settings.components_path = ["/custom/path1"]
         mock_settings_service.settings.lazy_load_components = False
 
         with (
-            patch("lfx.interface.components.import_langflow_components", return_value=mock_langflow_components),
-            patch("lfx.interface.components.aget_all_types_dict", return_value=mock_custom_components),
-            patch("lfx.interface.components.logger") as mock_logger,
+            patch("kfx.interface.components.import_ketos_components", return_value=mock_ketos_components),
+            patch("kfx.interface.components.aget_all_types_dict", return_value=mock_custom_components),
+            patch("kfx.interface.components.logger") as mock_logger,
         ):
             # Configure async mock methods
             mock_logger.adebug = AsyncMock()
@@ -312,15 +312,15 @@ class TestComponentLoadingFix:
             assert len(total_count_logs) >= 1
 
     @pytest.mark.asyncio
-    async def test_error_handling_in_custom_component_loading(self, mock_settings_service, mock_langflow_components):
+    async def test_error_handling_in_custom_component_loading(self, mock_settings_service, mock_ketos_components):
         """Test error handling when custom component loading fails."""
         # Setup
         mock_settings_service.settings.components_path = ["/custom/path1"]
         mock_settings_service.settings.lazy_load_components = False
 
         with (
-            patch("lfx.interface.components.import_langflow_components", return_value=mock_langflow_components),
-            patch("lfx.interface.components.aget_all_types_dict", side_effect=Exception("Custom loading failed")),
+            patch("kfx.interface.components.import_ketos_components", return_value=mock_ketos_components),
+            patch("kfx.interface.components.aget_all_types_dict", side_effect=Exception("Custom loading failed")),
             pytest.raises(Exception, match="Custom loading failed"),
         ):
             # Execute the function - should raise exception when custom component loading fails
@@ -334,12 +334,12 @@ class TestComponentLoadingFix:
         assert isinstance(BASE_COMPONENTS_PATH, str)
         assert len(BASE_COMPONENTS_PATH) > 0
 
-        # Should be an absolute path containing "langflow" and "components"
-        assert "langflow" in BASE_COMPONENTS_PATH.lower()
+        # Should be an absolute path containing "ketos" and "components"
+        assert "ketos" in BASE_COMPONENTS_PATH.lower()
         assert "components" in BASE_COMPONENTS_PATH.lower()
 
     @pytest.mark.asyncio
-    async def test_path_filtering_edge_cases(self, mock_settings_service, mock_langflow_components):
+    async def test_path_filtering_edge_cases(self, mock_settings_service, mock_ketos_components):
         """Test edge cases in path filtering logic."""
         # Setup
         mock_settings_service.settings.lazy_load_components = False
@@ -348,8 +348,8 @@ class TestComponentLoadingFix:
         mock_settings_service.settings.components_path = [BASE_COMPONENTS_PATH, "/custom/path", BASE_COMPONENTS_PATH]
 
         with (
-            patch("lfx.interface.components.import_langflow_components", return_value=mock_langflow_components),
-            patch("lfx.interface.components.aget_all_types_dict", return_value={}) as mock_aget_all_types_dict,
+            patch("kfx.interface.components.import_ketos_components", return_value=mock_ketos_components),
+            patch("kfx.interface.components.aget_all_types_dict", return_value={}) as mock_aget_all_types_dict,
         ):
             # Clear cache for fresh test
             component_cache.all_types_dict = None
@@ -361,7 +361,7 @@ class TestComponentLoadingFix:
             mock_aget_all_types_dict.assert_called_once_with(["/custom/path"])
 
     @pytest.mark.asyncio
-    async def test_component_count_calculation(self, mock_settings_service, mock_langflow_components):
+    async def test_component_count_calculation(self, mock_settings_service, mock_ketos_components):
         """Test that component count calculation works correctly."""
         # Setup with known component counts
         mock_settings_service.settings.components_path = ["/custom/path1"]
@@ -379,14 +379,14 @@ class TestComponentLoadingFix:
         }
 
         with (
-            patch("lfx.interface.components.import_langflow_components", return_value=mock_langflow_components),
-            patch("lfx.interface.components.aget_all_types_dict", return_value=mock_custom_components),
+            patch("kfx.interface.components.import_ketos_components", return_value=mock_ketos_components),
+            patch("kfx.interface.components.aget_all_types_dict", return_value=mock_custom_components),
         ):
             # Execute the function
             result = await get_and_cache_all_types_dict(mock_settings_service)
 
             # Verify result structure
-            assert len(result) >= 2  # At least langflow categories + custom categories
+            assert len(result) >= 2  # At least ketos categories + custom categories
 
             # Verify custom components are present
             assert "custom_cat1" in result
@@ -396,7 +396,7 @@ class TestComponentLoadingFix:
 
     @pytest.mark.asyncio
     async def test_async_concurrency_safety(
-        self, mock_settings_service, mock_langflow_components, mock_custom_components
+        self, mock_settings_service, mock_ketos_components, mock_custom_components
     ):
         """Test that concurrent calls to get_and_cache_all_types_dict are safe."""
         # Setup
@@ -404,8 +404,8 @@ class TestComponentLoadingFix:
         mock_settings_service.settings.lazy_load_components = False
 
         with (
-            patch("lfx.interface.components.import_langflow_components", return_value=mock_langflow_components),
-            patch("lfx.interface.components.aget_all_types_dict", return_value=mock_custom_components),
+            patch("kfx.interface.components.import_ketos_components", return_value=mock_ketos_components),
+            patch("kfx.interface.components.aget_all_types_dict", return_value=mock_custom_components),
         ):
             # Execute multiple concurrent calls
             tasks = [get_and_cache_all_types_dict(mock_settings_service) for _ in range(3)]
@@ -424,14 +424,14 @@ class TestComponentLoadingFix:
         mock_settings_service.settings.components_path = [BASE_COMPONENTS_PATH, "/custom/test"]
         mock_settings_service.settings.lazy_load_components = False
 
-        # This test should work with real langflow components
-        with patch("lfx.interface.components.aget_all_types_dict", return_value={}) as mock_aget_all_types_dict:
+        # This test should work with real ketos components
+        with patch("kfx.interface.components.aget_all_types_dict", return_value={}) as mock_aget_all_types_dict:
             # Execute the function
             result = await get_and_cache_all_types_dict(mock_settings_service)
 
             # Verify BASE_COMPONENTS_PATH was filtered out
             mock_aget_all_types_dict.assert_called_once_with(["/custom/test"])
 
-            # Verify we got real langflow components
+            # Verify we got real ketos components
             assert isinstance(result, dict)
-            assert len(result) >= 0  # Should not have langflow components
+            assert len(result) >= 0  # Should not have ketos components

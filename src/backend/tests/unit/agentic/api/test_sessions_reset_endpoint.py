@@ -22,11 +22,11 @@ import types
 from typing import TYPE_CHECKING
 
 import pytest
-from langflow.agentic.services.conversation_buffer import (
+from ketos.agentic.services.conversation_buffer import (
     ConversationBuffer,
     ConversationTurn,
 )
-from langflow.agentic.services.user_components import (
+from ketos.agentic.services.user_components import (
     get_user_components_dir,
     register_user_component,
 )
@@ -35,9 +35,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 SAMPLE_CODE = (
-    "from lfx.custom import Component\n"
-    "from lfx.io import FloatInput, Output\n"
-    "from lfx.schema import Data\n"
+    "from kfx.custom import Component\n"
+    "from kfx.io import FloatInput, Output\n"
+    "from kfx.schema import Data\n"
     "\n"
     "class SumComponent(Component):\n"
     "    inputs = [FloatInput(name='a'), FloatInput(name='b')]\n"
@@ -49,10 +49,10 @@ SAMPLE_CODE = (
 
 @pytest.fixture
 def isolated_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setenv("LANGFLOW_FS_TOOL_BASE_DIR", str(tmp_path))
+    monkeypatch.setenv("KETOS_FS_TOOL_BASE_DIR", str(tmp_path))
     (tmp_path / ".fs_pepper").write_bytes(secrets.token_bytes(32))
 
-    from lfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
+    from kfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
 
     monkeypatch.setattr(
         FileSystemToolComponent,
@@ -64,7 +64,7 @@ def isolated_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 @pytest.fixture
 def fresh_conversation_buffer(monkeypatch: pytest.MonkeyPatch) -> ConversationBuffer:
-    import langflow.agentic.services.conversation_buffer as module
+    import ketos.agentic.services.conversation_buffer as module
 
     buf = ConversationBuffer()
     monkeypatch.setattr(module, "_singleton", buf)
@@ -92,7 +92,7 @@ class TestResetSessionEndpointWipesComponents:
             code=SAMPLE_CODE,
         )
 
-        from langflow.agentic.api.sessions_router import reset_session
+        from ketos.agentic.api.sessions_router import reset_session
 
         result = await reset_session(
             current_user=_make_user("user-alice"),
@@ -115,7 +115,7 @@ class TestResetSessionEndpointWipesComponents:
             ConversationTurn(user="hi", assistant="hello"),
         )
 
-        from langflow.agentic.api.sessions_router import reset_session
+        from ketos.agentic.api.sessions_router import reset_session
 
         await reset_session(
             current_user=_make_user("user-alice"),
@@ -140,7 +140,7 @@ class TestResetSessionEndpointWipesComponents:
             code=SAMPLE_CODE,
         )
 
-        from langflow.agentic.api.sessions_router import reset_session
+        from ketos.agentic.api.sessions_router import reset_session
 
         await reset_session(
             current_user=_make_user("user-alice"),
@@ -166,7 +166,7 @@ class TestResetSessionEndpointWipesComponents:
             ConversationTurn(user="other", assistant="other-ack"),
         )
 
-        from langflow.agentic.api.sessions_router import reset_session
+        from ketos.agentic.api.sessions_router import reset_session
 
         await reset_session(
             current_user=_make_user("user-alice"),
@@ -189,7 +189,7 @@ class TestResetSessionEndpointShape:
             code=SAMPLE_CODE,
         )
 
-        from langflow.agentic.api.sessions_router import reset_session
+        from ketos.agentic.api.sessions_router import reset_session
 
         # session_id=None still wipes components (the "fresh mount with
         # a brand new id" scenario fires before any turns are logged —
@@ -206,7 +206,7 @@ class TestResetSessionEndpointShape:
         isolated_sandbox: Path,  # noqa: ARG002
         fresh_conversation_buffer: ConversationBuffer,  # noqa: ARG002
     ) -> None:
-        from langflow.agentic.api.sessions_router import reset_session
+        from ketos.agentic.api.sessions_router import reset_session
 
         result = await reset_session(
             current_user=_make_user("user-alice"),

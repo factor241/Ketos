@@ -10,9 +10,9 @@ import uuid
 import pytest
 from fastapi import status
 from httpx import AsyncClient
-from langflow.api.utils.flow_utils import compute_virtual_flow_id
-from langflow.services.database.models.message.model import MessageTable
-from lfx.services.deps import session_scope
+from ketos.api.utils.flow_utils import compute_virtual_flow_id
+from ketos.services.database.models.message.model import MessageTable
+from kfx.services.deps import session_scope
 
 # --- Unit tests for compute_virtual_flow_id ---
 

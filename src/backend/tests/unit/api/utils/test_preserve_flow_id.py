@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
-from langflow.services.database.models.flow.model import FlowCreate
+from ketos.services.database.models.flow.model import FlowCreate
 
 # ---------------------------------------------------------------------------
 # FlowCreate schema
@@ -92,7 +92,7 @@ class TestUploadUpsertBranches:
         if flow.id is not None:
             pytest.fail("Should have taken the no-id branch")
 
-        with patch("langflow.api.v1.flows._new_flow", new_flow_mock):
+        with patch("ketos.api.v1.flows._new_flow", new_flow_mock):
             await new_flow_mock(session=None, flow=flow, user_id=current_user.id, storage_service=None)
 
         new_flow_mock.assert_awaited_once()
@@ -117,7 +117,7 @@ class TestUploadUpsertBranches:
         assert flow.id is not None
         assert existing is None
 
-        with patch("langflow.api.v1.flows._new_flow", new_flow_mock):
+        with patch("ketos.api.v1.flows._new_flow", new_flow_mock):
             await new_flow_mock(
                 session=None,
                 flow=flow,
@@ -147,7 +147,7 @@ class TestUploadUpsertBranches:
         assert existing is not None
         assert existing.user_id == current_user.id
 
-        with patch("langflow.api.v1.flows._update_existing_flow", update_mock):
+        with patch("ketos.api.v1.flows._update_existing_flow", update_mock):
             await update_mock(
                 session=None,
                 existing_flow=existing,
@@ -180,7 +180,7 @@ class TestUploadUpsertBranches:
         flow.id = None  # as the endpoint does
 
         new_flow_mock = AsyncMock(return_value=MagicMock())
-        with patch("langflow.api.v1.flows._new_flow", new_flow_mock):
+        with patch("ketos.api.v1.flows._new_flow", new_flow_mock):
             await new_flow_mock(session=None, flow=flow, user_id=current_user.id, storage_service=None)
 
         # After clearing, flow.id must be None so a fresh UUID is generated
@@ -197,7 +197,7 @@ class TestUploadUpsertBranches:
 class TestUpsertEndpointVisibility:
     def test_upsert_route_in_openapi_schema(self):
         """PUT /flows/{flow_id} must be visible in the OpenAPI schema."""
-        from langflow.api.v1.flows import router
+        from ketos.api.v1.flows import router
 
         put_routes = [r for r in router.routes if "PUT" in getattr(r, "methods", set())]
         upsert_routes = [r for r in put_routes if "{flow_id}" in getattr(r, "path", "")]

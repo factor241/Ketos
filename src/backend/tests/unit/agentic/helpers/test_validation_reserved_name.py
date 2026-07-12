@@ -22,12 +22,12 @@ to debug a generic ValidationError.
 
 from __future__ import annotations
 
-from langflow.agentic.helpers.validation import validate_component_code
+from ketos.agentic.helpers.validation import validate_component_code
 
 _RESERVED_NAME_CODE = (
-    "from lfx.custom import Component\n"
-    "from lfx.io import MultilineInput, Output\n"
-    "from lfx.schema import Message\n"
+    "from kfx.custom import Component\n"
+    "from kfx.io import MultilineInput, Output\n"
+    "from kfx.schema import Message\n"
     "\n"
     "class RandomMenuItemComponent(Component):\n"
     "    display_name = 'Random Menu Item'\n"
@@ -46,9 +46,9 @@ _RESERVED_NAME_CODE = (
 )
 
 _RESERVED_METHOD_CODE = (
-    "from lfx.custom import Component\n"
-    "from lfx.io import Output\n"
-    "from lfx.schema import Message\n"
+    "from kfx.custom import Component\n"
+    "from kfx.io import Output\n"
+    "from kfx.schema import Message\n"
     "\n"
     "class BadMethod(Component):\n"
     "    inputs = []\n"
@@ -58,9 +58,9 @@ _RESERVED_METHOD_CODE = (
 )
 
 _GOOD_CODE = (
-    "from lfx.custom import Component\n"
-    "from lfx.io import MultilineInput, Output\n"
-    "from lfx.schema import Message\n"
+    "from kfx.custom import Component\n"
+    "from kfx.io import MultilineInput, Output\n"
+    "from kfx.schema import Message\n"
     "\n"
     "class RandomMenuItem(Component):\n"
     "    display_name = 'Random Menu Item'\n"

@@ -1,5 +1,5 @@
 import pytest
-from lfx.components.helpers.calculator_core import CalculatorComponent
+from kfx.components.helpers.calculator_core import CalculatorComponent
 
 from tests.base import ComponentTestBaseWithoutClient
 

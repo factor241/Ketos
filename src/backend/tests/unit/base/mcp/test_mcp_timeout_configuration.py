@@ -10,7 +10,7 @@ import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from lfx.base.mcp.util import MCPStdioClient, MCPStreamableHttpClient, update_tools
+from kfx.base.mcp.util import MCPStdioClient, MCPStreamableHttpClient, update_tools
 
 
 class TestMCPTimeoutConfiguration:
@@ -19,7 +19,7 @@ class TestMCPTimeoutConfiguration:
     @pytest.mark.asyncio
     async def test_stdio_client_default_timeout(self):
         """Test that MCPStdioClient uses global default timeout (180s)."""
-        with patch("lfx.base.mcp.util._get_mcp_setting") as mock_get_setting:
+        with patch("kfx.base.mcp.util._get_mcp_setting") as mock_get_setting:
             # Simulate: mcp_tool_execution_timeout=180, mcp_server_timeout=20
             def get_setting_side_effect(key, default):
                 if key == "mcp_tool_execution_timeout":
@@ -42,7 +42,7 @@ class TestMCPTimeoutConfiguration:
     @pytest.mark.asyncio
     async def test_streamable_http_client_default_timeout(self):
         """Test that MCPStreamableHttpClient uses global default timeout (180s)."""
-        with patch("lfx.base.mcp.util._get_mcp_setting") as mock_get_setting:
+        with patch("kfx.base.mcp.util._get_mcp_setting") as mock_get_setting:
             # Simulate: mcp_tool_execution_timeout=180, mcp_server_timeout=20
             def get_setting_side_effect(key, default):
                 if key == "mcp_tool_execution_timeout":
@@ -165,7 +165,7 @@ class TestMCPTimeoutConfiguration:
             "args": [],
         }
 
-        with patch("lfx.base.mcp.util.MCPStdioClient") as mock_client_class:
+        with patch("kfx.base.mcp.util.MCPStdioClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_client.connect_to_server = AsyncMock(return_value=[])
             mock_client._connected = True
@@ -188,7 +188,7 @@ class TestMCPTimeoutConfiguration:
             "url": "http://test-server",
         }
 
-        with patch("lfx.base.mcp.util.MCPStreamableHttpClient") as mock_client_class:
+        with patch("kfx.base.mcp.util.MCPStreamableHttpClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_client.connect_to_server = AsyncMock(return_value=[])
             mock_client._connected = True
@@ -235,7 +235,7 @@ class TestMCPTimeoutBehavior:
     @pytest.mark.asyncio
     async def test_zero_timeout_uses_global_default(self):
         """Test that timeout=0 or None falls back to global setting."""
-        with patch("lfx.base.mcp.util._get_mcp_setting") as mock_get_setting:
+        with patch("kfx.base.mcp.util._get_mcp_setting") as mock_get_setting:
             # Simulate: mcp_tool_execution_timeout=180, mcp_server_timeout=20
             def get_setting_side_effect(key, default):
                 if key == "mcp_tool_execution_timeout":
@@ -309,7 +309,7 @@ class TestMCPTimeoutBehavior:
     @pytest.mark.asyncio
     async def test_none_timeout_preserves_existing_client_timeout(self):
         """Test that passing None as timeout preserves existing client's timeout."""
-        from lfx.base.mcp.util import update_tools
+        from kfx.base.mcp.util import update_tools
 
         # Create a client with a specific timeout
         initial_client = MCPStdioClient(tool_execution_timeout=250)
@@ -338,7 +338,7 @@ class TestMCPTimeoutBehavior:
     @pytest.mark.asyncio
     async def test_mcp_sse_client_receives_timeout(self):
         """Test that mcp_sse_client (backward compatibility alias) receives timeout."""
-        from lfx.base.mcp.util import update_tools
+        from kfx.base.mcp.util import update_tools
 
         # Create an SSE client (which is actually a StreamableHttpClient)
         sse_client = MCPStreamableHttpClient(tool_execution_timeout=100)
@@ -370,7 +370,7 @@ class TestMCPTimeoutSettingsValidation:
     @pytest.mark.asyncio
     async def test_global_setting_validation_rejects_zero(self):
         """Test that global mcp_tool_execution_timeout setting rejects zero values."""
-        from lfx.services.settings.base import Settings
+        from kfx.services.settings.base import Settings
 
         # Test the validator directly
         with pytest.raises(ValueError, match="mcp_tool_execution_timeout must be greater than 0"):
@@ -379,7 +379,7 @@ class TestMCPTimeoutSettingsValidation:
     @pytest.mark.asyncio
     async def test_global_setting_validation_rejects_negative(self):
         """Test that global mcp_tool_execution_timeout setting rejects negative values."""
-        from lfx.services.settings.base import Settings
+        from kfx.services.settings.base import Settings
 
         # Test the validator directly
         with pytest.raises(ValueError, match="mcp_tool_execution_timeout must be greater than 0"):
@@ -388,7 +388,7 @@ class TestMCPTimeoutSettingsValidation:
     @pytest.mark.asyncio
     async def test_global_setting_accepts_positive_float(self):
         """Test that global mcp_tool_execution_timeout setting accepts positive float values."""
-        from lfx.services.settings.base import Settings
+        from kfx.services.settings.base import Settings
 
         # Test that the validator accepts positive values
         # Note: We test the validator logic, not the full Settings initialization

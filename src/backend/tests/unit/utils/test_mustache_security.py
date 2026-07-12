@@ -1,7 +1,7 @@
 """Tests for mustache security utilities."""
 
 import pytest
-from langflow.utils.mustache_security import safe_mustache_render, validate_mustache_template
+from ketos.utils.mustache_security import safe_mustache_render, validate_mustache_template
 
 
 class TestMustacheSecurity:
@@ -100,9 +100,9 @@ class TestMustacheSecurity:
     def test_safe_render_multiple_variables(self):
         """Test rendering with multiple variables."""
         template = "{{greeting}} {{name}}, welcome to {{place}}!"
-        variables = {"greeting": "Hello", "name": "Alice", "place": "Langflow"}
+        variables = {"greeting": "Hello", "name": "Alice", "place": "Ketos"}
         result = safe_mustache_render(template, variables)
-        assert result == "Hello Alice, welcome to Langflow!"
+        assert result == "Hello Alice, welcome to Ketos!"
 
     def test_safe_render_underscore_variables(self):
         """Test rendering with underscore variable names."""

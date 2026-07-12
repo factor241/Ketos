@@ -9,10 +9,10 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
 
-from langflow.utils import i18n as i18n_utils
+from ketos.utils import i18n as i18n_utils
 
 ROOT = Path(__file__).resolve().parents[4]
-LOCALES = ROOT / "src/backend/base/langflow/locales"
+LOCALES = ROOT / "src/backend/base/ketos/locales"
 
 
 def _catalog(locale: str) -> dict[str, str]:
@@ -43,7 +43,7 @@ def test_russian_catalog_is_complete_nonempty_and_uses_reviewed_core_terms():
 def test_all_indexed_builtin_component_display_names_have_russian_entries():
     english = _catalog("en")
     russian = _catalog("ru")
-    index = json.loads((ROOT / "src/lfx/src/lfx/_assets/component_index.json").read_text(encoding="utf-8"))
+    index = json.loads((ROOT / "src/kfx/src/kfx/_assets/component_index.json").read_text(encoding="utf-8"))
     expected_display_names: dict[str, str] = {}
     for _category, components in index["entries"]:
         for component_name, node in components.items():

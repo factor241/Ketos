@@ -1,8 +1,8 @@
 from unittest.mock import patch
 
 import pytest
-from lfx.components.flow_controls.flow_tool import FlowToolComponent
-from lfx.schema.data import Data
+from kfx.components.flow_controls.flow_tool import FlowToolComponent
+from kfx.schema.data import Data
 
 from tests.base import ComponentTestBaseWithClient
 
@@ -165,7 +165,7 @@ class TestFlowToolComponent(ComponentTestBaseWithClient):
     async def test_build_tool_no_flow_name(self, component_class, default_kwargs):
         """Test build_tool raises error when flow_name is not provided."""
         component = await self.component_setup(component_class, default_kwargs)
-        from lfx.base.tools.flow_tool import FlowTool
+        from kfx.base.tools.flow_tool import FlowTool
 
         with (
             patch.object(component, "_attributes", {}),
@@ -178,7 +178,7 @@ class TestFlowToolComponent(ComponentTestBaseWithClient):
     async def test_build_tool_empty_flow_name(self, component_class, default_kwargs):
         """Test build_tool raises error when flow_name is empty."""
         component = await self.component_setup(component_class, default_kwargs)
-        from lfx.base.tools.flow_tool import FlowTool
+        from kfx.base.tools.flow_tool import FlowTool
 
         with (
             patch.object(component, "_attributes", {"flow_name": ""}),
@@ -191,7 +191,7 @@ class TestFlowToolComponent(ComponentTestBaseWithClient):
     async def test_build_tool_flow_not_found(self, component_class, default_kwargs):
         """Test build_tool raises error when flow is not found."""
         component = await self.component_setup(component_class, default_kwargs)
-        from lfx.base.tools.flow_tool import FlowTool
+        from kfx.base.tools.flow_tool import FlowTool
 
         with (
             patch.object(component, "_attributes", {"flow_name": "Nonexistent Flow"}),
@@ -204,7 +204,7 @@ class TestFlowToolComponent(ComponentTestBaseWithClient):
     async def test_component_inheritance(self, component_class, default_kwargs):
         """Test that component properly inherits from LCToolComponent."""
         component = await self.component_setup(component_class, default_kwargs)
-        from lfx.base.langchain_utilities.model import LCToolComponent
+        from kfx.base.langchain_utilities.model import LCToolComponent
 
         assert isinstance(component, LCToolComponent)
 

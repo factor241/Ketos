@@ -6,7 +6,7 @@ files_router.py:49). External clients, SDK generators, and Swagger UI
 therefore can't discover them.
 
 Bug-fix scope: the assistant and files endpoints are GA-quality surfaces
-(authenticated, documented in ``docs/features/langflow-assistant.md``,
+(authenticated, documented in ``docs/features/ketos-assistant.md``,
 covered by extensive tests). They must appear in the published schema so
 clients can integrate without reading source code.
 """
@@ -15,8 +15,8 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from langflow.agentic.api.files_router import router as files_router
-from langflow.agentic.api.router import router as assistant_router
+from ketos.agentic.api.files_router import router as files_router
+from ketos.agentic.api.router import router as assistant_router
 
 
 def _build_schema() -> dict:

@@ -1,7 +1,7 @@
 """Tests for resolve_assistant_fs_root — assistant workspace path resolution.
 
 Forward-compatible with PR #13031 (per-user FileSystemTool isolation):
-- Env var name (LANGFLOW_FS_TOOL_BASE_DIR) and default path (~/.langflow/fs_tool/fs_sandbox)
+- Env var name (KETOS_FS_TOOL_BASE_DIR) and default path (~/.ketos/fs_tool/fs_sandbox)
   match the contract that PR #13031 introduces.
 - When PR #13031 ships its isolation module, this resolver returns None so the
   flow_preparation injector skips writing root_path and lets the component
@@ -13,7 +13,7 @@ import importlib.util
 import sys
 
 import pytest
-from langflow.agentic.helpers.assistant_workspace import (
+from ketos.agentic.helpers.assistant_workspace import (
     BASE_DIR_ENV,
     DEFAULT_BASE_SUBPATH,
     ISOLATION_MODULE,
@@ -23,7 +23,7 @@ from langflow.agentic.helpers.assistant_workspace import (
 
 class TestResolveAssistantFsRoot:
     """Resolution order: skip if isolation module is present →
-    env var (expanded, stripped) → ~/.langflow/fs_tool/fs_sandbox default.
+    env var (expanded, stripped) → ~/.ketos/fs_tool/fs_sandbox default.
     Always mkdir when a path is returned.
     """  # noqa: D205
 

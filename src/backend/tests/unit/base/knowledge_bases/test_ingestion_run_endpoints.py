@@ -26,10 +26,10 @@ from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
-from langflow.api.utils import knowledge_base_service
-from langflow.services.database.models.jobs.model import Job, JobStatus, JobType
-from langflow.services.deps import session_scope
-from lfx.base.knowledge_bases.ingestion_sources.base import IngestionRunStatus
+from ketos.api.utils import knowledge_base_service
+from ketos.services.database.models.jobs.model import Job, JobStatus, JobType
+from ketos.services.deps import session_scope
+from kfx.base.knowledge_bases.ingestion_sources.base import IngestionRunStatus
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
@@ -135,7 +135,7 @@ async def _insert_run(
 
 
 class TestListIngestionRuns:
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_returns_runs_for_kb_newest_first(
         self, mock_root, client: AsyncClient, logged_in_headers, active_user, tmp_path
     ):
@@ -157,7 +157,7 @@ class TestListIngestionRuns:
         # Newer first
         assert ids.index(str(second_id)) < ids.index(str(first_id))
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_excludes_other_users_runs(
         self, mock_root, client: AsyncClient, logged_in_headers, active_user, tmp_path
     ):
@@ -191,7 +191,7 @@ class TestListIngestionRuns:
         # Must not leak the other user's run even though kb_name matches
         assert str(foreign_run_id) not in ids
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_exposes_source_name_from_source_config(
         self, mock_root, client: AsyncClient, logged_in_headers, active_user, tmp_path
     ):
@@ -226,7 +226,7 @@ class TestListIngestionRuns:
         # Whitespace-only collapses to ``None``.
         assert names.count(None) == 2
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_pagination(self, mock_root, client: AsyncClient, logged_in_headers, active_user, tmp_path):
         mock_root.return_value = tmp_path
         kb_dir = tmp_path / active_user.username / "paginated_kb"
@@ -248,7 +248,7 @@ class TestListIngestionRuns:
 
 
 class TestGetIngestionRun:
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_returns_full_detail_with_items(
         self, mock_root, client: AsyncClient, logged_in_headers, active_user, tmp_path
     ):
@@ -293,7 +293,7 @@ class TestGetIngestionRun:
         failed_item = next(i for i in payload["items"] if i["status"] == "failed")
         assert failed_item["error_message"] == "parse failure"
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_other_users_run_returns_404(
         self, mock_root, client: AsyncClient, logged_in_headers, active_user, tmp_path
     ):
@@ -319,7 +319,7 @@ class TestGetIngestionRun:
         # isn't a covert enumeration channel.
         assert response.status_code == 404
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_run_from_different_kb_returns_404(
         self, mock_root, client: AsyncClient, logged_in_headers, active_user, tmp_path
     ):
@@ -358,7 +358,7 @@ class TestChunksFilters:
         """
         from unittest.mock import AsyncMock, MagicMock
 
-        from lfx.base.knowledge_bases.backends.base import IngestedDocument
+        from kfx.base.knowledge_bases.backends.base import IngestedDocument
 
         async def _iter_documents(*, batch_size: int = 1000, include_embeddings: bool = False):  # noqa: ARG001
             yield [IngestedDocument(content=c, metadata=m) for c, m in entries]
@@ -376,9 +376,9 @@ class TestChunksFilters:
             ("?job_id=deadbeef", {"file_upload"}),
         ],
     )
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.release_chroma_resources")
-    @patch("langflow.api.v1.knowledge_bases.create_backend")
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.release_chroma_resources")
+    @patch("ketos.api.v1.knowledge_bases.create_backend")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_single_metadata_filter_narrows_results(
         self,
         mock_root,
@@ -412,9 +412,9 @@ class TestChunksFilters:
         body = response.json()
         assert {chunk["metadata"]["source_type"] for chunk in body["chunks"]} == expected_source_types
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.release_chroma_resources")
-    @patch("langflow.api.v1.knowledge_bases.create_backend")
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.release_chroma_resources")
+    @patch("ketos.api.v1.knowledge_bases.create_backend")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_multiple_filters_combine_with_and(
         self,
         mock_root,

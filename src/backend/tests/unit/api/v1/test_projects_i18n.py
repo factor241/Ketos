@@ -5,11 +5,11 @@ from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
-from langflow.api.v1 import projects
-from langflow.initial_setup.constants import ASSISTANT_FOLDER_NAME, STARTER_FOLDER_NAME
-from langflow.services.database.models.folder.constants import DEFAULT_FOLDER_NAME
-from langflow.services.database.models.folder.model import FolderReadWithFlows
-from langflow.utils import i18n as i18n_utils
+from ketos.api.v1 import projects
+from ketos.initial_setup.constants import ASSISTANT_FOLDER_NAME, STARTER_FOLDER_NAME
+from ketos.services.database.models.folder.constants import DEFAULT_FOLDER_NAME
+from ketos.services.database.models.folder.model import FolderReadWithFlows
+from ketos.utils import i18n as i18n_utils
 from starlette.requests import Request
 
 
@@ -42,7 +42,7 @@ def system_folder_translations(monkeypatch):
     russian = {
         "system_folders.default.name": "Мои проекты",
         "system_folders.starter.name": "Стартовые проекты",
-        "system_folders.assistant.name": "Помощник Langflow",
+        "system_folders.assistant.name": "Помощник Ketos",
     }
     monkeypatch.setattr(i18n_utils, "_translations", {"en": english, "ru": russian})
     return russian

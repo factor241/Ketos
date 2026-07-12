@@ -3,7 +3,7 @@
 import time
 
 import pytest
-from lfx.schema.schema import InputValueRequest
+from kfx.schema.schema import InputValueRequest
 
 
 class TestClientRequestTimeHandling:
@@ -150,7 +150,7 @@ class TestDurationFormatting:
 
     def test_format_elapsed_time_from_client_timestamp(self):
         """Test that duration formatting works with client timestamps."""
-        from langflow.api.utils import format_elapsed_time
+        from ketos.api.utils import format_elapsed_time
 
         # Test milliseconds (< 1 second)
         duration_ms = 0.5  # 500ms

@@ -4,17 +4,17 @@ from uuid import UUID
 import orjson
 import pytest
 from httpx import AsyncClient
-from langflow.memory import aget_messages
-from langflow.services.database.models.flow import FlowCreate
-from lfx.components.data_source.url import URLComponent
-from lfx.components.flow_controls import LoopComponent
-from lfx.components.input_output import ChatOutput
-from lfx.components.llm_operations import StructuredOutputComponent
-from lfx.components.models_and_agents import PromptComponent
-from lfx.components.openai.openai_chat_model import OpenAIModelComponent
-from lfx.components.processing import ParserComponent, SplitTextComponent
-from lfx.graph import Graph
-from lfx.schema.data import Data
+from ketos.memory import aget_messages
+from ketos.services.database.models.flow import FlowCreate
+from kfx.components.data_source.url import URLComponent
+from kfx.components.flow_controls import LoopComponent
+from kfx.components.input_output import ChatOutput
+from kfx.components.llm_operations import StructuredOutputComponent
+from kfx.components.models_and_agents import PromptComponent
+from kfx.components.openai.openai_chat_model import OpenAIModelComponent
+from kfx.components.processing import ParserComponent, SplitTextComponent
+from kfx.graph import Graph
+from kfx.schema.data import Data
 
 from tests.api_keys import get_openai_api_key, has_api_key
 from tests.base import ComponentTestBaseWithClient
@@ -131,7 +131,7 @@ def loop_flow():
     """Complete loop flow that processes multiple URLs through a loop."""
     # Create URL component to fetch content from multiple sources
     url_component = URLComponent()
-    url_component.set(urls=["https://docs.langflow.org/"])
+    url_component.set(urls=["https://docs.ketos.test/"])
 
     # Create SplitText component to chunk the content
     split_text_component = SplitTextComponent()
@@ -252,7 +252,7 @@ class TestLoopComponentSubgraphExecution:
 
     def test_loop_component_initialization(self):
         """Test that LoopComponent initializes correctly with data."""
-        from lfx.schema.dataframe import DataFrame
+        from kfx.schema.dataframe import DataFrame
 
         data_list = [Data(text="item1"), Data(text="item2"), Data(text="item3")]
         loop = LoopComponent()
@@ -263,7 +263,7 @@ class TestLoopComponentSubgraphExecution:
 
     def test_validate_data_with_dataframe(self):
         """Test that _validate_data correctly handles DataFrame input."""
-        from lfx.schema.dataframe import DataFrame
+        from kfx.schema.dataframe import DataFrame
 
         data_list = [Data(text="item1"), Data(text="item2")]
         df = DataFrame(data_list)
@@ -359,7 +359,7 @@ class TestLoopComponentSubgraphExecution:
         from contextlib import asynccontextmanager
         from unittest.mock import MagicMock, patch
 
-        from lfx.schema.dataframe import DataFrame
+        from kfx.schema.dataframe import DataFrame
 
         # Create a mock event manager
         mock_event_manager = MagicMock()
@@ -420,7 +420,7 @@ class TestLoopComponentSubgraphExecution:
         """Test that done_output properly passes event_manager to execute_loop_body."""
         from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
-        from lfx.schema.dataframe import DataFrame
+        from kfx.schema.dataframe import DataFrame
 
         # Create a mock event manager
         mock_event_manager = MagicMock()

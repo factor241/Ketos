@@ -35,7 +35,7 @@ mod = _load_module()
 # ---------------------------------------------------------------------------
 
 
-class TestLfxFloorSpec:
+class TestKfxFloorSpec:
     # The .dev0 floor is load-bearing: nightlies are canonical X.Y.0.devN
     # pre-releases, which PEP 440 sorts BELOW X.Y.0, so a plain >=X.Y.0
     # floor makes the branch's own nightly kfx unresolvable.
@@ -64,7 +64,7 @@ class TestLfxFloorSpec:
 # ---------------------------------------------------------------------------
 
 
-class TestRewriteLfxDep:
+class TestRewriteKfxDep:
     FLOOR = "kfx>=1.10.0.dev0,<2.0.0"
 
     def test_rewrites_bare_floor(self):

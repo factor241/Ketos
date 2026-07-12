@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
-import logoDarkPng from "@/assets/logo_dark.png";
-import logoLightPng from "@/assets/logo_light.png";
+import ketosHorizontalDark from "@/assets/ketos-horizontal-dark.svg";
+import ketosHorizontalLight from "@/assets/ketos-horizontal-light.svg";
 import { ForwardedIconComponent } from "@/components/common/genericIconComponent";
 import CardsWrapComponent from "@/components/core/cardsWrapComponent";
 import { useStartNewFlow } from "@/components/core/flowBuilderWelcome/hooks/use-start-new-flow";
@@ -30,18 +30,18 @@ export const EmptyPageCommunity = ({
             <div className="z-50 flex flex-col items-center gap-2">
               <div className="z-50 dark:hidden">
                 <img
-                  src={logoLightPng}
+                  src={ketosHorizontalLight}
                   alt={t("common.ketosLogoLight")}
                   data-testid="empty_page_logo_light"
-                  className="relative top-8 h-40 pointer-events-none select-none"
+                  className="relative top-8 h-auto w-[min(80vw,30rem)] pointer-events-none select-none"
                 />
               </div>
               <div className="z-50 hidden dark:block">
                 <img
-                  src={logoDarkPng}
+                  src={ketosHorizontalDark}
                   alt={t("common.ketosLogoDark")}
                   data-testid="empty_page_logo_dark"
-                  className="relative top-8 h-40 pointer-events-none select-none"
+                  className="relative top-8 h-auto w-[min(80vw,30rem)] pointer-events-none select-none"
                 />
               </div>
               <span

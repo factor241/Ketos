@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
-import langflowAssistantIcon from "@/assets/langflow_assistant.svg";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
+import { KetosAssistantMark } from "@/components/common/ketos-brand-mark";
 import { Button } from "@/components/ui/button";
 import {
   ASSISTANT_SUGGESTIONS,
@@ -18,10 +18,10 @@ export function AssistantEmptyState({
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-8">
       <div className="mb-6 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl">
-        <img
-          src={langflowAssistantIcon}
-          alt={t("assistant.title")}
-          className="h-full w-full object-cover"
+        <KetosAssistantMark
+          state="active"
+          label={t("assistant.title")}
+          className="h-full w-full"
         />
       </div>
       <h3 className="mb-6 text-center text-base font-semibold leading-6 tracking-normal text-foreground">

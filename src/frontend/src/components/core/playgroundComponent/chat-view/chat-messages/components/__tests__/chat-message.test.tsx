@@ -3,12 +3,6 @@ import { formatTime } from "../../utils/format";
 import ChatMessage from "../chat-message";
 import ThinkingMessage from "../thinking-message";
 
-// Mock SVG imports
-jest.mock("@/assets/LangflowLogo.svg?react", () => ({
-  __esModule: true,
-  default: () => <div data-testid="langflow-logo" />,
-}));
-
 // Mock ES modules that Jest can't handle
 jest.mock("react-markdown", () => ({
   __esModule: true,

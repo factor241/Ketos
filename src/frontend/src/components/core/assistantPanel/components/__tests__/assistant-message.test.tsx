@@ -30,7 +30,7 @@ jest.mock("@/customization/config-constants", () => ({
 }));
 
 // Mocking the customization layer for the user avatar is how we prove the
-// Desktop Langflow Assistant avatar bug is fixed: the component must render
+// Desktop Ketos Assistant avatar bug is fixed: the component must render
 // CustomProfileIcon (which the Desktop customization overrides to prepend an
 // absolute baseURL), not a bare <img> with a relative URL.
 jest.mock("@/customization/components/custom-profile-icon", () => ({
@@ -42,8 +42,6 @@ jest.mock("@/customization/components/custom-profile-icon", () => ({
     />
   ),
 }));
-
-jest.mock("@/assets/langflow_assistant.svg", () => "langflow-icon.svg");
 
 jest.mock("../assistant-component-result", () => ({
   AssistantComponentResult: ({
@@ -211,7 +209,7 @@ describe("AssistantMessageItem", () => {
   });
 
   describe("assistant messages", () => {
-    it("should render assistant label with Langflow icon", () => {
+    it("should render assistant label with Ketos icon", () => {
       const message = createMessage({
         role: "assistant",
         content: "Here is your component",
@@ -220,8 +218,10 @@ describe("AssistantMessageItem", () => {
 
       render(<AssistantMessageItem message={message} />);
 
-      expect(screen.getByText("Langflow Assistant")).toBeInTheDocument();
-      expect(screen.getByAltText("Langflow Assistant")).toBeInTheDocument();
+      expect(screen.getByText("Ketos Assistant")).toBeInTheDocument();
+      expect(
+        screen.getByRole("img", { name: "Ketos Assistant" }),
+      ).toBeInTheDocument();
     });
   });
 

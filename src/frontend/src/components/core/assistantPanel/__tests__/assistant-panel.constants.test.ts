@@ -13,8 +13,8 @@ describe("assistant-panel.constants", () => {
   });
 
   describe("ASSISTANT_TITLE", () => {
-    it("should be Langflow Assistant", () => {
-      expect(ASSISTANT_TITLE).toBe("Langflow Assistant");
+    it("should be Ketos Assistant", () => {
+      expect(ASSISTANT_TITLE).toBe("Ketos Assistant");
     });
   });
 

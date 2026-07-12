@@ -1,4 +1,4 @@
-import { IS_AUTO_LOGIN, LANGFLOW_REFRESH_TOKEN } from "@/constants/constants";
+import { IS_AUTO_LOGIN, KETOS_REFRESH_TOKEN } from "@/constants/constants";
 import useAuthStore from "@/stores/authStore";
 import type { useMutationFunctionType } from "@/types/api";
 import { cookieManager } from "@/utils/cookie-manager";
@@ -22,7 +22,7 @@ export const useRefreshAccessToken: useMutationFunctionType<
 
   async function refreshAccess(): Promise<IRefreshAccessToken> {
     const res = await api.post<IRefreshAccessToken>(`${getURL("REFRESH")}`);
-    cookieManager.set(LANGFLOW_REFRESH_TOKEN, res.data.refresh_token);
+    cookieManager.set(KETOS_REFRESH_TOKEN, res.data.refresh_token);
 
     return res.data;
   }

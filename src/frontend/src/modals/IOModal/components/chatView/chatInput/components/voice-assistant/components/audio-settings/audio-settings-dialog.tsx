@@ -104,7 +104,7 @@ const SettingsVoiceModal = ({
   const [selectedMicrophone, setSelectedMicrophone] = useState<string>("");
 
   const [currentLanguage, setCurrentLanguage] = useState(
-    localStorage.getItem("lf_preferred_language") || getIntlLocale(),
+    localStorage.getItem("ketos-preferred-language") || getIntlLocale(),
   );
 
   useEffect(() => {
@@ -123,7 +123,7 @@ const SettingsVoiceModal = ({
 
   useEffect(() => {
     const audioSettings = JSON.parse(
-      getLocalStorage("lf_audio_settings_playground") || "{}",
+      getLocalStorage("ketos-audio-settings-playground") || "{}",
     );
     if (isFetched) {
       if (audioSettings.provider) {
@@ -141,7 +141,7 @@ const SettingsVoiceModal = ({
     const isOpenAiVoice = openaiVoices.some((voice) => voice.value === value);
     if (isOpenAiVoice) {
       setLocalStorage(
-        "lf_audio_settings_playground",
+        "ketos-audio-settings-playground",
         JSON.stringify({
           provider: "openai",
           voice: value,
@@ -149,7 +149,7 @@ const SettingsVoiceModal = ({
       );
     } else {
       setLocalStorage(
-        "lf_audio_settings_playground",
+        "ketos-audio-settings-playground",
         JSON.stringify({
           provider: "elevenlabs",
           voice: value,
@@ -172,7 +172,7 @@ const SettingsVoiceModal = ({
 
   const handleSetMicrophone = (deviceId: string) => {
     setSelectedMicrophone(deviceId);
-    localStorage.setItem("lf_selected_microphone", deviceId);
+    localStorage.setItem("ketos-selected-microphone", deviceId);
   };
 
   useEffect(() => {
@@ -199,7 +199,7 @@ const SettingsVoiceModal = ({
 
   const handleSetLanguage = (value: string) => {
     setCurrentLanguage(value);
-    localStorage.setItem("lf_preferred_language", value);
+    localStorage.setItem("ketos-preferred-language", value);
     if (setLanguage) {
       setLanguage(value);
     }

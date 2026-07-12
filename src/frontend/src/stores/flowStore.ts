@@ -337,10 +337,10 @@ const useFlowStore = create<FlowStoreType>((set, get) => ({
     get().updateComponentsToUpdate(nodes);
     set({
       dismissedNodes: JSON.parse(
-        localStorage.getItem(`dismiss_${flow?.id}`) ?? "[]",
+        localStorage.getItem(`ketos-dismiss-${flow?.id}`) ?? "[]",
       ) as string[],
       dismissedNodesLegacy: JSON.parse(
-        localStorage.getItem(`dismiss_legacy_${flow?.id}`) ?? "[]",
+        localStorage.getItem(`ketos-dismiss-legacy-${flow?.id}`) ?? "[]",
       ) as string[],
     });
     unselectAllNodesEdges(nodes, newEdges);
@@ -1303,7 +1303,7 @@ const useFlowStore = create<FlowStoreType>((set, get) => ({
       new Set([...get().dismissedNodes, ...dismissedNodes]),
     );
     localStorage.setItem(
-      `dismiss_${get().currentFlow?.id}`,
+      `ketos-dismiss-${get().currentFlow?.id}`,
       JSON.stringify(newDismissedNodes),
     );
     set({ dismissedNodes: newDismissedNodes });
@@ -1313,7 +1313,7 @@ const useFlowStore = create<FlowStoreType>((set, get) => ({
       (node) => !dismissedNodes.includes(node),
     );
     localStorage.setItem(
-      `dismiss_${get().currentFlow?.id}`,
+      `ketos-dismiss-${get().currentFlow?.id}`,
       JSON.stringify(newDismissedNodes),
     );
     set({ dismissedNodes: newDismissedNodes });
@@ -1324,7 +1324,7 @@ const useFlowStore = create<FlowStoreType>((set, get) => ({
       new Set([...get().dismissedNodesLegacy, ...dismissedNodes]),
     );
     localStorage.setItem(
-      `dismiss_legacy_${get().currentFlow?.id}`,
+      `ketos-dismiss-legacy-${get().currentFlow?.id}`,
       JSON.stringify(newDismissedNodes),
     );
     set({ dismissedNodesLegacy: newDismissedNodes });
@@ -1334,13 +1334,13 @@ const useFlowStore = create<FlowStoreType>((set, get) => ({
     set({ helperLineEnabled });
   },
   inspectionPanelVisible: ENABLE_INSPECTION_PANEL
-    ? localStorage.getItem("inspectionPanelVisible") !== null
-      ? localStorage.getItem("inspectionPanelVisible") === "true"
+    ? localStorage.getItem("ketos-inspection-panel-visible") !== null
+      ? localStorage.getItem("ketos-inspection-panel-visible") === "true"
       : true
     : false,
   setInspectionPanelVisible: (visible: boolean) => {
     if (!ENABLE_INSPECTION_PANEL) return;
-    localStorage.setItem("inspectionPanelVisible", String(visible));
+    localStorage.setItem("ketos-inspection-panel-visible", String(visible));
     set({ inspectionPanelVisible: visible });
   },
   setNewChatOnPlayground: (newChat: boolean) => {

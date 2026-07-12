@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
-const REDIRECT_SESSION_KEY = "langflow_login_redirect";
+const REDIRECT_SESSION_KEY = "ketos-login-redirect";
 
 export function useSanitizeRedirectUrl() {
   const [searchParams] = useSearchParams();

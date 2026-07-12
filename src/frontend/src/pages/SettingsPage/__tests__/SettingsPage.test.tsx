@@ -1,7 +1,6 @@
 import { render, screen } from "@testing-library/react";
 
 let mockAutoLogin = true;
-let mockHasStore = false;
 
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => `translated:${key}` }),
@@ -63,13 +62,7 @@ jest.mock("@/components/common/genericIconComponent", () => ({
   default: ({ name }: { name: string }) => <span data-icon={name} />,
 }));
 
-jest.mock("@/customization/components/custom-store-sidebar", () => ({
-  CustomStoreSidebar: () => [],
-}));
-
 jest.mock("@/customization/feature-flags", () => ({
-  ENABLE_DATASTAX_LANGFLOW: true,
-  ENABLE_LANGFLOW_STORE: false,
   ENABLE_PROFILE_ICONS: false,
 }));
 
@@ -79,18 +72,12 @@ jest.mock("@/stores/authStore", () => ({
     selector({ autoLogin: mockAutoLogin }),
 }));
 
-jest.mock("@/stores/storeStore", () => ({
-  useStoreStore: (selector: (state: { hasStore: boolean }) => unknown) =>
-    selector({ hasStore: mockHasStore }),
-}));
-
 import SideBarButtonsComponent from "@/components/core/sidebarComponent";
 import SettingsPage from "../index";
 
 describe("SettingsPage language navigation", () => {
   beforeEach(() => {
     mockAutoLogin = true;
-    mockHasStore = false;
   });
 
   it("shows Language independently when General is hidden by feature state", () => {
@@ -112,8 +99,6 @@ describe("SettingsPage language navigation", () => {
 
   it("keeps Language when General is visible", () => {
     mockAutoLogin = false;
-    mockHasStore = true;
-
     render(<SettingsPage />);
 
     expect(

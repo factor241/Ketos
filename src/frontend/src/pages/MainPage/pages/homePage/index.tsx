@@ -28,7 +28,7 @@ import { isFolderEmpty } from "./utils/isFolderEmpty";
 const HomePage = ({ type }: { type: "flows" | "components" | "mcp" }) => {
   const { t } = useTranslation();
   const [view, setView] = useState<"grid" | "list">(() => {
-    const savedView = localStorage.getItem("view");
+    const savedView = localStorage.getItem("ketos-home-view");
     return savedView === "grid" || savedView === "list" ? savedView : "list";
   });
   const [newProjectModal, setNewProjectModal] = useState(false);
@@ -94,7 +94,7 @@ const HomePage = ({ type }: { type: "flows" | "components" | "mcp" }) => {
   };
 
   useEffect(() => {
-    localStorage.setItem("view", view);
+    localStorage.setItem("ketos-home-view", view);
   }, [view]);
 
   const handlePageChange = useCallback((newPageIndex, newPageSize) => {

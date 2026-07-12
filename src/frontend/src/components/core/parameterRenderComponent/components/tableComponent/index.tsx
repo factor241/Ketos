@@ -6,6 +6,7 @@ import "@/style/ag-theme-shadcn.css"; // Custom CSS applied to the grid
 import type { ColDef } from "ag-grid-community";
 import type { TableOptionsTypeAPI } from "@/types/api";
 import { suppressAutofillOnElement } from "@/utils/inputAutofill";
+import { ketosTableStateKey } from "@/utils/ketos-storage-keys";
 import { cn } from "@/utils/utils";
 import "ag-grid-community/styles/ag-grid.css"; // Mandatory CSS required by the grid
 import "ag-grid-community/styles/ag-theme-quartz.css"; // Optional Theme applied to the grid
@@ -278,7 +279,9 @@ const TableComponent = forwardRef<
       realRef.current = params;
       const updatedColumnDefs = [...colDef];
       params.api.setGridOption("columnDefs", updatedColumnDefs);
-      const customInit = localStorage.getItem(storeReference);
+      const customInit = localStorage.getItem(
+        ketosTableStateKey(storeReference),
+      );
       initialColumnDefs.current = params.api.getColumnDefs();
       if (customInit && realRef.current) {
         realRef.current.api.applyColumnState({
@@ -488,7 +491,7 @@ const TableComponent = forwardRef<
           onStateUpdated={(e) => {
             if (e.sources.some((source) => source.includes("column"))) {
               localStorage.setItem(
-                storeReference,
+                ketosTableStateKey(storeReference),
                 JSON.stringify(realRef.current?.api?.getColumnState()),
               );
               setColumnStateChange(true);
@@ -508,7 +511,7 @@ const TableComponent = forwardRef<
               resetGrid(realRef, initialColumnDefs);
               setTimeout(() => {
                 setColumnStateChange(false);
-                localStorage.removeItem(storeReference);
+                localStorage.removeItem(ketosTableStateKey(storeReference));
               }, 100);
             }}
           />

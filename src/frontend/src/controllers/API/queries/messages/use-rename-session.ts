@@ -1,12 +1,13 @@
 import type { UseMutationResult } from "@tanstack/react-query";
-import { useGetFlowId } from "@/modals/IOModal/hooks/useGetFlowId";
 import { isAuthenticatedPlayground } from "@/modals/IOModal/helpers/playground-auth";
+import { useGetFlowId } from "@/modals/IOModal/hooks/useGetFlowId";
 import useFlowStore from "@/stores/flowStore";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
 import { useMessagesStore } from "@/stores/messagesStore";
 import { usePlaygroundStore } from "@/stores/playgroundStore";
 import type { useMutationFunctionType } from "@/types/api";
 import type { Message } from "@/types/messages";
+import { ketosFlowSessionKey } from "@/utils/ketos-storage-keys";
 import { api } from "../../api";
 import { getURL } from "../../helpers/constants";
 import { UseRequestProcessor } from "../../services/request-processor";
@@ -63,14 +64,18 @@ export const useUpdateSessionName: useMutationFunctionType<
       }
 
       // Anonymous/auto-login: rename in sessionStorage (original behavior)
-      const messages = JSON.parse(sessionStorage.getItem(flowId) || "[]");
+      const storageKey = ketosFlowSessionKey(flowId);
+      const messages = JSON.parse(sessionStorage.getItem(storageKey) || "[]");
       const messagesWithNewSessionId = messages.map((message: Message) => {
         if (message.session_id === data.old_session_id) {
           message.session_id = data.new_session_id;
         }
         return message;
       });
-      sessionStorage.setItem(flowId, JSON.stringify(messagesWithNewSessionId));
+      sessionStorage.setItem(
+        storageKey,
+        JSON.stringify(messagesWithNewSessionId),
+      );
       // Update the messages store to reflect the new session_id
       useMessagesStore
         .getState()
@@ -88,7 +93,9 @@ export const useUpdateSessionName: useMutationFunctionType<
 
       const oldCacheData = queryClient.getQueryData<Message[]>(oldCacheKey);
       // Get fresh messages from sessionStorage (source of truth after rename)
-      const freshMessages = JSON.parse(sessionStorage.getItem(flowId) || "[]");
+      const freshMessages = JSON.parse(
+        sessionStorage.getItem(ketosFlowSessionKey(flowId)) || "[]",
+      );
       const messagesForNewSession = freshMessages.filter(
         (msg: Message) => msg.session_id === data.new_session_id,
       );

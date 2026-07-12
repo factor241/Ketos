@@ -26,7 +26,7 @@ export const useStartConversation = (
     }
 
     const audioSettings = JSON.parse(
-      getLocalStorage("lf_audio_settings_playground") || "{}",
+      getLocalStorage("ketos-audio-settings-playground") || "{}",
     );
 
     wsRef.current = new WebSocket(url);

@@ -44,9 +44,7 @@ jest.mock("../alertStore", () => ({
 
 jest.mock("../darkStore", () => ({
   useDarkStore: {
-    getState: () => ({
-      refreshStars: jest.fn(),
-    }),
+    getState: () => ({}),
   },
 }));
 

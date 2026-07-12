@@ -93,13 +93,6 @@
       {
         "code": "extra_plural_category",
         "locale": "ja",
-        "key": "store.results",
-        "category": "one",
-        "count": 1
-      },
-      {
-        "code": "extra_plural_category",
-        "locale": "ja",
         "key": "trace.runsCount",
         "category": "one",
         "count": 1
@@ -262,13 +255,6 @@
         "code": "extra_plural_category",
         "locale": "zh-Hans",
         "key": "mcp.toolCount",
-        "category": "one",
-        "count": 1
-      },
-      {
-        "code": "extra_plural_category",
-        "locale": "zh-Hans",
-        "key": "store.results",
         "category": "one",
         "count": 1
       },
@@ -443,13 +429,6 @@
       {
         "code": "missing_plural_category",
         "locale": "es",
-        "key": "store.results",
-        "category": "many",
-        "count": 1
-      },
-      {
-        "code": "missing_plural_category",
-        "locale": "es",
         "key": "trace.runsCount",
         "category": "many",
         "count": 1
@@ -618,13 +597,6 @@
       {
         "code": "missing_plural_category",
         "locale": "fr",
-        "key": "store.results",
-        "category": "many",
-        "count": 1
-      },
-      {
-        "code": "missing_plural_category",
-        "locale": "fr",
         "key": "trace.runsCount",
         "category": "many",
         "count": 1
@@ -787,13 +759,6 @@
         "code": "missing_plural_category",
         "locale": "pt",
         "key": "mcp.toolCount",
-        "category": "many",
-        "count": 1
-      },
-      {
-        "code": "missing_plural_category",
-        "locale": "pt",
-        "key": "store.results",
         "category": "many",
         "count": 1
       },
@@ -2525,16 +2490,6 @@
       },
       {
         "code": "stale_catalog_key",
-        "key": "store.results_one",
-        "count": 1
-      },
-      {
-        "code": "stale_catalog_key",
-        "key": "store.results_other",
-        "count": 1
-      },
-      {
-        "code": "stale_catalog_key",
         "key": "success.apiKeySaved",
         "count": 1
       },
@@ -2676,18 +2631,6 @@
       {
         "code": "stale_catalog_key",
         "key": "updateComponents.updatesAvailable_other",
-        "count": 1
-      },
-      {
-        "code": "unallowlisted_dynamic_key",
-        "path": "src/frontend/src/components/common/storeCardComponent/hooks/use-handle-install.ts",
-        "expression": "key",
-        "count": 2
-      },
-      {
-        "code": "unallowlisted_dynamic_key",
-        "path": "src/frontend/src/components/common/storeCardComponent/index.tsx",
-        "expression": "key",
         "count": 1
       },
       {

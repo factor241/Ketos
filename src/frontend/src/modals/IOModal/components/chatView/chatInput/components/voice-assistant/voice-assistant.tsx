@@ -50,7 +50,7 @@ export function VoiceAssistant({
   const [addKey, setAddKey] = useState(false);
   const [barHeights, setBarHeights] = useState<number[]>(Array(30).fill(20));
   const [preferredLanguage, setPreferredLanguage] = useState(
-    localStorage.getItem("lf_preferred_language") || getIntlLocale(),
+    localStorage.getItem("ketos-preferred-language") || getIntlLocale(),
   );
   const [isEditingOpenAIKey, setIsEditingOpenAIKey] = useState<boolean>(false);
 
@@ -374,7 +374,7 @@ export function VoiceAssistant({
 
   useEffect(() => {
     if (preferredLanguage) {
-      localStorage.setItem("lf_preferred_language", preferredLanguage);
+      localStorage.setItem("ketos-preferred-language", preferredLanguage);
     }
   }, [preferredLanguage]);
 

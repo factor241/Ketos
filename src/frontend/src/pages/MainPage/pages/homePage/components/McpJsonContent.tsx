@@ -193,7 +193,7 @@ export const McpJsonContent = ({
       <div className="px-2 text-mmd text-muted-foreground">
         {t("mcpJson.addConfigHint")}{" "}
         <a
-          href="https://docs.langflow.org/mcp-server#connect-clients-to-use-the-servers-actions"
+          href="https://docs.ketos.test/mcp-server#connect-clients-to-use-the-servers-actions"
           target="_blank"
           rel="noreferrer"
           className="text-accent-pink-foreground"

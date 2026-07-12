@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { type ReactNode, StrictMode } from "react";
 
-const STORAGE_KEY = "languagePreference";
+const STORAGE_KEY = "ketos-language-preference";
 
 let mockEvents: string[] = [];
 

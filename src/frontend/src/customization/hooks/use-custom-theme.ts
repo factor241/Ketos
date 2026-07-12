@@ -20,7 +20,7 @@ const useTheme = () => {
   };
 
   useEffect(() => {
-    const themePreference = localStorage.getItem("themePreference");
+    const themePreference = localStorage.getItem("ketos-theme-preference");
     if (themePreference === "light") {
       setDark(false);
       setSystemTheme(false);
@@ -58,7 +58,7 @@ const useTheme = () => {
       setSystemTheme(true);
       handleSystemTheme();
     }
-    localStorage.setItem("themePreference", theme);
+    localStorage.setItem("ketos-theme-preference", theme);
   };
 
   return { systemTheme, dark, setThemePreference };

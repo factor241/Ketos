@@ -14,7 +14,7 @@
  * surface; nothing user-visible breaks.
  */
 
-const ASSISTANT_DISCOVERED_STORAGE_KEY = "langflow-assistant-discovered";
+const ASSISTANT_DISCOVERED_STORAGE_KEY = "ketos-assistant-discovered";
 
 export function readAssistantDiscovered(): boolean {
   try {

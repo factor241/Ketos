@@ -5,10 +5,9 @@ import type {
   AssistantSuggestionId,
 } from "./assistant-panel.types";
 
-export const ASSISTANT_TITLE = "Langflow Assistant";
+export const ASSISTANT_TITLE = "Ketos Assistant";
 
-export const ASSISTANT_SESSION_STORAGE_KEY_PREFIX =
-  "langflow-assistant-session-";
+export const ASSISTANT_SESSION_STORAGE_KEY_PREFIX = "ketos-assistant-session-";
 
 export function getAssistantPlaceholders(): string[] {
   return [
@@ -28,7 +27,7 @@ export function getAssistantPlaceholder(): string {
   return placeholders[Math.floor(Math.random() * placeholders.length)];
 }
 
-export const ASSISTANT_SESSIONS_STORAGE_KEY = "langflow-assistant-sessions";
+export const ASSISTANT_SESSIONS_STORAGE_KEY = "ketos-assistant-sessions";
 export const ASSISTANT_MAX_SESSIONS = 10;
 export const ASSISTANT_SESSION_PREVIEW_LENGTH = 80;
 

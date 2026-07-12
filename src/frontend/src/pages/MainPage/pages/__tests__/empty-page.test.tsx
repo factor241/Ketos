@@ -36,11 +36,6 @@ jest.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: jest.fn() },
 }));
 
-jest.mock("react-icons/fa", () => ({
-  FaGithub: () => <div data-testid="icon-github" />,
-  FaDiscord: () => <div data-testid="icon-discord" />,
-}));
-
 jest.mock("@/components/common/genericIconComponent", () => ({
   ForwardedIconComponent: ({ name }: IconProps) => (
     <div data-testid={`icon-${name}`}>{name}</div>
@@ -69,22 +64,6 @@ jest.mock("@/components/ui/button", () => ({
   ),
 }));
 
-jest.mock("@/controllers/API/queries/auth", () => ({
-  useGetUserData: () => ({ mutate: jest.fn() }),
-  useUpdateUser: () => ({ mutate: jest.fn() }),
-}));
-
-jest.mock("@/stores/authStore", () => ({
-  __esModule: true,
-  default: () => ({ id: "user-1", optins: {} }),
-}));
-
-jest.mock("@/stores/darkStore", () => ({
-  useDarkStore: (
-    selector: (s: { stars: number; discordCount: number }) => unknown,
-  ) => selector({ stars: 149000, discordCount: 25000 }),
-}));
-
 jest.mock("@/stores/foldersStore", () => ({
   useFolderStore: (selector: (s: { folders: unknown[] }) => unknown) =>
     selector({ folders: [] }),
@@ -106,10 +85,17 @@ describe("EmptyPageCommunity - Create first flow behavior", () => {
 
     fireEvent.click(screen.getByTestId("new_project_btn_empty_page"));
 
-    // Empty-state button must open the new Langflow Assistant welcome flow,
+    // Empty-state button must open the new Ketos Assistant welcome flow,
     // matching the "New Flow" button shown when the user already has flows.
     expect(startNewFlowMock).toHaveBeenCalledTimes(1);
     // It must NOT open the old TemplatesModal.
     expect(setOpenModal).not.toHaveBeenCalled();
+  });
+
+  it("does not render upstream social actions", () => {
+    render(<EmptyPageCommunity setOpenModal={jest.fn()} />);
+
+    expect(screen.queryByTestId("empty_page_github_button")).toBeNull();
+    expect(screen.queryByTestId("empty_page_discord_button")).toBeNull();
   });
 });

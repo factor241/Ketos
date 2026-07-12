@@ -8,7 +8,7 @@ jest.mock("@/stores/authStore", () => ({
 
 jest.mock("@/stores/darkStore", () => ({
   useDarkStore: {
-    getState: () => ({ refreshStars: jest.fn() }),
+    getState: () => ({}),
     setState: jest.fn(),
     subscribe: jest.fn(),
     destroy: jest.fn(),
@@ -57,7 +57,7 @@ describe("setAuthCookie", () => {
   });
 
   it("should set a cookie with correct options", () => {
-    const tokenName = "access_token_lf";
+    const tokenName = "ketos_access_token";
     const tokenValue = "test-access-token";
 
     setAuthCookie(mockCookies, tokenName, tokenValue);
@@ -72,9 +72,9 @@ describe("setAuthCookie", () => {
 
   it("should handle different token types", () => {
     const testCases = [
-      { tokenName: "access_token_lf", value: "access-123" },
-      { tokenName: "refresh_token_lf", value: "refresh-456" },
-      { tokenName: "apikey_tkn_lflw", value: "api-789" },
+      { tokenName: "ketos_access_token", value: "access-123" },
+      { tokenName: "ketos_refresh_token", value: "refresh-456" },
+      { tokenName: "ketos_api_token", value: "api-789" },
     ];
 
     testCases.forEach(({ tokenName, value }) => {

@@ -90,9 +90,11 @@ describe("CookieManager", () => {
       const accessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
       mockCookiesInstance.get.mockReturnValue(accessToken);
 
-      const result = cookieManager.get("access_token_lf");
+      const result = cookieManager.get("ketos_access_token");
 
-      expect(mockCookiesInstance.get).toHaveBeenCalledWith("access_token_lf");
+      expect(mockCookiesInstance.get).toHaveBeenCalledWith(
+        "ketos_access_token",
+      );
       expect(result).toBe(accessToken);
     });
   });
@@ -180,10 +182,10 @@ describe("CookieManager", () => {
       // Test environment behavior
       const accessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
 
-      cookieManager.set("access_token_lf", accessToken);
+      cookieManager.set("ketos_access_token", accessToken);
 
       expect(mockCookiesInstance.set).toHaveBeenCalledWith(
-        "access_token_lf",
+        "ketos_access_token",
         accessToken,
         expect.objectContaining({
           path: "/",
@@ -197,10 +199,10 @@ describe("CookieManager", () => {
       // Default test environment is HTTP
       const accessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
 
-      cookieManager.set("access_token_lf", accessToken);
+      cookieManager.set("ketos_access_token", accessToken);
 
       expect(mockCookiesInstance.set).toHaveBeenCalledWith(
-        "access_token_lf",
+        "ketos_access_token",
         accessToken,
         {
           path: "/",
@@ -263,11 +265,11 @@ describe("CookieManager", () => {
     });
 
     it("should remove auth tokens", () => {
-      cookieManager.remove("access_token_lf");
-      cookieManager.remove("refresh_token_lf");
+      cookieManager.remove("ketos_access_token");
+      cookieManager.remove("ketos_refresh_token");
 
       expect(mockCookiesInstance.remove).toHaveBeenCalledWith(
-        "access_token_lf",
+        "ketos_access_token",
         {
           path: "/",
           secure: false,
@@ -275,7 +277,7 @@ describe("CookieManager", () => {
         },
       );
       expect(mockCookiesInstance.remove).toHaveBeenCalledWith(
-        "refresh_token_lf",
+        "ketos_refresh_token",
         {
           path: "/",
           secure: false,
@@ -291,7 +293,7 @@ describe("CookieManager", () => {
 
       expect(mockCookiesInstance.remove).toHaveBeenCalledTimes(4);
       expect(mockCookiesInstance.remove).toHaveBeenCalledWith(
-        "access_token_lf",
+        "ketos_access_token",
         {
           path: "/",
           secure: false,
@@ -299,7 +301,7 @@ describe("CookieManager", () => {
         },
       );
       expect(mockCookiesInstance.remove).toHaveBeenCalledWith(
-        "apikey_tkn_lflw",
+        "ketos_api_token",
         {
           path: "/",
           secure: false,
@@ -307,18 +309,21 @@ describe("CookieManager", () => {
         },
       );
       expect(mockCookiesInstance.remove).toHaveBeenCalledWith(
-        "refresh_token_lf",
+        "ketos_refresh_token",
         {
           path: "/",
           secure: false,
           sameSite: "lax",
         },
       );
-      expect(mockCookiesInstance.remove).toHaveBeenCalledWith("auto_login_lf", {
-        path: "/",
-        secure: false,
-        sameSite: "lax",
-      });
+      expect(mockCookiesInstance.remove).toHaveBeenCalledWith(
+        "ketos_auto_login",
+        {
+          path: "/",
+          secure: false,
+          sameSite: "lax",
+        },
+      );
     });
   });
 
@@ -339,8 +344,8 @@ describe("CookieManager", () => {
       const refreshToken = "refresh_token_456";
 
       // Set tokens
-      cookieManager.set("access_token_lf", accessToken);
-      cookieManager.set("refresh_token_lf", refreshToken);
+      cookieManager.set("ketos_access_token", accessToken);
+      cookieManager.set("ketos_refresh_token", refreshToken);
 
       expect(mockCookiesInstance.set).toHaveBeenCalledTimes(2);
 
@@ -348,15 +353,15 @@ describe("CookieManager", () => {
       mockCookiesInstance.get.mockReturnValueOnce(accessToken);
       mockCookiesInstance.get.mockReturnValueOnce(refreshToken);
 
-      const retrievedAccessToken = cookieManager.get("access_token_lf");
-      const retrievedRefreshToken = cookieManager.get("refresh_token_lf");
+      const retrievedAccessToken = cookieManager.get("ketos_access_token");
+      const retrievedRefreshToken = cookieManager.get("ketos_refresh_token");
 
       expect(retrievedAccessToken).toBe(accessToken);
       expect(retrievedRefreshToken).toBe(refreshToken);
 
       // Remove tokens on logout
-      cookieManager.remove("access_token_lf");
-      cookieManager.remove("refresh_token_lf");
+      cookieManager.remove("ketos_access_token");
+      cookieManager.remove("ketos_refresh_token");
 
       expect(mockCookiesInstance.remove).toHaveBeenCalledTimes(2);
     });
@@ -472,11 +477,11 @@ describe("CookieManager", () => {
 
     it("should prevent desynchronization when setting and getting cookies quickly", () => {
       // Set a cookie
-      cookieManager.set("access_token_lf", "token_123");
+      cookieManager.set("ketos_access_token", "token_123");
 
       // Verify set was called
       expect(mockCookiesInstance.set).toHaveBeenCalledWith(
-        "access_token_lf",
+        "ketos_access_token",
         "token_123",
         {
           path: "/",
@@ -487,11 +492,13 @@ describe("CookieManager", () => {
 
       // Immediately get it using the same manager
       mockCookiesInstance.get.mockReturnValue("token_123");
-      const result = cookieManager.get("access_token_lf");
+      const result = cookieManager.get("ketos_access_token");
 
       // Should work because they use the same instance
       expect(result).toBe("token_123");
-      expect(mockCookiesInstance.get).toHaveBeenCalledWith("access_token_lf");
+      expect(mockCookiesInstance.get).toHaveBeenCalledWith(
+        "ketos_access_token",
+      );
     });
   });
 });

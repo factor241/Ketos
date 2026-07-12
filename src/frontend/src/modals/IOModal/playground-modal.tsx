@@ -23,6 +23,7 @@ import useFlowStore from "../../stores/flowStore";
 import useFlowsManagerStore from "../../stores/flowsManagerStore";
 import { useMessagesStore } from "../../stores/messagesStore";
 import type { IOModalPropsType } from "../../types/components";
+import { ketosFlowSessionKey } from "../../utils/ketos-storage-keys";
 import { cn, getNumberFromString } from "../../utils/utils";
 import BaseModal from "../baseModal";
 import { ChatViewWrapper } from "./components/chat-view-wrapper";
@@ -234,7 +235,10 @@ export default function IOModal({
 
   useEffect(() => {
     if (playgroundPage && !isAuthenticatedPlayground() && messages.length > 0) {
-      window.sessionStorage.setItem(currentFlowId, JSON.stringify(messages));
+      window.sessionStorage.setItem(
+        ketosFlowSessionKey(currentFlowId),
+        JSON.stringify(messages),
+      );
     }
     if (newChatOnPlayground && !sessionsLoading) {
       const handleRefetchAndSetSession = async () => {

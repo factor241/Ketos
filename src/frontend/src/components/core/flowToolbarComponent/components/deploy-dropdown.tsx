@@ -13,13 +13,11 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { usePatchUpdateFlow } from "@/controllers/API/queries/flows/use-patch-update-flow";
 import { CustomLink } from "@/customization/components/custom-link";
-import { ENABLE_PUBLISH, ENABLE_WIDGET } from "@/customization/feature-flags";
+import { ENABLE_PUBLISH } from "@/customization/feature-flags";
 import { customMcpOpen } from "@/customization/utils/custom-mcp-open";
 import ApiModal from "@/modals/apiModal";
-import EmbedModal from "@/modals/EmbedModal/embed-modal";
 import ExportModal from "@/modals/exportModal";
 import useAlertStore from "@/stores/alertStore";
-import useAuthStore from "@/stores/authStore";
 import useFlowStore from "@/stores/flowStore";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
 import { cn } from "@/utils/utils";
@@ -37,10 +35,8 @@ export default function PublishDropdown({
 }: PublishDropdownProps) {
   const location = useHref("/");
   const domain = window.location.origin + location;
-  const [openEmbedModal, setOpenEmbedModal] = useState(false);
   const currentFlow = useFlowsManagerStore((state) => state.currentFlow);
   const flowId = currentFlow?.id;
-  const flowName = currentFlow?.name;
   const folderId = currentFlow?.folder_id;
   const setErrorData = useAlertStore((state) => state.setErrorData);
   const { mutateAsync } = usePatchUpdateFlow();
@@ -49,7 +45,6 @@ export default function PublishDropdown({
   const setCurrentFlow = useFlowStore((state) => state.setCurrentFlow);
   const isPublished = currentFlow?.access_type === "PUBLIC";
   const hasIO = useFlowStore((state) => state.hasIO);
-  const isAuth = useAuthStore((state) => !!state.autoLogin);
   const [openExportModal, setOpenExportModal] = useState(false);
   const { t } = useTranslation();
 
@@ -145,16 +140,6 @@ export default function PublishDropdown({
               />
             </DropdownMenuItem>
           </CustomLink>
-          {ENABLE_WIDGET && (
-            <DropdownMenuItem
-              onClick={() => setOpenEmbedModal(true)}
-              className="deploy-dropdown-item group"
-            >
-              <IconComponent name="Columns2" className={`icon-size mr-2`} />
-              <span>{t("misc.embedIntoSite")}</span>
-            </DropdownMenuItem>
-          )}
-
           {ENABLE_PUBLISH && (
             <DropdownMenuItem
               className="deploy-dropdown-item group"
@@ -219,15 +204,6 @@ export default function PublishDropdown({
       <ApiModal open={openApiModal} setOpen={setOpenApiModal}>
         <>{children}</>
       </ApiModal>
-      <EmbedModal
-        open={openEmbedModal}
-        setOpen={setOpenEmbedModal}
-        flowId={flowId ?? ""}
-        flowName={flowName ?? ""}
-        isAuth={isAuth}
-        tweaksBuildedObject={{}}
-        activeTweaks={false}
-      ></EmbedModal>
       <ExportModal open={openExportModal} setOpen={setOpenExportModal} />
     </>
   );

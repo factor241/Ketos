@@ -17,9 +17,11 @@ export const useStartRecording = async (
   setStatus: (status: string) => void,
 ) => {
   try {
-    const selectedMicrophone = localStorage.getItem("lf_selected_microphone");
+    const selectedMicrophone = localStorage.getItem(
+      "ketos-selected-microphone",
+    );
     const preferredLanguage =
-      localStorage.getItem("lf_preferred_language") || getIntlLocale();
+      localStorage.getItem("ketos-preferred-language") || getIntlLocale();
 
     const stream = await navigator?.mediaDevices?.getUserMedia({
       audio: {

@@ -1,4 +1,4 @@
-export const LANGUAGE_STORAGE_KEY = "languagePreference";
+export const LANGUAGE_STORAGE_KEY = "ketos-language-preference";
 
 export const DEFAULT_LANGUAGE = "en" as const;
 

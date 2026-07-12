@@ -1,9 +1,10 @@
 import { keepPreviousData } from "@tanstack/react-query";
 import type { ColDef, ColGroupDef } from "ag-grid-community";
+import { isAuthenticatedPlayground } from "@/modals/IOModal/helpers/playground-auth";
 import useFlowStore from "@/stores/flowStore";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
 import { useMessagesStore } from "@/stores/messagesStore";
-import { isAuthenticatedPlayground } from "@/modals/IOModal/helpers/playground-auth";
+import { ketosFlowSessionKey } from "@/utils/ketos-storage-keys";
 import type { useQueryFunctionType } from "../../../../types/api";
 import {
   extractColumnsFromRows,
@@ -63,7 +64,9 @@ export const useGetMessagesQuery: useQueryFunctionType<
 
     // Anonymous/auto-login: use sessionStorage (original behavior)
     return {
-      data: JSON.parse(window.sessionStorage.getItem(id ?? "") || "[]"),
+      data: JSON.parse(
+        window.sessionStorage.getItem(ketosFlowSessionKey(id)) || "[]",
+      ),
     };
   };
 

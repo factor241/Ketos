@@ -1,4 +1,4 @@
-import { ENABLE_DATASTAX_LANGFLOW } from "@/customization/feature-flags";
+import { ENABLE_DATASTAX_KETOS } from "@/customization/feature-flags";
 import {
   getApiSampleHeaders,
   getBaseUrl,
@@ -41,7 +41,7 @@ export function getCurlWebhookCode({
   "${baseUrl}" \\
   -H 'Content-Type: application/json' \\${
     webhookAuthEnable ? `\n  -H 'x-api-key: <your api key>' \\` : ""
-  }${ENABLE_DATASTAX_LANGFLOW ? `${getApiSampleHeaders("curl")}` : ""}
+  }${ENABLE_DATASTAX_KETOS ? `${getApiSampleHeaders("curl")}` : ""}
   -d '{"any": "data"}'
   `.trim();
 }

@@ -1,9 +1,9 @@
 const UTM_MEDIUM = "integration";
 const UTM_CAMPAIGN = "wxo-integration";
-const DEFAULT_UTM_SOURCE = "langflow";
+const DEFAULT_UTM_SOURCE = "ketos";
 
 function getUtmSource(): string {
-  const configured = import.meta.env.LANGFLOW_WXO_UTM_SOURCE;
+  const configured = import.meta.env.KETOS_WXO_UTM_SOURCE;
   return typeof configured === "string" && configured.length > 0
     ? configured
     : DEFAULT_UTM_SOURCE;

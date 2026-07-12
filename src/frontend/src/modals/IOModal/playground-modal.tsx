@@ -9,7 +9,7 @@ import { useGetSessionsFromFlowQuery } from "@/controllers/API/queries/messages/
 import { ENABLE_PUBLISH } from "@/customization/feature-flags";
 import { track } from "@/customization/utils/analytics";
 import { customOpenNewTab } from "@/customization/utils/custom-open-new-tab";
-import { LangflowButtonRedirectTarget } from "@/customization/utils/urls";
+import { KetosButtonRedirectTarget } from "@/customization/utils/urls";
 import { isAuthenticatedPlayground } from "@/modals/IOModal/helpers/playground-auth";
 import { useUtilityStore } from "@/stores/utilityStore";
 import { swatchColors } from "@/utils/styleUtils";
@@ -307,9 +307,9 @@ export default function IOModal({
 
   const showPublishOptions = playgroundPage && ENABLE_PUBLISH;
 
-  const LangflowButtonClick = () => {
-    track("LangflowButtonClick");
-    customOpenNewTab(LangflowButtonRedirectTarget());
+  const KetosButtonClick = () => {
+    track("KetosButtonClick");
+    customOpenNewTab(KetosButtonRedirectTarget());
   };
 
   const swatchIndex =
@@ -432,7 +432,7 @@ export default function IOModal({
                       <ThemeButtons />
                     </div>
                     <Button
-                      onClick={LangflowButtonClick}
+                      onClick={KetosButtonClick}
                       variant="primary"
                       className="w-full !rounded-xl shadow-lg"
                     >
@@ -455,7 +455,7 @@ export default function IOModal({
                   <Button
                     variant="primary"
                     className="h-12 w-12 !rounded-xl !p-4 shadow-lg"
-                    onClick={LangflowButtonClick}
+                    onClick={KetosButtonClick}
                   >
                     <KetosBrandMark
                       decorative

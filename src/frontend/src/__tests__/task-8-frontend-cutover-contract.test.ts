@@ -24,7 +24,36 @@ function productionTypeScriptSource(directory: string): string {
     .join("\n");
 }
 
+function task8ProductionSource(): string {
+  return [
+    read("src/constants/constants.ts"),
+    productionTypeScriptSource(resolve(frontendRoot, "src/customization")),
+    read("src/i18n.ts"),
+    read("src/vite-env.d.ts"),
+    read("src/utils/decorate-wxo-url.ts"),
+    read("package.json"),
+  ].join("\n");
+}
+
 describe("Task 8 Ketos frontend cutover", () => {
+  it("recursively keeps Task 8 production sources Ketos-only", () => {
+    const sources = task8ProductionSource();
+
+    expect(sources).not.toMatch(new RegExp(upstreamBrand, "i"));
+    expect(sources).not.toMatch(
+      /LANGFLOW_(?:AUTO_LOGIN|MCP_COMPOSER_ENABLED|EXTENSION_RELOAD_ENABLED|WXO_UTM_SOURCE)|__LANGFLOW_I18N_DIAGNOSTICS__|LANGFLOW_SUPPORTED_TYPES/,
+    );
+    expect(sources).not.toMatch(
+      /\b(?:STORE_DESC|STORE_TITLE|STORE_PAGINATION_SIZE|STORE_PAGINATION_PAGE|STORE_PAGINATION_ROWS_COUNT|NO_API_KEY|INSERT_API_KEY|INVALID_API_KEY|CREATE_API_KEY|SAVE_API_KEY_ALERT|CHAT_FORM_DIALOG_SUBTITLE|CHAT_CANNOT_OPEN_TITLE|CHAT_CANNOT_OPEN_DESCRIPTION|CHAT_FIRST_INITIAL_TEXT|CHAT_SECOND_INITIAL_TEXT|LANGFLOW_CHAT_TITLE)\b/,
+    );
+    expect(JSON.parse(read("package.json"))).toMatchObject({
+      name: "ketos-frontend",
+    });
+    expect(read("src/utils/decorate-wxo-url.ts")).toContain(
+      'DEFAULT_UTM_SOURCE = "ketos"',
+    );
+  });
+
   it("uses a Ketos-only HTML and PWA shell", () => {
     const html = read("index.html");
     const manifest = JSON.parse(read("public/manifest.json"));

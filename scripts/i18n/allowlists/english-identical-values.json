@@ -77,7 +77,7 @@
     },
     {
       "key": "assistant.title",
-      "value": "Langflow Assistant",
+      "value": "Ketos Assistant",
       "reason": "Protected product name defined by the approved glossary.",
       "owner": "localization-governance",
       "reviewer": "ru-linguistic-reviewer",

@@ -25,10 +25,10 @@ describe("AssistantHeader", () => {
   });
 
   describe("rendering", () => {
-    it("should display 'Langflow Assistant' title", () => {
+    it("should display 'Ketos Assistant' title", () => {
       render(<AssistantHeader {...defaultProps} />);
 
-      expect(screen.getByText("Langflow Assistant")).toBeInTheDocument();
+      expect(screen.getByText("Ketos Assistant")).toBeInTheDocument();
     });
 
     it("should render New session button", () => {

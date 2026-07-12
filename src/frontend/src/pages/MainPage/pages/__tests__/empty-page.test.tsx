@@ -28,8 +28,14 @@ jest.mock(
   }),
 );
 
-jest.mock("@/assets/logo_dark.png", () => "logo_dark.png");
-jest.mock("@/assets/logo_light.png", () => "logo_light.png");
+jest.mock(
+  "@/assets/ketos-horizontal-dark.svg",
+  () => "ketos-horizontal-dark.svg",
+);
+jest.mock(
+  "@/assets/ketos-horizontal-light.svg",
+  () => "ketos-horizontal-light.svg",
+);
 
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),

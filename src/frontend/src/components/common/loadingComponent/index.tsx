@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import LangflowLogo from "@/assets/LangflowLogo.svg?react";
+import { KetosBrandMark } from "@/components/common/ketos-brand-mark";
 import type { LoadingComponentProps } from "../../../types/components";
 
 export default function LoadingComponent({
@@ -8,10 +8,9 @@ export default function LoadingComponent({
   const { t } = useTranslation();
   return (
     <div role="status" className="flex flex-col items-center justify-center">
-      <LangflowLogo
-        aria-hidden="true"
-        title={t("common.ketosLogo")}
-        className="animate-pulse text-primary"
+      <KetosBrandMark
+        decorative
+        className="animate-pulse motion-reduce:animate-none"
         style={{
           width: `${remSize * 0.25}rem`,
           height: `${remSize * 0.25}rem`,

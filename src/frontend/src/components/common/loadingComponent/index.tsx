@@ -10,7 +10,7 @@ export default function LoadingComponent({
     <div role="status" className="flex flex-col items-center justify-center">
       <LangflowLogo
         aria-hidden="true"
-        title={t("common.langflowLogo")}
+        title={t("common.ketosLogo")}
         className="animate-pulse text-primary"
         style={{
           width: `${remSize * 0.25}rem`,

@@ -65,7 +65,7 @@ const PROTECTED_PATTERN = new RegExp(
     String.raw`<\/?[A-Za-z0-9]+(?:\s[^>]*)?\/?>`,
     "`+[^`]*`+",
     String.raw`https?:\/\/[^\s)\]}>"']+`,
-    String.raw`\b(?:Langflow|API|MCP|LLM|JSON|YAML|CSV|SQL|SSE|WebSocket|UUID|OAuth|URL|GitHub|Discord|DataFrame|Data)\b`,
+    String.raw`\b(?:Ketos|API|MCP|LLM|JSON|YAML|CSV|SQL|SSE|WebSocket|UUID|OAuth|URL|GitHub|Discord|DataFrame|Data)\b`,
     String.raw`\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b`,
     String.raw`\b[a-z][a-z0-9]*_[a-z0-9_]+\b`,
   ].join("|"),

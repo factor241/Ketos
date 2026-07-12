@@ -436,7 +436,7 @@ export default function IOModal({
                     >
                       <LangflowLogoColor />
                       <div className="text-sm">
-                        {t("modal.io.builtWithLangflow")}
+                        {t("modal.io.builtWithKetos")}
                       </div>
                     </Button>
                   </div>
@@ -448,7 +448,7 @@ export default function IOModal({
                 <ShadTooltip
                   styleClasses="z-50"
                   side="right"
-                  content={t("modal.io.builtWithLangflowTooltip")}
+                  content={t("modal.io.builtWithKetosTooltip")}
                 >
                   <Button
                     variant="primary"

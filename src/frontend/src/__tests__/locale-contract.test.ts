@@ -104,6 +104,18 @@ describe("frontend locale catalog contract", () => {
     },
   );
 
+  it.each(SHIPPED_LOCALES)(
+    "contains no legacy product brand values in %s",
+    (locale) => {
+      const catalog = readCatalog(locale);
+      const legacyBrand = new RegExp(["lang", "flow"].join(""), "i");
+      const legacyValues = Object.entries(catalog).filter(([, value]) =>
+        legacyBrand.test(value),
+      );
+      expect(legacyValues).toEqual([]);
+    },
+  );
+
   it("removes the two English sentence-as-key catalog entries", () => {
     expect(en).not.toHaveProperty("Preview not available for this file.");
     expect(en).not.toHaveProperty("(empty file)");

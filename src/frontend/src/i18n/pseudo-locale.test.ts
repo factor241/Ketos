@@ -12,11 +12,11 @@ describe("pseudo locale", () => {
 
   it("preserves interpolation, tags, code, URLs, and protected tokens byte-identically", () => {
     const source =
-      "Langflow API: {{count}} <0>items</0> at {path}; `flow_id`; https://example.com; MCP JSON WebSocket";
+      "Ketos API: {{count}} <0>items</0> at {path}; `flow_id`; https://example.com; MCP JSON WebSocket";
     const target = pseudoLocalize(source);
 
     for (const token of [
-      "Langflow",
+      "Ketos",
       "API",
       "{{count}}",
       "<0>",
@@ -30,6 +30,11 @@ describe("pseudo locale", () => {
     ]) {
       expect(target).toContain(token);
     }
+  });
+
+  it("does not protect the legacy product brand token", () => {
+    const legacyBrand = ["Lang", "flow"].join("");
+    expect(pseudoLocalize(legacyBrand)).not.toContain(legacyBrand);
   });
 
   it("keeps the exact catalog keyset and non-empty values", () => {

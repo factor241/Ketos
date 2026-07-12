@@ -1,6 +1,6 @@
-"""Git-friendly flow serialization for langflow-sdk.
+"""Git-friendly flow serialization for ketos-sdk.
 
-``normalize_flow`` transforms a raw Langflow flow dict into a stable,
+``normalize_flow`` transforms a raw Ketos flow dict into a stable,
 diff-friendly representation suitable for committing to version control:
 
 - **Volatile fields stripped** -- ``updated_at``, ``user_id``, ``folder_id``,
@@ -133,7 +133,7 @@ def normalize_flow(
     Parameters
     ----------
     flow:
-        Raw flow dict as returned by the Langflow API or read from a ``.json``
+        Raw flow dict as returned by the Ketos API or read from a ``.json``
         file.
     strip_volatile:
         Remove top-level fields that carry instance-specific state

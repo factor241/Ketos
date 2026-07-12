@@ -1,4 +1,4 @@
-"""Unit tests for langflow_sdk.serialization."""
+"""Unit tests for ketos_sdk.serialization."""
 # pragma: allowlist secret -- all credentials in this file are fake test data
 
 from __future__ import annotations
@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 import pytest
-from langflow_sdk.serialization import flow_to_json, normalize_flow, normalize_flow_file
+from ketos_sdk.serialization import flow_to_json, normalize_flow, normalize_flow_file
 
 # ---------------------------------------------------------------------------
 # Helpers

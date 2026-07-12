@@ -1,27 +1,27 @@
-"""pytest plugin providing fixtures for integration-testing Langflow flows.
+"""pytest plugin providing fixtures for integration-testing Ketos flows.
 
 Install with the ``testing`` extra::
 
-    pip install "langflow-sdk[testing]"
+    pip install "ketos-sdk[testing]"
 
 The plugin is auto-discovered by pytest via the ``pytest11`` entry point, so
 no ``conftest.py`` changes are needed.  Simply pass connection details on the
 command line or via environment variables::
 
     # Direct URL
-    pytest --langflow-url http://localhost:7860 tests/
+    pytest --ketos-url http://localhost:7860 tests/
 
-    # Named environment from langflow-environments.toml
-    pytest --langflow-env staging tests/
+    # Named environment from ketos-environments.toml
+    pytest --ketos-env staging tests/
 
     # Via environment variables (useful in CI)
-    LANGFLOW_URL=http://localhost:7860 pytest tests/
+    KETOS_URL=http://localhost:7860 pytest tests/
 
 Usage inside a test file::
 
     def test_my_rag_flow(flow_runner):
-        response = flow_runner("rag-endpoint", "What is Langflow?")
-        assert "Langflow" in response.first_text_output()
+        response = flow_runner("rag-endpoint", "What is Ketos?")
+        assert "Ketos" in response.first_text_output()
 
     async def test_my_async_flow(async_flow_runner):
         response = await async_flow_runner("rag-endpoint", "Hello")
@@ -37,14 +37,15 @@ from typing import TYPE_CHECKING, Any
 try:
     import pytest
 except ImportError as exc:
-    msg = "pytest is required for langflow_sdk.testing. Install it with: pip install 'langflow-sdk[testing]'"
+    msg = "pytest is required for ketos_sdk.testing. Install it with: pip install 'ketos-sdk[testing]'"
     raise ImportError(msg) from exc
 
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from langflow_sdk.client import AsyncClient, Client
-    from langflow_sdk.models import RunResponse
+    from ketos_sdk._async_client import AsyncKetosClient
+    from ketos_sdk.client import KetosClient
+    from ketos_sdk.models import RunResponse
 
 
 # ---------------------------------------------------------------------------
@@ -53,38 +54,37 @@ if TYPE_CHECKING:
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
-    """Register Langflow-specific CLI options."""
-    group = parser.getgroup("langflow", "Langflow integration testing options")
+    """Register Ketos-specific CLI options."""
+    group = parser.getgroup("ketos", "Ketos integration testing options")
     options = {
-        "--langflow-env": {
-            "dest": "langflow_env",
+        "--ketos-env": {
+            "dest": "ketos_env",
             "default": None,
             "metavar": "NAME",
-            "help": "Environment name from langflow-environments.toml to use for integration tests.",
+            "help": "Environment name from ketos-environments.toml to use for integration tests.",
         },
-        "--langflow-url": {
-            "dest": "langflow_url",
+        "--ketos-url": {
+            "dest": "ketos_url",
             "default": None,
             "metavar": "URL",
-            "help": "Base URL of the Langflow instance (overrides --langflow-env).",
+            "help": "Base URL of the Ketos instance (overrides --ketos-env).",
         },
-        "--langflow-api-key": {
-            "dest": "langflow_api_key",
+        "--ketos-api-key": {
+            "dest": "ketos_api_key",
             "default": None,
             "metavar": "KEY",
-            "help": "API key for the Langflow instance (overrides environment config).",
+            "help": "API key for the Ketos instance (overrides environment config).",
         },
-        "--langflow-environments-file": {
-            "dest": "langflow_environments_file",
+        "--ketos-environments-file": {
+            "dest": "ketos_environments_file",
             "default": None,
             "metavar": "PATH",
-            "help": "Path to langflow-environments.toml (overrides default discovery).",
+            "help": "Path to ketos-environments.toml (overrides default discovery).",
         },
     }
 
-    # langflow-sdk and lfx can both be installed in the same environment and
-    # expose the same remote-testing flags. Keep registration idempotent so
-    # pytest plugin auto-discovery can load both entry points safely.
+    # Multiple integration plugins can coexist in the same environment.
+    # Keep registration idempotent so repeated registration remains safe.
     for flag, kwargs in options.items():
         with contextlib.suppress(ValueError):
             group.addoption(flag, **kwargs)
@@ -97,41 +97,39 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 def _resolve_url_credentials(request: pytest.FixtureRequest) -> tuple[str, str | None] | None:
     """Extract (url, api_key) from CLI options / env vars, or return None."""
-    url: str | None = request.config.getoption("langflow_url") or os.getenv("LANGFLOW_URL")
+    url: str | None = request.config.getoption("ketos_url") or os.getenv("KETOS_URL")
     if not url:
         return None
     # pragma: allowlist secret
-    api_key: str | None = request.config.getoption("langflow_api_key") or os.getenv("LANGFLOW_API_KEY")
+    api_key: str | None = request.config.getoption("ketos_api_key") or os.getenv("KETOS_API_KEY")
     return url, api_key
 
 
-def _resolve_url_client(request: pytest.FixtureRequest) -> Client | None:
-    """Return a sync client from --langflow-url / LANGFLOW_URL, or None."""
-    from langflow_sdk.client import Client
+def _resolve_url_client(request: pytest.FixtureRequest) -> KetosClient | None:
+    """Return a sync client from --ketos-url / KETOS_URL, or None."""
+    from ketos_sdk.client import KetosClient
 
     creds = _resolve_url_credentials(request)
-    return Client(base_url=creds[0], api_key=creds[1]) if creds else None
+    return KetosClient(base_url=creds[0], api_key=creds[1]) if creds else None
 
 
-def _resolve_async_url_client(request: pytest.FixtureRequest) -> AsyncClient | None:
-    """Return an async client from --langflow-url / LANGFLOW_URL, or None."""
-    from langflow_sdk.client import AsyncClient
+def _resolve_async_url_client(request: pytest.FixtureRequest) -> AsyncKetosClient | None:
+    """Return an async client from --ketos-url / KETOS_URL, or None."""
+    from ketos_sdk._async_client import AsyncKetosClient
 
     creds = _resolve_url_credentials(request)
-    return AsyncClient(base_url=creds[0], api_key=creds[1]) if creds else None
+    return AsyncKetosClient(base_url=creds[0], api_key=creds[1]) if creds else None
 
 
 def _env_name(request: pytest.FixtureRequest) -> str | None:
-    return request.config.getoption("langflow_env") or os.getenv("LANGFLOW_ENV")
+    return request.config.getoption("ketos_env") or os.getenv("KETOS_ENV")
 
 
 def _env_file(request: pytest.FixtureRequest) -> str | None:
-    return request.config.getoption("langflow_environments_file") or os.getenv("LANGFLOW_ENVIRONMENTS_FILE")
+    return request.config.getoption("ketos_environments_file") or os.getenv("KETOS_ENVIRONMENTS_FILE")
 
 
-_SKIP_MSG = (
-    "No Langflow connection configured. Pass --langflow-url <URL> or --langflow-env <NAME> to enable integration tests."
-)
+_SKIP_MSG = "No Ketos connection configured. Pass --ketos-url <URL> or --ketos-env <NAME> to enable integration tests."
 
 
 # ---------------------------------------------------------------------------
@@ -140,17 +138,17 @@ _SKIP_MSG = (
 
 
 @pytest.fixture(scope="session")
-def langflow_client(request: pytest.FixtureRequest) -> Client:
-    """Session-scoped fixture that returns a configured :class:`~langflow_sdk.Client`.
+def ketos_client(request: pytest.FixtureRequest) -> KetosClient:
+    """Session-scoped fixture that returns a configured :class:`~ketos_sdk.KetosClient`.
 
     The fixture skips the test session automatically when no connection
     information is available.  Configure via CLI options or environment
     variables (in priority order):
 
-    1. ``--langflow-url`` / ``LANGFLOW_URL`` — direct base URL
-    2. ``--langflow-api-key`` / ``LANGFLOW_API_KEY`` — API key  # pragma: allowlist secret
-    3. ``--langflow-env`` / ``LANGFLOW_ENV`` — named environment from TOML file
-    4. ``--langflow-environments-file`` / ``LANGFLOW_ENVIRONMENTS_FILE`` — TOML path
+    1. ``--ketos-url`` / ``KETOS_URL`` — direct base URL
+    2. ``--ketos-api-key`` / ``KETOS_API_KEY`` — API key  # pragma: allowlist secret
+    3. ``--ketos-env`` / ``KETOS_ENV`` — named environment from TOML file
+    4. ``--ketos-environments-file`` / ``KETOS_ENVIRONMENTS_FILE`` — TOML path
     """
     client = _resolve_url_client(request)
     if not client:
@@ -158,7 +156,7 @@ def langflow_client(request: pytest.FixtureRequest) -> Client:
         if env:
             from pathlib import Path
 
-            from langflow_sdk.environments import get_client
+            from ketos_sdk.environments import get_client
 
             env_file = _env_file(request)
             config_file = Path(env_file) if env_file else None
@@ -171,10 +169,10 @@ def langflow_client(request: pytest.FixtureRequest) -> Client:
 
 
 @pytest.fixture(scope="session")
-async def async_langflow_client(request: pytest.FixtureRequest) -> AsyncClient:
-    """Session-scoped fixture returning a configured :class:`~langflow_sdk.AsyncClient`.
+async def async_ketos_client(request: pytest.FixtureRequest) -> AsyncKetosClient:
+    """Session-scoped fixture returning a configured :class:`~ketos_sdk.AsyncKetosClient`.
 
-    Same configuration resolution as :func:`langflow_client`.
+    Same configuration resolution as :func:`ketos_client`.
     """
     client = _resolve_async_url_client(request)
     if not client:
@@ -182,7 +180,7 @@ async def async_langflow_client(request: pytest.FixtureRequest) -> AsyncClient:
         if env:
             from pathlib import Path
 
-            from langflow_sdk.environments import get_async_client
+            from ketos_sdk.environments import get_async_client
 
             env_file = _env_file(request)
             config_file = Path(env_file) if env_file else None
@@ -203,17 +201,17 @@ class FlowRunner:
     """Callable returned by the :func:`flow_runner` fixture.
 
     Call it like a function to execute a flow and receive a
-    :class:`~langflow_sdk.RunResponse`::
+    :class:`~ketos_sdk.RunResponse`::
 
         def test_greeting(flow_runner):
             response = flow_runner("my-endpoint", "Hello!")
             assert response.first_text_output() is not None
 
     Keyword-only arguments mirror the fields of
-    :class:`~langflow_sdk.RunRequest`.
+    :class:`~ketos_sdk.RunRequest`.
     """
 
-    def __init__(self, client: Client) -> None:
+    def __init__(self, client: KetosClient) -> None:
         self._client = client
 
     def __call__(
@@ -226,8 +224,8 @@ class FlowRunner:
         tweaks: dict[str, Any] | None = None,
         stream: bool = False,
     ) -> RunResponse:
-        """Run *flow_id_or_endpoint* and return the full :class:`~langflow_sdk.RunResponse`."""
-        from langflow_sdk.models import RunRequest
+        """Run *flow_id_or_endpoint* and return the full :class:`~ketos_sdk.RunResponse`."""
+        from ketos_sdk.models import RunRequest
 
         return self._client.run_flow(
             flow_id_or_endpoint,
@@ -251,7 +249,7 @@ class AsyncFlowRunner:
             assert response.first_text_output() is not None
     """
 
-    def __init__(self, client: AsyncClient) -> None:
+    def __init__(self, client: AsyncKetosClient) -> None:
         self._client = client
 
     async def __call__(
@@ -265,7 +263,7 @@ class AsyncFlowRunner:
         stream: bool = False,
     ) -> RunResponse:
         """Run *flow_id_or_endpoint* asynchronously and return the full response."""
-        from langflow_sdk.models import RunRequest
+        from ketos_sdk.models import RunRequest
 
         return await self._client.run_flow(
             flow_id_or_endpoint,
@@ -285,29 +283,29 @@ class AsyncFlowRunner:
 
 
 @pytest.fixture
-def flow_runner(langflow_client: Client) -> FlowRunner:
+def flow_runner(ketos_client: KetosClient) -> FlowRunner:
     """Fixture that returns a :class:`FlowRunner` for running flows in tests.
 
-    Depends on the session-scoped :func:`langflow_client` fixture, so the
+    Depends on the session-scoped :func:`ketos_client` fixture, so the
     test is automatically skipped when no connection is configured.
 
     Example::
 
         def test_rag_flow(flow_runner):
-            response = flow_runner("rag-endpoint", "What is Langflow?")
-            assert "Langflow" in response.first_text_output()
+            response = flow_runner("rag-endpoint", "What is Ketos?")
+            assert "Ketos" in response.first_text_output()
     """
-    return FlowRunner(langflow_client)
+    return FlowRunner(ketos_client)
 
 
 @pytest.fixture
-def async_flow_runner(async_langflow_client: AsyncClient) -> AsyncFlowRunner:
+def async_flow_runner(async_ketos_client: AsyncKetosClient) -> AsyncFlowRunner:
     """Fixture that returns an :class:`AsyncFlowRunner` for async tests.
 
     Example::
 
         async def test_rag_flow(async_flow_runner):
-            response = await async_flow_runner("rag-endpoint", "What is Langflow?")
-            assert "Langflow" in response.first_text_output()
+            response = await async_flow_runner("rag-endpoint", "What is Ketos?")
+            assert "Ketos" in response.first_text_output()
     """
-    return AsyncFlowRunner(async_langflow_client)
+    return AsyncFlowRunner(async_ketos_client)

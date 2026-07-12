@@ -1,26 +1,26 @@
-"""Environment configuration for langflow-sdk.
+"""Environment configuration for ketos-sdk.
 
 Loads named environment definitions from a TOML file so teams can switch
-between Langflow instances (dev / staging / production) without code changes.
+between Ketos instances (dev / staging / production) without code changes.
 
 Config file lookup order
 ------------------------
 1. Path given explicitly to ``load_environments()`` or ``get_client()``.
-2. The ``LANGFLOW_ENVIRONMENTS_FILE`` environment variable.
-3. ``langflow-environments.toml`` in the current working directory.
-4. ``~/.config/langflow/environments.toml``
+2. The ``KETOS_ENVIRONMENTS_FILE`` environment variable.
+3. ``ketos-environments.toml`` in the current working directory.
+4. ``~/.config/ketos/environments.toml``
 
 File format
 -----------
 .. code-block:: toml
 
     [environments.staging]
-    url = "https://staging.langflow.example.com"
-    api_key_env = "LANGFLOW_STAGING_API_KEY"   # env-var that holds the key  # pragma: allowlist secret
+    url = "https://staging.ketos.example.com"
+    api_key_env = "KETOS_STAGING_API_KEY"   # env-var that holds the key  # pragma: allowlist secret
 
     [environments.production]
-    url = "https://langflow.example.com"
-    api_key_env = "LANGFLOW_PROD_API_KEY"  # pragma: allowlist secret
+    url = "https://ketos.example.com"
+    api_key_env = "KETOS_PROD_API_KEY"  # pragma: allowlist secret
 
     # Optional: set a default so callers don't have to name an environment
     [defaults]
@@ -33,30 +33,30 @@ import os
 from pathlib import Path
 from typing import Any
 
-from langflow_sdk.exceptions import EnvironmentConfigError, EnvironmentNotFoundError
+from ketos_sdk.exceptions import KetosEnvironmentConfigError, KetosEnvironmentNotFoundError
 
 try:
     import tomllib  # Python 3.11+
 except ImportError:  # pragma: no cover
     import tomli as tomllib  # type: ignore[no-reattr,assignment]
 
-_ENV_VAR = "LANGFLOW_ENVIRONMENTS_FILE"
-_LOCAL_NAME = "langflow-environments.toml"
-_USER_PATH = Path.home() / ".config" / "langflow" / "environments.toml"
+_ENV_VAR = "KETOS_ENVIRONMENTS_FILE"
+_LOCAL_NAME = "ketos-environments.toml"
+_USER_PATH = Path.home() / ".config" / "ketos" / "environments.toml"
 
 _EXAMPLE_CONFIG = """\
-# langflow-environments.toml
+# ketos-environments.toml
 #
-# Define named Langflow environments.  The api_key_env field is the *name*
+# Define named Ketos environments.  The api_key_env field is the *name*
 # of an environment variable that holds the API key for that instance.
 #
 # [environments.staging]
-# url = "https://staging.langflow.example.com"
-# api_key_env = "LANGFLOW_STAGING_API_KEY"  # pragma: allowlist secret
+# url = "https://staging.ketos.example.com"
+# api_key_env = "KETOS_STAGING_API_KEY"  # pragma: allowlist secret
 #
 # [environments.production]
-# url = "https://langflow.example.com"
-# api_key_env = "LANGFLOW_PROD_API_KEY"  # pragma: allowlist secret
+# url = "https://ketos.example.com"
+# api_key_env = "KETOS_PROD_API_KEY"  # pragma: allowlist secret
 #
 # [defaults]
 # environment = "staging"
@@ -93,14 +93,17 @@ def _load_toml(path: Path) -> dict[str, Any]:
         with path.open("rb") as fh:
             return tomllib.load(fh)
     except OSError as exc:
-        raise EnvironmentConfigError(f"Cannot read environments file {path}: {exc}") from exc
+        message = f"Cannot read environments file {path}: {exc}"
+        raise KetosEnvironmentConfigError(message) from exc
     except Exception as exc:
-        raise EnvironmentConfigError(f"Invalid TOML in {path}: {exc}") from exc
+        message = f"Invalid TOML in {path}: {exc}"
+        raise KetosEnvironmentConfigError(message) from exc
 
 
 def _parse_env(raw: dict[str, Any], file_path: Path, name: str) -> EnvironmentConfig:
     if "url" not in raw:
-        raise EnvironmentConfigError(f"Environment {name!r} in {file_path} is missing the required 'url' field.")
+        message = f"Environment {name!r} in {file_path} is missing the required 'url' field."
+        raise KetosEnvironmentConfigError(message)
     url: str = raw["url"]
     api_key: str | None = None
     if "api_key_env" in raw:
@@ -127,7 +130,7 @@ def load_environments(
     Parameters
     ----------
     config_file:
-        Explicit path to a ``langflow-environments.toml`` file. If omitted,
+        Explicit path to a ``ketos-environments.toml`` file. If omitted,
         the lookup order described in the module docstring is used.
 
     Returns:
@@ -137,7 +140,7 @@ def load_environments(
 
     Raises:
     ------
-    EnvironmentConfigError
+    KetosEnvironmentConfigError
         If no config file is found or the file is malformed.
     """
     file_path: Path | None = None
@@ -147,20 +150,22 @@ def load_environments(
             break
 
     if file_path is None:
-        raise EnvironmentConfigError(
-            "No langflow-environments.toml found. "
+        raise KetosEnvironmentConfigError(
+            "No ketos-environments.toml found. "
             f"Set {_ENV_VAR} or create one in the current directory.\n\n" + _EXAMPLE_CONFIG
         )
 
     raw = _load_toml(file_path)
     raw_envs = raw.get("environments", {})
     if not isinstance(raw_envs, dict):
-        raise EnvironmentConfigError(f"Expected [environments] to be a TOML table in {file_path}")
+        message = f"Expected [environments] to be a TOML table in {file_path}"
+        raise KetosEnvironmentConfigError(message)
 
     result: dict[str, EnvironmentConfig] = {}
     for name, env_data in raw_envs.items():
         if not isinstance(env_data, dict):
-            raise EnvironmentConfigError(f"Environment {name!r} in {file_path} must be a TOML table.")
+            message = f"Environment {name!r} in {file_path} must be a TOML table."
+            raise KetosEnvironmentConfigError(message)
         result[name] = _parse_env(env_data, file_path, name)
     return result
 
@@ -176,9 +181,9 @@ def get_environment(
 
     Raises:
     ------
-    EnvironmentNotFoundError
+    KetosEnvironmentNotFoundError
         If *name* is not defined in the config.
-    EnvironmentConfigError
+    KetosEnvironmentConfigError
         If no default is set and *name* is ``None``.
     """
     # Find the config file once and reuse for both default lookup and environment loading.
@@ -194,12 +199,12 @@ def get_environment(
             name = raw.get("defaults", {}).get("environment")
         if name is None:
             msg = "No environment name given and no [defaults] environment set in the config file."
-            raise EnvironmentConfigError(msg)
+            raise KetosEnvironmentConfigError(msg)
 
     environments = load_environments(file_path or config_file)
 
     if name not in environments:
-        raise EnvironmentNotFoundError(name)
+        raise KetosEnvironmentNotFoundError(name)
     return environments[name]
 
 
@@ -208,8 +213,8 @@ def get_client(
     *,
     config_file: Path | str | None = None,
     timeout: float = 60.0,
-) -> Client:  # noqa: F821  (resolved at runtime)
-    """Convenience factory: load config and return a ready :class:`Client`.
+) -> KetosClient:  # noqa: F821  (resolved at runtime)
+    """Convenience factory: load config and return a ready :class:`KetosClient`.
 
     Parameters
     ----------
@@ -223,15 +228,15 @@ def get_client(
 
     Example::
 
-        from langflow_sdk import get_client
+        from ketos_sdk import get_client
 
         client = get_client("staging")
         flows  = client.list_flows()
     """
-    from langflow_sdk.client import Client
+    from ketos_sdk.client import KetosClient
 
     env = get_environment(environment, config_file=config_file)
-    return Client(base_url=env.url, api_key=env.api_key, timeout=timeout)
+    return KetosClient(base_url=env.url, api_key=env.api_key, timeout=timeout)
 
 
 def get_async_client(
@@ -239,17 +244,17 @@ def get_async_client(
     *,
     config_file: Path | str | None = None,
     timeout: float = 60.0,
-) -> AsyncClient:  # noqa: F821  (resolved at runtime)
-    """Convenience factory: return a ready :class:`AsyncClient`.
+) -> AsyncKetosClient:  # noqa: F821  (resolved at runtime)
+    """Convenience factory: return a ready :class:`AsyncKetosClient`.
 
     Example::
 
-        from langflow_sdk import get_async_client
+        from ketos_sdk import get_async_client
 
         async with get_async_client("staging") as client:
             flows = await client.list_flows()
     """
-    from langflow_sdk.client import AsyncClient
+    from ketos_sdk._async_client import AsyncKetosClient
 
     env = get_environment(environment, config_file=config_file)
-    return AsyncClient(base_url=env.url, api_key=env.api_key, timeout=timeout)
+    return AsyncKetosClient(base_url=env.url, api_key=env.api_key, timeout=timeout)

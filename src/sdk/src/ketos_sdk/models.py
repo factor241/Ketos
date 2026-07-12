@@ -1,4 +1,4 @@
-"""Pydantic models mirroring the Langflow REST API request/response shapes."""
+"""Pydantic models mirroring the Ketos REST API request/response shapes."""
 
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ class FlowUpdate(BaseModel):
 
 
 class Flow(BaseModel):
-    """A flow returned by the Langflow API."""
+    """A flow returned by the Ketos API."""
 
     id: UUID
     name: str
@@ -87,7 +87,7 @@ class ProjectUpdate(BaseModel):
 
 
 class Project(BaseModel):
-    """A project (folder) returned by the Langflow API."""
+    """A project (folder) returned by the Ketos API."""
 
     id: UUID
     name: str
@@ -142,7 +142,7 @@ class RunOutput(BaseModel):
         """
         for component_out in self.outputs:
             results = component_out.get("results", {})
-            # Standard Langflow chat output: results -> message -> text
+            # Standard Ketos chat output: results -> message -> text
             msg = results.get("message")
             if isinstance(msg, dict):
                 text = msg.get("text")
@@ -160,7 +160,7 @@ class RunOutput(BaseModel):
         Checks each component output dict for an ``"error"`` key, and also
         inspects the top-level ``artifacts`` dict.
 
-        Adapted from ``WorkflowResponse.has_errors()`` in langflow-ai/sdk
+        Adapted from ``WorkflowResponse.has_errors()`` in ketos-ai/sdk
         (Janardan Singh Kavia, IBM Corp., Apache 2.0).
         """
         for component_out in self.outputs:
@@ -202,15 +202,15 @@ class RunResponse(BaseModel):
 
     # ------------------------------------------------------------------
     # WorkflowResponse-style helpers
-    # (adapted from langflow-ai/sdk, Janardan Singh Kavia, IBM Corp.,
-    #  Apache 2.0 — https://github.com/langflow-ai/sdk/pull/1)
+    # (adapted from ketos-ai/sdk, Janardan Singh Kavia, IBM Corp.,
+    #  Apache 2.0 — https://github.com/ketos-ai/sdk/pull/1)
     # ------------------------------------------------------------------
 
     def get_chat_output(self) -> str | None:
         """Return the first chat text output, or ``None``.
 
         Convenience alias for :meth:`first_text_output` using the naming
-        convention from the Langflow V2 SDK::
+        convention from the Ketos V2 SDK::
 
             text = response.get_chat_output()
         """
@@ -238,7 +238,7 @@ class RunResponse(BaseModel):
     def has_errors(self) -> bool:
         """Return ``True`` if any output block reports an error.
 
-        Adapted from ``WorkflowResponse.has_errors()`` in langflow-ai/sdk
+        Adapted from ``WorkflowResponse.has_errors()`` in ketos-ai/sdk
         (Janardan Singh Kavia, IBM Corp., Apache 2.0).
         """
         return any(output.has_errors() for output in self.outputs)
@@ -248,7 +248,7 @@ class RunResponse(BaseModel):
 
         For V1 synchronous runs this is equivalent to checking that the
         server returned usable output.  Adapted from
-        ``WorkflowResponse.is_completed()`` in langflow-ai/sdk
+        ``WorkflowResponse.is_completed()`` in ketos-ai/sdk
         (Janardan Singh Kavia, IBM Corp., Apache 2.0).
         """
         return bool(self.outputs) and not self.has_errors()
@@ -256,7 +256,7 @@ class RunResponse(BaseModel):
     def is_failed(self) -> bool:
         """Return ``True`` when the run produced no outputs or contains errors.
 
-        Adapted from ``WorkflowResponse.is_failed()`` in langflow-ai/sdk
+        Adapted from ``WorkflowResponse.is_failed()`` in ketos-ai/sdk
         (Janardan Singh Kavia, IBM Corp., Apache 2.0).
         """
         return not self.outputs or self.has_errors()
@@ -264,7 +264,7 @@ class RunResponse(BaseModel):
     def is_in_progress(self) -> bool:
         """Always ``False`` for V1 synchronous runs.
 
-        Included for API parity with :class:`BackgroundJob` and the Langflow
+        Included for API parity with :class:`BackgroundJob` and the Ketos
         V2 SDK (Janardan Singh Kavia, IBM Corp., Apache 2.0) so that callers
         can use a uniform status-check pattern across both sync and background
         execution paths.
@@ -280,7 +280,7 @@ class RunResponse(BaseModel):
 class StreamChunk(BaseModel):
     """A single event chunk from a streaming flow run.
 
-    Events emitted by the Langflow backend:
+    Events emitted by the Ketos backend:
 
     - ``token`` — incremental LLM token; ``data["chunk"]`` holds the text.
     - ``add_message`` — a complete message was added to the session.

@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import time
 from collections import defaultdict
 from pathlib import Path
 from zipfile import ZipFile
@@ -18,6 +19,19 @@ import tomllib
 ROOT = Path(__file__).resolve().parents[3]
 OLD_PRODUCT = "lang" + "flow"
 OLD_EXECUTOR = "l" + "fx"
+_INHERITED_PYTHON_PATH_ENV_VARS = (
+    "CONDA_PREFIX",
+    "PIP_PREFIX",
+    "PIP_TARGET",
+    "PYTHONEXECUTABLE",
+    "PYTHONHOME",
+    "PYTHONPATH",
+    "PYTHONUSERBASE",
+    "UV_PROJECT_ENVIRONMENT",
+    "VIRTUAL_ENV",
+    "__PYVENV_LAUNCHER__",
+)
+_INSTALLED_CLI_SLOW_TIMEOUT_SECONDS = 120.0
 
 
 def _root_manifest() -> dict:
@@ -47,6 +61,14 @@ def _assert_canonical_namespace_owners(wheels: list[Path]) -> dict[str, set[str]
             owners[package].add(distribution)
     assert owners.get("ketos") == {"ketos-base"}, owners
     return dict(owners)
+
+
+def _fresh_venv_subprocess_env(environment: dict[str, str]) -> dict[str, str]:
+    isolated = environment.copy()
+    for name in _INHERITED_PYTHON_PATH_ENV_VARS:
+        isolated.pop(name, None)
+    isolated["PYTHONNOUSERSITE"] = "1"
+    return isolated
 
 
 @pytest.fixture(scope="module")
@@ -195,6 +217,7 @@ def test_duplicate_namespace_owner_adversary_is_rejected(root_artifacts: Path, t
         _assert_canonical_namespace_owners([root_wheel, base_wheel, duplicate])
 
 
+@pytest.mark.slow
 def test_fresh_root_cli_uses_base_namespace_owner(root_artifacts: Path, tmp_path: Path) -> None:
     uv = shutil.which("uv")
     assert uv is not None
@@ -203,41 +226,136 @@ def test_fresh_root_cli_uses_base_namespace_owner(root_artifacts: Path, tmp_path
         [uv, "venv", "--python", f"{sys.version_info.major}.{sys.version_info.minor}", str(environment)],
         check=True,
     )
-    kfx_output = tmp_path / "kfx"
-    subprocess.run(  # noqa: S603
-        [uv, "build", "--wheel", "--out-dir", str(kfx_output), str(ROOT / "src/kfx")],
-        cwd=ROOT,
-        check=True,
-    )
+    dependency_output = tmp_path / "dependency-wheels"
+    for source in (
+        "src/kfx",
+        "src/sdk",
+        "src/bundles/duckduckgo",
+        "src/bundles/arxiv",
+        "src/bundles/ibm",
+        "src/bundles/docling",
+    ):
+        subprocess.run(  # noqa: S603
+            [uv, "build", "--wheel", "--out-dir", str(dependency_output), str(ROOT / source)],
+            cwd=ROOT,
+            check=True,
+        )
     wheels = [
         next(root_artifacts.glob("ketos-*.whl")),
         next(root_artifacts.glob("ketos_base-*.whl")),
-        next(kfx_output.glob("kfx-*.whl")),
+        *dependency_output.glob("*.whl"),
     ]
     subprocess.run(  # noqa: S603
-        [uv, "pip", "install", "--python", str(environment / "bin/python"), "--no-deps", *map(str, wheels)],
+        [uv, "pip", "install", "--python", str(environment / "bin/python"), *map(str, wheels)],
         check=True,
     )
 
-    env = os.environ.copy()
-    env["PYTHONPATH"] = next(path for path in sys.path if path.endswith("site-packages"))
-    result = subprocess.run(  # noqa: S603
-        [str(environment / "bin/ketos"), "--help"],
+    host_site_packages = tmp_path / "host-site-packages"
+    for namespace in ("ketos", "kfx", OLD_PRODUCT, OLD_EXECUTOR):
+        package = host_site_packages / namespace
+        package.mkdir(parents=True)
+        (package / "__init__.py").write_text("HOST_CONTAMINATION = True\n", encoding="utf-8")
+
+    hostile_pythonpath_env = os.environ.copy()
+    hostile_pythonpath_env["PYTHONPATH"] = str(host_site_packages)
+    hostile_pythonpath_probe = subprocess.run(  # noqa: S603
+        [
+            str(environment / "bin/python"),
+            "-c",
+            (
+                "from pathlib import Path; import ketos; import kfx; "
+                f"host = Path({str(host_site_packages)!r}).resolve(); "
+                "assert ketos.HOST_CONTAMINATION is True; "
+                "assert kfx.HOST_CONTAMINATION is True; "
+                "assert Path(ketos.__file__).resolve().is_relative_to(host), ketos.__file__; "
+                "assert Path(kfx.__file__).resolve().is_relative_to(host), kfx.__file__"
+            ),
+        ],
+        env=hostile_pythonpath_env,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert hostile_pythonpath_probe.returncode == 0, hostile_pythonpath_probe.stderr
+
+    contaminated_env = os.environ.copy()
+    for name in _INHERITED_PYTHON_PATH_ENV_VARS:
+        contaminated_env[name] = str(host_site_packages)
+    env = _fresh_venv_subprocess_env(contaminated_env)
+    executable_probe = subprocess.run(  # noqa: S603
+        [
+            str(environment / "bin/python"),
+            "-c",
+            (
+                "import os, platform, runpy, sys\n"
+                "script = os.path.join(sys.prefix, 'bin', 'ketos')\n"
+                "calls = []\n"
+                "os.execv = lambda executable, argv: calls.append((executable, argv))\n"
+                "platform.system = lambda: 'Darwin'\n"
+                "sys.argv = [script, '--help']\n"
+                "try:\n"
+                "    runpy.run_path(script, run_name='__main__')\n"
+                "except SystemExit as exc:\n"
+                "    assert exc.code is None, exc.code\n"
+                "expected = [(sys.executable, [sys.executable, '-m', 'ketos.__main__', '--help'])]\n"
+                "assert calls == expected, calls"
+            ),
+        ],
         env=env,
         check=False,
         capture_output=True,
         text=True,
         timeout=30,
     )
-    assert result.returncode == 0, result.stderr
-    assert "Run Ketos" in result.stdout
+    assert executable_probe.returncode == 0, executable_probe.stderr
 
-    negative_import = subprocess.run(  # noqa: S603
+    cold_start_started = time.monotonic()
+    cold_start_probe = subprocess.run(  # noqa: S603
+        [str(environment / "bin/python"), "-c", "import ketos.__main__"],
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=_INSTALLED_CLI_SLOW_TIMEOUT_SECONDS,
+    )
+    cold_start_latency_seconds = time.monotonic() - cold_start_started
+    assert cold_start_probe.returncode == 0, cold_start_probe.stderr
+    behavioral_timeout_seconds = min(
+        _INSTALLED_CLI_SLOW_TIMEOUT_SECONDS,
+        max(30.0, cold_start_latency_seconds * 4),
+    )
+    behavioral_cli_env = env | {"OBJC_DISABLE_INITIALIZE_FORK_SAFETY": "YES"}
+    behavioral_cli_probe = subprocess.run(  # noqa: S603
+        [str(environment / "bin/python"), "-m", "ketos.__main__", "--help"],
+        env=behavioral_cli_env,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=behavioral_timeout_seconds,
+    )
+    assert behavioral_cli_probe.returncode == 0, behavioral_cli_probe.stderr
+    assert "Run Ketos" in behavioral_cli_probe.stdout
+
+    installation_probe = subprocess.run(  # noqa: S603
         [
             str(environment / "bin/python"),
             "-c",
             (
-                "import importlib.util; "
+                "import importlib.metadata as metadata; import importlib.util; "
+                "from pathlib import Path; import ketos; import kfx; import os; import sys; "
+                "prefix = Path(sys.prefix).resolve(); "
+                f"assert not (set(os.environ) & {set(_INHERITED_PYTHON_PATH_ENV_VARS)!r}); "
+                "assert Path(ketos.__file__).resolve().is_relative_to(prefix), ketos.__file__; "
+                "assert Path(kfx.__file__).resolve().is_relative_to(prefix), kfx.__file__; "
+                "assert all(Path(metadata.distribution(name).locate_file('')).resolve().is_relative_to(prefix) "
+                "for name in ('ketos', 'ketos-base', 'kfx')); "
+                "console_scripts = [entry for entry in metadata.distribution('ketos').entry_points "
+                "if entry.group == 'console_scripts' and entry.name == 'ketos']; "
+                "assert [entry.value for entry in console_scripts] == ['ketos.ketos_launcher:main'], console_scripts; "
+                "owners = metadata.packages_distributions(); "
+                "assert set(owners['ketos']) == {'ketos-base'}, owners['ketos']; "
+                "assert set(owners['kfx']) == {'kfx'}, owners['kfx']; "
                 "assert importlib.util.find_spec('lang' + 'flow') is None; "
                 "assert importlib.util.find_spec('l' + 'fx') is None"
             ),
@@ -248,7 +366,7 @@ def test_fresh_root_cli_uses_base_namespace_owner(root_artifacts: Path, tmp_path
         text=True,
         timeout=30,
     )
-    assert negative_import.returncode == 0, negative_import.stderr
+    assert installation_probe.returncode == 0, installation_probe.stderr
 
 
 def test_root_node_manifest_has_ketos_identity() -> None:

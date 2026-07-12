@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   brand-contract:
-    name: Rebrand contract and frozen-debt gate
+    name: Destructive cutover contract
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -31,7 +31,19 @@ jobs:
         run: uv sync --frozen --only-group dev
 
       - name: Test brand contracts and scanner
-        run: uv run pytest scripts/rebrand/tests -q
+        run: PYTHONDONTWRITEBYTECODE=1 uv run pytest -p no:cacheprovider scripts/rebrand/tests -q
 
-      - name: Reject new or reclassified legacy-brand residue
-        run: uv run python scripts/rebrand/check_brand.py --profile stage0
+      - name: Reject any increase from the frozen baseline
+        run: PYTHONDONTWRITEBYTECODE=1 uv run python scripts/rebrand/check_brand.py --profile stage0 --zero-residue-contract brand/ketos-zero-residue-contract.yaml
+
+      - name: Produce the strict cutover report
+        id: cutover
+        continue-on-error: true
+        run: PYTHONDONTWRITEBYTECODE=1 uv run python scripts/rebrand/check_brand.py --profile cutover --format json --zero-residue-contract brand/ketos-zero-residue-contract.yaml > ketos-cutover-report.json
+
+      - name: Upload strict cutover report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ketos-cutover-report
+          path: ketos-cutover-report.json

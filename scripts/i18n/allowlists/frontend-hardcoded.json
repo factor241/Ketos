@@ -63,13 +63,6 @@
       "review_date": "2026-07-12"
     },
     {
-      "path": "src/frontend/src/components/common/storeCardComponent/index.tsx",
-      "value": "⛓︎ v",
-      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
-      "owner": "localization-governance",
-      "review_date": "2026-07-12"
-    },
-    {
       "path": "src/frontend/src/components/core/appHeaderComponent/index.tsx",
       "value": "${baseClasses} right-[0.3rem] top-[5px]",
       "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",

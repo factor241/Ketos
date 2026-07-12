@@ -1,10 +1,10 @@
 import { AUTHORIZED_DUPLICATE_REQUESTS } from "../../../constants/constants";
 
 export function checkDuplicateRequestAndStoreRequest(config) {
-  const lastUrl = localStorage.getItem("lastUrlCalled");
-  const lastMethodCalled = localStorage.getItem("lastMethodCalled");
-  const lastRequestTime = localStorage.getItem("lastRequestTime");
-  const lastCurrentUrl = localStorage.getItem("lastCurrentUrl");
+  const lastUrl = localStorage.getItem("ketos-last-url-called");
+  const lastMethodCalled = localStorage.getItem("ketos-last-method-called");
+  const lastRequestTime = localStorage.getItem("ketos-last-request-time");
+  const lastCurrentUrl = localStorage.getItem("ketos-last-current-url");
 
   const currentUrl = window.location.pathname;
   const currentTime = Date.now();
@@ -24,8 +24,8 @@ export function checkDuplicateRequestAndStoreRequest(config) {
     throw new Error("Duplicate request: " + lastUrl);
   }
 
-  localStorage.setItem("lastUrlCalled", config.url ?? "");
-  localStorage.setItem("lastMethodCalled", config.method ?? "");
-  localStorage.setItem("lastRequestTime", currentTime.toString());
-  localStorage.setItem("lastCurrentUrl", currentUrl);
+  localStorage.setItem("ketos-last-url-called", config.url ?? "");
+  localStorage.setItem("ketos-last-method-called", config.method ?? "");
+  localStorage.setItem("ketos-last-request-time", currentTime.toString());
+  localStorage.setItem("ketos-last-current-url", currentUrl);
 }

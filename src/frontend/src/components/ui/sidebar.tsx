@@ -17,8 +17,8 @@ import { Separator } from "./separator";
 import { Skeleton } from "./skeleton";
 import { TooltipProvider } from "./tooltip";
 
-const SIDEBAR_COOKIE_NAME = "sidebar:state";
-const SIDEBAR_SECTION_COOKIE_NAME = "sidebar:section";
+const SIDEBAR_COOKIE_NAME = "ketos-sidebar-state";
+const SIDEBAR_SECTION_COOKIE_NAME = "ketos-sidebar-section";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = "19rem";
 const SIDEBAR_WIDTH_ICON = "4rem";

@@ -1,9 +1,10 @@
 import type { UseMutationResult } from "@tanstack/react-query";
-import { useGetFlowId } from "@/modals/IOModal/hooks/useGetFlowId";
 import { isAuthenticatedPlayground } from "@/modals/IOModal/helpers/playground-auth";
+import { useGetFlowId } from "@/modals/IOModal/hooks/useGetFlowId";
 import useFlowStore from "@/stores/flowStore";
 import type { useMutationFunctionType } from "@/types/api";
 import type { Message } from "@/types/messages";
+import { ketosFlowSessionKey } from "@/utils/ketos-storage-keys";
 import { api } from "../../api";
 import { getURL } from "../../helpers/constants";
 import { UseRequestProcessor } from "../../services/request-processor";
@@ -31,7 +32,8 @@ export const useUpdateMessage: useMutationFunctionType<
     }
     if (isPlayground && !isAuthenticatedPlayground() && flowId) {
       // Anonymous/auto-login: update in sessionStorage
-      const messages = JSON.parse(sessionStorage.getItem(flowId) || "");
+      const storageKey = ketosFlowSessionKey(flowId);
+      const messages = JSON.parse(sessionStorage.getItem(storageKey) || "");
       const messageIndex = messages.findIndex(
         (m: Message) => m.id === message.id,
       );
@@ -44,7 +46,7 @@ export const useUpdateMessage: useMutationFunctionType<
         flow_id: flowId,
         edit: textChanged ? true : existingMessage.edit,
       };
-      sessionStorage.setItem(flowId, JSON.stringify(messages));
+      sessionStorage.setItem(storageKey, JSON.stringify(messages));
     } else {
       const result = await api.put(
         `${getURL("MESSAGES")}/${message.id}`,

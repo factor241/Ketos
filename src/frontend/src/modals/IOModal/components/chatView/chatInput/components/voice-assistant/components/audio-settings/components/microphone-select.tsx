@@ -40,7 +40,7 @@ const MicrophoneSelect = ({
 
         if (audioInputDevices.length > 0 && !selectedMicrophone) {
           const savedMicrophoneId = localStorage.getItem(
-            "lf_selected_microphone",
+            "ketos-selected-microphone",
           );
           if (
             savedMicrophoneId &&

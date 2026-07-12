@@ -301,7 +301,7 @@ describe("useTweaksStore", () => {
         result.current.initialSetup([mockNode], "flow-123");
       });
 
-      expect(mockGetLocalStorage).toHaveBeenCalledWith("lf_tweaks_flow-123");
+      expect(mockGetLocalStorage).toHaveBeenCalledWith("ketos-tweaks-flow-123");
       expect(mockGetNodesWithDefaultValue).toHaveBeenCalledWith(
         [mockNode],
         savedTweaks,
@@ -353,7 +353,7 @@ describe("useTweaksStore", () => {
         mockNode2.data.node?.template.param3,
       );
       expect(mockSetLocalStorage).toHaveBeenCalledWith(
-        "lf_tweaks_test-flow",
+        "ketos-tweaks-test-flow",
         expect.any(String),
       );
     });
@@ -424,7 +424,7 @@ describe("useTweaksStore", () => {
       });
 
       expect(mockSetLocalStorage).toHaveBeenCalledWith(
-        "lf_tweaks_test-flow",
+        "ketos-tweaks-test-flow",
         expect.stringContaining("node-1"),
       );
     });
@@ -505,7 +505,7 @@ describe("useTweaksStore", () => {
 
       expect(result.current.tweaks).toEqual({});
       expect(mockSetLocalStorage).toHaveBeenCalledWith(
-        "lf_tweaks_empty-flow",
+        "ketos-tweaks-empty-flow",
         "{}",
       );
     });

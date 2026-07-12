@@ -619,7 +619,6 @@ export const URL_EXCLUDED_FROM_ERROR_RETRIES = [
   `${BASE_URL_API}custom_component`,
   `${BASE_URL_API}validate/prompt`,
   `${BASE_URL_API}/login`,
-  `${BASE_URL_API}api_key/store`,
 ];
 
 export const skipNodeUpdate = [
@@ -863,21 +862,15 @@ export const EMPTY_INPUT_SEND_MESSAGE = "No input message provided.";
 
 export const EMPTY_OUTPUT_SEND_MESSAGE = "Message empty.";
 
-export const TABS_ORDER = [
-  "curl",
-  "python api",
-  "js api",
-  "python code",
-  "chat widget html",
-];
+export const TABS_ORDER = ["curl", "python api", "js api", "python code"];
 
-export const LANGFLOW_ACCESS_TOKEN = "access_token_lf";
-export const LANGFLOW_API_TOKEN = "apikey_tkn_lflw";
-export const LANGFLOW_AUTO_LOGIN_OPTION = "auto_login_lf";
-export const LANGFLOW_REFRESH_TOKEN = "refresh_token_lf";
+export const KETOS_ACCESS_TOKEN = "ketos_access_token";
+export const KETOS_API_TOKEN = "ketos_api_token";
+export const KETOS_AUTO_LOGIN_OPTION = "ketos_auto_login";
+export const KETOS_REFRESH_TOKEN = "ketos_refresh_token";
 
-export const LANGFLOW_ACCESS_TOKEN_EXPIRE_SECONDS = 60 * 60 - 60 * 60 * 0.1;
-export const LANGFLOW_ACCESS_TOKEN_EXPIRE_SECONDS_ENV =
+export const KETOS_ACCESS_TOKEN_EXPIRE_SECONDS = 60 * 60 - 60 * 60 * 0.1;
+export const KETOS_ACCESS_TOKEN_EXPIRE_SECONDS_ENV =
   Number(getEnvVar("ACCESS_TOKEN_EXPIRE_SECONDS", 60)) -
   Number(getEnvVar("ACCESS_TOKEN_EXPIRE_SECONDS", 60)) * 0.1;
 export const TEXT_FIELD_TYPES: string[] = ["str", "SecretStr"];
@@ -885,6 +878,7 @@ export const NODE_WIDTH = 384;
 export const NODE_HEIGHT = NODE_WIDTH * 3;
 
 export const SHORTCUT_KEYS = ["cmd", "ctrl", "mod", "alt", "shift"];
+export const SHORTCUTS_STORAGE_KEY = "ketos-shortcuts";
 
 export const SERVER_HEALTH_INTERVAL = 10000;
 export const REFETCH_SERVER_HEALTH_INTERVAL = 20000;
@@ -1001,14 +995,9 @@ export const OPENAI_VOICES = [
 export const DEFAULT_POLLING_INTERVAL = 5000;
 export const DEFAULT_TIMEOUT = 30000;
 export const DEFAULT_FILE_PICKER_TIMEOUT = 60000;
-export const DISCORD_URL = "https://discord.com/invite/EqksyE2EX9";
-export const GITHUB_URL = "https://github.com/langflow-ai/langflow";
-export const TWITTER_URL = "https://x.com/langflow_ai";
-export const DOCS_URL = "https://docs.langflow.org";
-export const DATASTAX_DOCS_URL =
-  "https://docs.datastax.com/en/langflow/index.html";
-export const DESKTOP_URL = "https://www.langflow.org/desktop";
-export const BUG_REPORT_URL = "https://github.com/langflow-ai/langflow/issues";
+export const DOCS_URL = "https://docs.ketos.test";
+export const DATASTAX_DOCS_URL = "https://docs.ketos.test";
+export const BUG_REPORT_URL = "https://git.ketos.test/ketos/ketos/issues";
 
 export const UUID_PARSING_ERROR = "uuid_parsing";
 

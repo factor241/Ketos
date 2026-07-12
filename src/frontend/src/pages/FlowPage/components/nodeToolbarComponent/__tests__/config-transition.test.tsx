@@ -129,15 +129,6 @@ jest.mock("@/stores/shortcuts", () => ({
     }),
 }));
 
-jest.mock("@/stores/storeStore", () => ({
-  useStoreStore: (selector: (state: unknown) => unknown) =>
-    selector({
-      hasStore: false,
-      hasApiKey: false,
-      validApiKey: false,
-    }),
-}));
-
 jest.mock("../../../../../components/common/genericIconComponent", () => ({
   __esModule: true,
   default: ({ name }: { name: string }) => <span>{name}</span>,

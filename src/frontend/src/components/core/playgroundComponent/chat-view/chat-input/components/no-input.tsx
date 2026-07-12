@@ -53,7 +53,7 @@ const NoInputView = ({
                 <a
                   className="underline underline-offset-4"
                   target="_blank"
-                  href="https://docs.langflow.org/components-io#chat-input"
+                  href="https://docs.ketos.test/components-io#chat-input"
                   rel="noopener noreferrer"
                 />
               ),

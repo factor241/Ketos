@@ -25,7 +25,6 @@ import { useDarkStore } from "../../../../stores/darkStore";
 import useFlowStore from "../../../../stores/flowStore";
 import useFlowsManagerStore from "../../../../stores/flowsManagerStore";
 import { useShortcutsStore } from "../../../../stores/shortcuts";
-import { useStoreStore } from "../../../../stores/storeStore";
 import { useUtilityStore } from "../../../../stores/utilityStore";
 import type { nodeToolbarPropsType } from "../../../../types/components";
 import type { FlowType } from "../../../../types/flow";
@@ -64,7 +63,6 @@ const NodeToolbarComponent = memo(
     const { t } = useTranslation();
     const version = useDarkStore((state) => state.version);
     const [showModalAdvanced, setShowModalAdvanced] = useState(false);
-    const [showconfirmShare, setShowconfirmShare] = useState(false);
     const [showOverrideModal, setShowOverrideModal] = useState(false);
     const [flowComponent, setFlowComponent] = useState<FlowType>(
       createFlowComponent(cloneDeep(data), version),
@@ -72,11 +70,6 @@ const NodeToolbarComponent = memo(
     const updateFreezeStatus = useFlowStore(
       (state) => state.updateFreezeStatus,
     );
-    const { hasStore, hasApiKey, validApiKey } = useStoreStore((state) => ({
-      hasStore: state.hasStore,
-      hasApiKey: state.hasApiKey,
-      validApiKey: state.validApiKey,
-    }));
     const shortcuts = useShortcutsStore((state) => state.shortcuts);
     const currentFlowId = useFlowsManagerStore((state) => state.currentFlowId);
     const [openModal, setOpenModal] = useState(false);
@@ -233,12 +226,6 @@ const NodeToolbarComponent = memo(
       expandGroupNode,
     ]);
 
-    const shareComponent = useCallback(() => {
-      if (hasApiKey || hasStore) {
-        setShowconfirmShare((state) => !state);
-      }
-    }, [hasApiKey, hasStore]);
-
     const handleCodeModal = useCallback(() => {
       if (!hasCode) {
         setNoticeData({ title: t("node.cannotAccessCode", { id: data.id }) });
@@ -296,7 +283,6 @@ const NodeToolbarComponent = memo(
       showOverrideModal,
       showModalAdvanced,
       openModal,
-      showconfirmShare,
       FreezeAllVertices: () => {
         FreezeAllVertices({ flowId: currentFlowId, stopNodeId: data.id });
       },
@@ -305,7 +291,6 @@ const NodeToolbarComponent = memo(
       saveComponent,
       showAdvance: () => setShowModalAdvanced((state) => !state),
       handleCodeModal,
-      shareComponent,
       ungroup: handleungroup,
       minimizeFunction: handleMinimize,
       activateToolMode: handleActivateToolMode,
@@ -344,7 +329,6 @@ const NodeToolbarComponent = memo(
       data.node?.description,
       data.node?.template,
       showModalAdvanced,
-      showconfirmShare,
     ]);
 
     const [selectedValue, setSelectedValue] = useState(null);
@@ -378,9 +362,6 @@ const NodeToolbarComponent = memo(
           case "show":
             takeSnapshot();
             handleMinimize();
-            break;
-          case "Share":
-            shareComponent();
             break;
           case "Download":
             handleDownloadNode();
@@ -442,7 +423,6 @@ const NodeToolbarComponent = memo(
         setOpenModal,
         setShowModalAdvanced,
         handleMinimize,
-        shareComponent,
         downloadNode,
         addFlow,
         openDocs,
@@ -705,23 +685,6 @@ const NodeToolbarComponent = memo(
                     />
                   </SelectItem>
                 )}
-                {hasStore && (
-                  <SelectItem
-                    value={"Share"}
-                    disabled={!hasApiKey || !validApiKey}
-                  >
-                    <ToolbarSelectItem
-                      shortcut={
-                        shortcuts.find((obj) => obj.name === "Component Share")
-                          ?.shortcut!
-                      }
-                      value={t("nodeToolbar.share")}
-                      icon={"Share3"}
-                      dataTestId="share-button-modal"
-                    />
-                  </SelectItem>
-                )}
-
                 <SelectItem
                   value={"documentation"}
                   disabled={data.node?.documentation === ""}
@@ -824,12 +787,10 @@ const NodeToolbarComponent = memo(
 
           <ToolbarModals
             showModalAdvanced={showModalAdvanced}
-            showconfirmShare={showconfirmShare}
             showOverrideModal={showOverrideModal}
             openModal={openModal}
             hasCode={hasCode}
             setShowModalAdvanced={setShowModalAdvanced}
-            setShowconfirmShare={setShowconfirmShare}
             setShowOverrideModal={setShowOverrideModal}
             setOpenModal={setOpenModal}
             data={data}

@@ -4,7 +4,6 @@ import IconComponent, {
   ForwardedIconComponent,
 } from "@/components/common/genericIconComponent";
 import ShadTooltip from "@/components/common/shadTooltipComponent";
-import { convertTestName } from "@/components/common/storeCardComponent/utils/convert-test-name";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +17,7 @@ import { useAddComponent } from "@/hooks/use-add-component";
 import { useDarkStore } from "@/stores/darkStore";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
 import type { APIClassType } from "@/types/api";
+import { convertTestName } from "@/utils/convert-test-name";
 import {
   createFlowComponent,
   downloadNode,

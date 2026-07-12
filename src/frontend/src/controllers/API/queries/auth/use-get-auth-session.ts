@@ -13,7 +13,6 @@ export interface SessionResponse {
     is_superuser: boolean;
     [key: string]: any;
   };
-  store_api_key?: string;
 }
 
 export const useGetAuthSession: useQueryFunctionType<

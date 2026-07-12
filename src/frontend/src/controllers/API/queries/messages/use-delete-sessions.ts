@@ -8,6 +8,7 @@ import type {
   DeleteSessionParams,
   DeleteSessionResponse,
 } from "@/types/messages/session";
+import { ketosFlowSessionKey } from "@/utils/ketos-storage-keys";
 import { api } from "../../api";
 import { getURL } from "../../helpers/constants";
 import { UseRequestProcessor } from "../../services/request-processor";
@@ -47,12 +48,13 @@ export const useDeleteSession = (options?: {
       }
 
       // Anonymous/auto-login: delete from sessionStorage (original behavior)
-      const stored = window.sessionStorage.getItem(flowId) || "[]";
+      const storageKey = ketosFlowSessionKey(flowId);
+      const stored = window.sessionStorage.getItem(storageKey) || "[]";
       const messages = JSON.parse(stored);
       const filtered = messages.filter(
         (msg: { session_id?: string }) => msg.session_id !== sessionId,
       );
-      window.sessionStorage.setItem(flowId, JSON.stringify(filtered));
+      window.sessionStorage.setItem(storageKey, JSON.stringify(filtered));
       return { message: t("errors.sessionDeletedLocalStorage") };
     }
 

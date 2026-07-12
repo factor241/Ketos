@@ -1,4 +1,4 @@
-import { LANGFLOW_ACCESS_TOKEN } from "@/constants/constants";
+import { KETOS_ACCESS_TOKEN } from "@/constants/constants";
 import { cookieManager } from "@/utils/cookie-manager";
 
 /**
@@ -13,5 +13,5 @@ import { cookieManager } from "@/utils/cookie-manager";
  */
 export const customGetAccessToken = () => {
   // Try to read the cookie (will be null if HttpOnly is enabled)
-  return cookieManager.get(LANGFLOW_ACCESS_TOKEN) ?? null;
+  return cookieManager.get(KETOS_ACCESS_TOKEN) ?? null;
 };

@@ -2,23 +2,16 @@ import { useTranslation } from "react-i18next";
 import { Outlet, type To } from "react-router-dom";
 import SideBarButtonsComponent from "@/components/core/sidebarComponent";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { CustomStoreSidebar } from "@/customization/components/custom-store-sidebar";
-import {
-  ENABLE_DATASTAX_LANGFLOW,
-  ENABLE_LANGFLOW_STORE,
-  ENABLE_PROFILE_ICONS,
-} from "@/customization/feature-flags";
+import { ENABLE_PROFILE_ICONS } from "@/customization/feature-flags";
 import useAuthStore from "@/stores/authStore";
-import { useStoreStore } from "@/stores/storeStore";
 import ForwardedIconComponent from "../../components/common/genericIconComponent";
 import PageLayout from "../../components/common/pageLayout";
 export default function SettingsPage(): JSX.Element {
   const { t } = useTranslation();
   const autoLogin = useAuthStore((state) => state.autoLogin);
-  const hasStore = useStoreStore((state) => state.hasStore);
 
   // Hides the General settings if there is nothing to show
-  const showGeneralSettings = ENABLE_PROFILE_ICONS || hasStore || !autoLogin;
+  const showGeneralSettings = ENABLE_PROFILE_ICONS || !autoLogin;
 
   const sidebarNavItems: {
     href?: string;
@@ -124,12 +117,6 @@ export default function SettingsPage(): JSX.Element {
       ),
     },
   );
-
-  // TODO: Remove this on cleanup
-  if (!ENABLE_DATASTAX_LANGFLOW) {
-    const langflowItems = CustomStoreSidebar(true, ENABLE_LANGFLOW_STORE);
-    sidebarNavItems.splice(2, 0, ...langflowItems);
-  }
 
   return (
     <PageLayout

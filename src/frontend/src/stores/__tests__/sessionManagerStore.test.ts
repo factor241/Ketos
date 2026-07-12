@@ -2,7 +2,7 @@ import { act } from "@testing-library/react";
 import { useSessionManagerStore } from "../sessionManagerStore";
 
 const FLOW_ID = "flow-1";
-const STORAGE_KEY = `langflow_local_sessions_${FLOW_ID}`;
+const STORAGE_KEY = `ketos-local-sessions-${FLOW_ID}`;
 
 describe("useSessionManagerStore", () => {
   beforeEach(() => {
@@ -30,6 +30,20 @@ describe("useSessionManagerStore", () => {
         { id: "local-2", isLocal: true },
       ],
     });
+  });
+
+  it("ignores the pre-cutover product session key", () => {
+    const oldBrand = ["lang", "flow"].join("");
+    window.sessionStorage.setItem(
+      `${oldBrand}_local_sessions_${FLOW_ID}`,
+      JSON.stringify(["old-session"]),
+    );
+
+    act(() => {
+      useSessionManagerStore.getState().initialize(FLOW_ID);
+    });
+
+    expect(useSessionManagerStore.getState().sessions).toEqual([]);
   });
 
   it("adds sessions and persists only local ids", () => {

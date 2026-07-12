@@ -57,7 +57,7 @@ export function MemoryKnowledgeBaseSection({
               <TooltipContent className="max-w-xs">
                 <p>{t("memory.memoryBaseTooltip")}</p>
                 <a
-                  href="https://docs.langflow.org/memory-bases"
+                  href="https://docs.ketos.test/memory-bases"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-1 flex items-center gap-1 text-xs text-primary underline"
@@ -101,7 +101,7 @@ export function MemoryKnowledgeBaseSection({
               {t("memory.noChunksRunFlow")}
             </p>
             <a
-              href="https://docs.langflow.org/memory-bases"
+              href="https://docs.ketos.test/memory-bases"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 text-xs text-primary underline"

@@ -2,7 +2,6 @@ import { cloneDeep } from "lodash";
 import { useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
-import { usePostAddApiKey } from "@/controllers/API/queries/api-keys";
 import {
   useResetPassword,
   useUpdateUser,
@@ -14,7 +13,6 @@ import useAuthStore from "@/stores/authStore";
 import { CONTROL_PATCH_USER_STATE } from "../../../../constants/constants";
 import { AuthContext } from "../../../../contexts/authContext";
 import useAlertStore from "../../../../stores/alertStore";
-import { useStoreStore } from "../../../../stores/storeStore";
 import type {
   inputHandlerEventType,
   patchUserInputStateType,
@@ -37,11 +35,6 @@ export const GeneralPage = () => {
   const { userData, setUserData } = useContext(AuthContext);
   const { password, cnfPassword, profilePicture } = inputState;
   const autoLogin = useAuthStore((state) => state.autoLogin);
-
-  const { storeApiKey } = useContext(AuthContext);
-  const setHasApiKey = useStoreStore((state) => state.updateHasApiKey);
-  const setValidApiKey = useStoreStore((state) => state.updateValidApiKey);
-  const setLoadingApiKey = useStoreStore((state) => state.updateLoadingApiKey);
 
   const { mutate: mutateResetPassword } = useResetPassword();
   const { mutate: mutatePatchUser } = useUpdateUser();
@@ -100,32 +93,6 @@ export const GeneralPage = () => {
   };
 
   useScrollToElement(scrollId);
-
-  const { mutate } = usePostAddApiKey({
-    onSuccess: () => {
-      setSuccessData({ title: t("auth.saveApiKeySuccess") });
-      setHasApiKey(true);
-      setValidApiKey(true);
-      setLoadingApiKey(false);
-      handleInput({ target: { name: "apikey", value: "" } });
-    },
-    onError: (_error) => {
-      setErrorData({
-        title: t("errors.saveApiKey"),
-        list: [t("errors.requestFailed")],
-      });
-      setHasApiKey(false);
-      setValidApiKey(false);
-      setLoadingApiKey(false);
-    },
-  });
-
-  const _handleSaveKey = (apikey: string) => {
-    if (apikey) {
-      mutate({ key: apikey });
-      storeApiKey(apikey);
-    }
-  };
 
   function handleInput({
     target: { name, value },

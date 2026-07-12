@@ -3,12 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { SidebarDraggableComponent } from "../sidebarDraggableComponent";
 
 // Mock all external dependencies
-jest.mock(
-  "@/components/common/storeCardComponent/utils/convert-test-name",
-  () => ({
-    convertTestName: (name: string) => name.toLowerCase().replace(/\s+/g, "-"),
-  }),
-);
+jest.mock("@/utils/convert-test-name", () => ({
+  convertTestName: (name: string) => name.toLowerCase().replace(/\s+/g, "-"),
+}));
 
 jest.mock("@/components/ui/badge", () => ({
   Badge: ({

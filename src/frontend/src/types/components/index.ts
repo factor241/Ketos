@@ -499,10 +499,6 @@ export type ApiKeyType = {
   };
 };
 
-export type StoreApiKeyType = {
-  children: ReactElement;
-  disabled?: boolean;
-};
 export type groupedObjType = {
   family: string;
   type: string;

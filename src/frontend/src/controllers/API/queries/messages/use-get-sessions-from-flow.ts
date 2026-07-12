@@ -1,7 +1,8 @@
 import { keepPreviousData } from "@tanstack/react-query";
+import { isAuthenticatedPlayground } from "@/modals/IOModal/helpers/playground-auth";
 import useFlowStore from "@/stores/flowStore";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
-import { isAuthenticatedPlayground } from "@/modals/IOModal/helpers/playground-auth";
+import { ketosFlowSessionKey } from "@/utils/ketos-storage-keys";
 import type { useQueryFunctionType } from "../../../../types/api";
 import { api } from "../../api";
 import { getURL } from "../../helpers/constants";
@@ -55,7 +56,9 @@ export const useGetSessionsFromFlowQuery: useQueryFunctionType<
     }
 
     // Anonymous/auto-login: use sessionStorage (original behavior)
-    const data = JSON.parse(window.sessionStorage.getItem(id ?? "") || "[]");
+    const data = JSON.parse(
+      window.sessionStorage.getItem(ketosFlowSessionKey(id)) || "[]",
+    );
     // Extract unique session IDs from stored messages
     const sessionIdsSet = new Set(
       data.map((msg: any) => msg.session_id).filter(Boolean),

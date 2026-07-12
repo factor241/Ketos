@@ -2,7 +2,7 @@
 
 Public surface for this milestone:
     - ``ExtensionManifest``, ``BundleRef``, ``KfxCompat`` -- Pydantic models for
-      the v0 manifest schema.
+      the v1 manifest schema.
     - ``BUNDLE_API_VERSION`` -- the integer BUNDLE_API.md contract version this
       kfx package implements; manifests must list ``str(BUNDLE_API_VERSION)``
       in ``kfx.compat``.
@@ -21,7 +21,7 @@ Module loading
 --------------
 This package re-exports symbols from a dozen submodules.  Eagerly importing
 every submodule on ``import kfx.extension`` cost the validate CLI ~25ms of
-unnecessary work (loader + dev_registry + migration + registry + discovery)
+unnecessary work (loader + dev_registry + registry + discovery)
 before any author-typed command had a chance to run.
 
 To keep ``kfx extension validate`` snappy we use PEP 562 ``__getattr__``:
@@ -74,8 +74,6 @@ if TYPE_CHECKING:
         LoadedComponent,
         LoadResult,
         discover_inline_bundles,
-        filter_component_entry_points,
-        filter_plugin_entry_points,
         installed_extension_roots,
         load_extension,
         load_installed_extensions,
@@ -91,16 +89,6 @@ if TYPE_CHECKING:
         KfxCompat,
         ManifestSource,
         load_manifest,
-    )
-    from kfx.extension.migration import (
-        MIGRATION_SCHEMA_VERSION,
-        MIGRATION_TABLE_PATH,
-        MigrationEntry,
-        MigrationReport,
-        MigrationTable,
-        NodeRewriteRecord,
-        load_migration_table,
-        migrate_flow_payload,
     )
     from kfx.extension.registry import (
         DuplicateExtensionError,
@@ -154,8 +142,6 @@ _EXPORTS: dict[str, str] = {
     "LoadResult": "loader",
     "LoadedComponent": "loader",
     "discover_inline_bundles": "loader",
-    "filter_component_entry_points": "loader",
-    "filter_plugin_entry_points": "loader",
     "installed_extension_roots": "loader",
     "load_extension": "loader",
     "load_installed_extensions": "loader",
@@ -169,15 +155,6 @@ _EXPORTS: dict[str, str] = {
     "register_dev_extension": "dev_registry",
     "state_file_path": "dev_registry",
     "unregister_dev_extension": "dev_registry",
-    # migration
-    "MIGRATION_SCHEMA_VERSION": "migration",
-    "MIGRATION_TABLE_PATH": "migration",
-    "MigrationEntry": "migration",
-    "MigrationReport": "migration",
-    "MigrationTable": "migration",
-    "NodeRewriteRecord": "migration",
-    "load_migration_table": "migration",
-    "migrate_flow_payload": "migration",
     # registry
     "DuplicateExtensionError": "registry",
     "Extension": "registry",
@@ -219,8 +196,6 @@ __all__ = [
     "DEFAULT_SEED_DIR",
     "ERROR_CODES",
     "EXTENSION_SCHEMA_URL",
-    "MIGRATION_SCHEMA_VERSION",
-    "MIGRATION_TABLE_PATH",
     "SCHEMA_VERSION",
     "SEED_DIR_ENV_VAR",
     "SLOT_EXTRA",
@@ -241,10 +216,6 @@ __all__ = [
     "LoadStatus",
     "LoadedComponent",
     "ManifestSource",
-    "MigrationEntry",
-    "MigrationReport",
-    "MigrationTable",
-    "NodeRewriteRecord",
     "ValidateReport",
     "build_registry_from_discovery",
     "dev_extension_component_paths",
@@ -252,8 +223,6 @@ __all__ = [
     "discover_inline_bundles",
     "discover_installed_extensions",
     "discover_seed_extensions",
-    "filter_component_entry_points",
-    "filter_plugin_entry_points",
     "format_extension_error",
     "init_extension",
     "installed_extension_roots",
@@ -262,10 +231,8 @@ __all__ = [
     "load_extension",
     "load_installed_extensions",
     "load_manifest",
-    "load_migration_table",
     "load_seed_extensions",
     "manifest_owning_distributions",
-    "migrate_flow_payload",
     "register_dev_extension",
     "state_file_path",
     "unregister_dev_extension",

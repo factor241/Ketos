@@ -261,7 +261,7 @@ def _validate_manifest_phase(root: Path, report: ValidateReport) -> ManifestSour
             ExtensionError(
                 code="multi-bundle-unsupported",
                 message=(
-                    f"Manifest declares {len(bundles)} bundles; v0 accepts exactly one. "
+                    f"Manifest declares {len(bundles)} bundles; v1 accepts exactly one. "
                     "Multi-bundle support is deferred to a future milestone."
                 ),
                 location=f"{source_path}:bundles",
@@ -283,7 +283,7 @@ def _validate_manifest_phase(root: Path, report: ValidateReport) -> ManifestSour
                 ExtensionError(
                     code="field-deferred-in-this-milestone",
                     message=(
-                        f"Manifest field {field_name!r} is reserved for a future milestone; v0 rejects non-null values."
+                        f"Manifest field {field_name!r} is reserved for a future milestone; v1 rejects non-null values."
                     ),
                     location=f"{source_path}:{field_name}",
                     content=field_name,
@@ -749,7 +749,7 @@ def _run_execute_imports(
           so cloud / CI credentials cannot leak into untrusted bundle import,
         - point HOME / temp dirs at a throwaway directory.
 
-    Network sandboxing is out of scope for v0 (per the ticket).  The bundle
+    Network sandboxing is out of scope for v1 (per the ticket). The bundle
     code still executes Python with full subprocess privileges, so do NOT
     rely on this for security review of untrusted code; treat it as a
     best-effort lint that surfaces import-time errors and prevents the most
@@ -860,7 +860,7 @@ def validate_extension(
 
     manifest = source.manifest
 
-    # Pass 2 + 3 per bundle.  v0 schema-validates length<=1 already, so this
+    # Pass 2 + 3 per bundle. v1 schema-validates length<=1 already, so this
     # loop runs once in practice; written generically so the plumbing is in
     # place when multi-bundle ships.
     for bundle in manifest.bundles:

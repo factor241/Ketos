@@ -1,6 +1,6 @@
-"""Pydantic models for the v0 Extension manifest schema.
+"""Pydantic models for the v1 Extension manifest schema.
 
-A Ketos Extension is the distribution unit that gets pip-installed.  In v0
+A Ketos Extension is the distribution unit that gets pip-installed.  In v1
 it ships exactly one Bundle (a named group of components) plus a manifest at
 the distribution root.  The manifest tells Ketos:
 
@@ -8,7 +8,7 @@ the distribution root.  The manifest tells Ketos:
     - what component-base-class API surface the Bundle was built against
       (``kfx.compat``),
     - what optional capabilities the Bundle declares
-      (``capabilities.requiresCredentials`` is the only v0 slot).
+      (``capabilities.requiresCredentials`` is the only v1 slot).
 
 Manifest source forms (both supported):
 
@@ -22,7 +22,7 @@ Deferred fields (``services``, ``routes``, ``hooks``, ``starter_projects``,
 presence and emit ``field-deferred-in-this-milestone`` rather than silently
 dropping them.
 
-Multi-bundle is similarly reserved: ``bundles`` is a list, but v0 rejects
+Multi-bundle is similarly reserved: ``bundles`` is a list, but v1 rejects
 length > 1 with ``multi-bundle-deferred-in-this-milestone``.  This is enforced
 in two places:
 
@@ -58,7 +58,7 @@ from pydantic import (
 # ---------------------------------------------------------------------------
 
 SCHEMA_VERSION: int = 1
-"""The integer version of the manifest schema.  Bumped only when a v0 manifest
+"""The integer version of the manifest schema. Bumped only when a v1 manifest
 becomes invalid against the new shape."""
 
 BUNDLE_API_VERSION: int = 1
@@ -76,6 +76,9 @@ contract version is ``1`` from day one."""
 EXTENSION_SCHEMA_URL: str = f"https://schemas.ketos.test/extension/v{SCHEMA_VERSION}.json"
 """Canonical hosting URL for the published JSON Schema.  Authors point their
 ``$schema`` field here for editor autocompletion."""
+
+CanonicalSchemaUrl = Literal["https://schemas.ketos.test/extension/v1.json"]
+"""The only schema identifier accepted by v1 manifests."""
 
 # Identifier patterns
 _EXTENSION_ID_RE: re.Pattern[str] = re.compile(r"^[a-z][a-z0-9-]{1,63}$")
@@ -128,7 +131,7 @@ DEFERRED_FIELDS: tuple[str, ...] = (
 
 _COMPAT_VERSION_RE: re.Pattern[str] = re.compile(r"^[1-9]\d*$")
 """Manifest ``kfx.compat`` entries are stringified positive integers (no leading
-zeros) that name a frozen BUNDLE_API.md revision.  v0 only knows ``"1"``."""
+zeros) that name a frozen BUNDLE_API.md revision. v1 only knows ``"1"``."""
 
 
 class KfxCompat(BaseModel):
@@ -139,7 +142,7 @@ class KfxCompat(BaseModel):
     ``str(BUNDLE_API_VERSION)`` against this list; a mismatch surfaces as
     ``version-constraint-unsatisfied``.
 
-    v0 ships only ``compat=["1"]``; the field is a list so future bundles can
+    v1 ships only ``compat=["1"]``; the field is a list so future bundles can
     declare forward-compatible support like ``["1", "2"]``.
     """
 
@@ -335,7 +338,7 @@ class BundleRef(BaseModel):
 
 
 class ExtensionManifest(BaseModel):
-    """The v0 Ketos Extension manifest.
+    """The v1 Ketos Extension manifest.
 
     Required fields:
         - id, version, name, bundles, kfx
@@ -354,10 +357,10 @@ class ExtensionManifest(BaseModel):
         # ``$schema`` is allowed via alias on the dedicated field below.
     )
 
-    schema_field: str | None = Field(
+    schema_field: CanonicalSchemaUrl | None = Field(
         default=None,
         alias="$schema",
-        description="Optional JSON-Schema URL pointer for editor tooling.",
+        description="Optional canonical v1 JSON-Schema URL pointer for editor tooling.",
     )
 
     id: StrictStr = Field(
@@ -392,7 +395,7 @@ class ExtensionManifest(BaseModel):
         min_length=1,
         max_length=1,
         description=(
-            "Bundles shipped by this extension. v0 accepts exactly one; the "
+            "Bundles shipped by this extension. v1 accepts exactly one; the "
             "constraint is encoded as ``minItems``/``maxItems`` in the published "
             "JSON Schema so third-party manifest tools agree with the runtime."
         ),
@@ -400,7 +403,7 @@ class ExtensionManifest(BaseModel):
 
     capabilities: Capabilities = Field(
         default_factory=Capabilities,
-        description="Optional declared capabilities (v0: requiresCredentials only).",
+        description="Optional declared capabilities (v1: requiresCredentials only).",
     )
 
     locale_bundle: LocaleBundle | None = Field(
@@ -455,7 +458,7 @@ class ExtensionManifest(BaseModel):
 
     @model_validator(mode="after")
     def _validate_manifest_contract(self) -> ExtensionManifest:
-        # The list-length constraint (exactly one bundle in v0) is encoded on
+        # The list-length constraint (exactly one bundle in v1) is encoded on
         # the field above so it lands in the JSON Schema.  This validator covers
         # what Field constraints can't express: bundle names must be unique
         # within an extension.  The check is cheap and forward-compatible -- the
@@ -540,7 +543,7 @@ def _read_pyproject_extension(path: Path) -> dict[str, Any] | None:
 
 
 def load_manifest(root: Path | str) -> ManifestSource:
-    """Discover and parse a v0 manifest at ``root``.
+    """Discover and parse a v1 manifest at ``root``.
 
     Discovery order: ``extension.json`` first, then ``[tool.ketos.extension]``
     in ``pyproject.toml``.  Both present is allowed; ``extension.json`` wins, so

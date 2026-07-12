@@ -60,7 +60,7 @@ def _err(code: str, **kw: object) -> ExtensionError:
 # Lines are intentionally long so the diff between expected and actual is one
 # line per change; ``noqa: E501`` is intentional throughout this dict.
 _FIRST_LINE_EXPECTATIONS: dict[str, str] = {
-    "manifest-not-found": "error[manifest-not-found]: No extension.json or [tool.ketos.extension] entry found in loc.",  # noqa: E501
+    "manifest-not-found": "error[manifest-not-found]: No extension.json or [tool.ketos.extension] entry found in loc.",
     "manifest-invalid": "error[manifest-invalid]: Invalid manifest at loc: msg",
     "manifest-unreadable": "error[manifest-unreadable]: Could not read manifest at loc: msg",
     "field-deferred-in-this-milestone": "error[field-deferred-in-this-milestone]: Manifest field 'content' is deferred in this milestone.",  # noqa: E501
@@ -87,11 +87,6 @@ _FIRST_LINE_EXPECTATIONS: dict[str, str] = {
     "extension-target-exists": "error[extension-target-exists]: Cannot create extension at loc: directory already exists and is not empty.",  # noqa: E501
     "extension-target-invalid": "error[extension-target-invalid]: Cannot create extension at loc: msg",
     "local-extension-missing": "error[local-extension-missing]: Registered dev extension at loc is missing or no longer a directory; skipping until it reappears.",  # noqa: E501
-    "migration-table-missing": "error[migration-table-missing]: Migration table not found at loc.",
-    "migration-table-unreadable": "error[migration-table-unreadable]: Could not read migration table at loc: msg",
-    "migration-table-invalid": "error[migration-table-invalid]: Invalid migration table at loc: msg",
-    "component-not-found-with-hint": "error[component-not-found-with-hint]: Legacy component reference 'content' (in flow node loc) is not in the migration table.",  # noqa: E501
-    "component-name-ambiguous": "error[component-name-ambiguous]: Legacy component reference 'content' (in flow node loc) matches more than one migration entry.",  # noqa: E501
     "installed-extension-immutable": "error[installed-extension-immutable]: Extension 'content' is installed via pip and cannot be mutated at runtime.",  # noqa: E501
     "seed-directory-immutable": "error[seed-directory-immutable]: Extension 'content' comes from a seed directory and cannot be mutated at runtime.",  # noqa: E501
     "seed-directory-not-found": "error[seed-directory-not-found]: Configured seed directory loc does not exist or is not a directory.",  # noqa: E501
@@ -106,7 +101,7 @@ _FIRST_LINE_EXPECTATIONS: dict[str, str] = {
     "reload-class-retag-failed": "error[reload-class-retag-failed]: Could not retag content.__module__ after reload at loc: msg",  # noqa: E501
     "reload-transport-error": "error[reload-transport-error]: Could not reach the reload endpoint at loc: msg",
     "duplicate-bundle-name": "error[duplicate-bundle-name]: Bundle name 'content' is provided by two installed distributions; the second is dropped to prevent collision.",  # noqa: E501 — kept on one line for snapshot diff readability
-    "multi-bundle-unsupported": "error[multi-bundle-unsupported]: Manifest declares more than one bundle entry; v0 supports exactly one bundle per extension.",  # noqa: E501
+    "multi-bundle-unsupported": "error[multi-bundle-unsupported]: Manifest declares more than one bundle entry; v1 supports exactly one bundle per extension.",  # noqa: E501
     "extension-reload-disabled": "error[extension-reload-disabled]: Extension reload is disabled on this server.  Set KETOS_ENABLE_EXTENSION_RELOAD=true to enable it on a local-development install (Mode A).",  # noqa: E501
     "extension-events-keyspace-forbidden": "error[extension-events-keyspace-forbidden]: The loc query parameter is not accepted; events are scoped server-side to the authenticated user (rejected value: 'content').",  # noqa: E501
 }

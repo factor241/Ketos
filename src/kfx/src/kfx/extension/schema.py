@@ -96,7 +96,7 @@ def build_schema() -> dict[str, Any]:
     schema["x-deferred-fields"] = deferred_docs
 
     schema["description"] = (
-        "Schema for the v0 Ketos Extension manifest. "
+        "Schema for the v1 Ketos Extension manifest. "
         "Reserved field names that are deferred to a future milestone "
         "are absent from this schema and are listed under ``x-deferred-fields``; "
         "manifests that set them are rejected via ``additionalProperties: false``. "

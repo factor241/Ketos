@@ -136,7 +136,7 @@ describe("useExtensionEvents", () => {
       data: {
         events: [
           { type: "bundle_reloaded", timestamp: ts1, payload: {} },
-          { type: "flow_migrated", timestamp: ts2, payload: {} },
+          { type: "components_added", timestamp: ts2, payload: {} },
         ],
         settled: false,
       },

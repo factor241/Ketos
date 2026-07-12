@@ -42,28 +42,26 @@ BUNDLE_API_RELPATH = "BUNDLE_API.md"
 # surface enumerated in BUNDLE_API.md.
 IN_SCOPE_PATHS: tuple[str, ...] = (
     # Manifest schema + JSON-Schema export
-    "src/lfx/src/lfx/extension/manifest.py",
-    "src/lfx/src/lfx/extension/schema.py",
+    "src/kfx/src/kfx/extension/manifest.py",
+    "src/kfx/src/kfx/extension/schema.py",
     # Typed error envelope + ERROR_CODES set
-    "src/lfx/src/lfx/extension/errors.py",
+    "src/kfx/src/kfx/extension/errors.py",
     # Loader subpackage public surface
-    "src/lfx/src/lfx/extension/loader/__init__.py",
-    "src/lfx/src/lfx/extension/loader/_orchestrator.py",
-    "src/lfx/src/lfx/extension/loader/_plugins.py",
-    "src/lfx/src/lfx/extension/loader/_types.py",
+    "src/kfx/src/kfx/extension/loader/__init__.py",
+    "src/kfx/src/kfx/extension/loader/_orchestrator.py",
+    "src/kfx/src/kfx/extension/loader/_plugins.py",
+    "src/kfx/src/kfx/extension/loader/_types.py",
     # Discovery + registry
-    "src/lfx/src/lfx/extension/discovery.py",
-    "src/lfx/src/lfx/extension/registry.py",
+    "src/kfx/src/kfx/extension/discovery.py",
+    "src/kfx/src/kfx/extension/registry.py",
     # Reload pipeline + bundle registry
-    "src/lfx/src/lfx/extension/reload.py",
-    "src/lfx/src/lfx/extension/bundle_registry.py",
+    "src/kfx/src/kfx/extension/reload.py",
+    "src/kfx/src/kfx/extension/bundle_registry.py",
     # HTTP surface (reload endpoint)
-    "src/backend/base/langflow/api/v1/extensions.py",
-    # Migration table schema
-    "src/lfx/src/lfx/extension/migration/schema.py",
+    "src/backend/base/ketos/api/v1/extensions.py",
     # The package facade (re-exports define the surface)
-    "src/lfx/src/lfx/extension/__init__.py",
-    "src/lfx/src/lfx/extension/validate.py",
+    "src/kfx/src/kfx/extension/__init__.py",
+    "src/kfx/src/kfx/extension/validate.py",
 )
 
 

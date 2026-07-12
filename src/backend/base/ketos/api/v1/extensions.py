@@ -235,8 +235,8 @@ async def get_extension_events(
 
     Events are scoped to the authenticated user via a server-derived keyspace
     (``user:{user_id}``); there is no client-controllable keyspace, so an
-    authenticated user cannot read another user's flow-migration or
-    bundle-reload events. A client-supplied ``keyspace`` query parameter is
+    authenticated user cannot read another user's bundle-reload events. A
+    client-supplied ``keyspace`` query parameter is
     rejected with 422 so the contract is explicit -- previously the value was
     silently dropped, which masked client bugs that assumed it had effect.
 

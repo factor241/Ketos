@@ -45,7 +45,7 @@ class LoadedComponent:
     the events pipeline without worrying about mutation.
 
     The :attr:`namespaced_id` is the canonical address used by saved flows
-    after the migration table rewrites legacy references.
+    in canonical saved flows.
 
     Slot / distribution invariant
     -----------------------------
@@ -74,7 +74,7 @@ class LoadedComponent:
     @official dev-mode loads against a not-yet-installed working tree."""
     source_hash: str = ""
     """SHA-256 hex digest of ``file_path`` bytes at load time.  Empty string
-    means the loader did not stamp a hash (test fixtures, legacy callers).
+    means the loader did not stamp a hash (primarily test fixtures).
     Used by :func:`kfx.extension.reload._diff` to detect in-class edits
     where the class-name set is unchanged but the backing source changed --
     without this, body edits surface to the API as ``components_added=[]``

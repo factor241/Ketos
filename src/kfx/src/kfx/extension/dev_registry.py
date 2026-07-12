@@ -30,7 +30,7 @@ Scope notes:
     - This module only writes / reads / lists the state file; the actual
       registration is consumed by Ketos's startup hook.  The runtime
       "remove" path (``extension dev --unregister``) is a deliberate
-      non-goal for v0; authors clean up by deleting the state file or
+      non-goal for v1; authors clean up by deleting the state file or
       the directory.
     - The reload pipeline reuses :func:`load_dev_extensions` to refresh
       the @official slot mid-run; the reload UX itself ships there.
@@ -289,7 +289,7 @@ def unregister_dev_extension(path: Path | str, *, state_dir: Path | None = None)
 
     Returns ``True`` if an entry was removed, ``False`` if the path was
     not in the registry.  Provided for tests and tooling; the ``extension
-    dev --unregister`` CLI verb itself is deferred (out of scope for v0).
+    dev --unregister`` CLI verb itself is deferred (out of scope for v1).
     """
     resolved = Path(path).expanduser().resolve()
     state_path = state_file_path(state_dir)

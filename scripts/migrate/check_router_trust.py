@@ -30,7 +30,7 @@ of these hold:
 
 Resolution follows ``from <module> import <name> [as <alias>]`` imports
 across the project's two Python package roots
-(``src/backend/base`` and ``src/lfx/src``).  Relative imports are
+(``src/backend/base`` and ``src/kfx/src``).  Relative imports are
 handled.  An imported router that cannot be statically resolved is
 ignored -- the guard never flags routes it cannot prove are reachable
 from ``/extensions``, but a route declared in the same file as an
@@ -69,17 +69,17 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # Walk every ``.py`` file under each root.
 SCAN_ROOTS: tuple[Path, ...] = (
-    REPO_ROOT / "src" / "backend" / "base" / "langflow" / "api",
-    REPO_ROOT / "src" / "lfx" / "src" / "lfx",
+    REPO_ROOT / "src" / "backend" / "base" / "ketos" / "api",
+    REPO_ROOT / "src" / "kfx" / "src" / "kfx",
 )
 
 # Python package roots.  Used to resolve ``from <module> import <name>``
-# back to a file path -- ``langflow.api.v1.extensions`` lives under
-# ``src/backend/base/`` and ``lfx.extension.bundle_registry`` lives under
-# ``src/lfx/src/``.
+# back to a file path -- ``ketos.api.v1.extensions`` lives under
+# ``src/backend/base/`` and ``kfx.extension.bundle_registry`` lives under
+# ``src/kfx/src/``.
 MODULE_ROOTS: tuple[Path, ...] = (
     REPO_ROOT / "src" / "backend" / "base",
-    REPO_ROOT / "src" / "lfx" / "src",
+    REPO_ROOT / "src" / "kfx" / "src",
 )
 
 FORBIDDEN_TOKENS: tuple[str, ...] = (

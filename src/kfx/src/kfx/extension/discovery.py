@@ -93,7 +93,7 @@ class DiscoveredExtension:
     Attributes:
         extension_id: The :attr:`ExtensionManifest.id` value.
         version: The :attr:`ExtensionManifest.version` value.
-        bundle_name: The single bundle's name (v0 ships exactly one).
+        bundle_name: The single bundle's name (v1 ships exactly one).
         manifest: The parsed manifest source (path + kind preserved).
         source_kind: Where the manifest came from -- ``installed`` for an
             ``importlib.metadata`` distribution, ``seed`` for a filesystem

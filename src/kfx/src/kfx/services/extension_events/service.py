@@ -15,7 +15,6 @@ EXTENSION_EVENT_TYPES = Literal[
     "bundle_reloaded",
     "components_added",
     "components_removed",
-    "flow_migrated",
     "extension_error",
     "bundle_reload_failed",
 ]
@@ -57,9 +56,9 @@ class ExtensionEventsService(Service):
       unbounded growth if events accumulate faster than they are polled.
 
     Keyspaces:
-    - "user:<id>": per-user events. The reload endpoint and Graph.from_payload
-      derive this from the authenticated user so a poll on GET /extensions/events
-      only returns events that user triggered.
+    - "user:<id>": per-user events. The reload endpoint derives this from the
+      authenticated user so a poll on GET /extensions/events only returns events
+      that user triggered.
     - "global": fallback for emission paths where no user is in scope
       (authless local dev, background tasks). Authenticated endpoints never
       read from "global" directly.

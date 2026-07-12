@@ -2,7 +2,6 @@ export type ExtensionEventType =
   | "bundle_reloaded"
   | "components_added"
   | "components_removed"
-  | "flow_migrated"
   | "extension_error"
   | "bundle_reload_failed";
 

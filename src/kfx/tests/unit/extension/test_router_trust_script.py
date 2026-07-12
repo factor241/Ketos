@@ -1,4 +1,4 @@
-"""Smoke tests for scripts/migrate/check_router_trust.py.
+"""Smoke tests for the current extension router-trust contract.
 
 Exercises the script as a black-box subprocess so the test catches
 SystemExit / argparse drift the same way CI would.
@@ -18,7 +18,7 @@ from textwrap import dedent
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[6]
+REPO_ROOT = Path(__file__).resolve().parents[5]
 SCRIPT = REPO_ROOT / "scripts" / "migrate" / "check_router_trust.py"
 
 

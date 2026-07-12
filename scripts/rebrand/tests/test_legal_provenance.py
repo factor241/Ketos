@@ -1,0 +1,187 @@
+"""Regression contract for Ketos legal provenance and community contacts."""
+
+# ruff: noqa: S101, S603, S607 - assertions and fixed local build command are intentional.
+
+from __future__ import annotations
+
+import hashlib
+import importlib.util
+import re
+import subprocess
+import sys
+import tarfile
+import zipfile
+from pathlib import Path
+
+import yaml
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+SCANNER_PATH = REPO_ROOT / "scripts/rebrand/check_brand.py"
+
+LICENSE_SHA256 = "48d4a7496209a9e1f2f549384251b69319360c3a38127cf513473590be383359"
+NOTICE_SHA256 = "dad6ed5d6468b1962f598e35f334ecc661408b3cf137289073a03b3cfd77442e"
+LEGACY_PRODUCT = "Lang" + "flow"
+LEGACY_PRODUCT_LOWER = LEGACY_PRODUCT.lower()
+NOTICE_LINES = {
+    3: (
+        f"Ketos is an independent, unofficial derivative of {LEGACY_PRODUCT}, originally available at "
+        f"https://github.com/{LEGACY_PRODUCT_LOWER}-ai/{LEGACY_PRODUCT_LOWER} and licensed under the MIT License."
+    ),
+    5: (f"Ketos is not affiliated with, endorsed by, or sponsored by {LEGACY_PRODUCT} or its copyright holders."),
+    7: (
+        "Any Ketos copyright claim applies only to new Ketos-specific modifications and does not replace or "
+        "diminish the upstream copyright notice."
+    ),
+}
+
+COMMUNITY_DOCUMENTS = ("SECURITY.md", "CODE_OF_CONDUCT.md", "CONTRIBUTING.md")
+LEGACY_BRAND = re.compile(r"lang[-_ ]?flow", re.IGNORECASE)
+UPSTREAM_ADDRESSES = (
+    f"github.com/{LEGACY_PRODUCT_LOWER}-ai",
+    f"{LEGACY_PRODUCT_LOWER}.org",
+    "hackerone.com/ibm",
+)
+ROOT_DISTRIBUTION_ARTIFACT_COUNT = 2
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _load_scanner():
+    spec = importlib.util.spec_from_file_location("ketos_legal_provenance_scanner", SCANNER_PATH)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _artifact_legal_files(path: Path) -> dict[str, bytes]:
+    if path.suffix == ".whl":
+        with zipfile.ZipFile(path) as archive:
+            members = [name for name in archive.namelist() if Path(name).name in {"LICENSE", "NOTICE"}]
+            assert [Path(name).name for name in members].count("LICENSE") == 1
+            assert [Path(name).name for name in members].count("NOTICE") == 1
+            return {Path(name).name: archive.read(name) for name in members}
+
+    with tarfile.open(path, "r:gz") as archive:
+        members = [member for member in archive.getmembers() if Path(member.name).name in {"LICENSE", "NOTICE"}]
+        assert [Path(member.name).name for member in members].count("LICENSE") == 1
+        assert [Path(member.name).name for member in members].count("NOTICE") == 1
+        return {
+            Path(member.name).name: extracted.read()
+            for member in members
+            if (extracted := archive.extractfile(member)) is not None
+        }
+
+
+def _write_fixture_contract(path: Path, license_bytes: bytes, notice_bytes: bytes) -> Path:
+    notice_lines = notice_bytes.decode().splitlines()
+    license_line = license_bytes.decode().splitlines()[2]
+    allowlist = [
+        {
+            "path": "LICENSE",
+            "line": 3,
+            "expected_text": license_line,
+            "sha256": hashlib.sha256(license_line.encode()).hexdigest(),
+        },
+        *(
+            {
+                "path": "NOTICE",
+                "line": line_number,
+                "expected_text": notice_lines[line_number - 1],
+                "sha256": hashlib.sha256(notice_lines[line_number - 1].encode()).hexdigest(),
+            }
+            for line_number in (3, 5)
+        ),
+    ]
+    contract = {
+        "version": 1,
+        "analysis_commit": "de591b28cbade3483b2040aa338906a8834d6400",
+        "baseline": {
+            "brand_file_count": 10,
+            "brand_match_count": 10,
+            "brand_path_count": 10,
+            "executor_file_count": 10,
+            "executor_match_count": 10,
+            "executor_path_count": 10,
+            "upstream_endpoint_count": 10,
+            "scan_issue_count": 0,
+        },
+        "legal_files": [
+            {"path": "LICENSE", "sha256": hashlib.sha256(license_bytes).hexdigest()},
+            {"path": "NOTICE", "sha256": hashlib.sha256(notice_bytes).hexdigest()},
+        ],
+        "legal_allowlist": allowlist,
+    }
+    path.write_text(yaml.safe_dump(contract, sort_keys=False), encoding="utf-8")
+    return path
+
+
+def test_root_license_is_preserved_byte_for_byte() -> None:
+    assert _sha256(REPO_ROOT / "LICENSE") == LICENSE_SHA256
+
+
+def test_root_notice_matches_the_frozen_contract() -> None:
+    notice = REPO_ROOT / "NOTICE"
+    assert _sha256(notice) == NOTICE_SHA256
+
+    lines = notice.read_text(encoding="utf-8").splitlines()
+    for line_number, expected_text in NOTICE_LINES.items():
+        assert lines[line_number - 1] == expected_text
+
+
+def test_root_wheel_and_sdist_include_exact_legal_files(tmp_path: Path) -> None:
+    dist_dir = tmp_path / "dist"
+    subprocess.run(
+        ["uv", "build", "--wheel", "--sdist", "--out-dir", str(dist_dir)],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    artifacts = [*dist_dir.glob("*.whl"), *dist_dir.glob("*.tar.gz")]
+    assert len(artifacts) == ROOT_DISTRIBUTION_ARTIFACT_COUNT
+    for artifact in artifacts:
+        legal_files = _artifact_legal_files(artifact)
+        assert set(legal_files) == {"LICENSE", "NOTICE"}, artifact.name
+        assert hashlib.sha256(legal_files["LICENSE"]).hexdigest() == LICENSE_SHA256
+        assert hashlib.sha256(legal_files["NOTICE"]).hexdigest() == NOTICE_SHA256
+
+
+def test_stage0_inventories_but_cutover_rejects_upstream_address_outside_legal_paths(tmp_path: Path) -> None:
+    license_bytes = (REPO_ROOT / "LICENSE").read_bytes()
+    fixture_license = tmp_path / "LICENSE"
+    fixture_notice = tmp_path / "NOTICE"
+    fixture_license.write_bytes(license_bytes)
+    fixture_notice.write_bytes((REPO_ROOT / "NOTICE").read_bytes())
+    upstream = "https://github.com/" + "lang" + "flow-ai/" + "lang" + "flow"
+    (tmp_path / "community.md").write_text(upstream + "\n", encoding="utf-8")
+    contract = _write_fixture_contract(tmp_path / "contract.yaml", license_bytes, fixture_notice.read_bytes())
+    scanner = _load_scanner()
+
+    assert scanner.scan_root(tmp_path, contract, profile="stage0")["violations"] == []
+    cutover = scanner.scan_root(tmp_path, contract, profile="cutover")
+    assert any(
+        violation["path"] == "community.md" and violation["kind"] == "legacy_brand"
+        for violation in cutover["violations"]
+    )
+
+
+def test_community_documents_are_legacy_free_and_use_no_upstream_addresses() -> None:
+    for relative_path in COMMUNITY_DOCUMENTS:
+        text = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+        assert LEGACY_BRAND.search(text) is None, relative_path
+        for address in UPSTREAM_ADDRESSES:
+            assert address not in text.lower(), f"{relative_path}: {address}"
+
+
+def test_community_contacts_are_explicitly_test_only() -> None:
+    security = (REPO_ROOT / "SECURITY.md").read_text(encoding="utf-8")
+    conduct = (REPO_ROOT / "CODE_OF_CONDUCT.md").read_text(encoding="utf-8")
+
+    assert re.search(r"security@ketos\.test[^\n]*test-only", security, re.IGNORECASE)
+    assert re.search(r"support@ketos\.test[^\n]*test-only", conduct, re.IGNORECASE)

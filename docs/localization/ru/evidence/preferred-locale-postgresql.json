@@ -5,7 +5,7 @@
     "ru",
     null
   ],
-  "database": "postgresql+psycopg://postgres:***@127.0.0.1:55432/langflow_i18n",
+  "database": "postgresql+psycopg://postgres:***@127.0.0.1:55432/ketos_i18n",
   "database_server_version": "16.14",
   "dialect": "postgresql",
   "downgrade_has_column": false,

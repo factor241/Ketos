@@ -1,0 +1,52 @@
+---
+title: Run a flow with the API
+slug: /api/run-flow
+---
+
+The current synchronous endpoint is `POST /api/v1/run/{flow_id_or_name}`. Send
+the value of `KETOS_API_KEY` in the `x-api-key` header.
+
+### curl
+
+```bash
+curl --fail-with-body \
+  --request POST \
+  --url "${KETOS_BASE_URL:-http://127.0.0.1:7860}/api/v1/run/${KETOS_FLOW_ID}" \
+  --header "x-api-key: ${KETOS_API_KEY}" \
+  --header "Content-Type: application/json" \
+  --header "X-KETOS-GLOBAL-VAR-tenant: local" \
+  --data '{"input_value":"Hello","input_type":"chat","output_type":"chat"}'
+```
+
+### Python
+
+```python
+import os
+
+import httpx
+
+base_url = os.environ.get("KETOS_BASE_URL", "http://127.0.0.1:7860")
+flow_id = os.environ["KETOS_FLOW_ID"]
+headers = {"x-api-key": os.environ["KETOS_API_KEY"]}
+payload = {"input_value": "Hello", "input_type": "chat", "output_type": "chat"}
+
+response = httpx.post(f"{base_url}/api/v1/run/{flow_id}", headers=headers, json=payload, timeout=60)
+response.raise_for_status()
+print(response.json())
+```
+
+### JavaScript
+
+```javascript
+const baseUrl = process.env.KETOS_BASE_URL ?? "http://127.0.0.1:7860";
+const response = await fetch(`${baseUrl}/api/v1/run/${process.env.KETOS_FLOW_ID}`, {
+  method: "POST",
+  headers: {
+    "x-api-key": process.env.KETOS_API_KEY,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({ input_value: "Hello", input_type: "chat", output_type: "chat" }),
+});
+if (!response.ok) throw new Error(`Ketos API returned ${response.status}`);
+console.log(await response.json());
+```

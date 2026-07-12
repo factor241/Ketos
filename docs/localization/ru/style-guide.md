@@ -1,4 +1,4 @@
-# Style guide русской локализации Langflow
+# Style guide русской локализации Ketos
 
 Правила применяются к frontend, accessibility text, backend presentation metadata, встроенным шаблонам с `i18n_key` и native error messages. Нормативные термины берутся из `glossary.md`, границы ownership — из `translation-boundary.md`.
 

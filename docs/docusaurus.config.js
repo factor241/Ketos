@@ -64,30 +64,6 @@ const config = {
         },
       }),
     ],
-    [
-      "redocusaurus",
-      {
-        openapi: {
-          path: "openapi",
-          routeBasePath: "/api",
-        },
-        specs: [
-          {
-            id: "api",
-            spec: "openapi/openapi.json",
-            route: "/api",
-          },
-          {
-            id: "workflow",
-            spec: "openapi/ketos-workflows-openapi.json",
-            route: "/api/workflow",
-          },
-        ],
-        theme: {
-          primaryColor: "#17324f",
-        },
-      },
-    ],
   ],
   plugins: [
     function ketosCodeImportPlugin(context) {
@@ -163,7 +139,7 @@ const config = {
       },
       footer: {
         links: [],
-        copyright: `© ${new Date().getFullYear()} Ketos`,
+        copyright: `Ketos modifications, ${new Date().getFullYear()}. See LICENSE and NOTICE for licensing and attribution.`,
       },
     }),
 };

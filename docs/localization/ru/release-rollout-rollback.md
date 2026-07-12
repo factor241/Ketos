@@ -1,11 +1,11 @@
 # Russian locale: release, rollout и rollback
 
-Этот документ — операционный контракт для выпуска русской локализации. Он не является свидетельством production-развёртывания: **внешний canary не выполнен**, полный rollout не выполнен. Отмечать Task 20 как production PASS можно только после сохранения логов всех трёх topology, метрик canary и репетиции rollback.
+Этот документ — операционный контракт для выпуска русской локализации. Он не является свидетельством production-развёртывания: **внешний canary не выполнен**, полный rollout не выполнен. Отмечать Stage 11 release acceptance как production PASS можно только после сохранения логов всех трёх topology, метрик canary и репетиции rollback.
 
 ## 1. Инварианты и входные данные
 
 - Release строится только из зафиксированного commit SHA и `package-lock.json` через `npm ci`.
-- В артефактах обязательны backend-файл `langflow/locales/ru.json` и content-addressed frontend chunk `langflow/frontend/assets/ru-<hash>.js`.
+- В артефактах обязательны backend-файл `ketos/locales/ru.json` и content-addressed frontend chunk `ketos/frontend/assets/ru-<hash>.js`.
 - Формат имени RU chunk: `ru-[A-Za-z0-9_\-]{8,}\.js`.
 - System-owned `missing-key = 0`, `fallback = 0`, `failed-loading = 0` — жёсткие release gates, а не допустимые бюджеты ошибок.
 - Откат не изменяет сохранённые предпочтения и не удаляет каталоги: **не изменять `preferred_locale`**, **не удалять `ru.json`**.
@@ -18,9 +18,9 @@ set -euo pipefail
 cd /Volumes/Projects/ketos_canvas_mod_main
 
 export RELEASE_ID="$(git rev-parse --short=12 HEAD)"
-export UNIFIED_IMAGE="langflow-unified:ru-${RELEASE_ID}"
-export BACKEND_IMAGE="langflow-backend:ru-${RELEASE_ID}"
-export FRONTEND_IMAGE="langflow-frontend:ru-${RELEASE_ID}"
+export UNIFIED_IMAGE="ketos-unified:ru-${RELEASE_ID}"
+export BACKEND_IMAGE="ketos-backend:ru-${RELEASE_ID}"
+export FRONTEND_IMAGE="ketos-frontend:ru-${RELEASE_ID}"
 mkdir -p .artifacts/i18n-release
 
 git rev-parse HEAD | tee .artifacts/i18n-release/commit.txt
@@ -51,7 +51,7 @@ uv run pytest -q \
   scripts/i18n/tests/test_packaging_contract.py \
   scripts/i18n/tests/test_release_runbook_contract.py
 make unit_tests async=false
-make lfx_tests
+make kfx_tests
 make tests_frontend
 ```
 
@@ -61,7 +61,7 @@ make tests_frontend
 
 ```bash
 cd /Volumes/Projects/ketos_canvas_mod_main
-python - <<'PY'
+uv run python - <<'PY'
 from __future__ import annotations
 
 import re
@@ -121,14 +121,14 @@ try {
     await page.waitForFunction(() => document.documentElement.lang === "ru");
   }
 
-  await page.evaluate(() => window.__LANGFLOW_I18N_DIAGNOSTICS__?.reset());
+  await page.evaluate(() => window.__KETOS_I18N_DIAGNOSTICS__?.reset());
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.locator('[data-testid="settings-language-page"]').waitFor({ timeout: 60_000 });
   await page.waitForFunction(() => document.documentElement.lang === "ru");
 
   const result = await page.evaluate(() => ({
     body: document.body.innerText,
-    diagnostics: window.__LANGFLOW_I18N_DIAGNOSTICS__?.snapshot(),
+    diagnostics: window.__KETOS_I18N_DIAGNOSTICS__?.snapshot(),
     heading: document.querySelector('[data-testid="settings-language-heading"]')?.textContent?.trim(),
     ruAssets: performance.getEntriesByType("resource").map((entry) => entry.name).filter((url) => /\/assets\/ru-[A-Za-z0-9_-]{8,}\.js(?:\?|$)/.test(url)),
   }));
@@ -174,7 +174,7 @@ from __future__ import annotations
 import re
 from importlib.resources import files
 
-root = files("langflow")
+root = files("ketos")
 assert root.joinpath("locales", "ru.json").is_file()
 assets = root.joinpath("frontend", "assets")
 chunks = [entry for entry in assets.iterdir() if re.fullmatch(r"ru-[A-Za-z0-9_\-]{8,}\.js", entry.name)]
@@ -194,18 +194,18 @@ Run и strict RU smoke:
 
 ```bash
 unified_smoke_cleanup() {
-  docker rm -f "langflow-unified-${RELEASE_ID}" >/dev/null 2>&1 || true
+  docker rm -f "ketos-unified-${RELEASE_ID}" >/dev/null 2>&1 || true
 }
 trap unified_smoke_cleanup EXIT
 
-docker rm -f "langflow-unified-${RELEASE_ID}" 2>/dev/null || true
-docker run -d --name "langflow-unified-${RELEASE_ID}" \
+docker rm -f "ketos-unified-${RELEASE_ID}" 2>/dev/null || true
+docker run -d --name "ketos-unified-${RELEASE_ID}" \
   -p 7860:7860 \
-  -e LANGFLOW_AUTO_LOGIN=true \
-  -e LANGFLOW_SUPERUSER=langflow \
-  -e LANGFLOW_SUPERUSER_PASSWORD=ru-smoke-only-password \
-  -e LANGFLOW_DATABASE_URL=sqlite:////app/langflow/ru-smoke.db \
-  -e LANGFLOW_CONFIG_DIR=/app/langflow \
+  -e KETOS_AUTO_LOGIN=true \
+  -e KETOS_SUPERUSER=ketos \
+  -e KETOS_SUPERUSER_PASSWORD=ru-smoke-only-password \
+  -e KETOS_DATABASE_URL=sqlite:////app/ketos/ru-smoke.db \
+  -e KETOS_CONFIG_DIR=/app/ketos \
   "${UNIFIED_IMAGE}"
 
 for _ in $(seq 1 120); do
@@ -214,7 +214,7 @@ for _ in $(seq 1 120); do
 done
 curl -fsS http://127.0.0.1:7860/health_check
 smoke_ru_ui http://127.0.0.1:7860
-docker logs "langflow-unified-${RELEASE_ID}" \
+docker logs "ketos-unified-${RELEASE_ID}" \
   > .artifacts/i18n-release/unified.log 2>&1
 unified_smoke_cleanup
 trap - EXIT
@@ -240,7 +240,7 @@ docker build --pull --rm \
 docker run --rm -i --entrypoint python "${BACKEND_IMAGE}" - <<'PY'
 from importlib.resources import files
 
-assert files("langflow").joinpath("locales", "ru.json").is_file()
+assert files("ketos").joinpath("locales", "ru.json").is_file()
 PY
 docker run --rm --entrypoint sh "${FRONTEND_IMAGE}" -c \
   'test "$(find /usr/share/nginx/html/assets -maxdepth 1 -type f -name "ru-*.js" | wc -l)" -eq 1'
@@ -250,29 +250,29 @@ Run через Nginx proxy:
 
 ```bash
 standalone_smoke_cleanup() {
-  docker rm -f "langflow-frontend-${RELEASE_ID}" "langflow-backend-${RELEASE_ID}" >/dev/null 2>&1 || true
-  docker network rm "langflow-ru-${RELEASE_ID}" >/dev/null 2>&1 || true
+  docker rm -f "ketos-frontend-${RELEASE_ID}" "ketos-backend-${RELEASE_ID}" >/dev/null 2>&1 || true
+  docker network rm "ketos-ru-${RELEASE_ID}" >/dev/null 2>&1 || true
 }
 trap standalone_smoke_cleanup EXIT
 
-docker rm -f "langflow-frontend-${RELEASE_ID}" "langflow-backend-${RELEASE_ID}" 2>/dev/null || true
-docker network rm "langflow-ru-${RELEASE_ID}" 2>/dev/null || true
-docker network create "langflow-ru-${RELEASE_ID}"
+docker rm -f "ketos-frontend-${RELEASE_ID}" "ketos-backend-${RELEASE_ID}" 2>/dev/null || true
+docker network rm "ketos-ru-${RELEASE_ID}" 2>/dev/null || true
+docker network create "ketos-ru-${RELEASE_ID}"
 
-docker run -d --name "langflow-backend-${RELEASE_ID}" \
-  --network "langflow-ru-${RELEASE_ID}" \
-  -e LANGFLOW_AUTO_LOGIN=true \
-  -e LANGFLOW_SUPERUSER=langflow \
-  -e LANGFLOW_SUPERUSER_PASSWORD=ru-smoke-only-password \
-  -e LANGFLOW_DATABASE_URL=sqlite:////app/langflow/ru-smoke.db \
-  -e LANGFLOW_CONFIG_DIR=/app/langflow \
+docker run -d --name "ketos-backend-${RELEASE_ID}" \
+  --network "ketos-ru-${RELEASE_ID}" \
+  -e KETOS_AUTO_LOGIN=true \
+  -e KETOS_SUPERUSER=ketos \
+  -e KETOS_SUPERUSER_PASSWORD=ru-smoke-only-password \
+  -e KETOS_DATABASE_URL=sqlite:////app/ketos/ru-smoke.db \
+  -e KETOS_CONFIG_DIR=/app/ketos \
   "${BACKEND_IMAGE}"
 
-docker run -d --name "langflow-frontend-${RELEASE_ID}" \
-  --network "langflow-ru-${RELEASE_ID}" \
+docker run -d --name "ketos-frontend-${RELEASE_ID}" \
+  --network "ketos-ru-${RELEASE_ID}" \
   -p 3000:8080 \
   -e FRONTEND_PORT=8080 \
-  -e BACKEND_URL="http://langflow-backend-${RELEASE_ID}:7860" \
+  -e BACKEND_URL="http://ketos-backend-${RELEASE_ID}:7860" \
   "${FRONTEND_IMAGE}"
 
 for _ in $(seq 1 120); do
@@ -293,7 +293,7 @@ curl -fsS -D .artifacts/i18n-release/standalone-api-headers.txt \
   -H 'Accept-Language: ru-RU,ru;q=0.9,en;q=0.1' \
   http://127.0.0.1:3000/api/v1/config
 
-python - <<'PY'
+uv run python - <<'PY'
 from pathlib import Path
 
 lines = Path(".artifacts/i18n-release/standalone-api-headers.txt").read_text(encoding="utf-8").splitlines()
@@ -318,7 +318,7 @@ curl -fsSI "http://127.0.0.1:3000/assets/${RU_ASSET_NAME}" \
 curl -fsSI http://127.0.0.1:3000/index.html \
   | tee .artifacts/i18n-release/standalone-index-headers.txt
 
-python - <<'PY'
+uv run python - <<'PY'
 from pathlib import Path
 
 asset = Path(".artifacts/i18n-release/standalone-ru-asset-headers.txt").read_text().lower()
@@ -327,8 +327,8 @@ assert "cache-control:" in asset and "public" in asset and "max-age=" in asset
 assert "cache-control:" in index and "no-cache" in index and "no-store" in index
 PY
 
-docker logs "langflow-backend-${RELEASE_ID}" > .artifacts/i18n-release/standalone-backend.log 2>&1
-docker logs "langflow-frontend-${RELEASE_ID}" > .artifacts/i18n-release/standalone-frontend.log 2>&1
+docker logs "ketos-backend-${RELEASE_ID}" > .artifacts/i18n-release/standalone-backend.log 2>&1
+docker logs "ketos-frontend-${RELEASE_ID}" > .artifacts/i18n-release/standalone-frontend.log 2>&1
 standalone_smoke_cleanup
 trap - EXIT
 ```
@@ -343,13 +343,13 @@ Wheel собирается только после копирования produc
 cd /Volumes/Projects/ketos_canvas_mod_main
 make build_frontend
 rm -rf .artifacts/i18n-release/wheel-dist .artifacts/i18n-release/wheel-venv
-uv build --package langflow-base --wheel \
+uv build --package ketos-base --wheel \
   --out-dir .artifacts/i18n-release/wheel-dist \
   --clear
 
-WHEEL="$(find .artifacts/i18n-release/wheel-dist -maxdepth 1 -type f -name 'langflow_base-*.whl' -print -quit)"
+WHEEL="$(find .artifacts/i18n-release/wheel-dist -maxdepth 1 -type f -name 'ketos_base-*.whl' -print -quit)"
 test -n "${WHEEL}"
-python - "${WHEEL}" <<'PY'
+uv run python - "${WHEEL}" <<'PY'
 from __future__ import annotations
 
 import re
@@ -358,8 +358,8 @@ import zipfile
 
 with zipfile.ZipFile(sys.argv[1]) as archive:
     names = archive.namelist()
-assert "langflow/locales/ru.json" in names
-assert len([name for name in names if re.fullmatch(r"langflow/frontend/assets/ru-[A-Za-z0-9_\-]{8,}\.js", name)]) == 1
+assert "ketos/locales/ru.json" in names
+assert len([name for name in names if re.fullmatch(r"ketos/frontend/assets/ru-[A-Za-z0-9_\-]{8,}\.js", name)]) == 1
 PY
 
 uv venv --python 3.12 .artifacts/i18n-release/wheel-venv
@@ -376,12 +376,12 @@ wheel_smoke_cleanup() {
 }
 trap wheel_smoke_cleanup EXIT
 
-LANGFLOW_AUTO_LOGIN=true \
-LANGFLOW_SUPERUSER=langflow \
-LANGFLOW_SUPERUSER_PASSWORD=ru-smoke-only-password \
-LANGFLOW_DATABASE_URL="sqlite:////Volumes/Projects/ketos_canvas_mod_main/.artifacts/i18n-release/wheel.db" \
-LANGFLOW_CONFIG_DIR="/Volumes/Projects/ketos_canvas_mod_main/.artifacts/i18n-release/wheel-config" \
-  .artifacts/i18n-release/wheel-venv/bin/langflow-base run \
+KETOS_AUTO_LOGIN=true \
+KETOS_SUPERUSER=ketos \
+KETOS_SUPERUSER_PASSWORD=ru-smoke-only-password \
+KETOS_DATABASE_URL="sqlite:////Volumes/Projects/ketos_canvas_mod_main/.artifacts/i18n-release/wheel.db" \
+KETOS_CONFIG_DIR="/Volumes/Projects/ketos_canvas_mod_main/.artifacts/i18n-release/wheel-config" \
+  .artifacts/i18n-release/wheel-venv/bin/ketos-base run \
   --host 127.0.0.1 --port 7861 \
   > .artifacts/i18n-release/wheel-server.log 2>&1 &
 WHEEL_PID=$!
@@ -431,7 +431,7 @@ docker tag "${UNIFIED_IMAGE}" "${CANARY_UNIFIED_IMAGE}"
 docker push "${CANARY_UNIFIED_IMAGE}"
 export DIGEST_REPOSITORY="${CANARY_REGISTRY_REPOSITORY}"
 docker image inspect "${CANARY_UNIFIED_IMAGE}" --format '{{json .RepoDigests}}' \
-  | python -c '
+  | uv run python -c '
 import json, os, sys
 repository = os.environ["DIGEST_REPOSITORY"]
 matches = [item for item in json.load(sys.stdin) if item.startswith(f"{repository}@")]
@@ -446,7 +446,7 @@ test -s .artifacts/i18n-release/unified-registry-digest.txt
 
 | Сигнал | Источник | Порог остановки/rollback |
 |---|---|---|
-| system missing key | `__LANGFLOW_I18N_DIAGNOSTICS__.snapshot().missing` в synthetic route matrix | любое событие; `missing-key = 0` |
+| system missing key | `__KETOS_I18N_DIAGNOSTICS__.snapshot().missing` в synthetic route matrix | любое событие; `missing-key = 0` |
 | system English fallback | `.fallback` в synthetic route matrix | любое событие; `fallback = 0` |
 | RU bundle load failure | `.failedLoading`, CDN/Nginx status для текущего RU asset | любое событие; `locale_load_failure = 0` |
 | неизвестный stable error code | frontend API error resolver unknown-code counter | любое событие; `unknown_error_code = 0` |
@@ -476,7 +476,7 @@ test -s .artifacts/i18n-release/unified-registry-digest.txt
 
 - значение `preferred_locale='ru'` остаётся в БД;
 - ключи `languagePreference` и user-scoped localStorage не удаляются и не перезаписываются: сохранённая строка `ru` остаётся на диске, а только эффективный runtime-язык нормализуется в `en`, пока флаг выключен; источниками восстановления остаются профиль с `preferred_locale='ru'` и сохранённые localStorage-значения;
-- оба source-каталога остаются в репозитории; rollback artifact содержит backend raw catalog `langflow/locales/ru.json` и compiled frontend chunk `langflow/frontend/assets/ru-<hash>.js` (в standalone frontend — `/usr/share/nginx/html/assets/ru-<hash>.js`), а не второй raw frontend `ru.json`;
+- оба source-каталога остаются в репозитории; rollback artifact содержит backend raw catalog `ketos/locales/ru.json` и compiled frontend chunk `ketos/frontend/assets/ru-<hash>.js` (в standalone frontend — `/usr/share/nginx/html/assets/ru-<hash>.js`), а не второй raw frontend `ru.json`;
 - после повторного включения флага сохранённый preference снова применяет RU.
 
 `shipped: false` **недостаточно** как самостоятельный rollback: в исходной модели это скрывает пункт селектора, но без active-registry gate `normalizeLanguage("ru")` продолжит возвращать `ru`.
@@ -484,8 +484,8 @@ test -s .artifacts/i18n-release/unified-registry-digest.txt
 Rollback candidate строится заранее теми же Dockerfile и тем же commit, но с выключенным флагом:
 
 ```bash
-export ROLLBACK_FRONTEND_IMAGE="langflow-frontend:ru-disabled-${RELEASE_ID}"
-export ROLLBACK_UNIFIED_IMAGE="langflow-unified:ru-disabled-${RELEASE_ID}"
+export ROLLBACK_FRONTEND_IMAGE="ketos-frontend:ru-disabled-${RELEASE_ID}"
+export ROLLBACK_UNIFIED_IMAGE="ketos-unified:ru-disabled-${RELEASE_ID}"
 
 docker build --pull --rm \
   --build-arg VITE_ENABLE_RUSSIAN_LOCALE=false \
@@ -514,7 +514,7 @@ docker push "${ROLLBACK_UNIFIED_PUBLISH_IMAGE}"
 
 export DIGEST_REPOSITORY="${ROLLBACK_REGISTRY_REPOSITORY}"
 docker image inspect "${ROLLBACK_UNIFIED_PUBLISH_IMAGE}" --format '{{json .RepoDigests}}' \
-  | python -c '
+  | uv run python -c '
 import json, os, sys
 repository = os.environ["DIGEST_REPOSITORY"]
 matches = [item for item in json.load(sys.stdin) if item.startswith(f"{repository}@")]
@@ -537,7 +537,7 @@ assert_disabled_unified_artifacts() {
 import re
 from importlib.resources import files
 
-root = files("langflow")
+root = files("ketos")
 assert root.joinpath("locales", "ru.json").is_file()
 assets = root.joinpath("frontend", "assets")
 chunks = [entry for entry in assets.iterdir() if re.fullmatch(r"ru-[A-Za-z0-9_\-]{8,}\.js", entry.name)]
@@ -550,7 +550,7 @@ assert_disabled_standalone_artifacts() {
   local frontend_image="$2"
   docker run --rm -i --entrypoint python "${backend_image}" - <<'PY'
 from importlib.resources import files
-root = files("langflow")
+root = files("ketos")
 assert root.joinpath("locales", "ru.json").is_file()
 PY
   docker run --rm --entrypoint sh "${frontend_image}" -c \
@@ -574,8 +574,8 @@ volume, но сохраняет JSON evidence вне volume.
 cd /Volumes/Projects/ketos_canvas_mod_main
 set -euo pipefail
 
-ROLLBACK_CONTAINER="langflow-ru-rehearsal-${RELEASE_ID}"
-ROLLBACK_DATA_VOLUME="langflow-ru-rehearsal-${RELEASE_ID}"
+ROLLBACK_CONTAINER="ketos-ru-rehearsal-${RELEASE_ID}"
+ROLLBACK_DATA_VOLUME="ketos-ru-rehearsal-${RELEASE_ID}"
 ROLLBACK_BASE_URL="http://127.0.0.1:7862"
 ROLLBACK_EVIDENCE_DIR="/Volumes/Projects/ketos_canvas_mod_main/.artifacts/i18n-release/rollback-rehearsal"
 ROLLBACK_STATE_PATH="${ROLLBACK_EVIDENCE_DIR}/browser-state.json"
@@ -597,12 +597,12 @@ start_rollback_rehearsal() {
   docker rm -f "${ROLLBACK_CONTAINER}" >/dev/null 2>&1 || true
   docker run -d --name "${ROLLBACK_CONTAINER}" \
     -p 7862:7860 \
-    -v "${ROLLBACK_DATA_VOLUME}:/app/langflow" \
-    -e LANGFLOW_AUTO_LOGIN=true \
-    -e LANGFLOW_SUPERUSER=langflow \
-    -e LANGFLOW_SUPERUSER_PASSWORD=ru-rehearsal-only-password \
-    -e LANGFLOW_DATABASE_URL=sqlite:////app/langflow/rollback-rehearsal.db \
-    -e LANGFLOW_CONFIG_DIR=/app/langflow \
+    -v "${ROLLBACK_DATA_VOLUME}:/app/ketos" \
+    -e KETOS_AUTO_LOGIN=true \
+    -e KETOS_SUPERUSER=ketos \
+    -e KETOS_SUPERUSER_PASSWORD=ru-rehearsal-only-password \
+    -e KETOS_DATABASE_URL=sqlite:////app/ketos/rollback-rehearsal.db \
+    -e KETOS_CONFIG_DIR=/app/ketos \
     "${image}" >/dev/null
 
   for _ in $(seq 1 120); do
@@ -717,7 +717,7 @@ ROLLBACK_PHASE="disabled" EXPECTED_LANG="en" EXPECTED_RU_OPTION_COUNT="0" rollba
 start_rollback_rehearsal "${UNIFIED_IMAGE}"
 ROLLBACK_PHASE="enabled-after" EXPECTED_LANG="ru" EXPECTED_RU_OPTION_COUNT="1" rollback_rehearsal_assert
 
-python - <<'PY'
+uv run python - <<'PY'
 import json
 from pathlib import Path
 
@@ -760,16 +760,16 @@ DISABLED_WHEEL_VENV=".artifacts/i18n-release/rollback-wheel-disabled-venv"
 rm -rf "${ENABLED_WHEEL_DIST}" "${DISABLED_WHEEL_DIST}" "${ENABLED_WHEEL_VENV}" "${DISABLED_WHEEL_VENV}"
 
 VITE_ENABLE_RUSSIAN_LOCALE=true make build_frontend
-uv build --package langflow-base --wheel --out-dir "${ENABLED_WHEEL_DIST}" --clear
+uv build --package ketos-base --wheel --out-dir "${ENABLED_WHEEL_DIST}" --clear
 
 VITE_ENABLE_RUSSIAN_LOCALE=false make build_frontend
-uv build --package langflow-base --wheel --out-dir "${DISABLED_WHEEL_DIST}" --clear
+uv build --package ketos-base --wheel --out-dir "${DISABLED_WHEEL_DIST}" --clear
 
-ENABLED_WHEEL="$(find "${ENABLED_WHEEL_DIST}" -maxdepth 1 -type f -name 'langflow_base-*.whl' -print -quit)"
-DISABLED_WHEEL="$(find "${DISABLED_WHEEL_DIST}" -maxdepth 1 -type f -name 'langflow_base-*.whl' -print -quit)"
+ENABLED_WHEEL="$(find "${ENABLED_WHEEL_DIST}" -maxdepth 1 -type f -name 'ketos_base-*.whl' -print -quit)"
+DISABLED_WHEEL="$(find "${DISABLED_WHEEL_DIST}" -maxdepth 1 -type f -name 'ketos_base-*.whl' -print -quit)"
 test -n "${ENABLED_WHEEL}" && test -n "${DISABLED_WHEEL}"
 
-python - "${ENABLED_WHEEL}" "${DISABLED_WHEEL}" <<'PY'
+uv run python - "${ENABLED_WHEEL}" "${DISABLED_WHEEL}" <<'PY'
 import re
 import sys
 import zipfile
@@ -777,8 +777,8 @@ import zipfile
 for wheel in sys.argv[1:]:
     with zipfile.ZipFile(wheel) as archive:
         names = archive.namelist()
-    assert "langflow/locales/ru.json" in names
-    ru_chunks = [name for name in names if re.fullmatch(r"langflow/frontend/assets/ru-[A-Za-z0-9_\-]{8,}\.js", name)]
+    assert "ketos/locales/ru.json" in names
+    ru_chunks = [name for name in names if re.fullmatch(r"ketos/frontend/assets/ru-[A-Za-z0-9_\-]{8,}\.js", name)]
     assert len(ru_chunks) == 1, (wheel, ru_chunks)
 PY
 
@@ -805,11 +805,11 @@ trap wheel_rollback_cleanup EXIT
 start_wheel_rollback() {
   local executable="$1"
   wheel_rollback_cleanup
-  LANGFLOW_AUTO_LOGIN=true \
-  LANGFLOW_SUPERUSER=langflow \
-  LANGFLOW_SUPERUSER_PASSWORD=ru-wheel-rehearsal-only-password \
-  LANGFLOW_DATABASE_URL="sqlite:///${WHEEL_ROLLBACK_ROOT}/rollback.db" \
-  LANGFLOW_CONFIG_DIR="${WHEEL_ROLLBACK_ROOT}/config" \
+  KETOS_AUTO_LOGIN=true \
+  KETOS_SUPERUSER=ketos \
+  KETOS_SUPERUSER_PASSWORD=ru-wheel-rehearsal-only-password \
+  KETOS_DATABASE_URL="sqlite:///${WHEEL_ROLLBACK_ROOT}/rollback.db" \
+  KETOS_CONFIG_DIR="${WHEEL_ROLLBACK_ROOT}/config" \
     "${executable}" run --host 127.0.0.1 --port 7863 \
     > "${WHEEL_ROLLBACK_ROOT}/server.log" 2>&1 &
   WHEEL_ROLLBACK_PID=$!
@@ -826,13 +826,13 @@ ROLLBACK_EVIDENCE_DIR="${WHEEL_ROLLBACK_ROOT}/evidence"
 ROLLBACK_STATE_PATH="${WHEEL_ROLLBACK_ROOT}/browser-state.json"
 mkdir -p "${ROLLBACK_EVIDENCE_DIR}"
 
-start_wheel_rollback "${ENABLED_WHEEL_VENV}/bin/langflow-base"
+start_wheel_rollback "${ENABLED_WHEEL_VENV}/bin/ketos-base"
 ROLLBACK_PHASE="enabled-before" EXPECTED_LANG="ru" EXPECTED_RU_OPTION_COUNT="1" rollback_rehearsal_assert
 
-start_wheel_rollback "${DISABLED_WHEEL_VENV}/bin/langflow-base"
+start_wheel_rollback "${DISABLED_WHEEL_VENV}/bin/ketos-base"
 ROLLBACK_PHASE="disabled" EXPECTED_LANG="en" EXPECTED_RU_OPTION_COUNT="0" rollback_rehearsal_assert
 
-start_wheel_rollback "${ENABLED_WHEEL_VENV}/bin/langflow-base"
+start_wheel_rollback "${ENABLED_WHEEL_VENV}/bin/ketos-base"
 ROLLBACK_PHASE="enabled-after" EXPECTED_LANG="ru" EXPECTED_RU_OPTION_COUNT="1" rollback_rehearsal_assert
 
 wheel_rollback_cleanup
@@ -860,7 +860,7 @@ Disabled wheel PASS требует одновременно ZIP artifact proof, 
 
 ## 9. Release evidence и статус
 
-### 9.1 Локальный R11 snapshot 2026-07-12
+### 9.1 Локальный pre-cutover snapshot 2026-07-12
 
 Машиночитаемая запись локальной проверки находится в
 `.artifacts/i18n-release/r11-local/local-rollback-evidence.json` и привязана к
@@ -887,6 +887,6 @@ chunk в disabled build.
 - [ ] locale asset и `index.html` cache headers;
 - [ ] canary dashboard export каждой ступени;
 - [ ] неизменность `preferred_locale` после репетиции rollback;
-- [ ] подтверждение, что backend `langflow/locales/ru.json` и compiled frontend `ru-<hash>.js` остались в rollback artifacts.
+- [ ] подтверждение, что backend `ketos/locales/ru.json` и compiled frontend `ru-<hash>.js` остались в rollback artifacts.
 
 Пока эти внешние evidence не приложены, корректный статус: **runbook READY; production canary/rollout/rollback rehearsal NOT EXECUTED**.

@@ -1,12 +1,12 @@
 # Complexity Reduction Patterns
 
-This document provides patterns for reducing cognitive complexity in Langflow React components.
+This document provides patterns for reducing cognitive complexity in Ketos React components.
 
 ## Understanding Complexity
 
 ### SonarJS Cognitive Complexity
 
-Langflow does not have automated complexity analysis tools. Assess complexity manually using SonarJS cognitive complexity rules:
+Ketos does not have automated complexity analysis tools. Assess complexity manually using SonarJS cognitive complexity rules:
 
 - **Total Complexity**: Sum of all functions' complexity in the file
 - **Max Complexity**: Highest single function complexity

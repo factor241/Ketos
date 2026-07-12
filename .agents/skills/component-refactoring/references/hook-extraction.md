@@ -1,6 +1,6 @@
 # Hook Extraction Patterns
 
-This document provides detailed guidance on extracting custom hooks from complex components in Langflow.
+This document provides detailed guidance on extracting custom hooks from complex components in Ketos.
 
 ## When to Extract Hooks
 
@@ -138,7 +138,7 @@ const FlowPage: FC = () => {
 - Use `use` prefix: `useFlowState`, `useNodeDrag`, `useBuildStatus`
 - Be specific: `useRefreshModelInputs` not `useRefresh`
 - Include domain: `useFlowStore`, `useGlobalVariables`, `useAddComponent`
-- Match existing Langflow patterns: `useFlowsManagerStore`, `useFlowStore`
+- Match existing Ketos patterns: `useFlowsManagerStore`, `useFlowStore`
 
 ### File Names
 
@@ -152,7 +152,7 @@ const FlowPage: FC = () => {
 - Suffix with `Return`: `UseCanvasStateReturn`
 - Suffix params with `Params`: `UseCanvasStateParams`
 
-## Common Hook Patterns in Langflow
+## Common Hook Patterns in Ketos
 
 ### 1. Zustand Store Derived State Hook
 
@@ -323,7 +323,7 @@ const [isExpanded, { toggle, setTrue: expand, setFalse: collapse }] = useToggle(
 
 ### 6. Keyboard Shortcut Hook
 
-Langflow has keyboard shortcut support. Extract shortcut handling to hooks.
+Ketos has keyboard shortcut support. Extract shortcut handling to hooks.
 
 ```typescript
 // Pattern: Keyboard shortcut registration

@@ -14,6 +14,11 @@ const sha256 = (filePath) =>
   crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 
 const textExtensions = new Set([
+  ".md",
+  ".mdc",
+  ".mdx",
+  ".py",
+  ".sh",
   ".css",
   ".html",
   ".js",
@@ -26,6 +31,22 @@ const textExtensions = new Set([
   ".yaml",
   ".yml",
 ]);
+
+const stage7OwnedRoots = [
+  path.join(repoRoot, "README.md"),
+  path.join(repoRoot, "DEVELOPMENT.md"),
+  path.join(repoRoot, "DESIGN.md"),
+  path.join(repoRoot, "BUNDLE_API.md"),
+  path.join(repoRoot, "RELEASE.md"),
+  path.join(repoRoot, "AGENTS.md"),
+  path.join(repoRoot, "AGENTS-example.md"),
+  path.join(repoRoot, ".agents", "skills"),
+  path.join(repoRoot, ".cursor"),
+  path.join(repoRoot, ".vscode"),
+  path.join(docsRoot, "docs"),
+  path.join(docsRoot, "localization", "ru"),
+  path.join(docsRoot, "openapi", "generate_openapi.py"),
+];
 
 function listTextFiles(directory) {
   if (!fs.existsSync(directory)) return [];
@@ -98,6 +119,109 @@ test("the documentation shell and link contract are Ketos-only", () => {
 test("the custom network-backed SearchBar is absent", () => {
   assert.equal(fs.existsSync(path.join(docsRoot, "src/theme/SearchBar")), false);
 });
+
+test("Stage 7 current documentation has no removed product contract", () => {
+  const forbidden =
+    /langflow|\blfx\b|LANGFLOW_|LFX_|langflow-ai|docs\.langflow|api\.langflow|github\.com\/langflow-ai|fetch_openapi_spec|access_token_lf/i;
+  const files = stage7OwnedRoots.flatMap((entry) => {
+    if (!fs.existsSync(entry)) return [];
+    return fs.statSync(entry).isDirectory() ? listTextFiles(entry) : [entry];
+  });
+  assert.ok(files.length > 0, "Stage 7 scanner must inspect owned files");
+  for (const filePath of files) {
+    assert.doesNotMatch(
+      `${path.relative(repoRoot, filePath)}\n${fs.readFileSync(filePath, "utf8")}`,
+      forbidden,
+      `${path.relative(repoRoot, filePath)} contains a removed product contract`,
+    );
+  }
+  assert.equal(fs.existsSync(path.join(docsRoot, "openapi", "fetch_openapi_spec.py")), false);
+});
+
+test("the current manual is nine pages with executable API-key examples", () => {
+  const pages = listTextFiles(path.join(docsRoot, "docs")).filter(
+    (filePath) => path.extname(filePath) === ".mdx",
+  );
+  assert.equal(pages.length, 9, "the explicit sidebar owns exactly nine current pages");
+
+  const authentication = read("docs/api/authentication.mdx");
+  const runFlow = read("docs/api/run-flow.mdx");
+  const files = read("docs/api/files.mdx");
+  const docsRule = fs.readFileSync(
+    path.join(repoRoot, ".cursor", "rules", "docs_development.mdc"),
+    "utf8",
+  );
+  const design = fs.readFileSync(path.join(repoRoot, "DESIGN.md"), "utf8");
+  const docsReadme = read("README.md");
+
+  for (const source of [authentication, runFlow, files, docsRule, design, docsReadme]) {
+    assert.match(source, /x-api-key/i);
+    assert.doesNotMatch(source, /Authorization:\s*Bearer\s*\$?\{?KETOS_API_KEY/i);
+  }
+  assert.match(authentication, /Bearer[^\n]*(?:JWT|OAuth)|(?:JWT|OAuth)[^\n]*Bearer/i);
+  assert.match(design, /Bearer[\s\S]{0,80}(?:JWT|OAuth)|(?:JWT|OAuth)[\s\S]{0,80}Bearer/i);
+  assert.match(docsReadme, /Bearer[\s\S]{0,80}(?:JWT|OAuth)|(?:JWT|OAuth)[\s\S]{0,80}Bearer/i);
+  assert.match(runFlow, /```bash[\s\S]*```python[\s\S]*```javascript/);
+});
+
+test("the local API example harness targets current pages and has a non-network syntax mode", () => {
+  const script = fs.readFileSync(path.join(repoRoot, "scripts", "test-api-examples-local.sh"), "utf8");
+  const makefile = fs.readFileSync(path.join(repoRoot, "Makefile"), "utf8");
+
+  assert.match(script, /docs\/docs\/api\/run-flow\.mdx/);
+  assert.match(script, /uv run ketos run/);
+  assert.match(script, /KETOS_API_KEY/);
+  assert.match(script, /api\/v1\/flows\//);
+  assert.match(script, /export KETOS_FLOW_ID/);
+  assert.match(script, /extract_fence bash/);
+  assert.match(script, /extract_fence python/);
+  assert.match(script, /extract_fence javascript/);
+  assert.doesNotMatch(script, /api\/v1\/users\/whoami/);
+  assert.doesNotMatch(script, /docs\/docs\/API-Reference|LANGFLOW_|uv run langflow/);
+  assert.match(script, /if \[\[ "\$EXECUTE_MODE" != "true" \]\]; then[\s\S]*exit 0/);
+  assert.match(makefile, /api_examples_local_syntax:[\s\S]*EXECUTE_MODE=false/);
+});
+
+test("obsolete localization snapshots are removed and current governance is assigned", () => {
+  const obsolete = [
+    "localization/ru/r0-audit-snapshot.md",
+    "localization/ru/r11-canary-evidence.template.json",
+    "localization/ru/r11-zero-budget-metrics.json",
+    "localization/ru/task-18-acceptance.md",
+  ];
+  for (const relativePath of obsolete) {
+    assert.equal(fs.existsSync(path.join(docsRoot, relativePath)), false, relativePath);
+  }
+  assert.equal(fs.existsSync(path.join(docsRoot, "localization/ru/README.md")), true);
+});
+
+test("the footer attributes Ketos modifications without a blanket legal claim", () => {
+  const config = read("docusaurus.config.js");
+  assert.match(config, /Ketos modifications/);
+  assert.doesNotMatch(config, /copyright:\s*`?©[^\n]*Ketos(?:`|,)/);
+});
+
+test("retained documentation media is canonical or explicitly local", () => {
+  const allowed = new Set([
+    "ketos-docs-dark.svg",
+    "ketos-docs-light.svg",
+    "ketos-favicon.ico",
+    "ketos-favicon.svg",
+    "ketos-social-1200x630.png",
+  ]);
+  const mediaExtensions = new Set([".gif", ".ico", ".jpeg", ".jpg", ".png", ".svg", ".webp"]);
+  const retained = [path.join(docsRoot, "static", "img"), path.join(docsRoot, "static", "logos")]
+    .flatMap((directory) => fs.existsSync(directory) ? listAllFiles(directory) : [])
+    .filter((filePath) => mediaExtensions.has(path.extname(filePath).toLowerCase()));
+  assert.deepEqual(retained.map((filePath) => path.basename(filePath)).sort(), [...allowed].sort());
+});
+
+function listAllFiles(directory) {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const absolutePath = path.join(directory, entry.name);
+    return entry.isDirectory() ? listAllFiles(absolutePath) : [absolutePath];
+  });
+}
 
 test("documentation brand assets are exact Task 2 outputs", () => {
   const assetCopies = [

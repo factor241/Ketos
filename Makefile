@@ -1085,11 +1085,11 @@ docs_serve: docs_build ## build and serve documentation locally
 # Note: $(or $(suites),a,b,c) is wrong here — GNU make's `or` returns only the first non-empty token.
 suites ?= curl,python,javascript
 
-api_examples_local: ## run docs API sample files against a local Ketos server
+api_examples_local: ## run the current nine-page manual API smoke against a local Ketos server
 	@echo "$(GREEN)Running docs API examples locally...$(NC)"
 	@SUITES="$(suites)" EXECUTE_MODE=true ./scripts/test-api-examples-local.sh
 
-api_examples_local_syntax: ## syntax-check docs API sample files locally without execution
+api_examples_local_syntax: ## syntax-check the current nine-page manual API examples without network access
 	@echo "$(GREEN)Running docs API example syntax checks locally...$(NC)"
 	@SUITES="$(suites)" EXECUTE_MODE=false ./scripts/test-api-examples-local.sh
 

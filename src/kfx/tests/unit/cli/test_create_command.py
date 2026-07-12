@@ -320,7 +320,7 @@ class TestInitExampleSeeding:
 
     def test_example_still_creates_other_files(self, tmp_path):
         init_command(project_dir=tmp_path, github_actions=False, overwrite=False, example=True)
-        assert (tmp_path / ".kfx" / "environments.yaml").exists()
+        assert (tmp_path / ".kfx" / "project.toml").exists()
         assert (tmp_path / "tests" / "test_flows.py").exists()
 
     def test_seeded_flow_has_unique_uuid(self, tmp_path):
@@ -359,4 +359,4 @@ class TestInitExampleSeeding:
                 overwrite=False,
                 example=True,
             )
-        assert (tmp_path / "proj" / ".kfx" / "environments.yaml").exists()
+        assert (tmp_path / "proj" / ".kfx" / "project.toml").exists()

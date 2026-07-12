@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import tempfile
 import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, get_args
 
+from kfx.config.paths import ketos_temp_dir
 from kfx.services.base import Service
 
 EXTENSION_EVENT_TYPES = Literal[
@@ -76,7 +76,7 @@ class ExtensionEventsService(Service):
     def __init__(self, cache_dir: str | Path | None = None) -> None:
         super().__init__()
         if cache_dir is None:
-            cache_dir = Path(tempfile.gettempdir()) / "ketos_extension_events"
+            cache_dir = ketos_temp_dir(create=True) / "extension_events"
         cache_dir = Path(cache_dir)
         cache_dir.mkdir(parents=True, exist_ok=True)
         self._db_path = cache_dir / "extension_events.sqlite"

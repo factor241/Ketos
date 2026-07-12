@@ -1,20 +1,15 @@
-# noqa: INP001
 import asyncio
-import hashlib
-import os
 from logging.config import fileConfig
 from typing import Any
 
-
 from alembic import context
-from sqlalchemy import pool, text
+from kfx.log.logger import logger
+from sqlalchemy import pool
 from sqlalchemy.event import listen
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from kfx.log.logger import logger
-
 from ketos.services.database.service import SQLModel
-
+from ketos.utils.migration_lock import acquire_transaction_lock
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -104,18 +99,14 @@ def _do_run_migrations(connection):
     context.configure(**configure_kwargs)
     with context.begin_transaction():
         if connection.dialect.name == "postgresql":
-            # Use namespace from environment variable if provided, otherwise use default static key
-            namespace = os.getenv("KETOS_MIGRATION_LOCK_NAMESPACE")
-            if namespace:
-                lock_key = int(hashlib.sha256(namespace.encode()).hexdigest()[:16], 16) % (2**63 - 1)
-                logger.info(f"Using migration lock namespace: {namespace}, lock_key: {lock_key}")
-            else:
-                lock_key = 11223344
-                logger.info(f"Using default migration lock_key: {lock_key}")
-
-            connection.execute(text("SET LOCAL lock_timeout = '180s';"))
-            connection.execute(text(f"SELECT pg_advisory_xact_lock({lock_key});"))
+            lock_key = acquire_transaction_lock(
+                connection,
+                already_held=config.attributes.get("ketos_migration_lock_held", False),
+            )
+            if lock_key is not None:
+                logger.info(f"Using Ketos migration lock_key: {lock_key}")
         context.run_migrations()
+
 
 async def _run_async_migrations() -> None:
     # Disable prepared statements for PostgreSQL (required for PgBouncer compatibility)

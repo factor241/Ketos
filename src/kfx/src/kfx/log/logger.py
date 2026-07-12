@@ -16,9 +16,9 @@ from typing import Any, TypedDict
 import orjson
 import structlog
 from loguru import logger as loguru_logger
-from platformdirs import user_cache_dir
 from typing_extensions import NotRequired
 
+from kfx.config.paths import ketos_cache_dir
 from kfx.settings import DEV
 
 # OpenTelemetry is optional. Resolve once at import time so the per-record
@@ -491,9 +491,7 @@ def configure(
             event_dict.setdefault(key, value)
         return event_dict
 
-    extra_redact = frozenset(
-        k.strip().lower() for k in os.getenv("KETOS_LOG_REDACT_KEYS", "").split(",") if k.strip()
-    )
+    extra_redact = frozenset(k.strip().lower() for k in os.getenv("KETOS_LOG_REDACT_KEYS", "").split(",") if k.strip())
     redact_processor = _build_redact_processor(extra_redact)
 
     processors: list[Any] = [
@@ -632,7 +630,7 @@ def configure(
     # Set up file logging if needed
     if log_file:
         if not log_file.parent.exists():
-            cache_dir = Path(user_cache_dir("ketos"))
+            cache_dir = ketos_cache_dir()
             log_file = cache_dir / "ketos.log"
 
         # Parse rotation settings

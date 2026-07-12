@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, field_validator
 
+from kfx.config.paths import ketos_cache_dir
+
 
 class CacheSettings(BaseModel):
     """In-memory and Redis cache settings."""
@@ -27,11 +29,10 @@ class CacheSettings(BaseModel):
     def validate_cache_dir(cls, value):
         """Validate and normalize cache_dir path.
 
-        If not set, returns None and the factory will fall back to config_dir.
-        If set, resolves to an absolute path and creates the directory if needed.
+        Defaults to the canonical Ketos cache root.
         """
         if not value:
-            return None
+            value = ketos_cache_dir(create=True)
 
         if isinstance(value, str):
             value = Path(value)

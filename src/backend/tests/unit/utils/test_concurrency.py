@@ -167,18 +167,14 @@ class TestKeyedWorkerLockManager:
 
     def test_initialization(self):
         """Test proper initialization of KeyedWorkerLockManager."""
-        with (
-            patch("kfx.utils.concurrency.user_cache_dir") as mock_cache_dir,
-            patch("kfx.utils.concurrency.Path") as mock_path,
-        ):
-            mock_cache_dir.return_value = "/cache/dir"
-            mock_path_instance = MagicMock()
-            mock_path.return_value = mock_path_instance
+        with patch("kfx.utils.concurrency.ketos_cache_dir") as mock_cache_dir:
+            mock_cache_path = MagicMock()
+            mock_cache_dir.return_value = mock_cache_path
 
             manager = KeyedWorkerLockManager()
 
-            mock_cache_dir.assert_called_once_with("ketos", ensure_exists=True)
-            assert manager.locks_dir == mock_path_instance.__truediv__.return_value
+            mock_cache_dir.assert_called_once_with(create=True)
+            assert manager.locks_dir == mock_cache_path.__truediv__.return_value
 
     def test_validate_key_valid_keys(self):
         """Test that _validate_key accepts valid keys."""
@@ -266,13 +262,12 @@ class TestKeyedWorkerLockManager:
     def test_lock_file_path_construction(self):
         """Test that lock file path is constructed correctly."""
         with (
-            patch("kfx.utils.concurrency.user_cache_dir") as mock_cache_dir,
-            patch("kfx.utils.concurrency.Path") as mock_path,
+            patch("kfx.utils.concurrency.ketos_cache_dir") as mock_cache_dir,
             patch("kfx.utils.concurrency.FileLock") as mock_filelock,
         ):
-            mock_cache_dir.return_value = "/cache"
-            mock_locks_dir = MagicMock()
-            mock_path.return_value.__truediv__.return_value = mock_locks_dir
+            mock_cache_path = MagicMock()
+            mock_locks_dir = mock_cache_path.__truediv__.return_value
+            mock_cache_dir.return_value = mock_cache_path
 
             manager = KeyedWorkerLockManager()
 
@@ -365,19 +360,13 @@ class TestKeyedWorkerLockManager:
             assert results[2].endswith("_start")
             assert results[3].endswith("_end")
 
-    @patch("kfx.utils.concurrency.user_cache_dir")
+    @patch("kfx.utils.concurrency.ketos_cache_dir")
     def test_locks_directory_creation(self, mock_cache_dir):
         """Test that locks directory is created properly."""
-        mock_cache_dir.return_value = "/test/cache"
+        mock_cache_path = MagicMock()
+        mock_cache_dir.return_value = mock_cache_path
 
-        with patch("kfx.utils.concurrency.Path") as mock_path:
-            mock_path_instance = MagicMock()
-            mock_path.return_value = mock_path_instance
+        KeyedWorkerLockManager()
 
-            KeyedWorkerLockManager()
-
-            # Verify user_cache_dir was called with ensure_exists=True
-            mock_cache_dir.assert_called_once_with("ketos", ensure_exists=True)
-            # Verify Path was called correctly
-            mock_path.assert_called_once_with("/test/cache")
-            mock_path_instance.__truediv__.assert_called_once_with("worker_locks")
+        mock_cache_dir.assert_called_once_with(create=True)
+        mock_cache_path.__truediv__.assert_called_once_with("worker_locks")

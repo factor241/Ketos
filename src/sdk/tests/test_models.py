@@ -269,3 +269,29 @@ def test_missing_url_raises(tmp_path: Path):
 
     with pytest.raises(KetosEnvironmentConfigError, match="url"):
         load_environments(config)
+
+
+def test_environment_discovery_ignores_current_working_directory(tmp_path: Path, monkeypatch):
+    from ketos_sdk import environments
+
+    cwd_config = tmp_path / "ketos-environments.toml"
+    cwd_config.write_text("[environments.old]\nurl = 'https://old.invalid'\n", encoding="utf-8")
+    canonical = tmp_path / "canonical"
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("KETOS_ENVIRONMENTS_FILE", raising=False)
+    monkeypatch.setattr(environments, "user_config_path", lambda *_args: canonical)
+
+    assert list(environments._candidate_paths(None)) == [canonical / "ketos-environments.toml"]  # noqa: SLF001
+
+
+def test_old_environment_file_variable_has_no_effect(tmp_path: Path, monkeypatch):
+    from ketos_sdk import environments
+
+    old_prefix = "LANG" + "FLOW"
+    monkeypatch.setenv(f"{old_prefix}_ENVIRONMENTS_FILE", str(tmp_path / "old.toml"))
+    monkeypatch.delenv("KETOS_ENVIRONMENTS_FILE", raising=False)
+    monkeypatch.setattr(environments, "user_config_path", lambda *_args: tmp_path / "canonical")
+
+    assert list(environments._candidate_paths(None)) == [  # noqa: SLF001
+        tmp_path / "canonical" / "ketos-environments.toml"
+    ]

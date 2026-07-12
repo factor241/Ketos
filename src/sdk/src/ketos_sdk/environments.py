@@ -7,8 +7,7 @@ Config file lookup order
 ------------------------
 1. Path given explicitly to ``load_environments()`` or ``get_client()``.
 2. The ``KETOS_ENVIRONMENTS_FILE`` environment variable.
-3. ``ketos-environments.toml`` in the current working directory.
-4. ``~/.config/ketos/environments.toml``
+3. ``ketos-environments.toml`` in the platform-specific Ketos config directory.
 
 File format
 -----------
@@ -33,6 +32,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+from platformdirs import user_config_path
+
 from ketos_sdk.exceptions import KetosEnvironmentConfigError, KetosEnvironmentNotFoundError
 
 try:
@@ -42,7 +43,6 @@ except ImportError:  # pragma: no cover
 
 _ENV_VAR = "KETOS_ENVIRONMENTS_FILE"
 _LOCAL_NAME = "ketos-environments.toml"
-_USER_PATH = Path.home() / ".config" / "ketos" / "environments.toml"
 
 _EXAMPLE_CONFIG = """\
 # ketos-environments.toml
@@ -83,8 +83,7 @@ def _candidate_paths(explicit: Path | str | None) -> list[Path]:
     env_path = os.environ.get(_ENV_VAR)
     if env_path:
         candidates.append(Path(env_path))
-    candidates.append(Path.cwd() / _LOCAL_NAME)
-    candidates.append(_USER_PATH)
+    candidates.append(Path(user_config_path("ketos", "Ketos")) / _LOCAL_NAME)
     return candidates
 
 
@@ -152,7 +151,7 @@ def load_environments(
     if file_path is None:
         raise KetosEnvironmentConfigError(
             "No ketos-environments.toml found. "
-            f"Set {_ENV_VAR} or create one in the current directory.\n\n" + _EXAMPLE_CONFIG
+            f"Set {_ENV_VAR} or create one in the Ketos config directory.\n\n" + _EXAMPLE_CONFIG
         )
 
     raw = _load_toml(file_path)

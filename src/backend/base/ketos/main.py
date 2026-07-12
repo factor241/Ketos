@@ -3,7 +3,6 @@ import json
 import os
 import re
 import sys
-import tempfile
 import warnings
 from contextlib import asynccontextmanager, suppress
 from http import HTTPStatus
@@ -20,6 +19,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi_pagination import add_pagination
 from filelock import FileLock
+from kfx.config.paths import ketos_temp_dir
 from kfx.interface.utils import setup_llm_caching
 from kfx.log.logger import configure, logger
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
@@ -348,7 +348,7 @@ def get_lifespan(*, fix_migration=False, version=None):
                         "Starter projects will not be created or updated."
                     )
                 else:
-                    lock_file = Path(tempfile.gettempdir()) / "ketos_starter_projects.lock"
+                    lock_file = ketos_temp_dir(create=True) / "starter_projects.lock"
                     lock = FileLock(lock_file, timeout=1)
                     try:
                         with lock:

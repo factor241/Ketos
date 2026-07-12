@@ -20,6 +20,7 @@ from kfx.components.files_and_knowledge._filesystem_namespace import (
     compute_user_namespace,
     load_or_create_pepper,
 )
+from kfx.config.paths import ketos_data_dir
 from kfx.custom.custom_component.component import Component
 from kfx.inputs.inputs import BoolInput, StrInput
 from kfx.io import Output
@@ -71,7 +72,7 @@ def _default_config_dir() -> Path:
     explicitly in any real deployment; this fallback exists so the OSS desktop
     install just works without any setup.
     """
-    return Path.home() / ".ketos" / "fs_tool"
+    return ketos_data_dir() / "assistant"
 
 
 MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024

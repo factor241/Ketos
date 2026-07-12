@@ -66,12 +66,10 @@ def _slugify(name: str) -> str:
 
 
 def _is_kfx_project() -> bool:
-    """Return True if cwd (or a parent up to .git) contains .kfx/environments.yaml."""
+    """Return True if cwd (or a parent up to .git) contains a KFX project marker."""
     cwd = Path.cwd()
     for directory in (cwd, *cwd.parents):
-        if (directory / ".kfx" / "environments.yaml").is_file():
-            return True
-        if (directory / ".kfx" / "environments.yml").is_file():
+        if (directory / ".kfx" / "project.toml").is_file():
             return True
         if (directory / ".git").is_dir() or directory.parent == directory:
             break
@@ -92,7 +90,7 @@ def create_command(
     """
     if not _is_kfx_project():
         console.print(
-            "[yellow]Warning:[/yellow] No .kfx/environments.yaml found in this project. "
+            "[yellow]Warning:[/yellow] No .kfx/project.toml found in this project. "
             "Run [bold]kfx init[/bold] first to scaffold a project."
         )
 

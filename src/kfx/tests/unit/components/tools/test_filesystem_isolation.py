@@ -10,12 +10,9 @@ component at call time based on ``AUTO_LOGIN``, NOT by the config.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 class TestLoadIsolationConfig:
@@ -77,3 +74,22 @@ class TestLoadIsolationConfig:
 
         with pytest.raises((AttributeError, TypeError)):
             config.base_dir = tmp_path / "other"  # type: ignore[misc]
+
+    def test_runtime_filesystem_default_tracks_live_ketos_data_dir(self, tmp_path: Path, monkeypatch) -> None:
+        from kfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
+
+        monkeypatch.delenv("KETOS_FS_TOOL_BASE_DIR", raising=False)
+        first_data = tmp_path / "first-data"
+        second_data = tmp_path / "second-data"
+
+        monkeypatch.setenv("KETOS_DATA_DIR", str(first_data))
+        component = FileSystemToolComponent(root_path="", read_only=False)
+        first = component._isolation_config()
+
+        monkeypatch.setenv("KETOS_DATA_DIR", str(second_data))
+        second = component._isolation_config()
+
+        suffix = Path("assistant") / "fs_sandbox"
+        assert first.base_dir == (first_data / suffix).resolve()
+        assert second.base_dir == (second_data / suffix).resolve()
+        assert first.base_dir != second.base_dir

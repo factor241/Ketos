@@ -30,6 +30,8 @@ from kfx.services.settings.base import (
 EXPECTED_FIELDS = {
     # PathSettings
     "config_dir",
+    "data_dir",
+    "temp_dir",
     "knowledge_bases_dir",
     # ServerSettings
     "host",
@@ -48,13 +50,11 @@ EXPECTED_FIELDS = {
     "root_path",
     "user_agent",
     # DatabaseSettings
-    "save_db_in_config_dir",
     "database_url",
     "database_connection_retry",
     "pool_size",
     "max_overflow",
     "db_connect_timeout",
-    "migration_lock_namespace",
     "sqlite_pragmas",
     "db_driver_connection_settings",
     "db_connection_settings",
@@ -283,16 +283,16 @@ def test_single_worker_keeps_explicit_event_delivery(monkeypatch):
 def test_database_url_sees_config_dir(monkeypatch, tmp_path):
     """database_url validator must see config_dir in info.data.
 
-    With config_dir set and no KETOS_DATABASE_URL env var, the validator
-    falls back to a sqlite path under the ketos package directory. If
-    PathSettings's config_dir wasn't validated first, the validator would
-    raise 'config_dir not set'.
+    With data_dir set and no KETOS_DATABASE_URL env var, the validator
+    uses the canonical data root.
     """
     monkeypatch.delenv("KETOS_DATABASE_URL", raising=False)
     monkeypatch.setenv("KETOS_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setenv("KETOS_DATA_DIR", str(tmp_path / "data"))
     settings = Settings()
     assert settings.database_url.startswith("sqlite:///")
     assert settings.config_dir == str(tmp_path)
+    assert settings.database_url == f"sqlite:///{tmp_path / 'data' / 'ketos.db'}"
 
 
 def test_back_compat_exports():

@@ -975,41 +975,6 @@ async def _create_superuser(username: str, password: str, auth_token: str | None
             typer.echo("Superuser creation failed.")
 
 
-# command to copy the ketos database from the cache to the current directory
-# because now the database is stored per installation
-@app.command()
-def copy_db() -> None:
-    """Copy the database files to the current directory.
-
-    This function copies the 'ketos.db' and 'ketos-pre.db' files from the cache directory to the current
-    directory.
-    If the files exist in the cache directory, they will be copied to the same directory as this script (__main__.py).
-
-    Returns:
-        None
-    """
-    import shutil
-
-    from platformdirs import user_cache_dir
-
-    cache_dir = Path(user_cache_dir("ketos"))
-    db_path = cache_dir / "ketos.db"
-    pre_db_path = cache_dir / "ketos-pre.db"
-    # It should be copied to the current directory
-    # this file is __main__.py and it should be in the same directory as the database
-    destination_folder = Path(__file__).parent
-    if db_path.exists():
-        shutil.copy(db_path, destination_folder)
-        typer.echo(f"Database copied to {destination_folder}")
-    else:
-        typer.echo("Database not found in the cache directory.")
-    if pre_db_path.exists():
-        shutil.copy(pre_db_path, destination_folder)
-        typer.echo(f"Pre-release database copied to {destination_folder}")
-    else:
-        typer.echo("Pre-release database not found in the cache directory.")
-
-
 async def _migration(*, test: bool, fix: bool) -> None:
     await initialize_services(fix_migration=fix)
     db_service = get_db_service()

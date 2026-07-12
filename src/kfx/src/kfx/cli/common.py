@@ -119,9 +119,9 @@ def get_api_key() -> str:
     Used by ``kfx serve`` to set the superuser key on the local server.
     For *remote* commands (push, pull, login, …), the per-environment key
     is resolved via :func:`kfx.config.resolve_environment` and the
-    ``api_key_env`` field in ``.kfx/environments.yaml``.
+    ``api_key_env`` field in the canonical Ketos environments file.
     """
-    api_key = os.getenv("KETOS_API_KEY") or os.getenv("KFX_API_KEY")
+    api_key = os.getenv("KETOS_API_KEY")
     if not api_key:
         msg = "KETOS_API_KEY environment variable is not set"
         raise ValueError(msg)

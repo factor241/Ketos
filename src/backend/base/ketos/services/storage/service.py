@@ -24,7 +24,7 @@ class StorageService(Service):
     def __init__(self, session_service: SessionService, settings_service: SettingsService):
         self.settings_service = settings_service
         self.session_service = session_service
-        self.data_dir: anyio.Path = anyio.Path(settings_service.settings.config_dir)
+        self.data_dir: anyio.Path = anyio.Path(settings_service.settings.data_dir)
         self.set_ready()
 
     @abstractmethod

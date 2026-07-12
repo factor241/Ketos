@@ -60,7 +60,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
             "default": None,
             "metavar": "NAME",
             "help": (
-                "Named environment from .kfx/environments.yaml or ketos-environments.toml. "
+                "Named environment from KETOS_CONFIG_DIR/environments.yaml or ketos-environments.toml. "
                 "When set, flow_runner targets the remote instance instead of running locally."
             ),
         },
@@ -129,9 +129,7 @@ def _resolve_remote_client(request: pytest.FixtureRequest) -> Any | None:
         pytest.skip("ketos-sdk is required for remote testing. Install: pip install ketos-sdk")
 
     if url:
-        api_key: str | None = request.config.getoption("ketos_api_key", default=None) or os.environ.get(
-            "KETOS_API_KEY"
-        )
+        api_key: str | None = request.config.getoption("ketos_api_key", default=None) or os.environ.get("KETOS_API_KEY")
         return ketos_sdk.Client(base_url=url, api_key=api_key)
 
     # Named environment
@@ -162,9 +160,7 @@ def _resolve_async_remote_client(request: pytest.FixtureRequest) -> Any | None:
         pytest.skip("ketos-sdk is required for remote testing. Install: pip install ketos-sdk")
 
     if url:
-        api_key: str | None = request.config.getoption("ketos_api_key", default=None) or os.environ.get(
-            "KETOS_API_KEY"
-        )
+        api_key: str | None = request.config.getoption("ketos_api_key", default=None) or os.environ.get("KETOS_API_KEY")
         return ketos_sdk.AsyncClient(base_url=url, api_key=api_key)
 
     env_file: str | None = request.config.getoption("ketos_environments_file", default=None) or os.environ.get(
@@ -228,7 +224,7 @@ def flow_runner(
     **Remote mode** (when ``--ketos-env`` or ``--ketos-url`` is supplied)
         Calls the live Ketos API.  Requires ``ketos-sdk``.
 
-        * ``--ketos-env <NAME>`` -- named environment from ``.kfx/environments.yaml``
+        * ``--ketos-env <NAME>`` -- named environment from ``KETOS_CONFIG_DIR/environments.yaml``
         * ``--ketos-url <URL>`` -- direct URL
         * ``--ketos-api-key <KEY>`` / ``KETOS_API_KEY``
         * ``--ketos-environments-file <PATH>`` / ``KETOS_ENVIRONMENTS_FILE``

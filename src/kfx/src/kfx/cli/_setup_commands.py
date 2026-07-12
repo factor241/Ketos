@@ -46,7 +46,7 @@ def register(app: typer.Typer) -> None:
             None,
             "--env",
             "-e",
-            help="Environment name from .kfx/environments.yaml. Uses [defaults] if omitted.",
+            help="Environment name from KETOS_CONFIG_DIR/environments.yaml. Uses [defaults] if omitted.",
         ),
         environments_file: str | None = typer.Option(
             None,

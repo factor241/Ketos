@@ -69,6 +69,12 @@ def _write(tmp_path: Path, name: str, content: str) -> Path:
     return p
 
 
+def _config_home(tmp_path: Path, monkeypatch) -> Path:
+    path = tmp_path / "config"
+    monkeypatch.setenv("KETOS_CONFIG_DIR", str(path))
+    return path
+
+
 # ---------------------------------------------------------------------------
 # KetosEnvironment
 # ---------------------------------------------------------------------------
@@ -195,46 +201,33 @@ class TestFindConfigFile:
         with pytest.raises(ConfigError, match="not found"):
             _find_config_file(missing)
 
-    def test_finds_kfx_yaml_in_cwd(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        p = _write(tmp_path, ".kfx/environments.yaml", _MINIMAL_YAML)
+    def test_finds_yaml_in_ketos_config(self, tmp_path, monkeypatch):
+        config = _config_home(tmp_path, monkeypatch)
+        p = _write(config, "environments.yaml", _MINIMAL_YAML)
         assert _find_config_file(None) == p
 
-    def test_finds_kfx_yml_in_cwd(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        p = _write(tmp_path, ".kfx/environments.yml", _MINIMAL_YAML)
+    def test_finds_yml_in_ketos_config(self, tmp_path, monkeypatch):
+        config = _config_home(tmp_path, monkeypatch)
+        p = _write(config, "environments.yml", _MINIMAL_YAML)
         assert _find_config_file(None) == p
 
-    def test_walks_up_to_parent(self, tmp_path, monkeypatch):
-        parent_yaml = _write(tmp_path, ".kfx/environments.yaml", _MINIMAL_YAML)
-        child = tmp_path / "subdir"
-        child.mkdir()
-        monkeypatch.chdir(child)
-        # No .git boundary, so should walk up to tmp_path
-        result = _find_config_file(None)
-        assert result == parent_yaml
-
-    def test_stops_at_git_boundary(self, tmp_path, monkeypatch):
-        # Create .git in cwd so the walk stops there
-        cwd = tmp_path / "project"
-        cwd.mkdir()
-        (cwd / ".git").mkdir()
-        # Parent has a YAML config — should NOT be found (stopped by .git boundary)
-        _write(tmp_path, ".kfx/environments.yaml", _MINIMAL_YAML)
+    def test_cwd_and_parent_configs_are_ignored(self, tmp_path, monkeypatch):
+        _config_home(tmp_path, monkeypatch)
+        cwd = tmp_path / "project" / "child"
+        cwd.mkdir(parents=True)
+        _write(tmp_path, "project/ketos-environments.toml", _MINIMAL_TOML)
+        old_executor_dir = ".k" + "fx"
+        _write(cwd, f"{old_executor_dir}/environments.yaml", _MINIMAL_YAML)
         monkeypatch.chdir(cwd)
-        # Also check no TOML fallback
-        result = _find_config_file(None)
-        assert result is None
+        assert _find_config_file(None) is None
 
     def test_toml_fallback_when_no_yaml(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        p = _write(tmp_path, "ketos-environments.toml", _MINIMAL_TOML)
+        config = _config_home(tmp_path, monkeypatch)
+        p = _write(config, "ketos-environments.toml", _MINIMAL_TOML)
         assert _find_config_file(None) == p
 
     def test_returns_none_when_nothing_found(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        # Create a git boundary so it doesn't walk up further
-        (tmp_path / ".git").mkdir()
+        _config_home(tmp_path, monkeypatch)
         assert _find_config_file(None) is None
 
 
@@ -319,18 +312,18 @@ class TestResolveInlineMode:
 
 class TestResolveConfigMode:
     def test_named_env_resolved(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
+        config = _config_home(tmp_path, monkeypatch)
         monkeypatch.setenv("MY_STAGING_KEY", "staging-secret")  # pragma: allowlist secret
-        _write(tmp_path, ".kfx/environments.yaml", _MINIMAL_YAML)
+        _write(config, "environments.yaml", _MINIMAL_YAML)
         result = resolve_environment("staging")
         assert result.url == "https://staging.example.com"
         assert result.api_key == "staging-secret"  # pragma: allowlist secret
         assert result.name == "staging"
 
     def test_default_env_used_when_no_env_given(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
+        config = _config_home(tmp_path, monkeypatch)
         monkeypatch.setenv("MY_LOCAL_KEY", "local-secret")  # pragma: allowlist secret
-        _write(tmp_path, ".kfx/environments.yaml", _MINIMAL_YAML)
+        _write(config, "environments.yaml", _MINIMAL_YAML)
         result = resolve_environment(None)
         assert result.url == "http://localhost:7860"
         assert result.api_key == "local-secret"  # pragma: allowlist secret
@@ -342,36 +335,36 @@ class TestResolveConfigMode:
         assert result.url == "http://localhost:7860"
 
     def test_api_key_override_applied(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
+        config = _config_home(tmp_path, monkeypatch)
         monkeypatch.setenv("MY_LOCAL_KEY", "config-key")  # pragma: allowlist secret
-        _write(tmp_path, ".kfx/environments.yaml", _MINIMAL_YAML)
+        _write(config, "environments.yaml", _MINIMAL_YAML)
         result = resolve_environment("local", api_key="override-key")  # pragma: allowlist secret
         assert result.api_key == "override-key"  # pragma: allowlist secret
 
     def test_missing_env_var_returns_none_api_key(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
+        config = _config_home(tmp_path, monkeypatch)
         monkeypatch.delenv("MY_LOCAL_KEY", raising=False)
-        _write(tmp_path, ".kfx/environments.yaml", _MINIMAL_YAML)
+        _write(config, "environments.yaml", _MINIMAL_YAML)
         result = resolve_environment("local")
         # Missing env var yields None — caller decides whether to treat this as error
         assert result.api_key is None
 
     def test_unknown_env_name_raises(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        _write(tmp_path, ".kfx/environments.yaml", _MINIMAL_YAML)
+        config = _config_home(tmp_path, monkeypatch)
+        _write(config, "environments.yaml", _MINIMAL_YAML)
         with pytest.raises(ConfigError, match=r"'production'.*not found"):
             resolve_environment("production")
 
     def test_no_default_and_no_env_name_raises(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        _write(tmp_path, ".kfx/environments.yaml", _NO_DEFAULT_YAML)
+        config = _config_home(tmp_path, monkeypatch)
+        _write(config, "environments.yaml", _NO_DEFAULT_YAML)
         with pytest.raises(ConfigError, match="No --env given"):
             resolve_environment(None)
 
     def test_toml_file_also_works(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
+        config = _config_home(tmp_path, monkeypatch)
         monkeypatch.setenv("MY_LOCAL_KEY", "local-secret")  # pragma: allowlist secret
-        _write(tmp_path, "ketos-environments.toml", _MINIMAL_TOML)
+        _write(config, "ketos-environments.toml", _MINIMAL_TOML)
         result = resolve_environment("local")
         assert result.url == "http://localhost:7860"
         assert result.api_key == "local-secret"  # pragma: allowlist secret
@@ -384,8 +377,7 @@ class TestResolveConfigMode:
 
 class TestResolveNoConfigFallbacks:
     def test_ketos_url_env_var_used_as_fallback(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        (tmp_path / ".git").mkdir()  # stop file walk here
+        _config_home(tmp_path, monkeypatch)
         monkeypatch.setenv("KETOS_URL", "http://fallback:7860")
         monkeypatch.setenv("KETOS_API_KEY", "fallback-key")  # pragma: allowlist secret
         result = resolve_environment(None)
@@ -393,29 +385,24 @@ class TestResolveNoConfigFallbacks:
         assert result.api_key == "fallback-key"  # pragma: allowlist secret
         assert result.name == "__env__"
 
-    def test_kfx_url_env_var_used_as_fallback(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        (tmp_path / ".git").mkdir()
+    def test_old_executor_url_alias_has_no_effect(self, tmp_path, monkeypatch):
+        _config_home(tmp_path, monkeypatch)
         monkeypatch.delenv("KETOS_URL", raising=False)
-        monkeypatch.setenv("KFX_URL", "http://kfx-fallback:7860")
-        monkeypatch.setenv("KFX_API_KEY", "kfx-key")  # pragma: allowlist secret
-        result = resolve_environment(None)
-        assert result.url == "http://kfx-fallback:7860"
-        assert result.api_key == "kfx-key"  # pragma: allowlist secret
+        old_executor = "K" + "FX"
+        monkeypatch.setenv(f"{old_executor}_URL", "http://old-fallback:7860")
+        monkeypatch.setenv(f"{old_executor}_API_KEY", "old-key")  # pragma: allowlist secret
+        with pytest.raises(ConfigError, match="No --env"):
+            resolve_environment(None)
 
     def test_named_env_without_config_raises_clear_error(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        (tmp_path / ".git").mkdir()
+        _config_home(tmp_path, monkeypatch)
         monkeypatch.delenv("KETOS_URL", raising=False)
-        monkeypatch.delenv("KFX_URL", raising=False)
         with pytest.raises(ConfigError, match=r"'staging'.*no config file"):
             resolve_environment("staging")
 
     def test_no_env_no_config_no_env_vars_raises(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        (tmp_path / ".git").mkdir()
+        _config_home(tmp_path, monkeypatch)
         monkeypatch.delenv("KETOS_URL", raising=False)
-        monkeypatch.delenv("KFX_URL", raising=False)
         with pytest.raises(ConfigError, match="No --env"):
             resolve_environment(None)
 
@@ -425,8 +412,7 @@ class TestResolveNoConfigFallbacks:
             resolve_environment("staging", environments_file=str(missing))
 
     def test_inline_api_key_override_with_env_var_url(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        (tmp_path / ".git").mkdir()
+        _config_home(tmp_path, monkeypatch)
         monkeypatch.setenv("KETOS_URL", "http://fallback:7860")
         monkeypatch.delenv("KETOS_API_KEY", raising=False)
         # api_key arg should override the env-var based key
@@ -442,22 +428,20 @@ class TestResolveNoConfigFallbacks:
 
 class TestErrorMessages:
     def test_unknown_env_message_lists_available(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        _write(tmp_path, ".kfx/environments.yaml", _MINIMAL_YAML)
+        config = _config_home(tmp_path, monkeypatch)
+        _write(config, "environments.yaml", _MINIMAL_YAML)
         with pytest.raises(ConfigError, match="local") as exc_info:
             resolve_environment("typo-env")
         assert "staging" in str(exc_info.value)
 
     def test_no_config_message_suggests_init(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        (tmp_path / ".git").mkdir()
+        _config_home(tmp_path, monkeypatch)
         monkeypatch.delenv("KETOS_URL", raising=False)
-        monkeypatch.delenv("KFX_URL", raising=False)
         with pytest.raises(ConfigError, match="kfx init"):
             resolve_environment("staging")
 
     def test_no_default_message_shows_available(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        _write(tmp_path, ".kfx/environments.yaml", _NO_DEFAULT_YAML)
+        config = _config_home(tmp_path, monkeypatch)
+        _write(config, "environments.yaml", _NO_DEFAULT_YAML)
         with pytest.raises(ConfigError, match="staging"):
             resolve_environment(None)

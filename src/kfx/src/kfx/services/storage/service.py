@@ -34,7 +34,7 @@ class StorageService(Service):
         """
         self.settings_service = settings_service
         self.session_service = session_service
-        self.data_dir: anyio.Path = anyio.Path(settings_service.settings.config_dir)
+        self.data_dir: anyio.Path = anyio.Path(settings_service.settings.data_dir)
         self.set_ready()
 
     @abstractmethod

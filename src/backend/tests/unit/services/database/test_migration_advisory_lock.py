@@ -15,18 +15,23 @@ in what order, on which kinds of URLs.
 
 from __future__ import annotations
 
+from contextlib import nullcontext
+from io import StringIO
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
-from ketos.services.database.service import (
-    _MIGRATION_ADVISORY_LOCK_ID,
-    _postgres_migration_lock,
-)
+from ketos.services.database.service import _postgres_migration_lock
+from ketos.utils.migration_lock import MIGRATION_ADVISORY_LOCK_ID as _MIGRATION_ADVISORY_LOCK_ID
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _PG_URL = "postgresql+psycopg://host/db"
 _SQLITE_URL = "sqlite+aiosqlite:///./ketos.db"
 _SERVICE = "ketos.services.database.service"
-_CREATE_ENGINE_PATH = f"{_SERVICE}.sa.create_engine"
+_LOCK = "ketos.utils.migration_lock"
+_CREATE_ENGINE_PATH = f"{_LOCK}.sa.create_engine"
 
 _BOOM_MESSAGE = "migration exploded"
 
@@ -50,6 +55,60 @@ def _engine_with_conn(*, scalar_returns: list[bool] | bool) -> tuple[MagicMock, 
 def _executed_sql(conn_mock: MagicMock) -> list[str]:
     """Return the raw SQL text of each ``execute`` call on a mocked connection."""
     return [str(call.args[0]) for call in conn_mock.execute.call_args_list]
+
+
+def test_lock_namespace_is_ketos_only_and_shared_with_alembic(monkeypatch):
+    from ketos.utils.migration_lock import acquire_transaction_lock, migration_lock_id
+
+    monkeypatch.setenv("KETOS_MIGRATION_LOCK_NAMESPACE", "ketos-test-namespace")
+    conn = MagicMock()
+    lock_id = acquire_transaction_lock(conn)
+    assert lock_id == migration_lock_id()
+    assert any(f"pg_advisory_xact_lock({lock_id})" in sql for sql in _executed_sql(conn))
+
+
+@pytest.mark.parametrize("invalid_namespace", ["", "   ", " leading", "trailing "])
+def test_invalid_lock_namespace_falls_back_to_canonical_default(monkeypatch, invalid_namespace: str):
+    from ketos.utils.migration_lock import DEFAULT_NAMESPACE, migration_lock_id
+
+    monkeypatch.setenv("KETOS_MIGRATION_LOCK_NAMESPACE", invalid_namespace)
+    assert migration_lock_id() == migration_lock_id(DEFAULT_NAMESPACE)
+
+
+@pytest.mark.parametrize("invalid_timeout", ["invalid", "0", "-1"])
+def test_invalid_lock_timeout_falls_back_to_positive_default(monkeypatch, invalid_timeout: str):
+    from ketos.utils.migration_lock import DEFAULT_TIMEOUT_S, migration_lock_timeout_s
+
+    monkeypatch.setenv("KETOS_MIGRATION_LOCK_TIMEOUT_S", invalid_timeout)
+    assert migration_lock_timeout_s() == DEFAULT_TIMEOUT_S
+
+
+def test_service_owned_lock_marks_nested_alembic_upgrade_and_skips_second_connection_lock(tmp_path: Path):
+    """command.upgrade on connection B must not reacquire the lock held by service connection A."""
+    from ketos.services.database.service import DatabaseService
+    from ketos.utils.migration_lock import acquire_transaction_lock
+
+    service = DatabaseService.__new__(DatabaseService)
+    service.database_url = _PG_URL
+    service.script_location = tmp_path / "alembic"
+    service._open_alembic_log_buffer = lambda: nullcontext(StringIO())
+
+    def nested_upgrade(config, revision):
+        assert revision == "head"
+        held = config.attributes.get("ketos_migration_lock_held", False)
+        assert held is True
+        connection_b = MagicMock()
+        assert acquire_transaction_lock(connection_b, already_held=held) is None
+        connection_b.execute.assert_not_called()
+
+    with (
+        patch(f"{_SERVICE}._postgres_migration_lock") as lock_context,
+        patch(f"{_SERVICE}.command.ensure_version"),
+        patch(f"{_SERVICE}.command.upgrade", side_effect=nested_upgrade),
+        patch(f"{_SERVICE}.command.check"),
+    ):
+        lock_context.return_value.__enter__.return_value = None
+        service._run_migrations(should_initialize_alembic=True, fix=False)
 
 
 def test_sqlite_url_is_a_noop_no_engine_created():
@@ -89,8 +148,8 @@ def test_postgres_lock_waits_then_acquires_when_another_worker_holds():
 
     with (
         patch(_CREATE_ENGINE_PATH, return_value=engine_mock),
-        patch(f"{_SERVICE}.time.sleep") as sleep_mock,
-        patch(f"{_SERVICE}.time.monotonic", side_effect=[0.0, 0.0, 1.0]),
+        patch(f"{_LOCK}.time.sleep") as sleep_mock,
+        patch(f"{_LOCK}.time.monotonic", side_effect=[0.0, 0.0, 1.0]),
         _postgres_migration_lock(_PG_URL),
     ):
         pass
@@ -109,8 +168,8 @@ def test_postgres_lock_times_out_when_holder_never_releases():
     # monotonic: pre-call once, then once per loop iteration. Deadline crossed quickly.
     with (
         patch(_CREATE_ENGINE_PATH, return_value=engine_mock),
-        patch(f"{_SERVICE}.time.sleep"),
-        patch(f"{_SERVICE}.time.monotonic", side_effect=[0.0, 0.0, 999.0]),
+        patch(f"{_LOCK}.time.sleep"),
+        patch(f"{_LOCK}.time.monotonic", side_effect=[0.0, 0.0, 999.0]),
         pytest.raises(RuntimeError, match="Could not acquire migration advisory lock"),
         _postgres_migration_lock(_PG_URL),
     ):

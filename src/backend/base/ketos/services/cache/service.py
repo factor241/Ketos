@@ -4,14 +4,13 @@ import hashlib
 import hmac
 import os
 import pickle
-import tempfile
 import threading
 import time
 from collections import OrderedDict
-from pathlib import Path
 from typing import Generic, Union
 
 import dill
+from kfx.config.paths import ketos_temp_dir
 from kfx.log.logger import logger
 from kfx.services.cache.utils import CACHE_MISS
 from typing_extensions import override
@@ -39,7 +38,7 @@ def _warn_redis_experimental_once() -> None:
 
     # Cross-process deduplication: all workers forked from the same master
     # share the same getppid() value, so they all target the same sentinel.
-    sentinel = Path(tempfile.gettempdir()) / f"ketos_redis_cache_warned_{os.getppid()}.sentinel"
+    sentinel = ketos_temp_dir(create=True) / f"redis_cache_warned_{os.getppid()}.sentinel"
     try:
         fd = os.open(sentinel, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         os.close(fd)

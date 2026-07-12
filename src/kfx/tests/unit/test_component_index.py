@@ -286,7 +286,7 @@ class TestCachePath:
         result = _get_cache_path()
         assert isinstance(result, Path)
         assert result.name == "component_index.json"
-        assert "kfx" in str(result)
+        assert "ketos" in str(result)
 
 
 class TestSaveGeneratedIndex:

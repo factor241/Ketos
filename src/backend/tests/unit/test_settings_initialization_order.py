@@ -77,7 +77,7 @@ class TestSettingsInitializationOrder:
 
         # Create .env file
         env_file = tmp_path / ".env.test"
-        env_file.write_text("KETOS_SAVE_DB_IN_CONFIG_DIR=true\n")
+        env_file.write_text("KETOS_PORT=7999\n")
 
         # Step 1: Check settings not initialized
         assert is_settings_service_initialized() is False
@@ -89,7 +89,7 @@ class TestSettingsInitializationOrder:
         assert is_settings_service_initialized() is False
 
         # Step 4: Env var is available
-        assert os.environ.get("KETOS_SAVE_DB_IN_CONFIG_DIR") == "true"
+        assert os.environ.get("KETOS_PORT") == "7999"
 
         # Step 5: Initialize settings
         settings = get_settings_service()
@@ -99,8 +99,7 @@ class TestSettingsInitializationOrder:
         assert settings is not None
 
         # Clean up
-        if "KETOS_SAVE_DB_IN_CONFIG_DIR" in os.environ:
-            del os.environ["KETOS_SAVE_DB_IN_CONFIG_DIR"]
+        os.environ.pop("KETOS_PORT", None)
 
     def test_cli_check_pattern_success_case(self, tmp_path):
         """Test the CLI check pattern when settings are NOT initialized (success case)."""
@@ -113,7 +112,8 @@ class TestSettingsInitializationOrder:
         service_manager.services.clear()
 
         env_file = tmp_path / ".env.cli"
-        env_file.write_text("KETOS_DATABASE_URL=sqlite:///./test.db\n")
+        database_url = f"sqlite:///{tmp_path / 'test.db'}"
+        env_file.write_text(f"KETOS_DATABASE_URL={database_url}\n")
 
         # Verify settings are not initialized
         assert is_settings_service_initialized() is False
@@ -126,7 +126,7 @@ class TestSettingsInitializationOrder:
             else:
                 # This is the success case - load the env file
                 load_dotenv(env_file, override=True)
-                assert os.environ.get("KETOS_DATABASE_URL") == "sqlite:///./test.db"
+                assert os.environ.get("KETOS_DATABASE_URL") == database_url
 
         # Clean up
         if "KETOS_DATABASE_URL" in os.environ:

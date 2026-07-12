@@ -29,7 +29,6 @@ import json
 import os
 import socket
 import sqlite3
-import tempfile
 import time
 from contextlib import contextmanager, suppress
 from datetime import datetime
@@ -37,6 +36,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+from kfx.config.paths import ketos_temp_dir
 from kfx.log.logger import logger
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
@@ -53,7 +53,7 @@ if TYPE_CHECKING:
     from ketos.services.settings.service import SettingsService
 
 
-_DEFAULT_OUTBOX_ROOT = Path(tempfile.gettempdir()) / "ketos_telemetry_outbox"
+_DEFAULT_OUTBOX_ROOT = ketos_temp_dir() / "telemetry_outbox"
 _OUTBOX_DB_NAME = "outbox.sqlite"
 _OWNER_FILE_NAME = "owner.json"
 # Marker keys used to round-trip ``datetime`` and ``UUID`` through JSON

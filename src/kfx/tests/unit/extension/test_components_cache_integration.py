@@ -97,7 +97,12 @@ def test_decorate_template_stamps_serializable_extension_locale_contract() -> No
 async def test_import_extension_components_returns_empty_when_nothing_to_load() -> None:
     """No installed extensions and no inline paths -> empty mapping."""
     settings_service = _FakeSettingsService(components_path=[])
-    result = await import_extension_components(settings_service)
+    with (
+        patch("kfx.interface.components.load_installed_extensions", return_value=[]),
+        patch("kfx.interface.components.load_seed_extensions", return_value=[]),
+        patch("kfx.interface.components.load_dev_extensions", return_value=[]),
+    ):
+        result = await import_extension_components(settings_service)
     assert result == {}
 
 
@@ -164,7 +169,12 @@ async def test_template_failure_skips_component_without_aborting_bundle(tmp_path
 
     settings_service = _FakeSettingsService(components_path=[str(parent)])
     # No patch: real create_component_template will raise for the toy class.
-    result = await import_extension_components(settings_service)
+    with (
+        patch("kfx.interface.components.load_installed_extensions", return_value=[]),
+        patch("kfx.interface.components.load_seed_extensions", return_value=[]),
+        patch("kfx.interface.components.load_dev_extensions", return_value=[]),
+    ):
+        result = await import_extension_components(settings_service)
     # Bundle is registered, but no class survives template build.
     assert result == {} or result.get("alpha") == {}
 
@@ -174,8 +184,12 @@ async def test_components_path_empty_string_does_not_crash(monkeypatch) -> None:
     """Pathsep parsing edge case: empty segments don't break the inline walk."""
     monkeypatch.setenv("KETOS_COMPONENTS_PATH", os.pathsep)
     settings_service = _FakeSettingsService(components_path=[])
-    # No patch needed -- there's nothing to load.
-    result = await import_extension_components(settings_service)
+    with (
+        patch("kfx.interface.components.load_installed_extensions", return_value=[]),
+        patch("kfx.interface.components.load_seed_extensions", return_value=[]),
+        patch("kfx.interface.components.load_dev_extensions", return_value=[]),
+    ):
+        result = await import_extension_components(settings_service)
     assert result == {}
 
 

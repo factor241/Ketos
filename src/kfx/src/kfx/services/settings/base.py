@@ -157,7 +157,7 @@ class Settings(
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
-        return (CustomSource(settings_cls),)
+        return (CustomSource(settings_cls), init_settings)
 
 
 def save_settings_to_yaml(settings: Settings, file_path: str) -> None:
@@ -169,23 +169,16 @@ def save_settings_to_yaml(settings: Settings, file_path: str) -> None:
 async def load_settings_from_yaml(file_path: str) -> Settings:
     from kfx.log.logger import logger
 
-    # Check if a string is a valid path or a file name
-    if "/" not in file_path:
-        # Get current path
-        current_path = Path(__file__).resolve().parent
-        file_path_ = Path(current_path) / file_path
-    else:
-        file_path_ = Path(file_path)
-
-    async with aiofiles.open(file_path_.name, encoding="utf-8") as f:
+    file_path_ = Path(file_path).expanduser().resolve()
+    async with aiofiles.open(file_path_, encoding="utf-8") as f:
         content = await f.read()
         settings_dict = yaml.safe_load(content)
-        settings_dict = {k.upper(): v for k, v in settings_dict.items()}
+        settings_dict = {k.lower(): v for k, v in settings_dict.items()}
 
         for key in settings_dict:
             if key not in Settings.model_fields:
                 msg = f"Key {key} not found in settings"
                 raise KeyError(msg)
-            await logger.adebug(f"Loading {len(settings_dict[key])} {key} from {file_path}")
+            await logger.adebug(f"Loading {key} from {file_path_}")
 
     return await asyncio.to_thread(Settings, **settings_dict)

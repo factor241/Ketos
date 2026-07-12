@@ -3,14 +3,22 @@ from typing import Any
 
 from pydantic import BaseModel, field_validator
 
+from kfx.config.paths import ketos_config_dir, ketos_data_dir, ketos_temp_dir
+
 
 class PathSettings(BaseModel):
     """Filesystem paths Ketos reads from and writes to."""
 
     config_dir: str | None = None
-    """Base directory for Ketos data (db, logs, caches)."""
+    """Ketos configuration directory."""
 
-    knowledge_bases_dir: str | None = "~/.ketos/knowledge_bases"
+    data_dir: str | None = None
+    """Durable Ketos application data directory."""
+
+    temp_dir: str | None = None
+    """Ketos temporary-file directory."""
+
+    knowledge_bases_dir: str | None = None
     """The directory to store knowledge bases."""
 
     kb_allowed_folder_roots: list[str] = []
@@ -35,15 +43,7 @@ class PathSettings(BaseModel):
     @classmethod
     def set_ketos_dir(cls, value: Any) -> str:
         if not value:
-            from platformdirs import user_cache_dir
-
-            app_name = "ketos"
-            app_author = "ketos"
-
-            cache_dir = user_cache_dir(app_name, app_author)
-
-            value = Path(cache_dir)
-            value.mkdir(parents=True, exist_ok=True)
+            value = ketos_config_dir(create=True)
 
         if isinstance(value, str):
             value = Path(value)
@@ -52,3 +52,25 @@ class PathSettings(BaseModel):
             value.mkdir(parents=True, exist_ok=True)
 
         return str(value)
+
+    @field_validator("data_dir", mode="before")
+    @classmethod
+    def set_data_dir(cls, value: Any) -> str:
+        return cls._ensure_dir(value or ketos_data_dir(create=True))
+
+    @field_validator("temp_dir", mode="before")
+    @classmethod
+    def set_temp_dir(cls, value: Any) -> str:
+        return cls._ensure_dir(value or ketos_temp_dir(create=True))
+
+    @field_validator("knowledge_bases_dir", mode="before")
+    @classmethod
+    def set_knowledge_bases_dir(cls, value: Any, info) -> str:
+        root = Path(info.data.get("data_dir") or ketos_data_dir(create=True))
+        return cls._ensure_dir(value or root / "knowledge_bases")
+
+    @staticmethod
+    def _ensure_dir(value: Any) -> str:
+        path = Path(value).expanduser().resolve()
+        path.mkdir(parents=True, exist_ok=True)
+        return str(path)

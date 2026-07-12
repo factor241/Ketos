@@ -1,0 +1,26 @@
+{
+  "name": "Ketos Simple Agent",
+  "description": "Canonical Ketos Stepflow fixture for agent compilation.",
+  "data": {
+    "nodes": [
+      {
+        "id": "Agent-oYRYa",
+        "data": {
+          "type": "Agent",
+          "node": {
+            "display_name": "Agent",
+            "description": "Minimal deterministic agent fixture.",
+            "base_classes": ["Message"],
+            "template": {
+              "code": {"value": "from kfx.custom.custom_component.component import Component\nfrom kfx.io import MessageTextInput, Output\nfrom kfx.schema.message import Message\n\nclass Agent(Component):\n    display_name = \"Agent\"\n    inputs = [MessageTextInput(name=\"input_value\", display_name=\"Input\"), MessageTextInput(name=\"session_id\", display_name=\"Session\", value=\"test-session\")]\n    outputs = [Output(display_name=\"Response\", name=\"response\", method=\"response\")]\n    async def response(self):\n        return Message(text=\"4\")\n"},
+              "input_value": {"type": "str", "value": ""},
+              "session_id": {"type": "str", "value": "test-session"}
+            },
+            "outputs": [{"name": "response", "method": "response", "types": ["Message"]}]
+          }
+        }
+      }
+    ],
+    "edges": []
+  }
+}

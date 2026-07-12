@@ -5,7 +5,7 @@ import sys
 import types
 
 import pytest
-from lfx_docling.components.docling.chunk_docling_document import (
+from kfx_docling.components.docling.chunk_docling_document import (
     ChunkDoclingDocumentComponent,
     _load_docling_chunker_dependencies,
 )
@@ -115,11 +115,11 @@ class TestChunkDoclingDocumentComponentHybridChunker:
             huggingface_tokenizer_module,
         )
         monkeypatch.setattr(
-            "lfx_docling.components.docling.chunk_docling_document._load_docling_chunker_dependencies",
+            "kfx_docling.components.docling.chunk_docling_document._load_docling_chunker_dependencies",
             lambda: (DummyDocMeta, DummyHierarchicalChunker),
         )
         monkeypatch.setattr(
-            "lfx_docling.components.docling.chunk_docling_document.extract_docling_documents",
+            "kfx_docling.components.docling.chunk_docling_document.extract_docling_documents",
             lambda *_args, **_kwargs: ([], None),
         )
 

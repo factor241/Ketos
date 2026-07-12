@@ -1,12 +1,12 @@
-# lfx-ibm
+# kfx-ibm
 
 IBM components — Db2 Vector Store plus watsonx.ai LLM and embeddings — as a
-standalone Langflow Extension Bundle.
+standalone Ketos Extension Bundle.
 
 This bundle ships three components:
 
 * **`DB2VectorStoreComponent`** — wraps the `DB2VS` LangChain-compatible
-  vector store and exposes Db2's native vector search through Langflow's
+  vector store and exposes Db2's native vector search through Ketos's
   standard vector-store palette entry.
 * **`WatsonxAIComponent`** — chat/text-generation against IBM watsonx.ai
   foundation models via `langchain-ibm`'s `ChatWatsonx`.
@@ -19,11 +19,11 @@ It follows the documented porting recipe in
 ## Install
 
 ```bash
-pip install lfx-ibm
+pip install kfx-ibm
 ```
 
-The bundle is registered automatically via the `langflow.extensions`
-entry-point. After install, restart your Langflow server; the three
+The bundle is registered automatically via the `ketos.extensions`
+entry-point. After install, restart your Ketos server; the three
 components appear in the palette under the `ibm` bundle group.
 
 > **Platform notes:**
@@ -42,12 +42,12 @@ components appear in the palette under the `ibm` bundle group.
 ```bash
 cd src/bundles/ibm
 pip install -e .
-lfx extension validate src/lfx_ibm
+kfx extension validate src/kfx_ibm
 ```
 
 ## Manifest
 
-The extension manifest is shipped at `src/lfx_ibm/extension.json` and
+The extension manifest is shipped at `src/kfx_ibm/extension.json` and
 points at the bundle at `components/ibm`. Components register under the
 canonical namespaced IDs:
 
@@ -60,7 +60,7 @@ canonical namespaced IDs:
 Saved flows referencing the legacy bare class names
 (`DB2VectorStoreComponent`, `WatsonxAIComponent`,
 `WatsonxEmbeddingsComponent`) or the old import paths
-(`lfx.components.ibm.<module>.<Class>` and the package-level
-`lfx.components.ibm.<Class>` forms) are rewritten to the new namespaced
+(`kfx.components.ibm.<module>.<Class>` and the package-level
+`kfx.components.ibm.<Class>` forms) are rewritten to the new namespaced
 IDs by the migration table in
-`src/lfx/src/lfx/extension/migration/migration_table.json`.
+`src/kfx/src/kfx/extension/migration/migration_table.json`.

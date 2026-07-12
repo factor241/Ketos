@@ -1,0 +1,44 @@
+# Ketos Service Configuration
+#
+# This file tells KFX to use Ketos's full-featured service implementations
+# instead of the minimal/noop services built into KFX.
+#
+# Usage:
+#   1. Copy this file to your KETOS_CONFIG_DIR as kfx.toml
+#   2. Or add to pyproject.toml under [tool.kfx.services]
+#
+# The services will be automatically discovered and loaded when you run:
+#   - ketos run
+#   - kfx serve (when run from ketos project)
+
+[services]
+# Core Services - Full-featured Ketos implementations
+database_service = "ketos.services.database.service:DatabaseService"
+storage_service = "ketos.services.storage.local:LocalStorageService"
+cache_service = "ketos.services.cache.service:ThreadingInMemoryCache"
+
+# Authentication & Session Management
+auth_service = "ketos.services.auth.service:AuthService"
+session_service = "ketos.services.session.service:SessionService"
+
+# Chat & Communication
+chat_service = "ketos.services.chat.service:ChatService"
+
+# State & Data Management
+state_service = "ketos.services.state.service:StateService"
+variable_service = "ketos.services.variable.service:VariableService"
+
+# Background Processing
+task_service = "ketos.services.task.service:TaskService"
+job_queue_service = "ketos.services.job_queue.service:JobQueueService"
+
+# Marketplace & Components
+store_service = "ketos.services.store.service:StoreService"
+shared_component_cache_service = "ketos.services.shared_component_cache.service:SharedComponentCacheService"
+
+# Observability
+telemetry_service = "ketos.services.telemetry.service:TelemetryService"
+tracing_service = "ketos.services.tracing.service:TracingService"
+
+# Note: settings_service is NOT configurable - it always uses the built-in implementation
+# Note: mcp_composer_service uses the kfx implementation by default

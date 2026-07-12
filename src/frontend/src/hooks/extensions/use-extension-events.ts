@@ -223,7 +223,6 @@ export function useExtensionEvents(): UseExtensionEventsReturn {
               list: [t("extensions.reloadFailed")],
             });
           }
-          // flow_migrated: no-op for Phase 1; future tickets wire to canvas
         }
 
         if (!isActiveRef.current) {

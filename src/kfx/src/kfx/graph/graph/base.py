@@ -1255,71 +1255,10 @@ class Graph:
         Returns:
             Graph: The created graph.
         """
-        from kfx.extension.migration import migrate_flow_payload
         from kfx.utils.flow_validation import validate_flow_for_current_settings
 
         if "data" in payload:
             payload = payload["data"]
-        # Rewrite legacy component references in place against the append-only
-        # extension migration table.  Best-effort: a corrupt table or unmapped
-        # reference produces typed errors on the report but never raises, so
-        # flow load remains as forgiving as it was pre-Phase-A.
-        migration_report = migrate_flow_payload(payload)
-        # Surface every typed error from the report through the standard
-        # logger so unmapped or ambiguous component references are not
-        # silently dropped.  We log rather than raise because the
-        # rewriter is intentionally tolerant -- a partially-broken flow
-        # still loads, and the frontend renders missing nodes as red
-        # placeholders.  The structured ``code``/``hint`` come from
-        # ``ExtensionError`` so log scrapers can parse the payload.
-        for migration_error in migration_report.errors:
-            # Use %s-style positional formatting consistent with the rest of
-            # the extension subsystem so the rendered message is readable
-            # without relying on structlog's keyword-binding behavior.
-            logger.warning(
-                "extension migration: code=%s flow_id=%s location=%s hint=%s message=%s",
-                migration_error.code,
-                flow_id,
-                migration_error.location,
-                migration_error.hint,
-                migration_error.message,
-            )
-        # Emit extension events so the frontend can surface migration results.
-        try:
-            from kfx.services.deps import get_extension_events_service
-
-            _svc = get_extension_events_service()
-            if _svc is not None:
-                # Per-user keyspace so flow_id / migration error details only
-                # reach the user that loaded the flow; fall back to "global"
-                # for unauthenticated paths (CLI, tests, single-user dev).
-                _keyspace = f"user:{user_id}" if user_id else "global"
-                if migration_report.any_rewritten:
-                    _svc.emit(
-                        "flow_migrated",
-                        {
-                            "flow_id": str(flow_id) if flow_id else None,
-                            "rewritten_count": migration_report.rewritten_count,
-                        },
-                        keyspace=_keyspace,
-                    )
-                for migration_error in migration_report.errors:
-                    _svc.emit(
-                        "extension_error",
-                        {
-                            "flow_id": str(flow_id) if flow_id else None,
-                            "code": migration_error.code,
-                            "message": migration_error.message,
-                            "hint": migration_error.hint,
-                            "location": migration_error.location,
-                        },
-                        keyspace=_keyspace,
-                    )
-        except Exception:  # noqa: BLE001 -- best-effort emit; never break flow load on an event-bus failure
-            logger.warning(
-                "extension.event_emit_failed: failed to emit migration events in from_payload.",
-                exc_info=True,
-            )
         # Defense-in-depth: validate here so that no code path can construct
         # a graph with blocked/custom components, even if an API endpoint
         # forgets its own pre-check. Ideally this would live only at the API

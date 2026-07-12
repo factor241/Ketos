@@ -35,7 +35,7 @@ Slot semantics
 
 The registry stores both ``official`` and ``extra`` slot bundles in the
 same map keyed by bundle name.  Bundle names are unique across slots in
-v0; the component loader and ``discover_inline_bundles`` both enforce
+v1; the component loader and ``discover_inline_bundles`` both enforce
 this upstream so the registry does not need to disambiguate by slot.
 """
 

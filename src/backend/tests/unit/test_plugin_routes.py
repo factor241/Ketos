@@ -4,6 +4,7 @@ Ensures that plugins loaded via the ketos.plugins entry-point group
 cannot overwrite or shadow existing Ketos routes.
 """
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -162,6 +163,13 @@ class TestPluginAppWrapper:
 
 class TestLoadPluginRoutes:
     """Tests for load_plugin_routes with mocked entry_points."""
+
+    def test_route_loader_has_no_extension_component_compatibility_filter(self):
+        """The route-plugin contract consumes route registrars directly."""
+        source = (
+            Path(__file__).resolve().parents[2] / "base" / "ketos" / "plugin_routes.py"
+        ).read_text(encoding="utf-8")
+        assert "filter_component_entry_points" not in source
 
     def test_no_crash_when_no_plugins(self):
         """When there are no entry points, load_plugin_routes does not crash."""

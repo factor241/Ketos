@@ -1,4 +1,4 @@
-"""Smoke tests for scripts/migrate/check_bundle_api_changelog.py.
+"""Smoke tests for the current Bundle API changelog contract.
 
 Exercise the script as a black-box subprocess.  Each test sets up a
 synthetic git repo so we don't depend on the real working tree's diff
@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[6]
+REPO_ROOT = Path(__file__).resolve().parents[5]
 SCRIPT = REPO_ROOT / "scripts" / "migrate" / "check_bundle_api_changelog.py"
 
 

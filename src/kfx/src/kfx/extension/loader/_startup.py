@@ -30,7 +30,7 @@ def load_installed_extensions(
     """Discover all installed Extensions and load them at the @official slot.
 
     Startup-time discovery flow: walks every distribution in ``distributions``
-    (defaults to the live environment), finds those that ship a v0 manifest,
+    (defaults to the live environment), finds those that ship a v1 manifest,
     and calls :func:`load_extension` on each of their package roots.
 
     Cross-source bundle-name dedupe across installed distributions: two
@@ -116,7 +116,7 @@ def load_seed_extensions(
     deployment guide where an operator stages bundles for startup without
     going through pip.  Default location is ``/opt/ketos/bundles``;
     override via ``$KETOS_SEED_DIR``.  Each immediate subdirectory that
-    ships a v0 manifest becomes one Extension at the @official slot.
+    ships a v1 manifest becomes one Extension at the @official slot.
 
     Args:
         seed_dir_env: Test seam.  ``None`` reads ``$KETOS_SEED_DIR``

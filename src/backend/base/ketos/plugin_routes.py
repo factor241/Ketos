@@ -9,7 +9,6 @@ from importlib.metadata import entry_points
 from typing import Any
 
 from fastapi import FastAPI
-from kfx.extension import filter_component_entry_points
 from kfx.log.logger import logger
 
 
@@ -135,19 +134,8 @@ def load_plugin_routes(app: FastAPI) -> None:
     reserved = _get_route_keys(app)
     wrapper = _PluginAppWrapper(app, reserved)
 
-    raw_eps = list(entry_points(group="ketos.plugins"))
-    # Manifest-first precedence: if a distribution ships an
-    # extension manifest, its COMPONENT-typed entry-points are skipped here;
-    # the Extension System loader registers those components via the
-    # manifest. Non-component entry-points (route registrars like the ones
-    # this loader expects) on the same distribution still load normally.
-    kept_eps, skipped_eps = filter_component_entry_points(raw_eps)
-    for skipped in skipped_eps:
-        logger.info(
-            "Skipping component entry-point '%s' (manifest-first precedence; loaded via extension instead)",
-            skipped.name,
-        )
-    for ep in sorted(kept_eps, key=lambda e: e.name):
+    route_entry_points = list(entry_points(group="ketos.plugins"))
+    for ep in sorted(route_entry_points, key=lambda e: e.name):
         try:
             plugin_register = ep.load()
         except Exception:  # noqa: BLE001

@@ -1,35 +1,14 @@
-"""Manifest-first precedence over ``ketos.plugins`` entry-points.
-
-This is the bridge between the new manifest-based loader and the legacy
-``ketos.plugins`` entry-point system that third parties already use to
-register components.  The rule is simple: if a distribution ships an
-extension manifest, the manifest is the source of truth for its
-components; its ``ketos.plugins`` *component* entry-points are skipped
-to avoid double registration.  Non-component entry-points (services,
-routes) on the same distribution are unaffected -- the caller's loop is
-responsible for that distinction.
-
-The installed-package / seed-dir discovery flow consumes the same
-primitives at server startup to drive the read-only @official slot.  The
-helpers live in their own module so that downstream consumer gets a stable
-import surface to reach for.
-"""
+"""Installed-distribution discovery primitives for canonical Extensions."""
 
 from __future__ import annotations
 
-import importlib.util
-import logging
 import re
 from importlib import metadata as importlib_metadata
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from kfx.extension.loader._detection import is_component_subclass
-
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
-
-logger = logging.getLogger(__name__)
+    from collections.abc import Iterable
 
 
 # ---------------------------------------------------------------------------
@@ -329,149 +308,7 @@ def manifest_owning_distributions(
     Two distributions sharing a canonical name (broken venv) collapse to a
     single entry in the returned set; the typed ``duplicate-distribution``
     error is emitted by :func:`load_installed_extensions`, not this
-    primitive. Callers that consume this set in isolation (e.g. directly
-    feeding ``filter_component_entry_points``) get the conservative
-    behavior -- both distributions' component entry-points are skipped --
-    but should also call ``load_installed_extensions`` to surface the
-    diagnostic to operators.
+    primitive. Callers should also call ``load_installed_extensions`` to
+    surface duplicate-distribution diagnostics to operators.
     """
     return frozenset(installed_extension_roots(distributions=distributions).keys())
-
-
-def filter_plugin_entry_points(
-    entry_points: Iterable[importlib_metadata.EntryPoint],
-    *,
-    skip: Iterable[str] | None = None,
-) -> tuple[list[importlib_metadata.EntryPoint], list[importlib_metadata.EntryPoint]]:
-    """Partition ``ketos.plugins`` entry-points by manifest precedence.
-
-    Args:
-        entry_points: Entry points from ``importlib.metadata.entry_points``.
-        skip: Optional override of canonical distribution names to skip.
-            When ``None``, defaults to :func:`manifest_owning_distributions`.
-
-    Returns:
-        ``(kept, skipped)``.  Callers should load ``kept`` via the legacy
-        path and ignore ``skipped``; the manifest layer will load those
-        distributions' components.
-
-    The partition is stable: ordering of inputs is preserved within each
-    output list.  Entry points whose owning distribution cannot be
-    determined are kept (we err on the side of compatibility).
-    """
-    skip_set = frozenset(skip) if skip is not None else manifest_owning_distributions()
-
-    kept: list[importlib_metadata.EntryPoint] = []
-    skipped: list[importlib_metadata.EntryPoint] = []
-    for ep in entry_points:
-        dist = getattr(ep, "dist", None)
-        if dist is None:
-            kept.append(ep)
-            continue
-        canonical = _distribution_canonical_name(dist)
-        if canonical is None:
-            kept.append(ep)
-            continue
-        if canonical in skip_set:
-            skipped.append(ep)
-        else:
-            kept.append(ep)
-    return kept, skipped
-
-
-def _entry_point_loads_to_component(ep: importlib_metadata.EntryPoint) -> bool:
-    """Try to decide whether ``ep`` resolves to a Component subclass.
-
-    Lazy: tries ``importlib.util.find_spec`` first so a filter-time check
-    does NOT execute arbitrary third-party module-level code as a side
-    effect.  Only falls through to ``ep.load()`` if the spec lookup
-    cannot disambiguate (e.g. the entry-point points at a class inside
-    a module rather than at the module itself).
-
-    The sibling helper ``_manifest_via_entry_point`` (above) is explicit
-    that manifest discovery must not trigger module-level side effects;
-    this predicate now matches that posture for the runtime filter.
-
-    Any load-time failure returns False so the entry-point is treated as
-    non-component (kept) by the caller.  The narrow ``Exception`` (no
-    longer ``BaseException``) intentionally lets ``SystemExit`` and
-    ``KeyboardInterrupt`` propagate so a CTRL-C during startup is not
-    silently swallowed by the filter pass.
-    """
-    # Fast path: most component entry-points point at a module-level
-    # symbol (``my_pkg.components.thing:ThingComponent``).  importlib's
-    # find_spec can locate the module without executing it, so we can
-    # skip the eager load in the common case.  The name component of the
-    # entry-point's value (the bit after the colon, if present) is what
-    # tells us whether the symbol is a class -- but find_spec only gives
-    # us module presence, not contents, so we still need ep.load() to
-    # confirm a class.  The win here is that for entry-points whose
-    # module clearly does NOT exist (broken install, missing dependency)
-    # we short-circuit to False before importing anything.
-    try:
-        module_name, _, _ = ep.value.partition(":")
-        if module_name and importlib.util.find_spec(module_name) is None:
-            return False
-    except (ValueError, ImportError, AttributeError):
-        # Malformed ep.value or import-time error during find_spec.  Fall
-        # through to the eager load below so the existing behaviour is
-        # preserved for unusual entry-point shapes.
-        pass
-
-    try:
-        value = ep.load()
-    except Exception as exc:  # noqa: BLE001
-        # Same trade-off as the bundle loader, but narrower: at startup
-        # we never want one bad entry-point to abort the whole filter
-        # pass, but we do not swallow SystemExit/KeyboardInterrupt.
-        logger.debug("Could not load entry-point %r for component check: %s", ep.name, exc)
-        return False
-    return is_component_subclass(value)
-
-
-def filter_component_entry_points(
-    entry_points: Iterable[importlib_metadata.EntryPoint],
-    *,
-    skip: Iterable[str] | None = None,
-    is_component: Callable[[importlib_metadata.EntryPoint], bool] | None = None,
-) -> tuple[list[importlib_metadata.EntryPoint], list[importlib_metadata.EntryPoint]]:
-    """Type-aware partition: skip COMPONENT entry-points on manifest-shipping dists.
-
-    Where :func:`filter_plugin_entry_points` partitions by distribution name
-    only, this function additionally inspects each entry-point's loaded
-    value: only those that load to a Component subclass are eligible for
-    skipping. This is the function runtime callers (``plugin_routes`` etc.)
-    should use so that non-component entry-points (routes, services, hooks)
-    on a manifest-shipping distribution still load through the legacy path,
-    per the AC's "non-component entry-points are unaffected" promise.
-
-    Args:
-        entry_points: Entry points from ``importlib.metadata.entry_points``.
-        skip: Canonical distribution names whose component entry-points
-            should be skipped. Defaults to
-            :func:`manifest_owning_distributions`.
-        is_component: Predicate that loads + inspects an EP. Defaults to
-            :func:`_entry_point_loads_to_component`. Test seam.
-
-    Returns:
-        ``(kept, skipped)``. Stable ordering preserved within each list.
-    """
-    skip_set = frozenset(skip) if skip is not None else manifest_owning_distributions()
-    is_component_fn = is_component if is_component is not None else _entry_point_loads_to_component
-
-    kept: list[importlib_metadata.EntryPoint] = []
-    skipped: list[importlib_metadata.EntryPoint] = []
-    for ep in entry_points:
-        dist = getattr(ep, "dist", None)
-        if dist is None:
-            kept.append(ep)
-            continue
-        canonical = _distribution_canonical_name(dist)
-        if canonical is None:
-            kept.append(ep)
-            continue
-        if canonical in skip_set and is_component_fn(ep):
-            skipped.append(ep)
-        else:
-            kept.append(ep)
-    return kept, skipped

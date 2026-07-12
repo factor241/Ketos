@@ -4,7 +4,7 @@ This module wires the discovery + detection layers together and exposes the
 two public entry points the rest of Ketos consumes:
 
     - :func:`load_extension` for an installed Extension (or filesystem dev
-      checkout) that ships a v0 manifest.  Loads at the ``official`` slot.
+      checkout) that ships a v1 manifest. Loads at the ``official`` slot.
     - :func:`discover_inline_bundles` for ``KETOS_COMPONENTS_PATH`` --
       every immediate subfolder of every path is one Bundle at the
       ``extra`` slot, with first-wins resolution across paths.
@@ -376,7 +376,7 @@ def load_extension(
             ExtensionError(
                 code="multi-bundle-unsupported",
                 message=(
-                    f"Extension {manifest.id!r} declares {len(manifest.bundles)} bundles; v0 accepts exactly one. "
+                    f"Extension {manifest.id!r} declares {len(manifest.bundles)} bundles; v1 accepts exactly one. "
                     "Multi-bundle support is deferred to a future milestone."
                 ),
                 location=str(source.path),
@@ -415,7 +415,7 @@ def load_extension(
 
 
 # Inline-bundle metadata, optionally provided as ``bundle.json`` at the
-# bundle's root.  Recognised keys in v0:
+# bundle's root. Recognised keys in v1:
 #   - ``id``: optional extension id; consumed by callers that need to
 #     attribute components back to a stable identifier separate from the
 #     directory name.  Validated against the same regex as the manifest

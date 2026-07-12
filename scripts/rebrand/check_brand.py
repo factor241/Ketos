@@ -1,25 +1,56 @@
-#!/usr/bin/env python3
-"""Validate Ketos brand contracts and scan Git-tracked files for legacy residue.
-
-The scanner intentionally treats ``git ls-files`` as its scope boundary.  Build
-output, caches, virtual environments, and other untracked content must never
-change a release-gate result.
-"""
+"""Enforce the Ketos destructive cutover and exact legal provenance contract."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import re
 import subprocess
 import sys
+import tarfile
+import zipfile
 from collections import Counter
+from dataclasses import dataclass
+from itertools import chain
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 import yaml
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+PROFILES = ("stage0", "cutover")
+BASELINE_FIELDS = (
+    "brand_file_count",
+    "brand_match_count",
+    "brand_path_count",
+    "executor_file_count",
+    "executor_match_count",
+    "executor_path_count",
+    "upstream_endpoint_count",
+    "scan_issue_count",
+)
+MAX_ARCHIVE_DEPTH = 3
+MAX_ARCHIVE_MEMBER_BYTES = 32 * 1024 * 1024
+MAX_ARCHIVE_MEMBERS = 10_000
+LEGAL_FILES = {"LICENSE", "NOTICE", "src/ketos-stepflow/NOTICE"}
+LEGAL_FIELDS = ("path", "line", "expected_text", "sha256")
+LEGAL_FILE_FIELDS = ("path", "sha256")
+
+_PRODUCT_PATTERN = rb"lang" + rb"[-_ ]?" + rb"flow"
+_EXECUTOR_PATTERN = rb"(?<![A-Za-z0-9])l" + rb"fx(?![A-Za-z0-9])"
+_PRODUCT_RE = re.compile(_PRODUCT_PATTERN, re.IGNORECASE)
+_EXECUTOR_RE = re.compile(_EXECUTOR_PATTERN, re.IGNORECASE)
+_UPSTREAM_ENDPOINT_RE = re.compile(
+    rb"(?:https?://api\.sc" + rb"arf\.sh/v1/pixel|discord\.(?:gg|com/invite)/EqksyE2EX9)",
+    re.IGNORECASE,
+)
+_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 BRAND_CONTRACT_FIELDS = (
     "product_name",
@@ -33,105 +64,42 @@ BRAND_CONTRACT_FIELDS = (
     "python_namespace",
     "sdk_namespace",
     "stepflow_namespace",
+    "extension_entry_point",
+    "extension_tool_table",
     "env_prefix",
+    "config_home",
+    "application_data_home",
+    "database_file",
+    "environment_file",
+    "redis_prefix",
+    "celery_queue",
+    "header_prefix",
+    "stepflow_route_prefix",
+    "stepflow_type_prefix",
+    "stepflow_type_marker",
+    "local_web_url",
+    "local_api_url",
     "site_url",
     "docs_url",
     "repository_url",
     "issues_url",
-    "support_url",
+    "schema_base_url",
     "container_registry_namespace",
-    "package_publisher_identity",
-    "social_links",
-    "telemetry_url",
-    "store_url",
-    "schema_base_url",
-    "legal_entity",
-    "copyright_holder",
-    "trademark_owner",
-    "security_contact",
-    "vulnerability_report_url",
-    "moderation_contact",
-    "privacy_policy_url",
-    "data_controller",
-    "analytics_owner",
-    "analytics_properties",
-    "search_owner",
-    "chat_widget_owner",
-    "signing_identity",
-    "logo_source_sha256",
-    "logo_rights_approved_by",
-    "logo_rights_approved_date",
-    "wordmark_font_license",
-)
-
-LEGACY_CATEGORIES = (
-    "import_alias",
-    "env_alias",
-    "data_path",
-    "historical_migration",
-    "historical_fixture",
-    "wire_protocol",
-    "external_resource_id",
-    "legal_provenance",
-)
-
-LEGACY_RESIDUE_FIELDS = (
-    "path",
-    "match",
-    "category",
-    "owner",
-    "reason",
-    "compatibility_test",
-    "removal_condition",
-)
-
-BASELINE_FIELDS = (
-    "commit",
-    "brand_file_count",
-    "brand_line_count",
-    "brand_path_count",
-    "official_url_file_count",
-    "env_tokens",
-    "paths",
-)
-
-URL_FIELDS = (
-    "site_url",
-    "docs_url",
-    "repository_url",
-    "issues_url",
     "support_url",
     "telemetry_url",
     "store_url",
-    "schema_base_url",
-    "vulnerability_report_url",
-    "privacy_policy_url",
+    "social_links",
+    "analytics_properties",
+    "search_url",
+    "chat_widget_url",
+    "logo_source_sha256",
 )
-
-_BRAND_RE = re.compile(r"lang[-_]?flow", re.IGNORECASE)
-_ENV_RE = re.compile(r"\bLANGFLOW_[A-Z0-9_]+\b")
-_OFFICIAL_URL_RE = re.compile(
-    r"(?:"
-    r"https?://(?:[a-z0-9-]+\.)*langflow\.org(?:[/:?#]|$)|"
-    r"https?://(?:[a-z0-9-]+\.)*langflow\.store(?:[/:?#]|$)|"
-    r"https?://docs\.langflow\.org(?:[/:?#]|$)|"
-    r"https?://github\.com/langflow-ai(?:/|$)|"
-    r"https?://(?:www\.)?(?:x|twitter)\.com/langflow(?:_ai)?(?:[/?#]|$)|"
-    r"https?://(?:www\.)?youtube\.com/@?langflow(?:[/?#]|$)|"
-    r"https?://(?:www\.)?discord\.(?:gg|com/invite)/EqksyE2EX9(?=[/?#\s\"'<>]|$)|"
-    r"https?://api\.scarf\.sh/v1/pixel(?=[/?#\s\"'<>]|$)"
-    r")",
-    re.IGNORECASE,
-)
-_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
-_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-_PLACEHOLDER_PARTS = ("placeholder", "example.com", "example.org", "example.net", "localhost", "127.0.0.1")
 
 CANONICAL_BRAND_VALUES: dict[str, object] = {
     "product_name": "Ketos",
     "product_slug": "ketos",
-    "executor_name": None,
-    "executor_distribution": None,
+    "executor_name": "KFX",
+    "executor_distribution": "kfx",
     "python_distribution": "ketos",
     "python_base_distribution": "ketos-base",
     "sdk_distribution": "ketos-sdk",
@@ -139,70 +107,57 @@ CANONICAL_BRAND_VALUES: dict[str, object] = {
     "python_namespace": "ketos",
     "sdk_namespace": "ketos_sdk",
     "stepflow_namespace": "ketos_stepflow",
+    "extension_entry_point": "ketos.extensions",
+    "extension_tool_table": "tool.ketos.extension",
     "env_prefix": "KETOS_",
+    "config_home": "~/.config/ketos",
+    "application_data_home": "~/.ketos",
+    "database_file": "ketos.db",
+    "environment_file": "ketos-environments.toml",
+    "redis_prefix": "ketos:",
+    "celery_queue": "ketos",
+    "header_prefix": "x-ketos-",
+    "stepflow_route_prefix": "/ketos/",
+    "stepflow_type_prefix": "ketos_",
+    "stepflow_type_marker": "__ketos_type__",
+    "local_web_url": "http://localhost:3000",
+    "local_api_url": "http://localhost:7860",
+    "site_url": "https://ketos.test",
+    "docs_url": "https://docs.ketos.test",
+    "repository_url": "https://git.ketos.test/ketos/ketos",
+    "issues_url": "https://git.ketos.test/ketos/ketos/issues",
+    "schema_base_url": "https://schemas.ketos.test",
+    "container_registry_namespace": "registry.ketos.test/ketos",
+    "support_url": None,
+    "telemetry_url": None,
+    "store_url": None,
+    "social_links": [],
+    "analytics_properties": [],
+    "search_url": None,
+    "chat_widget_url": None,
+    "logo_source_sha256": "cb895e5fafde4006cc17872c8537bbd4b3ba8c0f4b9304bcff2303184e0eaca3",
 }
-
-MIGRATION_DEBT_KINDS = ("user_visible", "official_url", "filename")
-DEBT_METADATA_FIELDS = ("owner", "reason", "compatibility_test", "removal_condition")
-MIGRATION_DEBT_GROUP_FIELDS = (*DEBT_METADATA_FIELDS, "occurrences")
-PROFILES = ("stage0", "final", "release")
-
-MIGRATION_DEBT_METADATA = {
-    "user_visible": {
-        "owner": "product-rebrand",
-        "reason": "Frozen user-visible Langflow references pending product-copy migration.",
-        "compatibility_test": "scripts/rebrand/tests/test_stage0_architecture.py",
-        "removal_condition": "Remove after every frozen user-visible reference is migrated to Ketos.",
-    },
-    "official_url": {
-        "owner": "integration-rebrand",
-        "reason": "Frozen upstream-owned URLs pending endpoint migration or explicit removal.",
-        "compatibility_test": "scripts/rebrand/tests/test_stage0_architecture.py",
-        "removal_condition": "Remove after every frozen upstream URL is replaced or retired.",
-    },
-    "filename": {
-        "owner": "package-rebrand",
-        "reason": "Frozen Langflow filenames pending compatibility-safe path migration.",
-        "compatibility_test": "scripts/rebrand/tests/test_stage0_architecture.py",
-        "removal_condition": "Remove after every frozen filename is migrated with compatibility preserved.",
-    },
-}
-
-TECHNICAL_DEBT_METADATA = {
-    "import_alias": ("package-compatibility", "Historical Python import compatibility."),
-    "env_alias": ("settings-compatibility", "Historical environment-variable compatibility."),
-    "data_path": ("storage-compatibility", "Historical persisted-path compatibility."),
-    "historical_migration": ("database-migrations", "Immutable historical migration provenance."),
-    "historical_fixture": ("test-fixtures", "Historical compatibility fixture provenance."),
-    "wire_protocol": ("protocol-compatibility", "Historical wire-protocol compatibility."),
-    "external_resource_id": ("external-integrations", "Historical external resource identity."),
-    "legal_provenance": ("legal-review", "Historical legal provenance requiring explicit review."),
-}
-TECHNICAL_DEBT_GROUP_FIELDS = (*DEBT_METADATA_FIELDS, "occurrences")
 
 
 class _UniqueKeyLoader(yaml.SafeLoader):
-    """Safe YAML loader which rejects duplicate mapping keys."""
+    """Safe loader that rejects duplicate mapping keys."""
 
 
 def _construct_unique_mapping(
     loader: _UniqueKeyLoader,
     node: yaml.MappingNode,
-    deep: bool = False,  # noqa: FBT001, FBT002 - callback signature is defined by PyYAML.
+    deep: bool = False,  # noqa: FBT001, FBT002 - PyYAML callback signature.
 ) -> dict[Any, Any]:
-    mapping: dict[Any, Any] = {}
+    result: dict[Any, Any] = {}
     for key_node, value_node in node.value:
         key = loader.construct_object(key_node, deep=deep)
-        if key in mapping:
+        if key in result:
             context = "while constructing a mapping"
             raise yaml.constructor.ConstructorError(
-                context,
-                node.start_mark,
-                f"duplicate key: {key!r}",
-                key_node.start_mark,
+                context, node.start_mark, f"duplicate key: {key!r}", key_node.start_mark
             )
-        mapping[key] = loader.construct_object(value_node, deep=deep)
-    return mapping
+        result[key] = loader.construct_object(value_node, deep=deep)
+    return result
 
 
 _UniqueKeyLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_unique_mapping)
@@ -211,10 +166,7 @@ _UniqueKeyLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
 def _load_mapping(path: Path | str) -> tuple[dict[str, Any] | None, list[str]]:
     contract_path = Path(path)
     try:
-        value = yaml.load(
-            contract_path.read_text(encoding="utf-8"),
-            Loader=_UniqueKeyLoader,  # noqa: S506 - subclass of SafeLoader; rejects duplicate keys.
-        )
+        value = yaml.load(contract_path.read_text(encoding="utf-8"), Loader=_UniqueKeyLoader)  # noqa: S506
     except (OSError, UnicodeError, yaml.YAMLError) as exc:
         return None, [f"{contract_path}: invalid YAML: {exc}"]
     if not isinstance(value, dict) or any(not isinstance(key, str) for key in value):
@@ -222,263 +174,143 @@ def _load_mapping(path: Path | str) -> tuple[dict[str, Any] | None, list[str]]:
     return value, []
 
 
-def _exact_fields(value: dict[str, Any], fields: tuple[str, ...], context: str) -> list[str]:
-    errors = [f"{context}.{field}: missing required field" for field in fields if field not in value]
-    errors.extend(f"{context}.{field}: unknown field" for field in sorted(set(value) - set(fields)))
-    return errors
-
-
-def _valid_https_url(value: object) -> bool:
-    if not isinstance(value, str) or not value or value != value.strip():
-        return False
-    try:
-        parsed = urlsplit(value)
-        host = (parsed.hostname or "").lower()
-    except ValueError:
-        return False
-    if parsed.scheme != "https" or not host or parsed.username or parsed.password:
-        return False
-    lowered = value.lower()
-    if any(marker in lowered for marker in _PLACEHOLDER_PARTS):
-        return False
-    if host.endswith((".invalid", ".test", ".local")):
-        return False
-    return not any(part.lower() in {"tbd", "todo", "replace-me", "changeme"} for part in parsed.path.split("/") if part)
-
-
-def _is_nonempty_string(value: object) -> bool:
-    return isinstance(value, str) and bool(value.strip()) and value == value.strip()
-
-
 def validate_brand_contract(path: Path | str) -> list[str]:
-    """Return a deterministic list of errors for a strict Ketos contract."""
+    """Validate the single canonical Ketos naming and endpoint contract."""
     contract, errors = _load_mapping(path)
     if contract is None:
         return errors
-    errors.extend(_exact_fields(contract, BRAND_CONTRACT_FIELDS, "brand"))
-
-    required_strings = (
-        "product_name",
-        "product_slug",
-        "python_distribution",
-        "python_base_distribution",
-        "sdk_distribution",
-        "stepflow_distribution",
-        "python_namespace",
-        "sdk_namespace",
-        "stepflow_namespace",
-        "env_prefix",
-        "logo_source_sha256",
-    )
-    nullable_strings = (
-        set(BRAND_CONTRACT_FIELDS)
-        - set(required_strings)
-        - {
-            "social_links",
-            "analytics_properties",
-            *URL_FIELDS,
-        }
-    )
-    for field in required_strings:
-        if field in contract and not _is_nonempty_string(contract[field]):
-            errors.append(f"brand.{field}: must be a non-empty string")
-    for field in sorted(nullable_strings):
-        if field in contract and contract[field] is not None and not _is_nonempty_string(contract[field]):
-            errors.append(f"brand.{field}: must be a non-empty string or null")
-    for field in URL_FIELDS:
-        if field in contract and contract[field] is not None and not _valid_https_url(contract[field]):
-            errors.append(f"brand.{field}: must be a real HTTPS URL or null")
-    for field in ("social_links", "analytics_properties"):
-        if field in contract:
-            values = contract[field]
-            if not isinstance(values, list) or any(not _is_nonempty_string(item) for item in values):
-                errors.append(f"brand.{field}: must be a list of non-empty strings")
-            elif values != sorted(set(values)):
-                errors.append(f"brand.{field}: values must be unique and sorted")
-    if isinstance(contract.get("social_links"), list):
-        for index, value in enumerate(contract["social_links"]):
-            if _is_nonempty_string(value) and not _valid_https_url(value):
-                errors.append(f"brand.social_links[{index}]: must be a real HTTPS URL")
-    if (
-        "logo_source_sha256" in contract
-        and isinstance(contract["logo_source_sha256"], str)
-        and not _SHA256_RE.fullmatch(contract["logo_source_sha256"])
-    ):
-        errors.append("brand.logo_source_sha256: must be a lowercase SHA-256 digest")
+    actual_fields = set(contract)
+    expected_fields = set(BRAND_CONTRACT_FIELDS)
+    errors.extend(f"brand.{field}: missing required field" for field in sorted(expected_fields - actual_fields))
+    errors.extend(f"brand.{field}: unknown field" for field in sorted(actual_fields - expected_fields))
     for field, canonical in CANONICAL_BRAND_VALUES.items():
         if field in contract and contract[field] != canonical:
             errors.append(f"brand.{field}: must equal canonical value {canonical!r}")
+    for field in ("site_url", "docs_url", "repository_url", "issues_url", "schema_base_url"):
+        value = contract.get(field)
+        if isinstance(value, str):
+            parsed = urlsplit(value)
+            if parsed.scheme != "https" or not parsed.hostname:
+                errors.append(f"brand.{field}: must be an absolute HTTPS URL")
     return sorted(set(errors))
 
 
 def _valid_relative_path(value: object) -> bool:
-    if not _is_nonempty_string(value) or "\\" in value:
+    if not isinstance(value, str) or not value or value != value.strip() or "\\" in value:
         return False
     path = PurePosixPath(value)
     return not path.is_absolute() and ".." not in path.parts and value == path.as_posix()
 
 
-def _validate_legacy_mapping(contract: dict[str, Any]) -> list[str]:
-    """Return errors for a loaded frozen baseline and exact legacy allowlist."""
-    errors: list[str] = []
-    required = {"version", "baseline", "residues"}
-    allowed = required | {"migration_debt", "technical_debt"}
-    errors.extend(f"legacy.{field}: missing required field" for field in sorted(required - set(contract)))
-    errors.extend(f"legacy.{field}: unknown field" for field in sorted(set(contract) - allowed))
-    if contract.get("version") != 1 or isinstance(contract.get("version"), bool):
-        errors.append("legacy.version: must be integer 1")
-
-    baseline = contract.get("baseline")
-    if not isinstance(baseline, dict):
-        errors.append("legacy.baseline: must be a mapping")
-    else:
-        errors.extend(_exact_fields(baseline, BASELINE_FIELDS, "legacy.baseline"))
-        commit = baseline.get("commit")
-        if not isinstance(commit, str) or not _SHA_RE.fullmatch(commit):
-            errors.append("legacy.baseline.commit: must be a full lowercase 40-character commit SHA")
-        for field in ("brand_file_count", "brand_line_count", "brand_path_count", "official_url_file_count"):
-            value = baseline.get(field)
-            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
-                errors.append(f"legacy.baseline.{field}: must be a non-negative integer")
-        for field in ("env_tokens", "paths"):
-            values = baseline.get(field)
-            if not isinstance(values, list) or any(not _is_nonempty_string(item) for item in values):
-                errors.append(f"legacy.baseline.{field}: must be a list of non-empty strings")
-            elif values != sorted(set(values)):
-                errors.append(f"legacy.baseline.{field}: values must be unique and sorted")
-        paths = baseline.get("paths")
-        if isinstance(paths, list):
-            for index, value in enumerate(paths):
-                if _is_nonempty_string(value) and not _valid_relative_path(value):
-                    errors.append(f"legacy.baseline.paths[{index}]: must be a normalized relative path")
-
-    residues = contract.get("residues")
-    if not isinstance(residues, list):
-        errors.append("legacy.residues: must be a list")
-    else:
-        identities: set[tuple[str, str]] = set()
-        for index, residue in enumerate(residues):
-            context = f"legacy.residues[{index}]"
-            if not isinstance(residue, dict):
-                errors.append(f"{context}: must be a mapping")
-                continue
-            errors.extend(_exact_fields(residue, LEGACY_RESIDUE_FIELDS, context))
-            errors.extend(
-                f"{context}.{field}: must be a non-empty string"
-                for field in LEGACY_RESIDUE_FIELDS
-                if field in residue and not _is_nonempty_string(residue[field])
-            )
-            if "path" in residue and _is_nonempty_string(residue["path"]) and not _valid_relative_path(residue["path"]):
-                errors.append(f"{context}.path: must be a normalized relative path")
-            category = residue.get("category")
-            if category not in LEGACY_CATEGORIES:
-                errors.append(f"{context}.category: unknown category {category!r}")
-            identity = (str(residue.get("path", "")), str(residue.get("match", "")))
-            if identity in identities:
-                errors.append(f"{context}: duplicate residue for {identity[0]}: {identity[1]}")
-            identities.add(identity)
-
-    migration_debt = contract.get("migration_debt")
-    if migration_debt is not None:
-        if not isinstance(migration_debt, dict):
-            errors.append("legacy.migration_debt: must be a mapping")
-        elif set(migration_debt) != set(MIGRATION_DEBT_KINDS):
-            errors.append(f"legacy.migration_debt: must contain exactly {', '.join(MIGRATION_DEBT_KINDS)}")
-        else:
-            for kind in MIGRATION_DEBT_KINDS:
-                group = migration_debt[kind]
-                context = f"legacy.migration_debt.{kind}"
-                if not isinstance(group, dict):
-                    errors.append(f"{context}: must be a mapping")
-                    continue
-                errors.extend(_exact_fields(group, MIGRATION_DEBT_GROUP_FIELDS, context))
-                errors.extend(
-                    f"{context}.{metadata_field}: must be a non-empty string"
-                    for metadata_field in DEBT_METADATA_FIELDS
-                    if metadata_field in group and not _is_nonempty_string(group[metadata_field])
-                )
-                entries = group.get("occurrences")
-                if not isinstance(entries, list):
-                    errors.append(f"{context}.occurrences: must be a list")
-                    continue
-                seen_paths: set[str] = set()
-                for index, entry in enumerate(entries):
-                    entry_context = f"{context}.occurrences[{index}]"
-                    entry_fields = {"path", "count", "fingerprints"}
-                    if not isinstance(entry, dict) or set(entry) != entry_fields:
-                        errors.append(f"{entry_context}: must contain exactly {', '.join(sorted(entry_fields))}")
-                        continue
-                    path = entry["path"]
-                    if not _valid_relative_path(path):
-                        errors.append(f"{entry_context}.path: must be a non-empty normalized path")
-                    elif path in seen_paths:
-                        errors.append(f"{entry_context}.path: duplicate path {path!r}")
-                    seen_paths.add(str(path))
-                    count = entry["count"]
-                    if not isinstance(count, int) or isinstance(count, bool) or count < 1:
-                        errors.append(f"{entry_context}.count: must be a positive integer")
-                    fingerprints = entry["fingerprints"]
-                    if not isinstance(fingerprints, list) or any(
-                        not isinstance(fingerprint, str) or not _SHA256_RE.fullmatch(fingerprint)
-                        for fingerprint in fingerprints
-                    ):
-                        errors.append(f"{entry_context}.fingerprints: must be a list of lowercase SHA-256 digests")
-                    elif fingerprints != sorted(fingerprints):
-                        errors.append(f"{entry_context}.fingerprints: values must be sorted")
-                    elif isinstance(count, int) and not isinstance(count, bool) and len(fingerprints) != count:
-                        errors.append(f"{entry_context}.fingerprints: length must equal count")
-
-    for field, keys in (("technical_debt", LEGACY_CATEGORIES),):
-        debt = contract.get(field)
-        if debt is None:
-            continue
-        if not isinstance(debt, dict):
-            errors.append(f"legacy.{field}: must be a mapping")
-            continue
-        if set(debt) != set(keys):
-            errors.append(f"legacy.{field}: must contain exactly {', '.join(keys)}")
-            continue
-        for kind in keys:
-            group = debt[kind]
-            group_context = f"legacy.{field}.{kind}"
-            if not isinstance(group, dict):
-                errors.append(f"{group_context}: must be a mapping")
-                continue
-            errors.extend(_exact_fields(group, TECHNICAL_DEBT_GROUP_FIELDS, group_context))
-            errors.extend(
-                f"{group_context}.{metadata_field}: must be a non-empty string"
-                for metadata_field in DEBT_METADATA_FIELDS
-                if metadata_field in group and not _is_nonempty_string(group[metadata_field])
-            )
-            entries = group.get("occurrences")
-            if not isinstance(entries, list):
-                errors.append(f"{group_context}.occurrences: must be a list")
-                continue
-            for index, entry in enumerate(entries):
-                context = f"{group_context}.occurrences[{index}]"
-                entry_fields = {"path", "match", "count"}
-                if not isinstance(entry, dict) or set(entry) != entry_fields:
-                    errors.append(f"{context}: must contain exactly {', '.join(sorted(entry_fields))}")
-                    continue
-                if not _valid_relative_path(entry["path"]):
-                    errors.append(f"{context}.path: must be a non-empty normalized path")
-                if not _is_nonempty_string(entry["match"]):
-                    errors.append(f"{context}.match: must be a non-empty string")
-                if not isinstance(entry["count"], int) or isinstance(entry["count"], bool) or entry["count"] < 1:
-                    errors.append(f"{context}.count: must be a positive integer")
-    return sorted(set(errors))
-
-
-def validate_legacy_contract(path: Path | str) -> list[str]:
-    """Return errors for the frozen baseline and exact legacy allowlist."""
+def validate_zero_residue_contract(path: Path | str) -> list[str]:
+    """Validate the frozen baseline and exact, legal-file-only allowlist."""
     contract, errors = _load_mapping(path)
     if contract is None:
         return errors
-    return _validate_legacy_mapping(contract)
+    expected_top = {"version", "analysis_commit", "baseline", "legal_files", "legal_allowlist"}
+    errors.extend(f"zero.{field}: missing required field" for field in sorted(expected_top - set(contract)))
+    errors.extend(f"zero.{field}: unknown field" for field in sorted(set(contract) - expected_top))
+    if contract.get("version") != 1 or isinstance(contract.get("version"), bool):
+        errors.append("zero.version: must be integer 1")
+    commit = contract.get("analysis_commit")
+    if not isinstance(commit, str) or not _SHA_RE.fullmatch(commit):
+        errors.append("zero.analysis_commit: must be a full lowercase commit SHA")
+    baseline = contract.get("baseline")
+    if not isinstance(baseline, dict):
+        errors.append("zero.baseline: must be a mapping")
+    else:
+        errors.extend(
+            f"zero.baseline.{field}: missing required field" for field in BASELINE_FIELDS if field not in baseline
+        )
+        errors.extend(f"zero.baseline.{field}: unknown field" for field in sorted(set(baseline) - set(BASELINE_FIELDS)))
+        for field in BASELINE_FIELDS:
+            value = baseline.get(field)
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                errors.append(f"zero.baseline.{field}: must be a non-negative integer")
+    legal_files = contract.get("legal_files")
+    legal_file_paths: set[str] = set()
+    if not isinstance(legal_files, list):
+        errors.append("zero.legal_files: must be a list")
+    else:
+        for index, entry in enumerate(legal_files):
+            context = f"zero.legal_files[{index}]"
+            if not isinstance(entry, dict):
+                errors.append(f"{context}: must be a mapping")
+                continue
+            errors.extend(
+                f"{context}.{field}: missing required field" for field in LEGAL_FILE_FIELDS if field not in entry
+            )
+            errors.extend(f"{context}.{field}: unknown field" for field in sorted(set(entry) - set(LEGAL_FILE_FIELDS)))
+            legal_path = entry.get("path")
+            if not _valid_legal_path(legal_path):
+                errors.append(f"{context}.path: must be an exact legal path or normalized archive member path")
+            elif legal_path in legal_file_paths:
+                errors.append(f"{context}.path: duplicate path")
+            else:
+                legal_file_paths.add(legal_path)
+            digest = entry.get("sha256")
+            if not isinstance(digest, str) or not _SHA256_RE.fullmatch(digest):
+                errors.append(f"{context}.sha256: must be a lowercase SHA-256 digest")
+
+    allowlist = contract.get("legal_allowlist")
+    if not isinstance(allowlist, list):
+        errors.append("zero.legal_allowlist: must be a list")
+    else:
+        identities: set[tuple[str, int]] = set()
+        for index, entry in enumerate(allowlist):
+            context = f"zero.legal_allowlist[{index}]"
+            if not isinstance(entry, dict):
+                errors.append(f"{context}: must be a mapping")
+                continue
+            errors.extend(f"{context}.{field}: missing required field" for field in LEGAL_FIELDS if field not in entry)
+            errors.extend(f"{context}.{field}: unknown field" for field in sorted(set(entry) - set(LEGAL_FIELDS)))
+            legal_path = entry.get("path")
+            if not _valid_legal_path(legal_path):
+                errors.append(f"{context}.path: must be an exact legal path or normalized archive member path")
+            elif legal_path not in legal_file_paths:
+                errors.append(f"{context}.path: must reference an exact legal_files entry")
+            line = entry.get("line")
+            if not isinstance(line, int) or isinstance(line, bool) or line < 1:
+                errors.append(f"{context}.line: must be a positive integer")
+            expected_text = entry.get("expected_text")
+            if not isinstance(expected_text, str) or not expected_text or expected_text != expected_text.strip():
+                errors.append(f"{context}.expected_text: must be one exact non-empty line")
+            digest = entry.get("sha256")
+            if not isinstance(digest, str) or not _SHA256_RE.fullmatch(digest):
+                errors.append(f"{context}.sha256: must be a lowercase SHA-256 digest")
+            elif isinstance(expected_text, str) and hashlib.sha256(expected_text.encode()).hexdigest() != digest:
+                errors.append(f"{context}.sha256: does not fingerprint expected_text")
+            identity = (str(legal_path), line if isinstance(line, int) else -1)
+            if identity in identities:
+                errors.append(f"{context}: duplicate path and line")
+            identities.add(identity)
+    return sorted(set(errors))
+
+
+def _valid_legal_path(value: object) -> bool:
+    if not isinstance(value, str):
+        return False
+    if value in LEGAL_FILES:
+        return True
+    if value.count("!") != 1:
+        return False
+    archive_path, member_path = value.split("!", 1)
+    return (
+        _valid_relative_path(archive_path)
+        and _valid_relative_path(member_path)
+        and PurePosixPath(member_path).name in {"LICENSE", "NOTICE"}
+    )
+
+
+@dataclass(frozen=True)
+class Blob:
+    path: str
+    content: bytes
+    scan_issue: str | None = None
 
 
 def _git(repo: Path, *args: str, text: bool = True) -> str | bytes:
-    completed = subprocess.run(  # noqa: S603 - callers provide fixed internal Git operations.
+    completed = subprocess.run(  # noqa: S603 - fixed internal Git operations.
         ["git", *args],  # noqa: S607 - Git is intentionally resolved from PATH.
         cwd=repo,
         check=True,
@@ -488,522 +320,462 @@ def _git(repo: Path, *args: str, text: bool = True) -> str | bytes:
     return completed.stdout
 
 
-def _text_lines(content: bytes) -> list[str] | None:
-    try:
-        if b"\0" in content:
-            return None
-        return content.decode("utf-8").splitlines()
-    except UnicodeDecodeError:
-        return None
-
-
-def _tracked_blobs(repo: Path) -> list[tuple[str, bytes]]:
-    """Read all indexed Git blobs in one batch without touching worktree paths."""
-    listed = _git(repo, "ls-files", "-s", "-z", text=False)
+def _object_blobs(repo: Path, revision: str) -> list[Blob]:
+    listed = _git(repo, "ls-tree", "-rz", revision, text=False)
     if not isinstance(listed, bytes):
-        msg = "git ls-files unexpectedly returned text"
-        raise TypeError(msg)
+        message = "git ls-tree unexpectedly returned text"
+        raise TypeError(message)
     indexed: list[tuple[str, bytes]] = []
     for record in listed.split(b"\0"):
         if not record:
             continue
         metadata, path = record.split(b"\t", 1)
-        _mode, object_id, stage = metadata.split()
-        if stage == b"0":
+        _mode, object_type, object_id = metadata.split()
+        if object_type == b"blob":
             indexed.append((path.decode("utf-8", errors="surrogateescape"), object_id))
-    indexed.sort(key=lambda item: item[0])
-
+    indexed.sort()
     completed = subprocess.run(
         ["git", "cat-file", "--batch"],  # noqa: S607 - Git is intentionally resolved from PATH.
         cwd=repo,
-        input=b"".join(object_id + b"\n" for _, object_id in indexed),
+        input=b"".join(oid + b"\n" for _, oid in indexed),
         check=True,
         capture_output=True,
     )
     output = completed.stdout
     offset = 0
-    blobs: list[tuple[str, bytes]] = []
+    blobs: list[Blob] = []
     for path, expected_id in indexed:
         header_end = output.index(b"\n", offset)
-        header = output[offset:header_end].split()
-        object_header_size = 3
-        if len(header) != object_header_size or header[0] != expected_id or header[1] != b"blob":
-            msg = f"unexpected git cat-file response for {path}"
-            raise ValueError(msg)
-        size = int(header[2])
+        object_id, object_type, raw_size = output[offset:header_end].split()
+        if object_id != expected_id or object_type != b"blob":
+            message = f"unexpected git object for {path}"
+            raise ValueError(message)
+        size = int(raw_size)
         start = header_end + 1
-        blobs.append((path, output[start : start + size]))
+        blobs.append(Blob(path, output[start : start + size]))
         offset = start + size + 1
     return blobs
 
 
-def is_official_url(value: str) -> bool:
-    """Return whether *value* identifies an upstream-owned endpoint."""
-    return bool(_OFFICIAL_URL_RE.search(value))
+def _worktree_blobs(repo: Path) -> list[Blob]:
+    listed = _git(repo, "ls-files", "-z", text=False)
+    if not isinstance(listed, bytes):
+        message = "git ls-files unexpectedly returned text"
+        raise TypeError(message)
+    blobs: list[Blob] = []
+    for raw_path in sorted(item for item in listed.split(b"\0") if item):
+        relative = raw_path.decode("utf-8", errors="surrogateescape")
+        path = repo / relative
+        if path.is_symlink():
+            blobs.append(Blob(relative, path.readlink().as_posix().encode()))
+        elif path.is_file():
+            blobs.append(Blob(relative, path.read_bytes()))
+    return blobs
 
 
-def _is_scanner_internal(relative: str) -> bool:
-    """Return whether a tracked path is scanner data that must not scan itself."""
-    return relative in {
-        "brand/legacy-langflow-contract.yaml",
-        "scripts/rebrand/check_brand.py",
-    } or relative.startswith("scripts/rebrand/tests/")
-
-
-def inventory_repository(repo: Path | str) -> dict[str, Any]:
-    """Return deterministic tracked-file occurrences and their baseline counts."""
-    root = Path(repo).resolve()
-    commit_output = _git(root, "rev-parse", "HEAD")
-    if not isinstance(commit_output, str):
-        msg = "git rev-parse unexpectedly returned bytes"
-        raise TypeError(msg)
-    commit = commit_output.strip()
-    occurrences: list[dict[str, Any]] = []
-    brand_paths: list[str] = []
-    official_paths: set[str] = set()
-    env_tokens: set[str] = set()
-    brand_path_count = 0
-
-    for relative, content in _tracked_blobs(root):
-        if _is_scanner_internal(relative):
+def _filesystem_blobs(root: Path) -> list[Blob]:
+    blobs: list[Blob] = []
+    for path in sorted(root.rglob("*")):
+        if ".git" in path.relative_to(root).parts or not path.is_file() or path.is_symlink():
             continue
-        if _BRAND_RE.search(relative):
-            brand_path_count += 1
-        lines = _text_lines(content)
-        if lines is None:
+        blobs.append(Blob(path.relative_to(root).as_posix(), path.read_bytes()))
+    return blobs
+
+
+def _is_archive_path(path: str) -> bool:
+    return path.lower().endswith((".zip", ".whl", ".jar", ".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tar.xz"))
+
+
+def _archive_blobs(blob: Blob) -> Iterable[Blob]:
+    lowered = blob.path.lower()
+    if not _is_archive_path(lowered):
+        return
+    stream = io.BytesIO(blob.content)
+    if lowered.endswith((".zip", ".whl", ".jar")):
+        try:
+            with zipfile.ZipFile(stream) as archive:
+                infos = sorted(archive.infolist(), key=lambda item: item.filename)
+                if len(infos) > MAX_ARCHIVE_MEMBERS:
+                    yield Blob(f"{blob.path}!<member-limit>", b"", "archive_member_limit")
+                duplicate_names = {
+                    name for name, count in Counter(info.filename for info in infos).items() if count > 1
+                }
+                for name in sorted(duplicate_names):
+                    yield Blob(f"{blob.path}!{name}", b"", "duplicate_archive_member")
+                for info in infos[:MAX_ARCHIVE_MEMBERS]:
+                    if info.is_dir() or info.filename in duplicate_names:
+                        continue
+                    member_path = f"{blob.path}!{info.filename}"
+                    if info.file_size > MAX_ARCHIVE_MEMBER_BYTES:
+                        yield Blob(member_path, b"", "archive_member_size_limit")
+                    else:
+                        yield Blob(member_path, archive.read(info))
+        except (OSError, ValueError, zipfile.BadZipFile):
+            yield Blob(f"{blob.path}!<archive>", b"", "malformed_archive")
+        return
+    try:
+        with tarfile.open(fileobj=stream, mode="r:*") as archive:
+            members = sorted(archive.getmembers(), key=lambda item: item.name)
+            if len(members) > MAX_ARCHIVE_MEMBERS:
+                yield Blob(f"{blob.path}!<member-limit>", b"", "archive_member_limit")
+            duplicate_names = {name for name, count in Counter(member.name for member in members).items() if count > 1}
+            for name in sorted(duplicate_names):
+                yield Blob(f"{blob.path}!{name}", b"", "duplicate_archive_member")
+            for member in members[:MAX_ARCHIVE_MEMBERS]:
+                if not member.isfile() or member.name in duplicate_names:
+                    continue
+                member_path = f"{blob.path}!{member.name}"
+                if member.size > MAX_ARCHIVE_MEMBER_BYTES:
+                    yield Blob(member_path, b"", "archive_member_size_limit")
+                    continue
+                extracted = archive.extractfile(member)
+                if extracted is not None:
+                    yield Blob(member_path, extracted.read())
+    except (OSError, tarfile.TarError):
+        yield Blob(f"{blob.path}!<archive>", b"", "malformed_archive")
+
+
+def _expand_blob(blob: Blob, *, depth: int) -> Iterable[Blob]:
+    if depth >= MAX_ARCHIVE_DEPTH:
+        yield Blob(blob.path, b"", "archive_depth_limit") if _is_archive_path(blob.path) else blob
+        return
+    archive_members = iter(_archive_blobs(blob))
+    try:
+        first_member = next(archive_members)
+    except StopIteration:
+        yield blob
+        return
+    yield Blob(blob.path, b"")
+    for member in chain((first_member,), archive_members):
+        yield from _expand_blob(member, depth=depth + 1)
+
+
+def _expanded_blobs(blobs: Iterable[Blob]) -> Iterable[Blob]:
+    for blob in blobs:
+        yield from _expand_blob(blob, depth=0)
+
+
+def _matches(pattern: re.Pattern[bytes], content: bytes) -> list[tuple[int, bytes]]:
+    return [(content.count(b"\n", 0, match.start()) + 1, match.group()) for match in pattern.finditer(content)]
+
+
+def _scan_blobs(
+    blobs: Iterable[Blob], contract: dict[str, Any], *, profile: str, excluded_path: str | None
+) -> dict[str, Any]:
+    legal_by_location = {(entry["path"], entry["line"]): entry for entry in contract["legal_allowlist"]}
+    legal_paths = {entry["path"] for entry in contract["legal_allowlist"]}
+    violations: list[dict[str, Any]] = []
+    allowed: list[dict[str, Any]] = []
+    brand_files: set[str] = set()
+    executor_files: set[str] = set()
+    brand_match_count = executor_match_count = 0
+    brand_path_count = executor_path_count = 0
+    upstream_endpoint_count = 0
+    scan_issue_count = 0
+    path_counts: dict[str, dict[str, int]] = {}
+
+    expanded = _expanded_blobs(blobs)
+    scanned_blobs: dict[str, Blob] = {}
+    seen_paths: set[str] = set()
+    matched_legal_locations: set[tuple[str, int]] = set()
+    for blob in expanded:
+        if blob.path == excluded_path:
             continue
-        file_has_brand = False
-        for number, line in enumerate(lines, start=1):
-            has_brand = bool(_BRAND_RE.search(line))
-            is_official = is_official_url(line)
-            if not has_brand and not is_official:
-                continue
-            file_has_brand = file_has_brand or has_brand
-            if is_official:
-                official_paths.add(relative)
-            if has_brand:
-                env_tokens.update(_ENV_RE.findall(line))
-            occurrences.append(
-                {
-                    "path": relative,
-                    "line": number,
-                    "match": line.strip(),
-                    "official_url": is_official,
-                    "brand": has_brand,
-                    "filename": False,
-                }
-            )
-        if file_has_brand:
-            brand_paths.append(relative)
-        if _BRAND_RE.search(relative):
-            occurrences.append(
-                {
-                    "path": relative,
-                    "line": 0,
-                    "match": relative,
-                    "official_url": False,
-                    "brand": False,
-                    "filename": True,
-                }
-            )
+        if blob.path in seen_paths:
+            scan_issue_count += 1
+            counts = path_counts.setdefault(blob.path, dict.fromkeys(BASELINE_FIELDS, 0))
+            counts["scan_issue_count"] += 1
+            if profile == "cutover":
+                violations.append(
+                    {"kind": "duplicate_scan_path", "path": blob.path, "line": 0, "match": "ambiguous blob path"}
+                )
+            continue
+        seen_paths.add(blob.path)
+        if blob.scan_issue is not None:
+            scan_issue_count += 1
+            counts = path_counts.setdefault(blob.path, dict.fromkeys(BASELINE_FIELDS, 0))
+            counts["scan_issue_count"] += 1
+            if profile == "cutover":
+                violations.append(
+                    {"kind": blob.scan_issue, "path": blob.path, "line": 0, "match": "fail-closed archive scan"}
+                )
+            continue
+        scanned_blobs[blob.path] = blob
+        path_bytes = blob.path.encode("utf-8", errors="surrogateescape")
+        path_brand = _PRODUCT_RE.findall(path_bytes)
+        path_executor = _EXECUTOR_RE.findall(path_bytes)
+        brand_path_count += bool(path_brand)
+        executor_path_count += bool(path_executor)
+        findings: list[tuple[str, int, bytes]] = []
+        findings.extend(("legacy_brand", line, match) for line, match in _matches(_PRODUCT_RE, blob.content))
+        findings.extend(("legacy_executor", line, match) for line, match in _matches(_EXECUTOR_RE, blob.content))
+        findings.extend(
+            ("upstream_endpoint", line, match) for line, match in _matches(_UPSTREAM_ENDPOINT_RE, blob.content)
+        )
+        findings.extend(("legacy_brand_filename", 0, match) for match in path_brand)
+        findings.extend(("legacy_executor_filename", 0, match) for match in path_executor)
+        content_brand_count = sum(kind == "legacy_brand" for kind, _, _ in findings)
+        content_executor_count = sum(kind == "legacy_executor" for kind, _, _ in findings)
+        content_upstream_count = sum(kind == "upstream_endpoint" for kind, _, _ in findings)
+        allowed_brand_count = allowed_executor_count = allowed_upstream_count = 0
+        for kind, line, matched in findings:
+            item = {"kind": kind, "path": blob.path, "line": line, "match": matched.decode("utf-8", errors="replace")}
+            if line > 0 and blob.path in legal_paths:
+                lines = blob.content.decode("utf-8", errors="replace").splitlines()
+                text = lines[line - 1] if line <= len(lines) else ""
+                entry = legal_by_location.get((blob.path, line))
+                if (
+                    entry
+                    and text == entry["expected_text"]
+                    and hashlib.sha256(text.encode()).hexdigest() == entry["sha256"]
+                ):
+                    allowed.append({**item, "kind": "legal_provenance"})
+                    matched_legal_locations.add((blob.path, line))
+                    allowed_brand_count += kind == "legacy_brand"
+                    allowed_executor_count += kind == "legacy_executor"
+                    allowed_upstream_count += kind == "upstream_endpoint"
+                    continue
+                item["kind"] = "legal_mismatch"
+            if profile == "cutover" or item["kind"] == "legal_mismatch":
+                violations.append(item)
+        content_brand_count -= allowed_brand_count
+        content_executor_count -= allowed_executor_count
+        content_upstream_count -= allowed_upstream_count
+        path_counts[blob.path] = {
+            "brand_file_count": int(bool(content_brand_count)),
+            "brand_match_count": content_brand_count,
+            "brand_path_count": int(bool(path_brand)),
+            "executor_file_count": int(bool(content_executor_count)),
+            "executor_match_count": content_executor_count,
+            "executor_path_count": int(bool(path_executor)),
+            "upstream_endpoint_count": content_upstream_count,
+            "scan_issue_count": 0,
+        }
+        if content_brand_count:
+            brand_files.add(blob.path)
+            brand_match_count += content_brand_count
+        if content_executor_count:
+            executor_files.add(blob.path)
+            executor_match_count += content_executor_count
+        upstream_endpoint_count += content_upstream_count
 
     baseline = {
-        "commit": commit,
-        "brand_file_count": len(brand_paths),
-        "brand_line_count": sum(1 for item in occurrences if item["brand"]),
+        "brand_file_count": len(brand_files),
+        "brand_match_count": brand_match_count,
         "brand_path_count": brand_path_count,
-        "official_url_file_count": len(official_paths),
-        "env_tokens": sorted(env_tokens),
-        "paths": sorted(brand_paths),
+        "executor_file_count": len(executor_files),
+        "executor_match_count": executor_match_count,
+        "executor_path_count": executor_path_count,
+        "upstream_endpoint_count": upstream_endpoint_count,
+        "scan_issue_count": scan_issue_count,
     }
-    return {"baseline": baseline, "occurrences": occurrences}
-
-
-def collect_baseline(repo: Path | str) -> dict[str, Any]:
-    """Convenience API used when freezing a new legacy inventory."""
-    return inventory_repository(repo)["baseline"]
-
-
-def _technical_category(path: str, line: str) -> str | None:
-    normalized_path = f"/{path.lower().strip('/')}"
-    path_parts = PurePosixPath(path.lower()).parts
-    filename = PurePosixPath(path).name.lower()
-    lowered = line.lower()
-
-    if filename in {"license", "license.md", "notice", "notice.md", "copying"} or re.search(
-        r"\b(?:copyright|provenance|adapted from)\b", lowered
-    ):
-        return "legal_provenance"
-    if "/alembic/versions/" in f"{normalized_path}/":
-        return "historical_migration"
-    if "fixtures" in path_parts or ("tests" in path_parts and "data" in path_parts):
-        return "historical_fixture"
-    if _ENV_RE.search(line):
-        return "env_alias"
-    if re.search(r"\b(?:from|import)\s+langflow(?:\b|\.)", line) or re.search(
-        r"\bimport_module\(\s*['\"]langflow(?:\.[^'\"]*)?['\"]\s*\)", line
-    ):
-        return "import_alias"
-    if re.search(r"(?:^|[\s'\"=:])(?:~?/)?\.langflow(?:[/\\]|$)", line, re.IGNORECASE) or re.search(
-        r"(?:^|[/\\])langflow\.db(?:$|[\s'\"?#])", line, re.IGNORECASE
-    ):
-        return "data_path"
-    has_explicit_id_label = bool(re.search(r"\b(?:(?:legacy|external)[_-])?(?:resource[_-])?(?:id|uuid)\b", lowered))
-    has_immutable_id = bool(
-        re.search(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b", lowered)
-        or re.search(r"\blangflow:[a-z0-9][a-z0-9._:-]+", lowered)
-    )
-    if has_explicit_id_label and has_immutable_id:
-        return "external_resource_id"
-    if re.search(r"\bx-langflow-[a-z0-9-]+\b", lowered) or re.search(
-        r"(?:/api/[^\s'\"]*langflow|\blangflow[_-](?:queue|channel|topic|marker)\b|\b(?:queue|channel|topic|marker)[_-]langflow\b)",
-        lowered,
-    ):
-        return "wire_protocol"
-    return None
-
-
-def _looks_technical(line: str, path: str = "") -> bool:
-    return _technical_category(path, line) is not None
-
-
-def _classified_technical_occurrences(occurrence: dict[str, Any]) -> list[tuple[dict[str, Any], str]]:
-    category = _technical_category(occurrence["path"], occurrence["match"])
-    if category is None:
-        return []
-    if category != "env_alias":
-        return [(occurrence, category)]
-    return [({**occurrence, "match": token}, category) for token in sorted(set(_ENV_RE.findall(occurrence["match"])))]
-
-
-def _debt_entry_counts(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    counts = Counter((item["path"], item["match"]) for item in items)
-    return [{"path": path, "match": match, "count": count} for (path, match), count in sorted(counts.items())]
-
-
-def _migration_debt_counts(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    fingerprints_by_path: dict[str, list[str]] = {}
-    for item in items:
-        fingerprint = hashlib.sha256(item["match"].encode()).hexdigest()
-        fingerprints_by_path.setdefault(item["path"], []).append(fingerprint)
-    return [
-        {"path": path, "count": len(fingerprints), "fingerprints": sorted(fingerprints)}
-        for path, fingerprints in sorted(fingerprints_by_path.items())
-    ]
-
-
-def _migration_debt_group(kind: str, items: list[dict[str, Any]]) -> dict[str, Any]:
-    return {**MIGRATION_DEBT_METADATA[kind], "occurrences": _migration_debt_counts(items)}
-
-
-def _technical_debt_group(kind: str, items: list[dict[str, Any]]) -> dict[str, Any]:
-    owner, reason = TECHNICAL_DEBT_METADATA[kind]
-    return {
-        "owner": owner,
-        "reason": reason,
-        "compatibility_test": "scripts/rebrand/tests/test_semantic_classification.py",
-        "removal_condition": f"Remove after the frozen {kind} compatibility residue is migrated.",
-        "occurrences": [item for item in _debt_entry_counts(items) if item["count"] > 1],
-    }
-
-
-def freeze_contract(repo: Path | str) -> dict[str, Any]:
-    """Freeze exact Stage 0 debt counts from the current Git index."""
-    inventory = inventory_repository(repo)
-    migration = {kind: [] for kind in MIGRATION_DEBT_KINDS}
-    technical = {kind: [] for kind in LEGACY_CATEGORIES}
-    technical_occurrences: list[tuple[dict[str, Any], str]] = []
-    for occurrence in inventory["occurrences"]:
-        if occurrence["filename"]:
-            migration["filename"].append(occurrence)
-        elif occurrence["official_url"]:
-            migration["official_url"].append(occurrence)
-        else:
-            classifications = _classified_technical_occurrences(occurrence)
-            if not classifications:
-                migration["user_visible"].append(occurrence)
-            else:
-                for classified, category in classifications:
-                    technical[category].append(classified)
-                    technical_occurrences.append((classified, category))
-
-    residues = []
-    for occurrence, category in sorted(
-        technical_occurrences, key=lambda item: (item[0]["path"], item[0]["match"], item[1])
-    ):
-        owner, reason = TECHNICAL_DEBT_METADATA[category]
-        residues.append(
+    for legal_file in contract["legal_files"]:
+        legal_path = legal_file["path"]
+        blob = scanned_blobs.get(legal_path)
+        if blob is None:
+            if profile == "cutover":
+                violations.append(
+                    {"kind": "missing_legal_file", "path": legal_path, "line": 0, "match": legal_file["sha256"]}
+                )
+            continue
+        actual_digest = hashlib.sha256(blob.content).hexdigest()
+        if actual_digest != legal_file["sha256"]:
+            violations.append(
+                {
+                    "kind": "legal_file_mismatch",
+                    "path": legal_path,
+                    "line": 0,
+                    "match": actual_digest,
+                    "expected": legal_file["sha256"],
+                }
+            )
+    if profile == "cutover":
+        for legal_path, line in sorted(set(legal_by_location) - matched_legal_locations):
+            entry = legal_by_location[(legal_path, line)]
+            violations.append(
+                {
+                    "kind": "missing_legal_occurrence",
+                    "path": legal_path,
+                    "line": line,
+                    "match": entry["expected_text"],
+                }
+            )
+    if profile == "stage0":
+        frozen = contract["baseline"]
+        violations.extend(
             {
-                "path": occurrence["path"],
-                "match": occurrence["match"],
-                "category": category,
-                "owner": owner,
-                "reason": reason,
-                "compatibility_test": "scripts/rebrand/tests/test_stage0_architecture.py",
-                "removal_condition": f"Remove after the frozen {category} compatibility residue is migrated.",
+                "kind": "baseline_increase",
+                "path": "",
+                "line": 0,
+                "match": field,
+                "expected_maximum": frozen[field],
+                "actual": baseline[field],
             }
+            for field in BASELINE_FIELDS
+            if baseline[field] > frozen[field]
         )
-    # Residue metadata is identity-based; counts live in technical_debt.
-    residues = list({(item["path"], item["match"]): item for item in residues}.values())
+
+    def key(item: dict[str, Any]) -> tuple[str, int, str, str]:
+        return (item["path"], item["line"], item["kind"], item["match"])
+
     return {
-        "version": 1,
-        "baseline": inventory["baseline"],
-        "residues": residues,
-        "migration_debt": {kind: _migration_debt_group(kind, migration[kind]) for kind in MIGRATION_DEBT_KINDS},
-        # Exact technical identities live in residues.  Only duplicate-count
-        # overrides are stored here, avoiding a second copy of every identity.
-        "technical_debt": {kind: _technical_debt_group(kind, technical[kind]) for kind in LEGACY_CATEGORIES},
+        "baseline": baseline,
+        "allowed_residue": sorted(allowed, key=key),
+        "violations": sorted(violations, key=key),
+        "contract_errors": [],
+        "_path_counts": path_counts,
     }
 
 
-def _violation(kind: str, occurrence: dict[str, Any], **details: Any) -> dict[str, Any]:
-    item = {
-        "kind": kind,
-        "path": occurrence["path"],
-        "line": occurrence["line"],
-        "match": occurrence["match"],
-    }
-    item.update(details)
-    return item
+def scan_root(root: Path | str, zero_residue_contract_path: Path | str, *, profile: str = "cutover") -> dict[str, Any]:
+    """Scan every regular file below a clean worktree or unpacked artifact root."""
+    if profile not in PROFILES:
+        message = f"unknown scan profile: {profile}"
+        raise ValueError(message)
+    root_path = Path(root).resolve()
+    contract_path = Path(zero_residue_contract_path).resolve()
+    errors = validate_zero_residue_contract(contract_path)
+    contract, _ = _load_mapping(contract_path)
+    if errors or contract is None:
+        return {"baseline": None, "allowed_residue": [], "violations": [], "contract_errors": errors}
+    try:
+        excluded = contract_path.relative_to(root_path).as_posix()
+    except ValueError:
+        excluded = None
+    report = _scan_blobs(_filesystem_blobs(root_path), contract, profile=profile, excluded_path=excluded)
+    report.pop("_path_counts")
+    return report
 
 
-def _matching_residue(
-    occurrence: dict[str, Any],
-    allowlist: dict[tuple[str, str], dict[str, Any]],
-) -> dict[str, Any] | None:
-    """Return the exact allowlist entry represented by an occurrence.
+def _has_tracked_worktree_changes(repo: Path) -> bool:
+    status = _git(repo, "status", "--porcelain", "--untracked-files=no")
+    if not isinstance(status, str):
+        message = "git status unexpectedly returned bytes"
+        raise TypeError(message)
+    return bool(status.strip())
 
-    Most residue categories freeze the complete stripped source line.  An
-    environment alias is deliberately narrower: its stable identity is the
-    exact ``LANGFLOW_*`` token, independent of the syntax used to read or
-    assign it.  Comparing extracted tokens keeps that exception exact without
-    turning it into an arbitrary substring allowlist.
-    """
-    path = occurrence["path"]
-    line = occurrence["match"]
-    residue = allowlist.get((path, line))
-    if residue is not None:
-        return residue
-    for token in _ENV_RE.findall(line):
-        residue = allowlist.get((path, token))
-        if residue is not None and residue["category"] == "env_alias":
-            return residue
-    return None
+
+def _first_parent_exists(repo: Path) -> bool:
+    completed = subprocess.run(
+        ["git", "rev-parse", "--verify", "HEAD^"],  # noqa: S607 - Git is intentionally resolved from PATH.
+        cwd=repo,
+        check=False,
+        capture_output=True,
+    )
+    return completed.returncode == 0
+
+
+def _add_monotonic_violations(current: dict[str, Any], previous: dict[str, Any]) -> None:
+    violations = current["violations"]
+    for field in BASELINE_FIELDS:
+        if current["baseline"][field] > previous["baseline"][field]:
+            violations.append(
+                {
+                    "kind": "monotonic_increase",
+                    "path": "",
+                    "line": 0,
+                    "match": field,
+                    "previous": previous["baseline"][field],
+                    "actual": current["baseline"][field],
+                }
+            )
+    previous_paths = previous["_path_counts"]
+    for path, counts in current["_path_counts"].items():
+        previous_counts = previous_paths.get(path, {})
+        for field in BASELINE_FIELDS:
+            old = previous_counts.get(field, 0)
+            if counts[field] > old:
+                violations.append(
+                    {
+                        "kind": "monotonic_increase",
+                        "path": path,
+                        "line": 0,
+                        "match": field,
+                        "previous": old,
+                        "actual": counts[field],
+                    }
+                )
+    violations.sort(key=lambda item: (item["path"], item["line"], item["kind"], item["match"]))
 
 
 def scan_repository(
     repo: Path | str,
-    brand_contract_path: Path | str,
-    legacy_contract_path: Path | str,
+    zero_residue_contract_path: Path | str,
     *,
     profile: str = "stage0",
 ) -> dict[str, Any]:
-    """Validate contracts and classify every tracked legacy-brand line."""
+    """Scan the current Git index, the reproducible Stage 0 scope boundary."""
     if profile not in PROFILES:
-        msg = f"unknown scan profile: {profile}"
-        raise ValueError(msg)
-    brand_errors = validate_brand_contract(brand_contract_path)
-    legacy, load_errors = _load_mapping(legacy_contract_path)
-    legacy_errors = load_errors if legacy is None else _validate_legacy_mapping(legacy)
-    contract_errors = sorted([*brand_errors, *legacy_errors])
-    if contract_errors:
-        return {
-            "baseline": None,
-            "allowed_residue": [],
-            "violations": [],
-            "contract_errors": contract_errors,
-        }
-
-    if legacy is None:  # Defensive; the contract-error return above covers this path.
-        return {"baseline": None, "allowed_residue": [], "violations": [], "contract_errors": load_errors}
-
-    inventory = inventory_repository(repo)
-    baseline = inventory["baseline"]
-    expected_baseline = legacy["baseline"]
-    allowlist = {(item["path"], item["match"]): item for item in legacy["residues"]}
-    allowed: list[dict[str, Any]] = []
-    violations: list[dict[str, Any]] = []
-    debt_mode = "migration_debt" in legacy and "technical_debt" in legacy
-
-    if not debt_mode and baseline != expected_baseline:
-        changed_fields = [field for field in BASELINE_FIELDS if baseline.get(field) != expected_baseline.get(field)]
-        violations.append(
-            {
-                "kind": "baseline_drift",
-                "path": "",
-                "line": 0,
-                "match": "",
-                "changed_fields": changed_fields,
-                "expected": expected_baseline,
-                "actual": baseline,
-            }
-        )
-
-    if debt_mode:
-        expected: dict[tuple[str, str, str], int] = {}
-        for kind, group in legacy["migration_debt"].items():
-            for item in group["occurrences"]:
-                expected.update(Counter((kind, item["path"], value) for value in item["fingerprints"]))
-        for residue in legacy["residues"]:
-            expected[(residue["category"], residue["path"], residue["match"])] = 1
-        for kind, group in legacy["technical_debt"].items():
-            expected.update({(kind, item["path"], item["match"]): item["count"] for item in group["occurrences"]})
-
-        seen: Counter[tuple[str, str, str]] = Counter()
-        technical_seen: Counter[tuple[str, str, str]] = Counter()
-        classified_inventory: list[tuple[dict[str, Any], str]] = []
-        for occurrence in inventory["occurrences"]:
-            if occurrence["filename"]:
-                classified_inventory.append((occurrence, "filename"))
-            elif occurrence["official_url"]:
-                classified_inventory.append((occurrence, "official_url"))
-            else:
-                technical_occurrences = _classified_technical_occurrences(occurrence)
-                classified_inventory.extend(technical_occurrences or [(occurrence, "user_visible")])
-
-        for occurrence, kind in classified_inventory:
-            identity_match = (
-                occurrence["match"]
-                if kind in LEGACY_CATEGORIES
-                else hashlib.sha256(occurrence["match"].encode()).hexdigest()
-            )
-            identity = (kind, occurrence["path"], identity_match)
-            seen[identity] += 1
-            if kind in LEGACY_CATEGORIES:
-                technical_seen[identity] += 1
-
-            frozen_count = expected.get(identity, 0)
-            if profile == "stage0" and seen[identity] <= frozen_count:
-                residue = _matching_residue(occurrence, allowlist)
-                if residue is None:
-                    allowed.append(_violation(kind, occurrence, frozen=True))
-                else:
-                    allowed.append(
-                        {
-                            "path": occurrence["path"],
-                            "line": occurrence["line"],
-                            **{field: residue[field] for field in LEGACY_RESIDUE_FIELDS if field != "path"},
-                        }
-                    )
-                continue
-            if profile == "stage0":
-                violations.append(_violation("debt_addition", occurrence, debt_kind=kind))
-            elif kind in LEGACY_CATEGORIES:
-                violations.append(_violation("unallowlisted_technical", occurrence, debt_kind=kind))
-            else:
-                violations.append(_violation(kind, occurrence))
-
-        if profile == "stage0":
-            for identity, frozen_count in sorted(expected.items()):
-                kind, path, match = identity
-                if kind not in LEGACY_CATEGORIES:
-                    continue
-                current_count = technical_seen[identity]
-                violations.extend(
-                    [
-                        {
-                            "kind": "stale_technical_debt",
-                            "path": path,
-                            "line": 0,
-                            "match": match,
-                            "debt_kind": kind,
-                        }
-                        for _ in range(frozen_count - current_count)
-                    ]
-                )
+        message = f"unknown scan profile: {profile}"
+        raise ValueError(message)
+    repo_path = Path(repo).resolve()
+    contract_path = Path(zero_residue_contract_path).resolve()
+    errors = validate_zero_residue_contract(contract_path)
+    contract, _ = _load_mapping(contract_path)
+    if errors or contract is None:
+        return {"baseline": None, "allowed_residue": [], "violations": [], "contract_errors": errors}
+    try:
+        excluded = contract_path.relative_to(repo_path).as_posix()
+    except ValueError:
+        excluded = None
+    if _has_tracked_worktree_changes(repo_path):
+        report = _scan_blobs(_worktree_blobs(repo_path), contract, profile=profile, excluded_path=excluded)
+        previous_source = "HEAD"
     else:
-        for occurrence in inventory["occurrences"]:
-            # Legacy v1 contracts predate filename scanning.
-            if occurrence["filename"]:
-                continue
-            if occurrence["official_url"]:
-                violations.append(_violation("official_url", occurrence))
-                continue
-            residue = _matching_residue(occurrence, allowlist)
-            if residue is not None:
-                allowed.append(
-                    {
-                        "path": occurrence["path"],
-                        "line": occurrence["line"],
-                        **{field: residue[field] for field in LEGACY_RESIDUE_FIELDS if field != "path"},
-                    }
-                )
-                continue
-            kind = (
-                "unallowlisted_technical"
-                if _looks_technical(occurrence["match"], occurrence["path"])
-                else "user_visible"
-            )
-            violations.append(_violation(kind, occurrence))
-
-    def sort_key(item: dict[str, Any]) -> tuple[Any, ...]:
-        return (item.get("path", ""), item.get("line", 0), item.get("kind", ""), item.get("match", ""))
-
-    return {
-        "baseline": baseline,
-        "allowed_residue": sorted(allowed, key=sort_key),
-        "violations": sorted(violations, key=sort_key),
-        "contract_errors": [],
-    }
+        report = _scan_blobs(_object_blobs(repo_path, "HEAD"), contract, profile=profile, excluded_path=excluded)
+        previous_source = "HEAD^" if _first_parent_exists(repo_path) else None
+    if profile == "stage0":
+        previous_blobs = _object_blobs(repo_path, previous_source) if previous_source else []
+        previous = _scan_blobs(previous_blobs, contract, profile="stage0", excluded_path=excluded)
+        _add_monotonic_violations(report, previous)
+    report.pop("_path_counts")
+    return report
 
 
 def _render_text(report: dict[str, Any]) -> str:
-    if report.get("contract_errors"):
-        return "\n".join(f"CONTRACT ERROR: {error}" for error in report["contract_errors"]) + "\n"
-    if report.get("violations"):
+    if report["contract_errors"]:
+        return "".join(f"CONTRACT ERROR: {error}\n" for error in report["contract_errors"])
+    if report["violations"]:
         lines = []
         for item in report["violations"]:
-            location = item.get("path") or "<repository>"
-            if item.get("line"):
+            location = item["path"] or "<scan-root>"
+            if item["line"]:
                 location += f":{item['line']}"
-            lines.append(f"FAIL {item['kind']} {location}: {item.get('match', '')}")
-        return "\n".join(lines) + "\n"
-    return f"PASS tracked brand scan ({len(report.get('allowed_residue', []))} allowed residues)\n"
+            lines.append(f"FAIL {item['kind']} {location}: {item['match']}\n")
+        return "".join(lines)
+    return f"PASS Ketos {len(report['allowed_residue'])}-exception legal scan\n"
 
 
 def main(argv: list[str] | None = None) -> int:
     root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", type=Path, default=root)
+    parser.add_argument("--repo", type=Path, default=root, help="repository whose current Git index is scanned")
+    parser.add_argument("--scan-root", type=Path, help="scan every file under a clean worktree or unpacked artifact")
     parser.add_argument("--brand-contract", type=Path, default=root / "brand/ketos-brand-contract.yaml")
-    parser.add_argument("--legacy-contract", type=Path, default=root / "brand/legacy-langflow-contract.yaml")
-    parser.add_argument("--format", choices=("json", "text"), default="text")
-    parser.add_argument("--profile", choices=PROFILES, default="stage0")
-    parser.add_argument("--freeze", type=Path, help="write a frozen Stage 0 debt contract and exit")
     parser.add_argument(
-        "--inventory",
-        action="store_true",
-        help="print the tracked baseline and raw occurrences without applying an allowlist",
+        "--zero-residue-contract",
+        type=Path,
+        default=root / "brand/ketos-zero-residue-contract.yaml",
     )
+    parser.add_argument("--profile", choices=PROFILES, default="stage0")
+    parser.add_argument("--format", choices=("json", "text"), default="text")
     args = parser.parse_args(argv)
 
+    brand_errors = validate_brand_contract(args.brand_contract)
     try:
-        if args.freeze is not None:
-            args.freeze.parent.mkdir(parents=True, exist_ok=True)
-            args.freeze.write_text(
-                yaml.safe_dump(freeze_contract(args.repo), sort_keys=False, allow_unicode=True),
-                encoding="utf-8",
-            )
-            return 0
         report = (
-            inventory_repository(args.repo)
-            if args.inventory
-            else scan_repository(
-                args.repo,
-                args.brand_contract,
-                args.legacy_contract,
-                profile=args.profile,
-            )
+            scan_root(args.scan_root, args.zero_residue_contract, profile=args.profile)
+            if args.scan_root
+            else scan_repository(args.repo, args.zero_residue_contract, profile=args.profile)
         )
-    except (OSError, subprocess.CalledProcessError, ValueError) as exc:
+    except (OSError, subprocess.CalledProcessError, ValueError, zipfile.BadZipFile, tarfile.TarError) as exc:
         report = {"baseline": None, "allowed_residue": [], "violations": [], "contract_errors": [str(exc)]}
-
-    if args.format == "json" or args.inventory:
-        sys.stdout.write(json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
-    else:
-        sys.stdout.write(_render_text(report))
-    if args.inventory:
-        return 0
+    report["contract_errors"] = sorted([*brand_errors, *report["contract_errors"]])
+    sys.stdout.write(
+        json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+        if args.format == "json"
+        else _render_text(report)
+    )
     if report["contract_errors"]:
         return 2
     return 1 if report["violations"] else 0

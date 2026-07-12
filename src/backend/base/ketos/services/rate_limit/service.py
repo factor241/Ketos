@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 
 # Global limiter instance
 _limiter: Limiter | None = None
+RATE_LIMIT_KEY_PREFIX = "ketos:rate-limit:"
 
 
 def get_rate_limit_string() -> str:
@@ -52,6 +53,7 @@ def get_rate_limiter() -> Limiter:
         _limiter = Limiter(
             key_func=key_func,
             storage_uri=settings.rate_limit_storage_uri,
+            key_prefix=RATE_LIMIT_KEY_PREFIX,
             # Don't swallow errors - we want rate limit violations to raise exceptions
             swallow_errors=False,
         )

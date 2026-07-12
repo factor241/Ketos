@@ -405,6 +405,13 @@ def custom_params(
 # lowercase header names so that nested server configs can reference them
 # directly, e.g. ``{"x-api-key": "x-api-key"}`` in the MCP server headers config.
 _AUTH_HEADERS_TO_PROPAGATE = frozenset({"x-api-key", "authorization"})
+_LEGACY_PRODUCT_HEADER_PREFIX = "x-" + "lang" + "flow-"
+
+
+def reject_legacy_http_headers(headers) -> None:
+    """Fail closed when a pre-cutover product header reaches a runtime route."""
+    if any(str(header_name).lower().startswith(_LEGACY_PRODUCT_HEADER_PREFIX) for header_name in headers):
+        raise HTTPException(status_code=400, detail="Legacy HTTP headers are not supported")
 
 
 def extract_global_variables_from_headers(headers, *, include_auth_headers: bool = False) -> dict[str, str]:
@@ -439,6 +446,7 @@ def extract_global_variables_from_headers(headers, *, include_auth_headers: bool
         extract_global_variables_from_headers(headers, include_auth_headers=True)
         # Returns: {"API-KEY": "secret", "x-api-key": "mykey"}
     """
+    reject_legacy_http_headers(headers)
     variables: dict[str, str] = {}
 
     try:

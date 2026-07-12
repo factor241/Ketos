@@ -12,9 +12,10 @@ class TelemetrySettings(BaseModel):
     sentry_profiles_sample_rate: float | None = 1.0
 
     # Telemetry
-    do_not_track: bool = False
+    do_not_track: bool = True
     """If set to True, Ketos will not track telemetry."""
-    telemetry_base_url: str = "https://ketos.gateway.scarf.sh"
+    telemetry_base_url: str | None = None
+    """Explicit telemetry endpoint. No outbound telemetry is started without it."""
 
     transactions_storage_enabled: bool = True
     """If set to True, Ketos will track transactions between flows."""

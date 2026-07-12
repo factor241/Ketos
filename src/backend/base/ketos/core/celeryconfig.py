@@ -16,3 +16,6 @@ else:
     result_backend = os.environ.get("RESULT_BACKEND", "redis://localhost:6379/0")
 # tasks should be json or pickle
 accept_content = ["json", "pickle"]
+task_default_queue = "ketos"
+task_default_exchange = "ketos"
+task_default_routing_key = "ketos"

@@ -232,6 +232,7 @@ class RedisCache(ExternalAsyncBaseCacheService, Generic[LockType]):
     """
 
     KEY_PREFIX = "ketos:cache:"
+    HMAC_DOMAIN = b"ketos:redis-cache:hmac:"
 
     # Size of the HMAC-SHA256 tag prepended to every stored payload.
     _HMAC_DIGEST_SIZE = hashlib.sha256().digest_size
@@ -272,7 +273,7 @@ class RedisCache(ExternalAsyncBaseCacheService, Generic[LockType]):
             from ketos.services.deps import get_settings_service
 
             secret = get_settings_service().auth_settings.SECRET_KEY.get_secret_value()
-            self._signing_key = hashlib.sha256(b"ketos-redis-cache-hmac:" + secret.encode()).digest()
+            self._signing_key = hashlib.sha256(self.HMAC_DOMAIN + secret.encode()).digest()
         return self._signing_key
 
     def _integrity_tag(self, namespaced_key: str, payload: bytes) -> bytes:

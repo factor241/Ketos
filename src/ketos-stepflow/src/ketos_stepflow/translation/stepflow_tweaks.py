@@ -17,6 +17,8 @@ tests/helpers/tweaks_builder.py to keep this production code lean.
 import copy
 from typing import Any
 
+from ketos_stepflow.protocol import validate_component_route, validate_step_id
+
 
 def apply_stepflow_tweaks_to_dict(
     workflow_dict: dict[str, Any],
@@ -40,6 +42,10 @@ def apply_stepflow_tweaks_to_dict(
         ... }
         >>> modified_dict = apply_stepflow_tweaks_to_dict(workflow_dict, tweaks)
     """
+    for step_dict in workflow_dict.get("steps", []):
+        validate_step_id(str(step_dict.get("id", "")))
+        validate_component_route(str(step_dict.get("component", "")))
+
     if not tweaks:
         return workflow_dict
 

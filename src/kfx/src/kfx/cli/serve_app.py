@@ -25,7 +25,7 @@ import uuid
 from copy import deepcopy
 from typing import TYPE_CHECKING, Annotated, Any
 
-from fastapi import Depends, FastAPI, HTTPException, Response, Security
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, Security
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.security import APIKeyHeader, APIKeyQuery
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -48,6 +48,7 @@ if TYPE_CHECKING:
 
 # Security - use the same pattern as Ketos main API
 API_KEY_NAME = "x-api-key"
+_LEGACY_PRODUCT_HEADER_PREFIX = "x-" + "lang" + "flow-"
 
 # Constants for app factory env vars (used by uvicorn worker processes)
 _SERVE_ENV_PREFIX = "KFX_SERVE_"
@@ -56,6 +57,14 @@ _SERVE_NO_ENV_FALLBACK_ENV = f"{_SERVE_ENV_PREFIX}NO_ENV_FALLBACK"
 _SERVE_STARTUP_PATHS_ENV = f"{_SERVE_ENV_PREFIX}STARTUP_PATHS"
 api_key_query = APIKeyQuery(name=API_KEY_NAME, scheme_name="API key query", auto_error=False)
 api_key_header = APIKeyHeader(name=API_KEY_NAME, scheme_name="API key header", auto_error=False)
+
+
+def _install_legacy_header_rejection(app: FastAPI) -> None:
+    @app.middleware("http")
+    async def reject_legacy_headers(request: Request, call_next):
+        if any(name.lower().startswith(_LEGACY_PRODUCT_HEADER_PREFIX) for name in request.headers):
+            return JSONResponse(status_code=400, content={"detail": "Legacy HTTP headers are not supported"})
+        return await call_next(request)
 
 
 def verify_api_key(
@@ -557,6 +566,7 @@ def create_multi_serve_app(
         ),
         version="1.0.0",
     )
+    _install_legacy_header_rejection(app)
     app.state.registry = registry
 
     # ------------------------------------------------------------------

@@ -704,6 +704,17 @@ def create_app():
     app.add_middleware(JavaScriptMIMETypeMiddleware)
 
     @app.middleware("http")
+    async def reject_legacy_product_headers(request: Request, call_next):
+        """Reject removed product headers before auth, lookup, or execution."""
+        from ketos.api.utils.core import reject_legacy_http_headers
+
+        try:
+            reject_legacy_http_headers(request.headers)
+        except HTTPException as exc:
+            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+        return await call_next(request)
+
+    @app.middleware("http")
     async def check_boundary(request: Request, call_next):
         if "/api/v1/files/upload" in request.url.path:
             content_type = request.headers.get("Content-Type")

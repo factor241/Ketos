@@ -7,9 +7,25 @@ from typing import Any
 
 from stepflow_py.worker import StepflowContext, StepflowServer
 
+from ketos_stepflow.worker import DEFAULT_OTEL_SERVICE_NAME
 from ketos_stepflow.worker.component_tool import component_tool_executor
 from ketos_stepflow.worker.core_executor import CoreExecutor
 from ketos_stepflow.worker.custom_code_executor import CustomCodeExecutor
+
+
+def get_service_name() -> str:
+    """Return the explicit OTel resource identity for this worker."""
+    import os
+
+    return os.environ.get("STEPFLOW_SERVICE_NAME", DEFAULT_OTEL_SERVICE_NAME)
+
+
+def configure_observability_environment() -> str:
+    """Install the Ketos OTel identity before Stepflow constructs its config."""
+    import os
+
+    os.environ.setdefault("STEPFLOW_SERVICE_NAME", DEFAULT_OTEL_SERVICE_NAME)
+    return os.environ["STEPFLOW_SERVICE_NAME"]
 
 # Create server instance
 server = StepflowServer()
@@ -52,7 +68,7 @@ def main():
     - STEPFLOW_LOG_LEVEL: Log level (DEBUG, INFO, WARNING, ERROR, default: INFO)
     - STEPFLOW_LOG_DESTINATION: Log destination (stderr, file, otlp)
     - STEPFLOW_OTLP_ENDPOINT: OTLP endpoint for tracing/logging
-    - STEPFLOW_SERVICE_NAME: Service name (default: stepflow-python)
+    - STEPFLOW_SERVICE_NAME: Service name (default: ketos-stepflow)
     """
     import argparse
     import asyncio
@@ -61,6 +77,7 @@ def main():
     import nest_asyncio  # type: ignore
     from stepflow_py.worker.observability import setup_observability
 
+    configure_observability_environment()
     setup_observability()
 
     nest_asyncio.apply()
@@ -93,6 +110,10 @@ def main():
         help="Max concurrent tasks (env: STEPFLOW_MAX_CONCURRENT)",
     )
     args = parser.parse_args()
+
+    from ketos_stepflow.protocol import validate_queue_name
+
+    validate_queue_name(args.queue_name)
 
     from stepflow_py.worker.grpc_worker import run_grpc_worker
 

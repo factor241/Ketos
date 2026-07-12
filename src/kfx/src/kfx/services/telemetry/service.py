@@ -30,9 +30,6 @@ from kfx.services.telemetry.schema import (
 if TYPE_CHECKING:
     from pydantic import BaseModel
 
-_DEFAULT_BASE_URL = "https://ketos.gateway.scarf.sh"
-
-
 class TelemetryService(BaseTelemetryService):
     """Async telemetry service that sends events to Scarf via query params."""
 
@@ -43,10 +40,10 @@ class TelemetryService(BaseTelemetryService):
         do_not_track: bool | None = None,
     ):
         super().__init__()
-        self.base_url = base_url or os.environ.get("KETOS_TELEMETRY_BASE_URL", _DEFAULT_BASE_URL)
+        self.base_url = base_url or os.environ.get("KETOS_TELEMETRY_BASE_URL")
 
         if do_not_track is None:
-            do_not_track = os.environ.get("DO_NOT_TRACK", "false").lower() in {"1", "true"}
+            do_not_track = os.environ.get("DO_NOT_TRACK", "true").lower() in {"1", "true"}
         self.do_not_track = do_not_track
 
         self._queue: asyncio.Queue[tuple] = asyncio.Queue()
@@ -72,7 +69,7 @@ class TelemetryService(BaseTelemetryService):
     # ------------------------------------------------------------------
 
     def start(self) -> None:
-        if self._running or self.do_not_track:
+        if self._running or self.do_not_track or not self.base_url:
             return
         self._running = True
         self._start_time = datetime.now(timezone.utc)
@@ -108,7 +105,7 @@ class TelemetryService(BaseTelemetryService):
     # ------------------------------------------------------------------
 
     async def send_telemetry_data(self, payload: BaseModel, path: str | None = None) -> None:
-        if self.do_not_track or self._client is None:
+        if self.do_not_track or not self.base_url or self._client is None:
             return
         try:
             url = f"{self.base_url}/{path}" if path else self.base_url
@@ -170,7 +167,7 @@ class TelemetryService(BaseTelemetryService):
     # ------------------------------------------------------------------
 
     async def _enqueue(self, payload: BaseModel, path: str | None) -> None:
-        if self.do_not_track or self._stopping:
+        if self.do_not_track or not self.base_url or self._stopping:
             return
         await self._queue.put((payload, path))
 

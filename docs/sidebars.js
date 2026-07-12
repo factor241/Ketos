@@ -13,12 +13,12 @@ module.exports = {
         {
           type: "doc",
           id: "Get-Started/about-langflow",
-          label: "About Langflow"
+          label: "About Ketos"
         },
         {
           type: "doc",
           id: "Get-Started/get-started-installation",
-          label: "Install Langflow"
+          label: "Install Ketos"
         },
         {
           type: "doc",
@@ -59,7 +59,7 @@ module.exports = {
             {
               type: "doc",
               id: "Flows/concepts-publish",
-              label: "Trigger flows with the Langflow API"
+              label: "Trigger flows with the Ketos API"
             },
             {
               type: "doc",
@@ -81,7 +81,7 @@ module.exports = {
         {
           type: "doc",
           id: "Flows/langflow-assistant",
-          label: "Build flows and components with Langflow Assistant"
+          label: "Build flows and components with Ketos Assistant"
         },
       ],
     },
@@ -176,7 +176,7 @@ module.exports = {
         {
           type: "doc",
           id: "Develop/data-types",
-          label: "Use Langflow data types"
+          label: "Use Ketos data types"
         },
         {
           type: "doc",
@@ -186,7 +186,7 @@ module.exports = {
         {
           type: "doc",
           id: "Develop/configuration-cli",
-          label: "Use the Langflow CLI"
+          label: "Use the Ketos CLI"
         },
         {
           type: "category",
@@ -207,17 +207,17 @@ module.exports = {
         {
           type:"doc",
           id: "Deployment/deployment-overview",
-          label: "Langflow deployment overview"
+          label: "Ketos deployment overview"
         },
         {
           type: "doc",
           id: "Deployment/deployment-public-server",
-          label: "Deploy a public Langflow server"
+          label: "Deploy a public Ketos server"
         },
         {
           type: "doc",
           id: "Deployment/deployment-nginx-ssl",
-          label: "Deploy Langflow with Nginx and SSL"
+          label: "Deploy Ketos with Nginx and SSL"
         },
         {
           type: "doc",
@@ -232,12 +232,12 @@ module.exports = {
             {
               type: "doc",
               id: "Deployment/deployment-docker",
-              label: "Langflow Docker images"
+              label: "Ketos Docker images"
             },
             {
               type: "doc",
               id: "Deployment/deployment-caddyfile",
-              label: "Deploy Langflow on a remote server"
+              label: "Deploy Ketos on a remote server"
             },
             {
               type: "category",
@@ -296,12 +296,12 @@ module.exports = {
         {
           type: "doc",
           id: "Deployment/deployment-multi-worker",
-          label: "Deploy Langflow with multiple workers",
+          label: "Deploy Ketos with multiple workers",
         },
         {
           type: "doc",
           id: "Deployment/deployment-lfx-compatibility",
-          label: "LFX and Langflow version compatibility",
+          label: "KFX and Ketos version compatibility",
         },
         {
           type: "doc",
@@ -505,7 +505,7 @@ module.exports = {
         {
           type: "doc",
           id: "API-Reference/api-reference-api-examples",
-          label: "Get started with the Langflow API",
+          label: "Get started with the Ketos API",
         },
         {
           type: "doc",
@@ -544,27 +544,9 @@ module.exports = {
         "API-Reference/api-users",
         {
           type: "link",
-          label: "Langflow API specification",
+          label: "Ketos API specification",
           href: "/api",
         },
-      ],
-    },
-    {
-      type: "html",
-      value: `<div class="sidebar-group-label">Community</div>`,
-      className: "sidebar-group-divider",
-    },
-    {
-      type: "category",
-      label: "Contribute",
-      className: "sidebar-category-with-icon sidebar-icon-gitPR",
-      items: [
-        "Contributing/contributing-community",
-        "Contributing/contributing-how-to-contribute",
-        "Contributing/contributing-components",
-        "Contributing/contributing-bundles",
-        "Contributing/contributing-component-tests",
-        "Contributing/contributing-templates",
       ],
     },
     {
@@ -584,42 +566,10 @@ module.exports = {
         },
         {
           type: "doc",
-          id: "Support/contributing-github-issues",
-          label: "Get help and request enhancements",
-        },
-        {
-          type: "doc",
-          id: "Support/luna-for-langflow",
-          label: "IBM Elite Support for Langflow",
-        },
-        {
-          type: "doc",
           id: "Support/release-notes",
           label: "Release notes",
         },
       ],
-    },
-    {
-      type: "html",
-      className: "sidebar-ad",
-      value: `
-        <a href="https://www.langflow.org/desktop" target="_blank" rel="noopener noreferrer" class="menu__link">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <g clip-path="url(#clip0_1645_37)">
-              <path d="M12 17H20C21.1046 17 22 16.1046 22 15V13M12 17H4C2.89543 17 2 16.1046 2 15V5C2 3.89543 2.89543 3 4 3H10M12 17V21M8 21H12M12 21H16M11.75 10.2917H13.2083L16.125 7.375H17.5833L20.5 4.45833H21.9583M16.125 11.75H17.5833L20.5 8.83333H21.9583M11.75 5.91667H13.2083L16.125 3H17.5833" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </g>
-            <defs>
-              <clipPath id="clip0_1645_37">
-                <rect width="24" height="24" fill="white"/>
-              </clipPath>
-            </defs>
-          </svg>
-          <div class="sidebar-ad-text-container">
-            <span class="sidebar-ad-text">Get started in minutes</span>
-            <span class="sidebar-ad-text sidebar-ad-text-gradient">Download Langflow Desktop</span>
-          </div>
-        </a>
-      `,
     },
   ],
 };

@@ -25,12 +25,12 @@ export const strictRuI18nTestMode = isStrictRuTestMode(import.meta.env);
 export const i18nDiagnostics = createI18nDiagnostics(strictRuI18nTestMode);
 
 if (typeof window !== "undefined") {
-  window.__LANGFLOW_I18N_DIAGNOSTICS__ = i18nDiagnostics;
+  window.__KETOS_I18N_DIAGNOSTICS__ = i18nDiagnostics;
 }
 
 const fallbackDiagnosticsProcessor: PostProcessorModule = {
   type: "postProcessor",
-  name: "langflowFallbackDiagnostics",
+  name: "ketosFallbackDiagnostics",
   process(value, key, options) {
     const optionLocale = Array.isArray(options.lng)
       ? options.lng[0]

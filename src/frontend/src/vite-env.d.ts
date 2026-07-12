@@ -20,8 +20,10 @@ declare global {
     readonly BACKEND_URL: string;
     readonly ACCESS_TOKEN_EXPIRE_SECONDS: string;
     readonly CI: string;
-    readonly LANGFLOW_AUTO_LOGIN: string;
-    readonly LANGFLOW_MCP_COMPOSER_ENABLED: string;
+    readonly KETOS_AUTO_LOGIN: string;
+    readonly KETOS_MCP_COMPOSER_ENABLED: string;
+    readonly KETOS_EXTENSION_RELOAD_ENABLED?: string;
+    readonly KETOS_WXO_UTM_SOURCE?: string;
     readonly VITE_ENABLE_RUSSIAN_LOCALE?: string;
     readonly VITE_STRICT_RU_I18N?: string;
   }
@@ -31,7 +33,7 @@ declare global {
   }
 
   interface Window {
-    __LANGFLOW_I18N_DIAGNOSTICS__?: import("./i18n-diagnostics").I18nDiagnostics;
+    __KETOS_I18N_DIAGNOSTICS__?: import("./i18n-diagnostics").I18nDiagnostics;
   }
 }
 

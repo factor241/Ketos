@@ -1,10 +1,18 @@
 """Tests for upload.py."""
 
+import importlib
 import json
 from unittest.mock import MagicMock, patch
 
 import pytest
 import upload as upload_mod
+
+
+def test_default_backend_bundle_is_canonical_ketos(monkeypatch):
+    monkeypatch.delenv("GP_BACKEND_BUNDLE", raising=False)
+    importlib.reload(upload_mod)
+
+    assert upload_mod.GP_BACKEND_BUNDLE == "ketos-ui-backend-v2"
 
 
 def _run_frontend(source_path: str):
@@ -23,10 +31,10 @@ class TestUploadFrontend:
         source.write_text(json.dumps({"hello": "Hello", "bye": "Bye"}), encoding="utf-8")
 
         with (
-            patch.object(upload_mod, "list_bundles", return_value={"bundleIds": ["langflow-ui"]}),
+            patch.object(upload_mod, "list_bundles", return_value={"bundleIds": ["ketos-ui"]}),
             patch.object(upload_mod, "create_bundle") as mock_create,
             patch.object(upload_mod, "upload_strings") as mock_upload,
-            patch.object(upload_mod, "GP_BUNDLE", "langflow-ui"),
+            patch.object(upload_mod, "GP_BUNDLE", "ketos-ui"),
         ):
             _run_frontend(str(source))
 
@@ -41,7 +49,7 @@ class TestUploadFrontend:
             patch.object(upload_mod, "list_bundles", return_value={"bundleIds": []}),
             patch.object(upload_mod, "create_bundle") as mock_create,
             patch.object(upload_mod, "upload_strings") as mock_upload,
-            patch.object(upload_mod, "GP_BUNDLE", "langflow-ui"),
+            patch.object(upload_mod, "GP_BUNDLE", "ketos-ui"),
         ):
             _run_frontend(str(source))
 
@@ -53,10 +61,10 @@ class TestUploadFrontend:
         source.write_text("{}", encoding="utf-8")
 
         with (
-            patch.object(upload_mod, "list_bundles", return_value={"bundleIds": ["langflow-ui"]}),
+            patch.object(upload_mod, "list_bundles", return_value={"bundleIds": ["ketos-ui"]}),
             patch.object(upload_mod, "create_bundle"),
             patch.object(upload_mod, "upload_strings") as mock_upload,
-            patch.object(upload_mod, "GP_BUNDLE", "langflow-ui"),
+            patch.object(upload_mod, "GP_BUNDLE", "ketos-ui"),
             pytest.raises(SystemExit) as exc_info,
         ):
             _run_frontend(str(source))
@@ -70,9 +78,9 @@ class TestUploadFrontend:
         sentinel = "gp-value-sentinel-12345"
 
         with (
-            patch.object(upload_mod, "list_bundles", return_value={"bundleIds": ["langflow-ui"]}),
+            patch.object(upload_mod, "list_bundles", return_value={"bundleIds": ["ketos-ui"]}),
             patch.object(upload_mod, "upload_strings", return_value={"debug": sentinel}),
-            patch.object(upload_mod, "GP_BUNDLE", "langflow-ui"),
+            patch.object(upload_mod, "GP_BUNDLE", "ketos-ui"),
         ):
             _run_frontend(str(source))
 
@@ -118,10 +126,10 @@ class TestUploadBackend:
         source.write_text(json.dumps(strings), encoding="utf-8")
 
         with (
-            patch.object(upload_mod, "list_bundles", return_value={"bundleIds": ["langflow-backend"]}),
+            patch.object(upload_mod, "list_bundles", return_value={"bundleIds": ["ketos-ui-backend-v2"]}),
             patch.object(upload_mod, "create_backend_bundle") as mock_create,
             patch.object(upload_mod, "upload_backend_strings") as mock_upload,
-            patch.object(upload_mod, "GP_BACKEND_BUNDLE", "langflow-backend"),
+            patch.object(upload_mod, "GP_BACKEND_BUNDLE", "ketos-ui-backend-v2"),
         ):
             _run_backend(str(source))
 
@@ -137,7 +145,7 @@ class TestUploadBackend:
             patch.object(upload_mod, "list_bundles", return_value={"bundleIds": []}),
             patch.object(upload_mod, "create_backend_bundle") as mock_create,
             patch.object(upload_mod, "upload_backend_strings") as mock_upload,
-            patch.object(upload_mod, "GP_BACKEND_BUNDLE", "langflow-backend"),
+            patch.object(upload_mod, "GP_BACKEND_BUNDLE", "ketos-ui-backend-v2"),
         ):
             _run_backend(str(source))
 
@@ -173,10 +181,10 @@ class TestUploadBackend:
             return {}
 
         with (
-            patch.object(upload_mod, "list_bundles", return_value={"bundleIds": ["langflow-backend"]}),
+            patch.object(upload_mod, "list_bundles", return_value={"bundleIds": ["ketos-ui-backend-v2"]}),
             patch.object(upload_mod, "create_backend_bundle"),
             patch.object(upload_mod, "upload_backend_strings", side_effect=_capture_upload),
-            patch.object(upload_mod, "GP_BACKEND_BUNDLE", "langflow-backend"),
+            patch.object(upload_mod, "GP_BACKEND_BUNDLE", "ketos-ui-backend-v2"),
         ):
             _run_backend(str(source))
 

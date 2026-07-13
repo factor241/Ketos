@@ -1,6 +1,6 @@
-"""Extract translatable strings from Langflow component classes.
+"""Extract translatable strings from Ketos component classes.
 
-Walks the lfx.components package, reads class-level display_name/description
+Walks the kfx.components package, reads class-level display_name/description
 and field-level display_names directly from component class definitions
 (no running server needed), and writes a flat GP-compatible JSON file.
 
@@ -37,9 +37,9 @@ from pathlib import Path
 from typing import Any, NamedTuple
 
 ROOT = Path(__file__).resolve().parents[2]
-OUTPUT_PATH = ROOT / "src/backend/base/langflow/locales/en.json"
-STARTER_PROJECTS_DIR = ROOT / "src/backend/base/langflow/initial_setup/starter_projects"
-COMPONENT_INDEX_PATH = ROOT / "src/lfx/src/lfx/_assets/component_index.json"
+OUTPUT_PATH = ROOT / "src/backend/base/ketos/locales/en.json"
+STARTER_PROJECTS_DIR = ROOT / "src/backend/base/ketos/initial_setup/starter_projects"
+COMPONENT_INDEX_PATH = ROOT / "src/kfx/src/kfx/_assets/component_index.json"
 COMPONENT_METADATA_CHECKER = ROOT / "scripts/i18n/check_component_metadata.py"
 MIN_COMPONENT_KEY_SEGMENTS = 3
 
@@ -298,18 +298,18 @@ def _write_report(path: Path | None, payload: dict[str, object]) -> None:
 
 
 def collect_strings() -> dict[str, str]:
-    """Walk lfx.components and extract all translatable display_name strings."""
-    from langflow.utils.i18n_keys import COMPONENT_INPUT_TEXT_FIELDS, COMPONENT_NESTED_TEXT_KEYS
-    from langflow.utils.i18n_keys import component_dynamic_field_path as _component_dynamic_field_path
-    from langflow.utils.i18n_keys import component_field_key as _component_field_key
-    from langflow.utils.i18n_keys import component_option_label as _component_option_label
-    from langflow.utils.i18n_keys import normalize_component_key as _normalize_component_key
-    from langflow.utils.i18n_keys import safe_flow_key as _safe_key
+    """Walk kfx.components and extract all translatable display_name strings."""
+    from ketos.utils.i18n_keys import COMPONENT_INPUT_TEXT_FIELDS, COMPONENT_NESTED_TEXT_KEYS
+    from ketos.utils.i18n_keys import component_dynamic_field_path as _component_dynamic_field_path
+    from ketos.utils.i18n_keys import component_field_key as _component_field_key
+    from ketos.utils.i18n_keys import component_option_label as _component_option_label
+    from ketos.utils.i18n_keys import normalize_component_key as _normalize_component_key
+    from ketos.utils.i18n_keys import safe_flow_key as _safe_key
 
     try:
-        import lfx.components as components_pkg
+        import kfx.components as components_pkg
     except ImportError:
-        print("ERROR: Could not import lfx.components. Run this script from inside the backend virtualenv.")
+        print("ERROR: Could not import kfx.components. Run this script from inside the backend virtualenv.")
         sys.exit(1)
 
     flat: dict[str, str] = {}
@@ -324,9 +324,7 @@ def collect_strings() -> dict[str, str]:
         try:
             module = importlib.import_module(modname)
         except Exception as e:  # noqa: BLE001
-            skipped_imports.append(
-                SkippedImport(module=modname, error_type=type(e).__name__, message=str(e))
-            )
+            skipped_imports.append(SkippedImport(module=modname, error_type=type(e).__name__, message=str(e)))
             continue
 
         for cls in vars(module).values():
@@ -516,13 +514,13 @@ def collect_strings() -> dict[str, str]:
 
     # Tier 5 — stable system-folder display labels. Persisted DB names remain
     # unchanged; only the API read layer resolves these catalog keys.
-    from langflow.initial_setup.constants import (
+    from ketos.initial_setup.constants import (
         ASSISTANT_FOLDER_NAME,
         ASSISTANT_FOLDER_NAME_I18N_KEY,
         STARTER_FOLDER_NAME,
         STARTER_FOLDER_NAME_I18N_KEY,
     )
-    from langflow.services.database.models.folder.constants import (
+    from ketos.services.database.models.folder.constants import (
         DEFAULT_FOLDER_DISPLAY_NAME,
         DEFAULT_FOLDER_NAME_I18N_KEY,
     )
@@ -534,8 +532,8 @@ def collect_strings() -> dict[str, str]:
     # Shared tool-mode output — injected dynamically on every component when tool_mode is
     # enabled, so it's never part of any component's static output list.  Uses the sentinel
     # norm "_toolmode" so the runtime translator can look it up with a single shared key.
-    # Constants are inlined (not imported from lfx.base) so this script can run without
-    # the full lfx package installed, matching the pattern used in bake_note_keys.py.
+    # Constants are inlined (not imported from kfx.base) so this script can run without
+    # the full kfx package installed, matching the pattern used in bake_note_keys.py.
     _tool_output_name = "component_as_tool"
     _tool_output_display_name = "Toolset"
     flat[_component_field_key("_toolmode", f"outputs.{_tool_output_name}.display_name", _tool_output_display_name)] = (
@@ -559,7 +557,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    print("Scanning lfx.components for translatable strings...")
+    print("Scanning kfx.components for translatable strings...")
     try:
         strings = collect_strings()
     except SkippedImportsError as exc:
@@ -580,11 +578,7 @@ def main() -> None:
 
     payload = _report_payload(strings, ok=True)
     _write_report(args.report_json, payload)
-    print(
-        f"Found {len(strings)} translatable keys across "
-        f"{count_component_keys(strings)}"
-        " components."
-    )
+    print(f"Found {len(strings)} translatable keys across {count_component_keys(strings)} components.")
 
     new_content = json.dumps(strings, ensure_ascii=False, indent=2) + "\n"
 

@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from langflow.utils.i18n_keys import (
+from ketos.utils.i18n_keys import (
     COMPONENT_INPUT_TEXT_FIELDS,
     COMPONENT_NESTED_TEXT_KEYS,
     component_field_key,
@@ -19,8 +19,8 @@ from langflow.utils.i18n_keys import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_INDEX = ROOT / "src/lfx/src/lfx/_assets/component_index.json"
-DEFAULT_CATALOG = ROOT / "src/backend/base/langflow/locales/en.json"
+DEFAULT_INDEX = ROOT / "src/kfx/src/kfx/_assets/component_index.json"
+DEFAULT_CATALOG = ROOT / "src/backend/base/ketos/locales/en.json"
 RUNTIME_EXTRACTOR = ROOT / "scripts/gp/extract_backend_strings.py"
 
 PRESENTATION_SUFFIXES = ("_label", "_text", "_tooltip")
@@ -213,9 +213,7 @@ def main() -> None:
     if audit.value_mismatch:
         failures.append(f"index/catalog value mismatch: {len(audit.value_mismatch)}")
     if audit.unknown_presentation_fields:
-        failures.append(
-            "unregistered presentation fields: " + ", ".join(sorted(audit.unknown_presentation_fields))
-        )
+        failures.append("unregistered presentation fields: " + ", ".join(sorted(audit.unknown_presentation_fields)))
     if audit.index_count_mismatch:
         failures.append("component index metadata count does not match its entries")
 

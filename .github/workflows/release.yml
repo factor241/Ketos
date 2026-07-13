@@ -603,7 +603,7 @@ jobs:
           echo "Updated pyproject.toml version:"
           grep "^version" pyproject.toml
       - name: Build project for distribution
-        run: make sdk_build args="--wheel"
+        run: make sdk_build
       - name: Verify built version
         run: |
           EXPECTED_VERSION="${{ needs.determine-sdk-version.outputs.version }}"
@@ -708,7 +708,7 @@ jobs:
         run: |
           cd src/kfx
           rm -rf dist/
-          uv build --wheel --out-dir dist
+          uv build --out-dir dist
       - name: Verify built version
         run: |
           EXPECTED_VERSION="${{ needs.determine-kfx-version.outputs.version }}"
@@ -836,7 +836,7 @@ jobs:
           echo "Updated kfx dependency:"
           grep "kfx" pyproject.toml
       - name: Build project for distribution
-        run: make build base=true args="--wheel"
+        run: make build base=true
       - name: Verify built version
         run: |
           EXPECTED_VERSION="${{ needs.determine-base-version.outputs.version }}"
@@ -983,10 +983,10 @@ jobs:
           grep "ketos-base" pyproject.toml
       - name: Build project for pre-release distribution
         if: ${{ inputs.pre_release }}
-        run: make build pre=true args="--no-sources --wheel"
+        run: make build pre=true args="--no-sources"
       - name: Build project for distribution
         if: ${{ !inputs.pre_release }}
-        run: make build main=true args="--no-sources --wheel"
+        run: make build main=true args="--no-sources"
       - name: Verify built version
         run: |
           EXPECTED_VERSION="${{ needs.determine-main-version.outputs.version }}"
@@ -1095,7 +1095,7 @@ jobs:
             rm -f "${pyproject}.bak"
             grep -E '"kfx>=' "$pyproject" | sed "s|^|  ${pyproject}: |"
           done
-      - name: Build bundle wheels
+      - name: Build bundle distributions
         id: build
         run: |
           shopt -s nullglob
@@ -1109,8 +1109,8 @@ jobs:
           BUNDLES_DIST="$PWD/bundles-dist"
           for bundle_pyproject in "${bundles[@]}"; do
             bundle_dir=$(dirname "$bundle_pyproject")
-            echo "Building wheel for $bundle_dir"
-            (cd "$bundle_dir" && uv build --wheel --out-dir "$BUNDLES_DIST")
+            echo "Building wheel and sdist for $bundle_dir"
+            (cd "$bundle_dir" && uv build --out-dir "$BUNDLES_DIST")
           done
           echo "bundles-found=1" >> $GITHUB_OUTPUT
           ls -la bundles-dist/
@@ -1420,11 +1420,190 @@ jobs:
       push_to_registry: ${{ !inputs.dry_run }}
     secrets: inherit
 
+  supply-chain:
+    name: Generate immutable supply-chain documents
+    runs-on: ubuntu-latest
+    needs:
+      [
+        determine-main-version,
+        build-sdk,
+        build-kfx,
+        build-base,
+        build-main,
+        build-bundles,
+        call_docker_build_base,
+        call_docker_build_main,
+        call_docker_build_main_backend,
+        call_docker_build_main_frontend,
+        call_docker_build_main_ep,
+        call_docker_build_main_all,
+      ]
+    if: |
+      always() &&
+      !cancelled() &&
+      (needs.build-sdk.result == 'success' ||
+       needs.build-kfx.result == 'success' ||
+       needs.build-base.result == 'success' ||
+       needs.build-main.result == 'success' ||
+       needs.build-bundles.result == 'success' ||
+       needs.call_docker_build_base.result == 'success' ||
+       needs.call_docker_build_main.result == 'success' ||
+       needs.call_docker_build_main_backend.result == 'success' ||
+       needs.call_docker_build_main_frontend.result == 'success' ||
+       needs.call_docker_build_main_ep.result == 'success' ||
+       needs.call_docker_build_main_all.result == 'success')
+    steps:
+      - name: Checkout approved release commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup supply-chain runtime
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+          python-version: "3.13"
+
+      - name: Download SDK distributions
+        if: ${{ needs.build-sdk.result == 'success' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-sdk
+          path: release-inputs/distributions/sdk
+
+      - name: Download KFX distributions
+        if: ${{ needs.build-kfx.result == 'success' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-kfx
+          path: release-inputs/distributions/kfx
+
+      - name: Download Ketos Base distributions
+        if: ${{ needs.build-base.result == 'success' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-base
+          path: release-inputs/distributions/base
+
+      - name: Download Ketos distributions
+        if: ${{ needs.build-main.result == 'success' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-main
+          path: release-inputs/distributions/main
+
+      - name: Download bundle distributions
+        if: ${{ needs.build-bundles.result == 'success' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-bundles
+          path: release-inputs/distributions/bundles
+
+      - name: Download immutable OCI subjects from completed image builds
+        if: |
+          needs.call_docker_build_base.result == 'success' ||
+          needs.call_docker_build_main.result == 'success' ||
+          needs.call_docker_build_main_backend.result == 'success' ||
+          needs.call_docker_build_main_frontend.result == 'success' ||
+          needs.call_docker_build_main_ep.result == 'success' ||
+          needs.call_docker_build_main_all.result == 'success'
+        uses: actions/download-artifact@v7
+        with:
+          pattern: oci-subject-*
+          path: release-inputs/oci-subjects
+          merge-multiple: true
+
+      - name: Generate release archive and supply-chain documents
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="${{ needs.determine-main-version.outputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="${{ inputs.release_tag }}"
+            VERSION="${VERSION#v}"
+          fi
+
+          SOURCE_DATE_EPOCH="$(git show -s --format=%ct "$GITHUB_SHA")"
+          export SOURCE_DATE_EPOCH
+          SOURCE_URI="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+
+          mkdir -p release-inputs/release-archives supply-chain/
+          git archive --format=tar --prefix="ketos-${VERSION}/" "$GITHUB_SHA" \
+            | gzip -n > "release-inputs/release-archives/ketos-${VERSION}-source.tar.gz"
+          git archive --format=zip --prefix="ketos-${VERSION}/" "$GITHUB_SHA" \
+            > "release-inputs/release-archives/ketos-${VERSION}-source.zip"
+
+          mapfile -d '' release_files < <(
+            find release-inputs -type f \
+              \( -name '*.whl' -o -name '*.tar.gz' -o -name '*.zip' \) \
+              -print0 | sort -z
+          )
+          if [ "${#release_files[@]}" -eq 0 ]; then
+            echo "No immutable release inputs were collected."
+            exit 1
+          fi
+
+          artifact_args=()
+          for artifact in "${release_files[@]}"; do
+            artifact_args+=(--artifact "${artifact#release-inputs/}")
+          done
+
+          expected_oci_args=()
+          if [ "${{ inputs.build_docker_base }}" = "true" ]; then
+            expected_oci_args+=(--expected-release-type base)
+          fi
+          if [ "${{ inputs.build_docker_main }}" = "true" ]; then
+            expected_oci_args+=(--expected-release-type main --expected-release-type main-ep --expected-release-type main-all)
+            if [ "${{ inputs.dry_run }}" != "true" ]; then
+              expected_oci_args+=(--expected-release-type main-backend --expected-release-type main-frontend)
+            fi
+          fi
+
+          oci_args=()
+          if [ "${#expected_oci_args[@]}" -gt 0 ]; then
+            mapfile -t oci_subjects < <(
+              uv run python scripts/ci/collect_oci_subjects.py \
+                --input-dir release-inputs/oci-subjects \
+                "${expected_oci_args[@]}"
+            )
+            if [ "${#oci_subjects[@]}" -eq 0 ]; then
+              echo "Selected OCI builds did not produce immutable subjects."
+              exit 1
+            fi
+            for subject in "${oci_subjects[@]}"; do
+              oci_args+=(--oci-subject "$subject")
+            done
+          fi
+
+          uv run python scripts/ci/generate_supply_chain.py \
+            --artifact-root release-inputs \
+            "${artifact_args[@]}" \
+            "${oci_args[@]}" \
+            --output-dir supply-chain \
+            --source-uri "$SOURCE_URI" \
+            --commit-sha "$GITHUB_SHA" \
+            --source-date-epoch "$SOURCE_DATE_EPOCH" \
+            --name ketos \
+            --version "$VERSION"
+
+      - name: Upload supply-chain documents
+        uses: actions/upload-artifact@v6
+        with:
+          name: supply-chain
+          path: supply-chain/
+
+      - name: Upload deterministic release archive
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-archives
+          path: release-inputs/release-archives/
+
   create_release:
     name: Create Release
     runs-on: ubuntu-latest
     needs:
-      [determine-main-version, build-main, publish-main, validate-tag-format]
+      [determine-main-version, build-main, publish-main, validate-tag-format, supply-chain]
     if: |
       always() &&
       !cancelled() &&
@@ -1432,6 +1611,7 @@ jobs:
       inputs.create_release &&
       needs.build-main.result == 'success' &&
       needs.publish-main.result == 'success' &&
+      needs.supply-chain.result == 'success' &&
       needs.validate-tag-format.result == 'success'
     steps:
       - name: Checkout approved release commit
@@ -1447,6 +1627,14 @@ jobs:
         with:
           name: dist-main
           path: dist
+      - uses: actions/download-artifact@v7
+        with:
+          name: supply-chain
+          path: supply-chain
+      - uses: actions/download-artifact@v7
+        with:
+          name: release-archives
+          path: release-archives
       - name: Create Release
         env:
           KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
@@ -1455,7 +1643,7 @@ jobs:
       - name: Publish approved GitHub release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: dist/*
+          artifacts: "dist/*,release-archives/*,supply-chain/*"
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           generateReleaseNotes: true

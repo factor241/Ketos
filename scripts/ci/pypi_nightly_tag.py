@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 """Idea from https://github.com/streamlit/streamlit/blob/4841cf91f1c820a392441092390c4c04907f9944/scripts/pypi_nightly_create_tag.py.
 
-The nightly is published as canonical `.devN` pre-releases (e.g. `langflow==X.Y.Z.devN`), NOT
+The nightly is published as canonical `.devN` pre-releases (e.g. `ketos==X.Y.Z.devN`), NOT
 separate `*-nightly` distributions, so the dev counter is computed against the canonical
-`langflow` / `langflow-base` PyPI histories (their `.devN` pre-releases; stable finals never
+`ketos` / `ketos-base` PyPI histories (their `.devN` pre-releases; stable finals never
 contribute). See `src/bundles/NIGHTLY.md`.
 
-`langflow` (the nightly pre-release) pins an EXACT dependency on `langflow-base[complete]==X.Y.Z.devN`.
-For the latest published nightly `langflow` to be installable, the base version it pins must
+`ketos` (the nightly pre-release) pins an EXACT dependency on `ketos-base[complete]==X.Y.Z.devN`.
+For the latest published nightly `ketos` to be installable, the base version it pins must
 exist on PyPI. The two packages are therefore versioned in lockstep: they share a single dev
 number so that, in a single nightly run (publish order base -> main, gated), main's `devN` pin
 always references the base `devN` built and published in the same run.
@@ -26,12 +26,12 @@ import requests
 from packaging.version import Version
 
 # Count dev releases against the CANONICAL projects (not `*-nightly`), since the nightly is
-# published as canonical `.devN` pre-releases of `langflow` / `langflow-base`.
-PYPI_LANGFLOW_URL = "https://pypi.org/pypi/langflow/json"
-PYPI_LANGFLOW_BASE_URL = "https://pypi.org/pypi/langflow-base/json"
+# published as canonical `.devN` pre-releases of `ketos` / `ketos-base`.
+PYPI_KETOS_URL = "https://pypi.org/pypi/ketos/json"
+PYPI_KETOS_BASE_URL = "https://pypi.org/pypi/ketos-base/json"
 
 # main and base MUST share one dev number, so the shared number is derived from both packages.
-PYPI_CANONICAL_URLS = (PYPI_LANGFLOW_URL, PYPI_LANGFLOW_BASE_URL)
+PYPI_CANONICAL_URLS = (PYPI_KETOS_URL, PYPI_KETOS_BASE_URL)
 
 ARGUMENT_NUMBER = 2
 VALID_BUILD_TYPES = ("main", "base", "both")
@@ -40,7 +40,7 @@ VALID_BUILD_TYPES = ("main", "base", "both")
 def _root_base_version() -> str:
     """Return the base_version (e.g. "1.10.0") from the root pyproject.toml.
 
-    Both langflow-nightly and langflow-base-nightly are versioned from the ROOT pyproject on
+    Both ketos-nightly and ketos-base-nightly are versioned from the ROOT pyproject on
     purpose. Do not switch base to read src/backend/base/pyproject.toml, or the two dev counters
     will fork again and the exact `==` pin can reference a version that was never published.
     """
@@ -84,7 +84,7 @@ def _all_dev_numbers(url: str, base_version: str) -> list[int]:
 
 
 def _shared_nightly_version() -> str:
-    """Compute the single dev number shared by langflow-nightly and langflow-base-nightly."""
+    """Compute the single dev number shared by ketos-nightly and ketos-base-nightly."""
     base_version = _root_base_version()
 
     dev_numbers = [dev for url in PYPI_CANONICAL_URLS for dev in _all_dev_numbers(url, base_version)]

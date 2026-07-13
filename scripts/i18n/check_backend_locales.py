@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, NamedTuple
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_LOCALES_DIR = ROOT / "src/backend/base/langflow/locales"
+DEFAULT_LOCALES_DIR = ROOT / "src/backend/base/ketos/locales"
 DEFAULT_BASELINE = Path(__file__).resolve().parent / "allowlists/backend-locale-debt.json"
 RUNTIME_EXTRACTOR = ROOT / "scripts/gp/extract_backend_strings.py"
 

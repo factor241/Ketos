@@ -16,7 +16,7 @@ from uuid import uuid4
 
 from alembic import command
 from alembic.config import Config
-from langflow.services.database.models.user.model import User
+from ketos.services.database.models.user.model import User
 from sqlalchemy import inspect
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -25,7 +25,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 REVISION = "bb693ad2fbab"
 DOWN_REVISION = "e1705947c729"
 REPO_ROOT = Path(__file__).resolve().parents[2]
-ALEMBIC_ROOT = REPO_ROOT / "src" / "backend" / "base" / "langflow"
+ALEMBIC_ROOT = REPO_ROOT / "src" / "backend" / "base" / "ketos"
 
 
 class UnsupportedDatabaseError(ValueError):

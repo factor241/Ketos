@@ -21,8 +21,8 @@ from pathlib import Path
 import requests
 from gp_client import BASE_URL, GP_INSTANCE, TARGET_LANGS, get_headers, get_tls_verify
 
-DEFAULT_SOURCE = Path(__file__).parent.parent.parent / "src/backend/base/langflow/locales/en.json"
-GP_BACKEND_BUNDLE = os.getenv("GP_BACKEND_BUNDLE", "langflow-ui-backend-v2")
+DEFAULT_SOURCE = Path(__file__).parent.parent.parent / "src/backend/base/ketos/locales/en.json"
+GP_BACKEND_BUNDLE = os.getenv("GP_BACKEND_BUNDLE", "ketos-ui-backend-v2")
 REQUEST_TIMEOUT = 60
 
 

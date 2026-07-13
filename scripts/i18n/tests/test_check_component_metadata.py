@@ -4,7 +4,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-from langflow.utils.i18n_keys import component_field_key
+from ketos.utils.i18n_keys import component_field_key
 
 SCRIPT = Path(__file__).parents[1] / "check_component_metadata.py"
 SPEC = importlib.util.spec_from_file_location("check_component_metadata", SCRIPT)

@@ -45,8 +45,15 @@ def test_backend_extraction_workflow_covers_contract_inputs_without_skipping_ci(
     for required_path in (
         "scripts/gp/extract_backend_strings.py",
         "scripts/i18n/**",
-        "src/backend/base/langflow/utils/i18n.py",
-        "src/lfx/src/lfx/io/**",
+        "src/backend/base/ketos/utils/i18n.py",
+        "src/kfx/src/kfx/io/**",
     ):
         assert required_path in workflow
     assert "--check --report-json" in workflow
+
+
+def test_autofix_builds_dynamic_component_index_before_updating_starters():
+    workflow = _workflow("py_autofix.yml")
+    starter_job = workflow.split("  update-starter-projects:", 1)[1].split("  update-component-index:", 1)[0]
+
+    assert starter_job.index("make build_component_index") < starter_job.index("scripts/ci/update_starter_projects.py")

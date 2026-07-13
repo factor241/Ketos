@@ -17,10 +17,10 @@ import requests
 from gp_client import BASE_URL, GP_INSTANCE, TARGET_LANGS, get_headers, get_strings, get_tls_verify
 
 DEFAULT_FRONTEND_OUTPUT = Path(__file__).parent.parent.parent / "src/frontend/src/locales"
-DEFAULT_BACKEND_OUTPUT = Path(__file__).parent.parent.parent / "src/backend/base/langflow/locales"
+DEFAULT_BACKEND_OUTPUT = Path(__file__).parent.parent.parent / "src/backend/base/ketos/locales"
 DEFAULT_FRONTEND_SOURCE = DEFAULT_FRONTEND_OUTPUT / "en.json"
 DEFAULT_BACKEND_SOURCE = DEFAULT_BACKEND_OUTPUT / "en.json"
-GP_BACKEND_BUNDLE = os.getenv("GP_BACKEND_BUNDLE", "langflow-ui-backend-v2")
+GP_BACKEND_BUNDLE = os.getenv("GP_BACKEND_BUNDLE", "ketos-ui-backend-v2")
 REQUEST_TIMEOUT = 30
 SENSITIVE_ENV_NAMES = ("GP_ADMIN_USER_ID", "GP_ADMIN_PASSWORD")
 MIN_SENSITIVE_VALUE_LENGTH = 8

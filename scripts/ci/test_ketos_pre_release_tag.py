@@ -1,9 +1,9 @@
-"""Unit tests for langflow_pre_release_tag.py.
+"""Unit tests for ketos_pre_release_tag.py.
 
 Run directly or with pytest:
 
-    cd scripts/ci && uv run python test_langflow_pre_release_tag.py
-    cd scripts/ci && uv run python -m pytest test_langflow_pre_release_tag.py -q
+    cd scripts/ci && uv run python test_ketos_pre_release_tag.py
+    cd scripts/ci && uv run python -m pytest test_ketos_pre_release_tag.py -q
 """
 
 import contextlib
@@ -13,7 +13,7 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parent))
-import langflow_pre_release_tag as pr
+import ketos_pre_release_tag as pr
 
 
 def test_ignores_unrelated_newer_pre_release_line():
@@ -40,7 +40,7 @@ def test_shared_rc_number_floor_does_not_regress_existing_higher_rc():
 def test_cli_reads_released_versions_from_stdin():
     output = io.StringIO()
     with (
-        mock.patch.object(sys, "argv", ["langflow_pre_release_tag.py", "1.10.1", "--print-rc-number", "-"]),
+        mock.patch.object(sys, "argv", ["ketos_pre_release_tag.py", "1.10.1", "--print-rc-number", "-"]),
         mock.patch.object(sys, "stdin", io.StringIO("1.10.1rc0\n1.11.0.dev15\n")),
         contextlib.redirect_stdout(output),
     ):
@@ -66,7 +66,7 @@ def _main():
     if failures:
         msg = f"{failures} test(s) failed."
         raise SystemExit(msg)
-    print("All langflow_pre_release_tag tests passed.")
+    print("All ketos_pre_release_tag tests passed.")
 
 
 if __name__ == "__main__":

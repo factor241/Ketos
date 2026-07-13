@@ -19,6 +19,15 @@ def test_target_languages_include_russian_for_both_bundles():
     assert gp_client.TARGET_LANGS == ["fr", "ja", "es", "de", "pt", "zh-Hans", "ru"]
 
 
+def test_default_gp_identity_is_canonical_ketos(monkeypatch):
+    monkeypatch.delenv("GP_INSTANCE", raising=False)
+    monkeypatch.delenv("GP_BUNDLE", raising=False)
+    importlib.reload(gp_client)
+
+    assert gp_client.GP_INSTANCE == "ketos-test"
+    assert gp_client.GP_BUNDLE == "ketos-ui"
+
+
 class TestTlsVerification:
     def test_system_trust_store_is_the_secure_default(self):
         with patch.dict("os.environ", {}, clear=True):
@@ -120,7 +129,7 @@ class TestGetHeaders:
 class TestListBundles:
     def test_returns_parsed_json_on_success(self):
         mock_response = MagicMock()
-        mock_response.json.return_value = {"bundleIds": ["langflow-ui"]}
+        mock_response.json.return_value = {"bundleIds": ["ketos-ui"]}
 
         with (
             patch.dict("os.environ", {"GP_ADMIN_USER_ID": "u", "GP_ADMIN_PASSWORD": "p"}),
@@ -132,7 +141,7 @@ class TestListBundles:
         mock_get.assert_called_once()
         assert mock_get.call_args.kwargs["verify"] is True
         mock_response.raise_for_status.assert_called_once()
-        assert result == {"bundleIds": ["langflow-ui"]}
+        assert result == {"bundleIds": ["ketos-ui"]}
 
     def test_uses_configured_ca_bundle(self, tmp_path):
         ca_bundle = tmp_path / "gp-ca.pem"

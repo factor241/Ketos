@@ -50,6 +50,8 @@ def test_deploy_services_have_meaningful_healthchecks_and_restart_policies() -> 
         assert "exit 0" not in command
         assert service.get("restart") == "unless-stopped"
 
+    assert services["flower"].get("deploy") == {}, "Flower must not inherit the public backend Traefik route"
+
 
 def test_observability_services_have_health_restart_and_persistent_positions() -> None:
     compose = _load("deploy/observability/grafana-loki/docker-compose.yml")
@@ -98,6 +100,32 @@ def test_deploy_override_keeps_proxy_ping_enabled_in_effective_command() -> None
     effective_proxy = _compose_service(base, override, "proxy")
 
     assert "--ping=true" in effective_proxy["command"]
+
+
+def test_deploy_test_environment_is_writable_by_the_non_root_backend() -> None:
+    values = {}
+    for raw_line in (ROOT / "deploy/compose.test.env").read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if line and not line.startswith("#"):
+            key, value = line.split("=", maxsplit=1)
+            values[key] = value
+
+    assert {key: values[key] for key in ("KETOS_CONFIG_DIR", "KETOS_DATA_DIR", "KETOS_CACHE_DIR", "KETOS_TEMP_DIR")} == {
+        "KETOS_CONFIG_DIR": "/app/ketos/config",
+        "KETOS_DATA_DIR": "/app/ketos/data",
+        "KETOS_CACHE_DIR": "/app/ketos/cache",
+        "KETOS_TEMP_DIR": "/app/ketos/tmp",
+    }
+    assert values["PGADMIN_DEFAULT_EMAIL"] == "admin@example.com"
+
+
+def test_backend_image_installs_the_flower_command_used_by_deploy() -> None:
+    dockerfile = (ROOT / "docker/build_and_push_backend.Dockerfile").read_text(encoding="utf-8")
+
+    assert '"flower==2.0.1"' in dockerfile
+    assert "COPY --from=builder --chown=1000:0 /app/.venv /app/.venv" in dockerfile
+    assert 'ENV PATH="/app/.venv/bin:$PATH"' in dockerfile
+    assert "chown -R 1000:0 /app/data /app/ketos" in dockerfile
 
 
 def test_observability_docs_keep_normal_stop_non_destructive() -> None:

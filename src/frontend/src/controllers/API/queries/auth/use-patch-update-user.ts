@@ -15,12 +15,15 @@ export const useUpdateUser: useMutationFunctionType<
 > = (options?) => {
   const { mutate } = UseRequestProcessor();
 
-  async function updateUser({ user_id, user }: UpdateUserParams): Promise<any> {
+  async function updateUser({
+    user_id,
+    user,
+  }: UpdateUserParams): Promise<UpdateUserParams> {
     const res = await api.patch(`${getURL("USERS")}/${user_id}`, user);
     return res.data;
   }
 
-  const mutation: UseMutationResult<UpdateUserParams, any, UpdateUserParams> =
+  const mutation: UseMutationResult<UpdateUserParams, Error, UpdateUserParams> =
     mutate(["useUpdateUser"], updateUser, options);
 
   return mutation;

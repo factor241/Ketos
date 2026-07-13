@@ -1,5 +1,5 @@
 interface QueryParams {
-  [key: string]: any;
+  [key: string]: string | number | boolean | null | undefined;
 }
 
 const buildQueryStringUrl = (baseUrl: string, params: QueryParams): string => {
@@ -9,8 +9,8 @@ const buildQueryStringUrl = (baseUrl: string, params: QueryParams): string => {
     if (value !== undefined) {
       if (typeof value === "boolean") {
         queryParams.append(key, value ? "true" : "false");
-      } else {
-        queryParams.append(key, value.toString());
+      } else if (value !== null) {
+        queryParams.append(key, String(value));
       }
     }
   });

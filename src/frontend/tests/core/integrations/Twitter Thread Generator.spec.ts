@@ -47,6 +47,6 @@ withEventDeliveryModes(
     const textContents = await getAllResponseMessage(page);
 
     expect(textContents.length).toBeGreaterThan(100);
-    expect(textContents).toContain("langflow");
+    expect(textContents).toContain("ketos");
   },
 );

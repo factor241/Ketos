@@ -354,7 +354,7 @@ export default function AdminPage() {
                   </TableHeader>
                   {
                     <TableBody className="border-b">
-                      {userList.map((user: UserInputType, index) => (
+                      {userList.map((user, index) => (
                         <TableRow key={user.id}>
                           <TableCell className="truncate py-2 font-medium">
                             <ShadTooltip content={user.id}>

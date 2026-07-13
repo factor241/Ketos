@@ -27,7 +27,7 @@ export async function mockAutoLoginDisabled(page: Page): Promise<void> {
     const proc = (window as any).process as { env?: Record<string, string> };
     const newEnv = {
       ...(proc.env ?? {}),
-      LANGFLOW_AUTO_LOGIN: "false",
+      KETOS_AUTO_LOGIN: "false",
     };
     Object.defineProperty(proc, "env", {
       value: newEnv,

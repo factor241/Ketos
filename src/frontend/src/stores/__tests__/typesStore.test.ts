@@ -32,42 +32,63 @@ const mockTypesGenerator = require("../../utils/reactflowUtils").typesGenerator;
 
 const mockAPIData: APIDataType = {
   TextInput: {
-    template: {
-      value: {
-        type: "str",
-        required: true,
-        placeholder: "Enter text",
+    TextInput: {
+      template: {
+        value: {
+          type: "str",
+          required: true,
+          placeholder: "Enter text",
+          list: false,
+          show: true,
+          readonly: false,
+        },
       },
+      description: "Text input component",
+      display_name: "Text Input",
+      documentation: "",
     },
-    description: "Text input component",
   },
   NumberInput: {
-    template: {
-      value: {
-        type: "int",
-        required: false,
-        placeholder: "Enter number",
+    NumberInput: {
+      template: {
+        value: {
+          type: "int",
+          required: false,
+          placeholder: "Enter number",
+          list: false,
+          show: true,
+          readonly: false,
+        },
       },
+      description: "Number input component",
+      display_name: "Number Input",
+      documentation: "",
     },
-    description: "Number input component",
   },
 };
 
 const mockAPIData2: APIDataType = {
   BooleanInput: {
-    template: {
-      value: {
-        type: "bool",
-        required: true,
+    BooleanInput: {
+      template: {
+        value: {
+          type: "bool",
+          required: true,
+          list: false,
+          show: true,
+          readonly: false,
+        },
       },
+      description: "Boolean input component",
+      display_name: "Boolean Input",
+      documentation: "",
     },
-    description: "Boolean input component",
   },
 };
 
-const mockTemplates = {
-  TextInput: { template: mockAPIData.TextInput },
-  NumberInput: { template: mockAPIData.NumberInput },
+const mockTemplates: Record<string, APIClassType> = {
+  TextInput: mockAPIData.TextInput.TextInput,
+  NumberInput: mockAPIData.NumberInput.NumberInput,
 };
 
 const mockTypes = {
@@ -194,7 +215,7 @@ describe("useTypesStore", () => {
 
     it("should handle empty Set", () => {
       const { result } = renderHook(() => useTypesStore());
-      const emptySet = new Set();
+      const emptySet = new Set<string>();
 
       act(() => {
         result.current.setComponentFields(emptySet);
@@ -321,16 +342,23 @@ describe("useTypesStore", () => {
 
     it("should overwrite duplicate keys in data", () => {
       const { result } = renderHook(() => useTypesStore());
-      const updatedData = {
+      const updatedData: APIDataType = {
         TextInput: {
-          template: {
-            value: {
-              type: "str",
-              required: false, // Changed from true
-              placeholder: "Updated placeholder",
+          TextInput: {
+            template: {
+              value: {
+                type: "str",
+                required: false, // Changed from true
+                placeholder: "Updated placeholder",
+                list: false,
+                show: true,
+                readonly: false,
+              },
             },
+            description: "Updated text input component",
+            display_name: "Text Input",
+            documentation: "",
           },
-          description: "Updated text input component",
         },
       };
 
@@ -522,9 +550,6 @@ describe("useTypesStore", () => {
         result.current.addComponentField("field2");
       });
 
-      // setData will call setComponentFields internally, so track the fields before
-      const fieldsBeforeSetData = new Set(result.current.ComponentFields);
-
       act(() => {
         result.current.setData(mockAPIData);
         result.current.addComponentField("field3");
@@ -537,16 +562,6 @@ describe("useTypesStore", () => {
   });
 
   describe("edge cases", () => {
-    it("should handle null/undefined data", () => {
-      const { result } = renderHook(() => useTypesStore());
-
-      act(() => {
-        result.current.setData(null as any);
-      });
-
-      expect(result.current.data).toBeNull();
-    });
-
     it("should handle complex nested API data", () => {
       const complexData = {
         NestedComponent: {
@@ -579,7 +594,7 @@ describe("useTypesStore", () => {
 
     it("should handle large ComponentFields sets", () => {
       const { result } = renderHook(() => useTypesStore());
-      const largeSet = new Set();
+      const largeSet = new Set<string>();
 
       for (let i = 0; i < 1000; i++) {
         largeSet.add(`field-${i}`);

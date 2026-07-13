@@ -18,7 +18,7 @@ export const useLogout: useMutationFunctionType<undefined, void> = (
   const logout = useAuthStore((state) => state.logout);
   const isAutoLoginEnv = IS_AUTO_LOGIN;
 
-  async function logoutUser(): Promise<any> {
+  async function logoutUser(): Promise<unknown> {
     const autoLogin =
       useAuthStore.getState().autoLogin ||
       getAuthCookie(cookies, KETOS_AUTO_LOGIN_OPTION) === "auto" ||

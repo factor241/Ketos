@@ -28,8 +28,13 @@ jest.mock("@/components/ui/select", () => ({
     onValueChange?: (value: string) => void;
   }) => {
     const items = Array.isArray(children) ? children : [children];
-    const trigger = items[0];
-    const content = items[1];
+    const trigger = items[0] as React.ReactElement<{
+      "aria-label"?: string;
+      "data-testid"?: string;
+    }>;
+    const content = items[1] as React.ReactElement<{
+      children?: React.ReactNode;
+    }>;
     return (
       <select
         value={value}

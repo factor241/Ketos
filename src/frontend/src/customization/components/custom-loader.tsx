@@ -6,11 +6,7 @@ type CustomLoaderProps = {
 };
 
 const CustomLoader = ({ remSize = 30 }: CustomLoaderProps) => {
-  return ENABLE_DATASTAX_KETOS ? (
-    <></>
-  ) : (
-    <LoadingComponent remSize={remSize} />
-  );
+  return ENABLE_DATASTAX_KETOS ? <></> : <LoadingComponent remSize={remSize} />;
 };
 
 export default CustomLoader;

@@ -1,5 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
+import type { FlowType } from "@/types/flow";
 import { useDebounce } from "../../use-debounce";
 import useAutoSaveFlow from "../use-autosave-flow";
 import useSaveFlow from "../use-save-flow";
@@ -54,7 +55,7 @@ describe("useAutoSaveFlow", () => {
     const { result } = renderHook(() => useAutoSaveFlow());
     const autoSaveFlow = result.current;
 
-    const mockFlow = { id: "flow-1", name: "Test Flow" } as any;
+    const mockFlow = { id: "flow-1", name: "Test Flow" } as unknown as FlowType;
     autoSaveFlow(mockFlow);
 
     expect(mockSaveFlow).toHaveBeenCalledWith(mockFlow);
@@ -74,7 +75,7 @@ describe("useAutoSaveFlow", () => {
     const { result } = renderHook(() => useAutoSaveFlow());
     const autoSaveFlow = result.current;
 
-    const mockFlow = { id: "flow-1", name: "Test Flow" } as any;
+    const mockFlow = { id: "flow-1", name: "Test Flow" } as unknown as FlowType;
     autoSaveFlow(mockFlow);
 
     expect(mockSaveFlow).not.toHaveBeenCalled();
@@ -158,7 +159,7 @@ describe("useAutoSaveFlow", () => {
     );
 
     const { result, rerender } = renderHook(() => useAutoSaveFlow());
-    const mockFlow = { id: "flow-1", name: "Test Flow" } as any;
+    const mockFlow = { id: "flow-1", name: "Test Flow" } as unknown as FlowType;
 
     // AutoSaving enabled
     result.current(mockFlow);

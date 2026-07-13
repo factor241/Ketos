@@ -263,7 +263,7 @@ test(
     // Default-template terminology must NOT leak in — proves no runtime
     // substitution path appended / altered the user's prompt.
     expect(reply).not.toContain("# identity");
-    expect(reply).not.toContain("langflow agent");
+    expect(reply).not.toContain("ketos agent");
   },
 );
 

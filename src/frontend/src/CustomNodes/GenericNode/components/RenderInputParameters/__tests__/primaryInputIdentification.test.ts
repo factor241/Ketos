@@ -6,7 +6,7 @@ import { findPrimaryInput } from "../utils";
 const createMockEdge = (
   nodeId: string,
   fieldName: string,
-  template: { type?: string; input_types?: string[]; proxy?: any },
+  template: { type?: string; input_types?: string[]; proxy?: unknown },
 ): Edge => {
   const handleId = scapedJSONStringfy(
     template.proxy

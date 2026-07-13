@@ -25,13 +25,13 @@ export const usePatchUpdateFlow: useMutationFunctionType<
   const PatchUpdateFlowFn = async ({
     id,
     ...payload
-  }: IPatchUpdateFlow): Promise<any> => {
+  }: IPatchUpdateFlow): Promise<IPatchUpdateFlow> => {
     const response = await api.patch(`${getURL("FLOWS")}/${id}`, payload);
 
     return response.data;
   };
 
-  const mutation: UseMutationResult<IPatchUpdateFlow, any, IPatchUpdateFlow> =
+  const mutation: UseMutationResult<IPatchUpdateFlow, Error, IPatchUpdateFlow> =
     mutate(["usePatchUpdateFlow"], PatchUpdateFlowFn, {
       onSettled: () => {
         queryClient.invalidateQueries({

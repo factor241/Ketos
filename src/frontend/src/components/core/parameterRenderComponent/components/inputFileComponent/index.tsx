@@ -90,42 +90,35 @@ export default function InputFileComponent({
 
       // Upload all files
       Promise.all(
-        filesToProcess.map(
-          (file) =>
-            new Promise<{ file_name: string; file_path: string } | null>(
-              async (resolve) => {
-                try {
-                  const data = await mutateAsync(
-                    { file, id: currentFlowId },
-                    {
-                      onError: (error) => {
-                        console.error(t("errors.uploadFile"));
-                        setErrorData({
-                          title: t("errors.upload"),
-                          list: [
-                            getLocalizedApiErrorMessage(
-                              error,
-                              (key, params) => t(key, params),
-                              { fallbackKey: "errors.requestFailed" },
-                            ),
-                          ],
-                        });
-                      },
-                    },
-                  );
-                  resolve({
-                    file_name: file.name,
-                    file_path: data.file_path,
+        filesToProcess.map(async (file) => {
+          try {
+            const data = await mutateAsync(
+              { file, id: currentFlowId },
+              {
+                onError: (error) => {
+                  setErrorData({
+                    title: t("errors.upload"),
+                    list: [
+                      getLocalizedApiErrorMessage(
+                        error,
+                        (key, params) => t(key, params),
+                        { fallbackKey: "errors.requestFailed" },
+                      ),
+                    ],
                   });
-                } catch {
-                  resolve(null);
-                }
+                },
               },
-            ),
-        ),
+            );
+            return {
+              file_name: file.name,
+              file_path: data.file_path,
+            };
+          } catch {
+            return null;
+          }
+        }),
       )
         .then((results) => {
-          console.warn(results);
           // Filter out any failed uploads
           const successfulUploads = results.filter(
             (r): r is { file_name: string; file_path: string } => r !== null,

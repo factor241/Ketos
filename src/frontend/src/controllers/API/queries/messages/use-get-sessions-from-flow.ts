@@ -56,12 +56,21 @@ export const useGetSessionsFromFlowQuery: useQueryFunctionType<
     }
 
     // Anonymous/auto-login: use sessionStorage (original behavior)
-    const data = JSON.parse(
+    const data: unknown = JSON.parse(
       window.sessionStorage.getItem(ketosFlowSessionKey(id)) || "[]",
     );
     // Extract unique session IDs from stored messages
     const sessionIdsSet = new Set(
-      data.map((msg: any) => msg.session_id).filter(Boolean),
+      (Array.isArray(data) ? data : [])
+        .map((message) =>
+          typeof message === "object" &&
+          message !== null &&
+          "session_id" in message &&
+          typeof message.session_id === "string"
+            ? message.session_id
+            : undefined,
+        )
+        .filter((sessionId): sessionId is string => Boolean(sessionId)),
     );
     const sessionIds = Array.from(sessionIdsSet);
 

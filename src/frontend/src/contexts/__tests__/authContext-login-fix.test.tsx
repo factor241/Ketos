@@ -41,7 +41,12 @@ jest.mock("@/utils/local-storage-util", () => ({
 const mockSetIsAuthenticated = jest.fn();
 const mockSetIsAdmin = jest.fn();
 
-const mockAuthStore = (selector: any) => {
+type MockAuthState = {
+  setIsAuthenticated: typeof mockSetIsAuthenticated;
+  setIsAdmin: typeof mockSetIsAdmin;
+};
+
+const mockAuthStore = (selector?: (state: MockAuthState) => unknown) => {
   const state = {
     setIsAuthenticated: mockSetIsAuthenticated,
     setIsAdmin: mockSetIsAdmin,
@@ -49,14 +54,18 @@ const mockAuthStore = (selector: any) => {
   return selector ? selector(state) : state;
 };
 
-(mockAuthStore as any).getState = () => ({
+const mockAuthStoreWithState = mockAuthStore as typeof mockAuthStore & {
+  getState: () => MockAuthState;
+};
+
+mockAuthStoreWithState.getState = () => ({
   setIsAuthenticated: mockSetIsAuthenticated,
   setIsAdmin: mockSetIsAdmin,
 });
 
 jest.mock("@/stores/authStore", () => ({
   __esModule: true,
-  default: mockAuthStore,
+  default: mockAuthStoreWithState,
 }));
 
 jest.mock("@/stores/darkStore", () => ({
@@ -135,12 +144,6 @@ describe("AuthContext - Login Fix for Race Condition", () => {
       mockCookiesInstance.get.mockImplementation((name) => {
         if (name === "ketos_access_token") return accessToken;
         return null;
-      });
-
-      // Track when setIsAuthenticated is called
-      let authSetCallCount = 0;
-      mockSetIsAuthenticated.mockImplementation(() => {
-        authSetCallCount++;
       });
 
       // Start login

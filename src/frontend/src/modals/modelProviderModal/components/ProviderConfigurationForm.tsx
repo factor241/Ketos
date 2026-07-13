@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
@@ -56,7 +57,7 @@ export interface ProviderConfigurationFormProps {
 const getPlaceholder = (
   variableName: string,
   provider: string,
-  t: (key: string, opts?: Record<string, string>) => string,
+  t: TFunction<"translation">,
 ) => {
   const name = variableName.toLowerCase();
   const providerLower = provider.toLowerCase();
@@ -148,8 +149,9 @@ const ProviderConfigurationForm = ({
         {requiresConfiguration ? (
           <>
             {t("modelProviders.configurePrefix")}{" "}
-            <span
-              className="underline cursor-pointer hover:text-primary"
+            <button
+              type="button"
+              className="inline border-0 bg-transparent p-0 text-inherit underline cursor-pointer hover:text-primary"
               onClick={() => {
                 if (selectedProvider.api_docs_url) {
                   customOpenNewTab(selectedProvider.api_docs_url);
@@ -159,7 +161,7 @@ const ProviderConfigurationForm = ({
               {t("modelProviders.credentialsLink", {
                 provider: selectedProvider.provider,
               })}
-            </span>{" "}
+            </button>{" "}
             {t("modelProviders.toEnableModels")}
           </>
         ) : (

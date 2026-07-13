@@ -327,7 +327,11 @@ function NodeOutputField({
           nodeId={data.id}
           myData={myData}
           colors={colors}
-          setFilterEdge={setFilterEdge}
+          setFilterEdge={
+            setFilterEdge as unknown as React.ComponentProps<
+              typeof HandleRenderComponent
+            >["setFilterEdge"]
+          }
           showNode={showNode}
           testIdComplement={`${data?.type?.toLowerCase()}-${
             showNode ? "shownode" : "noshownode"
@@ -359,7 +363,11 @@ function NodeOutputField({
         nodeId={data.id}
         myData={myData}
         colors={colors}
-        setFilterEdge={setFilterEdge}
+        setFilterEdge={
+          setFilterEdge as unknown as React.ComponentProps<
+            typeof HandleRenderComponent
+          >["setFilterEdge"]
+        }
         showNode={showNode}
         testIdComplement={`${data?.type?.toLowerCase()}-${
           showNode ? "shownode" : "noshownode"

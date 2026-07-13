@@ -9,7 +9,7 @@ export default function CardsWrapComponent({
   children,
   dragMessage,
 }: {
-  onFileDrop?: (e: any) => void;
+  onFileDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
   children: JSX.Element | JSX.Element[];
   dragMessage?: string;
 }) {
@@ -34,7 +34,7 @@ export default function CardsWrapComponent({
     };
   }, []);
 
-  const dragOver = (e) => {
+  const dragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     if (
       e.dataTransfer.types.some((types) => types === "Files") &&
@@ -45,7 +45,7 @@ export default function CardsWrapComponent({
     }
   };
 
-  const dragEnter = (e) => {
+  const dragEnter = (e: React.DragEvent<HTMLDivElement>) => {
     if (
       e.dataTransfer.types.some((types) => types === "Files") &&
       onFileDrop &&
@@ -56,12 +56,12 @@ export default function CardsWrapComponent({
     e.preventDefault();
   };
 
-  const dragLeave = (e) => {
+  const dragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     if (onFileDrop && !isIOModalOpen) setIsDragging(false);
   };
 
-  const onDrop = (e) => {
+  const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     if (onFileDrop && !isIOModalOpen) onFileDrop(e);
     setIsDragging(false);
@@ -73,6 +73,8 @@ export default function CardsWrapComponent({
       onDragEnter={dragEnter}
       onDragLeave={dragLeave}
       onDrop={onDrop}
+      role="region"
+      aria-label={dragMessage ?? t("ioModal.dropFileHere")}
       className={cn(
         "h-full w-full",
         isDragging

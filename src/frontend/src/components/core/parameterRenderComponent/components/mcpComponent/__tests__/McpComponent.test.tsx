@@ -1,12 +1,11 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import type { APIClassType } from "@/types/api";
+import type { APIClassType, InputFieldType } from "@/types/api";
 import McpComponent from "../index";
 
 const mockRefetchMCPServers = jest.fn();
 const mockMutateTemplate = jest.fn();
-const mockUpdateBuildStatus = jest.fn();
 const mockSetErrorData = jest.fn();
 const mockPostTemplateValue = { mutateAsync: jest.fn() };
 const mockAddMcpServer = jest.fn();
@@ -52,13 +51,14 @@ jest.mock("@/stores/alertStore", () => ({
 
 jest.mock("@/stores/flowStore", () => {
   const mockFlowState = {
-    updateBuildStatus: mockUpdateBuildStatus,
+    updateBuildStatus: jest.fn(),
   };
-  const useFlowStoreMock = jest.fn(
-    (selector?: (state: typeof mockFlowState) => unknown) =>
+  const useFlowStoreMock = Object.assign(
+    jest.fn((selector?: (state: typeof mockFlowState) => unknown) =>
       selector ? selector(mockFlowState) : mockFlowState,
+    ),
+    { getState: () => mockFlowState },
   );
-  useFlowStoreMock.getState = () => mockFlowState;
   return {
     __esModule: true,
     default: useFlowStoreMock,
@@ -93,6 +93,23 @@ jest.mock(
 );
 
 describe("McpComponent", () => {
+  const codeInputField: InputFieldType = {
+    type: "code",
+    required: false,
+    list: false,
+    show: true,
+    readonly: false,
+    value: "code",
+  };
+
+  const createNodeClass = (): APIClassType => ({
+    template: { code: codeInputField },
+    tool_mode: false,
+    description: "Test MCP node",
+    display_name: "MCP Tools",
+    documentation: "",
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockRefetchMCPServers.mockResolvedValue({});
@@ -116,10 +133,7 @@ describe("McpComponent", () => {
 
   it("shows the MCP server error and refreshes the node on demand", async () => {
     const user = userEvent.setup();
-    const nodeClass = {
-      template: { code: { value: "code" } },
-      tool_mode: false,
-    } as APIClassType;
+    const nodeClass = createNodeClass();
 
     render(
       <McpComponent
@@ -166,10 +180,7 @@ describe("McpComponent", () => {
         resolveRefetch = resolve;
       }),
     );
-    const nodeClass = {
-      template: { code: { value: "code" } },
-      tool_mode: false,
-    } as APIClassType;
+    const nodeClass = createNodeClass();
     const props = {
       id: "mcp-server",
       value: { name: "broken-server", config: {} },
@@ -211,10 +222,7 @@ describe("McpComponent", () => {
           };
         }),
     );
-    const nodeClass = {
-      template: { code: { value: "code" } },
-      tool_mode: false,
-    } as APIClassType;
+    const nodeClass = createNodeClass();
     const handleNodeClass = jest.fn();
     const props = {
       id: "mcp-server",
@@ -237,10 +245,7 @@ describe("McpComponent", () => {
   });
 
   it("does not apply a late save success after becoming disabled", async () => {
-    const nodeClass = {
-      template: { code: { value: "code" } },
-      tool_mode: false,
-    } as APIClassType;
+    const nodeClass = createNodeClass();
     const handleOnNewValue = jest.fn();
     const props = {
       id: "mcp-server",

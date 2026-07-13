@@ -10,7 +10,7 @@ function source(relativePath: string): string {
 const task12CandidateDebt: Record<string, string[]> = {
   "src/components/core/assistantPanel/assistant-panel.constants.ts": [
     'text: "Build agents and other components"',
-    'text: "Answer questions about Langflow"',
+    'text: "Answer questions about Ketos"',
   ],
   "src/components/core/assistantPanel/components/assistant-build-tasks.tsx": [
     "return `Added ${",

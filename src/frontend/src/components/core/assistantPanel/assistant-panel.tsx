@@ -480,30 +480,43 @@ export function AssistantPanel({ isOpen, onClose }: AssistantPanelProps) {
         {/* Left edge */}
         <div
           data-resize-handle
+          role="separator"
+          aria-label="Resize assistant panel from the left"
+          aria-orientation="vertical"
           className="absolute top-3 bottom-3 -left-[5px] z-30 w-[10px] cursor-ew-resize rounded-full transition-colors hover:bg-primary/20"
           onMouseDown={(e) => handleEdgeResize(e, { x: "left" })}
         />
         {/* Right edge */}
         <div
           data-resize-handle
+          role="separator"
+          aria-label="Resize assistant panel from the right"
+          aria-orientation="vertical"
           className="absolute top-3 bottom-3 -right-[5px] z-30 w-[10px] cursor-ew-resize rounded-full transition-colors hover:bg-primary/20"
           onMouseDown={(e) => handleEdgeResize(e, { x: "right" })}
         />
         {/* Top edge */}
         <div
           data-resize-handle
+          role="separator"
+          aria-label="Resize assistant panel from the top"
+          aria-orientation="horizontal"
           className="absolute -top-[5px] right-3 left-3 z-30 h-[10px] cursor-ns-resize rounded-full transition-colors hover:bg-primary/20"
           onMouseDown={(e) => handleEdgeResize(e, { y: "top" })}
         />
         {/* Top-left corner */}
         <div
           data-resize-handle
+          role="separator"
+          aria-label="Resize assistant panel from the top left"
           className="absolute -top-[5px] -left-[5px] z-30 h-[14px] w-[14px] cursor-nw-resize rounded-full transition-colors hover:bg-primary/30"
           onMouseDown={(e) => handleEdgeResize(e, { x: "left", y: "top" })}
         />
         {/* Top-right corner */}
         <div
           data-resize-handle
+          role="separator"
+          aria-label="Resize assistant panel from the top right"
           className="absolute -top-[5px] -right-[5px] z-30 h-[14px] w-[14px] cursor-ne-resize rounded-full transition-colors hover:bg-primary/30"
           onMouseDown={(e) => handleEdgeResize(e, { x: "right", y: "top" })}
         />

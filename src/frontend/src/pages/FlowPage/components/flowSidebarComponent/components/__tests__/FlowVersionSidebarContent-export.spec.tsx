@@ -1,5 +1,21 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type React from "react";
+
+type FlowStoreState = {
+  currentFlow: typeof mockCurrentFlow;
+  nodes: unknown[];
+  edges: unknown[];
+  autoSaveFlow: undefined;
+  inspectionPanelVisible: boolean;
+};
+type CallableStore<T> = {
+  (selector: (state: T) => unknown): unknown;
+  getState: () => T;
+  setState: jest.Mock;
+  subscribe?: jest.Mock;
+};
+type DivProps = React.ComponentProps<"div">;
 
 // ---------------------------------------------------------------------------
 // Mocks — hoisted before imports
@@ -11,18 +27,18 @@ jest.mock("@tanstack/react-query", () => ({
 }));
 
 const downloadFlowMock = jest.fn();
-const removeApiKeysMock = jest.fn((flow: any) => flow);
+const removeApiKeysMock = jest.fn((flow: unknown) => flow);
 
 jest.mock("@/utils/reactflowUtils", () => ({
-  downloadFlow: (...args: any[]) => downloadFlowMock(...args),
+  downloadFlow: (...args: unknown[]) => downloadFlowMock(...args),
   processFlows: jest.fn(),
-  removeApiKeys: (flow: any) => removeApiKeysMock(flow),
+  removeApiKeys: (flow: unknown) => removeApiKeysMock(flow),
 }));
 
 // API mock — used by handleExportEntry to fetch the full version entry
 const apiGetMock = jest.fn();
 jest.mock("@/controllers/API/api", () => ({
-  api: { get: (...args: any[]) => apiGetMock(...args), post: jest.fn() },
+  api: { get: (...args: unknown[]) => apiGetMock(...args), post: jest.fn() },
 }));
 jest.mock("@/controllers/API/helpers/constants", () => ({
   getURL: () => "/api/v1/flows",
@@ -69,20 +85,16 @@ const mockCurrentFlow = {
 };
 
 jest.mock("@/stores/flowStore", () => {
-  const store: any = (selector: any) =>
-    selector({
-      currentFlow: mockCurrentFlow,
-      nodes: [],
-      edges: [],
-      autoSaveFlow: undefined,
-      inspectionPanelVisible: false,
-    });
-  store.getState = () => ({
+  const state: FlowStoreState = {
+    currentFlow: mockCurrentFlow,
     nodes: [],
     edges: [],
     autoSaveFlow: undefined,
     inspectionPanelVisible: false,
-  });
+  };
+  const store = ((selector: (value: FlowStoreState) => unknown) =>
+    selector(state)) as CallableStore<FlowStoreState>;
+  store.getState = () => state;
   store.setState = jest.fn();
   store.subscribe = jest.fn(() => jest.fn());
   return { __esModule: true, default: store };
@@ -91,7 +103,12 @@ jest.mock("@/stores/flowStore", () => {
 const setErrorDataMock = jest.fn();
 jest.mock("@/stores/alertStore", () => ({
   __esModule: true,
-  default: (selector: any) =>
+  default: (
+    selector: (state: {
+      setSuccessData: jest.Mock;
+      setErrorData: jest.Mock;
+    }) => unknown,
+  ) =>
     selector({
       setSuccessData: jest.fn(),
       setErrorData: setErrorDataMock,
@@ -99,16 +116,18 @@ jest.mock("@/stores/alertStore", () => ({
 }));
 
 jest.mock("@/utils/utils", () => ({
-  cn: (...args: any[]) => args.filter(Boolean).join(" "),
+  cn: (...args: unknown[]) => args.filter(Boolean).join(" "),
 }));
 
 jest.mock("@/components/common/genericIconComponent", () => ({
   __esModule: true,
-  default: ({ name }: any) => <span data-testid={`icon-${name}`} />,
+  default: ({ name }: { name: string }) => (
+    <span data-testid={`icon-${name}`} />
+  ),
 }));
 
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, ...rest }: any) => (
+  Button: ({ children, onClick, ...rest }: React.ComponentProps<"button">) => (
     <button onClick={onClick} {...rest}>
       {children}
     </button>
@@ -116,15 +135,15 @@ jest.mock("@/components/ui/button", () => ({
 }));
 
 jest.mock("@/components/ui/dropdown-menu", () => ({
-  DropdownMenu: ({ children }: any) => <div>{children}</div>,
-  DropdownMenuContent: ({ children }: any) => <div>{children}</div>,
-  DropdownMenuItem: ({ children, onClick }: any) => (
+  DropdownMenu: ({ children }: DivProps) => <div>{children}</div>,
+  DropdownMenuContent: ({ children }: DivProps) => <div>{children}</div>,
+  DropdownMenuItem: ({ children, onClick }: DivProps) => (
     <div role="menuitem" onClick={onClick}>
       {children}
     </div>
   ),
   DropdownMenuSeparator: () => <hr />,
-  DropdownMenuTrigger: ({ children }: any) => <>{children}</>,
+  DropdownMenuTrigger: ({ children }: DivProps) => <>{children}</>,
 }));
 
 jest.mock("@/components/ui/checkbox", () => ({
@@ -133,13 +152,18 @@ jest.mock("@/components/ui/checkbox", () => ({
 
 jest.mock("@/components/ui/sidebar", () => ({
   useSidebar: () => ({ setActiveSection: jest.fn() }),
-  SidebarGroupLabel: ({ children, className }: any) => (
+  SidebarGroupLabel: ({ children, className }: DivProps) => (
     <div className={className}>{children}</div>
   ),
-  SidebarMenu: ({ children, className }: any) => (
+  SidebarMenu: ({ children, className }: DivProps) => (
     <div className={className}>{children}</div>
   ),
-  SidebarMenuButton: ({ children, onClick, isActive, className }: any) => (
+  SidebarMenuButton: ({
+    children,
+    onClick,
+    isActive,
+    className,
+  }: DivProps & { isActive?: boolean }) => (
     <div
       role="button"
       onClick={onClick}
@@ -148,11 +172,11 @@ jest.mock("@/components/ui/sidebar", () => ({
       {children}
     </div>
   ),
-  SidebarMenuItem: ({ children }: any) => <div>{children}</div>,
+  SidebarMenuItem: ({ children }: DivProps) => <div>{children}</div>,
 }));
 
 jest.mock("lodash", () => ({
-  cloneDeep: jest.fn((obj: any) =>
+  cloneDeep: jest.fn((obj: unknown) =>
     obj === undefined ? undefined : JSON.parse(JSON.stringify(obj)),
   ),
 }));
@@ -169,7 +193,8 @@ jest.mock("@/stores/versionPreviewStore", () => {
     clearPreview: jest.fn(),
     setPreviewLoading: jest.fn(),
   };
-  const store: any = (selector: any) => selector(state);
+  const store = ((selector: (value: typeof state) => unknown) =>
+    selector(state)) as CallableStore<typeof state>;
   store.getState = () => state;
   store.setState = jest.fn();
   return { __esModule: true, default: store };

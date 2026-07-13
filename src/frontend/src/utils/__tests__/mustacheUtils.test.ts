@@ -1,6 +1,5 @@
 import {
   extractMustacheVariables,
-  type MustacheValidationResult,
   validateMustacheTemplate,
 } from "../mustacheUtils";
 

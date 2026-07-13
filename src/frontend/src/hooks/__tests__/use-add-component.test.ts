@@ -51,7 +51,7 @@ describe("useAddComponent", () => {
       description: "Test description",
       template: {},
       outputs: [],
-    } as any;
+    } as unknown as APIClassType;
 
     const { result } = renderHook(() => useAddComponent());
     const addComponent = result.current;
@@ -96,7 +96,7 @@ describe("useAddComponent", () => {
       description: "Test description",
       template: {},
       outputs: [],
-    } as any;
+    } as unknown as APIClassType;
 
     const customPosition = { x: 100, y: 200 };
 
@@ -121,7 +121,7 @@ describe("useAddComponent", () => {
       template: {},
       outputs: [],
       minimized: false,
-    } as any;
+    } as unknown as APIClassType;
 
     const { result } = renderHook(() => useAddComponent());
     const addComponent = result.current;
@@ -150,7 +150,7 @@ describe("useAddComponent", () => {
       template: {},
       outputs: [],
       minimized: true,
-    } as any;
+    } as unknown as APIClassType;
 
     const { result } = renderHook(() => useAddComponent());
     const addComponent = result.current;
@@ -181,7 +181,7 @@ describe("useAddComponent", () => {
         { name: "output1", types: ["string", "text"] },
         { name: "output2", types: ["number"] },
       ],
-    } as any;
+    } as unknown as APIClassType;
 
     (useFlowStore as unknown as jest.Mock).mockImplementation((selector) => {
       const state = {
@@ -221,7 +221,7 @@ describe("useAddComponent", () => {
         { name: "output1", types: ["string"] },
         { name: "output2", types: ["number"] },
       ],
-    } as any;
+    } as unknown as APIClassType;
 
     (useFlowStore as unknown as jest.Mock).mockImplementation((selector) => {
       const state = {
@@ -264,7 +264,7 @@ describe("useAddComponent", () => {
       description: "Test description",
       template: {},
       outputs: [],
-    } as any;
+    } as unknown as APIClassType;
 
     const { result } = renderHook(() => useAddComponent());
     const addComponent = result.current;
@@ -289,7 +289,7 @@ describe("useAddComponent", () => {
       display_name: "Test Component",
       description: "Test description",
       template: {},
-    } as any;
+    } as unknown as APIClassType;
 
     const { result } = renderHook(() => useAddComponent());
     const addComponent = result.current;

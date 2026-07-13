@@ -230,7 +230,7 @@ const task10Candidates: TaskCandidate[] = [
   {
     candidate_id: "a10fe02b10f5",
     path: "src/frontend/src/pages/MainPage/pages/knowledgePage/utils/backendMetadata.ts",
-    source_excerpt: 'return "Stored locally in Langflow";',
+    source_excerpt: 'return "Stored locally in Ketos";',
   },
   {
     candidate_id: "4a5bb193f550",
@@ -353,12 +353,10 @@ const additionalWaveBDebt: Record<string, string[]> = {
 };
 
 const rawBackendErrorDebt = [
-  "src/frontend/src/pages/StorePage/index.tsx",
   "src/frontend/src/pages/MainPage/pages/knowledgePage/hooks/useKnowledgeBaseActions.ts",
   "src/frontend/src/pages/MainPage/pages/knowledgePage/components/KnowledgeBaseSelectionOverlay.tsx",
   "src/frontend/src/pages/SettingsPage/pages/GeneralPage/index.tsx",
   "src/frontend/src/pages/SettingsPage/pages/ApiKeysPage/index.tsx",
-  "src/frontend/src/pages/SettingsPage/pages/StoreApiKeyPage/index.tsx",
   "src/frontend/src/pages/MainPage/pages/deploymentsPage/components/step-attach-flows.tsx",
   "src/frontend/src/pages/MainPage/pages/deploymentsPage/hooks/use-error-alert.ts",
   "src/frontend/src/modals/addMcpServerModal/index.tsx",

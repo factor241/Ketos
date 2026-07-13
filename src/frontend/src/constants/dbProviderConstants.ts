@@ -1,10 +1,7 @@
 import type { TFunction } from "i18next";
 import type { GlobalVariable } from "@/types/global_variables";
 
-// The stored value (env-var key) intentionally keeps its legacy name so
-// existing user installations continue to read the same global variable
-// after the UI rename from "Knowledge Backends" to "DB Providers".
-export const ACTIVE_DB_PROVIDER_VARIABLE = "LANGFLOW_KNOWLEDGE_BACKEND";
+export const ACTIVE_DB_PROVIDER_VARIABLE = "KETOS_KNOWLEDGE_BACKEND";
 
 export const OPENSEARCH_VARIABLES = {
   URL: "OPENSEARCH_URL",
@@ -163,7 +160,7 @@ export const DB_PROVIDER_OPTIONS: DBProviderOption[] = [
         variableKey: OPENSEARCH_VARIABLES.INDEX_NAME,
         required: true,
         isSecret: false,
-        placeholder: "langflow_knowledge",
+        placeholder: "ketos_knowledge",
       },
       {
         // LangChain's OpenSearchVectorSearch stores KB embeddings under

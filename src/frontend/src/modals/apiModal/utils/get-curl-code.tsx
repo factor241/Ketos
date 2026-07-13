@@ -12,6 +12,10 @@ import {
   hasFileTweaks,
 } from "./detect-file-tweaks";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 /**
  * Generates a cURL command for making a POST request to a webhook endpoint.
  *
@@ -159,7 +163,7 @@ ${getApiSampleHeaders("curl")}
      --form "file=@your_image_${uploadCounter}.jpg"`,
       );
     }
-    const originalTweak = tweaks[nodeId];
+    const originalTweak = isRecord(tweaks[nodeId]) ? tweaks[nodeId] : {};
     const modifiedTweak = { ...originalTweak };
     modifiedTweak.files = [
       `REPLACE_WITH_FILE_PATH_FROM_UPLOAD_${uploadCounter}`,
@@ -192,7 +196,7 @@ ${getApiSampleHeaders("curl")}
      --form "file=@your_file_${uploadCounter}.pdf"`,
       );
     }
-    const originalTweak = tweaks[nodeId];
+    const originalTweak = isRecord(tweaks[nodeId]) ? tweaks[nodeId] : {};
     const modifiedTweak = { ...originalTweak };
     if ("path" in originalTweak) {
       modifiedTweak.path = [

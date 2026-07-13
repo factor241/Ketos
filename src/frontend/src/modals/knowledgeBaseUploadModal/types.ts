@@ -1,4 +1,4 @@
-import type { ModelOption } from "@/components/core/parameterRenderComponent/components/modelInputComponent";
+import type { ModelOption } from "@/components/core/parameterRenderComponent/components/modelInputComponent/types";
 
 export interface KnowledgeBaseUploadModalProps {
   open?: boolean;

@@ -39,7 +39,7 @@ withEventDeliveryModes(
     });
 
     await page.getByTestId("input-chat-playground").click();
-    await page.getByTestId("input-chat-playground").fill("what is langflow?");
+    await page.getByTestId("input-chat-playground").fill("what is ketos?");
 
     await page.getByTestId("button-send").click();
 
@@ -56,6 +56,6 @@ withEventDeliveryModes(
 
     expect(concatAllText.length).toBeGreaterThan(100);
 
-    expect(concatAllText).toContain("langflow");
+    expect(concatAllText).toContain("ketos");
   },
 );

@@ -145,7 +145,7 @@ export const useUpdateSessionName: useMutationFunctionType<
     }
   };
 
-  const mutation: UseMutationResult<Message[], any, UpdateSessionParams> =
+  const mutation: UseMutationResult<Message[], Error, UpdateSessionParams> =
     mutate(["useUpdateSessionName"], updateSessionApi, {
       onMutate: (variables) => {},
       onSuccess: (data, variables, context, ...rest) => {

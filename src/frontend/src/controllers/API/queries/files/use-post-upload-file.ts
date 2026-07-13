@@ -15,11 +15,13 @@ export const usePostUploadFile: useMutationFunctionType<
 > = (options?) => {
   const { mutate } = UseRequestProcessor();
 
-  const postUploadFileFn = async (payload: IPostUploadFile): Promise<any> => {
+  const postUploadFileFn = async (
+    payload: IPostUploadFile,
+  ): Promise<IPostUploadFile> => {
     const formData = new FormData();
     formData.append("file", payload.file);
 
-    const response = await api.post<any>(
+    const response = await api.post<IPostUploadFile>(
       `${getURL("FILES")}/upload/${payload.id}`,
       formData,
     );
@@ -27,7 +29,7 @@ export const usePostUploadFile: useMutationFunctionType<
     return response.data;
   };
 
-  const mutation: UseMutationResult<IPostUploadFile, any, IPostUploadFile> =
+  const mutation: UseMutationResult<IPostUploadFile, Error, IPostUploadFile> =
     mutate(
       ["usePostUploadFile"],
       async (payload: IPostUploadFile) => {

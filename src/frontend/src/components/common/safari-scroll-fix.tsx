@@ -95,7 +95,7 @@ function SafariScrollFixInner() {
     scrollEl.addEventListener("touchstart", onTouchStart, { passive: true });
     scrollEl.addEventListener("touchmove", onTouchMove, { passive: true });
     scrollEl.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("langflow-scroll-to-bottom", onForceSticky);
+    window.addEventListener("ketos-scroll-to-bottom", onForceSticky);
 
     let rafId: ReturnType<typeof requestAnimationFrame>;
     const tick = () => {
@@ -126,7 +126,7 @@ function SafariScrollFixInner() {
       scrollEl.removeEventListener("touchstart", onTouchStart);
       scrollEl.removeEventListener("touchmove", onTouchMove);
       scrollEl.removeEventListener("scroll", onScroll);
-      window.removeEventListener("langflow-scroll-to-bottom", onForceSticky);
+      window.removeEventListener("ketos-scroll-to-bottom", onForceSticky);
       cancelAnimationFrame(rafId);
     };
   }, [scrollRef, stopScroll]);

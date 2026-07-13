@@ -10,6 +10,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { api } from "@/controllers/API/api";
 import { getURL } from "@/controllers/API/helpers/constants";
+import { getAxiosErrorMessage } from "@/controllers/API/helpers/get-axios-error-message";
 import {
   useDeleteVersionEntry,
   useGetFlowVersionEntry,
@@ -18,7 +19,9 @@ import {
 import useAlertStore from "@/stores/alertStore";
 import useFlowStore from "@/stores/flowStore";
 import useVersionPreviewStore from "@/stores/versionPreviewStore";
+import type { AllNodeType, EdgeType, FlowType } from "@/types/flow";
 import type { FlowVersionEntry } from "@/types/flow/version";
+import type { FlowStoreType } from "@/types/zustand/flow";
 import {
   downloadFlow,
   processFlows,
@@ -52,21 +55,15 @@ export function useFlowVersionSidebar(flowId: string) {
   const [deleteDialogEntry, setDeleteDialogEntry] =
     useState<FlowVersionEntry | null>(null);
 
-  // Capture original draft state on first render so we can restore it when
-  // switching back to "Current" or on unmount. Initialized during render (not
-  // in an effect) so the values are available before the preview layoutEffect.
-  // Falls back to empty arrays if the store is not yet initialized to prevent
-  // setting `undefined` into the store on cleanup.
-  // biome-ignore lint/suspicious/noExplicitAny: legacy
-  const originalDraftNodesRef = useRef<any[] | null>(null);
-  // biome-ignore lint/suspicious/noExplicitAny: legacy
-  const originalDraftEdgesRef = useRef<any[] | null>(null);
-  if (originalDraftNodesRef.current === null) {
-    originalDraftNodesRef.current =
-      cloneDeep(useFlowStore.getState().nodes) ?? [];
-    originalDraftEdgesRef.current =
-      cloneDeep(useFlowStore.getState().edges) ?? [];
-  }
+  // Capture original draft state once so we can restore it when switching back
+  // to "Current" or on unmount. Lazy state initializers avoid recloning on
+  // rerenders while keeping the snapshots available before the layout effect.
+  const [originalDraftNodes] = useState<AllNodeType[]>(
+    () => cloneDeep(useFlowStore.getState().nodes) ?? [],
+  );
+  const [originalDraftEdges] = useState<EdgeType[]>(
+    () => cloneDeep(useFlowStore.getState().edges) ?? [],
+  );
 
   const {
     data: versionResponse,
@@ -103,10 +100,8 @@ export function useFlowVersionSidebar(flowId: string) {
   }, [isLoadingEntry, setPreviewLoading]);
 
   const processedPreview = useMemo<{
-    // biome-ignore lint/suspicious/noExplicitAny: legacy
-    nodes: any[];
-    // biome-ignore lint/suspicious/noExplicitAny: legacy
-    edges: any[];
+    nodes: AllNodeType[];
+    edges: EdgeType[];
     error?: boolean;
     errorMessage?: string;
   } | null>(() => {
@@ -115,10 +110,18 @@ export function useFlowVersionSidebar(flowId: string) {
 
     try {
       const clonedData = cloneDeep(selectedEntryFull.data);
-      // biome-ignore lint/suspicious/noExplicitAny: legacy
-      const flow = { data: clonedData, is_component: false } as any;
+      const flow: FlowType = {
+        name: "",
+        id: flowId,
+        description: "",
+        data: clonedData as FlowType["data"],
+        is_component: false,
+      };
       processFlows([flow]);
-      return { nodes: flow.data.nodes, edges: flow.data.edges };
+      if (!flow.data) {
+        throw new Error("Processed version flow has no data");
+      }
+      return { nodes: flow.data.nodes ?? [], edges: flow.data.edges ?? [] };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       console.error("Failed to process version flow data for preview:", err);
@@ -134,8 +137,8 @@ export function useFlowVersionSidebar(flowId: string) {
       });
     } else if (selectedId === CURRENT_DRAFT_ID || processedPreview?.error) {
       useFlowStore.setState({
-        nodes: cloneDeep(originalDraftNodesRef.current),
-        edges: cloneDeep(originalDraftEdgesRef.current),
+        nodes: cloneDeep(originalDraftNodes),
+        edges: cloneDeep(originalDraftEdges),
       });
     }
     // Fit the canvas to the new nodes after ReactFlow processes the state update.
@@ -171,8 +174,8 @@ export function useFlowVersionSidebar(flowId: string) {
       );
     } else if (selectedId === CURRENT_DRAFT_ID || processedPreview?.error) {
       setPreview(
-        cloneDeep(originalDraftNodesRef.current),
-        cloneDeep(originalDraftEdgesRef.current),
+        cloneDeep(originalDraftNodes),
+        cloneDeep(originalDraftEdges),
         "Current Draft",
         null,
       );
@@ -185,12 +188,12 @@ export function useFlowVersionSidebar(flowId: string) {
     setPreview,
   ]);
 
-  // biome-ignore lint/suspicious/noExplicitAny: legacy
-  const autoSaveFnRef = useRef<any>(null);
+  const autoSaveFnRef = useRef<FlowStoreType["autoSaveFlow"]>(undefined);
   const inspectionPanelWasVisible = useRef(false);
   useLayoutEffect(() => {
-    // biome-ignore lint/suspicious/noExplicitAny: legacy
-    const currentAutoSave = useFlowStore.getState().autoSaveFlow as any;
+    const currentAutoSave = useFlowStore.getState().autoSaveFlow as
+      | (NonNullable<FlowStoreType["autoSaveFlow"]> & { flush?: () => void })
+      | undefined;
     if (currentAutoSave) {
       if (typeof currentAutoSave.flush === "function") {
         currentAutoSave.flush();
@@ -214,8 +217,8 @@ export function useFlowVersionSidebar(flowId: string) {
         const wasRestored = useVersionPreviewStore.getState().didRestore;
         if (!wasRestored) {
           useFlowStore.setState({
-            nodes: cloneDeep(originalDraftNodesRef.current),
-            edges: cloneDeep(originalDraftEdgesRef.current),
+            nodes: cloneDeep(originalDraftNodes),
+            edges: cloneDeep(originalDraftEdges),
           });
         }
       } catch (err) {
@@ -240,7 +243,7 @@ export function useFlowVersionSidebar(flowId: string) {
       try {
         if (autoSaveFnRef.current) {
           useFlowStore.setState({ autoSaveFlow: autoSaveFnRef.current });
-          autoSaveFnRef.current = null;
+          autoSaveFnRef.current = undefined;
         }
       } catch (err) {
         console.error(
@@ -282,17 +285,14 @@ export function useFlowVersionSidebar(flowId: string) {
         const flowName = `${currentFlow?.name || "flow"}_${tag}`;
         const flowToExport = removeApiKeys({
           id: currentFlow?.id ?? "",
-          data,
+          data: data as FlowType["data"],
           name: flowName,
           description: currentFlow?.description ?? "",
           is_component: false,
-          // biome-ignore lint/suspicious/noExplicitAny: legacy
-        } as any);
+        });
         downloadFlow(flowToExport, flowName, currentFlow?.description ?? "");
-        // biome-ignore lint/suspicious/noExplicitAny: legacy
-      } catch (err: any) {
-        const detail = err?.response?.data?.detail;
-        const message = detail ?? err?.message ?? "Unknown error";
+      } catch (err: unknown) {
+        const message = getAxiosErrorMessage(err, "Unknown error");
         setErrorData({
           title: t("errors.failedToExportVersion"),
           list: [message],
@@ -326,9 +326,8 @@ export function useFlowVersionSidebar(flowId: string) {
               clearPreview();
             }
           },
-          // biome-ignore lint/suspicious/noExplicitAny: legacy
-          onError: (err: any) => {
-            const detail = err?.response?.data?.detail;
+          onError: (err: unknown) => {
+            const detail = getAxiosErrorMessage(err, "");
             setErrorData({
               title: t("errors.failedToDeleteVersion"),
               ...(detail ? { list: [detail] } : {}),

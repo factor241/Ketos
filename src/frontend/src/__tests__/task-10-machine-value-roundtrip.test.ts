@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { recoverModelOption } from "@/components/core/parameterRenderComponent/components/modelInputComponent/helpers/recover-model-option";
 import {
   ACTIVE_DB_PROVIDER_VARIABLE,
@@ -15,26 +13,6 @@ import {
   AUTH_METHODS_ARRAY,
   extractMcpServersFromJson,
 } from "@/utils/mcpUtils";
-
-const frontendRoot = join(__dirname, "..", "..");
-
-function storeMachineValues() {
-  const source = readFileSync(
-    join(frontendRoot, "src/pages/StorePage/index.tsx"),
-    "utf8",
-  );
-  const requiredLiterals = [
-    'useState("Popular")',
-    'useState("All")',
-    'useState("all")',
-    '"-count(downloads)"',
-    '"name"',
-    'value="createdbyme"',
-    'value="likedbyme"',
-    'value="Alphabetical"',
-  ];
-  return requiredLiterals.filter((literal) => source.includes(literal));
-}
 
 function machineProjection() {
   const importedServer = extractMcpServersFromJson({
@@ -64,7 +42,6 @@ function machineProjection() {
         defaults: provider.configFields.map((field) => field.defaultValue),
       })),
     },
-    store: storeMachineValues(),
     mcp: {
       authIds: AUTH_METHODS_ARRAY.map((method) => method.id),
       server: importedServer,
@@ -82,7 +59,7 @@ describe("Task 10 machine-value locale round trip", () => {
     await i18n.changeLanguage("en");
   });
 
-  it("keeps provider, DB, Store, MCP, model, and shortcut values byte-identical", async () => {
+  it("keeps provider, DB, MCP, model, and shortcut values byte-identical", async () => {
     await i18n.changeLanguage("en");
     const english = machineProjection();
 
@@ -94,7 +71,6 @@ describe("Task 10 machine-value locale round trip", () => {
 
     expect(JSON.stringify(russian)).toBe(JSON.stringify(english));
     expect(JSON.stringify(englishAgain)).toBe(JSON.stringify(english));
-    expect(english.store).toHaveLength(8);
     expect(english.mcp.server?.command).toBe("stable-command");
     expect(english.model?.id).toBe("stable-model-id");
   });

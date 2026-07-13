@@ -16,14 +16,24 @@ const mockResetFlow = jest.fn();
 const mockSetNodes = jest.fn();
 const mockSetEdges = jest.fn();
 
+type MockFlowStoreState = {
+  nodes: Array<{ id: string; data: Record<string, unknown> }>;
+  edges: Array<{ id: string }>;
+  resetFlow: typeof mockResetFlow;
+  setNodes: typeof mockSetNodes;
+  setEdges: typeof mockSetEdges;
+};
+
 const mockFlowStore = {
-  getState: jest.fn(() => ({
-    nodes: [],
-    edges: [],
-    resetFlow: mockResetFlow,
-    setNodes: mockSetNodes,
-    setEdges: mockSetEdges,
-  })),
+  getState: jest.fn(
+    (): MockFlowStoreState => ({
+      nodes: [],
+      edges: [],
+      resetFlow: mockResetFlow,
+      setNodes: mockSetNodes,
+      setEdges: mockSetEdges,
+    }),
+  ),
 };
 
 jest.mock("../flowStore", () => ({
@@ -40,17 +50,17 @@ describe("useFlowsManagerStore", () => {
     id: "flow-1",
     name: "Test Flow 1",
     description: "Test Description 1",
-    data: { nodes: [], edges: [] },
+    data: { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } },
     is_component: false,
-  } as FlowType;
+  };
 
   const mockFlow2: FlowType = {
     id: "flow-2",
     name: "Test Flow 2",
     description: "Test Description 2",
-    data: { nodes: [], edges: [] },
+    data: { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } },
     is_component: false,
-  } as FlowType;
+  };
 
   const mockFlows = [mockFlow1, mockFlow2];
 

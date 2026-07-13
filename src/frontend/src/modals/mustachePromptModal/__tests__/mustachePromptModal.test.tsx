@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { PromptModalType } from "@/types/components";
 import MustachePromptModal from "../index";
 
 // Mock the API hook
@@ -182,13 +183,23 @@ jest.mock("@/utils/reactflowUtils", () => ({
 }));
 
 describe("MustachePromptModal", () => {
-  const defaultProps = {
+  const defaultProps: PromptModalType = {
     field_name: "template",
     value: "",
     setValue: jest.fn(),
     nodeClass: {
+      description: "Prompt component",
+      display_name: "Prompt",
+      documentation: "",
       template: {
-        template: { value: "" },
+        template: {
+          type: "prompt",
+          required: false,
+          list: false,
+          show: true,
+          readonly: false,
+          value: "",
+        },
       },
     },
     setNodeClass: jest.fn(),

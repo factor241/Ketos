@@ -5,7 +5,7 @@ import { useDebounce } from "../use-debounce";
 jest.mock("lodash", () => ({
   debounce: jest.fn((fn, delay) => {
     let timeoutId: NodeJS.Timeout | null = null;
-    const debounced = (...args: any[]) => {
+    const debounced = (...args: unknown[]) => {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }

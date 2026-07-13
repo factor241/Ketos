@@ -321,13 +321,13 @@ test(
       .catch(() => {});
     await page.waitForTimeout(1000);
 
-    await page.getByText("Langflow API").first().click();
+    await page.getByText("Ketos API").first().click();
 
     // Wait for API section to load
     await page.waitForTimeout(1000);
 
     await expect(
-      page.getByText("Langflow API Keys", { exact: true }).nth(1),
+      page.getByText("Ketos API Keys", { exact: true }).nth(1),
     ).toBeVisible({ timeout: 10000 });
     await page.getByText("Add New").click();
     await expect(page.getByPlaceholder("My API Key")).toBeVisible({

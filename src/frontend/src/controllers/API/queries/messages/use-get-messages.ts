@@ -40,8 +40,8 @@ export const useGetMessagesQuery: useQueryFunctionType<
     }
     if (params) {
       // Process params to ensure session_id is properly encoded
-      const processedParams = { ...params } as any;
-      if (processedParams.session_id) {
+      const processedParams: Record<string, unknown> = { ...params };
+      if (typeof processedParams.session_id === "string") {
         processedParams.session_id = prepareSessionIdForAPI(
           processedParams.session_id,
         );
@@ -50,14 +50,14 @@ export const useGetMessagesQuery: useQueryFunctionType<
     }
 
     if (!isPlaygroundPage) {
-      return await api.get<any>(`${getURL("MESSAGES")}`, config);
+      return await api.get<object[]>(`${getURL("MESSAGES")}`, config);
     }
 
     // Authenticated users on playground: fetch ALL messages from DB via shared endpoint
     // (no session_id filter — ChatView filters locally by visibleSession)
     if (isAuthenticatedPlayground()) {
       const sourceFlowId = useFlowsManagerStore.getState().currentFlowId;
-      return await api.get<any>(`${getURL("MESSAGES")}/shared`, {
+      return await api.get<object[]>(`${getURL("MESSAGES")}/shared`, {
         params: { source_flow_id: sourceFlowId },
       });
     }

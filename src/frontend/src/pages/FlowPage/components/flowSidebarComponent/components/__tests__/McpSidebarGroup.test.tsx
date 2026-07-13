@@ -5,24 +5,50 @@ import type React from "react";
 import type { APIClassType } from "@/types/api";
 import McpSidebarGroup from "../McpSidebarGroup";
 
+type DivProps = React.ComponentProps<"div">;
+type ButtonProps = React.ComponentProps<"button"> & {
+  variant?: string;
+  size?: string;
+};
+type ToggleProps = {
+  showConfig: boolean;
+  setShowConfig: (show: boolean) => void;
+};
+type DraggableProps = {
+  sectionName: string;
+  apiClass: APIClassType;
+  icon?: string;
+  onDragStart?: React.DragEventHandler<HTMLDivElement>;
+  color?: string;
+  itemName?: string;
+  error?: string;
+  display_name?: string;
+  official?: boolean;
+  beta?: boolean;
+  legacy?: boolean;
+  disabled?: boolean;
+  disabledTooltip?: string;
+};
+type ModalProps = { open: boolean; setOpen: (open: boolean) => void };
+
 // Mock the UI components
 jest.mock("@/components/ui/sidebar", () => ({
-  SidebarGroup: ({ children, className }: any) => (
+  SidebarGroup: ({ children, className }: DivProps) => (
     <div data-testid="sidebar-group" className={className}>
       {children}
     </div>
   ),
-  SidebarGroupContent: ({ children, className }: any) => (
+  SidebarGroupContent: ({ children, className }: DivProps) => (
     <div data-testid="sidebar-group-content" className={className}>
       {children}
     </div>
   ),
-  SidebarGroupLabel: ({ children, className }: any) => (
+  SidebarGroupLabel: ({ children, className }: DivProps) => (
     <div data-testid="sidebar-group-label" className={className}>
       {children}
     </div>
   ),
-  SidebarMenu: ({ children, className }: any) => (
+  SidebarMenu: ({ children, className }: DivProps) => (
     <div data-testid="sidebar-menu" className={className}>
       {children}
     </div>
@@ -31,7 +57,14 @@ jest.mock("@/components/ui/sidebar", () => ({
 
 // Mock the Button component
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, disabled, variant, size, ...props }: any) => (
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    variant,
+    size,
+    ...props
+  }: ButtonProps) => (
     <button
       data-testid="add-mcp-server-button-sidebar"
       onClick={onClick}
@@ -48,7 +81,11 @@ jest.mock("@/components/ui/button", () => ({
 // Mock ShadTooltip
 jest.mock("@/components/common/shadTooltipComponent", () => ({
   __esModule: true,
-  default: ({ children, content, side }: any) => (
+  default: ({
+    children,
+    content,
+    side,
+  }: DivProps & { content?: string; side?: string }) => (
     <div data-testid="tooltip" data-content={content} data-side={side}>
       {children}
     </div>
@@ -57,7 +94,7 @@ jest.mock("@/components/common/shadTooltipComponent", () => ({
 
 // Mock SearchConfigTrigger
 jest.mock("../searchConfigTrigger", () => ({
-  SearchConfigTrigger: ({ showConfig, setShowConfig }: any) => (
+  SearchConfigTrigger: ({ showConfig, setShowConfig }: ToggleProps) => (
     <button
       data-testid="search-config-trigger"
       onClick={() => setShowConfig(!showConfig)}
@@ -84,7 +121,7 @@ jest.mock("../sidebarDraggableComponent", () => ({
     legacy,
     disabled,
     disabledTooltip,
-  }: any) => (
+  }: DraggableProps) => (
     <div
       data-testid={`draggable-component-${apiClass.name}`}
       data-section={sectionName}
@@ -100,7 +137,7 @@ jest.mock("../sidebarDraggableComponent", () => ({
       data-disabled-tooltip={disabledTooltip}
       onDragStart={onDragStart}
     >
-      {display_name || apiClass.display_name || apiClass.name}
+      {String(display_name || apiClass.display_name || apiClass.name)}
     </div>
   ),
 }));
@@ -108,7 +145,7 @@ jest.mock("../sidebarDraggableComponent", () => ({
 // Mock AddMcpServerModal
 jest.mock("@/modals/addMcpServerModal", () => ({
   __esModule: true,
-  default: ({ open, setOpen }: any) => (
+  default: ({ open, setOpen }: ModalProps) => (
     <div data-testid="add-mcp-server-modal" data-open={open}>
       <button onClick={() => setOpen(false)}>Close Modal</button>
     </div>
@@ -118,7 +155,11 @@ jest.mock("@/modals/addMcpServerModal", () => ({
 // Mock DeleteConfirmationModal
 jest.mock("@/modals/deleteConfirmationModal", () => ({
   __esModule: true,
-  default: ({ open, setOpen, onConfirm }: any) => (
+  default: ({
+    open,
+    setOpen,
+    onConfirm,
+  }: ModalProps & { onConfirm: () => void }) => (
     <div data-testid="delete-confirmation-modal" data-open={open}>
       <button onClick={() => setOpen(false)}>Cancel</button>
       <button onClick={onConfirm}>Confirm</button>
@@ -136,7 +177,12 @@ jest.mock("@/controllers/API/queries/mcp/use-delete-mcp-server", () => ({
 // Mock alertStore
 jest.mock("@/stores/alertStore", () => ({
   __esModule: true,
-  default: (selector: any) =>
+  default: (
+    selector: (state: {
+      setSuccessData: jest.Mock;
+      setErrorData: jest.Mock;
+    }) => unknown,
+  ) =>
     selector({
       setSuccessData: jest.fn(),
       setErrorData: jest.fn(),
@@ -146,7 +192,7 @@ jest.mock("@/stores/alertStore", () => ({
 // Mock className utility function (cn)
 jest.mock("@/utils/utils", () => ({
   removeCountFromString: (str: string) => str.replace(/\s*\(\d+\)$/, ""),
-  cn: (...args: any[]) => args.filter(Boolean).join(" "),
+  cn: (...args: unknown[]) => args.filter(Boolean).join(" "),
 }));
 
 // Test wrapper with QueryClient

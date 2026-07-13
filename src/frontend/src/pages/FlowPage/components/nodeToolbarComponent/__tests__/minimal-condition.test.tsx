@@ -3,9 +3,14 @@ import { useCallback, useEffect } from "react";
 
 // Test the minimal condition logic in isolation
 describe("NodeToolbar Minimal Condition Logic", () => {
+  type NodeOutput =
+    | { name?: string; group_outputs?: boolean }
+    | null
+    | undefined;
+
   // Simulate the exact logic from the component
   const useMinimalLogic = (
-    nodeOutputs: any[] | null | undefined,
+    nodeOutputs: NodeOutput[] | null | undefined,
     showNode: boolean,
     setShowNode: jest.Mock,
   ) => {
@@ -20,10 +25,6 @@ describe("NodeToolbar Minimal Condition Logic", () => {
         setShowNode(!showNode);
         return;
       }
-      // Would show notice in real component
-      console.log(
-        "Minimization is only available for components with one active connection or fewer.",
-      );
     }, [isMinimal, showNode, setShowNode]);
 
     useEffect(() => {
@@ -170,7 +171,6 @@ describe("NodeToolbar Minimal Condition Logic", () => {
     });
 
     it("should not toggle when not minimal and showNode is true", () => {
-      const consoleSpy = jest.spyOn(console, "log").mockImplementation();
       const mockSetShowNode = jest.fn();
       const { result } = renderHook(() =>
         useMinimalLogic(
@@ -185,11 +185,6 @@ describe("NodeToolbar Minimal Condition Logic", () => {
       });
 
       expect(mockSetShowNode).not.toHaveBeenCalled();
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Minimization is only available for components with one active connection or fewer.",
-      );
-
-      consoleSpy.mockRestore();
     });
   });
 

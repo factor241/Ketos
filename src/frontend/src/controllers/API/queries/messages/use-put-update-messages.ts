@@ -56,10 +56,8 @@ export const useUpdateMessage: useMutationFunctionType<
     }
   };
 
-  const mutation: UseMutationResult<Message, any, UpdateMessageParams> = mutate(
-    ["useUpdateMessages"],
-    updateMessageApi,
-    {
+  const mutation: UseMutationResult<Message, Error, UpdateMessageParams> =
+    mutate(["useUpdateMessages"], updateMessageApi, {
       ...options,
       onSettled: (_, __, variables, ___) => {
         const params = variables as unknown as UpdateMessageParams | undefined;
@@ -108,8 +106,7 @@ export const useUpdateMessage: useMutationFunctionType<
           });
         }
       },
-    },
-  );
+    });
 
   return mutation;
 };

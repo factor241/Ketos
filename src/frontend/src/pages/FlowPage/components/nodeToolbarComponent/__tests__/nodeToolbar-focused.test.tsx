@@ -1,11 +1,10 @@
-import { render } from "@testing-library/react";
-import React from "react";
-
 // Simple focused test for the key minimal logic without complex mocking
 describe("NodeToolbar Focused Tests", () => {
+  type NodeOutput = { name?: string; group_outputs?: boolean };
+
   // Test the core minimal calculation logic in isolation
   describe("isMinimal calculation logic", () => {
-    const calculateIsMinimal = (outputs: any[]) => {
+    const calculateIsMinimal = (outputs: NodeOutput[] | null | undefined) => {
       const hasGroupOutputs = outputs?.some?.(
         (output) => output?.group_outputs,
       );
@@ -39,8 +38,8 @@ describe("NodeToolbar Focused Tests", () => {
 
     it("should handle edge cases", () => {
       expect(calculateIsMinimal([])).toBe(false);
-      expect(calculateIsMinimal(undefined as any)).toBe(false);
-      expect(calculateIsMinimal(null as any)).toBe(false);
+      expect(calculateIsMinimal(undefined)).toBe(false);
+      expect(calculateIsMinimal(null)).toBe(false);
     });
   });
 
@@ -87,7 +86,7 @@ describe("NodeToolbar Focused Tests", () => {
   // Test combinations that represent real-world scenarios
   describe("real-world scenarios", () => {
     const testScenario = (
-      outputs: any[],
+      outputs: NodeOutput[],
       expectedMinimal: boolean,
       description: string,
     ) => {
@@ -182,11 +181,6 @@ describe("NodeToolbar Focused Tests", () => {
 
           expect(isMinimal).toBe(expectedMinimal);
           expect(canMinimizeWhenShown).toBe(expectedCanMinimize);
-
-          // Log for debugging
-          console.log(
-            `✓ ${name}: minimal=${isMinimal}, canMinimize=${canMinimizeWhenShown}`,
-          );
         },
       );
     });

@@ -10,11 +10,15 @@ interface DeleteMessagesParams {
 
 export const useDeleteMessages: useMutationFunctionType<
   undefined,
-  DeleteMessagesParams
+  DeleteMessagesParams,
+  unknown,
+  Error
 > = (options?) => {
   const { mutate, queryClient } = UseRequestProcessor();
 
-  const deleteMessage = async ({ ids }: DeleteMessagesParams): Promise<any> => {
+  const deleteMessage = async ({
+    ids,
+  }: DeleteMessagesParams): Promise<unknown> => {
     const response = await api.delete(`${getURL("MESSAGES")}`, {
       data: ids,
     });
@@ -22,19 +26,16 @@ export const useDeleteMessages: useMutationFunctionType<
     return response.data;
   };
 
-  const mutation: UseMutationResult<
-    DeleteMessagesParams,
-    any,
-    DeleteMessagesParams
-  > = mutate(["useDeleteMessages"], deleteMessage, {
-    ...options,
-    onSettled: (data, error, variables, context) => {
-      queryClient.invalidateQueries({
-        queryKey: ["useGetSessionsFromFlowQuery"],
-      });
-      options?.onSettled?.(data, error, variables, context);
-    },
-  });
+  const mutation: UseMutationResult<unknown, Error, DeleteMessagesParams> =
+    mutate(["useDeleteMessages"], deleteMessage, {
+      ...options,
+      onSettled: (data, error, variables, onMutateResult, context) => {
+        queryClient.invalidateQueries({
+          queryKey: ["useGetSessionsFromFlowQuery"],
+        });
+        options?.onSettled?.(data, error, variables, onMutateResult, context);
+      },
+    });
 
   return mutation;
 };

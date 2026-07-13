@@ -61,14 +61,15 @@ const OptionBadge = ({
     className={cn("flex items-center gap-1 truncate", className)}
   >
     <div className="truncate">{option}</div>
-    <div
+    <button
+      type="button"
       data-testid="remove-icon-badge"
-      onClick={(e) =>
-        onRemove(e as unknown as React.MouseEvent<HTMLButtonElement>)
-      }
+      onClick={onRemove}
+      className="border-0 bg-transparent p-0"
+      aria-label={`Remove ${option}`}
     >
       <X className="h-3 w-3 cursor-pointer bg-transparent hover:text-destructive" />
-    </div>
+    </button>
   </Badge>
 );
 

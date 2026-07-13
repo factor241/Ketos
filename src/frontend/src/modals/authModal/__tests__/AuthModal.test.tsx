@@ -19,7 +19,11 @@ jest.mock("@/utils/stringManipulation", () => ({
 // Mock UI components
 jest.mock("@/components/common/genericIconComponent", () => ({
   __esModule: true,
-  default: ({ name, className, ...props }: any) => (
+  default: ({
+    name,
+    className,
+    ...props
+  }: React.HTMLAttributes<HTMLSpanElement> & { name: string }) => (
     <span data-testid={`icon-${name}`} className={className} {...props}>
       {name}
     </span>
@@ -28,7 +32,11 @@ jest.mock("@/components/common/genericIconComponent", () => ({
 
 // Mock custom link
 jest.mock("@/customization/components/custom-link", () => ({
-  CustomLink: ({ children, to, className }: any) => (
+  CustomLink: ({
+    children,
+    to,
+    className,
+  }: React.PropsWithChildren<{ to: string; className?: string }>) => (
     <a href={to} className={className}>
       {children}
     </a>

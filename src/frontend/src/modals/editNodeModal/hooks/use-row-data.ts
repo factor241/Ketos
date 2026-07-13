@@ -6,7 +6,7 @@ const useRowData = (nodeClass: APIClassType, open: boolean) => {
   const rowData = useMemo(() => {
     return Object.keys(nodeClass.template)
       .filter((key: string) => {
-        const templateParam = nodeClass.template[key] as any;
+        const templateParam = nodeClass.template[key];
         return (
           key.charAt(0) !== "_" &&
           templateParam.show &&
@@ -18,7 +18,7 @@ const useRowData = (nodeClass: APIClassType, open: boolean) => {
       })
       .sort((a, b) => sortFields(a, b, nodeClass.field_order ?? []))
       .map((key: string) => {
-        const templateParam = nodeClass.template[key] as any;
+        const templateParam = nodeClass.template[key];
         return {
           ...templateParam,
           key: key,

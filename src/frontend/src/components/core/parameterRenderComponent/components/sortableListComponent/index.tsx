@@ -29,7 +29,7 @@ type SortableListItemData = ListSelectionItem & {
 
 type SortableUiItem = SortableListItemData & { id: string | number };
 
-const SYNTHETIC_SORTABLE_ID_PREFIX = "__langflow_sortable_";
+const SYNTHETIC_SORTABLE_ID_PREFIX = "__ketos_sortable_";
 
 function stripSortableState(item: SortableListItemData): SortableListItemData {
   const result = { ...item };

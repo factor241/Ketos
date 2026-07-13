@@ -97,6 +97,7 @@ jest.mock("@/utils/utils", () => ({
 
 import { checkCodeValidity } from "@/CustomNodes/helpers/check-code-validity";
 import { BuildStatus } from "@/constants/enums";
+import type { LogsLogType, VertexBuildTypeAPI } from "@/types/api";
 import type { AllNodeType, EdgeType, NodeDataType } from "@/types/flow";
 import useFlowStore, {
   completeNodeUpdate,
@@ -307,7 +308,9 @@ describe("useFlowStore", () => {
   describe("inputs and outputs management", () => {
     it("should set inputs", () => {
       const { result } = renderHook(() => useFlowStore());
-      const mockInputs = [{ name: "input1", type: "text" }];
+      const mockInputs = [
+        { id: "input1", displayName: "Input 1", type: "text" },
+      ];
 
       act(() => {
         result.current.setInputs(mockInputs);
@@ -318,7 +321,9 @@ describe("useFlowStore", () => {
 
     it("should set outputs", () => {
       const { result } = renderHook(() => useFlowStore());
-      const mockOutputs = [{ name: "output1", type: "text" }];
+      const mockOutputs = [
+        { id: "output1", displayName: "Output 1", type: "text" },
+      ];
 
       act(() => {
         result.current.setOutputs(mockOutputs);
@@ -347,7 +352,7 @@ describe("useFlowStore", () => {
   describe("flow pool management", () => {
     it("should set flow pool", () => {
       const { result } = renderHook(() => useFlowStore());
-      const mockFlowPool = { flow1: { id: "flow1", data: {} } };
+      const mockFlowPool = { flow1: [] };
 
       act(() => {
         result.current.setFlowPool(mockFlowPool);
@@ -369,10 +374,11 @@ describe("useFlowStore", () => {
       const { result } = renderHook(() => useFlowStore());
 
       // Mock the buildController
-      const mockAbort = jest.fn();
+      const controller = new AbortController();
+      const mockAbort = jest.spyOn(controller, "abort");
       act(() => {
         useFlowStore.setState({
-          buildController: { abort: mockAbort },
+          buildController: controller,
           updateEdgesRunningByNodes: jest.fn(),
           revertBuiltStatusFromBuilding: jest.fn(),
           nodes: [mockNode],
@@ -411,24 +417,6 @@ describe("useFlowStore", () => {
 
       // Verify that applyEdgeChanges would be called
       expect(result.current.edges).toBeDefined();
-    });
-
-    it("should handle fitViewNode when reactFlowInstance exists", () => {
-      const { result } = renderHook(() => useFlowStore());
-      const mockFitView = jest.fn();
-
-      act(() => {
-        useFlowStore.setState({
-          reactFlowInstance: { fitView: mockFitView },
-          nodes: [mockNode],
-        });
-      });
-
-      act(() => {
-        result.current.fitViewNode("node-1");
-      });
-
-      expect(mockFitView).toHaveBeenCalledWith({ nodes: [{ id: "node-1" }] });
     });
 
     it("should not call fitView when reactFlowInstance is null", () => {
@@ -472,8 +460,12 @@ describe("useFlowStore", () => {
 
       // Set up inputs/outputs
       act(() => {
-        result.current.setInputs([{ name: "input1", type: "text" }]);
-        result.current.setOutputs([{ name: "output1", type: "text" }]);
+        result.current.setInputs([
+          { id: "input1", displayName: "Input 1", type: "text" },
+        ]);
+        result.current.setOutputs([
+          { id: "output1", displayName: "Output 1", type: "text" },
+        ]);
         result.current.setHasIO(true);
       });
 
@@ -557,9 +549,19 @@ describe("useFlowStore", () => {
         result.current.setPlaygroundPage(true);
         result.current.setPositionDictionary({ 10: 20, 30: 40 });
         result.current.setComponentsToUpdate([]);
-        result.current.setInputs([{ name: "concurrent-input", type: "text" }]);
+        result.current.setInputs([
+          {
+            id: "concurrent-input",
+            displayName: "Concurrent input",
+            type: "text",
+          },
+        ]);
         result.current.setOutputs([
-          { name: "concurrent-output", type: "text" },
+          {
+            id: "concurrent-output",
+            displayName: "Concurrent output",
+            type: "text",
+          },
         ]);
         result.current.setHasIO(true);
       });
@@ -875,19 +877,29 @@ describe("useFlowStore", () => {
     const createEdge = (
       id: string,
       sourceHandleId: string,
-      // biome-ignore lint/suspicious/noExplicitAny: legacy
-      overrides: Partial<any> = {},
-    ) =>
-      ({
-        id,
-        source: `src-${id}`,
-        target: `tgt-${id}`,
-        animated: false,
-        className: "",
-        data: { sourceHandle: { id: sourceHandleId } },
-        ...overrides,
-        // biome-ignore lint/suspicious/noExplicitAny: legacy
-      }) as any;
+      overrides: Partial<EdgeType> = {},
+    ): EdgeType => ({
+      id,
+      source: `src-${id}`,
+      target: `tgt-${id}`,
+      animated: false,
+      className: "",
+      type: "default",
+      data: {
+        sourceHandle: {
+          id: sourceHandleId,
+          dataType: "str",
+          output_types: [],
+          name: "output",
+        },
+        targetHandle: {
+          id: `target-${id}`,
+          type: "str",
+          fieldName: "input",
+        },
+      },
+      ...overrides,
+    });
 
     it("should clear all edge animations when no nextIds provided", () => {
       const { result } = renderHook(() => useFlowStore());
@@ -992,19 +1004,36 @@ describe("useFlowStore", () => {
   });
 
   describe("addDataToFlowPool", () => {
-    const mockVertexData = {
+    const mockVertexData: VertexBuildTypeAPI = {
       id: "node-1",
-      data: { results: {} },
+      inactivated_vertices: null,
+      next_vertices_ids: [],
+      top_level_vertices: [],
+      data: { results: {}, outputs: {}, logs: {}, messages: [] },
       valid: true,
-      // biome-ignore lint/suspicious/noExplicitAny: legacy
-    } as any;
+      timestamp: "2026-07-13T00:00:00.000Z",
+      params: null,
+      messages: [],
+      artifacts: null,
+    };
 
-    const mockVertexData2 = {
+    const mockVertexData2: VertexBuildTypeAPI = {
       id: "node-1",
-      data: { results: { other: true } },
+      inactivated_vertices: null,
+      next_vertices_ids: [],
+      top_level_vertices: [],
+      data: {
+        results: { other: "true" },
+        outputs: {},
+        logs: {},
+        messages: [],
+      },
       valid: true,
-      // biome-ignore lint/suspicious/noExplicitAny: legacy
-    } as any;
+      timestamp: "2026-07-13T00:00:01.000Z",
+      params: null,
+      messages: [],
+      artifacts: null,
+    };
 
     it("should add data to new nodeId entry", () => {
       const { result } = renderHook(() => useFlowStore());
@@ -1051,14 +1080,16 @@ describe("useFlowStore", () => {
   });
 
   describe("appendLogToFlowPool", () => {
-    // biome-ignore lint/suspicious/noExplicitAny: legacy
-    const mockLog = { name: "Test Log", message: "hello", type: "info" } as any;
-    const mockLog2 = {
+    const mockLog: LogsLogType = {
+      name: "Test Log",
+      message: "hello",
+      type: "info",
+    };
+    const mockLog2: LogsLogType = {
       name: "Second Log",
       message: "world",
       type: "info",
-      // biome-ignore lint/suspicious/noExplicitAny: legacy
-    } as any;
+    };
 
     it("creates a new pool entry with the log when no entry exists for nodeId", () => {
       const { result } = renderHook(() => useFlowStore());

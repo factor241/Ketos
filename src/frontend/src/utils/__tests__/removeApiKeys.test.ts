@@ -1,7 +1,8 @@
+import type { FlowType } from "@/types/flow";
 import { removeApiKeys } from "../reactflowUtils";
 
 describe("removeApiKeys", () => {
-  function makeFlow(template: Record<string, any>) {
+  function makeFlow(template: Record<string, unknown>) {
     return {
       data: {
         nodes: [
@@ -16,7 +17,7 @@ describe("removeApiKeys", () => {
         ],
         edges: [],
       },
-    } as any;
+    } as unknown as FlowType;
   }
 
   it("preserves api_key when it is an env/global variable name", () => {

@@ -1,15 +1,30 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
-import { useEffect } from "react";
+import { act, render, screen } from "@testing-library/react";
+import type React from "react";
 import FlowBuildingComponent from "../index";
+
+type FlowBuildState = {
+  isBuilding: boolean;
+  flowBuildStatus: Record<string, unknown>;
+  buildInfo: unknown;
+  setBuildInfo: jest.Mock;
+  stopBuilding: jest.Mock;
+  pastBuildFlowParams: unknown;
+  buildFlow: jest.Mock;
+};
 
 // Mock dependencies
 jest.mock("framer-motion", () => {
   const React = require("react");
   return {
-    AnimatePresence: ({ children }: any) => <div>{children}</div>,
+    AnimatePresence: ({ children }: React.PropsWithChildren) => (
+      <div>{children}</div>
+    ),
     motion: {
       div: React.forwardRef(
-        ({ children, className, ...props }: any, ref: any) => (
+        (
+          { children, className, ...props }: React.ComponentProps<"div">,
+          ref: React.ForwardedRef<HTMLDivElement>,
+        ) => (
           <div ref={ref} className={className} {...props}>
             {children}
           </div>
@@ -21,7 +36,7 @@ jest.mock("framer-motion", () => {
 
 jest.mock("react-markdown", () => ({
   __esModule: true,
-  default: ({ children }: any) => <div>{children}</div>,
+  default: ({ children }: React.PropsWithChildren) => <div>{children}</div>,
 }));
 
 jest.mock("remark-gfm", () => ({
@@ -38,7 +53,7 @@ jest.mock(
 
 jest.mock("@/components/common/genericIconComponent", () => ({
   __esModule: true,
-  default: ({ name, className }: any) => (
+  default: ({ name, className }: { name: string; className?: string }) => (
     <div data-testid={`icon-${name}`} className={className}>
       {name}
     </div>
@@ -50,7 +65,12 @@ jest.mock("@/components/core/border-trail", () => ({
 }));
 
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, "data-testid": testId, ...props }: any) => (
+  Button: ({
+    children,
+    onClick,
+    "data-testid": testId,
+    ...props
+  }: React.ComponentProps<"button"> & { "data-testid"?: string }) => (
     <button onClick={onClick} data-testid={testId} {...props}>
       {children}
     </button>
@@ -58,13 +78,13 @@ jest.mock("@/components/ui/button", () => ({
 }));
 
 jest.mock("@/components/ui/TextShimmer", () => ({
-  TextShimmer: ({ children }: any) => (
+  TextShimmer: ({ children }: React.PropsWithChildren) => (
     <div data-testid="text-shimmer">{children}</div>
   ),
 }));
 
 jest.mock("@/utils/utils", () => ({
-  cn: (...classes: any[]) => classes.filter(Boolean).join(" "),
+  cn: (...classes: unknown[]) => classes.filter(Boolean).join(" "),
 }));
 
 jest.mock("@/constants/enums", () => ({
@@ -81,13 +101,13 @@ const mockSetBuildInfo = jest.fn();
 const mockBuildFlow = jest.fn();
 
 let mockIsBuilding = false;
-let mockFlowBuildStatus = {};
-let mockBuildInfo: any = null;
-let mockPastBuildFlowParams: any = null;
+let mockFlowBuildStatus: Record<string, unknown> = {};
+let mockBuildInfo: unknown = null;
+let mockPastBuildFlowParams: unknown = null;
 
 jest.mock("@/stores/flowStore", () => ({
   __esModule: true,
-  default: (selector: any) => {
+  default: (selector: (state: FlowBuildState) => unknown) => {
     const state = {
       isBuilding: mockIsBuilding,
       flowBuildStatus: mockFlowBuildStatus,

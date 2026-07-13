@@ -10,6 +10,11 @@ import {
   hasFileTweaks,
 } from "./detect-file-tweaks";
 
+const asRecord = (value: unknown): Record<string, unknown> =>
+  typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : {};
+
 /** Generates Node.js code for API calls, with multi-step file uploads (v1 for ChatInput, v2 for File/VideoFile) using http module, then flow execution. Handles auth. */
 export function getNewJsApiCode({
   flowId,
@@ -19,10 +24,11 @@ export function getNewJsApiCode({
 }: {
   flowId: string;
   endpointName: string;
-  processedPayload: any;
+  processedPayload: unknown;
   shouldDisplayApiKey: boolean;
 }): string {
   const baseUrl = getBaseUrl();
+  const payload = asRecord(processedPayload);
 
   // Parse URL for robust hostname/port extraction
   const parsedUrl = new URL(baseUrl);
@@ -31,14 +37,14 @@ export function getNewJsApiCode({
     parsedUrl.port || (parsedUrl.protocol === "https:" ? "443" : "80");
 
   // Check if there are file uploads
-  const tweaks = processedPayload.tweaks || {};
+  const tweaks = asRecord(payload.tweaks);
   const hasFiles = hasFileTweaks(tweaks);
 
   // If no file uploads, use existing logic
   if (!hasFiles) {
     const apiUrl = `${baseUrl}/api/v1/run/${endpointName || flowId}`;
 
-    const payloadString = JSON.stringify(processedPayload, null, 4);
+    const payloadString = JSON.stringify(payload, null, 4);
 
     const authSection = shouldDisplayApiKey
       ? `const crypto = require('crypto');
@@ -77,7 +83,7 @@ fetch('${apiUrl}', options)
     return getNewJsApiCode({
       flowId,
       endpointName,
-      processedPayload: { ...processedPayload, tweaks: nonFileTweaks },
+      processedPayload: { ...payload, tweaks: nonFileTweaks },
       shouldDisplayApiKey,
     });
   }
@@ -129,7 +135,7 @@ const authHeaders = { 'x-api-key': apiKey };`
           index + 1
         } successful! File path:', ${varName});`);
 
-    const originalTweak = tweaks[nodeId];
+    const originalTweak = asRecord(tweaks[nodeId]);
     const modifiedTweak = { ...originalTweak };
     modifiedTweak.files = [varName];
     tweakEntries.push(
@@ -175,7 +181,7 @@ const authHeaders = { 'x-api-key': apiKey };`
           index + 1
         } successful! File path:', ${varName});`);
 
-    const originalTweak = tweaks[nodeId];
+    const originalTweak = asRecord(tweaks[nodeId]);
     const modifiedTweak = { ...originalTweak };
     if ("path" in originalTweak) {
       modifiedTweak.path = [varName];
@@ -272,10 +278,12 @@ ${uploadSteps.join("\n\n")}
 
         // Step ${uploadSteps.length + 1}: Execute flow with all file paths
         const executePayload = JSON.stringify({
-            "output_type": "${processedPayload.output_type || "chat"}",
-            "input_type": "${processedPayload.input_type || "chat"}",
+            "output_type": "${typeof payload.output_type === "string" ? payload.output_type : "chat"}",
+            "input_type": "${typeof payload.input_type === "string" ? payload.input_type : "chat"}",
             "input_value": "${
-              processedPayload.input_value || "Your message here"
+              typeof payload.input_value === "string"
+                ? payload.input_value
+                : "Your message here"
             }",
             "session_id": crypto.randomUUID(),
             "tweaks": {

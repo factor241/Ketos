@@ -14,15 +14,17 @@ export const useDeleteDeleteFlows: useMutationFunctionType<
 > = (options?) => {
   const { mutate, queryClient } = UseRequestProcessor();
 
-  const deleteFlowsFn = async (payload: IDeleteFlows): Promise<any> => {
-    const response = await api.delete<any>(`${getURL("FLOWS")}/`, {
+  const deleteFlowsFn = async (
+    payload: IDeleteFlows,
+  ): Promise<IDeleteFlows> => {
+    const response = await api.delete<IDeleteFlows>(`${getURL("FLOWS")}/`, {
       data: payload.flow_ids,
     });
 
     return response.data;
   };
 
-  const mutation: UseMutationResult<IDeleteFlows, any, IDeleteFlows> = mutate(
+  const mutation: UseMutationResult<IDeleteFlows, Error, IDeleteFlows> = mutate(
     ["useLoginUser"],
     deleteFlowsFn,
     {

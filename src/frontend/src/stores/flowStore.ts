@@ -994,10 +994,7 @@ const useFlowStore = create<FlowStoreType>((set, get) => ({
           ...get().verticesBuild!.verticesIds,
           ...next_vertices_ids,
         ];
-        if (
-          ENABLE_DATASTAX_KETOS &&
-          vertexBuildData?.id?.includes("AstraDB")
-        ) {
+        if (ENABLE_DATASTAX_KETOS && vertexBuildData?.id?.includes("AstraDB")) {
           const search_results: LogsLogType[] = Object.values(
             vertexBuildData?.data?.logs?.search_results,
           );

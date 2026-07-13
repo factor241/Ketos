@@ -2,12 +2,12 @@
 import { test as base, expect, Page } from "@playwright/test";
 import "./playwrightCoverage";
 
-export type { LangflowPage } from "./utils/types";
+export type { KetosPage } from "./utils/types";
 
 // Optional CPU throttling for reproducing race conditions seen on slower
-// runners (Windows CI). Enable with LF_CPU_THROTTLE=<rate>, e.g. 4.
+// runners (Windows CI). Enable with KETOS_CPU_THROTTLE=<rate>, e.g. 4.
 const CPU_THROTTLE_RATE = (() => {
-  const raw = process.env.LF_CPU_THROTTLE;
+  const raw = process.env.KETOS_CPU_THROTTLE;
   if (!raw) return 0;
   const n = Number.parseFloat(raw);
   return Number.isFinite(n) && n > 1 ? n : 0;
@@ -38,7 +38,7 @@ export const test = base.extend({
     // Flag to allow flow errors (for tests that expect errors)
     let allowFlowErrors = false;
 
-    // Add helper method to page context — see LangflowPage type in utils/types.ts
+    // Add helper method to page context — see KetosPage type in utils/types.ts
     (page as Page & { allowFlowErrors?: () => void }).allowFlowErrors = () => {
       allowFlowErrors = true;
     };
@@ -106,7 +106,7 @@ export const test = base.extend({
           try {
             const bodyResult = await Promise.race([
               response.text(),
-              new Promise<symbol>((resolve) => {
+              new Promise<typeof bodyTimeoutToken>((resolve) => {
                 timeoutId = setTimeout(
                   () => resolve(bodyTimeoutToken),
                   READ_BODY_TIMEOUT_MS,
@@ -220,8 +220,11 @@ export const test = base.extend({
                 `Error: ${errorPreview}\n\n` +
                 `If this error is expected, call page.allowFlowErrors() at the start of your test.`;
 
-              // Use page.close() to fail the test immediately
-              page.emit("pageerror", new Error(errorMessage));
+              // Mirror a browser page error before rejecting the response handler.
+              const pageErrorEmitter = page as Page & {
+                emit(event: "pageerror", error: Error): boolean;
+              };
+              pageErrorEmitter.emit("pageerror", new Error(errorMessage));
               throw new Error(errorMessage);
             }
           }

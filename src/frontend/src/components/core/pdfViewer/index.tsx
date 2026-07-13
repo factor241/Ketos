@@ -80,6 +80,8 @@ export default function PdfViewer({ pdf }: { pdf: string }): JSX.Element {
       ref={container}
       onMouseEnter={(_) => setShowControl(true)}
       onMouseLeave={(_) => setShowControl(false)}
+      role="application"
+      aria-label="PDF viewer"
       className="flex h-full w-full flex-col items-center justify-end overflow-clip rounded-lg border border-border"
     >
       <div className={"h-full min-h-0 w-full overflow-auto custom-scroll"}>

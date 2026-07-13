@@ -123,7 +123,7 @@ async function expectNoI18nDiagnostics(
   routeName: string,
 ): Promise<void> {
   const diagnostics = await page.evaluate<I18nDiagnosticsSnapshot | null>(
-    () => window.__LANGFLOW_I18N_DIAGNOSTICS__?.snapshot() ?? null,
+    () => window.__KETOS_I18N_DIAGNOSTICS__?.snapshot() ?? null,
   );
 
   expect(

@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import type { OutputFieldType } from "@/types/api";
+import type { NodeDataType } from "@/types/flow";
 
 import { getNodeOutputColors } from "../../../helpers/get-node-output-colors";
 import { getNodeOutputColorsName } from "../../../helpers/get-node-output-colors-name";
@@ -17,6 +19,19 @@ export const OutputParameter = ({
   isToolMode,
   hidden,
   handleSelectOutput,
+}: {
+  output: OutputFieldType;
+  outputs?: OutputFieldType[];
+  idx: number;
+  lastOutput?: boolean;
+  data: NodeDataType;
+  types: Record<string, string>;
+  selected: boolean;
+  showNode: boolean;
+  showHiddenOutputs: boolean;
+  isToolMode: boolean;
+  hidden?: boolean;
+  handleSelectOutput: (output: OutputFieldType) => void;
 }) => {
   // ID for the right handle (normal output) - only the actual output type
   const id = useMemo(() => {

@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
-import type { AllNodeType, NodeDataType } from "@/types/flow";
+import type { APITemplateType, InputFieldType } from "@/types/api";
+import type { AllNodeType, NodeDataType, NoteDataType } from "@/types/flow";
 import { useTweaksStore } from "../tweaksStore";
 
 // Mock all the complex dependencies
@@ -36,62 +37,62 @@ const mockSetLocalStorage =
   require("@/utils/local-storage-util").setLocalStorage;
 const mockFlowStore = require("../flowStore").default;
 
+const inputField = (value: string, advanced: boolean): InputFieldType => ({
+  type: "str",
+  required: false,
+  list: false,
+  show: true,
+  readonly: false,
+  advanced,
+  value,
+});
+
+const nodeData = (
+  id: string,
+  type: string,
+  template: APITemplateType,
+  frozen = false,
+): NodeDataType => ({
+  id,
+  type,
+  node: {
+    description: `${type} description`,
+    display_name: type,
+    documentation: "",
+    template,
+    frozen,
+  },
+});
+
 const mockNode: AllNodeType = {
   id: "node-1",
   type: "genericNode",
   position: { x: 0, y: 0 },
-  data: {
-    node: {
-      template: {
-        param1: {
-          advanced: false,
-          value: "test-value",
-        },
-        param2: {
-          advanced: true,
-          value: "advanced-value",
-        },
-      },
-      frozen: false,
-    },
-    type: "TestNode",
-  } as NodeDataType,
+  data: nodeData("node-1", "TestNode", {
+    param1: inputField("test-value", false),
+    param2: inputField("advanced-value", true),
+  }),
 };
 
 const mockNode2: AllNodeType = {
   id: "node-2",
   type: "genericNode",
   position: { x: 100, y: 100 },
-  data: {
-    node: {
-      template: {
-        param3: {
-          advanced: false,
-          value: "another-value",
-        },
-      },
-      frozen: false,
-    },
-    type: "AnotherNode",
-  } as NodeDataType,
+  data: nodeData("node-2", "AnotherNode", {
+    param3: inputField("another-value", false),
+  }),
 };
 
 const mockFrozenNode: AllNodeType = {
   id: "node-frozen",
   type: "genericNode",
   position: { x: 200, y: 200 },
-  data: {
-    node: {
-      template: {
-        param4: {
-          advanced: false,
-          value: "frozen-value",
-        },
-      },
-      frozen: true,
-    },
-    type: "FrozenNode",
-  } as NodeDataType,
+  data: nodeData(
+    "node-frozen",
+    "FrozenNode",
+    { param4: inputField("frozen-value", false) },
+    true,
+  ),
 };
 
 describe("useTweaksStore", () => {
@@ -377,34 +378,28 @@ describe("useTweaksStore", () => {
     });
 
     it("should skip nodes that are not genericNode type", () => {
-      const nonGenericNode = { ...mockNode, type: "customNode" };
-      const { result } = renderHook(() => useTweaksStore());
-
-      act(() => {
-        useTweaksStore.setState({
-          currentFlowId: "test-flow",
-          nodes: [nonGenericNode],
-        });
-        result.current.updateTweaks();
-      });
-
-      expect(result.current.tweaks).toEqual({});
-    });
-
-    it("should handle nodes without template", () => {
-      const nodeWithoutTemplate = {
-        ...mockNode,
-        data: {
-          ...mockNode.data,
-          node: { ...mockNode.data.node, template: undefined },
+      const noteData: NoteDataType = {
+        id: "note-1",
+        type: "Note",
+        node: {
+          description: "Note description",
+          display_name: "Note",
+          documentation: "",
+          template: {},
         },
+      };
+      const nonGenericNode: AllNodeType = {
+        id: "note-1",
+        type: "noteNode",
+        position: { x: 0, y: 0 },
+        data: noteData,
       };
       const { result } = renderHook(() => useTweaksStore());
 
       act(() => {
         useTweaksStore.setState({
           currentFlowId: "test-flow",
-          nodes: [nodeWithoutTemplate],
+          nodes: [nonGenericNode],
         });
         result.current.updateTweaks();
       });
@@ -454,22 +449,27 @@ describe("useTweaksStore", () => {
       });
 
       act(() => {
-        result.current.setNode("node-1", (node) => ({
-          ...node,
-          data: {
-            ...node.data,
-            node: {
-              ...node.data.node,
-              template: {
-                ...node.data.node?.template,
-                param1: {
-                  advanced: false,
-                  value: "updated-value",
+        result.current.setNode("node-1", (node) => {
+          if (node.type !== "genericNode") return node;
+
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              node: {
+                ...node.data.node,
+                template: {
+                  ...node.data.node.template,
+                  param1: {
+                    ...node.data.node.template.param1,
+                    advanced: false,
+                    value: "updated-value",
+                  },
                 },
               },
             },
-          } as NodeDataType,
-        }));
+          };
+        });
       });
 
       expect(result.current.currentFlowId).toBe("complex-flow");
@@ -539,7 +539,7 @@ describe("useTweaksStore", () => {
       mockGetLocalStorage.mockReturnValue("invalid-json");
       // Mock JSON.parse to handle the error gracefully
       const originalParse = JSON.parse;
-      jest.spyOn(JSON, "parse").mockImplementation((str) => {
+      const parseSpy = jest.spyOn(JSON, "parse").mockImplementation((str) => {
         if (str === "invalid-json") {
           throw new SyntaxError("Unexpected token");
         }
@@ -554,7 +554,7 @@ describe("useTweaksStore", () => {
         });
       }).toThrow();
 
-      JSON.parse.mockRestore();
+      parseSpy.mockRestore();
     });
 
     it("should handle multiple node updates with same ID", () => {

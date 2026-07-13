@@ -92,7 +92,7 @@ export default function CopyFieldAreaComponent({
     handleOnNewValue({ value: e.target.value });
   };
 
-  const handleCopy = (event?: React.MouseEvent<HTMLDivElement>) => {
+  const handleCopy = (event?: React.MouseEvent<HTMLButtonElement>) => {
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
     navigator.clipboard.writeText(valueToRender);
@@ -124,7 +124,12 @@ export default function CopyFieldAreaComponent({
           aria-hidden="true"
         />
       )}
-      <div onClick={handleCopy}>
+      <button
+        type="button"
+        onClick={handleCopy}
+        className="m-0 border-0 bg-transparent p-0"
+        aria-label="Copy"
+      >
         <IconComponent
           dataTestId={`btn_copy_${id?.toLowerCase()}${
             editNode ? "_advanced" : ""
@@ -139,7 +144,7 @@ export default function CopyFieldAreaComponent({
             "bg-muted text-foreground",
           )}
         />
-      </div>
+      </button>
     </>
   );
 

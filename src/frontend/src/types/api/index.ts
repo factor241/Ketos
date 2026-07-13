@@ -324,14 +324,29 @@ export type QueryFunctionType = (
   // biome-ignore lint/suspicious/noExplicitAny: legacy
 ) => UseQueryResult<any>;
 
-export type MutationFunctionType = (
-  mutationKey: UseMutationOptions["mutationKey"],
-  // biome-ignore lint/suspicious/noExplicitAny: legacy
-  mutationFn: UseMutationOptions<any, any, any>["mutationFn"],
-  // biome-ignore lint/suspicious/noExplicitAny: legacy
-  options?: Omit<UseMutationOptions<any, any>, "mutationFn" | "mutationKey">,
-  // biome-ignore lint/suspicious/noExplicitAny: legacy
-) => UseMutationResult<any, any, any, any>;
+export type MutationFunctionType = <
+  TData = unknown,
+  TError = Error,
+  TVariables = void,
+  TOnMutateResult = unknown,
+>(
+  mutationKey: UseMutationOptions<
+    TData,
+    TError,
+    TVariables,
+    TOnMutateResult
+  >["mutationKey"],
+  mutationFn: UseMutationOptions<
+    TData,
+    TError,
+    TVariables,
+    TOnMutateResult
+  >["mutationFn"],
+  options?: Omit<
+    UseMutationOptions<TData, TError, TVariables, TOnMutateResult>,
+    "mutationFn" | "mutationKey"
+  >,
+) => UseMutationResult<TData, TError, TVariables, TOnMutateResult>;
 
 export type useMutationFunctionType<
   Params,
@@ -344,14 +359,14 @@ export type useMutationFunctionType<
 > = Params extends undefined
   ? (
       options?: Omit<
-        UseMutationOptions<Data, Error>,
+        UseMutationOptions<Data, Error, Variables>,
         "mutationFn" | "mutationKey"
       >,
     ) => UseMutationResult<Data, Error, Variables>
   : (
       params: Params,
       options?: Omit<
-        UseMutationOptions<Data, Error>,
+        UseMutationOptions<Data, Error, Variables>,
         "mutationFn" | "mutationKey"
       >,
     ) => UseMutationResult<Data, Error, Variables>;

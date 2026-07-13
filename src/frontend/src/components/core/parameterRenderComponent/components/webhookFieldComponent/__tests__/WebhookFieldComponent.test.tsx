@@ -18,7 +18,13 @@ const renderWebhook = (variableName: "endpoint" | "curl") =>
       disabled
       editNode
       handleOnNewValue={jest.fn()}
-      nodeInformationMetadata={{ variableName }}
+      nodeInformationMetadata={{
+        variableName,
+        flowId: "flow-1",
+        nodeType: "Webhook",
+        flowName: "Webhook test flow",
+        isAuth: false,
+      }}
     />,
   );
 

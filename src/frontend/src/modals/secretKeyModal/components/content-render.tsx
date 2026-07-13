@@ -11,7 +11,7 @@ export const ContentRenderKey = ({
   renderKey,
 }: {
   inputLabel: string;
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
   apiKeyValue: string;
   handleCopyClick: () => void;
   textCopied: boolean;

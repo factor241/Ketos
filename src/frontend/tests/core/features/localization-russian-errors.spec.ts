@@ -101,7 +101,7 @@ test(
     expect(visibleText).not.toContain(RAW_TECHNICAL_DETAIL);
 
     const diagnostics = await page.evaluate(
-      () => window.__LANGFLOW_I18N_DIAGNOSTICS__?.snapshot() ?? null,
+      () => window.__KETOS_I18N_DIAGNOSTICS__?.snapshot() ?? null,
     );
     expect(diagnostics).not.toBeNull();
     expect(diagnostics?.missing).toEqual([]);

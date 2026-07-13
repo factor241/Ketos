@@ -31,8 +31,8 @@ jest.mock("@/stores/flowsManagerStore", () => ({
   },
 }));
 
-import useFlowStore from "@/stores/flowStore";
 import { isAuthenticatedPlayground } from "@/modals/IOModal/helpers/playground-auth";
+import useFlowStore from "@/stores/flowStore";
 
 const mockFlowStore = useFlowStore as unknown as { getState: jest.Mock };
 const mockIsAuth = isAuthenticatedPlayground as jest.MockedFunction<

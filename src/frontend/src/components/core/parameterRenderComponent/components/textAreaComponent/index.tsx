@@ -226,18 +226,23 @@ export default function TextAreaComponent({
         disabled={disabled}
         onCloseModal={() => changeWebhookFormat("singleline")}
       >
-        <div
+        <button
+          type="button"
           onClick={() => changeWebhookFormat("multiline")}
-          className="relative w-full"
+          className="relative w-full border-0 bg-transparent p-0"
+          aria-label="Use multiline input"
         >
           {renderIcon()}
-        </div>
+        </button>
       </ComponentTextModal>
       {password && !isFocused && (
-        <div
+        <button
+          type="button"
           onClick={() => {
             setPasswordVisible(!passwordVisible);
           }}
+          className="border-0 bg-transparent p-0"
+          aria-label={passwordVisible ? "Hide password" : "Show password"}
         >
           <IconComponent
             name={passwordVisible ? "eye" : "eye-off"}
@@ -250,7 +255,7 @@ export default function TextAreaComponent({
               "right-10",
             )}
           />
-        </div>
+        </button>
       )}
     </div>
   );

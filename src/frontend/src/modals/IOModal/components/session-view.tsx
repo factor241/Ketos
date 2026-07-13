@@ -11,10 +11,63 @@ import {
   useUpdateMessage,
 } from "@/controllers/API/queries/messages";
 import useFlowStore from "@/stores/flowStore";
+import type { Message } from "@/types/messages";
 import TableComponent from "../../../components/core/parameterRenderComponent/components/tableComponent";
 import useAlertStore from "../../../stores/alertStore";
 import { useMessagesStore } from "../../../stores/messagesStore";
 import { extractColumnsFromRows, messagesSorter } from "../../../utils/utils";
+
+type MessageRead = Omit<Message, "background_color" | "text_color"> & {
+  background_color?: string | null;
+  text_color?: string | null;
+};
+
+function normalizeMessage(value: unknown): Message | null {
+  if (typeof value !== "object" || value === null) return null;
+  const isMessageRead =
+    "flow_id" in value &&
+    (value.flow_id === null || typeof value.flow_id === "string") &&
+    "text" in value &&
+    typeof value.text === "string" &&
+    "sender" in value &&
+    typeof value.sender === "string" &&
+    "sender_name" in value &&
+    typeof value.sender_name === "string" &&
+    "session_id" in value &&
+    typeof value.session_id === "string" &&
+    "timestamp" in value &&
+    typeof value.timestamp === "string" &&
+    "files" in value &&
+    Array.isArray(value.files) &&
+    "id" in value &&
+    (value.id === null || typeof value.id === "string") &&
+    "edit" in value &&
+    typeof value.edit === "boolean";
+
+  if (!isMessageRead) return null;
+
+  const message = value as MessageRead;
+  const nestedBackgroundColor = message.properties?.background_color;
+  const nestedTextColor = message.properties?.text_color;
+  const backgroundColor =
+    typeof message.background_color === "string"
+      ? message.background_color
+      : typeof nestedBackgroundColor === "string"
+        ? nestedBackgroundColor
+        : "";
+  const textColor =
+    typeof message.text_color === "string"
+      ? message.text_color
+      : typeof nestedTextColor === "string"
+        ? nestedTextColor
+        : "";
+
+  return {
+    ...message,
+    background_color: backgroundColor,
+    text_color: textColor,
+  };
+}
 
 export default function SessionView({
   session,
@@ -58,7 +111,9 @@ export default function SessionView({
     if (queryData && typeof queryData === "object" && "rows" in queryData) {
       const rowsData = queryData.rows as { data?: unknown[] } | undefined;
       if (rowsData && typeof rowsData === "object" && "data" in rowsData) {
-        const fetchedMessages = rowsData.data || [];
+        const fetchedMessages = (rowsData.data || [])
+          .map(normalizeMessage)
+          .filter((message): message is Message => message !== null);
         setMessages(fetchedMessages);
       }
     }
@@ -118,7 +173,10 @@ export default function SessionView({
       { message: data },
       {
         onSuccess: () => {
-          updateMessage(data);
+          const normalizedMessage = normalizeMessage(data);
+          if (normalizedMessage) {
+            updateMessage(normalizedMessage);
+          }
           // Set success message
           setSuccessData({
             title: t("success.messagesUpdated"),

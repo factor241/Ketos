@@ -80,7 +80,7 @@ jest.mock("@/hooks/extensions/typed-error-formatting", () => ({
     payloads.length === 0
       ? undefined
       : {
-        title: "Reload diagnostics",
+          title: "Reload diagnostics",
           list: payloads.map(
             (payload) => `[${payload.code}] Localized extension diagnostic`,
           ),

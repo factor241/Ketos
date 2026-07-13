@@ -42,7 +42,7 @@ export default function SliderComponent({
   sliderButtonsOptions,
   handleOnNewValue,
   showParameter = true,
-}: InputProps<string[] | number[], SliderComponentType>): JSX.Element | null {
+}: InputProps<unknown, SliderComponentType>): JSX.Element | null {
   const min = rangeSpec?.min ?? -2;
   const max = rangeSpec?.max ?? 2;
 
@@ -239,16 +239,17 @@ export default function SliderComponent({
                 data-testid="slider_input"
               />
             ) : (
-              <span
+              <button
+                type="button"
                 onClick={() => {
                   setIsEditing(true);
                   setInputValue(valueAsNumber.toFixed(2));
                 }}
                 data-testid={`default_slider_display_value${editNode ? "_advanced" : ""}`}
-                className="relative bottom-[1px] font-mono text-sm hover:cursor-text"
+                className="relative bottom-[1px] border-0 bg-transparent p-0 font-mono text-sm hover:cursor-text"
               >
                 {valueAsNumber.toFixed(2)}
-              </span>
+              </button>
             )}
           </div>
         </div>

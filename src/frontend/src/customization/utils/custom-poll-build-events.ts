@@ -1,6 +1,7 @@
 import { BUILD_POLLING_INTERVAL } from "@/constants/constants";
 import { BuildStatus, EventDeliveryType } from "@/constants/enums";
 import { getFetchCredentials } from "@/customization/utils/get-fetch-credentials";
+import type { VertexBuildTypeAPI } from "@/types/api";
 import { VertexLayerElementType } from "@/types/zustand/flow";
 import { processBatchedEvents } from "@/utils/buildUtils";
 
@@ -9,7 +10,11 @@ export async function customPollBuildEvents(
   buildResults: Array<boolean>,
   callbacks: {
     onBuildStart?: (idList: VertexLayerElementType[]) => void;
-    onBuildUpdate?: (data: any, status: BuildStatus, buildId: string) => void;
+    onBuildUpdate?: (
+      data: VertexBuildTypeAPI,
+      status: BuildStatus,
+      buildId: string,
+    ) => void;
     onBuildComplete?: (allNodesValid: boolean) => void;
     onBuildError?: (
       title: string,
@@ -20,7 +25,12 @@ export async function customPollBuildEvents(
     onValidateNodes?: (nodes: string[]) => void;
   },
   abortController: AbortController,
-  onEvent,
+  onEvent: (
+    type: string,
+    data: unknown,
+    results: boolean[],
+    eventCallbacks: object,
+  ) => Promise<boolean>,
 ): Promise<void> {
   let isDone = false;
   while (!isDone) {

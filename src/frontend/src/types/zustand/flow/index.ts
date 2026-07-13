@@ -17,8 +17,8 @@ export type FlowPoolObjectType = {
   valid: boolean;
   messages: Array<ChatOutputType | ChatInputType> | [];
   data: {
-    artifacts: any | ChatOutputType | ChatInputType;
-    results: any | ChatOutputType | ChatInputType;
+    artifacts: unknown;
+    results: unknown;
   };
   duration?: string;
   progress?: number;
@@ -33,8 +33,8 @@ export type FlowPoolObjectTypeNew = {
   timestamp: string;
   valid: boolean;
   data: {
-    outputs?: any | ChatOutputType | ChatInputType;
-    results: any | ChatOutputType | ChatInputType;
+    outputs?: unknown;
+    results: unknown;
   };
   duration?: string;
   progress?: number;
@@ -156,18 +156,18 @@ export type FlowStoreType = {
   deleteNode: (nodeId: string | Array<string>) => void;
   deleteEdge: (edgeId: string | Array<string>) => void;
   paste: (
-    selection: { nodes: any; edges: any },
+    selection: { nodes: AllNodeType[]; edges: EdgeType[] },
     position: { x: number; y: number; paneX?: number; paneY?: number },
   ) => void;
-  lastCopiedSelection: { nodes: any; edges: any } | null;
+  lastCopiedSelection: { nodes: AllNodeType[]; edges: EdgeType[] } | null;
   setLastCopiedSelection: (
-    newSelection: { nodes: any; edges: any } | null,
+    newSelection: { nodes: AllNodeType[]; edges: EdgeType[] } | null,
     isCrop?: boolean,
   ) => void;
   cleanFlow: () => void;
-  setFilterEdge: (newState) => void;
-  getFilterEdge: any[];
-  setFilterComponent: (newState) => void;
+  setFilterEdge: (newState: EdgeType[]) => void;
+  getFilterEdge: EdgeType[];
+  setFilterComponent: (newState: string) => void;
   getFilterComponent: string;
   rightClickedNodeId: string | null;
   setRightClickedNodeId: (nodeId: string | null) => void;

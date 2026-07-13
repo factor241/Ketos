@@ -7,8 +7,8 @@ import {
 } from "../../utils/deployment-mocks";
 
 test.skip(
-  process.env.LANGFLOW_FEATURE_WXO_DEPLOYMENTS !== "true",
-  "Requires LANGFLOW_FEATURE_WXO_DEPLOYMENTS=true",
+  process.env.KETOS_FEATURE_WXO_DEPLOYMENTS !== "true",
+  "Requires KETOS_FEATURE_WXO_DEPLOYMENTS=true",
 );
 
 async function navigateToProvidersTab(

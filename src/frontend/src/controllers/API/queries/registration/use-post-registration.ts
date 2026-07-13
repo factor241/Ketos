@@ -10,11 +10,13 @@ interface IRegistrationRequest {
 
 interface IRegistrationResponse {
   email: string;
+  success?: boolean;
 }
 
 export const usePostRegistration: useMutationFunctionType<
   undefined,
-  IRegistrationRequest
+  IRegistrationRequest,
+  IRegistrationResponse
 > = (options?) => {
   const { mutate, queryClient } = UseRequestProcessor();
 

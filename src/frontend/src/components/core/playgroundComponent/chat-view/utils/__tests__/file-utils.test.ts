@@ -139,8 +139,14 @@ describe("file-utils", () => {
       });
 
       it("should_handle_null_or_undefined_input", () => {
-        expect(isImageFile(null as any)).toBe(false);
-        expect(isImageFile(undefined as any)).toBe(false);
+        expect(
+          isImageFile(null as unknown as Parameters<typeof isImageFile>[0]),
+        ).toBe(false);
+        expect(
+          isImageFile(
+            undefined as unknown as Parameters<typeof isImageFile>[0],
+          ),
+        ).toBe(false);
       });
     });
   });
@@ -384,8 +390,8 @@ describe("file-utils", () => {
     });
 
     it("should_handle_undefined_or_null_name", () => {
-      expect(formatFileName(undefined as any)).toBe("");
-      expect(formatFileName(null as any)).toBe("");
+      expect(formatFileName(undefined)).toBe("");
+      expect(formatFileName(null)).toBe("");
     });
 
     it("should_truncate_long_basename_with_ellipsis", () => {
@@ -501,7 +507,7 @@ describe("file-utils", () => {
           type: "image/jpeg",
         };
 
-        const result = extractFileInfo(fileObj as any);
+        const result = extractFileInfo(fileObj);
 
         expect(result).toEqual({
           name: "image.jpg",

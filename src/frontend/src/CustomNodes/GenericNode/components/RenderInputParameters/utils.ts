@@ -28,11 +28,6 @@ export const computeDisplayHandle = (
   const optionalHandle = template.input_types;
   const hasRefreshButton = template.refresh_button;
   const isModelInput = type === "model";
-  const hasInputTypes =
-    optionalHandle &&
-    Array.isArray(optionalHandle) &&
-    optionalHandle.length > 0;
-
   // Always show handle for model inputs
   if (isModelInput) {
     return true;

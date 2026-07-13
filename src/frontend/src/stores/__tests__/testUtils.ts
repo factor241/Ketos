@@ -68,7 +68,7 @@ export const createMockApiResponse = <T>(data: T, status = 200) => ({
  * Creates a mock fetch function for API testing
  */
 export const createMockFetch = (
-  responses: Array<{ url?: string; response: any; status?: number }>,
+  responses: Array<{ url?: string; response: unknown; status?: number }>,
 ) => {
   let callIndex = 0;
 
@@ -92,7 +92,7 @@ export const createMockFetch = (
  * Common mock data factories
  */
 export const mockDataFactory = {
-  createUser: (overrides: Partial<any> = {}) => ({
+  createUser: (overrides: Record<string, unknown> = {}) => ({
     id: "user-1",
     username: "testuser",
     email: "test@example.com",
@@ -103,7 +103,7 @@ export const mockDataFactory = {
     ...overrides,
   }),
 
-  createFlow: (overrides: Partial<any> = {}) => ({
+  createFlow: (overrides: Record<string, unknown> = {}) => ({
     id: "flow-1",
     name: "Test Flow",
     description: "A test flow",
@@ -115,7 +115,7 @@ export const mockDataFactory = {
     ...overrides,
   }),
 
-  createFolder: (overrides: Partial<any> = {}) => ({
+  createFolder: (overrides: Record<string, unknown> = {}) => ({
     id: "folder-1",
     name: "Test Folder",
     description: "A test folder",
@@ -127,7 +127,7 @@ export const mockDataFactory = {
     ...overrides,
   }),
 
-  createMessage: (overrides: Partial<any> = {}) => ({
+  createMessage: (overrides: Record<string, unknown> = {}) => ({
     id: "message-1",
     text: "Test message",
     sender: "User",
@@ -140,19 +140,19 @@ export const mockDataFactory = {
     ...overrides,
   }),
 
-  createVoice: (overrides: Partial<any> = {}) => ({
+  createVoice: (overrides: Record<string, unknown> = {}) => ({
     name: "Test Voice",
     voice_id: "voice-1",
     ...overrides,
   }),
 
-  createProvider: (overrides: Partial<any> = {}) => ({
+  createProvider: (overrides: Record<string, unknown> = {}) => ({
     name: "Test Provider",
     value: "test-provider",
     ...overrides,
   }),
 
-  createTag: (overrides: Partial<any> = {}) => ({
+  createTag: (overrides: Record<string, unknown> = {}) => ({
     id: "tag-1",
     name: "Test Tag",
     description: "A test tag",
@@ -160,7 +160,7 @@ export const mockDataFactory = {
     ...overrides,
   }),
 
-  createPagination: (overrides: Partial<any> = {}) => ({
+  createPagination: (overrides: Record<string, unknown> = {}) => ({
     page: 1,
     size: 10,
     ...overrides,

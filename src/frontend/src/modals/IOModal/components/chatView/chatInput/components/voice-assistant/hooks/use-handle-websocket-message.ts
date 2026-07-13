@@ -54,7 +54,9 @@ export const useHandleWebsocketMessage = (
     case "response.audio.delta":
       if (data.delta && audioContextRef.current) {
         try {
-          const float32Data = base64ToFloat32Array(data.delta);
+          const float32Data = new Float32Array(
+            base64ToFloat32Array(data.delta),
+          );
           const audioBuffer = audioContextRef.current.createBuffer(
             2,
             float32Data.length,

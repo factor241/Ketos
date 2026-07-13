@@ -4,8 +4,8 @@ export default function ObjectRender({
   object,
   setValue,
 }: {
-  object: any;
-  setValue?: (value: any) => void;
+  object: unknown;
+  setValue?: (value: unknown) => void;
 }): JSX.Element {
   let newObject = object;
   if (typeof object === "string") {

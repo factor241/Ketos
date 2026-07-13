@@ -1,9 +1,10 @@
+import type { APITemplateType } from "@/types/api";
 import sortFields from "../utils/sort-fields";
 
 export const sortToolModeFields = (
   a: string,
   b: string,
-  template: any,
+  template: APITemplateType,
   fieldOrder: string[],
   isToolMode: boolean,
 ) => {

@@ -3,7 +3,7 @@ import { BuildStatus } from "@/constants/enums";
 // --- Mocks ---
 
 const mockFlowStoreState = {
-  nodes: [] as any[],
+  nodes: [] as unknown[],
   buildStartTime: null as number | null,
   stopNodeId: null as string | null,
   clearAndSetEdgesRunning: jest.fn(),
@@ -37,14 +37,26 @@ jest.mock("@/controllers/API/helpers/constants", () => ({
   getURL: jest.fn(() => "/api/v1/messages"),
 }));
 
-const mockFindLastBotMessage = jest.fn(() => null);
+type LastBotMessageResult = {
+  message: { id: string; properties: Record<string, unknown> };
+  queryKey: unknown[];
+} | null;
+
+const mockFindLastBotMessage = jest.fn<
+  LastBotMessageResult,
+  [string?, string?]
+>(() => null);
 const mockUpdateMessageProperties = jest.fn();
 jest.mock(
   "@/components/core/playgroundComponent/chat-view/utils/message-utils",
   () => ({
-    findLastBotMessage: (...args: any[]) => mockFindLastBotMessage(...args),
-    updateMessageProperties: (...args: any[]) =>
-      mockUpdateMessageProperties(...args),
+    findLastBotMessage: (flowId?: string, sessionId?: string) =>
+      mockFindLastBotMessage(flowId, sessionId),
+    updateMessageProperties: (
+      messageId: string,
+      queryKey: unknown[],
+      properties: Record<string, unknown>,
+    ) => mockUpdateMessageProperties(messageId, queryKey, properties),
   }),
 );
 
@@ -55,19 +67,20 @@ jest.mock(
   }),
 );
 
-const mockIsErrorLogType = jest.fn(() => false);
+const mockIsErrorLogType = jest.fn<boolean, [unknown]>(() => false);
 jest.mock("@/types/utils/typeCheckingUtils", () => ({
-  isErrorLogType: (...args: any[]) => mockIsErrorLogType(...args),
+  isErrorLogType: (value: unknown) => mockIsErrorLogType(value),
 }));
 
-const mockIsOutputType = jest.fn(() => false);
+const mockIsOutputType = jest.fn<boolean, [unknown]>(() => false);
 jest.mock("@/utils/reactflowUtils", () => ({
-  isOutputType: (...args: any[]) => mockIsOutputType(...args),
+  isOutputType: (value: unknown) => mockIsOutputType(value),
 }));
 
 jest.mock("@/utils/utils", () => ({
-  isStringArray: (arr: any) =>
-    Array.isArray(arr) && arr.every((v: any) => typeof v === "string"),
+  isStringArray: (arr: unknown) =>
+    Array.isArray(arr) &&
+    arr.every((value: unknown) => typeof value === "string"),
   tryParseJson: jest.fn((s: string) => null),
 }));
 
@@ -656,7 +669,9 @@ describe("onEvent — log", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (mockFlowStoreState as any).appendLogToFlowPool = mockAppendLogToFlowPool;
+    Object.assign(mockFlowStoreState, {
+      appendLogToFlowPool: mockAppendLogToFlowPool,
+    });
   });
 
   it("calls appendLogToFlowPool with correct args for a valid log event", async () => {

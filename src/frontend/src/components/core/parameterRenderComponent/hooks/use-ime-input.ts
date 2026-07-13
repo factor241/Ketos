@@ -46,7 +46,7 @@ interface UseIMEInputResult<T extends InputLikeElement> {
 /**
  * Shared IME-aware input adapter.
  *
- * The langflow node store update cascade takes 100-200ms per keystroke. When a
+ * The Ketos node store update cascade takes 100-200ms per keystroke. When a
  * browser IME (macOS option-keys, Linux dead-keys, CJK composition) is active,
  * that much JS blocking on the main thread + any `setSelectionRange` call
  * causes the browser to silently abort composition, so dead-key accents like

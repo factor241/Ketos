@@ -17,7 +17,7 @@ export interface InputProps
   endIconClassName?: string;
   /**
    * Opt back into browser / password-manager autofill. Defaults to false so
-   * Langflow inputs (node-config fields, modals) suppress autofill — otherwise
+   * Ketos inputs (node-config fields, modals) suppress autofill — otherwise
    * the browser can inject saved credentials that autosave then persists,
    * corrupting flows. Only real credential-entry forms (login / signup / admin
    * login) set this to true.

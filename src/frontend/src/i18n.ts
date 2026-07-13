@@ -58,14 +58,11 @@ const fallbackDiagnosticsProcessor: PostProcessorModule = {
   },
 };
 
-// i18next hardcodes a Locize promotional message via console.info during init.
-// Suppress it by temporarily replacing console.info for the synchronous init call.
-const _consoleInfo = console.info.bind(console);
-console.info = () => {};
 i18n
   .use(fallbackDiagnosticsProcessor)
   .use(initReactI18next)
   .init({
+    showSupportNotice: false,
     resources: {
       en: { translation: en },
     },
@@ -87,7 +84,6 @@ i18n
       escapeValue: false,
     },
   });
-console.info = _consoleInfo;
 
 i18n.on("languageChanged", syncDocumentLanguage);
 syncDocumentLanguage(i18n.resolvedLanguage || i18n.language);

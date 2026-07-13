@@ -163,7 +163,9 @@ describe("useShortcutsStore", () => {
         result.current.updateUniqueShortcut("customShortcut", "mod+custom");
       });
 
-      expect((result.current as any).customShortcut).toBe("mod+custom");
+      expect(
+        (result.current as unknown as Record<string, string>).customShortcut,
+      ).toBe("mod+custom");
     });
 
     it("should not affect shortcuts array when updating individual shortcuts", () => {
@@ -228,7 +230,9 @@ describe("useShortcutsStore", () => {
         result.current.updateUniqueShortcut("special", "mod+shift+~");
       });
 
-      expect((result.current as any).special).toBe("mod+shift+~");
+      expect(
+        (result.current as unknown as Record<string, string>).special,
+      ).toBe("mod+shift+~");
     });
 
     it("should handle empty string shortcuts", () => {
@@ -238,7 +242,9 @@ describe("useShortcutsStore", () => {
         result.current.updateUniqueShortcut("empty", "");
       });
 
-      expect((result.current as any).empty).toBe("");
+      expect((result.current as unknown as Record<string, string>).empty).toBe(
+        "",
+      );
     });
 
     it("should handle shortcuts array with duplicate names", () => {

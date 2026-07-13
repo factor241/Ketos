@@ -247,6 +247,18 @@ export function AssistantInput({
           compact ? "gap-1" : "gap-4",
         )}
         onClick={() => textareaRef.current?.focus()}
+        role="button"
+        tabIndex={0}
+        aria-label="Focus assistant message input"
+        onKeyDown={(event) => {
+          if (
+            event.target === event.currentTarget &&
+            (event.key === "Enter" || event.key === " ")
+          ) {
+            event.preventDefault();
+            textareaRef.current?.focus();
+          }
+        }}
       >
         {mentions.isOpen && (
           <AssistantMentionPopover

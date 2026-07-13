@@ -1,9 +1,4 @@
-import type {
-  APIClassType,
-  APIDataType,
-  APITemplateType,
-  InputFieldType,
-} from "@/types/api";
+import type { APIDataType, APITemplateType } from "@/types/api";
 
 const mockTemplate: APITemplateType = {
   api_key: {
@@ -35,7 +30,7 @@ const mockAPIData: APIDataType = {
       icon: "cirleQuestionMark",
       base_classes: ["Data"],
       display_name: "Mock Component",
-      documentation: "https://docs.langflow.org/",
+      documentation: "https://docs.ketos.test/",
       minimized: false,
       custom_fields: {},
       output_types: [],

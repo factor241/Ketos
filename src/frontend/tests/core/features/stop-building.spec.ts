@@ -1,10 +1,10 @@
 import { expect, test } from "../../fixtures";
-import { addLegacyComponents } from "../../utils/add-legacy-components";
 import { adjustScreenView } from "../../utils/adjust-screen-view";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
+import { clearApiKeys } from "../../utils/clear-api-keys";
 import { TEXTS } from "../../utils/constants/texts";
-import { removeOldApiKeys } from "../../utils/remove-old-api-keys";
-import { updateOldComponents } from "../../utils/update-old-components";
+import { enableOptionalComponents } from "../../utils/enable-optional-components";
+import { updateAvailableComponents } from "../../utils/update-available-components";
 import { zoomOut } from "../../utils/zoom-out";
 
 // TODO: fix this test
@@ -15,7 +15,7 @@ test(
     await awaitBootstrapTest(page);
     await page.getByTestId("blank-flow").click();
 
-    await addLegacyComponents(page);
+    await enableOptionalComponents(page);
 
     //first component
 
@@ -73,8 +73,8 @@ test(
         targetPosition: { x: 600, y: 300 },
       });
 
-    await updateOldComponents(page);
-    await removeOldApiKeys(page);
+    await updateAvailableComponents(page);
+    await clearApiKeys(page);
 
     await adjustScreenView(page, { numberOfZoomOut: 3 });
 
@@ -118,16 +118,16 @@ test(
     await page.getByTestId("int_int_chunk_overlap").fill("1");
 
     const timerCode = `
-# from langflow.field_typing import Data
-from langflow.custom import Component
-from langflow.io import MessageTextInput, Output
-from langflow.schema import Data
+# from ketos.field_typing import Data
+from ketos.custom import Component
+from ketos.io import MessageTextInput, Output
+from ketos.schema import Data
 import time
 
 class CustomComponent(Component):
     display_name = "Custom Component"
     description = "Use as a template to create your own component."
-    documentation: str = "https://docs.langflow.org/components-custom-components"
+    documentation: str = "https://docs.ketos.test/components-custom-components"
     icon = "custom_components"
     name = "CustomComponent"
 

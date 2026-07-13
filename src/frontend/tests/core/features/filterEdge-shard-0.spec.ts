@@ -1,7 +1,7 @@
 import { expect, test } from "../../fixtures";
-import { addLegacyComponents } from "../../utils/add-legacy-components";
 import { adjustScreenView } from "../../utils/adjust-screen-view";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
+import { enableOptionalComponents } from "../../utils/enable-optional-components";
 
 test(
   "user must see on handle hover a tooltip with possibility connections",
@@ -13,7 +13,7 @@ test(
     await page.getByTestId("sidebar-search-input").click();
     await page.getByTestId("sidebar-search-input").fill("retrievalqa");
 
-    await addLegacyComponents(page);
+    await enableOptionalComponents(page);
 
     await page.waitForTimeout(1000);
     await page

@@ -1642,8 +1642,8 @@ class TestUpgradeFlowOption:
             await run_flow(stdin=True, upgrade_flow="check")
 
     @pytest.mark.asyncio
-    async def test_upgrade_flow_check_passes_clean_real_flow_without_registry_mock(self):
-        """Regression: a known-clean real starter flow must PASS --upgrade-flow=check.
+    async def test_upgrade_flow_check_passes_current_flow_without_registry_mock(self):
+        """Regression: a current canonical starter flow must PASS --upgrade-flow=check.
 
         Deliberately does NOT mock the registry. The original bug was that the gate read
         component_cache.all_types_dict (empty at gate time) instead of the bundled component
@@ -1653,7 +1653,16 @@ class TestUpgradeFlowOption:
         """
         from pathlib import Path
 
-        fixture = Path(__file__).parents[2] / "fixtures" / "starter_flows" / "v1.9.0" / "basic_prompting.json"
+        fixture = (
+            Path(__file__).resolve().parents[5]
+            / "src"
+            / "backend"
+            / "base"
+            / "ketos"
+            / "initial_setup"
+            / "starter_projects"
+            / "Basic Prompting.json"
+        )
         flow_json = fixture.read_text(encoding="utf-8")
 
         mock_graph = MagicMock()

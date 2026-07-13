@@ -1,9 +1,9 @@
 import { type Page } from "@playwright/test";
 import { expect, test } from "../../fixtures";
-import { addLegacyComponents } from "../../utils/add-legacy-components";
 import { adjustScreenView } from "../../utils/adjust-screen-view";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
 import { TEXTS } from "../../utils/constants/texts";
+import { enableOptionalComponents } from "../../utils/enable-optional-components";
 import { renameFlow } from "../../utils/rename-flow";
 
 async function verifyTextareaValue(
@@ -55,7 +55,7 @@ test(
     await awaitBootstrapTest(page);
     await page.getByTestId("blank-flow").click();
 
-    await addLegacyComponents(page);
+    await enableOptionalComponents(page);
 
     await adjustScreenView(page);
 

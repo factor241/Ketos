@@ -1,9 +1,9 @@
 import { expect, test } from "../../fixtures";
-import { addLegacyComponents } from "../../utils/add-legacy-components";
 import { adjustScreenView } from "../../utils/adjust-screen-view";
 import { TID } from "../../utils/constants/testIds";
 import { TEXTS } from "../../utils/constants/texts";
 import { TIMEOUTS } from "../../utils/constants/timeouts";
+import { enableOptionalComponents } from "../../utils/enable-optional-components";
 import { loadDotenvIfLocal } from "../../utils/env/load-dotenv";
 import { addComponentFromSidebar } from "../../utils/flow/add-component-from-sidebar";
 import { openBlankFlow } from "../../utils/flow/open-blank-flow";
@@ -19,7 +19,7 @@ test(
 
     await openBlankFlow(page);
 
-    await addLegacyComponents(page);
+    await enableOptionalComponents(page);
 
     await disableInspectPanel(page);
 

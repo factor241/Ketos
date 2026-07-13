@@ -1,11 +1,11 @@
 import * as dotenv from "dotenv";
 import path from "path";
 import { expect, test } from "../../fixtures";
-import { addLegacyComponents } from "../../utils/add-legacy-components";
 import { adjustScreenView } from "../../utils/adjust-screen-view";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
 import { TID } from "../../utils/constants/testIds";
 import { TEXTS } from "../../utils/constants/texts";
+import { enableOptionalComponents } from "../../utils/enable-optional-components";
 import { openTemplatesModal } from "../../utils/flow/new-project-flow";
 import { renameFlow } from "../../utils/rename-flow";
 import { zoomOut } from "../../utils/zoom-out";
@@ -31,7 +31,7 @@ test(
 
     await page.getByTestId("blank-flow").click();
 
-    await addLegacyComponents(page);
+    await enableOptionalComponents(page);
 
     await page.getByTestId("sidebar-search-input").click();
     await page.getByTestId("sidebar-search-input").fill(TEXTS.searchChatOutput);

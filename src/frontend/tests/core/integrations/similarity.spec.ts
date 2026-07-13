@@ -1,11 +1,11 @@
 import { expect, test } from "../../fixtures";
-import { addLegacyComponents } from "../../utils/add-legacy-components";
 import { adjustScreenView } from "../../utils/adjust-screen-view";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
 import { TEXTS } from "../../utils/constants/texts";
-import { dismissLegacyWarnings } from "../../utils/dismiss-legacy-warnings";
+import { dismissComponentWarnings } from "../../utils/dismiss-component-warnings";
+import { enableOptionalComponents } from "../../utils/enable-optional-components";
 import { unselectNodes } from "../../utils/unselect-nodes";
-import { updateOldComponents } from "../../utils/update-old-components";
+import { updateAvailableComponents } from "../../utils/update-available-components";
 import { zoomOut } from "../../utils/zoom-out";
 
 test(
@@ -21,7 +21,7 @@ test(
 
     await page.getByTestId("blank-flow").click();
 
-    await addLegacyComponents(page);
+    await enableOptionalComponents(page);
 
     //first component
 
@@ -113,7 +113,7 @@ test(
         targetPosition: { x: 600, y: 200 },
       });
 
-    await updateOldComponents(page);
+    await updateAvailableComponents(page);
 
     await adjustScreenView(page);
 
@@ -259,7 +259,7 @@ test(
     // Data to Message, Filter Data, and Text Output are legacy components; their
     // "Legacy" warning bars increase node height and can overlap the Text Output
     // inspection button. Dismiss the bars so the button is clickable.
-    await dismissLegacyWarnings(page);
+    await dismissComponentWarnings(page);
 
     await page
       .getByTestId(/rf__node-TextOutput-[a-zA-Z0-9]{5}/)

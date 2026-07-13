@@ -1,9 +1,8 @@
 import { expect, test } from "../../fixtures";
-import { addFlowToTestOnEmptyLangflow } from "../../utils/add-flow-to-test-on-empty-langflow";
-import { addLegacyComponents } from "../../utils/add-legacy-components";
+import { addFlowToTestOnEmptyKetos } from "../../utils/add-flow-to-test-on-empty-ketos";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
-
 import { TEXTS } from "../../utils/constants/texts";
+import { enableOptionalComponents } from "../../utils/enable-optional-components";
 
 test(
   "user must be able to freeze a component",
@@ -12,17 +11,17 @@ test(
   async ({ page }) => {
     await awaitBootstrapTest(page);
 
-    const firstRunLangflow = await page
+    const firstRunKetos = await page
       .getByTestId("empty-project-description")
       .count();
 
-    if (firstRunLangflow > 0) {
-      await addFlowToTestOnEmptyLangflow(page);
+    if (firstRunKetos > 0) {
+      await addFlowToTestOnEmptyKetos(page);
     }
 
     await page.getByTestId("blank-flow").click();
 
-    await addLegacyComponents(page);
+    await enableOptionalComponents(page);
 
     await page.getByTestId("sidebar-search-input").click();
     await page.getByTestId("sidebar-search-input").fill(TEXTS.searchTextInput);

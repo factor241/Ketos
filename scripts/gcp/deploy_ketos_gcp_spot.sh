@@ -1,5 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# This sample is intentionally disabled unless an immutable GitHub release
+# approval is supplied. It must never mutate a cloud project by default.
+python3 "$(dirname "$0")/../ci/require_external_release.py"
+
 # Set the VM, image, and networking configuration
-VM_NAME="langflow-dev"
+VM_NAME="ketos-dev"
 IMAGE_FAMILY="debian-11"
 IMAGE_PROJECT="debian-cloud"
 BOOT_DISK_SIZE="100GB"
@@ -46,12 +53,10 @@ STARTUP_SCRIPT=$(cat <<'EOF'
 apt -y update
 apt -y upgrade
 
-# Install Python 3 pip, Langflow, and Nginx
+# Install Python 3 pip, Ketos, and Nginx
 apt -y install python3-pip
-pip3 install pip -U
-apt -y update
-pip3 install langflow
-langflow run --host 0.0.0.0 --port 7860
+pip install ketos
+ketos --host 0.0.0.0 --port 7860
 EOF
 )
 
@@ -68,7 +73,8 @@ gcloud compute instances create $VM_NAME \
   --metadata-from-file startup-script=$tempfile \
   --zone $ZONE \
   --network $VPC_NAME \
-  --subnet $SUBNET_NAME
+  --subnet $SUBNET_NAME \
+  --preemptible
 
 # Remove the temporary file after the VM is created
 rm $tempfile

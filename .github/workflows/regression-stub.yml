@@ -32,7 +32,7 @@ jobs:
             - id: GH-${{ github.event.issue.number }}
               title: "${{ github.event.issue.title }}"
               status: triage
-              area: TBD  # flow_editor | components | mcp | api | lfx | auth | database | integrations | starter_projects
+              area: TBD  # flow_editor | components | mcp | api | kfx | auth | database | integrations | starter_projects
               first_bad_version: TBD
               last_known_good_version: TBD
               workaround: none

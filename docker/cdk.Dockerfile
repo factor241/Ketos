@@ -1,25 +1,25 @@
-FROM --platform=linux/amd64 python:3.10-slim
+# syntax=docker/dockerfile:1
+FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim
 
 WORKDIR /app
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PATH="/app/.venv/bin:$PATH"
 
-# Install Poetry
 RUN apt-get update \
-    && apt-get upgrade -y \
-    && apt-get install gcc g++ curl build-essential postgresql-server-dev-all -y \
-    && apt-get clean \
+    && apt-get install --no-install-recommends -y build-essential default-libmysqlclient-dev \
     && rm -rf /var/lib/apt/lists/*
-RUN curl -sSL https://install.python-poetry.org | python3 -
-# # Add Poetry to PATH
-ENV PATH="${PATH}:/root/.local/bin"
-# # Copy the pyproject.toml and poetry.lock files
-COPY poetry.lock pyproject.toml ./
-# Copy the rest of the application codes
-COPY ./ ./
 
-# Install dependencies
-RUN poetry config virtualenvs.create false && poetry install --no-interaction --no-ansi
+COPY . /app
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-editable \
+    && uv pip install pymysql
 
-RUN poetry add botocore
-RUN poetry add pymysql
+RUN groupadd --gid 1000 ketos \
+    && useradd --uid 1000 --gid ketos --home-dir /app/data --create-home ketos \
+    && chown -R ketos:ketos /app/data
 
-CMD ["sh", "./container-cmd-cdk.sh"]
+LABEL org.opencontainers.image.title="ketos-cdk" \
+      org.opencontainers.image.source="https://git.ketos.test/ketos/ketos"
+
+USER ketos
+EXPOSE 7860
+CMD ["python", "-m", "ketos", "run", "--host", "0.0.0.0", "--port", "7860"]

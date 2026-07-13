@@ -1,5 +1,5 @@
 name: "🐛 Bug Report"
-description: Submit a bug report to help us improve Langflow
+description: Submit a bug report to help us improve Ketos
 labels: [ "bug" ]
 body:
   - type: markdown
@@ -87,9 +87,9 @@ body:
       required: true
 
   - type: input
-    id: langflow-version
+    id: ketos-version
     attributes:
-      label: Langflow Version
+      label: Ketos Version
       placeholder: ex. 1.0.9
     validations:
       required: true
@@ -100,7 +100,7 @@ body:
       label: "Python Version"
       description: |
 
-        **Langflow requires Python version 3.10 or greater.**
+        **Ketos requires Python version 3.10 or greater.**
       options:
         - "3.12"
         - "3.11"

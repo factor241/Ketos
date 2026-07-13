@@ -3,9 +3,9 @@ name: Database Migration Validation
 on:
   pull_request:
     paths:
-      - 'src/backend/base/langflow/alembic/**'
-      - 'src/backend/base/langflow/services/database/models/**'
-      - 'src/backend/base/langflow/services/database/service.py'
+      - 'src/backend/base/ketos/alembic/**'
+      - 'src/backend/base/ketos/services/database/models/**'
+      - 'src/backend/base/ketos/services/database/service.py'
       - 'src/backend/tests/unit/alembic/**'
       - '.github/workflows/migration-validation.yml'
 
@@ -18,13 +18,13 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_USER: langflow
-          POSTGRES_PASSWORD: langflow
-          POSTGRES_DB: langflow
+          POSTGRES_USER: ketos
+          POSTGRES_PASSWORD: ketos
+          POSTGRES_DB: ketos
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U langflow"
+          --health-cmd="pg_isready -U ketos"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -50,7 +50,7 @@ jobs:
       - name: Check model/migration consistency
         env:
           MIGRATION_VALIDATION_CI: "true"
-          LANGFLOW_TEST_DATABASE_URI: "postgresql://langflow:langflow@localhost:5432/langflow"
+          KETOS_TEST_DATABASE_URI: "postgresql://ketos:ketos@localhost:5432/ketos"
         run: |
           uv run pytest src/backend/tests/unit/alembic/test_migration_execution.py -x -v
 
@@ -73,7 +73,7 @@ jobs:
         id: changed-files
         run: |
           set -euo pipefail
-          CHANGED_FILES=$(git diff --name-only origin/main...HEAD | grep -E 'src/backend/base/langflow/alembic/versions/.*\.py$' | grep -v 'test_migrations/' || echo "")
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD | grep -E 'src/backend/base/ketos/alembic/versions/.*\.py$' | grep -v 'test_migrations/' || echo "")
 
           if [ -z "$CHANGED_FILES" ]; then
             echo "No migration files changed"
@@ -89,14 +89,14 @@ jobs:
         env:
           MIGRATION_FILES: ${{ steps.changed-files.outputs.files }}
         run: |
-          python src/backend/base/langflow/alembic/migration_validator.py $MIGRATION_FILES
+          python src/backend/base/ketos/alembic/migration_validator.py $MIGRATION_FILES
 
       - name: Generate validation report
         if: always() && steps.changed-files.outputs.files != ''
         env:
           MIGRATION_FILES: ${{ steps.changed-files.outputs.files }}
         run: |
-          python src/backend/base/langflow/alembic/migration_validator.py \
+          python src/backend/base/ketos/alembic/migration_validator.py \
             --json $MIGRATION_FILES > validation-report.json 2> validation-stderr.txt || true
           if [ ! -s validation-report.json ]; then
             echo "::error::Validator produced no output. Stderr:"
@@ -153,7 +153,7 @@ jobs:
                 }
 
                 message += `### Resources\n`;
-                message += `- Review the [DB Migration Guide](./src/backend/base/langflow/alembic/DB-MIGRATION-GUIDE.MD)\n`;
+                message += `- Review the [DB Migration Guide](./src/backend/base/ketos/alembic/DB-MIGRATION-GUIDE.MD)\n`;
                 message += `- Use \`python scripts/generate_migration.py --help\` to generate compliant migrations\n\n`;
 
                 message += `### Common Issues & Solutions\n`;

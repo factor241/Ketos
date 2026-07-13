@@ -1,10 +1,13 @@
+name: ketos-deploy
+
 services:
   proxy:
     image: traefik:v3.0
+    restart: unless-stopped
     env_file:
-      - .env
+      - ${KETOS_ENV_FILE:-.env}
     networks:
-      - ${TRAEFIK_PUBLIC_NETWORK?Variable not set}
+      - traefik-public
       - default
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -22,6 +25,13 @@ services:
       - --log
       # Enable the Dashboard and API
       - --api
+      # Enable the internal ping endpoint used by the healthcheck.
+      - --ping=true
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       placement:
         constraints:
@@ -67,15 +77,20 @@ services:
         - traefik.http.routers.${STACK_NAME?Variable not set}-proxy-http.middlewares=${STACK_NAME?Variable not set}-www-redirect,${STACK_NAME?Variable not set}-https-redirect
 
   backend: &backend
-    image: "langflowai/langflow-backend:latest"
+    image: "${KETOS_BACKEND_IMAGE:-ketos/backend:local}"
+    pull_policy: never
+    restart: unless-stopped
     depends_on:
       - db
       - broker
       - result_backend
     env_file:
-      - .env
+      - ${KETOS_ENV_FILE:-.env}
     healthcheck:
-      test: "exit 0"
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7860/health_check')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       labels:
         - traefik.enable=true
@@ -85,28 +100,38 @@ services:
 
   db:
     image: postgres:15.4
+    restart: unless-stopped
     volumes:
-      - app-db-data:/var/lib/postgresql/data/pgdata
+      - ketos-db-data:/var/lib/postgresql/data/pgdata
     environment:
       - PGDATA=/var/lib/postgresql/data/pgdata
     deploy:
       placement:
         constraints:
-          - node.labels.app-db-data == true
+          - node.labels.ketos-db-data == true
     healthcheck:
-      test: "exit 0"
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     env_file:
-      - .env
+      - ${KETOS_ENV_FILE:-.env}
 
   pgadmin:
     image: dpage/pgadmin4
+    restart: unless-stopped
     networks:
-      - ${TRAEFIK_PUBLIC_NETWORK?Variable not set}
+      - traefik-public
       - default
     volumes:
       - pgadmin-data:/var/lib/pgadmin
     env_file:
-      - .env
+      - ${KETOS_ENV_FILE:-.env}
+    healthcheck:
+      test: ["CMD", "/venv/bin/python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5050/misc/ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       labels:
         - traefik.enable=true
@@ -123,33 +148,45 @@ services:
 
   result_backend:
     image: redis:6.2.5
+    restart: unless-stopped
     env_file:
-      - .env
+      - ${KETOS_ENV_FILE:-.env}
     ports:
       - 6379:6379
     healthcheck:
-      test: "exit 0"
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   celeryworker:
     <<: *backend
     env_file:
-      - .env
-    command: /bin/sh -c "python -m celery -A langflow.worker.celery_app worker --loglevel=INFO --concurrency=1 -n lf-worker@%h -P eventlet"
+      - ${KETOS_ENV_FILE:-.env}
+    command: /bin/sh -c "python -m celery -A ketos.worker.celery_app worker --loglevel=INFO --concurrency=1 -n ketos-worker@%h -P eventlet"
     healthcheck:
-      test: "exit 0"
+      test: ["CMD-SHELL", "celery -A ketos.worker.celery_app inspect ping -d ketos-worker@$${HOSTNAME}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     deploy:
       replicas: 1
 
   flower:
     <<: *backend
     env_file:
-      - .env
+      - ${KETOS_ENV_FILE:-.env}
     networks:
       - default
     environment:
       - FLOWER_PORT=5555
 
-    command: /bin/sh -c "python -m celery -A langflow.worker.celery_app --broker=${BROKER_URL?Variable not set} flower --port=5555"
+    command: /bin/sh -c "python -m celery -A ketos.worker.celery_app --broker=${BROKER_URL?Variable not set} flower --port=5555"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5555')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       labels:
         - traefik.enable=true
@@ -165,10 +202,16 @@ services:
         - traefik.http.services.${STACK_NAME?Variable not set}-flower.loadbalancer.server.port=5555
 
   frontend:
-    image: "langflowai/langflow-frontend:latest"
+    image: "${KETOS_FRONTEND_IMAGE:-ketos/frontend:local}"
+    pull_policy: never
     env_file:
-      - .env
-    restart: on-failure
+      - ${KETOS_ENV_FILE:-.env}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "perl", "-MIO::Socket::INET", "-e", "exit(!IO::Socket::INET->new(PeerAddr=>'127.0.0.1',PeerPort=>80,Timeout=>5))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       labels:
         - traefik.enable=true
@@ -179,6 +222,7 @@ services:
   broker:
     # RabbitMQ management console
     image: rabbitmq:3-management
+    restart: unless-stopped
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER:-admin}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS:-admin}
@@ -189,11 +233,17 @@ services:
     ports:
       - 5672:5672
       - 15672:15672
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   prometheus:
     image: prom/prometheus:v2.37.9
+    restart: unless-stopped
     env_file:
-      - .env
+      - ${KETOS_ENV_FILE:-.env}
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     command:
@@ -201,7 +251,10 @@ services:
     # ports:
     #   - 9090:9090
     healthcheck:
-      test: "exit 0"
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       labels:
         - traefik.enable=true
@@ -211,12 +264,18 @@ services:
 
   grafana:
     image: grafana/grafana:8.2.6
+    restart: unless-stopped
     env_file:
-      - .env
+      - ${KETOS_ENV_FILE:-.env}
     # ports:
     #   - 3000:3000
     volumes:
       - grafana_data:/var/lib/grafana
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       labels:
         - traefik.enable=true
@@ -226,12 +285,13 @@ services:
 
 volumes:
   grafana_data:
-  app-db-data:
+  ketos-db-data:
   rabbitmq_data:
   rabbitmq_log:
   pgadmin-data:
 
 networks:
   traefik-public:
+    name: ${TRAEFIK_PUBLIC_NETWORK?Variable not set}
     # Allow setting it to false for testing
     external: false # ${TRAEFIK_PUBLIC_NETWORK_IS_EXTERNAL-true}

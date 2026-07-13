@@ -1,8 +1,8 @@
 {
-  "uid": "langflow-prod-logs",
-  "title": "Langflow Logs",
-  "description": "Structured logs from Langflow and lfx: tracebacks, PII redaction, service labels, stdlib intercept, trace correlation.",
-  "tags": ["langflow", "lfx", "structured-logs"],
+  "uid": "ketos-production-logs",
+  "title": "Ketos Production Logs",
+  "description": "Structured logs from Ketos and kfx: tracebacks, PII redaction, service labels, stdlib intercept, trace correlation.",
+  "tags": ["ketos", "kfx", "structured-logs"],
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 1,
@@ -17,7 +17,7 @@
         "name": "environment",
         "type": "query",
         "datasource": "Loki",
-        "query": "label_values({job=\"langflow\"}, environment)",
+        "query": "label_values({job=\"ketos\"}, environment)",
         "current": {"text": "All", "value": "$__all"},
         "includeAll": true,
         "multi": true,
@@ -27,7 +27,7 @@
         "name": "service",
         "type": "query",
         "datasource": "Loki",
-        "query": "label_values({job=\"langflow\"}, service)",
+        "query": "label_values({job=\"ketos\"}, service)",
         "current": {"text": "All", "value": "$__all"},
         "includeAll": true,
         "multi": true,
@@ -43,7 +43,7 @@
       "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
       "datasource": "Loki",
       "targets": [
-        {"expr": "sum(count_over_time({job=\"langflow\", service=~\"$service\", environment=~\"$environment\"}[$__range]))", "refId": "A"}
+        {"expr": "sum(count_over_time({job=\"ketos\", service=~\"$service\", environment=~\"$environment\"}[$__range]))", "refId": "A"}
       ],
       "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
     },
@@ -55,7 +55,7 @@
       "datasource": "Loki",
       "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}},
       "targets": [
-        {"expr": "sum(count_over_time({job=\"langflow\", level=~\"error|critical\", service=~\"$service\", environment=~\"$environment\"}[$__range]))", "refId": "A"}
+        {"expr": "sum(count_over_time({job=\"ketos\", level=~\"error|critical\", service=~\"$service\", environment=~\"$environment\"}[$__range]))", "refId": "A"}
       ]
     },
     {
@@ -65,7 +65,7 @@
       "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
       "datasource": "Loki",
       "targets": [
-        {"expr": "count(count by (logger)({job=\"langflow\", service=~\"$service\", environment=~\"$environment\"}))", "refId": "A"}
+        {"expr": "count(count by (logger)({job=\"ketos\", service=~\"$service\", environment=~\"$environment\"}))", "refId": "A"}
       ]
     },
     {
@@ -77,7 +77,7 @@
       "datasource": "Loki",
       "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}},
       "targets": [
-        {"expr": "sum(count_over_time({job=\"langflow\"} |~ \"sk-do-not-leak|hunter2|Bearer xyz\"[$__range]))", "refId": "A"}
+        {"expr": "sum(count_over_time({job=\"ketos\"} |~ \"sk-do-not-leak|hunter2|Bearer xyz\"[$__range]))", "refId": "A"}
       ]
     },
     {
@@ -87,7 +87,7 @@
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
       "datasource": "Loki",
       "targets": [
-        {"expr": "sum by (level) (rate({job=\"langflow\", service=~\"$service\", environment=~\"$environment\"}[1m]))", "refId": "A", "legendFormat": "{{level}}"}
+        {"expr": "sum by (level) (rate({job=\"ketos\", service=~\"$service\", environment=~\"$environment\"}[1m]))", "refId": "A", "legendFormat": "{{level}}"}
       ],
       "options": {"legend": {"displayMode": "table", "placement": "right", "calcs": ["sum"]}}
     },
@@ -98,7 +98,7 @@
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
       "datasource": "Loki",
       "targets": [
-        {"expr": "topk(10, sum by (logger) (rate({job=\"langflow\", service=~\"$service\", environment=~\"$environment\"}[1m])))", "refId": "A", "legendFormat": "{{logger}}"}
+        {"expr": "topk(10, sum by (logger) (rate({job=\"ketos\", service=~\"$service\", environment=~\"$environment\"}[1m])))", "refId": "A", "legendFormat": "{{logger}}"}
       ],
       "options": {"legend": {"displayMode": "table", "placement": "right", "calcs": ["sum"]}}
     },
@@ -110,7 +110,7 @@
       "gridPos": {"h": 12, "w": 24, "x": 0, "y": 12},
       "datasource": "Loki",
       "targets": [
-        {"expr": "{job=\"langflow\", level=~\"error|critical\", service=~\"$service\", environment=~\"$environment\"} |= \"exception\" | json", "refId": "A"}
+        {"expr": "{job=\"ketos\", level=~\"error|critical\", service=~\"$service\", environment=~\"$environment\"} |= \"exception\" | json", "refId": "A"}
       ],
       "options": {"showLabels": true, "showTime": true, "wrapLogMessage": true, "prettifyLogMessage": true, "dedupStrategy": "none"}
     },
@@ -122,7 +122,7 @@
       "gridPos": {"h": 10, "w": 12, "x": 0, "y": 24},
       "datasource": "Loki",
       "targets": [
-        {"expr": "{job=\"langflow\", service=~\"$service\"} |~ \"\\\\*\\\\*\\\\*\"", "refId": "A"}
+        {"expr": "{job=\"ketos\", service=~\"$service\"} |~ \"\\\\*\\\\*\\\\*\"", "refId": "A"}
       ],
       "options": {"showLabels": false, "showTime": true, "wrapLogMessage": true, "prettifyLogMessage": true}
     },
@@ -130,11 +130,11 @@
       "id": 9,
       "type": "logs",
       "title": "Stdlib intercept: third-party loggers routed into JSON",
-      "description": "uvicorn, sqlalchemy, httpx, langchain, asyncio used to emit unstructured text. With LANGFLOW_LOG_ENV=container they come through the same JSON stream with logger=<name>.",
+      "description": "uvicorn, sqlalchemy, httpx, langchain, asyncio used to emit unstructured text. With KETOS_LOG_ENV=container they come through the same JSON stream with logger=<name>.",
       "gridPos": {"h": 10, "w": 12, "x": 12, "y": 24},
       "datasource": "Loki",
       "targets": [
-        {"expr": "{job=\"langflow\", logger=~\"uvicorn.*|sqlalchemy.*|httpx.*|langchain.*|third_party.*\", service=~\"$service\"}", "refId": "A"}
+        {"expr": "{job=\"ketos\", logger=~\"uvicorn.*|sqlalchemy.*|httpx.*|langchain.*|third_party.*\", service=~\"$service\"}", "refId": "A"}
       ],
       "options": {"showLabels": true, "showTime": true, "wrapLogMessage": true, "prettifyLogMessage": true}
     },
@@ -145,7 +145,7 @@
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 34},
       "datasource": "Loki",
       "targets": [
-        {"expr": "topk(10, sum by (logger) (count_over_time({job=\"langflow\", level=~\"error|critical\"}[$__range])))", "refId": "A", "instant": true, "format": "table"}
+        {"expr": "topk(10, sum by (logger) (count_over_time({job=\"ketos\", level=~\"error|critical\"}[$__range])))", "refId": "A", "instant": true, "format": "table"}
       ]
     },
     {
@@ -156,7 +156,7 @@
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 34},
       "datasource": "Loki",
       "targets": [
-        {"expr": "sum by (service, environment, version) (count_over_time({job=\"langflow\"}[$__range]))", "refId": "A", "instant": true, "format": "table"}
+        {"expr": "sum by (service, environment, version) (count_over_time({job=\"ketos\"}[$__range]))", "refId": "A", "instant": true, "format": "table"}
       ]
     }
   ]

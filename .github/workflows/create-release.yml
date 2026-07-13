@@ -1,36 +1,22 @@
-name: Create Release
+name: Verify Canonical Release Entrypoint
+
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Version to release"
-        required: true
-        type: string
-      ref:
-        description: "Commit to tag the release"
-        required: true
-        type: string
-      pre_release:
-        description: "Pre-release tag"
-        required: true
-        type: boolean
+
+permissions:
+  contents: read
 
 jobs:
-  create_release:
-    name: Create Release Job
+  verify-release-entrypoint:
+    name: Verify canonical release workflow
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v7
+      - name: Checkout immutable workflow commit
+        uses: actions/checkout@v6
         with:
-          name: dist-main
-          path: dist
-      - name: Create Release Notes
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: "dist/*"
-          token: ${{ secrets.GITHUB_TOKEN }}
-          draft: false
-          generateReleaseNotes: true
-          prerelease: ${{ inputs.pre_release }}
-          tag: v${{ inputs.version }}
-          commit: ${{ inputs.ref }}
+          ref: ${{ github.sha }}
+
+      - name: Confirm standalone publishing is disabled
+        run: |
+          test -f .github/workflows/release.yml
+          echo "Standalone release publishing is disabled. Use the canonical release.yml workflow."

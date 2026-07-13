@@ -1,5 +1,5 @@
 {
-  "name": "Langflow Dev Container",
+  "name": "Ketos Dev Container",
   "build": {
     "context": "..",
     "dockerfile": "Dockerfile"
@@ -8,7 +8,7 @@
     "ghcr.io/devcontainers/features/node": {},
     "ghcr.io/dhoeric/features/hadolint:1": {}
   },
-  "postCreateCommand": "sudo chown -R langflow .venv .mypy_cache src/frontend/node_modules src/frontend/build src/backend/base/langflow/frontend && make install_frontend && make install_backend",
+  "postCreateCommand": "sudo chown -R ketos .venv .mypy_cache src/frontend/node_modules src/frontend/build src/backend/base/ketos/frontend && make install_frontend && make install_backend",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -33,7 +33,7 @@
       }
     }
   },
-  "remoteUser": "langflow",
+  "remoteUser": "ketos",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
   "workspaceFolder": "/workspace",
   "forwardPorts": [7860, 3000],
@@ -53,7 +53,7 @@
     },
     {
       "source": "${localWorkspaceFolderBasename}-backend-frontend",
-      "target": "/workspace/src/backend/base/langflow/frontend",
+      "target": "/workspace/src/backend/base/ketos/frontend",
       "type": "volume"
     },
     {

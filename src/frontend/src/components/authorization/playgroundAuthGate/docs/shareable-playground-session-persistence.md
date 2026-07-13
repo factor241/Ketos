@@ -565,13 +565,13 @@ graph TD
     OW["Flow Owner\n(creates and shares flows)"]
   end
 
-  LF["Langflow\nAI flow builder with\nshareable playground"]
+  KETOS["Ketos\nAI flow builder with\nshareable playground"]
   LLM["LLM Provider\n(OpenAI, Anthropic, etc.)"]
 
-  AU -->|"Sessions persisted to DB\n/shared endpoints"| LF
-  AN -->|"Sessions in sessionStorage\nbuild_public_tmp only"| LF
-  OW -->|"Creates flows, sets PUBLIC access"| LF
-  LF -->|"Executes LLM calls\nduring flow build"| LLM
+  AU -->|"Sessions persisted to DB\n/shared endpoints"| KETOS
+  AN -->|"Sessions in sessionStorage\nbuild_public_tmp only"| KETOS
+  OW -->|"Creates flows, sets PUBLIC access"| KETOS
+  KETOS -->|"Executes LLM calls\nduring flow build"| LLM
 ```
 
 ### 9.2 Container Diagram (Level 2)

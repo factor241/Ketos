@@ -177,7 +177,7 @@ describe("EditShortcutButton", () => {
       title: "Code shortcut reset to default",
     });
     expect(localStorage.setItem).toHaveBeenCalledWith(
-      "langflow-shortcuts",
+      "ketos-shortcuts",
       JSON.stringify([
         { name: "Docs", display_name: "Docs", shortcut: "mod+shift+d" },
         { name: "Code", display_name: "Code", shortcut: "space" },

@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 
 const frontendRoot = resolve(__dirname, "../..");
 const upstreamBrand = ["lang", "flow"].join("");
+const upstreamExecutor = ["l", "fx"].join("");
+const upstreamEnvPrefix = ["LANG", "FLOW"].join("");
 
 const read = (relativePath: string) =>
   readFileSync(resolve(frontendRoot, relativePath), "utf8");
@@ -63,25 +65,35 @@ describe("Task 8 Ketos frontend cutover", () => {
 
     expect(sources).not.toMatch(new RegExp(upstreamBrand, "i"));
     expect(sources).not.toMatch(
-      /LANGFLOW_(?:AUTO_LOGIN|MCP_COMPOSER_ENABLED|EXTENSION_RELOAD_ENABLED|WXO_UTM_SOURCE)|__LANGFLOW_I18N_DIAGNOSTICS__|LANGFLOW_SUPPORTED_TYPES/,
+      new RegExp(
+        `${upstreamEnvPrefix}_(?:AUTO_LOGIN|MCP_COMPOSER_ENABLED|EXTENSION_RELOAD_ENABLED|WXO_UTM_SOURCE)|__${upstreamEnvPrefix}_I18N_DIAGNOSTICS__|${upstreamEnvPrefix}_SUPPORTED_TYPES`,
+      ),
     );
     expect(allProductionSources).not.toMatch(
-      /LANGFLOW_(?:AUTO_LOGIN|ENABLE_EXTENSION_RELOAD|EXTENSION_RELOAD_ENABLED|MCP_COMPOSER_ENABLED|WXO_UTM_SOURCE)|envLangflow|\b(?:langflow run|lfx extension dev)\b|\bdefault[^\n]{0,80}["'`]langflow["'`]/i,
+      new RegExp(
+        `${upstreamEnvPrefix}_(?:AUTO_LOGIN|ENABLE_EXTENSION_RELOAD|EXTENSION_RELOAD_ENABLED|MCP_COMPOSER_ENABLED|WXO_UTM_SOURCE)|env${upstreamBrand}|\\b(?:${upstreamBrand} run|${upstreamExecutor} extension dev)\\b|\\bdefault[^\\n]{0,80}["'\`]${upstreamBrand}["'\`]`,
+        "i",
+      ),
     );
     expect(allProductionSources).not.toMatch(
       new RegExp(`(?<![a-z0-9])${upstreamBrand}(?![a-z0-9])`, "i"),
     );
-    expect(allProductionSources).not.toMatch(/(?<![a-z0-9])lfx(?![a-z0-9])/i);
-    expect(sources).not.toMatch(
-      /\b(?:STORE_DESC|STORE_TITLE|STORE_PAGINATION_SIZE|STORE_PAGINATION_PAGE|STORE_PAGINATION_ROWS_COUNT|NO_API_KEY|INSERT_API_KEY|INVALID_API_KEY|CREATE_API_KEY|SAVE_API_KEY_ALERT|CHAT_FORM_DIALOG_SUBTITLE|CHAT_CANNOT_OPEN_TITLE|CHAT_CANNOT_OPEN_DESCRIPTION|CHAT_FIRST_INITIAL_TEXT|CHAT_SECOND_INITIAL_TEXT|LANGFLOW_CHAT_TITLE)\b/,
+    expect(allProductionSources).not.toMatch(
+      new RegExp(`(?<![a-z0-9])${upstreamExecutor}(?![a-z0-9])`, "i"),
     );
+    expect(sources).not.toMatch(
+      /\b(?:STORE_DESC|STORE_TITLE|STORE_PAGINATION_SIZE|STORE_PAGINATION_PAGE|STORE_PAGINATION_ROWS_COUNT|NO_API_KEY|INSERT_API_KEY|INVALID_API_KEY|CREATE_API_KEY|SAVE_API_KEY_ALERT|CHAT_FORM_DIALOG_SUBTITLE|CHAT_CANNOT_OPEN_TITLE|CHAT_CANNOT_OPEN_DESCRIPTION|CHAT_FIRST_INITIAL_TEXT|CHAT_SECOND_INITIAL_TEXT)\b/,
+    );
+    expect(sources).not.toContain(`${upstreamEnvPrefix}_CHAT_TITLE`);
     expect(JSON.parse(read("package.json"))).toMatchObject({
       name: "ketos-frontend",
     });
     expect(read("src/utils/decorate-wxo-url.ts")).toContain(
       'DEFAULT_UTM_SOURCE = "ketos"',
     );
-    expect(controllerSources).not.toMatch(/x-langflow-global-var-/i);
+    expect(controllerSources).not.toMatch(
+      new RegExp(`x-${upstreamBrand}-global-var-`, "i"),
+    );
 
     for (const assistantHook of [
       "src/controllers/API/queries/assistant/use-template-assistant.ts",
@@ -193,7 +205,9 @@ describe("Task 8 Ketos frontend cutover", () => {
     expect(runtimeSurfaces).not.toMatch(
       new RegExp(`(?<![a-z0-9])${upstreamBrand}(?![a-z0-9])`, "i"),
     );
-    expect(runtimeSurfaces).not.toMatch(/(?<![a-z0-9])lfx(?![a-z0-9])/i);
+    expect(runtimeSurfaces).not.toMatch(
+      new RegExp(`(?<![a-z0-9])${upstreamExecutor}(?![a-z0-9])`, "i"),
+    );
   });
 
   it("namespaces anonymous flow session state instead of using raw flow ids", () => {

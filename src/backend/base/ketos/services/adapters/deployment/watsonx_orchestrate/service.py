@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any
 from fastapi import HTTPException, status
 from ibm_cloud_sdk_core import ApiException
 from ibm_watsonx_orchestrate_clients.tools.tool_client import ClientAPIException
-from ibm_watsonx_orchestrate_core.types.tools.ketos_tool import create_ketos_tool
 from kfx.services.adapters.deployment.base import BaseDeploymentService
 from kfx.services.adapters.deployment.exceptions import (
     AuthenticationError,
@@ -93,6 +92,7 @@ from ketos.services.adapters.deployment.watsonx_orchestrate.core.status import (
 )
 from ketos.services.adapters.deployment.watsonx_orchestrate.core.tools import (
     build_ketos_artifact_bytes,
+    create_ketos_tool,
     extract_ketos_connections_binding,
     upload_tool_artifact_bytes,
     verify_tools_by_ids,

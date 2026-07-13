@@ -55,6 +55,7 @@ def write_contract(
     *,
     legal_allowlist: list[dict] | None = None,
     legal_files: list[dict] | None = None,
+    negative_test_allowlist: list[dict] | None = None,
 ) -> Path:
     value = {
         "version": 1,
@@ -71,6 +72,7 @@ def write_contract(
         },
         "legal_files": legal_files or [],
         "legal_allowlist": legal_allowlist or [],
+        "negative_test_allowlist": negative_test_allowlist or [],
     }
     path.write_text(yaml.safe_dump(value, sort_keys=False), encoding="utf-8")
     return path
@@ -168,6 +170,51 @@ def test_cutover_scans_binary_filenames_archives_and_generated_output(tmp_path: 
     assert f"artifact.whl!package/{product}_runtime.py" in paths
     assert "artifact.whl!package/runtime.py" in paths
     assert "artifact.tar.gz!package/metadata.py" in paths
+
+
+def test_cutover_does_not_treat_compressed_binary_bytes_as_semantic_identity(tmp_path: Path) -> None:
+    product = legacy_product().lower().encode()
+    (tmp_path / "current-image.png").write_bytes(b"\x89PNG\r\n\x1a\n\x00" + product)
+    (tmp_path / "opaque.bin").write_bytes(b"\x00" + product)
+    contract = write_contract(tmp_path / "contract.yaml")
+
+    report = scan_root(load_scanner(), tmp_path, contract)
+
+    assert {item["path"] for item in report["violations"]} == {"opaque.bin"}
+
+
+def test_cutover_allows_only_exact_fingerprinted_negative_test_tokens(tmp_path: Path) -> None:
+    expected = f"rejected = '{legacy_product()}'"
+    fixture = tmp_path / "tests" / "negative.py"
+    fixture.parent.mkdir()
+    fixture.write_text(expected + "\n", encoding="utf-8")
+    contract = write_contract(
+        tmp_path / "contract.yaml",
+        negative_test_allowlist=[
+            {
+                "path": "tests/negative.py",
+                "line": 1,
+                "kind": "legacy_brand",
+                "expected_text": expected,
+                "sha256": hashlib.sha256(expected.encode()).hexdigest(),
+            }
+        ],
+    )
+
+    allowed = scan_root(load_scanner(), tmp_path, contract)
+    assert allowed["violations"] == []
+    assert allowed["allowed_residue"] == [
+        {
+            "kind": "negative_test_token",
+            "path": "tests/negative.py",
+            "line": 1,
+            "match": legacy_product(),
+        }
+    ]
+
+    fixture.write_text(f"runtime_default = '{legacy_product()}'\n", encoding="utf-8")
+    changed = scan_root(load_scanner(), tmp_path, contract)
+    assert violation_kinds(changed) >= {"negative_test_mismatch", "missing_negative_test_occurrence"}
 
 
 def test_only_exact_legal_path_line_text_and_fingerprint_is_allowed(tmp_path: Path) -> None:

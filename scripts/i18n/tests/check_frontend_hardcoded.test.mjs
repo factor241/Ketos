@@ -24,7 +24,7 @@ function createFixture({
   migrationDebt = [],
   activeWave = "R1",
 } = {}) {
-  const repoRoot = mkdtempSync(path.join(tmpdir(), "langflow-hardcoded-"));
+  const repoRoot = mkdtempSync(path.join(tmpdir(), "ketos-hardcoded-"));
   const sourceDir = path.join(repoRoot, "src/frontend/src");
   const frontendDir = path.join(repoRoot, "src/frontend");
   const allowlistDir = path.join(repoRoot, "scripts/i18n/allowlists");
@@ -487,11 +487,11 @@ test("current static HTML English mutation is rescanned and fails the gate", asy
   const { runCheck } = await loadChecker();
   const { repoRoot, frontendDir } = createFixture({
     staticHtml:
-      '<!doctype html><html><head><title>Langflow</title></head><body><noscript lang="ru">Включите скрипты.</noscript></body></html>\n',
+      '<!doctype html><html><head><title>Ketos</title></head><body><noscript lang="ru">Включите скрипты.</noscript></body></html>\n',
     entries: [
       {
         path: "src/frontend/index.html",
-        value: "Langflow",
+        value: "Ketos",
         reason: "Exact product brand in the static title.",
         owner: "localization-governance",
         review_date: "2026-07-12",
@@ -500,7 +500,7 @@ test("current static HTML English mutation is rescanned and fails the gate", asy
   });
   writeFileSync(
     path.join(frontendDir, "index.html"),
-    "<!doctype html><html><head><title>Langflow</title></head><body><noscript>Enable JavaScript now</noscript></body></html>\n",
+    "<!doctype html><html><head><title>Ketos</title></head><body><noscript>Enable JavaScript now</noscript></body></html>\n",
   );
 
   const result = await runCheck({ repoRoot, writeOutput: false });

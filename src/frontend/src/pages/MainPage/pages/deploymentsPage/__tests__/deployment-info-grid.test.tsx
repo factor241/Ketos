@@ -121,7 +121,7 @@ describe("DeploymentInfoGrid", () => {
 
     it("keeps long descriptions in the value columns", () => {
       const longDescription =
-        "Langflow deployment OK AGENT 5 more words that should wrap inside the description value column";
+        "Ketos deployment OK AGENT 5 more words that should wrap inside the description value column";
       renderGrid(
         makeDeployment({ description: longDescription }),
         "prod-dl",

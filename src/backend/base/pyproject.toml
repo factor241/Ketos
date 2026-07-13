@@ -4,6 +4,7 @@ version = "0.10.2"
 description = "A Python package with a built-in web application"
 requires-python = ">=3.10,<3.15"
 license = "MIT"
+license-files = ["LICENSE", "NOTICE"]
 keywords = ["nlp", "langchain", "openai", "gpt", "gui"]
 readme = "README.md"
 
@@ -166,7 +167,7 @@ pytest-cmd = "pytest -p no:profiling -p no:sugar -p no:xdist -p no:cov -p no:spl
 
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling==1.31.0"]
 build-backend = "hatchling.build"
 
 [project.urls]

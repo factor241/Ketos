@@ -140,26 +140,26 @@ from types import MethodType, SimpleNamespace
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-import langflow.services.adapters.deployment.watsonx_orchestrate.core.create as create_core_module
-import langflow.services.adapters.deployment.watsonx_orchestrate.core.retry as retry_module
-import langflow.services.adapters.deployment.watsonx_orchestrate.core.shared as shared_core_module
-import langflow.services.adapters.deployment.watsonx_orchestrate.core.update as update_core_module
+import ketos.services.adapters.deployment.watsonx_orchestrate.core.create as create_core_module
+import ketos.services.adapters.deployment.watsonx_orchestrate.core.retry as retry_module
+import ketos.services.adapters.deployment.watsonx_orchestrate.core.shared as shared_core_module
+import ketos.services.adapters.deployment.watsonx_orchestrate.core.update as update_core_module
 from dotenv import load_dotenv
 from fastapi import HTTPException
 from ibm_watsonx_orchestrate_clients.tools.tool_client import ClientAPIException
-from langflow.services.adapters.deployment.context import (
+from ketos.services.adapters.deployment.context import (
     DeploymentAdapterContext,
     DeploymentProviderIDContext,
 )
-from langflow.services.adapters.deployment.watsonx_orchestrate import (
+from ketos.services.adapters.deployment.watsonx_orchestrate import (
     WatsonxOrchestrateDeploymentService,
     WxOCredentials,
 )
-from langflow.services.adapters.deployment.watsonx_orchestrate.payloads import (
+from ketos.services.adapters.deployment.watsonx_orchestrate.payloads import (
     WatsonxDeploymentCreateResultData,
     WatsonxFlowArtifactProviderData,
 )
-from lfx.services.adapters.deployment.exceptions import (
+from kfx.services.adapters.deployment.exceptions import (
     DeploymentError,
     DeploymentNotFoundError,
     InvalidContentError,
@@ -168,7 +168,7 @@ from lfx.services.adapters.deployment.exceptions import (
     OperationNotSupportedError,
     ResourceConflictError,
 )
-from lfx.services.adapters.deployment.schema import (
+from kfx.services.adapters.deployment.schema import (
     BaseDeploymentData,
     BaseDeploymentDataUpdate,
     BaseFlowArtifact,
@@ -248,7 +248,7 @@ class WatsonxAdapterDirectE2E:
         self.provider_id = uuid4()
         self.service = WatsonxOrchestrateDeploymentService(DummySettingsService())
 
-        import langflow.services.adapters.deployment.watsonx_orchestrate.client as _client_mod
+        import ketos.services.adapters.deployment.watsonx_orchestrate.client as _client_mod
 
         self._client_mod = _client_mod
 

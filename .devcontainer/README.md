@@ -48,8 +48,6 @@ The service will start, and you will may notice a dialog in the lower right indi
 │ Welcome to Ketos                                                   │
 │                                                                       │
 │ 🌟 GitHub: Star for updates → https://git.ketos.test/ketos/ketos  │
-│ 💬 Discord: Join for support → https://discord.com/invite/EqksyE2EX9   │
-│                                                                       │
 │ We collect anonymous usage data to improve Ketos.                  │
 │ To opt out, set: DO_NOT_TRACK=true in your environment.               │
 │                                                                       │

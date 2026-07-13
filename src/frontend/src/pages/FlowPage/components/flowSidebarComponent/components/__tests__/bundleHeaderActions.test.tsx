@@ -197,7 +197,7 @@ import BundleHeaderActions from "../bundleHeaderActions";
 
 const baseProps = {
   bundleName: "openai",
-  extensionId: "lfx-openai",
+  extensionId: "kfx-openai",
   displayName: "OpenAI",
 };
 
@@ -262,7 +262,7 @@ describe("BundleHeaderActions", () => {
     fireEvent.click(screen.getByTestId("bundle-header-reload-openai"));
     expect(mutateMock).toHaveBeenCalledTimes(1);
     expect(mutateMock).toHaveBeenCalledWith({
-      extensionId: "lfx-openai",
+      extensionId: "kfx-openai",
       bundleName: "openai",
     } satisfies ReloadVars);
   });

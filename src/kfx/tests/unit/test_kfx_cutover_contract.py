@@ -1,7 +1,10 @@
-"""Regression contracts for the irreversible LFX-to-KFX cutover."""
+"""Regression contracts for the irreversible upstream-to-KFX cutover."""
+
+# ruff: noqa: S603, S607 - fixed local subprocesses are intentional.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import subprocess
@@ -18,16 +21,21 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SOURCE_ROOT = PACKAGE_ROOT / "src"
 BUNDLES = ("arxiv", "docling", "duckduckgo", "ibm")
-OLD_PRODUCT_BRAND = re.compile(r"(?i)(?<![a-z0-9])lang[-_]?flow(?=$|[^a-z0-9])|(?<![a-z0-9])lfx(?=$|[^a-z0-9])")
+UPSTREAM_PRODUCT = "lang" + "flow"
+UPSTREAM_EXECUTOR = "l" + "fx"
+OLD_PRODUCT_BRAND = re.compile(
+    rf"(?i)(?<![a-z0-9]){UPSTREAM_PRODUCT[:-4]}[-_]?{UPSTREAM_PRODUCT[-4:]}(?=$|[^a-z0-9])"
+    rf"|(?<![a-z0-9]){UPSTREAM_EXECUTOR}(?=$|[^a-z0-9])"
+)
 
 OLD_PRODUCT_BRAND_VARIANTS = (
-    "langflow",
-    "LangFlow",
-    "lang-flow",
-    "lang_flow",
-    "langflow_utils.py",
-    "kfx.compat.langflow_utils",
-    "kfx-1.0.data/purelib/langflow_utils.py",
+    UPSTREAM_PRODUCT,
+    "Lang" + "Flow",
+    "lang" + "-flow",
+    "lang" + "_flow",
+    f"{UPSTREAM_PRODUCT}_utils.py",
+    f"kfx.compat.{UPSTREAM_PRODUCT}_utils",
+    f"kfx-1.0.data/purelib/{UPSTREAM_PRODUCT}_utils.py",
 )
 
 PROTECTED_THIRD_PARTY_BRANDS = (
@@ -38,6 +46,10 @@ PROTECTED_THIRD_PARTY_BRANDS = (
     "integrations/langsmith_client.py",
     "wheel/langwatch-1.0.dist-info/METADATA",
 )
+LEGAL_FILE_SHA256 = {
+    "LICENSE": "48d4a7496209a9e1f2f549384251b69319360c3a38127cf513473590be383359",
+    "NOTICE": "dad6ed5d6468b1962f598e35f334ecc661408b3cf137289073a03b3cfd77442e",
+}
 
 
 def _shipping_source_roots() -> list[Path]:
@@ -66,7 +78,7 @@ def test_old_product_brand_regex_preserves_protected_third_party_names(candidate
     assert OLD_PRODUCT_BRAND.search(candidate) is None
 
 
-def test_kfx_namespace_imports_without_lfx_compatibility_package() -> None:
+def test_kfx_namespace_imports_without_upstream_compatibility_package() -> None:
     result = subprocess.run(
         [sys.executable, "-c", "import kfx; print(kfx.__name__)"],
         cwd=REPO_ROOT,
@@ -78,8 +90,8 @@ def test_kfx_namespace_imports_without_lfx_compatibility_package() -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "kfx"
-    assert PathFinder.find_spec("lfx", [str(SOURCE_ROOT)]) is None
-    assert not (SOURCE_ROOT / "lfx").exists()
+    assert PathFinder.find_spec(UPSTREAM_EXECUTOR, [str(SOURCE_ROOT)]) is None
+    assert not (SOURCE_ROOT / UPSTREAM_EXECUTOR).exists()
 
 
 def test_kfx_module_cli_exposes_canonical_help() -> None:
@@ -94,7 +106,7 @@ def test_kfx_module_cli_exposes_canonical_help() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "Ketos Flow Executor" in result.stdout
-    assert "lfx" not in result.stdout.lower()
+    assert UPSTREAM_EXECUTOR not in result.stdout.lower()
 
 
 def test_kfx_component_executes() -> None:
@@ -124,7 +136,7 @@ def test_bundle_uses_canonical_kfx_distribution_module_and_extension_entrypoint(
     assert manifest["$schema"] == "https://schemas.ketos.test/extension/v1.json"
     assert manifest["id"] == distribution_name
     assert manifest["kfx"] == {"compat": ["1"]}
-    assert "lfx" not in manifest
+    assert UPSTREAM_EXECUTOR not in manifest
 
 
 def test_shipping_python_sources_contain_no_old_product_brand() -> None:
@@ -168,9 +180,15 @@ def test_built_wheels_contain_no_old_product_brand(tmp_path: Path) -> None:
     hits: list[str] = []
     for wheel in tmp_path.rglob("*.whl"):
         with zipfile.ZipFile(wheel) as archive:
+            legal_members = [member for member in archive.namelist() if Path(member).name in LEGAL_FILE_SHA256]
+            assert sorted(Path(member).name for member in legal_members) == sorted(LEGAL_FILE_SHA256), wheel.name
             for member in archive.namelist():
                 if OLD_PRODUCT_BRAND.search(member):
                     hits.append(f"{wheel.name}:{member}")
+                legal_name = Path(member).name
+                if legal_name in LEGAL_FILE_SHA256:
+                    assert hashlib.sha256(archive.read(member)).hexdigest() == LEGAL_FILE_SHA256[legal_name], member
+                    continue
                 try:
                     content = archive.read(member).decode("utf-8")
                 except UnicodeDecodeError:

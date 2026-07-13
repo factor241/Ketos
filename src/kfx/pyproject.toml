@@ -3,6 +3,8 @@ name = "kfx"
 version = "1.10.2"
 description = "Ketos Flow Executor - A lightweight CLI tool for executing and serving Ketos AI flows"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE", "NOTICE"]
 authors = [
     { name = "Gabriel Luiz Freitas Almeida", email = "gabriel@ketos.test" }
 ]
@@ -65,7 +67,7 @@ kfx-mcp = "kfx.mcp.__main__:main"
 kfx = "kfx.testing"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling==1.31.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]

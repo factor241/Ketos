@@ -67,10 +67,10 @@ describe("useReloadBundle", () => {
 
     const onSuccess = jest.fn();
     const mutation = useReloadBundle({ onSuccess });
-    await mutation.mutate({ extensionId: "lfx-openai", bundleName: "openai" });
+    await mutation.mutate({ extensionId: "kfx-openai", bundleName: "openai" });
 
     expect(mockApiPost).toHaveBeenCalledWith(
-      "/api/v1/extensions/lfx-openai/bundles/openai/reload",
+      "/api/v1/extensions/kfx-openai/bundles/openai/reload",
     );
     expect(onSuccess).toHaveBeenCalledWith(body, expect.anything(), undefined);
   });
@@ -91,7 +91,7 @@ describe("useReloadBundle", () => {
     const onError = jest.fn();
     const mutation = useReloadBundle({ onError });
     await expect(
-      mutation.mutate({ extensionId: "lfx-openai", bundleName: "openai" }),
+      mutation.mutate({ extensionId: "kfx-openai", bundleName: "openai" }),
     ).rejects.toThrow(/^reload-in-progress$/);
     expect(onError).toHaveBeenCalled();
   });
@@ -132,7 +132,7 @@ describe("useReloadBundle", () => {
     const onSuccess = jest.fn();
     const onError = jest.fn();
     const mutation = useReloadBundle({ onSuccess, onError });
-    await mutation.mutate({ extensionId: "lfx-openai", bundleName: "openai" });
+    await mutation.mutate({ extensionId: "kfx-openai", bundleName: "openai" });
 
     expect(onSuccess).toHaveBeenCalledWith(
       result,
@@ -148,7 +148,7 @@ describe("useReloadBundle", () => {
     const onError = jest.fn();
     const mutation = useReloadBundle({ onError });
     await expect(
-      mutation.mutate({ extensionId: "lfx-openai", bundleName: "openai" }),
+      mutation.mutate({ extensionId: "kfx-openai", bundleName: "openai" }),
     ).rejects.toThrow("Failed to reload bundle");
     expect(onError).toHaveBeenCalled();
   });

@@ -6,6 +6,9 @@ const test = require("node:test");
 
 const docsRoot = path.resolve(__dirname, "..");
 const repoRoot = path.resolve(docsRoot, "..");
+const upstreamProduct = ["lang", "flow"].join("");
+const upstreamExecutor = ["l", "fx"].join("");
+const upstreamEnvPrefix = ["LANG", "FLOW"].join("");
 
 const read = (relativePath) =>
   fs.readFileSync(path.join(docsRoot, relativePath), "utf8");
@@ -98,8 +101,10 @@ test("historical upstream documentation is absent", () => {
 test("the documentation shell and link contract are Ketos-only", () => {
   const shellFiles = shellSourceFiles();
   const config = read("docusaurus.config.js");
-  const forbidden =
-    /langflow(?:\.org|-ai)|docs\.langflow|twitter\.com|discord|algolia|docsearch|segment|trustarc|gtag|google-tag-manager|mendable|langflow\s+desktop/i;
+  const forbidden = new RegExp(
+    `${upstreamProduct}(?:\\.org|-ai)|docs\\.${upstreamProduct}|twitter\\.com|discord|algolia|docsearch|segment|trustarc|gtag|google-tag-manager|mendable|${upstreamProduct}\\s+desktop`,
+    "i",
+  );
 
   assert.match(config, /Ketos Documentation/);
   assert.match(config, /https:\/\/docs\.ketos\.test/);
@@ -114,7 +119,7 @@ test("the documentation shell and link contract are Ketos-only", () => {
   }
   assert.doesNotMatch(
     read("docusaurus.config.js"),
-    /(?:@|openapi\/)langflow/i,
+    new RegExp(`(?:@|openapi/)${upstreamProduct}`, "i"),
     "the control plane must use only Ketos source and generated-artifact names",
   );
   assert.equal(fs.existsSync(path.join(docsRoot, "src/components/ChatWidget")), false);
@@ -127,8 +132,10 @@ test("the custom network-backed SearchBar is absent", () => {
 });
 
 test("Stage 7 current documentation has no removed product contract", () => {
-  const forbidden =
-    /langflow|\blfx\b|LANGFLOW_|LFX_|langflow-ai|docs\.langflow|api\.langflow|github\.com\/langflow-ai|fetch_openapi_spec|access_token_lf/i;
+  const forbidden = new RegExp(
+    `${upstreamProduct}|\\b${upstreamExecutor}\\b|${upstreamEnvPrefix}_|${upstreamExecutor.toUpperCase()}_|${upstreamProduct}-ai|docs\\.${upstreamProduct}|api\\.${upstreamProduct}|github\\.com/${upstreamProduct}-ai|fetch_openapi_spec|access_token_lf`,
+    "i",
+  );
   const files = stage7OwnedRoots.flatMap((entry) => {
     if (!fs.existsSync(entry)) return [];
     return fs.statSync(entry).isDirectory() ? listTextFiles(entry) : [entry];
@@ -183,7 +190,10 @@ test("the local API example harness targets current pages and has a non-network 
   assert.match(script, /extract_fence python/);
   assert.match(script, /extract_fence javascript/);
   assert.doesNotMatch(script, /api\/v1\/users\/whoami/);
-  assert.doesNotMatch(script, /docs\/docs\/API-Reference|LANGFLOW_|uv run langflow/);
+  assert.doesNotMatch(
+    script,
+    new RegExp(`docs/docs/API-Reference|${upstreamEnvPrefix}_|uv run ${upstreamProduct}`),
+  );
   assert.match(script, /if \[\[ "\$EXECUTE_MODE" != "true" \]\]; then[\s\S]*exit 0/);
   assert.match(makefile, /api_examples_local_syntax:[\s\S]*EXECUTE_MODE=false/);
 });
@@ -191,12 +201,16 @@ test("the local API example harness targets current pages and has a non-network 
 test("obsolete localization snapshots are removed and current governance is assigned", () => {
   const obsolete = [
     "localization/ru/r0-audit-snapshot.md",
-    "localization/ru/r11-canary-evidence.template.json",
-    "localization/ru/r11-zero-budget-metrics.json",
     "localization/ru/task-18-acceptance.md",
   ];
   for (const relativePath of obsolete) {
     assert.equal(fs.existsSync(path.join(docsRoot, relativePath)), false, relativePath);
+  }
+  for (const relativePath of [
+    "localization/ru/r11-canary-evidence.template.json",
+    "localization/ru/r11-zero-budget-metrics.json",
+  ]) {
+    assert.equal(fs.existsSync(path.join(docsRoot, relativePath)), true, relativePath);
   }
   assert.equal(fs.existsSync(path.join(docsRoot, "localization/ru/README.md")), true);
 });

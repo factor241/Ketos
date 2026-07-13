@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Enforce the Ketos destructive cutover and exact legal provenance contract."""
 
 from __future__ import annotations
@@ -37,9 +38,12 @@ BASELINE_FIELDS = (
 MAX_ARCHIVE_DEPTH = 3
 MAX_ARCHIVE_MEMBER_BYTES = 32 * 1024 * 1024
 MAX_ARCHIVE_MEMBERS = 10_000
+MIN_ISO_MEDIA_HEADER_BYTES = 12
 LEGAL_FILES = {"LICENSE", "NOTICE", "src/ketos-stepflow/NOTICE"}
 LEGAL_FIELDS = ("path", "line", "expected_text", "sha256")
 LEGAL_FILE_FIELDS = ("path", "sha256")
+NEGATIVE_TEST_FIELDS = ("path", "line", "kind", "expected_text", "sha256")
+NEGATIVE_TEST_KINDS = {"legacy_brand", "legacy_executor", "upstream_endpoint"}
 
 _PRODUCT_PATTERN = rb"lang" + rb"[-_ ]?" + rb"flow"
 _EXECUTOR_PATTERN = rb"(?<![A-Za-z0-9])l" + rb"fx(?![A-Za-z0-9])"
@@ -207,8 +211,16 @@ def validate_zero_residue_contract(path: Path | str) -> list[str]:
     contract, errors = _load_mapping(path)
     if contract is None:
         return errors
-    expected_top = {"version", "analysis_commit", "baseline", "legal_files", "legal_allowlist"}
-    errors.extend(f"zero.{field}: missing required field" for field in sorted(expected_top - set(contract)))
+    expected_top = {
+        "version",
+        "analysis_commit",
+        "baseline",
+        "legal_files",
+        "legal_allowlist",
+        "negative_test_allowlist",
+    }
+    required_top = expected_top - {"negative_test_allowlist"}
+    errors.extend(f"zero.{field}: missing required field" for field in sorted(required_top - set(contract)))
     errors.extend(f"zero.{field}: unknown field" for field in sorted(set(contract) - expected_top))
     if contract.get("version") != 1 or isinstance(contract.get("version"), bool):
         errors.append("zero.version: must be integer 1")
@@ -284,14 +296,52 @@ def validate_zero_residue_contract(path: Path | str) -> list[str]:
             if identity in identities:
                 errors.append(f"{context}: duplicate path and line")
             identities.add(identity)
+
+    negative_allowlist = contract.get("negative_test_allowlist", [])
+    if not isinstance(negative_allowlist, list):
+        errors.append("zero.negative_test_allowlist: must be a list")
+    else:
+        identities: set[tuple[str, int, str]] = set()
+        for index, entry in enumerate(negative_allowlist):
+            context = f"zero.negative_test_allowlist[{index}]"
+            if not isinstance(entry, dict):
+                errors.append(f"{context}: must be a mapping")
+                continue
+            errors.extend(
+                f"{context}.{field}: missing required field" for field in NEGATIVE_TEST_FIELDS if field not in entry
+            )
+            errors.extend(
+                f"{context}.{field}: unknown field" for field in sorted(set(entry) - set(NEGATIVE_TEST_FIELDS))
+            )
+            negative_path = entry.get("path")
+            if not _valid_relative_path(negative_path):
+                errors.append(f"{context}.path: must be a normalized relative path")
+            line = entry.get("line")
+            if not isinstance(line, int) or isinstance(line, bool) or line < 1:
+                errors.append(f"{context}.line: must be a positive integer")
+            kind = entry.get("kind")
+            if kind not in NEGATIVE_TEST_KINDS:
+                errors.append(f"{context}.kind: must be an exact scannable identity kind")
+            expected_text = entry.get("expected_text")
+            if not isinstance(expected_text, str) or not expected_text or expected_text != expected_text.strip():
+                errors.append(f"{context}.expected_text: must be one exact non-empty line")
+            digest = entry.get("sha256")
+            if not isinstance(digest, str) or not _SHA256_RE.fullmatch(digest):
+                errors.append(f"{context}.sha256: must be a lowercase SHA-256 digest")
+            elif isinstance(expected_text, str) and hashlib.sha256(expected_text.encode()).hexdigest() != digest:
+                errors.append(f"{context}.sha256: does not fingerprint expected_text")
+            identity = (str(negative_path), line if isinstance(line, int) else -1, str(kind))
+            if identity in identities:
+                errors.append(f"{context}: duplicate path, line and kind")
+            identities.add(identity)
     return sorted(set(errors))
 
 
 def _valid_legal_path(value: object) -> bool:
     if not isinstance(value, str):
         return False
-    if value in LEGAL_FILES:
-        return True
+    if "!" not in value:
+        return _valid_relative_path(value) and PurePosixPath(value).name in {"LICENSE", "NOTICE"}
     if value.count("!") != 1:
         return False
     archive_path, member_path = value.split("!", 1)
@@ -459,11 +509,32 @@ def _matches(pattern: re.Pattern[bytes], content: bytes) -> list[tuple[int, byte
     return [(content.count(b"\n", 0, match.start()) + 1, match.group()) for match in pattern.finditer(content)]
 
 
+def _is_opaque_media_content(path: str, content: bytes) -> bool:
+    """Identify compressed media that is verified separately by OCR and metadata gates."""
+    suffix = PurePosixPath(path.rsplit("!", 1)[-1]).suffix.lower()
+    if suffix == ".png":
+        return content.startswith(b"\x89PNG\r\n\x1a\n")
+    if suffix in {".jpg", ".jpeg"}:
+        return content.startswith(b"\xff\xd8\xff")
+    if suffix == ".gif":
+        return content.startswith((b"GIF87a", b"GIF89a"))
+    if suffix == ".ico":
+        return content.startswith(b"\x00\x00\x01\x00")
+    if suffix == ".webp":
+        return content.startswith(b"RIFF") and content[8:12] == b"WEBP"
+    if suffix in {".mp4", ".mov"}:
+        return len(content) >= MIN_ISO_MEDIA_HEADER_BYTES and content[4:8] == b"ftyp"
+    return False
+
+
 def _scan_blobs(
     blobs: Iterable[Blob], contract: dict[str, Any], *, profile: str, excluded_path: str | None
 ) -> dict[str, Any]:
     legal_by_location = {(entry["path"], entry["line"]): entry for entry in contract["legal_allowlist"]}
     legal_paths = {entry["path"] for entry in contract["legal_allowlist"]}
+    negative_by_location = {
+        (entry["path"], entry["line"], entry["kind"]): entry for entry in contract.get("negative_test_allowlist", [])
+    }
     violations: list[dict[str, Any]] = []
     allowed: list[dict[str, Any]] = []
     brand_files: set[str] = set()
@@ -478,6 +549,7 @@ def _scan_blobs(
     scanned_blobs: dict[str, Blob] = {}
     seen_paths: set[str] = set()
     matched_legal_locations: set[tuple[str, int]] = set()
+    matched_negative_locations: set[tuple[str, int, str]] = set()
     for blob in expanded:
         if blob.path == excluded_path:
             continue
@@ -507,11 +579,12 @@ def _scan_blobs(
         brand_path_count += bool(path_brand)
         executor_path_count += bool(path_executor)
         findings: list[tuple[str, int, bytes]] = []
-        findings.extend(("legacy_brand", line, match) for line, match in _matches(_PRODUCT_RE, blob.content))
-        findings.extend(("legacy_executor", line, match) for line, match in _matches(_EXECUTOR_RE, blob.content))
-        findings.extend(
-            ("upstream_endpoint", line, match) for line, match in _matches(_UPSTREAM_ENDPOINT_RE, blob.content)
-        )
+        if not _is_opaque_media_content(blob.path, blob.content):
+            findings.extend(("legacy_brand", line, match) for line, match in _matches(_PRODUCT_RE, blob.content))
+            findings.extend(("legacy_executor", line, match) for line, match in _matches(_EXECUTOR_RE, blob.content))
+            findings.extend(
+                ("upstream_endpoint", line, match) for line, match in _matches(_UPSTREAM_ENDPOINT_RE, blob.content)
+            )
         findings.extend(("legacy_brand_filename", 0, match) for match in path_brand)
         findings.extend(("legacy_executor_filename", 0, match) for match in path_executor)
         content_brand_count = sum(kind == "legacy_brand" for kind, _, _ in findings)
@@ -536,6 +609,21 @@ def _scan_blobs(
                     allowed_upstream_count += kind == "upstream_endpoint"
                     continue
                 item["kind"] = "legal_mismatch"
+            negative_entry = negative_by_location.get((blob.path, line, kind))
+            if negative_entry is not None:
+                lines = blob.content.decode("utf-8", errors="replace").splitlines()
+                text = lines[line - 1] if line <= len(lines) else ""
+                if (
+                    text == negative_entry["expected_text"]
+                    and hashlib.sha256(text.encode()).hexdigest() == negative_entry["sha256"]
+                ):
+                    allowed.append({**item, "kind": "negative_test_token"})
+                    matched_negative_locations.add((blob.path, line, kind))
+                    allowed_brand_count += kind == "legacy_brand"
+                    allowed_executor_count += kind == "legacy_executor"
+                    allowed_upstream_count += kind == "upstream_endpoint"
+                    continue
+                item["kind"] = "negative_test_mismatch"
             if profile == "cutover" or item["kind"] == "legal_mismatch":
                 violations.append(item)
         content_brand_count -= allowed_brand_count
@@ -596,6 +684,16 @@ def _scan_blobs(
                 {
                     "kind": "missing_legal_occurrence",
                     "path": legal_path,
+                    "line": line,
+                    "match": entry["expected_text"],
+                }
+            )
+        for negative_path, line, kind in sorted(set(negative_by_location) - matched_negative_locations):
+            entry = negative_by_location[(negative_path, line, kind)]
+            violations.append(
+                {
+                    "kind": "missing_negative_test_occurrence",
+                    "path": negative_path,
                     "line": line,
                     "match": entry["expected_text"],
                 }

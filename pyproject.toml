@@ -4,6 +4,7 @@ version = "1.10.2"
 description = "Visual workflow builder for AI-powered agents"
 requires-python = ">=3.10,<3.15"
 license = "MIT"
+license-files = ["LICENSE", "NOTICE"]
 keywords = ["nlp", "langchain", "openai", "gpt", "gui"]
 readme = { text = "Ketos is a visual workflow builder for AI-powered agents.\n", content-type = "text/plain" }
 maintainers = [{ name = "Ketos Contributors" }]
@@ -505,5 +506,5 @@ external = ["RUF027"]
 builtins-allowed-modules = [ "io", "logging", "socket"]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling==1.31.0"]
 build-backend = "hatchling.build"

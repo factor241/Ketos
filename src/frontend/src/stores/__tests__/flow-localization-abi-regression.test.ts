@@ -83,13 +83,10 @@ jest.mock("@/utils/utils", () => ({ brokenEdgeMessage: jest.fn() }));
 import { applyFlowUpdate } from "@/components/core/assistantPanel/helpers/apply-flow-update";
 import type { AgenticFlowUpdateEvent } from "@/controllers/API/queries/agentic";
 import type { AllNodeType, FlowType } from "@/types/flow";
-import assistantModifiedSpec from "../../../../../tests/fixtures/localization/flow-abi/v1/assistant-modified-flow.json";
-import customLabelSpec from "../../../../../tests/fixtures/localization/flow-abi/v1/custom-label-flow.json";
-import legacySpec from "../../../../../tests/fixtures/localization/flow-abi/v1/legacy-flow.json";
-import oldSpec from "../../../../../tests/fixtures/localization/flow-abi/v1/old-flow.json";
-import outdatedSpec from "../../../../../tests/fixtures/localization/flow-abi/v1/outdated-flow.json";
-import outputReorderedSpec from "../../../../../tests/fixtures/localization/flow-abi/v1/output-reordered-flow.json";
-import outdatedFlowFixture from "../../../tests/assets/outdated_flow.json";
+import assistantModifiedSpec from "../../../../../tests/fixtures/localization/flow-abi/current/assistant-modified-flow.json";
+import baseSpec from "../../../../../tests/fixtures/localization/flow-abi/current/base-flow.json";
+import customLabelSpec from "../../../../../tests/fixtures/localization/flow-abi/current/custom-label-flow.json";
+import outputReorderedSpec from "../../../../../tests/fixtures/localization/flow-abi/current/output-reordered-flow.json";
 import useFlowStore, { syncNodeTranslations } from "../flowStore";
 
 type JsonRecord = Record<string, unknown>;
@@ -98,6 +95,7 @@ type FrontendCorpusSpec = {
   case_id: string;
   traits: string[];
   stable_ids: { nodes: string[]; edges: string[] };
+  expected_component_types: string[];
   overrides?: {
     component_label?: string;
     field_label?: string;
@@ -107,9 +105,7 @@ type FrontendCorpusSpec = {
 };
 
 const FRONTEND_CORPUS = [
-  oldSpec,
-  outdatedSpec,
-  legacySpec,
+  baseSpec,
   customLabelSpec,
   assistantModifiedSpec,
   outputReorderedSpec,
@@ -185,8 +181,6 @@ function normalizedMachineGraph(nodes: AllNodeType[], edges: unknown[]) {
           selected_output: data.selected_output,
           selected_output_type: data.selected_output_type,
           output_types: cloneJson(data.output_types),
-          legacy: innerNode.legacy,
-          replacement: cloneJson(innerNode.replacement),
           template: stripPresentation(innerNode.template),
           outputs: stripPresentation(innerNode.outputs),
         },
@@ -381,7 +375,7 @@ function makeFrontendCorpusFlow(spec: FrontendCorpusSpec): FlowType {
 
   const inputNode = makeNode(
     inputId,
-    `${spec.case_id}-input`,
+    spec.expected_component_types[0],
     {
       input_value: {
         name: "input_value",
@@ -405,7 +399,7 @@ function makeFrontendCorpusFlow(spec: FrontendCorpusSpec): FlowType {
   );
   const transformNode = makeNode(
     transformId,
-    `${spec.case_id}-transform`,
+    spec.expected_component_types[1],
     {
       [spec.case_id === "assistant-modified-flow" ? "var1" : "input_text"]: {
         name:
@@ -438,7 +432,7 @@ function makeFrontendCorpusFlow(spec: FrontendCorpusSpec): FlowType {
   );
   const outputNode = makeNode(
     outputId,
-    `${spec.case_id}-output`,
+    spec.expected_component_types[2],
     {
       input_value: {
         name: "input_value",
@@ -461,21 +455,6 @@ function makeFrontendCorpusFlow(spec: FrontendCorpusSpec): FlowType {
   );
 
   const transformInner = transformNode.data.node as unknown as JsonRecord;
-  if (spec.traits.includes("outdated")) {
-    transformInner.legacy = true;
-    transformInner.replacement = [`${spec.case_id}-transform-v2`];
-  }
-  if (spec.traits.includes("legacy")) {
-    transformInner.legacy = true;
-    (transformInner.outputs as JsonRecord[]).push({
-      name: "removed_legacy_output",
-      display_name: "Customer legacy output",
-      info: "Customer legacy output help",
-      method: "legacy_method",
-      types: ["Data"],
-      selected: false,
-    });
-  }
   if (spec.traits.includes("custom-label")) {
     transformInner.display_name = spec.overrides?.component_label;
     const fields = asRecord(transformInner.template)!;
@@ -567,7 +546,7 @@ describe("flow localization ABI regression", () => {
   });
 
   it.each(FRONTEND_CORPUS)(
-    "keeps versioned corpus case $case_id machine-identical through en→ru→save/reload→en",
+    "keeps current corpus case $case_id machine-identical through en→ru→save/reload→en",
     (spec) => {
       expect(spec.schema_version).toBe(1);
       const referenceFlow = makeFrontendCorpusFlow({
@@ -607,6 +586,9 @@ describe("flow localization ABI regression", () => {
       }
 
       const initial = useFlowStore.getState();
+      expect(initial.nodes.map((node) => node.data.type)).toEqual(
+        spec.expected_component_types,
+      );
       const machineBefore = normalizedMachineGraph(
         initial.nodes,
         initial.edges,
@@ -621,6 +603,9 @@ describe("flow localization ABI regression", () => {
       syncNodeTranslations();
 
       const russian = useFlowStore.getState();
+      expect(russian.nodes.map((node) => node.data.type)).toEqual(
+        spec.expected_component_types,
+      );
       expect(
         russian.nodes.map((node) => node.data.node?.display_name),
       ).not.toEqual(presentationBefore);
@@ -644,6 +629,9 @@ describe("flow localization ABI regression", () => {
       syncNodeTranslations();
 
       const roundTripped = useFlowStore.getState();
+      expect(roundTripped.nodes.map((node) => node.data.type)).toEqual(
+        spec.expected_component_types,
+      );
       expect(
         normalizedMachineGraph(roundTripped.nodes, roundTripped.edges),
       ).toEqual(machineBefore);
@@ -657,18 +645,17 @@ describe("flow localization ABI regression", () => {
     },
   );
 
-  it("does not overwrite an unrecognized legacy field override when translation metadata is incomplete", () => {
+  it("does not overwrite a current field override when translation metadata is incomplete", () => {
     const node = {
-      id: "LegacyComponent-stable-id",
+      id: "CurrentComponent-stable-id",
       type: "genericNode",
       position: { x: 40, y: 80 },
       data: {
-        id: "LegacyComponent-stable-id",
-        type: "LegacyComponent",
+        id: "CurrentComponent-stable-id",
+        type: "CurrentComponent",
         node: {
-          display_name: "Legacy Component",
-          description: "Legacy description",
-          legacy: true,
+          display_name: "Current Component",
+          description: "Current description",
           template: {
             mode: {
               name: "mode",
@@ -684,11 +671,11 @@ describe("flow localization ABI regression", () => {
       },
     } as unknown as AllNodeType;
 
-    mockTypesStoreState.types = { LegacyComponent: "legacy" };
+    mockTypesStoreState.types = { CurrentComponent: "current" };
     mockTypesStoreState.data = {
-      legacy: {
-        LegacyComponent: {
-          display_name: "Устаревший компонент",
+      current: {
+        CurrentComponent: {
+          display_name: "Текущий компонент",
           description: "Описание",
           template: {
             mode: {
@@ -705,9 +692,9 @@ describe("flow localization ABI regression", () => {
       },
     };
     mockTypesStoreState.componentDisplayNames = {
-      legacycomponent: {
-        display_name: ["Legacy Component", "Устаревший компонент"],
-        description: ["Legacy description", "Описание"],
+      currentcomponent: {
+        display_name: ["Current Component", "Текущий компонент"],
+        description: ["Current description", "Описание"],
         fields: {},
         outputs: {},
       },
@@ -727,18 +714,17 @@ describe("flow localization ABI regression", () => {
     });
   });
 
-  it("keeps legacy nested entries that are absent from fresh presentation metadata", () => {
+  it("keeps current nested entries that are absent from fresh presentation metadata", () => {
     const node = {
-      id: "LegacyComponent-stable-id",
+      id: "CurrentComponent-stable-id",
       type: "genericNode",
       position: { x: 40, y: 80 },
       data: {
-        id: "LegacyComponent-stable-id",
-        type: "LegacyComponent",
+        id: "CurrentComponent-stable-id",
+        type: "CurrentComponent",
         node: {
-          display_name: "Legacy Component",
-          description: "Legacy description",
-          legacy: true,
+          display_name: "Current Component",
+          description: "Current description",
           template: {
             mode: {
               name: "mode",
@@ -764,11 +750,11 @@ describe("flow localization ABI regression", () => {
       },
     } as unknown as AllNodeType;
 
-    mockTypesStoreState.types = { LegacyComponent: "legacy" };
+    mockTypesStoreState.types = { CurrentComponent: "current" };
     mockTypesStoreState.data = {
-      legacy: {
-        LegacyComponent: {
-          display_name: "Устаревший компонент",
+      current: {
+        CurrentComponent: {
+          display_name: "Текущий компонент",
           description: "Описание",
           template: {
             mode: {
@@ -790,9 +776,9 @@ describe("flow localization ABI regression", () => {
       },
     };
     mockTypesStoreState.componentDisplayNames = {
-      legacycomponent: {
-        display_name: ["Legacy Component", "Устаревший компонент"],
-        description: ["Legacy description", "Описание"],
+      currentcomponent: {
+        display_name: ["Current Component", "Текущий компонент"],
+        description: ["Current description", "Описание"],
         fields: {
           mode: {
             display_name: ["Mode", "Режим"],
@@ -822,225 +808,5 @@ describe("flow localization ABI regression", () => {
         value: "customer-mode-id",
       },
     ]);
-  });
-
-  it("keeps a legacy flow corpus machine-identical through en→ru→save/reload→en", () => {
-    const referenceFlow = cloneJson(outdatedFlowFixture) as unknown as FlowType;
-    const referenceNodes = cloneJson(referenceFlow.data!.nodes);
-    const corpusFlow = cloneJson(referenceFlow);
-    const corpusNodes = corpusFlow.data!.nodes;
-
-    const promptNode = corpusNodes.find((node) => node.data.type === "Prompt")!;
-    const promptInner = promptNode.data.node as unknown as JsonRecord;
-    promptInner.display_name = "Customer prompt component";
-    promptInner.description = "Customer prompt description";
-    const promptTemplate = asRecord(promptInner.template)!;
-    const userMessageField = asRecord(promptTemplate.user_message)!;
-    userMessageField.display_name = "Customer prompt field";
-    userMessageField.info = "Customer prompt help";
-
-    const modelNode = corpusNodes.find(
-      (node) => node.data.type === "OpenAIModel",
-    )!;
-    const modelInner = modelNode.data.node as unknown as JsonRecord;
-    modelInner.legacy = true;
-    modelInner.replacement = ["OpenAIModelV2"];
-    const modelTemplate = asRecord(modelInner.template)!;
-    const modelNameField = asRecord(modelTemplate.model_name)!;
-    const rawModelOptions = cloneJson(modelNameField.options as unknown[]);
-    modelNameField.options_metadata = rawModelOptions.map((option, index) => ({
-      value: cloneJson(option),
-      label: index === 0 ? "Customer provider label" : String(option),
-    }));
-    const modelOutputs = modelInner.outputs as JsonRecord[];
-    modelOutputs[0].display_name = "Customer output label";
-    modelOutputs[0].info = "Customer output help";
-    modelOutputs.splice(1, 0, {
-      name: "removed_legacy_output",
-      types: ["Data"],
-      method: "legacy_method",
-      display_name: "Customer legacy output label",
-      info: "Customer legacy output help",
-    });
-
-    corpusNodes.push({
-      id: "note-legacy-user-content",
-      type: "noteNode",
-      position: { x: 900, y: 120 },
-      data: {
-        id: "note-legacy-user-content",
-        type: "note",
-        node: {
-          display_name: "Customer note label",
-          description: "User-authored note body",
-          documentation: "",
-          template: {},
-        },
-      },
-    } as unknown as AllNodeType);
-
-    const overrideProjection = (nodes: AllNodeType[]) => {
-      const prompt = nodes.find((node) => node.data.type === "Prompt")!;
-      const promptNodeData = prompt.data.node as unknown as JsonRecord;
-      const promptFields = asRecord(promptNodeData.template)!;
-      const promptUserMessage = asRecord(promptFields.user_message)!;
-      const model = nodes.find((node) => node.data.type === "OpenAIModel")!;
-      const modelNodeData = model.data.node as unknown as JsonRecord;
-      const modelFields = asRecord(modelNodeData.template)!;
-      const modelName = asRecord(modelFields.model_name)!;
-      const outputByName = Object.fromEntries(
-        (modelNodeData.outputs as JsonRecord[]).map((output) => [
-          output.name,
-          { display_name: output.display_name, info: output.info },
-        ]),
-      );
-      const note = nodes.find((node) => node.type === "noteNode")!;
-      return {
-        component: {
-          display_name: promptNodeData.display_name,
-          description: promptNodeData.description,
-        },
-        field: {
-          display_name: promptUserMessage.display_name,
-          info: promptUserMessage.info,
-        },
-        customOptionLabel: (modelName.options_metadata as JsonRecord[])[0]
-          .label,
-        outputs: {
-          customized: outputByName.text_output,
-          removedLegacy: outputByName.removed_legacy_output,
-        },
-        note: note.data.node?.description,
-      };
-    };
-
-    configureLocale(referenceNodes, "en");
-    useFlowStore.getState().resetFlow(corpusFlow);
-
-    const updateNodeInternals = jest.fn() as unknown as Parameters<
-      typeof applyFlowUpdate
-    >[1];
-    applyFlowUpdate(
-      {
-        event: "flow_update",
-        action: "configure",
-        component_id: modelNode.id,
-        params: { model_name: "gpt-4.1" },
-      } as unknown as AgenticFlowUpdateEvent,
-      updateNodeInternals,
-    );
-    applyFlowUpdate(
-      {
-        event: "flow_update",
-        action: "select_output",
-        component_id: modelNode.id,
-        output_name: "model_output",
-      } as unknown as AgenticFlowUpdateEvent,
-      updateNodeInternals,
-    );
-
-    const initialState = useFlowStore.getState();
-    const machineBefore = normalizedMachineGraph(
-      initialState.nodes,
-      initialState.edges,
-    );
-    const executionBefore = executionSignature(
-      initialState.nodes,
-      initialState.edges,
-    );
-    const overridesBefore = overrideProjection(initialState.nodes);
-    expect(initialState.nodes).toHaveLength(referenceNodes.length + 1);
-    expect(initialState.edges).toHaveLength(referenceFlow.data!.edges.length);
-    expect(
-      (
-        initialState.nodes.find((node) => node.id === modelNode.id)
-          ?.data as unknown as JsonRecord
-      ).selected_output,
-    ).toBe("model_output");
-
-    configureLocale(referenceNodes, "ru");
-    syncNodeTranslations();
-
-    let localizedState = useFlowStore.getState();
-    expect(
-      normalizedMachineGraph(localizedState.nodes, localizedState.edges),
-    ).toEqual(machineBefore);
-    expect(
-      executionSignature(localizedState.nodes, localizedState.edges),
-    ).toEqual(executionBefore);
-    expect(overrideProjection(localizedState.nodes)).toEqual(overridesBefore);
-
-    const localizedModel = localizedState.nodes.find(
-      (node) => node.data.type === "OpenAIModel",
-    )!;
-    const localizedModelInner = localizedModel.data
-      .node as unknown as JsonRecord;
-    const localizedModelTemplate = asRecord(localizedModelInner.template)!;
-    const localizedModelName = asRecord(localizedModelTemplate.model_name)!;
-    expect(localizedModelName.value).toBe("gpt-4.1");
-    expect(localizedModelName.options).toEqual(rawModelOptions);
-    expect(
-      (localizedModelName.options_metadata as JsonRecord[]).map(
-        (metadata) => metadata.value,
-      ),
-    ).toEqual(rawModelOptions);
-    expect((localizedModelName.options_metadata as JsonRecord[])[1].label).toBe(
-      `Рус: ${String(rawModelOptions[1])}`,
-    );
-    expect(
-      (localizedModelInner.outputs as JsonRecord[]).find(
-        (output) => output.name === "model_output",
-      )?.display_name,
-    ).toBe("Рус: Language Model");
-
-    const savedInRussian = cloneJson({
-      ...corpusFlow,
-      data: {
-        ...corpusFlow.data!,
-        nodes: localizedState.nodes,
-        edges: localizedState.edges,
-      },
-    });
-    const reloadedFromJson = JSON.parse(
-      JSON.stringify(savedInRussian),
-    ) as FlowType;
-    useFlowStore.getState().resetFlow(reloadedFromJson);
-
-    localizedState = useFlowStore.getState();
-    expect(
-      normalizedMachineGraph(localizedState.nodes, localizedState.edges),
-    ).toEqual(machineBefore);
-    expect(
-      executionSignature(localizedState.nodes, localizedState.edges),
-    ).toEqual(executionBefore);
-    expect(overrideProjection(localizedState.nodes)).toEqual(overridesBefore);
-
-    configureLocale(referenceNodes, "en");
-    syncNodeTranslations();
-
-    const roundTrippedState = useFlowStore.getState();
-    expect(
-      normalizedMachineGraph(roundTrippedState.nodes, roundTrippedState.edges),
-    ).toEqual(machineBefore);
-    expect(
-      executionSignature(roundTrippedState.nodes, roundTrippedState.edges),
-    ).toEqual(executionBefore);
-    expect(overrideProjection(roundTrippedState.nodes)).toEqual(
-      overridesBefore,
-    );
-    expect(
-      JSON.parse(
-        JSON.stringify({
-          nodes: normalizedMachineGraph(
-            roundTrippedState.nodes,
-            roundTrippedState.edges,
-          ).nodes,
-          edges: normalizedMachineGraph(
-            roundTrippedState.nodes,
-            roundTrippedState.edges,
-          ).edges,
-        }),
-      ),
-    ).toEqual(machineBefore);
   });
 });

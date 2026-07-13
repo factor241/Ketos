@@ -1,8 +1,8 @@
 import { expect, test } from "../../fixtures";
-import { addLegacyComponents } from "../../utils/add-legacy-components";
 import { adjustScreenView } from "../../utils/adjust-screen-view";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
 import { TEXTS } from "../../utils/constants/texts";
+import { enableOptionalComponents } from "../../utils/enable-optional-components";
 import { loadDotenvIfLocal } from "../../utils/env/load-dotenv";
 import { skipIfMissing } from "../../utils/env/skip-if-missing";
 import { initialGPTsetup } from "../../utils/initialGPTsetup";
@@ -25,7 +25,7 @@ test(
     await page.getByTestId("sidebar-search-input").click();
     await page.getByTestId("sidebar-search-input").fill("message history");
 
-    await addLegacyComponents(page);
+    await enableOptionalComponents(page);
 
     // Locate the canvas element
     const canvas = page.locator("#react-flow-id"); // Update the selector if needed

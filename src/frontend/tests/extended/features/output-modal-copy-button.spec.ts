@@ -1,6 +1,6 @@
 import { expect, test } from "../../fixtures";
-import { addLegacyComponents } from "../../utils/add-legacy-components";
 import { TEXTS } from "../../utils/constants/texts";
+import { enableOptionalComponents } from "../../utils/enable-optional-components";
 import { openBlankFlow } from "../../utils/flow/open-blank-flow";
 
 test.describe("Output Modal Copy Button", () => {
@@ -10,7 +10,7 @@ test.describe("Output Modal Copy Button", () => {
     async ({ page }) => {
       await openBlankFlow(page);
 
-      await addLegacyComponents(page);
+      await enableOptionalComponents(page);
 
       await page.waitForSelector('[data-testid="sidebar-search-input"]', {
         timeout: 3000,

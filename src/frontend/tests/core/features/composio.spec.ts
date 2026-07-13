@@ -1,7 +1,7 @@
 import { expect, test } from "../../fixtures";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
+import { clearApiKeys } from "../../utils/clear-api-keys";
 import { TEXTS } from "../../utils/constants/texts";
-import { removeOldApiKeys } from "../../utils/remove-old-api-keys";
 
 test(
   "user should be able to interact with composio component",
@@ -33,7 +33,7 @@ test(
         await page.getByTestId("add-component-button-gmail").click();
       });
 
-    await removeOldApiKeys(page);
+    await clearApiKeys(page);
 
     await page
       .getByTestId("popover-anchor-input-api_key")

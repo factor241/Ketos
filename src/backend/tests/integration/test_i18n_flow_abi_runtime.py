@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import copy
-import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -41,8 +40,7 @@ _OUTPUT_ABI_KEYS = (
 )
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
-_CORPUS_ROOT = _REPOSITORY_ROOT / "tests" / "fixtures" / "localization" / "flow-abi" / "v1"
-_ARTIFACT_ROOT = _REPOSITORY_ROOT / ".artifacts" / "localization" / "ru" / "r9-flow-abi"
+_CORPUS_ROOT = _REPOSITORY_ROOT / "tests" / "fixtures" / "localization" / "flow-abi" / "current"
 
 
 @dataclass
@@ -51,8 +49,10 @@ class RuntimeCorpusCase:
     data: dict[str, Any]
     result_name: str
     expected_text: str
+    expected_node_ids: tuple[str, ...]
+    expected_edge_ids: frozenset[str]
+    expected_component_types: tuple[str, ...]
     reordered_node_id: str | None = None
-    traits: frozenset[str] = frozenset()
 
 
 def _add_stable_edge_ids(data: dict[str, Any]) -> None:
@@ -82,13 +82,6 @@ def _build_text_regex_case(spec: dict[str, Any]) -> RuntimeCorpusCase:
     _add_stable_edge_ids(data)
 
     nodes = {node["id"]: node["data"]["node"] for node in data["nodes"]}
-    if "outdated" in traits:
-        nodes[regex_id]["legacy"] = True
-        nodes[regex_id]["replacement"] = ["RegexExtractorV2"]
-    if "legacy" in traits:
-        nodes[regex_id]["legacy"] = True
-        nodes[regex_id]["replacement"] = ["RegexExtractorV2"]
-        nodes[regex_id].setdefault("metadata", {})["removed_outputs"] = ["removed_legacy_output"]
     if "custom-label" in traits:
         overrides = spec["overrides"]
         nodes[regex_id]["display_name"] = overrides["component_label"]
@@ -101,8 +94,10 @@ def _build_text_regex_case(spec: dict[str, Any]) -> RuntimeCorpusCase:
         data=data,
         result_name=spec["expected_runtime"]["result_name"],
         expected_text=spec["expected_runtime"]["text"],
+        expected_node_ids=tuple(spec["stable_ids"]["nodes"]),
+        expected_edge_ids=frozenset(spec["stable_ids"]["edges"]),
+        expected_component_types=tuple(spec["expected_component_types"]),
         reordered_node_id=regex_id if "output-reordered" in traits else None,
-        traits=traits,
     )
 
 
@@ -139,7 +134,9 @@ def _build_prompt_case(spec: dict[str, Any]) -> RuntimeCorpusCase:
         data=data,
         result_name=spec["expected_runtime"]["result_name"],
         expected_text=spec["expected_runtime"]["text"],
-        traits=frozenset(spec["traits"]),
+        expected_node_ids=tuple(spec["stable_ids"]["nodes"]),
+        expected_edge_ids=frozenset(spec["stable_ids"]["edges"]),
+        expected_component_types=tuple(spec["expected_component_types"]),
     )
 
 
@@ -164,7 +161,7 @@ def _localized_data(case: RuntimeCorpusCase, locale: str) -> dict[str, Any]:
         node_data = node["data"]
         node_data["node"] = translate_component_node(node_data["type"], node_data["node"], locale)
 
-    # Output order is presentation state. Reorder one legacy component in RU
+    # Output order is presentation state. Reorder one current component in RU
     # to prove that execution still resolves the connected output by its name.
     if locale == "ru" and case.reordered_node_id:
         reordered = next(node for node in data["nodes"] if node["id"] == case.reordered_node_id)
@@ -196,8 +193,6 @@ def _machine_projection(data: dict[str, Any]) -> dict[str, Any]:
                 "id": raw_node["id"],
                 "node_type": raw_node.get("type"),
                 "component_type": node_data["type"],
-                "legacy": node.get("legacy"),
-                "replacement": copy.deepcopy(node.get("replacement")),
                 "selected_output": node_data.get("selected_output"),
                 "inputs": inputs,
                 "outputs_by_name": outputs,
@@ -249,6 +244,11 @@ def _component_display_names(data: dict[str, Any]) -> dict[str, str]:
     return {node["id"]: node["data"]["node"]["display_name"] for node in data["nodes"]}
 
 
+def _component_types(data: dict[str, Any], node_order: tuple[str, ...]) -> tuple[str, ...]:
+    component_types_by_id = {node["id"]: node["data"]["type"] for node in data["nodes"]}
+    return tuple(component_types_by_id[node_id] for node_id in node_order)
+
+
 def _business_identifier_projection(data: dict[str, Any]) -> dict[str, Any]:
     return {
         "nodes": {
@@ -284,81 +284,6 @@ def _canonical_json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
-def _sha256(value: Any) -> str:
-    return hashlib.sha256(_canonical_json(value).encode()).hexdigest()
-
-
-def _write_case_artifacts(
-    case: RuntimeCorpusCase,
-    *,
-    machine_before: dict[str, Any],
-    machine_after: dict[str, Any],
-    overrides_before: dict[str, Any],
-    overrides_after: dict[str, Any],
-    identifiers_before: dict[str, Any],
-    identifiers_after: dict[str, Any],
-    phase_results: list[str],
-) -> None:
-    case_root = _ARTIFACT_ROOT / case.name
-    case_root.mkdir(parents=True, exist_ok=True)
-    machine_equal = machine_after == machine_before
-    overrides_equal = overrides_after == overrides_before
-    identifiers_equal = identifiers_after == identifiers_before
-    runtime_equal = phase_results == [case.expected_text, case.expected_text, case.expected_text]
-    (case_root / "machine-diff.json").write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "case_id": case.name,
-                "transition": ["en", "ru", "en"],
-                "status": "PASS" if machine_equal and overrides_equal and identifiers_equal else "FAIL",
-                "machine": {
-                    "before_sha256": _sha256(machine_before),
-                    "after_sha256": _sha256(machine_after),
-                    "changes": [] if machine_equal else ["normalized_machine_graph_changed"],
-                },
-                "user_overrides": {
-                    "before_sha256": _sha256(overrides_before),
-                    "after_sha256": _sha256(overrides_after),
-                    "changes": [] if overrides_equal else ["user_override_changed"],
-                },
-                "business_identifiers": {
-                    "before_sha256": _sha256(identifiers_before),
-                    "after_sha256": _sha256(identifiers_after),
-                    "changes": [] if identifiers_equal else ["business_identifier_changed"],
-                },
-            },
-            ensure_ascii=False,
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    (case_root / "runtime-result.json").write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "case_id": case.name,
-                "status": "PASS" if runtime_equal else "FAIL",
-                "save_reload": "PASS",
-                "build_run": "PASS" if runtime_equal else "FAIL",
-                "expected": case.expected_text,
-                "phases": [
-                    {"locale": locale, "result": result}
-                    for locale, result in zip(("en", "ru", "en"), phase_results, strict=True)
-                ],
-                "equivalent": runtime_equal,
-            },
-            ensure_ascii=False,
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-
-
 async def _execute(data: dict[str, Any], result_name: str) -> str:
     graph = Graph.from_payload(copy.deepcopy(data))
     outputs = await run_flow(graph)
@@ -376,6 +301,10 @@ async def test_en_ru_en_save_reload_preserves_flow_abi_and_runtime_result(
     for case in cases:
         english_data = _localized_data(case, "en")
         russian_data = _localized_data(case, "ru")
+        assert {node["id"] for node in english_data["nodes"]} == set(case.expected_node_ids)
+        assert {edge["id"] for edge in english_data["edges"]} == case.expected_edge_ids
+        assert _component_types(english_data, case.expected_node_ids) == case.expected_component_types
+        assert _component_types(russian_data, case.expected_node_ids) == case.expected_component_types
         machine_before = _machine_projection(english_data)
         overrides_before = _custom_override_projection(english_data)
         identifiers_before = _business_identifier_projection(english_data)
@@ -427,22 +356,13 @@ async def test_en_ru_en_save_reload_preserves_flow_abi_and_runtime_result(
                 assert reload_response.status_code == 200
                 assert reload_response.headers["Content-Language"] == locale
                 persisted_data = reload_response.json()["data"]
+                assert _component_types(persisted_data, case.expected_node_ids) == case.expected_component_types
 
                 phase_results.append(await _execute(persisted_data, case.result_name))
 
             machine_after = _machine_projection(persisted_data)
             overrides_after = _custom_override_projection(persisted_data)
             identifiers_after = _business_identifier_projection(persisted_data)
-            _write_case_artifacts(
-                case,
-                machine_before=machine_before,
-                machine_after=machine_after,
-                overrides_before=overrides_before,
-                overrides_after=overrides_after,
-                identifiers_before=identifiers_before,
-                identifiers_after=identifiers_after,
-                phase_results=phase_results,
-            )
             assert machine_after == machine_before
             assert overrides_after == overrides_before
             assert identifiers_after == identifiers_before

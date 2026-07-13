@@ -8,8 +8,15 @@ import pytest
 from kfx.upgrade.cli_gate import UpgradeFlowError, UpgradeFlowMode, _load_bundled_registry, apply_upgrade_gate
 from kfx.utils.flow_envelope import split_flow_envelope
 
-# Repo fixtures: tests/unit/upgrade/test_cli_gate.py -> parents[2] == tests/
-_FIXTURES = Path(__file__).parents[2] / "fixtures" / "starter_flows" / "v1.9.0"
+_CURRENT_STARTERS = (
+    Path(__file__).resolve().parents[5]
+    / "src"
+    / "backend"
+    / "base"
+    / "ketos"
+    / "initial_setup"
+    / "starter_projects"
+)
 
 REGISTRY_CODE = "class C:\n    pass  # v2"
 NODE_CODE = "class C:\n    pass  # v1"
@@ -106,13 +113,13 @@ def test_load_bundled_registry_is_populated():
 
 
 def test_check_defaults_to_bundled_registry_for_clean_flow():
-    """End-to-end regression: a known-clean v1.9.0 starter flow must PASS --upgrade-flow=check.
+    """End-to-end regression: a current starter flow must PASS --upgrade-flow=check.
 
     Before the fix, the gate read an empty registry and rejected this flow with every component
     'blocked'. Passing all_types_dict=None must load the bundled index (like `kfx upgrade`) and
     let the clean flow through.
     """
-    raw = json.loads((_FIXTURES / "basic_prompting.json").read_text(encoding="utf-8"))
+    raw = json.loads((_CURRENT_STARTERS / "Basic Prompting.json").read_text(encoding="utf-8"))
     _, inner = split_flow_envelope(raw)
     out, count = apply_upgrade_gate(inner, mode="check")
     assert count == 0

@@ -8,6 +8,11 @@
       "command": "uv run python docs/openapi/generate_openapi.py"
     },
     {
+      "path": "docs/openapi/\u006cangflow-workflows-openapi.json",
+      "disposition": "deleted",
+      "reason": "The upstream-named OpenAPI duplicate is replaced by docs/openapi/openapi.json and has no current Ketos consumer."
+    },
+    {
       "path": "docs/static/llms.txt",
       "disposition": "deleted",
       "reason": "The upstream static index has no current Ketos source or deterministic producer."

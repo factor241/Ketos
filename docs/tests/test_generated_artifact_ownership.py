@@ -12,6 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 OWNERSHIP_MANIFEST = REPO_ROOT / "docs" / "artifact-ownership.json"
 CANONICAL_OPENAPI = "docs/openapi/openapi.json"
 REMOVED_ARTIFACTS = {
+    "docs/openapi/" + "lang" + "flow-workflows-openapi.json",
     "docs/static/llms.txt",
     "docs/static/llms-full.txt",
     "docs/static/files/AssemblyAI_Flow.json",

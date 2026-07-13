@@ -67,6 +67,14 @@ def test_pgadmin_listens_on_the_port_used_by_health_routing_and_local_publish() 
     assert override["services"]["pgadmin"]["ports"] == ["5050:5050"]
 
 
+def test_traefik_supports_the_current_docker_provider_api() -> None:
+    """Traefik 3.0 uses a Docker API rejected by current Docker Engine releases."""
+    proxy = _load("deploy/docker-compose.yml")["services"]["proxy"]
+
+    assert proxy["image"] == "traefik:v3.6"
+    assert "--providers.docker" in proxy["command"]
+
+
 def test_observability_services_have_health_restart_and_persistent_positions() -> None:
     compose = _load("deploy/observability/grafana-loki/docker-compose.yml")
     services = compose["services"]

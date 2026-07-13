@@ -187,19 +187,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    deploy:
-      labels:
-        - traefik.enable=true
-        - traefik.docker.network=${TRAEFIK_PUBLIC_NETWORK?Variable not set}
-        - traefik.constraint-label=${TRAEFIK_PUBLIC_TAG?Variable not set}
-        - traefik.http.routers.${STACK_NAME?Variable not set}-flower-http.rule=Host(`flower.${DOMAIN?Variable not set}`)
-        - traefik.http.routers.${STACK_NAME?Variable not set}-flower-http.entrypoints=http
-        - traefik.http.routers.${STACK_NAME?Variable not set}-flower-http.middlewares=${STACK_NAME?Variable not set}-https-redirect
-        - traefik.http.routers.${STACK_NAME?Variable not set}-flower-https.rule=Host(`flower.${DOMAIN?Variable not set}`)
-        - traefik.http.routers.${STACK_NAME?Variable not set}-flower-https.entrypoints=https
-        - traefik.http.routers.${STACK_NAME?Variable not set}-flower-https.tls=true
-        - traefik.http.routers.${STACK_NAME?Variable not set}-flower-https.tls.certresolver=le
-        - traefik.http.services.${STACK_NAME?Variable not set}-flower.loadbalancer.server.port=5555
+    deploy: {}
 
   frontend:
     image: "${KETOS_FRONTEND_IMAGE:-ketos/frontend:local}"

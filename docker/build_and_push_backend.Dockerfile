@@ -45,6 +45,7 @@ ENV VIRTUAL_ENV="/app/.venv"
 # alongside this image, to add those components.
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install \
+        "flower==2.0.1" \
         ./src/sdk \
         ./src/kfx \
         "./src/backend/base[complete,postgresql]"

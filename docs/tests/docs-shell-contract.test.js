@@ -73,14 +73,20 @@ function shellSourceFiles() {
     "src/plugins",
     "src/theme",
   ].map((relativePath) => path.join(docsRoot, relativePath));
-  const staticFiles = listTextFiles(path.join(docsRoot, "static")).filter((filePath) => {
-    const relativePath = path.relative(docsRoot, filePath);
-    // Starter flows and llms outputs are regenerated in Task 17, not shell sources.
-    return !relativePath.startsWith(`static${path.sep}files${path.sep}`) &&
-      relativePath !== path.join("static", "llms.txt") &&
-      relativePath !== path.join("static", "llms-full.txt");
+  const staticRoot = path.join(docsRoot, "static");
+  const excludedStaticFiles = new Set(["llms-full.txt", "llms.txt"]);
+  const staticFiles = listTextFiles(staticRoot).filter((filePath) => {
+    const relativePath = path.relative(staticRoot, filePath);
+    return (
+      !relativePath.startsWith(`files${path.sep}`) &&
+      !excludedStaticFiles.has(relativePath)
+    );
   });
-  return [...rootFiles, ...sourceDirectories.flatMap(listTextFiles), ...staticFiles];
+  return [
+    ...rootFiles,
+    ...sourceDirectories.flatMap(listTextFiles),
+    ...staticFiles,
+  ];
 }
 
 test("historical upstream documentation is absent", () => {

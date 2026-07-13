@@ -1,11 +1,11 @@
-"""Extension System HTTP surface: reload.
+"""Extension System HTTP surface: reload and lifecycle events.
 
-Currently exposes a single endpoint, ``POST /extensions/{extension_id}/bundles/{bundle_name}/reload``,
-which drives the atomic-swap reload pipeline against the process-default
-:class:`~kfx.extension.bundle_registry.BundleRegistry`.
+Exposes ``POST /extensions/{extension_id}/bundles/{bundle_name}/reload``
+for atomic-swap reload against the process-default
+:class:`~kfx.extension.bundle_registry.BundleRegistry`, plus authenticated
+``GET /extensions/events`` lifecycle-event polling.
 
-Future list / status / migrate endpoints will live alongside this one.
-Mode A only -- in Mode B/C the path is to rebuild the Docker image, and
+The reload route is Mode A only -- in Mode B/C the path is to rebuild the Docker image, and
 the runtime guard at the request layer short-circuits with 404 when
 ``KETOS_ENABLE_EXTENSION_RELOAD`` is off.
 """

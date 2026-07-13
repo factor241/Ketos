@@ -13,7 +13,7 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException
 from ketos.api.utils.core import extract_global_variables_from_headers
-from ketos.services.cache.service import RedisCache
+from ketos.services.cache.service import CACHE_MISS, RedisCache
 from ketos.services.rate_limit import service as rate_limit_service
 
 if TYPE_CHECKING:
@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 REPO_ROOT = Path(__file__).resolve().parents[4]
 OLD_PRODUCT = "lang" + "flow"
 OLD_MCP_PREFIX = "l" + "f-"
+TASK11_REDIS_URL = os.environ.get("KETOS_TASK11_REDIS_URL", "redis://127.0.0.1:6379/15")
 
 
 def test_mcp_project_server_ids_use_canonical_prefix_only() -> None:
@@ -147,9 +148,45 @@ async def test_scarf_telemetry_requires_explicit_consent_and_url(monkeypatch: py
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+async def test_live_redis_cache_hmac_round_trip_and_tamper_rejection() -> None:
+    redis = pytest.importorskip("redis.asyncio")
+    client = redis.Redis.from_url(TASK11_REDIS_URL, socket_connect_timeout=0.2)
+    try:
+        await client.ping()
+    except Exception as exc:
+        pytest.fail(f"local Redis is required for the Task 11 live gate: {exc}")
+
+    cache_key = f"task11-hmac-{uuid4()}"
+    cache = RedisCache(url=TASK11_REDIS_URL, expiration_time=30)
+    cache._signing_key = b"task11-live-redis-hmac-proof"
+    namespaced_key = cache._key(cache_key)
+    expected_value = {"runtime": "ketos", "signed": True}
+    try:
+        await cache.set(cache_key, expected_value)
+        assert await cache.get(cache_key) == expected_value
+
+        stored = await client.get(namespaced_key)
+        assert stored is not None
+        tag = stored[: RedisCache._HMAC_DIGEST_SIZE]
+        payload = stored[RedisCache._HMAC_DIGEST_SIZE :]
+        assert RedisCache.HMAC_DOMAIN == b"ketos:redis-cache:hmac:"
+        assert namespaced_key.startswith("ketos:cache:")
+        assert tag == cache._integrity_tag(namespaced_key, payload)
+
+        tampered = stored[:-1] + bytes([stored[-1] ^ 0x01])
+        await client.set(namespaced_key, tampered)
+        assert await cache.get(cache_key) is CACHE_MISS
+    finally:
+        await client.delete(namespaced_key)
+        await cache._client.aclose()
+        await client.aclose()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_live_redis_key_channel_and_hmac_contract() -> None:
     redis = pytest.importorskip("redis.asyncio")
-    client = redis.Redis(host="127.0.0.1", port=6379, db=15, socket_connect_timeout=0.2)
+    client = redis.Redis.from_url(TASK11_REDIS_URL, socket_connect_timeout=0.2)
     try:
         await client.ping()
     except Exception as exc:
@@ -159,13 +196,13 @@ async def test_live_redis_key_channel_and_hmac_contract() -> None:
 
     job_id = f"task11-live-{uuid4()}"
     producer = RedisJobQueueService(
-        url="redis://127.0.0.1:6379/15",
+        url=TASK11_REDIS_URL,
         ttl=30,
         startup_grace_s=0.5,
         polling_stale_threshold_s=0,
     )
     subscriber = RedisJobQueueService(
-        url="redis://127.0.0.1:6379/15",
+        url=TASK11_REDIS_URL,
         ttl=30,
         startup_grace_s=0.5,
         polling_stale_threshold_s=0,

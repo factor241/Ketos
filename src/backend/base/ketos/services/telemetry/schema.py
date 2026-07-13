@@ -93,11 +93,11 @@ class ComponentInputsPayload(BasePayload):
     chunk_index: int | None = Field(None, serialization_alias="chunkIndex")
     total_chunks: int | None = Field(None, serialization_alias="totalChunks")
 
-    def _calculate_url_size(self, base_url: str = "https://api.scarf.sh/v1/pixel") -> int:
+    def _calculate_url_size(self, base_url: str = "https://telemetry.ketos.test/v1/pixel") -> int:
         """Calculate actual encoded URL size using httpx.
 
         Args:
-            base_url: Base URL for telemetry endpoint (default: Scarf pixel URL)
+            base_url: Base URL used to calculate the encoded telemetry request size.
 
         Returns:
             Total character length of the encoded URL including all query parameters

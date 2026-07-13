@@ -54,13 +54,3 @@ canonical namespaced IDs:
 * `ext:ibm:DB2VectorStoreComponent@official`
 * `ext:ibm:WatsonxAIComponent@official`
 * `ext:ibm:WatsonxEmbeddingsComponent@official`
-
-## Migration
-
-Saved flows referencing the legacy bare class names
-(`DB2VectorStoreComponent`, `WatsonxAIComponent`,
-`WatsonxEmbeddingsComponent`) or the old import paths
-(`kfx.components.ibm.<module>.<Class>` and the package-level
-`kfx.components.ibm.<Class>` forms) are rewritten to the new namespaced
-IDs by the migration table in
-`src/kfx/src/kfx/extension/migration/migration_table.json`.

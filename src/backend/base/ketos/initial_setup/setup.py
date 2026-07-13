@@ -559,11 +559,16 @@ def log_node_changes(node_changes_log) -> None:
         logger.debug("\n".join(formatted_messages))
 
 
+async def _sorted_starter_project_paths(folder: anyio.Path) -> list[anyio.Path]:
+    """Return starter JSON paths in a stable filename order."""
+    return sorted([path async for path in folder.glob("*.json")], key=lambda path: path.name)
+
+
 async def load_starter_projects(retries=3, delay=1) -> list[tuple[anyio.Path, dict]]:
     starter_projects = []
     folder = anyio.Path(__file__).parent / "starter_projects"
     await logger.adebug("Loading starter projects")
-    async for file in folder.glob("*.json"):
+    for file in await _sorted_starter_project_paths(folder):
         attempt = 0
         while attempt < retries:
             content = await file.read_text(encoding="utf-8")

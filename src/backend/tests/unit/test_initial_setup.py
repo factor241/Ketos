@@ -14,6 +14,7 @@ from anyio import Path
 from httpx import AsyncClient
 from ketos.initial_setup.constants import STARTER_FOLDER_NAME
 from ketos.initial_setup.setup import (
+    _sorted_starter_project_paths,
     copy_profile_pictures,
     detect_github_url,
     get_project_data,
@@ -35,6 +36,15 @@ async def test_load_starter_projects():
     assert isinstance(projects, list)
     assert all(isinstance(project[1], dict) for project in projects)
     assert all(isinstance(project[0], Path) for project in projects)
+
+
+async def test_starter_project_traversal_is_sorted(tmp_path: SyncPath):
+    for name in ("Zulu.json", "Alpha.json", "Middle.json"):
+        (tmp_path / name).write_text("{}", encoding="utf-8")
+
+    paths = await _sorted_starter_project_paths(Path(tmp_path))
+
+    assert [path.name for path in paths] == ["Alpha.json", "Middle.json", "Zulu.json"]
 
 
 async def test_get_project_data():

@@ -788,19 +788,14 @@ def print_banner(host: str, port: int, protocol: str) -> None:
 
     if platform.system() == "Windows":
         github_icon = "*"
-        discord_icon = "#"
         arrow = "->"
         status_icon = "[OK]"
     else:
         github_icon = ":star2:"
-        discord_icon = ":speech_balloon:"
         arrow = "→"
         status_icon = "🟢"
 
-    info_text = (
-        f"{github_icon} GitHub: Star for updates {arrow} https://github.com/ketos-ai/ketos\n"
-        f"{discord_icon} Discord: Join for support {arrow} https://discord.com/invite/EqksyE2EX9"
-    )
+    info_text = f"{github_icon} GitHub: Star for updates {arrow} https://github.com/ketos-ai/ketos"
     telemetry_text = (
         (
             "We collect anonymous usage data to improve Ketos.\n"
@@ -825,8 +820,7 @@ def print_banner(host: str, port: int, protocol: str) -> None:
         # Fallback to a simpler banner without emojis for Windows systems with encoding issues
         fallback_message = (
             f"Welcome to {package_name}\n\n"
-            "* GitHub: https://github.com/ketos-ai/ketos\n"
-            "# Discord: https://discord.com/invite/EqksyE2EX9\n\n"
+            "* GitHub: https://github.com/ketos-ai/ketos\n\n"
             f"{telemetry_text}\n\n"
             f"[OK] Open Ketos -> {protocol}://{access_host}:{port}"
         )
@@ -837,7 +831,6 @@ def print_banner(host: str, port: int, protocol: str) -> None:
             # Last resort: use logger instead of print
             logger.info(f"Welcome to {package_name}")
             logger.info("GitHub: https://github.com/ketos-ai/ketos")
-            logger.info("Discord: https://discord.com/invite/EqksyE2EX9")
             logger.info(f"Open Ketos: {protocol}://{access_host}:{port}")
 
 

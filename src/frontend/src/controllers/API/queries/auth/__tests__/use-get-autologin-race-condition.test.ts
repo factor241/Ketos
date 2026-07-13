@@ -100,7 +100,7 @@ describe("useGetAutoLogin - Race Condition Prevention", () => {
       raceConditionMockIsAuthenticated = false;
       raceConditionMockAutoLogin = false; // Manual login mode
 
-      // Act: Simulate auto-login error (expected when LANGFLOW_AUTO_LOGIN=false)
+      // Act: Simulate auto-login error (expected when KETOS_AUTO_LOGIN=false)
       // The old buggy code would call mutationLogout() here
 
       // Assert: mutationLogout should NOT be called
@@ -230,7 +230,7 @@ describe("handleAutoLoginError - Behavior Verification", () => {
     raceConditionMockAutoLogin = undefined;
   });
 
-  describe("Manual Login Mode (LANGFLOW_AUTO_LOGIN=false)", () => {
+  describe("Manual Login Mode (KETOS_AUTO_LOGIN=false)", () => {
     it("should_NOT_call_mutationLogout_in_manual_login_mode", () => {
       // This is the critical fix
       // Old behavior: called mutationLogout() when !isAuthenticated && !IS_AUTO_LOGIN

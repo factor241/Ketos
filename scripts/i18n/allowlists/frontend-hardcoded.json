@@ -29,15 +29,15 @@
   "entries": [
     {
       "path": "src/frontend/index.html",
-      "value": "Langflow",
+      "value": "Ketos",
       "reason": "Exact product brand in the static document title; surrounding system text is not exempt.",
       "owner": "frontend-localization",
       "review_date": "2026-07-11"
     },
     {
       "path": "src/frontend/index.html",
-      "value": "Для работы Langflow необходимо включить JavaScript.",
-      "reason": "Localized static fallback sentence whose only Latin tokens are the protected Langflow and JavaScript names.",
+      "value": "Для работы Ketos необходимо включить JavaScript.",
+      "reason": "Localized static fallback sentence whose only Latin tokens are the protected Ketos and JavaScript names.",
       "owner": "frontend-localization",
       "review_date": "2026-07-12"
     },
@@ -159,13 +159,6 @@
       "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
       "owner": "localization-governance",
       "review_date": "2026-07-12"
-    },
-    {
-      "path": "src/frontend/src/components/core/canvasControlsComponent/CanvasControls.tsx",
-      "value": "Langflow Assistant",
-      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
-      "owner": "localization-governance",
-      "review_date": "2026-07-11"
     },
     {
       "path": "src/frontend/src/components/core/canvasControlsComponent/utils/canvasUtils.ts",
@@ -694,7 +687,7 @@
     },
     {
       "path": "src/frontend/src/constants/dbProviderConstants.ts",
-      "value": "langflow_knowledge",
+      "value": "ketos_knowledge",
       "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
       "owner": "localization-governance",
       "review_date": "2026-07-12"
@@ -939,7 +932,7 @@
     },
     {
       "path": "src/frontend/src/customization/utils/urls.ts",
-      "value": "https://langflow.org",
+      "value": "https://ketos.test",
       "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
       "owner": "localization-governance",
       "review_date": "2026-07-12"
@@ -1360,13 +1353,6 @@
     {
       "path": "src/frontend/src/modals/apiModal/utils/get-python-api-code.tsx",
       "value": "import requests import os import uuid ${authSection}base_url = \"${baseUrl}\" flow_id = \"${flowId}\" ${headersSection} ${uploadSteps.join(\"\\n\\n\")} # Step ${uploadSteps.length + 1}: Execute flow with all file paths payload = { \"output_type\": \"${processedPayload.output_type || \"chat\"}\", \"input_type\": \"${processedPayload.input_type || \"chat\"}\", \"input_value\": \"${processedPayload.input_value || \"Your message here\"}\", \"session_id\": str(uuid.uuid4()), \"tweaks\": { ${allTweaks} } } response = requests.post( f\"{base_url}/api/v1/run/{endpointName or flowId}\", headers={\"Content-Type\": \"application/json\", **headers}, json=payload ) response.raise_for_status() print(response.json())",
-      "reason": "Exact generated code or CLI sample syntax; translated surrounding UI remains outside the sample contract.",
-      "owner": "localization-governance",
-      "review_date": "2026-07-12"
-    },
-    {
-      "path": "src/frontend/src/modals/apiModal/utils/get-widget-code.tsx",
-      "value": "${source} <langflow-chat window_title=\"${flowName}\" flow_id=\"${flowId}\" host_url=\"${protocol}//${host}\"${ !isAuth ? ` api_key=\"...\"` : \"\" }> </langflow-chat>",
       "reason": "Exact generated code or CLI sample syntax; translated surrounding UI remains outside the sample contract.",
       "owner": "localization-governance",
       "review_date": "2026-07-12"
@@ -2101,7 +2087,7 @@
     },
     {
       "path": "src/frontend/src/pages/Playground/index.tsx",
-      "value": "Langflow",
+      "value": "Ketos",
       "reason": "Exact product brand used only as the document-title fallback when no user-owned flow name exists.",
       "owner": "frontend-localization",
       "review_date": "2026-07-11"
@@ -2143,7 +2129,7 @@
     },
     {
       "path": "src/frontend/src/pages/SettingsPage/pages/McpClientPage/index.tsx",
-      "value": "claude mcp add langflow -- uvx --from lfx lfx-mcp \\\\ -e LANGFLOW_SERVER_URL=${serverUrl} \\\\ -e LANGFLOW_API_KEY=YOUR_API_KEY",
+      "value": "claude mcp add ketos -- uvx --from kfx kfx-mcp \\\\ -e KETOS_SERVER_URL=${serverUrl} \\\\ -e KETOS_API_KEY=YOUR_API_KEY",
       "reason": "Exact generated code or CLI sample syntax; translated surrounding UI remains outside the sample contract.",
       "owner": "localization-governance",
       "review_date": "2026-07-12"
@@ -2170,13 +2156,6 @@
       "review_date": "2026-07-12"
     },
     {
-      "path": "src/frontend/src/pages/SettingsPage/pages/StoreApiKeyPage/components/StoreApiKeyForm.tsx",
-      "value": "langflow.store",
-      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
-      "owner": "localization-governance",
-      "review_date": "2026-07-12"
-    },
-    {
       "path": "src/frontend/src/pages/SignUpPage/index.tsx",
       "value": "&nbsp;",
       "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
@@ -2192,7 +2171,7 @@
     },
     {
       "path": "src/frontend/src/stores/sessionManagerStore.ts",
-      "value": "langflow_local_sessions_${flowId}",
+      "value": "ketos-local-sessions-${flowId}",
       "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
       "owner": "localization-governance",
       "review_date": "2026-07-12"
@@ -2206,7 +2185,7 @@
     },
     {
       "path": "src/frontend/src/utils/decorate-wxo-url.ts",
-      "value": "langflow",
+      "value": "ketos",
       "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
       "owner": "localization-governance",
       "review_date": "2026-07-12"
@@ -3829,9 +3808,9 @@
       "candidate_id": "html-title-brand",
       "path": "src/frontend/index.html",
       "line": 20,
-      "value": "Langflow",
+      "value": "Ketos",
       "disposition": "allowlist_exact",
-      "allowlist_value": "Langflow",
+      "allowlist_value": "Ketos",
       "owner": "frontend-localization",
       "reason": "Exact product brand verified against the reviewed path/value allowlist entry."
     },
@@ -3839,9 +3818,9 @@
       "candidate_id": "html-noscript",
       "path": "src/frontend/index.html",
       "line": 23,
-      "value": "Для работы Langflow необходимо включить JavaScript.",
+      "value": "Для работы Ketos необходимо включить JavaScript.",
       "disposition": "allowlist_exact",
-      "allowlist_value": "Для работы Langflow необходимо включить JavaScript.",
+      "allowlist_value": "Для работы Ketos необходимо включить JavaScript.",
       "owner": "frontend-localization",
       "reason": "Localized static fallback whose remaining Latin tokens are protected technology names."
     }

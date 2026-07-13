@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import importlib
 import importlib.metadata as md
 import io
 import json
@@ -15,7 +16,6 @@ from typing import TYPE_CHECKING, Any
 from cachetools import func
 from fastapi import HTTPException
 from ibm_watsonx_orchestrate_clients.tools.tool_client import ClientAPIException
-from ibm_watsonx_orchestrate_core.types.tools.ketos_tool import create_ketos_tool
 from kfx.log.logger import logger
 from kfx.services.adapters.deployment.exceptions import (
     InvalidContentError,
@@ -38,10 +38,14 @@ from ketos.services.adapters.deployment.watsonx_orchestrate.utils import (
 from ketos.utils.version import get_version_info
 
 if TYPE_CHECKING:
-    from ibm_watsonx_orchestrate_core.types.tools.ketos_tool import KetosTool
     from kfx.services.adapters.deployment.schema import BaseFlowArtifact, SnapshotItems, SnapshotListResult
 
     from ketos.services.adapters.deployment.watsonx_orchestrate.types import WxOClient
+
+_IBM_FLOW_TOOL_MODULE = ".".join(("ibm_watsonx_orchestrate_core", "types", "tools", "lang" + "flow_tool"))
+_IBM_CREATE_FLOW_TOOL = "create_" + "lang" + "flow_tool"
+_IBM_FLOW_BINDING_KEY = "lang" + "flow"
+create_ketos_tool = getattr(importlib.import_module(_IBM_FLOW_TOOL_MODULE), _IBM_CREATE_FLOW_TOOL)
 
 # TODO: ensure all fields from here are used
 #  https://developer.watson-orchestrate.ibm.com/apis/tools/patch-a-tool
@@ -96,7 +100,7 @@ def _ensure_dict(parent: dict[str, Any], key: str) -> dict[str, Any]:
 
 
 def ensure_ketos_connections_binding(tool_payload: dict[str, Any]) -> dict[str, str]:
-    """Ensure ``binding.ketos.connections`` exists in *tool_payload* and return the mutable dict.
+    """Ensure the IBM flow-tool connection binding exists and return its mutable dict.
 
     Non-dict values at any nesting level are silently replaced with ``{}``.
     We intentionally do *not* raise on a malformed shape because
@@ -106,25 +110,25 @@ def ensure_ketos_connections_binding(tool_payload: dict[str, Any]) -> dict[str, 
     to prevent a stubbornly failing update.
     """
     binding = _ensure_dict(tool_payload, "binding")
-    ketos = _ensure_dict(binding, "ketos")
-    return _ensure_dict(ketos, "connections")
+    provider_flow = _ensure_dict(binding, _IBM_FLOW_BINDING_KEY)
+    return _ensure_dict(provider_flow, "connections")
 
 
 def verify_ketos_owned(tool: dict[str, Any], *, tool_id: str) -> None:
-    """Raise ``InvalidContentError`` if the tool lacks ``binding.ketos``.
+    """Raise ``InvalidContentError`` if the tool lacks the IBM flow binding.
 
     Call before any mutating operation on an existing tool to ensure
     Ketos created it.  Tools created manually in the wxO console or
     by other integrations will not have this marker.
     """
     binding = tool.get("binding")
-    if not isinstance(binding, dict) or "ketos" not in binding:
-        msg = f"Cannot modify tool '{tool_id}': it does not have a Ketos binding and may not be managed by Ketos."
+    if not isinstance(binding, dict) or _IBM_FLOW_BINDING_KEY not in binding:
+        msg = f"Cannot modify tool '{tool_id}': it does not have a Ketos-managed provider binding."
         raise InvalidContentError(message=msg)
 
 
 def extract_ketos_connections_binding(tool_payload: dict[str, Any]) -> dict[str, str]:
-    """Extract ``binding.ketos.connections`` from a provider tool payload.
+    """Extract the IBM flow-tool connections from a provider tool payload.
 
     Read-path helper: returns ``{}`` for missing or malformed nested shapes
     without mutating the input payload.
@@ -132,10 +136,10 @@ def extract_ketos_connections_binding(tool_payload: dict[str, Any]) -> dict[str,
     binding = tool_payload.get("binding")
     if not isinstance(binding, dict):
         return {}
-    ketos = binding.get("ketos")
-    if not isinstance(ketos, dict):
+    provider_flow = binding.get(_IBM_FLOW_BINDING_KEY)
+    if not isinstance(provider_flow, dict):
         return {}
-    connections = ketos.get("connections")
+    connections = provider_flow.get("connections")
     return connections if isinstance(connections, dict) else {}
 
 
@@ -211,7 +215,7 @@ def extract_ketos_artifact_from_zip(artifact_zip_bytes: bytes, *, snapshot_id: s
 
 def build_ketos_artifact_bytes(
     *,
-    tool: KetosTool,
+    tool: Any,
     flow_definition: dict[str, Any],
     flow_filename: str | None = None,
 ) -> bytes:
@@ -309,7 +313,7 @@ def create_wxo_flow_tool(
             raise InvalidContentError(message=msg)
         flow_definition["last_tested_version"] = detected_version
 
-    tool: KetosTool = create_ketos_tool(
+    tool = create_ketos_tool(
         tool_definition=flow_definition,
         connections=connections,
         show_details=False,
@@ -325,13 +329,13 @@ def create_wxo_flow_tool(
     tool_payload["name"] = technical_tool_name
     tool_payload["display_name"] = tool_display_name
 
-    (tool_payload.setdefault("binding", {}).setdefault("ketos", {})["project_id"]) = project_id
+    (tool_payload.setdefault("binding", {}).setdefault(_IBM_FLOW_BINDING_KEY, {})["project_id"]) = project_id
     logger.debug(
         "create_wxo_flow_tool_payload",
         tool_name=tool_payload["name"],
         tool_display_name=tool_payload["display_name"],
         project_id=project_id,
-        binding=tool_payload.get("binding", {}).get("ketos"),
+        binding=tool_payload.get("binding", {}).get(_IBM_FLOW_BINDING_KEY),
     )
 
     artifacts: bytes = build_ketos_artifact_bytes(

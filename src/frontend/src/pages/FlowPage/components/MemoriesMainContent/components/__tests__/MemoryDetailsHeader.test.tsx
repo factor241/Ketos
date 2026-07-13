@@ -441,7 +441,7 @@ describe("MemoryDetailsHeader", () => {
     const link = screen.getByRole("link", { name: /read the docs/i });
     expect(link).toHaveAttribute(
       "href",
-      "https://docs.langflow.org/memory-bases",
+      "https://docs.ketos.test/memory-bases",
     );
     expect(link).toHaveAttribute("target", "_blank");
   });

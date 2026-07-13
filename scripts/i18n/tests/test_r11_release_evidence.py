@@ -37,8 +37,8 @@ def _completed_evidence() -> dict[str, object]:
     }
     payload["deployment"] = {
         "topology": "standalone",
-        "enabled_image_digest": f"registry.example/langflow@sha256:{'b' * 64}",
-        "rollback_image_digest": f"registry.example/langflow@sha256:{'c' * 64}",
+        "enabled_image_digest": f"registry.example/ketos@sha256:{'b' * 64}",
+        "rollback_image_digest": f"registry.example/ketos@sha256:{'c' * 64}",
         "cohort_percent": 1,
     }
     payload["window"] = {

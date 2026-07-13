@@ -8,11 +8,6 @@
       "command": "uv run python docs/openapi/generate_openapi.py"
     },
     {
-      "path": "docs/openapi/langflow-workflows-openapi.json",
-      "disposition": "deleted",
-      "reason": "The filtered upstream workflow specification has no current producer or consumer; the full local Ketos OpenAPI is canonical."
-    },
-    {
       "path": "docs/static/llms.txt",
       "disposition": "deleted",
       "reason": "The upstream static index has no current Ketos source or deterministic producer."

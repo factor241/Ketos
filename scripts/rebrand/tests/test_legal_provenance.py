@@ -20,6 +20,8 @@ SCANNER_PATH = REPO_ROOT / "scripts/rebrand/check_brand.py"
 
 LICENSE_SHA256 = "48d4a7496209a9e1f2f549384251b69319360c3a38127cf513473590be383359"
 NOTICE_SHA256 = "dad6ed5d6468b1962f598e35f334ecc661408b3cf137289073a03b3cfd77442e"
+STEPFLOW_LICENSE_SHA256 = "b04c8850fdf64d17233f0acbe4eb632f03bd663094233c949bdbe788858bb841"
+STEPFLOW_NOTICE_SHA256 = "d5fe5257f43692583fb8f66bb222dd0250a277fcab482bb50de6d124e9243cd4"
 LEGACY_PRODUCT = "Lang" + "flow"
 LEGACY_PRODUCT_LOWER = LEGACY_PRODUCT.lower()
 NOTICE_LINES = {
@@ -42,6 +44,17 @@ UPSTREAM_ADDRESSES = (
     "hackerone.com/ibm",
 )
 ROOT_DISTRIBUTION_ARTIFACT_COUNT = 2
+PYTHON_DISTRIBUTIONS = {
+    "ketos": ("MIT", LICENSE_SHA256, NOTICE_SHA256),
+    "ketos-base": ("MIT", LICENSE_SHA256, NOTICE_SHA256),
+    "ketos-sdk": ("MIT", LICENSE_SHA256, NOTICE_SHA256),
+    "ketos-stepflow": ("Apache-2.0", STEPFLOW_LICENSE_SHA256, STEPFLOW_NOTICE_SHA256),
+    "kfx": ("MIT", LICENSE_SHA256, NOTICE_SHA256),
+    "kfx-arxiv": ("MIT", LICENSE_SHA256, NOTICE_SHA256),
+    "kfx-docling": ("MIT", LICENSE_SHA256, NOTICE_SHA256),
+    "kfx-duckduckgo": ("MIT", LICENSE_SHA256, NOTICE_SHA256),
+    "kfx-ibm": ("MIT", LICENSE_SHA256, NOTICE_SHA256),
+}
 
 
 def _sha256(path: Path) -> str:
@@ -133,23 +146,44 @@ def test_root_notice_matches_the_frozen_contract() -> None:
         assert lines[line_number - 1] == expected_text
 
 
-def test_root_wheel_and_sdist_include_exact_legal_files(tmp_path: Path) -> None:
-    dist_dir = tmp_path / "dist"
-    subprocess.run(
-        ["uv", "build", "--wheel", "--sdist", "--out-dir", str(dist_dir)],
-        cwd=REPO_ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+def test_all_wheels_and_sdists_include_exact_legal_files_and_metadata(tmp_path: Path) -> None:
+    for distribution, (license_expression, license_sha256, notice_sha256) in PYTHON_DISTRIBUTIONS.items():
+        dist_dir = tmp_path / distribution
+        subprocess.run(
+            [
+                "uv",
+                "build",
+                "--package",
+                distribution,
+                "--wheel",
+                "--sdist",
+                "--out-dir",
+                str(dist_dir),
+                "--no-create-gitignore",
+            ],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
 
-    artifacts = [*dist_dir.glob("*.whl"), *dist_dir.glob("*.tar.gz")]
-    assert len(artifacts) == ROOT_DISTRIBUTION_ARTIFACT_COUNT
-    for artifact in artifacts:
-        legal_files = _artifact_legal_files(artifact)
-        assert set(legal_files) == {"LICENSE", "NOTICE"}, artifact.name
-        assert hashlib.sha256(legal_files["LICENSE"]).hexdigest() == LICENSE_SHA256
-        assert hashlib.sha256(legal_files["NOTICE"]).hexdigest() == NOTICE_SHA256
+        artifacts = [*dist_dir.glob("*.whl"), *dist_dir.glob("*.tar.gz")]
+        assert len(artifacts) == ROOT_DISTRIBUTION_ARTIFACT_COUNT, distribution
+        for artifact in artifacts:
+            legal_files = _artifact_legal_files(artifact)
+            assert set(legal_files) == {"LICENSE", "NOTICE"}, artifact.name
+            assert hashlib.sha256(legal_files["LICENSE"]).hexdigest() == license_sha256
+            assert hashlib.sha256(legal_files["NOTICE"]).hexdigest() == notice_sha256
+
+        wheel = next(dist_dir.glob("*.whl"))
+        with zipfile.ZipFile(wheel) as archive:
+            metadata_path = next(name for name in archive.namelist() if name.endswith(".dist-info/METADATA"))
+            metadata = archive.read(metadata_path).decode("utf-8").splitlines()
+        assert f"License-Expression: {license_expression}" in metadata, distribution
+        assert [line for line in metadata if line.startswith("License-File: ")] == [
+            "License-File: LICENSE",
+            "License-File: NOTICE",
+        ], distribution
 
 
 def test_stage0_inventories_but_cutover_rejects_upstream_address_outside_legal_paths(tmp_path: Path) -> None:

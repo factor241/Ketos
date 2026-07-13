@@ -27,7 +27,7 @@ Regression entry schema:
   "first_bad_version": "1.10.0",
   "last_known_good_version": "1.9.0",
   "resolved_in_version": "1.10.1",
-  "fix_pr": "https://github.com/langflow-ai/langflow/pull/12345",
+  "fix_pr": "https://github.com/ketos-ai/ketos/pull/12345",
   "workaround": "none"
 }
 ```
@@ -57,7 +57,7 @@ Area options:
 | `components` | Core components. |
 | `mcp` | MCP server registration, MCP tools, MCP sidebar. |
 | `api` | REST API endpoints. |
-| `lfx` | The `lfx` CLI executor. |
+| `kfx` | The `kfx` CLI executor. |
 | `auth` | Login, API keys, user management. |
 | `database` | Migrations, storage, flow persistence. |
 | `integrations` | Third-party components. |

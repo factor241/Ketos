@@ -178,7 +178,7 @@ test("baseline metadata and exact identities reject malformed or broad entries",
 
 test("locale CLI rejects an empty English source value", async () => {
   const directory = await mkdtemp(
-    path.join(os.tmpdir(), "langflow-empty-source-contract-"),
+    path.join(os.tmpdir(), "ketos-empty-source-contract-"),
   );
   try {
     await writeFile(path.join(directory, "en.json"), '{"a":"   "}');
@@ -203,7 +203,7 @@ test("locale CLI rejects an empty English source value", async () => {
 
 test("locale CLI blocks new, stale, and malformed baseline debt", async () => {
   const directory = await mkdtemp(
-    path.join(os.tmpdir(), "langflow-locale-contract-"),
+    path.join(os.tmpdir(), "ketos-locale-contract-"),
   );
   const baselinePath = path.join(directory, "baseline.json");
   try {

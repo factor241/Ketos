@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import tomllib
@@ -9,6 +10,38 @@ DOCKERIGNORE = ROOT / ".dockerignore"
 KETOS_BASE_PYPROJECT = ROOT / "src/backend/base/pyproject.toml"
 STANDALONE_FRONTEND_DOCKERFILE = ROOT / "docker/frontend/build_and_push_frontend.Dockerfile"
 UNIFIED_DOCKERFILE = ROOT / "docker/build_and_push.Dockerfile"
+HATCHLING_BUILD_REQUIREMENT = "hatchling==1.31.0"
+MIT_LICENSE_SHA256 = "48d4a7496209a9e1f2f549384251b69319360c3a38127cf513473590be383359"
+MIT_NOTICE_SHA256 = "dad6ed5d6468b1962f598e35f334ecc661408b3cf137289073a03b3cfd77442e"
+APACHE_LICENSE_SHA256 = "b04c8850fdf64d17233f0acbe4eb632f03bd663094233c949bdbe788858bb841"
+APACHE_NOTICE_SHA256 = "d5fe5257f43692583fb8f66bb222dd0250a277fcab482bb50de6d124e9243cd4"
+PYTHON_DISTRIBUTIONS = {
+    ROOT / "pyproject.toml": ("MIT", MIT_LICENSE_SHA256, MIT_NOTICE_SHA256),
+    ROOT / "src/backend/base/pyproject.toml": ("MIT", MIT_LICENSE_SHA256, MIT_NOTICE_SHA256),
+    ROOT / "src/sdk/pyproject.toml": ("MIT", MIT_LICENSE_SHA256, MIT_NOTICE_SHA256),
+    ROOT / "src/ketos-stepflow/pyproject.toml": ("Apache-2.0", APACHE_LICENSE_SHA256, APACHE_NOTICE_SHA256),
+    ROOT / "src/kfx/pyproject.toml": ("MIT", MIT_LICENSE_SHA256, MIT_NOTICE_SHA256),
+    ROOT / "src/bundles/arxiv/pyproject.toml": ("MIT", MIT_LICENSE_SHA256, MIT_NOTICE_SHA256),
+    ROOT / "src/bundles/docling/pyproject.toml": ("MIT", MIT_LICENSE_SHA256, MIT_NOTICE_SHA256),
+    ROOT / "src/bundles/duckduckgo/pyproject.toml": ("MIT", MIT_LICENSE_SHA256, MIT_NOTICE_SHA256),
+    ROOT / "src/bundles/ibm/pyproject.toml": ("MIT", MIT_LICENSE_SHA256, MIT_NOTICE_SHA256),
+}
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def test_all_python_distributions_pin_build_backend_and_exact_legal_payload() -> None:
+    for pyproject, (license_expression, license_sha256, notice_sha256) in PYTHON_DISTRIBUTIONS.items():
+        payload = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+        project = payload["project"]
+
+        assert payload["build-system"]["requires"] == [HATCHLING_BUILD_REQUIREMENT], pyproject  # noqa: S101
+        assert project["license"] == license_expression, pyproject  # noqa: S101
+        assert project["license-files"] == ["LICENSE", "NOTICE"], pyproject  # noqa: S101
+        assert _sha256(pyproject.parent / "LICENSE") == license_sha256, pyproject  # noqa: S101
+        assert _sha256(pyproject.parent / "NOTICE") == notice_sha256, pyproject  # noqa: S101
 
 
 def test_unified_docker_context_excludes_generated_frontend_bundle() -> None:

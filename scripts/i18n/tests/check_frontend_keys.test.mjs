@@ -212,7 +212,7 @@ test("key debt baseline uses exact identities and multiset counts", () => {
 
 test("keys CLI blocks new, stale, and malformed baseline debt", async () => {
   const directory = await mkdtemp(
-    path.join(os.tmpdir(), "langflow-key-contract-"),
+    path.join(os.tmpdir(), "ketos-key-contract-"),
   );
   const sourceRoot = path.join(directory, "src");
   const sourcePath = path.join(sourceRoot, "example.ts");

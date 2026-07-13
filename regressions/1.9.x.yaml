@@ -10,7 +10,7 @@ entries:
   first_bad_version: 1.8.x
   last_known_good_version: 1.7.3
   resolved_in_version: 1.10.0
-  fix_pr: https://github.com/langflow-ai/langflow/pull/12877
+  fix_pr: https://github.com/ketos-ai/ketos/pull/12877
   workaround: none
 
 - id: GH-12731
@@ -20,7 +20,7 @@ entries:
   first_bad_version: 1.9.0
   last_known_good_version: 1.8.4
   resolved_in_version: 1.9.1
-  fix_pr: https://github.com/langflow-ai/langflow/pull/12833
+  fix_pr: https://github.com/ketos-ai/ketos/pull/12833
   workaround: none
 
 - id: GH-12732
@@ -30,5 +30,5 @@ entries:
   first_bad_version: 1.9.0
   last_known_good_version: unknown
   resolved_in_version: 1.8.2
-  fix_pr: https://github.com/langflow-ai/langflow/pull/12242
+  fix_pr: https://github.com/ketos-ai/ketos/pull/12242
   workaround: Duplicate of an issue originally fixed in 1.8.2.

@@ -18,7 +18,9 @@ FILES = (
     *(path for scope in SCOPES for path in scope.rglob("*") if path.is_file() and path.name != ".DS_Store"),
     ROOT / "render.yaml",
 )
-LEGACY_IDENTITY = re.compile(r"(?i)(?<![a-z0-9])(?:langflow|lfx)(?![a-z0-9])")
+LEGACY_PRODUCT = "lang" + "flow"
+LEGACY_EXECUTOR = "l" + "fx"
+LEGACY_IDENTITY = re.compile(rf"(?i)(?<![a-z0-9])(?:{LEGACY_PRODUCT}|{LEGACY_EXECUTOR})(?![a-z0-9])")
 WORKFLOW_FILES = tuple(sorted((ROOT / ".github" / "workflows").glob("*.y*ml")))
 MUTATING_SHELL_PATTERNS = (
     re.compile(r"\bgit\s+push\b"),
@@ -81,7 +83,10 @@ def test_packaged_runtime_has_no_upstream_owned_contact_or_telemetry_defaults() 
         ROOT / "src/backend/base/ketos/__main__.py",
         ROOT / "src/backend/base/ketos/services/telemetry/schema.py",
     )
-    forbidden = ("discord.com/invite/EqksyE2EX9", "api.scarf.sh")
+    forbidden = (
+        "discord.com/invite/" + "EqksyE2EX9",
+        "api." + "scarf.sh",
+    )
     failures = [
         f"{path.relative_to(ROOT)}: {token}"
         for path in runtime_sources

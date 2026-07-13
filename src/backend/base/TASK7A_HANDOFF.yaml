@@ -18,7 +18,7 @@
       "packages": [],
       "reason": "ketos-base is the sole owner of ketos/**"
     },
-    "remove_paths": ["src/backend/langflow", "src/backend/ketos"]
+    "remove_paths": ["src/backend/ketos"]
   },
   "task4_staging": {
     "include": [

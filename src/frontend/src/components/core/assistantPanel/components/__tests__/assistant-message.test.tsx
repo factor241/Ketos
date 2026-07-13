@@ -169,7 +169,7 @@ describe("AssistantMessageItem", () => {
       expect(screen.getByAltText("User")).toBeInTheDocument();
     });
 
-    // Regression guard: Langflow Desktop shipped with a broken user avatar in
+    // Regression guard: Ketos Desktop shipped with a broken user avatar in
     // the Assistant panel because the bare <img> used a relative URL that
     // resolved against the Tauri origin instead of the Python sidecar. The
     // fix routes the avatar through CustomProfileIcon so Desktop's
@@ -282,7 +282,7 @@ describe("AssistantMessageItem", () => {
       // generic dotted "Generating document..." thinking line. The earlier
       // anti-glitch concern (a bordered streaming card morphing into the
       // file card) is addressed by using the icon-only minimal mode
-      // (animated Langflow glyph), NOT the bordered streaming card — see
+      // (animated Ketos glyph), NOT the bordered streaming card — see
       // the assistant-loading-state icon-mode test.
       const message = createMessage({
         role: "assistant",
@@ -368,7 +368,7 @@ describe("AssistantMessageItem", () => {
       const message = createMessage({
         role: "assistant",
         content:
-          "```python\nfrom langflow.custom import Component\n\nclass MyComponent(Component):\n    pass\n```",
+          "```python\nfrom kfx.custom import Component\n\nclass MyComponent(Component):\n    pass\n```",
         status: "streaming",
         progress: {
           step: "generating",
@@ -481,14 +481,14 @@ describe("AssistantMessageItem", () => {
     it("should render markdown for regular text content", () => {
       const message = createMessage({
         role: "assistant",
-        content: "Langflow is a visual flow builder.",
+        content: "Ketos is a visual flow builder.",
         status: "complete",
       });
 
       render(<AssistantMessageItem message={message} />);
 
       expect(screen.getByTestId("markdown-content")).toHaveTextContent(
-        "Langflow is a visual flow builder.",
+        "Ketos is a visual flow builder.",
       );
     });
 
@@ -502,9 +502,9 @@ describe("AssistantMessageItem", () => {
         "1. Create a Python file\n",
         "2. Define a class extending Component\n\n",
         "```python\n",
-        "from lfx.custom import Component\n",
-        "from lfx.io import Output\n",
-        "from lfx.schema import Data\n\n",
+        "from kfx.custom import Component\n",
+        "from kfx.io import Output\n",
+        "from kfx.schema import Data\n\n",
         "class SumComponent(Component):\n",
         "    display_name = 'Sum'\n",
         "    inputs = []\n",
@@ -512,7 +512,7 @@ describe("AssistantMessageItem", () => {
         "    def run(self) -> Data:\n",
         "        return Data(data={'result': 42})\n",
         "```\n\n",
-        "Save the file and restart Langflow.",
+        "Save the file and restart Ketos.",
       ].join("");
 
       const message = createMessage({

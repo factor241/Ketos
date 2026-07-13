@@ -9,7 +9,7 @@ entries:
   area: components
   first_bad_version: 1.10.0
   last_known_good_version: 1.9.x
-  fix_pr: https://github.com/langflow-ai/langflow/pull/13538
+  fix_pr: https://github.com/ketos-ai/ketos/pull/13538
   workaround: Rebuild the step with the Python Interpreter (PythonREPLComponent) component.
 
 # To add an entry, copy the template below and fill in the fields.

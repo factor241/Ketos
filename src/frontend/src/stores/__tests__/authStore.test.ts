@@ -56,9 +56,9 @@ describe("useAuthStore", () => {
     // Set default cookie values
     mockCookies.get.mockImplementation((key) => {
       switch (key) {
-        case "langflow_access_token":
+        case "ketos_access_token":
           return null;
-        case "langflow_api_token":
+        case "ketos_api_token":
           return null;
         default:
           return null;

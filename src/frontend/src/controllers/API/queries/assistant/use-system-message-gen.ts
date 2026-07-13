@@ -28,9 +28,9 @@ export const useGetSystemMessageGenQuery: useQueryFunctionType<
       },
       {
         headers: {
-          "X-Langflow-Global-Var-COMPONENT_ID": compId,
-          "X-Langflow-Global-Var-FLOW_ID": flowId,
-          "X-Langflow-Global-Var-FIELD_NAME": fieldName,
+          "X-Ketos-Global-Var-COMPONENT_ID": compId,
+          "X-Ketos-Global-Var-FLOW_ID": flowId,
+          "X-Ketos-Global-Var-FIELD_NAME": fieldName,
         },
       },
     );

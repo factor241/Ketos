@@ -9,6 +9,11 @@ import {
   hasFileTweaks,
 } from "./detect-file-tweaks";
 
+const asRecord = (value: unknown): Record<string, unknown> =>
+  typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : {};
+
 /** Generates Python code using requests for API calls, handling multi-step file uploads (v1 for ChatInput, v2 for others) before flow execution. Supports auth. */
 export function getNewPythonApiCode({
   flowId,
@@ -18,19 +23,20 @@ export function getNewPythonApiCode({
 }: {
   flowId: string;
   endpointName: string;
-  processedPayload: any;
+  processedPayload: unknown;
   shouldDisplayApiKey: boolean;
 }): string {
   const baseUrl = getBaseUrl();
+  const payload = asRecord(processedPayload);
 
   // Check if there are file uploads
-  const tweaks = processedPayload.tweaks || {};
+  const tweaks = asRecord(payload.tweaks);
   const hasFiles = hasFileTweaks(tweaks);
 
   // If no file uploads, use existing logic
   if (!hasFiles) {
     const apiUrl = `${baseUrl}/api/v1/run/${endpointName || flowId}`;
-    const payloadString = JSON.stringify(processedPayload, null, 4)
+    const payloadString = JSON.stringify(payload, null, 4)
       .replace(/true/g, "True")
       .replace(/false/g, "False")
       .replace(/null/g, "None");
@@ -79,7 +85,7 @@ except ValueError as e:
     return getNewPythonApiCode({
       flowId,
       endpointName,
-      processedPayload: { ...processedPayload, tweaks: nonFileTweaks },
+      processedPayload: { ...payload, tweaks: nonFileTweaks },
       shouldDisplayApiKey,
     });
   }
@@ -108,7 +114,7 @@ except ValueError as e:
       } = response.json()[\"file_path\"]`,
     );
 
-    const originalTweak = tweaks[nodeId];
+    const originalTweak = asRecord(tweaks[nodeId]);
     const modifiedTweak = { ...originalTweak };
     modifiedTweak.files = [`chat_file_path_${index + 1}`];
     tweakAssignments.push(
@@ -130,7 +136,7 @@ except ValueError as e:
       } = response.json()[\"path\"]`,
     );
 
-    const originalTweak = tweaks[nodeId];
+    const originalTweak = asRecord(tweaks[nodeId]);
     const modifiedTweak = { ...originalTweak };
     if ("path" in originalTweak) {
       modifiedTweak.path = [`file_path_${index + 1}`];
@@ -169,9 +175,9 @@ ${uploadSteps.join("\n\n")}
 
 # Step ${uploadSteps.length + 1}: Execute flow with all file paths
 payload = {
-    "output_type": "${processedPayload.output_type || "chat"}",
-    "input_type": "${processedPayload.input_type || "chat"}",
-    "input_value": "${processedPayload.input_value || "Your message here"}",
+    "output_type": "${typeof payload.output_type === "string" ? payload.output_type : "chat"}",
+    "input_type": "${typeof payload.input_type === "string" ? payload.input_type : "chat"}",
+    "input_value": "${typeof payload.input_value === "string" ? payload.input_value : "Your message here"}",
     "session_id": str(uuid.uuid4()),
     "tweaks": {
 ${allTweaks}

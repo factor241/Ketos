@@ -595,6 +595,8 @@ export default function AccordionPromptComponent({
             <div
               ref={contentEditableRef}
               contentEditable={!disabled && !readonly}
+              role="textbox"
+              aria-multiline="true"
               onInput={handleInput}
               onKeyDown={handleKeyDown}
               suppressContentEditableWarning

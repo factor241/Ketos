@@ -17,19 +17,22 @@ export const useDeleteKnowledgeBase: useMutationFunctionType<
 
   const deleteKnowledgeBaseFn = async (
     params: DeleteKnowledgeBaseParams,
-  ): Promise<any> => {
+  ): Promise<unknown> => {
     const names = Array.isArray(params.kb_names)
       ? params.kb_names
       : [params.kb_names];
 
     // Use bulk endpoint for all deletes (works for single or multiple)
-    const response = await api.delete<any>(`${getURL("KNOWLEDGE_BASES")}/`, {
-      data: { kb_names: names },
-    });
+    const response = await api.delete<unknown>(
+      `${getURL("KNOWLEDGE_BASES")}/`,
+      {
+        data: { kb_names: names },
+      },
+    );
     return response.data;
   };
 
-  const mutation: UseMutationResult<any, any, DeleteKnowledgeBaseParams> =
+  const mutation: UseMutationResult<unknown, Error, DeleteKnowledgeBaseParams> =
     mutate(["useDeleteKnowledgeBase"], deleteKnowledgeBaseFn, {
       onSettled: (data, error, variables, context, ...rest) => {
         queryClient.invalidateQueries({

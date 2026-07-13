@@ -168,11 +168,12 @@ describe("AppInitPage - isSessionReady Logic", () => {
       // Arrange
       let autoLogin: boolean | undefined = undefined;
       const isSessionFetched = false;
+      const initialProps: { auto: boolean | undefined } = { auto: autoLogin };
 
       // Act: Initial state
       const { result, rerender } = renderHook(
         ({ auto }) => useIsSessionReady(auto, isSessionFetched),
-        { initialProps: { auto: autoLogin } },
+        { initialProps },
       );
 
       expect(result.current).toBe(false);
@@ -209,10 +210,14 @@ describe("AppInitPage - isSessionReady Logic", () => {
       // Arrange: Simulate the proper initialization sequence
       let autoLogin: boolean | undefined = undefined;
       let isSessionFetched = false;
+      const initialProps: {
+        auto: boolean | undefined;
+        fetched: boolean;
+      } = { auto: autoLogin, fetched: isSessionFetched };
 
       const { result, rerender } = renderHook(
         ({ auto, fetched }) => useIsSessionReady(auto, fetched),
-        { initialProps: { auto: autoLogin, fetched: isSessionFetched } },
+        { initialProps },
       );
 
       // Step 1: Initial state - not ready

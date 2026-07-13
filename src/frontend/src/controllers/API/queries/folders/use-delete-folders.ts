@@ -11,7 +11,9 @@ interface DeleteFoldersParams {
 
 export const useDeleteFolders: useMutationFunctionType<
   undefined,
-  DeleteFoldersParams
+  DeleteFoldersParams,
+  string,
+  Error
 > = (options?) => {
   const { mutate, queryClient } = UseRequestProcessor();
   const setFolders = useFolderStore((state) => state.setFolders);
@@ -19,23 +21,20 @@ export const useDeleteFolders: useMutationFunctionType<
 
   const deleteFolder = async ({
     folder_id,
-  }: DeleteFoldersParams): Promise<any> => {
+  }: DeleteFoldersParams): Promise<string> => {
     await api.delete(`${getURL("PROJECTS")}/${folder_id}`);
     setFolders(folders.filter((f) => f.id !== folder_id));
     return folder_id;
   };
 
-  const mutation: UseMutationResult<
-    DeleteFoldersParams,
-    any,
-    DeleteFoldersParams
-  > = mutate(["useDeleteFolders"], deleteFolder, {
-    ...options,
-    onSettled: (id) => {
-      queryClient.refetchQueries({ queryKey: ["useGetFolders", id] });
-      queryClient.invalidateQueries({ queryKey: ["useGetFolders"] });
-    },
-  });
+  const mutation: UseMutationResult<string, Error, DeleteFoldersParams> =
+    mutate(["useDeleteFolders"], deleteFolder, {
+      ...options,
+      onSettled: (id) => {
+        queryClient.refetchQueries({ queryKey: ["useGetFolders", id] });
+        queryClient.invalidateQueries({ queryKey: ["useGetFolders"] });
+      },
+    });
 
   return mutation;
 };

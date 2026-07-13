@@ -16,7 +16,7 @@ export const useBulkDeleteSessions: useMutationFunctionType<
 
   const bulkDeleteSessions = async ({
     sessionIds,
-  }: BulkDeleteSessionsParams): Promise<any> => {
+  }: BulkDeleteSessionsParams): Promise<unknown> => {
     // Use the bulk delete endpoint to delete all sessions in a single request
     const response = await api.delete(`${getURL("MESSAGES")}/sessions`, {
       data: sessionIds,
@@ -24,7 +24,7 @@ export const useBulkDeleteSessions: useMutationFunctionType<
     return response.data;
   };
 
-  const mutation: UseMutationResult<any, any, BulkDeleteSessionsParams> =
+  const mutation: UseMutationResult<unknown, Error, BulkDeleteSessionsParams> =
     mutate(["useBulkDeleteSessions"], bulkDeleteSessions, {
       ...options,
       onSettled: (...args) => {

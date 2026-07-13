@@ -15,7 +15,7 @@ const confirmedTask9Debt: Record<string, string[]> = {
   "src/components/common/pageLayout/index.tsx": [">Beta<"],
   "src/components/core/canvasControlsComponent/CanvasControls.tsx": [
     'aria-label="Dismiss assistant onboarding tooltip"',
-    'aria-label="Open Langflow Assistant"',
+    'aria-label="Open Ketos Assistant"',
   ],
   "src/components/core/flowBuilderWelcome/flow-builder-welcome.tsx": [
     'aria-label="Close welcome overlay"',
@@ -67,8 +67,6 @@ describe("Task 9 frontend localization contract", () => {
     "src/pages/SignUpPage/index.tsx",
     "src/pages/AdminPage/LoginPage/index.tsx",
     "src/pages/AdminPage/index.tsx",
-    "src/components/common/storeCardComponent/index.tsx",
-    "src/components/common/storeCardComponent/hooks/use-handle-install.ts",
   ])("does not render raw backend detail in %s", (relativePath) => {
     const contents = source(relativePath);
     expect(contents).not.toMatch(/response[^\n]+data[^\n]+detail/);
@@ -113,16 +111,6 @@ describe("Task 9 frontend localization contract", () => {
       ),
     ).toContain('ariaLabel={t("account.openMenu")}');
 
-    const storeCard = source(
-      "src/components/common/storeCardComponent/index.tsx",
-    );
-    expect(storeCard).toMatch(
-      /aria-label=\{\s*authorized\s*\?\s*t\("store.like"\)\s*:\s*t\("store.reviewApiKey"\)\s*\}/,
-    );
-    expect(storeCard).toMatch(
-      /aria-label=\{\s*authorized\s*\?\s*t\("store.installLocally"\)\s*:\s*t\("store.reviewApiKey"\)\s*\}/,
-    );
-
     const imageViewer = source("src/components/common/ImageViewer/index.tsx");
     for (const key of [
       "canvas.zoomIn",
@@ -146,11 +134,5 @@ describe("Task 9 frontend localization contract", () => {
     for (const key of ["theme.light", "theme.dark", "theme.system"]) {
       expect(themeButtons).toContain(`aria-label={t("${key}")}`);
     }
-
-    const counts = source(
-      "src/components/core/appHeaderComponent/components/langflow-counts.tsx",
-    );
-    expect(counts).toContain('aria-label={t("header.goToGithub")}');
-    expect(counts).toContain('aria-label={t("header.goToDiscord")}');
   });
 });

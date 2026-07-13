@@ -140,7 +140,7 @@ const SideBarFoldersButtonsComponent = ({
 
       getObjectsFromFilelist<UploadedFlowFile>(files)
         .then((objects) => {
-          if (objects.every((flow) => flow.data?.nodes)) {
+          if (objects.every((flow) => "data" in flow && flow.data?.nodes)) {
             uploadFlow({ files })
               .then(() => {
                 setSuccessData({
@@ -198,7 +198,7 @@ const SideBarFoldersButtonsComponent = ({
       },
       {
         onSuccess: (response) => {
-          customGetDownloadFolderBlob(response, id, folderName, setSuccessData);
+          customGetDownloadFolderBlob(response, id, folderName);
         },
         onError: (e) => {
           setErrorData({
@@ -427,19 +427,26 @@ const SideBarFoldersButtonsComponent = ({
                             data-testid={`sidebar-nav-${item.name}`}
                             id={`sidebar-nav-${item.name}`}
                             isActive={checkPathName(item.id!)}
-                            onClick={() => handleChangeFolder!(item.id!)}
+                            onClick={(event) => {
+                              const target = event.target;
+                              if (
+                                target instanceof Element &&
+                                target.closest("[data-folder-options]")
+                              ) {
+                                return;
+                              }
+                              handleChangeFolder!(item.id!);
+                            }}
+                            onDoubleClick={(event) => {
+                              handleDoubleClick(event, item);
+                            }}
                             className={cn(
                               "flex-grow pr-8",
                               hoveredFolderId === item.id && "bg-accent",
                               checkHoveringFolder(item.id!),
                             )}
                           >
-                            <div
-                              onDoubleClick={(event) => {
-                                handleDoubleClick(event, item);
-                              }}
-                              className="flex w-full items-center justify-between gap-2"
-                            >
+                            <div className="flex w-full items-center justify-between gap-2">
                               <div className="flex flex-1 items-center gap-2">
                                 {editFolderName?.edit && !isUpdatingFolder ? (
                                   <InputEditFolderName
@@ -461,8 +468,8 @@ const SideBarFoldersButtonsComponent = ({
                             </div>
                           </SidebarMenuButton>
                           <div
+                            data-folder-options
                             className="absolute right-2 top-[0.45rem] flex items-center hover:text-foreground"
-                            onClick={(e) => e.stopPropagation()}
                           >
                             <SelectOptions
                               item={item}

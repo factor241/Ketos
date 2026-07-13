@@ -72,7 +72,7 @@ const VALIDATING_KEYS = [
 
 function getRandomMessage(keys: string[]): string {
   const key = keys[Math.floor(Math.random() * keys.length)];
-  return i18n.t(key);
+  return i18n.t(key, { defaultValue: key });
 }
 
 export function getRandomThinkingMessage(): string {

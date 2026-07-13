@@ -3,15 +3,17 @@ import userEvent from "@testing-library/user-event";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { FlowType } from "@/types/flow";
 
+type Selector<TState> = (state: TState) => unknown;
+
 const downloadFlowMock = jest.fn();
-const removeApiKeysMock = jest.fn((flow: any) => flow);
+const removeApiKeysMock = jest.fn((flow: unknown) => flow);
 let currentFlowMock: FlowType | undefined;
 
 // IMPORTANT: ExportModal imports reactflowUtils via a relative path.
 // Mock the same underlying module file so the component uses our mock.
 jest.mock("../../../utils/reactflowUtils", () => ({
-  downloadFlow: (...args: any[]) => downloadFlowMock(...args),
-  removeApiKeys: (flow: any) => removeApiKeysMock(flow),
+  downloadFlow: (...args: unknown[]) => downloadFlowMock(...args),
+  removeApiKeys: (flow: unknown) => removeApiKeysMock(flow),
 }));
 
 jest.mock("@/customization/utils/analytics", () => ({
@@ -21,7 +23,12 @@ jest.mock("@/customization/utils/analytics", () => ({
 jest.mock("@/stores/flowStore", () => {
   return {
     __esModule: true,
-    default: (selector: any) =>
+    default: (
+      selector: Selector<{
+        currentFlow: FlowType | undefined;
+        isBuilding: boolean;
+      }>,
+    ) =>
       selector({
         currentFlow: currentFlowMock,
         isBuilding: false,
@@ -32,7 +39,12 @@ jest.mock("@/stores/flowStore", () => {
 jest.mock("@/stores/alertStore", () => {
   return {
     __esModule: true,
-    default: (selector: any) =>
+    default: (
+      selector: Selector<{
+        setSuccessData: jest.Mock;
+        setNoticeData: jest.Mock;
+      }>,
+    ) =>
       selector({
         setSuccessData: jest.fn(),
         setNoticeData: jest.fn(),
@@ -41,14 +53,20 @@ jest.mock("@/stores/alertStore", () => {
 });
 
 jest.mock("@/stores/darkStore", () => ({
-  useDarkStore: (selector: any) => selector({ version: "0.0.0-test" }),
+  useDarkStore: (selector: Selector<{ version: string }>) =>
+    selector({ version: "0.0.0-test" }),
 }));
 
 // Mock BaseModal so clicking the submit button reliably triggers onSubmit in Jest.
 jest.mock("../../baseModal", () => {
   const React = require("react");
 
-  function BaseModal({ children, open, onSubmit }: any) {
+  type BaseModalProps = React.PropsWithChildren<{
+    open: boolean;
+    onSubmit?: () => void;
+  }>;
+
+  function BaseModal({ children, open, onSubmit }: BaseModalProps) {
     if (!open) return null;
     return React.createElement(
       "div",
@@ -66,11 +84,11 @@ jest.mock("../../baseModal", () => {
     );
   }
 
-  BaseModal.Trigger = ({ children }: any) =>
+  BaseModal.Trigger = ({ children }: React.PropsWithChildren) =>
     React.createElement(React.Fragment, null, children);
-  BaseModal.Header = ({ children }: any) =>
+  BaseModal.Header = ({ children }: React.PropsWithChildren) =>
     React.createElement("div", null, children);
-  BaseModal.Content = ({ children }: any) =>
+  BaseModal.Content = ({ children }: React.PropsWithChildren) =>
     React.createElement("div", null, children);
   BaseModal.Footer = () => null;
 

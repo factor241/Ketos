@@ -1,6 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { cloneDeep } from "lodash";
 import React from "react";
 import TableNodeComponent from "../../components/core/parameterRenderComponent/components/TableNodeComponent";
 
@@ -15,7 +14,16 @@ jest.mock("@/modals/tableModal", () => {
     tableTitle,
     description,
     rowData,
-  }: any) {
+  }: {
+    children: React.ReactElement<{ onClick?: () => void }>;
+    open: boolean;
+    setOpen: (open: boolean) => void;
+    onSave: () => void;
+    onCancel: () => void;
+    tableTitle: string;
+    description: string;
+    rowData?: unknown[];
+  }) {
     // Clone children and add onClick handler to open modal
     const childrenWithClick = React.cloneElement(children, {
       onClick: () => setOpen(true),
@@ -56,7 +64,13 @@ jest.mock("@/modals/tableModal", () => {
 
 // Mock the ForwardedIconComponent
 jest.mock("../../components/common/genericIconComponent", () => ({
-  ForwardedIconComponent: ({ name, className }: any) => (
+  ForwardedIconComponent: ({
+    name,
+    className,
+  }: {
+    name: string;
+    className?: string;
+  }) => (
     <span data-testid={`icon-${name}`} className={className}>
       {name}
     </span>
@@ -65,14 +79,26 @@ jest.mock("../../components/common/genericIconComponent", () => ({
 
 // Mock the ShadTooltip component
 jest.mock("@/components/common/shadTooltipComponent", () => {
-  return function MockShadTooltip({ children, content }: any) {
+  return function MockShadTooltip({
+    children,
+    content,
+  }: {
+    children: React.ReactNode;
+    content: string;
+  }) {
     return <div title={content}>{children}</div>;
   };
 });
 
 // Mock the Button component
 jest.mock("../../components/ui/button", () => ({
-  Button: ({ children, onClick, disabled, className, ...props }: any) => (
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    className,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button
       onClick={onClick}
       disabled={disabled}
@@ -88,11 +114,17 @@ jest.mock("../../components/ui/button", () => ({
 // Mock the utils functions
 jest.mock("@/utils/utils", () => ({
   FormatColumns: jest.fn((columns) =>
-    columns.map((col: any) => ({
-      ...col,
-      headerName: col.display_name || col.name,
-      field: col.name,
-    })),
+    columns.map(
+      (col: {
+        name: string;
+        display_name?: string;
+        [key: string]: unknown;
+      }) => ({
+        ...col,
+        headerName: col.display_name || col.name,
+        field: col.name,
+      }),
+    ),
   ),
   generateBackendColumnsFromValue: jest.fn((value, options) => [
     { name: "col1", display_name: "Column 1", type: "str" },
@@ -462,8 +494,7 @@ describe("TableNodeComponent", () => {
 
   describe("Edge Cases", () => {
     it("should handle missing columns prop", () => {
-      const props = { ...defaultProps };
-      delete (props as any).columns;
+      const { columns: _columns, ...props } = defaultProps;
 
       render(<TableNodeComponent {...props} />);
 

@@ -29,7 +29,10 @@ export const useGetBuildsQuery: useQueryFunctionType<
         !params.flowId || params.flowId === "" ? routeFlowId : params.flowId,
     };
 
-    const response = await api.get<any>(`${getURL("BUILDS")}`, config);
+    const response = await api.get<{ vertex_builds: FlowPoolType }>(
+      `${getURL("BUILDS")}`,
+      config,
+    );
 
     if (currentFlow) {
       const flowPool = response.data.vertex_builds;

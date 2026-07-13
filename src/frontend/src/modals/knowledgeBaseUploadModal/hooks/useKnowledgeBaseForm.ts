@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ModelOption } from "@/components/core/parameterRenderComponent/components/modelInputComponent";
+import type { ModelOption } from "@/components/core/parameterRenderComponent/components/modelInputComponent/types";
 import {
   type AvailableDBProviderId,
   type DBProviderConfigValue,
@@ -155,6 +155,9 @@ export function useKnowledgeBaseForm({
   >({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(!hideAdvanced);
+  const toggleAdvanced = useCallback((): void => {
+    setShowAdvanced((current) => !current);
+  }, []);
 
   const defaultBackendSelection = useMemo(
     () => getDefaultDBProviderConfig(globalVariables),
@@ -247,11 +250,7 @@ export function useKnowledgeBaseForm({
       // Always enable advanced mode in add-sources mode so the file
       // upload section is visible. Also enable when the KB already has
       // advanced chunking config.
-      const hasAdvancedConfig =
-        isAddSourcesMode ||
-        existingKnowledgeBase.chunkSize != null ||
-        existingKnowledgeBase.chunkOverlap != null ||
-        existingKnowledgeBase.separator != null;
+      const hasAdvancedConfig = isAddSourcesMode;
       if (hasAdvancedConfig && !hideAdvanced) {
         setShowAdvanced(true);
       }
@@ -691,6 +690,7 @@ export function useKnowledgeBaseForm({
 
     // UI state
     showAdvanced,
+    toggleAdvanced,
     isFilePanelOpen,
     isSubmitting,
 

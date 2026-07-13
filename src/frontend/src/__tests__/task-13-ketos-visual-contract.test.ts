@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { resolve } from "node:path";
+import { relative, resolve, sep } from "node:path";
 
 const frontendRoot = resolve(__dirname, "../..");
 const repositoryRoot = resolve(frontendRoot, "../..");
 const assetsRoot = resolve(frontendRoot, "src/assets");
+const publicRoot = resolve(frontendRoot, "public");
 const upstreamBrand = ["lang", "flow"].join("");
 const upstreamBrandTitle = ["Lang", "flow"].join("");
 
@@ -50,6 +51,80 @@ const canonicalCopies = {
     "brand/assets/generated/svg/ketos-horizontal-dark.svg",
 } as const;
 
+const canonicalPublicAssets = {
+  "favicon.ico": {
+    canonicalPath: "brand/assets/generated/favicon/ketos-favicon.ico",
+    sha256: "3baf6f84a593906303589569f053ee94758f5fef24fd5e5fea55c3cc403f0fbb",
+  },
+  "ketos-favicon.svg": {
+    canonicalPath: "brand/assets/generated/favicon/ketos-favicon.svg",
+    sha256: "5a8d0ca8ac1eaa25000fce8eba50af385428d261502398c747851a793287ea99",
+  },
+} as const;
+
+const sha256 = (contents: Buffer) =>
+  createHash("sha256").update(contents).digest("hex");
+
+function filesRecursively(directory: string): string[] {
+  return readdirSync(directory).flatMap((name) => {
+    const path = resolve(directory, name);
+    return statSync(path).isDirectory() ? filesRecursively(path) : [path];
+  });
+}
+
+function publicReference(reference: string): string | null {
+  if (!reference.startsWith("/") || reference.startsWith("//")) return null;
+  return reference.slice(1).split(/[?#]/, 1)[0] || null;
+}
+
+function manifestAssetReferences(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap(manifestAssetReferences);
+  if (value === null || typeof value !== "object") return [];
+
+  return Object.entries(value).flatMap(([key, nested]) => {
+    if (key === "src" && typeof nested === "string") {
+      const reference = publicReference(nested);
+      return reference === null ? [] : [reference];
+    }
+    return manifestAssetReferences(nested);
+  });
+}
+
+function svgMetadata(contents: string) {
+  const svgTag = contents.match(/<svg\b[^>]*>/)?.[0] ?? "";
+  const viewBox = svgTag.match(/\bviewBox=["']([^"']+)["']/)?.[1];
+  const dimensions = viewBox?.trim().split(/\s+/).map(Number) ?? [];
+  return {
+    role: svgTag.match(/\brole=["']([^"']+)["']/)?.[1],
+    viewBox: dimensions,
+    hasAccessibleName:
+      /<title\b[^>]*>[^<]+<\/title>/.test(contents) ||
+      /\baria-label=["'][^"']+["']/.test(svgTag),
+  };
+}
+
+function icoMetadata(contents: Buffer) {
+  expect(contents.readUInt16LE(0)).toBe(0);
+  expect(contents.readUInt16LE(2)).toBe(1);
+  const count = contents.readUInt16LE(4);
+
+  return Array.from({ length: count }, (_, index) => {
+    const directoryOffset = 6 + index * 16;
+    const dataLength = contents.readUInt32LE(directoryOffset + 8);
+    const dataOffset = contents.readUInt32LE(directoryOffset + 12);
+    const png = contents.subarray(dataOffset, dataOffset + dataLength);
+    expect(png.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+
+    return {
+      width: contents[directoryOffset] || 256,
+      height: contents[directoryOffset + 1] || 256,
+      bitDepth: contents.readUInt16LE(directoryOffset + 6),
+      decodedPngWidth: png.readUInt32BE(16),
+      decodedPngHeight: png.readUInt32BE(20),
+    };
+  });
+}
+
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory).flatMap((name) => {
     const path = resolve(directory, name);
@@ -67,6 +142,83 @@ const readFrontendSource = (relativePath: string) =>
   readFileSync(resolve(frontendRoot, relativePath), "utf8");
 
 describe("Task 13 Ketos visual integration", () => {
+  it("recursively validates active public assets and manifest references", () => {
+    const publicFiles = filesRecursively(publicRoot).map((path) =>
+      relative(publicRoot, path).split(sep).join("/"),
+    );
+    const indexHtml = readFileSync(resolve(frontendRoot, "index.html"), "utf8");
+    const htmlReferences = [
+      ...indexHtml.matchAll(/\b(?:href|src)=["']([^"']+)["']/g),
+    ]
+      .map((match) => publicReference(match[1]))
+      .filter((reference): reference is string => reference !== null)
+      .filter((reference) => publicFiles.includes(reference));
+    const manifest = JSON.parse(
+      readFileSync(resolve(publicRoot, "manifest.json"), "utf8"),
+    );
+    const manifestReferences = manifestAssetReferences(manifest);
+    const activeReferences = new Set([
+      ...htmlReferences,
+      ...manifestReferences,
+      "favicon.ico",
+    ]);
+
+    expect([...activeReferences].sort()).toEqual(publicFiles.sort());
+    for (const reference of activeReferences) {
+      const publicPath = resolve(publicRoot, reference);
+      expect(publicPath.startsWith(`${publicRoot}${sep}`)).toBe(true);
+      expect(existsSync(publicPath)).toBe(true);
+    }
+
+    for (const path of filesRecursively(publicRoot)) {
+      if (path.endsWith(".json")) {
+        expect(() => JSON.parse(readFileSync(path, "utf8"))).not.toThrow();
+      } else if (path.endsWith(".svg")) {
+        const metadata = svgMetadata(readFileSync(path, "utf8"));
+        expect(metadata.role).toBe("img");
+        expect(metadata.hasAccessibleName).toBe(true);
+        expect(metadata.viewBox).toHaveLength(4);
+        expect(metadata.viewBox.every(Number.isFinite)).toBe(true);
+        expect(metadata.viewBox[2]).toBeGreaterThan(0);
+        expect(metadata.viewBox[3]).toBeGreaterThan(0);
+      } else if (path.endsWith(".ico")) {
+        expect(icoMetadata(readFileSync(path))).not.toHaveLength(0);
+      } else {
+        throw new Error(
+          `Unsupported public asset: ${relative(publicRoot, path)}`,
+        );
+      }
+    }
+  });
+
+  it("ships exact canonical public favicon hashes and ICO resolutions", () => {
+    for (const [publicName, expected] of Object.entries(
+      canonicalPublicAssets,
+    )) {
+      const canonicalContents = readFileSync(
+        resolve(repositoryRoot, expected.canonicalPath),
+      );
+      const publicContents = readFileSync(resolve(publicRoot, publicName));
+
+      expect(sha256(canonicalContents)).toBe(expected.sha256);
+      expect(sha256(publicContents)).toBe(expected.sha256);
+      expect(publicContents).toEqual(canonicalContents);
+    }
+
+    const frames = icoMetadata(
+      readFileSync(resolve(publicRoot, "favicon.ico")),
+    );
+    expect(frames).toEqual(
+      [16, 32, 48, 64, 128, 256].map((size) => ({
+        width: size,
+        height: size,
+        bitDepth: 32,
+        decodedPngWidth: size,
+        decodedPngHeight: size,
+      })),
+    );
+  });
+
   it("ships byte-identical frontend copies of the canonical Ketos assets", () => {
     for (const [frontendName, canonicalPath] of Object.entries(
       canonicalCopies,

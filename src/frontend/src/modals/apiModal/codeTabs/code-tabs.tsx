@@ -234,7 +234,9 @@ export default function APITabsComponent() {
                     >
                       <h4 className="mb-2 text-sm font-medium">
                         {STEP_TITLE_KEYS[step.title]
-                          ? t(STEP_TITLE_KEYS[step.title])
+                          ? t(STEP_TITLE_KEYS[step.title], {
+                              defaultValue: step.title,
+                            })
                           : step.title}
                       </h4>
                       <div

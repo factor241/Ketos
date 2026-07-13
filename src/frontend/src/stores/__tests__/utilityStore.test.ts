@@ -177,19 +177,19 @@ describe("useUtilityStore", () => {
       expect(result.current.selectedItems).toEqual(["item-2"]);
     });
 
-    it("should handle various item types", () => {
+    it("should handle string identifiers", () => {
       const { result } = renderHook(() => useUtilityStore());
 
       act(() => {
         result.current.setSelectedItems("string-item");
-        result.current.setSelectedItems(123);
-        result.current.setSelectedItems({ id: "object-item" });
+        result.current.setSelectedItems("123");
+        result.current.setSelectedItems("object-item");
       });
 
       expect(result.current.selectedItems).toEqual([
         "string-item",
-        123,
-        { id: "object-item" },
+        "123",
+        "object-item",
       ]);
     });
 
@@ -509,23 +509,23 @@ describe("useUtilityStore", () => {
   });
 
   describe("setEventDelivery", () => {
-    it("should set event delivery to webhook", () => {
+    it("should set event delivery to streaming", () => {
       const { result } = renderHook(() => useUtilityStore());
 
       act(() => {
-        result.current.setEventDelivery(EventDeliveryType.WEBHOOK);
+        result.current.setEventDelivery(EventDeliveryType.STREAMING);
       });
 
-      expect(result.current.eventDelivery).toBe(EventDeliveryType.WEBHOOK);
+      expect(result.current.eventDelivery).toBe(EventDeliveryType.STREAMING);
     });
 
     it("should switch between event delivery types", () => {
       const { result } = renderHook(() => useUtilityStore());
 
       act(() => {
-        result.current.setEventDelivery(EventDeliveryType.WEBHOOK);
+        result.current.setEventDelivery(EventDeliveryType.STREAMING);
       });
-      expect(result.current.eventDelivery).toBe(EventDeliveryType.WEBHOOK);
+      expect(result.current.eventDelivery).toBe(EventDeliveryType.STREAMING);
 
       act(() => {
         result.current.setEventDelivery(EventDeliveryType.POLLING);
@@ -686,13 +686,13 @@ describe("useUtilityStore", () => {
       expect(result.current.selectedItems).toHaveLength(1000);
     });
 
-    it("should handle complex object selection", () => {
+    it("should handle a serialized complex selection identifier", () => {
       const { result } = renderHook(() => useUtilityStore());
-      const complexObject = {
+      const complexObject = JSON.stringify({
         id: "complex",
         nested: { prop: "value" },
         array: [1, 2, 3],
-      };
+      });
 
       act(() => {
         result.current.setSelectedItems(complexObject);

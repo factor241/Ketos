@@ -7,30 +7,45 @@ const upstreamBrand = ["lang", "flow"].join("");
 const read = (relativePath: string) =>
   readFileSync(resolve(frontendRoot, relativePath), "utf8");
 
-function productionTypeScriptSource(directory: string): string {
+function productionFrontendSource(directory: string): string {
   return readdirSync(directory)
     .flatMap((name) => {
       const path = resolve(directory, name);
       if (statSync(path).isDirectory()) {
         return name === "__tests__" || name === "docs"
           ? []
-          : [productionTypeScriptSource(path)];
+          : [productionFrontendSource(path)];
       }
-      return /\.(?:ts|tsx)$/.test(name) &&
-        !/\.(?:test|spec)\.(?:ts|tsx)$/.test(name)
+      return /\.(?:css|html|js|jsx|ts|tsx)$/.test(name) &&
+        !/\.(?:stories|test|spec)\.(?:js|jsx|ts|tsx)$/.test(name)
         ? [readFileSync(path, "utf8")]
         : [];
     })
     .join("\n");
 }
 
+function rootFrontendConfigSource(): string {
+  return readdirSync(frontendRoot)
+    .filter(
+      (name) =>
+        /^(?:\.env(?:\..*)?|.*\.(?:cjs|js|json|mjs|mts|ts))$/.test(name) &&
+        !/(?:^|\/)(?:package-lock|pnpm-lock)\.yaml$/.test(name) &&
+        name !== "package-lock.json",
+    )
+    .map((name) => resolve(frontendRoot, name))
+    .filter((path) => statSync(path).isFile())
+    .map((path) => readFileSync(path, "utf8"))
+    .join("\n");
+}
+
 function task8ProductionSource(): string {
   return [
     read("src/constants/constants.ts"),
-    productionTypeScriptSource(resolve(frontendRoot, "src/customization")),
+    productionFrontendSource(resolve(frontendRoot, "src/customization")),
     read("src/i18n.ts"),
     read("src/vite-env.d.ts"),
     read("src/utils/decorate-wxo-url.ts"),
+    read("vite.config.mts"),
     read("package.json"),
   ].join("\n");
 }
@@ -38,11 +53,25 @@ function task8ProductionSource(): string {
 describe("Task 8 Ketos frontend cutover", () => {
   it("recursively keeps Task 8 production sources Ketos-only", () => {
     const sources = task8ProductionSource();
+    const allProductionSources = [
+      productionFrontendSource(resolve(frontendRoot, "src")),
+      rootFrontendConfigSource(),
+    ].join("\n");
+    const controllerSources = productionFrontendSource(
+      resolve(frontendRoot, "src/controllers/API"),
+    );
 
     expect(sources).not.toMatch(new RegExp(upstreamBrand, "i"));
     expect(sources).not.toMatch(
       /LANGFLOW_(?:AUTO_LOGIN|MCP_COMPOSER_ENABLED|EXTENSION_RELOAD_ENABLED|WXO_UTM_SOURCE)|__LANGFLOW_I18N_DIAGNOSTICS__|LANGFLOW_SUPPORTED_TYPES/,
     );
+    expect(allProductionSources).not.toMatch(
+      /LANGFLOW_(?:AUTO_LOGIN|ENABLE_EXTENSION_RELOAD|EXTENSION_RELOAD_ENABLED|MCP_COMPOSER_ENABLED|WXO_UTM_SOURCE)|envLangflow|\b(?:langflow run|lfx extension dev)\b|\bdefault[^\n]{0,80}["'`]langflow["'`]/i,
+    );
+    expect(allProductionSources).not.toMatch(
+      new RegExp(`(?<![a-z0-9])${upstreamBrand}(?![a-z0-9])`, "i"),
+    );
+    expect(allProductionSources).not.toMatch(/(?<![a-z0-9])lfx(?![a-z0-9])/i);
     expect(sources).not.toMatch(
       /\b(?:STORE_DESC|STORE_TITLE|STORE_PAGINATION_SIZE|STORE_PAGINATION_PAGE|STORE_PAGINATION_ROWS_COUNT|NO_API_KEY|INSERT_API_KEY|INVALID_API_KEY|CREATE_API_KEY|SAVE_API_KEY_ALERT|CHAT_FORM_DIALOG_SUBTITLE|CHAT_CANNOT_OPEN_TITLE|CHAT_CANNOT_OPEN_DESCRIPTION|CHAT_FIRST_INITIAL_TEXT|CHAT_SECOND_INITIAL_TEXT|LANGFLOW_CHAT_TITLE)\b/,
     );
@@ -52,6 +81,18 @@ describe("Task 8 Ketos frontend cutover", () => {
     expect(read("src/utils/decorate-wxo-url.ts")).toContain(
       'DEFAULT_UTM_SOURCE = "ketos"',
     );
+    expect(controllerSources).not.toMatch(/x-langflow-global-var-/i);
+
+    for (const assistantHook of [
+      "src/controllers/API/queries/assistant/use-template-assistant.ts",
+      "src/controllers/API/queries/assistant/use-system-message-gen.ts",
+    ]) {
+      const source = read(assistantHook);
+
+      expect(source).toContain('"X-Ketos-Global-Var-COMPONENT_ID"');
+      expect(source).toContain('"X-Ketos-Global-Var-FLOW_ID"');
+      expect(source).toContain('"X-Ketos-Global-Var-FIELD_NAME"');
+    }
   });
 
   it("uses a Ketos-only HTML and PWA shell", () => {
@@ -108,7 +149,7 @@ describe("Task 8 Ketos frontend cutover", () => {
   });
 
   it("uses only Ketos-namespaced browser state keys", () => {
-    const files = productionTypeScriptSource(resolve(frontendRoot, "src"));
+    const files = productionFrontendSource(resolve(frontendRoot, "src"));
 
     const oldStorageTokens = [
       ["access_token", "lf"].join("_"),
@@ -128,6 +169,31 @@ describe("Task 8 Ketos frontend cutover", () => {
     expect(directLiteralKeys.every((key) => key.startsWith("ketos-"))).toBe(
       true,
     );
+  });
+
+  it("keeps compiled runtime strings and selectors Ketos-only", () => {
+    const runtimeSurfaces = [
+      "src/constants/dbProviderConstants.ts",
+      "src/utils/buildUtils.ts",
+      "src/pages/Playground/index.tsx",
+      "src/pages/SettingsPage/pages/McpClientPage/index.tsx",
+      "src/components/common/safari-scroll-fix.tsx",
+      "src/components/core/playgroundComponent/sliding-container/components/flow-page-sliding-container.tsx",
+      "src/components/core/parameterRenderComponent/components/sortableListComponent/index.tsx",
+      "src/modals/IOModal/components/chatView/chatInput/components/voice-assistant/hooks/use-start-conversation.ts",
+      "src/components/common/ImageViewer/index.tsx",
+      "src/components/core/csvOutputComponent/index.tsx",
+      "src/components/core/pdfViewer/Error/index.tsx",
+      "src/components/core/pdfViewer/noData/index.tsx",
+      "src/style/applies.css",
+    ]
+      .map(read)
+      .join("\n");
+
+    expect(runtimeSurfaces).not.toMatch(
+      new RegExp(`(?<![a-z0-9])${upstreamBrand}(?![a-z0-9])`, "i"),
+    );
+    expect(runtimeSurfaces).not.toMatch(/(?<![a-z0-9])lfx(?![a-z0-9])/i);
   });
 
   it("namespaces anonymous flow session state instead of using raw flow ids", () => {

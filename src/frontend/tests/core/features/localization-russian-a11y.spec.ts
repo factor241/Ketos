@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, type LangflowPage, test } from "../../fixtures";
+import { expect, type KetosPage, test } from "../../fixtures";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
 
 type Theme = "light" | "dark";
@@ -34,7 +34,7 @@ const CANVAS_OVERFLOW_ALLOWLIST = [
 const FORBIDDEN_RU_ACCESSIBILITY_FALLBACK =
   /\b(?:Settings|Language|Select language|Choose the display language|Recommended|Back|General|Flows|Components|Files|Knowledge|Messages|Shortcuts|Model Providers|DB Providers|Global Variables|MCP Servers|MCP Client)\b/i;
 
-async function bootstrap(page: LangflowPage, pseudo = false): Promise<void> {
+async function bootstrap(page: KetosPage, pseudo = false): Promise<void> {
   if (pseudo) {
     await page.goto("/?locale=qps-ploc");
     await awaitBootstrapTest(page, { skipGoto: true, skipModal: true });
@@ -44,7 +44,7 @@ async function bootstrap(page: LangflowPage, pseudo = false): Promise<void> {
 }
 
 async function openLanguageSettings(
-  page: LangflowPage,
+  page: KetosPage,
   locale: UiLocale,
 ): Promise<void> {
   const suffix = locale === "qps-ploc" ? "?locale=qps-ploc" : "";
@@ -55,7 +55,7 @@ async function openLanguageSettings(
 }
 
 async function selectOption(
-  page: LangflowPage,
+  page: KetosPage,
   optionName: RegExp,
   expectedLanguage: "en" | "ru",
 ): Promise<void> {
@@ -69,7 +69,7 @@ async function selectOption(
   await expect(page.locator("html")).toHaveAttribute("lang", expectedLanguage);
 }
 
-function waitForLocaleProfileUpdate(page: LangflowPage) {
+function waitForLocaleProfileUpdate(page: KetosPage) {
   return page.waitForResponse(
     (response) => {
       const { pathname } = new URL(response.url());
@@ -92,7 +92,7 @@ async function expectSuccessfulLocaleProfileUpdate(
   ).toBe(true);
 }
 
-async function ensureRussian(page: LangflowPage): Promise<void> {
+async function ensureRussian(page: KetosPage): Promise<void> {
   await openLanguageSettings(page, "ru");
   if ((await page.locator("html").getAttribute("lang")) !== "ru") {
     await selectOption(page, /^Русский$/, "ru");
@@ -111,7 +111,7 @@ async function ensureRussian(page: LangflowPage): Promise<void> {
   await expect(page.locator("html")).toHaveAttribute("lang", "ru");
 }
 
-async function ensurePseudo(page: LangflowPage): Promise<void> {
+async function ensurePseudo(page: KetosPage): Promise<void> {
   await openLanguageSettings(page, "qps-ploc");
   await expect(page.locator("html")).toHaveAttribute("lang", "qps-ploc");
   await expectNoI18nDiagnostics(page);
@@ -121,7 +121,7 @@ async function ensurePseudo(page: LangflowPage): Promise<void> {
 }
 
 async function focusLanguageSelectWithKeyboard(
-  page: LangflowPage,
+  page: KetosPage,
 ): Promise<void> {
   await page.getByTestId("settings-language-heading").click();
   const select = page.getByTestId("language-preference-select");
@@ -141,7 +141,7 @@ async function focusLanguageSelectWithKeyboard(
   ).toBe(true);
 }
 
-async function setTheme(page: LangflowPage, theme: Theme): Promise<void> {
+async function setTheme(page: KetosPage, theme: Theme): Promise<void> {
   await page.evaluate((nextTheme) => {
     localStorage.setItem("themePreference", nextTheme);
     localStorage.setItem("isDark", String(nextTheme === "dark"));
@@ -158,7 +158,7 @@ async function setTheme(page: LangflowPage, theme: Theme): Promise<void> {
 }
 
 async function setViewportAndZoom(
-  page: LangflowPage,
+  page: KetosPage,
   physicalWidth: (typeof VIEWPORT_WIDTHS)[number],
   percent: 100 | 200,
 ): Promise<void> {
@@ -186,7 +186,7 @@ async function setViewportAndZoom(
 }
 
 async function scanUnexpectedOverflow(
-  page: LangflowPage,
+  page: KetosPage,
 ): Promise<OverflowViolation[]> {
   return page.evaluate((canvasAllowlist) => {
     const selectorFor = (element: Element): string => {
@@ -285,9 +285,9 @@ async function scanUnexpectedOverflow(
   }, CANVAS_OVERFLOW_ALLOWLIST);
 }
 
-async function expectNoI18nDiagnostics(page: LangflowPage): Promise<void> {
+async function expectNoI18nDiagnostics(page: KetosPage): Promise<void> {
   const diagnostics = await page.evaluate(() =>
-    window.__LANGFLOW_I18N_DIAGNOSTICS__?.snapshot(),
+    window.__KETOS_I18N_DIAGNOSTICS__?.snapshot(),
   );
   expect(diagnostics).toBeDefined();
   expect(diagnostics?.missing).toEqual([]);
@@ -295,7 +295,7 @@ async function expectNoI18nDiagnostics(page: LangflowPage): Promise<void> {
   expect(diagnostics?.fallback).toEqual([]);
 }
 
-async function expectNoSeriousAxeViolations(page: LangflowPage): Promise<void> {
+async function expectNoSeriousAxeViolations(page: KetosPage): Promise<void> {
   const results = await new AxeBuilder({ page })
     .include('[data-testid="settings-language-page"]')
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -313,7 +313,7 @@ async function expectNoSeriousAxeViolations(page: LangflowPage): Promise<void> {
   expect(seriousOrCritical).toEqual([]);
 }
 
-async function expectCyrillicGlyphCoverage(page: LangflowPage): Promise<void> {
+async function expectCyrillicGlyphCoverage(page: KetosPage): Promise<void> {
   const glyphState = await page
     .getByTestId("settings-language-page")
     .evaluate(async (surface) => {
@@ -339,7 +339,7 @@ async function expectCyrillicGlyphCoverage(page: LangflowPage): Promise<void> {
 }
 
 async function runVisualMatrix(
-  page: LangflowPage,
+  page: KetosPage,
   locale: UiLocale,
 ): Promise<void> {
   for (const theme of THEMES) {

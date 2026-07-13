@@ -1,5 +1,6 @@
 import * as Form from "@radix-ui/react-form";
 import { useTranslation } from "react-i18next";
+import type { inputHandlerEventType } from "@/types/components";
 import InputComponent from "../../../../../../components/core/parameterRenderComponent/components/inputComponent";
 import { Button } from "../../../../../../components/ui/button";
 import {
@@ -14,12 +15,8 @@ import {
 type PasswordFormComponentProps = {
   password: string;
   cnfPassword: string;
-  handleInput: (event: any) => void;
-  handlePatchPassword: (
-    password: string,
-    cnfPassword: string,
-    handleInput: any,
-  ) => void;
+  handleInput: (event: inputHandlerEventType) => void;
+  handlePatchPassword: () => void;
 };
 const PasswordFormComponent = ({
   password,
@@ -32,7 +29,7 @@ const PasswordFormComponent = ({
     <>
       <Form.Root
         onSubmit={(event) => {
-          handlePatchPassword(password, cnfPassword, handleInput);
+          handlePatchPassword();
           event.preventDefault();
         }}
       >

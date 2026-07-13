@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { SanitizedMarkdown } from "@/components/core/sanitizedMarkdown";
 
 type MarkdownFieldProps = {
-  chat: any;
+  chat: unknown;
   isEmpty: boolean;
   chatMessage: string;
   editedFlag: React.ReactNode;
@@ -17,6 +17,12 @@ export const MarkdownField = ({
   isAudioMessage,
 }: MarkdownFieldProps) => {
   const { t } = useTranslation();
+  const hasStreamUrl =
+    typeof chat === "object" &&
+    chat !== null &&
+    "stream_url" in chat &&
+    typeof chat.stream_url === "string" &&
+    chat.stream_url.length > 0;
 
   return (
     <div className="w-full items-baseline gap-2">
@@ -24,7 +30,7 @@ export const MarkdownField = ({
         chatMessage={chatMessage}
         isEmpty={isEmpty}
         emptyMessage={
-          isEmpty && !chat.stream_url
+          isEmpty && !hasStreamUrl
             ? t("chat.emptyOutputSendMessage")
             : undefined
         }

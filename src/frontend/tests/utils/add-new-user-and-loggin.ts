@@ -16,7 +16,7 @@ export const addNewUserAndLogin = async (page: Page) => {
   await page.addInitScript(() => {
     window.process = window.process || {};
 
-    const newEnv = { ...window.process.env, LANGFLOW_AUTO_LOGIN: "false" };
+    const newEnv = { ...window.process.env, KETOS_AUTO_LOGIN: "false" };
 
     Object.defineProperty(window.process, "env", {
       value: newEnv,

@@ -166,7 +166,7 @@ const REPRESENTATIVE_OVERLAY_IDS = new Set([
 ]);
 
 const DISABLED_FEATURE_TOKENS = new Set([
-  "ENABLE_LANGFLOW_STORE",
+  "ENABLE_KETOS_STORE",
   "ENABLE_CUSTOM_PARAM",
   "ENABLE_EXTENSION_RELOAD",
   "BASENAME",
@@ -397,16 +397,16 @@ const CORE_ROUTE_CASES: CoreRouteCase[] = [
     path: "/settings/mcp-client",
     expectedPath: /^\/settings\/mcp-client\/?$/,
     readySelector: "main h2",
-    expectedRussian: "Клиент Langflow MCP",
-    forbiddenEnglish: "Langflow MCP Client",
+    expectedRussian: "Клиент Ketos MCP",
+    forbiddenEnglish: "Ketos MCP Client",
   },
   {
     manifestId: "route-settings-api-keys",
     path: "/settings/api-keys",
     expectedPath: /^\/settings\/api-keys\/?$/,
     readySelector: '[data-testid="settings_menu_header"]',
-    expectedRussian: "API-ключи Langflow",
-    forbiddenEnglish: "Langflow API Keys",
+    expectedRussian: "API-ключи Ketos",
+    forbiddenEnglish: "Ketos API Keys",
   },
   {
     manifestId: "route-settings-shortcuts",
@@ -712,7 +712,7 @@ async function expectNoI18nDiagnostics(
   evidenceId: string,
 ): Promise<void> {
   const diagnostics = await page.evaluate<I18nDiagnosticsSnapshot | null>(
-    () => window.__LANGFLOW_I18N_DIAGNOSTICS__?.snapshot() ?? null,
+    () => window.__KETOS_I18N_DIAGNOSTICS__?.snapshot() ?? null,
   );
 
   expect(diagnostics, `${evidenceId}: diagnostics bridge`).not.toBeNull();
@@ -801,14 +801,14 @@ test(
       {
         manifestId: "route-login",
         path: "/login",
-        heading: "Вход в Langflow",
-        forbidden: "Sign in to Langflow",
+        heading: "Вход в Ketos",
+        forbidden: "Sign in to Ketos",
       },
       {
         manifestId: "route-signup",
         path: "/signup",
-        heading: "Регистрация в Langflow",
-        forbidden: "Sign up to Langflow",
+        heading: "Регистрация в Ketos",
+        forbidden: "Sign up to Ketos",
       },
       {
         manifestId: "route-admin-login",
@@ -1221,7 +1221,7 @@ test(
   async ({ page }) => {
     test.skip(
       true,
-      "Requires separate feature builds: ENABLE_LANGFLOW_STORE, ENABLE_CUSTOM_PARAM, ENABLE_EXTENSION_RELOAD, BASENAME, and wxo_deployments.",
+      "Requires separate feature builds: ENABLE_KETOS_STORE, ENABLE_CUSTOM_PARAM, ENABLE_EXTENSION_RELOAD, BASENAME, and wxo_deployments.",
     );
     await awaitBootstrapTest(page, { skipModal: true });
   },

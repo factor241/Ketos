@@ -29,12 +29,12 @@ jest.mock("../components/KnowledgeBaseDrawer", () => ({
 }));
 
 // biome-ignore lint/suspicious/noExplicitAny: legacy
-let capturedOnRowClick: ((kb: any) => void) | null = null;
+let _capturedOnRowClick: ((kb: any) => void) | null = null;
 jest.mock("../components/KnowledgeBasesTab", () => ({
   __esModule: true,
   // biome-ignore lint/suspicious/noExplicitAny: legacy
   default: ({ onRowClick }: { onRowClick: (kb: any) => void }) => {
-    capturedOnRowClick = onRowClick;
+    _capturedOnRowClick = onRowClick;
     return (
       <button
         data-testid="open-drawer"
@@ -55,7 +55,7 @@ const openDrawer = () => {
 
 describe("KnowledgePage outside-click drawer dismissal", () => {
   beforeEach(() => {
-    capturedOnRowClick = null;
+    _capturedOnRowClick = null;
     document.body.innerHTML = "";
   });
 

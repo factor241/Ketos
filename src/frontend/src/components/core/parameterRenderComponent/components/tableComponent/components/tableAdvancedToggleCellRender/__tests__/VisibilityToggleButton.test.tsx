@@ -110,7 +110,7 @@ describe("VisibilityToggleButton", () => {
   it("should_stop_event_propagation_on_click", () => {
     const parentOnClick = jest.fn();
     render(
-      <div onClick={parentOnClick}>
+      <div onClick={parentOnClick} role="button" tabIndex={0}>
         <VisibilityToggleButton {...defaultProps} />
       </div>,
     );

@@ -1,10 +1,8 @@
 import * as Form from "@radix-ui/react-form";
-import type { UseQueryResult } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import {
-  type ProfilePicturesQueryResponse,
-  useGetProfilePicturesQuery,
-} from "@/controllers/API/queries/files";
+import { useGetProfilePicturesQuery } from "@/controllers/API/queries/files";
+import type { Users } from "@/types/api";
+import type { inputHandlerEventType } from "@/types/components";
 import { Button } from "../../../../../../components/ui/button";
 import {
   Card,
@@ -19,16 +17,14 @@ import ProfilePictureChooserComponent from "./components/profilePictureChooserCo
 
 type ProfilePictureFormComponentProps = {
   profilePicture: string;
-  handleInput: (event: any) => void;
+  handleInput: (event: inputHandlerEventType) => void;
   handlePatchProfilePicture: (gradient: string) => void;
-  handleGetProfilePictures: UseQueryResult<ProfilePicturesQueryResponse>;
-  userData: any;
+  userData: Users | null;
 };
 const ProfilePictureFormComponent = ({
   profilePicture,
   handleInput,
   handlePatchProfilePicture,
-  handleGetProfilePictures,
   userData,
 }: ProfilePictureFormComponentProps) => {
   const { t } = useTranslation();

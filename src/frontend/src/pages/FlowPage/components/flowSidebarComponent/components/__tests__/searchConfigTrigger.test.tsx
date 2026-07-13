@@ -1,9 +1,16 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import type React from "react";
 import { SearchConfigTrigger } from "../searchConfigTrigger";
 
 // Mock the components
 jest.mock("@/components/common/genericIconComponent", () => ({
-  ForwardedIconComponent: ({ name, className }: any) => (
+  ForwardedIconComponent: ({
+    name,
+    className,
+  }: {
+    name: string;
+    className?: string;
+  }) => (
     <div data-testid={`icon-${name}`} className={className}>
       {name}
     </div>
@@ -12,7 +19,10 @@ jest.mock("@/components/common/genericIconComponent", () => ({
 
 jest.mock("@/components/common/shadTooltipComponent", () => ({
   __esModule: true,
-  default: ({ children, content }: any) => (
+  default: ({
+    children,
+    content,
+  }: React.PropsWithChildren<{ content: string }>) => (
     <div data-testid="tooltip" title={content}>
       {children}
     </div>
@@ -26,7 +36,12 @@ jest.mock("@/components/ui/button", () => ({
     variant,
     size,
     "data-testid": testId,
-  }: any) => (
+  }: React.PropsWithChildren<{
+    onClick?: React.MouseEventHandler<HTMLButtonElement>;
+    variant?: string;
+    size?: string;
+    "data-testid"?: string;
+  }>) => (
     <button
       onClick={onClick}
       data-testid={testId}

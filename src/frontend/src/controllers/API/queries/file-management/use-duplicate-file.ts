@@ -13,11 +13,13 @@ interface DuplicateFileQueryParams {
 
 export const useDuplicateFileV2: useMutationFunctionType<
   DuplicateFileQueryParams,
-  void
+  void,
+  unknown,
+  Error
 > = (params, options?) => {
   const { mutate, queryClient } = UseRequestProcessor();
 
-  const duplicateFileFn = async (): Promise<any> => {
+  const duplicateFileFn = async (): Promise<unknown> => {
     // First download the file
     const response = await fetch(
       `${getURL("FILE_MANAGEMENT", { id: params.id }, true)}`,
@@ -39,7 +41,7 @@ export const useDuplicateFileV2: useMutationFunctionType<
     const formData = new FormData();
     formData.append("file", file);
 
-    const uploadResponse = await api.post<any>(
+    const uploadResponse = await api.post<unknown>(
       `${getURL("FILE_MANAGEMENT", {}, true)}/`,
       formData,
     );
@@ -47,15 +49,15 @@ export const useDuplicateFileV2: useMutationFunctionType<
     return uploadResponse.data;
   };
 
-  const mutation: UseMutationResult<any, any, void> = mutate(
+  const mutation: UseMutationResult<unknown, Error, void> = mutate(
     ["useDuplicateFileV2"],
     duplicateFileFn,
     {
-      onSettled: (data, error, variables, context) => {
+      onSettled: (data, error, variables, onMutateResult, context) => {
         queryClient.invalidateQueries({
           queryKey: ["useGetFilesV2"],
         });
-        options?.onSettled?.(data, error, variables, context);
+        options?.onSettled?.(data, error, variables, onMutateResult, context);
       },
       ...options,
     },

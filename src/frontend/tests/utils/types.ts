@@ -6,6 +6,6 @@ import type { Page } from "@playwright/test";
  * detector when a spec intentionally drives the backend into an
  * error response (e.g. validation-error tests).
  */
-export type LangflowPage = Page & {
+export type KetosPage = Page & {
   allowFlowErrors: () => void;
 };

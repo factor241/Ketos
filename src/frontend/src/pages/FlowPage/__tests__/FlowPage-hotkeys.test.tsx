@@ -1,4 +1,3 @@
-import { renderHook, act } from "@testing-library/react";
 import { useHotkeys } from "react-hotkeys-hook";
 import useAssistantManagerStore from "@/stores/assistantManagerStore";
 
@@ -14,7 +13,7 @@ jest.mock("react-hotkeys-hook", () => ({
   useHotkeys: jest.fn(),
 }));
 
-const mockUseHotkeys = useHotkeys as jest.Mock;
+const _mockUseHotkeys = useHotkeys as jest.Mock;
 
 describe("FlowPage assistant hotkeys", () => {
   beforeEach(() => {

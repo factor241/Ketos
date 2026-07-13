@@ -25,13 +25,13 @@ test.describe("Assistant Panel Integration", { tag: ["@release"] }, () => {
     test.setTimeout(120_000);
 
     const textarea = page.getByTestId("assistant-input-textarea");
-    await textarea.fill("What is Langflow? Answer in one sentence.");
+    await textarea.fill("What is Ketos? Answer in one sentence.");
     await page.getByTestId("assistant-send-button").click();
 
     // User message should appear
     await expect(
       page.getByTestId("assistant-message-user").first(),
-    ).toContainText("What is Langflow");
+    ).toContainText("What is Ketos");
 
     // Wait for assistant response wrapper to appear (locator.waitFor respects
     // its own timeout; page.waitForFunction is capped by actionTimeout=20s

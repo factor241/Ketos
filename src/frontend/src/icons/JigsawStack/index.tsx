@@ -1,10 +1,9 @@
-import React, { forwardRef } from "react";
-import { useDarkStore } from "@/stores/darkStore";
+import { forwardRef, type PropsWithChildren } from "react";
 import JigsawStackIconSVG from "./JigsawStackIcon";
 
 export const JigsawStackIcon = forwardRef<
   SVGSVGElement,
-  React.PropsWithChildren<{}>
+  PropsWithChildren<object>
 >((props, ref) => {
   return <JigsawStackIconSVG ref={ref} {...props} />;
 });

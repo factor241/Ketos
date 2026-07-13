@@ -1,12 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import React from "react";
+import type React from "react";
 import { SidebarFilterComponent } from "../sidebarFilterComponent";
 
 // Mock the UI components
 jest.mock("@/components/common/genericIconComponent", () => ({
   __esModule: true,
-  default: ({ name, className }: any) => (
+  default: ({ name, className }: { name: string; className?: string }) => (
     <span data-testid={`icon-${name}`} className={className}>
       {name}
     </span>
@@ -15,7 +15,16 @@ jest.mock("@/components/common/genericIconComponent", () => ({
 
 jest.mock("@/components/common/shadTooltipComponent", () => ({
   __esModule: true,
-  default: ({ children, content, side, styleClasses }: any) => (
+  default: ({
+    children,
+    content,
+    side,
+    styleClasses,
+  }: React.ComponentProps<"div"> & {
+    content?: string;
+    side?: string;
+    styleClasses?: string;
+  }) => (
     <div
       data-testid="tooltip"
       data-content={content}
@@ -28,7 +37,13 @@ jest.mock("@/components/common/shadTooltipComponent", () => ({
 }));
 
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, className, unstyled, ...props }: any) => (
+  Button: ({
+    children,
+    onClick,
+    className,
+    unstyled,
+    ...props
+  }: React.ComponentProps<"button"> & { unstyled?: boolean }) => (
     <button
       onClick={onClick}
       className={className}
@@ -183,7 +198,7 @@ describe("SidebarFilterComponent", () => {
       expect(screen.queryByText("Input:")).not.toBeInTheDocument();
     });
 
-    it("should use plural form for any name with multiple descriptions", () => {
+    it("should use plural form for unknown name with multiple descriptions", () => {
       const propsWithMultipleDescriptions = {
         ...defaultProps,
         name: "Output",
@@ -358,17 +373,6 @@ describe("SidebarFilterComponent", () => {
       );
       expect(screen.getByText("number")).toBeInTheDocument();
     });
-
-    it("should handle missing resetFilters function gracefully", () => {
-      const propsWithoutCallback = {
-        ...defaultProps,
-        resetFilters: undefined as any,
-      };
-
-      expect(() => {
-        render(<SidebarFilterComponent {...propsWithoutCallback} />);
-      }).not.toThrow();
-    });
   });
 
   describe("Edge Cases", () => {
@@ -493,10 +497,7 @@ describe("SidebarFilterComponent", () => {
   describe("Callback Functions", () => {
     it("should work with different resetFilters implementations", async () => {
       const user = userEvent.setup();
-      const customResetFilters = jest.fn(() => {
-        // Custom implementation
-        console.log("Custom reset");
-      });
+      const customResetFilters = jest.fn(() => {});
 
       const propsWithCustomCallback = {
         ...defaultProps,

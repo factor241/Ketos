@@ -40,8 +40,8 @@ jest.mock("@/controllers/API/services/request-processor", () => ({
   })),
 }));
 
-import useFlowStore from "@/stores/flowStore";
 import { isAuthenticatedPlayground } from "@/modals/IOModal/helpers/playground-auth";
+import useFlowStore from "@/stores/flowStore";
 import { useGetSessionsFromFlowQuery } from "../use-get-sessions-from-flow";
 
 const mockFlowStore = useFlowStore as unknown as { getState: jest.Mock };

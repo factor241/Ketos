@@ -265,8 +265,11 @@ describe("updateMessage — streaming token preservation (UI-014)", () => {
       sender_name: "AI",
       timestamp: existing.timestamp,
       files: [],
+      edit: false,
+      background_color: "",
+      text_color: "",
       properties: { state: "partial" } as Message["properties"],
-    } as Message);
+    });
 
     // Assert — the tool-step content_blocks must survive the token update.
     const updated = queryClient.getQueryData<Message[]>(QUERY_KEY);
@@ -305,8 +308,11 @@ describe("updateMessage — streaming token preservation (UI-014)", () => {
       sender_name: "AI",
       timestamp: existing.timestamp,
       files: [],
+      edit: false,
+      background_color: "",
+      text_color: "",
       properties: { state: "partial" } as Message["properties"],
-    } as Message);
+    });
 
     const updated = queryClient.getQueryData<Message[]>(QUERY_KEY);
     expect(updated![0].text).toBe("Hello world");

@@ -103,8 +103,9 @@ export const MenuBar = memo((): JSX.Element => {
           >
             {currentFolder?.name && (
               <div className="hidden truncate md:flex">
-                <div
-                  className="cursor-pointer truncate text-sm text-muted-foreground hover:text-primary"
+                <button
+                  type="button"
+                  className="cursor-pointer truncate bg-transparent p-0 text-sm text-muted-foreground hover:text-primary"
                   onClick={() => {
                     navigate(
                       currentFolder?.id
@@ -114,7 +115,7 @@ export const MenuBar = memo((): JSX.Element => {
                   }}
                 >
                   {currentFolder?.name}
-                </div>
+                </button>
               </div>
             )}
           </div>

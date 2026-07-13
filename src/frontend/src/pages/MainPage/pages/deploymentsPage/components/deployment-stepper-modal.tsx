@@ -89,12 +89,12 @@ export default function DeploymentStepperModal({
 
   // Build initial maps from attachments for the stepper context.
   // Tool names and connection assignments come from the provider (wxO) via
-  // the /flows endpoint, NOT from the Langflow database. This means:
+  // the /flows endpoint, NOT from the Ketos database. This means:
   //
   // - If a user renames a tool in the wxO console, the new name appears
-  //   here on the next edit. Langflow doesn't cache tool names locally.
+  //   here on the next edit. Ketos doesn't cache tool names locally.
   // - If a tool is deleted in wxO, provider_data will be null and the
-  //   review page falls back to the Langflow flow name.
+  //   review page falls back to the Ketos flow name.
   // - If a connection is deleted in wxO but the tool still references it,
   //   the app_id will appear in connectionsByFlow. The backend will fail
   //   fast during the update if the caller tries to attach a new tool to

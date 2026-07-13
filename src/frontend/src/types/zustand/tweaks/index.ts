@@ -16,7 +16,7 @@ export type TweaksStoreType = {
   updateTweaks: () => void;
   tweaks: {
     [key: string]: {
-      [key: string]: any;
+      [key: string]: unknown;
     };
   };
 };

@@ -35,10 +35,8 @@ function CsvOutputComponent({
           {t("output.csvTitle")}
         </div>
         <div className="align-center flex w-full justify-center">
-          <div className="langflow-chat-desc align-center flex justify-center px-6 py-8">
-            <div className="langflow-chat-desc-span">
-              {t("output.csvError")}
-            </div>
+          <div className="ketos-chat-desc align-center flex justify-center px-6 py-8">
+            <div className="ketos-chat-desc-span">{t("output.csvError")}</div>
           </div>
         </div>
       </div>
@@ -49,8 +47,17 @@ function CsvOutputComponent({
 
   const dark = useDarkStore.getState().dark;
 
-  const [rowData, setRowData] = useState([]);
-  const [colDefs, setColDefs] = useState([]);
+  const [rowData, setRowData] = useState<
+    Array<Record<string, string | number>>
+  >([]);
+  const [colDefs, setColDefs] = useState<
+    Array<{
+      field: string;
+      wrapText: boolean;
+      autoHeight: boolean;
+      height: string;
+    }>
+  >([]);
 
   const [status, setStatus] = useState("loading");
   const defaultColDef = useMemo(() => {
@@ -88,8 +95,8 @@ function CsvOutputComponent({
             {t("output.csvTitle")}
           </div>
           <div className="align-center flex w-full justify-center">
-            <div className="langflow-chat-desc align-center flex justify-center px-6 py-8">
-              <div className="langflow-chat-desc-span">
+            <div className="ketos-chat-desc align-center flex justify-center px-6 py-8">
+              <div className="ketos-chat-desc-span">
                 {t("output.csvNoData")}
               </div>
             </div>
@@ -103,10 +110,8 @@ function CsvOutputComponent({
             {t("output.csvTitle")}
           </div>
           <div className="align-center flex w-full justify-center">
-            <div className="langflow-chat-desc align-center flex justify-center px-6 py-8">
-              <div className="langflow-chat-desc-span">
-                {t("output.csvError")}
-              </div>
+            <div className="ketos-chat-desc align-center flex justify-center px-6 py-8">
+              <div className="ketos-chat-desc-span">{t("output.csvError")}</div>
             </div>
           </div>
         </div>

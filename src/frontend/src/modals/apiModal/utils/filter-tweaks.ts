@@ -1,6 +1,6 @@
 import { INPUT_TYPES } from "@/constants/constants";
 
-export function formatPayloadTweaks(tweaksObject: any): boolean {
+export function formatPayloadTweaks(tweaksObject: unknown): boolean {
   if (!tweaksObject || typeof tweaksObject !== "object") {
     return true;
   }

@@ -25,7 +25,7 @@ export interface ColumnField {
   description?: string;
   load_from_db?: boolean;
   disable_edit?: boolean;
-  default?: any;
+  default?: unknown;
   edit_mode?: "modal" | "inline" | "popover";
   hidden?: boolean;
   options?: string[];

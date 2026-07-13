@@ -5,11 +5,13 @@ import { BrowserRouter } from "react-router-dom";
 
 // Mock the KnowledgePage component to test in isolation
 jest.mock("../index", () => {
+  type SelectedKnowledgeBase = { name: string };
+
   const MockKnowledgePage = () => {
     const [isShiftPressed, setIsShiftPressed] = React.useState(false);
     const [isDrawerOpen, setIsDrawerOpen] = React.useState(false);
     const [selectedKnowledgeBase, setSelectedKnowledgeBase] =
-      React.useState<any>(null);
+      React.useState<SelectedKnowledgeBase | null>(null);
 
     React.useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
@@ -33,7 +35,7 @@ jest.mock("../index", () => {
       };
     }, []);
 
-    const handleRowClick = (knowledgeBase: any) => {
+    const handleRowClick = (knowledgeBase: SelectedKnowledgeBase) => {
       setSelectedKnowledgeBase(knowledgeBase);
       setIsDrawerOpen(true);
     };

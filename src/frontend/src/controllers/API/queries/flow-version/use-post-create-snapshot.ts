@@ -27,7 +27,7 @@ export const usePostCreateSnapshot: useMutationFunctionType<
     return response.data;
   };
 
-  const mutation: UseMutationResult<FlowVersionEntry, any, ICreateSnapshot> =
+  const mutation: UseMutationResult<FlowVersionEntry, Error, ICreateSnapshot> =
     mutate(["usePostCreateSnapshot"], createSnapshotFn, {
       ...options,
       onSettled: (_, __, variables) => {

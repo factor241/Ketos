@@ -674,10 +674,7 @@ function GenericNode({
           )}
         </div>
         {showNode && (
-          <div
-            className="nopan nodelete nodrag noflow relative cursor-auto"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
+          <div className="nopan nodelete nodrag noflow relative cursor-auto">
             <>
               <MemoizedRenderInputParameters
                 data={data}

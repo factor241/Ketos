@@ -1,5 +1,35 @@
 import { act, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { cloneDeep } from "lodash";
+import type {
+  ButtonHTMLAttributes,
+  HTMLAttributes,
+  MouseEventHandler,
+  ReactNode,
+} from "react";
+
+type TestFlowStoreState = {
+  currentFlow: typeof mockCurrentFlow;
+  nodes: Array<{ id: string }>;
+  edges: Array<{ id: string }>;
+  autoSaveFlow: jest.Mock | undefined;
+  inspectionPanelVisible: boolean;
+};
+
+type VersionEntryData = {
+  id: string;
+  version_tag: string;
+  data: {
+    nodes: Array<{ id: string }>;
+    edges: Array<{ id: string }>;
+  };
+};
+
+type Selector<TState> = <T>(selector: (state: TState) => T) => T;
+type TestStore<TState> = Selector<TState> & {
+  getState: () => TState;
+  setState: jest.Mock;
+  subscribe?: jest.Mock;
+};
 
 // ---------------------------------------------------------------------------
 // Mocks — hoisted before imports
@@ -13,7 +43,7 @@ jest.mock("@tanstack/react-query", () => ({
 jest.mock("@/utils/reactflowUtils", () => ({
   downloadFlow: jest.fn(),
   processFlows: jest.fn(),
-  removeApiKeys: jest.fn((flow: any) => flow),
+  removeApiKeys: jest.fn(<T,>(flow: T): T => flow),
 }));
 
 jest.mock("@/controllers/API/api", () => ({
@@ -27,7 +57,7 @@ jest.mock("@/controllers/API/helpers/constants", () => ({
 // Configurable version entry query mock — controls what selectedEntryFull returns
 // ---------------------------------------------------------------------------
 
-let entryQueryData: any = null;
+let entryQueryData: VersionEntryData | null = null;
 let entryQueryLoading = false;
 let entryQueryError = false;
 
@@ -75,7 +105,7 @@ const mockCurrentFlow = {
   data: { nodes: [{ id: "draft-node" }], edges: [{ id: "draft-edge" }] },
 };
 
-const storeState: Record<string, any> = {
+const storeState: TestFlowStoreState = {
   currentFlow: mockCurrentFlow,
   nodes: [{ id: "draft-node" }],
   edges: [{ id: "draft-edge" }],
@@ -83,19 +113,22 @@ const storeState: Record<string, any> = {
   inspectionPanelVisible: false,
 };
 
-const storeSubscribers = new Set<(state: any) => void>();
+const storeSubscribers = new Set<(state: TestFlowStoreState) => void>();
 
-const setStateMock = jest.fn((partial: any) => {
+const setStateMock = jest.fn((partial: Partial<TestFlowStoreState>) => {
   Object.assign(storeState, partial);
   // Notify subscribers synchronously, like real zustand
   storeSubscribers.forEach((cb) => cb(storeState));
 });
 
 jest.mock("@/stores/flowStore", () => {
-  const store: any = (selector: any) => selector(storeState);
+  const store = ((selector) =>
+    selector(storeState)) as TestStore<TestFlowStoreState>;
   store.getState = () => storeState;
-  store.setState = (...args: any[]) => setStateMock(...args);
-  store.subscribe = jest.fn((cb: any) => {
+  store.setState = jest.fn((partial: Partial<TestFlowStoreState>) =>
+    setStateMock(partial),
+  );
+  store.subscribe = jest.fn((cb: (state: TestFlowStoreState) => void) => {
     storeSubscribers.add(cb);
     return () => storeSubscribers.delete(cb);
   });
@@ -106,7 +139,12 @@ const setErrorDataMock = jest.fn();
 const setSuccessDataMock = jest.fn();
 jest.mock("@/stores/alertStore", () => ({
   __esModule: true,
-  default: (selector: any) =>
+  default: <T,>(
+    selector: (state: {
+      setSuccessData: typeof setSuccessDataMock;
+      setErrorData: typeof setErrorDataMock;
+    }) => T,
+  ) =>
     selector({
       setSuccessData: setSuccessDataMock,
       setErrorData: setErrorDataMock,
@@ -128,23 +166,29 @@ jest.mock("@/stores/versionPreviewStore", () => {
     clearPreview: clearPreviewMock,
     setPreviewLoading: setPreviewLoadingMock,
   };
-  const store: any = (selector: any) => selector(state);
+  const store = ((selector) => selector(state)) as TestStore<typeof state>;
   store.getState = () => state;
   store.setState = jest.fn();
   return { __esModule: true, default: store };
 });
 
 jest.mock("@/utils/utils", () => ({
-  cn: (...args: any[]) => args.filter(Boolean).join(" "),
+  cn: (...args: unknown[]) => args.filter(Boolean).join(" "),
 }));
 
 jest.mock("@/components/common/genericIconComponent", () => ({
   __esModule: true,
-  default: ({ name }: any) => <span data-testid={`icon-${name}`} />,
+  default: ({ name }: { name: string }) => (
+    <span data-testid={`icon-${name}`} />
+  ),
 }));
 
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, ...rest }: any) => (
+  Button: ({
+    children,
+    onClick,
+    ...rest
+  }: ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button onClick={onClick} {...rest}>
       {children}
     </button>
@@ -152,15 +196,27 @@ jest.mock("@/components/ui/button", () => ({
 }));
 
 jest.mock("@/components/ui/dropdown-menu", () => ({
-  DropdownMenu: ({ children }: any) => <div>{children}</div>,
-  DropdownMenuContent: ({ children }: any) => <div>{children}</div>,
-  DropdownMenuItem: ({ children, onClick }: any) => (
+  DropdownMenu: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuContent: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuItem: ({
+    children,
+    onClick,
+  }: {
+    children: ReactNode;
+    onClick?: MouseEventHandler<HTMLDivElement>;
+  }) => (
     <div role="menuitem" onClick={onClick}>
       {children}
     </div>
   ),
   DropdownMenuSeparator: () => <hr />,
-  DropdownMenuTrigger: ({ children }: any) => <>{children}</>,
+  DropdownMenuTrigger: ({ children }: { children: ReactNode }) => (
+    <>{children}</>
+  ),
 }));
 
 jest.mock("@/components/ui/checkbox", () => ({
@@ -170,13 +226,21 @@ jest.mock("@/components/ui/checkbox", () => ({
 const setActiveSectionMock = jest.fn();
 jest.mock("@/components/ui/sidebar", () => ({
   useSidebar: () => ({ setActiveSection: setActiveSectionMock }),
-  SidebarGroupLabel: ({ children, className }: any) => (
+  SidebarGroupLabel: ({
+    children,
+    className,
+  }: HTMLAttributes<HTMLDivElement>) => (
     <div className={className}>{children}</div>
   ),
-  SidebarMenu: ({ children, className }: any) => (
+  SidebarMenu: ({ children, className }: HTMLAttributes<HTMLDivElement>) => (
     <div className={className}>{children}</div>
   ),
-  SidebarMenuButton: ({ children, onClick, isActive, className }: any) => (
+  SidebarMenuButton: ({
+    children,
+    onClick,
+    isActive,
+    className,
+  }: HTMLAttributes<HTMLDivElement> & { isActive?: boolean }) => (
     <div
       role="button"
       onClick={onClick}
@@ -185,12 +249,15 @@ jest.mock("@/components/ui/sidebar", () => ({
       {children}
     </div>
   ),
-  SidebarMenuItem: ({ children }: any) => <div>{children}</div>,
+  SidebarMenuItem: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
 }));
 
 jest.mock("lodash", () => ({
-  cloneDeep: jest.fn((obj: any) =>
-    obj === undefined ? undefined : JSON.parse(JSON.stringify(obj)),
+  cloneDeep: jest.fn(
+    <T,>(obj: T): T =>
+      obj === undefined ? obj : (JSON.parse(JSON.stringify(obj)) as T),
   ),
 }));
 
@@ -270,7 +337,7 @@ describe("FlowVersionSidebarContent store behavior", () => {
 
     // Should NOT have set inspectionPanelVisible: true
     const restoreCalls = setStateMock.mock.calls.filter(
-      (args: any[]) => args[0]?.inspectionPanelVisible === true,
+      ([partial]) => partial.inspectionPanelVisible === true,
     );
     expect(restoreCalls).toHaveLength(0);
   });
@@ -290,6 +357,16 @@ describe("FlowVersionSidebarContent store behavior", () => {
         edges: [{ id: "draft-edge" }],
       }),
     );
+  });
+
+  it("captures the original draft only once across rerenders", () => {
+    const cloneDeepMock = jest.mocked(cloneDeep);
+    const { rerender } = render(<FlowVersionSidebarContent flowId="flow-1" />);
+
+    cloneDeepMock.mockClear();
+    rerender(<FlowVersionSidebarContent flowId="flow-1" />);
+
+    expect(cloneDeepMock).not.toHaveBeenCalled();
   });
 
   it("clears preview store on unmount", () => {
@@ -312,8 +389,9 @@ describe("FlowVersionSidebarContent store behavior", () => {
     render(<FlowVersionSidebarContent flowId="flow-1" />);
 
     // Click on a version entry to trigger selection
-    const user = userEvent.setup();
-    const entryRow = screen.getByText("v1").closest("[class*=cursor-pointer]");
+    const entryRow = screen
+      .getByText("v1")
+      .closest<HTMLElement>("[class*=cursor-pointer]");
     if (entryRow) {
       act(() => {
         entryRow.click();
@@ -349,7 +427,9 @@ describe("FlowVersionSidebarContent store behavior", () => {
     render(<FlowVersionSidebarContent flowId="flow-1" />);
 
     // Click entry to trigger selection
-    const entryRow = screen.getByText("v1").closest("[class*=cursor-pointer]");
+    const entryRow = screen
+      .getByText("v1")
+      .closest<HTMLElement>("[class*=cursor-pointer]");
     if (entryRow) {
       act(() => {
         entryRow.click();
@@ -358,14 +438,13 @@ describe("FlowVersionSidebarContent store behavior", () => {
 
     // Should NOT have set empty arrays in the store
     const emptyCalls = setStateMock.mock.calls.filter(
-      (args: any[]) =>
-        Array.isArray(args[0]?.nodes) && args[0].nodes.length === 0,
+      ([partial]) => Array.isArray(partial.nodes) && partial.nodes.length === 0,
     );
     expect(emptyCalls).toHaveLength(0);
 
     // Should NOT have called setPreview with empty data
     const emptyPreviewCalls = setPreviewMock.mock.calls.filter(
-      (args: any[]) => Array.isArray(args[0]) && args[0].length === 0,
+      ([nodes]) => Array.isArray(nodes) && nodes.length === 0,
     );
     expect(emptyPreviewCalls).toHaveLength(0);
   });
@@ -384,7 +463,9 @@ describe("FlowVersionSidebarContent store behavior", () => {
 
     render(<FlowVersionSidebarContent flowId="flow-1" />);
 
-    const entryRow = screen.getByText("v1").closest("[class*=cursor-pointer]");
+    const entryRow = screen
+      .getByText("v1")
+      .closest<HTMLElement>("[class*=cursor-pointer]");
     if (entryRow) {
       act(() => {
         entryRow.click();
@@ -406,7 +487,9 @@ describe("FlowVersionSidebarContent store behavior", () => {
     render(<FlowVersionSidebarContent flowId="flow-1" />);
 
     // Click version entry — this sets store nodes to version-node via layoutEffect
-    const entryRow = screen.getByText("v1").closest("[class*=cursor-pointer]");
+    const entryRow = screen
+      .getByText("v1")
+      .closest<HTMLElement>("[class*=cursor-pointer]");
     if (entryRow) {
       act(() => {
         entryRow.click();
@@ -419,7 +502,7 @@ describe("FlowVersionSidebarContent store behavior", () => {
     // Click Current row
     const draftRow = screen
       .getByText("Current")
-      .closest("[class*=cursor-pointer]");
+      .closest<HTMLElement>("[class*=cursor-pointer]");
     if (draftRow) {
       act(() => {
         draftRow.click();

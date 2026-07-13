@@ -16,17 +16,15 @@ export const useCancelIngestion: useMutationFunctionType<
 
   const cancelIngestionFn = async (
     params: CancelIngestionParams,
-  ): Promise<any> => {
-    const response = await api.post<any>(
+  ): Promise<unknown> => {
+    const response = await api.post<unknown>(
       `${getURL("KNOWLEDGE_BASES")}/${params.kb_name}/cancel`,
     );
     return response.data;
   };
 
-  const mutation: UseMutationResult<any, any, CancelIngestionParams> = mutate(
-    ["useCancelIngestion"],
-    cancelIngestionFn,
-    {
+  const mutation: UseMutationResult<unknown, Error, CancelIngestionParams> =
+    mutate(["useCancelIngestion"], cancelIngestionFn, {
       onSettled: (data, error, variables, context, ...rest) => {
         queryClient.invalidateQueries({
           queryKey: ["useGetKnowledgeBases"],
@@ -34,8 +32,7 @@ export const useCancelIngestion: useMutationFunctionType<
         options?.onSettled?.(data, error, variables, context, ...rest);
       },
       ...options,
-    },
-  );
+    });
 
   return mutation;
 };

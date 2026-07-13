@@ -245,7 +245,7 @@ describe("AssistantInput", () => {
       // input boots with a model and matches the production contract that
       // ModelSelector's auto-select effect normally satisfies.
       localStorage.setItem(
-        "langflow-assistant-selected-model",
+        "ketos-assistant-selected-model",
         JSON.stringify({
           id: "OpenAI-gpt-4o",
           name: "gpt-4o",
@@ -356,7 +356,7 @@ describe("AssistantInput", () => {
   });
 
   describe("command history (arrow-up / arrow-down)", () => {
-    const STORAGE_KEY = "langflow-assistant-input-history";
+    const STORAGE_KEY = "ketos-assistant-input-history";
 
     beforeEach(() => {
       localStorage.clear();
@@ -418,7 +418,7 @@ describe("AssistantInput", () => {
       // for AssistantInput's handleSend to call through. Use the model
       // from localStorage trick: prime it.
       localStorage.setItem(
-        "langflow-assistant-selected-model",
+        "ketos-assistant-selected-model",
         JSON.stringify(model),
       );
 

@@ -86,8 +86,8 @@ export default function ImageViewer({ image }: { image: string }) {
         {t("output.imgTitle")}
       </div>
       <div className="align-center flex justify-center">
-        <div className="langflow-chat-desc align-center flex justify-center">
-          <div className="langflow-chat-desc-span">{t("output.imgError")}</div>
+        <div className="ketos-chat-desc align-center flex justify-center">
+          <div className="ketos-chat-desc-span">{t("output.imgError")}</div>
         </div>
       </div>
     </div>

@@ -6,7 +6,7 @@ export const getNodesWithDefaultValue = (
   nodes: AllNodeType[],
   oldTweaks: {
     [key: string]: {
-      [key: string]: any;
+      [key: string]: unknown;
     };
   },
 ) => {

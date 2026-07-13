@@ -4,7 +4,7 @@ type BooleanLike = boolean | string | number | null | undefined;
 
 type Props = {
   condition: (() => BooleanLike) | BooleanLike;
-  children: React.ReactNode | any;
+  children: React.ReactNode;
 };
 
 export const Case = memo(({ condition, children }: Props) => {

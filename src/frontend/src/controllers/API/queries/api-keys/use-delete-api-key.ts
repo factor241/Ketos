@@ -14,7 +14,7 @@ export const useDeleteApiKey: useMutationFunctionType<
 > = (options) => {
   const { mutate } = UseRequestProcessor();
 
-  const deleteApiKeyFn = async (payload: IDeleteApiKey): Promise<any> => {
+  const deleteApiKeyFn = async (payload: IDeleteApiKey): Promise<unknown> => {
     const res = await api.delete(`${getURL("API_KEY")}/${payload.keyId}`);
     return res.data;
   };

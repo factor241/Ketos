@@ -2,7 +2,9 @@ import { act, renderHook } from "@testing-library/react";
 import type { Message } from "../../types/messages";
 import { useMessagesStore } from "../messagesStore";
 
-const mockMessage: Message = {
+type MessageWithId = Message & { id: string };
+
+const mockMessage: MessageWithId = {
   id: "msg-1",
   text: "Hello world",
   sender: "User",
@@ -16,7 +18,7 @@ const mockMessage: Message = {
   flow_id: "flow-1",
 };
 
-const mockMachineMessage: Message = {
+const mockMachineMessage: MessageWithId = {
   id: "msg-2",
   text: "Machine response",
   sender: "Machine",
@@ -32,7 +34,7 @@ const mockMachineMessage: Message = {
   properties: { type: "ai" },
 };
 
-const mockMessage2: Message = {
+const mockMessage2: MessageWithId = {
   id: "msg-3",
   text: "Another message",
   sender: "User",
@@ -703,7 +705,14 @@ describe("useMessagesStore", () => {
         ...mockMessage,
         category: "test-category",
         properties: { key: "value", nested: { prop: true } },
-        content_blocks: [{ type: "text", content: "block content" } as any],
+        content_blocks: [
+          {
+            title: "Test block",
+            contents: [{ type: "text", text: "block content" }],
+            allow_markdown: false,
+            component: "text",
+          },
+        ],
       };
 
       act(() => {

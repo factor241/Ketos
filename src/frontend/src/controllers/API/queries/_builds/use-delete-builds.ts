@@ -14,10 +14,10 @@ export const useDeleteBuilds: useMutationFunctionType<
 > = (options) => {
   const { mutate } = UseRequestProcessor();
 
-  const deleteBuildsFn = async (payload: IDeleteBuilds): Promise<any> => {
+  const deleteBuildsFn = async (payload: IDeleteBuilds): Promise<unknown> => {
     const config = {};
     config["params"] = { flow_id: payload.flowId };
-    const res = await api.delete<any>(`${getURL("BUILDS")}`, config);
+    const res = await api.delete<unknown>(`${getURL("BUILDS")}`, config);
     return res.data;
   };
 

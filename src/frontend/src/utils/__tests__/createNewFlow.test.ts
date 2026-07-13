@@ -12,13 +12,13 @@
  * - Immutability and consistency
  */
 
-import type { ReactFlowJsonObject } from "@xyflow/react";
+import type { Edge, Node, ReactFlowJsonObject } from "@xyflow/react";
 
 // Define minimal types needed for testing
 type FlowType = {
   name: string;
   id: string;
-  data: ReactFlowJsonObject<any, any> | null;
+  data: ReactFlowJsonObject<Node, Edge> | null;
   description: string;
   endpoint_name?: string | null;
   is_component?: boolean;
@@ -34,7 +34,7 @@ const mockGetRandomDescription = jest.fn(() => "Random Description");
 
 // Define the function to test directly
 const createNewFlow = (
-  flowData: ReactFlowJsonObject<any, any>,
+  flowData: ReactFlowJsonObject<Node, Edge>,
   folderId: string,
   flow?: FlowType,
 ) => {
@@ -55,7 +55,7 @@ const createNewFlow = (
 
 describe("createNewFlow", () => {
   // Mock data setup
-  const mockFlowData: ReactFlowJsonObject<any, any> = {
+  const mockFlowData: ReactFlowJsonObject<Node, Edge> = {
     nodes: [],
     edges: [],
     viewport: { x: 0, y: 0, zoom: 1 },
@@ -104,7 +104,7 @@ describe("createNewFlow", () => {
     });
 
     it("should use the provided flowData and folderId", () => {
-      const customFlowData: ReactFlowJsonObject<any, any> = {
+      const customFlowData: ReactFlowJsonObject<Node, Edge> = {
         nodes: [
           {
             id: "node-1",
@@ -199,7 +199,7 @@ describe("createNewFlow", () => {
     it("should handle flow with null/undefined description", () => {
       const flowWithNullDescription: FlowType = {
         ...mockFlow,
-        description: undefined as any,
+        description: undefined as unknown as string,
       };
 
       const result = createNewFlow(
@@ -306,7 +306,7 @@ describe("createNewFlow", () => {
     });
 
     it("should handle complex flowData structure", () => {
-      const complexFlowData: ReactFlowJsonObject<any, any> = {
+      const complexFlowData: ReactFlowJsonObject<Node, Edge> = {
         nodes: [
           {
             id: "node-1",
@@ -348,12 +348,12 @@ describe("createNewFlow", () => {
         name: "Minimal Flow",
         description: "Minimal description",
         data: null,
-        icon: null as any,
-        gradient: null as any,
-        is_component: null as any,
+        icon: null as unknown as string,
+        gradient: null as unknown as string,
+        is_component: null as unknown as boolean,
         endpoint_name: null,
-        tags: null as any,
-        mcp_enabled: null as any,
+        tags: null as unknown as string[],
+        mcp_enabled: null as unknown as boolean,
       };
 
       const result = createNewFlow(mockFlowData, mockFolderId, minimalFlow);
@@ -413,8 +413,8 @@ describe("createNewFlow", () => {
 
     it("should use random description for null/undefined descriptions only", () => {
       const nullishTestCases = [
-        { ...mockFlow, description: null as any },
-        { ...mockFlow, description: undefined as any },
+        { ...mockFlow, description: null as unknown as string },
+        { ...mockFlow, description: undefined as unknown as string },
       ];
 
       nullishTestCases.forEach((testFlow) => {
@@ -428,8 +428,8 @@ describe("createNewFlow", () => {
       // These falsy values should NOT trigger random description
       const falsyTestCases = [
         { ...mockFlow, description: "" },
-        { ...mockFlow, description: 0 as any },
-        { ...mockFlow, description: false as any },
+        { ...mockFlow, description: 0 as unknown as string },
+        { ...mockFlow, description: false as unknown as string },
       ];
 
       falsyTestCases.forEach((testFlow) => {
@@ -453,10 +453,10 @@ describe("createNewFlow", () => {
     it("should use default name for falsy names", () => {
       const testCases = [
         { ...mockFlow, name: "" },
-        { ...mockFlow, name: null as any },
-        { ...mockFlow, name: undefined as any },
-        { ...mockFlow, name: 0 as any },
-        { ...mockFlow, name: false as any },
+        { ...mockFlow, name: null as unknown as string },
+        { ...mockFlow, name: undefined as unknown as string },
+        { ...mockFlow, name: 0 as unknown as string },
+        { ...mockFlow, name: false as unknown as string },
       ];
 
       testCases.forEach((testFlow) => {

@@ -525,7 +525,7 @@ describe("getNewJsApiCode", () => {
           tweaks: {
             fileNode1: { path: ["file.pdf"] },
           },
-        } as any,
+        } as unknown,
       });
 
       expect(code).toContain('"output_type": "chat"');

@@ -1,11 +1,12 @@
 import { render, screen } from "@testing-library/react";
+import type { APITemplateType, InputFieldType } from "@/types/api";
 import type { NodeDataType } from "@/types/flow";
 import InspectionPanelFields from "../components/InspectionPanelFields";
 
 // Mock getFieldTitle
 jest.mock("@/CustomNodes/utils/get-field-title", () => ({
   __esModule: true,
-  default: (template: any, fieldName: string) => {
+  default: (template: APITemplateType, fieldName: string) => {
     return template[fieldName]?.display_name || fieldName;
   },
 }));
@@ -19,7 +20,7 @@ jest.mock("@/CustomNodes/helpers/sort-tool-mode-field", () => ({
 jest.mock("@/CustomNodes/helpers/parameter-filtering", () => ({
   shouldRenderInspectionPanelField: (
     fieldName: string,
-    template: any,
+    template: InputFieldType,
     isToolMode: boolean,
   ) => {
     // Filter out internal fields
@@ -32,15 +33,22 @@ jest.mock("@/CustomNodes/helpers/parameter-filtering", () => ({
     return template?.advanced === true && template?.show === true;
   },
   isInternalField: (fieldName: string) => fieldName.startsWith("_"),
-  isCodeField: (fieldName: string, template: any) =>
+  isCodeField: (fieldName: string, template: InputFieldType) =>
     fieldName === "code" && template?.type === "code",
-  isHandleInput: (template: any) => template?.input_types !== undefined,
-  isToolModeEnabled: (template: any) => template?.tool_mode === true,
+  isHandleInput: (template: InputFieldType) =>
+    template?.input_types !== undefined,
+  isToolModeEnabled: (template: InputFieldType) => template?.tool_mode === true,
 }));
 
 // Mock InspectionPanelField
 jest.mock("../components/InspectionPanelField", () => {
-  return function MockInspectionPanelField({ title, name }: any) {
+  return function MockInspectionPanelField({
+    title,
+    name,
+  }: {
+    title: string;
+    name: string;
+  }) {
     return (
       <div data-testid={`field-${name}`}>
         Field: {title} ({name})
@@ -55,7 +63,11 @@ jest.mock("../components/InspectionPanelEditField", () => {
     title,
     name,
     isOnCanvas,
-  }: any) {
+  }: {
+    title: string;
+    name: string;
+    isOnCanvas: boolean;
+  }) {
     return (
       <div data-testid={`edit-field-${name}`}>
         Edit Field: {title} ({name}) - {isOnCanvas ? "On Canvas" : "Advanced"}
@@ -66,7 +78,7 @@ jest.mock("../components/InspectionPanelEditField", () => {
 
 // Mock utils
 jest.mock("@/utils/utils", () => ({
-  cn: (...classes: any[]) => classes.filter(Boolean).join(" "),
+  cn: (...classes: unknown[]) => classes.filter(Boolean).join(" "),
 }));
 
 describe("InspectionPanelFields", () => {
@@ -76,26 +88,36 @@ describe("InspectionPanelFields", () => {
     node: {
       display_name: "Test Node",
       description: "Test description",
+      documentation: "",
       template: {
         basic_field: {
           type: "str",
+          required: false,
+          list: false,
           value: "basic value",
           advanced: false,
           show: true,
+          readonly: false,
           display_name: "Basic Field",
         },
         advanced_field: {
           type: "str",
+          required: false,
+          list: false,
           value: "advanced value",
           advanced: true,
           show: true,
+          readonly: false,
           display_name: "Advanced Field",
         },
         hidden_field: {
           type: "str",
+          required: false,
+          list: false,
           value: "hidden",
           advanced: false,
           show: false,
+          readonly: false,
           display_name: "Hidden Field",
         },
         ...templateOverrides,
@@ -331,9 +353,7 @@ describe("InspectionPanelFields", () => {
   describe("Component Keys", () => {
     it("should use unique keys for fields in normal mode", () => {
       const data = createMockData();
-      const { container } = render(
-        <InspectionPanelFields data={data} isEditingFields={false} />,
-      );
+      render(<InspectionPanelFields data={data} isEditingFields={false} />);
 
       // React uses keys internally, we verify components render correctly
       expect(screen.getByTestId("field-advanced_field")).toBeInTheDocument();
@@ -341,9 +361,7 @@ describe("InspectionPanelFields", () => {
 
     it("should use unique keys for fields in edit mode", () => {
       const data = createMockData();
-      const { container } = render(
-        <InspectionPanelFields data={data} isEditingFields={true} />,
-      );
+      render(<InspectionPanelFields data={data} isEditingFields={true} />);
 
       expect(screen.getByTestId("edit-field-basic_field")).toBeInTheDocument();
       expect(
@@ -401,7 +419,7 @@ describe("InspectionPanelFields", () => {
 
     it("should handle undefined template", () => {
       const data = createMockData();
-      data.node!.template = undefined as any;
+      data.node!.template = undefined as unknown as APITemplateType;
 
       expect(() => {
         render(<InspectionPanelFields data={data} isEditingFields={false} />);
@@ -410,7 +428,7 @@ describe("InspectionPanelFields", () => {
 
     it("should handle null node", () => {
       const data = createMockData();
-      data.node = null as any;
+      data.node = null as unknown as NodeDataType["node"];
 
       expect(() => {
         render(<InspectionPanelFields data={data} isEditingFields={false} />);
@@ -431,7 +449,7 @@ describe("InspectionPanelFields", () => {
         incomplete_field: {
           type: "str",
           // Missing other properties
-        } as any,
+        } as unknown as InputFieldType,
       });
 
       expect(() => {

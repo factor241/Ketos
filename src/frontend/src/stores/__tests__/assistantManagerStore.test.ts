@@ -6,15 +6,18 @@
  * - resetStore does not clear undo/redo history (L148-155)
  */
 
-import { cloneDeep } from "lodash";
+import type { FlowType } from "@/types/flow";
+
+type TestNode = { id: string; data?: Record<string, string> };
+type TestEdge = { id: string };
 
 // Mock flowStore before importing the store under test
 const mockSetNodes = jest.fn();
 const mockSetEdges = jest.fn();
 const mockResetFlow = jest.fn();
 const mockFlowStoreState = {
-  nodes: [] as any[],
-  edges: [] as any[],
+  nodes: [] as TestNode[],
+  edges: [] as TestEdge[],
   setNodes: mockSetNodes,
   setEdges: mockSetEdges,
   resetFlow: mockResetFlow,
@@ -30,12 +33,12 @@ jest.mock("@/stores/flowStore", () => ({
 import useAssistantManagerStore from "../assistantManagerStore";
 
 // Helper to create a minimal FlowType
-function createFlow(id: string, name = `Flow ${id}`): any {
+function createFlow(id: string, name = `Flow ${id}`): FlowType {
   return {
     id,
     name,
     data: { nodes: [], edges: [] },
-  };
+  } as unknown as FlowType;
 }
 
 beforeEach(() => {
@@ -185,14 +188,14 @@ describe("undo/redo", () => {
   });
 
   it("should save state to past on takeSnapshot", () => {
-    mockFlowStoreState.nodes = [{ id: "n1" }] as any;
-    mockFlowStoreState.edges = [{ id: "e1" }] as any;
+    mockFlowStoreState.nodes = [{ id: "n1" }];
+    mockFlowStoreState.edges = [{ id: "e1" }];
 
     useAssistantManagerStore.getState().takeSnapshot();
 
     // After snapshot, undo should restore the saved state
-    mockFlowStoreState.nodes = [{ id: "n2" }] as any;
-    mockFlowStoreState.edges = [] as any;
+    mockFlowStoreState.nodes = [{ id: "n2" }];
+    mockFlowStoreState.edges = [];
 
     useAssistantManagerStore.getState().undo();
 
@@ -202,16 +205,16 @@ describe("undo/redo", () => {
 
   it("should clear future on new snapshot", () => {
     // Create initial state, snapshot, modify, undo to create future
-    mockFlowStoreState.nodes = [{ id: "original" }] as any;
+    mockFlowStoreState.nodes = [{ id: "original" }];
     useAssistantManagerStore.getState().takeSnapshot();
 
-    mockFlowStoreState.nodes = [{ id: "modified" }] as any;
+    mockFlowStoreState.nodes = [{ id: "modified" }];
     useAssistantManagerStore.getState().takeSnapshot();
 
     useAssistantManagerStore.getState().undo();
 
     // Now take a new snapshot — future should be cleared
-    mockFlowStoreState.nodes = [{ id: "new-path" }] as any;
+    mockFlowStoreState.nodes = [{ id: "new-path" }];
     useAssistantManagerStore.getState().takeSnapshot();
 
     // Redo should do nothing since future is cleared
@@ -221,14 +224,14 @@ describe("undo/redo", () => {
   });
 
   it("should not duplicate identical snapshots", () => {
-    mockFlowStoreState.nodes = [{ id: "same" }] as any;
-    mockFlowStoreState.edges = [] as any;
+    mockFlowStoreState.nodes = [{ id: "same" }];
+    mockFlowStoreState.edges = [];
 
     useAssistantManagerStore.getState().takeSnapshot();
     useAssistantManagerStore.getState().takeSnapshot(); // Same state — should skip
 
     // Only one undo should be possible
-    mockFlowStoreState.nodes = [{ id: "different" }] as any;
+    mockFlowStoreState.nodes = [{ id: "different" }];
     useAssistantManagerStore.getState().undo();
 
     mockSetNodes.mockClear();
@@ -238,8 +241,8 @@ describe("undo/redo", () => {
 
   it("should cap history to maxHistorySize", () => {
     for (let i = 0; i < 105; i++) {
-      mockFlowStoreState.nodes = [{ id: `n${i}` }] as any;
-      mockFlowStoreState.edges = [] as any;
+      mockFlowStoreState.nodes = [{ id: `n${i}` }];
+      mockFlowStoreState.edges = [];
       useAssistantManagerStore.getState().takeSnapshot();
     }
 
@@ -259,12 +262,12 @@ describe("undo/redo", () => {
   });
 
   it("should restore nodes/edges on undo", () => {
-    mockFlowStoreState.nodes = [{ id: "before" }] as any;
-    mockFlowStoreState.edges = [{ id: "edge-before" }] as any;
+    mockFlowStoreState.nodes = [{ id: "before" }];
+    mockFlowStoreState.edges = [{ id: "edge-before" }];
     useAssistantManagerStore.getState().takeSnapshot();
 
-    mockFlowStoreState.nodes = [{ id: "after" }] as any;
-    mockFlowStoreState.edges = [{ id: "edge-after" }] as any;
+    mockFlowStoreState.nodes = [{ id: "after" }];
+    mockFlowStoreState.edges = [{ id: "edge-after" }];
 
     useAssistantManagerStore.getState().undo();
 
@@ -273,10 +276,10 @@ describe("undo/redo", () => {
   });
 
   it("should restore nodes/edges on redo", () => {
-    mockFlowStoreState.nodes = [{ id: "state1" }] as any;
+    mockFlowStoreState.nodes = [{ id: "state1" }];
     useAssistantManagerStore.getState().takeSnapshot();
 
-    mockFlowStoreState.nodes = [{ id: "state2" }] as any;
+    mockFlowStoreState.nodes = [{ id: "state2" }];
     useAssistantManagerStore.getState().takeSnapshot();
 
     // Undo back to state1
@@ -305,23 +308,23 @@ describe("undo/redo", () => {
   it("should scope history per flow id", () => {
     // Flow A: take snapshot
     useAssistantManagerStore.setState({ currentFlowId: "flowA" });
-    mockFlowStoreState.nodes = [{ id: "A-node" }] as any;
+    mockFlowStoreState.nodes = [{ id: "A-node" }];
     useAssistantManagerStore.getState().takeSnapshot();
 
     // Flow B: take snapshot
     useAssistantManagerStore.setState({ currentFlowId: "flowB" });
-    mockFlowStoreState.nodes = [{ id: "B-node" }] as any;
+    mockFlowStoreState.nodes = [{ id: "B-node" }];
     useAssistantManagerStore.getState().takeSnapshot();
 
     // Undo in flow B should get B's state, not A's
-    mockFlowStoreState.nodes = [{ id: "B-modified" }] as any;
+    mockFlowStoreState.nodes = [{ id: "B-modified" }];
     useAssistantManagerStore.getState().undo();
     expect(mockSetNodes).toHaveBeenCalledWith([{ id: "B-node" }]);
 
     // Switch to flow A — undo should get A's state
     mockSetNodes.mockClear();
     useAssistantManagerStore.setState({ currentFlowId: "flowA" });
-    mockFlowStoreState.nodes = [{ id: "A-modified" }] as any;
+    mockFlowStoreState.nodes = [{ id: "A-modified" }];
     useAssistantManagerStore.getState().undo();
     expect(mockSetNodes).toHaveBeenCalledWith([{ id: "A-node" }]);
   });
@@ -362,16 +365,12 @@ describe("bugs and edge cases", () => {
       // L101-103: future[currentFlowId].push({ nodes: newState.nodes, edges: newState.edges })
       // This pushes a REFERENCE to the live flowStore state. If nodes/edges are later mutated,
       // the future entry is silently corrupted.
-      mockFlowStoreState.nodes = [
-        { id: "n1", data: { value: "original" } },
-      ] as any;
-      mockFlowStoreState.edges = [] as any;
+      mockFlowStoreState.nodes = [{ id: "n1", data: { value: "original" } }];
+      mockFlowStoreState.edges = [];
       useAssistantManagerStore.getState().takeSnapshot();
 
       // Modify state and take another snapshot
-      mockFlowStoreState.nodes = [
-        { id: "n2", data: { value: "second" } },
-      ] as any;
+      mockFlowStoreState.nodes = [{ id: "n2", data: { value: "second" } }];
       useAssistantManagerStore.getState().takeSnapshot();
 
       // Undo — this pushes current state to future WITHOUT cloneDeep
@@ -381,7 +380,7 @@ describe("bugs and edge cases", () => {
       mockFlowStoreState.nodes[0] = {
         id: "mutated",
         data: { value: "corrupted" },
-      } as any;
+      };
 
       // Redo should restore the state from BEFORE mutation
       mockSetNodes.mockClear();
@@ -399,14 +398,14 @@ describe("bugs and edge cases", () => {
     () => {
       // L122-125: past[currentFlowId].push({ nodes: newState.nodes, edges: newState.edges })
       // Same bug as undo — pushes live references instead of deep copies.
-      mockFlowStoreState.nodes = [{ id: "n1" }] as any;
-      mockFlowStoreState.edges = [] as any;
+      mockFlowStoreState.nodes = [{ id: "n1" }];
+      mockFlowStoreState.edges = [];
       useAssistantManagerStore.getState().takeSnapshot();
 
-      mockFlowStoreState.nodes = [{ id: "n2" }] as any;
+      mockFlowStoreState.nodes = [{ id: "n2" }];
       useAssistantManagerStore.getState().takeSnapshot();
 
-      mockFlowStoreState.nodes = [{ id: "n3" }] as any;
+      mockFlowStoreState.nodes = [{ id: "n3" }];
       useAssistantManagerStore.getState().takeSnapshot();
 
       // Undo twice
@@ -417,7 +416,7 @@ describe("bugs and edge cases", () => {
       useAssistantManagerStore.getState().redo();
 
       // Mutate the live nodes
-      mockFlowStoreState.nodes[0] = { id: "corrupted" } as any;
+      mockFlowStoreState.nodes[0] = { id: "corrupted" };
 
       // Undo should restore the state from before mutation
       mockSetNodes.mockClear();
@@ -436,8 +435,8 @@ describe("bugs and edge cases", () => {
       // the same flow, stale undo/redo history from before the reset persists.
       const flowId = bugFlowId;
 
-      mockFlowStoreState.nodes = [{ id: "before-reset" }] as any;
-      mockFlowStoreState.edges = [] as any;
+      mockFlowStoreState.nodes = [{ id: "before-reset" }];
+      mockFlowStoreState.edges = [];
       useAssistantManagerStore.getState().takeSnapshot();
 
       useAssistantManagerStore.getState().resetStore();

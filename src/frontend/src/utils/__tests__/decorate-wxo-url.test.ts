@@ -6,7 +6,7 @@ describe("decorateWxoUrl", () => {
       "https://www.ibm.com/products/watsonx-orchestrate",
     );
     const parsed = new URL(result);
-    expect(parsed.searchParams.get("utm_source")).toBe("langflow");
+    expect(parsed.searchParams.get("utm_source")).toBe("ketos");
     expect(parsed.searchParams.get("utm_medium")).toBe("integration");
     expect(parsed.searchParams.get("utm_campaign")).toBe("wxo-integration");
   });
@@ -18,7 +18,7 @@ describe("decorateWxoUrl", () => {
     expect(result).toMatch(/\?[^#]*#pricing$/);
     const parsed = new URL(result);
     expect(parsed.hash).toBe("#pricing");
-    expect(parsed.searchParams.get("utm_source")).toBe("langflow");
+    expect(parsed.searchParams.get("utm_source")).toBe("ketos");
   });
 
   it("merges with existing query parameters without duplicating them", () => {
@@ -27,7 +27,7 @@ describe("decorateWxoUrl", () => {
     );
     const parsed = new URL(result);
     expect(parsed.searchParams.get("topic")).toBe("api-getting-started");
-    expect(parsed.searchParams.get("utm_source")).toBe("langflow");
+    expect(parsed.searchParams.get("utm_source")).toBe("ketos");
     expect(parsed.searchParams.get("utm_medium")).toBe("integration");
   });
 
@@ -52,7 +52,7 @@ describe("decorateWxoUrl", () => {
       "https://www.ibm.com/foo?utm_source=other&utm_medium=email",
     );
     const parsed = new URL(result);
-    expect(parsed.searchParams.getAll("utm_source")).toEqual(["langflow"]);
+    expect(parsed.searchParams.getAll("utm_source")).toEqual(["ketos"]);
     expect(parsed.searchParams.getAll("utm_medium")).toEqual(["integration"]);
   });
 
@@ -73,6 +73,6 @@ describe("decorateWxoUrl", () => {
 
   it("decorates subdomains of ibm.com", () => {
     const result = decorateWxoUrl("https://www.ibm.com/anything");
-    expect(new URL(result).searchParams.get("utm_source")).toBe("langflow");
+    expect(new URL(result).searchParams.get("utm_source")).toBe("ketos");
   });
 });

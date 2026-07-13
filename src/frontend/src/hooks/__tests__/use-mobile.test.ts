@@ -42,9 +42,11 @@ describe("useIsMobile", () => {
 
     jest
       .spyOn(window, "addEventListener")
-      .mockImplementation((event: string, listener: any) => {
+      .mockImplementation((event, listener) => {
         if (event === "resize") {
-          listeners.resize.push(listener);
+          if (typeof listener === "function") {
+            listeners.resize.push(listener);
+          }
         } else {
           originalAddEventListener.call(window, event, listener);
         }
@@ -52,9 +54,11 @@ describe("useIsMobile", () => {
 
     jest
       .spyOn(window, "removeEventListener")
-      .mockImplementation((event: string, listener: any) => {
+      .mockImplementation((event, listener) => {
         if (event === "resize") {
-          listeners.resize = listeners.resize.filter((l) => l !== listener);
+          if (typeof listener === "function") {
+            listeners.resize = listeners.resize.filter((l) => l !== listener);
+          }
         } else {
           originalRemoveEventListener.call(window, event, listener);
         }

@@ -14,12 +14,14 @@ export const useDeleteUsers: useMutationFunctionType<
 > = (options?) => {
   const { mutate } = UseRequestProcessor();
 
-  const deleteMessage = async ({ user_id }: DeleteUserParams): Promise<any> => {
+  const deleteMessage = async ({
+    user_id,
+  }: DeleteUserParams): Promise<DeleteUserParams> => {
     const res = await api.delete(`${getURL("USERS")}/${user_id}`);
     return res.data;
   };
 
-  const mutation: UseMutationResult<DeleteUserParams, any, DeleteUserParams> =
+  const mutation: UseMutationResult<DeleteUserParams, Error, DeleteUserParams> =
     mutate(["useDeleteUsers"], deleteMessage, options);
 
   return mutation;

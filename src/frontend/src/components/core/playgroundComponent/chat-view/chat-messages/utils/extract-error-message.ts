@@ -30,7 +30,7 @@ export function extractErrorMessage(reason: string | undefined): string | null {
         return parsed.message;
       }
     }
-  } catch (e) {
+  } catch (_e) {
     // If parsing fails, return null to fall back to showing the full reason
   }
 

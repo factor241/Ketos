@@ -37,7 +37,7 @@ const SKIP_ALL_APPROVAL_TEXT =
 // survives the approval boundary and it can finish the rest of the
 // original request (e.g. running the flow). Must stay byte-identical to
 // `EDIT_CONTINUATION_INPUT` in
-// src/backend/base/langflow/agentic/services/flow_types.py.
+// src/backend/base/ketos/agentic/services/flow_types.py.
 const EDIT_CONTINUATION_INPUT =
   "The proposed canvas edits were applied. Continue with the remaining steps of my previous request (for example, running the flow). If editing was the entire request, just confirm briefly.";
 

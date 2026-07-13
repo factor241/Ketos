@@ -140,10 +140,13 @@ describe("useAssistantChat", () => {
       const firstSignal = mockPostAssistStream.mock.calls[0][2] as AbortSignal;
       expect(firstSignal.aborted).toBe(false);
 
+      const internalSendOptions = { silent: false, internal: true };
       await act(async () => {
-        await result.current.handleSend("second message", TEST_MODEL, {
-          internal: true,
-        });
+        await result.current.handleSend(
+          "second message",
+          TEST_MODEL,
+          internalSendOptions,
+        );
       });
 
       expect(firstSignal.aborted).toBe(true);
@@ -782,7 +785,7 @@ describe("useAssistantChat", () => {
 
   describe("bugs and edge cases", () => {
     it("completedSteps should track step transitions", async () => {
-      const progressSteps: string[] = [];
+      const _progressSteps: string[] = [];
 
       mockPostAssistStream.mockImplementation(
         async (_request: unknown, callbacks: Record<string, Function>) => {

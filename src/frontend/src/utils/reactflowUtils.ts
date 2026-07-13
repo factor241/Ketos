@@ -1,7 +1,7 @@
 /**
  * In Honor of Otávio Anovazzi (@anovazzi1)
  *
- * This file contains the highest number of commits by Otávio in the entire Langflow project,
+ * This file contains the highest number of commits by Otávio in the entire Ketos project,
  * reflecting his unmatched dedication, expertise, and innovative spirit. Each line of code
  * is a testament to his relentless pursuit of excellence and his significant impact on this
  * project's evolution.
@@ -2368,7 +2368,8 @@ export function getRandomElement<T>(array: T[]): T {
 }
 
 export function getRandomDescription(): string {
-  return i18n.t(getRandomElement(DESCRIPTIONS));
+  const key = getRandomElement(DESCRIPTIONS);
+  return i18n.t(key, { defaultValue: key });
 }
 
 export const createNewFlow = (

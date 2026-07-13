@@ -34,6 +34,12 @@ import {
 } from "../../ui/popover";
 import type { BaseInputProps } from "../parameterRenderComponent/types";
 
+type DropdownProps = Omit<
+  BaseInputProps,
+  "nodeId" | "nodeClass" | "handleNodeClass" | "handleOnNewValue"
+> &
+  DropDownComponent;
+
 export default function Dropdown({
   disabled,
   isLoading,
@@ -56,7 +62,7 @@ export default function Dropdown({
   toggle,
   inspectionPanel,
   ...baseInputProps
-}: BaseInputProps & DropDownComponent): JSX.Element {
+}: DropdownProps): JSX.Element {
   const { t } = useTranslation();
   const validOptions = useMemo(
     () => filterNullOptions(options),
@@ -214,6 +220,8 @@ export default function Dropdown({
   };
 
   const handleSourceOptions = async (value: string) => {
+    if (!nodeId || !nodeClass || !handleNodeClass) return;
+
     setWaitingForResponse(true);
     setOpen(false);
 
@@ -231,6 +239,8 @@ export default function Dropdown({
   };
 
   const handleRefreshButtonPress = async () => {
+    if (!nodeId || !nodeClass || !handleNodeClass) return;
+
     setRefreshOptions(true);
     setOpen(false);
 
@@ -628,20 +638,22 @@ export default function Dropdown({
               </div>
             </CommandItem>
           )}
-          <NodeDialog
-            open={openDialog}
-            dialogInputs={dialogInputs}
-            onClose={() => {
-              setOpenDialog(false);
-              setOpen(false);
-            }}
-            onCreated={(createdValue) => {
-              setPendingSelect(createdValue);
-            }}
-            nodeId={nodeId!}
-            name={name!}
-            nodeClass={nodeClass!}
-          />
+          {nodeId && nodeClass && (
+            <NodeDialog
+              open={openDialog}
+              dialogInputs={dialogInputs}
+              onClose={() => {
+                setOpenDialog(false);
+                setOpen(false);
+              }}
+              onCreated={(createdValue) => {
+                setPendingSelect(createdValue);
+              }}
+              nodeId={nodeId}
+              name={name}
+              nodeClass={nodeClass}
+            />
+          )}
         </CommandGroup>
       )}
     </CommandList>

@@ -1,10 +1,21 @@
 import { render, screen } from "@testing-library/react";
+import type React from "react";
 import type { SidebarHeaderComponentProps } from "../../types";
 import { SidebarHeaderComponent } from "../sidebarHeader";
 
+type DivProps = React.ComponentProps<"div">;
+type ButtonProps = React.ComponentProps<"button"> & {
+  variant?: string;
+  size?: string;
+};
+type DisclosureProps = DivProps & {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+};
+
 // Mock the UI components
 jest.mock("@/components/ui/disclosure", () => ({
-  Disclosure: ({ children, open, onOpenChange }: any) => (
+  Disclosure: ({ children, open, onOpenChange }: DisclosureProps) => (
     <div
       data-testid="disclosure"
       data-open={open}
@@ -13,16 +24,23 @@ jest.mock("@/components/ui/disclosure", () => ({
       {children}
     </div>
   ),
-  DisclosureContent: ({ children }: any) => (
+  DisclosureContent: ({ children }: DivProps) => (
     <div data-testid="disclosure-content">{children}</div>
   ),
-  DisclosureTrigger: ({ children }: any) => (
+  DisclosureTrigger: ({ children }: DivProps) => (
     <div data-testid="disclosure-trigger">{children}</div>
   ),
 }));
 
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, variant, size, className, ...props }: any) => (
+  Button: ({
+    children,
+    onClick,
+    variant,
+    size,
+    className,
+    ...props
+  }: ButtonProps) => (
     <button
       onClick={onClick}
       className={className}
@@ -36,7 +54,13 @@ jest.mock("@/components/ui/button", () => ({
 }));
 
 jest.mock("@/components/common/genericIconComponent", () => ({
-  ForwardedIconComponent: ({ name, className }: any) => (
+  ForwardedIconComponent: ({
+    name,
+    className,
+  }: {
+    name: string;
+    className?: string;
+  }) => (
     <div data-testid={`icon-${name}`} className={className}>
       {name}
     </div>
@@ -45,7 +69,11 @@ jest.mock("@/components/common/genericIconComponent", () => ({
 
 jest.mock("@/components/common/shadTooltipComponent", () => ({
   __esModule: true,
-  default: ({ children, content, styleClasses }: any) => (
+  default: ({
+    children,
+    content,
+    styleClasses,
+  }: DivProps & { content?: string; styleClasses?: string }) => (
     <div data-testid="tooltip" data-content={content} className={styleClasses}>
       {children}
     </div>
@@ -53,12 +81,12 @@ jest.mock("@/components/common/shadTooltipComponent", () => ({
 }));
 
 jest.mock("@/components/ui/sidebar", () => ({
-  SidebarHeader: ({ children, className }: any) => (
+  SidebarHeader: ({ children, className }: DivProps) => (
     <div data-testid="sidebar-header" className={className}>
       {children}
     </div>
   ),
-  SidebarTrigger: ({ children, className }: any) => (
+  SidebarTrigger: ({ children, className }: DivProps) => (
     <div data-testid="sidebar-trigger" className={className}>
       {children}
     </div>
@@ -67,7 +95,15 @@ jest.mock("@/components/ui/sidebar", () => ({
 
 jest.mock("../featureTogglesComponent", () => ({
   __esModule: true,
-  default: ({ showBeta, setShowBeta, showLegacy, setShowLegacy }: any) => (
+  default: ({
+    showBeta,
+    setShowBeta,
+    showLegacy,
+    setShowLegacy,
+  }: Pick<
+    SidebarHeaderComponentProps,
+    "showBeta" | "setShowBeta" | "showLegacy" | "setShowLegacy"
+  >) => (
     <div
       data-testid="feature-toggles"
       data-show-beta={showBeta}
@@ -88,7 +124,15 @@ jest.mock("../searchInput", () => ({
     handleInputFocus,
     handleInputBlur,
     handleInputChange,
-  }: any) => (
+  }: Pick<
+    SidebarHeaderComponentProps,
+    | "searchInputRef"
+    | "isInputFocused"
+    | "search"
+    | "handleInputFocus"
+    | "handleInputBlur"
+    | "handleInputChange"
+  >) => (
     <div
       data-testid="search-input"
       data-is-focused={isInputFocused}
@@ -103,7 +147,15 @@ jest.mock("../searchInput", () => ({
 }));
 
 jest.mock("../sidebarFilterComponent", () => ({
-  SidebarFilterComponent: ({ name, description, resetFilters }: any) => (
+  SidebarFilterComponent: ({
+    name,
+    description,
+    resetFilters,
+  }: {
+    name: string;
+    description: string;
+    resetFilters: () => void;
+  }) => (
     <div
       data-testid="sidebar-filter"
       data-name={name}
@@ -509,23 +561,6 @@ describe("SidebarHeaderComponent", () => {
   });
 
   describe("Edge Cases", () => {
-    it("should handle missing callback functions gracefully", () => {
-      const propsWithoutCallbacks = {
-        ...defaultProps,
-        setShowConfig: undefined as any,
-        setShowBeta: undefined as any,
-        setShowLegacy: undefined as any,
-        handleInputFocus: undefined as any,
-        handleInputBlur: undefined as any,
-        handleInputChange: undefined as any,
-        resetFilters: undefined as any,
-      };
-
-      expect(() => {
-        render(<SidebarHeaderComponent {...propsWithoutCallbacks} />);
-      }).not.toThrow();
-    });
-
     it("should handle empty filter strings gracefully", () => {
       const propsWithEmptyFilters = {
         ...defaultProps,

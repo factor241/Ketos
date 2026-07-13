@@ -12,8 +12,8 @@ export function TagsSelector({
   tags: { id: string; name: string }[];
   disabled?: boolean;
   loadingTags: boolean;
-  selectedTags: any[];
-  setSelectedTags: (tags: any[]) => void;
+  selectedTags: string[];
+  setSelectedTags: (tags: string[]) => void;
 }) {
   const updateTags = (tagName: string) => {
     const index = selectedTags.indexOf(tagName);

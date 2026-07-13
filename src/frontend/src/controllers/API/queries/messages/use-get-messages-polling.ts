@@ -1,7 +1,11 @@
-import type { UseMutationResult } from "@tanstack/react-query";
+import type {
+  UseMutationOptions,
+  UseMutationResult,
+} from "@tanstack/react-query";
 import type { ColDef, ColGroupDef } from "ag-grid-community";
 import { useEffect, useRef } from "react";
 import { useMessagesStore } from "@/stores/messagesStore";
+import type { Message } from "@/types/messages";
 import {
   extractColumnsFromRows,
   prepareSessionIdForAPI,
@@ -78,7 +82,10 @@ const MessagesPollingManager = {
 };
 
 export const useGetMessagesPollingMutation = (
-  options?: any,
+  options?: Omit<
+    UseMutationOptions<MessagesResponse, unknown, MessagesQueryParams, unknown>,
+    "mutationFn" | "mutationKey"
+  >,
 ): UseMutationResult<
   MessagesResponse,
   unknown,
@@ -113,8 +120,8 @@ export const useGetMessagesPollingMutation = (
 
       if (params) {
         // Process params to ensure session_id is properly encoded
-        const processedParams = { ...params } as any;
-        if (processedParams.session_id) {
+        const processedParams: Record<string, unknown> = { ...params };
+        if (typeof processedParams.session_id === "string") {
           processedParams.session_id = prepareSessionIdForAPI(
             processedParams.session_id,
           );
@@ -122,7 +129,7 @@ export const useGetMessagesPollingMutation = (
         config["params"] = { ...config["params"], ...processedParams };
       }
 
-      const data = await api.get<any>(`${getURL("MESSAGES")}`, config);
+      const data = await api.get<Message[]>(`${getURL("MESSAGES")}`, config);
       const columns = extractColumnsFromRows(data.data, mode, excludedFields);
       useMessagesStore.getState().setMessages(data.data);
 

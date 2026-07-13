@@ -22,7 +22,7 @@ test(
     await page.addInitScript(() => {
       window.process = window.process || {};
 
-      const newEnv = { ...window.process.env, LANGFLOW_AUTO_LOGIN: "false" };
+      const newEnv = { ...window.process.env, KETOS_AUTO_LOGIN: "false" };
 
       Object.defineProperty(window.process, "env", {
         value: newEnv,
@@ -223,7 +223,7 @@ test(
 
     expect(
       (
-        await page.waitForSelector("text=Welcome to LangFlow", {
+        await page.waitForSelector("text=Welcome to Ketos", {
           timeout: 30000,
         })
       ).isVisible(),

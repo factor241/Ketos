@@ -2,7 +2,7 @@
 // When the server runs with AUTO_LOGIN=TRUE (default for local dev),
 // the backend uses client_id instead of user_id for session isolation,
 // and persistence features are not active.
-// Set LANGFLOW_AUTO_LOGIN=false in your .env to run these tests.
+// Set KETOS_AUTO_LOGIN=false in your .env to run these tests.
 
 import type { Page } from "@playwright/test";
 import { expect, test } from "../../fixtures";

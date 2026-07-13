@@ -128,7 +128,7 @@ describe("IOKeyPairInputWithVariables", () => {
   });
 
   it("renders with existing key-value pairs", () => {
-    const props = {
+    const _props = {
       ...defaultProps,
       value: [
         { key: "x-api-key", value: "API_KEY_1", id: "1", error: false },

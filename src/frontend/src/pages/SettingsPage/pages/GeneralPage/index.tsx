@@ -6,7 +6,6 @@ import {
   useResetPassword,
   useUpdateUser,
 } from "@/controllers/API/queries/auth";
-import { useGetProfilePicturesQuery } from "@/controllers/API/queries/files";
 import { CustomTermsLinks } from "@/customization/components/custom-terms-links";
 import { ENABLE_PROFILE_ICONS } from "@/customization/feature-flags";
 import useAuthStore from "@/stores/authStore";
@@ -68,8 +67,6 @@ export const GeneralPage = () => {
     }
   };
 
-  const handleGetProfilePictures = useGetProfilePicturesQuery();
-
   const handlePatchProfilePicture = (profile_picture) => {
     if (profile_picture !== "") {
       mutatePatchUser(
@@ -110,7 +107,6 @@ export const GeneralPage = () => {
             profilePicture={profilePicture}
             handleInput={handleInput}
             handlePatchProfilePicture={handlePatchProfilePicture}
-            handleGetProfilePictures={handleGetProfilePictures}
             userData={userData}
           />
         )}

@@ -15,12 +15,16 @@ jest.mock("@/controllers/API/services/request-processor", () => ({
   UseRequestProcessor: jest.fn(() => ({
     query: jest.fn((_key, fn, _options) => {
       // Immediately call the query function and return mock result
-      const result = { data: null, isLoading: false, error: null } as any;
+      const result: { data: unknown; isLoading: boolean; error: unknown } = {
+        data: null,
+        isLoading: false,
+        error: null,
+      };
       fn()
-        .then((data: any) => {
+        .then((data: unknown) => {
           result.data = data;
         })
-        .catch((err: any) => {
+        .catch((err: unknown) => {
           result.error = err;
         });
       return result;

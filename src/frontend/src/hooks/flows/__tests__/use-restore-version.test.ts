@@ -11,7 +11,7 @@ jest.mock("@tanstack/react-query", () => ({
 
 const apiPostMock = jest.fn();
 jest.mock("@/controllers/API/api", () => ({
-  api: { post: (...args: any[]) => apiPostMock(...args) },
+  api: { post: (...args: unknown[]) => apiPostMock(...args) },
 }));
 jest.mock("@/controllers/API/helpers/constants", () => ({
   getURL: () => "/api/v1/flows",
@@ -27,7 +27,12 @@ const setSuccessDataMock = jest.fn();
 const setErrorDataMock = jest.fn();
 jest.mock("@/stores/alertStore", () => ({
   __esModule: true,
-  default: (selector: any) =>
+  default: (
+    selector: (state: {
+      setSuccessData: typeof setSuccessDataMock;
+      setErrorData: typeof setErrorDataMock;
+    }) => unknown,
+  ) =>
     selector({
       setSuccessData: setSuccessDataMock,
       setErrorData: setErrorDataMock,
@@ -37,14 +42,22 @@ jest.mock("@/stores/alertStore", () => ({
 const clearPreviewMock = jest.fn();
 const setPreviewStateMock = jest.fn();
 jest.mock("@/stores/versionPreviewStore", () => {
-  const store: any = (selector: any) =>
-    selector({ clearPreview: clearPreviewMock });
-  store.getState = () => ({
+  const store = (
+    selector: (state: { clearPreview: typeof clearPreviewMock }) => unknown,
+  ) => selector({ clearPreview: clearPreviewMock });
+  const typedStore = store as typeof store & {
+    getState: () => {
+      clearPreview: typeof clearPreviewMock;
+      didRestore: boolean;
+    };
+    setState: (...args: unknown[]) => void;
+  };
+  typedStore.getState = () => ({
     clearPreview: clearPreviewMock,
     didRestore: false,
   });
-  store.setState = (...args: any[]) => setPreviewStateMock(...args);
-  return { __esModule: true, default: store };
+  typedStore.setState = (...args: unknown[]) => setPreviewStateMock(...args);
+  return { __esModule: true, default: typedStore };
 });
 
 // ---------------------------------------------------------------------------
@@ -189,7 +202,7 @@ describe("useRestoreVersion", () => {
   });
 
   it("sets isRestoring to true during restore and false after", async () => {
-    let resolvePost: (value: any) => void;
+    let resolvePost: (value: unknown) => void;
     apiPostMock.mockReturnValueOnce(
       new Promise((resolve) => {
         resolvePost = resolve;

@@ -1,21 +1,27 @@
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen } from "@testing-library/react";
 import React from "react";
 import ToolsTable from "../index";
 
 // Mock dependencies
 jest.mock("@/components/common/genericIconComponent", () => ({
   __esModule: true,
-  default: ({ name }: any) => <span data-testid={`icon-${name}`}>{name}</span>,
+  default: ({ name }: { name: string }) => (
+    <span data-testid={`icon-${name}`}>{name}</span>
+  ),
 }));
 
 jest.mock("@/components/common/shadTooltipComponent", () => ({
   __esModule: true,
-  default: ({ children }: any) => <div>{children}</div>,
+  default: ({ children }: React.PropsWithChildren) => <div>{children}</div>,
 }));
 
 jest.mock("@/components/ui/input", () => ({
-  Input: ({ value, onChange, placeholder, icon }: any) => (
+  Input: ({
+    value,
+    onChange,
+    placeholder,
+    icon,
+  }: React.InputHTMLAttributes<HTMLInputElement> & { icon?: string }) => (
     <input
       data-testid="search-input"
       value={value}
@@ -27,7 +33,11 @@ jest.mock("@/components/ui/input", () => ({
 }));
 
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, ...props }: any) => (
+  Button: ({
+    children,
+    onClick,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button onClick={onClick} data-testid={props["data-testid"]}>
       {children}
     </button>
@@ -35,7 +45,10 @@ jest.mock("@/components/ui/button", () => ({
 }));
 
 jest.mock("@/components/ui/textarea", () => ({
-  Textarea: ({ value, onChange }: any) => (
+  Textarea: ({
+    value,
+    onChange,
+  }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
     <textarea data-testid="textarea" value={value} onChange={onChange} />
   ),
 }));
@@ -45,11 +58,21 @@ jest.mock("@/components/ui/separator", () => ({
 }));
 
 jest.mock("@/components/ui/sidebar", () => ({
-  Sidebar: ({ children }: any) => <div data-testid="sidebar">{children}</div>,
-  SidebarContent: ({ children }: any) => <div>{children}</div>,
-  SidebarFooter: ({ children }: any) => <div>{children}</div>,
-  SidebarGroup: ({ children }: any) => <div>{children}</div>,
-  SidebarGroupContent: ({ children }: any) => <div>{children}</div>,
+  Sidebar: ({ children }: React.PropsWithChildren) => (
+    <div data-testid="sidebar">{children}</div>
+  ),
+  SidebarContent: ({ children }: React.PropsWithChildren) => (
+    <div>{children}</div>
+  ),
+  SidebarFooter: ({ children }: React.PropsWithChildren) => (
+    <div>{children}</div>
+  ),
+  SidebarGroup: ({ children }: React.PropsWithChildren) => (
+    <div>{children}</div>
+  ),
+  SidebarGroupContent: ({ children }: React.PropsWithChildren) => (
+    <div>{children}</div>
+  ),
   useSidebar: () => ({ setOpen: jest.fn() }),
 }));
 
@@ -58,7 +81,15 @@ jest.mock(
   "@/components/core/parameterRenderComponent/components/tableComponent",
   () => ({
     __esModule: true,
-    default: React.forwardRef((props: any, ref: any) => (
+    default: React.forwardRef<
+      HTMLDivElement,
+      {
+        pagination: boolean;
+        paginationPageSize: number;
+        paginationPageSizeSelector: unknown;
+        rowData: unknown[];
+      }
+    >((props, _ref) => (
       <div data-testid="table-component">
         <div data-testid="pagination-enabled">{String(props.pagination)}</div>
         <div data-testid="pagination-page-size">{props.paginationPageSize}</div>

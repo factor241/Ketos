@@ -4,7 +4,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import ModelProviderCount from "../index";
 
 // Mock the useGetEnabledModels hook
-const mockEnabledModelsData = {
+const mockEnabledModelsData: {
+  enabled_models: Record<string, Record<string, boolean>> | undefined;
+} = {
   enabled_models: {},
 };
 
@@ -213,7 +215,7 @@ describe("ModelProviderCount", () => {
 
   describe("Edge Cases", () => {
     it("should handle undefined enabled_models gracefully", () => {
-      mockEnabledModelsData.enabled_models = undefined as any;
+      mockEnabledModelsData.enabled_models = undefined;
       renderWithProviders(<ModelProviderCount />);
 
       expect(screen.getByText("0")).toBeInTheDocument();

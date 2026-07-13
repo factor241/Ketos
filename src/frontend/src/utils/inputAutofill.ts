@@ -1,9 +1,9 @@
 /**
  * Attribute bundle that opts a field out of browser + password-manager autofill.
  *
- * Langflow component-configuration fields are not login/web forms, yet browsers
+ * Ketos component-configuration fields are not login/web forms, yet browsers
  * (notably Chrome) and password managers heuristically classify them as
- * credential fields and inject saved values into them. Because Langflow
+ * credential fields and inject saved values into them. Because Ketos
  * autosaves, an injected value silently overwrites the real one and persists it,
  * corrupting the flow.
  *

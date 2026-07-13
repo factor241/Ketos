@@ -5,8 +5,10 @@ import type { FlowPoolType } from "../../types/zustand/flow";
 const useUpdateValidationStatus = (
   dataId: string,
   flowPool: FlowPoolType,
-  setValidationStatus: (value: any) => void,
-  getValidationStatus: (data) => VertexBuildTypeAPI | null,
+  setValidationStatus: (value: VertexBuildTypeAPI | null) => void,
+  getValidationStatus: (
+    data: VertexBuildTypeAPI | null,
+  ) => VertexBuildTypeAPI | null,
 ) => {
   useEffect(() => {
     const relevantData =

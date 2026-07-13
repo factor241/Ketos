@@ -49,7 +49,7 @@ describe("getAuthCookie", () => {
       get: jest.fn(),
       set: jest.fn(),
       remove: jest.fn(),
-    } as any;
+    } as unknown as jest.Mocked<Cookies>;
   });
 
   afterEach(() => {

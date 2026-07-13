@@ -26,7 +26,7 @@ interface GetFlowsParams {
 }
 
 const addQueryParams = (url: string, params: GetFlowsParams): string => {
-  return buildQueryStringUrl(url, params);
+  return buildQueryStringUrl(url, { ...params });
 };
 
 export const useGetRefreshFlowsQuery: useQueryFunctionType<

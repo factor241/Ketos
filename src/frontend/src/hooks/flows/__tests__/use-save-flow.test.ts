@@ -8,8 +8,8 @@ const mockSetCurrentFlow = jest.fn();
 const mockGetFlow = jest.fn();
 const mockMutate = jest.fn();
 
-let flowStoreState: any;
-let flowsManagerState: any;
+let flowStoreState: Record<string, unknown>;
+let flowsManagerState: Record<string, unknown>;
 
 jest.mock("@/controllers/API/queries/flows/use-get-flow", () => ({
   useGetFlow: () => ({ mutate: mockGetFlow }),
@@ -21,15 +21,18 @@ jest.mock("@/controllers/API/queries/flows/use-patch-update-flow", () => ({
 
 jest.mock("@/stores/alertStore", () => ({
   __esModule: true,
-  default: (selector: any) =>
+  default: (
+    selector: (state: { setErrorData: typeof mockSetErrorData }) => unknown,
+  ) =>
     selector({
       setErrorData: mockSetErrorData,
     }),
 }));
 
 jest.mock("@/stores/flowStore", () => {
-  const useFlowStore = (selector: any) =>
-    selector ? selector(flowStoreState) : flowStoreState;
+  const useFlowStore = (
+    selector?: (state: Record<string, unknown>) => unknown,
+  ) => (selector ? selector(flowStoreState) : flowStoreState);
   useFlowStore.getState = () => flowStoreState;
 
   return {
@@ -39,8 +42,9 @@ jest.mock("@/stores/flowStore", () => {
 });
 
 jest.mock("@/stores/flowsManagerStore", () => {
-  const useFlowsManagerStore = (selector: any) =>
-    selector ? selector(flowsManagerState) : flowsManagerState;
+  const useFlowsManagerStore = (
+    selector?: (state: Record<string, unknown>) => unknown,
+  ) => (selector ? selector(flowsManagerState) : flowsManagerState);
   useFlowsManagerStore.getState = () => flowsManagerState;
 
   return {
@@ -94,7 +98,7 @@ describe("useSaveFlow", () => {
 
     mockMutate.mockImplementation((_payload, options) => {
       options.onSuccess({
-        ...flowStoreState.currentFlow,
+        ...savedFlow,
         data: {
           nodes: [],
           edges: [],

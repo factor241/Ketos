@@ -4,7 +4,6 @@ import {
   type EdgeChange,
   type NodeChange,
   type OnNodeDrag,
-  type OnSelectionChangeParams,
   ReactFlow,
   reconnectEdge,
   type SelectionDragHandler,
@@ -151,8 +150,10 @@ export default function Page({
   );
 
   const position = useRef({ x: 0, y: 0 });
-  const [lastSelection, setLastSelection] =
-    useState<OnSelectionChangeParams | null>(null);
+  const [lastSelection, setLastSelection] = useState<{
+    nodes: AllNodeType[];
+    edges: EdgeType[];
+  } | null>(null);
   const currentFlowId = useFlowsManagerStore((state) => state.currentFlowId);
 
   const { isAgentWorking, events, lastSettledAt, clearEvents } = useFlowEvents(
@@ -789,7 +790,7 @@ export default function Page({
   }, [selectionEnded, lastSelection]);
 
   const onSelectionChange = useCallback(
-    (flow: OnSelectionChangeParams): void => {
+    (flow: { nodes: AllNodeType[]; edges: EdgeType[] }): void => {
       setLastSelection(flow);
       if (flow.nodes && (flow.nodes.length === 0 || flow.nodes.length > 1)) {
         setRightClickedNodeId(null);
@@ -913,10 +914,10 @@ export default function Page({
     : null;
 
   // Determine if InspectionPanel should be visible
-  const showInspectionPanel = inspectionPanelVisible && !!selectedNode;
+  const _showInspectionPanel = inspectionPanelVisible && !!selectedNode;
 
   // Handler to close the inspection panel by deselecting all nodes
-  const handleCloseInspectionPanel = useCallback(() => {
+  const _handleCloseInspectionPanel = useCallback(() => {
     setNodes((nds) =>
       nds.map((node) => ({
         ...node,

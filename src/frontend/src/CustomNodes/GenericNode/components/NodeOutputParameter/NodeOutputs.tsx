@@ -1,3 +1,4 @@
+import type { OutputFieldType } from "@/types/api";
 import type { NodeDataType } from "@/types/flow";
 import { OutputParameter } from ".";
 
@@ -14,16 +15,16 @@ export default function NodeOutputs({
   handleSelectOutput,
   hasExistingHiddenOutputs = false,
 }: {
-  outputs: any;
+  outputs: OutputFieldType[];
   keyPrefix: string;
   data: NodeDataType;
-  types: any;
+  types: Record<string, string>;
   selected: boolean;
   showNode: boolean;
   isToolMode: boolean;
   showHiddenOutputs: boolean;
-  selectedOutput: any;
-  handleSelectOutput: any;
+  selectedOutput: OutputFieldType | null;
+  handleSelectOutput: (output: OutputFieldType) => void;
   hasExistingHiddenOutputs?: boolean;
 }) {
   const hasLoopOutput = outputs.some((output) => output.allows_loop);

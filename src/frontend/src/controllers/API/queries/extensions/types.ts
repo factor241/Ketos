@@ -2,7 +2,7 @@
  * Wire-format types for the extension reload endpoint.
  *
  * Mirrors the Python ReloadResult.to_dict() / ExtensionError.to_dict()
- * shapes from the lfx package; if the backend shape changes these need
+ * shapes from the kfx package; if the backend shape changes these need
  * to change in lockstep.  Kept in their own file so the mutation hook
  * and any UI-side consumers (toast formatters, tests) share one source
  * of truth.

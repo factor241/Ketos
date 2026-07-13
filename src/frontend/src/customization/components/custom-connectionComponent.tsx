@@ -13,7 +13,7 @@ const CustomConnectionComponent = ({
   buttonMetadata = { variant: "destructive", icon: "unplug" },
   connectionLink = "",
   ...baseInputProps
-}: InputProps<any, ConnectionComponentProps>) => {
+}: InputProps<string, ConnectionComponentProps>) => {
   return (
     <ConnectionComponent
       {...baseInputProps}

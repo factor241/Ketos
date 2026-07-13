@@ -42,7 +42,7 @@ export default function NodeDescription({
   );
   const takeSnapshot = useFlowsManagerStore((state) => state.takeSnapshot);
   const setNode = useFlowStore((state) => state.setNode);
-  const overflowRef = useRef<HTMLDivElement>(null);
+  const overflowRef = useRef<HTMLButtonElement>(null);
   const [hasScroll, sethasScroll] = useState(false);
 
   useEffect(() => {
@@ -198,20 +198,25 @@ export default function NodeDescription({
           )}
         </>
       ) : (
-        <div
+        <button
+          type="button"
           data-testid="generic-node-desc"
           ref={overflowRef}
           className={cn(
-            "nodoubleclick generic-node-desc-text h-full cursor-grab text-muted-foreground word-break-break-word",
+            "nodoubleclick generic-node-desc-text block h-full w-full cursor-grab border-0 bg-transparent p-0 text-left text-muted-foreground word-break-break-word",
             description === "" || !description ? "font-light italic" : "",
             stickyNote && "text-base font-medium overflow-auto max-h-full",
             isCanvasReadOnly && "cursor-default",
             placeholderClassName,
           )}
           onDoubleClick={handleDoubleClickFn}
+          tabIndex={stickyNote && !isCanvasReadOnly ? 0 : -1}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") handleDoubleClickFn();
+          }}
         >
           {renderedDescription}
-        </div>
+        </button>
       )}
     </div>
   );

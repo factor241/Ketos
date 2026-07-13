@@ -74,13 +74,14 @@ export default function ChatMessage({
         setIsStreaming(false);
         eventSource.current?.close();
         setStreamUrl(undefined);
-        if (JSON.parse(event.data)?.error) {
+        const errorPayload = event.data ? JSON.parse(event.data) : undefined;
+        if (errorPayload?.error) {
           setErrorData({
             title: t("errors.errorOnStreaming"),
-            list: [JSON.parse(event.data)?.error],
+            list: [errorPayload.error],
           });
         }
-        updateChat(chat, chatMessageRef.current);
+        updateChat?.(chat, chatMessageRef.current);
         reject(new Error("Streaming failed"));
       };
       eventSource.current.addEventListener("close", (event) => {
@@ -146,7 +147,7 @@ export default function ChatMessage({
       },
       {
         onSuccess: () => {
-          updateChat(chat, message);
+          updateChat?.(chat, message);
           setEditMessage(false);
         },
         onError: () => {
@@ -165,7 +166,7 @@ export default function ChatMessage({
           ...chat,
           files: convertFiles(chat.files),
           sender_name: chat.sender_name ?? "AI",
-          text: chat.message.toString(),
+          text: String(chat.message ?? ""),
           sender: chat.isSend ? "User" : "Machine",
           flow_id,
           session_id: chat.session ?? "",
@@ -300,8 +301,8 @@ export default function ChatMessage({
                 )}
                 {!chat.isSend && (
                   <MessageMetadata
-                    duration={chat.properties?.build_duration}
-                    usage={chat.properties?.usage}
+                    duration={chat.properties?.build_duration ?? undefined}
+                    usage={chat.properties?.usage ?? undefined}
                     timestamp={chat.timestamp}
                   />
                 )}
@@ -324,7 +325,8 @@ export default function ChatMessage({
               <div className="form-modal-chat-text-position flex-grow">
                 <div className="form-modal-chat-text">
                   {hidden && chat.thought && chat.thought !== "" && (
-                    <div
+                    <button
+                      type="button"
                       onClick={(): void => setHidden((prev) => !prev)}
                       className="form-modal-chat-icon-div"
                     >
@@ -332,7 +334,7 @@ export default function ChatMessage({
                         name="MessageSquare"
                         className="form-modal-chat-icon"
                       />
-                    </div>
+                    </button>
                   )}
                   {chat.thought && chat.thought !== "" && !hidden && (
                     <SanitizedHTMLWrapper

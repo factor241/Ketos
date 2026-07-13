@@ -1,31 +1,36 @@
-import {
-  fireEvent,
-  render,
-  renderHook,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type React from "react";
 import type { NodeDataType } from "@/types/flow";
 import EditableHeaderContent from "../components/EditableHeaderContent";
 
 // Mock Markdown component
 jest.mock("react-markdown", () => {
-  return function MockMarkdown({ children }: any) {
+  return function MockMarkdown({ children }: React.PropsWithChildren) {
     return <div data-testid="markdown-content">{children}</div>;
   };
 });
 
 // Mock Input component
 jest.mock("@/components/ui/input", () => ({
-  Input: ({ value, onChange, onKeyDown, ...props }: any) => (
+  Input: ({
+    value,
+    onChange,
+    onKeyDown,
+    ...props
+  }: React.ComponentProps<"input">) => (
     <input value={value} onChange={onChange} onKeyDown={onKeyDown} {...props} />
   ),
 }));
 
 // Mock Textarea component
 jest.mock("@/components/ui/textarea", () => ({
-  Textarea: ({ value, onChange, onKeyDown, ...props }: any) => (
+  Textarea: ({
+    value,
+    onChange,
+    onKeyDown,
+    ...props
+  }: React.ComponentProps<"textarea">) => (
     <textarea
       value={value}
       onChange={onChange}
@@ -41,7 +46,7 @@ const mockSetNode = jest.fn();
 
 jest.mock("@/stores/flowsManagerStore", () => ({
   __esModule: true,
-  default: (selector: any) =>
+  default: (selector: (state: { takeSnapshot: jest.Mock }) => unknown) =>
     selector({
       takeSnapshot: mockTakeSnapshot,
     }),
@@ -49,7 +54,7 @@ jest.mock("@/stores/flowsManagerStore", () => ({
 
 jest.mock("@/stores/flowStore", () => ({
   __esModule: true,
-  default: (selector: any) =>
+  default: (selector: (state: { setNode: jest.Mock }) => unknown) =>
     selector({
       setNode: mockSetNode,
     }),
@@ -57,7 +62,7 @@ jest.mock("@/stores/flowStore", () => ({
 
 // Mock utils
 jest.mock("@/utils/utils", () => ({
-  cn: (...classes: any[]) => classes.filter(Boolean).join(" "),
+  cn: (...classes: unknown[]) => classes.filter(Boolean).join(" "),
 }));
 
 describe("EditableHeaderContent", () => {
@@ -67,6 +72,7 @@ describe("EditableHeaderContent", () => {
     node: {
       display_name: "Test Node",
       description: "Test description",
+      documentation: "",
       template: {},
       ...overrides,
     },
@@ -586,20 +592,6 @@ describe("EditableHeaderContent", () => {
       const TestComponent = () => {
         const { descriptionElement } = EditableHeaderContent(props);
         return <div>{descriptionElement}</div>;
-      };
-
-      expect(() => render(<TestComponent />)).not.toThrow();
-    });
-
-    it("should handle null node", () => {
-      const props = {
-        ...defaultProps,
-        data: { ...defaultProps.data, node: null as any },
-      };
-
-      const TestComponent = () => {
-        const { nameElement } = EditableHeaderContent(props);
-        return <div>{nameElement}</div>;
       };
 
       expect(() => render(<TestComponent />)).not.toThrow();

@@ -17,15 +17,15 @@ test(
     await page.getByTestId("code-button-modal").last().click();
 
     const problematicCode = `
-# from lfx.field_typing import Data
-from lfx.custom.custom_component.component import Component
-from lfx.io import MessageTextInput, Output
-from lfx.schema.data import Data
+# from kfx.field_typing import Data
+from kfx.custom.custom_component.component import Component
+from kfx.io import MessageTextInput, Output
+from kfx.schema.data import Data
 
 class CustomComponent(Component):
     display_name = "Custom Component"
     description = "Use as a template to create your own component."
-    documentation: str = "https://docs.langflow.org/components-custom-components"
+    documentation: str = "https://docs.ketos.test/components-custom-components"
     icon = "code"
     name = "CustomComponent"
     replacement = ["knowledgebases.KnowledgeRetrieval", "knowledgebases.KnowledgeIngestion", "THISISNOTEXISTING.COMPONENT"]  # This line was causing the crash

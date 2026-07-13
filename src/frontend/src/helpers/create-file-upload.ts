@@ -57,8 +57,6 @@ export function createFileUpload(props?: {
           resolve([]);
           return;
         }
-        const originalCount = files.length;
-
         files = files.filter((file) => {
           const path = file.webkitRelativePath;
           const pathParts = path.split("/");

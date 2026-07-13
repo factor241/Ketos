@@ -77,7 +77,7 @@ class TestExtractBackendStrings:
         report_file = tmp_path / "extraction-report.json"
         skipped = [
             extract_mod.SkippedImport(
-                module="lfx.components.broken",
+                module="kfx.components.broken",
                 error_type="RuntimeError",
                 message="dependency failed",
             )
@@ -102,7 +102,7 @@ class TestExtractBackendStrings:
                 {
                     "error_type": "RuntimeError",
                     "message": "dependency failed",
-                    "module": "lfx.components.broken",
+                    "module": "kfx.components.broken",
                 }
             ],
         }
@@ -199,19 +199,19 @@ class TestExtractBackendStrings:
         import types
 
         fake_modules = [
-            pkgutil.ModuleInfo(module_finder=None, name="lfx.components.active", ispkg=False),
-            pkgutil.ModuleInfo(module_finder=None, name="lfx.components.deactivated.old", ispkg=False),
+            pkgutil.ModuleInfo(module_finder=None, name="kfx.components.active", ispkg=False),
+            pkgutil.ModuleInfo(module_finder=None, name="kfx.components.deactivated.old", ispkg=False),
         ]
 
-        fake_components_pkg = types.ModuleType("lfx.components")
+        fake_components_pkg = types.ModuleType("kfx.components")
         fake_components_pkg.__path__ = []
-        fake_components_pkg.__name__ = "lfx.components"
+        fake_components_pkg.__name__ = "kfx.components"
 
-        active_module = types.ModuleType("lfx.components.active")
-        active_module.__name__ = "lfx.components.active"
+        active_module = types.ModuleType("kfx.components.active")
+        active_module.__name__ = "kfx.components.active"
 
         class FakeComponent:
-            __module__ = "lfx.components.active"
+            __module__ = "kfx.components.active"
             code_class_base_inheritance = True
             display_name = "Active Component"
             description = "An active component"
@@ -255,9 +255,9 @@ class TestExtractBackendStrings:
 
         active_module.FakeComponent = FakeComponent
 
-        # Provide a minimal fake langflow.utils.i18n_keys so collect_strings()
-        # can be called without langflow installed in the test environment.
-        fake_i18n_keys = types.ModuleType("langflow.utils.i18n_keys")
+        # Provide a minimal fake ketos.utils.i18n_keys so collect_strings()
+        # can be called without importing the full backend dependency graph.
+        fake_i18n_keys = types.ModuleType("ketos.utils.i18n_keys")
 
         def _content_hash(english: str) -> str:
             return hashlib.sha256(english.encode()).hexdigest()[:8]
@@ -291,16 +291,16 @@ class TestExtractBackendStrings:
             {"label", "description", "display_name", "helper_text", "text", "title", "tooltip"}
         )
 
-        fake_langflow = types.ModuleType("langflow")
-        fake_langflow_utils = types.ModuleType("langflow.utils")
-        fake_initial_setup = types.ModuleType("langflow.initial_setup")
-        fake_initial_constants = types.ModuleType("langflow.initial_setup.constants")
+        fake_ketos = types.ModuleType("ketos")
+        fake_ketos_utils = types.ModuleType("ketos.utils")
+        fake_initial_setup = types.ModuleType("ketos.initial_setup")
+        fake_initial_constants = types.ModuleType("ketos.initial_setup.constants")
         fake_initial_constants.STARTER_FOLDER_NAME = "Starter Projects"
         fake_initial_constants.STARTER_FOLDER_NAME_I18N_KEY = "system_folders.starter.name"
-        fake_initial_constants.ASSISTANT_FOLDER_NAME = "Langflow Assistant"
+        fake_initial_constants.ASSISTANT_FOLDER_NAME = "Ketos Assistant"
         fake_initial_constants.ASSISTANT_FOLDER_NAME_I18N_KEY = "system_folders.assistant.name"
-        fake_folder_package = types.ModuleType("langflow.services.database.models.folder")
-        fake_folder_constants = types.ModuleType("langflow.services.database.models.folder.constants")
+        fake_folder_package = types.ModuleType("ketos.services.database.models.folder")
+        fake_folder_constants = types.ModuleType("ketos.services.database.models.folder.constants")
         fake_folder_constants.DEFAULT_FOLDER_DISPLAY_NAME = "Starter Project"
         fake_folder_constants.DEFAULT_FOLDER_NAME_I18N_KEY = "system_folders.default.name"
         component_index = tmp_path / "component_index.json"
@@ -335,15 +335,15 @@ class TestExtractBackendStrings:
             patch.dict(
                 sys.modules,
                 {
-                    "lfx": types.ModuleType("lfx"),
-                    "lfx.components": fake_components_pkg,
-                    "langflow": fake_langflow,
-                    "langflow.utils": fake_langflow_utils,
-                    "langflow.utils.i18n_keys": fake_i18n_keys,
-                    "langflow.initial_setup": fake_initial_setup,
-                    "langflow.initial_setup.constants": fake_initial_constants,
-                    "langflow.services.database.models.folder": fake_folder_package,
-                    "langflow.services.database.models.folder.constants": fake_folder_constants,
+                    "kfx": types.ModuleType("kfx"),
+                    "kfx.components": fake_components_pkg,
+                    "ketos": fake_ketos,
+                    "ketos.utils": fake_ketos_utils,
+                    "ketos.utils.i18n_keys": fake_i18n_keys,
+                    "ketos.initial_setup": fake_initial_setup,
+                    "ketos.initial_setup.constants": fake_initial_constants,
+                    "ketos.services.database.models.folder": fake_folder_package,
+                    "ketos.services.database.models.folder.constants": fake_folder_constants,
                 },
             ),
             patch("pkgutil.walk_packages", return_value=fake_modules),
@@ -372,10 +372,9 @@ class TestExtractBackendStrings:
             "Index-only generated info",
             "Starter Project",
             "Starter Projects",
-            "Langflow Assistant",
+            "Ketos Assistant",
         } <= values
         assert any(
-            key.startswith("components.activecomponent.dynamic.helper_text.")
-            and value == "Choose a dynamic policy."
+            key.startswith("components.activecomponent.dynamic.helper_text.") and value == "Choose a dynamic policy."
             for key, value in strings.items()
         )

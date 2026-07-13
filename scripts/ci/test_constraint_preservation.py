@@ -2,17 +2,17 @@ import subprocess
 
 # Simulate the sed pattern from release.yml
 # The pattern should preserve trailing commas
-SED_PATTERN = 's|"langflow-base[^"]*"|"langflow-base[complete]>=0.8.0.rc3,<1.dev0"|g'
+SED_PATTERN = 's|"ketos-base[^"]*"|"ketos-base[complete]>=0.8.0.rc3,<1.dev0"|g'
 
 TEST_CASES = [
-    '    "langflow-base[complete]~=0.8.0",',
-    '    "langflow-base~=0.8.0",',
-    '    "langflow-base[openai]~=0.8.0",',
-    '    "langflow-base[complete]>=0.8.0,<1.dev0",',
-    '    "langflow-base[complete]>=0.8.0.rc2,<1.dev0",',
+    '    "ketos-base[complete]~=0.8.0",',
+    '    "ketos-base~=0.8.0",',
+    '    "ketos-base[openai]~=0.8.0",',
+    '    "ketos-base[complete]>=0.8.0,<1.dev0",',
+    '    "ketos-base[complete]>=0.8.0.rc2,<1.dev0",',
 ]
 
-EXPECTED = '    "langflow-base[complete]>=0.8.0.rc3,<1.dev0",'
+EXPECTED = '    "ketos-base[complete]>=0.8.0.rc3,<1.dev0",'
 
 
 def run_sed(input_line):

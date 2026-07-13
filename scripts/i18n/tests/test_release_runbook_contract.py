@@ -21,9 +21,9 @@ def test_release_runbook_covers_every_required_production_topology() -> None:
         "Wheel installation smoke",
         "docker/build_and_push.Dockerfile",
         "docker/frontend/build_and_push_frontend.Dockerfile",
-        "uv build --package langflow-base --wheel",
-        "langflow/locales/ru.json",
-        "langflow/frontend/assets/ru-",
+        "uv build --package ketos-base --wheel",
+        "ketos/locales/ru.json",
+        "ketos/frontend/assets/ru-",
         "localization-russian-routes.spec.ts",
         "localization-russian-errors.spec.ts",
     )
@@ -77,8 +77,8 @@ def test_release_runbook_has_executable_persistent_rollback_rehearsal() -> None:
     required_contracts = (
         "rollback_rehearsal_cleanup()",
         "trap rollback_rehearsal_cleanup EXIT",
-        'ROLLBACK_DATA_VOLUME="langflow-ru-rehearsal-${RELEASE_ID}"',
-        '-v "${ROLLBACK_DATA_VOLUME}:/app/langflow"',
+        'ROLLBACK_DATA_VOLUME="ketos-ru-rehearsal-${RELEASE_ID}"',
+        '-v "${ROLLBACK_DATA_VOLUME}:/app/ketos"',
         'ROLLBACK_PHASE="enabled-before"',
         'ROLLBACK_PHASE="disabled"',
         'ROLLBACK_PHASE="enabled-after"',
@@ -108,8 +108,8 @@ def test_release_runbook_separates_local_ids_registry_digests_and_locale_artifac
     assert "{{json .RepoDigests}}" in text  # noqa: S101
     assert 'startswith(f"{repository}@")' in text  # noqa: S101
     assert text.index("docker push") < text.index("{{json .RepoDigests}}")  # noqa: S101
-    assert "backend raw catalog `langflow/locales/ru.json`" in text  # noqa: S101
-    assert "compiled frontend chunk `langflow/frontend/assets/ru-<hash>.js`" in text  # noqa: S101
+    assert "backend raw catalog `ketos/locales/ru.json`" in text  # noqa: S101
+    assert "compiled frontend chunk `ketos/frontend/assets/ru-<hash>.js`" in text  # noqa: S101
     assert "оба `ru.json`" not in text  # noqa: RUF001, S101
 
 
@@ -142,7 +142,7 @@ def test_release_runbook_builds_and_rehearses_disabled_wheel() -> None:
         "rollback-wheel-enabled-dist",
         "rollback-wheel-disabled-venv",
         "rollback-wheel-enabled-venv",
-        'assert "langflow/locales/ru.json" in names',
+        'assert "ketos/locales/ru.json" in names',
         "assert len(ru_chunks) == 1",
         'EXPECTED_LANG="en"',
         'EXPECTED_RU_OPTION_COUNT="0"',
@@ -183,3 +183,11 @@ def test_release_runbook_smoke_blocks_install_cleanup_traps() -> None:
     )
     for contract in required_contracts:
         assert contract in text, f"runbook is missing cleanup trap {contract!r}"  # noqa: S101
+
+
+def test_release_runbook_uses_only_current_ketos_kfx_product_identities() -> None:
+    text = _runbook().casefold()
+
+    required_contracts = ("ketos-base", "ketos/locales", "ketos/frontend", "/app/ketos", "kfx")
+    for contract in required_contracts:
+        assert contract in text, f"runbook is missing current product identity {contract!r}"  # noqa: S101

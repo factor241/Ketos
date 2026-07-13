@@ -5,6 +5,7 @@
 ## 1. Инварианты и входные данные
 
 - Release строится только из зафиксированного commit SHA и `package-lock.json` через `npm ci`.
+- Production package identity — `ketos-base`, component SDK identity — `KFX`; runtime paths и команды используют только current Ketos/KFX names.
 - В артефактах обязательны backend-файл `ketos/locales/ru.json` и content-addressed frontend chunk `ketos/frontend/assets/ru-<hash>.js`.
 - Формат имени RU chunk: `ru-[A-Za-z0-9_\-]{8,}\.js`.
 - System-owned `missing-key = 0`, `fallback = 0`, `failed-loading = 0` — жёсткие release gates, а не допустимые бюджеты ошибок.

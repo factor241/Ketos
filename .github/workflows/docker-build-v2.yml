@@ -217,6 +217,7 @@ jobs:
           password: ${{ secrets.TEMP_GHCR_TOKEN}}
 
       - name: Build and push to Docker Hub
+        id: oci_build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -227,6 +228,26 @@ jobs:
           provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Record immutable OCI subject
+        env:
+          ARCH: ${{ matrix.arch }}
+          IMAGE_DIGEST: ${{ steps.oci_build.outputs.digest }}
+          IMAGE_TAG: ${{ steps.tags.outputs.docker_tags }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$IMAGE_DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$'
+          IMAGE_NAME="${IMAGE_TAG%:*}"
+          printf '{"arch":"%s","release_type":"%s","subject":"%s@%s"}\n' \
+            "$ARCH" "$RELEASE_TYPE" "$IMAGE_NAME" "$IMAGE_DIGEST" \
+            > "oci-subject-${RELEASE_TYPE}-${ARCH}.json"
+
+      - name: Upload immutable OCI subject
+        uses: actions/upload-artifact@v6
+        with:
+          name: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}
+          path: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}.json
 
       - name: Build and push to GitHub Container Registry
         uses: docker/build-push-action@v6
@@ -288,6 +309,7 @@ jobs:
           password: ${{ secrets.TEMP_GHCR_TOKEN}}
 
       - name: Build and push to Docker Hub
+        id: oci_build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -298,6 +320,26 @@ jobs:
           provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Record immutable OCI subject
+        env:
+          ARCH: ${{ matrix.arch }}
+          IMAGE_DIGEST: ${{ steps.oci_build.outputs.digest }}
+          IMAGE_TAG: ${{ steps.tags.outputs.docker_tags }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$IMAGE_DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$'
+          IMAGE_NAME="${IMAGE_TAG%:*}"
+          printf '{"arch":"%s","release_type":"%s","subject":"%s@%s"}\n' \
+            "$ARCH" "$RELEASE_TYPE" "$IMAGE_NAME" "$IMAGE_DIGEST" \
+            > "oci-subject-${RELEASE_TYPE}-${ARCH}.json"
+
+      - name: Upload immutable OCI subject
+        uses: actions/upload-artifact@v6
+        with:
+          name: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}
+          path: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}.json
 
       - name: Build and push to GitHub Container Registry
         uses: docker/build-push-action@v6
@@ -352,6 +394,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push to Docker Hub
+        id: oci_build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -364,6 +407,26 @@ jobs:
           provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Record immutable OCI subject
+        env:
+          ARCH: ${{ matrix.arch }}
+          IMAGE_DIGEST: ${{ steps.oci_build.outputs.digest }}
+          IMAGE_TAG: ${{ steps.tags.outputs.docker_tags }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$IMAGE_DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$'
+          IMAGE_NAME="${IMAGE_TAG%:*}"
+          printf '{"arch":"%s","release_type":"%s","subject":"%s@%s"}\n' \
+            "$ARCH" "$RELEASE_TYPE" "$IMAGE_NAME" "$IMAGE_DIGEST" \
+            > "oci-subject-${RELEASE_TYPE}-${ARCH}.json"
+
+      - name: Upload immutable OCI subject
+        uses: actions/upload-artifact@v6
+        with:
+          name: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}
+          path: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}.json
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -427,6 +490,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push to Docker Hub
+        id: oci_build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -437,6 +501,26 @@ jobs:
           provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Record immutable OCI subject
+        env:
+          ARCH: ${{ matrix.arch }}
+          IMAGE_DIGEST: ${{ steps.oci_build.outputs.digest }}
+          IMAGE_TAG: ${{ steps.tags.outputs.docker_tags }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$IMAGE_DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$'
+          IMAGE_NAME="${IMAGE_TAG%:*}"
+          printf '{"arch":"%s","release_type":"%s","subject":"%s@%s"}\n' \
+            "$ARCH" "$RELEASE_TYPE" "$IMAGE_NAME" "$IMAGE_DIGEST" \
+            > "oci-subject-${RELEASE_TYPE}-${ARCH}.json"
+
+      - name: Upload immutable OCI subject
+        uses: actions/upload-artifact@v6
+        with:
+          name: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}
+          path: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}.json
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -505,6 +589,7 @@ jobs:
           password: ${{ secrets.TEMP_GHCR_TOKEN}}
 
       - name: Build and push to Docker Hub
+        id: oci_build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -515,6 +600,26 @@ jobs:
           provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Record immutable OCI subject
+        env:
+          ARCH: ${{ matrix.arch }}
+          IMAGE_DIGEST: ${{ steps.oci_build.outputs.digest }}
+          IMAGE_TAG: ${{ steps.tags.outputs.docker_tags }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$IMAGE_DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$'
+          IMAGE_NAME="${IMAGE_TAG%:*}"
+          printf '{"arch":"%s","release_type":"%s","subject":"%s@%s"}\n' \
+            "$ARCH" "$RELEASE_TYPE" "$IMAGE_NAME" "$IMAGE_DIGEST" \
+            > "oci-subject-${RELEASE_TYPE}-${ARCH}.json"
+
+      - name: Upload immutable OCI subject
+        uses: actions/upload-artifact@v6
+        with:
+          name: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}
+          path: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}.json
 
       - name: Build and push to GitHub Container Registry
         uses: docker/build-push-action@v6
@@ -576,6 +681,7 @@ jobs:
           password: ${{ secrets.TEMP_GHCR_TOKEN}}
 
       - name: Build and push to Docker Hub
+        id: oci_build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -586,6 +692,26 @@ jobs:
           provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Record immutable OCI subject
+        env:
+          ARCH: ${{ matrix.arch }}
+          IMAGE_DIGEST: ${{ steps.oci_build.outputs.digest }}
+          IMAGE_TAG: ${{ steps.tags.outputs.docker_tags }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$IMAGE_DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$'
+          IMAGE_NAME="${IMAGE_TAG%:*}"
+          printf '{"arch":"%s","release_type":"%s","subject":"%s@%s"}\n' \
+            "$ARCH" "$RELEASE_TYPE" "$IMAGE_NAME" "$IMAGE_DIGEST" \
+            > "oci-subject-${RELEASE_TYPE}-${ARCH}.json"
+
+      - name: Upload immutable OCI subject
+        uses: actions/upload-artifact@v6
+        with:
+          name: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}
+          path: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}.json
 
       - name: Build and push to GitHub Container Registry
         uses: docker/build-push-action@v6

@@ -1,6 +1,6 @@
 src/frontend/node_modules
 src/frontend/build
-src/backend/base/langflow/frontend
+src/backend/base/ketos/frontend
 src/frontend/coverage
 src/frontend/test-results
 src/frontend/playwright-report

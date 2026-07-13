@@ -11,10 +11,10 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_ENGLISH = ROOT / "src/backend/base/langflow/locales/en.json"
+DEFAULT_ENGLISH = ROOT / "src/backend/base/ketos/locales/en.json"
 DEFAULT_MEMORY = ROOT / ".superpowers/sdd/task-13-translation-memory.json"
 DEFAULT_CHUNKS = ROOT / ".superpowers/sdd/task-13-translation-chunks"
-DEFAULT_OUTPUT = ROOT / "src/backend/base/langflow/locales/ru.json"
+DEFAULT_OUTPUT = ROOT / "src/backend/base/ketos/locales/ru.json"
 
 TOKEN_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("interpolation", re.compile(r"{{\s*[A-Za-z_][\w.:-]*\s*}}")),
@@ -92,9 +92,7 @@ def build_catalog(
 
     missing = sorted(source_values - set(translations))
     if missing:
-        raise TranslationBuildError(
-            f"missing source translation for {len(missing)} value(s); first={missing[0]!r}"
-        )
+        raise TranslationBuildError(f"missing source translation for {len(missing)} value(s); first={missing[0]!r}")
 
     return {key: translations[source] for key, source in english.items()}
 

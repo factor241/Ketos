@@ -15,8 +15,9 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 PRODUCER_NAME = "ketos-supply-chain-producer"
-PRODUCER_VERSION = "2"
+PRODUCER_VERSION = "3"
 SLSA_BUILD_TYPE = "https://git.ketos.test/ketos/ketos/supply-chain/v1"
+MIN_WHEEL_FILENAME_FIELDS = 5
 
 
 def _json_bytes(value: Any) -> bytes:
@@ -59,13 +60,15 @@ def _artifact_records(root: Path, requested: list[str]) -> list[dict[str, Any]]:
             message = f"artifact must be a regular file below artifact root: {normalized}"
             raise ValueError(message)
         payload = artifact.read_bytes()
+        kind = _artifact_kind(relative)
         records.append(
             {
-                "kind": _artifact_kind(relative),
+                "kind": kind,
                 "path": normalized,
                 "sha1": hashlib.sha1(payload).hexdigest(),  # noqa: S324 - mandated by SPDX verification code
                 "sha256": _sha256(payload),
                 "size": len(payload),
+                "version": _artifact_version(relative, kind),
             }
         )
     return sorted(records, key=lambda item: item["path"])
@@ -73,13 +76,40 @@ def _artifact_records(root: Path, requested: list[str]) -> list[dict[str, Any]]:
 
 def _artifact_kind(path: PurePosixPath) -> str:
     normalized = path.as_posix()
-    if "release-archives" in path.parts:
+    if "release-archives" in path.parts or path.name.endswith(
+        ("-source.tar.gz", "-source.tar.bz2", "-source.tar.xz", "-source.zip")
+    ):
         return "release-archive"
     if normalized.endswith(".whl"):
         return "wheel"
     if normalized.endswith((".tar.gz", ".tar.bz2", ".tar.xz", ".zip")):
         return "sdist"
     return "release-artifact"
+
+
+def _artifact_version(path: PurePosixPath, kind: str) -> str | None:
+    """Extract the component version from canonical wheel/sdist/archive filenames."""
+    filename = path.name
+    if kind == "wheel":
+        fields = filename.removesuffix(".whl").split("-")
+        version = fields[1] if len(fields) >= MIN_WHEEL_FILENAME_FIELDS else ""
+    elif kind in {"sdist", "release-archive"}:
+        stem = filename
+        for suffix in (".tar.gz", ".tar.bz2", ".tar.xz", ".zip"):
+            if stem.endswith(suffix):
+                stem = stem.removesuffix(suffix)
+                break
+        if kind == "release-archive":
+            stem = stem.removesuffix("-source")
+        _, separator, version = stem.rpartition("-")
+        if not separator:
+            version = ""
+    else:
+        return None
+    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.!+_-]*", version) is None:
+        message = f"cannot extract a canonical version from artifact filename: {path.as_posix()}"
+        raise ValueError(message)
+    return version
 
 
 def _oci_records(requested: list[str]) -> list[dict[str, str]]:
@@ -100,7 +130,10 @@ def _oci_records(requested: list[str]) -> list[dict[str, str]]:
 
 
 def _subject_records(artifacts: list[dict[str, Any]], oci_subjects: list[dict[str, str]]) -> list[dict[str, Any]]:
-    subjects = [{"kind": item["kind"], "name": item["path"], "sha256": item["sha256"]} for item in artifacts]
+    subjects = [
+        {"kind": item["kind"], "name": item["path"], "sha256": item["sha256"], "version": item["version"]}
+        for item in artifacts
+    ]
     subjects.extend(oci_subjects)
     return sorted(subjects, key=lambda item: item["name"])
 
@@ -156,7 +189,7 @@ def build_spdx(
             "name": item["name"],
             "primaryPackagePurpose": _spdx_package_purpose(item["kind"]),
             "supplier": "Organization: Ketos Contributors",
-            "versionInfo": version,
+            "versionInfo": item.get("version") or version,
         }
         for item in subjects
     ]
@@ -312,7 +345,7 @@ def produce(args: argparse.Namespace) -> None:
                 {"path": provenance_name, "sha256": _sha256(provenance_bytes), "type": "slsa-provenance-v1"},
             ],
             "producer": {"name": PRODUCER_NAME, "version": PRODUCER_VERSION},
-            "schema_version": 2,
+            "schema_version": 3,
             "source": {"commit_sha": args.commit_sha.lower(), "uri": args.source_uri},
             "source_date_epoch": args.source_date_epoch,
         }

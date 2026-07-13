@@ -28,6 +28,10 @@ def _run_producer(artifact_root: Path, output_dir: Path) -> None:
             "--artifact",
             "dist/ketos-1.10.2-py3-none-any.whl",
             "--artifact",
+            "dist/ketos_base-0.10.2-py3-none-any.whl",
+            "--artifact",
+            "dist/ketos_sdk-0.2.2.tar.gz",
+            "--artifact",
             "release-archives/ketos-1.10.2-source.tar.gz",
             "--artifact",
             "release-archives/ketos-1.10.2-source.zip",
@@ -56,6 +60,8 @@ def _write_release_inputs(root: Path) -> None:
     dist.mkdir(parents=True)
     (dist / "ketos-1.10.2.tar.gz").write_bytes(b"canonical sdist\n")
     (dist / "ketos-1.10.2-py3-none-any.whl").write_bytes(b"canonical wheel\n")
+    (dist / "ketos_base-0.10.2-py3-none-any.whl").write_bytes(b"canonical base wheel\n")
+    (dist / "ketos_sdk-0.2.2.tar.gz").write_bytes(b"canonical SDK sdist\n")
     archives = root / "release-archives"
     archives.mkdir(parents=True)
     (archives / "ketos-1.10.2-source.tar.gz").write_bytes(b"canonical release archive\n")
@@ -87,6 +93,51 @@ def test_supply_chain_outputs_are_deterministic_and_root_independent(tmp_path: P
     assert str(tmp_path).encode() not in serialized
 
 
+def test_flat_source_archive_is_still_classified_with_its_release_version(tmp_path: Path) -> None:
+    artifact_root = tmp_path / "flat-tree"
+    artifact_root.mkdir()
+    archive_name = "ketos-1.10.2-source.zip"
+    (artifact_root / archive_name).write_bytes(b"flat release archive\n")
+    output_dir = tmp_path / "supply-chain"
+
+    subprocess.run(  # noqa: S603 - arguments are fixed test-controlled paths and values
+        [
+            sys.executable,
+            str(PRODUCER),
+            "--artifact-root",
+            str(artifact_root),
+            "--artifact",
+            archive_name,
+            "--output-dir",
+            str(output_dir),
+            "--source-uri",
+            "https://git.ketos.test/ketos/ketos",
+            "--commit-sha",
+            "0123456789abcdef0123456789abcdef01234567",
+            "--source-date-epoch",
+            "1704067200",
+            "--name",
+            "ketos",
+            "--version",
+            "1.10.2",
+        ],
+        cwd=ROOT,
+        check=True,
+    )
+
+    manifest = json.loads((output_dir / "ketos.supply-chain-manifest.json").read_text(encoding="utf-8"))
+    assert manifest["artifacts"] == [
+        {
+            "kind": "release-archive",
+            "path": archive_name,
+            "sha1": hashlib.sha1(b"flat release archive\n").hexdigest(),  # noqa: S324
+            "sha256": hashlib.sha256(b"flat release archive\n").hexdigest(),
+            "size": len(b"flat release archive\n"),
+            "version": "1.10.2",
+        }
+    ]
+
+
 def test_supply_chain_documents_bind_artifact_hashes_and_source(tmp_path: Path) -> None:
     artifact_root = tmp_path / "release-tree"
     _write_release_inputs(artifact_root)
@@ -114,6 +165,8 @@ def test_supply_chain_documents_bind_artifact_hashes_and_source(tmp_path: Path) 
     assert set(component_packages) == {
         "dist/ketos-1.10.2-py3-none-any.whl",
         "dist/ketos-1.10.2.tar.gz",
+        "dist/ketos_base-0.10.2-py3-none-any.whl",
+        "dist/ketos_sdk-0.2.2.tar.gz",
         "release-archives/ketos-1.10.2-source.tar.gz",
         "release-archives/ketos-1.10.2-source.zip",
         "registry.invalid/ketos/ketos@sha256:a5e9420b6d74f9fe3a9bf1d53266d443db4ce69dd7b1424ff39dc2421532deed",
@@ -125,6 +178,24 @@ def test_supply_chain_documents_bind_artifact_hashes_and_source(tmp_path: Path) 
         "wheel",
     }
     assert all(item["filesAnalyzed"] is False for item in component_packages.values())
+    assert {
+        path: component_packages[path]["versionInfo"]
+        for path in (
+            "dist/ketos-1.10.2-py3-none-any.whl",
+            "dist/ketos-1.10.2.tar.gz",
+            "dist/ketos_base-0.10.2-py3-none-any.whl",
+            "dist/ketos_sdk-0.2.2.tar.gz",
+            "release-archives/ketos-1.10.2-source.tar.gz",
+            "release-archives/ketos-1.10.2-source.zip",
+        )
+    } == {
+        "dist/ketos-1.10.2-py3-none-any.whl": "1.10.2",
+        "dist/ketos-1.10.2.tar.gz": "1.10.2",
+        "dist/ketos_base-0.10.2-py3-none-any.whl": "0.10.2",
+        "dist/ketos_sdk-0.2.2.tar.gz": "0.2.2",
+        "release-archives/ketos-1.10.2-source.tar.gz": "1.10.2",
+        "release-archives/ketos-1.10.2-source.zip": "1.10.2",
+    }
 
     provenance_text = (output_dir / "ketos.intoto.jsonl").read_text(encoding="utf-8")
     assert len(provenance_text.splitlines()) == 1
@@ -134,6 +205,8 @@ def test_supply_chain_documents_bind_artifact_hashes_and_source(tmp_path: Path) 
     assert {subject["name"] for subject in statement["subject"]} == {
         "dist/ketos-1.10.2-py3-none-any.whl",
         "dist/ketos-1.10.2.tar.gz",
+        "dist/ketos_base-0.10.2-py3-none-any.whl",
+        "dist/ketos_sdk-0.2.2.tar.gz",
         "release-archives/ketos-1.10.2-source.tar.gz",
         "release-archives/ketos-1.10.2-source.zip",
         "registry.invalid/ketos/ketos@sha256:a5e9420b6d74f9fe3a9bf1d53266d443db4ce69dd7b1424ff39dc2421532deed",
@@ -147,9 +220,18 @@ def test_supply_chain_documents_bind_artifact_hashes_and_source(tmp_path: Path) 
     assert statement["predicate"]["buildDefinition"]["externalParameters"]["source_date_epoch"] == 1704067200
 
     manifest = json.loads((output_dir / "ketos.supply-chain-manifest.json").read_text(encoding="utf-8"))
-    assert manifest["schema_version"] == 2
+    assert manifest["schema_version"] == 3
     assert manifest["source"]["commit_sha"] == "0123456789abcdef0123456789abcdef01234567"
     assert manifest["artifacts"][0]["path"] < manifest["artifacts"][1]["path"]
+    assert {item["kind"] for item in manifest["artifacts"]} == {"wheel", "sdist", "release-archive"}
+    assert {item["path"]: item["version"] for item in manifest["artifacts"]} == {
+        "dist/ketos-1.10.2-py3-none-any.whl": "1.10.2",
+        "dist/ketos-1.10.2.tar.gz": "1.10.2",
+        "dist/ketos_base-0.10.2-py3-none-any.whl": "0.10.2",
+        "dist/ketos_sdk-0.2.2.tar.gz": "0.2.2",
+        "release-archives/ketos-1.10.2-source.tar.gz": "1.10.2",
+        "release-archives/ketos-1.10.2-source.zip": "1.10.2",
+    }
     assert manifest["oci_subjects"] == [
         {
             "kind": "oci-image",

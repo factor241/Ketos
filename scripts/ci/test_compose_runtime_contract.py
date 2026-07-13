@@ -53,6 +53,20 @@ def test_deploy_services_have_meaningful_healthchecks_and_restart_policies() -> 
     assert services["flower"].get("deploy") == {}, "Flower must not inherit the public backend Traefik route"
 
 
+def test_pgadmin_listens_on_the_port_used_by_health_routing_and_local_publish() -> None:
+    services = _load("deploy/docker-compose.yml")["services"]
+    override = _load("deploy/docker-compose.override.yml")
+    pgadmin = services["pgadmin"]
+
+    assert "PGADMIN_LISTEN_PORT=5050" in pgadmin.get("environment", [])
+    assert "http://localhost:5050/misc/ping" in _healthcheck_command(pgadmin)
+    assert (
+        "traefik.http.services.${STACK_NAME?Variable not set}-pgadmin.loadbalancer.server.port=5050"
+        in pgadmin["deploy"]["labels"]
+    )
+    assert override["services"]["pgadmin"]["ports"] == ["5050:5050"]
+
+
 def test_observability_services_have_health_restart_and_persistent_positions() -> None:
     compose = _load("deploy/observability/grafana-loki/docker-compose.yml")
     services = compose["services"]
@@ -110,7 +124,9 @@ def test_deploy_test_environment_is_writable_by_the_non_root_backend() -> None:
             key, value = line.split("=", maxsplit=1)
             values[key] = value
 
-    assert {key: values[key] for key in ("KETOS_CONFIG_DIR", "KETOS_DATA_DIR", "KETOS_CACHE_DIR", "KETOS_TEMP_DIR")} == {
+    assert {
+        key: values[key] for key in ("KETOS_CONFIG_DIR", "KETOS_DATA_DIR", "KETOS_CACHE_DIR", "KETOS_TEMP_DIR")
+    } == {
         "KETOS_CONFIG_DIR": "/app/ketos/config",
         "KETOS_DATA_DIR": "/app/ketos/data",
         "KETOS_CACHE_DIR": "/app/ketos/cache",

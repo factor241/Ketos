@@ -189,8 +189,8 @@ jobs:
           GP_INSTANCE: ${{ vars.GP_INSTANCE }}
           GP_BACKEND_BUNDLE: ${{ vars.GP_BACKEND_BUNDLE }}
         run: |
-          python download.py --target backend --lang ru --source ../../src/backend/base/langflow/locales/en.json --output /tmp/gp-ru-backend
-          python download.py --target backend --source ../../src/backend/base/langflow/locales/en.json
+          python download.py --target backend --lang ru --source ../../src/backend/base/ketos/locales/en.json --output /tmp/gp-ru-backend
+          python download.py --target backend --source ../../src/backend/base/ketos/locales/en.json
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v6
@@ -263,7 +263,7 @@ jobs:
           maintainer-can-modify: true
           draft: true
           reviewers: ${{ vars.GP_LINGUISTIC_REVIEWER }}
-          add-paths: src/backend/base/langflow/locales/*.json
+          add-paths: src/backend/base/ketos/locales/*.json
 
       - name: Record translation PR gate state
         if: steps.create-pr.outputs.pull-request-number != ''

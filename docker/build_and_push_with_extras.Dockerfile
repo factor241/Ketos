@@ -42,8 +42,8 @@ COPY ./README.md /app/README.md
 COPY ./pyproject.toml /app/pyproject.toml
 COPY ./src/backend/base/README.md /app/src/backend/base/README.md
 COPY ./src/backend/base/pyproject.toml /app/src/backend/base/pyproject.toml
-COPY ./src/lfx/README.md /app/src/lfx/README.md
-COPY ./src/lfx/pyproject.toml /app/src/lfx/pyproject.toml
+COPY ./src/kfx/README.md /app/src/kfx/README.md
+COPY ./src/kfx/pyproject.toml /app/src/kfx/pyproject.toml
 COPY ./src/sdk/README.md /app/src/sdk/README.md
 COPY ./src/sdk/pyproject.toml /app/src/sdk/pyproject.toml
 # Workspace bundles (LE-1023 pilot+): every directory under ``src/bundles``
@@ -64,7 +64,7 @@ WORKDIR /tmp/src/frontend
 RUN --mount=type=cache,target=/root/.npm \
     npm ci \
     && ESBUILD_BINARY_PATH="" NODE_OPTIONS="--max-old-space-size=4096" JOBS=1 npm run build \
-    && cp -r build /app/src/backend/langflow/frontend \
+    && cp -r build /app/src/backend/base/ketos/frontend \
     && rm -rf /tmp/src/frontend
 
 WORKDIR /app
@@ -102,26 +102,26 @@ RUN useradd user -u 1000 -g 0 --no-create-home --home-dir /app/data
 COPY --from=builder --chown=1000 /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Pre-create LANGFLOW_CONFIG_DIR (the default location used by the docker_example
+# Pre-create KETOS_CONFIG_DIR (the default location used by the docker_example
 # compose file) with the non-root user as owner. When the official compose mounts
-# a fresh named volume at /app/langflow, Docker copies this directory's ownership
+# a fresh named volume at /app/ketos, Docker copies this directory's ownership
 # and permissions into the new volume, so the in-container uid=1000 user can
 # write secret_key, profile_pictures, etc. Without this, the volume is created
-# as root:root and Langflow crashes during startup with PermissionError on
-# /app/langflow/secret_key. See https://github.com/langflow-ai/langflow/issues/10437
-RUN mkdir -p /app/langflow && chown -R 1000:0 /app/langflow && chmod -R g+rwX /app/langflow
+# as root:root and Ketos crashes during startup with PermissionError on
+# /app/ketos/secret_key. See https://git.ketos.test/ketos/ketos/issues/10437
+RUN mkdir -p /app/ketos && chown -R 1000:0 /app/ketos && chmod -R g+rwX /app/ketos
 
-LABEL org.opencontainers.image.title=langflow
-LABEL org.opencontainers.image.authors=['Langflow']
+LABEL org.opencontainers.image.title=ketos
+LABEL org.opencontainers.image.authors=['Ketos']
 LABEL org.opencontainers.image.licenses=MIT
-LABEL org.opencontainers.image.url=https://github.com/langflow-ai/langflow
-LABEL org.opencontainers.image.source=https://github.com/langflow-ai/langflow
+LABEL org.opencontainers.image.url=https://git.ketos.test/ketos/ketos
+LABEL org.opencontainers.image.source=https://git.ketos.test/ketos/ketos
 
 USER user
 WORKDIR /app
 
-ENV LANGFLOW_HOST=0.0.0.0
-ENV LANGFLOW_PORT=7860
-ENV LANGFLOW_AUTO_LOGIN=false
+ENV KETOS_HOST=0.0.0.0
+ENV KETOS_PORT=7860
+ENV KETOS_AUTO_LOGIN=false
 
-CMD ["langflow", "run"]
+CMD ["ketos", "run"]

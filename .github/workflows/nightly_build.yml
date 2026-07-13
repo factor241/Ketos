@@ -10,7 +10,7 @@ on:
         options:
           - ubuntu-latest
           - self-hosted
-          - '["self-hosted", "linux", "ARM64", "langflow-ai-arm64-40gb-ephemeral"]'
+          - '["self-hosted", "linux", "ARM64", "ketos-local-arm64-40gb-ephemeral"]'
         default: ubuntu-latest
       skip_frontend_tests:
         description: "Skip frontend tests. Only do this for testing purposes."
@@ -72,7 +72,7 @@ jobs:
            echo "branch=$BRANCH" >> $GITHUB_OUTPUT
            echo "Using release branch: $BRANCH"
   create-nightly-tag:
-    if: github.repository == 'langflow-ai/langflow'
+    if: github.repository == 'ketos-local/ketos'
     needs: [validate-inputs, resolve-release-branch]
     runs-on: ubuntu-latest
     defaults:
@@ -84,13 +84,13 @@ jobs:
     outputs:
       release_tag: ${{ steps.generate_shared_tag.outputs.release_tag }}
       base_tag: ${{ steps.set_base_tag.outputs.base_tag }}
-      lfx_tag: ${{ steps.generate_lfx_tag.outputs.lfx_tag }}
+      kfx_tag: ${{ steps.generate_kfx_tag.outputs.kfx_tag }}
       sdk_tag: ${{ steps.generate_sdk_tag.outputs.sdk_tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          ref: ${{ needs.resolve-release-branch.outputs.branch }}
+          ref: ${{ github.sha }}
           persist-credentials: true
       - name: Confirm branch
         run: git branch --show-current
@@ -110,7 +110,7 @@ jobs:
       - name: Generate shared nightly tag (main == base, lockstep)
         id: generate_shared_tag
         run: |
-          # langflow (nightly .devN pre-release) pins langflow-base[complete]==<exact dev>, so
+          # ketos (nightly .devN pre-release) pins ketos-base[complete]==<exact dev>, so
           # both tags MUST be identical. Compute them in ONE invocation (single PyPI snapshot)
           # so they cannot drift across separate calls.
           # NOTE: This outputs the tag with the `v` prefix.
@@ -125,21 +125,24 @@ jobs:
           echo "base_tag=$BASE_TAG" >> $GITHUB_OUTPUT
           echo "release_tag=$RELEASE_TAG base_tag=$BASE_TAG"
 
-      - name: Delete existing tag if it exists
+      - name: Ensure immutable nightly tag does not already exist
         id: check_release_tag
         run: |
           git fetch --tags
-          git tag -d ${{ steps.generate_shared_tag.outputs.release_tag }} || true
-          git push --delete origin ${{ steps.generate_shared_tag.outputs.release_tag }} || true
+          RELEASE_TAG="${{ steps.generate_shared_tag.outputs.release_tag }}"
+          if git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"; then
+            echo "Nightly tag $RELEASE_TAG already exists and will not be rewritten."
+            exit 1
+          fi
           echo "release_tag_exists=false" >> $GITHUB_OUTPUT
 
-      - name: Generate LFX nightly tag
-        id: generate_lfx_tag
+      - name: Generate KFX nightly tag
+        id: generate_kfx_tag
         run: |
           # NOTE: This outputs the tag with the `v` prefix.
-          LFX_TAG="$(uv run ./scripts/ci/lfx_nightly_tag.py)"
-          echo "lfx_tag=$LFX_TAG" >> $GITHUB_OUTPUT
-          echo "lfx_tag=$LFX_TAG"
+          KFX_TAG="$(uv run ./scripts/ci/kfx_nightly_tag.py)"
+          echo "kfx_tag=$KFX_TAG" >> $GITHUB_OUTPUT
+          echo "kfx_tag=$KFX_TAG"
 
       - name: Generate SDK nightly tag
         id: generate_sdk_tag
@@ -149,35 +152,39 @@ jobs:
           echo "sdk_tag=$SDK_TAG" >> $GITHUB_OUTPUT
           echo "sdk_tag=$SDK_TAG"
 
-      - name: Commit tag
+      - name: Verify approved source already carries nightly versions
+        run: |
+          expected_main="${{ steps.generate_shared_tag.outputs.release_tag }}"
+          expected_base="${{ steps.generate_shared_tag.outputs.base_tag }}"
+          expected_kfx="${{ steps.generate_kfx_tag.outputs.kfx_tag }}"
+          expected_sdk="${{ steps.generate_sdk_tag.outputs.sdk_tag }}"
+          actual_main=$(uv tree --package ketos --depth 0 | head -n 1 | awk '{print $2}')
+          actual_base=$(uv tree --package ketos-base --depth 0 | head -n 1 | awk '{print $2}')
+          actual_kfx=$(uv tree --package kfx --depth 0 | head -n 1 | awk '{print $2}')
+          actual_sdk=$(uv tree --package ketos-sdk --depth 0 | head -n 1 | awk '{print $2}')
+          if [ "$actual_main" != "$expected_main" ] || [ "$actual_base" != "$expected_base" ] || \
+             [ "$actual_kfx" != "$expected_kfx" ] || [ "$actual_sdk" != "$expected_sdk" ]; then
+            echo "Approved commit does not carry the computed nightly versions."
+            echo "main=$actual_main/$expected_main base=$actual_base/$expected_base"
+            echo "kfx=$actual_kfx/$expected_kfx sdk=$actual_sdk/$expected_sdk"
+            exit 1
+          fi
+
+      - name: Authorize immutable nightly tag
+        env:
+          KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
+          KETOS_EXTERNAL_RELEASE: ${{ vars.KETOS_EXTERNAL_RELEASE }}
+        run: uv run python "$GITHUB_WORKSPACE/scripts/ci/require_external_release.py"
+
+      - name: Tag approved immutable commit
         id: commit_tag
         run: |
-          # If the main tag does not exist in GH, we create the base tag from the existing codebase.
-
-          git config --global user.email "bot-nightly-builds@langflow.org"
-          git config --global user.name "Langflow Bot"
+          git config --global user.email "bot-nightly-builds@ketos.org"
+          git config --global user.name "Ketos Bot"
 
           RELEASE_TAG="${{ steps.generate_shared_tag.outputs.release_tag }}"
-          BASE_TAG="${{ steps.generate_shared_tag.outputs.base_tag }}"
-          LFX_TAG="${{ steps.generate_lfx_tag.outputs.lfx_tag }}"
-          SDK_TAG="${{ steps.generate_sdk_tag.outputs.sdk_tag }}"
-          echo "Updating SDK project version to $SDK_TAG"
-          uv run --no-sync ./scripts/ci/update_sdk_version.py $SDK_TAG
-          echo "Updating LFX project version to $LFX_TAG"
-          uv run --no-sync ./scripts/ci/update_lfx_version.py $LFX_TAG $SDK_TAG
-          echo "Updating base project version to $BASE_TAG and updating main project version to $RELEASE_TAG"
-          uv run --no-sync ./scripts/ci/update_pyproject_combined.py main $RELEASE_TAG $BASE_TAG $LFX_TAG
-
-          uv lock
-          cd src/lfx && uv lock && cd ../..
-
-          git add pyproject.toml src/backend/base/pyproject.toml src/lfx/pyproject.toml src/sdk/pyproject.toml uv.lock
-          # The nightly keeps canonical package names and the stable `lfx-*` bundles
-          # are not modified (see src/bundles/NIGHTLY.md), so no bundle pyprojects ride this commit.
-          git commit -m "Update version for nightly"
-
           echo "Tagging main with $RELEASE_TAG"
-          if ! git tag -a $RELEASE_TAG -m "Langflow nightly $RELEASE_TAG"; then
+          if ! git tag -a "$RELEASE_TAG" "$GITHUB_SHA" -m "Ketos nightly $RELEASE_TAG"; then
             echo "Tag creation failed. Exiting the workflow."
             exit 1
           fi
@@ -200,7 +207,7 @@ jobs:
         working-directory: src/backend/base
         run: |
           # If the main tag already exists, we need to retrieve the base version from the main tag codebase.
-          version=$(uv tree | grep 'langflow-base' | awk '{print $3}' | head -n 1)
+          version=$(uv tree | grep 'ketos-base' | awk '{print $3}' | head -n 1)
           echo "base_tag=$version" >> $GITHUB_OUTPUT
           echo "base_tag=$version"
 
@@ -221,7 +228,7 @@ jobs:
           fi
 
   frontend-tests-linux:
-    if: github.repository == 'langflow-ai/langflow' && !inputs.skip_frontend_tests
+    if: github.repository == 'ketos-local/ketos' && !inputs.skip_frontend_tests
     name: Run Frontend Tests - Linux
     needs: [resolve-release-branch, create-nightly-tag]
     uses: ./.github/workflows/typescript_test.yml
@@ -237,7 +244,7 @@ jobs:
       TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
 
   frontend-tests-windows:
-    if: github.repository == 'langflow-ai/langflow' && !inputs.skip_frontend_tests
+    if: github.repository == 'ketos-local/ketos' && !inputs.skip_frontend_tests
     name: Run Frontend Tests - Windows
     needs: [resolve-release-branch, create-nightly-tag]
     # Windows tests are non-blocking - the release-nightly-build job only checks
@@ -256,7 +263,7 @@ jobs:
       TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
 
   backend-unit-tests:
-    if: github.repository == 'langflow-ai/langflow' && !inputs.skip_backend_tests
+    if: github.repository == 'ketos-local/ketos' && !inputs.skip_backend_tests
     name: Run Backend Unit Tests
     needs: [resolve-release-branch, create-nightly-tag]
     uses: ./.github/workflows/python_test.yml
@@ -270,7 +277,7 @@ jobs:
 
   # Not making nightly builds dependent on integration test success
   # due to inherent flakiness of 3rd party integrations
-  # Revisit when https://github.com/langflow-ai/langflow/pull/3607 is merged.
+  # Revisit when https://git.ketos.test/ketos/ketos/pull/3607 is merged.
   # backend-integration-tests:
   #   name: Run Backend Integration Tests
   #   needs: create-nightly-tag
@@ -280,7 +287,7 @@ jobs:
   #     ref: ${{ needs.create-nightly-tag.outputs.tag }}
 
   stress-tests:
-    if: github.repository == 'langflow-ai/langflow' && !inputs.skip_backend_tests
+    if: github.repository == 'ketos-local/ketos' && !inputs.skip_backend_tests
     name: Run Stress Tests
     needs: [resolve-release-branch, create-nightly-tag]
     uses: ./.github/workflows/stress-tests.yml
@@ -288,8 +295,8 @@ jobs:
       ref: ${{ needs.resolve-release-branch.outputs.branch }}
 
   release-nightly-build:
-    if: github.repository == 'langflow-ai/langflow' && always() && needs.create-nightly-tag.result == 'success' && needs.frontend-tests-linux.result != 'failure' && needs.backend-unit-tests.result != 'failure'
-    name: Run Nightly Langflow Build
+    if: github.repository == 'ketos-local/ketos' && always() && needs.create-nightly-tag.result == 'success' && needs.frontend-tests-linux.result != 'failure' && needs.backend-unit-tests.result != 'failure'
+    name: Run Nightly Ketos Build
     needs:
       [validate-inputs, create-nightly-tag, frontend-tests-linux, frontend-tests-windows, backend-unit-tests, stress-tests]
     uses: ./.github/workflows/release_nightly.yml
@@ -297,10 +304,10 @@ jobs:
       build_docker_base: true
       build_docker_main: true
       build_docker_ep: true
-      build_lfx: true
+      build_kfx: true
       nightly_tag_release: ${{ needs.create-nightly-tag.outputs.release_tag }}
       nightly_tag_base: ${{ needs.create-nightly-tag.outputs.base_tag }}
-      nightly_tag_lfx: ${{ needs.create-nightly-tag.outputs.lfx_tag }}
+      nightly_tag_kfx: ${{ needs.create-nightly-tag.outputs.kfx_tag }}
       nightly_tag_sdk: ${{ needs.create-nightly-tag.outputs.sdk_tag }}
       # When triggered by schedule, inputs.push_to_registry is not set, so default to true
       # When triggered manually, use the provided value (default is also true)
@@ -309,20 +316,20 @@ jobs:
   db-migration-validation:
     name: Run DB Migration Validation
     needs: [create-nightly-tag, release-nightly-build]
-    if: ${{ github.repository == 'langflow-ai/langflow' && always() && needs.release-nightly-build.result == 'success' }}
+    if: ${{ github.repository == 'ketos-local/ketos' && always() && needs.release-nightly-build.result == 'success' }}
     uses: ./.github/workflows/db-migration-validation.yml
     with:
       # Pass Docker image reference for docker-compose and version without 'v' prefix for pip
       # release_tag format: v1.10.0.dev20260522
-      # We need: langflowai/langflow:1.10.0.dev20260522 for Docker (nightly .devX images are
-      # pushed to the canonical langflowai/langflow repo to match PyPI langflow package naming)
-      nightly_tag: langflowai/langflow:${{ needs.create-nightly-tag.outputs.release_tag }}
+      # We need: registry.invalid/ketos/ketos:1.10.0.dev20260522 for Docker (nightly .devX images are
+      # pushed to the canonical registry.invalid/ketos/ketos repo to match PyPI ketos package naming)
+      nightly_tag: registry.invalid/ketos/ketos:${{ needs.create-nightly-tag.outputs.release_tag }}
     secrets: inherit
 
   slack-notification:
     name: Send Slack Notification
     needs: [frontend-tests-linux, frontend-tests-windows, backend-unit-tests, stress-tests, release-nightly-build, db-migration-validation]
-    if: ${{ github.repository == 'langflow-ai/langflow' && !inputs.skip_slack && always() && (needs.release-nightly-build.result == 'failure' || needs.frontend-tests-linux.result == 'failure' || needs.frontend-tests-windows.result == 'failure' || needs.backend-unit-tests.result == 'failure' || needs.stress-tests.result == 'failure' || needs.db-migration-validation.result == 'failure' || needs.release-nightly-build.result == 'success') }}
+    if: ${{ github.repository == 'ketos-local/ketos' && !inputs.skip_slack && always() && (needs.release-nightly-build.result == 'failure' || needs.frontend-tests-linux.result == 'failure' || needs.frontend-tests-windows.result == 'failure' || needs.backend-unit-tests.result == 'failure' || needs.stress-tests.result == 'failure' || needs.db-migration-validation.result == 'failure' || needs.release-nightly-build.result == 'success') }}
     runs-on: ubuntu-latest
     steps:
       - name: Send failure notification to Slack
@@ -384,7 +391,7 @@ jobs:
                 ]
               }
             ]
-          }" ${{ secrets.LANGFLOW_ENG_SLACK_WEBHOOK_URL }}
+          }" ${{ secrets.KETOS_ENG_SLACK_WEBHOOK_URL }}
 
       - name: Send success notification to Slack
         if: ${{ !inputs.skip_slack && needs.release-nightly-build.result == 'success' && needs.db-migration-validation.result != 'failure' }}
@@ -429,4 +436,4 @@ jobs:
                 ]
               }
             ]
-          }' ${{ secrets.LANGFLOW_ENG_SLACK_WEBHOOK_URL }}
+          }' ${{ secrets.KETOS_ENG_SLACK_WEBHOOK_URL }}

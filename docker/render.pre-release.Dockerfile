@@ -1,1 +1,2 @@
-FROM langflowai/langflow:1.0-alpha
+ARG KETOS_IMAGE=ketos/ketos:local
+FROM ${KETOS_IMAGE}

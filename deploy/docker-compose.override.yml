@@ -19,6 +19,8 @@ services:
       - --log
       # Enable the Dashboard and API
       - --api
+      # Keep the base healthcheck endpoint enabled when this command replaces the base command.
+      - --ping=true
       # Enable the Dashboard and API in insecure mode for local development
       - --api.insecure=true
     labels:
@@ -61,5 +63,6 @@ services:
 
 networks:
   traefik-public:
+    name: ${TRAEFIK_PUBLIC_NETWORK?Variable not set}
     # For local dev, don't expect an external Traefik network
     external: false

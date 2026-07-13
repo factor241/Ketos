@@ -1,3 +1,4 @@
-FROM langflowai/langflow:latest
+ARG KETOS_IMAGE=ketos/ketos:local
+FROM ${KETOS_IMAGE}
 
-ENTRYPOINT ["python", "-m", "langflow", "run"]
+ENTRYPOINT ["python", "-m", "ketos", "run"]

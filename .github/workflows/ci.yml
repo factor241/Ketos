@@ -58,7 +58,7 @@ on:
         options:
           - ubuntu-latest
           - self-hosted
-          - '["self-hosted", "linux", "ARM64", "langflow-ai-arm64-40gb-ephemeral"]'
+          - '["self-hosted", "linux", "ARM64", "ketos-local-arm64-40gb-ephemeral"]'
         default: ubuntu-latest
   pull_request:
     types: [opened, synchronize, labeled]
@@ -117,11 +117,11 @@ jobs:
           TODAY=$(date -u +"%Y-%m-%d")
           echo "Today's date: $TODAY"
 
-          # Query PyPI for the canonical langflow project. The nightly now publishes as a `.devN`
-          # pre-release of `langflow` (not a separate `langflow-nightly` distribution), so inspect
+          # Query PyPI for the canonical ketos project. The nightly now publishes as a `.devN`
+          # pre-release of `ketos` (not a separate `ketos-nightly` distribution), so inspect
           # the most recent dev release rather than `.info.version` (which is the latest stable).
           # See src/bundles/NIGHTLY.md.
-          HTTP_STATUS=$(curl -s -o response.json -w "%{http_code}" https://pypi.org/pypi/langflow/json)
+          HTTP_STATUS=$(curl -s -o response.json -w "%{http_code}" https://pypi.org/pypi/ketos/json)
 
           # Check HTTP status code first
           if [ "$HTTP_STATUS" -ne 200 ]; then

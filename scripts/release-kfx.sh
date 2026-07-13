@@ -66,14 +66,14 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Check if we're in the right directory
-if [ ! -f "src/lfx/pyproject.toml" ]; then
-    print_error "This script must be run from the root of the langflow repository"
+if [ ! -f "src/kfx/pyproject.toml" ]; then
+    print_error "This script must be run from the root of the ketos repository"
     exit 1
 fi
 
 # Get current version
-CURRENT_VERSION=$(grep '^version = ' src/lfx/pyproject.toml | cut -d'"' -f2)
-print_info "Current LFX version: $CURRENT_VERSION"
+CURRENT_VERSION=$(grep '^version = ' src/kfx/pyproject.toml | cut -d'"' -f2)
+print_info "Current KFX version: $CURRENT_VERSION"
 
 if [ "$DRY_RUN" = true ]; then
     print_dry_run "Running in dry run mode - no changes will be made"
@@ -103,16 +103,16 @@ if ! [[ $NEW_VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
     exit 1
 fi
 
-print_info "Preparing to release LFX version $NEW_VERSION"
+print_info "Preparing to release KFX version $NEW_VERSION"
 
-# Soft check: warn if LFX minor doesn't match Langflow minor
-LANGFLOW_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
-LFX_MINOR=$(echo "$NEW_VERSION" | cut -d. -f1-2)
-LANGFLOW_MINOR=$(echo "$LANGFLOW_VERSION" | cut -d. -f1-2)
-if [ "$LFX_MINOR" != "$LANGFLOW_MINOR" ]; then
-    print_warning "LFX minor version ($LFX_MINOR) does not match Langflow minor version ($LANGFLOW_MINOR)."
-    print_warning "Per the compatibility policy, LFX X.Y.N must align with Langflow X.Y.M."
-    print_warning "Proceed only if this is intentional (e.g., a patch-only LFX release)."
+# Soft check: warn if KFX minor doesn't match Ketos minor
+KETOS_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
+KFX_MINOR=$(echo "$NEW_VERSION" | cut -d. -f1-2)
+KETOS_MINOR=$(echo "$KETOS_VERSION" | cut -d. -f1-2)
+if [ "$KFX_MINOR" != "$KETOS_MINOR" ]; then
+    print_warning "KFX minor version ($KFX_MINOR) does not match Ketos minor version ($KETOS_MINOR)."
+    print_warning "Per the compatibility policy, KFX X.Y.N must align with Ketos X.Y.M."
+    print_warning "Proceed only if this is intentional (e.g., a patch-only KFX release)."
 fi
 
 # Update version in pyproject.toml
@@ -120,24 +120,24 @@ if [ "$DRY_RUN" = true ]; then
     print_dry_run "Would update version in pyproject.toml to $NEW_VERSION"
 else
     print_info "Updating version in pyproject.toml..."
-    sed -i.bak "s/^version = \".*\"/version = \"$NEW_VERSION\"/" src/lfx/pyproject.toml
-    rm src/lfx/pyproject.toml.bak
+    sed -i.bak "s/^version = \".*\"/version = \"$NEW_VERSION\"/" src/kfx/pyproject.toml
+    rm src/kfx/pyproject.toml.bak
 fi
 
-# Update version in Dockerfiles if they have ARG LFX_VERSION
-if grep -q "ARG LFX_VERSION" src/lfx/docker/Dockerfile 2>/dev/null; then
+# Update version in Dockerfiles if they have ARG KFX_VERSION
+if grep -q "ARG KFX_VERSION" src/kfx/docker/Dockerfile 2>/dev/null; then
     if [ "$DRY_RUN" = true ]; then
         print_dry_run "Would update version in Dockerfiles to $NEW_VERSION"
     else
         print_info "Updating version in Dockerfiles..."
-        sed -i.bak "s/ARG LFX_VERSION=.*/ARG LFX_VERSION=$NEW_VERSION/" src/lfx/docker/Dockerfile*
-        rm src/lfx/docker/Dockerfile*.bak
+        sed -i.bak "s/ARG KFX_VERSION=.*/ARG KFX_VERSION=$NEW_VERSION/" src/kfx/docker/Dockerfile*
+        rm src/kfx/docker/Dockerfile*.bak
     fi
 fi
 
 # Run tests
 print_info "Running tests..."
-cd src/lfx
+cd src/kfx
 if ! make test; then
     print_error "Tests failed!"
     if [ "$DRY_RUN" = false ]; then
@@ -150,7 +150,7 @@ cd ../..
 
 # Build package to verify
 print_info "Building package..."
-cd src/lfx
+cd src/kfx
 if ! uv build; then
     print_error "Build failed!"
     if [ "$DRY_RUN" = false ]; then
@@ -165,28 +165,28 @@ if [ "$DRY_RUN" = true ]; then
     print_dry_run "Skipping cleanup of build artifacts in dry run mode"
 else
     # Clean up build artifacts
-    rm -rf src/lfx/dist/
+    rm -rf src/kfx/dist/
 fi
 
 # Create git commit
 if [ "$DRY_RUN" = true ]; then
-    print_dry_run "Would create git commit: 'chore(lfx): bump version to $NEW_VERSION'"
+    print_dry_run "Would create git commit: 'chore(kfx): bump version to $NEW_VERSION'"
 else
     print_info "Creating git commit..."
-    git add src/lfx/pyproject.toml src/lfx/docker/Dockerfile* 2>/dev/null || true
-    git commit -m "chore(lfx): bump version to $NEW_VERSION
+    git add src/kfx/pyproject.toml src/kfx/docker/Dockerfile* 2>/dev/null || true
+    git commit -m "chore(kfx): bump version to $NEW_VERSION
 
 - Update version in pyproject.toml
 - Prepare for PyPI and Docker release"
 fi
 
 # Create git tag
-TAG_NAME="lfx-v$NEW_VERSION"
+TAG_NAME="kfx-v$NEW_VERSION"
 if [ "$DRY_RUN" = true ]; then
     print_dry_run "Would create git tag: $TAG_NAME"
 else
     print_info "Creating git tag: $TAG_NAME"
-    git tag -a "$TAG_NAME" -m "LFX Release $NEW_VERSION"
+    git tag -a "$TAG_NAME" -m "KFX Release $NEW_VERSION"
 fi
 
 if [ "$DRY_RUN" = true ]; then
@@ -200,7 +200,7 @@ if [ "$DRY_RUN" = true ]; then
     echo "What would happen in a real run:"
     echo "1. Update version in pyproject.toml to $NEW_VERSION"
     echo "2. Update version in Dockerfiles (if applicable)"
-    echo "3. Create git commit with message: 'chore(lfx): bump version to $NEW_VERSION'"
+    echo "3. Create git commit with message: 'chore(kfx): bump version to $NEW_VERSION'"
     echo "4. Create git tag: $TAG_NAME"
     echo ""
     echo "To perform the actual release, run without --dry-run:"
@@ -213,8 +213,8 @@ else
     echo "   git push origin HEAD"
     echo "   git push origin $TAG_NAME"
     echo ""
-    echo "2. Go to GitHub Actions and run the 'LFX Release' workflow:"
-    echo "   https://github.com/langflow-ai/langflow/actions/workflows/release-lfx.yml"
+    echo "2. Go to GitHub Actions and run the 'KFX Release' workflow:"
+    echo "   https://git.ketos.test/ketos/ketos/actions/workflows/release-kfx.yml"
     echo ""
     echo "3. Enter version: $NEW_VERSION"
     echo ""

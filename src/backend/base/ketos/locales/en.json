@@ -11388,7 +11388,7 @@
   "starter_flows.image_sentiment_analysis.name": "Image Sentiment Analysis",
   "starter_flows.instagram_copywriter.description": "Create engaging Instagram posts with AI-generated content and image prompts, streamlining social media content creation.",
   "starter_flows.instagram_copywriter.name": "Instagram Copywriter",
-  "starter_flows.invoice_summarizer.description": "Your AI Agent Accountant - Leverage Needle with Ketoss Agent.",
+  "starter_flows.invoice_summarizer.description": "Your AI Agent Accountant - Leverage Needle with Ketos Agent.",
   "starter_flows.invoice_summarizer.name": "Invoice Summarizer",
   "starter_flows.knowledge_base.description": "An example of performing a vector search against data in a Knowledge Base to retrieve relevant documents.",
   "starter_flows.knowledge_base.name": "Knowledge Base",

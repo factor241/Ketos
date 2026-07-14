@@ -14,7 +14,7 @@ const expectedSkills = [
   "frontend-testing",
 ];
 
-test("the repository exposes only the six approved Langflow skills", async () => {
+test("the repository exposes only the six approved Ketos skills", async () => {
   const entries = await readdir(skillsRoot, { withFileTypes: true });
   const actual = entries
     .filter((entry) => entry.isDirectory())

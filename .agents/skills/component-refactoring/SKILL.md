@@ -1,6 +1,6 @@
 ---
 name: component-refactoring
-description: Refactor high-complexity React components in Ketos frontend. Use when manual complexity assessment shows complexity > 50 or lineCount > 300, when the user asks for code splitting, hook extraction, or complexity reduction; avoid for simple/well-structured components, third-party wrappers, or when the user explicitly wants testing without refactoring.
+description: Refactor high-complexity React components in Ketos frontend. Use when manual complexity assessment exceeds 50 or line count exceeds 300, when the user asks for code splitting, hook extraction, or complexity reduction; avoid simple components, third-party wrappers, or testing-only requests.
 ---
 
 # Ketos Component Refactoring Skill

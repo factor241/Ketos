@@ -11388,7 +11388,7 @@
   "starter_flows.image_sentiment_analysis.name": "画像の感情分析",
   "starter_flows.instagram_copywriter.description": "AIが生成したコンテンツや画像のプロンプトを活用して魅力的なInstagram投稿を作成し、ソーシャルメディアのコンテンツ制作を効率化しましょう。",
   "starter_flows.instagram_copywriter.name": "Instagramコピーライター",
-  "starter_flows.invoice_summarizer.description": "あなたのAIエージェント会計士 ― Ketoss AgentでNeedleを活用しましょう。",
+  "starter_flows.invoice_summarizer.description": "あなたのAIエージェント会計士 ― Ketos AgentでNeedleを活用しましょう。",
   "starter_flows.invoice_summarizer.name": "請求書サマライザー",
   "starter_flows.knowledge_base.description": "ナレッジベース内のデータに対してベクトル検索を実行し、関連するドキュメントを取得する例。",
   "starter_flows.knowledge_base.name": "知識ベース",

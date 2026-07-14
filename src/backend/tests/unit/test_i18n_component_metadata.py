@@ -19,6 +19,17 @@ def _catalog(locale: str) -> dict[str, str]:
     return json.loads((LOCALES / f"{locale}.json").read_text(encoding="utf-8"))
 
 
+def test_user_visible_locale_values_do_not_contain_malformed_product_name():
+    malformed_values = [
+        f"{locale_file.name}:{key}"
+        for locale_file in sorted(LOCALES.glob("*.json"))
+        for key, value in json.loads(locale_file.read_text(encoding="utf-8")).items()
+        if "Ketoss" in value
+    ]
+
+    assert malformed_values == []
+
+
 def test_russian_catalog_is_complete_nonempty_and_uses_reviewed_core_terms():
     english = _catalog("en")
     russian = _catalog("ru")

@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   brand-contract:
-    name: Destructive cutover contract
+    name: Stage 0 compatibility-first brand contract
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -30,20 +30,43 @@ jobs:
       - name: Install test dependencies
         run: uv sync --frozen --only-group dev
 
-      - name: Test brand contracts and scanner
-        run: PYTHONDONTWRITEBYTECODE=1 uv run pytest -p no:cacheprovider scripts/rebrand/tests -q
+      - name: Test fast contracts and scanner
+        timeout-minutes: 5
+        run: PYTHONDONTWRITEBYTECODE=1 uv run pytest -p no:cacheprovider scripts/rebrand/tests -q -m "not slow"
 
-      - name: Reject any increase from the frozen baseline
-        run: PYTHONDONTWRITEBYTECODE=1 uv run python scripts/rebrand/check_brand.py --profile stage0 --zero-residue-contract brand/ketos-zero-residue-contract.yaml
+      - name: Test cold-start contracts
+        timeout-minutes: 15
+        run: PYTHONDONTWRITEBYTECODE=1 uv run pytest -p no:cacheprovider scripts/rebrand/tests -q -m slow
 
-      - name: Produce the strict cutover report
-        id: cutover
+      - name: Scan visible surfaces
+        id: visible
         continue-on-error: true
-        run: PYTHONDONTWRITEBYTECODE=1 uv run python scripts/rebrand/check_brand.py --profile cutover --format json --zero-residue-contract brand/ketos-zero-residue-contract.yaml > ketos-cutover-report.json
+        run: uv run python scripts/rebrand/check_brand.py --profile visible --format json > brand-visible.json
 
-      - name: Upload strict cutover report
+      - name: Scan official endpoints and remote policy
+        id: official
+        continue-on-error: true
+        run: uv run python scripts/rebrand/check_brand.py --profile official-url --format json > brand-official-url.json
+
+      - name: Scan technical compatibility ledger
+        id: technical
+        continue-on-error: true
+        run: uv run python scripts/rebrand/check_brand.py --profile technical-compatibility --format json > brand-technical-compatibility.json
+
+      - name: Upload categorized brand reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ketos-cutover-report
-          path: ketos-cutover-report.json
+          name: ketos-stage0-brand-reports
+          path: |
+            brand-visible.json
+            brand-official-url.json
+            brand-technical-compatibility.json
+
+      - name: Enforce all Stage 0 profiles
+        if: always()
+        env:
+          VISIBLE: ${{ steps.visible.outcome }}
+          OFFICIAL: ${{ steps.official.outcome }}
+          TECHNICAL: ${{ steps.technical.outcome }}
+        run: test "$VISIBLE" = success && test "$OFFICIAL" = success && test "$TECHNICAL" = success

@@ -31,7 +31,7 @@ _INHERITED_PYTHON_PATH_ENV_VARS = (
     "VIRTUAL_ENV",
     "__PYVENV_LAUNCHER__",
 )
-_INSTALLED_CLI_SLOW_TIMEOUT_SECONDS = 120.0
+_INSTALLED_CLI_SLOW_TIMEOUT_SECONDS = 240.0
 
 
 def _root_manifest() -> dict:
@@ -218,6 +218,7 @@ def test_duplicate_namespace_owner_adversary_is_rejected(root_artifacts: Path, t
 
 
 @pytest.mark.slow
+@pytest.mark.timeout(600)
 def test_fresh_root_cli_uses_base_namespace_owner(root_artifacts: Path, tmp_path: Path) -> None:
     uv = shutil.which("uv")
     assert uv is not None

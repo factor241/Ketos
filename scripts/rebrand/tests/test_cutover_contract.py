@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import io
+import json
 import subprocess
 import sys
 import tarfile
@@ -16,6 +17,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCANNER_PATH = REPO_ROOT / "scripts/rebrand/check_brand.py"
 ZERO_RESIDUE_CONTRACT = REPO_ROOT / "brand/ketos-zero-residue-contract.yaml"
+LEGACY_CONTRACT = REPO_ROOT / ("brand/legacy-" + "lang" + "flow" + "-contract.yaml")
 WORKFLOW = REPO_ROOT / ".github/workflows/brand-contract.yml"
 UPSTREAM_ENDPOINT_FIXTURE_COUNT = 2
 
@@ -78,14 +80,47 @@ def write_contract(
     return path
 
 
-def scan_root(scanner, root: Path, contract: Path, profile: str = "cutover") -> dict:
-    report = scanner.scan_root(root, contract, profile=profile)
+def write_pending_legacy_contract(path: Path, repo: Path) -> Path:
+    """Create a repository-bound semantic ledger for isolated scanner fixtures."""
+    head = git(repo, "rev-parse", "HEAD")
+    pending = {profile: {"verdict": "PENDING", "sha256": None} for profile in load_scanner().PROFILES}
+    exclusions: list[dict] = []
+    value = {
+        "version": 1,
+        "baseline": {
+            "original_commit": head,
+            "evidence_base_commit": head,
+            "frozen_upstream_remote": "https://github.com/" + "lang" + "flow-ai/" + "lang" + "flow.git",
+            "visible_count": 0,
+            "official_url_count": 0,
+            "technical_compatibility_count": 0,
+            "paths": [],
+            "paths_sha256": None,
+            "scanner_outputs": pending,
+            "untracked_exclusions": exclusions,
+            "untracked_exclusions_sha256": hashlib.sha256(
+                json.dumps(exclusions, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode()
+            ).hexdigest(),
+        },
+        "occurrences": [],
+    }
+    path.write_text(yaml.safe_dump(value, sort_keys=False), encoding="utf-8")
+    return path
+
+
+def scan_root(scanner, root: Path, contract: Path, profile: str = "technical-compatibility") -> dict:
+    report = scanner.scan_root(root, contract, profile=profile, legacy_contract_path=LEGACY_CONTRACT)
     assert isinstance(report, dict)
     return report
 
 
+def actionable_violations(report: dict) -> list[dict]:
+    """Return substantive fixture findings, excluding baseline-evidence bookkeeping."""
+    return [item for item in report["violations"] if item["kind"] != "baseline_evidence_pending"]
+
+
 def violation_kinds(report: dict) -> set[str]:
-    return {item["kind"] for item in report["violations"]}
+    return {item["kind"] for item in actionable_violations(report)}
 
 
 def git(repo: Path, *args: str) -> str:
@@ -117,7 +152,7 @@ def test_repository_zero_residue_contract_exists_and_is_valid() -> None:
     assert load_scanner().validate_zero_residue_contract(ZERO_RESIDUE_CONTRACT) == []
 
 
-def test_cutover_detects_content_case_separators_urls_emails_orgs_and_executor(tmp_path: Path) -> None:
+def test_technical_profile_detects_content_case_separators_urls_emails_orgs_and_executor(tmp_path: Path) -> None:
     product = legacy_product()
     executor = legacy_executor()
     samples = {
@@ -137,11 +172,11 @@ def test_cutover_detects_content_case_separators_urls_emails_orgs_and_executor(t
 
     report = scan_root(load_scanner(), tmp_path, contract)
 
-    assert {item["path"] for item in report["violations"]} >= set(samples)
-    assert violation_kinds(report) >= {"legacy_brand", "legacy_executor"}
+    assert {item["path"] for item in actionable_violations(report)} >= set(samples)
+    assert violation_kinds(report) == {"unledgered_technical_residue"}
 
 
-def test_cutover_scans_binary_filenames_archives_and_generated_output(tmp_path: Path) -> None:
+def test_technical_profile_scans_binary_filenames_archives_and_generated_output(tmp_path: Path) -> None:
     product = legacy_product().lower()
     executor = legacy_executor()
     (tmp_path / f"icon-{product}.png").write_bytes(b"\x89PNG\r\n\x1a\n")
@@ -163,7 +198,7 @@ def test_cutover_scans_binary_filenames_archives_and_generated_output(tmp_path: 
     contract = write_contract(tmp_path / "contract.yaml")
 
     report = scan_root(load_scanner(), tmp_path, contract)
-    paths = {item["path"] for item in report["violations"]}
+    paths = {item["path"] for item in actionable_violations(report)}
 
     assert f"icon-{product}.png" in paths
     assert "dist/generated.js" in paths
@@ -172,7 +207,7 @@ def test_cutover_scans_binary_filenames_archives_and_generated_output(tmp_path: 
     assert "artifact.tar.gz!package/metadata.py" in paths
 
 
-def test_cutover_does_not_treat_compressed_binary_bytes_as_semantic_identity(tmp_path: Path) -> None:
+def test_technical_profile_does_not_treat_compressed_binary_bytes_as_semantic_identity(tmp_path: Path) -> None:
     product = legacy_product().lower().encode()
     (tmp_path / "current-image.png").write_bytes(b"\x89PNG\r\n\x1a\n\x00" + product)
     (tmp_path / "opaque.bin").write_bytes(b"\x00" + product)
@@ -180,10 +215,10 @@ def test_cutover_does_not_treat_compressed_binary_bytes_as_semantic_identity(tmp
 
     report = scan_root(load_scanner(), tmp_path, contract)
 
-    assert {item["path"] for item in report["violations"]} == {"opaque.bin"}
+    assert {item["path"] for item in actionable_violations(report)} == {"opaque.bin"}
 
 
-def test_cutover_allows_only_exact_fingerprinted_negative_test_tokens(tmp_path: Path) -> None:
+def test_technical_profile_does_not_allow_legacy_negative_test_bypasses(tmp_path: Path) -> None:
     expected = f"rejected = '{legacy_product()}'"
     fixture = tmp_path / "tests" / "negative.py"
     fixture.parent.mkdir()
@@ -201,20 +236,13 @@ def test_cutover_allows_only_exact_fingerprinted_negative_test_tokens(tmp_path: 
         ],
     )
 
-    allowed = scan_root(load_scanner(), tmp_path, contract)
-    assert allowed["violations"] == []
-    assert allowed["allowed_residue"] == [
-        {
-            "kind": "negative_test_token",
-            "path": "tests/negative.py",
-            "line": 1,
-            "match": legacy_product(),
-        }
-    ]
+    rejected = scan_root(load_scanner(), tmp_path, contract)
+    assert violation_kinds(rejected) == {"unledgered_technical_residue"}
+    assert rejected["allowed_residue"] == []
 
     fixture.write_text(f"runtime_default = '{legacy_product()}'\n", encoding="utf-8")
     changed = scan_root(load_scanner(), tmp_path, contract)
-    assert violation_kinds(changed) >= {"negative_test_mismatch", "missing_negative_test_occurrence"}
+    assert violation_kinds(changed) == {"unledgered_technical_residue"}
 
 
 def test_only_exact_legal_path_line_text_and_fingerprint_is_allowed(tmp_path: Path) -> None:
@@ -236,18 +264,26 @@ def test_only_exact_legal_path_line_text_and_fingerprint_is_allowed(tmp_path: Pa
         legal_files=legal_files,
     )
 
-    assert scan_root(load_scanner(), tmp_path, contract)["violations"] == []
+    assert actionable_violations(scan_root(load_scanner(), tmp_path, contract)) == []
 
     license_path.write_text(f"MIT License\n{expected}\n", encoding="utf-8")
     moved = scan_root(load_scanner(), tmp_path, contract)
-    assert "legal_mismatch" in violation_kinds(moved)
+    assert violation_kinds(moved) >= {
+        "legal_file_mismatch",
+        "missing_legal_occurrence",
+        "unledgered_technical_residue",
+    }
 
     license_path.write_text(f"MIT License\n\nDerived from {legacy_product()}\n", encoding="utf-8")
     changed = scan_root(load_scanner(), tmp_path, contract)
-    assert "legal_mismatch" in violation_kinds(changed)
+    assert violation_kinds(changed) >= {
+        "legal_file_mismatch",
+        "missing_legal_occurrence",
+        "unledgered_technical_residue",
+    }
 
 
-def test_cutover_verifies_whole_legal_file_integrity(tmp_path: Path) -> None:
+def test_profiles_verify_whole_legal_file_integrity(tmp_path: Path) -> None:
     expected = f"Copyright (c) 2024 {legacy_product()}"
     original = f"MIT License\n\n{expected}\nPermission is granted.\n"
     license_path = tmp_path / "LICENSE"
@@ -265,14 +301,14 @@ def test_cutover_verifies_whole_legal_file_integrity(tmp_path: Path) -> None:
         legal_files=[{"path": "LICENSE", "sha256": hashlib.sha256(original.encode()).hexdigest()}],
     )
 
-    assert scan_root(load_scanner(), tmp_path, contract)["violations"] == []
+    assert actionable_violations(scan_root(load_scanner(), tmp_path, contract)) == []
 
     license_path.write_text(original + "Unreviewed legal addition.\n", encoding="utf-8")
     report = scan_root(load_scanner(), tmp_path, contract)
     assert "legal_file_mismatch" in violation_kinds(report)
 
 
-def test_cutover_rejects_missing_required_legal_file_and_occurrence(tmp_path: Path) -> None:
+def test_profiles_reject_missing_required_legal_file_and_occurrence(tmp_path: Path) -> None:
     expected = f"Copyright (c) 2024 {legacy_product()}"
     contract = write_contract(
         tmp_path / "contract.yaml",
@@ -292,83 +328,103 @@ def test_cutover_rejects_missing_required_legal_file_and_occurrence(tmp_path: Pa
     assert violation_kinds(report) >= {"missing_legal_file", "missing_legal_occurrence"}
 
 
-def test_stage0_requires_monotonic_decrease_but_cutover_rejects_all_nonlegal(tmp_path: Path) -> None:
+def test_visible_and_technical_profiles_reject_their_own_residue_classes(tmp_path: Path) -> None:
     product = legacy_product()
+    (tmp_path / "README.md").write_text(product + "\n", encoding="utf-8")
     (tmp_path / "src.txt").write_text(product + "\n", encoding="utf-8")
     contract = write_contract(tmp_path / "contract.yaml")
     scanner = load_scanner()
 
-    assert scan_root(scanner, tmp_path, contract, profile="stage0")["violations"] == []
-    assert "legacy_brand" in violation_kinds(scan_root(scanner, tmp_path, contract, profile="cutover"))
+    visible = scan_root(scanner, tmp_path, contract, profile="visible")
+    technical = scan_root(scanner, tmp_path, contract, profile="technical-compatibility")
 
-    strict = yaml.safe_load(contract.read_text(encoding="utf-8"))
-    strict["baseline"] = {
-        "brand_file_count": 0,
-        "brand_match_count": 0,
-        "brand_path_count": 0,
-        "executor_file_count": 0,
-        "executor_match_count": 0,
-        "executor_path_count": 0,
-        "upstream_endpoint_count": 0,
-        "scan_issue_count": 0,
-    }
-    contract.write_text(yaml.safe_dump(strict, sort_keys=False), encoding="utf-8")
-    assert "baseline_increase" in violation_kinds(scan_root(scanner, tmp_path, contract, profile="stage0"))
+    assert any(item["path"] == "README.md" and item["kind"] == "visible_residue" for item in visible["violations"])
+    assert any(
+        item["path"] == "src.txt" and item["kind"] == "unledgered_technical_residue" for item in technical["violations"]
+    )
 
 
-def test_stage0_dirty_worktree_rejects_compensated_addition(tmp_path: Path) -> None:
+def test_technical_profile_rejects_new_residue_in_a_dirty_worktree(tmp_path: Path) -> None:
     product = legacy_product()
     repo = init_repo(tmp_path / "repo", {"old.txt": product + "\n" + product + "\n"})
     (repo / "old.txt").write_text(product + "\n", encoding="utf-8")
     (repo / "new.txt").write_text(product + "\n", encoding="utf-8")
     git(repo, "add", "new.txt")
     contract = write_contract(tmp_path / "contract.yaml")
+    legacy_contract = write_pending_legacy_contract(tmp_path / "legacy.yaml", repo)
 
-    report = load_scanner().scan_repository(repo, contract, profile="stage0")
+    report = load_scanner().scan_repository(
+        repo,
+        contract,
+        profile="technical-compatibility",
+        legacy_contract_path=legacy_contract,
+    )
 
-    additions = [item for item in report["violations"] if item["kind"] == "monotonic_increase"]
-    assert any(item["path"] == "new.txt" and item["match"] == "brand_match_count" for item in additions)
+    assert any(
+        item["path"] == "new.txt" and item["kind"] == "unledgered_technical_residue"
+        for item in actionable_violations(report)
+    )
 
 
-def test_stage0_clean_commit_compares_head_with_first_parent(tmp_path: Path) -> None:
+def test_technical_profile_scans_the_current_clean_commit(tmp_path: Path) -> None:
     product = legacy_product()
     repo = init_repo(tmp_path / "repo", {"app.txt": product + "\n"})
     (repo / "app.txt").write_text(product + "\n" + product + "\n", encoding="utf-8")
     git(repo, "add", "app.txt")
     git(repo, "commit", "-qm", "increase")
     contract = write_contract(tmp_path / "contract.yaml")
+    legacy_contract = write_pending_legacy_contract(tmp_path / "legacy.yaml", repo)
 
-    report = load_scanner().scan_repository(repo, contract, profile="stage0")
+    report = load_scanner().scan_repository(
+        repo,
+        contract,
+        profile="technical-compatibility",
+        legacy_contract_path=legacy_contract,
+    )
 
-    assert "monotonic_increase" in violation_kinds(report)
+    assert any(
+        item["path"] == "app.txt" and item["kind"] == "unledgered_technical_residue"
+        for item in actionable_violations(report)
+    )
 
 
-def test_stage0_tracks_upstream_endpoint_growth_independently(tmp_path: Path) -> None:
+def test_official_url_profile_tracks_upstream_endpoints_independently(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo", {"telemetry.txt": "Ketos\n", "community.txt": "Ketos\n"})
     (repo / "telemetry.txt").write_text(upstream_pixel_url() + "\n", encoding="utf-8")
     (repo / "community.txt").write_text(upstream_invite_url() + "\n", encoding="utf-8")
     contract = write_contract(tmp_path / "contract.yaml")
+    legacy_contract = write_pending_legacy_contract(tmp_path / "legacy.yaml", repo)
 
-    report = load_scanner().scan_repository(repo, contract, profile="stage0")
-
-    assert report["baseline"]["upstream_endpoint_count"] == UPSTREAM_ENDPOINT_FIXTURE_COUNT
-    assert any(
-        item["kind"] == "monotonic_increase" and item["match"] == "upstream_endpoint_count"
-        for item in report["violations"]
+    report = load_scanner().scan_repository(
+        repo,
+        contract,
+        profile="official-url",
+        legacy_contract_path=legacy_contract,
     )
 
+    assert report["baseline"]["upstream_endpoint_count"] == UPSTREAM_ENDPOINT_FIXTURE_COUNT
+    assert {
+        item["path"] for item in actionable_violations(report) if item["kind"] in {"official_url", "upstream_endpoint"}
+    } == {"community.txt", "telemetry.txt"}
 
-def test_stage0_does_not_exclude_scanner_test_paths(tmp_path: Path) -> None:
+
+def test_technical_profile_does_not_exclude_scanner_test_paths(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo", {"scripts/rebrand/tests/example.py": "PRODUCT = 'Ketos'\n"})
     product = legacy_product()
     (repo / "scripts/rebrand/tests/example.py").write_text(f"PRODUCT = '{product}'\n", encoding="utf-8")
     contract = write_contract(tmp_path / "contract.yaml")
+    legacy_contract = write_pending_legacy_contract(tmp_path / "legacy.yaml", repo)
 
-    report = load_scanner().scan_repository(repo, contract, profile="stage0")
+    report = load_scanner().scan_repository(
+        repo,
+        contract,
+        profile="technical-compatibility",
+        legacy_contract_path=legacy_contract,
+    )
 
     assert any(
-        item["kind"] == "monotonic_increase" and item["path"] == "scripts/rebrand/tests/example.py"
-        for item in report["violations"]
+        item["kind"] == "unledgered_technical_residue" and item["path"] == "scripts/rebrand/tests/example.py"
+        for item in actionable_violations(report)
     )
 
 
@@ -383,8 +439,8 @@ def test_path_count_counts_paths_not_matches_within_one_path(tmp_path: Path) -> 
     assert report["baseline"]["brand_path_count"] == 1
 
 
-def test_cli_accepts_cutover_and_scan_root(tmp_path: Path) -> None:
-    (tmp_path / "clean.txt").write_text("Ketos\n", encoding="utf-8")
+def test_cli_accepts_technical_profile_and_scan_root(tmp_path: Path) -> None:
+    (tmp_path / "residue.txt").write_text(legacy_product() + "\n", encoding="utf-8")
     contract = write_contract(tmp_path / "contract.yaml")
     completed = subprocess.run(
         [
@@ -393,26 +449,31 @@ def test_cli_accepts_cutover_and_scan_root(tmp_path: Path) -> None:
             "python",
             str(SCANNER_PATH),
             "--profile",
-            "cutover",
+            "technical-compatibility",
             "--scan-root",
             str(tmp_path),
             "--zero-residue-contract",
             str(contract),
+            "--legacy-contract",
+            str(LEGACY_CONTRACT),
         ],
         check=False,
         text=True,
         capture_output=True,
     )
-    assert completed.returncode == 0, completed.stderr or completed.stdout
+    assert completed.returncode == 1, completed.stderr or completed.stdout
+    assert "unledgered_technical_residue residue.txt:1" in completed.stdout
 
 
-def test_ci_runs_stage0_gate_and_publishes_cutover_report() -> None:
+def test_ci_runs_all_compatibility_first_profiles_and_publishes_reports() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
-    assert "PYTHONDONTWRITEBYTECODE=1 uv run pytest -p no:cacheprovider scripts/rebrand/tests -q" in text
-    assert "scripts/rebrand/check_brand.py --profile stage0" in text
-    assert "scripts/rebrand/check_brand.py --profile cutover --format json" in text
-    assert "ketos-zero-residue-contract.yaml" in text
-    assert "legacy-" + legacy_product().lower() + "-contract.yaml" not in text
+    assert '-m "not slow"' in text
+    assert "-m slow" in text
+    for profile in ("visible", "official-url", "technical-compatibility"):
+        assert f"scripts/rebrand/check_brand.py --profile {profile} --format json" in text
+    assert "Upload categorized brand reports" in text
+    assert "--profile stage0" not in text
+    assert "--profile cutover" not in text
 
 
 def test_zero_contract_rejects_duplicate_keys_and_malformed_legal_files(tmp_path: Path) -> None:
@@ -451,7 +512,7 @@ def test_archive_member_can_be_exact_legal_file_with_whole_member_hash(tmp_path:
         ],
     )
 
-    assert scan_root(load_scanner(), tmp_path, contract)["violations"] == []
+    assert actionable_violations(scan_root(load_scanner(), tmp_path, contract)) == []
 
     changed = content + b"unreviewed\n"
     with zipfile.ZipFile(archive_path, "w") as archive:
@@ -538,7 +599,7 @@ def test_duplicate_legal_archive_member_is_ambiguous_and_not_allowlisted(tmp_pat
     assert report["allowed_residue"] == []
 
 
-def test_stage0_new_archive_bound_issue_is_monotonic_increase(tmp_path: Path) -> None:
+def test_technical_profile_fails_closed_on_a_new_archive_bound_issue(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo", {"README.md": "Ketos\n"})
     payload = b"Ketos"
     member_name = "payload.txt"
@@ -551,14 +612,18 @@ def test_stage0_new_archive_bound_issue_is_monotonic_increase(tmp_path: Path) ->
     (repo / "bundle.zip").write_bytes(payload)
     git(repo, "add", "bundle.zip")
     contract = write_contract(tmp_path / "contract.yaml")
+    legacy_contract = write_pending_legacy_contract(tmp_path / "legacy.yaml", repo)
 
-    report = load_scanner().scan_repository(repo, contract, profile="stage0")
+    report = load_scanner().scan_repository(
+        repo,
+        contract,
+        profile="technical-compatibility",
+        legacy_contract_path=legacy_contract,
+    )
 
     assert any(
-        item["kind"] == "monotonic_increase"
-        and item["path"].startswith("bundle.zip")
-        and item["match"] == "scan_issue_count"
-        for item in report["violations"]
+        item["kind"] == "archive_depth_limit" and item["path"].startswith("bundle.zip")
+        for item in actionable_violations(report)
     )
 
 
@@ -573,10 +638,16 @@ def test_synthetic_archive_issue_path_cannot_be_overwritten_by_real_path(tmp_pat
     (repo / "new.zip").write_bytes(b"PK\x03\x04truncated-new")
     git(repo, "add", "-A")
     contract = write_contract(tmp_path / "contract.yaml")
+    legacy_contract = write_pending_legacy_contract(tmp_path / "legacy.yaml", repo)
 
-    report = load_scanner().scan_repository(repo, contract, profile="stage0")
+    report = load_scanner().scan_repository(
+        repo,
+        contract,
+        profile="technical-compatibility",
+        legacy_contract_path=legacy_contract,
+    )
 
     assert any(
-        item["kind"] == "monotonic_increase" and item["path"] == sentinel_path and item["match"] == "scan_issue_count"
-        for item in report["violations"]
+        item["kind"] == "duplicate_scan_path" and item["path"] == sentinel_path
+        for item in actionable_violations(report)
     )

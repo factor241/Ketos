@@ -186,7 +186,7 @@ def test_all_wheels_and_sdists_include_exact_legal_files_and_metadata(tmp_path: 
         ], distribution
 
 
-def test_stage0_inventories_but_cutover_rejects_upstream_address_outside_legal_paths(tmp_path: Path) -> None:
+def test_compatibility_profiles_reject_upstream_address_outside_legal_paths(tmp_path: Path) -> None:
     license_bytes = (REPO_ROOT / "LICENSE").read_bytes()
     fixture_license = tmp_path / "LICENSE"
     fixture_notice = tmp_path / "NOTICE"
@@ -197,11 +197,15 @@ def test_stage0_inventories_but_cutover_rejects_upstream_address_outside_legal_p
     contract = _write_fixture_contract(tmp_path / "contract.yaml", license_bytes, fixture_notice.read_bytes())
     scanner = _load_scanner()
 
-    assert scanner.scan_root(tmp_path, contract, profile="stage0")["violations"] == []
-    cutover = scanner.scan_root(tmp_path, contract, profile="cutover")
+    visible = scanner.scan_root(tmp_path, contract, profile="visible")
+    official = scanner.scan_root(tmp_path, contract, profile="official-url")
     assert any(
-        violation["path"] == "community.md" and violation["kind"] == "legacy_brand"
-        for violation in cutover["violations"]
+        violation["path"] == "community.md" and violation["kind"] == "visible_residue"
+        for violation in visible["violations"]
+    )
+    assert any(
+        violation["path"] == "community.md" and violation["kind"] == "official_url"
+        for violation in official["violations"]
     )
 
 

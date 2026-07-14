@@ -11388,7 +11388,7 @@
   "starter_flows.image_sentiment_analysis.name": "图像情感分析",
   "starter_flows.instagram_copywriter.description": "利用 AI 生成的内容和图片提示，制作引人入胜的 Instagram 帖子，从而简化社交媒体内容的创作流程。",
   "starter_flows.instagram_copywriter.name": "Instagram文案撰写人",
-  "starter_flows.invoice_summarizer.description": "您的 AI 代理会计师——通过 Ketoss Agent 充分利用 Needle。",
+  "starter_flows.invoice_summarizer.description": "您的 AI 代理会计师——通过 Ketos Agent 充分利用 Needle。",
   "starter_flows.invoice_summarizer.name": "发票汇总器",
   "starter_flows.knowledge_base.description": "这是一个通过对知识库中的数据进行向量搜索以检索相关文档的示例。",
   "starter_flows.knowledge_base.name": "知识库",

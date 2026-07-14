@@ -33,7 +33,7 @@ test(
 
     await page
       .getByTestId("popover-anchor-input-input_value")
-      .fill("what is langflow?");
+      .fill("what is ketos?");
 
     await page.getByTestId("button_run_duckduckgo search").click();
 
@@ -61,7 +61,7 @@ test(
           .getByPlaceholder(TEXTS.placeholderEmpty)
           .inputValue();
         expect(searchResults.length).toBeGreaterThan(10);
-        expect(searchResults.toLowerCase()).toContain("langflow");
+        expect(searchResults.toLowerCase()).toContain("ketos");
       } else {
         const value = await page
           .getByPlaceholder(TEXTS.placeholderEmpty)

@@ -1,4 +1,4 @@
-"""Tests for lfx.base.models.model_utils.
+"""Tests for kfx.base.models.model_utils.
 
 Regression tests for the LLM Selector "Custom" fallback bug reported on Slack
 by Akash Joshi / Anderson Filho: ``get_model_name`` returns ``"Custom"`` for
@@ -6,15 +6,15 @@ by Akash Joshi / Anderson Filho: ``get_model_name`` returns ``"Custom"`` for
 is set on a different attribute than the one ``next()`` happens to find first.
 """
 
-# langchain-ibm / ibm-watsonx-ai are core langflow-base deps importable on every
+# langchain-ibm / ibm-watsonx-ai are core ketos-base deps importable on every
 # supported Python version (3.10-3.14), so import directly: a hard failure here
 # surfaces a real import regression instead of silently skipping the suite.
 # (ibm-watsonx-ai 1.5.13 fixed the Python 3.14 StrEnum initialization
 # incompatibility that previously forced the upstream <3.14 cap.)
 from langchain_ibm import ChatWatsonx
 from langchain_openai import AzureChatOpenAI, ChatOpenAI
-from lfx.base.models.model_metadata import create_model_metadata
-from lfx.base.models.model_utils import fetch_live_watsonx_models, get_model_name
+from kfx.base.models.model_metadata import create_model_metadata
+from kfx.base.models.model_utils import fetch_live_watsonx_models, get_model_name
 
 
 class _AttrBag:
@@ -136,16 +136,16 @@ class TestFetchLiveWatsonxModelsRespectsStaticToolCalling:
         """A model whose static metadata says tool_calling=False must come back as False."""
         # Force the live API to return the model name we declared as non-tool-calling.
         monkeypatch.setattr(
-            "lfx.base.models.model_utils.get_provider_variable_value",
+            "kfx.base.models.model_utils.get_provider_variable_value",
             lambda *_args, **_kwargs: "https://us-south.ml.cloud.ibm.com",
         )
         monkeypatch.setattr(
-            "lfx.base.models.model_utils.get_watsonx_llm_models",
+            "kfx.base.models.model_utils.get_watsonx_llm_models",
             lambda *_args, **_kwargs: [self.NON_TOOL_MODEL],
         )
         # Static catalog: the model is known and explicitly marked non-tool-calling.
         monkeypatch.setattr(
-            "lfx.base.models.model_utils.WATSONX_LLM_METADATA",
+            "kfx.base.models.model_utils.WATSONX_LLM_METADATA",
             self._fake_static_llm_metadata(),
         )
 
@@ -165,15 +165,15 @@ class TestFetchLiveWatsonxModelsRespectsStaticToolCalling:
         """Models not in the static catalog default to tool_calling=True (current behavior)."""
         unknown_model = "ibm/some-future-model-xyz"
         monkeypatch.setattr(
-            "lfx.base.models.model_utils.get_provider_variable_value",
+            "kfx.base.models.model_utils.get_provider_variable_value",
             lambda *_args, **_kwargs: "https://us-south.ml.cloud.ibm.com",
         )
         monkeypatch.setattr(
-            "lfx.base.models.model_utils.get_watsonx_llm_models",
+            "kfx.base.models.model_utils.get_watsonx_llm_models",
             lambda *_args, **_kwargs: [unknown_model],
         )
         monkeypatch.setattr(
-            "lfx.base.models.model_utils.WATSONX_LLM_METADATA",
+            "kfx.base.models.model_utils.WATSONX_LLM_METADATA",
             self._fake_static_llm_metadata(),  # does not contain unknown_model
         )
 

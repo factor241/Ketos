@@ -5,8 +5,8 @@ from uuid import uuid4
 
 import pandas as pd
 import pytest
-from lfx.components.files_and_knowledge.save_file import SaveToFileComponent
-from lfx.schema import Data, DataFrame, Message
+from kfx.components.files_and_knowledge.save_file import SaveToFileComponent
+from kfx.schema import Data, DataFrame, Message
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -100,10 +100,10 @@ class TestSaveToFileComponent(ComponentTestBaseWithoutClient):
 
         # Mock only the database and upload functions - let file operations run normally
         with (
-            patch("langflow.api.v2.files.upload_user_file", new_callable=AsyncMock) as mock_upload,
-            patch("lfx.services.deps.session_scope") as mock_session,
+            patch("ketos.api.v2.files.upload_user_file", new_callable=AsyncMock) as mock_upload,
+            patch("kfx.services.deps.session_scope") as mock_session,
             patch(
-                "langflow.services.database.models.user.crud.get_user_by_id", new_callable=AsyncMock
+                "ketos.services.database.models.user.crud.get_user_by_id", new_callable=AsyncMock
             ) as mock_get_user,
         ):
             mock_db = AsyncMock()
@@ -134,10 +134,10 @@ class TestSaveToFileComponent(ComponentTestBaseWithoutClient):
 
         # Mock only the database and upload functions - let file operations run normally
         with (
-            patch("langflow.api.v2.files.upload_user_file", new_callable=AsyncMock) as mock_upload,
-            patch("lfx.services.deps.session_scope") as mock_session,
+            patch("ketos.api.v2.files.upload_user_file", new_callable=AsyncMock) as mock_upload,
+            patch("kfx.services.deps.session_scope") as mock_session,
             patch(
-                "langflow.services.database.models.user.crud.get_user_by_id", new_callable=AsyncMock
+                "ketos.services.database.models.user.crud.get_user_by_id", new_callable=AsyncMock
             ) as mock_get_user,
         ):
             mock_db = AsyncMock()
@@ -166,10 +166,10 @@ class TestSaveToFileComponent(ComponentTestBaseWithoutClient):
 
         # Mock only the database and upload functions - let file operations run normally
         with (
-            patch("langflow.api.v2.files.upload_user_file", new_callable=AsyncMock) as mock_upload,
-            patch("lfx.services.deps.session_scope") as mock_session,
+            patch("ketos.api.v2.files.upload_user_file", new_callable=AsyncMock) as mock_upload,
+            patch("kfx.services.deps.session_scope") as mock_session,
             patch(
-                "langflow.services.database.models.user.crud.get_user_by_id", new_callable=AsyncMock
+                "ketos.services.database.models.user.crud.get_user_by_id", new_callable=AsyncMock
             ) as mock_get_user,
         ):
             mock_db = AsyncMock()
@@ -198,10 +198,10 @@ class TestSaveToFileComponent(ComponentTestBaseWithoutClient):
         )
 
         with (
-            patch("langflow.api.v2.files.upload_user_file", new_callable=AsyncMock) as mock_upload,
-            patch("lfx.services.deps.session_scope") as mock_session,
+            patch("ketos.api.v2.files.upload_user_file", new_callable=AsyncMock) as mock_upload,
+            patch("kfx.services.deps.session_scope") as mock_session,
             patch(
-                "langflow.services.database.models.user.crud.get_user_by_id", new_callable=AsyncMock
+                "ketos.services.database.models.user.crud.get_user_by_id", new_callable=AsyncMock
             ) as mock_get_user,
         ):
             mock_db = AsyncMock()
@@ -231,13 +231,13 @@ class TestSaveToFileComponent(ComponentTestBaseWithoutClient):
         # Mock database and upload functions - let file operations run normally
         with (
             patch(
-                "langflow.api.v2.files.upload_user_file",
+                "ketos.api.v2.files.upload_user_file",
                 new_callable=AsyncMock,
                 side_effect=Exception("Upload failed"),
             ),
-            patch("lfx.services.deps.session_scope") as mock_session,
+            patch("kfx.services.deps.session_scope") as mock_session,
             patch(
-                "langflow.services.database.models.user.crud.get_user_by_id", new_callable=AsyncMock
+                "ketos.services.database.models.user.crud.get_user_by_id", new_callable=AsyncMock
             ) as mock_get_user,
         ):
             mock_db = AsyncMock()
@@ -310,10 +310,10 @@ class TestSaveToFileComponent(ComponentTestBaseWithoutClient):
 
         # Mock only the database and upload functions - let file operations run normally
         with (
-            patch("langflow.api.v2.files.upload_user_file", new_callable=AsyncMock) as mock_upload,
-            patch("lfx.services.deps.session_scope") as mock_session,
+            patch("ketos.api.v2.files.upload_user_file", new_callable=AsyncMock) as mock_upload,
+            patch("kfx.services.deps.session_scope") as mock_session,
             patch(
-                "langflow.services.database.models.user.crud.get_user_by_id", new_callable=AsyncMock
+                "ketos.services.database.models.user.crud.get_user_by_id", new_callable=AsyncMock
             ) as mock_get_user,
         ):
             mock_db = AsyncMock()
@@ -351,11 +351,11 @@ class TestSaveToFileComponent(ComponentTestBaseWithoutClient):
 
             # Mock the path resolution to return our temp file
             with (
-                patch("lfx.components.files_and_knowledge.save_file.Path") as mock_path_class,
-                patch("langflow.api.v2.files.upload_user_file", new_callable=AsyncMock) as mock_upload,
-                patch("lfx.services.deps.session_scope") as mock_session,
+                patch("kfx.components.files_and_knowledge.save_file.Path") as mock_path_class,
+                patch("ketos.api.v2.files.upload_user_file", new_callable=AsyncMock) as mock_upload,
+                patch("kfx.services.deps.session_scope") as mock_session,
                 patch(
-                    "langflow.services.database.models.user.crud.get_user_by_id", new_callable=AsyncMock
+                    "ketos.services.database.models.user.crud.get_user_by_id", new_callable=AsyncMock
                 ) as mock_get_user,
             ):
                 # Make Path() return our temp file path
@@ -598,7 +598,7 @@ class TestSaveToFileComponent(ComponentTestBaseWithoutClient):
         assert storage_input.advanced is True
 
     def test_get_input_type_raw_pandas_dataframe(self, component_class):
-        """Test that a raw pandas DataFrame is auto-wrapped into Langflow DataFrame."""
+        """Test that a raw pandas DataFrame is auto-wrapped into Ketos DataFrame."""
         component = component_class()
         raw_df = pd.DataFrame([{"a": 1, "b": 2}])
         component.set_attributes({"input": raw_df, "file_name": "test", "file_format": "csv"})

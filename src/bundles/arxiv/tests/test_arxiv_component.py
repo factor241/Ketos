@@ -1,6 +1,6 @@
-"""Unit tests for the ArXiv extension bundle (``lfx-arxiv``).
+"""Unit tests for the ArXiv extension bundle (``kfx-arxiv``).
 
-The component used to live at ``lfx.components.arxiv.arxiv`` and was tested
+The component used to live at ``kfx.components.arxiv.arxiv`` and was tested
 under ``src/backend/tests/unit/components/search/``.  It has since been
 extracted into a standalone bundle; these tests now travel with the bundle
 and import the public bundle entry point.
@@ -9,7 +9,7 @@ and import the public bundle entry point.
 from unittest.mock import patch
 
 import pytest
-from lfx_arxiv import ArXivComponent
+from kfx_arxiv import ArXivComponent
 
 
 @pytest.fixture

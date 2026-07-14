@@ -76,7 +76,7 @@ const McpServerTab = ({ folderName }: { folderName: string }) => {
             {t("mcp.serverDescription")}
             <a
               className="text-accent-pink-foreground"
-              href="https://docs.langflow.org/mcp-server"
+              href="https://docs.ketos.test/mcp-server"
               target="_blank"
               rel="noreferrer"
             >

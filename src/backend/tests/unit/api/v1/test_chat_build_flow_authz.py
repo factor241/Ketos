@@ -45,7 +45,7 @@ def _make_user(*, is_superuser: bool = False) -> SimpleNamespace:
 
 def _make_flow(*, owner_id: UUID, public: bool = False):
     """Build a flow stub with the attributes build_flow reads."""
-    from langflow.services.database.models.flow.model import AccessTypeEnum
+    from ketos.services.database.models.flow.model import AccessTypeEnum
 
     return SimpleNamespace(
         id=uuid4(),
@@ -60,7 +60,7 @@ def _make_flow(*, owner_id: UUID, public: bool = False):
 @pytest.fixture
 def patch_build_flow(monkeypatch):
     """Install fakes for session_scope, _read_flow, ensure_flow_permission, start_flow_build."""
-    from langflow.api.v1 import chat as chat_module
+    from ketos.api.v1 import chat as chat_module
 
     state: dict[str, Any] = {"session_exec": [], "read_flow": None, "ensure_raises": None}
 
@@ -81,7 +81,7 @@ def patch_build_flow(monkeypatch):
     monkeypatch.setattr(chat_module, "session_scope", fake_session_scope)
 
     # _read_flow is imported lazily inside build_flow; patch the helper module.
-    from langflow.api.v1 import flows_helpers
+    from ketos.api.v1 import flows_helpers
 
     monkeypatch.setattr(flows_helpers, "_read_flow", fake_read_flow)
     monkeypatch.setattr(chat_module, "ensure_flow_permission", fake_ensure)
@@ -109,7 +109,7 @@ def _make_queue_service():
 @pytest.mark.asyncio
 async def test_build_flow_owner_succeeds(patch_build_flow):
     """Owner can build their own private flow — the historical happy path."""
-    from langflow.api.v1 import chat as chat_module
+    from ketos.api.v1 import chat as chat_module
 
     owner = _make_user()
     flow = _make_flow(owner_id=owner.id, public=False)
@@ -127,7 +127,7 @@ async def test_build_flow_owner_succeeds(patch_build_flow):
 @pytest.mark.asyncio
 async def test_build_flow_shared_private_non_owner_succeeds(patch_build_flow):
     """Non-owner can build a private shared flow when the plugin allows execute."""
-    from langflow.api.v1 import chat as chat_module
+    from ketos.api.v1 import chat as chat_module
 
     user = _make_user()
     flow = _make_flow(owner_id=uuid4(), public=False)
@@ -145,8 +145,8 @@ async def test_build_flow_shared_private_non_owner_succeeds(patch_build_flow):
 @pytest.mark.asyncio
 async def test_build_flow_non_owner_cannot_override_flow_data(patch_build_flow):
     """Non-owner with execute access cannot supply alternate graph data in the body."""
-    from langflow.api.v1 import chat as chat_module
-    from langflow.api.v1.schemas import FlowDataRequest
+    from ketos.api.v1 import chat as chat_module
+    from ketos.api.v1.schemas import FlowDataRequest
 
     user = _make_user()
     flow = _make_flow(owner_id=uuid4(), public=False)
@@ -168,8 +168,8 @@ async def test_build_flow_non_owner_cannot_override_flow_data(patch_build_flow):
 @pytest.mark.asyncio
 async def test_build_flow_owner_can_override_flow_data(patch_build_flow, monkeypatch):
     """Owner may still pass flow data overrides in the build request."""
-    from langflow.api.v1 import chat as chat_module
-    from langflow.api.v1.schemas import FlowDataRequest
+    from ketos.api.v1 import chat as chat_module
+    from ketos.api.v1.schemas import FlowDataRequest
 
     monkeypatch.setattr(chat_module, "validate_flow_for_current_settings", lambda _data: None)
 
@@ -191,7 +191,7 @@ async def test_build_flow_owner_can_override_flow_data(patch_build_flow, monkeyp
 @pytest.mark.asyncio
 async def test_build_flow_plugin_deny_returns_404_not_403(patch_build_flow):
     """ensure_flow_permission raising 403 must surface as 404 (UUID privacy)."""
-    from langflow.api.v1 import chat as chat_module
+    from ketos.api.v1 import chat as chat_module
 
     user = _make_user()
     # _read_flow finds the flow (cross-user-fetch enabled in plugin would do this)
@@ -214,7 +214,7 @@ async def test_build_flow_plugin_deny_returns_404_not_403(patch_build_flow):
 @pytest.mark.asyncio
 async def test_build_flow_unknown_flow_returns_404(patch_build_flow):
     """Both share-aware and PUBLIC fallback miss → 404 before plugin is consulted."""
-    from langflow.api.v1 import chat as chat_module
+    from ketos.api.v1 import chat as chat_module
 
     user = _make_user()
     flow_id = uuid4()
@@ -234,7 +234,7 @@ async def test_build_flow_unknown_flow_returns_404(patch_build_flow):
 @pytest.mark.asyncio
 async def test_build_flow_public_fallback_when_share_aware_misses(patch_build_flow):
     """Plugin can't see the flow (returns None), but PUBLIC fallback finds it."""
-    from langflow.api.v1 import chat as chat_module
+    from ketos.api.v1 import chat as chat_module
 
     user = _make_user()
     owner_id = uuid4()
@@ -254,7 +254,7 @@ async def test_build_flow_public_fallback_when_share_aware_misses(patch_build_fl
 @pytest.mark.asyncio
 async def test_build_flow_non_403_exception_not_converted(patch_build_flow):
     """A non-403 exception from ensure_flow_permission (e.g. 500) must pass through."""
-    from langflow.api.v1 import chat as chat_module
+    from ketos.api.v1 import chat as chat_module
 
     user = _make_user()
     flow = _make_flow(owner_id=user.id, public=False)

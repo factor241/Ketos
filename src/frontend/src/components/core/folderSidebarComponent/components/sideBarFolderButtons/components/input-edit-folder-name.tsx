@@ -16,7 +16,7 @@ export const InputEditFolderName = ({
     folderName: string,
   ) => void;
   item: FolderType;
-  refInput: React.RefObject<HTMLInputElement>;
+  refInput: React.RefObject<HTMLInputElement | null>;
   handleKeyDownFn: (
     e: React.KeyboardEvent<HTMLInputElement>,
     folder: FolderType,

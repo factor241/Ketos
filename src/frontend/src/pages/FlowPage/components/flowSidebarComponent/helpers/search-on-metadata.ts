@@ -1,6 +1,9 @@
 import { normalizeString } from "./normalize-string";
 
-export function searchInMetadata(metadata: any, searchTerm: string): boolean {
+export function searchInMetadata(
+  metadata: unknown,
+  searchTerm: string,
+): boolean {
   if (!metadata || typeof metadata !== "object") return false;
 
   return Object.entries(metadata).some(([key, value]) => {

@@ -12,10 +12,10 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from langflow.api.v2.workflow_reconstruction import reconstruct_workflow_response_from_job_id
-from langflow.services.database.models.vertex_builds.model import VertexBuildTable
-from lfx.interface.components import component_cache
-from lfx.utils.flow_validation import CustomComponentValidationError
+from ketos.api.v2.workflow_reconstruction import reconstruct_workflow_response_from_job_id
+from ketos.services.database.models.vertex_builds.model import VertexBuildTable
+from kfx.interface.components import component_cache
+from kfx.utils.flow_validation import CustomComponentValidationError
 
 
 class TestWorkflowReconstruction:
@@ -48,9 +48,9 @@ class TestWorkflowReconstruction:
         mock_session = MagicMock()
 
         with (
-            patch("langflow.api.v2.workflow_reconstruction.get_vertex_builds_by_job_id") as mock_get_vb,
-            patch("langflow.api.v2.workflow_reconstruction.Graph") as mock_graph_class,
-            patch("langflow.api.v2.workflow_reconstruction.run_response_to_workflow_response") as mock_converter,
+            patch("ketos.api.v2.workflow_reconstruction.get_vertex_builds_by_job_id") as mock_get_vb,
+            patch("ketos.api.v2.workflow_reconstruction.Graph") as mock_graph_class,
+            patch("ketos.api.v2.workflow_reconstruction.run_response_to_workflow_response") as mock_converter,
         ):
             mock_get_vb.return_value = [mock_vb1, mock_vb2]
 
@@ -81,7 +81,7 @@ class TestWorkflowReconstruction:
         mock_flow.data = {"nodes": [{"id": "node1"}], "edges": []}
         mock_session = MagicMock()
 
-        with patch("langflow.api.v2.workflow_reconstruction.get_vertex_builds_by_job_id") as mock_get_vb:
+        with patch("ketos.api.v2.workflow_reconstruction.get_vertex_builds_by_job_id") as mock_get_vb:
             mock_get_vb.return_value = []
 
             with pytest.raises(ValueError, match="No vertex builds found"):
@@ -129,9 +129,9 @@ class TestWorkflowReconstruction:
         mock_session = MagicMock()
 
         with (
-            patch("langflow.api.v2.workflow_reconstruction.get_vertex_builds_by_job_id") as mock_get_vb,
-            patch("langflow.api.v2.workflow_reconstruction.Graph") as mock_graph_class,
-            patch("langflow.api.v2.workflow_reconstruction.run_response_to_workflow_response") as mock_converter,
+            patch("ketos.api.v2.workflow_reconstruction.get_vertex_builds_by_job_id") as mock_get_vb,
+            patch("ketos.api.v2.workflow_reconstruction.Graph") as mock_graph_class,
+            patch("ketos.api.v2.workflow_reconstruction.run_response_to_workflow_response") as mock_converter,
         ):
             mock_get_vb.return_value = mock_vertex_builds
 
@@ -187,13 +187,13 @@ class TestWorkflowReconstruction:
         mock_vertex_build.data = {"outputs": {"result": "output"}}
 
         monkeypatch.setattr(
-            "lfx.services.deps.get_settings_service",
+            "kfx.services.deps.get_settings_service",
             lambda: MagicMock(settings=MagicMock(allow_custom_components=False)),
         )
         monkeypatch.setattr(component_cache, "type_to_current_hash", {"ChatInput": "known-hash"})
         monkeypatch.setattr(component_cache, "all_types_dict", None)
 
-        with patch("langflow.api.v2.workflow_reconstruction.get_vertex_builds_by_job_id") as mock_get_vb:
+        with patch("ketos.api.v2.workflow_reconstruction.get_vertex_builds_by_job_id") as mock_get_vb:
             mock_get_vb.return_value = [mock_vertex_build]
             with pytest.raises(CustomComponentValidationError, match="custom components are not allowed"):
                 await reconstruct_workflow_response_from_job_id(

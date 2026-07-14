@@ -14,9 +14,9 @@ from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
-from lfx.components.files_ingestion.file_description_generator import FileDescriptionGeneratorComponent
-from lfx.schema.data import Data
-from lfx.schema.dataframe import DataFrame
+from kfx.components.files_ingestion.file_description_generator import FileDescriptionGeneratorComponent
+from kfx.schema.data import Data
+from kfx.schema.dataframe import DataFrame
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -94,7 +94,7 @@ class TestFileDescriptionGeneratorComponent(ComponentTestBaseWithoutClient):
             {"text": "Description of file2", "file_path": "/path/to/file2.txt"},
         ]
 
-        with patch("lfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
+        with patch("kfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
             mock_serialize.return_value = {"__class_path__": "test.MockLLM"}
 
             with _mock_popen(stdout=json.dumps(_wrap_output(mock_output)))[0]:
@@ -131,7 +131,7 @@ class TestFileDescriptionGeneratorComponent(ComponentTestBaseWithoutClient):
             {"text": "CSV description 2", "file_path": "/path/to/data2.csv"},
         ]
 
-        with patch("lfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
+        with patch("kfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
             mock_serialize.return_value = {"__class_path__": "test.MockLLM"}
 
             with _mock_popen(stdout=json.dumps(_wrap_output(mock_output)))[0]:
@@ -164,7 +164,7 @@ class TestFileDescriptionGeneratorComponent(ComponentTestBaseWithoutClient):
             {"text": "Text description", "file_path": "/path/to/file.txt"},
         ]
 
-        with patch("lfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
+        with patch("kfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
             mock_serialize.return_value = {"__class_path__": "test.MockLLM"}
 
             with _mock_popen(stdout=json.dumps(_wrap_output(mock_output)))[0]:
@@ -204,7 +204,7 @@ class TestFileDescriptionGeneratorComponent(ComponentTestBaseWithoutClient):
             {"text": "Valid description", "file_path": "/path/to/valid.txt"},
         ]
 
-        with patch("lfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
+        with patch("kfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
             mock_serialize.return_value = {"__class_path__": "test.MockLLM"}
 
             with _mock_popen(stdout=json.dumps(_wrap_output(mock_output)))[0]:
@@ -236,7 +236,7 @@ class TestFileDescriptionGeneratorComponent(ComponentTestBaseWithoutClient):
             {"text": "Valid CSV description", "file_path": "/path/to/valid.csv"},
         ]
 
-        with patch("lfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
+        with patch("kfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
             mock_serialize.return_value = {"__class_path__": "test.MockLLM"}
 
             with _mock_popen(stdout=json.dumps(_wrap_output(mock_output)))[0]:
@@ -288,7 +288,7 @@ class TestFileDescriptionGeneratorComponent(ComponentTestBaseWithoutClient):
             {"text": "Description", "file_path": "/path/to/file.txt"},
         ]
 
-        with patch("lfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
+        with patch("kfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
             mock_serialize.return_value = {"__class_path__": "test.MockLLM"}
 
             with _mock_popen(stdout=json.dumps(_wrap_output(mock_output)))[0]:
@@ -302,7 +302,7 @@ class TestFileDescriptionGeneratorComponent(ComponentTestBaseWithoutClient):
         component = component_class()
         component.set_attributes(default_kwargs)
 
-        with patch("lfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
+        with patch("kfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
             mock_serialize.return_value = {"__class_path__": "test.MockLLM"}
 
             with (
@@ -316,7 +316,7 @@ class TestFileDescriptionGeneratorComponent(ComponentTestBaseWithoutClient):
         component = component_class()
         component.set_attributes(default_kwargs)
 
-        with patch("lfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
+        with patch("kfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
             mock_serialize.return_value = {"__class_path__": "test.MockLLM"}
 
             with (
@@ -332,7 +332,7 @@ class TestFileDescriptionGeneratorComponent(ComponentTestBaseWithoutClient):
 
         empty_output = json.dumps(_wrap_output([], failed=["/path/to/file1.txt", "/path/to/file2.txt"]))
 
-        with patch("lfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
+        with patch("kfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
             mock_serialize.return_value = {"__class_path__": "test.MockLLM"}
 
             with (
@@ -353,7 +353,7 @@ class TestFileDescriptionGeneratorComponent(ComponentTestBaseWithoutClient):
             )
         )
 
-        with patch("lfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
+        with patch("kfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
             mock_serialize.return_value = {"__class_path__": "test.MockLLM"}
 
             with (
@@ -368,7 +368,7 @@ class TestFileDescriptionGeneratorComponent(ComponentTestBaseWithoutClient):
         component = component_class()
         component.set_attributes(default_kwargs)
 
-        with patch("lfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
+        with patch("kfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
             mock_serialize.return_value = {"__class_path__": "test.MockLLM"}
 
             # Create a Popen mock that never finishes (poll always returns None)
@@ -402,7 +402,7 @@ class TestFileDescriptionGeneratorComponent(ComponentTestBaseWithoutClient):
             {"text": "Description", "file_path": str(Path("relative/path/file.txt"))},
         ]
 
-        with patch("lfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
+        with patch("kfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
             mock_serialize.return_value = {"__class_path__": "test.MockLLM"}
 
             patcher, mock_proc = _mock_popen(stdout=json.dumps(_wrap_output(mock_output)))
@@ -423,7 +423,7 @@ class TestFileDescriptionGeneratorComponent(ComponentTestBaseWithoutClient):
             {"text": "Test description", "file_path": "/path/to/file.txt"},
         ]
 
-        with patch("lfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
+        with patch("kfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
             mock_serialize.return_value = {"__class_path__": "test.MockLLM"}
 
             with _mock_popen(stdout=json.dumps(_wrap_output(mock_output)))[0]:
@@ -459,7 +459,7 @@ class TestFileDescriptionGeneratorComponent(ComponentTestBaseWithoutClient):
             {"text": "Other description", "file_path": "/path/to/other.txt"},
         ]
 
-        with patch("lfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
+        with patch("kfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
             mock_serialize.return_value = {"__class_path__": "test.MockLLM"}
 
             patcher, mock_proc = _mock_popen(stdout=json.dumps(_wrap_output(mock_output)))
@@ -480,7 +480,7 @@ class TestFileDescriptionGeneratorComponent(ComponentTestBaseWithoutClient):
         component = component_class()
         component.set_attributes(default_kwargs)
 
-        with patch("lfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
+        with patch("kfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
             mock_serialize.side_effect = ValueError("Cannot serialize this LLM type")
 
             with pytest.raises(ValueError, match="Cannot serialize this LLM type"):
@@ -496,7 +496,7 @@ class TestFileDescriptionGeneratorComponent(ComponentTestBaseWithoutClient):
             {"file_path": "/path/to/file.txt"},  # Missing "text"
         ]
 
-        with patch("lfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
+        with patch("kfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
             mock_serialize.return_value = {"__class_path__": "test.MockLLM"}
 
             with _mock_popen(stdout=json.dumps(_wrap_output(mock_output)))[0], pytest.raises(KeyError, match="text"):
@@ -512,7 +512,7 @@ class TestFileDescriptionGeneratorComponent(ComponentTestBaseWithoutClient):
             {"text": "Description"},  # Missing "file_path"
         ]
 
-        with patch("lfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
+        with patch("kfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
             mock_serialize.return_value = {"__class_path__": "test.MockLLM"}
 
             with (
@@ -526,7 +526,7 @@ class TestFileDescriptionGeneratorComponent(ComponentTestBaseWithoutClient):
         component = component_class()
         component.set_attributes(default_kwargs)
 
-        with patch("lfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
+        with patch("kfx.base.data.docling_utils._serialize_pydantic_model") as mock_serialize:
             # Simulate an unexpected exception
             mock_serialize.side_effect = RuntimeError("Unexpected error during serialization")
 

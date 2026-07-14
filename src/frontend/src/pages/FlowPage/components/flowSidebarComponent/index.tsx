@@ -297,7 +297,7 @@ export function FlowSidebarComponent({ isLoading }: FlowSidebarComponentProps) {
       const newMcpSearchData = mcpServers.map((mcpServer) => ({
         ...mcpComponent,
         display_name: mcpServer.name,
-        description: `MCP Server: ${mcpServer.name}`,
+        description: `${t("misc.mcpServer")}: ${mcpServer.name}`,
         category: "MCP",
         key: `mcp_${mcpServer.name}`,
         template: {

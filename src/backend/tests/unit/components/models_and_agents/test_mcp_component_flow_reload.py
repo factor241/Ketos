@@ -10,8 +10,8 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
-from lfx.base.agents.utils import safe_cache_get, safe_cache_set
-from lfx.components.models_and_agents.mcp_component import MCPToolsComponent
+from kfx.base.agents.utils import safe_cache_get, safe_cache_set
+from kfx.components.models_and_agents.mcp_component import MCPToolsComponent
 
 from tests.base import ComponentTestBaseWithoutClient
 

@@ -29,8 +29,17 @@ const createStoreMessage = (
   content_blocks: [],
 });
 
+type StoreMessage = ReturnType<typeof createStoreMessage>;
+type StoreMessageInput = Pick<
+  StoreMessage,
+  "flow_id" | "id" | "sender" | "session_id" | "text" | "timestamp"
+> &
+  Partial<StoreMessage>;
+
 // Helper to simulate the transformation that chat-view.tsx does
-const transformMessages = (storeMessages: any[]): ChatMessageType[] => {
+const transformMessages = (
+  storeMessages: StoreMessageInput[],
+): ChatMessageType[] => {
   return storeMessages
     .filter((message) => message.flow_id === "test-flow-id")
     .map((message) => ({
@@ -325,7 +334,7 @@ describe("Message Sorting Integration", () => {
           "Machine",
           "Complete message",
         ),
-      ] as any;
+      ] satisfies StoreMessageInput[];
 
       const transformed = transformMessages(incompleteMessages);
       const sorted = [...transformed].sort(sortSenderMessages);

@@ -4,8 +4,8 @@ These tests show:
 1. What FAILS with the OLD (buggy) code
 2. What PASSES with the NEW (fixed) code
 
-Issue: https://github.com/langflow-ai/langflow/issues/10231
-PR: https://github.com/langflow-ai/langflow/pull/10232
+Issue: https://github.com/ketos-ai/ketos/issues/10231
+PR: https://github.com/ketos-ai/ketos/pull/10232
 
 Run these tests to verify:
 - The bug exists (tests that show errors)
@@ -27,7 +27,7 @@ class TestBuggyCode:
     def test_buggy_code_crashes_with_nullpool(self):
         """This test PROVES the bug exists.
 
-        When users set LANGFLOW_DB_CONNECTION_SETTINGS={"poolclass": "NullPool"},
+        When users set KETOS_DB_CONNECTION_SETTINGS={"poolclass": "NullPool"},
         the OLD code would crash with:
         TypeError: Pool.__init__() missing 1 required positional argument: 'creator'
         """

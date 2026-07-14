@@ -26,7 +26,8 @@ interface PatchFlowMCPResponse {
 export const usePatchFlowsMCP: useMutationFunctionType<
   PatchFlowMCPParams,
   PatchFlowMCPRequest,
-  PatchFlowMCPResponse
+  PatchFlowMCPResponse,
+  Error
 > = (params, options?) => {
   const { mutate, queryClient } = UseRequestProcessor();
 
@@ -42,12 +43,11 @@ export const usePatchFlowsMCP: useMutationFunctionType<
 
   const mutation: UseMutationResult<
     PatchFlowMCPResponse,
-    any,
+    Error,
     PatchFlowMCPRequest
   > = mutate(["usePatchFlowsMCP", params.project_id], patchFlowMCP, {
-    onSuccess: (data, variables, context) => {
-      const authSettings = (variables as unknown as PatchFlowMCPRequest)
-        .auth_settings;
+    onSuccess: (data, variables, onMutateResult, context) => {
+      const authSettings = variables.auth_settings;
       // Update the auth settings cache immediately to prevent race conditions
       const currentMCPData = queryClient.getQueryData([
         "useGetFlowsMCP",
@@ -68,7 +68,7 @@ export const usePatchFlowsMCP: useMutationFunctionType<
 
       // Call the original onSuccess if provided
       if (options?.onSuccess) {
-        options.onSuccess(data, variables, context);
+        options.onSuccess(data, variables, onMutateResult, context);
       }
     },
     onSettled: () => {

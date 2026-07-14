@@ -58,7 +58,7 @@ on:
         options:
           - ubuntu-latest
           - self-hosted
-          - '["self-hosted", "linux", "ARM64", "langflow-ai-arm64-40gb-ephemeral"]'
+          - '["self-hosted", "linux", "ARM64", "ketos-local-arm64-40gb-ephemeral"]'
         default: ubuntu-latest
   pull_request:
     types: [opened, synchronize, labeled]
@@ -117,11 +117,11 @@ jobs:
           TODAY=$(date -u +"%Y-%m-%d")
           echo "Today's date: $TODAY"
 
-          # Query PyPI for the canonical langflow project. The nightly now publishes as a `.devN`
-          # pre-release of `langflow` (not a separate `langflow-nightly` distribution), so inspect
+          # Query PyPI for the canonical ketos project. The nightly now publishes as a `.devN`
+          # pre-release of `ketos` (not a separate `ketos-nightly` distribution), so inspect
           # the most recent dev release rather than `.info.version` (which is the latest stable).
           # See src/bundles/NIGHTLY.md.
-          HTTP_STATUS=$(curl -s -o response.json -w "%{http_code}" https://pypi.org/pypi/langflow/json)
+          HTTP_STATUS=$(curl -s -o response.json -w "%{http_code}" https://pypi.org/pypi/ketos/json)
 
           # Check HTTP status code first
           if [ "$HTTP_STATUS" -ne 200 ]; then
@@ -195,6 +195,7 @@ jobs:
     outputs:
       python: ${{ steps.filter.outputs.python }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      i18n-contracts: ${{ steps.filter.outputs.i18n-contracts }}
       docs: ${{ steps.filter.outputs.docs }}
       frontend-tests: ${{ steps.filter.outputs.frontend-tests }}
       components-changes: ${{ steps.filter.outputs.components-changes }}
@@ -210,6 +211,7 @@ jobs:
         steps.filter.outputs.docs == 'true' &&
         steps.filter.outputs.python != 'true' &&
         steps.filter.outputs.frontend != 'true' &&
+        steps.filter.outputs.i18n-contracts != 'true' &&
         steps.filter.outputs['frontend-tests'] != 'true' &&
         steps.filter.outputs['components-changes'] != 'true' &&
         steps.filter.outputs['starter-projects-changes'] != 'true' &&
@@ -372,6 +374,73 @@ jobs:
         run: |
           uv run pytest src/backend/tests/unit/template/test_starter_projects.py -v -n auto
 
+  i18n-contracts:
+    needs: [path-filter, set-ci-condition]
+    name: I18n Contract Gates
+    if: |
+      always() &&
+      !cancelled() &&
+      needs.set-ci-condition.outputs.should-run-tests == 'true' &&
+      (
+        inputs.run-all-tests ||
+        (needs.path-filter.result != 'skipped' &&
+        needs.path-filter.outputs.i18n-contracts == 'true')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: src/frontend
+        run: npm ci
+
+      - name: Setup Python and uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        run: uv sync
+
+      - name: Run frontend i18n unit contracts
+        working-directory: src/frontend
+        run: npm run test:i18n
+
+      - name: Run frontend locale completeness gate
+        working-directory: src/frontend
+        run: npm run i18n:check
+
+      - name: Run frontend semantic-key gate
+        working-directory: src/frontend
+        run: npm run i18n:check-keys
+
+      - name: Run frontend hardcoded-text gate
+        working-directory: src/frontend
+        run: npm run i18n:check:hardcoded
+
+      - name: Run backend locale and runtime-index gate
+        run: uv run python scripts/i18n/check_backend_locales.py
+
+      - name: Run backend i18n contract tests
+        run: >-
+          uv run pytest
+          scripts/i18n/tests/test_check_backend_locales.py
+          src/backend/tests/unit/test_i18n_strict_mode.py
+          src/backend/tests/integration/test_i18n_strict_runtime.py
+          -q
+
   test-docker:
     needs: [path-filter, set-ci-condition]
     name: Test Docker Images
@@ -474,6 +543,7 @@ jobs:
         test-frontend,
         test-docs-build,
         test-templates,
+        i18n-contracts,
         test-docker,
         lint-design-md,
         set-ci-condition,
@@ -530,6 +600,8 @@ jobs:
                   "  - Documentation Build: Check documentation syntax and build process"
                 elif $job == "test-templates" then
                   "  - Template Tests: Check starter project templates"
+                elif $job == "i18n-contracts" then
+                  "  - I18n Contract Gates: Check locale parity, semantic keys, hardcoded text, runtime index, and strict fallback diagnostics"
                 elif $job == "test-docker" then
                   "  - Docker Tests: Check Docker image builds and version verification"
                 elif $job == "lint-design-md" then

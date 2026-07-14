@@ -1,10 +1,10 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from langflow.services.auth.exceptions import InvalidTokenError
-from langflow.services.database.models.user import User
-from langflow.services.deps import get_auth_service, get_settings_service, session_scope
-from lfx.services.settings.constants import DEFAULT_SUPERUSER, LEGACY_DEFAULT_SUPERUSER_PASSWORD
+from ketos.services.auth.exceptions import InvalidTokenError
+from ketos.services.database.models.user import User
+from ketos.services.deps import get_auth_service, get_settings_service, session_scope
+from kfx.services.settings.constants import DEFAULT_SUPERUSER, LEGACY_DEFAULT_SUPERUSER_PASSWORD
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 
@@ -102,7 +102,7 @@ async def test_session_endpoint_invalid_token_returns_unauthenticated(client):
     auth_service = AsyncMock()
     auth_service.get_current_user_from_access_token.side_effect = InvalidTokenError("Invalid token")
 
-    with patch("langflow.api.v1.login.get_auth_service", return_value=auth_service):
+    with patch("ketos.api.v1.login.get_auth_service", return_value=auth_service):
         response = await client.get("api/v1/session", headers={"Authorization": "Bearer invalid-token"})
 
     assert response.status_code == 200

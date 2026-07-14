@@ -3,8 +3,8 @@
 from unittest.mock import MagicMock
 
 import pytest
-from lfx.base.agents.agent import LCAgentComponent
-from lfx.schema.message import Message
+from kfx.base.agents.agent import LCAgentComponent
+from kfx.schema.message import Message
 
 
 class MockAgentComponent(LCAgentComponent):

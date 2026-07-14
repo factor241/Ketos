@@ -150,13 +150,6 @@ export const CODE_DIALOG_SUBTITLE =
   "Export your flow to integrate it using this code.";
 
 /**
- * The base text for subtitle of Chat Form
- * @constant
- */
-export const CHAT_FORM_DIALOG_SUBTITLE =
-  "Interact with your AI. Monitor inputs, outputs and memories.";
-
-/**
  * The base text for subtitle of Edit Node Dialog
  * @constant
  */
@@ -167,9 +160,6 @@ export const EDIT_DIALOG_SUBTITLE =
  * The base text for subtitle of Code Dialog
  * @constant
  */
-export const CODE_PROMPT_DIALOG_SUBTITLE =
-  "Edit your Python code snippet. Refer to the Langflow documentation for more information on how to write your own component.";
-
 export const CODE_DICT_DIALOG_SUBTITLE =
   "Customize your dictionary, adding or editing key-value pairs as needed. Supports adding new objects {} or arrays [].";
 
@@ -182,10 +172,6 @@ export const PROMPT_DIALOG_SUBTITLE =
 
 export const MUSTACHE_PROMPT_DIALOG_SUBTITLE =
   "Create your prompt. Prompts can help guide the behavior of a Language Model. Use double curly brackets {{}} to introduce variables.";
-
-export const CHAT_CANNOT_OPEN_TITLE = "Chat Cannot Open";
-
-export const CHAT_CANNOT_OPEN_DESCRIPTION = "This is not a chat flow.";
 
 export const FLOW_NOT_BUILT_TITLE = "Flow not built";
 
@@ -251,33 +237,6 @@ export const COLUMN_DIV_STYLE =
 export const NAV_DISPLAY_STYLE =
   " w-full flex justify-between py-12 pb-2 px-6 ";
 
-/**
- * The base text for subtitle of code dialog
- * @constant
- */
-export const DESCRIPTIONS: string[] = [
-  "Chain the Words, Master Language!",
-  "Language Architect at Work!",
-  "Empowering Language Engineering.",
-  "Craft Language Connections Here.",
-  "Create, Connect, Converse.",
-  "Smart Chains, Smarter Conversations.",
-  "Bridging Prompts for Brilliance.",
-  "Language Models, Unleashed.",
-  "Your Hub for Text Generation.",
-  "Promptly Ingenious!",
-  "Building Linguistic Labyrinths.",
-  "Langflow: Create, Chain, Communicate.",
-  "Connect the Dots, Craft Language.",
-  "Interactive Language Weaving.",
-  "Generate, Innovate, Communicate.",
-  "Conversation Catalyst Engine.",
-  "Language Chainlink Master.",
-  "Design Dialogues with Langflow.",
-  "Nurture NLP Nodes Here.",
-  "Conversational Cartography Unlocked.",
-  "Design, Develop, Dialogize.",
-];
 export const BUTTON_DIV_STYLE =
   " flex gap-2 focus:ring-1 focus:ring-offset-1 focus:ring-ring focus:outline-none ";
 
@@ -619,7 +578,6 @@ export const URL_EXCLUDED_FROM_ERROR_RETRIES = [
   `${BASE_URL_API}custom_component`,
   `${BASE_URL_API}validate/prompt`,
   `${BASE_URL_API}/login`,
-  `${BASE_URL_API}api_key/store`,
 ];
 
 export const skipNodeUpdate = [
@@ -667,18 +625,7 @@ export const TIMEOUT_ERROR_DESCRIPION = "Server is busy.";
 
 export const SIGN_UP_SUCCESS = "Account created! Await admin activation. ";
 
-export const API_PAGE_PARAGRAPH =
-  "Your secret Langflow API keys are listed below. Do not share your API key with others, or expose it in the browser or other client-side code.";
-
-export const API_PAGE_USER_KEYS =
-  "This user does not have any keys assigned at the moment.";
-
-export const LAST_USED_SPAN_1 = "The last time this key was used.";
-
-export const LAST_USED_SPAN_2 =
-  "Accurate to within the hour from the most recent usage.";
-
-export const LANGFLOW_SUPPORTED_TYPES = new Set([
+export const KETOS_SUPPORTED_TYPES = new Set([
   "str",
   "bool",
   "float",
@@ -725,13 +672,8 @@ export const OUTPUT_TYPES = new Set([
   // "TableOutput",
 ]);
 
-export const CHAT_FIRST_INITIAL_TEXT =
-  "Start a conversation and click the agent's memories";
-
 export const TOOLTIP_OUTDATED_NODE =
   "Your component is outdated. Click to update (data may be lost)";
-
-export const CHAT_SECOND_INITIAL_TEXT = "to inspect previous messages.";
 
 export const TOOLTIP_OPEN_HIDDEN_OUTPUTS = "Expand hidden outputs";
 export const TOOLTIP_HIDDEN_OUTPUTS = "Collapse hidden outputs";
@@ -743,26 +685,18 @@ export const SUCCESS_BUILD = "Built successfully ✨";
 export const ALERT_SAVE_WITH_API =
   "⚠️ Caution: Exporting this flow may expose sensitive credentials.";
 
-export const SAVE_WITH_API_CHECKBOX = "Save with my API keys";
 export const EDIT_TEXT_MODAL_TITLE = "Edit Text";
 export const EDIT_TEXT_PLACEHOLDER = "Type message here.";
 export const INPUT_HANDLER_HOVER = "Avaliable input components:";
 export const OUTPUT_HANDLER_HOVER = "Avaliable output components:";
 export const TEXT_INPUT_MODAL_TITLE = "Inputs";
 export const OUTPUTS_MODAL_TITLE = "Outputs";
-export const LANGFLOW_CHAT_TITLE = "Langflow Chat";
 export const CHAT_INPUT_PLACEHOLDER =
   "No chat input variables found. Click to run your flow.";
 export const CHAT_INPUT_PLACEHOLDER_SEND = "Send a message...";
 export const EDIT_CODE_TITLE = "Edit Code";
 export const MY_COLLECTION_DESC =
   "Manage your projects. Download and upload entire collections.";
-export const STORE_DESC = "Explore community-shared flows and components.";
-export const STORE_TITLE = "Langflow Store";
-export const NO_API_KEY = "You don't have an API key.";
-export const INSERT_API_KEY = "Insert your Langflow API key.";
-export const INVALID_API_KEY = "Your API key is not valid. ";
-export const CREATE_API_KEY = `Don't have an API key? Sign up at`;
 export const STATUS_BUILD = "Build to validate status.";
 export const STATUS_MISSING_FIELDS_ERROR =
   "Please fill all the required fields.";
@@ -863,21 +797,15 @@ export const EMPTY_INPUT_SEND_MESSAGE = "No input message provided.";
 
 export const EMPTY_OUTPUT_SEND_MESSAGE = "Message empty.";
 
-export const TABS_ORDER = [
-  "curl",
-  "python api",
-  "js api",
-  "python code",
-  "chat widget html",
-];
+export const TABS_ORDER = ["curl", "python api", "js api", "python code"];
 
-export const LANGFLOW_ACCESS_TOKEN = "access_token_lf";
-export const LANGFLOW_API_TOKEN = "apikey_tkn_lflw";
-export const LANGFLOW_AUTO_LOGIN_OPTION = "auto_login_lf";
-export const LANGFLOW_REFRESH_TOKEN = "refresh_token_lf";
+export const KETOS_ACCESS_TOKEN = "ketos_access_token";
+export const KETOS_API_TOKEN = "ketos_api_token";
+export const KETOS_AUTO_LOGIN_OPTION = "ketos_auto_login";
+export const KETOS_REFRESH_TOKEN = "ketos_refresh_token";
 
-export const LANGFLOW_ACCESS_TOKEN_EXPIRE_SECONDS = 60 * 60 - 60 * 60 * 0.1;
-export const LANGFLOW_ACCESS_TOKEN_EXPIRE_SECONDS_ENV =
+export const KETOS_ACCESS_TOKEN_EXPIRE_SECONDS = 60 * 60 - 60 * 60 * 0.1;
+export const KETOS_ACCESS_TOKEN_EXPIRE_SECONDS_ENV =
   Number(getEnvVar("ACCESS_TOKEN_EXPIRE_SECONDS", 60)) -
   Number(getEnvVar("ACCESS_TOKEN_EXPIRE_SECONDS", 60)) * 0.1;
 export const TEXT_FIELD_TYPES: string[] = ["str", "SecretStr"];
@@ -885,6 +813,7 @@ export const NODE_WIDTH = 384;
 export const NODE_HEIGHT = NODE_WIDTH * 3;
 
 export const SHORTCUT_KEYS = ["cmd", "ctrl", "mod", "alt", "shift"];
+export const SHORTCUTS_STORAGE_KEY = "ketos-shortcuts";
 
 export const SERVER_HEALTH_INTERVAL = 10000;
 export const REFETCH_SERVER_HEALTH_INTERVAL = 20000;
@@ -924,11 +853,7 @@ export const SEARCH_TABS = ["All", "Flows", "Components"];
 export const PAGINATION_SIZE = 12;
 export const PAGINATION_PAGE = 1;
 
-export const STORE_PAGINATION_SIZE = 12;
-export const STORE_PAGINATION_PAGE = 1;
-
 export const PAGINATION_ROWS_COUNT = [12, 24, 48, 96];
-export const STORE_PAGINATION_ROWS_COUNT = [12, 24, 48, 96];
 
 export const GRADIENT_CLASS =
   "linear-gradient(to right, hsl(var(--background) / 0.3), hsl(var(--background)))";
@@ -945,7 +870,6 @@ export const DEFAULT_PLACEHOLDER = "Type something...";
 
 export const DEFAULT_TOOLSET_PLACEHOLDER = "Used as a tool";
 
-export const SAVE_API_KEY_ALERT = "API key saved successfully";
 export const PLAYGROUND_BUTTON_NAME = "Playground";
 export const POLLING_MESSAGES = {
   ENDPOINT_NOT_AVAILABLE: "Endpoint not available",
@@ -955,8 +879,8 @@ export const POLLING_MESSAGES = {
 export const BUILD_POLLING_INTERVAL = 25;
 
 export const IS_AUTO_LOGIN =
-  !getEnvVar("LANGFLOW_AUTO_LOGIN") ||
-  String(getEnvVar("LANGFLOW_AUTO_LOGIN"))?.toLowerCase() !== "false";
+  !getEnvVar("KETOS_AUTO_LOGIN") ||
+  String(getEnvVar("KETOS_AUTO_LOGIN"))?.toLowerCase() !== "false";
 
 export const AUTO_LOGIN_RETRY_DELAY = 2000;
 export const AUTO_LOGIN_MAX_RETRY_DELAY = 60000;
@@ -1001,14 +925,9 @@ export const OPENAI_VOICES = [
 export const DEFAULT_POLLING_INTERVAL = 5000;
 export const DEFAULT_TIMEOUT = 30000;
 export const DEFAULT_FILE_PICKER_TIMEOUT = 60000;
-export const DISCORD_URL = "https://discord.com/invite/EqksyE2EX9";
-export const GITHUB_URL = "https://github.com/langflow-ai/langflow";
-export const TWITTER_URL = "https://x.com/langflow_ai";
-export const DOCS_URL = "https://docs.langflow.org";
-export const DATASTAX_DOCS_URL =
-  "https://docs.datastax.com/en/langflow/index.html";
-export const DESKTOP_URL = "https://www.langflow.org/desktop";
-export const BUG_REPORT_URL = "https://github.com/langflow-ai/langflow/issues";
+export const DOCS_URL = "https://docs.ketos.test";
+export const DATASTAX_DOCS_URL = "https://docs.ketos.test";
+export const BUG_REPORT_URL = "https://git.ketos.test/ketos/ketos/issues";
 
 export const UUID_PARSING_ERROR = "uuid_parsing";
 

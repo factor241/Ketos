@@ -12,23 +12,23 @@ import pytest
 try:
     import altk  # noqa: F401
 except ImportError:
-    # agent-lifecycle-toolkit is an optional extra (langflow-base[altk]); skip if
+    # agent-lifecycle-toolkit is an optional extra (ketos-base[altk]); skip if
     # not installed. (Upstream dropped its <3.14 cap in 0.10.1, now requires >=3.10.)
     pytest.skip("altk (agent-lifecycle-toolkit) not available", allow_module_level=True)
 
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import BaseTool
-from lfx.base.agents.altk_base_agent import (
+from kfx.base.agents.altk_base_agent import (
     BaseToolWrapper,
     ToolPipelineManager,
 )
-from lfx.base.agents.altk_tool_wrappers import (
+from kfx.base.agents.altk_tool_wrappers import (
     PostToolProcessingWrapper,
     PreToolValidationWrapper,
 )
-from lfx.components.altk.altk_agent import ALTKAgentComponent
-from lfx.log.logger import logger
-from lfx.schema.message import Message
+from kfx.components.altk.altk_agent import ALTKAgentComponent
+from kfx.log.logger import logger
+from kfx.schema.message import Message
 
 from tests.base import ComponentTestBaseWithoutClient
 from tests.unit.mock_language_model import MockLanguageModel
@@ -394,7 +394,7 @@ class TestALTKBaseToolLogic:
     def test_altk_base_tool_can_be_instantiated_with_valid_agent(self):
         """Test that ALTKBaseTool can be instantiated with a proper agent."""
         from langchain_core.runnables import RunnableLambda
-        from lfx.base.agents.altk_base_agent import ALTKBaseTool
+        from kfx.base.agents.altk_base_agent import ALTKBaseTool
 
         # Create a proper mock agent that matches the expected types
 
@@ -465,7 +465,7 @@ class TestHelperFunctions:
 
     def test_set_advanced_true(self):
         """Test set_advanced_true function."""
-        from lfx.components.altk.altk_agent import set_advanced_true
+        from kfx.components.altk.altk_agent import set_advanced_true
 
         # Create a mock input object
         mock_input = MagicMock()
@@ -478,7 +478,7 @@ class TestHelperFunctions:
 
     def test_get_parent_agent_inputs(self):
         """Test get_parent_agent_inputs function."""
-        from lfx.components.altk.altk_agent import get_parent_agent_inputs
+        from kfx.components.altk.altk_agent import get_parent_agent_inputs
 
         # This function filters out inputs with specific names
         result = get_parent_agent_inputs()
@@ -530,7 +530,7 @@ class TestConversationContextBuilding:
     def test_build_conversation_context_with_data_type(self):
         """Test build_conversation_context with Data type chat history."""
         # Import Data class for proper isinstance check
-        from lfx.schema.data import Data
+        from kfx.schema.data import Data
 
         agent = ALTKAgentComponent(
             _type="Agent",
@@ -554,7 +554,7 @@ class TestConversationContextBuilding:
 
     def test_build_conversation_context_with_data_list(self):
         """Test build_conversation_context with list of Data objects."""
-        from lfx.schema.data import Data
+        from kfx.schema.data import Data
 
         agent = ALTKAgentComponent(
             _type="Agent",
@@ -825,7 +825,7 @@ class TestEdgeCasesAndErrorHandling:
 
     def test_data_with_missing_required_keys(self):
         """Test Data objects with missing required keys for message conversion."""
-        from lfx.schema.data import Data
+        from kfx.schema.data import Data
 
         agent = ALTKAgentComponent(
             _type="Agent",
@@ -848,7 +848,7 @@ class TestEdgeCasesAndErrorHandling:
         DESIGN ISSUE DOCUMENTED: Data.to_lc_message() produces different content formats:
         - User messages (HumanMessage): content = [{"type": "text", "text": "..."}] (list format)
         - Assistant messages (AIMessage): content = "text" (string format)
-        ROOT CAUSE: lfx/schema/data.py lines 175-189 implement different serialization:
+        ROOT CAUSE: kfx/schema/data.py lines 175-189 implement different serialization:
         - USER sender: HumanMessage(content=[{"type": "text", "text": text}])  # Always list
         - AI sender: AIMessage(content=text)  # Always string
         SOLUTION IMPLEMENTED:
@@ -856,7 +856,7 @@ class TestEdgeCasesAndErrorHandling:
         2. NormalizedInputProxy in ALTKAgentComponent intercepts inconsistent content
         3. Proxy automatically converts list format to string when needed
         """
-        from lfx.schema.data import Data
+        from kfx.schema.data import Data
 
         user_data = Data(data={"text": "user message", "sender": "User"})
         assistant_data = Data(data={"text": "assistant message", "sender": "Assistant"})
@@ -871,7 +871,7 @@ class TestEdgeCasesAndErrorHandling:
         assert isinstance(assistant_message.content, str)
 
         # DEMONSTRATE THE SOLUTION: normalize_message_content handles both formats
-        from lfx.base.agents.altk_base_agent import normalize_message_content
+        from kfx.base.agents.altk_base_agent import normalize_message_content
 
         normalized_user = normalize_message_content(user_message)
         normalized_assistant = normalize_message_content(assistant_message)
@@ -887,8 +887,8 @@ class TestEdgeCasesAndErrorHandling:
 
     def test_normalize_message_content_function(self):
         """Test the normalize_message_content helper function in ALTK agent."""
-        from lfx.base.agents.altk_base_agent import normalize_message_content
-        from lfx.schema.data import Data
+        from kfx.base.agents.altk_base_agent import normalize_message_content
+        from kfx.schema.data import Data
 
         # Test with User message (list format)
         user_data = Data(data={"text": "user message", "sender": "User"})
@@ -932,7 +932,7 @@ class TestEdgeCasesAndErrorHandling:
 
     def test_altk_agent_handles_inconsistent_message_content(self):
         """Test that ALTK agent correctly handles inconsistent Data.to_lc_message() formats."""
-        from lfx.schema.data import Data
+        from kfx.schema.data import Data
 
         # Test with User data (produces list content format)
         user_data = Data(data={"text": "test user query", "sender": "User"})
@@ -1149,7 +1149,7 @@ class TestConversationContextOrdering:
         Expected: [oldest_message, ..., newest_message]
         Actual: [newest_message, ..., oldest_message]
         """
-        from lfx.schema.data import Data
+        from kfx.schema.data import Data
 
         # Create a conversation with clear chronological order
         message1 = Data(data={"text": "how much is 353454 345454", "sender": "User"})
@@ -1188,7 +1188,7 @@ class TestConversationContextOrdering:
 
         # Check if messages are in chronological order
         # Extract text content using our normalize function
-        from lfx.base.agents.altk_base_agent import normalize_message_content
+        from kfx.base.agents.altk_base_agent import normalize_message_content
 
         msg_texts = [normalize_message_content(msg) for msg in context]
 
@@ -1231,8 +1231,8 @@ class TestConversationContextOrdering:
 
         This test simulates what happens when a ValidatedTool processes the context.
         """
-        from lfx.base.agents.altk_tool_wrappers import ValidatedTool
-        from lfx.schema.data import Data
+        from kfx.base.agents.altk_tool_wrappers import ValidatedTool
+        from kfx.schema.data import Data
 
         # Create conversation data
         message1 = Data(data={"text": "original question", "sender": "User"})
@@ -1293,7 +1293,7 @@ class TestConversationContextOrdering:
         where BaseMessages get converted to dicts for SPARC.
         """
         from langchain_core.messages.base import message_to_dict
-        from lfx.schema.data import Data
+        from kfx.schema.data import Data
 
         # Create test data in chronological order
         message1 = Data(data={"text": "first message", "sender": "User"})
@@ -1356,8 +1356,8 @@ class TestConversationContextOrdering:
         - Turn 1: Just the original query
         - Turn 2+: Messages in reverse chronological order
         """
-        from lfx.base.agents.altk_tool_wrappers import ValidatedTool
-        from lfx.schema.data import Data
+        from kfx.base.agents.altk_tool_wrappers import ValidatedTool
+        from kfx.schema.data import Data
 
         logger.debug("\n=== MULTI-TURN CONVERSATION BUG REPRODUCTION ===")
 
@@ -1495,7 +1495,7 @@ class TestConversationContextOrdering:
         This tests the specific fix for the bug where messages appear in reverse order.
         """
         from langchain_core.messages import AIMessage, HumanMessage
-        from lfx.base.agents.altk_tool_wrappers import ValidatedTool
+        from kfx.base.agents.altk_tool_wrappers import ValidatedTool
 
         logger.debug("\n=== UPDATE CONTEXT ORDER FIX TEST ===")
 
@@ -1663,7 +1663,7 @@ class TestALTKAgentRunnableType:
         from unittest.mock import patch
 
         from langgraph.graph.state import CompiledStateGraph
-        from lfx.components.altk.altk_agent import ALTKAgentComponent
+        from kfx.components.altk.altk_agent import ALTKAgentComponent
 
         agent = ALTKAgentComponent(
             _type="Agent",

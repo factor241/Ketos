@@ -1,19 +1,19 @@
-# Langflow Load Testing
+# Ketos Load Testing
 
-This directory contains comprehensive load testing tools for both Langflow and LFX APIs using Locust.
+This directory contains comprehensive load testing tools for both Ketos and KFX APIs using Locust.
 
 ## 🔧 **Two Testing Systems**
 
-### **Langflow API Testing** (Enhanced System)
+### **Ketos API Testing** (Enhanced System)
 
-- Files: `langflow_*.py`
-- Tests the main Langflow application API
+- Files: `ketos_*.py`
+- Tests the main Ketos application API
 - Includes automatic setup, real starter projects, and comprehensive error logging
 
-### **LFX API Testing** (Complex Serve)
+### **KFX API Testing** (Complex Serve)
 
-- Files: `lfx_*.py`
-- Tests the LFX complex serve API
+- Files: `kfx_*.py`
+- Tests the KFX complex serve API
 - Uses traditional load testing patterns
 
 ## Features
@@ -23,8 +23,8 @@ This directory contains comprehensive load testing tools for both Langflow and L
 - **Multiple User Types**: Different user behaviors to simulate realistic load patterns
 - **Load Test Shapes**: Predefined load patterns for different testing scenarios
 - **Comprehensive Metrics**: Performance grading and detailed reporting
-- **Enhanced Error Logging**: Detailed connection error analysis and Langflow log capture
-- **Easy Setup**: One-command execution with automatic Langflow startup
+- **Enhanced Error Logging**: Detailed connection error analysis and Ketos log capture
+- **Easy Setup**: One-command execution with automatic Ketos startup
 
 ## Quick Start
 
@@ -47,7 +47,7 @@ The easiest way to use the load testing system:
 make load_test_setup
 
 # 2. Run a quick test
-make load_test_langflow_quick
+make load_test_ketos_quick
 
 # 3. Run a full load test
 make load_test_run
@@ -61,18 +61,18 @@ make load_test_help
 
 ## 🌐 **Remote Instance Testing**
 
-For testing against a remote Langflow instance:
+For testing against a remote Ketos instance:
 
 ### Setup for Remote Testing
 
 ```bash
 # Using Makefile (recommended)
-make load_test_remote_setup LANGFLOW_HOST="https://your-remote-instance.com"
-make load_test_remote_run LANGFLOW_HOST="https://your-remote-instance.com"
+make load_test_remote_setup KETOS_HOST="https://your-remote-instance.com"
+make load_test_remote_run KETOS_HOST="https://your-remote-instance.com"
 
 # Or using Python scripts directly
-python langflow_setup_test.py --host https://your-remote-instance.com --interactive
-python langflow_run_load_test.py --host https://your-remote-instance.com --no-start-langflow --headless --users 10 --duration 120
+python ketos_setup_test.py --host https://your-remote-instance.com --interactive
+python ketos_run_load_test.py --host https://your-remote-instance.com --no-start-ketos --headless --users 10 --duration 120
 
 # Test remote instance before setup (optional)
 python diagnose_remote.py --host https://your-remote-instance.com --load-test 5
@@ -80,7 +80,7 @@ python diagnose_remote.py --host https://your-remote-instance.com --load-test 5
 
 ### Important Notes for Remote Testing
 
-- **Always use `--no-start-langflow`** when testing remote instances
+- **Always use `--no-start-ketos`** when testing remote instances
 - **Use HTTPS** for production remote instances
 - **Consider network latency** in your performance expectations
 - **Monitor both client and server resources** during testing
@@ -93,22 +93,22 @@ python diagnose_remote.py --host https://your-remote-instance.com --load-test 5
 
 #### Step 1: Setup (Run Once)
 
-Choose and set up a real Langflow starter project for testing:
+Choose and set up a real Ketos starter project for testing:
 
 ```bash
 # Interactive flow selection
-python langflow_setup_test.py --interactive
+python ketos_setup_test.py --interactive
 
 # Use specific flow
-python langflow_setup_test.py --flow "Memory Chatbot"
+python ketos_setup_test.py --flow "Memory Chatbot"
 
 # List available flows
-python langflow_setup_test.py --list-flows
+python ketos_setup_test.py --list-flows
 ```
 
 This will:
 
-- Use `LANGFLOW_SUPERUSER` / `LANGFLOW_SUPERUSER_PASSWORD` or AUTO_LOGIN
+- Use `KETOS_SUPERUSER` / `KETOS_SUPERUSER_PASSWORD` or AUTO_LOGIN
 - Generate API keys
 - Upload a real starter project flow
 - Provide credentials for load testing
@@ -117,40 +117,40 @@ This will:
 
 ```bash
 # Interactive mode with web UI
-python langflow_run_load_test.py
+python ketos_run_load_test.py
 
 # Headless mode with 20 users for 2 minutes
-python langflow_run_load_test.py --headless --users 20 --duration 120
+python ketos_run_load_test.py --headless --users 20 --duration 120
 
 # Use predefined load shape
-python langflow_run_load_test.py --shape ramp100 --headless --users 100 --duration 180
+python ketos_run_load_test.py --shape ramp100 --headless --users 100 --duration 180
 ```
 
 ### Advanced Usage
 
 ```bash
 # Setup with custom host (e.g., remote instance)
-python langflow_setup_test.py --host https://your-remote-instance.com --interactive
+python ketos_setup_test.py --host https://your-remote-instance.com --interactive
 
 # Save credentials to file
-python langflow_setup_test.py --interactive --save-credentials my_test_creds.json
+python ketos_setup_test.py --interactive --save-credentials my_test_creds.json
 
-# Test against existing remote Langflow instance
-python langflow_run_load_test.py --host https://your-remote-instance.com --no-start-langflow
+# Test against existing remote Ketos instance
+python ketos_run_load_test.py --host https://your-remote-instance.com --no-start-ketos
 
 # Save results to CSV and HTML
-python langflow_run_load_test.py --headless --csv results --html report.html --users 50 --duration 300
+python ketos_run_load_test.py --headless --csv results --html report.html --users 50 --duration 300
 
 # Direct Locust usage (after setup)
 export API_KEY="your-api-key-from-setup"
 export FLOW_ID="your-flow-id-from-setup"
-locust -f langflow_locustfile.py --host http://localhost:7860
+locust -f ketos_locustfile.py --host http://localhost:7860
 
 # Distributed testing (master)
-locust -f langflow_locustfile.py --host http://localhost:7860 --master
+locust -f ketos_locustfile.py --host http://localhost:7860 --master
 
 # Distributed testing (worker)
-locust -f langflow_locustfile.py --host http://localhost:7860 --worker --master-host=localhost
+locust -f ketos_locustfile.py --host http://localhost:7860 --worker --master-host=localhost
 ```
 
 ## User Types
@@ -175,15 +175,15 @@ Use with: `--shape ramp100` or `--shape stepramp`
 
 ## Environment Variables
 
-- `LANGFLOW_HOST`: Base URL for Langflow server (default: http://localhost:7860)
+- `KETOS_HOST`: Base URL for Ketos server (default: http://localhost:7860)
 - `SHAPE`: Load test shape (ramp100, stepramp)
 - `REQUEST_TIMEOUT`: Request timeout in seconds (default: 30.0)
 
 ## Architecture
 
-### Setup Process (`langflow_setup_test.py`)
+### Setup Process (`ketos_setup_test.py`)
 
-1. **Health Check**: Verify Langflow is running
+1. **Health Check**: Verify Ketos is running
 2. **Flow Selection**: Choose from 40+ real starter project flows
 3. **Authentication**: Login with configured credentials or AUTO_LOGIN
 4. **API Key Generation**: Create API key for load testing
@@ -192,7 +192,7 @@ Use with: `--shape ramp100` or `--shape stepramp`
 
 ### Real Starter Project Flows
 
-Instead of simple test flows, the system uses real Langflow starter projects:
+Instead of simple test flows, the system uses real Ketos starter projects:
 
 - **Basic Prompting**: Simple LLM interaction
 - **Memory Chatbot**: Conversational AI with memory
@@ -239,8 +239,8 @@ The test tracks:
 
 ### Common Issues
 
-1. **Setup Failed**: Ensure Langflow is accessible and not in read-only mode
-2. **Authentication Errors**: Set `LANGFLOW_SUPERUSER` and `LANGFLOW_SUPERUSER_PASSWORD`, or enable `LANGFLOW_AUTO_LOGIN`
+1. **Setup Failed**: Ensure Ketos is accessible and not in read-only mode
+2. **Authentication Errors**: Set `KETOS_SUPERUSER` and `KETOS_SUPERUSER_PASSWORD`, or enable `KETOS_AUTO_LOGIN`
 3. **Flow Creation Failed**: Verify the user has permission to create flows
 4. **Connection Errors**: Check network connectivity and firewall settings
 5. **Status Code 0 Errors**: Usually indicates connection overload - reduce user count or spawn rate
@@ -249,8 +249,8 @@ The test tracks:
 
 For debugging, you can:
 
-1. Run Langflow manually with `--log-level debug`
-2. Check the Langflow logs for detailed error information
+1. Run Ketos manually with `--log-level debug`
+2. Check the Ketos logs for detailed error information
 3. Use the web UI to verify the test flow was created correctly
 4. Test API endpoints manually with curl or httpx
 5. Use the diagnostic tool for remote instances: `python diagnose_remote.py --host <url> --load-test 10`
@@ -259,7 +259,7 @@ For debugging, you can:
 
 If automatic setup fails, you can set up manually:
 
-1. Start Langflow: `python -m langflow run --auto-login`
+1. Start Ketos: `python -m ketos run --auto-login`
 2. Create a user account through the UI
 3. Create an API key in the settings
 4. Create a simple flow and note its ID
@@ -268,14 +268,14 @@ If automatic setup fails, you can set up manually:
 ```bash
 export API_KEY="your-api-key"
 export FLOW_ID="your-flow-id"
-locust -f langflow_locustfile.py --host http://localhost:7860
+locust -f ketos_locustfile.py --host http://localhost:7860
 ```
 
 ## Contributing
 
 When adding new user types or test scenarios:
 
-1. Inherit from `BaseLangflowUser`
+1. Inherit from `BaseKetosUser`
 2. Implement task methods with `@task` decorator
 3. Use `self.make_request()` for consistent error handling
 4. Add appropriate weight and wait_time settings
@@ -286,25 +286,25 @@ When adding new user types or test scenarios:
 ### Basic Load Test
 
 ```bash
-python langflow_run_load_test.py --headless --users 10 --duration 60
+python ketos_run_load_test.py --headless --users 10 --duration 60
 ```
 
 ### Stress Test
 
 ```bash
-python langflow_run_load_test.py --shape ramp100 --headless --users 100 --duration 300
+python ketos_run_load_test.py --shape ramp100 --headless --users 100 --duration 300
 ```
 
 ### Performance Profiling
 
 ```bash
-python langflow_run_load_test.py --shape stepramp --headless --csv profile_results
+python ketos_run_load_test.py --shape stepramp --headless --csv profile_results
 ```
 
 ### Production Readiness Test
 
 ```bash
-python langflow_run_load_test.py --users 50 --duration 600 --csv production_test --html production_report.html
+python ketos_run_load_test.py --users 50 --duration 600 --csv production_test --html production_report.html
 ```
 
 ## 📊 HTML Reports
@@ -321,12 +321,12 @@ The system generates beautiful HTML reports with:
 
 ```bash
 # Generate comprehensive HTML report
-python langflow_run_load_test.py --headless --users 25 --duration 120 --html detailed_report.html
+python ketos_run_load_test.py --headless --users 25 --duration 120 --html detailed_report.html
 
 # Combined CSV + HTML reporting
-python langflow_run_load_test.py --headless --users 100 --duration 300 --csv data --html analysis.html --shape ramp100
+python ketos_run_load_test.py --headless --users 100 --duration 300 --csv data --html analysis.html --shape ramp100
 
 # Quick test with report
-python langflow_setup_test.py --flow "Memory Chatbot"
-python langflow_run_load_test.py --headless --users 10 --duration 60 --html quick_test.html
+python ketos_setup_test.py --flow "Memory Chatbot"
+python ketos_run_load_test.py --headless --users 10 --duration 60 --html quick_test.html
 ```

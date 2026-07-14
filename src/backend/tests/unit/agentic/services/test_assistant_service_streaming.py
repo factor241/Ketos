@@ -8,12 +8,12 @@ retry logic, and cancellation handling.
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from langflow.agentic.services.assistant_service import (
+from ketos.agentic.services.assistant_service import (
     execute_flow_with_validation_streaming,
 )
-from langflow.agentic.services.flow_types import IntentResult
+from ketos.agentic.services.flow_types import IntentResult
 
-MODULE = "langflow.agentic.services.assistant_service"
+MODULE = "ketos.agentic.services.assistant_service"
 
 
 def _make_intent(intent="question", translation="test"):
@@ -106,7 +106,7 @@ class TestQAResponse:
         ):
             gen = execute_flow_with_validation_streaming(
                 flow_filename="TestFlow",
-                input_value="what is langflow?",
+                input_value="what is ketos?",
                 global_variables={},
             )
             events = await _collect_events(gen)
@@ -125,7 +125,7 @@ class TestQAResponse:
         example code in explanatory answers from being treated as component generation.
         """
         component_code = (
-            "from langflow.custom import Component\n\n"
+            "from ketos.custom import Component\n\n"
             "class MyComponent(Component):\n"
             "    description = 'test'\n"
             "    inputs = []\n"
@@ -168,9 +168,9 @@ class TestQAResponse:
             "1. Create a Python file\n"
             "2. Define a class\n\n"
             "```python\n"
-            "from lfx.custom import Component\n"
-            "from lfx.io import Output\n"
-            "from lfx.schema import Data\n\n"
+            "from kfx.custom import Component\n"
+            "from kfx.io import Output\n"
+            "from kfx.schema import Data\n\n"
             "class SumComponent(Component):\n"
             "    display_name = 'Sum'\n"
             "    description = 'Adds two numbers'\n"
@@ -695,7 +695,7 @@ class TestFlowProposalReady:
     @pytest.mark.asyncio
     async def test_should_not_emit_flow_proposal_ready_for_question_intent(self):
         """Q&A path never emits the flow proposal signal."""
-        flow_gen = _make_flow_events([("token", "Langflow is..."), ("end", {"result": "Langflow is..."})])
+        flow_gen = _make_flow_events([("token", "Ketos is..."), ("end", {"result": "Ketos is..."})])
 
         with (
             patch(
@@ -708,7 +708,7 @@ class TestFlowProposalReady:
         ):
             gen = execute_flow_with_validation_streaming(
                 flow_filename="TestFlow",
-                input_value="what is langflow",
+                input_value="what is ketos",
                 global_variables={},
             )
             events = await _collect_events(gen)
@@ -770,7 +770,7 @@ class TestCurrentUserIdContextVarIsolation:
 
     @pytest.mark.asyncio
     async def test_should_not_leak_current_user_id_when_pre_try_setup_raises(self):
-        from langflow.agentic.services.user_components_context import (
+        from ketos.agentic.services.user_components_context import (
             current_user_id,
             reset_current_user_id,
         )

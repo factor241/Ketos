@@ -1,6 +1,6 @@
 name: Release Bundles
 
-# Manually-triggered workflow for publishing stable `lfx-<name>` bundle wheels
+# Manually-triggered workflow for publishing stable `kfx-<name>` bundle wheels
 # from src/bundles/* to PyPI. Bundles change infrequently, so we release them
 # on demand rather than on a schedule. Re-running the workflow without a
 # version bump is a no-op; the publish job preflights PyPI and skips bundle
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Git ref to build from (branch, tag, or SHA). Defaults to the workflow's checked-out ref."
+        description: "Deprecated compatibility input. Releases always use the approved immutable workflow SHA."
         required: false
         type: string
         default: ""
@@ -25,7 +25,7 @@ env:
 
 jobs:
   build-bundles:
-    name: Build Langflow Bundles
+    name: Build Ketos Bundles
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -36,7 +36,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.release_tag || github.ref }}
+          ref: ${{ github.sha }}
       - name: Setup Environment
         uses: astral-sh/setup-uv@v6
         with:
@@ -65,31 +65,31 @@ jobs:
           done
           echo "bundles-found=1" >> $GITHUB_OUTPUT
           ls -la bundles-dist/
-      # Bundles floor lfx at >=0.5.0 (no upper bound). The smoke test below
-      # installs the bundles in a fresh venv, so it needs an lfx wheel that
+      # Bundles floor kfx at >=0.5.0 (no upper bound). The smoke test below
+      # installs the bundles in a fresh venv, so it needs an kfx wheel that
       # satisfies the floor available locally — PyPI may not yet have a
-      # matching lfx published when bundles are released ahead of a main
-      # release. We build the lfx wheel from the current ref so the smoke
+      # matching kfx published when bundles are released ahead of a main
+      # release. We build the kfx wheel from the current ref so the smoke
       # test resolves against it; this artifact is not published.
-      - name: Build lfx wheel for smoke test
+      - name: Build kfx wheel for smoke test
         if: steps.build.outputs.bundles-found == '1'
         run: |
-          mkdir -p lfx-dist
-          LFX_DIST="$PWD/lfx-dist"
-          (cd src/lfx && uv build --wheel --out-dir "$LFX_DIST")
-          ls -la lfx-dist/
+          mkdir -p kfx-dist
+          KFX_DIST="$PWD/kfx-dist"
+          (cd src/kfx && uv build --wheel --out-dir "$KFX_DIST")
+          ls -la kfx-dist/
       - name: Upload bundles artifact
         if: steps.build.outputs.bundles-found == '1'
         uses: actions/upload-artifact@v6
         with:
           name: dist-bundles
           path: bundles-dist
-      - name: Upload lfx artifact (smoke-test only; not published)
+      - name: Upload kfx artifact (smoke-test only; not published)
         if: steps.build.outputs.bundles-found == '1'
         uses: actions/upload-artifact@v6
         with:
-          name: dist-lfx-smoketest
-          path: lfx-dist
+          name: dist-kfx-smoketest
+          path: kfx-dist
 
   test-install:
     name: Install Smoke Test - ${{ matrix.os }} ${{ matrix.python-version }}
@@ -127,47 +127,47 @@ jobs:
         with:
           name: dist-bundles
           path: ./bundles-dist
-      - name: Download lfx artifact
+      - name: Download kfx artifact
         uses: actions/download-artifact@v7
         with:
-          name: dist-lfx-smoketest
-          path: ./lfx-dist
+          name: dist-kfx-smoketest
+          path: ./kfx-dist
       - name: Create fresh virtual environment
         run: uv venv test-env --seed
         shell: bash
-      - name: Install lfx + bundle wheels (Unix)
+      - name: Install kfx + bundle wheels (Unix)
         if: matrix.os != 'windows'
         run: |
           shopt -s nullglob
           BUNDLE_WHEELS=(./bundles-dist/*.whl)
-          LFX_WHEELS=(./lfx-dist/*.whl)
+          KFX_WHEELS=(./kfx-dist/*.whl)
           if [ ${#BUNDLE_WHEELS[@]} -eq 0 ]; then
             echo "No bundle wheels found in ./bundles-dist/"
             exit 1
           fi
-          if [ ${#LFX_WHEELS[@]} -eq 0 ]; then
-            echo "No lfx wheel found in ./lfx-dist/"
+          if [ ${#KFX_WHEELS[@]} -eq 0 ]; then
+            echo "No kfx wheel found in ./kfx-dist/"
             exit 1
           fi
-          printf 'Installing: %s\n' "${LFX_WHEELS[@]}" "${BUNDLE_WHEELS[@]}"
-          uv pip install --prerelease=allow --python ./test-env/bin/python "${LFX_WHEELS[@]}" "${BUNDLE_WHEELS[@]}"
+          printf 'Installing: %s\n' "${KFX_WHEELS[@]}" "${BUNDLE_WHEELS[@]}"
+          uv pip install --prerelease=allow --python ./test-env/bin/python "${KFX_WHEELS[@]}" "${BUNDLE_WHEELS[@]}"
         shell: bash
-      - name: Install lfx + bundle wheels (Windows)
+      - name: Install kfx + bundle wheels (Windows)
         if: matrix.os == 'windows'
         run: |
           shopt -s nullglob
           BUNDLE_WHEELS=(./bundles-dist/*.whl)
-          LFX_WHEELS=(./lfx-dist/*.whl)
+          KFX_WHEELS=(./kfx-dist/*.whl)
           if [ ${#BUNDLE_WHEELS[@]} -eq 0 ]; then
             echo "No bundle wheels found in ./bundles-dist/"
             exit 1
           fi
-          if [ ${#LFX_WHEELS[@]} -eq 0 ]; then
-            echo "No lfx wheel found in ./lfx-dist/"
+          if [ ${#KFX_WHEELS[@]} -eq 0 ]; then
+            echo "No kfx wheel found in ./kfx-dist/"
             exit 1
           fi
-          printf 'Installing: %s\n' "${LFX_WHEELS[@]}" "${BUNDLE_WHEELS[@]}"
-          uv pip install --prerelease=allow --python ./test-env/Scripts/python.exe "${LFX_WHEELS[@]}" "${BUNDLE_WHEELS[@]}"
+          printf 'Installing: %s\n' "${KFX_WHEELS[@]}" "${BUNDLE_WHEELS[@]}"
+          uv pip install --prerelease=allow --python ./test-env/Scripts/python.exe "${KFX_WHEELS[@]}" "${BUNDLE_WHEELS[@]}"
         shell: bash
 
   publish-bundles:
@@ -185,7 +185,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.release_tag || github.ref }}
+          ref: ${{ github.sha }}
       - name: Download bundles artifact
         uses: actions/download-artifact@v7
         with:
@@ -199,6 +199,8 @@ jobs:
       - name: Publish bundles to PyPI
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
+          KETOS_EXTERNAL_RELEASE: ${{ vars.KETOS_EXTERNAL_RELEASE }}
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -291,7 +293,7 @@ jobs:
               # Capture stderr so we can tolerate "already exists" without failing
               # the whole run — re-running this workflow without bumping a bundle
               # version should be a no-op for that bundle.
-              if err=$(uv publish "$wheel" 2>&1); then
+              if err=$(uv run python "$GITHUB_WORKSPACE/scripts/ci/require_external_release.py" && uv publish "$wheel" 2>&1); then
                 echo "$err"
                 published=1
                 break

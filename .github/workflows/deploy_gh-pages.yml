@@ -12,11 +12,18 @@ on:
 jobs:
   deploy:
     name: Deploy to GitHub Pages
+    if: ${{ vars.KETOS_EXTERNAL_RELEASE_ENABLED == 'true' && github.event_name == 'workflow_dispatch' && github.ref_type == 'tag' && vars.KETOS_RELEASE_COMMIT == github.sha && vars.KETOS_EXTERNAL_RELEASE == format('publish:{0}', github.sha) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.branch }}
+          ref: ${{ github.sha }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: "3.13"
+          prune-cache: false
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -32,6 +39,11 @@ jobs:
 
       # Popular action to deploy to GitHub Pages:
       # Docs: https://github.com/peaceiris/actions-gh-pages#%EF%B8%8F-docusaurus
+      - name: Authorize immutable external deployment
+        env:
+          KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
+          KETOS_EXTERNAL_RELEASE: ${{ vars.KETOS_EXTERNAL_RELEASE }}
+        run: uv run scripts/ci/require_external_release.py
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:

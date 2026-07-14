@@ -3,7 +3,7 @@ import { addOpenAiInputKey } from "./add-open-ai-input-key";
 import { adjustScreenView } from "./adjust-screen-view";
 import { selectGptModel } from "./select-gpt-model";
 import { unselectNodes } from "./unselect-nodes";
-import { updateOldComponents } from "./update-old-components";
+import { updateAvailableComponents } from "./update-available-components";
 
 export async function initialGPTsetup(
   page: Page,
@@ -18,7 +18,7 @@ export async function initialGPTsetup(
     await adjustScreenView(page);
   }
   if (!options?.skipUpdateOldComponents) {
-    await updateOldComponents(page);
+    await updateAvailableComponents(page);
   }
   if (!options?.skipSelectGptModel) {
     await selectGptModel(page);

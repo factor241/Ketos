@@ -5,9 +5,9 @@ import {
   useGetAuthSession,
   useGetAutoLogin,
 } from "@/controllers/API/queries/auth";
+import { LoadingPage } from "@/pages/LoadingPage";
 import useAuthStore from "@/stores/authStore";
 import type { Users } from "@/types/api";
-import { LoadingPage } from "@/pages/LoadingPage";
 
 export function PlaygroundAuthGate({
   children,
@@ -15,7 +15,7 @@ export function PlaygroundAuthGate({
   children: React.ReactNode;
 }) {
   const { id } = useParams();
-  const { setUserData, storeApiKey } = useContext(AuthContext);
+  const { setUserData } = useContext(AuthContext);
   const setIsAuthenticated = useAuthStore((state) => state.setIsAuthenticated);
   const setIsAdmin = useAuthStore((state) => state.setIsAdmin);
   const autoLogin = useAuthStore((state) => state.autoLogin);
@@ -39,9 +39,6 @@ export function PlaygroundAuthGate({
       useAuthStore.getState().setUserData(user);
       setIsAuthenticated(true);
       setIsAdmin(sessionData.user.is_superuser || false);
-      if (sessionData.store_api_key) {
-        storeApiKey(sessionData.store_api_key);
-      }
     } else if (sessionData && !sessionData.authenticated) {
       setIsAuthenticated(false);
     }

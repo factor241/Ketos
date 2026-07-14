@@ -134,7 +134,7 @@ export default function CodeAreaModal({
 
               clearHandlesFromAdvancedFields(componentId!, merged);
               setNodeClass(merged, type);
-            } catch (e) {
+            } catch (_e) {
               clearHandlesFromAdvancedFields(componentId!, data);
               setNodeClass(data, type);
             }

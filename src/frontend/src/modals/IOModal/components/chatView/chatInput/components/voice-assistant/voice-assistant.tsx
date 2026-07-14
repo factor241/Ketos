@@ -18,6 +18,7 @@ import { useGlobalVariablesStore } from "@/stores/globalVariablesStore/globalVar
 import { useMessagesStore } from "@/stores/messagesStore";
 import { useUtilityStore } from "@/stores/utilityStore";
 import { useVoiceStore } from "@/stores/voiceStore";
+import { getIntlLocale } from "@/utils/locale-format";
 import { cn } from "@/utils/utils";
 import IconComponent from "../../../../../../../components/common/genericIconComponent";
 import SettingsVoiceModal from "./components/audio-settings/audio-settings-dialog";
@@ -49,7 +50,7 @@ export function VoiceAssistant({
   const [addKey, setAddKey] = useState(false);
   const [barHeights, setBarHeights] = useState<number[]>(Array(30).fill(20));
   const [preferredLanguage, setPreferredLanguage] = useState(
-    localStorage.getItem("lf_preferred_language") || "en-US",
+    localStorage.getItem("ketos-preferred-language") || getIntlLocale(),
   );
   const [isEditingOpenAIKey, setIsEditingOpenAIKey] = useState<boolean>(false);
 
@@ -373,7 +374,7 @@ export function VoiceAssistant({
 
   useEffect(() => {
     if (preferredLanguage) {
-      localStorage.setItem("lf_preferred_language", preferredLanguage);
+      localStorage.setItem("ketos-preferred-language", preferredLanguage);
     }
   }, [preferredLanguage]);
 
@@ -424,7 +425,7 @@ export function VoiceAssistant({
             ))}
           </div>
           <div className="min-w-[50px] cursor-default text-center font-mono text-sm font-medium text-placeholder-foreground">
-            {hasOpenAIAPIKey ? formatTime(recordingTime) : "--:--s"}
+            {hasOpenAIAPIKey ? formatTime(recordingTime) : "--:--"}
           </div>
 
           <div>

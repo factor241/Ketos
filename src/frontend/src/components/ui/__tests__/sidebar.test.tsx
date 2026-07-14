@@ -3,15 +3,16 @@ import { SidebarProvider, useSidebar } from "../sidebar";
 
 // Mock component to test useSidebar hook
 const TestComponent = ({ onToggle }: { onToggle?: () => void }) => {
-  const { setOpen, open } = useSidebar();
+  const { activeSection, setOpen, open } = useSidebar();
 
   return (
     <div>
       <div data-testid="sidebar-state">{open ? "open" : "closed"}</div>
+      <div data-testid="sidebar-section">{activeSection}</div>
       <button
         data-testid="toggle-btn"
         onClick={() => {
-          setOpen((prev) => !prev);
+          setOpen(!open);
           onToggle?.();
         }}
       >
@@ -67,7 +68,33 @@ describe("Sidebar", () => {
 
     // Cookie should reflect the NEW state (closed), not the old state
     // This verifies the bug fix: using nextOpen instead of open
-    expect(cookieStore["sidebar:state"]).toBe("false");
+    expect(cookieStore["ketos-sidebar-state"]).toBe("false");
+  });
+
+  it("ignores the pre-cutover sidebar cookie", () => {
+    const oldCookieName = ["sidebar", "state"].join(":");
+    cookieStore[oldCookieName] = "true";
+
+    const { getByTestId } = render(
+      <SidebarProvider defaultOpen={false}>
+        <TestComponent />
+      </SidebarProvider>,
+    );
+
+    expect(getByTestId("sidebar-state")).toHaveTextContent("closed");
+  });
+
+  it("ignores the pre-cutover sidebar section cookie", () => {
+    const oldCookieName = ["sidebar", "section"].join(":");
+    cookieStore[oldCookieName] = "search";
+
+    const { getByTestId } = render(
+      <SidebarProvider defaultSection="components">
+        <TestComponent />
+      </SidebarProvider>,
+    );
+
+    expect(getByTestId("sidebar-section")).toHaveTextContent("components");
   });
 
   it("should update cookie when setOpen is called with boolean", () => {
@@ -79,11 +106,11 @@ describe("Sidebar", () => {
 
     // Set to open
     fireEvent.click(getByTestId("set-open-btn"));
-    expect(cookieStore["sidebar:state"]).toBe("true");
+    expect(cookieStore["ketos-sidebar-state"]).toBe("true");
 
     // Set to closed
     fireEvent.click(getByTestId("set-closed-btn"));
-    expect(cookieStore["sidebar:state"]).toBe("false");
+    expect(cookieStore["ketos-sidebar-state"]).toBe("false");
   });
 
   it("should handle function updater correctly", () => {
@@ -95,11 +122,11 @@ describe("Sidebar", () => {
 
     // Toggle from true to false
     fireEvent.click(getByTestId("toggle-btn"));
-    expect(cookieStore["sidebar:state"]).toBe("false");
+    expect(cookieStore["ketos-sidebar-state"]).toBe("false");
 
     // Toggle from false to true
     fireEvent.click(getByTestId("toggle-btn"));
-    expect(cookieStore["sidebar:state"]).toBe("true");
+    expect(cookieStore["ketos-sidebar-state"]).toBe("true");
   });
 
   it("should persist state across multiple toggles", () => {
@@ -111,12 +138,12 @@ describe("Sidebar", () => {
 
     // Multiple toggles
     fireEvent.click(getByTestId("toggle-btn")); // -> true
-    expect(cookieStore["sidebar:state"]).toBe("true");
+    expect(cookieStore["ketos-sidebar-state"]).toBe("true");
 
     fireEvent.click(getByTestId("toggle-btn")); // -> false
-    expect(cookieStore["sidebar:state"]).toBe("false");
+    expect(cookieStore["ketos-sidebar-state"]).toBe("false");
 
     fireEvent.click(getByTestId("toggle-btn")); // -> true
-    expect(cookieStore["sidebar:state"]).toBe("true");
+    expect(cookieStore["ketos-sidebar-state"]).toBe("true");
   });
 });

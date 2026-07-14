@@ -65,7 +65,6 @@ describe("HelpDropdownView", () => {
     const urls = {
       docs: "https://docs",
       bugReport: "https://bugs",
-      desktop: "https://desktop",
     };
 
     render(
@@ -90,11 +89,6 @@ describe("HelpDropdownView", () => {
       screen.getByTestId("canvas_controls_dropdown_report_a_bug"),
     );
     expect(openLink).toHaveBeenCalledWith("https://bugs");
-
-    fireEvent.click(
-      screen.getByTestId("canvas_controls_dropdown_get_langflow_desktop"),
-    );
-    expect(openLink).toHaveBeenCalledWith("https://desktop");
 
     fireEvent.click(
       screen.getByTestId("canvas_controls_dropdown_enable_smart_guides"),

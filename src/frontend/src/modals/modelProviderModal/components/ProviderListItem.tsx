@@ -16,16 +16,17 @@ const ProviderListItem = ({
   onSelect,
   showIcon,
 }: ProviderListItemProps) => {
-  const hasModels = provider.model_count && provider.model_count > 0;
+  const { t } = useTranslation();
   const isEnabled = provider.is_enabled;
   const isConfigured = provider.is_configured;
   const isActive = isEnabled || isConfigured;
 
   return (
-    <div
+    <button
+      type="button"
       data-testid={`provider-item-${provider.provider}`}
       className={cn(
-        "flex items-center justify-between rounded-lg px-2 py-3 transition-colors hover:bg-muted/50 cursor-pointer",
+        "flex w-full items-center justify-between rounded-lg px-2 py-3 text-left transition-colors hover:bg-muted/50 cursor-pointer",
         isSelected && "bg-muted/50",
       )}
       onClick={() => onSelect(provider)}
@@ -53,8 +54,9 @@ const ProviderListItem = ({
               className="text-xs whitespace-nowrap mr-2"
               size="sq"
             >
-              {provider.model_count}{" "}
-              {provider.model_count === 1 ? "model" : "models"}
+              {t("modelProviders.modelCount", {
+                count: provider.model_count,
+              })}
             </Badge>
           )}
         </div>
@@ -68,8 +70,10 @@ const ProviderListItem = ({
           )}
         />
       )}
-    </div>
+    </button>
   );
 };
 
 export default ProviderListItem;
+
+import { useTranslation } from "react-i18next";

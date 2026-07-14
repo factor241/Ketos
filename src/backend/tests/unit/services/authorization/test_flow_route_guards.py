@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-_API_V1 = Path(__file__).resolve().parents[4] / "base" / "langflow" / "api" / "v1"
+_API_V1 = Path(__file__).resolve().parents[4] / "base" / "ketos" / "api" / "v1"
 _FLOWS_FILE = _API_V1 / "flows.py"
 _CHAT_FILE = _API_V1 / "chat.py"
 _ENDPOINTS_FILE = _API_V1 / "endpoints.py"

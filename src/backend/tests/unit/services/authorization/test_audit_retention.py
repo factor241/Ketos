@@ -7,9 +7,9 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
-from langflow.services.authorization.service import LangflowAuthorizationService
-from langflow.services.database.models.auth import AuthzAuditLog
-from langflow.services.utils import clean_authz_audit_log
+from ketos.services.authorization.service import KetosAuthorizationService
+from ketos.services.database.models.auth import AuthzAuditLog
+from ketos.services.utils import clean_authz_audit_log
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlmodel import SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -109,8 +109,8 @@ class _RecordingLogger:
 
 @pytest.mark.anyio
 async def test_passthrough_warning_emitted_when_authz_enabled(monkeypatch):
-    """LangflowAuthorizationService warns when AUTHZ_ENABLED=True but plugin is missing."""
-    from langflow.services.authorization import service as authz_service_module
+    """KetosAuthorizationService warns when AUTHZ_ENABLED=True but plugin is missing."""
+    from ketos.services.authorization import service as authz_service_module
 
     recorder = _RecordingLogger()
     monkeypatch.setattr(authz_service_module, "logger", recorder)
@@ -121,7 +121,7 @@ async def test_passthrough_warning_emitted_when_authz_enabled(monkeypatch):
             AUTHZ_SUPERUSER_BYPASS=True,
         )
     )
-    LangflowAuthorizationService(settings)
+    KetosAuthorizationService(settings)
 
     warning_messages = [msg for level, msg in recorder.calls if level == "warning"]
     assert any("OSS pass-through" in msg for msg in warning_messages), (
@@ -132,7 +132,7 @@ async def test_passthrough_warning_emitted_when_authz_enabled(monkeypatch):
 @pytest.mark.anyio
 async def test_passthrough_warning_silent_when_authz_disabled(monkeypatch):
     """No warning is emitted when AUTHZ_ENABLED=False."""
-    from langflow.services.authorization import service as authz_service_module
+    from ketos.services.authorization import service as authz_service_module
 
     recorder = _RecordingLogger()
     monkeypatch.setattr(authz_service_module, "logger", recorder)
@@ -143,7 +143,7 @@ async def test_passthrough_warning_silent_when_authz_disabled(monkeypatch):
             AUTHZ_SUPERUSER_BYPASS=True,
         )
     )
-    LangflowAuthorizationService(settings)
+    KetosAuthorizationService(settings)
 
     warning_messages = [msg for level, msg in recorder.calls if level == "warning"]
     assert not any("OSS pass-through" in msg for msg in warning_messages), (

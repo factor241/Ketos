@@ -3,7 +3,7 @@
 import asyncio
 import json
 
-from langflow.agentic.services.helpers.event_consumer import consume_streaming_events, parse_event_data
+from ketos.agentic.services.helpers.event_consumer import consume_streaming_events, parse_event_data
 
 
 class TestParseEventData:

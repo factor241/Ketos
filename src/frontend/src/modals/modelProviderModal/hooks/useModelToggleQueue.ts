@@ -16,14 +16,6 @@ import useAlertStore from "@/stores/alertStore";
 // focused module. The parent hook now owns only variable CRUD and
 // provider lifecycle — the two responsibilities no longer share a file.
 
-const getErrorMessage = (error: unknown): string | undefined => {
-  const e = error as {
-    response?: { data?: { detail?: string } };
-    message?: string;
-  };
-  return e?.response?.data?.detail || e?.message;
-};
-
 export interface UseModelToggleQueueOptions {
   /**
    * Provider whose models the user is toggling. ``null`` short-circuits all
@@ -130,7 +122,7 @@ export const useModelToggleQueue = ({
     (
       togglesToSend: Record<string, boolean>,
       previousData: EnabledModelsResponse | undefined,
-      error: unknown,
+      _error: unknown,
     ) => {
       clearSentOverlay(togglesToSend);
       if (previousData) {
@@ -138,7 +130,7 @@ export const useModelToggleQueue = ({
       }
       setErrorData({
         title: t("errors.updateModelStatus"),
-        list: [getErrorMessage(error) || "Failed to update model status"],
+        list: [t("modelProviders.errorFailedToUpdateModelStatus")],
       });
     },
     [clearSentOverlay, queryClient, setErrorData],

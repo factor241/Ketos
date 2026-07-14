@@ -12,7 +12,7 @@ function DataOutputComponent({
   columnMode = "union",
 }: {
   pagination: boolean;
-  rows: any[];
+  rows: unknown[];
   columnMode?: "intersection" | "union";
 }) {
   const maxItemsLength = useUtilityStore(
@@ -31,12 +31,15 @@ function DataOutputComponent({
     }
   }, [rows]);
 
-  const columns = extractColumnsFromRows(rowsInternal, columnMode);
+  const objectRows = rowsInternal.filter(
+    (row): row is object => row !== null && typeof row === "object",
+  );
+  const columns = extractColumnsFromRows(objectRows, columnMode);
 
   const columnDefs = columns.map((col, idx) => ({
     ...col,
     resizable: true,
-  })) as (ColDef<any> | ColGroupDef<any>)[];
+  })) as (ColDef<unknown> | ColGroupDef<unknown>)[];
 
   return (
     <TableComponent
@@ -47,7 +50,9 @@ function DataOutputComponent({
       key={"dataOutputComponent"}
       overlayNoRowsTemplate="No data available"
       paginationInfo={
-        rows.length > maxItemsLength ? rows[maxItemsLength] : undefined
+        rows.length > maxItemsLength
+          ? String(rows[maxItemsLength] ?? "")
+          : undefined
       }
       suppressRowClickSelection={true}
       pagination={pagination}

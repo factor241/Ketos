@@ -20,7 +20,7 @@ export const usePatchGlobalVariables: useMutationFunctionType<
 
   async function patchGlobalVariables(
     GlobalVariable: PatchGlobalVariablesParams,
-  ): Promise<any> {
+  ): Promise<PatchGlobalVariablesParams> {
     const res = await api.patch(
       `${getURL("VARIABLES")}/${GlobalVariable.id}`,
       GlobalVariable,
@@ -30,7 +30,7 @@ export const usePatchGlobalVariables: useMutationFunctionType<
 
   const mutation: UseMutationResult<
     PatchGlobalVariablesParams,
-    any,
+    Error,
     PatchGlobalVariablesParams
   > = mutate(["usePatchGlobalVariables"], patchGlobalVariables, {
     onSettled: () => {

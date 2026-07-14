@@ -33,7 +33,7 @@ withEventDeliveryModes(
       .getByTestId("input-chat-playground")
       .last()
       .fill(
-        "Create a custom component that can generate a random number between 1 and 100 and is called Langflow Random Number",
+        "Create a custom component that can generate a random number between 1 and 100 and is called Ketos Random Number",
       );
 
     await page.getByTestId("button-send").last().click();
@@ -48,6 +48,6 @@ withEventDeliveryModes(
     expect(await page.getByTestId("chat-code-tab").last().isVisible()).toBe(
       true,
     );
-    expect(textContents.toLowerCase()).toContain("langflow");
+    expect(textContents.toLowerCase()).toContain("ketos");
   },
 );

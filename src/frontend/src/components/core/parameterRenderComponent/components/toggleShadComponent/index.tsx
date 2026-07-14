@@ -41,7 +41,7 @@ export default function ToggleShadComponent({
   }
 
   return (
-    <div onClick={(e) => e.stopPropagation()}>
+    <div>
       <Switch
         id={id}
         data-testid={id}
@@ -51,6 +51,7 @@ export default function ToggleShadComponent({
         disabled={disabled}
         className=""
         checked={value}
+        onClick={(e) => e.stopPropagation()}
         onCheckedChange={(isEnabled: boolean) => {
           const data = showToogle
             ? { advanced: !isEnabled }

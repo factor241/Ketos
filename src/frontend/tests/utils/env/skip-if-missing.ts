@@ -35,15 +35,15 @@ export const skipIfMissing = {
 
   autoLoginDisabled: (): void => {
     test.skip(
-      process?.env?.LANGFLOW_AUTO_LOGIN !== "false",
+      process?.env?.KETOS_AUTO_LOGIN !== "false",
       "Server must run with AUTO_LOGIN=FALSE for this test",
     );
   },
 
   wxoDeploymentsEnabled: (): void => {
     test.skip(
-      process?.env?.LANGFLOW_FEATURE_WXO_DEPLOYMENTS !== "true",
-      "Requires LANGFLOW_FEATURE_WXO_DEPLOYMENTS=true",
+      process?.env?.KETOS_FEATURE_WXO_DEPLOYMENTS !== "true",
+      "Requires KETOS_FEATURE_WXO_DEPLOYMENTS=true",
     );
   },
 };

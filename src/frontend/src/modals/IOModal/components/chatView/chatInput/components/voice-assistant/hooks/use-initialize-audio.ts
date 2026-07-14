@@ -1,4 +1,5 @@
 import type { MutableRefObject } from "react";
+import i18n from "@/i18n";
 
 export const useInitializeAudio = async (
   audioContextRef: MutableRefObject<AudioContext | null>,
@@ -11,9 +12,11 @@ export const useInitializeAudio = async (
     }
 
     if (!audioContextRef.current) {
-      audioContextRef.current = new (
-        window.AudioContext || (window as any).webkitAudioContext
-      )({
+      const AudioContextConstructor =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext;
+      audioContextRef.current = new AudioContextConstructor({
         sampleRate: 24000,
       });
     }
@@ -25,6 +28,6 @@ export const useInitializeAudio = async (
     startConversation();
   } catch (error) {
     console.error("Failed to initialize audio:", error);
-    setStatus("Error: Failed to initialize audio");
+    setStatus(i18n.t("voiceAssistant.audioInitializationFailed"));
   }
 };

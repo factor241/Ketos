@@ -1,0 +1,149 @@
+"""Composed ``Settings`` class for Ketos.
+
+Fields live in per-group mixins under :mod:`kfx.services.settings.groups`.
+This module wires them together, configures env-var loading, and exposes the
+YAML helpers and a few model-level utilities (``update_settings``,
+``voice_mode_available``).
+
+Group order in the inheritance list matters: Pydantic collects fields from the
+rightmost base first, so cross-group validators see their dependencies in
+``info.data``. Specifically:
+
+- :class:`PathSettings` is rightmost so ``config_dir`` is validated before
+  ``database_url``.
+- :class:`ServerSettings` precedes :class:`RuntimeSettings` so ``workers`` is
+  validated before ``event_delivery``.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+import json
+from pathlib import Path
+
+import aiofiles
+import orjson
+import yaml
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
+from typing_extensions import override
+
+from kfx.constants import BASE_COMPONENTS_PATH as BASE_COMPONENTS_PATH  # noqa: PLC0414  # re-export for back-compat
+from kfx.services.settings.brand_env import BrandEnvSettingsSource
+from kfx.services.settings.brand_env import is_list_of_any as _is_list_of_any
+from kfx.services.settings.groups import (
+    CacheSettings,
+    ComponentsSettings,
+    DatabaseSettings,
+    McpSettings,
+    ObservabilitySettings,
+    PathSettings,
+    RuntimeSettings,
+    SecuritySettings,
+    ServerSettings,
+    StorageSettings,
+    TelemetrySettings,
+    UiSettings,
+    VariablesSettings,
+)
+
+CustomSource = BrandEnvSettingsSource
+is_list_of_any = _is_list_of_any
+
+
+class Settings(
+    VariablesSettings,
+    UiSettings,
+    ComponentsSettings,
+    SecuritySettings,
+    ObservabilitySettings,
+    TelemetrySettings,
+    StorageSettings,
+    CacheSettings,
+    McpSettings,
+    DatabaseSettings,
+    RuntimeSettings,
+    ServerSettings,
+    PathSettings,
+    BaseSettings,
+):
+    """Top-level Ketos settings.
+
+    Composed from per-group mixins. See module docstring for the inheritance
+    order rationale.
+    """
+
+    model_config = SettingsConfigDict(validate_assignment=True, extra="ignore", env_prefix="KETOS_")
+
+    async def update_from_yaml(self, file_path: str, *, dev: bool = False) -> None:
+        new_settings = await load_settings_from_yaml(file_path)
+        self.components_path = new_settings.components_path or []
+        self.dev = dev
+
+    def update_settings(self, **kwargs) -> None:
+        for key, value in kwargs.items():
+            # value may contain sensitive information, so we don't want to log it
+            if not hasattr(self, key):
+                continue
+            if isinstance(getattr(self, key), list):
+                # value might be a '[something]' string
+                value_ = value
+                with contextlib.suppress(json.decoder.JSONDecodeError):
+                    value_ = orjson.loads(str(value))
+                if isinstance(value_, list):
+                    for item in value_:
+                        item_ = str(item) if isinstance(item, Path) else item
+                        if item_ not in getattr(self, key):
+                            getattr(self, key).append(item_)
+                else:
+                    value_ = str(value_) if isinstance(value_, Path) else value_
+                    if value_ not in getattr(self, key):
+                        getattr(self, key).append(value_)
+            else:
+                setattr(self, key, value)
+
+    @property
+    def voice_mode_available(self) -> bool:
+        """Check if voice mode is available by testing webrtcvad import."""
+        try:
+            import webrtcvad  # noqa: F401
+        except ImportError:
+            return False
+        else:
+            return True
+
+    @classmethod
+    @override
+    def settings_customise_sources(  # type: ignore[misc]
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return (BrandEnvSettingsSource(settings_cls), init_settings)
+
+
+def save_settings_to_yaml(settings: Settings, file_path: str) -> None:
+    with Path(file_path).open("w", encoding="utf-8") as f:
+        settings_dict = settings.model_dump()
+        yaml.dump(settings_dict, f)
+
+
+async def load_settings_from_yaml(file_path: str) -> Settings:
+    from kfx.log.logger import logger
+
+    file_path_ = Path(file_path).expanduser().resolve()
+    async with aiofiles.open(file_path_, encoding="utf-8") as f:
+        content = await f.read()
+        settings_dict = yaml.safe_load(content)
+        settings_dict = {k.lower(): v for k, v in settings_dict.items()}
+
+        for key in settings_dict:
+            if key not in Settings.model_fields:
+                msg = f"Key {key} not found in settings"
+                raise KeyError(msg)
+            await logger.adebug(f"Loading {key} from {file_path_}")
+
+    return await asyncio.to_thread(Settings, **settings_dict)

@@ -1,4 +1,5 @@
 import type { ColDef } from "ag-grid-community";
+import type { TFunction } from "i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import LoadingTextComponent from "@/components/common/loadingTextComponent";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ export interface KnowledgeBaseColumnsCallbacks {
 
 export const createKnowledgeBaseColumns = (
   callbacks?: KnowledgeBaseColumnsCallbacks,
-  t: (key: string) => string = (key) =>
+  t: TFunction<"translation"> | ((key: string) => string) = (key) =>
     enTranslations[key as keyof typeof enTranslations] ?? key,
 ): ColDef[] => {
   const baseCellClass =
@@ -103,8 +104,9 @@ export const createKnowledgeBaseColumns = (
       editable: false,
       cellClass: baseCellClass,
       cellRenderer: (params: { data: KnowledgeBaseInfo }) => {
-        const model = params.data.embedding_model || "Unknown";
-        const provider = params.data.embedding_provider || "Unknown";
+        const unknownLabel = t("knowledge.unknown");
+        const model = params.data.embedding_model || unknownLabel;
+        const provider = params.data.embedding_provider || unknownLabel;
 
         const providerIconMap: Record<string, string> = {
           OpenAI: "OpenAI",

@@ -1,20 +1,21 @@
 [project]
-name = "lfx-docling"
+name = "kfx-docling"
 version = "0.1.1"
-description = "Docling document processing components as a standalone Langflow Extension Bundle."
+description = "Docling document processing components as a standalone Ketos Extension Bundle."
 readme = "README.md"
 requires-python = ">=3.10,<3.15"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE", "NOTICE"]
 authors = [
-    { name = "Langflow", email = "contact@langflow.org" },
+    { name = "Ketos", email = "contact@ketos.test" },
 ]
-keywords = ["langflow", "lfx", "extension", "bundle", "docling", "documents"]
+keywords = ["ketos", "kfx", "extension", "bundle", "docling", "documents"]
 
 # Keep the full local converter and OCR stack optional. docling-core remains a
 # base dependency because the bundle exchanges DoclingDocument objects even when
 # conversion happens remotely.
 dependencies = [
-    "lfx>=1.10.0.dev0,<2.0.0",
+    "kfx>=1.10.0.dev0,<2.0.0",
     "httpx>=0.28.1,<1.0.0",
     "docling-core>=2.36.1,<3.0.0",
 ]
@@ -33,32 +34,32 @@ chunking = [
     "tiktoken>=0.7.0",
 ]
 image-description = [
-    "lfx-docling[local]",
+    "kfx-docling[local]",
     "langchain-docling>=1.1.0",
 ]
 all = [
-    "lfx-docling[local,chunking,image-description]",
+    "kfx-docling[local,chunking,image-description]",
 ]
 
 [project.urls]
-Homepage = "https://github.com/langflow-ai/langflow"
-Documentation = "https://docs.langflow.org/bundles-docling"
-Repository = "https://github.com/langflow-ai/langflow"
+Homepage = "https://git.ketos.test/ketos/ketos"
+Documentation = "https://docs.ketos.test/bundles-docling"
+Repository = "https://git.ketos.test/ketos/ketos"
 
-[project.entry-points."langflow.extensions"]
-lfx-docling = "lfx_docling"
+[project.entry-points."ketos.extensions"]
+kfx-docling = "kfx_docling"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling==1.31.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/lfx_docling"]
-include = ["src/lfx_docling/extension.json", "src/lfx_docling/components/**/*.py"]
+packages = ["src/kfx_docling"]
+include = ["src/kfx_docling/extension.json", "src/kfx_docling/components/**/*.py"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "src/lfx_docling",
+    "src/kfx_docling",
     "extension.json",
     "README.md",
     "pyproject.toml",

@@ -3,13 +3,13 @@ import pytest
 try:
     import altk  # noqa: F401
 except ImportError:
-    # agent-lifecycle-toolkit is an optional extra (langflow-base[altk]); skip if
+    # agent-lifecycle-toolkit is an optional extra (ketos-base[altk]); skip if
     # not installed. (Upstream dropped its <3.14 cap in 0.10.1, now requires >=3.10.)
     pytest.skip("altk (agent-lifecycle-toolkit) not available", allow_module_level=True)
 
 from langchain_core.tools import BaseTool
-from lfx.base.agents.altk_tool_wrappers import PreToolValidationWrapper
-from lfx.log.logger import logger
+from kfx.base.agents.altk_tool_wrappers import PreToolValidationWrapper
+from kfx.log.logger import logger
 from pydantic import BaseModel, Field
 
 

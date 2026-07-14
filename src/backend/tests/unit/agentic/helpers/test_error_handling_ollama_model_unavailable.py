@@ -8,7 +8,7 @@ so the fallback chain never fires and the user gets a terminal
 ``Model not available`` error on the first attempt.
 """
 
-from langflow.agentic.helpers.error_handling import is_model_unavailable_error
+from ketos.agentic.helpers.error_handling import is_model_unavailable_error
 
 OLLAMA_MODEL_NOT_FOUND_ERROR = "Error building Component Language Model: model 'llama3.3' not found (status code: 404)."
 
@@ -51,7 +51,7 @@ class TestRecursionLimitFriendlyError:
     )
 
     def test_should_return_clear_message_when_agent_hits_recursion_limit(self):
-        from langflow.agentic.helpers.error_handling import extract_friendly_error
+        from ketos.agentic.helpers.error_handling import extract_friendly_error
 
         message = extract_friendly_error(self.RECURSION_ERROR)
 
@@ -71,7 +71,7 @@ class TestMalformedToolCallFriendlyError:
     )
 
     def test_should_explain_malformed_tool_call_instead_of_generic_server_error(self):
-        from langflow.agentic.helpers.error_handling import extract_friendly_error
+        from ketos.agentic.helpers.error_handling import extract_friendly_error
 
         message = extract_friendly_error(self.MALFORMED_TOOL_CALL_ERROR)
 

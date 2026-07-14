@@ -14,8 +14,12 @@ export const HeaderMenu = ({ children }) => (
   <DropdownMenu>{children}</DropdownMenu>
 );
 
-export const HeaderMenuToggle = ({ children }) => (
+export const HeaderMenuToggle = ({
+  children,
+  ariaLabel,
+}: React.PropsWithChildren<{ ariaLabel?: string }>) => (
   <DropdownMenuTrigger
+    aria-label={ariaLabel}
     className="inline-flex w-full items-center justify-center rounded-md pl-1 pr-1"
     data-testid="user_menu_button"
     id="user_menu_button"

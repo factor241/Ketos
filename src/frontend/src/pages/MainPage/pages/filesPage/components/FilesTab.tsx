@@ -4,7 +4,7 @@ import type {
   SelectionChangedEvent,
 } from "ag-grid-community";
 import type { AgGridReact } from "ag-grid-react";
-import { useEffect, useMemo, useRef } from "react";
+import { type ElementRef, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import ShadTooltip from "@/components/common/shadTooltipComponent";
@@ -22,6 +22,7 @@ import DeleteConfirmationModal from "@/modals/deleteConfirmationModal";
 import FilesContextMenuComponent from "@/modals/fileManagerModal/components/filesContextMenuComponent";
 import useAlertStore from "@/stores/alertStore";
 import type { FileType } from "@/types/file_management";
+import { formatDateTime } from "@/utils/locale-format";
 import { formatFileSize } from "@/utils/stringManipulation";
 import { FILE_ICONS } from "@/utils/styleUtils";
 import { cn } from "@/utils/utils";
@@ -48,7 +49,7 @@ const FilesTab = ({
   isShiftPressed,
 }: FilesTabProps) => {
   const { t } = useTranslation();
-  const tableRef = useRef<AgGridReact<FileType>>(null);
+  const tableRef = useRef<ElementRef<typeof AgGridReact>>(null);
   const { data: files } = useGetFilesV2();
   const setErrorData = useAlertStore((state) => state.setErrorData);
   const setSuccessData = useAlertStore((state) => state.setSuccessData);
@@ -56,6 +57,7 @@ const FilesTab = ({
   const { mutate: rename } = usePostRenameFileV2();
   const { mutate: deleteFiles, isPending: isDeleting } = useDeleteFilesV2();
   const handleRename = (params: NewValueParams<FileType, string>) => {
+    if (params.newValue == null) return;
     rename({
       id: params.data.id,
       name: params.newValue,
@@ -166,7 +168,8 @@ const FilesTab = ({
             params.data.progress === -1 ? (
               <span className="text-xs text-primary">
                 {t("files.uploadFailed")}{" "}
-                <span
+                <button
+                  type="button"
                   className="cursor-pointer text-accent-pink-foreground underline"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -176,7 +179,7 @@ const FilesTab = ({
                   }}
                 >
                   {t("files.tryAgain")}
-                </span>
+                </button>
               </span>
             ) : (
               <></>
@@ -212,9 +215,7 @@ const FilesTab = ({
       headerName: t("files.columnModified"),
       field: "updated_at",
       valueFormatter: (params) => {
-        return params.data.progress
-          ? ""
-          : new Date(params.value + "Z").toLocaleString();
+        return params.data.progress ? "" : formatDateTime(`${params.value}Z`);
       },
       editable: false,
       flex: 1,
@@ -322,7 +323,9 @@ const FilesTab = ({
             {quantitySelected > 0 ? (
               <DeleteConfirmationModal
                 onConfirm={handleDelete}
-                description={"file" + (quantitySelected > 1 ? "s" : "")}
+                description={t("fileManager.deleteDescription", {
+                  count: quantitySelected,
+                })}
               >
                 <Button
                   variant="destructive"

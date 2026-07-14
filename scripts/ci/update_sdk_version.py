@@ -1,6 +1,6 @@
-"""Update the canonical ``langflow-sdk`` version for nightly builds.
+"""Update the canonical ``ketos-sdk`` version for nightly builds.
 
-The SDK keeps its canonical ``langflow-sdk`` name -- it is NOT renamed to ``langflow-sdk-nightly`` --
+The SDK keeps its canonical ``ketos-sdk`` name -- it is NOT renamed to ``ketos-sdk-nightly`` --
 and is published as a ``.devN`` pre-release. This script only sets the nightly version.
 See ``src/bundles/NIGHTLY.md``.
 """
@@ -16,13 +16,13 @@ sys.path.append(str(current_dir))
 
 
 def update_sdk_for_nightly(sdk_tag: str):
-    """Set the canonical ``langflow-sdk`` package version for a nightly build."""
+    """Set the canonical ``ketos-sdk`` package version for a nightly build."""
     sdk_pyproject_path = "src/sdk/pyproject.toml"
 
     version = sdk_tag.lstrip("v")
     update_pyproject_version(sdk_pyproject_path, version)
 
-    print(f"Updated langflow-sdk to nightly version {version}")
+    print(f"Updated ketos-sdk to nightly version {version}")
 
 
 def main():

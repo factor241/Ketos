@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import { Button } from "@/components/ui/button";
 import useTheme from "@/customization/hooks/use-custom-theme";
 
 export const ThemeButtons = () => {
+  const { t } = useTranslation();
   const { systemTheme, dark, setThemePreference } = useTheme();
   const [selectedTheme, setSelectedTheme] = useState(
     systemTheme ? "system" : dark ? "dark" : "light",
@@ -51,6 +53,7 @@ export const ThemeButtons = () => {
       {/* Light Theme Button */}
       <Button
         unstyled
+        aria-label={t("theme.light")}
         className={`relative z-10 inline-flex items-center rounded-full px-1 ${
           selectedTheme === "light"
             ? "text-background"
@@ -66,6 +69,7 @@ export const ThemeButtons = () => {
       {/* Dark Theme Button */}
       <Button
         unstyled
+        aria-label={t("theme.dark")}
         className={`relative z-10 mx-1 inline-flex items-center rounded-full px-1 ${
           selectedTheme === "dark"
             ? "bg-indigo-foreground text-primary hover:bg-indigo-foreground"
@@ -81,6 +85,7 @@ export const ThemeButtons = () => {
       {/* System Theme Button */}
       <Button
         unstyled
+        aria-label={t("theme.system")}
         className={`relative z-10 inline-flex items-center rounded-full px-1 ${
           selectedTheme === "system"
             ? "bg-foreground text-background"

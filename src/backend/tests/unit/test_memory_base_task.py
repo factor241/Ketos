@@ -1,4 +1,4 @@
-"""Unit tests for langflow.services.memory_base.task.
+"""Unit tests for ketos.services.memory_base.task.
 
 Covers the gaps not addressed by TestIngestMemoryTask in test_memory_bases.py:
 - ingest_memory_task: missing kb_root, pre-ingestion cancel, zero-document early-out
@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from langflow.services.database.models.message.model import MessageTable
+from ketos.services.database.models.message.model import MessageTable
 
 # ------------------------------------------------------------------ #
 #  Shared helpers                                                      #
@@ -68,11 +68,11 @@ def _fake_scope(mock_db):
 class TestIngestMemoryTaskEdgeCases:
     @pytest.mark.asyncio
     async def test_raises_when_kb_root_not_configured(self):
-        from langflow.services.memory_base.task import IngestionRequest, ingest_memory_task
+        from ketos.services.memory_base.task import IngestionRequest, ingest_memory_task
 
         with (
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_root_path",
+                "ketos.services.memory_base.task.KBStorageHelper.get_root_path",
                 return_value=None,
             ),
             pytest.raises(RuntimeError, match="Knowledge base root path is not configured"),
@@ -96,7 +96,7 @@ class TestIngestMemoryTaskEdgeCases:
     @pytest.mark.asyncio
     async def test_returns_early_when_job_cancelled_before_write(self, tmp_path):
         """is_job_cancelled=True after fetch must return without touching Chroma."""
-        from langflow.services.memory_base.task import IngestionRequest, ingest_memory_task
+        from ketos.services.memory_base.task import IngestionRequest, ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
@@ -109,29 +109,29 @@ class TestIngestMemoryTaskEdgeCases:
 
         with (
             patch(
-                "langflow.services.memory_base.task._acquire_session_lock",
+                "ketos.services.memory_base.task._acquire_session_lock",
                 AsyncMock(return_value=asyncio.Lock()),
             ),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
             patch(
-                "langflow.services.memory_base.task._fetch_pending_messages",
+                "ketos.services.memory_base.task._fetch_pending_messages",
                 AsyncMock(return_value=[msg]),
             ),
             patch(
-                "langflow.services.memory_base.task.build_documents_from_messages",
+                "ketos.services.memory_base.task.build_documents_from_messages",
                 return_value=[MagicMock()],
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
+                "ketos.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
                 AsyncMock(return_value=True),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
+                "ketos.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
                 side_effect=fake_get_client,
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_root_path",
+                "ketos.services.memory_base.task.KBStorageHelper.get_root_path",
                 return_value=tmp_path,
             ),
         ):
@@ -157,24 +157,24 @@ class TestIngestMemoryTaskEdgeCases:
     @pytest.mark.asyncio
     async def test_returns_early_when_documents_list_is_empty(self, tmp_path):
         """All-whitespace messages produce zero documents — early exit before Chroma."""
-        from langflow.services.memory_base.task import IngestionRequest, ingest_memory_task
+        from ketos.services.memory_base.task import IngestionRequest, ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id, text="   ")  # whitespace only
 
         with (
             patch(
-                "langflow.services.memory_base.task._acquire_session_lock",
+                "ketos.services.memory_base.task._acquire_session_lock",
                 AsyncMock(return_value=asyncio.Lock()),
             ),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
             patch(
-                "langflow.services.memory_base.task._fetch_pending_messages",
+                "ketos.services.memory_base.task._fetch_pending_messages",
                 AsyncMock(return_value=[msg]),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_root_path",
+                "ketos.services.memory_base.task.KBStorageHelper.get_root_path",
                 return_value=tmp_path,
             ),
         ):
@@ -199,7 +199,7 @@ class TestIngestMemoryTaskEdgeCases:
     @pytest.mark.asyncio
     async def test_mark_messages_ingested_called_on_success(self, tmp_path):
         """_mark_messages_ingested must be called exactly once on a successful run."""
-        from langflow.services.memory_base.task import IngestionRequest, ingest_memory_task
+        from ketos.services.memory_base.task import IngestionRequest, ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
@@ -208,44 +208,44 @@ class TestIngestMemoryTaskEdgeCases:
 
         with (
             patch(
-                "langflow.services.memory_base.task._acquire_session_lock",
+                "ketos.services.memory_base.task._acquire_session_lock",
                 AsyncMock(return_value=asyncio.Lock()),
             ),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
             patch(
-                "langflow.services.memory_base.task._fetch_pending_messages",
+                "ketos.services.memory_base.task._fetch_pending_messages",
                 AsyncMock(return_value=[msg]),
             ),
             patch(
-                "langflow.services.memory_base.task.build_documents_from_messages",
+                "ketos.services.memory_base.task.build_documents_from_messages",
                 return_value=[MagicMock()],
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
+                "ketos.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
                 AsyncMock(return_value=False),
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.build_embeddings",
+                "ketos.services.memory_base.task.KBIngestionHelper.build_embeddings",
                 AsyncMock(return_value=MagicMock()),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
+                "ketos.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
                 return_value=MagicMock(),
             ),
-            patch("langflow.services.memory_base.task.Chroma"),
+            patch("ketos.services.memory_base.task.Chroma"),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
+                "ketos.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
                 AsyncMock(return_value=1),
             ),
-            patch("langflow.services.memory_base.task.sync_kb_metadata"),
-            patch("langflow.services.memory_base.task._mark_messages_ingested", mark_ingested_mock),
-            patch("langflow.services.memory_base.task._advance_cursor", AsyncMock()),
+            patch("ketos.services.memory_base.task.sync_kb_metadata"),
+            patch("ketos.services.memory_base.task._mark_messages_ingested", mark_ingested_mock),
+            patch("ketos.services.memory_base.task._advance_cursor", AsyncMock()),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_root_path",
+                "ketos.services.memory_base.task.KBStorageHelper.get_root_path",
                 return_value=tmp_path,
             ),
-            patch("langflow.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
+            patch("ketos.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
         ):
             await ingest_memory_task(
                 request=IngestionRequest(
@@ -268,7 +268,7 @@ class TestIngestMemoryTaskEdgeCases:
     @pytest.mark.asyncio
     async def test_mark_messages_ingested_not_called_when_cancelled(self, tmp_path):
         """When write returns fewer docs than sent, messages must NOT be stamped."""
-        from langflow.services.memory_base.task import IngestionRequest, ingest_memory_task
+        from ketos.services.memory_base.task import IngestionRequest, ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
@@ -277,47 +277,47 @@ class TestIngestMemoryTaskEdgeCases:
 
         with (
             patch(
-                "langflow.services.memory_base.task._acquire_session_lock",
+                "ketos.services.memory_base.task._acquire_session_lock",
                 AsyncMock(return_value=asyncio.Lock()),
             ),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
             patch(
-                "langflow.services.memory_base.task._fetch_pending_messages",
+                "ketos.services.memory_base.task._fetch_pending_messages",
                 AsyncMock(return_value=[msg]),
             ),
             patch(
-                "langflow.services.memory_base.task.build_documents_from_messages",
+                "ketos.services.memory_base.task.build_documents_from_messages",
                 return_value=[MagicMock()],
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
+                "ketos.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
                 AsyncMock(return_value=False),
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.build_embeddings",
+                "ketos.services.memory_base.task.KBIngestionHelper.build_embeddings",
                 AsyncMock(return_value=MagicMock()),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
+                "ketos.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
                 return_value=MagicMock(),
             ),
-            patch("langflow.services.memory_base.task.Chroma"),
+            patch("ketos.services.memory_base.task.Chroma"),
             # Partial write simulates mid-run cancellation
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
+                "ketos.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
                 AsyncMock(return_value=0),
             ),
-            patch("langflow.services.memory_base.task.sync_kb_metadata"),
-            patch("langflow.services.memory_base.task._mark_messages_ingested", mark_ingested_mock),
-            patch("langflow.services.memory_base.task._advance_cursor", AsyncMock()),
+            patch("ketos.services.memory_base.task.sync_kb_metadata"),
+            patch("ketos.services.memory_base.task._mark_messages_ingested", mark_ingested_mock),
+            patch("ketos.services.memory_base.task._advance_cursor", AsyncMock()),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_root_path",
+                "ketos.services.memory_base.task.KBStorageHelper.get_root_path",
                 return_value=tmp_path,
             ),
-            patch("langflow.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
+            patch("ketos.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.cleanup_chroma_chunks_by_job",
+                "ketos.services.memory_base.task.KBIngestionHelper.cleanup_chroma_chunks_by_job",
                 AsyncMock(),
             ) as cleanup_mock,
         ):
@@ -344,50 +344,50 @@ class TestIngestMemoryTaskEdgeCases:
     @pytest.mark.asyncio
     async def test_cleanup_called_on_write_exception(self, tmp_path):
         """When write_documents_to_chroma raises, partial chunks must be cleaned up."""
-        from langflow.services.memory_base.task import IngestionRequest, ingest_memory_task
+        from ketos.services.memory_base.task import IngestionRequest, ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
 
         with (
             patch(
-                "langflow.services.memory_base.task._acquire_session_lock",
+                "ketos.services.memory_base.task._acquire_session_lock",
                 AsyncMock(return_value=asyncio.Lock()),
             ),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
             patch(
-                "langflow.services.memory_base.task._fetch_pending_messages",
+                "ketos.services.memory_base.task._fetch_pending_messages",
                 AsyncMock(return_value=[msg]),
             ),
             patch(
-                "langflow.services.memory_base.task.build_documents_from_messages",
+                "ketos.services.memory_base.task.build_documents_from_messages",
                 return_value=[MagicMock()],
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
+                "ketos.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
                 AsyncMock(return_value=False),
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.build_embeddings",
+                "ketos.services.memory_base.task.KBIngestionHelper.build_embeddings",
                 AsyncMock(return_value=MagicMock()),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
+                "ketos.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
                 return_value=MagicMock(),
             ),
-            patch("langflow.services.memory_base.task.Chroma"),
+            patch("ketos.services.memory_base.task.Chroma"),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
+                "ketos.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
                 AsyncMock(side_effect=RuntimeError("Chroma write failed")),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_root_path",
+                "ketos.services.memory_base.task.KBStorageHelper.get_root_path",
                 return_value=tmp_path,
             ),
-            patch("langflow.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
+            patch("ketos.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.cleanup_chroma_chunks_by_job",
+                "ketos.services.memory_base.task.KBIngestionHelper.cleanup_chroma_chunks_by_job",
                 AsyncMock(),
             ) as cleanup_mock,
             pytest.raises(RuntimeError, match="Chroma write failed"),
@@ -418,7 +418,7 @@ class TestIngestMemoryTaskEdgeCases:
 
 class TestExtractContentBlockText:
     def _call(self, blocks):
-        from langflow.services.memory_base.document_builders import extract_content_block_text
+        from ketos.services.memory_base.document_builders import extract_content_block_text
 
         return extract_content_block_text(blocks)
 
@@ -515,7 +515,7 @@ class TestExtractContentBlockText:
 
 class TestBuildDocumentsFromMessages:
     def _call(self, messages, *, session_id="s1", flow_id=None, job_id="test-job-id"):
-        from langflow.services.memory_base.document_builders import build_documents_from_messages
+        from ketos.services.memory_base.document_builders import build_documents_from_messages
 
         return build_documents_from_messages(
             messages,
@@ -548,7 +548,7 @@ class TestBuildDocumentsFromMessages:
         assert "block text" in docs[0].page_content
 
     def test_long_message_split_into_multiple_chunks(self):
-        from langflow.services.memory_base.document_builders import MESSAGE_CHUNK_SIZE
+        from ketos.services.memory_base.document_builders import MESSAGE_CHUNK_SIZE
 
         flow_id = uuid.uuid4()
         # Craft text longer than chunk size
@@ -558,7 +558,7 @@ class TestBuildDocumentsFromMessages:
         assert len(docs) > 1
 
     def test_chunk_index_and_total_chunks_metadata(self):
-        from langflow.services.memory_base.document_builders import MESSAGE_CHUNK_SIZE
+        from ketos.services.memory_base.document_builders import MESSAGE_CHUNK_SIZE
 
         flow_id = uuid.uuid4()
         long_text = "word " * (MESSAGE_CHUNK_SIZE // 4)
@@ -625,19 +625,19 @@ class TestBuildDocumentsFromMessages:
 
 class TestSyncKbMetadata:
     def test_preserves_existing_source_types(self, tmp_path):
-        from langflow.services.memory_base.document_builders import sync_kb_metadata as _sync_kb_metadata
+        from ketos.services.memory_base.document_builders import sync_kb_metadata as _sync_kb_metadata
 
         kb_path = tmp_path / "kb"
         kb_path.mkdir()
 
         with (
             patch(
-                "langflow.services.memory_base.document_builders.KBAnalysisHelper.get_metadata",
+                "ketos.services.memory_base.document_builders.KBAnalysisHelper.get_metadata",
                 return_value={"chunks": 5, "source_types": ["file"]},
             ),
-            patch("langflow.services.memory_base.document_builders.KBAnalysisHelper.update_text_metrics"),
+            patch("ketos.services.memory_base.document_builders.KBAnalysisHelper.update_text_metrics"),
             patch(
-                "langflow.services.memory_base.document_builders.KBStorageHelper.get_directory_size", return_value=2048
+                "ketos.services.memory_base.document_builders.KBStorageHelper.get_directory_size", return_value=2048
             ),
         ):
             _sync_kb_metadata(kb_path=kb_path, chroma=MagicMock())
@@ -647,18 +647,18 @@ class TestSyncKbMetadata:
         assert "memory" in written["source_types"]
 
     def test_source_types_sorted(self, tmp_path):
-        from langflow.services.memory_base.document_builders import sync_kb_metadata as _sync_kb_metadata
+        from ketos.services.memory_base.document_builders import sync_kb_metadata as _sync_kb_metadata
 
         kb_path = tmp_path / "kb"
         kb_path.mkdir()
 
         with (
             patch(
-                "langflow.services.memory_base.document_builders.KBAnalysisHelper.get_metadata",
+                "ketos.services.memory_base.document_builders.KBAnalysisHelper.get_metadata",
                 return_value={"chunks": 0, "source_types": ["zzz", "aaa"]},
             ),
-            patch("langflow.services.memory_base.document_builders.KBAnalysisHelper.update_text_metrics"),
-            patch("langflow.services.memory_base.document_builders.KBStorageHelper.get_directory_size", return_value=0),
+            patch("ketos.services.memory_base.document_builders.KBAnalysisHelper.update_text_metrics"),
+            patch("ketos.services.memory_base.document_builders.KBStorageHelper.get_directory_size", return_value=0),
         ):
             _sync_kb_metadata(kb_path=kb_path, chroma=MagicMock())
 
@@ -666,31 +666,31 @@ class TestSyncKbMetadata:
         assert written["source_types"] == sorted(written["source_types"])
 
     def test_json_decode_error_swallowed(self, tmp_path):
-        from langflow.services.memory_base.document_builders import sync_kb_metadata as _sync_kb_metadata
+        from ketos.services.memory_base.document_builders import sync_kb_metadata as _sync_kb_metadata
 
         kb_path = tmp_path / "kb"
         kb_path.mkdir()
 
         with patch(
-            "langflow.services.memory_base.document_builders.KBAnalysisHelper.get_metadata",
+            "ketos.services.memory_base.document_builders.KBAnalysisHelper.get_metadata",
             side_effect=json.JSONDecodeError("bad", "", 0),
         ):
             # Must not raise
             _sync_kb_metadata(kb_path=kb_path, chroma=MagicMock())
 
     def test_value_error_swallowed(self, tmp_path):
-        from langflow.services.memory_base.document_builders import sync_kb_metadata as _sync_kb_metadata
+        from ketos.services.memory_base.document_builders import sync_kb_metadata as _sync_kb_metadata
 
         kb_path = tmp_path / "kb"
         kb_path.mkdir()
 
         with (
             patch(
-                "langflow.services.memory_base.document_builders.KBAnalysisHelper.get_metadata",
+                "ketos.services.memory_base.document_builders.KBAnalysisHelper.get_metadata",
                 return_value={},
             ),
             patch(
-                "langflow.services.memory_base.document_builders.KBAnalysisHelper.update_text_metrics",
+                "ketos.services.memory_base.document_builders.KBAnalysisHelper.update_text_metrics",
                 side_effect=ValueError("bad metric"),
             ),
         ):
@@ -705,8 +705,8 @@ class TestSyncKbMetadata:
 class TestAdvanceCursor:
     @pytest.mark.asyncio
     async def test_normal_update(self):
-        from langflow.services.database.models.memory_base.model import MemoryBaseSession
-        from langflow.services.memory_base.task import _advance_cursor
+        from ketos.services.database.models.memory_base.model import MemoryBaseSession
+        from ketos.services.memory_base.task import _advance_cursor
 
         mb_id = uuid.uuid4()
         new_cursor = uuid.uuid4()
@@ -744,7 +744,7 @@ class TestAdvanceCursor:
     @pytest.mark.asyncio
     async def test_vanished_session_does_not_raise(self):
         """If MemoryBaseSession is gone, _advance_cursor must log a warning and return."""
-        from langflow.services.memory_base.task import _advance_cursor
+        from ketos.services.memory_base.task import _advance_cursor
 
         mock_db = AsyncMock()
         mock_result = MagicMock()
@@ -772,7 +772,7 @@ class TestAdvanceCursor:
 class TestMarkMessagesIngested:
     @pytest.mark.asyncio
     async def test_executes_bulk_update(self):
-        from langflow.services.memory_base.task import _mark_messages_ingested
+        from ketos.services.memory_base.task import _mark_messages_ingested
 
         flow_id = uuid.uuid4()
         messages = [_make_message(flow_id=flow_id) for _ in range(3)]
@@ -793,7 +793,7 @@ class TestMarkMessagesIngested:
     @pytest.mark.asyncio
     async def test_update_sets_ingestion_job_id_and_timestamp(self):
         """The INSERT statement must include job_id and ingested_at for each message."""
-        from langflow.services.memory_base.task import _mark_messages_ingested
+        from ketos.services.memory_base.task import _mark_messages_ingested
 
         flow_id = uuid.uuid4()
         messages = [_make_message(flow_id=flow_id)]
@@ -842,7 +842,7 @@ class TestIngestionLocking:
     @pytest.mark.asyncio
     async def test_live_cursor_used_not_dispatch_snapshot(self, tmp_path):
         """_fetch_pending_messages must receive the live cursor, not the dispatch-time one."""
-        import langflow.services.memory_base.task as task_module
+        import ketos.services.memory_base.task as task_module
 
         memory_base_id = uuid.uuid4()
         flow_id = uuid.uuid4()
@@ -859,15 +859,15 @@ class TestIngestionLocking:
 
         with (
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_root_path",
+                "ketos.services.memory_base.task.KBStorageHelper.get_root_path",
                 return_value=tmp_path,
             ),
             patch(
-                "langflow.services.memory_base.task._read_live_cursor",
+                "ketos.services.memory_base.task._read_live_cursor",
                 AsyncMock(return_value=live_cursor),
             ),
             patch(
-                "langflow.services.memory_base.task._fetch_pending_messages",
+                "ketos.services.memory_base.task._fetch_pending_messages",
                 side_effect=_recording_fetch,
             ),
         ):
@@ -892,7 +892,7 @@ class TestIngestionLocking:
     @pytest.mark.asyncio
     async def test_lock_released_on_task_exception(self, tmp_path):
         """Lock must be released via finally even when the task raises inside the lock body."""
-        import langflow.services.memory_base.task as task_module
+        import ketos.services.memory_base.task as task_module
 
         memory_base_id = uuid.uuid4()
 
@@ -900,15 +900,15 @@ class TestIngestionLocking:
 
         with (
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_root_path",
+                "ketos.services.memory_base.task.KBStorageHelper.get_root_path",
                 return_value=tmp_path,
             ),
             patch(
-                "langflow.services.memory_base.task._read_live_cursor",
+                "ketos.services.memory_base.task._read_live_cursor",
                 AsyncMock(return_value=None),
             ),
             patch(
-                "langflow.services.memory_base.task._fetch_pending_messages",
+                "ketos.services.memory_base.task._fetch_pending_messages",
                 AsyncMock(side_effect=RuntimeError("DB exploded inside lock")),
             ),
             pytest.raises(RuntimeError, match="DB exploded inside lock"),
@@ -934,7 +934,7 @@ class TestIngestionLocking:
 
         This allows execute_with_status to record JobStatus.TIMED_OUT for an accurate audit trail.
         """
-        import langflow.services.memory_base.task as task_module
+        import ketos.services.memory_base.task as task_module
 
         memory_base_id = uuid.uuid4()
 
@@ -948,11 +948,11 @@ class TestIngestionLocking:
         try:
             with (
                 patch(
-                    "langflow.services.memory_base.task.KBStorageHelper.get_root_path",
+                    "ketos.services.memory_base.task.KBStorageHelper.get_root_path",
                     return_value=tmp_path,
                 ),
                 patch(
-                    "langflow.services.memory_base.task.get_settings_service",
+                    "ketos.services.memory_base.task.get_settings_service",
                     return_value=MagicMock(settings=MagicMock(max_ingestion_timeout_secs=0.01)),
                 ),
                 pytest.raises(asyncio.TimeoutError),
@@ -974,7 +974,7 @@ class TestIngestionLocking:
     @pytest.mark.asyncio
     async def test_noop_when_cursor_advanced_by_prior_job(self, tmp_path):
         """If a prior job already advanced the cursor to msg3, fetch from msg3 finds nothing — graceful exit."""
-        import langflow.services.memory_base.task as task_module
+        import ketos.services.memory_base.task as task_module
 
         memory_base_id = uuid.uuid4()
         msg3_id = uuid.uuid4()
@@ -985,19 +985,19 @@ class TestIngestionLocking:
 
         with (
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_root_path",
+                "ketos.services.memory_base.task.KBStorageHelper.get_root_path",
                 return_value=tmp_path,
             ),
             patch(
-                "langflow.services.memory_base.task._read_live_cursor",
+                "ketos.services.memory_base.task._read_live_cursor",
                 AsyncMock(return_value=msg3_id),  # prior job advanced to msg3
             ),
             patch(
-                "langflow.services.memory_base.task._fetch_pending_messages",
+                "ketos.services.memory_base.task._fetch_pending_messages",
                 AsyncMock(return_value=[]),  # nothing after msg3
             ),
             patch(
-                "langflow.services.memory_base.task._advance_cursor",
+                "ketos.services.memory_base.task._advance_cursor",
                 advance_cursor_mock,
             ),
         ):
@@ -1032,7 +1032,7 @@ class TestBuildPreprocessedDocument:
         job_id: str = "job-1",
         preproc_output_id: str = "preproc-1",
     ):
-        from langflow.services.memory_base.document_builders import build_preprocessed_document
+        from ketos.services.memory_base.document_builders import build_preprocessed_document
 
         return build_preprocessed_document(
             output_text=output_text,
@@ -1090,14 +1090,14 @@ class TestBuildPreprocessedDocument:
         assert docs[0].metadata["sender_name"] == "Preprocessor"
 
     def test_long_text_produces_multiple_chunks(self):
-        from langflow.services.memory_base.document_builders import MESSAGE_CHUNK_SIZE
+        from ketos.services.memory_base.document_builders import MESSAGE_CHUNK_SIZE
 
         long_text = "word " * (MESSAGE_CHUNK_SIZE + 100)
         docs = self._call(output_text=long_text)
         assert len(docs) > 1
 
     def test_chunk_index_and_total_chunks_correct_for_multi_chunk(self):
-        from langflow.services.memory_base.document_builders import MESSAGE_CHUNK_SIZE
+        from ketos.services.memory_base.document_builders import MESSAGE_CHUNK_SIZE
 
         long_text = "word " * (MESSAGE_CHUNK_SIZE + 100)
         docs = self._call(output_text=long_text)
@@ -1125,7 +1125,7 @@ class TestIngestMemoryTaskPreprocessing:
     """Tests for the preprocessing=True branch of ingest_memory_task."""
 
     def _make_request(self, flow_id, memory_base_id=None, **kwargs):
-        from langflow.services.memory_base.task import IngestionRequest
+        from ketos.services.memory_base.task import IngestionRequest
 
         defaults = {
             "memory_base_id": memory_base_id or uuid.uuid4(),
@@ -1157,24 +1157,24 @@ class TestIngestMemoryTaskPreprocessing:
 
     @pytest.mark.asyncio
     async def test_kill_phrase_result_skips_chroma_write(self, tmp_path):
-        from langflow.services.memory_base.preprocessing import PreprocessingResult
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.preprocessing import PreprocessingResult
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
         kill_result = PreprocessingResult(status="skipped", output_text="", raw_response="NO_INGEST")
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task.run_preprocessing", AsyncMock(return_value=kill_result)),
-            patch("langflow.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=MagicMock())),
-            patch("langflow.services.memory_base.task._mark_messages_ingested", AsyncMock()),
-            patch("langflow.services.memory_base.task._advance_cursor", AsyncMock()),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task.run_preprocessing", AsyncMock(return_value=kill_result)),
+            patch("ketos.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=MagicMock())),
+            patch("ketos.services.memory_base.task._mark_messages_ingested", AsyncMock()),
+            patch("ketos.services.memory_base.task._advance_cursor", AsyncMock()),
         ):
             result = await ingest_memory_task(request=self._make_request(flow_id))
 
@@ -1182,8 +1182,8 @@ class TestIngestMemoryTaskPreprocessing:
 
     @pytest.mark.asyncio
     async def test_kill_phrase_inserts_skipped_preproc_row(self, tmp_path):
-        from langflow.services.memory_base.preprocessing import PreprocessingResult
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.preprocessing import PreprocessingResult
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
@@ -1191,16 +1191,16 @@ class TestIngestMemoryTaskPreprocessing:
         insert_mock = AsyncMock(return_value=MagicMock())
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task.run_preprocessing", AsyncMock(return_value=kill_result)),
-            patch("langflow.services.memory_base.task._insert_preproc_row", insert_mock),
-            patch("langflow.services.memory_base.task._mark_messages_ingested", AsyncMock()),
-            patch("langflow.services.memory_base.task._advance_cursor", AsyncMock()),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task.run_preprocessing", AsyncMock(return_value=kill_result)),
+            patch("ketos.services.memory_base.task._insert_preproc_row", insert_mock),
+            patch("ketos.services.memory_base.task._mark_messages_ingested", AsyncMock()),
+            patch("ketos.services.memory_base.task._advance_cursor", AsyncMock()),
         ):
             await ingest_memory_task(request=self._make_request(flow_id))
 
@@ -1211,8 +1211,8 @@ class TestIngestMemoryTaskPreprocessing:
 
     @pytest.mark.asyncio
     async def test_kill_phrase_does_not_open_chroma(self, tmp_path):
-        from langflow.services.memory_base.preprocessing import PreprocessingResult
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.preprocessing import PreprocessingResult
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
@@ -1220,18 +1220,18 @@ class TestIngestMemoryTaskPreprocessing:
         chroma_client_mock = MagicMock()
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task.run_preprocessing", AsyncMock(return_value=kill_result)),
-            patch("langflow.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=MagicMock())),
-            patch("langflow.services.memory_base.task._mark_messages_ingested", AsyncMock()),
-            patch("langflow.services.memory_base.task._advance_cursor", AsyncMock()),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task.run_preprocessing", AsyncMock(return_value=kill_result)),
+            patch("ketos.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=MagicMock())),
+            patch("ketos.services.memory_base.task._mark_messages_ingested", AsyncMock()),
+            patch("ketos.services.memory_base.task._advance_cursor", AsyncMock()),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
+                "ketos.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
                 chroma_client_mock,
             ),
         ):
@@ -1241,8 +1241,8 @@ class TestIngestMemoryTaskPreprocessing:
 
     @pytest.mark.asyncio
     async def test_kill_phrase_does_not_call_build_preprocessed_document(self, tmp_path):
-        from langflow.services.memory_base.preprocessing import PreprocessingResult
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.preprocessing import PreprocessingResult
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
@@ -1250,17 +1250,17 @@ class TestIngestMemoryTaskPreprocessing:
         build_doc_mock = MagicMock(return_value=[MagicMock()])
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task.run_preprocessing", AsyncMock(return_value=kill_result)),
-            patch("langflow.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=MagicMock())),
-            patch("langflow.services.memory_base.task._mark_messages_ingested", AsyncMock()),
-            patch("langflow.services.memory_base.task._advance_cursor", AsyncMock()),
-            patch("langflow.services.memory_base.task.build_preprocessed_document", build_doc_mock),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task.run_preprocessing", AsyncMock(return_value=kill_result)),
+            patch("ketos.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=MagicMock())),
+            patch("ketos.services.memory_base.task._mark_messages_ingested", AsyncMock()),
+            patch("ketos.services.memory_base.task._advance_cursor", AsyncMock()),
+            patch("ketos.services.memory_base.task.build_preprocessed_document", build_doc_mock),
         ):
             await ingest_memory_task(request=self._make_request(flow_id))
 
@@ -1268,8 +1268,8 @@ class TestIngestMemoryTaskPreprocessing:
 
     @pytest.mark.asyncio
     async def test_kill_phrase_does_not_call_update_preproc_row_status(self, tmp_path):
-        from langflow.services.memory_base.preprocessing import PreprocessingResult
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.preprocessing import PreprocessingResult
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
@@ -1277,17 +1277,17 @@ class TestIngestMemoryTaskPreprocessing:
         update_mock = AsyncMock()
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task.run_preprocessing", AsyncMock(return_value=kill_result)),
-            patch("langflow.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=MagicMock())),
-            patch("langflow.services.memory_base.task._mark_messages_ingested", AsyncMock()),
-            patch("langflow.services.memory_base.task._advance_cursor", AsyncMock()),
-            patch("langflow.services.memory_base.task._update_preproc_row_status", update_mock),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task.run_preprocessing", AsyncMock(return_value=kill_result)),
+            patch("ketos.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=MagicMock())),
+            patch("ketos.services.memory_base.task._mark_messages_ingested", AsyncMock()),
+            patch("ketos.services.memory_base.task._advance_cursor", AsyncMock()),
+            patch("ketos.services.memory_base.task._update_preproc_row_status", update_mock),
         ):
             await ingest_memory_task(request=self._make_request(flow_id))
 
@@ -1295,8 +1295,8 @@ class TestIngestMemoryTaskPreprocessing:
 
     @pytest.mark.asyncio
     async def test_kill_phrase_marks_messages_ingested(self, tmp_path):
-        from langflow.services.memory_base.preprocessing import PreprocessingResult
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.preprocessing import PreprocessingResult
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
@@ -1304,16 +1304,16 @@ class TestIngestMemoryTaskPreprocessing:
         mark_mock = AsyncMock()
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task.run_preprocessing", AsyncMock(return_value=kill_result)),
-            patch("langflow.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=MagicMock())),
-            patch("langflow.services.memory_base.task._mark_messages_ingested", mark_mock),
-            patch("langflow.services.memory_base.task._advance_cursor", AsyncMock()),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task.run_preprocessing", AsyncMock(return_value=kill_result)),
+            patch("ketos.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=MagicMock())),
+            patch("ketos.services.memory_base.task._mark_messages_ingested", mark_mock),
+            patch("ketos.services.memory_base.task._advance_cursor", AsyncMock()),
         ):
             await ingest_memory_task(request=self._make_request(flow_id))
 
@@ -1321,8 +1321,8 @@ class TestIngestMemoryTaskPreprocessing:
 
     @pytest.mark.asyncio
     async def test_kill_phrase_advances_cursor(self, tmp_path):
-        from langflow.services.memory_base.preprocessing import PreprocessingResult
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.preprocessing import PreprocessingResult
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
@@ -1330,16 +1330,16 @@ class TestIngestMemoryTaskPreprocessing:
         advance_mock = AsyncMock()
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task.run_preprocessing", AsyncMock(return_value=kill_result)),
-            patch("langflow.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=MagicMock())),
-            patch("langflow.services.memory_base.task._mark_messages_ingested", AsyncMock()),
-            patch("langflow.services.memory_base.task._advance_cursor", advance_mock),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task.run_preprocessing", AsyncMock(return_value=kill_result)),
+            patch("ketos.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=MagicMock())),
+            patch("ketos.services.memory_base.task._mark_messages_ingested", AsyncMock()),
+            patch("ketos.services.memory_base.task._advance_cursor", advance_mock),
         ):
             await ingest_memory_task(request=self._make_request(flow_id))
 
@@ -1348,8 +1348,8 @@ class TestIngestMemoryTaskPreprocessing:
 
     @pytest.mark.asyncio
     async def test_normal_result_ingests_to_chroma(self, tmp_path):
-        from langflow.services.memory_base.preprocessing import PreprocessingResult
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.preprocessing import PreprocessingResult
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
@@ -1357,37 +1357,37 @@ class TestIngestMemoryTaskPreprocessing:
         preproc_row = self._make_preproc_row_mock()
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task.run_preprocessing", AsyncMock(return_value=ok_result)),
-            patch("langflow.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=preproc_row)),
-            patch("langflow.services.memory_base.task.build_preprocessed_document", return_value=[MagicMock()]),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task.run_preprocessing", AsyncMock(return_value=ok_result)),
+            patch("ketos.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=preproc_row)),
+            patch("ketos.services.memory_base.task.build_preprocessed_document", return_value=[MagicMock()]),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
+                "ketos.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
                 AsyncMock(return_value=False),
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.build_embeddings",
+                "ketos.services.memory_base.task.KBIngestionHelper.build_embeddings",
                 AsyncMock(return_value=MagicMock()),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
+                "ketos.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
                 return_value=MagicMock(),
             ),
-            patch("langflow.services.memory_base.task.Chroma"),
+            patch("ketos.services.memory_base.task.Chroma"),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
+                "ketos.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
                 AsyncMock(return_value=1),
             ),
-            patch("langflow.services.memory_base.task.sync_kb_metadata"),
-            patch("langflow.services.memory_base.task._update_preproc_row_status", AsyncMock()),
-            patch("langflow.services.memory_base.task._mark_messages_ingested", AsyncMock()),
-            patch("langflow.services.memory_base.task._advance_cursor", AsyncMock()),
-            patch("langflow.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
+            patch("ketos.services.memory_base.task.sync_kb_metadata"),
+            patch("ketos.services.memory_base.task._update_preproc_row_status", AsyncMock()),
+            patch("ketos.services.memory_base.task._mark_messages_ingested", AsyncMock()),
+            patch("ketos.services.memory_base.task._advance_cursor", AsyncMock()),
+            patch("ketos.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
         ):
             result = await ingest_memory_task(request=self._make_request(flow_id))
 
@@ -1395,8 +1395,8 @@ class TestIngestMemoryTaskPreprocessing:
 
     @pytest.mark.asyncio
     async def test_normal_result_inserts_processed_preproc_row(self, tmp_path):
-        from langflow.services.memory_base.preprocessing import PreprocessingResult
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.preprocessing import PreprocessingResult
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
@@ -1405,37 +1405,37 @@ class TestIngestMemoryTaskPreprocessing:
         insert_mock = AsyncMock(return_value=preproc_row)
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task.run_preprocessing", AsyncMock(return_value=ok_result)),
-            patch("langflow.services.memory_base.task._insert_preproc_row", insert_mock),
-            patch("langflow.services.memory_base.task.build_preprocessed_document", return_value=[MagicMock()]),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task.run_preprocessing", AsyncMock(return_value=ok_result)),
+            patch("ketos.services.memory_base.task._insert_preproc_row", insert_mock),
+            patch("ketos.services.memory_base.task.build_preprocessed_document", return_value=[MagicMock()]),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
+                "ketos.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
                 AsyncMock(return_value=False),
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.build_embeddings",
+                "ketos.services.memory_base.task.KBIngestionHelper.build_embeddings",
                 AsyncMock(return_value=MagicMock()),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
+                "ketos.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
                 return_value=MagicMock(),
             ),
-            patch("langflow.services.memory_base.task.Chroma"),
+            patch("ketos.services.memory_base.task.Chroma"),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
+                "ketos.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
                 AsyncMock(return_value=1),
             ),
-            patch("langflow.services.memory_base.task.sync_kb_metadata"),
-            patch("langflow.services.memory_base.task._update_preproc_row_status", AsyncMock()),
-            patch("langflow.services.memory_base.task._mark_messages_ingested", AsyncMock()),
-            patch("langflow.services.memory_base.task._advance_cursor", AsyncMock()),
-            patch("langflow.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
+            patch("ketos.services.memory_base.task.sync_kb_metadata"),
+            patch("ketos.services.memory_base.task._update_preproc_row_status", AsyncMock()),
+            patch("ketos.services.memory_base.task._mark_messages_ingested", AsyncMock()),
+            patch("ketos.services.memory_base.task._advance_cursor", AsyncMock()),
+            patch("ketos.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
         ):
             await ingest_memory_task(request=self._make_request(flow_id))
 
@@ -1444,8 +1444,8 @@ class TestIngestMemoryTaskPreprocessing:
 
     @pytest.mark.asyncio
     async def test_normal_result_flips_row_to_ingested_after_chroma_write(self, tmp_path):
-        from langflow.services.memory_base.preprocessing import PreprocessingResult
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.preprocessing import PreprocessingResult
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
@@ -1454,37 +1454,37 @@ class TestIngestMemoryTaskPreprocessing:
         update_mock = AsyncMock()
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task.run_preprocessing", AsyncMock(return_value=ok_result)),
-            patch("langflow.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=preproc_row)),
-            patch("langflow.services.memory_base.task.build_preprocessed_document", return_value=[MagicMock()]),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task.run_preprocessing", AsyncMock(return_value=ok_result)),
+            patch("ketos.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=preproc_row)),
+            patch("ketos.services.memory_base.task.build_preprocessed_document", return_value=[MagicMock()]),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
+                "ketos.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
                 AsyncMock(return_value=False),
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.build_embeddings",
+                "ketos.services.memory_base.task.KBIngestionHelper.build_embeddings",
                 AsyncMock(return_value=MagicMock()),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
+                "ketos.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
                 return_value=MagicMock(),
             ),
-            patch("langflow.services.memory_base.task.Chroma"),
+            patch("ketos.services.memory_base.task.Chroma"),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
+                "ketos.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
                 AsyncMock(return_value=1),
             ),
-            patch("langflow.services.memory_base.task.sync_kb_metadata"),
-            patch("langflow.services.memory_base.task._update_preproc_row_status", update_mock),
-            patch("langflow.services.memory_base.task._mark_messages_ingested", AsyncMock()),
-            patch("langflow.services.memory_base.task._advance_cursor", AsyncMock()),
-            patch("langflow.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
+            patch("ketos.services.memory_base.task.sync_kb_metadata"),
+            patch("ketos.services.memory_base.task._update_preproc_row_status", update_mock),
+            patch("ketos.services.memory_base.task._mark_messages_ingested", AsyncMock()),
+            patch("ketos.services.memory_base.task._advance_cursor", AsyncMock()),
+            patch("ketos.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
         ):
             await ingest_memory_task(request=self._make_request(flow_id))
 
@@ -1493,8 +1493,8 @@ class TestIngestMemoryTaskPreprocessing:
 
     @pytest.mark.asyncio
     async def test_normal_result_calls_build_preprocessed_document_with_source_ids(self, tmp_path):
-        from langflow.services.memory_base.preprocessing import PreprocessingResult
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.preprocessing import PreprocessingResult
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
@@ -1503,37 +1503,37 @@ class TestIngestMemoryTaskPreprocessing:
         build_doc_mock = MagicMock(return_value=[MagicMock()])
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task.run_preprocessing", AsyncMock(return_value=ok_result)),
-            patch("langflow.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=preproc_row)),
-            patch("langflow.services.memory_base.task.build_preprocessed_document", build_doc_mock),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task.run_preprocessing", AsyncMock(return_value=ok_result)),
+            patch("ketos.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=preproc_row)),
+            patch("ketos.services.memory_base.task.build_preprocessed_document", build_doc_mock),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
+                "ketos.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
                 AsyncMock(return_value=False),
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.build_embeddings",
+                "ketos.services.memory_base.task.KBIngestionHelper.build_embeddings",
                 AsyncMock(return_value=MagicMock()),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
+                "ketos.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
                 return_value=MagicMock(),
             ),
-            patch("langflow.services.memory_base.task.Chroma"),
+            patch("ketos.services.memory_base.task.Chroma"),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
+                "ketos.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
                 AsyncMock(return_value=1),
             ),
-            patch("langflow.services.memory_base.task.sync_kb_metadata"),
-            patch("langflow.services.memory_base.task._update_preproc_row_status", AsyncMock()),
-            patch("langflow.services.memory_base.task._mark_messages_ingested", AsyncMock()),
-            patch("langflow.services.memory_base.task._advance_cursor", AsyncMock()),
-            patch("langflow.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
+            patch("ketos.services.memory_base.task.sync_kb_metadata"),
+            patch("ketos.services.memory_base.task._update_preproc_row_status", AsyncMock()),
+            patch("ketos.services.memory_base.task._mark_messages_ingested", AsyncMock()),
+            patch("ketos.services.memory_base.task._advance_cursor", AsyncMock()),
+            patch("ketos.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
         ):
             await ingest_memory_task(request=self._make_request(flow_id))
 
@@ -1543,26 +1543,26 @@ class TestIngestMemoryTaskPreprocessing:
 
     @pytest.mark.asyncio
     async def test_missing_preproc_model_raises_runtime_error(self, tmp_path):
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
             pytest.raises(RuntimeError, match="preproc_model is not set"),
         ):
             await ingest_memory_task(request=self._make_request(flow_id, preproc_model=None))
 
     @pytest.mark.asyncio
     async def test_resume_path_skips_llm_call(self, tmp_path):
-        from langflow.services.memory_base.preprocessing import PreprocessingResult
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.preprocessing import PreprocessingResult
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
@@ -1572,36 +1572,36 @@ class TestIngestMemoryTaskPreprocessing:
         )
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=preproc_row)),
-            patch("langflow.services.memory_base.task.run_preprocessing", run_preproc_mock),
-            patch("langflow.services.memory_base.task.build_preprocessed_document", return_value=[MagicMock()]),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=preproc_row)),
+            patch("ketos.services.memory_base.task.run_preprocessing", run_preproc_mock),
+            patch("ketos.services.memory_base.task.build_preprocessed_document", return_value=[MagicMock()]),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
+                "ketos.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
                 AsyncMock(return_value=False),
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.build_embeddings",
+                "ketos.services.memory_base.task.KBIngestionHelper.build_embeddings",
                 AsyncMock(return_value=MagicMock()),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
+                "ketos.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
                 return_value=MagicMock(),
             ),
-            patch("langflow.services.memory_base.task.Chroma"),
+            patch("ketos.services.memory_base.task.Chroma"),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
+                "ketos.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
                 AsyncMock(return_value=1),
             ),
-            patch("langflow.services.memory_base.task.sync_kb_metadata"),
-            patch("langflow.services.memory_base.task._update_preproc_row_status", AsyncMock()),
-            patch("langflow.services.memory_base.task._mark_messages_ingested", AsyncMock()),
-            patch("langflow.services.memory_base.task._advance_cursor", AsyncMock()),
-            patch("langflow.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
+            patch("ketos.services.memory_base.task.sync_kb_metadata"),
+            patch("ketos.services.memory_base.task._update_preproc_row_status", AsyncMock()),
+            patch("ketos.services.memory_base.task._mark_messages_ingested", AsyncMock()),
+            patch("ketos.services.memory_base.task._advance_cursor", AsyncMock()),
+            patch("ketos.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
         ):
             await ingest_memory_task(request=self._make_request(flow_id))
 
@@ -1609,7 +1609,7 @@ class TestIngestMemoryTaskPreprocessing:
 
     @pytest.mark.asyncio
     async def test_resume_does_not_call_insert_preproc_row(self, tmp_path):
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
@@ -1617,36 +1617,36 @@ class TestIngestMemoryTaskPreprocessing:
         insert_mock = AsyncMock()
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=preproc_row)),
-            patch("langflow.services.memory_base.task._insert_preproc_row", insert_mock),
-            patch("langflow.services.memory_base.task.build_preprocessed_document", return_value=[MagicMock()]),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=preproc_row)),
+            patch("ketos.services.memory_base.task._insert_preproc_row", insert_mock),
+            patch("ketos.services.memory_base.task.build_preprocessed_document", return_value=[MagicMock()]),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
+                "ketos.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
                 AsyncMock(return_value=False),
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.build_embeddings",
+                "ketos.services.memory_base.task.KBIngestionHelper.build_embeddings",
                 AsyncMock(return_value=MagicMock()),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
+                "ketos.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
                 return_value=MagicMock(),
             ),
-            patch("langflow.services.memory_base.task.Chroma"),
+            patch("ketos.services.memory_base.task.Chroma"),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
+                "ketos.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
                 AsyncMock(return_value=1),
             ),
-            patch("langflow.services.memory_base.task.sync_kb_metadata"),
-            patch("langflow.services.memory_base.task._update_preproc_row_status", AsyncMock()),
-            patch("langflow.services.memory_base.task._mark_messages_ingested", AsyncMock()),
-            patch("langflow.services.memory_base.task._advance_cursor", AsyncMock()),
-            patch("langflow.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
+            patch("ketos.services.memory_base.task.sync_kb_metadata"),
+            patch("ketos.services.memory_base.task._update_preproc_row_status", AsyncMock()),
+            patch("ketos.services.memory_base.task._mark_messages_ingested", AsyncMock()),
+            patch("ketos.services.memory_base.task._advance_cursor", AsyncMock()),
+            patch("ketos.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
         ):
             await ingest_memory_task(request=self._make_request(flow_id))
 
@@ -1654,7 +1654,7 @@ class TestIngestMemoryTaskPreprocessing:
 
     @pytest.mark.asyncio
     async def test_resume_path_restricts_batch_to_source_ids(self, tmp_path):
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg1 = _make_message(flow_id=flow_id, text="first")
@@ -1663,35 +1663,35 @@ class TestIngestMemoryTaskPreprocessing:
         build_doc_mock = MagicMock(return_value=[MagicMock()])
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg1, msg2])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=preproc_row)),
-            patch("langflow.services.memory_base.task.build_preprocessed_document", build_doc_mock),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg1, msg2])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=preproc_row)),
+            patch("ketos.services.memory_base.task.build_preprocessed_document", build_doc_mock),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
+                "ketos.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
                 AsyncMock(return_value=False),
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.build_embeddings",
+                "ketos.services.memory_base.task.KBIngestionHelper.build_embeddings",
                 AsyncMock(return_value=MagicMock()),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
+                "ketos.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
                 return_value=MagicMock(),
             ),
-            patch("langflow.services.memory_base.task.Chroma"),
+            patch("ketos.services.memory_base.task.Chroma"),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
+                "ketos.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
                 AsyncMock(return_value=1),
             ),
-            patch("langflow.services.memory_base.task.sync_kb_metadata"),
-            patch("langflow.services.memory_base.task._update_preproc_row_status", AsyncMock()),
-            patch("langflow.services.memory_base.task._mark_messages_ingested", AsyncMock()),
-            patch("langflow.services.memory_base.task._advance_cursor", AsyncMock()),
-            patch("langflow.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
+            patch("ketos.services.memory_base.task.sync_kb_metadata"),
+            patch("ketos.services.memory_base.task._update_preproc_row_status", AsyncMock()),
+            patch("ketos.services.memory_base.task._mark_messages_ingested", AsyncMock()),
+            patch("ketos.services.memory_base.task._advance_cursor", AsyncMock()),
+            patch("ketos.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
         ):
             await ingest_memory_task(request=self._make_request(flow_id))
 
@@ -1702,20 +1702,20 @@ class TestIngestMemoryTaskPreprocessing:
 
     @pytest.mark.asyncio
     async def test_resume_path_vanished_messages_returns_early(self, tmp_path):
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
         preproc_row = self._make_preproc_row_mock(source_ids=["ghost-id-1", "ghost-id-2"])
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=preproc_row)),
-            patch("langflow.services.memory_base.task._update_preproc_row_status", AsyncMock()),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=preproc_row)),
+            patch("ketos.services.memory_base.task._update_preproc_row_status", AsyncMock()),
         ):
             result = await ingest_memory_task(request=self._make_request(flow_id))
 
@@ -1723,7 +1723,7 @@ class TestIngestMemoryTaskPreprocessing:
 
     @pytest.mark.asyncio
     async def test_resume_path_vanished_updates_row_to_skipped(self, tmp_path):
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
@@ -1731,13 +1731,13 @@ class TestIngestMemoryTaskPreprocessing:
         update_mock = AsyncMock()
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=preproc_row)),
-            patch("langflow.services.memory_base.task._update_preproc_row_status", update_mock),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=preproc_row)),
+            patch("ketos.services.memory_base.task._update_preproc_row_status", update_mock),
         ):
             await ingest_memory_task(request=self._make_request(flow_id))
 
@@ -1748,8 +1748,8 @@ class TestIngestMemoryTaskPreprocessing:
 
     @pytest.mark.asyncio
     async def test_preprocessing_empty_document_output_returns_early(self, tmp_path):
-        from langflow.services.memory_base.preprocessing import PreprocessingResult
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.preprocessing import PreprocessingResult
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
@@ -1757,15 +1757,15 @@ class TestIngestMemoryTaskPreprocessing:
         preproc_row = self._make_preproc_row_mock()
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task.run_preprocessing", AsyncMock(return_value=ok_result)),
-            patch("langflow.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=preproc_row)),
-            patch("langflow.services.memory_base.task.build_preprocessed_document", return_value=[]),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task.run_preprocessing", AsyncMock(return_value=ok_result)),
+            patch("ketos.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=preproc_row)),
+            patch("ketos.services.memory_base.task.build_preprocessed_document", return_value=[]),
         ):
             result = await ingest_memory_task(request=self._make_request(flow_id))
 
@@ -1773,8 +1773,8 @@ class TestIngestMemoryTaskPreprocessing:
 
     @pytest.mark.asyncio
     async def test_preprocessing_job_cancelled_before_chroma(self, tmp_path):
-        from langflow.services.memory_base.preprocessing import PreprocessingResult
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.preprocessing import PreprocessingResult
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
@@ -1783,21 +1783,21 @@ class TestIngestMemoryTaskPreprocessing:
         chroma_client_mock = MagicMock()
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task.run_preprocessing", AsyncMock(return_value=ok_result)),
-            patch("langflow.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=preproc_row)),
-            patch("langflow.services.memory_base.task.build_preprocessed_document", return_value=[MagicMock()]),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task.run_preprocessing", AsyncMock(return_value=ok_result)),
+            patch("ketos.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=preproc_row)),
+            patch("ketos.services.memory_base.task.build_preprocessed_document", return_value=[MagicMock()]),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
+                "ketos.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
                 AsyncMock(return_value=True),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
+                "ketos.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
                 chroma_client_mock,
             ),
         ):
@@ -1808,8 +1808,8 @@ class TestIngestMemoryTaskPreprocessing:
 
     @pytest.mark.asyncio
     async def test_preprocessing_chroma_write_failure_raises_and_cleans_up(self, tmp_path):
-        from langflow.services.memory_base.preprocessing import PreprocessingResult
-        from langflow.services.memory_base.task import ingest_memory_task
+        from ketos.services.memory_base.preprocessing import PreprocessingResult
+        from ketos.services.memory_base.task import ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id)
@@ -1818,34 +1818,34 @@ class TestIngestMemoryTaskPreprocessing:
         cleanup_mock = AsyncMock()
 
         with (
-            patch("langflow.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
-            patch("langflow.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
-            patch("langflow.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
-            patch("langflow.services.memory_base.task.run_preprocessing", AsyncMock(return_value=ok_result)),
-            patch("langflow.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=preproc_row)),
-            patch("langflow.services.memory_base.task.build_preprocessed_document", return_value=[MagicMock()]),
+            patch("ketos.services.memory_base.task.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.task._acquire_session_lock", AsyncMock(return_value=asyncio.Lock())),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._fetch_pending_messages", AsyncMock(return_value=[msg])),
+            patch("ketos.services.memory_base.task._get_pending_preproc_row", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task.run_preprocessing", AsyncMock(return_value=ok_result)),
+            patch("ketos.services.memory_base.task._insert_preproc_row", AsyncMock(return_value=preproc_row)),
+            patch("ketos.services.memory_base.task.build_preprocessed_document", return_value=[MagicMock()]),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
+                "ketos.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
                 AsyncMock(return_value=False),
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.build_embeddings",
+                "ketos.services.memory_base.task.KBIngestionHelper.build_embeddings",
                 AsyncMock(return_value=MagicMock()),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
+                "ketos.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
                 return_value=MagicMock(),
             ),
-            patch("langflow.services.memory_base.task.Chroma"),
+            patch("ketos.services.memory_base.task.Chroma"),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
+                "ketos.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
                 AsyncMock(side_effect=RuntimeError("Chroma write failed")),
             ),
-            patch("langflow.services.memory_base.task.KBIngestionHelper.cleanup_chroma_chunks_by_job", cleanup_mock),
-            patch("langflow.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
+            patch("ketos.services.memory_base.task.KBIngestionHelper.cleanup_chroma_chunks_by_job", cleanup_mock),
+            patch("ketos.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
             pytest.raises(RuntimeError, match="Chroma write failed"),
         ):
             await ingest_memory_task(request=self._make_request(flow_id))
@@ -1868,7 +1868,7 @@ class TestPreprocessingHelpers:
         output_text: str | None = "some text",
         source_ids: list | None = None,
     ):
-        from langflow.services.database.models.memory_base.model import MemoryBasePreprocessingOutput
+        from ketos.services.database.models.memory_base.model import MemoryBasePreprocessingOutput
 
         return MemoryBasePreprocessingOutput(
             memory_base_id=uuid.uuid4(),
@@ -1883,7 +1883,7 @@ class TestPreprocessingHelpers:
 
     @pytest.mark.asyncio
     async def test_get_pending_preproc_row_returns_none_when_no_rows(self):
-        from langflow.services.memory_base.task import _get_pending_preproc_row
+        from ketos.services.memory_base.task import _get_pending_preproc_row
 
         mock_result = MagicMock()
         mock_result.first = MagicMock(return_value=None)
@@ -1895,7 +1895,7 @@ class TestPreprocessingHelpers:
 
     @pytest.mark.asyncio
     async def test_get_pending_preproc_row_returns_row_when_present(self):
-        from langflow.services.memory_base.task import _get_pending_preproc_row
+        from ketos.services.memory_base.task import _get_pending_preproc_row
 
         row = self._make_preproc_row()
         mock_result = MagicMock()
@@ -1911,7 +1911,7 @@ class TestPreprocessingHelpers:
 
     @pytest.mark.asyncio
     async def test_insert_preproc_row_calls_add_commit_refresh(self):
-        from langflow.services.memory_base.task import _insert_preproc_row
+        from ketos.services.memory_base.task import _insert_preproc_row
 
         mock_db = AsyncMock()
         await _insert_preproc_row(
@@ -1931,8 +1931,8 @@ class TestPreprocessingHelpers:
 
     @pytest.mark.asyncio
     async def test_insert_preproc_row_returns_row_with_correct_status_and_memory_base_id(self):
-        from langflow.services.database.models.memory_base.model import MemoryBasePreprocessingOutput
-        from langflow.services.memory_base.task import _insert_preproc_row
+        from ketos.services.database.models.memory_base.model import MemoryBasePreprocessingOutput
+        from ketos.services.memory_base.task import _insert_preproc_row
 
         mock_db = AsyncMock()
         mb_id = uuid.uuid4()
@@ -1954,7 +1954,7 @@ class TestPreprocessingHelpers:
 
     @pytest.mark.asyncio
     async def test_insert_preproc_row_stores_source_message_ids(self):
-        from langflow.services.memory_base.task import _insert_preproc_row
+        from ketos.services.memory_base.task import _insert_preproc_row
 
         mock_db = AsyncMock()
         ids = ["aaa", "bbb", "ccc"]
@@ -1975,7 +1975,7 @@ class TestPreprocessingHelpers:
 
     @pytest.mark.asyncio
     async def test_update_preproc_row_status_sets_status(self):
-        from langflow.services.memory_base.task import _update_preproc_row_status
+        from ketos.services.memory_base.task import _update_preproc_row_status
 
         row = self._make_preproc_row(status="processed")
         mock_db = MagicMock()
@@ -1984,7 +1984,7 @@ class TestPreprocessingHelpers:
 
     @pytest.mark.asyncio
     async def test_update_preproc_row_status_updates_job_id(self):
-        from langflow.services.memory_base.task import _update_preproc_row_status
+        from ketos.services.memory_base.task import _update_preproc_row_status
 
         row = self._make_preproc_row()
         new_job_id = uuid.uuid4()
@@ -1994,7 +1994,7 @@ class TestPreprocessingHelpers:
 
     @pytest.mark.asyncio
     async def test_update_preproc_row_status_clear_output_false_preserves_text(self):
-        from langflow.services.memory_base.task import _update_preproc_row_status
+        from ketos.services.memory_base.task import _update_preproc_row_status
 
         row = self._make_preproc_row(output_text="important text")
         mock_db = MagicMock()
@@ -2003,7 +2003,7 @@ class TestPreprocessingHelpers:
 
     @pytest.mark.asyncio
     async def test_update_preproc_row_status_clear_output_true_nullifies_text(self):
-        from langflow.services.memory_base.task import _update_preproc_row_status
+        from ketos.services.memory_base.task import _update_preproc_row_status
 
         row = self._make_preproc_row(output_text="some text")
         mock_db = MagicMock()
@@ -2012,7 +2012,7 @@ class TestPreprocessingHelpers:
 
     @pytest.mark.asyncio
     async def test_update_preproc_row_status_calls_db_add(self):
-        from langflow.services.memory_base.task import _update_preproc_row_status
+        from ketos.services.memory_base.task import _update_preproc_row_status
 
         row = self._make_preproc_row()
         mock_db = MagicMock()
@@ -2023,7 +2023,7 @@ class TestPreprocessingHelpers:
     async def test_update_preproc_row_status_updates_updated_at_timestamp(self):
         from datetime import datetime, timezone
 
-        from langflow.services.memory_base.task import _update_preproc_row_status
+        from ketos.services.memory_base.task import _update_preproc_row_status
 
         old_time = datetime(2020, 1, 1, tzinfo=timezone.utc)
         row = self._make_preproc_row()
@@ -2060,8 +2060,8 @@ class TestFetchPendingMessagesFiltersErrors:
 
     @pytest.mark.asyncio
     async def test_excludes_messages_with_error_flag_or_error_category(self):
-        from langflow.services.database.models.message.model import MessageTable
-        from langflow.services.memory_base.task import _fetch_pending_messages
+        from ketos.services.database.models.message.model import MessageTable
+        from ketos.services.memory_base.task import _fetch_pending_messages
         from sqlmodel import SQLModel
         from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -2141,8 +2141,8 @@ class TestFetchPendingMessagesFiltersErrors:
     @pytest.mark.asyncio
     async def test_other_session_or_flow_messages_still_excluded_even_when_error(self):
         """Sanity check: error filter does not accidentally pull in cross-session rows."""
-        from langflow.services.database.models.message.model import MessageTable
-        from langflow.services.memory_base.task import _fetch_pending_messages
+        from ketos.services.database.models.message.model import MessageTable
+        from ketos.services.memory_base.task import _fetch_pending_messages
         from sqlmodel import SQLModel
         from sqlmodel.ext.asyncio.session import AsyncSession
 

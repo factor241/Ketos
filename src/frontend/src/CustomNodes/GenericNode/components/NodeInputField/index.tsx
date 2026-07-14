@@ -108,7 +108,11 @@ export default function NodeInputField({
       title={title}
       myData={myData}
       colors={colors}
-      setFilterEdge={setFilterEdge}
+      setFilterEdge={
+        setFilterEdge as unknown as React.ComponentProps<
+          typeof HandleRenderComponent
+        >["setFilterEdge"]
+      }
       showNode={showNode}
       testIdComplement={`${data?.type?.toLowerCase()}-${
         showNode ? "shownode" : "noshownode"
@@ -197,6 +201,7 @@ export default function NodeInputField({
             editNode={false}
             handleNodeClass={handleNodeClass}
             showParameter={true}
+            inspectionPanel={false}
             nodeClass={data.node!}
             placeholder={
               isToolMode

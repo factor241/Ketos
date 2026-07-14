@@ -2,7 +2,7 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
-from langflow.utils.validate import (
+from ketos.utils.validate import (
     create_class,
     create_function,
     execute_function,
@@ -110,7 +110,7 @@ def my_function(x):
 
 def test_create_class():
     code = """
-from langflow.custom import CustomComponent
+from ketos.custom import CustomComponent
 
 class ExternalClass:
     def __init__(self, value):
@@ -129,7 +129,7 @@ class MyComponent(CustomComponent):
 
 def test_create_class_module_import():
     code = """
-from langflow.custom import CustomComponent
+from ketos.custom import CustomComponent
 from PIL import ImageDraw
 
 class ExternalClass:
@@ -149,7 +149,7 @@ class MyComponent(CustomComponent):
 
 def test_create_class_with_multiple_external_classes():
     code = """
-from langflow.custom import CustomComponent
+from ketos.custom import CustomComponent
 
 class ExternalClass1:
     def __init__(self, value):
@@ -173,7 +173,7 @@ class MyComponent(CustomComponent):
 
 def test_create_class_with_external_variables_and_functions():
     code = """
-from langflow.custom import CustomComponent
+from ketos.custom import CustomComponent
 
 external_variable = "external_value"
 

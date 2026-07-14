@@ -12,9 +12,9 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 if TYPE_CHECKING:
-    from lfx.graph.graph.base import Graph
-    from lfx.graph.schema import RunOutputs
-    from lfx.schema.schema import InputValueRequest
+    from kfx.graph.graph.base import Graph
+    from kfx.graph.schema import RunOutputs
+    from kfx.schema.schema import InputValueRequest
 
 
 @dataclass
@@ -400,7 +400,7 @@ async def run_via_async_start(
 ) -> ExecutionTrace:
     """Run graph using async_start path and capture trace.
 
-    This mimics how the CLI `lfx run` command executes graphs.
+    This mimics how the CLI `kfx run` command executes graphs.
     """
     trace = ExecutionTrace(path_name="async_start")
     tracer = ExecutionTracer(graph, trace)

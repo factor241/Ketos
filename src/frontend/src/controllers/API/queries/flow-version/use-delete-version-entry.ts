@@ -21,7 +21,7 @@ export const useDeleteVersionEntry: useMutationFunctionType<
     );
   };
 
-  const mutation: UseMutationResult<void, any, IDeleteVersionEntry> = mutate(
+  const mutation: UseMutationResult<void, Error, IDeleteVersionEntry> = mutate(
     ["useDeleteVersionEntry"],
     deleteEntryFn,
     {

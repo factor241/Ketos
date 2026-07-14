@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import ShadTooltip from "@/components/common/shadTooltipComponent";
 import { Input } from "@/components/ui/input";
+import { useCanvasReadOnly } from "@/contexts/canvas-read-only-context";
 import useFlowStore from "@/stores/flowStore";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
 import { cn } from "@/utils/utils";
@@ -29,21 +30,23 @@ export default function NodeName({
   setHasChangedNodeDescription: (hasChanged: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const isCanvasReadOnly = useCanvasReadOnly();
   const [nodeName, setNodeName] = useState<string>(display_name ?? "");
   const takeSnapshot = useFlowsManagerStore((state) => state.takeSnapshot);
   const setNode = useFlowStore((state) => state.setNode);
 
   useEffect(() => {
-    if (selected && editNameDescription) {
+    if (!isCanvasReadOnly && selected && editNameDescription) {
       takeSnapshot();
     }
-  }, [editNameDescription]);
+  }, [editNameDescription, isCanvasReadOnly, selected, takeSnapshot]);
 
   useEffect(() => {
     setNodeName(display_name ?? "");
   }, [display_name]);
 
   const handleBlur = () => {
+    if (isCanvasReadOnly) return;
     if (nodeName?.trim() !== "") {
       setNodeName(nodeName);
       setNode(nodeId, (old) => ({
@@ -62,6 +65,7 @@ export default function NodeName({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (isCanvasReadOnly) return;
     if (e.key === "Enter") {
       handleBlur();
       toggleEditNameDescription();
@@ -73,11 +77,12 @@ export default function NodeName({
   };
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isCanvasReadOnly) return;
     setNodeName(e.target.value);
     setHasChangedNodeDescription(true);
   };
 
-  return editNameDescription ? (
+  return editNameDescription && !isCanvasReadOnly ? (
     <div className="w-full">
       <Input
         onBlur={handleBlur}
@@ -95,7 +100,7 @@ export default function NodeName({
         data-testid={"title-" + display_name}
         className={cn(
           "nodoubleclick truncate font-medium text-primary",
-          showNode ? "cursor-text" : "cursor-default",
+          showNode && !isCanvasReadOnly ? "cursor-text" : "cursor-default",
         )}
       >
         <div className="flex cursor-grab items-center gap-2">
@@ -108,7 +113,7 @@ export default function NodeName({
           {legacy && (
             <div className="shrink-0">
               <div className="flex items-center text-xxs justify-center rounded-sm border border-accent-amber text-accent-amber-foreground px-1">
-                Legacy
+                {t("sidebar.legacyLabel")}
               </div>
             </div>
           )}

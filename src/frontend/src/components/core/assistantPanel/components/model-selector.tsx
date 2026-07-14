@@ -257,9 +257,9 @@ export function ModelSelector({
         <span
           data-testid="assistant-model-weak-hint"
           className="select-none text-xs italic text-muted-foreground/70"
-          title="This model may underperform on agent tasks"
+          title={t("assistant.weakModelWarning")}
         >
-          This model may underperform on agent tasks
+          {t("assistant.weakModelWarning")}
         </span>
       )}
       {isManageProvidersOpen && (

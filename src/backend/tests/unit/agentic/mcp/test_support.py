@@ -4,7 +4,7 @@ Tests the replace_none_and_null_with_empty_str function
 which sanitizes data for MCP tool responses.
 """
 
-from langflow.agentic.mcp.support import replace_none_and_null_with_empty_str
+from ketos.agentic.mcp.support import replace_none_and_null_with_empty_str
 
 NOT_AVAIL = "Not available"
 

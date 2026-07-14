@@ -39,7 +39,7 @@ export const BundleItem = memo(
 
     // The static SIDEBAR_BUNDLES list does not populate ``extension_id``;
     // fall back to deriving it from the bundle's component templates so a
-    // runtime-discovered extension (installed package OR ``lfx extension dev``)
+    // runtime-discovered extension (installed package OR ``kfx extension dev``)
     // surfaces the Reload action without manual registration in the static list.
     const extensionId = useMemo(
       () => item.extension_id ?? deriveBundleExtensionId(item.name, dataFilter),
@@ -50,7 +50,7 @@ export const BundleItem = memo(
     //   * the build-time kill switch is on (corporate Mode B/C builds can
     //     dead-code-eliminate the UI by setting it to false),
     //   * the backend has the reload route enabled (runtime mirror of
-    //     ``LANGFLOW_ENABLE_EXTENSION_RELOAD`` from ``/config``), AND
+    //     ``KETOS_ENABLE_EXTENSION_RELOAD`` from ``/config``), AND
     //   * the bundle was loaded from a manifest-shipping Extension (we
     //     have an extensionId to send to the reload endpoint).
     // BundleHeaderActions itself re-checks; the predicate here also gates

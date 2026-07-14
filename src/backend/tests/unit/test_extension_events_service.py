@@ -1,7 +1,7 @@
 import multiprocessing
 import time
 
-from lfx.services.extension_events.service import ExtensionEventsService
+from kfx.services.extension_events.service import ExtensionEventsService
 
 
 def _worker_emit(cache_dir, event_type, payload):
@@ -31,11 +31,11 @@ def test_emit_and_since(tmp_path):
 def test_since_filters_by_timestamp(tmp_path):
     svc = ExtensionEventsService(cache_dir=tmp_path / "cache")
     e1 = svc.emit("bundle_reloaded", {"bundle": "a"})
-    svc.emit("flow_migrated", {"flow_id": "f1"})
+    svc.emit("components_added", {"bundle": "a", "components": ["Prompt"]})
 
     events, _ = svc.since(e1.timestamp)
     assert len(events) == 1
-    assert events[0].type == "flow_migrated"
+    assert events[0].type == "components_added"
 
 
 def test_cursor_at_or_before_event_excluded(tmp_path):
@@ -145,7 +145,11 @@ def test_invalid_event_type_raises(tmp_path):
 def test_keyspace_isolation(tmp_path):
     svc = ExtensionEventsService(cache_dir=tmp_path / "cache")
     svc.emit("bundle_reloaded", {"bundle": "a"}, keyspace="global")
-    svc.emit("flow_migrated", {"flow_id": "f1"}, keyspace="session:abc")
+    svc.emit(
+        "components_removed",
+        {"bundle": "a", "components": ["LegacyPrompt"]},
+        keyspace="session:abc",
+    )
 
     global_events, _ = svc.since(0.0, keyspace="global")
     session_events, _ = svc.since(0.0, keyspace="session:abc")
@@ -154,7 +158,7 @@ def test_keyspace_isolation(tmp_path):
     assert global_events[0].type == "bundle_reloaded"
 
     assert len(session_events) == 1
-    assert session_events[0].type == "flow_migrated"
+    assert session_events[0].type == "components_removed"
 
 
 # ---------------------------------------------------------------------------
@@ -188,7 +192,11 @@ def test_cross_worker_keyspace_isolation(tmp_path):
     worker_b = ExtensionEventsService(cache_dir=shared)
 
     worker_a.emit("bundle_reloaded", {"bundle": "a"}, keyspace="global")
-    worker_b.emit("flow_migrated", {"flow_id": "f1"}, keyspace="session:xyz")
+    worker_b.emit(
+        "extension_error",
+        {"bundle": "a", "message": "reload failed"},
+        keyspace="session:xyz",
+    )
 
     global_events, _ = worker_b.since(0.0, keyspace="global")
     session_events, _ = worker_a.since(0.0, keyspace="session:xyz")

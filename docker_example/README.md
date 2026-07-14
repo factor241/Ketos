@@ -1,6 +1,6 @@
-# Running LangFlow with Docker
+# Running Ketos with Docker
 
-This guide will help you get LangFlow up and running using Docker and Docker Compose.
+This guide will help you get Ketos up and running using Docker and Docker Compose.
 
 ## Prerequisites
 
@@ -9,51 +9,61 @@ This guide will help you get LangFlow up and running using Docker and Docker Com
 
 ## Steps
 
-1. Clone the LangFlow repository:
+1. Clone the Ketos repository:
 
    ```sh
-   git clone https://github.com/langflow-ai/langflow.git
+   git clone https://git.ketos.test/ketos/ketos.git
    ```
 
-2. Navigate to the `docker_example` directory:
+2. Build the local Ketos image from the repository root:
 
    ```sh
-   cd langflow/docker_example
+   docker build --file docker/build_and_push.Dockerfile --tag ketos/ketos:local .
    ```
 
-3. Create a `.env` file with the LangFlow admin password:
+3. Navigate to the `docker_example` directory:
 
    ```sh
-   LANGFLOW_SUPERUSER_PASSWORD=replace-with-a-strong-password
+   cd ketos/docker_example
    ```
 
-   The default admin username is `langflow`.
+4. Create a `.env` file with the Ketos admin password:
 
-4. Run the Docker Compose file:
+   ```sh
+   KETOS_SUPERUSER_PASSWORD=replace-with-a-strong-password
+   ```
+
+   The default admin username is `ketos`.
+
+5. Run the Docker Compose file:
 
    ```sh
    docker compose up
    ```
 
-LangFlow will now be accessible at [http://localhost:7860/](http://localhost:7860/).
+Ketos will now be accessible at [http://localhost:7860/](http://localhost:7860/).
 
 ## Docker Compose Configuration
 
-The Docker Compose configuration spins up two services: `langflow` and `postgres`.
+The Docker Compose configuration spins up two services: `ketos` and `postgres`.
 
-### LangFlow Service
+### Ketos Service
 
-The `langflow` service uses the `langflowai/langflow:latest` Docker image and exposes port 7860. It depends on the `postgres` service.
+The `ketos` service defaults to the `ketos/ketos:local` Docker image and exposes port 7860. Its
+`pull_policy: never` setting makes external pulls fail closed, so the selected image must already
+exist locally. The same local-image policy applies to `pre.docker-compose.yml`. The service depends
+on `postgres`; Compose may pull that third-party image when it is missing locally. To pre-pull only
+that dependency, run `docker compose pull postgres`.
 
 Environment variables:
 
-- `LANGFLOW_DATABASE_URL`: The connection string for the PostgreSQL database.
-- `LANGFLOW_SUPERUSER_PASSWORD`: The initial admin password. This value is required in `.env`.
-- `LANGFLOW_CONFIG_DIR`: The directory where LangFlow stores logs, file storage, monitor data, and secret keys.
+- `KETOS_DATABASE_URL`: The connection string for the PostgreSQL database.
+- `KETOS_SUPERUSER_PASSWORD`: The initial admin password. This value is required in `.env`.
+- `KETOS_CONFIG_DIR`: The directory where Ketos stores logs, file storage, monitor data, and secret keys.
 
 Volumes:
 
-- `langflow-data`: This volume is mapped to `/app/langflow` in the container.
+- `ketos-data`: This volume is mapped to `/app/ketos` in the container.
 
 ### PostgreSQL Service
 
@@ -67,28 +77,34 @@ Environment variables:
 
 Volumes:
 
-- `langflow-postgres`: This volume is mapped to `/var/lib/postgresql/data` in the container.
+- `ketos-postgres`: This volume is mapped to `/var/lib/postgresql/data` in the container.
 
 ### Upgrading from a `bookworm`-initialized volume
 
 Earlier versions of this example used `postgres:16`, which initially shipped on Debian Bookworm (glibc 2.36). The pinned image now uses Trixie (glibc 2.41). On the first start against a volume that was initialized under Bookworm, PostgreSQL logs a one-time warning:
 
 ```
-WARNING: database "langflow" has a collation version mismatch
+WARNING: database "ketos" has a collation version mismatch
 DETAIL: The database was created using collation version 2.36, but the operating system provides version 2.41.
 ```
 
-To clear it, refresh the collation version against the running database (one-off, takes seconds on a typical Langflow database):
+To clear it, refresh the collation version against the running database (one-off, takes seconds on a typical Ketos database):
 
 ```sh
 docker compose exec postgres \
-  psql -U langflow -d langflow \
-  -c "REINDEX DATABASE langflow;" \
-  -c "ALTER DATABASE langflow REFRESH COLLATION VERSION;"
+  psql -U ketos -d ketos \
+  -c "REINDEX DATABASE ketos;" \
+  -c "ALTER DATABASE ketos REFRESH COLLATION VERSION;"
 ```
 
 Fresh installs are unaffected.
 
-## Switching to a Specific LangFlow Version
+## Switching to a Specific Ketos Version
 
-If you want to use a specific version of LangFlow, you can modify the `image` field under the `langflow` service in the Docker Compose file. For example, to use version 1.0-alpha, change `langflowai/langflow:latest` to `langflowai/langflow:1.0-alpha`.
+Set `KETOS_IMAGE` to the tag of an image that you have already built or loaded locally. For example:
+
+```sh
+KETOS_IMAGE=ketos/ketos:1.0 docker compose up
+```
+
+Because the service keeps `pull_policy: never`, Compose will not fetch that tag from a registry.

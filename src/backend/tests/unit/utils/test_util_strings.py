@@ -1,5 +1,5 @@
 import pytest
-from lfx.utils import util_strings
+from kfx.utils import util_strings
 
 
 @pytest.mark.parametrize(

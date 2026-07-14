@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """CI guard: components must not WRITE to ``os.environ``.
 
-``os.environ`` is process-global. A warm, long-lived serving process (``lfx serve``'s
-worker pool, or the main Langflow server) handles many callers' requests in one
+``os.environ`` is process-global. A warm, long-lived serving process (``kfx serve``'s
+worker pool, or the main Ketos server) handles many callers' requests in one
 process, so a per-request write like ``os.environ["OPENAI_API_KEY"] = caller_key``
 bleeds into other requests on that worker and persists until overwritten — leaking
 one caller's credential to another. (The bleed is per-worker: uvicorn ``--workers N``
@@ -12,7 +12,7 @@ are separate processes, but every concurrent request inside one worker shares it
 READS are fine — this guard only flags WRITES. Pass per-request values through the
 component's config/params instead of mutating the environment.
 
-This walks every component source file (stdlib AST only — zero dependency on the lfx
+This walks every component source file (stdlib AST only — zero dependency on the KFX
 package, since CI may run before it is importable) and flags:
 
     os.environ[k] = v            os.environ = {...}        del os.environ[k]
@@ -41,8 +41,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # Component source roots (matches scripts/migrate/check_bare_names.py coverage).
 DEFAULT_ROOTS = (
-    "src/lfx/src/lfx/components",
-    "src/backend/base/langflow/components",
+    "src/kfx/src/kfx/components",
     "src/bundles",
 )
 
@@ -53,11 +52,11 @@ ALLOWLIST: dict[str, set[str]] = {
     # The "Dotenv" component's entire purpose is to load a user-supplied .env blob into
     # the process environment. It is a known multi-tenant hazard flagged for separate
     # review; allow only the load_dotenv call, still flagging any direct os.environ write.
-    "src/lfx/src/lfx/components/datastax/dotenv.py": {"load_dotenv"},
+    "src/kfx/src/kfx/components/datastax/dotenv.py": {"load_dotenv"},
     # mem0 creates PostHog clients at import time unless MEM0_TELEMETRY is
     # disabled. This import-time default is process-wide by design, preserves an
     # explicit deployer opt-in, and does not carry per-request values or secrets.
-    "src/lfx/src/lfx/components/mem0/mem0_chat_memory.py": {"mutate:setdefault"},
+    "src/kfx/src/kfx/components/mem0/mem0_chat_memory.py": {"mutate:setdefault"},
 }
 
 _MUTATING_METHODS = {"setdefault", "update", "pop", "clear", "popitem", "__setitem__", "__delitem__"}
@@ -214,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     print("ERROR: component(s) write to os.environ (process-global — bleeds across requests")
-    print("       in a shared serving process such as `lfx serve`):\n")
+    print("       in a shared serving process such as `kfx serve`):\n")
     for rel, lineno, kind, snippet in sorted(violations):
         print(f"  {rel}:{lineno}  [{kind}]  {snippet}")
     print(

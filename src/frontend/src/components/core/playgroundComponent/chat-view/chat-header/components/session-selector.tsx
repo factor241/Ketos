@@ -6,6 +6,7 @@ import { useUpdateSessionName } from "@/controllers/API/queries/messages/use-ren
 import { useVoiceStore } from "@/stores/voiceStore";
 import { cn } from "@/utils/utils";
 import { useSessionHasMessages } from "../hooks/use-session-has-messages";
+import { getSessionTitle } from "../utils/get-session-title";
 import { SessionMoreMenu } from "./session-more-menu";
 import { SessionRename } from "./session-rename";
 
@@ -103,6 +104,7 @@ export function SessionSelector({
   const canModifySession = !isDefaultSession;
   const canDeleteSession = hasMessages || !isDefaultSession;
   const canRenameSession = canModifySession && hasMessages;
+  const sessionTitle = getSessionTitle(session, currentFlowId);
 
   return (
     <div
@@ -114,6 +116,15 @@ export function SessionSelector({
         if (isEditing) e.stopPropagation();
         else toggleVisibility();
       }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if ((event.key === "Enter" || event.key === " ") && !isEditing) {
+          event.preventDefault();
+          setNewSessionCloseVoiceAssistant(true);
+          toggleVisibility();
+        }
+      }}
       className={cn(
         "file-component-accordion-div group cursor-pointer rounded-md text-left text-mmd hover:bg-accent",
         isVisible ? "bg-accent font-semibold" : "font-normal",
@@ -122,13 +133,15 @@ export function SessionSelector({
       <div className="flex h-8 items-center justify-between overflow-hidden w-full">
         <div className="flex w-full min-w-0 items-center gap-2 px-2">
           {showCheckbox && onToggleSelect && (
-            <div
+            <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleSelect();
               }}
               className="cursor-pointer flex items-center justify-center w-4 h-8 flex-shrink-0"
               data-testid={`session-${session}-checkbox`}
+              aria-label={isSelected ? "Deselect session" : "Select session"}
             >
               {/* The 16x16 column is always reserved so the row layout
                   does not jump. The icon itself is hidden by default and
@@ -147,15 +160,10 @@ export function SessionSelector({
                     : "text-muted-foreground invisible group-hover:visible",
                 )}
               />
-            </div>
+            </button>
           )}
           {isEditing ? (
-            <div
-              onClick={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              onMouseUp={(e) => e.stopPropagation()}
-              className="w-full"
-            >
+            <div className="w-full">
               <SessionRename
                 sessionId={session}
                 onSave={handleRenameSave}
@@ -165,10 +173,10 @@ export function SessionSelector({
               />
             </div>
           ) : (
-            <ShadTooltip styleClasses="z-50" content={session}>
+            <ShadTooltip styleClasses="z-50" content={sessionTitle}>
               <div className="relative w-full overflow-hidden">
                 <span className="w-full truncate bg-transparent text-mmd">
-                  {isDefaultSession ? t("chat.defaultSession") : session}
+                  {sessionTitle}
                 </span>
               </div>
             </ShadTooltip>

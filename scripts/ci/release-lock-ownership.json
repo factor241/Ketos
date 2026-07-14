@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "locks": [
+    {
+      "path": "uv.lock",
+      "producer": "uv lock --python 3.13",
+      "role": "primary-python-install-lock",
+      "runtime_consumer": "uv"
+    },
+    {
+      "path": "package-lock.json",
+      "producer": "npx --yes --package=node@22.22.0 --package=npm@11.16.0 -- npm install --package-lock-only --ignore-scripts",
+      "role": "primary-npm-install-lock",
+      "runtime_consumer": "npm",
+      "cwd": "."
+    },
+    {
+      "path": "docs/package-lock.json",
+      "producer": "npx --yes --package=node@22.22.0 --package=npm@11.16.0 -- npm install --package-lock-only --ignore-scripts",
+      "role": "primary-npm-install-lock",
+      "runtime_consumer": "npm",
+      "cwd": "docs"
+    },
+    {
+      "path": "src/frontend/package-lock.json",
+      "producer": "npx --yes --package=node@22.22.0 --package=npm@11.16.0 -- npm install --package-lock-only --ignore-scripts",
+      "role": "primary-npm-install-lock",
+      "runtime_consumer": "npm",
+      "cwd": "src/frontend"
+    },
+    {
+      "path": "src/frontend/pnpm-lock.yaml",
+      "producer": "npx --yes --package=node@22.22.0 --package=pnpm@11.8.0 -- pnpm install --lockfile-only --ignore-scripts",
+      "role": "verification-only-cross-solver-attestation",
+      "runtime_consumer": null,
+      "cwd": "src/frontend",
+      "primary_lock": "src/frontend/package-lock.json"
+    }
+  ]
+}

@@ -6,9 +6,10 @@ from unittest.mock import patch
 
 import pytest
 import typer
-from langflow.__main__ import (
+from ketos.__main__ import (
     DIRECT_UVICORN_PLATFORMS,
     _create_superuser,
+    _resolve_superuser_cli_env,
     api_key_banner,
     app,
     build_direct_uvicorn_kwargs,
@@ -17,7 +18,7 @@ from langflow.__main__ import (
     get_number_of_workers,
     use_direct_uvicorn,
 )
-from lfx.services import deps
+from kfx.services import deps
 
 
 @pytest.fixture(scope="module")
@@ -79,8 +80,8 @@ class TestSuperuserCommand:
         """Test additional superuser creation requires authentication in production."""
         # We already have active_super_user from the fixture, so we're not in first setup
         with (
-            patch("langflow.services.deps.get_settings_service") as mock_settings,
-            patch("langflow.__main__.get_settings_service") as mock_settings2,
+            patch("ketos.services.deps.get_settings_service") as mock_settings,
+            patch("ketos.__main__.get_settings_service") as mock_settings2,
         ):
             # Configure settings for production mode (AUTO_LOGIN=False)
             mock_auth_settings = type("MockAuthSettings", (), {"AUTO_LOGIN": False, "ENABLE_SUPERUSER_CLI": True})()
@@ -98,8 +99,8 @@ class TestSuperuserCommand:
         """Test additional superuser creation blocked when AUTO_LOGIN=true."""
         # We already have active_super_user from the fixture, so we're not in first setup
         with (
-            patch("langflow.services.deps.get_settings_service") as mock_settings,
-            patch("langflow.__main__.get_settings_service") as mock_settings2,
+            patch("ketos.services.deps.get_settings_service") as mock_settings,
+            patch("ketos.__main__.get_settings_service") as mock_settings2,
         ):
             # Configure settings for AUTO_LOGIN mode
             mock_auth_settings = type("MockAuthSettings", (), {"AUTO_LOGIN": True, "ENABLE_SUPERUSER_CLI": True})()
@@ -116,8 +117,8 @@ class TestSuperuserCommand:
     async def test_cli_disabled_blocks_creation(self, client):  # noqa: ARG002
         """Test ENABLE_SUPERUSER_CLI=false blocks superuser creation."""
         with (
-            patch("langflow.services.deps.get_settings_service") as mock_settings,
-            patch("langflow.__main__.get_settings_service") as mock_settings2,
+            patch("ketos.services.deps.get_settings_service") as mock_settings,
+            patch("ketos.__main__.get_settings_service") as mock_settings2,
         ):
             mock_auth_settings = type("MockAuthSettings", (), {"AUTO_LOGIN": True, "ENABLE_SUPERUSER_CLI": False})()
             mock_settings.return_value.auth_settings = mock_auth_settings
@@ -141,10 +142,10 @@ class TestSuperuserCommand:
         """Test failed superuser creation with invalid auth token."""
         # We already have active_super_user from the fixture, so we're not in first setup
         with (
-            patch("langflow.services.deps.get_settings_service") as mock_settings,
-            patch("langflow.__main__.get_settings_service") as mock_settings2,
-            patch("langflow.__main__.get_current_user_from_access_token", side_effect=Exception("Invalid token")),
-            patch("langflow.__main__.check_key", return_value=None),
+            patch("ketos.services.deps.get_settings_service") as mock_settings,
+            patch("ketos.__main__.get_settings_service") as mock_settings2,
+            patch("ketos.__main__.get_current_user_from_access_token", side_effect=Exception("Invalid token")),
+            patch("ketos.__main__.check_key", return_value=None),
         ):
             # Configure settings for production mode (AUTO_LOGIN=False)
             mock_auth_settings = type("MockAuthSettings", (), {"AUTO_LOGIN": False, "ENABLE_SUPERUSER_CLI": True})()
@@ -161,8 +162,8 @@ class TestSuperuserCommand:
 def test_get_number_of_workers():
     """Test that get_number_of_workers uses cpu_count on Linux."""
     with (
-        patch("langflow.__main__.platform.system", return_value="Linux"),
-        patch("langflow.__main__.cpu_count", return_value=4),
+        patch("ketos.__main__.platform.system", return_value="Linux"),
+        patch("ketos.__main__.cpu_count", return_value=4),
     ):
         # Test default behavior (None)
         workers = get_number_of_workers(None)
@@ -174,7 +175,7 @@ def test_get_number_of_workers():
 
 
 # ---------------------------------------------------------------------------
-# Platform routing for `langflow run` startup.
+# Platform routing for `ketos run` startup.
 #
 # These tests pin the policy that on Windows and macOS we bypass Gunicorn and
 # run uvicorn directly against a pre-built app object, while on Linux we use
@@ -205,13 +206,13 @@ def test_direct_uvicorn_platforms_constant_is_stable():
 @pytest.mark.parametrize("system", ["Darwin", "Windows"])
 def test_clamp_uvicorn_workers_caps_to_one_on_direct_uvicorn(system):
     """Workers > 1 must be clamped to 1 with a warning on direct-uvicorn platforms."""
-    # langflow uses loguru, not stdlib logging — patch the logger method
+    # ketos uses loguru, not stdlib logging — patch the logger method
     # directly rather than relying on caplog.
-    with patch("langflow.__main__.logger") as mock_logger:
+    with patch("ketos.__main__.logger") as mock_logger:
         assert clamp_uvicorn_workers(4, system=system) == 1
     mock_logger.warning.assert_called_once()
     # The warning should mention what we clamped and why, so users can
-    # diagnose `langflow run --workers N` regressing to a single worker.
+    # diagnose `ketos run --workers N` regressing to a single worker.
     fmt, *args = mock_logger.warning.call_args.args
     assert "workers > 1" in fmt, f"warning did not explain the clamp: {fmt!r}"
     assert system in args, f"warning did not mention platform={system}: args={args!r}"
@@ -355,7 +356,7 @@ def _settings_service_with_queue(queue_type: str) -> SimpleNamespace:
 def test_ensure_multi_worker_safe_refuses_multiple_workers():
     """Default in-memory queue + workers > 1 must refuse to start."""
     with (
-        patch("langflow.__main__.get_settings_service", return_value=_settings_service_with_queue("asyncio")),
+        patch("ketos.__main__.get_settings_service", return_value=_settings_service_with_queue("asyncio")),
         pytest.raises(RuntimeError) as exc_info,
     ):
         ensure_multi_worker_safe(num_workers=3)
@@ -368,14 +369,14 @@ def test_ensure_multi_worker_safe_refuses_multiple_workers():
 def test_ensure_multi_worker_safe_error_lists_workarounds():
     """Error must point operators at concrete fixes, not just describe the bug."""
     with (
-        patch("langflow.__main__.get_settings_service", return_value=_settings_service_with_queue("asyncio")),
+        patch("ketos.__main__.get_settings_service", return_value=_settings_service_with_queue("asyncio")),
         pytest.raises(RuntimeError) as exc_info,
     ):
         ensure_multi_worker_safe(num_workers=3)
 
     msg = str(exc_info.value)
     # Shared queue is the proper fix for any event_delivery mode.
-    assert "LANGFLOW_JOB_QUEUE_TYPE=redis" in msg
+    assert "KETOS_JOB_QUEUE_TYPE=redis" in msg
     # Single worker sidesteps cross-worker routing entirely.
     assert "--workers 1" in msg
     # event_delivery=direct works but cannot be enforced at startup, so it's a
@@ -385,5 +386,40 @@ def test_ensure_multi_worker_safe_error_lists_workarounds():
 
 def test_ensure_multi_worker_safe_allows_redis_queue():
     """Redis-backed job queue shares state across workers; multi-worker is safe."""
-    with patch("langflow.__main__.get_settings_service", return_value=_settings_service_with_queue("redis")):
+    with patch("ketos.__main__.get_settings_service", return_value=_settings_service_with_queue("redis")):
         ensure_multi_worker_safe(num_workers=4)
+
+
+def test_superuser_cli_accepts_legacy_environment(monkeypatch) -> None:
+    from kfx.brand_env import BrandEnvLegacyWarning
+
+    monkeypatch.delenv("KETOS_LOG_LEVEL", raising=False)
+    monkeypatch.delenv("KETOS_SUPERUSER_TOKEN", raising=False)
+    monkeypatch.setenv("LANGFLOW_LOG_LEVEL", "warning")
+    monkeypatch.setenv("LANGFLOW_SUPERUSER_TOKEN", "legacy-token")
+
+    with pytest.warns(BrandEnvLegacyWarning):
+        assert _resolve_superuser_cli_env(None, None) == ("warning", "legacy-token")
+
+
+def test_superuser_cli_explicit_values_override_environment(monkeypatch) -> None:
+    monkeypatch.setenv("KETOS_LOG_LEVEL", "warning")
+    monkeypatch.setenv("LANGFLOW_LOG_LEVEL", "info")
+    monkeypatch.setenv("KETOS_SUPERUSER_TOKEN", "canonical-secret")
+    monkeypatch.setenv("LANGFLOW_SUPERUSER_TOKEN", "legacy-secret")
+
+    assert _resolve_superuser_cli_env("debug", "explicit-token") == ("debug", "explicit-token")
+
+
+def test_superuser_cli_rejects_secret_conflict_without_values(monkeypatch) -> None:
+    from kfx.brand_env import BrandEnvConflictError
+
+    monkeypatch.setenv("KETOS_SUPERUSER_TOKEN", "canonical-secret")
+    monkeypatch.setenv("LANGFLOW_SUPERUSER_TOKEN", "legacy-secret")
+
+    with pytest.raises(BrandEnvConflictError) as raised:
+        _resolve_superuser_cli_env("error", None)
+
+    message = str(raised.value)
+    assert "canonical-secret" not in message
+    assert "legacy-secret" not in message

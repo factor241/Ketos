@@ -78,7 +78,7 @@ if ! poetry install; then
 fi
 
 # Start the backend
-LANGFLOW_DATABASE_URL=sqlite:///./temp LANGFLOW_AUTO_LOGIN=True poetry run langflow run --backend-only --port 7860 --host 0.0.0.0 --no-open-browser > /dev/null 2>&1 &
+KETOS_DATABASE_URL=sqlite:///./temp KETOS_AUTO_LOGIN=True uv run ketos run --backend-only --port 7860 --host 0.0.0.0 --no-open-browser > /dev/null 2>&1 &
 backend_pid=$!  # Capture PID of the backend process
 # Adjust sleep duration as needed
 sleep 25

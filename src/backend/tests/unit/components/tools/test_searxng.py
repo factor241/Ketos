@@ -10,8 +10,8 @@ import os
 import socket
 from unittest.mock import Mock, patch
 
-from lfx.components.tools.searxng import SearXNGToolComponent
-from lfx.schema.dotdict import dotdict
+from kfx.components.tools.searxng import SearXNGToolComponent
+from kfx.schema.dotdict import dotdict
 
 
 def _resolve_public(host, *_args, **_kwargs):
@@ -39,7 +39,7 @@ class TestSearXNGSSRFProtection:
         )
 
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             patch("requests.get") as mock_get,
         ):
             result = component.update_build_config(build_config, "http://169.254.169.254", "url")
@@ -59,7 +59,7 @@ class TestSearXNGSSRFProtection:
         tool = component.build_tool()
 
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             patch("requests.get") as mock_get,
         ):
             result = tool.func(query="secrets")
@@ -84,7 +84,7 @@ class TestSearXNGSSRFProtection:
         search_response.json = Mock(return_value={"results": [{"title": "a"}, {"title": "b"}]})
 
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             patch("socket.getaddrinfo", side_effect=_resolve_public),
             patch("requests.get", return_value=search_response) as mock_get,
         ):

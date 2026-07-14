@@ -5,7 +5,7 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException, status
 from httpx import AsyncClient
-from langflow.services.database.models.user import User
+from ketos.services.database.models.user import User
 
 # Mark all tests in this module as asyncio
 pytestmark = pytest.mark.asyncio
@@ -24,7 +24,7 @@ def mock_user():
 
 @pytest.fixture
 def mock_mcp_server():
-    with patch("langflow.api.v1.mcp.server") as mock:
+    with patch("ketos.api.v1.mcp.server") as mock:
         # Basic mocking for server attributes potentially accessed during endpoint calls
         mock.request_context = MagicMock()
         mock.request_context.meta = MagicMock()
@@ -58,13 +58,13 @@ async def mock_streamable_http_manager():
 
     manager.handle_request = AsyncMock(side_effect=fake_handle_request)
 
-    with patch("langflow.api.v1.mcp.get_streamable_http_manager", return_value=manager):
+    with patch("ketos.api.v1.mcp.get_streamable_http_manager", return_value=manager):
         yield manager
 
 
 @pytest.fixture
 def mock_sse_transport():
-    with patch("langflow.api.v1.mcp.sse") as mock:
+    with patch("ketos.api.v1.mcp.sse") as mock:
         mock.connect_sse = AsyncMock()
         mock.handle_post_message = AsyncMock()
         yield mock
@@ -103,7 +103,7 @@ class _FailingRunContext:
 # Fixture to mock the current user context variable needed for auth in /sse GET
 @pytest.fixture(autouse=True)
 def mock_current_user_ctx(mock_user):
-    with patch("langflow.api.v1.mcp.current_user_ctx") as mock:
+    with patch("ketos.api.v1.mcp.current_user_ctx") as mock:
         mock.get.return_value = mock_user
         mock.set = MagicMock(return_value="dummy_token")  # Return a dummy token for reset
         mock.reset = MagicMock()
@@ -280,7 +280,7 @@ async def test_mcp_streamable_delete_endpoint_no_auth(client: AsyncClient):
 
 async def test_streamable_http_start_stop_lifecycle():
     """Ensure StreamableHTTP starts and stops its session manager cleanly."""
-    from langflow.api.v1.mcp import StreamableHTTP
+    from ketos.api.v1.mcp import StreamableHTTP
 
     entered = asyncio.Event()
     exited = asyncio.Event()
@@ -289,10 +289,10 @@ async def test_streamable_http_start_stop_lifecycle():
 
     with (
         patch(
-            "langflow.api.v1.mcp.StreamableHTTPSessionManager",
+            "ketos.api.v1.mcp.StreamableHTTPSessionManager",
             return_value=manager_instance,
         ),
-        patch("langflow.api.v1.mcp.logger.adebug", new_callable=AsyncMock),
+        patch("ketos.api.v1.mcp.logger.adebug", new_callable=AsyncMock),
     ):
         streamable_http = StreamableHTTP()
         await streamable_http.start()
@@ -305,7 +305,7 @@ async def test_streamable_http_start_stop_lifecycle():
 
 async def test_streamable_http_start_failure_keeps_manager_unavailable():
     """Ensure failures while starting the session manager propagate and keep manager unavailable."""
-    from langflow.api.v1.mcp import StreamableHTTP
+    from ketos.api.v1.mcp import StreamableHTTP
 
     failure = RuntimeError("boom")
     manager_instance = MagicMock()
@@ -313,11 +313,11 @@ async def test_streamable_http_start_failure_keeps_manager_unavailable():
 
     with (
         patch(
-            "langflow.api.v1.mcp.StreamableHTTPSessionManager",
+            "ketos.api.v1.mcp.StreamableHTTPSessionManager",
             return_value=manager_instance,
         ),
-        patch("langflow.api.v1.mcp.logger.adebug", new_callable=AsyncMock),
-        patch("langflow.api.v1.mcp.logger.aexception", new_callable=AsyncMock),
+        patch("ketos.api.v1.mcp.logger.adebug", new_callable=AsyncMock),
+        patch("ketos.api.v1.mcp.logger.aexception", new_callable=AsyncMock),
     ):
         streamable_http = StreamableHTTP()
         with pytest.raises(RuntimeError):
@@ -329,7 +329,7 @@ async def test_streamable_http_start_failure_keeps_manager_unavailable():
 
 async def test_streamable_http_start_failure_surfaces_exception_once():
     """Verify StreamableHTTP.start surfaces the exact exception raised by _start_session_manager."""
-    from langflow.api.v1.mcp import StreamableHTTP
+    from ketos.api.v1.mcp import StreamableHTTP
 
     failure = RuntimeError("failed to run session manager")
     manager_instance = MagicMock()
@@ -338,10 +338,10 @@ async def test_streamable_http_start_failure_surfaces_exception_once():
     async_logger = AsyncMock()
     with (
         patch(
-            "langflow.api.v1.mcp.StreamableHTTPSessionManager",
+            "ketos.api.v1.mcp.StreamableHTTPSessionManager",
             return_value=manager_instance,
         ),
-        patch("langflow.api.v1.mcp.logger.aexception", new=async_logger),
+        patch("ketos.api.v1.mcp.logger.aexception", new=async_logger),
     ):
         streamable_http = StreamableHTTP()
         with pytest.raises(RuntimeError) as exc_info:
@@ -362,7 +362,7 @@ async def test_streamable_http_start_failure_surfaces_exception_once():
 async def test_find_validation_error_with_pydantic_error():
     """Test that find_validation_error correctly identifies ValidationError."""
     import pydantic
-    from langflow.api.v1.mcp import find_validation_error
+    from ketos.api.v1.mcp import find_validation_error
 
     # Create a pydantic ValidationError by catching it
     validation_error = None
@@ -387,7 +387,7 @@ async def test_find_validation_error_with_pydantic_error():
 @pytest.mark.asyncio(loop_scope="session")
 async def test_find_validation_error_without_pydantic_error():
     """Test that find_validation_error returns None for non-pydantic errors."""
-    from langflow.api.v1.mcp import find_validation_error
+    from ketos.api.v1.mcp import find_validation_error
 
     error = ValueError("Test error")
     assert find_validation_error(error) is None
@@ -397,7 +397,7 @@ async def test_find_validation_error_without_pydantic_error():
 async def test_find_validation_error_with_context():
     """Test that find_validation_error searches __context__ chain."""
     import pydantic
-    from langflow.api.v1.mcp import find_validation_error
+    from ketos.api.v1.mcp import find_validation_error
 
     # Create a pydantic ValidationError by catching it
     validation_error = None
@@ -435,7 +435,7 @@ async def test_mcp_sse_validation_error_logged():
     # is available and could be used by the SSE endpoint if needed
     # The actual usage in a real SSE connection is tested through integration tests
     import pydantic
-    from langflow.api.v1.mcp import find_validation_error
+    from ketos.api.v1.mcp import find_validation_error
 
     # Verify the function exists and works
     validation_error = None

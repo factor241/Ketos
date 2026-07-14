@@ -4,7 +4,7 @@ import asyncio
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from langflow.utils.template_validation import (
+from ketos.utils.template_validation import (
     _validate_event_stream,
     validate_flow_can_build,
     validate_flow_code,
@@ -115,7 +115,7 @@ class TestValidateTemplateStructure:
 class TestValidateFlowCanBuild:
     """Test cases for validate_flow_can_build function."""
 
-    @patch("langflow.utils.template_validation.Graph")
+    @patch("ketos.utils.template_validation.Graph")
     def test_valid_flow_builds_successfully(self, mock_graph_class):
         """Test validation passes when flow builds successfully."""
         # Setup mock graph
@@ -133,7 +133,7 @@ class TestValidateFlowCanBuild:
         mock_graph_class.from_payload.assert_called_once()
         mock_graph.validate_stream.assert_called_once()
 
-    @patch("langflow.utils.template_validation.Graph")
+    @patch("ketos.utils.template_validation.Graph")
     def test_flow_build_fails_with_exception(self, mock_graph_class):
         """Test validation fails when flow build raises exception."""
         mock_graph_class.from_payload.side_effect = ValueError("Build failed")
@@ -143,7 +143,7 @@ class TestValidateFlowCanBuild:
         assert len(errors) == 1
         assert "test.json: Failed to build flow graph: Build failed" in errors
 
-    @patch("langflow.utils.template_validation.Graph")
+    @patch("ketos.utils.template_validation.Graph")
     def test_flow_has_no_vertices(self, mock_graph_class):
         """Test validation fails when flow has no vertices."""
         mock_graph = Mock()
@@ -154,7 +154,7 @@ class TestValidateFlowCanBuild:
         errors = validate_flow_can_build(template_data, "test.json")
         assert "test.json: Flow has no vertices after building" in errors
 
-    @patch("langflow.utils.template_validation.Graph")
+    @patch("ketos.utils.template_validation.Graph")
     def test_vertex_missing_id(self, mock_graph_class):
         """Test validation fails when vertex is missing ID."""
         mock_vertex = Mock()
@@ -167,7 +167,7 @@ class TestValidateFlowCanBuild:
         errors = validate_flow_can_build(template_data, "test.json")
         assert "test.json: Vertex missing ID" in errors
 
-    @patch("langflow.utils.template_validation.Graph")
+    @patch("ketos.utils.template_validation.Graph")
     def test_uses_unique_flow_id(self, mock_graph_class):
         """Test that unique flow ID and name are used."""
         mock_graph = Mock()
@@ -185,7 +185,7 @@ class TestValidateFlowCanBuild:
         # The user_id is passed as a keyword argument
         assert call_args[1]["user_id"] == "test_user"
 
-    @patch("langflow.utils.template_validation.Graph")
+    @patch("ketos.utils.template_validation.Graph")
     def test_validate_stream_exception(self, mock_graph_class):
         """Test that validate_stream exceptions are caught."""
         mock_graph = Mock()
@@ -203,7 +203,7 @@ class TestValidateFlowCanBuild:
 class TestValidateFlowCode:
     """Test cases for validate_flow_code function."""
 
-    @patch("langflow.utils.template_validation.validate_code")
+    @patch("ketos.utils.template_validation.validate_code")
     def test_valid_flow_code(self, mock_validate_code):
         """Test validation passes when code is valid."""
         mock_validate_code.return_value = {
@@ -236,7 +236,7 @@ class TestValidateFlowCode:
         assert errors == []
         mock_validate_code.assert_called_once_with("def hello(): return 'world'")
 
-    @patch("langflow.utils.template_validation.validate_code")
+    @patch("ketos.utils.template_validation.validate_code")
     def test_code_import_errors(self, mock_validate_code):
         """Test validation fails when code has import errors."""
         mock_validate_code.return_value = {
@@ -266,7 +266,7 @@ class TestValidateFlowCode:
         assert len(errors) == 1
         assert "Import error in node node1: Module not found: nonexistent_module" in errors[0]
 
-    @patch("langflow.utils.template_validation.validate_code")
+    @patch("ketos.utils.template_validation.validate_code")
     def test_code_function_errors(self, mock_validate_code):
         """Test validation fails when code has function errors."""
         mock_validate_code.return_value = {
@@ -318,7 +318,7 @@ class TestValidateFlowCode:
             "nodes": [{"data": {"node": {"template": {"code_field": {"type": "code", "value": "def test(): pass"}}}}}]
         }
 
-        with patch("langflow.utils.template_validation.validate_code", side_effect=ValueError("Unexpected error")):
+        with patch("ketos.utils.template_validation.validate_code", side_effect=ValueError("Unexpected error")):
             errors = validate_flow_code(template_data, "test.json")
             assert len(errors) == 1
             assert "Code validation failed: Unexpected error" in errors[0]
@@ -330,19 +330,19 @@ class TestValidateFlowCode:
         }
 
         # Test TypeError
-        with patch("langflow.utils.template_validation.validate_code", side_effect=TypeError("Type error")):
+        with patch("ketos.utils.template_validation.validate_code", side_effect=TypeError("Type error")):
             errors = validate_flow_code(template_data, "test.json")
             assert len(errors) == 1
             assert "Code validation failed: Type error" in errors[0]
 
         # Test KeyError
-        with patch("langflow.utils.template_validation.validate_code", side_effect=KeyError("key")):
+        with patch("ketos.utils.template_validation.validate_code", side_effect=KeyError("key")):
             errors = validate_flow_code(template_data, "test.json")
             assert len(errors) == 1
             assert "Code validation failed: 'key'" in errors[0]
 
         # Test AttributeError
-        with patch("langflow.utils.template_validation.validate_code", side_effect=AttributeError("Attribute error")):
+        with patch("ketos.utils.template_validation.validate_code", side_effect=AttributeError("Attribute error")):
             errors = validate_flow_code(template_data, "test.json")
             assert len(errors) == 1
             assert "Code validation failed: Attribute error" in errors[0]
@@ -712,7 +712,7 @@ class TestValidateEventStream:
 
         # Mock the json.loads to raise a different exception type
         errors = []
-        with patch("langflow.utils.template_validation.json.loads", side_effect=TypeError("Type error")):
+        with patch("ketos.utils.template_validation.json.loads", side_effect=TypeError("Type error")):
             await _validate_event_stream(mock_response, "job123", "test.json", errors)
             assert len(errors) == 1
             assert "Event stream validation failed: Type error" in errors[0]

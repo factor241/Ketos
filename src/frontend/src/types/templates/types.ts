@@ -20,8 +20,8 @@ export interface CardData {
 }
 
 export interface TemplateCategoryProps {
-  examples: any[];
-  onCardClick: (example: any) => void;
+  examples: unknown[];
+  onCardClick: (example: unknown) => void;
 }
 
 export interface TemplateContentProps {

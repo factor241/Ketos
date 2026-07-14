@@ -20,7 +20,7 @@ class TestDB2VSHelperFunctions:
 
     def test_table_exists_true(self):
         """Test _table_exists returns True for existing table."""
-        from lfx_ibm.components.ibm.db2vs import _table_exists
+        from kfx_ibm.components.ibm.db2vs import _table_exists
 
         # Mock the DB client and cursor
         mock_client = MagicMock()
@@ -35,7 +35,7 @@ class TestDB2VSHelperFunctions:
 
     def test_table_exists_false(self):
         """Test _table_exists returns False for non-existing table."""
-        from lfx_ibm.components.ibm.db2vs import _table_exists
+        from kfx_ibm.components.ibm.db2vs import _table_exists
 
         mock_client = MagicMock()
         mock_cursor = MagicMock()
@@ -50,7 +50,7 @@ class TestDB2VSHelperFunctions:
     def test_get_distance_function_cosine(self):
         """Test distance function mapping for COSINE."""
         from langchain_community.vectorstores.utils import DistanceStrategy
-        from lfx_ibm.components.ibm.db2vs import _get_distance_function
+        from kfx_ibm.components.ibm.db2vs import _get_distance_function
 
         func = _get_distance_function(DistanceStrategy.COSINE)
         assert "COSINE_DISTANCE" in func or "COSINE" in func
@@ -58,7 +58,7 @@ class TestDB2VSHelperFunctions:
     def test_get_distance_function_euclidean(self):
         """Test distance function mapping for EUCLIDEAN."""
         from langchain_community.vectorstores.utils import DistanceStrategy
-        from lfx_ibm.components.ibm.db2vs import _get_distance_function
+        from kfx_ibm.components.ibm.db2vs import _get_distance_function
 
         func = _get_distance_function(DistanceStrategy.EUCLIDEAN_DISTANCE)
         # Function returns "EUCLIDEAN" which contains the word
@@ -67,7 +67,7 @@ class TestDB2VSHelperFunctions:
     def test_get_distance_function_dot_product(self):
         """Test distance function mapping for DOT_PRODUCT."""
         from langchain_community.vectorstores.utils import DistanceStrategy
-        from lfx_ibm.components.ibm.db2vs import _get_distance_function
+        from kfx_ibm.components.ibm.db2vs import _get_distance_function
 
         func = _get_distance_function(DistanceStrategy.DOT_PRODUCT)
         # Function returns "DOT" which contains the word
@@ -96,16 +96,16 @@ class TestDB2VSClass:
         embedding.embed_query = Mock(return_value=[0.1, 0.2, 0.3])
         return embedding
 
-    @patch("lfx_ibm.components.ibm.db2vs._table_exists")
-    @patch("lfx_ibm.components.ibm.db2vs._create_table")
-    @patch("lfx_ibm.components.ibm.db2vs._get_column_names")
-    @patch("lfx_ibm.components.ibm.db2vs.DB2VS.get_embedding_dimension")
+    @patch("kfx_ibm.components.ibm.db2vs._table_exists")
+    @patch("kfx_ibm.components.ibm.db2vs._create_table")
+    @patch("kfx_ibm.components.ibm.db2vs._get_column_names")
+    @patch("kfx_ibm.components.ibm.db2vs.DB2VS.get_embedding_dimension")
     def test_db2vs_initialization_new_table(
         self, mock_get_dim, mock_get_columns, mock_create_table, mock_table_exists, mock_client, mock_embedding
     ):
         """Test DB2VS initialization with new table."""
         from langchain_community.vectorstores.utils import DistanceStrategy
-        from lfx_ibm.components.ibm.db2vs import DB2VS
+        from kfx_ibm.components.ibm.db2vs import DB2VS
 
         # Mock embedding dimension
         mock_get_dim.return_value = 3
@@ -126,11 +126,11 @@ class TestDB2VSClass:
         mock_create_table.assert_called_once()
         assert db2vs.table_name == "test_table"
 
-    @patch("lfx_ibm.components.ibm.db2vs._table_exists")
-    @patch("lfx_ibm.components.ibm.db2vs._get_column_names")
-    @patch("lfx_ibm.components.ibm.db2vs._update_empty_embeddings")
-    @patch("lfx_ibm.components.ibm.db2vs._create_table")
-    @patch("lfx_ibm.components.ibm.db2vs.DB2VS.get_embedding_dimension")
+    @patch("kfx_ibm.components.ibm.db2vs._table_exists")
+    @patch("kfx_ibm.components.ibm.db2vs._get_column_names")
+    @patch("kfx_ibm.components.ibm.db2vs._update_empty_embeddings")
+    @patch("kfx_ibm.components.ibm.db2vs._create_table")
+    @patch("kfx_ibm.components.ibm.db2vs.DB2VS.get_embedding_dimension")
     def test_db2vs_initialization_existing_table(
         self,
         mock_get_dim,
@@ -143,7 +143,7 @@ class TestDB2VSClass:
     ):
         """Test DB2VS initialization with existing table."""
         from langchain_community.vectorstores.utils import DistanceStrategy
-        from lfx_ibm.components.ibm.db2vs import DB2VS
+        from kfx_ibm.components.ibm.db2vs import DB2VS
 
         # Mock embedding dimension
         mock_get_dim.return_value = 3
@@ -164,11 +164,11 @@ class TestDB2VSClass:
         # Verify table was not created
         assert db2vs.table_name == "existing_table"
 
-    @patch("lfx_ibm.components.ibm.db2vs._table_exists")
-    @patch("lfx_ibm.components.ibm.db2vs._get_column_names")
-    @patch("lfx_ibm.components.ibm.db2vs._create_table")
-    @patch("lfx_ibm.components.ibm.db2vs.DB2VS.get_embedding_dimension")
-    @patch("lfx_ibm.components.ibm.db2vs.DB2VS._validate_embedding_dimension")
+    @patch("kfx_ibm.components.ibm.db2vs._table_exists")
+    @patch("kfx_ibm.components.ibm.db2vs._get_column_names")
+    @patch("kfx_ibm.components.ibm.db2vs._create_table")
+    @patch("kfx_ibm.components.ibm.db2vs.DB2VS.get_embedding_dimension")
+    @patch("kfx_ibm.components.ibm.db2vs.DB2VS._validate_embedding_dimension")
     def test_add_texts(
         self,
         mock_validate_dim,  # noqa: ARG002
@@ -181,7 +181,7 @@ class TestDB2VSClass:
     ):
         """Test adding texts to vector store."""
         from langchain_community.vectorstores.utils import DistanceStrategy
-        from lfx_ibm.components.ibm.db2vs import DB2VS
+        from kfx_ibm.components.ibm.db2vs import DB2VS
 
         # Mock embedding dimension
         mock_get_dim.return_value = 3
@@ -206,11 +206,11 @@ class TestDB2VSClass:
         # Verify IDs were returned
         assert len(ids) == 2
 
-    @patch("lfx_ibm.components.ibm.db2vs._table_exists")
-    @patch("lfx_ibm.components.ibm.db2vs._get_column_names")
-    @patch("lfx_ibm.components.ibm.db2vs._create_table")
-    @patch("lfx_ibm.components.ibm.db2vs.DB2VS.get_embedding_dimension")
-    @patch("lfx_ibm.components.ibm.db2vs.DB2VS._validate_embedding_dimension")
+    @patch("kfx_ibm.components.ibm.db2vs._table_exists")
+    @patch("kfx_ibm.components.ibm.db2vs._get_column_names")
+    @patch("kfx_ibm.components.ibm.db2vs._create_table")
+    @patch("kfx_ibm.components.ibm.db2vs.DB2VS.get_embedding_dimension")
+    @patch("kfx_ibm.components.ibm.db2vs.DB2VS._validate_embedding_dimension")
     def test_add_texts_with_custom_ids(
         self,
         mock_validate_dim,  # noqa: ARG002
@@ -223,7 +223,7 @@ class TestDB2VSClass:
     ):
         """Test adding texts with custom IDs."""
         from langchain_community.vectorstores.utils import DistanceStrategy
-        from lfx_ibm.components.ibm.db2vs import DB2VS
+        from kfx_ibm.components.ibm.db2vs import DB2VS
 
         # Mock embedding dimension
         mock_get_dim.return_value = 3
@@ -251,16 +251,16 @@ class TestDB2VSClass:
     # Note: similarity_search test removed - requires complex cursor mocking with _update_empty_embeddings
     # Search functionality is tested through the component-level tests
 
-    @patch("lfx_ibm.components.ibm.db2vs._table_exists")
-    @patch("lfx_ibm.components.ibm.db2vs._get_column_names")
-    @patch("lfx_ibm.components.ibm.db2vs._create_table")
-    @patch("lfx_ibm.components.ibm.db2vs.DB2VS.get_embedding_dimension")
+    @patch("kfx_ibm.components.ibm.db2vs._table_exists")
+    @patch("kfx_ibm.components.ibm.db2vs._get_column_names")
+    @patch("kfx_ibm.components.ibm.db2vs._create_table")
+    @patch("kfx_ibm.components.ibm.db2vs.DB2VS.get_embedding_dimension")
     def test_delete_documents(
         self, mock_get_dim, mock_create_table, mock_get_columns, mock_table_exists, mock_client, mock_embedding
     ):
         """Test deleting documents by IDs."""
         from langchain_community.vectorstores.utils import DistanceStrategy
-        from lfx_ibm.components.ibm.db2vs import DB2VS
+        from kfx_ibm.components.ibm.db2vs import DB2VS
 
         # Mock embedding dimension
         mock_get_dim.return_value = 3
@@ -284,16 +284,16 @@ class TestDB2VSClass:
         # Verify delete was called
         assert result is True or result is None
 
-    @patch("lfx_ibm.components.ibm.db2vs._table_exists")
-    @patch("lfx_ibm.components.ibm.db2vs._get_column_names")
-    @patch("lfx_ibm.components.ibm.db2vs._create_table")
-    @patch("lfx_ibm.components.ibm.db2vs.DB2VS.get_embedding_dimension")
+    @patch("kfx_ibm.components.ibm.db2vs._table_exists")
+    @patch("kfx_ibm.components.ibm.db2vs._get_column_names")
+    @patch("kfx_ibm.components.ibm.db2vs._create_table")
+    @patch("kfx_ibm.components.ibm.db2vs.DB2VS.get_embedding_dimension")
     def test_embedding_dimension_validation(
         self, mock_get_dim, mock_create_table, mock_get_columns, mock_table_exists, mock_client, mock_embedding
     ):
         """Test embedding dimension validation."""
         from langchain_community.vectorstores.utils import DistanceStrategy
-        from lfx_ibm.components.ibm.db2vs import DB2VS
+        from kfx_ibm.components.ibm.db2vs import DB2VS
 
         # Mock embedding dimension
         mock_get_dim.return_value = 3
@@ -321,7 +321,7 @@ class TestDB2VSClass:
 
     def test_drop_table(self):
         """Test dropping a table uses validated quoted identifiers."""
-        from lfx_ibm.components.ibm.db2vs import drop_table
+        from kfx_ibm.components.ibm.db2vs import drop_table
 
         mock_client = MagicMock()
         mock_cursor = MagicMock()

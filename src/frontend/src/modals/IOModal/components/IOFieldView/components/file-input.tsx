@@ -5,6 +5,7 @@ import { getBaseUrl } from "@/customization/utils/urls";
 import { createFileUpload } from "@/helpers/create-file-upload";
 import useFileSizeValidator from "@/shared/hooks/use-file-size-validator";
 import useAlertStore from "@/stores/alertStore";
+import { getLocalizedApiErrorMessage } from "@/utils/localized-api-error";
 import IconComponent from "../../../../../components/common/genericIconComponent";
 import { Button } from "../../../../../components/ui/button";
 import { CHAT_UPLOAD_IMAGE_EXTENSIONS } from "../../../../../constants/file-upload-constants";
@@ -108,7 +109,13 @@ export default function IOFileInput({ field, updateValue }: IOFileInputProps) {
           onError: (error) => {
             setErrorData({
               title: t("files.errorUploading"),
-              list: [error.response?.data?.detail],
+              list: [
+                getLocalizedApiErrorMessage(
+                  error,
+                  (key, params) => t(key, params),
+                  { fallbackKey: "errors.requestFailed" },
+                ),
+              ],
             });
             console.error("Error occurred while uploading file");
           },
@@ -141,7 +148,7 @@ export default function IOFileInput({ field, updateValue }: IOFileInputProps) {
       >
         {!isDragging && (
           <Button variant="primary" onClick={handleButtonClick}>
-            Upload or drop your file
+            {t("playground.uploadOrDropFile")}
           </Button>
         )}
 

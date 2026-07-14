@@ -2,12 +2,13 @@ import { cloneDeep } from "lodash"; // or any other deep cloning library you pre
 import { useCallback } from "react";
 import useFlowStore from "@/stores/flowStore";
 import type { APIClassType } from "../../types/api";
+import type { FlowStoreType } from "../../types/zustand/flow";
 import { updateHiddenOutputs } from "../helpers/update-hidden-outputs";
 
 const useUpdateNodeCode = (
   dataId: string,
   dataNode: APIClassType, // Define YourNodeType according to your data structure
-  setNode: (id: string, callback: (oldNode) => any) => void,
+  setNode: FlowStoreType["setNode"],
   updateNodeInternals: (id: string) => void,
 ) => {
   const setComponentsToUpdate = useFlowStore(
@@ -17,14 +18,14 @@ const useUpdateNodeCode = (
   const updateNodeCode = useCallback(
     (newNodeClass: APIClassType, code: string, name: string, type: string) => {
       setNode(dataId, (oldNode) => {
+        if (oldNode.type !== "genericNode") return oldNode;
         const newNode = cloneDeep(oldNode);
 
-        newNode.data = {
-          ...newNode.data,
+        newNode.data = Object.assign({}, newNode.data, {
           node: { ...newNodeClass, edited: false },
           description: newNodeClass.description ?? dataNode.description,
           display_name: newNodeClass.display_name ?? dataNode.display_name,
-        };
+        });
         if (type) {
           newNode.data.type = type;
         }

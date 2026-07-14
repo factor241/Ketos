@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { getSessionTitle } from "@/components/core/playgroundComponent/chat-view/chat-header/utils/get-session-title";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { formatTimestamp } from "../helpers";
 import { MemoryDocumentPanelProps } from "../types";
@@ -51,7 +52,9 @@ export function MemoryDocumentPanel({
                   <span className="font-medium text-foreground">
                     {t("memory.sessionLabel")}
                   </span>{" "}
-                  {selectedDocument.session_id || "(no session)"}
+                  {selectedDocument.session_id
+                    ? getSessionTitle(selectedDocument.session_id)
+                    : t("memory.noSession")}
                 </span>
                 <span>
                   <span className="font-medium text-foreground">

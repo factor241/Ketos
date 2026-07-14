@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 
 import pytest
-from langflow.agentic.helpers.sse import (
+from ketos.agentic.helpers.sse import (
     format_file_written_event,
 )
 
@@ -53,7 +53,7 @@ class TestStepTypeIncludesGeneratingDocument:
         # Literal types are introspectable via typing.get_args.
         from typing import get_args
 
-        from langflow.agentic.api.schemas import StepType
+        from ketos.agentic.api.schemas import StepType
 
         members = set(get_args(StepType))
         assert "generating_document" in members, members
@@ -73,12 +73,12 @@ class TestStreamingEmitsFileWrittenEvents:
         on the textual SSE output. This pinpoints the drain insertion point
         without requiring a real LLM call.
         """  # noqa: D205
-        from langflow.agentic.services import assistant_service
-        from langflow.agentic.services.file_events import emit_file_event, reset_file_events
+        from ketos.agentic.services import assistant_service
+        from ketos.agentic.services.file_events import emit_file_event, reset_file_events
 
         # Arrange — stub classify_intent to return manage_files (routes to same flow).
         async def fake_classify_intent(*args, **kwargs):  # noqa: ARG001
-            from langflow.agentic.services.flow_types import IntentResult
+            from ketos.agentic.services.flow_types import IntentResult
 
             return IntentResult(translation="hi", intent="manage_files")
 
@@ -113,7 +113,7 @@ class TestStreamingEmitsFileWrittenEvents:
         sse_lines: list[str] = [
             line
             async for line in assistant_service.execute_flow_with_validation_streaming(
-                flow_filename="LangflowAssistant.json",  # default; overridden internally by intent
+                flow_filename="KetosAssistant.json",  # default; overridden internally by intent
                 input_value="crie um doc",
                 global_variables={"FLOW_ID": None},
                 max_retries=0,
@@ -140,11 +140,11 @@ class TestStreamingEmitsFileWrittenEvents:
         generating_document step (so the frontend label says
         "Generating document..." instead of "Generating flow...").
         """  # noqa: D205
-        from langflow.agentic.services import assistant_service
-        from langflow.agentic.services.file_events import reset_file_events
+        from ketos.agentic.services import assistant_service
+        from ketos.agentic.services.file_events import reset_file_events
 
         async def fake_classify_intent(*args, **kwargs):  # noqa: ARG001
-            from langflow.agentic.services.flow_types import IntentResult
+            from ketos.agentic.services.flow_types import IntentResult
 
             return IntentResult(translation="hi", intent="manage_files")
 
@@ -173,7 +173,7 @@ class TestStreamingEmitsFileWrittenEvents:
         sse_lines: list[str] = [
             line
             async for line in assistant_service.execute_flow_with_validation_streaming(
-                flow_filename="LangflowAssistant.json",  # default; overridden internally by intent
+                flow_filename="KetosAssistant.json",  # default; overridden internally by intent
                 input_value="crie um doc",
                 global_variables={"FLOW_ID": None},
                 max_retries=0,

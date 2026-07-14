@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { APIClassType } from "@/types/api";
 import Dropdown from "../index";
@@ -9,7 +9,8 @@ interface MockChildrenProps {
 
 interface MockCommandItemProps {
   children: ReactNode;
-  onSelect?: () => void;
+  onSelect?: (value: string) => void;
+  value?: string;
 }
 
 interface MockButtonProps extends Record<string, unknown> {
@@ -103,8 +104,10 @@ jest.mock("@/components/ui/button", () => ({
 jest.mock("@/components/ui/command", () => ({
   Command: ({ children }: MockChildrenProps) => <div>{children}</div>,
   CommandGroup: ({ children }: MockChildrenProps) => <div>{children}</div>,
-  CommandItem: ({ children, onSelect }: MockCommandItemProps) => (
-    <div onClick={onSelect}>{children}</div>
+  CommandItem: ({ children, onSelect, value = "" }: MockCommandItemProps) => (
+    <button type="button" onClick={() => onSelect?.(value)}>
+      {children}
+    </button>
   ),
   CommandList: ({ children }: MockChildrenProps) => <div>{children}</div>,
   CommandSeparator: () => <hr />,
@@ -145,7 +148,10 @@ describe("Dropdown value reset bug", () => {
         nodeId="test-node"
         nodeClass={mockNodeClass}
         handleNodeClass={jest.fn()}
+        handleOnNewValue={jest.fn()}
         id="test-dropdown"
+        editNode={false}
+        disabled={false}
       />,
     );
 
@@ -164,7 +170,10 @@ describe("Dropdown value reset bug", () => {
         nodeId="test-node"
         nodeClass={mockNodeClass}
         handleNodeClass={jest.fn()}
+        handleOnNewValue={jest.fn()}
         id="test-dropdown"
+        editNode={false}
+        disabled={false}
       />,
     );
 
@@ -183,10 +192,56 @@ describe("Dropdown value reset bug", () => {
         nodeId="test-node"
         nodeClass={mockNodeClass}
         handleNodeClass={jest.fn()}
+        handleOnNewValue={jest.fn()}
         id="test-dropdown"
+        editNode={false}
+        disabled={false}
       />,
     );
 
     expect(mockOnSelect).not.toHaveBeenCalledWith("", undefined, true);
+  });
+
+  it("renders localized option labels but selects the stable raw value", () => {
+    const mockOnSelect = jest.fn();
+
+    render(
+      <Dropdown
+        value="provider_a"
+        options={["provider_a", "provider_b"]}
+        optionsMetaData={[
+          { value: "provider_a", label: "Провайдер А", region: "eu" },
+          { value: "provider_b", label: "Провайдер Б", region: "us" },
+        ]}
+        onSelect={mockOnSelect}
+        name="provider"
+        nodeId="test-node"
+        nodeClass={mockNodeClass}
+        handleNodeClass={jest.fn()}
+        handleOnNewValue={jest.fn()}
+        id="provider-dropdown"
+        editNode={false}
+        disabled={false}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("value-dropdown-provider-dropdown"),
+    ).toHaveTextContent("Провайдер А");
+    expect(screen.getByTestId("dropdown-option-0-container")).toHaveTextContent(
+      "Провайдер А",
+    );
+    expect(
+      screen.getByTestId("dropdown-option-0-container"),
+    ).not.toHaveTextContent("provider_a");
+
+    fireEvent.click(screen.getByText("Провайдер Б"));
+
+    expect(mockOnSelect).toHaveBeenCalledWith(
+      "provider_b",
+      undefined,
+      undefined,
+      expect.objectContaining({ value: "provider_b", label: "Провайдер Б" }),
+    );
   });
 });

@@ -20,7 +20,7 @@ import secrets
 from typing import TYPE_CHECKING
 
 import pytest
-from langflow.agentic.services.user_components import (
+from ketos.agentic.services.user_components import (
     UserComponentError,
     register_user_component,
 )
@@ -38,11 +38,11 @@ def isolated_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
       - Pins AUTO_LOGIN=False at the FileSystemToolComponent class level
         so the singleton settings service can't taint other tests.
     """
-    monkeypatch.setenv("LANGFLOW_FS_TOOL_BASE_DIR", str(tmp_path))
+    monkeypatch.setenv("KETOS_FS_TOOL_BASE_DIR", str(tmp_path))
     pepper = tmp_path / ".fs_pepper"
     pepper.write_bytes(secrets.token_bytes(32))
 
-    from lfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
+    from kfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
 
     monkeypatch.setattr(
         FileSystemToolComponent,
@@ -55,11 +55,11 @@ def isolated_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 @pytest.fixture
 def shared_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """AUTO_LOGIN=True variant — components land in <BASE>/shared/.components/."""
-    monkeypatch.setenv("LANGFLOW_FS_TOOL_BASE_DIR", str(tmp_path))
+    monkeypatch.setenv("KETOS_FS_TOOL_BASE_DIR", str(tmp_path))
     pepper = tmp_path / ".fs_pepper"
     pepper.write_bytes(secrets.token_bytes(32))
 
-    from lfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
+    from kfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
 
     monkeypatch.setattr(
         FileSystemToolComponent,
@@ -70,9 +70,9 @@ def shared_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 SAMPLE_CODE = (
-    "from lfx.custom import Component\n"
-    "from lfx.io import FloatInput, Output\n"
-    "from lfx.schema import Data\n"
+    "from kfx.custom import Component\n"
+    "from kfx.io import FloatInput, Output\n"
+    "from kfx.schema import Data\n"
     "\n"
     "class SumComponent(Component):\n"
     "    display_name = 'Sum'\n"
@@ -192,10 +192,10 @@ class TestRegisterUserComponentRefusesUntrustedInputs:
         # Windows-portability safeguard: the on-disk path is
         # ``<BASE>/users/<32-hex-hash>/.components/<ClassName>.py``. Even
         # with a deep BASE on Windows (``C:\Users\<long-username>\AppData\
-        # Local\langflow\fs_tool\fs_sandbox``), a 64-char cap on the
+        # Local\ketos\fs_tool\fs_sandbox``), a 64-char cap on the
         # class name keeps the full path well under MAX_PATH=260 default.
         # 65 chars is over the cap; must be refused.
-        from langflow.agentic.services.user_components import (
+        from ketos.agentic.services.user_components import (
             MAX_CLASS_NAME_LENGTH,
         )
 
@@ -212,7 +212,7 @@ class TestRegisterUserComponentRefusesUntrustedInputs:
     def test_should_accept_class_name_exactly_at_max_length(self, isolated_sandbox: Path) -> None:  # noqa: ARG002
         # Boundary: a name of exactly MAX_CLASS_NAME_LENGTH chars must be
         # ACCEPTED. Off-by-one regression guard.
-        from langflow.agentic.services.user_components import (
+        from ketos.agentic.services.user_components import (
             MAX_CLASS_NAME_LENGTH,
         )
 
@@ -230,7 +230,7 @@ class TestRegisterUserComponentRefusesUntrustedInputs:
         # Lock the cap so a refactor that bumps it accidentally past a
         # safe Windows value triggers this test. 64 is the documented
         # ceiling (see PLATFORM_AGNOSTIC_RULE.md path-length notes).
-        from langflow.agentic.services.user_components import (
+        from ketos.agentic.services.user_components import (
             MAX_CLASS_NAME_LENGTH,
         )
 

@@ -7,11 +7,11 @@ captured by the dynamic `/{deployment_id}` route.
 from collections.abc import Iterator
 from uuid import uuid4
 
-import langflow.api.router as api_router_module
+import ketos.api.router as api_router_module
 import pytest
 from fastapi import APIRouter
 from fastapi.routing import APIRoute
-from langflow.api.v1.deployments import router
+from ketos.api.v1.deployments import router
 from starlette.routing import Match
 
 

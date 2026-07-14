@@ -13,14 +13,15 @@ jest.mock("react-cookie", () => ({
 
 // Mock constants
 jest.mock("@/constants/constants", () => ({
-  LANGFLOW_ACCESS_TOKEN: "langflow_access_token",
-  LANGFLOW_API_TOKEN: "langflow_api_token",
+  KETOS_ACCESS_TOKEN: "ketos_access_token",
+  KETOS_API_TOKEN: "ketos_api_token",
+  KETOS_REFRESH_TOKEN: "ketos_refresh_token",
 }));
 
 // Mock the darkStore to avoid import.meta issues
 jest.mock("../darkStore", () => ({
   useDarkStore: {
-    getState: () => ({ refreshStars: jest.fn() }),
+    getState: () => ({}),
     setState: jest.fn(),
     subscribe: jest.fn(),
     destroy: jest.fn(),
@@ -55,9 +56,9 @@ describe("useAuthStore", () => {
     // Set default cookie values
     mockCookies.get.mockImplementation((key) => {
       switch (key) {
-        case "langflow_access_token":
+        case "ketos_access_token":
           return null;
-        case "langflow_api_token":
+        case "ketos_api_token":
           return null;
         default:
           return null;

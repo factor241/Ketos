@@ -12,15 +12,15 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from lfx.components.files_and_knowledge.file import FileComponent
-from lfx.schema.data import Data
-from lfx.schema.dataframe import DataFrame
+from kfx.components.files_and_knowledge.file import FileComponent
+from kfx.schema.data import Data
+from kfx.schema.dataframe import DataFrame
 
 
 class TestDoclingEmptyTextExtraction:
     """Tests for handling images/documents with no extractable text."""
 
-    @patch("lfx.components.files_and_knowledge.file.get_settings_service")
+    @patch("kfx.components.files_and_knowledge.file.get_settings_service")
     @patch("subprocess.Popen")
     def test_process_docling_empty_doc_rows_returns_placeholder(self, mock_popen, mock_settings, tmp_path):
         """Test that empty doc_rows from Docling creates placeholder data instead of error."""
@@ -59,7 +59,7 @@ class TestDoclingEmptyTextExtraction:
         assert result.data["doc"] == []
         # The subprocess returns the raw result; processing happens in process_files
 
-    @patch("lfx.components.files_and_knowledge.file.get_settings_service")
+    @patch("kfx.components.files_and_knowledge.file.get_settings_service")
     @patch("subprocess.Popen")
     def test_process_files_handles_empty_doc_rows(self, mock_popen, mock_settings, tmp_path):
         """Test that process_files correctly handles empty doc_rows from Docling."""
@@ -95,7 +95,7 @@ class TestDoclingEmptyTextExtraction:
         mock_popen.return_value = mock_proc
 
         # Create BaseFile mock
-        from lfx.base.data.base_file import BaseFileComponent
+        from kfx.base.data.base_file import BaseFileComponent
 
         base_file = BaseFileComponent.BaseFile(
             data=Data(data={"file_path": str(test_image)}),
@@ -115,8 +115,8 @@ class TestDoclingEmptyTextExtraction:
         data_item = result[0].data[0]
         assert "text" in data_item.data or "info" in data_item.data
 
-    @patch("lfx.base.data.base_file.get_settings_service")
-    @patch("lfx.components.files_and_knowledge.file.get_settings_service")
+    @patch("kfx.base.data.base_file.get_settings_service")
+    @patch("kfx.components.files_and_knowledge.file.get_settings_service")
     @patch("subprocess.Popen")
     def test_load_files_dataframe_with_empty_text_image(
         self, mock_popen, mock_file_settings, mock_base_settings, tmp_path
@@ -167,8 +167,8 @@ class TestDoclingEmptyTextExtraction:
         # DataFrame should not be empty - it should have placeholder data
         assert not result.empty, "DataFrame should contain placeholder data for image without text"
 
-    @patch("lfx.base.data.base_file.get_settings_service")
-    @patch("lfx.components.files_and_knowledge.file.get_settings_service")
+    @patch("kfx.base.data.base_file.get_settings_service")
+    @patch("kfx.components.files_and_knowledge.file.get_settings_service")
     @patch("subprocess.Popen")
     def test_load_files_markdown_with_empty_text_image(
         self, mock_popen, mock_file_settings, mock_base_settings, tmp_path
@@ -223,7 +223,7 @@ class TestDoclingEmptyTextExtraction:
 class TestDoclingSubprocessErrors:
     """Tests for error handling in Docling subprocess."""
 
-    @patch("lfx.components.files_and_knowledge.file.get_settings_service")
+    @patch("kfx.components.files_and_knowledge.file.get_settings_service")
     @patch("subprocess.Popen")
     def test_docling_conversion_failure(self, mock_popen, mock_settings, tmp_path):
         """Test handling of Docling conversion failure."""
@@ -259,7 +259,7 @@ class TestDoclingSubprocessErrors:
         assert "error" in result.data
         assert "Docling conversion failed" in result.data["error"]
 
-    @patch("lfx.components.files_and_knowledge.file.get_settings_service")
+    @patch("kfx.components.files_and_knowledge.file.get_settings_service")
     @patch("subprocess.Popen")
     def test_docling_subprocess_crash(self, mock_popen, mock_settings, tmp_path):
         """Test handling of Docling subprocess crash (no output)."""
@@ -290,7 +290,7 @@ class TestDoclingSubprocessErrors:
         assert "error" in result.data
         assert "Segmentation fault" in result.data["error"] or "no output" in result.data["error"].lower()
 
-    @patch("lfx.components.files_and_knowledge.file.get_settings_service")
+    @patch("kfx.components.files_and_knowledge.file.get_settings_service")
     @patch("subprocess.Popen")
     def test_docling_invalid_json_output(self, mock_popen, mock_settings, tmp_path):
         """Test handling of invalid JSON from Docling subprocess."""
@@ -340,8 +340,8 @@ class TestStoragePathResolution:
         simple_file = "simple_file.png"
         assert "/" not in simple_file
 
-    @patch("lfx.custom.custom_component.custom_component.get_storage_service")
-    @patch("lfx.base.data.base_file.get_settings_service")
+    @patch("kfx.custom.custom_component.custom_component.get_storage_service")
+    @patch("kfx.base.data.base_file.get_settings_service")
     def test_validate_and_resolve_paths_uses_storage_service(self, mock_settings, mock_storage, tmp_path):
         """Test that storage paths are resolved using storage service.
 
@@ -488,7 +488,7 @@ class TestProcessFilesEdgeCases:
         component.advanced_mode = False  # Disabled
         component.silent_errors = False
 
-        from lfx.base.data.base_file import BaseFileComponent
+        from kfx.base.data.base_file import BaseFileComponent
 
         base_file = BaseFileComponent.BaseFile(
             data=Data(data={"file_path": str(test_image)}),
@@ -557,7 +557,7 @@ class TestImageContentTypeValidation:
 
     def test_valid_png_file(self, tmp_path):
         """Test that a valid PNG file passes validation."""
-        from lfx.base.data.storage_utils import validate_image_content_type
+        from kfx.base.data.storage_utils import validate_image_content_type
 
         # Create a valid PNG file (minimal PNG header)
         png_file = tmp_path / "valid.png"
@@ -569,7 +569,7 @@ class TestImageContentTypeValidation:
 
     def test_valid_jpeg_file(self, tmp_path):
         """Test that a valid JPEG file passes validation."""
-        from lfx.base.data.storage_utils import validate_image_content_type
+        from kfx.base.data.storage_utils import validate_image_content_type
 
         # Create a valid JPEG file (JPEG magic bytes)
         jpeg_file = tmp_path / "valid.jpg"
@@ -581,7 +581,7 @@ class TestImageContentTypeValidation:
 
     def test_jpeg_saved_as_png_fails(self, tmp_path):
         """Test that a JPEG file saved with .png extension is rejected."""
-        from lfx.base.data.storage_utils import validate_image_content_type
+        from kfx.base.data.storage_utils import validate_image_content_type
 
         # Create a JPEG file but with .png extension
         mismatched_file = tmp_path / "actually_jpeg.png"
@@ -595,7 +595,7 @@ class TestImageContentTypeValidation:
 
     def test_png_saved_as_jpg_fails(self, tmp_path):
         """Test that a PNG file saved with .jpg extension is rejected."""
-        from lfx.base.data.storage_utils import validate_image_content_type
+        from kfx.base.data.storage_utils import validate_image_content_type
 
         # Create a PNG file but with .jpg extension
         mismatched_file = tmp_path / "actually_png.jpg"
@@ -609,7 +609,7 @@ class TestImageContentTypeValidation:
 
     def test_non_image_file_passes(self, tmp_path):
         """Test that non-image files skip validation."""
-        from lfx.base.data.storage_utils import validate_image_content_type
+        from kfx.base.data.storage_utils import validate_image_content_type
 
         # Create a text file
         text_file = tmp_path / "document.txt"
@@ -621,7 +621,7 @@ class TestImageContentTypeValidation:
 
     def test_unrecognized_content_fails(self, tmp_path):
         """Test that a file with unrecognized content is rejected."""
-        from lfx.base.data.storage_utils import validate_image_content_type
+        from kfx.base.data.storage_utils import validate_image_content_type
 
         # Create a file with .png extension but random content
         # This should fail - it's not a valid image
@@ -635,7 +635,7 @@ class TestImageContentTypeValidation:
 
     def test_valid_gif_file(self, tmp_path):
         """Test that a valid GIF file passes validation."""
-        from lfx.base.data.storage_utils import validate_image_content_type
+        from kfx.base.data.storage_utils import validate_image_content_type
 
         # Create a valid GIF file
         gif_file = tmp_path / "valid.gif"
@@ -647,7 +647,7 @@ class TestImageContentTypeValidation:
 
     def test_valid_webp_file(self, tmp_path):
         """Test that a valid WebP file passes validation."""
-        from lfx.base.data.storage_utils import validate_image_content_type
+        from kfx.base.data.storage_utils import validate_image_content_type
 
         # Create a valid WebP file (RIFF....WEBP header)
         webp_file = tmp_path / "valid.webp"
@@ -659,7 +659,7 @@ class TestImageContentTypeValidation:
 
     def test_valid_bmp_file(self, tmp_path):
         """Test that a valid BMP file passes validation."""
-        from lfx.base.data.storage_utils import validate_image_content_type
+        from kfx.base.data.storage_utils import validate_image_content_type
 
         # Create a valid BMP file
         bmp_file = tmp_path / "valid.bmp"
@@ -679,7 +679,7 @@ class TestImageContentTypeValidation:
         component.advanced_mode = True
         component.silent_errors = False
 
-        from lfx.base.data.base_file import BaseFileComponent
+        from kfx.base.data.base_file import BaseFileComponent
 
         base_file = BaseFileComponent.BaseFile(
             data=Data(data={"file_path": str(mismatched_file)}),
@@ -690,7 +690,7 @@ class TestImageContentTypeValidation:
         with pytest.raises(ValueError, match=r"\.png.*JPEG"):
             component.process_files([base_file])
 
-    @patch("lfx.components.files_and_knowledge.file.get_settings_service")
+    @patch("kfx.components.files_and_knowledge.file.get_settings_service")
     @patch("subprocess.Popen")
     def test_process_files_silent_mode_skips_mismatched_image(self, mock_popen, mock_settings, tmp_path):
         """Test that process_files in silent mode logs but doesn't raise for mismatched images."""
@@ -727,7 +727,7 @@ class TestImageContentTypeValidation:
         mock_proc.stderr.read.return_value = b""
         mock_popen.return_value = mock_proc
 
-        from lfx.base.data.base_file import BaseFileComponent
+        from kfx.base.data.base_file import BaseFileComponent
 
         base_file = BaseFileComponent.BaseFile(
             data=Data(data={"file_path": str(mismatched_file)}),

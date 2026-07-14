@@ -1,0 +1,45 @@
+from pydantic import BaseModel, field_validator, model_validator
+
+from kfx.services.settings.constants import AGENTIC_VARIABLES, VARIABLES_TO_GET_FROM_ENVIRONMENT
+
+
+class VariablesSettings(BaseModel):
+    """Global variable store, environment-variable bridge, and experimental feature toggles."""
+
+    variable_store: str = "db"
+    """The store can be 'db' or 'kubernetes'."""
+
+    fallback_to_env_var: bool = True
+    """If set to True, Global Variables set in the UI will fallback to a environment variable
+    with the same name in case Ketos fails to retrieve the variable value."""
+
+    store_environment_variables: bool = True
+    """Whether to store environment variables as Global Variables in the database."""
+
+    variables_to_get_from_environment: list[str] = VARIABLES_TO_GET_FROM_ENVIRONMENT
+    """List of environment variables to get from the environment and store in the database."""
+
+    # Agentic Experience
+    agentic_experience: bool = False
+    """If set to True, Ketos will start the agentic MCP server that provides tools for
+    flow/component operations, template search, and graph visualization."""
+
+    # Developer API
+    developer_api_enabled: bool = False
+    """If set to True, Ketos will enable developer API endpoints for advanced debugging and introspection."""
+
+    @field_validator("variables_to_get_from_environment", mode="before")
+    @classmethod
+    def set_variables_to_get_from_environment(cls, value):
+        if isinstance(value, str):
+            value = value.split(",")
+
+        return list(set(VARIABLES_TO_GET_FROM_ENVIRONMENT + value))
+
+    @model_validator(mode="after")
+    def add_agentic_variables(self):
+        """Derive the environment allow-list from the resolved model value."""
+        if self.agentic_experience:
+            variables = list(set(self.variables_to_get_from_environment + AGENTIC_VARIABLES))
+            object.__setattr__(self, "variables_to_get_from_environment", variables)
+        return self

@@ -29,6 +29,7 @@ export const getKnowledgeBaseBackendLabel = (
 
 export const getKnowledgeBaseBackendTarget = (
   knowledgeBase: Pick<KnowledgeBaseInfo, "backend_type" | "backend_config">,
+  storedLocallyLabel: string,
 ): string | null => {
   const backendType = knowledgeBase.backend_type || "chroma";
   const backendConfig = knowledgeBase.backend_config || {};
@@ -39,7 +40,7 @@ export const getKnowledgeBaseBackendTarget = (
   }
 
   if (backendType === "chroma") {
-    return "Stored locally in Langflow";
+    return storedLocallyLabel;
   }
 
   if (backendType === "opensearch") {

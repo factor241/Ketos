@@ -81,7 +81,7 @@ def generate_coveragerc(bundle_names: set[str], legacy_files: set[str], output_p
 # Do not edit manually - changes will be overwritten
 
 [run]
-source = src/backend/base/langflow
+source = src/backend/base/ketos
 omit =
     # Test files
     */tests/*
@@ -142,12 +142,12 @@ def main():
 
     # Paths
     frontend_path = project_root / "src" / "frontend"
-    backend_components_path = project_root / "src" / "backend" / "base" / "langflow" / "components"
+    component_path = project_root / "src" / "kfx" / "src" / "kfx" / "components"
     output_path = project_root / "src" / "backend" / ".coveragerc"
 
     print(f"Project root: {project_root}")
     print(f"Frontend path: {frontend_path}")
-    print(f"Backend components path: {backend_components_path}")
+    print(f"KFX components path: {component_path}")
     print(f"Output path: {output_path}")
     print()
 
@@ -155,13 +155,13 @@ def main():
     bundle_names = extract_sidebar_bundles(frontend_path)
 
     # Find legacy components
-    legacy_files = find_legacy_components(backend_components_path)
+    legacy_files = find_legacy_components(component_path)
 
     # Generate .coveragerc file
     generate_coveragerc(bundle_names, legacy_files, output_path)
 
     print("\nDone! You can now run backend tests with coverage using:")
-    print("cd src/backend && python -m pytest --cov=src/backend/base/langflow --cov-config=.coveragerc")
+    print("cd src/backend && python -m pytest --cov=src/backend/base/ketos --cov-config=.coveragerc")
 
 
 if __name__ == "__main__":

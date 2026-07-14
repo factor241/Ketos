@@ -2,12 +2,12 @@
 
 import { create } from "zustand";
 import {
-  LANGFLOW_ACCESS_TOKEN,
-  LANGFLOW_API_TOKEN,
-  LANGFLOW_REFRESH_TOKEN,
+  KETOS_ACCESS_TOKEN,
+  KETOS_API_TOKEN,
+  KETOS_REFRESH_TOKEN,
 } from "@/constants/constants";
 import type { AuthStoreType } from "@/types/zustand/auth";
-import { cookieManager, getCookiesInstance } from "@/utils/cookie-manager";
+import { cookieManager } from "@/utils/cookie-manager";
 
 const useAuthStore = create<AuthStoreType>((set, get) => ({
   isAdmin: false,
@@ -30,9 +30,9 @@ const useAuthStore = create<AuthStoreType>((set, get) => ({
     set({ authenticationErrorCount }),
 
   logout: async () => {
-    localStorage.removeItem(LANGFLOW_ACCESS_TOKEN);
-    localStorage.removeItem(LANGFLOW_API_TOKEN);
-    localStorage.removeItem(LANGFLOW_REFRESH_TOKEN);
+    localStorage.removeItem(KETOS_ACCESS_TOKEN);
+    localStorage.removeItem(KETOS_API_TOKEN);
+    localStorage.removeItem(KETOS_REFRESH_TOKEN);
 
     cookieManager.clearAuthCookies();
 

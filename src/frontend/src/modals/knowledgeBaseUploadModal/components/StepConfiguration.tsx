@@ -1,9 +1,8 @@
 import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import { DBProviderInput } from "@/components/core/parameterRenderComponent/components/dbProviderInputComponent";
-import ModelInputComponent, {
-  type ModelOption,
-} from "@/components/core/parameterRenderComponent/components/modelInputComponent";
+import ModelInputComponent from "@/components/core/parameterRenderComponent/components/modelInputComponent";
+import type { ModelOption } from "@/components/core/parameterRenderComponent/components/modelInputComponent/types";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -230,93 +229,91 @@ export function StepConfiguration({
           } as React.HTMLAttributes<HTMLInputElement>)}
         />
 
-        {/* Ingest Content - Animated */}
-        <div
-          className={cn(
-            "grid transition-all duration-300 ease-in-out",
-            showAdvanced
-              ? "grid-rows-[1fr] opacity-100"
-              : "grid-rows-[0fr] opacity-0",
-          )}
-        >
-          <div className="overflow-hidden">
-            <Separator className="my-4" />
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-2">
-                <ForwardedIconComponent
-                  name="LayoutGrid"
-                  className="h-4 w-4 text-muted-foreground"
-                />
-                <span className="text-sm font-medium">
-                  {t("knowledge.configureSources")}
-                  <span className="text-xs text-muted-foreground ml-1">
-                    {t("knowledge.configureSourcesMaxSize")}
-                  </span>
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-2">
-                  <Label className="text-xs text-muted-foreground">
-                    {t("knowledge.sourcesLabel")}
-                  </Label>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        data-testid="kb-browse-btn"
-                        className={cn(
-                          "w-full justify-between focus-visible:ring-1 focus-visible:ring-input focus-visible:ring-offset-0 focus-visible:ring-offset-background",
-                          validationErrors.files && "border-destructive",
-                        )}
-                      >
-                        <span className="flex items-center gap-2">
-                          <ForwardedIconComponent
-                            name="Upload"
-                            className="h-4 w-4"
-                          />
-                          {t("knowledge.addSources")}
-                        </span>
-                        <ForwardedIconComponent
-                          name="ChevronDown"
-                          className="h-4 w-4"
-                        />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-[220px]">
-                      <DropdownMenuItem
-                        onClick={() => {
-                          document.getElementById("file-input")?.click();
-                        }}
-                      >
-                        <ForwardedIconComponent
-                          name="FileText"
-                          className="mr-2 h-4 w-4"
-                        />
-                        {t("knowledge.uploadFiles")}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          document.getElementById("folder-input")?.click();
-                        }}
-                      >
-                        <ForwardedIconComponent
-                          name="Folder"
-                          className="mr-2 h-4 w-4"
-                        />
-                        {t("knowledge.uploadFolder")}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  {validationErrors.files && (
-                    <span className="text-xs text-destructive">
-                      {validationErrors.files}
+        {showAdvanced && (
+          <>
+            {/* Ingest Content */}
+            <div className="grid grid-rows-[1fr] opacity-100">
+              <div className="overflow-hidden">
+                <Separator className="my-4" />
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center gap-2">
+                    <ForwardedIconComponent
+                      name="LayoutGrid"
+                      className="h-4 w-4 text-muted-foreground"
+                    />
+                    <span className="text-sm font-medium">
+                      {t("knowledge.configureSources")}
+                      <span className="text-xs text-muted-foreground ml-1">
+                        {t("knowledge.configureSourcesMaxSize")}
+                      </span>
                     </span>
-                  )}
-                </div>
-                <div className="flex flex-col gap-2">
-                  {/* <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-2">
+                      <Label className="text-xs text-muted-foreground">
+                        {t("knowledge.sourcesLabel")}
+                      </Label>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            data-testid="kb-browse-btn"
+                            className={cn(
+                              "w-full justify-between focus-visible:ring-1 focus-visible:ring-input focus-visible:ring-offset-0 focus-visible:ring-offset-background",
+                              validationErrors.files && "border-destructive",
+                            )}
+                          >
+                            <span className="flex items-center gap-2">
+                              <ForwardedIconComponent
+                                name="Upload"
+                                className="h-4 w-4"
+                              />
+                              {t("knowledge.addSources")}
+                            </span>
+                            <ForwardedIconComponent
+                              name="ChevronDown"
+                              className="h-4 w-4"
+                            />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="start"
+                          className="w-[220px]"
+                        >
+                          <DropdownMenuItem
+                            onClick={() => {
+                              document.getElementById("file-input")?.click();
+                            }}
+                          >
+                            <ForwardedIconComponent
+                              name="FileText"
+                              className="mr-2 h-4 w-4"
+                            />
+                            {t("knowledge.uploadFiles")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              document.getElementById("folder-input")?.click();
+                            }}
+                          >
+                            <ForwardedIconComponent
+                              name="Folder"
+                              className="mr-2 h-4 w-4"
+                            />
+                            {t("knowledge.uploadFolder")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      {validationErrors.files && (
+                        <span className="text-xs text-destructive">
+                          {validationErrors.files}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {/* <Label className="text-xs text-muted-foreground flex items-center gap-1">
                     Column Details
                     <TooltipProvider>
                       <Tooltip>
@@ -338,176 +335,171 @@ export function StepConfiguration({
                     columnConfig={columnConfig}
                     onColumnConfigChange={onColumnConfigChange}
                   /> */}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Chunking Settings - Animated */}
-        <div
-          className={cn(
-            "grid transition-all duration-300 ease-in-out",
-            showAdvanced
-              ? "grid-rows-[1fr] opacity-100"
-              : "grid-rows-[0fr] opacity-0",
-          )}
-        >
-          <div className="overflow-hidden">
-            <Separator className="my-4" />
-            <div
-              className={cn(
-                "flex flex-col gap-4 transition-opacity",
-                !hasFiles && "opacity-50",
-              )}
-              aria-disabled={!hasFiles}
-            >
-              <div className="flex items-center gap-2">
-                <ForwardedIconComponent
-                  name="Settings2"
-                  className="h-4 w-4 text-muted-foreground"
-                />
-                <span className="text-sm font-medium">
-                  {t("knowledge.chunkingSettings")}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {/* Chunk Size */}
-                <div className="flex flex-col gap-2">
-                  <Label
-                    htmlFor="chunk-size"
-                    className="flex items-center gap-1 text-xs text-muted-foreground"
-                  >
-                    {t("knowledge.chunkSizeLabel")}
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="cursor-help">
-                            <ForwardedIconComponent
-                              name="Info"
-                              className="h-3.5 w-3.5 text-muted-foreground"
-                            />
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-[260px]">
-                          {t("knowledge.chunkSizeTooltip")}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </Label>
-                  <Input
-                    id="chunk-size"
-                    type="number"
-                    value={chunkSize}
-                    onChange={(e) =>
-                      onChunkSizeChange(Number(e.target.value) || 0)
-                    }
-                    min={1}
-                    max={10000}
-                    disabled={!hasFiles}
-                    data-testid="kb-chunk-size-input"
-                  />
-                </div>
-
-                {/* Chunk Overlap */}
-                <div className="flex flex-col gap-2">
-                  <Label
-                    htmlFor="chunk-overlap"
-                    className="flex items-center gap-1 text-xs text-muted-foreground"
-                  >
-                    {t("knowledge.chunkOverlapLabel")}
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="cursor-help">
-                            <ForwardedIconComponent
-                              name="Info"
-                              className="h-3.5 w-3.5 text-muted-foreground"
-                            />
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-[260px]">
-                          {t("knowledge.chunkOverlapTooltip")}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </Label>
-                  <Input
-                    id="chunk-overlap"
-                    type="number"
-                    value={chunkOverlap}
-                    onChange={(e) =>
-                      onChunkOverlapChange(Number(e.target.value) || 0)
-                    }
-                    min={0}
-                    max={chunkSize - 1}
-                    disabled={!hasFiles}
-                    data-testid="kb-chunk-overlap-input"
-                  />
-                </div>
-              </div>
-
-              {/* Separator */}
-              <div className="flex flex-col gap-2">
-                <Label
-                  htmlFor="separator"
-                  className="flex items-center gap-1 text-xs text-muted-foreground"
+            {/* Chunking Settings */}
+            <div className="grid grid-rows-[1fr] opacity-100">
+              <div className="overflow-hidden">
+                <Separator className="my-4" />
+                <div
+                  className={cn(
+                    "flex flex-col gap-4 transition-opacity",
+                    !hasFiles && "opacity-50",
+                  )}
+                  aria-disabled={!hasFiles}
                 >
-                  {t("knowledge.separatorLabel")}
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="cursor-help">
-                          <ForwardedIconComponent
-                            name="Info"
-                            className="h-3.5 w-3.5 text-muted-foreground"
-                          />
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-[260px]">
-                        {t("knowledge.separatorTooltip")}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </Label>
-                <Input
-                  id="separator"
-                  placeholder="\n"
-                  value={separator}
-                  onChange={(e) => onSeparatorChange(e.target.value)}
-                  disabled={!hasFiles}
-                  data-testid="kb-separator-input"
-                />
-              </div>
+                  <div className="flex items-center gap-2">
+                    <ForwardedIconComponent
+                      name="Settings2"
+                      className="h-4 w-4 text-muted-foreground"
+                    />
+                    <span className="text-sm font-medium">
+                      {t("knowledge.chunkingSettings")}
+                    </span>
+                  </div>
 
-              {/* Metadata */}
-              <Separator className="my-2" />
-              <div className="flex items-center gap-2">
-                <ForwardedIconComponent
-                  name="Tag"
-                  className="h-4 w-4 text-muted-foreground"
-                />
-                <span className="text-sm font-medium">
-                  {t("knowledge.metadataSection")}
-                </span>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Chunk Size */}
+                    <div className="flex flex-col gap-2">
+                      <Label
+                        htmlFor="chunk-size"
+                        className="flex items-center gap-1 text-xs text-muted-foreground"
+                      >
+                        {t("knowledge.chunkSizeLabel")}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help">
+                                <ForwardedIconComponent
+                                  name="Info"
+                                  className="h-3.5 w-3.5 text-muted-foreground"
+                                />
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-[260px]">
+                              {t("knowledge.chunkSizeTooltip")}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </Label>
+                      <Input
+                        id="chunk-size"
+                        type="number"
+                        value={chunkSize}
+                        onChange={(e) =>
+                          onChunkSizeChange(Number(e.target.value) || 0)
+                        }
+                        min={1}
+                        max={10000}
+                        disabled={!hasFiles}
+                        data-testid="kb-chunk-size-input"
+                      />
+                    </div>
+
+                    {/* Chunk Overlap */}
+                    <div className="flex flex-col gap-2">
+                      <Label
+                        htmlFor="chunk-overlap"
+                        className="flex items-center gap-1 text-xs text-muted-foreground"
+                      >
+                        {t("knowledge.chunkOverlapLabel")}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help">
+                                <ForwardedIconComponent
+                                  name="Info"
+                                  className="h-3.5 w-3.5 text-muted-foreground"
+                                />
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-[260px]">
+                              {t("knowledge.chunkOverlapTooltip")}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </Label>
+                      <Input
+                        id="chunk-overlap"
+                        type="number"
+                        value={chunkOverlap}
+                        onChange={(e) =>
+                          onChunkOverlapChange(Number(e.target.value) || 0)
+                        }
+                        min={0}
+                        max={chunkSize - 1}
+                        disabled={!hasFiles}
+                        data-testid="kb-chunk-overlap-input"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Separator */}
+                  <div className="flex flex-col gap-2">
+                    <Label
+                      htmlFor="separator"
+                      className="flex items-center gap-1 text-xs text-muted-foreground"
+                    >
+                      {t("knowledge.separatorLabel")}
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help">
+                              <ForwardedIconComponent
+                                name="Info"
+                                className="h-3.5 w-3.5 text-muted-foreground"
+                              />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-[260px]">
+                            {t("knowledge.separatorTooltip")}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </Label>
+                    <Input
+                      id="separator"
+                      placeholder="\n"
+                      value={separator}
+                      onChange={(e) => onSeparatorChange(e.target.value)}
+                      disabled={!hasFiles}
+                      data-testid="kb-separator-input"
+                    />
+                  </div>
+
+                  {/* Metadata */}
+                  <Separator className="my-2" />
+                  <div className="flex items-center gap-2">
+                    <ForwardedIconComponent
+                      name="Tag"
+                      className="h-4 w-4 text-muted-foreground"
+                    />
+                    <span className="text-sm font-medium">
+                      {t("knowledge.metadataSection")}
+                    </span>
+                  </div>
+                  <MetadataEditor
+                    pairs={metadataPairs}
+                    onPairsChange={onMetadataPairsChange}
+                    testIdScope="kb-run"
+                  />
+                  {validationErrors.metadata && (
+                    <span
+                      className="text-xs text-destructive"
+                      data-testid="kb-run-metadata-form-error"
+                    >
+                      {validationErrors.metadata}
+                    </span>
+                  )}
+                </div>
               </div>
-              <MetadataEditor
-                pairs={metadataPairs}
-                onPairsChange={onMetadataPairsChange}
-                testIdScope="kb-run"
-              />
-              {validationErrors.metadata && (
-                <span
-                  className="text-xs text-destructive"
-                  data-testid="kb-run-metadata-form-error"
-                >
-                  {validationErrors.metadata}
-                </span>
-              )}
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

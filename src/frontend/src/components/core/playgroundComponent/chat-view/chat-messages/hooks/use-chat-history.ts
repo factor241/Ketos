@@ -125,7 +125,7 @@ export const useChatHistory = (visibleSession: string | null) => {
           id: message.id || "",
           timestamp: message.timestamp,
           session: message.session_id,
-          flow_id: message.flow_id,
+          flow_id: message.flow_id ?? undefined,
           edit: message.edit,
           background_color: message.background_color,
           text_color: message.text_color,

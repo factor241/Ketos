@@ -1,0 +1,102 @@
+# ketos-push.yml
+#
+# PURPOSE
+#   Deploy (upsert) all flows to a remote Ketos instance whenever
+#   flow files are merged to main.  Uses stable flow IDs so re-running
+#   this workflow always converges to the same state.
+#
+# PREREQUISITES
+#   pip install kfx ketos-sdk
+#
+# GITHUB SETUP  (Settings → Environments → New environment → "production")
+#   Variables  (plain text):
+#     KETOS_PROD_URL        e.g. https://ketos.example.com
+#     KETOS_PROJECT_NAME    e.g. "Production Flows"   (optional)
+#   Secrets    (masked):
+#     KETOS_PROD_API_KEY    your production API key
+#
+#   Using a GitHub Environment lets you require manual approval before
+#   each production deploy (Settings → Environments → Required reviewers).
+#
+# USAGE
+#   Copy to .github/workflows/ketos-push.yml in your repo.
+#   The workflow triggers automatically on merges to main that touch
+#   flows/ and can also be triggered manually from the Actions tab.
+
+name: Deploy Ketos Flows
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "flows/**/*.json"
+  # Manual trigger with optional dry-run flag
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (show what would be pushed without making changes)"
+        type: boolean
+        default: false
+
+jobs:
+  push:
+    name: kfx push
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # ------------------------------------------------------------------ #
+      # Install kfx + the SDK it needs to push flows.                      #
+      # ------------------------------------------------------------------ #
+      - name: Install dependencies
+        run: pip install kfx ketos-sdk
+
+      # ------------------------------------------------------------------ #
+      # Write environments config at CI time.                              #
+      # The URL is a plain variable; the API key stays in secrets and is   #
+      # resolved by ketos-sdk via the api_key_env pointer at runtime.  #
+      # ------------------------------------------------------------------ #
+      - name: Write environments config
+        run: >-
+          printf '[environments.production]\nurl = "%s"\napi_key_env = "KETOS_PROD_API_KEY"\n'
+          "$KETOS_PROD_URL" > ketos-environments.toml
+        env:
+          KETOS_PROD_URL: ${{ vars.KETOS_PROD_URL }}
+
+      # ------------------------------------------------------------------ #
+      # Push flows.  Add --project to group flows into a folder.           #
+      # Remove --project / --project-id lines if you don't use projects.  #
+      # ------------------------------------------------------------------ #
+      - name: Push flows
+        env:
+          # Resolved from the GitHub variable; falls back to "Main" if unset
+          KETOS_PROJECT_NAME: ${{ vars.KETOS_PROJECT_NAME || 'Main' }}
+          KETOS_ENVIRONMENTS_FILE: ketos-environments.toml
+          KETOS_PROD_API_KEY: ${{ secrets.KETOS_PROD_API_KEY }}
+        run: |
+          kfx push \
+            --dir flows/ \
+            --env production \
+            --project "$KETOS_PROJECT_NAME" \
+            ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Deploy summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Environment: **production**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Triggered by: ${{ github.event_name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Dry run: ${{ github.event.inputs.dry_run || 'false' }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit: \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"

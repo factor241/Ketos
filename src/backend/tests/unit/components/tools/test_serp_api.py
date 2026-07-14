@@ -2,11 +2,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from langchain_core.tools import ToolException
-from langflow.custom import Component
-from lfx.components.serpapi.serp import SerpComponent
-from lfx.custom.utils import build_custom_component_template
-from lfx.schema import Data
-from lfx.schema.message import Message
+from ketos.custom import Component
+from kfx.components.serpapi.serp import SerpComponent
+from kfx.custom.utils import build_custom_component_template
+from kfx.schema import Data
+from kfx.schema.message import Message
 
 
 def test_serpapi_initialization():
@@ -34,7 +34,7 @@ def test_serpapi_template():
         assert input_name in input_names
 
 
-@patch("lfx.components.serpapi.serp.SerpAPIWrapper")
+@patch("kfx.components.serpapi.serp.SerpAPIWrapper")
 def test_fetch_content(mock_serpapi_wrapper):
     component = SerpComponent()
     component.serpapi_api_key = "test-key"
@@ -81,7 +81,7 @@ def test_error_handling():
     component.serpapi_api_key = "test-key"
     component.input_value = "test query"
 
-    with patch("lfx.components.serpapi.serp.SerpAPIWrapper") as mock_serpapi:
+    with patch("kfx.components.serpapi.serp.SerpAPIWrapper") as mock_serpapi:
         mock_instance = MagicMock()
         mock_serpapi.return_value = mock_instance
         mock_instance.results.side_effect = Exception("API Error")

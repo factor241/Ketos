@@ -12,6 +12,7 @@ import {
   PopoverContentWithoutPortal,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useCanvasReadOnly } from "@/contexts/canvas-read-only-context";
 import useFlowStore from "@/stores/flowStore";
 import ShadTooltip from "../../../../components/common/shadTooltipComponent";
 import type { outputComponentType } from "../../../../types/components";
@@ -30,6 +31,7 @@ export default function OutputComponent({
   handleSelectOutput,
   outputName,
 }: outputComponentType) {
+  const isCanvasReadOnly = useCanvasReadOnly();
   const nodeType = useFlowStore(
     (state) => state.nodes.find((node) => node.id === nodeId)?.data?.type,
   );
@@ -65,7 +67,11 @@ export default function OutputComponent({
   const refButton = useRef<HTMLButtonElement>(null);
 
   const shouldShowDropdown =
-    hasOutputs && !hasLoopOutput && !hasGroupOutputs && !isConditionalRouter;
+    hasOutputs &&
+    !hasLoopOutput &&
+    !hasGroupOutputs &&
+    !isConditionalRouter &&
+    !isCanvasReadOnly;
 
   return (
     <div>

@@ -129,15 +129,6 @@ jest.mock("@/stores/shortcuts", () => ({
     }),
 }));
 
-jest.mock("@/stores/storeStore", () => ({
-  useStoreStore: (selector: (state: unknown) => unknown) =>
-    selector({
-      hasStore: false,
-      hasApiKey: false,
-      validApiKey: false,
-    }),
-}));
-
 jest.mock("../../../../../components/common/genericIconComponent", () => ({
   __esModule: true,
   default: ({ name }: { name: string }) => <span>{name}</span>,
@@ -217,8 +208,16 @@ const getProps = () => ({
     node: {
       display_name: "Prompt",
       description: "Prompt node",
+      documentation: "",
       template: {
-        code: { value: "print('hello')" },
+        code: {
+          type: "code",
+          required: false,
+          list: false,
+          show: true,
+          readonly: false,
+          value: "print('hello')",
+        },
       },
       outputs: [],
       frozen: false,

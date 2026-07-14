@@ -91,12 +91,8 @@ const ModelProvidersContent = ({
           icon="Search"
           value={providerQuery}
           onChange={(event) => setProviderQuery(event.target.value)}
-          placeholder={t("modelProviders.searchProviders", {
-            defaultValue: "Search providers…",
-          })}
-          aria-label={t("modelProviders.searchProviders", {
-            defaultValue: "Search providers…",
-          })}
+          placeholder={t("modelProviders.searchProviders")}
+          aria-label={t("modelProviders.searchProviders")}
           data-testid="provider-search-input"
           className="mb-2"
         />

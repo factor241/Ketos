@@ -5,18 +5,18 @@ _find_component_code), validate_component_code, and the extract-validate integra
 """
 
 import pytest
-from langflow.agentic.helpers.code_extraction import (
+from ketos.agentic.helpers.code_extraction import (
     _find_code_blocks,
     _find_component_code,
     _find_unclosed_code_block,
     extract_component_code,
     extract_python_code,
 )
-from langflow.agentic.helpers.validation import validate_component_code
+from ketos.agentic.helpers.validation import validate_component_code
 
-VALID_COMPONENT_CODE = """from langflow.custom import Component
-from langflow.io import MessageTextInput, Output
-from langflow.schema.message import Message
+VALID_COMPONENT_CODE = """from ketos.custom import Component
+from ketos.io import MessageTextInput, Output
+from ketos.schema.message import Message
 
 
 class HelloWorldComponent(Component):
@@ -35,8 +35,8 @@ class HelloWorldComponent(Component):
         return Message(text=f"Hello, {self.input_value}!")
 """
 
-INCOMPLETE_COMPONENT_CODE = """from langflow.custom import Component
-from langflow.io import MessageTextInput, Output
+INCOMPLETE_COMPONENT_CODE = """from ketos.custom import Component
+from ketos.io import MessageTextInput, Output
 
 
 class IncompleteComponent(Component):
@@ -46,7 +46,7 @@ class IncompleteComponent(Component):
         MessageTextInput(name="input_value", display_name="Input"),
 """
 
-INVALID_SYNTAX_CODE = """from langflow.custom import Component
+INVALID_SYNTAX_CODE = """from ketos.custom import Component
 
 class BrokenComponent(Component)
     display_name = "Broken"
@@ -64,7 +64,7 @@ class TestExtractPythonCode:
 
         assert result is not None
         assert "class HelloWorldComponent" in result
-        assert "from langflow.custom import Component" in result
+        assert "from ketos.custom import Component" in result
 
     def test_extract_from_unclosed_python_block(self):
         """Should extract code from an unclosed ```python block."""
@@ -101,7 +101,7 @@ Here's a component that uses TextBlob for sentiment analysis:
 
         assert result is not None
         assert "class HelloWorldComponent" in result
-        assert "from langflow.custom import Component" in result
+        assert "from ketos.custom import Component" in result
 
     def test_extract_from_generic_code_block(self):
         """Should extract code from a generic ``` block without language specifier."""
@@ -158,7 +158,7 @@ And here's the component:
 
     def test_handles_code_with_special_characters(self):
         """Should handle code containing special characters."""
-        code_with_specials = """from langflow.custom import Component
+        code_with_specials = """from ketos.custom import Component
 
 class SpecialComponent(Component):
     display_name = "Special < > & Characters"
@@ -195,7 +195,7 @@ class TestEdgeCases:
 
     def test_handles_unicode_in_code(self):
         """Should handle unicode characters in code."""
-        unicode_code = """from langflow.custom import Component
+        unicode_code = """from ketos.custom import Component
 
 class UnicodeComponent(Component):
     display_name = "Unicode \u00e9\u00e0\u00fc"
@@ -303,7 +303,7 @@ class TestValidateComponentCode:
     """Tests for validate_component_code function."""
 
     def test_validates_valid_component(self):
-        """Should validate correct Langflow component code."""
+        """Should validate correct Ketos component code."""
         result = validate_component_code(VALID_COMPONENT_CODE)
 
         assert result.is_valid is True
@@ -327,7 +327,7 @@ class TestValidateComponentCode:
         assert result.error is not None
 
     def test_fails_for_non_component_code(self):
-        """Should fail validation for code that's not a Langflow component."""
+        """Should fail validation for code that's not a Ketos component."""
         non_component_code = """def hello():
     return "hello"
 """
@@ -411,7 +411,7 @@ This component takes an input and returns a greeting message."""
         """Should handle responses with lots of explanatory text."""
         llm_response = f"""I apologize for the previous rate limit error. Let me try again.
 
-Based on your request, I'll create a custom Langflow component that performs sentiment analysis.
+Based on your request, I'll create a custom Ketos component that performs sentiment analysis.
 This component will:
 1. Take text input
 2. Process it through a sentiment analyzer

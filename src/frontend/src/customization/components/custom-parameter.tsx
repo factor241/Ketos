@@ -1,11 +1,15 @@
 import type { handleOnNewValueType } from "@/CustomNodes/hooks/use-handle-new-value";
 import { ParameterRenderComponent } from "@/components/core/parameterRenderComponent";
 import type { NodeInfoType } from "@/components/core/parameterRenderComponent/types";
+import { useCanvasReadOnly } from "@/contexts/canvas-read-only-context";
 import useFlowStore from "@/stores/flowStore";
 import type { APIClassType, InputFieldType } from "@/types/api";
 import type { targetHandleType } from "@/types/flow";
 import { scapedJSONStringfy } from "@/utils/reactflowUtils";
 import { cn } from "@/utils/utils";
+
+const ignoreParameterMutation: handleOnNewValueType = () => undefined;
+const ignoreNodeClassMutation = () => undefined;
 
 export function CustomParameterComponent({
   handleOnNewValue,
@@ -29,11 +33,11 @@ export function CustomParameterComponent({
   nodeId: string;
   inputId: targetHandleType;
   templateData: Partial<InputFieldType>;
-  templateValue: any;
+  templateValue: unknown;
   showParameter: boolean;
   inspectionPanel: boolean;
   editNode: boolean;
-  handleNodeClass: (value: any, code?: string, type?: string) => void;
+  handleNodeClass: (value: unknown, code?: string, type?: string) => void;
   nodeClass: APIClassType;
   placeholder?: string;
   isToolMode?: boolean;
@@ -41,25 +45,34 @@ export function CustomParameterComponent({
   proxy: { field: string; id: string } | undefined;
 }) {
   const edges = useFlowStore((state) => state.edges);
+  const isCanvasReadOnly = useCanvasReadOnly();
 
   const disabled =
+    isCanvasReadOnly ||
     edges.some(
       (edge) =>
         edge.targetHandle ===
         scapedJSONStringfy(proxy ? { ...inputId, proxy } : inputId),
-    ) || isToolMode;
+    ) ||
+    isToolMode;
 
   return (
     <ParameterRenderComponent
-      handleOnNewValue={handleOnNewValue}
+      handleOnNewValue={
+        isCanvasReadOnly ? ignoreParameterMutation : handleOnNewValue
+      }
       name={name}
       nodeId={nodeId}
-      templateData={templateData}
+      templateData={
+        isCanvasReadOnly ? { ...templateData, readonly: true } : templateData
+      }
       templateValue={templateValue}
       editNode={editNode}
       showParameter={showParameter}
       inspectionPanel={inspectionPanel}
-      handleNodeClass={handleNodeClass}
+      handleNodeClass={
+        isCanvasReadOnly ? ignoreNodeClassMutation : handleNodeClass
+      }
       nodeClass={nodeClass}
       disabled={disabled}
       placeholder={placeholder}
@@ -107,7 +120,7 @@ export function CustomParameterLabel({
 }: {
   name: string;
   nodeId: string;
-  templateValue: any;
+  templateValue: unknown;
   nodeClass: APIClassType;
 }) {
   return <></>;

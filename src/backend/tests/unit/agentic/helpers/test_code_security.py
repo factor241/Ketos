@@ -7,18 +7,18 @@ Tests cover:
 - Edge cases (syntax errors, empty code)
 """
 
-from langflow.agentic.helpers.code_security import scan_code_security
+from ketos.agentic.helpers.code_security import scan_code_security
 
 
 class TestScanCodeSecuritySafeCode:
     """Tests that safe component code passes the security scan."""
 
     def test_should_pass_basic_component(self):
-        """Basic Langflow component should pass."""
+        """Basic Ketos component should pass."""
         code = """
-from lfx.custom import Component
-from lfx.io import MessageTextInput, Output
-from lfx.schema import Data
+from kfx.custom import Component
+from kfx.io import MessageTextInput, Output
+from kfx.schema import Data
 
 class MyComponent(Component):
     display_name = "My Component"

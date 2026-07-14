@@ -4,7 +4,7 @@ import uuid
 
 from fastapi import status
 from httpx import AsyncClient
-from langflow.utils.i18n import _safe_flow_key, translate_flow_notes
+from ketos.utils.i18n import _safe_flow_key, translate_flow_notes
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -39,7 +39,7 @@ class TestTranslateFlowNotes:
     def test_translates_description_when_key_is_baked_in(self, monkeypatch):
         """A noteNode with i18n_key baked in gets its description translated."""
         monkeypatch.setattr(
-            "langflow.utils.i18n._translations",
+            "ketos.utils.i18n._translations",
             {
                 "en": {"template_notes.simple_agent.0": "Hello"},
                 "fr": {"template_notes.simple_agent.0": "Bonjour"},
@@ -51,7 +51,7 @@ class TestTranslateFlowNotes:
 
     def test_falls_back_to_english_when_locale_missing(self, monkeypatch):
         monkeypatch.setattr(
-            "langflow.utils.i18n._translations",
+            "ketos.utils.i18n._translations",
             {"en": {"template_notes.simple_agent.0": "Hello"}},
         )
         nodes = [_make_note_node("n1", "Hello", i18n_key="template_notes.simple_agent.0")]
@@ -59,27 +59,27 @@ class TestTranslateFlowNotes:
         assert result[0]["data"]["node"]["description"] == "Hello"
 
     def test_falls_back_to_original_when_key_not_in_translations(self, monkeypatch):
-        monkeypatch.setattr("langflow.utils.i18n._translations", {"en": {}, "fr": {}})
+        monkeypatch.setattr("ketos.utils.i18n._translations", {"en": {}, "fr": {}})
         nodes = [_make_note_node("n1", "Original text", i18n_key="template_notes.unknown_flow.0")]
         result = translate_flow_notes(nodes, "fr")
         assert result[0]["data"]["node"]["description"] == "Original text"
 
     def test_node_without_i18n_key_is_passed_through_unchanged(self, monkeypatch):
         """NoteNodes without i18n_key (e.g. user-created) are left untouched."""
-        monkeypatch.setattr("langflow.utils.i18n._translations", {"fr": {}})
+        monkeypatch.setattr("ketos.utils.i18n._translations", {"fr": {}})
         node = _make_note_node("n1", "User note")  # no i18n_key
         result = translate_flow_notes([node], "fr")
         assert result[0] is node  # same object, not deep-copied
 
     def test_non_note_nodes_are_passed_through_unchanged(self, monkeypatch):
-        monkeypatch.setattr("langflow.utils.i18n._translations", {"en": {}})
+        monkeypatch.setattr("ketos.utils.i18n._translations", {"en": {}})
         generic = _make_generic_node("g1")
         result = translate_flow_notes([generic], "fr")
         assert result[0] is generic  # same object, untouched
 
     def test_does_not_mutate_input_nodes(self, monkeypatch):
         monkeypatch.setattr(
-            "langflow.utils.i18n._translations",
+            "ketos.utils.i18n._translations",
             {"en": {"template_notes.simple_agent.0": "Hello"}},
         )
         node = _make_note_node("n1", "Hello", i18n_key="template_notes.simple_agent.0")
@@ -89,7 +89,7 @@ class TestTranslateFlowNotes:
 
     def test_translates_multiple_note_nodes_independently(self, monkeypatch):
         monkeypatch.setattr(
-            "langflow.utils.i18n._translations",
+            "ketos.utils.i18n._translations",
             {
                 "en": {
                     "template_notes.simple_agent.0": "First",
@@ -112,7 +112,7 @@ class TestTranslateFlowNotes:
     def test_does_not_stamp_i18n_key_onto_nodes(self, monkeypatch):
         """translate_flow_notes must never write i18n_key — that's the bake script's job."""
         monkeypatch.setattr(
-            "langflow.utils.i18n._translations",
+            "ketos.utils.i18n._translations",
             {"en": {"template_notes.simple_agent.0": "Hello"}},
         )
         node = _make_note_node("n1", "Hello")  # no i18n_key
@@ -168,7 +168,7 @@ async def test_note_translations_returns_translated_text_for_baked_node(
     client: AsyncClient, logged_in_headers, monkeypatch
 ):
     """A noteNode with a baked i18n_key returns translated text for the locale."""
-    import langflow.utils.i18n as i18n_mod
+    import ketos.utils.i18n as i18n_mod
 
     monkeypatch.setattr(
         i18n_mod,

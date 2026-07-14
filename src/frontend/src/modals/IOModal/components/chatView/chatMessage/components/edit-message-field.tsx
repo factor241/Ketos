@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -11,6 +12,7 @@ export default function EditMessageField({
   onEdit: (message: string) => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const [message, setMessage] = useState(initialMessage);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // used before to onBlur function, leave it here because in the future we may want this functionality again
@@ -51,7 +53,7 @@ export default function EditMessageField({
               }}
               className="mt-2 bg-primary text-background hover:bg-primary-hover hover:text-secondary"
             >
-              Save
+              {t("playground.saveMessage")}
             </Button>
             <Button
               variant={"secondary"}
@@ -63,12 +65,11 @@ export default function EditMessageField({
               }}
               className="mt-2 !bg-transparent text-foreground hover:!bg-secondary-hover"
             >
-              Cancel
+              {t("playground.cancelButton")}
             </Button>
           </div>
           <div className="text-mmd font-medium text-muted-foreground word-break-break-word">
-            Editing messages will update the memory but won't restart the
-            conversation.
+            {t("playground.editMessageNotice")}
           </div>
         </div>
         <div></div>

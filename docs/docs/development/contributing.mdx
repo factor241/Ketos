@@ -1,0 +1,17 @@
+---
+title: Develop Ketos
+slug: /development/contributing
+---
+
+```bash
+make init
+make backend
+make frontend
+```
+
+Use `KFX_DEV=1 make backend` for dynamic component discovery. Before handing off
+a change, run focused tests and then the relevant formatter, type checker, unit
+suite, frontend suite, or docs build. Python commands run through `uv`.
+
+Preserve unrelated changes and never edit generated OpenAPI JSON, lock files,
+release artifacts, `LICENSE`, or `NOTICE` outside their owning stage.

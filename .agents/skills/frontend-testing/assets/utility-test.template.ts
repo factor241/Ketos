@@ -1,5 +1,5 @@
 /**
- * Test template for utility/helper functions in Langflow.
+ * Test template for utility/helper functions in Ketos.
  *
  * Usage:
  * 1. Copy this file to `__tests__/util-name.test.ts`

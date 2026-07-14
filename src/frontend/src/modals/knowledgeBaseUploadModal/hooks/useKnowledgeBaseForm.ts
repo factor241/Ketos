@@ -1,7 +1,6 @@
-import { type AxiosError } from "axios";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ModelOption } from "@/components/core/parameterRenderComponent/components/modelInputComponent";
+import type { ModelOption } from "@/components/core/parameterRenderComponent/components/modelInputComponent/types";
 import {
   type AvailableDBProviderId,
   type DBProviderConfigValue,
@@ -54,7 +53,7 @@ import { formatFileSize } from "../utils";
 function validateBackendConfig(
   backendType: AvailableDBProviderId,
   config: Record<string, DBProviderConfigValue>,
-): string | null {
+): "knowledge.validationOpenSearchIndexRequired" | null {
   if (backendType === "chroma_cloud") {
     // API key is validated by isDBProviderConfigured; no literal fields here.
     return null;
@@ -62,7 +61,7 @@ function validateBackendConfig(
   if (backendType === "opensearch") {
     const indexName = config.index_name;
     if (typeof indexName !== "string" || !indexName.trim()) {
-      return "OpenSearch requires an index_name";
+      return "knowledge.validationOpenSearchIndexRequired";
     }
   }
   return null;
@@ -156,6 +155,9 @@ export function useKnowledgeBaseForm({
   >({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(!hideAdvanced);
+  const toggleAdvanced = useCallback((): void => {
+    setShowAdvanced((current) => !current);
+  }, []);
 
   const defaultBackendSelection = useMemo(
     () => getDefaultDBProviderConfig(globalVariables),
@@ -192,6 +194,10 @@ export function useKnowledgeBaseForm({
   // Alert store
   const setSuccessData = useAlertStore((state) => state.setSuccessData);
   const setErrorData = useAlertStore((state) => state.setErrorData);
+  const translateRef = useRef(t);
+  const setErrorDataRef = useRef(setErrorData);
+  translateRef.current = t;
+  setErrorDataRef.current = setErrorData;
 
   // Create knowledge base mutation
   const createKnowledgeBase = useCreateKnowledgeBase();
@@ -244,11 +250,7 @@ export function useKnowledgeBaseForm({
       // Always enable advanced mode in add-sources mode so the file
       // upload section is visible. Also enable when the KB already has
       // advanced chunking config.
-      const hasAdvancedConfig =
-        isAddSourcesMode ||
-        existingKnowledgeBase.chunkSize != null ||
-        existingKnowledgeBase.chunkOverlap != null ||
-        existingKnowledgeBase.separator != null;
+      const hasAdvancedConfig = isAddSourcesMode;
       if (hasAdvancedConfig && !hideAdvanced) {
         setShowAdvanced(true);
       }
@@ -368,11 +370,10 @@ export function useKnowledgeBaseForm({
           }),
         ) ?? [];
       setChunkPreviews(previews);
-    } catch (error: unknown) {
-      const err = error as AxiosError<{ detail?: string }>;
-      setErrorData({
-        title: t("knowledge.errorChunkPreview"),
-        list: [err?.response?.data?.detail || err?.message || "Unknown error"],
+    } catch (_error: unknown) {
+      setErrorDataRef.current({
+        title: translateRef.current("knowledge.errorChunkPreview"),
+        list: [translateRef.current("knowledge.unknownError")],
       });
       setChunkPreviews([]);
     } finally {
@@ -410,11 +411,19 @@ export function useKnowledgeBaseForm({
     if (!isAddSourcesMode) {
       const selectedProvider = getDBProviderOption(backendType);
       if (!isDBProviderConfigured(backendType, globalVariables)) {
-        errors.backend = `${selectedProvider.label} must be configured in DB Providers settings before it can be used.`;
+        errors.backend = t(
+          "knowledge.validationProviderConfigurationRequired",
+          {
+            provider: selectedProvider.label,
+          },
+        );
       } else {
-        const backendErrors = validateBackendConfig(backendType, backendConfig);
-        if (backendErrors) {
-          errors.backend = backendErrors;
+        const backendErrorKey = validateBackendConfig(
+          backendType,
+          backendConfig,
+        );
+        if (backendErrorKey) {
+          errors.backend = t("knowledge.validationOpenSearchIndexRequired");
         }
       }
     }
@@ -424,13 +433,14 @@ export function useKnowledgeBaseForm({
     }
     const runMetadataValidation = validateMetadataPairs(metadataPairs);
     if (!runMetadataValidation.ok) {
-      errors.metadata =
-        "Fix metadata fields before continuing. Keys must be 1-32 lowercase letters, digits, or underscores and must be unique.";
+      errors.metadata = t("knowledge.validationMetadata");
     }
     for (const [fileName, pairs] of Object.entries(perFileMetadata)) {
       const perFileValidation = validateMetadataPairs(pairs);
       if (!perFileValidation.ok) {
-        errors.metadata = `Fix metadata fields for "${fileName}" before continuing.`;
+        errors.metadata = t("knowledge.validationMetadataForFile", {
+          fileName,
+        });
         break;
       }
     }
@@ -490,7 +500,7 @@ export function useKnowledgeBaseForm({
         };
 
         setSuccessData({
-          title: `Knowledge base "${sourceName}" created`,
+          title: t("knowledge.baseCreated", { name: sourceName }),
         });
 
         onSubmit?.(callbackData);
@@ -542,12 +552,10 @@ export function useKnowledgeBaseForm({
             headers: { "Content-Type": "multipart/form-data" },
           })
           .catch((ingestError: unknown) => {
-            const err = ingestError as AxiosError<{ detail?: string }>;
+            void ingestError;
             setErrorData({
               title: t("knowledge.errorIngestion", { name: sourceName }),
-              list: [
-                err?.response?.data?.detail || err?.message || "Unknown error",
-              ],
+              list: [t("knowledge.unknownError")],
             });
           });
       }
@@ -577,13 +585,8 @@ export function useKnowledgeBaseForm({
       onSubmit?.(callbackData);
       setOpen(false);
       resetForm();
-    } catch (error: unknown) {
-      const err = error as AxiosError<{ detail?: string }>;
-      const errorMessage =
-        err?.response?.data?.detail ||
-        err?.message ||
-        t("knowledge.errorCreateFailed");
-      setErrorData({ title: errorMessage });
+    } catch (_error: unknown) {
+      setErrorData({ title: t("knowledge.errorCreateFailed") });
     } finally {
       setIsSubmitting(false);
     }
@@ -611,8 +614,7 @@ export function useKnowledgeBaseForm({
 
       if (excludedFiles.length > 0) {
         setErrorData({
-          title:
-            "Some files were skipped. Only supported file types were uploaded. Excluded files:",
+          title: t("knowledge.unsupportedFilesSkipped"),
           list: excludedFiles,
         });
       }
@@ -688,6 +690,7 @@ export function useKnowledgeBaseForm({
 
     // UI state
     showAdvanced,
+    toggleAdvanced,
     isFilePanelOpen,
     isSubmitting,
 

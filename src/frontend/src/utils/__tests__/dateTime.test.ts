@@ -1,4 +1,5 @@
 import { formatSmartTimestamp, parseApiTimestamp } from "../dateTime";
+import { getIntlLocale } from "../locale-format";
 
 describe("dateTime", () => {
   describe("parseApiTimestamp", () => {
@@ -41,7 +42,7 @@ describe("dateTime", () => {
 
     it("returns time for today", () => {
       const date = new Date("2025-02-25T08:15:00Z");
-      const expected = new Intl.DateTimeFormat(undefined, {
+      const expected = new Intl.DateTimeFormat(getIntlLocale(), {
         hour: "2-digit",
         hour12: false,
         minute: "2-digit",
@@ -53,7 +54,7 @@ describe("dateTime", () => {
 
     it("returns day/month for same year but not today", () => {
       const date = new Date("2025-01-05T08:15:00Z");
-      const expected = new Intl.DateTimeFormat(undefined, {
+      const expected = new Intl.DateTimeFormat(getIntlLocale(), {
         day: "2-digit",
         month: "short",
         hour: "2-digit",
@@ -65,16 +66,19 @@ describe("dateTime", () => {
       expect(formatSmartTimestamp(date)).toBe(expected);
     });
 
-    it("returns dd/mm/yyyy time for different year", () => {
+    it("returns a locale-aware date and time for a different year", () => {
       const date = new Date("2024-12-31T23:59:00Z");
-      const time = new Intl.DateTimeFormat(undefined, {
+      const expected = new Intl.DateTimeFormat(getIntlLocale(), {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
         hour: "2-digit",
         hour12: false,
         minute: "2-digit",
         second: "2-digit",
         timeZone: "UTC",
       }).format(date);
-      expect(formatSmartTimestamp(date)).toBe(`31/12/2024 ${time}`);
+      expect(formatSmartTimestamp(date)).toBe(expected);
     });
 
     it("returns original string for invalid input", () => {

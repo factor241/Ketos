@@ -1,5 +1,5 @@
-import { ProviderVariable } from "@/constants/providerConstants";
-import { useQueryFunctionType } from "@/types/api";
+import type { ProviderVariable } from "@/constants/providerConstants";
+import type { useQueryFunctionType } from "@/types/api";
 import { api } from "../../api";
 import { getURL } from "../../helpers/constants";
 import { UseRequestProcessor } from "../../services/request-processor";
@@ -23,7 +23,7 @@ export type ProviderVariablesMapping = Record<string, ProviderVariable[]>;
 export const useGetProviderVariables: useQueryFunctionType<
   undefined,
   ProviderVariablesMapping
-> = (_, options) => {
+> = (options) => {
   const { query } = UseRequestProcessor();
 
   const getProviderVariablesFn =

@@ -1,404 +1,259 @@
-# Bundle API
+# Ketos Bundle API
 
-Stable surface that Langflow Extension Bundles consume.  Every public symbol
-listed below is part of the contract: changes to its name, signature, semantics,
-or visibility require a coordinated version bump and a `## Changelog` entry.
+This file defines the public v1 contract consumed by Ketos Extension bundles.
+Names, signatures, wire shapes, and semantics listed here are stable. A change
+to this surface requires a coordinated `BUNDLE_API_VERSION` decision and a new
+entry under [Changelog](#changelog).
 
-This document is paired with the integer **`BUNDLE_API_VERSION`** declared in
-[`lfx.extension.manifest`](src/lfx/src/lfx/extension/manifest.py).  Manifests
-declare the contract versions they support via `lfx.compat: ["1"]`; a bundle
-that does not list `str(BUNDLE_API_VERSION)` is rejected at install time with
+The canonical implementation lives under `kfx.extension`; the Ketos HTTP
+surface lives under `ketos.api.v1.extensions`. Legacy package names and saved
+flow compatibility bridges are not part of this contract.
+
+## Version and canonical schema
+
+| Contract item | Exact value or source |
+| --- | --- |
+| Bundle API version | `BUNDLE_API_VERSION = 1` in `kfx.extension.manifest` |
+| Manifest schema version | `SCHEMA_VERSION = 1` in `kfx.extension.manifest` |
+| Canonical `$schema` value | `https://schemas.ketos.test/extension/v1.json` |
+| JSON Schema builders | `kfx.extension.schema.build_schema()` and `build_schema_json(*, indent=2)` |
+| Manifest source precedence | `extension.json`, then `[tool.ketos.extension]` in `pyproject.toml` |
+
+An optional `$schema` field must equal the canonical URL exactly. A manifest
+declares Bundle API compatibility as `kfx.compat: ["1"]`; the loader rejects a
+manifest that does not include `str(BUNDLE_API_VERSION)` with the typed code
 `version-constraint-unsatisfied`.
 
-> **CI gate:** any PR that modifies a file containing an in-scope surface MUST
-> add a `## Changelog` entry describing the change.  The CI guard
-> [`scripts/migrate/check_bundle_api_changelog.py`](scripts/migrate/check_bundle_api_changelog.py)
-> enforces this.  Pure-internal refactors that preserve every public symbol's
-> name and signature do not require a changelog entry, but reviewers should be
-> skeptical.
+The canonical minimal JSON manifest is:
 
----
+```json
+{
+  "$schema": "https://schemas.ketos.test/extension/v1.json",
+  "id": "my-extension",
+  "version": "0.1.0",
+  "name": "My Extension",
+  "kfx": { "compat": ["1"] },
+  "bundles": [
+    { "name": "my_bundle", "path": "components" }
+  ]
+}
+```
 
-## Surface (v0)
+## Manifest model
 
-### Component base class
+The runtime model is `kfx.extension.manifest.ExtensionManifest`. Unknown
+fields are rejected.
 
-| Symbol | Source |
+| Field | Required | v1 contract |
+| --- | --- | --- |
+| `$schema` | no | If present, the exact canonical v1 URL above |
+| `id` | yes | Lowercase hyphenated identifier, 2-64 characters |
+| `version` | yes | SemVer 2.0.0 string |
+| `name` | yes | Non-empty display name, at most 200 characters |
+| `description` | no | At most 2,000 characters |
+| `kfx` | yes | `KfxCompat` with a non-empty, unique list of positive-integer strings |
+| `bundles` | yes | Exactly one `BundleRef` in v1 |
+| `capabilities` | no | `Capabilities`; only `requiresCredentials: bool`, default `false` |
+| `locale_bundle` | no | `LocaleBundle` owned by this manifest's `id` |
+| `ru_missing_policy` | no | `"mark"` (default) or `"fail"` |
+
+`services`, `routes`, `hooks`, `starterProjects`, and `userConfig` are reserved
+for later versions. They are rejected when set and are exposed by the
+published JSON Schema through `x-deferred-fields`, not as accepted properties.
+
+### BundleRef
+
+`kfx.extension.manifest.BundleRef` has these exact fields:
+
+| Field | Required | v1 contract |
+| --- | --- | --- |
+| `name` | yes | Lowercase snake_case identifier, 2-64 characters |
+| `path` | yes | Non-empty relative path contained by the extension root |
+| `display_name` | no | Non-empty UI label, at most 120 characters |
+| `icon` | no | Non-empty Lucide icon name, at most 64 characters |
+
+The validator and every discovery/load path enforce resolved path containment;
+absolute paths, `..`, and symlink escapes are rejected.
+
+### Localization
+
+`LocaleBundle` contains `namespace` and non-empty `locales`. The namespace must
+equal the containing extension `id`. Every catalog key starts with
+`components.` and every translated value is non-blank. If
+`ru_missing_policy="fail"`, a `ru` catalog is required; `"mark"` accepts the
+manifest and exposes `ru_missing=True` on loaded components.
+
+## Component authoring surface
+
+Bundle modules subclass `kfx.custom.Component` and declare the component
+metadata, `inputs`, and `outputs` consumed by the palette and graph runtime.
+Class names are persisted identifiers and must not be renamed after release.
+
+The supported authoring imports are:
+
+| Surface | Canonical import |
 | --- | --- |
-| `Component` | `lfx.custom.custom_component.component.Component` |
-| `Component.build()` (declared on subclasses) | call site of every loaded bundle module |
-| `Component.inputs` | declarative input list |
-| `Component.outputs` | declarative output list |
-| `Component.display_name` / `Component.description` / `Component.icon` / `Component.documentation` | metadata read by the palette |
-| `Component.name` | optional override of the registry class name |
+| Component base | `kfx.custom.Component` |
+| Input and output declarations | `kfx.io` |
+| `Data` | `kfx.schema.data.Data` |
+| `DataFrame` | `kfx.schema.dataframe.DataFrame` |
+| `Message` | `kfx.schema.message.Message` |
 
-### Inputs
+A loaded component is addressed only by the canonical ID
+`ext:<bundle>:<Class>@<slot>`. The slots are `official` for installed or seed
+extensions and `extra` for loose `KETOS_COMPONENTS_PATH` bundles.
 
-| Symbol | Source |
-| --- | --- |
-| `Input` (base) | `lfx.io` |
-| `MessageTextInput` / `MultilineInput` / `SecretStrInput` | `lfx.io` |
-| `IntInput` / `FloatInput` / `BoolInput` | `lfx.io` |
-| `DropdownInput` / `TabInput` | `lfx.io` |
-| `DictInput` / `NestedDictInput` | `lfx.io` |
-| `FileInput` / `LinkInput` | `lfx.io` |
-| `HandleInput` | `lfx.io` |
+## Public Python API
 
-### Outputs
+### Manifest, schema, validation, and authoring
 
-| Symbol | Source |
-| --- | --- |
-| `Output` | `lfx.io` |
+The `kfx.extension` facade lazily re-exports this public surface:
 
-### Schema types
+- Manifest: `ExtensionManifest`, `BundleRef`, `KfxCompat`, `ManifestSource`,
+  `BUNDLE_API_VERSION`, `SCHEMA_VERSION`, `EXTENSION_SCHEMA_URL`, and
+  `load_manifest(root)`.
+- Validation: `ValidateReport` and
+  `validate_extension(root, *, execute_imports=False)`.
+- Scaffolding: `InitOptions`, `BASIC_TEMPLATE`, and `init_extension(options)`.
+- Typed errors: `ExtensionError`, `ExtensionErrorCollection`, `ERROR_CODES`,
+  and `format_extension_error(error)`.
 
-| Symbol | Source |
-| --- | --- |
-| `Data` | `lfx.schema.data` |
-| `DataFrame` | `lfx.schema.dataframe` |
-| `Message` | `lfx.schema.message` |
+`ExtensionError.to_dict()` is the stable error envelope with `code`, `message`,
+`location`, `content`, `hint`, and `ref_url`. `ERROR_CODES` is the set of typed
+discriminants: adding a code is compatible; removing or renaming one requires a
+Bundle API version decision.
 
-### Manifest contract (consumed by the loader)
+### Discovery and loading
 
-| Symbol | Source |
-| --- | --- |
-| Manifest schema (`extension.json` / `[tool.langflow.extension]`) | `lfx.extension.manifest.ExtensionManifest` |
-| `BundleRef` (one entry in `bundles[]`) | `lfx.extension.manifest.BundleRef` |
-| `LfxCompat` (declared as `manifest.lfx`) | `lfx.extension.manifest.LfxCompat` |
-| `BUNDLE_API_VERSION` (the integer this lfx ships) | `lfx.extension.manifest` |
-| `EXTENSION_SCHEMA_URL` / `SCHEMA_VERSION` | `lfx.extension.manifest` |
+The current discovery/loader API is:
 
-Slot vocabulary: `official` (installed pip distributions and seed
-directories) and `extra` (paths declared in `LANGFLOW_COMPONENTS_PATH`).
-Component IDs at runtime are `ext:<bundle>:<Class>@<slot>`.
+- `discover_installed_extensions()`, `discover_seed_extensions()`, and
+  `discover_all_extensions()` from `kfx.extension.discovery`.
+- `load_extension(root, *, slot="official", distribution=None,
+  module_namespace="_kfx_ext")`.
+- `discover_inline_bundles(paths)` for `KETOS_COMPONENTS_PATH` roots.
+- `load_installed_extensions()` and `load_seed_extensions()`.
+- `LoadedComponent`, `LoadResult`, `SLOT_OFFICIAL`, and `SLOT_EXTRA`.
 
-### Discovery + loading entry points
+`LoadedComponent` is frozen and exposes `namespaced_id`. `LoadResult.ok` is
+true exactly when `errors` is empty; partial results may contain both loaded
+components and typed errors.
 
-| Symbol | Source |
-| --- | --- |
-| `load_extension(root)` | `lfx.extension.loader` |
-| `load_installed_extensions()` | `lfx.extension.loader` |
-| `discover_inline_bundles()` | `lfx.extension.loader` |
-| `discover_installed_extensions()` / `discover_seed_extensions()` / `discover_all_extensions()` | `lfx.extension.discovery` |
-| `LoadedComponent` | `lfx.extension.loader` (frozen dataclass; what the registry stores) |
-| `LoadResult` | `lfx.extension.loader` |
-| `SLOT_OFFICIAL` / `SLOT_EXTRA` | `lfx.extension.loader` |
+Installed extension entry points use the group `ketos.extensions`. Installed
+distributions and seed directories occupy `official`; dev registrations and
+loose component paths do not overwrite that slot silently.
 
-### Reload pipeline
+### Extension registry
 
-| Symbol | Source |
-| --- | --- |
-| `reload_bundle(registry, bundle_name)` | `lfx.extension.reload` |
-| `BundleRegistry` | `lfx.extension.bundle_registry` |
-| `BundleRecord` | `lfx.extension.bundle_registry` |
-| `ReloadInProgressError` | `lfx.extension.bundle_registry` |
-| `POST /api/v1/extensions/{id}/bundles/{name}/reload` | `langflow.api.v1.extensions` |
+The `kfx.extension` facade exports `ExtensionRegistry`, `Extension`,
+`LoadStatus`, `DuplicateExtensionError`, `ExtensionImmutableError`, and
+`build_registry_from_discovery(...)`.
 
-### Errors
+The live component registry is `kfx.extension.bundle_registry.BundleRegistry`.
+Its stable records and operations are:
 
-| Symbol | Source |
-| --- | --- |
-| `ExtensionError` | `lfx.extension.errors` |
-| `ExtensionErrorCollection` | `lfx.extension.errors` |
-| `format_extension_error(error)` | `lfx.extension.errors` |
-| `ERROR_CODES` (frozenset of every typed code) | `lfx.extension.errors` |
+- `BundleRecord` (frozen snapshot), `snapshot()`, `get_bundle(name)`, and
+  `list_components()`.
+- `install_bundle(record)`, `remove_bundle(name)`, and `write_locked()`.
+- `begin_reload(name)`, `finish_reload(name)`, and
+  `reload_in_progress(name)`.
+- `get_default_registry()` for the process registry.
 
-The full kebab-case discriminant set is the contract — adding a code is
-backward-compatible; removing or renaming a code is a breaking change and
-requires a `BUNDLE_API_VERSION` bump.
+### Reload runtime
 
-### Validate / authoring CLI
+`kfx.extension.reload.reload_bundle(registry, bundle, *, source_path=None,
+slot=None, user_id=None)` returns a frozen `ReloadResult` and raises
+`ReloadInProgressError` only for a concurrent reload of the same bundle.
 
-| Symbol | Source |
-| --- | --- |
-| `validate_extension(root, *, execute_imports=False)` | `lfx.extension.validate` |
-| `ValidateReport` | `lfx.extension.validate` |
-| `lfx extension validate` (CLI) | `lfx.cli._extension_commands` |
-| `lfx extension schema` (CLI) | `lfx.cli._extension_commands` |
-| `lfx extension init` (CLI) | `lfx.cli._extension_commands` |
-| `lfx extension dev` (CLI -- registers a local path and execs `langflow run`) | `lfx.cli._extension_commands` |
-| `lfx extension list` (CLI) | `lfx.cli._extension_commands` |
-| `lfx extension reload` (CLI) | `lfx.cli._extension_commands` |
-| `register_dev_extension` / `unregister_dev_extension` (Python API) | `lfx.extension.dev_registry` |
+`ReloadResult.to_dict()` has this exact wire shape:
 
-### Migration
+```json
+{
+  "ok": true,
+  "bundle": "my_bundle",
+  "reload_id": "opaque-id",
+  "components_added": [],
+  "components_removed": [],
+  "components_changed": [],
+  "errors": [],
+  "warnings": []
+}
+```
 
-| Symbol | Source |
-| --- | --- |
-| Migration-table file | `src/lfx/src/lfx/extension/migration/migration_table.json` |
-| `MigrationEntry` | `lfx.extension.migration.schema` |
-| `MigrationTable` | `lfx.extension.migration.schema` |
-| `migrate_flow_payload(payload, table)` | `lfx.extension.migration.rewrite` |
-| `MIGRATION_SCHEMA_VERSION` | `lfx.extension.migration.schema` |
+Reload is an atomic source/module/registry swap. A failed reload leaves the
+previous `BundleRecord` live. Events are emitted as `bundle_reloaded` or
+`bundle_reload_failed`, scoped to `user:<id>` when a user ID is supplied and
+to `global` otherwise.
 
----
+### Dev registry
 
-## Out of scope (v0)
+`kfx.extension.dev_registry` exposes `DevExtensionEntry`,
+`register_dev_extension(path)`, `unregister_dev_extension(path)`,
+`list_dev_extensions()`, `load_dev_extensions()`,
+`dev_extension_component_paths()`, and `state_file_path()`.
 
-These are reserved in the manifest schema and produce a typed
-`field-deferred-in-this-milestone` error if set; they are NOT part of the
-v0 contract:
+## HTTP API
 
-- `services` — bundle-declared service factories
-- `routes` — bundle-mounted HTTP routes
-- `hooks` — bundle-declared lifecycle hooks
-- `starter_projects` — bundle-shipped starter flows
-- `userConfig` — bundle-declared user-config schema
-- Multi-bundle manifests (`bundles` list with length > 1)
+The router is mounted under `/api/v1/extensions`.
 
----
+### Reload one bundle
 
-## Pilot bundle: `lfx-duckduckgo`
+`POST /api/v1/extensions/{extension_id}/bundles/{bundle_name}/reload`
 
-The shipped LE-1023 pilot is **`duckduckgo`**, extracted into the
-standalone distribution
-[`lfx-duckduckgo`](src/bundles/duckduckgo/) under `src/bundles/duckduckgo/`
-with its own `pyproject.toml`.  `langflow`'s own `pyproject.toml`
-declares `lfx-duckduckgo>=0.1.0` as a regular dependency so a flat
-`pip install langflow` continues to ship the bundle as before.
+- Requires the authenticated active user and
+  `KETOS_ENABLE_EXTENSION_RELOAD=true`.
+- Returns `200` with the `ReloadResult.to_dict()` shape on success.
+- Returns `404` when reload is disabled or the URL identifies the wrong or an
+  unavailable bundle.
+- Returns `409` with typed code `reload-in-progress` for a concurrent reload.
+- Returns `422` for a structural reload failure; the typed primary error and
+  full result are preserved under the FastAPI error detail.
 
-Why this bundle:
+### Poll extension events
 
-- Single component (`DuckDuckGoSearchComponent`) in a single file
-  (`duck_duck_go_search_run.py`).
-- Zero git churn over the last six months.
-- Modern `Component` base class (no `LCToolComponent` legacy).
-- No authentication required — failure mode is a single failed request, not a
-  paid-API outage.
-- Class name is globally unique across `src/lfx/src/lfx/components/**`, so the
-  bare-name migration entry is allowed by `check_bare_names.py`.
+`GET /api/v1/extensions/events?since=<utc-epoch-seconds>`
 
-The runtime half of the M1 proof-of-delivery gate (save a flow on
-pre-migration Langflow, upgrade, confirm it loads AND runs identically)
-lives in the dogfood checklist at
-[`src/bundles/duckduckgo/M1_DOGFOOD_CHECKLIST.md`](src/bundles/duckduckgo/M1_DOGFOOD_CHECKLIST.md);
-the deserialize half is covered by
-`src/lfx/tests/integration/extension/test_pilot_duckduckgo_upgrade.py`.
+The authenticated user determines the server-side event keyspace. A client
+`keyspace` query parameter is rejected with `422`. The response is:
 
----
+```json
+{
+  "events": [
+    { "type": "bundle_reloaded", "timestamp": 0.0, "payload": {} }
+  ],
+  "settled": true
+}
+```
+
+## CLI
+
+The supported commands are:
+
+- `kfx extension validate <path> [--execute-imports]`
+- `kfx extension schema [--output <path>]`
+- `kfx extension init <path>`
+- `kfx extension dev <path>`
+- `kfx extension list`
+- `kfx extension reload <extension-id> [--bundle <name>]`
+- `kfx extension reload --all`
+
+## Out of scope for v1
+
+- More than one bundle per extension.
+- Bundle-provided services, routes, lifecycle hooks, starter projects, or
+  user-configuration UI.
+- Executing untrusted bundle code in a sandbox. Installed bundle code is
+  operator-trusted and imports in the Ketos process.
+- Compatibility aliases for legacy package namespaces, manifest keys,
+  component IDs, or saved-flow rewriting.
 
 ## Changelog
 
-### v0 (this release)
+### v1 destructive cutover
 
-- Initial surface enumerated above.  Frozen as `BUNDLE_API_VERSION = 1`.
-- `BundleRegistry.write_locked()` exposed as a public context manager so the
-  reload pipeline can hold the registry write lock across both the
-  `sys.modules` swap and the `BundleRecord` install.  Concurrent readers
-  can no longer observe new modules paired with the old record.  No change
-  to the addressable component contract.
-- HTTP reload endpoint (`POST /api/v1/extensions/{id}/bundles/{name}/reload`)
-  returns `422 Unprocessable Entity` for structural failures (broken
-  bundle, missing source path, name mismatch) instead of `200 OK` with
-  `ok=false`.  Body is `{...primaryError, result: ReloadResult}` so the
-  full typed result is preserved under the FastAPI `detail` envelope.
-  `409 Conflict` for `reload-in-progress` is unchanged.
-- CLI table updated to remove the obsolete `dev register` / `dev unregister`
-  / `dev list` subcommands; the actual surface is `extension dev <path>`
-  plus the Python helpers `register_dev_extension` / `unregister_dev_extension`.
-- `MigrationTable.ambiguous_bare_names` added.  Each entry is
-  `{name, candidates: [list of canonical IDs]}` and registers a bare
-  class name that exists in 2+ bundles.  The deserializer now surfaces
-  `component-name-ambiguous` (with the candidate targets) for any bare
-  name listed here, instead of falling through to the generic
-  `component-not-found-with-hint`.  Seeded with the canonical regression
-  cases (`MergeDataComponent`, `SplitTextComponent`, `SubFlowComponent`).
-  `check_bare_names.py` now verifies every Component class found in
-  2+ bundle folders has a matching marker, so a future bundle move that
-  introduces a new ambiguity is caught at PR time.
-- Router-trust CI guard broadened to scan every `.py` under
-  `src/backend/base/langflow/api/**` and `src/lfx/src/lfx/**`; a new file
-  that mounts an `APIRouter(prefix=".../extensions...")` is auto-detected
-  and checked for forbidden install/uninstall/registry-mutation handlers.
-  Authors of files with non-literal prefixes can opt in via a
-  `# router-trust: in-scope` marker.
-- Router-trust guard rewritten to use AST-based cross-file resolution.
-  A forbidden handler in module A is now caught when module B mounts A's
-  router via `parent.include_router(child, prefix=".../extensions...")`,
-  and the same applies transitively across multi-hop include_router
-  chains.  An imported router that cannot be statically resolved is
-  ignored (the guard never flags routes it cannot prove reachable from
-  `/extensions`); routes co-located with an in-scope router ARE flagged.
-- `check_migration_append_only.py` now compares
-  `ambiguous_bare_names` alongside `entries`.  A marker may not be
-  removed once published, and its `candidates` list may only grow --
-  shrinking it would silently regress flows from
-  `component-name-ambiguous` to `component-not-found-with-hint`.
-- Router-trust guard now resolves dotted attribute references in
-  `include_router` and decorators.  ``include_router(child.api.router,
-  prefix="/extensions")`` after ``import child.api`` (and the
-  ``import child.api as alias; alias.router`` shape) are caught -- not
-  just ``from child.api import router as child_router``.  The parser
-  flattens any ``Name``/``Attribute`` chain, and the resolver walks
-  imports of either kind (``from M import N`` and ``import M``,
-  with or without an asname) back to the source file.
-- Router-trust guard's relative-import resolver is now
-  ``__init__.py``-aware.  Inside a package, ``from .child import Y``
-  anchors at the package itself (level=1 -> ``pkg``); inside a regular
-  module ``pkg.foo`` it anchors at the parent package (level=1 ->
-  ``pkg``).  The arithmetic differs because ``__init__.py``'s file
-  module IS the package, while ``pkg/foo.py``'s file module is
-  ``pkg.foo``.  The resolver tracks ``is_package`` and decrements
-  ``level`` by one for ``__init__.py`` files so both shapes resolve
-  correctly.
-- Code-review hardening pass across the extension subsystem.  No public
-  symbol's name or signature changed; this entry covers behavioural
-  tightening that bundle authors and operators should be aware of:
-  - **Path-safety contract honored on every discovery path.**
-    ``DiscoveredExtension`` records emitted from
-    ``discover_installed_extensions`` / ``discover_seed_extensions``
-    now run the same resolve-and-``relative_to`` containment check that
-    ``validate_extension`` performs.  A symlinked ``bundles[0].path``
-    or a symlinked seed subdirectory that escapes the extension root
-    is now rejected with ``path-escape`` *before* reaching the loader,
-    instead of slipping through to ``exec_module()``.  The shared
-    primitive lives at ``lfx.extension._paths.is_within``; every
-    walker (loader, validator, seed discovery, inline-bundle discovery)
-    uses the same function and the same ``SKIP_DIR_NAMES``.
-  - **``--execute-imports`` env allowlist.** The validator's
-    ``--execute-imports`` subprocess now inherits an explicit allowlist
-    (``PATH``, ``LANG``, ``LC_*``, ``SYSTEMROOT``, ``TMPDIR``, ``TZ``,
-    Python locale + encoding vars) instead of denylisting only
-    ``LANGFLOW_*``/``LFX_*``.  Cloud / CI credentials
-    (``AWS_*``, ``OPENAI_API_KEY``, ``GITHUB_TOKEN``, ...) no longer
-    propagate into untrusted bundle import.  The CLI / module docs
-    re-frame this pass as best-effort hygiene lint, not a sandbox.
-  - **AST hygiene lint widened.** ``_find_top_level_io`` now flags
-    ``exec``, ``eval``, ``__import__``, ``compile`` as top-level
-    primitives and ``importlib.import_module`` /
-    ``importlib.__import__`` as dotted-name primitives.  Still
-    best-effort literal-name matching; trivially bypassable by
-    obfuscation, and documented as such.
-  - **Reload swap is non-destructive.** ``_swap_sys_modules`` now
-    builds the staging->prod rename map **before** any ``sys.modules``
-    mutation, snapshots popped old modules into a recovery map, and
-    restores them on any mid-swap exception.  The length-mismatch
-    tripwire on ``zip(strict=True)`` no longer leaves the prod
-    namespace shredded.  A new typed code,
-    ``reload-class-retag-failed``, is appended to
-    ``ReloadResult.warnings`` when ``cls.__module__`` cannot be
-    retagged so the empty-palette-after-reload regression leaves a
-    trail instead of silently failing.
-  - **Cross-source bundle-name collision.**
-    ``load_installed_extensions`` now detects two distributions with
-    different canonical names but identical ``bundle.name`` (which
-    would silently clobber each other at
-    ``_lfx_ext.official.<name>.*``) and emits a typed
-    ``duplicate-bundle-name`` error on the loser, dropping its
-    components.  ``BundleRegistry.install_bundle`` additionally logs a
-    WARNING when an existing record is replaced by a record from a
-    different ``source_path`` (catches collisions the upstream
-    precedence resolver missed).
-  - **Reload endpoint off event loop.**
-    ``POST /api/v1/extensions/{id}/bundles/{name}/reload`` now invokes
-    ``reload_bundle`` via ``asyncio.to_thread`` so slow or large
-    bundle imports do not freeze the worker for other in-flight
-    requests.  The wire contract (status codes, body shape) is
-    unchanged.
-  - **Stable typed-error code rename.**
-    ``multi-bundle-deferred-in-this-milestone`` is renamed to the
-    stable ``multi-bundle-unsupported``.  The old code is retained in
-    ``ERROR_CODES`` as a deprecated alias for one milestone for log
-    scrapers.  Three new codes are added to
-    ``ERROR_CODES``: ``duplicate-bundle-name`` (see above),
-    ``reload-class-retag-failed`` (see above), and
-    ``reload-transport-error`` (CLI-side connectivity failure,
-    previously misreported as ``reload-source-missing``).
-  - **Discovery preserves "unreadable" vs "absent" distinction.**
-    ``_pyproject_declares_extension`` now propagates ``OSError`` so a
-    permission failure on a pyproject that *might* declare an
-    extension surfaces as ``manifest-unreadable`` instead of being
-    silently dropped as "no extension here".
-  - **Dev registry corruption is logged.** ``_read_state`` now
-    distinguishes file absent (silent, legitimate empty registry),
-    file present but unreadable (WARNING), and file present but
-    corrupt JSON / wrong shape (WARNING with detail).  The state
-    file is written with mode 0600 so a hostile third-party process
-    cannot inject an extension path into the developer's next
-    ``langflow run``.
-  - **Entry-point predicate avoids module-level side effects.**
-    ``_entry_point_loads_to_component`` now consults
-    ``importlib.util.find_spec`` first and only falls through to
-    ``ep.load()`` when the spec lookup is insufficient.  The
-    ``except BaseException`` was narrowed to ``except Exception`` so
-    ``SystemExit`` / ``KeyboardInterrupt`` are no longer swallowed at
-    filter time.
-  - **Frontend reload-success warnings surfaced.**  The reload route's
-    ``ReloadResult.warnings`` (non-empty on success) now reach the
-    user via a notice toast in addition to the green success toast.
-    Wire shape unchanged; this is a UI fix that consumes existing
-    payload fields.
-  - **Internal-only file split.** ``sys.modules`` surgery primitives
-    moved to ``lfx.extension.reload_swap``; ``load_installed_extensions``
-    / ``load_seed_extensions`` moved to
-    ``lfx.extension.loader._startup``.  Both are re-exported from
-    their previous import paths so external imports are unchanged.
-  - **Editable installs are discovered via the entry-point fallback.**
-    ``_distribution_manifest_path`` now falls back to the
-    ``langflow.extensions`` entry-point group when ``dist.files`` only
-    surfaces ``dist-info/`` entries (the ``pip install -e`` /
-    ``uv pip install -e`` case).  The entry-point value is resolved
-    via ``importlib.util.find_spec`` -- which runs import-system
-    finders but never executes the module body -- and the resulting
-    package directory is scanned for ``extension.json`` or a
-    ``[tool.langflow.extension]`` pyproject.  Wheel installs are
-    unaffected: the fallback only fires when the primary ``dist.files``
-    scan finds no manifest.  Previously, editable-installed bundles
-    were silently dropped by ``lfx extension list`` and the registry,
-    even though the bundle pyproject already declared the
-    entry-point.
-  - **Reload CLI: ``--bundle`` is optional; ``--all`` is implemented.**
-    ``lfx extension reload <ext_id>`` now resolves the bundle name
-    from local ``discover_all_extensions`` when ``--bundle`` is
-    omitted; explicit ``--bundle`` still wins for cases where the
-    local install is not visible to the running server.
-    ``lfx extension reload --all`` iterates every locally-discovered
-    bundle, POSTs reload to each, and exits non-zero if any reload
-    fails (previously hard-errored as "not yet wired").  ``--all`` is
-    mutually exclusive with a positional id / ``--bundle`` (exit 2).
-    The HTTP wire contract (``POST /api/v1/extensions/{id}/bundles/
-    {name}/reload`` per-bundle) is unchanged; this is a CLI-only
-    surface change.
-- **User-scoped extension events.**  Bundle lifecycle events
-  (``bundle_reloaded``, ``bundle_reload_failed``, ``flow_migrated``,
-  ``extension_error``) now publish to a per-user keyspace
-  (``user:<user_id>``) instead of the shared ``"global"`` bucket so
-  flow-migration and reload payloads cannot leak across users via the
-  poll endpoint.
-  - ``reload_bundle`` gains an optional keyword-only ``user_id: str |
-    None = None`` argument.  When supplied, ``bundle_reloaded`` /
-    ``bundle_reload_failed`` events are emitted to keyspace
-    ``user:<user_id>``; ``None`` (CLI / authless dev) keeps the legacy
-    ``"global"`` emission.  Existing positional callers are unaffected.
-  - ``POST /api/v1/extensions/{id}/bundles/{name}/reload`` now resolves
-    the authenticated user and threads its id into ``reload_bundle``, so
-    every reload triggered via HTTP is published to that user's
-    keyspace.  Wire contract (status codes, body shape) unchanged.
-  - ``GET /api/v1/extensions/events`` drops its client-supplied
-    ``keyspace`` query parameter.  The endpoint derives the keyspace
-    from the authenticated user server-side, so an authenticated client
-    can no longer poll another user's keyspace.  Frontends that polled
-    without ``keyspace`` (the in-tree consumer) are unaffected;
-    third-party callers that explicitly passed ``keyspace=...`` will
-    now receive ``422`` from FastAPI's strict parameter validation.
-- **Reload event payload aligned with ``ReloadResult``.**  Both
-  ``bundle_reloaded`` and ``bundle_reload_failed`` events now carry the
-  full ``ReloadResult.to_dict()`` envelope (``ok``, ``bundle``,
-  ``reload_id``, ``components_added``, ``components_removed``,
-  ``components_changed``, ``warnings``, ``errors``) instead of a
-  hand-rolled subset.  Polling clients can now (a) detect body-only
-  edits via ``components_changed`` instead of mis-reporting them as
-  "no source changes detected", and (b) surface a failed reload's
-  ``errors[0].message`` instead of degrading to a generic
-  "check server logs" fallback.  HTTP response shape unchanged.
-- **``GET /api/v1/extensions/events`` rejects ``keyspace`` explicitly.**
-  Previously the endpoint accepted but silently ignored any
-  client-supplied ``keyspace`` query parameter (server-derived from the
-  authenticated user since the prior entry).  Silent drop masked client
-  bugs that assumed the value had effect.  The route now returns ``422
-  Unprocessable Entity`` with a typed
-  ``extension-events-keyspace-forbidden`` error envelope when the
-  parameter is present.  ``extension-events-keyspace-forbidden`` is
-  added to ``ERROR_CODES`` (additive; codes-as-contract semantics
-  preserved).  In-tree polling clients that never sent the parameter
-  are unaffected.
+- Replaced the historical compatibility document with the canonical Ketos
+  v1 contract: `kfx` Python namespaces, `ketos` manifest metadata and HTTP
+  routes, the exact v1 schema URL, current loader/registry/reload APIs, and
+  canonical `ext:<bundle>:<Class>@<slot>` component IDs.
+- Contract documentation now matches the destructive runtime: legacy package
+  aliases and saved-flow rewrite facilities are absent.

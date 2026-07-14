@@ -5,12 +5,12 @@ from typing import Any
 
 import pytest
 import requests
-from lfx.custom import Component
-from lfx.custom.eval import eval_custom_component_code
-from lfx.field_typing import Embeddings
-from lfx.graph import Graph
-from lfx.processing.process import run_graph_internal
-from lfx.schema.schema import InputValueRequest
+from kfx.custom import Component
+from kfx.custom.eval import eval_custom_component_code
+from kfx.field_typing import Embeddings
+from kfx.graph import Graph
+from kfx.processing.process import run_graph_internal
+from kfx.schema.schema import InputValueRequest
 
 
 def check_env_vars(*env_vars):
@@ -103,7 +103,7 @@ class JSONFlow:
 
 def download_flow_from_github(name: str, version: str) -> JSONFlow:
     response = requests.get(
-        f"https://raw.githubusercontent.com/langflow-ai/langflow/v{version}/src/backend/base/langflow/initial_setup/starter_projects/{name}.json",
+        f"https://raw.githubusercontent.com/ketos-ai/ketos/v{version}/src/backend/base/ketos/initial_setup/starter_projects/{name}.json",
         timeout=10,
     )
     response.raise_for_status()
@@ -114,7 +114,7 @@ def download_flow_from_github(name: str, version: str) -> JSONFlow:
 def download_component_from_github(module: str, file_name: str, version: str) -> Component:
     version_string = f"v{version}" if version != "main" else version
     response = requests.get(
-        f"https://raw.githubusercontent.com/langflow-ai/langflow/{version_string}/src/backend/base/langflow/components/{module}/{file_name}.py",
+        f"https://raw.githubusercontent.com/ketos-ai/ketos/{version_string}/src/backend/base/ketos/components/{module}/{file_name}.py",
         timeout=10,
     )
     response.raise_for_status()

@@ -59,13 +59,13 @@ jobs:
             --tb=short \
             -v
         env:
-          LANGFLOW_SUPERUSER: admin
-          LANGFLOW_SUPERUSER_PASSWORD: 123456
+          KETOS_SUPERUSER: admin
+          KETOS_SUPERUSER_PASSWORD: 123456
 
-  lfx-smoke-tests:
-    # created a separate label for this since it's a different test suite for LFX components
+  kfx-smoke-tests:
+    # created a separate label for this since it's a different test suite for KFX components
     if: contains(github.event.pull_request.labels.*.name, 'smoke-test') || github.event_name == 'release' || github.event_name == 'workflow_dispatch'
-    name: "LFX Smoke Tests"
+    name: "KFX Smoke Tests"
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -86,14 +86,14 @@ jobs:
         with:
           version: "latest"
 
-      - name: Install lfx dependencies (isolated)
+      - name: Install kfx dependencies (isolated)
         run: |
-          cd src/lfx
+          cd src/kfx
           uv sync --dev
 
-      - name: Run lfx smoke tests (critical tests only)
+      - name: Run kfx smoke tests (critical tests only)
         run: |
-          cd src/lfx
+          cd src/kfx
           uv run pytest \
             tests/unit/graph/test_graph.py \
             tests/unit/custom/component/test_component_instance_attributes.py \
@@ -103,8 +103,8 @@ jobs:
             --maxfail=5 \
             -v
         env:
-          LANGFLOW_SUPERUSER: admin
-          LANGFLOW_SUPERUSER_PASSWORD: 123456
+          KETOS_SUPERUSER: admin
+          KETOS_SUPERUSER_PASSWORD: 123456
 
   frontend-smoke-tests:
     if: contains(github.event.pull_request.labels.*.name, 'smoke-test') || github.event_name == 'release' || github.event_name == 'workflow_dispatch'
@@ -141,7 +141,7 @@ jobs:
   comment-results:
     if: always() && (contains(github.event.pull_request.labels.*.name, 'smoke-test') || github.event_name == 'release' || github.event_name == 'workflow_dispatch')
     name: "Comment Results"
-    needs: [backend-smoke-tests, lfx-smoke-tests, frontend-smoke-tests]
+    needs: [backend-smoke-tests, kfx-smoke-tests, frontend-smoke-tests]
     runs-on: ubuntu-latest
 
     steps:
@@ -150,15 +150,15 @@ jobs:
         with:
           script: |
             const backendStatus = '${{ needs.backend-smoke-tests.result }}';
-            const lfxStatus = '${{ needs.lfx-smoke-tests.result }}';
+            const kfxStatus = '${{ needs.kfx-smoke-tests.result }}';
             const frontendStatus = '${{ needs.frontend-smoke-tests.result }}';
             
-            const overallSuccess = backendStatus === 'success' && lfxStatus === 'success' && frontendStatus === 'success';
+            const overallSuccess = backendStatus === 'success' && kfxStatus === 'success' && frontendStatus === 'success';
             const emoji = overallSuccess ? '✅' : '❌';
             const status = overallSuccess ? 'passed' : 'failed';
             
             const backendEmoji = backendStatus === 'success' ? '✅' : '❌';
-            const lfxEmoji = lfxStatus === 'success' ? '✅' : '❌';
+            const kfxEmoji = kfxStatus === 'success' ? '✅' : '❌';
             const frontendEmoji = frontendStatus === 'success' ? '✅' : '❌';
 
             const comment = `${emoji} **Smoke tests ${status}**
@@ -166,7 +166,7 @@ jobs:
             Critical functionality validated:
 
             - ${backendEmoji} **Backend**: 11 essential test files (database, auth, API endpoints, flows, components)
-            - ${lfxEmoji} **LFX**: Graph tests (langflow execution) - runs in isolation
+            - ${kfxEmoji} **KFX**: Graph tests (ketos execution) - runs in isolation
             - ${frontendEmoji} **Frontend**: Unit tests only (components, utilities)
             
             **Coverage**: Core functionality without external dependencies

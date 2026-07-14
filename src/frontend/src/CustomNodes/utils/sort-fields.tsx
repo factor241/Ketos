@@ -1,4 +1,5 @@
 import { priorityFields } from "../../constants/constants";
+import { compareForPresentation } from "../../utils/locale-format";
 
 export default function sortFields(a, b, fieldOrder) {
   // Early return for empty fields
@@ -36,5 +37,5 @@ export default function sortFields(a, b, fieldOrder) {
 
   // Default case for fields not in priorityFields and not found in fieldOrder
   // You might want to sort them alphabetically or in another specific manner
-  return a.localeCompare(b);
+  return compareForPresentation(a, b);
 }

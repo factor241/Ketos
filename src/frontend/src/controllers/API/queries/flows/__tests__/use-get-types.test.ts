@@ -1,6 +1,32 @@
 const mockApiGet = jest.fn();
 const mockSetTypes = jest.fn();
 const mockRecomputeComponentsToUpdateIfNeeded = jest.fn();
+const mockI18n = { language: "ru" };
+const mockQuery = jest.fn(
+  (
+    _key: readonly unknown[],
+    fn: () => Promise<unknown>,
+    _options: Record<string, unknown>,
+  ) => {
+    const result: {
+      data: unknown;
+      isLoading: boolean;
+      error: unknown;
+    } = {
+      data: null,
+      isLoading: false,
+      error: null,
+    };
+    fn()
+      .then((data: unknown) => {
+        result.data = data;
+      })
+      .catch((error: unknown) => {
+        result.error = error;
+      });
+    return result;
+  },
+);
 
 const mockUseTypesStore = Object.assign(
   jest.fn((selector: (state: { setTypes: typeof mockSetTypes }) => unknown) =>
@@ -25,23 +51,16 @@ jest.mock("@/controllers/API/helpers/constants", () => ({
   getURL: jest.fn((key) => `/api/v1/${key.toLowerCase()}`),
 }));
 
+jest.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    i18n: mockI18n,
+    t: (key: string) => key,
+  }),
+}));
+
 jest.mock("@/controllers/API/services/request-processor", () => ({
   UseRequestProcessor: jest.fn(() => ({
-    query: jest.fn((_key, fn, _options) => {
-      const result = {
-        data: null,
-        isLoading: false,
-        error: null,
-      };
-      fn()
-        .then((data: unknown) => {
-          result.data = data;
-        })
-        .catch((error: unknown) => {
-          result.error = error;
-        });
-      return result;
-    }),
+    query: mockQuery,
   })),
 }));
 
@@ -68,6 +87,16 @@ import { useGetTypes } from "../use-get-types";
 describe("useGetTypes", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockI18n.language = "ru";
+  });
+
+  it("scopes the component-types query key to the active language", () => {
+    mockApiGet.mockResolvedValue({ data: {} });
+
+    useGetTypes();
+
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQuery.mock.calls[0][0]).toEqual(["useGetTypes", "ru"]);
   });
 
   it("recomputes componentsToUpdate after templates load", async () => {

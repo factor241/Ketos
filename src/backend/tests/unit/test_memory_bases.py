@@ -21,13 +21,13 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from langflow.services.database.models.memory_base.model import (
+from ketos.services.database.models.memory_base.model import (
     MemoryBase,
     MemoryBaseCreate,
     MemoryBaseSession,
     MemoryBaseUpdate,
 )
-from langflow.services.database.models.message.model import MessageTable
+from ketos.services.database.models.message.model import MessageTable
 
 # ------------------------------------------------------------------ #
 #  Helpers                                                             #
@@ -125,7 +125,7 @@ class TestInferEmbeddingProvider:
         ],
     )
     def test_provider_inferred_correctly(self, model, expected):
-        from langflow.services.memory_base.embedding_helpers import infer_embedding_provider
+        from ketos.services.memory_base.embedding_helpers import infer_embedding_provider
 
         assert infer_embedding_provider(model) == expected
 
@@ -135,8 +135,8 @@ class TestInferEmbeddingProvider:
         Otherwise the downstream ``KBIngestionHelper.build_embeddings`` call
         will reject it.
         """
-        from langflow.services.memory_base.embedding_helpers import infer_embedding_provider
-        from lfx.base.models.unified_models.class_registry import EMBEDDING_PROVIDER_CLASS_MAPPING
+        from ketos.services.memory_base.embedding_helpers import infer_embedding_provider
+        from kfx.base.models.unified_models.class_registry import EMBEDDING_PROVIDER_CLASS_MAPPING
 
         for model in (
             "models/gemini-embedding-001",
@@ -161,10 +161,10 @@ class TestKBIngestionHelperBuildEmbeddings:
 
     @pytest.mark.asyncio
     async def test_builds_embeddings_for_openai_default_model(self):
-        from langflow.api.utils.kb_helpers import KBIngestionHelper
+        from ketos.api.utils.kb_helpers import KBIngestionHelper
 
         sentinel = object()
-        with patch("langflow.api.utils.kb_helpers.EmbeddingModelComponent") as mock_component_cls:
+        with patch("ketos.api.utils.kb_helpers.EmbeddingModelComponent") as mock_component_cls:
             instance = mock_component_cls.return_value
             instance.build_embeddings.return_value = sentinel
             user = MagicMock(id=uuid.uuid4())
@@ -187,9 +187,9 @@ class TestKBIngestionHelperBuildEmbeddings:
         ``gemini-embedding-001`` must resolve to
         ``GoogleGenerativeAIEmbeddings`` rather than blowing up.
         """
-        from langflow.api.utils.kb_helpers import KBIngestionHelper
+        from ketos.api.utils.kb_helpers import KBIngestionHelper
 
-        with patch("langflow.api.utils.kb_helpers.EmbeddingModelComponent") as mock_component_cls:
+        with patch("ketos.api.utils.kb_helpers.EmbeddingModelComponent") as mock_component_cls:
             mock_component_cls.return_value.build_embeddings.return_value = MagicMock()
             user = MagicMock(id=uuid.uuid4())
 
@@ -201,7 +201,7 @@ class TestKBIngestionHelperBuildEmbeddings:
 
     @pytest.mark.asyncio
     async def test_unregistered_provider_raises_with_helpful_message(self):
-        from langflow.api.utils.kb_helpers import KBIngestionHelper
+        from ketos.api.utils.kb_helpers import KBIngestionHelper
 
         user = MagicMock(id=uuid.uuid4())
         with pytest.raises(ValueError, match="not registered"):
@@ -215,15 +215,15 @@ class TestKBIngestionHelperBuildEmbeddings:
         (e.g. the per-user credential lookup silently failed), the helper
         must still resolve the model from the static registry.
         """
-        from langflow.api.utils import kb_helpers as kb_helpers_module
-        from langflow.api.utils.kb_helpers import KBIngestionHelper
+        from ketos.api.utils import kb_helpers as kb_helpers_module
+        from ketos.api.utils.kb_helpers import KBIngestionHelper
 
         # The helper used to call ``get_embedding_model_options`` and raise
         # when the result was empty. Make sure that name is no longer wired
         # into the helper's module — otherwise the bug can silently regress.
         assert not hasattr(kb_helpers_module, "get_embedding_model_options")
 
-        with patch("langflow.api.utils.kb_helpers.EmbeddingModelComponent") as mock_component_cls:
+        with patch("ketos.api.utils.kb_helpers.EmbeddingModelComponent") as mock_component_cls:
             mock_component_cls.return_value.build_embeddings.return_value = MagicMock()
             user = MagicMock(id=uuid.uuid4())
 
@@ -235,7 +235,7 @@ class TestKBIngestionHelperBuildEmbeddings:
     async def test_ollama_embeddings_honor_configured_base_url(self, monkeypatch):
         """Ollama KB ingestion must use the configured OLLAMA_BASE_URL, not localhost.
 
-        Regression for https://github.com/langflow-ai/langflow/issues/13883. The helper
+        Regression for https://github.com/ketos-ai/ketos/issues/13883. The helper
         builds ``EmbeddingModelComponent`` programmatically; the component's
         ``ollama_base_url`` ``StrInput`` defaults to ``http://localhost:11434``, and that
         truthy default used to leak through ``getattr`` and short-circuit the
@@ -244,15 +244,15 @@ class TestKBIngestionHelperBuildEmbeddings:
         "Failed to connect to Ollama". This test exercises the REAL component (no mock)
         so the resolution path is covered end to end.
         """
-        from langflow.api.utils.kb_helpers import KBIngestionHelper
+        from ketos.api.utils.kb_helpers import KBIngestionHelper
 
         monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
         user = MagicMock(id=uuid.uuid4())
 
         with (
-            patch("lfx.base.models.unified_models.get_api_key_for_provider", return_value=None),
+            patch("kfx.base.models.unified_models.get_api_key_for_provider", return_value=None),
             patch(
-                "lfx.base.models.unified_models.get_all_variables_for_provider",
+                "kfx.base.models.unified_models.get_all_variables_for_provider",
                 return_value={"OLLAMA_BASE_URL": "http://ollama-server:11434"},
             ),
         ):
@@ -263,14 +263,14 @@ class TestKBIngestionHelperBuildEmbeddings:
     @pytest.mark.asyncio
     async def test_ollama_embeddings_fall_back_to_localhost_when_unconfigured(self, monkeypatch):
         """With no OLLAMA_BASE_URL configured, the localhost fallback is preserved."""
-        from langflow.api.utils.kb_helpers import KBIngestionHelper
+        from ketos.api.utils.kb_helpers import KBIngestionHelper
 
         monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
         user = MagicMock(id=uuid.uuid4())
 
         with (
-            patch("lfx.base.models.unified_models.get_api_key_for_provider", return_value=None),
-            patch("lfx.base.models.unified_models.get_all_variables_for_provider", return_value={}),
+            patch("kfx.base.models.unified_models.get_api_key_for_provider", return_value=None),
+            patch("kfx.base.models.unified_models.get_all_variables_for_provider", return_value={}),
         ):
             embeddings = await KBIngestionHelper.build_embeddings("Ollama", "nomic-embed-text", user)
 
@@ -344,7 +344,7 @@ class TestMessageExtensions:
 class TestMemoryBaseServiceCRUD:
     @pytest.fixture
     def service(self):
-        from langflow.services.memory_base.service import MemoryBaseService
+        from ketos.services.memory_base.service import MemoryBaseService
 
         return MemoryBaseService()
 
@@ -395,7 +395,7 @@ class TestMemoryBaseCreateFlowOwnership:
 
     @pytest.fixture
     def service(self):
-        from langflow.services.memory_base.service import MemoryBaseService
+        from ketos.services.memory_base.service import MemoryBaseService
 
         return MemoryBaseService()
 
@@ -425,7 +425,7 @@ class TestMemoryBaseCreateFlowOwnership:
         mock_db.exec = AsyncMock(return_value=exec_result)
 
         with (
-            patch("langflow.services.memory_base.service.session_scope", self._fake_scope(mock_db)),
+            patch("ketos.services.memory_base.service.session_scope", self._fake_scope(mock_db)),
             pytest.raises(PermissionError, match="not found"),
         ):
             await service.create(payload, user_id=user_id)
@@ -433,7 +433,7 @@ class TestMemoryBaseCreateFlowOwnership:
     @pytest.mark.asyncio
     async def test_create_allows_owned_flow(self, service):
         """No PermissionError when flow_id is owned by the requesting user."""
-        from langflow.services.database.models.flow.model import Flow
+        from ketos.services.database.models.flow.model import Flow
 
         user_id = uuid.uuid4()
         flow_id = uuid.uuid4()
@@ -455,11 +455,11 @@ class TestMemoryBaseCreateFlowOwnership:
         mock_db.refresh = AsyncMock(return_value=created_mb)
 
         with (
-            patch("langflow.services.memory_base.service.session_scope", self._fake_scope(mock_db)),
+            patch("ketos.services.memory_base.service.session_scope", self._fake_scope(mock_db)),
             patch(
-                "langflow.services.memory_base.kb_path_helpers.resolve_kb_username", AsyncMock(return_value="testuser")
+                "ketos.services.memory_base.kb_path_helpers.resolve_kb_username", AsyncMock(return_value="testuser")
             ),
-            patch("langflow.services.memory_base.kb_path_helpers.initialize_kb", AsyncMock()),
+            patch("ketos.services.memory_base.kb_path_helpers.initialize_kb", AsyncMock()),
             contextlib.suppress(Exception),
         ):
             # Should not raise PermissionError — ownership check passes
@@ -477,15 +477,15 @@ class TestMemoryBaseCreateFlowOwnership:
         Tests the try/except mapping in the route handler directly.
         """
         from fastapi import HTTPException
-        from langflow.api.v1.memories import create_memory_base
-        from langflow.services.database.models.user.model import User
+        from ketos.api.v1.memories import create_memory_base
+        from ketos.services.database.models.user.model import User
 
         fake_user = User(id=uuid.uuid4(), username="alice")
         mock_service = MagicMock()
         mock_service.create = AsyncMock(side_effect=PermissionError("Flow abc not found"))
 
         with (
-            patch("langflow.api.v1.memories.get_memory_base_service", return_value=mock_service),
+            patch("ketos.api.v1.memories.get_memory_base_service", return_value=mock_service),
             pytest.raises(HTTPException) as exc_info,
         ):
             await create_memory_base(
@@ -501,7 +501,7 @@ class TestMemoryBaseServiceConcurrency:
 
     @pytest.fixture
     def service(self):
-        from langflow.services.memory_base.service import MemoryBaseService
+        from ketos.services.memory_base.service import MemoryBaseService
 
         return MemoryBaseService()
 
@@ -520,7 +520,7 @@ class TestMemoryBaseServiceConcurrency:
     @pytest.mark.asyncio
     async def test_trigger_raises_when_job_active(self, service):
         """DuplicateJobError from create_job propagates out of trigger_ingestion."""
-        from langflow.services.jobs import DuplicateJobError
+        from ketos.services.jobs import DuplicateJobError
 
         mb = _make_mb()
         mbs = _make_session(memory_base_id=mb.id)
@@ -530,19 +530,19 @@ class TestMemoryBaseServiceConcurrency:
         mock_job_svc.create_job = AsyncMock(side_effect=DuplicateJobError("already running"))
 
         with (
-            patch("langflow.services.memory_base.ingestion.session_scope", self._fake_scope(mock_db)),
+            patch("ketos.services.memory_base.ingestion.session_scope", self._fake_scope(mock_db)),
             patch.object(service, "get_memory_base_or_404", AsyncMock(return_value=mb)),
             patch.object(service, "_get_or_create_session", AsyncMock(return_value=mbs)),
             patch(
-                "langflow.services.memory_base.ingestion._get_latest_pending_workflow_job_id",
+                "ketos.services.memory_base.ingestion._get_latest_pending_workflow_job_id",
                 AsyncMock(return_value=uuid.uuid4()),
             ),
-            patch("langflow.services.memory_base.ingestion.resolve_kb_username", AsyncMock(return_value="testuser")),
+            patch("ketos.services.memory_base.ingestion.resolve_kb_username", AsyncMock(return_value="testuser")),
             patch(
-                "langflow.services.memory_base.ingestion.resolve_embedding",
+                "ketos.services.memory_base.ingestion.resolve_embedding",
                 return_value=("OpenAI", "text-embedding-3-small"),
             ),
-            patch("langflow.services.memory_base.ingestion.get_job_service", return_value=mock_job_svc),
+            patch("ketos.services.memory_base.ingestion.get_job_service", return_value=mock_job_svc),
             pytest.raises(DuplicateJobError),
         ):
             await service.trigger_ingestion(mb.id, mb.user_id, "sess-1")
@@ -559,20 +559,20 @@ class TestMemoryBaseServiceConcurrency:
         mock_task_svc.fire_and_forget_task = AsyncMock()
 
         with (
-            patch("langflow.services.memory_base.ingestion.session_scope", self._fake_scope(mock_db)),
+            patch("ketos.services.memory_base.ingestion.session_scope", self._fake_scope(mock_db)),
             patch.object(service, "get_memory_base_or_404", AsyncMock(return_value=mb)),
             patch.object(service, "_get_or_create_session", AsyncMock(return_value=mbs)),
             patch(
-                "langflow.services.memory_base.ingestion._get_latest_pending_workflow_job_id",
+                "ketos.services.memory_base.ingestion._get_latest_pending_workflow_job_id",
                 AsyncMock(return_value=uuid.uuid4()),
             ),
-            patch("langflow.services.memory_base.ingestion.resolve_kb_username", AsyncMock(return_value="testuser")),
+            patch("ketos.services.memory_base.ingestion.resolve_kb_username", AsyncMock(return_value="testuser")),
             patch(
-                "langflow.services.memory_base.ingestion.resolve_embedding",
+                "ketos.services.memory_base.ingestion.resolve_embedding",
                 return_value=("OpenAI", "text-embedding-3-small"),
             ),
-            patch("langflow.services.memory_base.ingestion.get_job_service", return_value=mock_job_svc),
-            patch("langflow.services.memory_base.ingestion.get_task_service", return_value=mock_task_svc),
+            patch("ketos.services.memory_base.ingestion.get_job_service", return_value=mock_job_svc),
+            patch("ketos.services.memory_base.ingestion.get_task_service", return_value=mock_task_svc),
         ):
             job_id = await service.trigger_ingestion(mb.id, mb.user_id, "sess-1")
 
@@ -586,7 +586,7 @@ class TestMemoryBaseServiceThreshold:
 
     @pytest.fixture
     def service(self):
-        from langflow.services.memory_base.service import MemoryBaseService
+        from ketos.services.memory_base.service import MemoryBaseService
 
         return MemoryBaseService()
 
@@ -605,7 +605,7 @@ class TestMemoryBaseServiceThreshold:
 class TestMemoryBaseServiceMismatch:
     @pytest.fixture
     def service(self):
-        from langflow.services.memory_base.service import MemoryBaseService
+        from ketos.services.memory_base.service import MemoryBaseService
 
         return MemoryBaseService()
 
@@ -616,13 +616,13 @@ class TestMemoryBaseServiceMismatch:
         with (
             patch.object(service, "get_memory_base_or_404", AsyncMock(return_value=mb)),
             patch(
-                "langflow.services.memory_base.ingestion.resolve_kb_username_by_user_id",
+                "ketos.services.memory_base.ingestion.resolve_kb_username_by_user_id",
                 AsyncMock(return_value="testuser"),
             ),
-            patch("langflow.services.memory_base.ingestion.session_scope") as mock_scope,
-            patch("langflow.services.memory_base.ingestion.KBStorageHelper.get_root_path", return_value=tmp_path),
+            patch("ketos.services.memory_base.ingestion.session_scope") as mock_scope,
+            patch("ketos.services.memory_base.ingestion.KBStorageHelper.get_root_path", return_value=tmp_path),
             patch(
-                "langflow.services.memory_base.ingestion.KBAnalysisHelper.get_metadata",
+                "ketos.services.memory_base.ingestion.KBAnalysisHelper.get_metadata",
                 return_value={"chunks": 0},
             ),
         ):
@@ -652,7 +652,7 @@ class TestMemoryBaseServiceMismatch:
 
         with (
             patch.object(service, "get_memory_base_or_404", AsyncMock(return_value=mb)),
-            patch("langflow.services.memory_base.ingestion.session_scope") as mock_scope,
+            patch("ketos.services.memory_base.ingestion.session_scope") as mock_scope,
         ):
             mock_db = AsyncMock()
             mock_db.exec = AsyncMock(return_value=MagicMock(first=MagicMock(return_value=0)))
@@ -674,7 +674,7 @@ class TestMemoryBaseServiceMismatch:
 class TestMemoryBaseServicePurgeSessionData:
     @pytest.fixture
     def service(self):
-        from langflow.services.memory_base.service import MemoryBaseService
+        from ketos.services.memory_base.service import MemoryBaseService
 
         return MemoryBaseService()
 
@@ -686,7 +686,7 @@ class TestMemoryBaseServicePurgeSessionData:
     @pytest.mark.asyncio
     async def test_purge_no_matching_pairs_returns_zero(self, service):
         # No (mb, session) pairs found in DB → nothing to do, no chunk wipes attempted.
-        with patch("langflow.services.memory_base.ingestion.session_scope") as mock_scope:
+        with patch("ketos.services.memory_base.ingestion.session_scope") as mock_scope:
             mock_db = AsyncMock()
             empty_result = MagicMock()
             empty_result.all = MagicMock(return_value=[])
@@ -740,28 +740,28 @@ class TestMemoryBaseServicePurgeSessionData:
 
         with (
             patch(
-                "langflow.services.memory_base.ingestion.session_scope",
+                "ketos.services.memory_base.ingestion.session_scope",
                 side_effect=lambda: FakeCtx(),
             ),
             patch(
-                "langflow.services.memory_base.ingestion.KBStorageHelper.get_root_path",
+                "ketos.services.memory_base.ingestion.KBStorageHelper.get_root_path",
                 return_value=kb_root,
             ),
             patch(
-                "langflow.services.memory_base.ingestion.KBStorageHelper.get_fresh_chroma_client",
+                "ketos.services.memory_base.ingestion.KBStorageHelper.get_fresh_chroma_client",
                 return_value=MagicMock(),
             ),
-            patch("langflow.services.memory_base.ingestion.KBStorageHelper.release_chroma_resources"),
+            patch("ketos.services.memory_base.ingestion.KBStorageHelper.release_chroma_resources"),
             patch(
-                "langflow.services.memory_base.ingestion.KBIngestionHelper.build_embeddings",
+                "ketos.services.memory_base.ingestion.KBIngestionHelper.build_embeddings",
                 AsyncMock(return_value=MagicMock()),
             ),
             patch(
-                "langflow.services.memory_base.ingestion.resolve_embedding",
+                "ketos.services.memory_base.ingestion.resolve_embedding",
                 return_value=("OpenAI", "text-embedding-3-small"),
             ),
-            patch("langflow.services.memory_base.ingestion.Chroma", return_value=fake_chroma),
-            patch("langflow.services.memory_base.ingestion._sync_metrics_after_purge"),
+            patch("ketos.services.memory_base.ingestion.Chroma", return_value=fake_chroma),
+            patch("ketos.services.memory_base.ingestion._sync_metrics_after_purge"),
         ):
             result = await service.purge_session_data(mb.user_id, ["sess-x"])
 
@@ -804,15 +804,15 @@ class TestMemoryBaseServicePurgeSessionData:
 
         with (
             patch(
-                "langflow.services.memory_base.ingestion.session_scope",
+                "ketos.services.memory_base.ingestion.session_scope",
                 side_effect=lambda: FakeCtx(),
             ),
             patch(
-                "langflow.services.memory_base.ingestion.KBStorageHelper.get_root_path",
+                "ketos.services.memory_base.ingestion.KBStorageHelper.get_root_path",
                 return_value=kb_root,
             ),
             patch(
-                "langflow.services.memory_base.ingestion._delete_chunks_for_session",
+                "ketos.services.memory_base.ingestion._delete_chunks_for_session",
                 AsyncMock(side_effect=OSError("boom")),
             ),
         ):
@@ -825,7 +825,7 @@ class TestMemoryBaseServicePurgeSessionData:
 class TestMemoryBaseServiceRegenerate:
     @pytest.fixture
     def service(self):
-        from langflow.services.memory_base.service import MemoryBaseService
+        from ketos.services.memory_base.service import MemoryBaseService
 
         return MemoryBaseService()
 
@@ -842,7 +842,7 @@ class TestMemoryBaseServiceRegenerate:
             return str(uuid.uuid4())
 
         with (
-            patch("langflow.services.memory_base.ingestion.session_scope") as mock_scope,
+            patch("ketos.services.memory_base.ingestion.session_scope") as mock_scope,
             patch.object(service, "trigger_ingestion", side_effect=fake_trigger),
         ):
             mock_db = AsyncMock()
@@ -879,24 +879,24 @@ class TestMemoryBaseServiceRegenerate:
 
 class TestIngestMemoryTask:
     async def test_no_op_when_no_pending_messages(self, tmp_path):
-        from langflow.services.memory_base.task import IngestionRequest, ingest_memory_task
+        from ketos.services.memory_base.task import IngestionRequest, ingest_memory_task
 
         job_service = MagicMock()
         job_id = uuid.uuid4()
 
         with (
             patch(
-                "langflow.services.memory_base.task._acquire_session_lock",
+                "ketos.services.memory_base.task._acquire_session_lock",
                 AsyncMock(return_value=asyncio.Lock()),
             ),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
             patch(
-                "langflow.services.memory_base.task._fetch_pending_messages",
+                "ketos.services.memory_base.task._fetch_pending_messages",
                 AsyncMock(return_value=[]),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_root_path",
+                "ketos.services.memory_base.task.KBStorageHelper.get_root_path",
                 return_value=tmp_path / "kb",
             ),
         ):
@@ -921,7 +921,7 @@ class TestIngestMemoryTask:
     @pytest.mark.asyncio
     async def test_cursor_not_advanced_on_ingestion_failure(self, tmp_path):
         """Critical: cursor_id must stay unchanged if ingestion fails."""
-        from langflow.services.memory_base.task import IngestionRequest, ingest_memory_task
+        from ketos.services.memory_base.task import IngestionRequest, ingest_memory_task
 
         flow_id = uuid.uuid4()
         mb_id = uuid.uuid4()
@@ -939,45 +939,45 @@ class TestIngestMemoryTask:
 
         with (
             patch(
-                "langflow.services.memory_base.task._acquire_session_lock",
+                "ketos.services.memory_base.task._acquire_session_lock",
                 AsyncMock(return_value=asyncio.Lock()),
             ),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
             patch(
-                "langflow.services.memory_base.task._fetch_pending_messages",
+                "ketos.services.memory_base.task._fetch_pending_messages",
                 AsyncMock(return_value=[msg]),
             ),
             patch(
-                "langflow.services.memory_base.task.build_documents_from_messages",
+                "ketos.services.memory_base.task.build_documents_from_messages",
                 return_value=[MagicMock()],
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
+                "ketos.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
                 AsyncMock(return_value=False),
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.build_embeddings",
+                "ketos.services.memory_base.task.KBIngestionHelper.build_embeddings",
                 AsyncMock(return_value=MagicMock()),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
+                "ketos.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
                 return_value=MagicMock(),
             ),
-            patch("langflow.services.memory_base.task.Chroma"),
+            patch("ketos.services.memory_base.task.Chroma"),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
+                "ketos.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
                 AsyncMock(side_effect=RuntimeError("Chroma exploded")),
             ),
             patch(
-                "langflow.services.memory_base.task._advance_cursor",
+                "ketos.services.memory_base.task._advance_cursor",
                 side_effect=fake_advance_cursor,
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_root_path",
+                "ketos.services.memory_base.task.KBStorageHelper.get_root_path",
                 return_value=tmp_path / "kb",
             ),
-            patch("langflow.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
+            patch("ketos.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
             pytest.raises(RuntimeError, match="Chroma exploded"),
         ):
             await ingest_memory_task(
@@ -1002,7 +1002,7 @@ class TestIngestMemoryTask:
     @pytest.mark.asyncio
     async def test_metadata_synced_on_success(self, tmp_path):
         """embedding_metadata.json must be updated after a successful ingestion."""
-        from langflow.services.memory_base.task import IngestionRequest, ingest_memory_task
+        from ketos.services.memory_base.task import IngestionRequest, ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id, session_id="s1")
@@ -1017,44 +1017,44 @@ class TestIngestMemoryTask:
 
         with (
             patch(
-                "langflow.services.memory_base.task._acquire_session_lock",
+                "ketos.services.memory_base.task._acquire_session_lock",
                 AsyncMock(return_value=asyncio.Lock()),
             ),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
             patch(
-                "langflow.services.memory_base.task._fetch_pending_messages",
+                "ketos.services.memory_base.task._fetch_pending_messages",
                 AsyncMock(return_value=[msg]),
             ),
             patch(
-                "langflow.services.memory_base.task.build_documents_from_messages",
+                "ketos.services.memory_base.task.build_documents_from_messages",
                 return_value=[MagicMock()],
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
+                "ketos.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
                 AsyncMock(return_value=False),
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.build_embeddings",
+                "ketos.services.memory_base.task.KBIngestionHelper.build_embeddings",
                 AsyncMock(return_value=MagicMock()),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
+                "ketos.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
                 return_value=MagicMock(),
             ),
-            patch("langflow.services.memory_base.task.Chroma"),
+            patch("ketos.services.memory_base.task.Chroma"),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
+                "ketos.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
                 AsyncMock(return_value=1),
             ),
-            patch("langflow.services.memory_base.task.sync_kb_metadata", side_effect=fake_sync_kb_metadata),
-            patch("langflow.services.memory_base.task._mark_messages_ingested", AsyncMock()),
-            patch("langflow.services.memory_base.task._advance_cursor", AsyncMock()),
+            patch("ketos.services.memory_base.task.sync_kb_metadata", side_effect=fake_sync_kb_metadata),
+            patch("ketos.services.memory_base.task._mark_messages_ingested", AsyncMock()),
+            patch("ketos.services.memory_base.task._advance_cursor", AsyncMock()),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_root_path",
+                "ketos.services.memory_base.task.KBStorageHelper.get_root_path",
                 return_value=tmp_path / "kb",
             ),
-            patch("langflow.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
+            patch("ketos.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
         ):
             await ingest_memory_task(
                 request=IngestionRequest(
@@ -1077,7 +1077,7 @@ class TestIngestMemoryTask:
     @pytest.mark.asyncio
     async def test_metadata_not_synced_when_cancelled(self, tmp_path):
         """embedding_metadata.json must NOT be updated when ingestion is cancelled."""
-        from langflow.services.memory_base.task import IngestionRequest, ingest_memory_task
+        from ketos.services.memory_base.task import IngestionRequest, ingest_memory_task
 
         flow_id = uuid.uuid4()
         msg = _make_message(flow_id=flow_id, session_id="s1")
@@ -1091,44 +1091,44 @@ class TestIngestMemoryTask:
 
         with (
             patch(
-                "langflow.services.memory_base.task._acquire_session_lock",
+                "ketos.services.memory_base.task._acquire_session_lock",
                 AsyncMock(return_value=asyncio.Lock()),
             ),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
             patch(
-                "langflow.services.memory_base.task._fetch_pending_messages",
+                "ketos.services.memory_base.task._fetch_pending_messages",
                 AsyncMock(return_value=[msg]),
             ),
             patch(
-                "langflow.services.memory_base.task.build_documents_from_messages",
+                "ketos.services.memory_base.task.build_documents_from_messages",
                 return_value=[MagicMock()],
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
+                "ketos.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
                 AsyncMock(return_value=False),
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.build_embeddings",
+                "ketos.services.memory_base.task.KBIngestionHelper.build_embeddings",
                 AsyncMock(return_value=MagicMock()),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
+                "ketos.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
                 return_value=MagicMock(),
             ),
-            patch("langflow.services.memory_base.task.Chroma"),
+            patch("ketos.services.memory_base.task.Chroma"),
             # write_documents_to_chroma returns fewer docs than sent → cancelled
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
+                "ketos.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
                 AsyncMock(return_value=0),
             ),
-            patch("langflow.services.memory_base.task.sync_kb_metadata", side_effect=fake_sync),
-            patch("langflow.services.memory_base.task._advance_cursor", AsyncMock()),
+            patch("ketos.services.memory_base.task.sync_kb_metadata", side_effect=fake_sync),
+            patch("ketos.services.memory_base.task._advance_cursor", AsyncMock()),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_root_path",
+                "ketos.services.memory_base.task.KBStorageHelper.get_root_path",
                 return_value=tmp_path / "kb",
             ),
-            patch("langflow.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
+            patch("ketos.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
         ):
             result = await ingest_memory_task(
                 request=IngestionRequest(
@@ -1151,7 +1151,7 @@ class TestIngestMemoryTask:
 
     @pytest.mark.asyncio
     async def test_cursor_advanced_on_success(self, tmp_path):
-        from langflow.services.memory_base.task import IngestionRequest, ingest_memory_task
+        from ketos.services.memory_base.task import IngestionRequest, ingest_memory_task
 
         flow_id = uuid.uuid4()
         mb_id = uuid.uuid4()
@@ -1167,44 +1167,44 @@ class TestIngestMemoryTask:
 
         with (
             patch(
-                "langflow.services.memory_base.task._acquire_session_lock",
+                "ketos.services.memory_base.task._acquire_session_lock",
                 AsyncMock(return_value=asyncio.Lock()),
             ),
-            patch("langflow.services.memory_base.task._release_session_lock", AsyncMock()),
-            patch("langflow.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
+            patch("ketos.services.memory_base.task._release_session_lock", AsyncMock()),
+            patch("ketos.services.memory_base.task._read_live_cursor", AsyncMock(return_value=None)),
             patch(
-                "langflow.services.memory_base.task._fetch_pending_messages",
+                "ketos.services.memory_base.task._fetch_pending_messages",
                 AsyncMock(return_value=[msg]),
             ),
             patch(
-                "langflow.services.memory_base.task.build_documents_from_messages",
+                "ketos.services.memory_base.task.build_documents_from_messages",
                 return_value=[MagicMock()],
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
+                "ketos.services.memory_base.task.KBIngestionHelper.is_job_cancelled",
                 AsyncMock(return_value=False),
             ),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.build_embeddings",
+                "ketos.services.memory_base.task.KBIngestionHelper.build_embeddings",
                 AsyncMock(return_value=MagicMock()),
             ),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
+                "ketos.services.memory_base.task.KBStorageHelper.get_fresh_chroma_client",
                 return_value=MagicMock(),
             ),
-            patch("langflow.services.memory_base.task.Chroma"),
+            patch("ketos.services.memory_base.task.Chroma"),
             patch(
-                "langflow.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
+                "ketos.services.memory_base.task.KBIngestionHelper.write_documents_to_chroma",
                 AsyncMock(return_value=1),
             ),
-            patch("langflow.services.memory_base.task.sync_kb_metadata"),
-            patch("langflow.services.memory_base.task._mark_messages_ingested", AsyncMock()),
-            patch("langflow.services.memory_base.task._advance_cursor", AsyncMock(side_effect=fake_advance_cursor)),
+            patch("ketos.services.memory_base.task.sync_kb_metadata"),
+            patch("ketos.services.memory_base.task._mark_messages_ingested", AsyncMock()),
+            patch("ketos.services.memory_base.task._advance_cursor", AsyncMock(side_effect=fake_advance_cursor)),
             patch(
-                "langflow.services.memory_base.task.KBStorageHelper.get_root_path",
+                "ketos.services.memory_base.task.KBStorageHelper.get_root_path",
                 return_value=tmp_path / "kb",
             ),
-            patch("langflow.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
+            patch("ketos.services.memory_base.task.KBStorageHelper.release_chroma_resources"),
         ):
             result = await ingest_memory_task(
                 request=IngestionRequest(
@@ -1230,7 +1230,7 @@ class TestIngestMemoryTask:
         """sync_kb_metadata must write is_memory_base: true to the metadata file."""
         import json
 
-        from langflow.services.memory_base.document_builders import sync_kb_metadata as _sync_kb_metadata
+        from ketos.services.memory_base.document_builders import sync_kb_metadata as _sync_kb_metadata
 
         kb_path = tmp_path / "test_kb"
         kb_path.mkdir()
@@ -1239,12 +1239,12 @@ class TestIngestMemoryTask:
 
         with (
             patch(
-                "langflow.services.memory_base.document_builders.KBAnalysisHelper.get_metadata",
+                "ketos.services.memory_base.document_builders.KBAnalysisHelper.get_metadata",
                 return_value={"chunks": 0, "embedding_provider": "OpenAI"},
             ),
-            patch("langflow.services.memory_base.document_builders.KBAnalysisHelper.update_text_metrics"),
+            patch("ketos.services.memory_base.document_builders.KBAnalysisHelper.update_text_metrics"),
             patch(
-                "langflow.services.memory_base.document_builders.KBStorageHelper.get_directory_size", return_value=1024
+                "ketos.services.memory_base.document_builders.KBStorageHelper.get_directory_size", return_value=1024
             ),
         ):
             _sync_kb_metadata(kb_path=kb_path, chroma=mock_chroma)
@@ -1255,19 +1255,19 @@ class TestIngestMemoryTask:
 
     def test_sync_kb_metadata_failure_does_not_raise(self, tmp_path):
         """Metadata sync errors must be swallowed so the cursor can still advance."""
-        from langflow.services.memory_base.document_builders import sync_kb_metadata as _sync_kb_metadata
+        from ketos.services.memory_base.document_builders import sync_kb_metadata as _sync_kb_metadata
 
         kb_path = tmp_path / "no_such_dir"  # does not exist
 
         with patch(
-            "langflow.services.memory_base.document_builders.KBAnalysisHelper.get_metadata",
+            "ketos.services.memory_base.document_builders.KBAnalysisHelper.get_metadata",
             side_effect=OSError("disk full"),
         ):
             # Must not raise
             _sync_kb_metadata(kb_path=kb_path, chroma=MagicMock())
 
     def test_build_documents_skips_empty_messages(self):
-        from langflow.services.memory_base.document_builders import (
+        from ketos.services.memory_base.document_builders import (
             build_documents_from_messages as _build_documents_from_messages,
         )
 
@@ -1282,7 +1282,7 @@ class TestIngestMemoryTask:
         assert docs[0].page_content == "Valid content here."
 
     def test_build_documents_metadata(self):
-        from langflow.services.memory_base.document_builders import (
+        from ketos.services.memory_base.document_builders import (
             build_documents_from_messages as _build_documents_from_messages,
         )
 
@@ -1305,7 +1305,7 @@ class TestOnFlowOutputHook:
 
     @pytest.fixture
     def service(self):
-        from langflow.services.memory_base.service import MemoryBaseService
+        from ketos.services.memory_base.service import MemoryBaseService
 
         return MemoryBaseService()
 
@@ -1326,20 +1326,20 @@ class TestOnFlowOutputHook:
     @pytest.mark.asyncio
     async def test_on_flow_output_skips_when_below_threshold(self, service):
         """No job must be created when pending message count is below the threshold."""
-        from langflow.services.memory_base.ingestion import _maybe_trigger
+        from ketos.services.memory_base.ingestion import _maybe_trigger
 
         mb = _make_mb(threshold=5)
         mbs = _make_session(memory_base_id=mb.id)
         mock_db = AsyncMock()
 
         with (
-            patch("langflow.services.memory_base.ingestion.session_scope", self._fake_scope(mock_db)),
+            patch("ketos.services.memory_base.ingestion.session_scope", self._fake_scope(mock_db)),
             patch.object(service, "_get_or_create_session", AsyncMock(return_value=mbs)),
-            patch("langflow.services.memory_base.ingestion._insert_workflow_run", AsyncMock()),
+            patch("ketos.services.memory_base.ingestion._insert_workflow_run", AsyncMock()),
             patch(
-                "langflow.services.memory_base.ingestion.count_pending_messages", AsyncMock(return_value=3)
+                "ketos.services.memory_base.ingestion.count_pending_messages", AsyncMock(return_value=3)
             ),  # 3 < threshold 5
-            patch("langflow.services.memory_base.ingestion.get_job_service") as mock_jsc,
+            patch("ketos.services.memory_base.ingestion.get_job_service") as mock_jsc,
         ):
             await _maybe_trigger(
                 mb=mb, session_id="s1", job_id=None, get_or_create_session=service._get_or_create_session
@@ -1350,7 +1350,7 @@ class TestOnFlowOutputHook:
     @pytest.mark.asyncio
     async def test_on_flow_output_triggers_when_threshold_met(self, service):
         """A job must be created and dispatched when pending message count meets threshold."""
-        from langflow.services.memory_base.ingestion import _maybe_trigger
+        from ketos.services.memory_base.ingestion import _maybe_trigger
 
         mb = _make_mb(threshold=3)
         mbs = _make_session(memory_base_id=mb.id)
@@ -1362,25 +1362,25 @@ class TestOnFlowOutputHook:
         mock_task_svc.fire_and_forget_task = AsyncMock()
 
         with (
-            patch("langflow.services.memory_base.ingestion.session_scope", self._fake_scope(mock_db)),
+            patch("ketos.services.memory_base.ingestion.session_scope", self._fake_scope(mock_db)),
             patch.object(service, "_get_or_create_session", AsyncMock(return_value=mbs)),
-            patch("langflow.services.memory_base.ingestion._insert_workflow_run", AsyncMock()),
+            patch("ketos.services.memory_base.ingestion._insert_workflow_run", AsyncMock()),
             patch(
-                "langflow.services.memory_base.ingestion.count_pending_messages", AsyncMock(return_value=5)
+                "ketos.services.memory_base.ingestion.count_pending_messages", AsyncMock(return_value=5)
             ),  # 5 >= threshold 3
             patch(
-                "langflow.services.memory_base.ingestion._get_latest_pending_workflow_job_id",
+                "ketos.services.memory_base.ingestion._get_latest_pending_workflow_job_id",
                 AsyncMock(return_value=uuid.uuid4()),
             ),
             patch(
-                "langflow.services.memory_base.kb_path_helpers.resolve_kb_username", AsyncMock(return_value="testuser")
+                "ketos.services.memory_base.kb_path_helpers.resolve_kb_username", AsyncMock(return_value="testuser")
             ),
             patch(
-                "langflow.services.memory_base.ingestion.resolve_embedding",
+                "ketos.services.memory_base.ingestion.resolve_embedding",
                 return_value=("OpenAI", "text-embedding-3-small"),
             ),
-            patch("langflow.services.memory_base.ingestion.get_job_service", return_value=mock_job_svc),
-            patch("langflow.services.memory_base.ingestion.get_task_service", return_value=mock_task_svc),
+            patch("ketos.services.memory_base.ingestion.get_job_service", return_value=mock_job_svc),
+            patch("ketos.services.memory_base.ingestion.get_task_service", return_value=mock_task_svc),
         ):
             await _maybe_trigger(
                 mb=mb, session_id="s1", job_id=None, get_or_create_session=service._get_or_create_session
@@ -1403,9 +1403,9 @@ class TestOnFlowOutputHook:
         mock_db.exec = AsyncMock(return_value=result_mock)
 
         with (
-            patch("langflow.services.memory_base.ingestion.session_scope", self._fake_scope(mock_db)),
+            patch("ketos.services.memory_base.ingestion.session_scope", self._fake_scope(mock_db)),
             patch(
-                "langflow.services.memory_base.ingestion._maybe_trigger", AsyncMock(side_effect=RuntimeError("boom"))
+                "ketos.services.memory_base.ingestion._maybe_trigger", AsyncMock(side_effect=RuntimeError("boom"))
             ),
         ):
             # Must not raise even though _maybe_trigger blows up
@@ -1431,8 +1431,8 @@ class TestOnFlowOutputHook:
         mock_graph.run_id = str(run_id)  # graph.run_id is always a str
         mock_graph.session_id = "test-session"
 
-        with patch("langflow.api.build.get_memory_base_service", return_value=mb_service):
-            import langflow.api.build as build_module
+        with patch("ketos.api.build.get_memory_base_service", return_value=mb_service):
+            import ketos.api.build as build_module
 
             # Confirm the import is wired at module level
             assert hasattr(build_module, "get_memory_base_service")
@@ -1531,14 +1531,14 @@ class TestMemoriesAPIRouting:
     def patched_service(self):
         """Patch get_memory_base_service in memories.py."""
         mock_svc = MagicMock()
-        with patch("langflow.api.v1.memories.get_memory_base_service", return_value=mock_svc):
+        with patch("ketos.api.v1.memories.get_memory_base_service", return_value=mock_svc):
             yield mock_svc
 
     @pytest.mark.asyncio
     async def test_get_not_found_returns_404(self, patched_service):
         """Handler returns 404 when service.get returns None (covered via direct call)."""
         from fastapi import HTTPException
-        from langflow.api.v1.memories import get_memory_base
+        from ketos.api.v1.memories import get_memory_base
 
         patched_service.get = AsyncMock(return_value=None)
 
@@ -1553,7 +1553,7 @@ class TestMemoriesAPIRouting:
     @pytest.mark.asyncio
     async def test_flush_conflict_returns_409(self, patched_service):
         """trigger_ingestion raising RuntimeError should map to HTTP 409."""
-        from langflow.api.v1.memories import flush_memory_base
+        from ketos.api.v1.memories import flush_memory_base
 
         patched_service.trigger_ingestion = AsyncMock(side_effect=RuntimeError("already in progress"))
 
@@ -1562,7 +1562,7 @@ class TestMemoriesAPIRouting:
         mock_user.id = uuid.uuid4()
 
         from fastapi import HTTPException
-        from langflow.api.v1.memories import FlushRequest
+        from ketos.api.v1.memories import FlushRequest
 
         with pytest.raises(HTTPException) as exc_info:
             await flush_memory_base(
@@ -1596,14 +1596,14 @@ class TestMemoriesAPIHandlers:
 
     @pytest.mark.asyncio
     async def test_create_success_returns_memory_base_read(self, mock_user):
-        from langflow.api.v1.memories import create_memory_base
+        from ketos.api.v1.memories import create_memory_base
 
         mb = _make_mb(user_id=mock_user.id)
         payload = MemoryBaseCreate(name="mb", flow_id=mb.flow_id, user_id=mock_user.id, kb_name="kb")
 
         svc = MagicMock()
         svc.create = AsyncMock(return_value=mb)
-        with patch("langflow.api.v1.memories.get_memory_base_service", return_value=svc):
+        with patch("ketos.api.v1.memories.get_memory_base_service", return_value=svc):
             result = await create_memory_base(current_user=mock_user, payload=payload)
 
         assert result.id == mb.id
@@ -1612,14 +1612,14 @@ class TestMemoriesAPIHandlers:
     @pytest.mark.asyncio
     async def test_create_duplicate_name_returns_409(self, mock_user):
         from fastapi import HTTPException
-        from langflow.api.v1.memories import create_memory_base
+        from ketos.api.v1.memories import create_memory_base
 
         payload = MemoryBaseCreate(name="dup", flow_id=uuid.uuid4(), user_id=mock_user.id, kb_name="kb")
 
         svc = MagicMock()
         svc.create = AsyncMock(side_effect=ValueError("name already in use"))
         with (
-            patch("langflow.api.v1.memories.get_memory_base_service", return_value=svc),
+            patch("ketos.api.v1.memories.get_memory_base_service", return_value=svc),
             pytest.raises(HTTPException) as exc_info,
         ):
             await create_memory_base(current_user=mock_user, payload=payload)
@@ -1629,15 +1629,15 @@ class TestMemoriesAPIHandlers:
     @pytest.mark.asyncio
     async def test_create_missing_api_key_returns_422(self, mock_user):
         from fastapi import HTTPException
-        from langflow.api.v1.memories import create_memory_base
-        from langflow.services.memory_base.service import PreprocessingValidationError
+        from ketos.api.v1.memories import create_memory_base
+        from ketos.services.memory_base.service import PreprocessingValidationError
 
         payload = MemoryBaseCreate(name="mb", flow_id=uuid.uuid4(), user_id=mock_user.id, kb_name="kb")
 
         svc = MagicMock()
         svc.create = AsyncMock(side_effect=PreprocessingValidationError("No API key found for provider 'OpenAI'"))
         with (
-            patch("langflow.api.v1.memories.get_memory_base_service", return_value=svc),
+            patch("ketos.api.v1.memories.get_memory_base_service", return_value=svc),
             pytest.raises(HTTPException) as exc_info,
         ):
             await create_memory_base(current_user=mock_user, payload=payload)
@@ -1648,13 +1648,13 @@ class TestMemoriesAPIHandlers:
     @pytest.mark.asyncio
     async def test_update_missing_api_key_returns_403(self, mock_user):
         from fastapi import HTTPException
-        from langflow.api.v1.memories import update_memory_base
-        from langflow.services.memory_base.service import PreprocessingValidationError
+        from ketos.api.v1.memories import update_memory_base
+        from ketos.services.memory_base.service import PreprocessingValidationError
 
         svc = MagicMock()
         svc.update = AsyncMock(side_effect=PreprocessingValidationError("No API key found for provider 'OpenAI'"))
         with (
-            patch("langflow.api.v1.memories.get_memory_base_service", return_value=svc),
+            patch("ketos.api.v1.memories.get_memory_base_service", return_value=svc),
             pytest.raises(HTTPException) as exc_info,
         ):
             await update_memory_base(
@@ -1672,13 +1672,13 @@ class TestMemoriesAPIHandlers:
 
     @pytest.mark.asyncio
     async def test_get_success_returns_memory_base_read(self, mock_user):
-        from langflow.api.v1.memories import get_memory_base
+        from ketos.api.v1.memories import get_memory_base
 
         mb = _make_mb(user_id=mock_user.id)
 
         svc = MagicMock()
         svc.get = AsyncMock(return_value=mb)
-        with patch("langflow.api.v1.memories.get_memory_base_service", return_value=svc):
+        with patch("ketos.api.v1.memories.get_memory_base_service", return_value=svc):
             result = await get_memory_base(memory_base_id=mb.id, current_user=mock_user)
 
         assert result.id == mb.id
@@ -1686,12 +1686,12 @@ class TestMemoriesAPIHandlers:
     @pytest.mark.asyncio
     async def test_get_not_found_raises_404(self, mock_user):
         from fastapi import HTTPException
-        from langflow.api.v1.memories import get_memory_base
+        from ketos.api.v1.memories import get_memory_base
 
         svc = MagicMock()
         svc.get = AsyncMock(return_value=None)
         with (
-            patch("langflow.api.v1.memories.get_memory_base_service", return_value=svc),
+            patch("ketos.api.v1.memories.get_memory_base_service", return_value=svc),
             pytest.raises(HTTPException) as exc_info,
         ):
             await get_memory_base(memory_base_id=uuid.uuid4(), current_user=mock_user)
@@ -1704,13 +1704,13 @@ class TestMemoriesAPIHandlers:
 
     @pytest.mark.asyncio
     async def test_update_success_returns_updated_record(self, mock_user):
-        from langflow.api.v1.memories import update_memory_base
+        from ketos.api.v1.memories import update_memory_base
 
         mb = _make_mb(user_id=mock_user.id, threshold=99)
 
         svc = MagicMock()
         svc.update = AsyncMock(return_value=mb)
-        with patch("langflow.api.v1.memories.get_memory_base_service", return_value=svc):
+        with patch("ketos.api.v1.memories.get_memory_base_service", return_value=svc):
             result = await update_memory_base(
                 memory_base_id=mb.id,
                 current_user=mock_user,
@@ -1722,12 +1722,12 @@ class TestMemoriesAPIHandlers:
     @pytest.mark.asyncio
     async def test_update_not_found_raises_404(self, mock_user):
         from fastapi import HTTPException
-        from langflow.api.v1.memories import update_memory_base
+        from ketos.api.v1.memories import update_memory_base
 
         svc = MagicMock()
         svc.update = AsyncMock(return_value=None)
         with (
-            patch("langflow.api.v1.memories.get_memory_base_service", return_value=svc),
+            patch("ketos.api.v1.memories.get_memory_base_service", return_value=svc),
             pytest.raises(HTTPException) as exc_info,
         ):
             await update_memory_base(
@@ -1744,11 +1744,11 @@ class TestMemoriesAPIHandlers:
 
     @pytest.mark.asyncio
     async def test_delete_success_returns_none(self, mock_user):
-        from langflow.api.v1.memories import delete_memory_base
+        from ketos.api.v1.memories import delete_memory_base
 
         svc = MagicMock()
         svc.delete = AsyncMock(return_value=True)
-        with patch("langflow.api.v1.memories.get_memory_base_service", return_value=svc):
+        with patch("ketos.api.v1.memories.get_memory_base_service", return_value=svc):
             result = await delete_memory_base(memory_base_id=uuid.uuid4(), current_user=mock_user)
 
         assert result is None
@@ -1756,12 +1756,12 @@ class TestMemoriesAPIHandlers:
     @pytest.mark.asyncio
     async def test_delete_not_found_raises_404(self, mock_user):
         from fastapi import HTTPException
-        from langflow.api.v1.memories import delete_memory_base
+        from ketos.api.v1.memories import delete_memory_base
 
         svc = MagicMock()
         svc.delete = AsyncMock(return_value=False)
         with (
-            patch("langflow.api.v1.memories.get_memory_base_service", return_value=svc),
+            patch("ketos.api.v1.memories.get_memory_base_service", return_value=svc),
             pytest.raises(HTTPException) as exc_info,
         ):
             await delete_memory_base(memory_base_id=uuid.uuid4(), current_user=mock_user)
@@ -1774,13 +1774,13 @@ class TestMemoriesAPIHandlers:
 
     @pytest.mark.asyncio
     async def test_flush_success_returns_job_id(self, mock_user):
-        from langflow.api.v1.memories import FlushRequest, flush_memory_base
+        from ketos.api.v1.memories import FlushRequest, flush_memory_base
 
         job_id = str(uuid.uuid4())
 
         svc = MagicMock()
         svc.trigger_ingestion = AsyncMock(return_value=job_id)
-        with patch("langflow.api.v1.memories.get_memory_base_service", return_value=svc):
+        with patch("ketos.api.v1.memories.get_memory_base_service", return_value=svc):
             result = await flush_memory_base(
                 memory_base_id=uuid.uuid4(),
                 current_user=mock_user,
@@ -1792,12 +1792,12 @@ class TestMemoriesAPIHandlers:
     @pytest.mark.asyncio
     async def test_flush_value_error_raises_404(self, mock_user):
         from fastapi import HTTPException
-        from langflow.api.v1.memories import FlushRequest, flush_memory_base
+        from ketos.api.v1.memories import FlushRequest, flush_memory_base
 
         svc = MagicMock()
         svc.trigger_ingestion = AsyncMock(side_effect=ValueError("memory base not found"))
         with (
-            patch("langflow.api.v1.memories.get_memory_base_service", return_value=svc),
+            patch("ketos.api.v1.memories.get_memory_base_service", return_value=svc),
             pytest.raises(HTTPException) as exc_info,
         ):
             await flush_memory_base(
@@ -1811,13 +1811,13 @@ class TestMemoriesAPIHandlers:
     @pytest.mark.asyncio
     async def test_flush_duplicate_job_error_raises_409(self, mock_user):
         from fastapi import HTTPException
-        from langflow.api.v1.memories import FlushRequest, flush_memory_base
-        from langflow.services.jobs import DuplicateJobError
+        from ketos.api.v1.memories import FlushRequest, flush_memory_base
+        from ketos.services.jobs import DuplicateJobError
 
         svc = MagicMock()
         svc.trigger_ingestion = AsyncMock(side_effect=DuplicateJobError("already running"))
         with (
-            patch("langflow.api.v1.memories.get_memory_base_service", return_value=svc),
+            patch("ketos.api.v1.memories.get_memory_base_service", return_value=svc),
             pytest.raises(HTTPException) as exc_info,
         ):
             await flush_memory_base(
@@ -1834,22 +1834,22 @@ class TestMemoriesAPIHandlers:
 
     @pytest.mark.asyncio
     async def test_check_mismatch_detected_returns_true(self, mock_user):
-        from langflow.api.v1.memories import check_mismatch
+        from ketos.api.v1.memories import check_mismatch
 
         svc = MagicMock()
         svc.check_mismatch = AsyncMock(return_value=True)
-        with patch("langflow.api.v1.memories.get_memory_base_service", return_value=svc):
+        with patch("ketos.api.v1.memories.get_memory_base_service", return_value=svc):
             result = await check_mismatch(memory_base_id=uuid.uuid4(), current_user=mock_user)
 
         assert result.mismatch_detected is True
 
     @pytest.mark.asyncio
     async def test_check_mismatch_not_detected_returns_false(self, mock_user):
-        from langflow.api.v1.memories import check_mismatch
+        from ketos.api.v1.memories import check_mismatch
 
         svc = MagicMock()
         svc.check_mismatch = AsyncMock(return_value=False)
-        with patch("langflow.api.v1.memories.get_memory_base_service", return_value=svc):
+        with patch("ketos.api.v1.memories.get_memory_base_service", return_value=svc):
             result = await check_mismatch(memory_base_id=uuid.uuid4(), current_user=mock_user)
 
         assert result.mismatch_detected is False
@@ -1857,12 +1857,12 @@ class TestMemoriesAPIHandlers:
     @pytest.mark.asyncio
     async def test_check_mismatch_not_found_raises_404(self, mock_user):
         from fastapi import HTTPException
-        from langflow.api.v1.memories import check_mismatch
+        from ketos.api.v1.memories import check_mismatch
 
         svc = MagicMock()
         svc.check_mismatch = AsyncMock(side_effect=ValueError("not found"))
         with (
-            patch("langflow.api.v1.memories.get_memory_base_service", return_value=svc),
+            patch("ketos.api.v1.memories.get_memory_base_service", return_value=svc),
             pytest.raises(HTTPException) as exc_info,
         ):
             await check_mismatch(memory_base_id=uuid.uuid4(), current_user=mock_user)
@@ -1875,13 +1875,13 @@ class TestMemoriesAPIHandlers:
 
     @pytest.mark.asyncio
     async def test_regenerate_success_returns_job_ids(self, mock_user):
-        from langflow.api.v1.memories import regenerate_memory_base
+        from ketos.api.v1.memories import regenerate_memory_base
 
         job_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
 
         svc = MagicMock()
         svc.regenerate = AsyncMock(return_value=job_ids)
-        with patch("langflow.api.v1.memories.get_memory_base_service", return_value=svc):
+        with patch("ketos.api.v1.memories.get_memory_base_service", return_value=svc):
             result = await regenerate_memory_base(memory_base_id=uuid.uuid4(), current_user=mock_user)
 
         assert result.job_ids == job_ids
@@ -1889,12 +1889,12 @@ class TestMemoriesAPIHandlers:
     @pytest.mark.asyncio
     async def test_regenerate_not_found_raises_404(self, mock_user):
         from fastapi import HTTPException
-        from langflow.api.v1.memories import regenerate_memory_base
+        from ketos.api.v1.memories import regenerate_memory_base
 
         svc = MagicMock()
         svc.regenerate = AsyncMock(side_effect=ValueError("not found"))
         with (
-            patch("langflow.api.v1.memories.get_memory_base_service", return_value=svc),
+            patch("ketos.api.v1.memories.get_memory_base_service", return_value=svc),
             pytest.raises(HTTPException) as exc_info,
         ):
             await regenerate_memory_base(memory_base_id=uuid.uuid4(), current_user=mock_user)
@@ -1909,7 +1909,7 @@ class TestMemoriesAPIHandlers:
     async def test_list_sessions_ownership_failure_raises_404(self, mock_user):
         from fastapi import HTTPException
         from fastapi_pagination import Params
-        from langflow.api.v1.memories import list_sessions
+        from ketos.api.v1.memories import list_sessions
 
         mock_db = AsyncMock()
 
@@ -1923,8 +1923,8 @@ class TestMemoriesAPIHandlers:
         svc = MagicMock()
         svc.get_memory_base_or_404 = AsyncMock(side_effect=ValueError("not found"))
         with (
-            patch("langflow.api.v1.memories.session_scope", return_value=FakeCtx()),
-            patch("langflow.api.v1.memories.get_memory_base_service", return_value=svc),
+            patch("ketos.api.v1.memories.session_scope", return_value=FakeCtx()),
+            patch("ketos.api.v1.memories.get_memory_base_service", return_value=svc),
             pytest.raises(HTTPException) as exc_info,
         ):
             await list_sessions(
@@ -1943,7 +1943,7 @@ class TestMemoriesAPIHandlers:
     async def test_list_memory_base_messages_not_found_raises_404(self, mock_user):
         from fastapi import HTTPException
         from fastapi_pagination import Params
-        from langflow.api.v1.memories import list_memory_base_messages
+        from ketos.api.v1.memories import list_memory_base_messages
 
         mock_db = AsyncMock()
         result_mock = MagicMock()
@@ -1958,7 +1958,7 @@ class TestMemoriesAPIHandlers:
                 pass
 
         with (
-            patch("langflow.api.v1.memories.session_scope", return_value=FakeCtx()),
+            patch("ketos.api.v1.memories.session_scope", return_value=FakeCtx()),
             pytest.raises(HTTPException) as exc_info,
         ):
             await list_memory_base_messages(
@@ -1974,7 +1974,7 @@ class TestMemoriesAPIHandlers:
     async def test_list_memory_base_messages_without_session_id_not_found_raises_404(self, mock_user):
         from fastapi import HTTPException
         from fastapi_pagination import Params
-        from langflow.api.v1.memories import list_memory_base_messages
+        from ketos.api.v1.memories import list_memory_base_messages
 
         mock_db = AsyncMock()
         result_mock = MagicMock()
@@ -1989,7 +1989,7 @@ class TestMemoriesAPIHandlers:
                 pass
 
         with (
-            patch("langflow.api.v1.memories.session_scope", return_value=FakeCtx()),
+            patch("ketos.api.v1.memories.session_scope", return_value=FakeCtx()),
             pytest.raises(HTTPException) as exc_info,
         ):
             await list_memory_base_messages(
@@ -2001,7 +2001,7 @@ class TestMemoriesAPIHandlers:
         assert exc_info.value.status_code == 404
 
     def test_session_raw_messages_stmt_omits_session_filter_when_none(self):
-        from langflow.services.memory_base.service import MemoryBaseService
+        from ketos.services.memory_base.service import MemoryBaseService
 
         svc = MemoryBaseService.__new__(MemoryBaseService)
         mb_id = uuid.uuid4()
@@ -2017,7 +2017,7 @@ class TestMemoriesAPIHandlers:
         assert "session_id =" not in sql_all
 
     def test_session_preprocessed_outputs_stmt_omits_session_filter_when_none(self):
-        from langflow.services.memory_base.service import MemoryBaseService
+        from ketos.services.memory_base.service import MemoryBaseService
 
         svc = MemoryBaseService.__new__(MemoryBaseService)
         mb_id = uuid.uuid4()
@@ -2036,7 +2036,7 @@ class TestMemoriesAPIHandlers:
     # ---------------------------------------------------------------- #
 
     def test_message_read_response_from_attributes(self):
-        from langflow.api.v1.memories import MessageReadResponse
+        from ketos.api.v1.memories import MessageReadResponse
 
         msg = _make_message(flow_id=uuid.uuid4(), session_id="s1", text="hello")
         response = MessageReadResponse.model_validate(msg, from_attributes=True)
@@ -2047,19 +2047,19 @@ class TestMemoriesAPIHandlers:
         assert response.content_blocks == []
 
     def test_flush_request_schema(self):
-        from langflow.api.v1.memories import FlushRequest
+        from ketos.api.v1.memories import FlushRequest
 
         req = FlushRequest(session_id="my-session")
         assert req.session_id == "my-session"
 
     def test_mismatch_response_schema(self):
-        from langflow.api.v1.memories import MismatchResponse
+        from ketos.api.v1.memories import MismatchResponse
 
         assert MismatchResponse(mismatch_detected=True).mismatch_detected is True
         assert MismatchResponse(mismatch_detected=False).mismatch_detected is False
 
     def test_regenerate_response_schema(self):
-        from langflow.api.v1.memories import RegenerateResponse
+        from ketos.api.v1.memories import RegenerateResponse
 
         ids = ["a", "b", "c"]
         assert RegenerateResponse(job_ids=ids).job_ids == ids
@@ -2074,24 +2074,24 @@ class TestPreprocessingApiKeyValidation:
     """_validate_preprocessing_api_key raises PreprocessingValidationError when key is absent."""
 
     def test_no_op_when_preproc_model_is_none(self):
-        from langflow.services.memory_base.service import _validate_preprocessing_api_key
+        from ketos.services.memory_base.service import _validate_preprocessing_api_key
 
         # Should not raise — no model means no key needed.
         _validate_preprocessing_api_key(uuid.uuid4(), None)
 
     def test_raises_when_api_key_missing(self):
-        from langflow.services.memory_base.service import (
+        from ketos.services.memory_base.service import (
             PreprocessingValidationError,
             _validate_preprocessing_api_key,
         )
 
         with (
             patch(
-                "langflow.services.memory_base.service.infer_llm_provider",
+                "ketos.services.memory_base.service.infer_llm_provider",
                 return_value="OpenAI",
             ),
             patch(
-                "langflow.services.memory_base.service.get_api_key_for_provider",
+                "ketos.services.memory_base.service.get_api_key_for_provider",
                 return_value=None,
             ),
             pytest.raises(PreprocessingValidationError, match="No API key"),
@@ -2099,15 +2099,15 @@ class TestPreprocessingApiKeyValidation:
             _validate_preprocessing_api_key(uuid.uuid4(), "gpt-4o")
 
     def test_passes_when_api_key_present(self):
-        from langflow.services.memory_base.service import _validate_preprocessing_api_key
+        from ketos.services.memory_base.service import _validate_preprocessing_api_key
 
         with (
             patch(
-                "langflow.services.memory_base.service.infer_llm_provider",
+                "ketos.services.memory_base.service.infer_llm_provider",
                 return_value="OpenAI",
             ),
             patch(
-                "langflow.services.memory_base.service.get_api_key_for_provider",
+                "ketos.services.memory_base.service.get_api_key_for_provider",
                 return_value="sk-valid-key",
             ),
         ):
@@ -2115,14 +2115,14 @@ class TestPreprocessingApiKeyValidation:
             _validate_preprocessing_api_key(uuid.uuid4(), "gpt-4o")
 
     def test_raises_when_provider_unknown(self):
-        from langflow.services.memory_base.service import (
+        from ketos.services.memory_base.service import (
             PreprocessingValidationError,
             _validate_preprocessing_api_key,
         )
 
         with (
             patch(
-                "langflow.services.memory_base.service.infer_llm_provider",
+                "ketos.services.memory_base.service.infer_llm_provider",
                 side_effect=ValueError("Unknown model 'ghost-model'"),
             ),
             pytest.raises(PreprocessingValidationError, match="Unknown model"),
@@ -2132,8 +2132,8 @@ class TestPreprocessingApiKeyValidation:
     @pytest.mark.asyncio
     async def test_service_create_raises_preprocessing_validation_error_on_missing_key(self):
         """create() raises PreprocessingValidationError before touching the filesystem."""
-        from langflow.services.database.models.flow.model import Flow
-        from langflow.services.memory_base.service import (
+        from ketos.services.database.models.flow.model import Flow
+        from ketos.services.memory_base.service import (
             MemoryBaseService,
             PreprocessingValidationError,
         )
@@ -2164,13 +2164,13 @@ class TestPreprocessingApiKeyValidation:
         fake_scope = MagicMock(return_value=FakeCtx())
 
         with (
-            patch("langflow.services.memory_base.service.session_scope", fake_scope),
+            patch("ketos.services.memory_base.service.session_scope", fake_scope),
             patch(
-                "langflow.services.memory_base.service.infer_llm_provider",
+                "ketos.services.memory_base.service.infer_llm_provider",
                 return_value="OpenAI",
             ),
             patch(
-                "langflow.services.memory_base.service.get_api_key_for_provider",
+                "ketos.services.memory_base.service.get_api_key_for_provider",
                 return_value=None,
             ),
             pytest.raises(PreprocessingValidationError, match="No API key"),
@@ -2183,7 +2183,7 @@ class TestPreprocessingApiKeyValidation:
 
         When the existing MB uses preprocessing but the API key is gone.
         """
-        from langflow.services.memory_base.service import (
+        from ketos.services.memory_base.service import (
             MemoryBaseService,
             PreprocessingValidationError,
         )
@@ -2209,13 +2209,13 @@ class TestPreprocessingApiKeyValidation:
         fake_scope = MagicMock(return_value=FakeCtx())
 
         with (
-            patch("langflow.services.memory_base.service.session_scope", fake_scope),
+            patch("ketos.services.memory_base.service.session_scope", fake_scope),
             patch(
-                "langflow.services.memory_base.service.infer_llm_provider",
+                "ketos.services.memory_base.service.infer_llm_provider",
                 return_value="OpenAI",
             ),
             patch(
-                "langflow.services.memory_base.service.get_api_key_for_provider",
+                "ketos.services.memory_base.service.get_api_key_for_provider",
                 return_value=None,
             ),
             pytest.raises(PreprocessingValidationError, match="No API key"),
@@ -2237,7 +2237,7 @@ class TestMemoryBaseSecurityAdversarial:
 
     @pytest.fixture
     def service(self):
-        from langflow.services.memory_base.service import MemoryBaseService
+        from ketos.services.memory_base.service import MemoryBaseService
 
         return MemoryBaseService()
 
@@ -2262,7 +2262,7 @@ class TestMemoryBaseSecurityAdversarial:
         exec_result = MagicMock()
         exec_result.first.return_value = None
         mock_db.exec = AsyncMock(return_value=exec_result)
-        with patch("langflow.services.memory_base.service.session_scope", self._fake_scope(mock_db)):
+        with patch("ketos.services.memory_base.service.session_scope", self._fake_scope(mock_db)):
             result = await service.update(mb.id, user_b, MemoryBaseUpdate(threshold=5))
         assert result is None
 
@@ -2273,7 +2273,7 @@ class TestMemoryBaseSecurityAdversarial:
         exec_result = MagicMock()
         exec_result.all.return_value = []
         mock_db.exec = AsyncMock(return_value=exec_result)
-        with patch("langflow.services.memory_base.ingestion.session_scope", self._fake_scope(mock_db)):
+        with patch("ketos.services.memory_base.ingestion.session_scope", self._fake_scope(mock_db)):
             await service.on_flow_output(flow_id=unrelated_flow_id, session_id="sess-1", job_id=uuid.uuid4())
         mock_db.exec.assert_called_once()
 
@@ -2286,7 +2286,7 @@ class TestMemoryBaseSecurityAdversarial:
         exec_result.first.return_value = None
         mock_db.exec = AsyncMock(return_value=exec_result)
         with (
-            patch("langflow.services.memory_base.ingestion.session_scope", self._fake_scope(mock_db)),
+            patch("ketos.services.memory_base.ingestion.session_scope", self._fake_scope(mock_db)),
             pytest.raises(ValueError, match="not found"),
         ):
             await service.regenerate(mb_id, user_b)
@@ -2300,7 +2300,7 @@ class TestMemoryBaseSecurityAdversarial:
         exec_result.first.return_value = None
         mock_db.exec = AsyncMock(return_value=exec_result)
         with (
-            patch("langflow.services.memory_base.ingestion.session_scope", self._fake_scope(mock_db)),
+            patch("ketos.services.memory_base.ingestion.session_scope", self._fake_scope(mock_db)),
             pytest.raises(ValueError, match="not found"),
         ):
             await service.check_mismatch(mb_id, user_b)

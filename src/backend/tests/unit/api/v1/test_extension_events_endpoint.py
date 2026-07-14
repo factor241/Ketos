@@ -13,7 +13,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from fastapi import HTTPException, status
-from langflow.api.v1.extensions import get_extension_events
+from ketos.api.v1.extensions import get_extension_events
 
 
 def _user(user_id: str = "alice-id") -> SimpleNamespace:
@@ -29,7 +29,7 @@ async def test_keyspace_query_param_is_rejected_with_typed_422(monkeypatch: pyte
     # The service must not be touched on the rejection path.
     sentinel_svc = MagicMock()
     monkeypatch.setattr(
-        "langflow.api.v1.extensions.get_extension_events_service",
+        "ketos.api.v1.extensions.get_extension_events_service",
         lambda: sentinel_svc,
     )
 
@@ -59,7 +59,7 @@ async def test_empty_string_keyspace_is_also_rejected(monkeypatch: pytest.Monkey
     response, defeating the explicit-contract goal of this 422.
     """
     monkeypatch.setattr(
-        "langflow.api.v1.extensions.get_extension_events_service",
+        "ketos.api.v1.extensions.get_extension_events_service",
         lambda: MagicMock(),
     )
 
@@ -80,7 +80,7 @@ async def test_request_without_keyspace_returns_events(monkeypatch: pytest.Monke
     svc = MagicMock()
     svc.since.return_value = ([], True)
     monkeypatch.setattr(
-        "langflow.api.v1.extensions.get_extension_events_service",
+        "ketos.api.v1.extensions.get_extension_events_service",
         lambda: svc,
     )
 
@@ -104,7 +104,7 @@ async def test_service_unavailable_short_circuits_without_touching_keyspace_chec
     request).
     """
     monkeypatch.setattr(
-        "langflow.api.v1.extensions.get_extension_events_service",
+        "ketos.api.v1.extensions.get_extension_events_service",
         lambda: None,
     )
 

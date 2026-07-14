@@ -13,7 +13,7 @@
  * silently re-enable a destructive behavior.
  */
 
-const STORAGE_KEY = "langflow-assistant-skip-all";
+const STORAGE_KEY = "ketos-assistant-skip-all";
 const ENABLED_VALUE = "true";
 
 export function readSkipAll(): boolean {

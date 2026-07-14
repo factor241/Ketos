@@ -8,6 +8,7 @@ import useAlertStore from "@/stores/alertStore";
 import { useUtilityStore } from "@/stores/utilityStore";
 import type { FileType } from "@/types/file_management";
 import { getRelativePathForServerPath } from "@/utils/file-relative-path-map";
+import { compareForPresentation } from "@/utils/locale-format";
 import { formatFileSize } from "@/utils/stringManipulation";
 
 import {
@@ -141,7 +142,7 @@ export default function DragFilesComponent({
 
         if (shouldTreatAsFolder && droppedFiles.length > 1000) {
           throw new Error(
-            `Too many files detected (${droppedFiles.length}). This likely includes large/hidden directories. Please drop a smaller folder or exclude folders like node_modules.`,
+            t("errors.tooManyFiles", { count: droppedFiles.length }),
           );
         }
 
@@ -157,11 +158,10 @@ export default function DragFilesComponent({
                 : t("fileManager.fileUploadedSuccessfully"),
           });
         }
-        // biome-ignore lint/suspicious/noExplicitAny: legacy
-      } catch (error: any) {
+      } catch (_error: unknown) {
         setErrorData({
           title: t("fileManager.errorUploadingFile"),
-          list: [error.message || t("fileManager.errorUploadingFileDetail")],
+          list: [t("fileManager.errorUploadingFileDetail")],
         });
       }
     }
@@ -207,11 +207,10 @@ export default function DragFilesComponent({
               : t("fileManager.fileUploadedSuccessfully"),
         });
       }
-      // biome-ignore lint/suspicious/noExplicitAny: legacy
-    } catch (error: any) {
+    } catch (_error: unknown) {
       setErrorData({
         title: t("fileManager.errorUploadingFile"),
-        list: [error.message || t("fileManager.errorUploadingFileDetail")],
+        list: [t("fileManager.errorUploadingFileDetail")],
       });
     }
   };
@@ -228,11 +227,10 @@ export default function DragFilesComponent({
               : t("fileManager.fileUploadedSuccessfully"),
         });
       }
-      // biome-ignore lint/suspicious/noExplicitAny: legacy
-    } catch (error: any) {
+    } catch (_error: unknown) {
       setErrorData({
         title: t("fileManager.errorUploadingFile"),
-        list: [error.message || t("fileManager.errorUploadingFileDetail")],
+        list: [t("fileManager.errorUploadingFileDetail")],
       });
     }
   };
@@ -284,7 +282,12 @@ export default function DragFilesComponent({
           <span className="flex items-center gap-1">
             <span>{types.slice(0, 3).join(", ")}</span>
             {types.length > 3 && (
-              <ShadTooltip content={types.slice(3).toSorted().join(", ")}>
+              <ShadTooltip
+                content={types
+                  .slice(3)
+                  .toSorted(compareForPresentation)
+                  .join(", ")}
+              >
                 <span
                   className="text-muted-foreground flex items-center gap-1"
                   data-testid="info-types"
@@ -296,7 +299,9 @@ export default function DragFilesComponent({
             )}
           </span>
           <span className="font-semibold">
-            {formatFileSize(maxFileSizeUpload)} max
+            {t("fileManager.maximumFileSize", {
+              size: formatFileSize(maxFileSizeUpload),
+            })}
           </span>
         </div>
         <div className="pointer-events-none absolute inset-0 h-full w-full">

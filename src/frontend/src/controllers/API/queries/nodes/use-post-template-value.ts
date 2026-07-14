@@ -16,7 +16,7 @@ import { getURL } from "../../helpers/constants";
 import { UseRequestProcessor } from "../../services/request-processor";
 
 interface IPostTemplateValue {
-  value: any;
+  value: unknown;
   tool_mode?: boolean;
   // the dropdown input re-gathers all
   // dropdown items each time a single
@@ -29,15 +29,15 @@ interface IPostTemplateValue {
 }
 
 interface IPostTemplateValueParams {
-  node: APIClassType;
-  nodeId: string;
+  node?: APIClassType;
+  nodeId?: string;
   parameterId: string;
 }
 
 export const usePostTemplateValue: useMutationFunctionType<
   IPostTemplateValueParams,
   IPostTemplateValue,
-  APIClassType,
+  APIClassType | undefined,
   ResponseErrorDetailAPI
 > = ({ parameterId, nodeId, node }, options?) => {
   const { mutate } = UseRequestProcessor();
@@ -50,6 +50,8 @@ export const usePostTemplateValue: useMutationFunctionType<
   const postTemplateValueFn = async (
     payload: IPostTemplateValue,
   ): Promise<APIClassType | undefined> => {
+    if (!node || !nodeId) return undefined;
+
     const template = node.template;
 
     if (!template) return;
@@ -84,14 +86,14 @@ export const usePostTemplateValue: useMutationFunctionType<
           tool_mode: payload.tool_mode,
         },
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Suppress 403 specifically from custom component blocking — fallback
       // for race conditions where the guards above couldn't detect the
       // outdated state in time.
       if (!allowCustomComponents && isCustomComponentBlockError(e)) {
         console.warn(
           `Suppressed 403 for outdated component (node ${nodeId}):`,
-          e.response.data.detail,
+          e,
         );
         return undefined;
       }
@@ -114,7 +116,7 @@ export const usePostTemplateValue: useMutationFunctionType<
   };
 
   const mutation: UseMutationResult<
-    APIClassType,
+    APIClassType | undefined,
     ResponseErrorDetailAPI,
     IPostTemplateValue
   > = mutate(

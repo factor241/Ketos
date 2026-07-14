@@ -27,7 +27,9 @@ export const usePostAddFlow: useMutationFunctionType<
   const { mutate, queryClient } = UseRequestProcessor();
   const myCollectionId = useFolderStore((state) => state.myCollectionId);
 
-  const postAddFlowFn = async (payload: IPostAddFlow): Promise<any> => {
+  const postAddFlowFn = async (
+    payload: IPostAddFlow,
+  ): Promise<IPostAddFlow> => {
     const response = await api.post(`${getURL("FLOWS")}/`, {
       name: payload.name,
       data: payload.data,
@@ -44,7 +46,7 @@ export const usePostAddFlow: useMutationFunctionType<
     return response.data;
   };
 
-  const mutation: UseMutationResult<IPostAddFlow, any, IPostAddFlow> = mutate(
+  const mutation: UseMutationResult<IPostAddFlow, Error, IPostAddFlow> = mutate(
     ["usePostAddFlow"],
     postAddFlowFn,
     {

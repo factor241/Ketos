@@ -94,7 +94,7 @@ export const useKnowledgeBasePolling = ({
         }
 
         pollingRef.current = freshData.some((kb) => isBusyStatus(kb.status));
-      } catch (e) {
+      } catch (_e) {
         // Silently ignore polling errors
       }
     };

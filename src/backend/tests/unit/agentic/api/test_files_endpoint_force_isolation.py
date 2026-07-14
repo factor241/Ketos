@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 from fastapi import HTTPException
-from langflow.agentic.api.files_router import get_file
+from ketos.agentic.api.files_router import get_file
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -25,8 +25,8 @@ def _make_user(user_id: str) -> SimpleNamespace:
 @pytest.fixture
 def auto_login_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Pin AUTO_LOGIN=True per-instance + point at a fresh tmp_path."""
-    monkeypatch.setenv("LANGFLOW_FS_TOOL_BASE_DIR", str(tmp_path))
-    from lfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
+    monkeypatch.setenv("KETOS_FS_TOOL_BASE_DIR", str(tmp_path))
+    from kfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
 
     monkeypatch.setattr(
         FileSystemToolComponent,
@@ -41,7 +41,7 @@ def _simulate_agent_write(user_id: str, relative: str, content: bytes) -> None:
 
     force_isolation=True + bound user_id, so the file lands in users/<hash>/.
     """
-    from lfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
+    from kfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
 
     fs = FileSystemToolComponent()
     fs._user_id = user_id

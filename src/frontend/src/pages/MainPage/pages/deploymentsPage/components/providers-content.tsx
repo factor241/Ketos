@@ -143,7 +143,9 @@ export default function ProvidersContent({
       <DeleteConfirmationModal
         open={!!providerDelete.target}
         setOpen={providerDelete.setModalOpen}
-        description={`environment "${providerDelete.target?.name}"`}
+        description={t("deleteModal.environmentNamed", {
+          name: providerDelete.target?.name,
+        })}
         onConfirm={providerDelete.confirmDelete}
       />
     </>

@@ -11,35 +11,38 @@ interface IPostRenameFile {
 
 export const usePostRenameFileV2: useMutationFunctionType<
   undefined,
-  IPostRenameFile
+  IPostRenameFile,
+  unknown,
+  Error
 > = (options?) => {
   const { mutate, queryClient } = UseRequestProcessor();
 
-  const postRenameFileFn = async (payload: IPostRenameFile): Promise<any> => {
-    const response = await api.put<any>(
+  const postRenameFileFn = async (
+    payload: IPostRenameFile,
+  ): Promise<unknown> => {
+    const response = await api.put<unknown>(
       `${getURL("FILE_MANAGEMENT", { id: payload.id }, true)}?name=${encodeURI(payload.name)}`,
     );
 
     return response.data;
   };
 
-  const mutation: UseMutationResult<IPostRenameFile, any, IPostRenameFile> =
-    mutate(
-      ["usePostRenameFileV2"],
-      async (payload: IPostRenameFile) => {
-        const res = await postRenameFileFn(payload);
-        return res;
+  const mutation: UseMutationResult<unknown, Error, IPostRenameFile> = mutate(
+    ["usePostRenameFileV2"],
+    async (payload: IPostRenameFile) => {
+      const res = await postRenameFileFn(payload);
+      return res;
+    },
+    {
+      onSettled: (data, error, variables, onMutateResult, context) => {
+        queryClient.invalidateQueries({
+          queryKey: ["useGetFilesV2"],
+        });
+        options?.onSettled?.(data, error, variables, onMutateResult, context);
       },
-      {
-        onSettled: (data, error, variables, context) => {
-          queryClient.invalidateQueries({
-            queryKey: ["useGetFilesV2"],
-          });
-          options?.onSettled?.(data, error, variables, context);
-        },
-        ...options,
-      },
-    );
+      ...options,
+    },
+  );
 
   return mutation;
 };

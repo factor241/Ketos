@@ -71,7 +71,7 @@ export const CategoryDisclosure = memo(function CategoryDisclosure({
 
   // Categories rendered here are bundles that are NOT in the static
   // SIDEBAR_BUNDLES list -- including runtime-discovered extensions
-  // (installed packages or `lfx extension dev` registrations).  Surface
+  // (installed packages or `kfx extension dev` registrations).  Surface
   // the Reload action whenever the category's templates carry an
   // ``extension`` field, matching the bundle path's behavior.
   const extensionId = useMemo(

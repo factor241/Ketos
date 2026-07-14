@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
-from langflow.services.tracing.native_callback import NativeCallbackHandler
+from ketos.services.tracing.native_callback import NativeCallbackHandler
 
 # ---------------------------------------------------------------------------
 # Helpers

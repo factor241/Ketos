@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - "scripts/gp/**"
+      - ".github/workflows/gp-*.yml"
+      - "src/frontend/src/locales/*.json"
+      - "src/backend/base/ketos/locales/*.json"
+      - "docs/localization/ru/linguistic-review.md"
   workflow_dispatch:
 
 jobs:

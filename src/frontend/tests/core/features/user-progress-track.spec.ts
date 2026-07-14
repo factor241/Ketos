@@ -3,7 +3,7 @@ import { DISCORD_URL, GITHUB_URL } from "../../../src/constants/constants";
 import { expect, test } from "../../fixtures";
 import { addNewUserAndLogin } from "../../utils/add-new-user-and-loggin";
 import { cleanAllFlows } from "../../utils/clean-all-flows";
-import { cleanOldFolders } from "../../utils/clean-old-folders";
+import { clearTestFolders } from "../../utils/clear-test-folders";
 
 import { TEXTS } from "../../utils/constants/texts";
 import { openTemplatesModal } from "../../utils/flow/new-project-flow";
@@ -40,7 +40,7 @@ async function progressTrackTestFn(
   await page.waitForTimeout(2000);
 
   await cleanAllFlows(page);
-  await cleanOldFolders(page);
+  await clearTestFolders(page);
 
   await expect(page.getByTestId("new_project_btn_empty_page")).toBeVisible();
   await expect(page.getByTestId("mainpage_title").last()).toBeVisible();

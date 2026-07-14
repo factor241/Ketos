@@ -6,7 +6,7 @@ try:
 except ImportError:
     pytestmark = pytest.mark.skip(reason="webrtcvad is not installed. Skipping voice mode tests.")
 
-from langflow.utils.voice_utils import (
+from ketos.utils.voice_utils import (
     BYTES_PER_16K_FRAME,
     BYTES_PER_24K_FRAME,
     SAMPLE_RATE_24K,

@@ -21,6 +21,8 @@ import {
   FileText,
 } from "lucide-react";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { formatNumber } from "@/utils/locale-format";
 
 import type { WrittenFile } from "../assistant-panel.types";
 import { GHOST_SECONDARY_BUTTON } from "../helpers/button-styles";
@@ -36,12 +38,16 @@ function basename(p: string): string {
 }
 
 function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} kB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  if (bytes < 1024) return `${formatNumber(bytes)} B`;
+  if (bytes < 1024 * 1024)
+    return `${formatNumber(bytes / 1024, { maximumFractionDigits: 1 })} kB`;
+  return `${formatNumber(bytes / 1024 / 1024, {
+    maximumFractionDigits: 1,
+  })} MB`;
 }
 
 export function AssistantFileCard({ file, onOpen }: AssistantFileCardProps) {
+  const { t } = useTranslation();
   const handleDownload = useCallback(() => {
     // Content arrived inline with the SSE event — build the Blob from the
     // in-memory string. No HTTP fetch, no auth concerns, no path-resolution
@@ -86,8 +92,10 @@ export function AssistantFileCard({ file, onOpen }: AssistantFileCardProps) {
           {basename(file.path)}
         </span>
         <span className="text-xs text-muted-foreground">
-          {file.action === "edit_file" ? "edited" : "created"} ·{" "}
-          {formatSize(file.size)}
+          {file.action === "edit_file"
+            ? t("assistant.fileEdited")
+            : t("assistant.fileCreated")}{" "}
+          · {formatSize(file.size)}
         </span>
       </div>
       <div className="flex items-center gap-1">
@@ -98,7 +106,7 @@ export function AssistantFileCard({ file, onOpen }: AssistantFileCardProps) {
           className={GHOST_SECONDARY_BUTTON}
         >
           <ExternalLink className="h-3.5 w-3.5" />
-          <span>Open</span>
+          <span>{t("common.open")}</span>
         </button>
         <button
           type="button"
@@ -107,7 +115,7 @@ export function AssistantFileCard({ file, onOpen }: AssistantFileCardProps) {
           className={GHOST_SECONDARY_BUTTON}
         >
           <DownloadIcon className="h-3.5 w-3.5" />
-          <span>Download</span>
+          <span>{t("trace.download")}</span>
         </button>
       </div>
     </div>

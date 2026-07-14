@@ -5,8 +5,8 @@ from unittest.mock import MagicMock
 
 import pytest
 from langchain_community.embeddings.fake import DeterministicFakeEmbedding
-from lfx.components.mongodb import MongoVectorStoreComponent
-from lfx.schema.data import Data
+from kfx.components.mongodb import MongoVectorStoreComponent
+from kfx.schema.data import Data
 from pymongo.collection import Collection
 
 from tests.base import ComponentTestBaseWithoutClient, VersionComponentMapping
@@ -214,7 +214,7 @@ class TestMongoVectorStoreComponent(ComponentTestBaseWithoutClient):
 def _mock_component(mocker, **overrides) -> tuple[MongoVectorStoreComponent, MagicMock, MagicMock]:
     mock_client = MagicMock()
     mocker.patch("pymongo.MongoClient", return_value=mock_client)
-    mock_store_cls = mocker.patch("lfx.components.mongodb.mongodb_atlas.MongoDBAtlasVectorSearch")
+    mock_store_cls = mocker.patch("kfx.components.mongodb.mongodb_atlas.MongoDBAtlasVectorSearch")
     kwargs = {
         "mongodb_atlas_cluster_uri": "mongodb://localhost:27017",
         "db_name": "test_db",

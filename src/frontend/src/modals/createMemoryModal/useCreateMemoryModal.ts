@@ -4,7 +4,7 @@ import type { ModelOption } from "@/components/core/parameterRenderComponent/com
 import { useCreateMemory } from "@/controllers/API/queries/memories/use-create-memory";
 import { useGetModelProviders } from "@/controllers/API/queries/models/use-get-model-providers";
 import useAlertStore from "@/stores/alertStore";
-import { extractApiErrorMessages } from "@/utils/apiError";
+import { getLocalizedApiErrorMessage } from "@/utils/localized-api-error";
 
 interface UseCreateMemoryModalParams {
   flowId: string;
@@ -94,7 +94,11 @@ export function useCreateMemoryModal({
     onError: (error: unknown) => {
       setErrorData({
         title: t("memory.createError"),
-        list: extractApiErrorMessages(error),
+        list: [
+          getLocalizedApiErrorMessage(error, (key) => t(key), {
+            fallbackKey: "errors.requestFailed",
+          }),
+        ],
       });
     },
   });
@@ -133,8 +137,8 @@ export function useCreateMemoryModal({
 
     if (preprocessingEnabled && !preprocessingPrompt.trim()) {
       setErrorData({
-        title: "Validation error",
-        list: ["Please provide preprocessing instructions"],
+        title: t("memory.validationError"),
+        list: [t("memory.preprocessingInstructionsRequired")],
       });
       return;
     }

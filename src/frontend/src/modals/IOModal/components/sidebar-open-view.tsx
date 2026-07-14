@@ -39,7 +39,7 @@ export const SidebarOpenView = ({
                 name="MessagesSquare"
                 className="h-[18px] w-[18px] text-ring"
               />
-              <div className="text-mmd font-normal">Chat</div>
+              <div className="text-mmd font-normal">{t("playground.chat")}</div>
             </div>
             <ShadTooltip styleClasses="z-50" content={t("chat.newChat")}>
               <div>
@@ -47,6 +47,7 @@ export const SidebarOpenView = ({
                   data-testid="new-chat"
                   variant="ghost"
                   className="flex h-8 w-8 items-center justify-center !p-0 hover:bg-secondary-hover"
+                  aria-label={t("chat.newChat")}
                   onClick={(_) => {
                     setvisibleSession(undefined);
                     setSelectedViewField(undefined);

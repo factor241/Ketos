@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 
 import { useInputHistory } from "../use-input-history";
 
-const STORAGE_KEY = "langflow-assistant-input-history";
+const STORAGE_KEY = "ketos-assistant-input-history";
 
 function seedHistory(entries: string[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));

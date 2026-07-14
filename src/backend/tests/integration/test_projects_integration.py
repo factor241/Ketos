@@ -10,17 +10,17 @@ from uuid import UUID
 import pytest
 from fastapi import status
 from httpx import AsyncClient
-from langflow.services.database.models.deployment.model import Deployment
-from langflow.services.database.models.deployment_provider_account.model import (
+from ketos.services.database.models.deployment.model import Deployment
+from ketos.services.database.models.deployment_provider_account.model import (
     DeploymentProviderAccount,
     DeploymentProviderKey,
 )
-from langflow.services.database.models.flow_version.model import FlowVersion
-from langflow.services.database.models.flow_version_deployment_attachment.model import (
+from ketos.services.database.models.flow_version.model import FlowVersion
+from ketos.services.database.models.flow_version_deployment_attachment.model import (
     FlowVersionDeploymentAttachment,
 )
-from langflow.services.deps import session_scope
-from lfx.services.adapters.deployment.schema import DeploymentType
+from ketos.services.deps import session_scope
+from kfx.services.adapters.deployment.schema import DeploymentType
 
 
 async def _attach_deployment_to_flow(*, user_id: UUID, flow_id: UUID, project_id: UUID) -> None:
@@ -70,13 +70,13 @@ async def _attach_deployment_to_flow(*, user_id: UUID, flow_id: UUID, project_id
 async def test_project_authentication_settings(client: AsyncClient, logged_in_headers):
     """Integration test: Project authentication settings configuration."""
     # Scenario 1: AUTO_LOGIN disabled -> API key auth
-    with patch("langflow.api.v1.projects.get_settings_service") as mock_get_settings:
+    with patch("ketos.api.v1.projects.get_settings_service") as mock_get_settings:
         mock_service = MagicMock()
         mock_service.settings.add_projects_to_mcp_servers = False
         mock_service.auth_settings.AUTO_LOGIN = False
         mock_get_settings.return_value = mock_service
 
-        with patch("langflow.api.v1.projects.encrypt_auth_settings") as mock_encrypt:
+        with patch("ketos.api.v1.projects.encrypt_auth_settings") as mock_encrypt:
             mock_encrypt.return_value = {"encrypted": "apikey_auth"}
 
             response = await client.post(
@@ -94,7 +94,7 @@ async def test_project_authentication_settings(client: AsyncClient, logged_in_he
             assert "id" in project
 
     # Scenario 2: AUTO_LOGIN enabled -> no auth
-    with patch("langflow.api.v1.projects.get_settings_service") as mock_get_settings:
+    with patch("ketos.api.v1.projects.get_settings_service") as mock_get_settings:
         mock_service = MagicMock()
         mock_service.settings.add_projects_to_mcp_servers = False
         mock_service.auth_settings.AUTO_LOGIN = True

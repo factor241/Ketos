@@ -1,6 +1,6 @@
-"""Unit tests for langflow_sdk.testing and RunResponse helpers.
+"""Unit tests for ketos_sdk.testing and RunResponse helpers.
 
-Uses respx to mock HTTP so no live Langflow instance is needed.
+Uses respx to mock HTTP so no live Ketos instance is needed.
 """
 # pragma: allowlist secret -- all credentials in this file are fake test data
 
@@ -9,17 +9,19 @@ from __future__ import annotations
 import httpx
 import respx
 from _pytest.config.argparsing import Parser
-from langflow_sdk.client import AsyncLangflowClient, LangflowClient
-from langflow_sdk.models import RunOutput, RunResponse
-from langflow_sdk.testing import AsyncFlowRunner, FlowRunner, pytest_addoption
+from ketos_sdk import testing
+from ketos_sdk._async_client import AsyncKetosClient
+from ketos_sdk.client import KetosClient
+from ketos_sdk.models import RunOutput, RunResponse
+from ketos_sdk.testing import AsyncFlowRunner, FlowRunner, pytest_addoption
 
-_BASE = "http://langflow.test"
+_BASE = "http://ketos.test"
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
 # ---------------------------------------------------------------------------
 
-# Minimal RunResponse payload matching the standard Langflow chat shape
+# Minimal RunResponse payload matching the standard Ketos chat shape
 _CHAT_RUN_RESPONSE = {
     "session_id": "sess-abc",
     "outputs": [
@@ -89,12 +91,12 @@ _MULTI_RUN_RESPONSE = {
 _EMPTY_RUN_RESPONSE = {"session_id": None, "outputs": []}
 
 
-def _sync_client() -> LangflowClient:
-    return LangflowClient(base_url=_BASE, api_key="test-key")  # pragma: allowlist secret
+def _sync_client() -> KetosClient:
+    return KetosClient(base_url=_BASE, api_key="test-key")  # pragma: allowlist secret
 
 
-def _async_client() -> AsyncLangflowClient:
-    return AsyncLangflowClient(base_url=_BASE, api_key="test-key")  # pragma: allowlist secret
+def _async_client() -> AsyncKetosClient:
+    return AsyncKetosClient(base_url=_BASE, api_key="test-key")  # pragma: allowlist secret
 
 
 # ---------------------------------------------------------------------------
@@ -289,23 +291,23 @@ def test_flow_runner_accepts_uuid():
 
 
 def test_flow_runner_and_async_runner_are_importable():
-    """FlowRunner and AsyncFlowRunner can be imported from langflow_sdk.testing."""
-    from langflow_sdk.testing import AsyncFlowRunner as ImportedAsync
-    from langflow_sdk.testing import FlowRunner as ImportedSync
+    """FlowRunner and AsyncFlowRunner can be imported from ketos_sdk.testing."""
+    from ketos_sdk.testing import AsyncFlowRunner as ImportedAsync
+    from ketos_sdk.testing import FlowRunner as ImportedSync
 
     assert ImportedSync is FlowRunner
     assert ImportedAsync is AsyncFlowRunner
 
 
 def test_pytest_addoption_registers_options(pytestconfig):
-    """The plugin registers all --langflow-* options (verified via public getoption API)."""
+    """The plugin registers all --ketos-* options (verified via public getoption API)."""
     # getoption() returns None for unset options; raises ValueError if the
     # option was never registered -- so a clean return proves registration.
     for name in (
-        "--langflow-url",
-        "--langflow-env",
-        "--langflow-api-key",
-        "--langflow-environments-file",
+        "--ketos-url",
+        "--ketos-env",
+        "--ketos-api-key",
+        "--ketos-environments-file",
     ):
         assert pytestconfig.getoption(name) is None, f"Option {name!r} missing or has unexpected default"
 
@@ -316,3 +318,78 @@ def test_pytest_addoption_is_idempotent():
 
     pytest_addoption(parser)
     pytest_addoption(parser)
+
+
+def test_pytest_addoption_registers_both_brand_families():
+    parser = Parser(_ispytest=True)
+
+    pytest_addoption(parser)
+    parsed = parser.parse(
+        [
+            "--ketos-url",
+            "https://canonical.test",
+            "--langflow-url",
+            "https://legacy.test",
+            "--ketos-env",
+            "canonical",
+            "--langflow-env",
+            "legacy",
+        ]
+    )
+
+    assert parsed.ketos_url == "https://canonical.test"
+    assert parsed.langflow_url == "https://legacy.test"
+    assert parsed.ketos_env == "canonical"
+    assert parsed.langflow_env == "legacy"
+
+
+class _FakeConfig:
+    def __init__(self, **options: str | None) -> None:
+        self.options = options
+
+    def getoption(self, name: str) -> str | None:
+        return self.options.get(name)
+
+
+class _FakeRequest:
+    def __init__(self, **options: str | None) -> None:
+        self.config = _FakeConfig(**options)
+
+
+def test_canonical_cli_and_environment_values_win_over_legacy(monkeypatch):
+    request = _FakeRequest(
+        ketos_url="https://canonical-cli.test",
+        langflow_url="https://legacy-cli.test",
+        ketos_api_key="canonical-cli-key",
+        langflow_api_key="legacy-cli-key",
+    )
+    monkeypatch.setenv("KETOS_URL", "https://canonical-env.test")
+    monkeypatch.setenv("LANGFLOW_URL", "https://legacy-env.test")
+    monkeypatch.setenv("KETOS_API_KEY", "canonical-env-key")
+    monkeypatch.setenv("LANGFLOW_API_KEY", "legacy-env-key")
+
+    assert testing._resolve_url_credentials(request) == (  # noqa: SLF001
+        "https://canonical-cli.test",
+        "canonical-cli-key",
+    )
+
+
+def test_legacy_cli_and_environment_values_remain_supported(monkeypatch):
+    request = _FakeRequest(
+        ketos_url=None,
+        langflow_url="https://legacy-cli.test",
+        ketos_api_key=None,
+        langflow_api_key="legacy-cli-key",
+    )
+    monkeypatch.delenv("KETOS_URL", raising=False)
+    monkeypatch.delenv("KETOS_API_KEY", raising=False)
+
+    assert testing._resolve_url_credentials(request) == (  # noqa: SLF001
+        "https://legacy-cli.test",
+        "legacy-cli-key",
+    )
+
+
+def test_legacy_fixtures_are_the_same_implementations():
+    assert testing.langflow_client is testing.ketos_client
+    assert testing.async_langflow_client is testing.async_ketos_client

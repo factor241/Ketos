@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check for deprecated langchain import patterns in component files.
 
-This script scans all Python files in the lfx/components directory for
+This script scans all Python files in the KFX components directory for
 deprecated import patterns and reports them. It's designed to be used
 as a pre-commit hook to catch import issues early.
 
@@ -76,17 +76,17 @@ def main() -> int:
         Exit code (0 for success, 1 for deprecated imports found, 2 for error)
     """
     try:
-        # Find the lfx components directory
+        # Find the KFX components directory
         script_dir = Path(__file__).parent
         repo_root = script_dir.parent
-        lfx_components = repo_root / "src" / "lfx" / "src" / "lfx" / "components"
+        kfx_components = repo_root / "src" / "kfx" / "src" / "kfx" / "components"
 
-        if not lfx_components.exists():
-            print(f"Error: Components directory not found at {lfx_components}", file=sys.stderr)
+        if not kfx_components.exists():
+            print(f"Error: Components directory not found at {kfx_components}", file=sys.stderr)
             return 2
 
         # Check for deprecated imports
-        deprecated_imports = check_deprecated_imports(lfx_components)
+        deprecated_imports = check_deprecated_imports(kfx_components)
 
         if deprecated_imports:
             print("❌ Found deprecated langchain imports:", file=sys.stderr)

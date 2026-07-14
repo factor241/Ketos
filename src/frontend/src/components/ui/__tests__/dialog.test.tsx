@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   Dialog,
@@ -6,6 +6,20 @@ import {
   DialogDescription,
   DialogTitle,
 } from "../dialog";
+
+const mockTranslations = {
+  en: { "dialog.fallbackTitle": "Dialog", "common.close": "Close" },
+  ru: { "dialog.fallbackTitle": "Диалог", "common.close": "Закрыть" },
+};
+let mockLanguage: keyof typeof mockTranslations = "en";
+
+jest.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: "dialog.fallbackTitle" | "common.close") =>
+      mockTranslations[mockLanguage][key] ?? key,
+  }),
+  initReactI18next: { type: "3rdParty", init: jest.fn() },
+}));
 
 // Mock genericIconComponent (already globally mocked, but be explicit)
 jest.mock("@/components/common/genericIconComponent", () => ({
@@ -18,6 +32,10 @@ const renderWithProviders = (ui: React.ReactElement) => {
 };
 
 describe("DialogContent", () => {
+  beforeEach(() => {
+    mockLanguage = "en";
+  });
+
   it("should_not_auto_focus_close_button_when_dialog_opens", () => {
     // Arrange — open dialog with default behavior (no custom onOpenAutoFocus)
     renderWithProviders(
@@ -74,5 +92,39 @@ describe("DialogContent", () => {
     expect(
       screen.queryByRole("button", { name: /close/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("localizes the fallback title and close button accessible name", () => {
+    mockLanguage = "ru";
+    renderWithProviders(
+      <Dialog open>
+        <DialogContent>
+          <DialogDescription>Описание</DialogDescription>
+          <p>Содержимое</p>
+        </DialogContent>
+      </Dialog>,
+    );
+
+    expect(screen.getByRole("dialog", { name: "Диалог" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Закрыть" })).toBeInTheDocument();
+  });
+
+  it("closes from the keyboard without moving focus to the close button", () => {
+    const onOpenChange = jest.fn();
+    renderWithProviders(
+      <Dialog open onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogTitle>Test Dialog</DialogTitle>
+          <DialogDescription>Test description</DialogDescription>
+          <button type="button">Primary action</button>
+        </DialogContent>
+      </Dialog>,
+    );
+
+    const closeButton = screen.getByRole("button", { name: /close/i });
+    expect(closeButton).not.toHaveFocus();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });

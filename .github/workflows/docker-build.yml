@@ -24,7 +24,7 @@ on:
         type: string
         description: "Ref to check out. If not specified, will default to the main version or current branch."
       warning_check:
-        required: true
+        required: false
         type: boolean
         description: "Warning - use docker-build-v2 unless you have a very valid reason for using this deprecated workflow. By setting to True, you acknowledge all risks of using a possibly breaking workflow."
         default: false
@@ -60,7 +60,7 @@ on:
 
 env:
   PYTHON_VERSION: "3.13"
-  TEST_TAG: "langflowai/langflow:test"
+  TEST_TAG: "registry.invalid/ketos/ketos:test"
 
 jobs:
   get-version:
@@ -139,7 +139,7 @@ jobs:
         if: ${{ inputs.base_version == '' && (inputs.release_type == 'base' || inputs.release_type == 'nightly-base') }}
         id: get-version-base
         run: |
-          version=$(uv tree | grep 'langflow-base' | awk '{print $3}' | sed 's/^v//' | head -n 1)
+          version=$(uv tree | grep 'ketos-base' | awk '{print $3}' | sed 's/^v//' | head -n 1)
           if [ -z "$version" ]; then
             echo "Failed to extract version from uv tree output"
             exit 1
@@ -150,7 +150,7 @@ jobs:
         if: ${{ inputs.main_version == '' && (inputs.release_type == 'main' || inputs.release_type == 'main-ep' || inputs.release_type == 'nightly-main' || inputs.release_type == 'main-all' || inputs.release_type == 'nightly-main-all') }}
         id: get-version-main
         run: |
-          version=$(uv tree | grep -E '^langflow(-nightly)?[[:space:]]' | awk '{print $2}' | sed 's/^v//')
+          version=$(uv tree | grep -E '^ketos(-nightly)?[[:space:]]' | awk '{print $2}' | sed 's/^v//')
           echo version=$version
           echo version=$version >> $GITHUB_OUTPUT
   setup:
@@ -170,30 +170,30 @@ jobs:
           fi
 
           if [[ "${{ inputs.release_type }}" == "base" || "${{ inputs.release_type }}" == "nightly-base" ]]; then
-            # LANGFLOW-BASE RELEASE
-            echo "docker_tags=langflowai/langflow${nightly_suffix}:base-${{ needs.get-version.outputs.version }},langflowai/langflow${nightly_suffix}:base-latest" >> $GITHUB_OUTPUT
-            echo "ghcr_tags=ghcr.io/langflow-ai/langflow${nightly_suffix}:base-${{ needs.get-version.outputs.version }},ghcr.io/langflow-ai/langflow${nightly_suffix}:base-latest" >> $GITHUB_OUTPUT
+            # KETOS-BASE RELEASE
+            echo "docker_tags=registry.invalid/ketos/ketos${nightly_suffix}:base-${{ needs.get-version.outputs.version }},registry.invalid/ketos/ketos${nightly_suffix}:base-latest" >> $GITHUB_OUTPUT
+            echo "ghcr_tags=registry.invalid/ketos/ketos${nightly_suffix}:base-${{ needs.get-version.outputs.version }},registry.invalid/ketos/ketos${nightly_suffix}:base-latest" >> $GITHUB_OUTPUT
             echo "file=./docker/build_and_push_base.Dockerfile" >> $GITHUB_OUTPUT
           else
             if [[ "${{ inputs.pre_release }}" == "true" ]]; then
-              # LANGFLOW-MAIN PRE-RELEASE
-              echo "docker_tags=langflowai/langflow${nightly_suffix}:${{ needs.get-version.outputs.version }}" >> $GITHUB_OUTPUT
-              echo "ghcr_tags=ghcr.io/langflow-ai/langflow${nightly_suffix}:${{ needs.get-version.outputs.version }}" >> $GITHUB_OUTPUT
+              # KETOS-MAIN PRE-RELEASE
+              echo "docker_tags=registry.invalid/ketos/ketos${nightly_suffix}:${{ needs.get-version.outputs.version }}" >> $GITHUB_OUTPUT
+              echo "ghcr_tags=registry.invalid/ketos/ketos${nightly_suffix}:${{ needs.get-version.outputs.version }}" >> $GITHUB_OUTPUT
               echo "file=./docker/build_and_push.Dockerfile" >> $GITHUB_OUTPUT
             elif [[ "${{ inputs.release_type }}" == "main-ep" ]]; then
-              # LANGFLOW-MAIN (ENTRYPOINT) RELEASE
-              echo "docker_tags=langflowai/langflow-ep${nightly_suffix}:${{ needs.get-version.outputs.version }},langflowai/langflow-ep${nightly_suffix}:latest" >> $GITHUB_OUTPUT
-              echo "ghcr_tags=ghcr.io/langflow-ai/langflow-ep${nightly_suffix}:${{ needs.get-version.outputs.version }},ghcr.io/langflow-ai/langflow-ep${nightly_suffix}:latest" >> $GITHUB_OUTPUT
+              # KETOS-MAIN (ENTRYPOINT) RELEASE
+              echo "docker_tags=registry.invalid/ketos/ketos-ep${nightly_suffix}:${{ needs.get-version.outputs.version }},registry.invalid/ketos/ketos-ep${nightly_suffix}:latest" >> $GITHUB_OUTPUT
+              echo "ghcr_tags=registry.invalid/ketos/ketos-ep${nightly_suffix}:${{ needs.get-version.outputs.version }},registry.invalid/ketos/ketos-ep${nightly_suffix}:latest" >> $GITHUB_OUTPUT
               echo "file=./docker/build_and_push_ep.Dockerfile" >> $GITHUB_OUTPUT
             elif [[ "${{ inputs.release_type }}" == "main" || "${{ inputs.release_type }}" == "nightly-main" ]]; then
-              # LANGFLOW-MAIN RELEASE
-              echo "docker_tags=langflowai/langflow${nightly_suffix}:${{ needs.get-version.outputs.version }},langflowai/langflow${nightly_suffix}:latest" >> $GITHUB_OUTPUT
-              echo "ghcr_tags=ghcr.io/langflow-ai/langflow${nightly_suffix}:${{ needs.get-version.outputs.version }},ghcr.io/langflow-ai/langflow${nightly_suffix}:latest" >> $GITHUB_OUTPUT
+              # KETOS-MAIN RELEASE
+              echo "docker_tags=registry.invalid/ketos/ketos${nightly_suffix}:${{ needs.get-version.outputs.version }},registry.invalid/ketos/ketos${nightly_suffix}:latest" >> $GITHUB_OUTPUT
+              echo "ghcr_tags=registry.invalid/ketos/ketos${nightly_suffix}:${{ needs.get-version.outputs.version }},registry.invalid/ketos/ketos${nightly_suffix}:latest" >> $GITHUB_OUTPUT
               echo "file=./docker/build_and_push.Dockerfile" >> $GITHUB_OUTPUT
             elif [[ "${{ inputs.release_type }}" == "main-all" || "${{ inputs.release_type }}" == "nightly-main-all" ]]; then
-              # LANGFLOW-MAIN (ALL OPTIONAL DEPS) RELEASE
-              echo "docker_tags=langflowai/langflow-all${nightly_suffix}:${{ needs.get-version.outputs.version }},langflowai/langflow-all${nightly_suffix}:latest" >> $GITHUB_OUTPUT
-              echo "ghcr_tags=ghcr.io/langflow-ai/langflow-all${nightly_suffix}:${{ needs.get-version.outputs.version }},ghcr.io/langflow-ai/langflow-all${nightly_suffix}:latest" >> $GITHUB_OUTPUT
+              # KETOS-MAIN (ALL OPTIONAL DEPS) RELEASE
+              echo "docker_tags=registry.invalid/ketos/ketos-all${nightly_suffix}:${{ needs.get-version.outputs.version }},registry.invalid/ketos/ketos-all${nightly_suffix}:latest" >> $GITHUB_OUTPUT
+              echo "ghcr_tags=registry.invalid/ketos/ketos-all${nightly_suffix}:${{ needs.get-version.outputs.version }},registry.invalid/ketos/ketos-all${nightly_suffix}:latest" >> $GITHUB_OUTPUT
               echo "file=./docker/build_and_push_with_extras.Dockerfile" >> $GITHUB_OUTPUT
             else
               echo "Invalid release type. Exiting the workflow."
@@ -201,7 +201,7 @@ jobs:
             fi
           fi
   build:
-    runs-on: [self-hosted, linux, ARM64, langflow-ai-arm64-40gb-ephemeral]
+    runs-on: [self-hosted, linux, ARM64, ketos-local-arm64-40gb-ephemeral]
     needs: [get-version, setup]
     steps:
       - name: Check out the code at a specific ref
@@ -259,7 +259,7 @@ jobs:
           action: docker/build-push-action@v6
           with: |
             context: .
-            push: true
+            push: false # external publish disabled; immutable gate required
             file: ${{ needs.setup.outputs.file }}
             tags: ${{ needs.setup.outputs.docker_tags }}
             platforms: linux/amd64,linux/arm64
@@ -279,7 +279,7 @@ jobs:
           action: docker/build-push-action@v6
           with: |
             context: .
-            push: true
+            push: false # external publish disabled; immutable gate required
             file: ${{ needs.setup.outputs.file }}
             tags: ${{ needs.setup.outputs.ghcr_tags }}
             platforms: linux/amd64,linux/arm64
@@ -288,7 +288,7 @@ jobs:
 
   build_components:
     if: ${{ inputs.release_type == 'main' }}
-    runs-on: [self-hosted, linux, ARM64, langflow-ai-arm64-40gb-ephemeral]
+    runs-on: [self-hosted, linux, ARM64, ketos-local-arm64-40gb-ephemeral]
     permissions:
       packages: write
     needs: [build, get-version]
@@ -299,20 +299,20 @@ jobs:
         include:
           - component: docker-backend
             dockerfile: ./docker/build_and_push_backend.Dockerfile
-            tags: langflowai/langflow-backend:${{ needs.get-version.outputs.version }},langflowai/langflow-backend:latest
-            langflow_image: langflowai/langflow:${{ needs.get-version.outputs.version }}
+            tags: registry.invalid/ketos/ketos-backend:${{ needs.get-version.outputs.version }},registry.invalid/ketos/ketos-backend:latest
+            ketos_image: registry.invalid/ketos/ketos:${{ needs.get-version.outputs.version }}
           - component: docker-frontend
             dockerfile: ./docker/frontend/build_and_push_frontend.Dockerfile
-            tags: langflowai/langflow-frontend:${{ needs.get-version.outputs.version }},langflowai/langflow-frontend:latest
-            langflow_image: langflowai/langflow:${{ needs.get-version.outputs.version }}
+            tags: registry.invalid/ketos/ketos-frontend:${{ needs.get-version.outputs.version }},registry.invalid/ketos/ketos-frontend:latest
+            ketos_image: registry.invalid/ketos/ketos:${{ needs.get-version.outputs.version }}
           - component: ghcr-backend
             dockerfile: ./docker/build_and_push_backend.Dockerfile
-            tags: ghcr.io/langflow-ai/langflow-backend:${{ needs.get-version.outputs.version }},ghcr.io/langflow-ai/langflow-backend:latest
-            langflow_image: ghcr.io/langflow-ai/langflow:${{ needs.get-version.outputs.version }}
+            tags: registry.invalid/ketos/ketos-backend:${{ needs.get-version.outputs.version }},registry.invalid/ketos/ketos-backend:latest
+            ketos_image: registry.invalid/ketos/ketos:${{ needs.get-version.outputs.version }}
           - component: ghcr-frontend
             dockerfile: ./docker/frontend/build_and_push_frontend.Dockerfile
-            tags: ghcr.io/langflow-ai/langflow-frontend:${{ needs.get-version.outputs.version }},ghcr.io/langflow-ai/langflow-frontend:latest
-            langflow_image: ghcr.io/langflow-ai/langflow:${{ needs.get-version.outputs.version }}
+            tags: registry.invalid/ketos/ketos-frontend:${{ needs.get-version.outputs.version }},registry.invalid/ketos/ketos-frontend:latest
+            ketos_image: registry.invalid/ketos/ketos:${{ needs.get-version.outputs.version }}
     steps:
       - name: Check out the code at a specific ref
         uses: actions/checkout@v6
@@ -343,14 +343,14 @@ jobs:
             network=host
 
       - name: Login to Docker Hub
-        if: ${{ matrix.component == 'docker-backend' }} || ${{ matrix.component == 'docker-frontend' }}
+        if: ${{ matrix.component == 'docker-backend' || matrix.component == 'docker-frontend' }}
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to Github Container Registry
-        if: ${{ matrix.component == 'ghcr-backend' }} || ${{ matrix.component == 'ghcr-frontend' }}
+        if: ${{ matrix.component == 'ghcr-backend' || matrix.component == 'ghcr-frontend' }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -366,13 +366,13 @@ jobs:
           action: docker/build-push-action@v6
           with: |
             context: .
-            push: true
+            push: false # external publish disabled; immutable gate required
             build-args: |
-              LANGFLOW_IMAGE=${{ matrix.langflow_image }}
+              KETOS_IMAGE=${{ matrix.ketos_image }}
             file: ${{ matrix.dockerfile }}
             tags: ${{ matrix.tags }}
-            # provenance: false will result in a single manifest for all platforms which makes the image pullable from arm64 machines via the emulation (e.g. Apple Silicon machines)
-            provenance: false
+            # Emit a maximal BuildKit attestation for every immutable image build.
+            provenance: mode=max
 
   restart-space:
     name: Restart HuggingFace Spaces
@@ -398,4 +398,4 @@ jobs:
 
       - name: Restart HuggingFace Spaces Build
         run: |
-          uv run ./scripts/factory_restart_space.py --space "Langflow/Langflow" --token ${{ secrets.HUGGINGFACE_API_TOKEN }}
+          uv run ./scripts/factory_restart_space.py --space "Ketos/Ketos" --token ${{ secrets.HUGGINGFACE_API_TOKEN }}

@@ -125,7 +125,7 @@ export function useDeploymentChat({
             updateAssistantMessage(assistantMsgId, {
               content: "",
               isLoading: false,
-              error: "Run started but no run ID was returned.",
+              error: t("deployments.missingRunId"),
             });
           } else {
             const result = providerData?.result as
@@ -136,7 +136,7 @@ export function useDeploymentChat({
               extractTextFromResult(result) ||
               (typeof providerData?.status === "string"
                 ? providerData.status
-                : "Done.");
+                : t("deployments.done"));
             const toolTraces = extractToolTraces(result);
 
             updateAssistantMessage(assistantMsgId, {
@@ -148,13 +148,11 @@ export function useDeploymentChat({
           if (isMountedRef.current) setIsWaitingForResponse(false);
           return;
         }
-      } catch (err: unknown) {
-        const message =
-          err instanceof Error ? err.message : t("errors.failedToStartRun");
+      } catch (_error: unknown) {
         updateAssistantMessage(assistantMsgId, {
           content: "",
           isLoading: false,
-          error: message,
+          error: t("errors.failedToStartRun"),
         });
         if (isMountedRef.current) setIsWaitingForResponse(false);
         return;
@@ -176,7 +174,7 @@ export function useDeploymentChat({
             updateAssistantMessage(assistantMsgId, {
               content: "",
               isLoading: false,
-              error: "Run timed out. Please try again.",
+              error: t("deployments.runTimedOut"),
             });
             if (isMountedRef.current) setIsWaitingForResponse(false);
             return;
@@ -211,11 +209,10 @@ export function useDeploymentChat({
             }
 
             if (providerData?.failed_at || providerData?.cancelled_at) {
-              const errorMsg = providerData?.last_error ?? "Run failed.";
               updateAssistantMessage(assistantMsgId, {
                 content: "",
                 isLoading: false,
-                error: String(errorMsg),
+                error: t("deployments.runFailed"),
               });
             } else {
               const result = providerData?.result as
@@ -226,7 +223,7 @@ export function useDeploymentChat({
                 extractTextFromResult(result) ||
                 (typeof providerData?.status === "string"
                   ? providerData.status
-                  : "Done.");
+                  : t("deployments.done"));
               const toolTraces = extractToolTraces(result);
 
               updateAssistantMessage(assistantMsgId, {
@@ -237,16 +234,12 @@ export function useDeploymentChat({
             }
 
             if (isMountedRef.current) setIsWaitingForResponse(false);
-          } catch (err: unknown) {
+          } catch (_error: unknown) {
             if (!isMountedRef.current) return;
-            const message =
-              err instanceof Error
-                ? err.message
-                : t("errors.failedToFetchRunStatus");
             updateAssistantMessage(assistantMsgId, {
               content: "",
               isLoading: false,
-              error: message,
+              error: t("errors.failedToFetchRunStatus"),
             });
             if (isMountedRef.current) setIsWaitingForResponse(false);
           }
@@ -263,6 +256,7 @@ export function useDeploymentChat({
       postRun,
       getRun,
       stopPolling,
+      t,
       updateAssistantMessage,
     ],
   );

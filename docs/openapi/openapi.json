@@ -634,7 +634,7 @@
           "files": {
             "default": [],
             "items": {
-              "$ref": "#/components/schemas/lfx__utils__schemas__File"
+              "$ref": "#/components/schemas/kfx__utils__schemas__File"
             },
             "title": "Files",
             "type": "array"
@@ -805,7 +805,7 @@
             "title": "Metadata"
           },
           "status": {
-            "$ref": "#/$defs/JobStatus"
+            "$ref": "#/components/schemas/JobStatus"
           },
           "type": {
             "description": "Type of the component output (e.g., 'message', 'data', 'tool', 'text')",
@@ -873,7 +873,7 @@
         "type": "object"
       },
       "ConfigResponse": {
-        "description": "Full configuration response for authenticated users.\n\nThe 'type' field is a discriminator to distinguish from PublicConfigResponse.",
+        "description": "Full configuration response for authenticated users.<br><br>The 'type' field is a discriminator to distinguish from PublicConfigResponse.",
         "properties": {
           "allow_custom_components": {
             "title": "Allow Custom Components",
@@ -898,6 +898,10 @@
           },
           "default_folder_name": {
             "title": "Default Folder Name",
+            "type": "string"
+          },
+          "default_locale": {
+            "title": "Default Locale",
             "type": "string"
           },
           "embedded_mode": {
@@ -976,6 +980,13 @@
             "title": "Serialization Max Text Length",
             "type": "integer"
           },
+          "supported_locales": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Supported Locales",
+            "type": "array"
+          },
           "type": {
             "const": "full",
             "default": "full",
@@ -1003,6 +1014,8 @@
           "frontend_timeout",
           "mcp_base_url",
           "enable_extension_reload",
+          "supported_locales",
+          "default_locale",
           "serialization_max_items_length",
           "serialization_max_text_length",
           "auto_saving",
@@ -2409,6 +2422,17 @@
             ],
             "title": "Description"
           },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -2464,6 +2488,17 @@
               }
             ],
             "title": "Description"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
           },
           "flows": {
             "default": [],
@@ -2639,6 +2674,17 @@
             ],
             "title": "Description"
           },
+          "description_i18n_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description I18N Key"
+          },
           "endpoint_name": {
             "anyOf": [
               {
@@ -2671,6 +2717,17 @@
               }
             ],
             "title": "Name"
+          },
+          "name_i18n_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name I18N Key"
           }
         },
         "required": [
@@ -3825,7 +3882,7 @@
         "type": "object"
       },
       "PublicConfigResponse": {
-        "description": "Configuration response for public/unauthenticated endpoints like the public playground.\n\nContains only the configuration values needed for public features, without sensitive data.\nThe 'type' field is a discriminator to distinguish from full ConfigResponse.",
+        "description": "Configuration response for public/unauthenticated endpoints like the public playground.<br><br>Contains only the configuration values needed for public features, without sensitive data.<br>The 'type' field is a discriminator to distinguish from full ConfigResponse.",
         "properties": {
           "allow_custom_components": {
             "title": "Allow Custom Components",
@@ -3835,6 +3892,10 @@
             "default": false,
             "title": "Authz Enabled",
             "type": "boolean"
+          },
+          "default_locale": {
+            "title": "Default Locale",
+            "type": "string"
           },
           "enable_extension_reload": {
             "title": "Enable Extension Reload",
@@ -3864,6 +3925,13 @@
             "title": "Mcp Base Url",
             "type": "string"
           },
+          "supported_locales": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Supported Locales",
+            "type": "array"
+          },
           "type": {
             "const": "public",
             "default": "public",
@@ -3883,6 +3951,8 @@
           "frontend_timeout",
           "mcp_base_url",
           "enable_extension_reload",
+          "supported_locales",
+          "default_locale",
           "allow_custom_components"
         ],
         "title": "PublicConfigResponse",
@@ -4650,7 +4720,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional end-user identifier forwarded to tracing providers (e.g. Langfuse) as the trace's user_id. Does not affect authentication or authorization — the API key owner remains the effective Langflow user.",
+            "description": "Optional end-user identifier forwarded to tracing providers (e.g. Langfuse) as the trace's user_id. Does not affect authentication or authorization — the API key owner remains the effective Ketos user.",
             "title": "User Id"
           }
         },
@@ -4700,7 +4770,7 @@
         "type": "object"
       },
       "SpanReadResponse": {
-        "description": "Response model for a single span, with nested children.\n\nSerializes to camelCase JSON to match the frontend API contract.",
+        "description": "Response model for a single span, with nested children.<br><br>Serializes to camelCase JSON to match the frontend API contract.",
         "properties": {
           "children": {
             "items": {
@@ -4829,7 +4899,7 @@
         "type": "object"
       },
       "SpanStatus": {
-        "description": "OpenTelemetry status codes.\n\n- UNSET: Default status, span has not ended yet\n- OK: Span completed successfully\n- ERROR: Span completed with an error",
+        "description": "OpenTelemetry status codes.<br><br>- UNSET: Default status, span has not ended yet<br>- OK: Span completed successfully<br>- ERROR: Span completed with an error",
         "enum": [
           "unset",
           "ok",
@@ -5208,7 +5278,7 @@
         "type": "object"
       },
       "TraceRead": {
-        "description": "Response model for a single trace with its hierarchical span tree.\n\nSerializes to camelCase JSON to match the frontend API contract.",
+        "description": "Response model for a single trace with its hierarchical span tree.<br><br>Serializes to camelCase JSON to match the frontend API contract.",
         "properties": {
           "endTime": {
             "anyOf": [
@@ -5316,7 +5386,7 @@
         "type": "object"
       },
       "TraceSummaryRead": {
-        "description": "Lightweight trace model for list endpoint.\n\nSerializes to camelCase JSON to match the frontend API contract.",
+        "description": "Lightweight trace model for list endpoint.<br><br>Serializes to camelCase JSON to match the frontend API contract.",
         "properties": {
           "flowId": {
             "format": "uuid",
@@ -5611,6 +5681,17 @@
             ],
             "title": "Optins"
           },
+          "preferred_locale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferred Locale"
+          },
           "profile_image": {
             "anyOf": [
               {
@@ -5714,6 +5795,17 @@
               }
             ],
             "title": "Password"
+          },
+          "preferred_locale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferred Locale"
           },
           "profile_image": {
             "anyOf": [
@@ -5963,7 +6055,7 @@
               "maxLength": 65536,
               "type": "string"
             },
-            "description": "Request-level global variables made available to workflow components. Keys may use any printable string up to 256 chars; values are capped at 65536 chars. Body globals always win over the legacy ``X-LANGFLOW-GLOBAL-VAR-*`` headers.",
+            "description": "Request-level global variables made available to workflow components. Keys may use any printable string up to 256 chars; values are capped at 65536 chars. Body globals always win over the legacy ``X-KETOS-GLOBAL-VAR-*`` headers.",
             "propertyNames": {
               "maxLength": 256,
               "minLength": 1
@@ -6051,7 +6143,7 @@
         "title": "WorkflowStopResponse",
         "type": "object"
       },
-      "langflow__api__schemas__UploadFileResponse": {
+      "ketos__api__schemas__UploadFileResponse": {
         "description": "File upload response schema.",
         "properties": {
           "id": {
@@ -6092,7 +6184,7 @@
         "title": "UploadFileResponse",
         "type": "object"
       },
-      "langflow__api__v1__schemas__UploadFileResponse": {
+      "ketos__api__v1__schemas__UploadFileResponse": {
         "description": "Upload file response schema.",
         "properties": {
           "file_path": {
@@ -6111,7 +6203,7 @@
         "title": "UploadFileResponse",
         "type": "object"
       },
-      "langflow__services__database__models__file__model__File": {
+      "ketos__services__database__models__file__model__File": {
         "properties": {
           "created_at": {
             "format": "date-time",
@@ -6166,7 +6258,7 @@
         "title": "File",
         "type": "object"
       },
-      "lfx__utils__schemas__File": {
+      "kfx__utils__schemas__File": {
         "description": "File schema.",
         "properties": {
           "name": {
@@ -6214,14 +6306,14 @@
     }
   },
   "info": {
-    "title": "Langflow",
-    "version": "1.10.0"
+    "title": "Ketos",
+    "version": "1.10.2"
   },
   "openapi": "3.1.0",
   "paths": {
     "/api/v1/agentic/assist": {
       "post": {
-        "description": "Chat with the Langflow Assistant.",
+        "description": "Chat with the Ketos Assistant.",
         "operationId": "assist_api_v1_agentic_assist_post",
         "requestBody": {
           "content": {
@@ -6276,7 +6368,7 @@
     },
     "/api/v1/agentic/assist/stream": {
       "post": {
-        "description": "Chat with the Langflow Assistant with streaming progress updates.",
+        "description": "Chat with the Ketos Assistant with streaming progress updates.",
         "operationId": "assist_stream_api_v1_agentic_assist_stream_post",
         "requestBody": {
           "content": {
@@ -6327,7 +6419,7 @@
     },
     "/api/v1/agentic/check-config": {
       "get": {
-        "description": "Check if the Langflow Assistant is properly configured.<br><br>Returns available providers with their configured status and available models.",
+        "description": "Check if the Ketos Assistant is properly configured.<br><br>Returns available providers with their configured status and available models.",
         "operationId": "check_assistant_config_api_v1_agentic_check_config_get",
         "responses": {
           "200": {
@@ -9672,7 +9764,7 @@
     },
     "/api/v1/extensions/events": {
       "get": {
-        "description": "Poll for extension lifecycle events the current user has triggered.<br><br>Events are scoped to the authenticated user via a server-derived keyspace<br>(``user:{user_id}``); there is no client-controllable keyspace, so an<br>authenticated user cannot read another user's flow-migration or<br>bundle-reload events. A client-supplied ``keyspace`` query parameter is<br>rejected with 422 so the contract is explicit -- previously the value was<br>silently dropped, which masked client bugs that assumed it had effect.<br><br>svc.since() uses blocking sqlite3; run in a thread pool so the asyncio<br>event loop is not held while waiting on disk I/O.",
+        "description": "Poll for extension lifecycle events the current user has triggered.<br><br>Events are scoped to the authenticated user via a server-derived keyspace<br>(``user:{user_id}``); there is no client-controllable keyspace, so an<br>authenticated user cannot read another user's bundle-reload events. A<br>client-supplied ``keyspace`` query parameter is<br>rejected with 422 so the contract is explicit -- previously the value was<br>silently dropped, which masked client bugs that assumed it had effect.<br><br>svc.since() uses blocking sqlite3; run in a thread pool so the asyncio<br>event loop is not held while waiting on disk I/O.",
         "operationId": "get_extension_events_api_v1_extensions_events_get",
         "parameters": [
           {
@@ -9729,7 +9821,7 @@
     },
     "/api/v1/extensions/{extension_id}/bundles/{bundle_name}/reload": {
       "post": {
-        "description": "Trigger an atomic-swap reload for a single Bundle.<br><br>Returns the typed :class:`~lfx.extension.reload.ReloadResult` body on<br>success.  Per the typed-error contract, structural failures<br>(broken bundle, missing source path, name mismatch) surface as<br>``422 Unprocessable Entity`` with the first typed error in the body<br>so clients can surface fix hints inline; the full ``ReloadResult``<br>payload (with all errors and warnings) is returned via the FastAPI<br>``detail`` envelope.  Concurrency-control collisions surface as<br>``409 Conflict`` (``reload-in-progress``).  Non-2xx is the wire<br>contract for every error path -- the body still carries the typed<br>error so the client renders the same fix-hint envelope.",
+        "description": "Trigger an atomic-swap reload for a single Bundle.<br><br>Returns the typed :class:`~kfx.extension.reload.ReloadResult` body on<br>success.  Per the typed-error contract, structural failures<br>(broken bundle, missing source path, name mismatch) surface as<br>``422 Unprocessable Entity`` with the first typed error in the body<br>so clients can surface fix hints inline; the full ``ReloadResult``<br>payload (with all errors and warnings) is returned via the FastAPI<br>``detail`` envelope.  Concurrency-control collisions surface as<br>``409 Conflict`` (``reload-in-progress``).  Non-2xx is the wire<br>contract for every error path -- the body still carries the typed<br>error so the client renders the same fix-hint envelope.",
         "operationId": "reload_extension_bundle_api_v1_extensions__extension_id__bundles__bundle_name__reload_post",
         "parameters": [
           {
@@ -10128,7 +10220,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/langflow__api__v1__schemas__UploadFileResponse"
+                  "$ref": "#/components/schemas/ketos__api__v1__schemas__UploadFileResponse"
                 }
               }
             },
@@ -12691,30 +12783,35 @@
             }
           },
           {
-            "description": "Page number",
             "in": "query",
             "name": "page",
             "required": false,
             "schema": {
-              "default": 1,
-              "description": "Page number",
-              "minimum": 1,
-              "title": "Page",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Page"
             }
           },
           {
-            "description": "Page size",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "description": "Page size",
-              "maximum": 100,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Size"
             }
           }
         ],
@@ -13185,7 +13282,7 @@
     },
     "/api/v1/responses": {
       "post": {
-        "description": "Create a response using OpenAI Responses API format.<br><br>This endpoint accepts a flow_id in the model parameter and processes<br>the input through the specified Langflow flow.<br><br>Args:<br>    request: OpenAI Responses API request with model (flow_id) and input<br>    background_tasks: FastAPI background task manager<br>    api_key_user: Authenticated user from API key<br>    http_request: The incoming HTTP request<br>    telemetry_service: Telemetry service for logging<br><br>Returns:<br>    OpenAI-compatible response or streaming response<br><br>Raises:<br>    HTTPException: For validation errors or flow execution issues",
+        "description": "Create a response using OpenAI Responses API format.<br><br>This endpoint accepts a flow_id in the model parameter and processes<br>the input through the specified Ketos flow.<br><br>Args:<br>    request: OpenAI Responses API request with model (flow_id) and input<br>    background_tasks: FastAPI background task manager<br>    api_key_user: Authenticated user from API key<br>    http_request: The incoming HTTP request<br>    telemetry_service: Telemetry service for logging<br><br>Returns:<br>    OpenAI-compatible response or streaming response<br><br>Raises:<br>    HTTPException: For validation errors or flow execution issues",
         "operationId": "create_response_api_v1_responses_post",
         "requestBody": {
           "content": {
@@ -13293,7 +13390,7 @@
     },
     "/api/v1/run/{flow_id_or_name}": {
       "post": {
-        "description": "Executes a specified flow by ID with support for streaming and telemetry (API key auth).<br><br>This endpoint executes a flow identified by ID or name, with options for streaming the response<br>and tracking execution metrics. It handles both streaming and non-streaming execution modes.<br>This endpoint uses API key authentication (Bearer token).<br><br>Args:<br>    background_tasks (BackgroundTasks): FastAPI background task manager<br>    flow (FlowRead | None): The flow to execute, loaded via dependency<br>    input_request (SimplifiedAPIRequest | None): Input parameters for the flow<br>    stream (bool): Whether to stream the response<br>    api_key_user (UserRead): Authenticated user from API key<br>    context (dict | None): Optional context to pass to the flow<br>    http_request (Request): The incoming HTTP request for extracting global variables<br><br>Returns:<br>    Union[StreamingResponse, RunResponse]: Either a streaming response for real-time results<br>    or a RunResponse with the complete execution results<br><br>Raises:<br>    HTTPException: For flow not found (404) or invalid input (400)<br>    APIException: For internal execution errors (500)<br><br>Notes:<br>    - Supports both streaming and non-streaming execution modes<br>    - Tracks execution time and success/failure via telemetry<br>    - Handles graceful client disconnection in streaming mode<br>    - Provides detailed error handling with appropriate HTTP status codes<br>    - Extracts global variables from HTTP headers with prefix X-LANGFLOW-GLOBAL-VAR-*<br>    - Merges extracted variables with the context parameter as \"request_variables\"<br>    - In streaming mode, uses EventManager to handle events:<br>        - \"add_message\": New messages during execution<br>        - \"token\": Individual tokens during streaming<br>        - \"end\": Final execution result<br>    - Authentication: Requires API key (Bearer token)",
+        "description": "Executes a specified flow by ID with support for streaming and telemetry (API key auth).<br><br>This endpoint executes a flow identified by ID or name, with options for streaming the response<br>and tracking execution metrics. It handles both streaming and non-streaming execution modes.<br>This endpoint uses API key authentication (Bearer token).<br><br>Args:<br>    background_tasks (BackgroundTasks): FastAPI background task manager<br>    flow (FlowRead | None): The flow to execute, loaded via dependency<br>    input_request (SimplifiedAPIRequest | None): Input parameters for the flow<br>    stream (bool): Whether to stream the response<br>    api_key_user (UserRead): Authenticated user from API key<br>    context (dict | None): Optional context to pass to the flow<br>    http_request (Request): The incoming HTTP request for extracting global variables<br><br>Returns:<br>    Union[StreamingResponse, RunResponse]: Either a streaming response for real-time results<br>    or a RunResponse with the complete execution results<br><br>Raises:<br>    HTTPException: For flow not found (404) or invalid input (400)<br>    APIException: For internal execution errors (500)<br><br>Notes:<br>    - Supports both streaming and non-streaming execution modes<br>    - Tracks execution time and success/failure via telemetry<br>    - Handles graceful client disconnection in streaming mode<br>    - Provides detailed error handling with appropriate HTTP status codes<br>    - Extracts global variables from HTTP headers with prefix X-KETOS-GLOBAL-VAR-*<br>    - Merges extracted variables with the context parameter as \"request_variables\"<br>    - In streaming mode, uses EventManager to handle events:<br>        - \"add_message\": New messages during execution<br>        - \"token\": Individual tokens during streaming<br>        - \"end\": Final execution result<br>    - Authentication: Requires API key (Bearer token)",
         "operationId": "simplified_run_flow_api_v1_run__flow_id_or_name__post",
         "parameters": [
           {
@@ -13477,7 +13574,7 @@
         ]
       },
       "post": {
-        "description": "Add a new user to the database.<br><br>This endpoint allows public user registration (sign up).<br>User activation is controlled by the NEW_USER_IS_ACTIVE setting.",
+        "description": "Add a new user to the database.<br><br>This endpoint backs two flows that share the same route:<br><br>* Public sign up (unauthenticated). Allowed only when public registration is<br>  enabled for the deployment, i.e. AUTO_LOGIN is off (multi-user mode) and<br>  ENABLE_SIGNUP is True.<br>* Admin \"add user\" (authenticated active superuser). Always allowed,<br>  regardless of the sign up settings, so disabling public sign up does not<br>  break superuser-driven user creation.<br><br>User activation is controlled by the NEW_USER_IS_ACTIVE setting.",
         "operationId": "add_user_api_v1_users__post",
         "requestBody": {
           "content": {
@@ -13838,7 +13935,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/langflow__services__database__models__file__model__File"
+                    "$ref": "#/components/schemas/ketos__services__database__models__file__model__File"
                   },
                   "title": "Response List Files Api V2 Files Get",
                   "type": "array"
@@ -13904,7 +14001,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/langflow__api__schemas__UploadFileResponse"
+                  "$ref": "#/components/schemas/ketos__api__schemas__UploadFileResponse"
                 }
               }
             },
@@ -13977,7 +14074,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/langflow__services__database__models__file__model__File"
+                    "$ref": "#/components/schemas/ketos__services__database__models__file__model__File"
                   },
                   "title": "Response List Files Api V2 Files  Get",
                   "type": "array"
@@ -14043,7 +14140,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/langflow__api__schemas__UploadFileResponse"
+                  "$ref": "#/components/schemas/ketos__api__schemas__UploadFileResponse"
                 }
               }
             },
@@ -14329,7 +14426,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/langflow__api__schemas__UploadFileResponse"
+                  "$ref": "#/components/schemas/ketos__api__schemas__UploadFileResponse"
                 }
               }
             },
@@ -15138,7 +15235,7 @@
     },
     "/logs": {
       "get": {
-        "description": "Retrieve application logs with authentication required.<br><br>SECURITY: Logs may contain sensitive information and require authentication.",
+        "description": "Retrieve application logs with superuser authentication required.<br><br>SECURITY: Logs may contain sensitive information and require superuser authentication.",
         "operationId": "logs_logs_get",
         "parameters": [
           {
@@ -15217,7 +15314,7 @@
     },
     "/logs-stream": {
       "get": {
-        "description": "HTTP/2 Server-Sent-Event (SSE) endpoint for streaming logs.<br><br>Requires authentication to prevent exposure of sensitive log data.<br>It establishes a long-lived connection to the server and receives log messages in real-time.<br>The client should use the header \"Accept: text/event-stream\".",
+        "description": "HTTP/2 Server-Sent-Event (SSE) endpoint for streaming logs.<br><br>Requires superuser authentication to prevent exposure of sensitive log data.<br>It establishes a long-lived connection to the server and receives log messages in real-time.<br>The client should use the header \"Accept: text/event-stream\".",
         "operationId": "stream_logs_logs_stream_get",
         "responses": {
           "200": {

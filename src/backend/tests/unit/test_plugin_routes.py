@@ -1,15 +1,16 @@
 """Tests for plugin route discovery and conflict protection.
 
-Ensures that plugins loaded via the langflow.plugins entry-point group
-cannot overwrite or shadow existing Langflow routes.
+Ensures that plugins loaded via the ketos.plugins entry-point group
+cannot overwrite or shadow existing Ketos routes.
 """
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.routing import APIRouter
-from langflow.plugin_routes import (
+from ketos.plugin_routes import (
     _get_route_keys,
     _PluginAppWrapper,
     load_plugin_routes,
@@ -163,6 +164,13 @@ class TestPluginAppWrapper:
 class TestLoadPluginRoutes:
     """Tests for load_plugin_routes with mocked entry_points."""
 
+    def test_route_loader_has_no_extension_component_compatibility_filter(self):
+        """The route-plugin contract consumes route registrars directly."""
+        source = (
+            Path(__file__).resolve().parents[2] / "base" / "ketos" / "plugin_routes.py"
+        ).read_text(encoding="utf-8")
+        assert "filter_component_entry_points" not in source
+
     def test_no_crash_when_no_plugins(self):
         """When there are no entry points, load_plugin_routes does not crash."""
         app = FastAPI()
@@ -171,7 +179,7 @@ class TestLoadPluginRoutes:
         def health():
             return "ok"
 
-        with patch("langflow.plugin_routes.entry_points", return_value=[]):
+        with patch("ketos.plugin_routes.entry_points", return_value=[]):
             load_plugin_routes(app)
 
         keys = _get_route_keys(app)
@@ -194,7 +202,7 @@ class TestLoadPluginRoutes:
         ep.name = "enterprise"
         ep.load.return_value = register
 
-        with patch("langflow.plugin_routes.entry_points", return_value=[ep]):
+        with patch("ketos.plugin_routes.entry_points", return_value=[ep]):
             load_plugin_routes(app)
 
         keys = _get_route_keys(app)
@@ -215,7 +223,7 @@ class TestLoadPluginRoutes:
         ep.name = "bad_plugin"
         ep.load.return_value = conflicting_register
 
-        with patch("langflow.plugin_routes.entry_points", return_value=[ep]):
+        with patch("ketos.plugin_routes.entry_points", return_value=[ep]):
             load_plugin_routes(app)
 
         # Core route must still be the only one at that path
@@ -240,7 +248,7 @@ class TestLoadPluginRoutes:
         ep.name = "broken_plugin"
         ep.load.return_value = broken_register
 
-        with patch("langflow.plugin_routes.entry_points", return_value=[ep]):
+        with patch("ketos.plugin_routes.entry_points", return_value=[ep]):
             load_plugin_routes(app)
 
         # App still has core route

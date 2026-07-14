@@ -19,8 +19,8 @@ import { useErrorAlert } from "../hooks/use-error-alert";
 const TYPE_OPTIONS = [
   {
     type: "agent" as const,
-    label: "Agent",
-    description: "Conversational agent with chat interface and tool calling",
+    labelKey: "deployments.agentTypeLabel",
+    descriptionKey: "deployments.agentTypeDescription",
     icon: "MessageSquare",
     iconBg: "border-accent-pink-foreground/20 bg-accent-pink-foreground/20",
   },

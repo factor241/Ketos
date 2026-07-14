@@ -1,4 +1,4 @@
-//Langflow Desktop Base URL
+// Ketos Desktop base URL
 export const baseURL = "";
 
 export const customDefaultShortcuts = [

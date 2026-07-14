@@ -1,6 +1,6 @@
 type RelativePathMap = Record<string, string>;
 
-const STORAGE_KEY = "lf_file_relative_path_map_v1";
+const STORAGE_KEY = "ketos-file-relative-path-map-v1";
 
 function safeParse(json: string | null): RelativePathMap {
   if (!json) return {};

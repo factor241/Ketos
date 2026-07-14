@@ -9,10 +9,10 @@ import shutil
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from lfx.base.mcp.util import MCPSessionManager, MCPStdioClient, MCPStreamableHttpClient
-from lfx.components.models_and_agents.mcp_component import MCPToolsComponent
-from lfx.inputs.inputs import BoolInput, MessageTextInput, NestedDictInput
-from lfx.schema.json_schema import create_input_schema_from_json_schema
+from kfx.base.mcp.util import MCPSessionManager, MCPStdioClient, MCPStreamableHttpClient
+from kfx.components.models_and_agents.mcp_component import MCPToolsComponent
+from kfx.inputs.inputs import BoolInput, MessageTextInput, NestedDictInput
+from kfx.schema.json_schema import create_input_schema_from_json_schema
 
 from tests.base import ComponentTestBaseWithoutClient, VersionComponentMapping
 
@@ -204,7 +204,7 @@ class TestMCPToolsComponentIntegration:
         # If _shared_component_cache is None, clients will create separate instance managers
         if component._shared_component_cache is None:
             # Create a mock cache dict to ensure sharing
-            from lfx.services.cache.utils import CacheMiss
+            from kfx.services.cache.utils import CacheMiss
 
             cache_dict = {}
 
@@ -617,9 +617,9 @@ class TestMCPComponentConfigPriority:
         }
 
         with (
-            patch("langflow.api.v2.mcp.get_server") as mock_get_server,
-            patch("langflow.services.database.models.user.crud.get_user_by_id") as mock_get_user,
-            patch("lfx.components.models_and_agents.mcp_component.session_scope"),
+            patch("ketos.api.v2.mcp.get_server") as mock_get_server,
+            patch("ketos.services.database.models.user.crud.get_user_by_id") as mock_get_user,
+            patch("kfx.components.models_and_agents.mcp_component.session_scope"),
             patch.object(component.stdio_client, "connect_to_server") as mock_connect,
         ):
             mock_get_user.return_value = MagicMock(id="test_user_123")
@@ -653,9 +653,9 @@ class TestMCPComponentConfigPriority:
         }
 
         with (
-            patch("langflow.api.v2.mcp.get_server") as mock_get_server,
-            patch("langflow.services.database.models.user.crud.get_user_by_id") as mock_get_user,
-            patch("lfx.components.models_and_agents.mcp_component.session_scope"),
+            patch("ketos.api.v2.mcp.get_server") as mock_get_server,
+            patch("ketos.services.database.models.user.crud.get_user_by_id") as mock_get_user,
+            patch("kfx.components.models_and_agents.mcp_component.session_scope"),
             patch.object(component.stdio_client, "connect_to_server") as mock_connect,
         ):
             mock_get_user.return_value = MagicMock(id="test_user_123")
@@ -683,9 +683,9 @@ class TestMCPComponentConfigPriority:
         component._user_id = "test_user_123"
 
         with (
-            patch("langflow.api.v2.mcp.get_server") as mock_get_server,
-            patch("langflow.services.database.models.user.crud.get_user_by_id") as mock_get_user,
-            patch("lfx.components.models_and_agents.mcp_component.session_scope"),
+            patch("ketos.api.v2.mcp.get_server") as mock_get_server,
+            patch("ketos.services.database.models.user.crud.get_user_by_id") as mock_get_user,
+            patch("kfx.components.models_and_agents.mcp_component.session_scope"),
             patch.object(component.stdio_client, "connect_to_server") as mock_connect,
         ):
             mock_get_user.return_value = MagicMock(id="test_user_123")
@@ -715,9 +715,9 @@ class TestMCPComponentConfigPriority:
         component._user_id = "api_user_456"
 
         with (
-            patch("langflow.api.v2.mcp.get_server") as mock_get_server,
-            patch("langflow.services.database.models.user.crud.get_user_by_id") as mock_get_user,
-            patch("lfx.components.models_and_agents.mcp_component.session_scope"),
+            patch("ketos.api.v2.mcp.get_server") as mock_get_server,
+            patch("ketos.services.database.models.user.crud.get_user_by_id") as mock_get_user,
+            patch("kfx.components.models_and_agents.mcp_component.session_scope"),
             patch.object(component.stdio_client, "connect_to_server") as mock_connect,
         ):
             mock_get_user.return_value = MagicMock(id="api_user_456")
@@ -737,17 +737,17 @@ class TestMCPComponentConfigPriority:
     # heavyweight approach — the patch intercepts *every* import executed while active,
     # including unrelated library code pulled in by awaits, mocks, or assertions — but
     # targeted alternatives (sys.modules / importlib) do not reliably reproduce the
-    # `ModuleNotFoundError` raised from an `import langflow.*` statement inside the
+    # `ModuleNotFoundError` raised from an `import ketos.*` statement inside the
     # code under test. The `real_import` fallback forwards all non-matching names to
     # the real import machinery; the `name`-prefix guard in each fake_import is kept
     # as tight as possible so surrounding test plumbing is not affected.
 
     @pytest.mark.asyncio
-    async def test_update_tool_list_falls_back_to_value_config_when_langflow_absent(self, component):
-        """Test LFX standalone mode falls back to value config when Langflow is unavailable.
+    async def test_update_tool_list_falls_back_to_value_config_when_ketos_absent(self, component):
+        """Test KFX standalone mode falls back to value config when Ketos is unavailable.
 
-        Regression test: when lfx is run without the full Langflow package installed
-        (e.g., serving a flow via `lfx`), importing `langflow.api.v2.mcp` raises
+        Regression test: when kfx is run without the full Ketos package installed
+        (e.g., serving a flow via `kfx`), importing `ketos.api.v2.mcp` raises
         ModuleNotFoundError. The component must gracefully fall back to the server
         config embedded in the flow JSON (server_config_from_value) rather than failing.
         """
@@ -761,16 +761,16 @@ class TestMCPComponentConfigPriority:
         component._user_id = "test_user_123"
 
         real_import = builtins.__import__
-        langflow_prefixes = ("langflow.api.v2.mcp", "langflow.services.database")
+        ketos_prefixes = ("ketos.api.v2.mcp", "ketos.services.database")
 
         def fake_import(name, import_globals=None, import_locals=None, fromlist=(), level=0):
-            if any(name == p or name.startswith(p + ".") for p in langflow_prefixes):
+            if any(name == p or name.startswith(p + ".") for p in ketos_prefixes):
                 raise ModuleNotFoundError(name=name)
             return real_import(name, import_globals, import_locals, fromlist, level)
 
         with (
             patch("builtins.__import__", side_effect=fake_import),
-            patch("lfx.components.models_and_agents.mcp_component.update_tools") as mock_update_tools,
+            patch("kfx.components.models_and_agents.mcp_component.update_tools") as mock_update_tools,
         ):
             mock_update_tools.return_value = (None, [], {})
 
@@ -790,13 +790,13 @@ class TestMCPComponentConfigPriority:
 
     @pytest.mark.asyncio
     async def test_update_tool_list_surfaces_transitive_import_error_instead_of_falling_back(self, component):
-        """A transitive ModuleNotFoundError inside Langflow must NOT be silently swallowed.
+        """A transitive ModuleNotFoundError inside Ketos must NOT be silently swallowed.
 
-        If a Langflow dependency (e.g. sqlmodel) fails to import while loading
-        langflow.services.database.models.user.crud, that's a real bug in the full
-        Langflow stack — not LFX standalone mode. We must not silently fall back
+        If a Ketos dependency (e.g. sqlmodel) fails to import while loading
+        ketos.services.database.models.user.crud, that's a real bug in the full
+        Ketos stack — not KFX standalone mode. We must not silently fall back
         to the flow-embedded config, because the database config is supposed to
-        take precedence when Langflow is available.
+        take precedence when Ketos is available.
         """
         import builtins
 
@@ -812,14 +812,14 @@ class TestMCPComponentConfigPriority:
 
         def fake_import(name, import_globals=None, import_locals=None, fromlist=(), level=0):
             # Simulate a transitive dependency failure: sqlmodel is the missing module,
-            # not a Langflow module. This should NOT be treated as standalone mode.
-            if name.startswith("langflow.services.database"):
+            # not a Ketos module. This should NOT be treated as standalone mode.
+            if name.startswith("ketos.services.database"):
                 raise ModuleNotFoundError(transitive_error_msg, name="sqlmodel")
             return real_import(name, import_globals, import_locals, fromlist, level)
 
         with (
             patch("builtins.__import__", side_effect=fake_import),
-            patch("lfx.components.models_and_agents.mcp_component.update_tools") as mock_update_tools,
+            patch("kfx.components.models_and_agents.mcp_component.update_tools") as mock_update_tools,
         ):
             mock_update_tools.return_value = (None, [], {})
 
@@ -839,7 +839,7 @@ class TestMCPComponentConfigPriority:
         """A plain ImportError (attribute missing, not module missing) must surface.
 
         Regression test for the intentional `except ModuleNotFoundError` narrowing: if
-        an installed Langflow no longer exposes `get_server` or `get_user_by_id` (real
+        an installed Ketos no longer exposes `get_server` or `get_user_by_id` (real
         API break), the resulting ImportError — which is NOT a ModuleNotFoundError —
         must NOT be swallowed as standalone mode. It must propagate to the outer
         handler and surface as a `ValueError("Error updating tool list: ...")`.
@@ -858,15 +858,15 @@ class TestMCPComponentConfigPriority:
             # The module imports fine, but a specific attribute is missing — this
             # raises plain ImportError (not ModuleNotFoundError) at the `from ... import`
             # line. Emulate that by raising ImportError when this module is requested
-            # with a fromlist, just as `from langflow.api.v2.mcp import get_server` would.
-            if name == "langflow.api.v2.mcp" and fromlist and "get_server" in fromlist:
-                msg = "cannot import name 'get_server' from 'langflow.api.v2.mcp'"
-                raise ImportError(msg, name="langflow.api.v2.mcp")
+            # with a fromlist, just as `from ketos.api.v2.mcp import get_server` would.
+            if name == "ketos.api.v2.mcp" and fromlist and "get_server" in fromlist:
+                msg = "cannot import name 'get_server' from 'ketos.api.v2.mcp'"
+                raise ImportError(msg, name="ketos.api.v2.mcp")
             return real_import(name, import_globals, import_locals, fromlist, level)
 
         with (
             patch("builtins.__import__", side_effect=fake_import),
-            patch("lfx.components.models_and_agents.mcp_component.update_tools") as mock_update_tools,
+            patch("kfx.components.models_and_agents.mcp_component.update_tools") as mock_update_tools,
         ):
             mock_update_tools.return_value = (None, [], {})
 
@@ -881,12 +881,12 @@ class TestMCPComponentConfigPriority:
             mock_update_tools.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_update_tool_list_surfaces_lfx_services_deps_missing(self, component):
-        """A ModuleNotFoundError for an lfx module (not langflow.*) must surface.
+    async def test_update_tool_list_surfaces_kfx_services_deps_missing(self, component):
+        """A ModuleNotFoundError for an kfx module (not ketos.*) must surface.
 
-        Edge-case regression test: if `lfx.services.deps` itself is missing (a
-        packaging error inside lfx), the prefix check `missing_module == "langflow"
-        or missing_module.startswith("langflow.")` correctly returns False and the
+        Edge-case regression test: if `kfx.services.deps` itself is missing (a
+        packaging error inside kfx), the prefix check `missing_module == "ketos"
+        or missing_module.startswith("ketos.")` correctly returns False and the
         error is re-raised. Locks in the intended precedence rule so a future rewrite
         of the prefix check cannot silently convert this into a standalone fallback.
         """
@@ -900,16 +900,16 @@ class TestMCPComponentConfigPriority:
 
         real_import = builtins.__import__
 
-        deps_missing_msg = "No module named 'lfx.services.deps'"
+        deps_missing_msg = "No module named 'kfx.services.deps'"
 
         def fake_import(name, import_globals=None, import_locals=None, fromlist=(), level=0):
-            if name == "lfx.services.deps" or name.startswith("lfx.services.deps."):
-                raise ModuleNotFoundError(deps_missing_msg, name="lfx.services.deps")
+            if name == "kfx.services.deps" or name.startswith("kfx.services.deps."):
+                raise ModuleNotFoundError(deps_missing_msg, name="kfx.services.deps")
             return real_import(name, import_globals, import_locals, fromlist, level)
 
         with (
             patch("builtins.__import__", side_effect=fake_import),
-            patch("lfx.components.models_and_agents.mcp_component.update_tools") as mock_update_tools,
+            patch("kfx.components.models_and_agents.mcp_component.update_tools") as mock_update_tools,
         ):
             mock_update_tools.return_value = (None, [], {})
 
@@ -917,7 +917,7 @@ class TestMCPComponentConfigPriority:
                 await component.update_tool_list()
 
             assert isinstance(exc_info.value.__cause__, ModuleNotFoundError)
-            assert exc_info.value.__cause__.name == "lfx.services.deps"
+            assert exc_info.value.__cause__.name == "kfx.services.deps"
 
             mock_update_tools.assert_not_called()
 
@@ -929,7 +929,7 @@ class TestMCPComponentConfigPriority:
 
 def test_resolve_config_db_takes_priority():
     """Test that database config takes priority over value config."""
-    from lfx.components.models_and_agents.mcp_component import resolve_mcp_config
+    from kfx.components.models_and_agents.mcp_component import resolve_mcp_config
 
     db_config = {"command": "uvx from-db", "args": ["--prod"]}
     value_config = {"command": "uvx from-value", "args": ["--test"]}
@@ -941,7 +941,7 @@ def test_resolve_config_db_takes_priority():
 
 def test_resolve_config_falls_back_to_value():
     """Test that value config is used when DB returns None."""
-    from lfx.components.models_and_agents.mcp_component import resolve_mcp_config
+    from kfx.components.models_and_agents.mcp_component import resolve_mcp_config
 
     value_config = {"command": "uvx from-value", "args": ["--test"]}
 
@@ -952,7 +952,7 @@ def test_resolve_config_falls_back_to_value():
 
 def test_resolve_config_both_none():
     """Test behavior when both configs are None."""
-    from lfx.components.models_and_agents.mcp_component import resolve_mcp_config
+    from kfx.components.models_and_agents.mcp_component import resolve_mcp_config
 
     assert resolve_mcp_config("test_server", None, None) is None
 
@@ -988,7 +988,7 @@ def mock_db_session_with_servers():
 @pytest.mark.asyncio
 async def test_config_priority_with_fixtures(mock_db_session_with_servers):
     """Test using fixtures with real data instead of heavy mocking."""
-    from lfx.components.models_and_agents.mcp_component import MCPToolsComponent
+    from kfx.components.models_and_agents.mcp_component import MCPToolsComponent
 
     component = MCPToolsComponent()
     component.mcp_server = {"name": "test_server", "config": {"command": "from-value"}}
@@ -996,10 +996,10 @@ async def test_config_priority_with_fixtures(mock_db_session_with_servers):
 
     # Inject the mock session directly rather than mocking session_scope
     with (
-        patch("langflow.api.v2.mcp.get_server") as mock_get_server,
-        patch("langflow.services.database.models.user.crud.get_user_by_id") as mock_get_user,
+        patch("ketos.api.v2.mcp.get_server") as mock_get_server,
+        patch("ketos.services.database.models.user.crud.get_user_by_id") as mock_get_user,
         patch(
-            "lfx.components.models_and_agents.mcp_component.session_scope",
+            "kfx.components.models_and_agents.mcp_component.session_scope",
             return_value=mock_db_session_with_servers,
         ),
         patch.object(component.stdio_client, "connect_to_server", return_value=[]),

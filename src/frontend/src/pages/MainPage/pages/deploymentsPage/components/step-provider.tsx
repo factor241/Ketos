@@ -142,7 +142,7 @@ export default function StepProvider() {
           />
           <span className="text-sm font-medium">{provider.name}</span>
           <Badge variant="purpleStatic" size="xq" className="shrink-0">
-            Beta
+            {t("common.beta")}
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground">

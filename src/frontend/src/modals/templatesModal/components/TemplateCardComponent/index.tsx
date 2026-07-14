@@ -1,4 +1,4 @@
-import { convertTestName } from "@/components/common/storeCardComponent/utils/convert-test-name";
+import { convertTestName } from "@/utils/convert-test-name";
 import { swatchColors } from "@/utils/styleUtils";
 import { cn, getNumberFromString } from "@/utils/utils";
 import IconComponent, {

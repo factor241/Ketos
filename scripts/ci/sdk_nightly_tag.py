@@ -1,7 +1,7 @@
-"""Generate the nightly tag for the canonical ``langflow-sdk`` package.
+"""Generate the nightly tag for the canonical ``ketos-sdk`` package.
 
-Mirrors ``lfx_nightly_tag.py`` but for the SDK -- the nightly publishes ``langflow-sdk==<base>.devN``
-to the canonical ``langflow-sdk`` PyPI project, so the dev counter is computed against that
+Mirrors ``kfx_nightly_tag.py`` but for the SDK -- the nightly publishes ``ketos-sdk==<base>.devN``
+to the canonical ``ketos-sdk`` PyPI project, so the dev counter is computed against that
 project's ``.devN`` history (stable finals never contribute). ``<base>`` comes from
 ``src/sdk/pyproject.toml``. See ``src/bundles/NIGHTLY.md``.
 """
@@ -13,7 +13,7 @@ import requests
 import tomllib
 from packaging.version import Version
 
-PYPI_SDK_URL = "https://pypi.org/pypi/langflow-sdk/json"
+PYPI_SDK_URL = "https://pypi.org/pypi/ketos-sdk/json"
 
 
 def _sdk_base_version() -> str:
@@ -52,7 +52,7 @@ def _dev_numbers(url: str, base_version: str) -> list[int]:
 
 
 def create_sdk_tag() -> str:
-    """Return the next ``langflow-sdk`` nightly tag (with a leading ``v``)."""
+    """Return the next ``ketos-sdk`` nightly tag (with a leading ``v``)."""
     base_version = _sdk_base_version()
     dev_numbers = _dev_numbers(PYPI_SDK_URL, base_version)
     next_dev = max(dev_numbers) + 1 if dev_numbers else 0

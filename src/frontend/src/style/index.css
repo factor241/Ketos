@@ -55,7 +55,7 @@
     --accent-pink: 326, 78%, 95%; /* hsl(326, 78%, 95%) */
     --accent-pink-foreground: 333 71% 51%; /* hsl(333, 71%, 51%) */
 
-    /* Langflow Assistant brand palette — kept identical in light and dark
+    /* Ketos Assistant brand palette — kept identical in light and dark
        so the assistant glyph + input glow read the same in either theme. */
     --accent-assistant-brand: 335 100% 60%; /* #FF3276 — assistant pink */
     --accent-assistant-purple: 270 100% 73%; /* #BA75FF — assistant purple */

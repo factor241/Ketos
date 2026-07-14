@@ -6,7 +6,13 @@ import InspectionPanelEditField from "../components/InspectionPanelEditField";
 
 // Mock IconComponent
 jest.mock("@/components/common/genericIconComponent", () => {
-  return function MockIconComponent({ name, className }: any) {
+  return function MockIconComponent({
+    name,
+    className,
+  }: {
+    name: string;
+    className?: string;
+  }) {
     return (
       <span data-testid={`icon-${name}`} className={className}>
         {name}
@@ -26,7 +32,7 @@ jest.mock("@/CustomNodes/hooks/use-handle-new-value", () => ({
 
 // Mock utils
 jest.mock("@/utils/utils", () => ({
-  cn: (...classes: any[]) => classes.filter(Boolean).join(" "),
+  cn: (...classes: unknown[]) => classes.filter(Boolean).join(" "),
 }));
 
 const renderWithProviders = (component: React.ReactNode) => {
@@ -40,12 +46,16 @@ describe("InspectionPanelEditField", () => {
     node: {
       display_name: "Test Node",
       description: "Test description",
+      documentation: "",
       template: {
         test_field: {
           type: "str",
+          required: false,
+          list: false,
           value: "test value",
           advanced: false,
           show: true,
+          readonly: false,
         },
       },
       ...overrides,
@@ -301,7 +311,10 @@ describe("InspectionPanelEditField", () => {
     });
 
     it("should handle null description gracefully", () => {
-      const props = { ...defaultProps, description: null as any };
+      const props = {
+        ...defaultProps,
+        description: null as unknown as string,
+      };
 
       expect(() => {
         renderWithProviders(<InspectionPanelEditField {...props} />);

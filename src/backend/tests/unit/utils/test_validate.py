@@ -5,7 +5,7 @@ import warnings
 from unittest.mock import Mock, patch
 
 import pytest
-from lfx.custom.validate import (
+from kfx.custom.validate import (
     add_type_ignores,
     build_class_constructor,
     compile_class_code,
@@ -155,7 +155,7 @@ def test_func():
         assert any("nonexistent1" in err for err in result["imports"]["errors"])
         assert any("nonexistent2" in err for err in result["imports"]["errors"])
 
-    @patch("lfx.custom.validate.logger")
+    @patch("kfx.custom.validate.logger")
     def test_logging_on_parse_error(self, mock_logger):
         """Test that parsing errors are logged."""
         # Structlog doesn't have opt method, so hasattr(logger, "opt") returns False
@@ -354,20 +354,20 @@ class JsonHandler:
     def test_replaces_legacy_imports(self):
         """Test that legacy import statements are replaced."""
         code = """
-from langflow import CustomComponent
+from ketos import CustomComponent
 
 class MyComponent(CustomComponent):
     def build(self):
         return "test"
 """
         # Should not raise an error due to import replacement
-        with patch("lfx.custom.validate.prepare_global_scope") as mock_prepare:
+        with patch("kfx.custom.validate.prepare_global_scope") as mock_prepare:
             mock_prepare.return_value = {"CustomComponent": type("CustomComponent", (), {})}
-            with patch("lfx.custom.validate.extract_class_code") as mock_extract:
+            with patch("kfx.custom.validate.extract_class_code") as mock_extract:
                 mock_extract.return_value = Mock()
-                with patch("lfx.custom.validate.compile_class_code") as mock_compile:
+                with patch("kfx.custom.validate.compile_class_code") as mock_compile:
                     mock_compile.return_value = compile("pass", "<string>", "exec")
-                    with patch("lfx.custom.validate.build_class_constructor") as mock_build:
+                    with patch("kfx.custom.validate.build_class_constructor") as mock_build:
                         mock_build.return_value = lambda: None
                         create_class(code, "MyComponent")
 
@@ -394,7 +394,7 @@ class TestClass:
         validation_error = CoreValidationError.from_exception_data("TestClass", [])
 
         with (
-            patch("lfx.custom.validate.prepare_global_scope", side_effect=validation_error),
+            patch("kfx.custom.validate.prepare_global_scope", side_effect=validation_error),
             pytest.raises(ValueError, match=r".*"),
         ):
             create_class(code, "TestClass")
@@ -594,7 +594,7 @@ class SimpleClass:
 class TestGetDefaultImports:
     """Test cases for get_default_imports function."""
 
-    @patch("lfx.field_typing.constants.CUSTOM_COMPONENT_SUPPORTED_TYPES", {"TestType": Mock()})
+    @patch("kfx.field_typing.constants.CUSTOM_COMPONENT_SUPPORTED_TYPES", {"TestType": Mock()})
     def test_returns_default_imports(self):
         """Test that default imports are returned."""
         code = "TestType and Optional"
@@ -610,12 +610,12 @@ class TestGetDefaultImports:
             assert "Dict" in imports
             assert "Union" in imports
 
-    def test_includes_langflow_imports(self):
-        """Test that langflow imports are included when found in code."""
+    def test_includes_ketos_imports(self):
+        """Test that ketos imports are included when found in code."""
         # Use an actual type from CUSTOM_COMPONENT_SUPPORTED_TYPES
         code = "Chain is used here"
 
-        with patch("lfx.custom.validate.importlib") as mock_importlib:
+        with patch("kfx.custom.validate.importlib") as mock_importlib:
             mock_module = Mock()
             mock_module.Chain = Mock()
             mock_importlib.import_module.return_value = mock_module

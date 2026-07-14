@@ -2,13 +2,14 @@ import { memo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { COLOR_OPTIONS } from "@/constants/constants";
 import type { NoteDataType } from "@/types/flow";
+import type { FlowStoreType } from "@/types/zustand/flow";
 import { cn } from "@/utils/utils";
 
 interface ColorPickerButtonsProps {
   bgColor: string;
   data: NoteDataType;
   /** Flow store's setNode function for updating node data */
-  setNode: (id: string, updater: (node: any) => any) => void;
+  setNode: FlowStoreType["setNode"];
 }
 
 export const ColorPickerButtons = memo(
@@ -20,20 +21,23 @@ export const ColorPickerButtons = memo(
     /** Updates the node's background color in the flow store */
     const updateBackgroundColor = useCallback(
       (color: string, isCustom: boolean) => {
-        setNode(data.id, (node) => ({
-          ...node,
-          data: {
-            ...node.data,
-            node: {
-              ...node.data.node,
-              template: {
-                ...node.data.node?.template,
-                backgroundColor: color,
-                customColor: isCustom ? color : undefined,
+        setNode(data.id, (node) => {
+          if (node.type !== "noteNode") return node;
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              node: {
+                ...node.data.node,
+                template: {
+                  ...node.data.node?.template,
+                  backgroundColor: color,
+                  customColor: isCustom ? color : undefined,
+                },
               },
             },
-          },
-        }));
+          };
+        });
       },
       [data.id, setNode],
     );

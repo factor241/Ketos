@@ -1,12 +1,12 @@
 import { cloneDeep } from "lodash";
 import type { AllNodeType } from "@/types/flow";
-import { LANGFLOW_SUPPORTED_TYPES } from "../../../constants/constants";
+import { KETOS_SUPPORTED_TYPES } from "../../../constants/constants";
 
 export const getNodesWithDefaultValue = (
   nodes: AllNodeType[],
   oldTweaks: {
     [key: string]: {
-      [key: string]: any;
+      [key: string]: unknown;
     };
   },
 ) => {
@@ -18,7 +18,7 @@ export const getNodesWithDefaultValue = (
         (templateField) =>
           templateField.charAt(0) !== "_" &&
           node!.data!.node!.template[templateField]?.show &&
-          LANGFLOW_SUPPORTED_TYPES.has(
+          KETOS_SUPPORTED_TYPES.has(
             node!.data!.node!.template[templateField].type,
           ) &&
           templateField !== "code",

@@ -2,7 +2,7 @@ from io import BytesIO
 from unittest.mock import MagicMock, patch
 
 import pytest
-from lfx.base.data.utils import extract_text_from_bytes
+from kfx.base.data.utils import extract_text_from_bytes
 from pypdf import PdfWriter
 
 
@@ -31,26 +31,26 @@ def _mock_pdf_reader(pages_text: list[str]):
 
 
 class TestExtractTextFromBytesPDF:
-    @patch("lfx.base.data.utils.PdfReader")
+    @patch("kfx.base.data.utils.PdfReader")
     def test_should_extract_text_from_valid_pdf(self, mock_reader_cls):
         mock_reader_cls.return_value = _mock_pdf_reader(["Hello World"])
         result = extract_text_from_bytes("document.pdf", _make_blank_pdf())
         assert "Hello World" in result
 
-    @patch("lfx.base.data.utils.PdfReader")
+    @patch("kfx.base.data.utils.PdfReader")
     def test_should_extract_text_from_multi_page_pdf(self, mock_reader_cls):
         mock_reader_cls.return_value = _mock_pdf_reader(["Page one content", "Page two content"])
         result = extract_text_from_bytes("multi.pdf", _make_blank_pdf(2))
         assert "Page one content" in result
         assert "Page two content" in result
 
-    @patch("lfx.base.data.utils.PdfReader")
+    @patch("kfx.base.data.utils.PdfReader")
     def test_should_join_pages_with_double_newline(self, mock_reader_cls):
         mock_reader_cls.return_value = _mock_pdf_reader(["First", "Second"])
         result = extract_text_from_bytes("test.pdf", _make_blank_pdf(2))
         assert result == "First\n\nSecond"
 
-    @patch("lfx.base.data.utils.PdfReader")
+    @patch("kfx.base.data.utils.PdfReader")
     def test_should_be_case_insensitive_on_extension(self, mock_reader_cls):
         mock_reader_cls.return_value = _mock_pdf_reader(["Test"])
         result = extract_text_from_bytes("DOC.PDF", _make_blank_pdf())
@@ -68,7 +68,7 @@ class TestExtractTextFromBytesPDF:
         result = extract_text_from_bytes("blank.pdf", _make_blank_pdf())
         assert isinstance(result, str)
 
-    @patch("lfx.base.data.utils.PdfReader")
+    @patch("kfx.base.data.utils.PdfReader")
     def test_should_handle_page_returning_none(self, mock_reader_cls):
         mock_reader_cls.return_value = _mock_pdf_reader(["Text"])
         mock_reader_cls.return_value.pages[0].extract_text.return_value = None

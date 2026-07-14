@@ -1,4 +1,4 @@
-.PHONY: all init format_backend format lint build run_backend dev help tests coverage clean_python_cache clean_npm_cache clean_frontend_build clean_all run_clic load_test_setup load_test_setup_basic load_test_list_flows load_test_run load_test_langflow_quick load_test_stress load_test_example load_test_clean load_test_remote_setup load_test_remote_run load_test_help docs docs_build docs_install api_examples_local api_examples_local_syntax
+.PHONY: all init format_backend format lint build run_backend dev help tests coverage clean_python_cache clean_npm_cache clean_frontend_build clean_all run_clic load_test_setup load_test_setup_basic load_test_list_flows load_test_run load_test_ketos_quick load_test_stress load_test_example load_test_clean load_test_remote_setup load_test_remote_run load_test_help docs docs_build docs_install api_examples_local api_examples_local_syntax
 
 # Configurations
 VERSION=$(shell grep "^version" pyproject.toml | sed 's/.*\"\(.*\)\"$$/\1/')
@@ -18,7 +18,7 @@ host ?= 0.0.0.0
 port ?= 7860
 env ?= .env
 open_browser ?= true
-path = src/backend/base/langflow/frontend
+path = src/backend/base/ketos/frontend
 workers ?= 1
 async ?= true
 lf ?= false
@@ -44,12 +44,12 @@ check_tools:
 help: ## show basic help message with common commands
 	@echo ''
 	@echo "$(GREEN)═══════════════════════════════════════════════════════════════════$(NC)"
-	@echo "$(GREEN)                    LANGFLOW MAKEFILE COMMANDS                     $(NC)"
+	@echo "$(GREEN)                    KETOS MAKEFILE COMMANDS                     $(NC)"
 	@echo "$(GREEN)═══════════════════════════════════════════════════════════════════$(NC)"
 	@echo ''
 	@echo "$(GREEN)Basic Commands:$(NC)"
 	@echo "  $(GREEN)make init$(NC)                - Initialize project (install all dependencies)"
-	@echo "  $(GREEN)make run_cli$(NC)             - Run Langflow CLI"
+	@echo "  $(GREEN)make run_cli$(NC)             - Run Ketos CLI"
 	@echo "  $(GREEN)make run_clic$(NC)            - Run CLI with fresh frontend build"
 	@echo "  $(GREEN)make format$(NC)              - Format all code (backend + frontend)"
 	@echo "  $(GREEN)make tests$(NC)               - Run all tests"
@@ -103,7 +103,7 @@ clean_python_cache:
 clean_npm_cache:
 	@echo "Cleaning npm cache..."
 	cd src/frontend && npm cache clean --force
-	$(call CLEAR_DIRS,src/frontend/node_modules src/frontend/build src/backend/base/langflow/frontend)
+	$(call CLEAR_DIRS,src/frontend/node_modules src/frontend/build src/backend/base/ketos/frontend)
 	rm -f src/frontend/package-lock.json
 	@echo "$(GREEN)NPM cache and frontend directories cleaned.$(NC)"
 
@@ -112,7 +112,7 @@ clean_frontend_build: ## clean frontend build artifacts to ensure fresh build
 	@echo "  - Removing src/frontend/build directory"
 	$(call CLEAR_DIRS,src/frontend/build)
 	@echo "  - Removing built frontend files from backend"
-	$(call CLEAR_DIRS,src/backend/base/langflow/frontend)
+	$(call CLEAR_DIRS,src/backend/base/ketos/frontend)
 	@echo "$(GREEN)Frontend build artifacts cleaned - fresh build guaranteed.$(NC)"
 
 clean_all: clean_python_cache clean_npm_cache # clean all caches and temporary directories
@@ -168,11 +168,11 @@ unit_tests: ## run unit tests
 unit_tests_looponfail:
 	@make unit_tests args="-f"
 
-lfx_tests: ## run lfx package unit tests
-	@echo 'Running LFX Package Tests...'
-	@cd src/lfx && \
-	uv sync --dev && \
-	uv run pytest tests/unit -v --cov=src/lfx --cov-report=xml --cov-report=html --cov-report=term-missing $(args)
+kfx_tests: ## run kfx package unit tests
+	@echo 'Running KFX Package Tests...'
+	@cd src/kfx && \
+	uv sync --dev --package kfx --reinstall-package typer && \
+	uv run pytest tests/unit -v --cov=src/kfx --cov-report=xml --cov-report=html --cov-report=term-missing $(args)
 
 integration_tests:
 	uv run pytest src/backend/tests/integration \
@@ -235,7 +235,7 @@ lint: install_backend ## run linters
 
 run_clic: clean_frontend_build install_frontend install_backend build_frontend ## run the CLI with fresh frontend build
 	@echo 'Running the CLI with fresh frontend build'
-	@uv run langflow run \
+	@uv run ketos run \
 		--frontend-path $(path) \
 		--log-level $(log_level) \
 		--host $(host) \
@@ -245,7 +245,7 @@ run_clic: clean_frontend_build install_frontend install_backend build_frontend #
 
 run_cli: install_frontend install_backend build_frontend ## run the CLI quickly (without cleaning build cache)
 	@echo 'Running the CLI quickly (reusing existing build cache if available)'
-	@uv run langflow run \
+	@uv run ketos run \
 		--frontend-path $(path) \
 		--log-level $(log_level) \
 		--host $(host) \
@@ -271,7 +271,7 @@ setup_devcontainer: ## set up the development container
 	make install_backend
 	make install_frontend
 	make build_frontend
-	uv run langflow --frontend-path src/frontend/build
+	uv run ketos run --frontend-path src/frontend/build
 
 setup_env: ## set up the environment
 	@sh ./scripts/setup/setup_env.sh
@@ -283,8 +283,8 @@ backend: setup_env install_backend ## run the backend in development mode
 	@-kill -9 $$(lsof -t -i:7860) || true
 ifdef login
 	@echo "Running backend autologin is $(login)";
-	LANGFLOW_AUTO_LOGIN=$(login) uv run uvicorn \
-		--factory langflow.main:create_app \
+	KETOS_AUTO_LOGIN=$(login) uv run uvicorn \
+		--factory ketos.main:create_app \
 		--host 0.0.0.0 \
 		--port $(port) \
 		$(if $(filter-out 1,$(workers)),, --reload) \
@@ -294,7 +294,7 @@ ifdef login
 else
 	@echo "Running backend respecting the $(env) file";
 	uv run uvicorn \
-		--factory langflow.main:create_app \
+		--factory ketos.main:create_app \
 		--host 0.0.0.0 \
 		--port $(port) \
 		$(if $(filter-out 1,$(workers)),, --reload) \
@@ -307,7 +307,7 @@ build_and_run: setup_env ## build the project and run it
 	$(call CLEAR_DIRS,dist src/backend/base/dist)
 	make build
 	uv run pip install dist/*.tar.gz
-	uv run langflow run
+	uv run ketos run
 
 build_and_install: ## build the project and install it
 	@echo 'Removing dist folder'
@@ -318,29 +318,29 @@ build: setup_env ## build the frontend static files and package the project
 ifdef base
 	make install_frontendci
 	make build_frontend
-	make build_langflow_base args="$(args)"
+	make build_ketos_base args="$(args)"
 endif
 
 ifdef main
 	make install_frontendci
 	make build_frontend
-	make build_langflow_base args="$(args)"
-	make build_langflow args="$(args)"
+	make build_ketos_base args="$(args)"
+	make build_ketos args="$(args)"
 endif
 
 ifdef pre
 	make install_frontendci
 	make build_frontend
-	make build_langflow args="$(args)"
+	make build_ketos args="$(args)"
 endif
 
-build_langflow_base:
+build_ketos_base:
 	cd src/backend/base && uv build $(args)
 
-build_langflow_backup:
+build_ketos_backup:
 	uv lock && uv build
 
-build_langflow:
+build_ketos:
 	uv lock --no-upgrade
 	uv build $(args)
 ifdef restore
@@ -360,23 +360,23 @@ dockerfile_build:
 	@command -v $(DOCKER) >/dev/null 2>&1 || { echo "Error: $(DOCKER) is not installed. Please install $(DOCKER), or run 'make docker_build DOCKER=podman' (or DOCKER=docker) if you have an alternative installed."; exit 1; }
 	@$(DOCKER) build --rm \
 		-f ${DOCKERFILE} \
-		-t langflow:${VERSION} .
+		-t ketos:${VERSION} .
 
 dockerfile_build_be: dockerfile_build
 	@echo 'BUILDING DOCKER IMAGE BACKEND: ${DOCKERFILE_BACKEND}'
 	@command -v $(DOCKER) >/dev/null 2>&1 || { echo "Error: $(DOCKER) is not installed. Please install $(DOCKER), or run 'make docker_build_backend DOCKER=podman' (or DOCKER=docker) if you have an alternative installed."; exit 1; }
 	@$(DOCKER) build --rm \
-		--build-arg LANGFLOW_IMAGE=langflow:${VERSION} \
+		--build-arg KETOS_IMAGE=ketos:${VERSION} \
 		-f ${DOCKERFILE_BACKEND} \
-		-t langflow_backend:${VERSION} .
+		-t ketos_backend:${VERSION} .
 
 dockerfile_build_fe: dockerfile_build
 	@echo 'BUILDING DOCKER IMAGE FRONTEND: ${DOCKERFILE_FRONTEND}'
 	@command -v $(DOCKER) >/dev/null 2>&1 || { echo "Error: $(DOCKER) is not installed. Please install $(DOCKER), or run 'make docker_build_frontend DOCKER=podman' (or DOCKER=docker) if you have an alternative installed."; exit 1; }
 	@$(DOCKER) build --rm \
-		--build-arg LANGFLOW_IMAGE=langflow:${VERSION} \
+		--build-arg KETOS_IMAGE=ketos:${VERSION} \
 		-f ${DOCKERFILE_FRONTEND} \
-		-t langflow_frontend:${VERSION} .
+		-t ketos_frontend:${VERSION} .
 
 clear_dockerimage:
 	@echo 'Clearing the docker build'
@@ -400,7 +400,7 @@ dcdev_up:
 lock_base:
 	uv lock
 
-lock_langflow:
+lock_ketos:
 	uv lock
 
 lock: ## lock dependencies
@@ -415,14 +415,14 @@ update: ## update dependencies
 publish_base:
 	cd src/backend/base && uv publish
 
-publish_langflow:
+publish_ketos:
 	uv publish
 
 publish_base_testpypi:
 	# TODO: update this to use the test-pypi repository
 	cd src/backend/base && uv publish -r test-pypi
 
-publish_langflow_testpypi:
+publish_ketos_testpypi:
 	# TODO: update this to use the test-pypi repository
 	uv publish -r test-pypi
 
@@ -433,61 +433,61 @@ ifdef base
 endif
 
 ifdef main
-	make publish_langflow
+	make publish_ketos
 endif
 
 publish_testpypi: ## build the frontend static files and package the project and publish it to PyPI
 	@echo 'Publishing the project'
 
 ######################
-# LFX PACKAGE
+# KFX PACKAGE
 ######################
 
 build_component_index: ## build the component index with dynamic loading
 	@echo 'Installing backend dependencies for building component index'
 	@make install_backend
 	@echo 'Building component index'
-	LFX_DEV=1 uv run python scripts/build_component_index.py
+	KFX_DEV=1 uv run python scripts/build_component_index.py
 
-lfx_build: ## build the LFX package
-	@echo 'Building LFX package'
-	@cd src/lfx && make build
+kfx_build: ## build the KFX package
+	@echo 'Building KFX package'
+	@cd src/kfx && make build
 
-lfx_publish: ## publish LFX package to PyPI
-	@echo 'Publishing LFX package'
-	@cd src/lfx && make publish
+kfx_publish: ## publish KFX package to PyPI
+	@echo 'Publishing KFX package'
+	@cd src/kfx && make publish
 
-lfx_publish_testpypi: ## publish LFX package to test PyPI
-	@echo 'Publishing LFX package to test PyPI'
-	@cd src/lfx && make publish_test
+kfx_publish_testpypi: ## publish KFX package to test PyPI
+	@echo 'Publishing KFX package to test PyPI'
+	@cd src/kfx && make publish_test
 
-lfx_test: ## run LFX tests
-	@echo 'Running LFX tests'
-	@cd src/lfx && make test
+kfx_test: ## run KFX tests
+	@echo 'Running KFX tests'
+	@cd src/kfx && make test
 
-lfx_format: ## format LFX code
-	@echo 'Formatting LFX code'
-	@cd src/lfx && make format
+kfx_format: ## format KFX code
+	@echo 'Formatting KFX code'
+	@cd src/kfx && make format
 
-lfx_lint: ## lint LFX code
-	@echo 'Linting LFX code'
-	@cd src/lfx && make lint
+kfx_lint: ## lint KFX code
+	@echo 'Linting KFX code'
+	@cd src/kfx && make lint
 
-lfx_clean: ## clean LFX build artifacts
-	@echo 'Cleaning LFX build artifacts'
-	@cd src/lfx && make clean
+kfx_clean: ## clean KFX build artifacts
+	@echo 'Cleaning KFX build artifacts'
+	@cd src/kfx && make clean
 
-lfx_docker_build: ## build LFX production Docker image
-	@echo 'Building LFX Docker image'
-	@cd src/lfx && make docker_build
+kfx_docker_build: ## build KFX production Docker image
+	@echo 'Building KFX Docker image'
+	@cd src/kfx && make docker_build
 
-lfx_docker_dev: ## start LFX development environment
-	@echo 'Starting LFX development environment'
-	@cd src/lfx && make docker_dev
+kfx_docker_dev: ## start KFX development environment
+	@echo 'Starting KFX development environment'
+	@cd src/kfx && make docker_dev
 
-lfx_docker_test: ## run LFX tests in Docker
-	@echo 'Running LFX tests in Docker'
-	@cd src/lfx && make docker_test
+kfx_docker_test: ## run KFX tests in Docker
+	@echo 'Running KFX tests in Docker'
+	@cd src/kfx && make docker_test
 
 ######################
 # SDK PACKAGE
@@ -524,32 +524,32 @@ sdk_clean: ## clean SDK build artifacts
 # example make alembic-revision message="Add user table"
 alembic-revision: ## generate a new migration
 	@echo 'Generating a new Alembic revision'
-	cd src/backend/base/langflow/ && uv run alembic revision --autogenerate -m "$(message)"
+	cd src/backend/base/ketos/ && uv run alembic revision --autogenerate -m "$(message)"
 
 
 alembic-upgrade: ## upgrade database to the latest version
 	@echo 'Upgrading database to the latest version'
-	cd src/backend/base/langflow/ && uv run alembic upgrade head
+	cd src/backend/base/ketos/ && uv run alembic upgrade head
 
 alembic-downgrade: ## downgrade database by one version
 	@echo 'Downgrading database by one version'
-	cd src/backend/base/langflow/ && uv run alembic downgrade -1
+	cd src/backend/base/ketos/ && uv run alembic downgrade -1
 
 alembic-current: ## show current revision
 	@echo 'Showing current Alembic revision'
-	cd src/backend/base/langflow/ && uv run alembic current
+	cd src/backend/base/ketos/ && uv run alembic current
 
 alembic-history: ## show migration history
 	@echo 'Showing Alembic migration history'
-	cd src/backend/base/langflow/ && uv run alembic history --verbose
+	cd src/backend/base/ketos/ && uv run alembic history --verbose
 
 alembic-check: ## check migration status
 	@echo 'Running alembic check'
-	cd src/backend/base/langflow/ && uv run alembic check
+	cd src/backend/base/ketos/ && uv run alembic check
 
 alembic-stamp: ## stamp the database with a specific revision
 	@echo 'Stamping the database with revision $(revision)'
-	cd src/backend/base/langflow/ && uv run alembic stamp $(revision)
+	cd src/backend/base/ketos/ && uv run alembic stamp $(revision)
 
 ######################
 # VERSION MANAGEMENT
@@ -563,35 +563,35 @@ patch: ## Update version across all projects. Usage: make patch v=1.5.0
 	fi; \
 	echo "$(GREEN)Updating version to $(v)$(NC)"; \
 	\
-	LANGFLOW_VERSION="$(v)"; \
-	LANGFLOW_BASE_VERSION=$$(echo "$$LANGFLOW_VERSION" | sed -E 's/^[0-9]+\.(.*)$$/0.\1/'); \
+	KETOS_VERSION="$(v)"; \
+	KETOS_BASE_VERSION=$$(echo "$$KETOS_VERSION" | sed -E 's/^[0-9]+\.(.*)$$/0.\1/'); \
 	\
-	echo "$(GREEN)Langflow version: $$LANGFLOW_VERSION$(NC)"; \
-	echo "$(GREEN)Langflow-base version: $$LANGFLOW_BASE_VERSION$(NC)"; \
-	echo "$(GREEN)LFX (synced): $$LANGFLOW_VERSION$(NC)"; \
+	echo "$(GREEN)Ketos version: $$KETOS_VERSION$(NC)"; \
+	echo "$(GREEN)Ketos-base version: $$KETOS_BASE_VERSION$(NC)"; \
+	echo "$(GREEN)KFX (synced): $$KETOS_VERSION$(NC)"; \
 	\
 	echo "$(GREEN)Updating main pyproject.toml...$(NC)"; \
-	python -c "import re; fname='pyproject.toml'; txt=open(fname).read(); txt=re.sub(r'^version = \".*\"', 'version = \"$$LANGFLOW_VERSION\"', txt, flags=re.MULTILINE); txt=re.sub(r'\"langflow-base(?:\[[^\]]*\])?(?:==|>=|~=)[^\"]*\"', '\"langflow-base[complete]>=$$LANGFLOW_BASE_VERSION\"', txt); open(fname, 'w').write(txt)"; \
+	python -c "import re; fname='pyproject.toml'; txt=open(fname).read(); txt=re.sub(r'^version = \".*\"', 'version = \"$$KETOS_VERSION\"', txt, flags=re.MULTILINE); txt=re.sub(r'\"ketos-base(?:\[[^\]]*\])?(?:==|>=|~=)[^\"]*\"', '\"ketos-base[complete]>=$$KETOS_BASE_VERSION\"', txt); open(fname, 'w').write(txt)"; \
 	\
-	echo "$(GREEN)Updating langflow-base pyproject.toml...$(NC)"; \
-	python -c "import re; fname='src/backend/base/pyproject.toml'; txt=open(fname).read(); txt=re.sub(r'^version = \".*\"', 'version = \"$$LANGFLOW_BASE_VERSION\"', txt, flags=re.MULTILINE); txt=re.sub(r'\"lfx(?:~=|>=)[^\"]*\"', '\"lfx~=$$LANGFLOW_VERSION\"', txt); open(fname, 'w').write(txt)"; \
+	echo "$(GREEN)Updating ketos-base pyproject.toml...$(NC)"; \
+	python -c "import re; fname='src/backend/base/pyproject.toml'; txt=open(fname).read(); txt=re.sub(r'^version = \".*\"', 'version = \"$$KETOS_BASE_VERSION\"', txt, flags=re.MULTILINE); txt=re.sub(r'\"kfx(?:~=|>=)[^\"]*\"', '\"kfx~=$$KETOS_VERSION\"', txt); open(fname, 'w').write(txt)"; \
 	\
-	echo "$(GREEN)Updating lfx pyproject.toml...$(NC)"; \
-	python -c "import re; fname='src/lfx/pyproject.toml'; txt=open(fname).read(); txt=re.sub(r'^version = \".*\"', 'version = \"$$LANGFLOW_VERSION\"', txt, flags=re.MULTILINE); open(fname, 'w').write(txt)"; \
+	echo "$(GREEN)Updating kfx pyproject.toml...$(NC)"; \
+	python -c "import re; fname='src/kfx/pyproject.toml'; txt=open(fname).read(); txt=re.sub(r'^version = \".*\"', 'version = \"$$KETOS_VERSION\"', txt, flags=re.MULTILINE); open(fname, 'w').write(txt)"; \
 	\
-	echo "$(GREEN)Syncing bundle lfx pins (src/bundles/*) -> $$LANGFLOW_VERSION...$(NC)"; \
-	python scripts/ci/sync_bundle_lfx_pin.py "$$LANGFLOW_VERSION"; \
+	echo "$(GREEN)Syncing bundle kfx pins (src/bundles/*) -> $$KETOS_VERSION...$(NC)"; \
+	python scripts/ci/sync_bundle_kfx_pin.py "$$KETOS_VERSION"; \
 	\
 	echo "$(GREEN)Updating frontend package.json...$(NC)"; \
-	python -c "import re; fname='src/frontend/package.json'; txt=open(fname).read(); txt=re.sub(r'\"version\": \".*\"', '\"version\": \"$$LANGFLOW_VERSION\"', txt); open(fname, 'w').write(txt)"; \
+	python -c "import re; fname='src/frontend/package.json'; txt=open(fname).read(); txt=re.sub(r'\"version\": \".*\"', '\"version\": \"$$KETOS_VERSION\"', txt); open(fname, 'w').write(txt)"; \
 	\
 	echo "$(GREEN)Validating version changes...$(NC)"; \
-	if ! grep -q "^version = \"$$LANGFLOW_VERSION\"" pyproject.toml; then echo "$(RED)✗ Main pyproject.toml version validation failed$(NC)"; exit 1; fi; \
-	if ! grep -qF "\"langflow-base[complete]>=$$LANGFLOW_BASE_VERSION\"" pyproject.toml; then echo "$(RED)✗ Main pyproject.toml langflow-base dependency validation failed$(NC)"; exit 1; fi; \
-	if ! grep -q "^version = \"$$LANGFLOW_BASE_VERSION\"" src/backend/base/pyproject.toml; then echo "$(RED)✗ Langflow-base pyproject.toml version validation failed$(NC)"; exit 1; fi; \
-	if ! grep -q "\"lfx~=$$LANGFLOW_VERSION\"" src/backend/base/pyproject.toml; then echo "$(RED)✗ Langflow-base pyproject.toml lfx pin validation failed$(NC)"; exit 1; fi; \
-	if ! grep -q "^version = \"$$LANGFLOW_VERSION\"" src/lfx/pyproject.toml; then echo "$(RED)✗ LFX pyproject.toml version validation failed$(NC)"; exit 1; fi; \
-	if ! grep -q "\"version\": \"$$LANGFLOW_VERSION\"" src/frontend/package.json; then echo "$(RED)✗ Frontend package.json version validation failed$(NC)"; exit 1; fi; \
+	if ! grep -q "^version = \"$$KETOS_VERSION\"" pyproject.toml; then echo "$(RED)✗ Main pyproject.toml version validation failed$(NC)"; exit 1; fi; \
+	if ! grep -qF "\"ketos-base[complete]>=$$KETOS_BASE_VERSION\"" pyproject.toml; then echo "$(RED)✗ Main pyproject.toml ketos-base dependency validation failed$(NC)"; exit 1; fi; \
+	if ! grep -q "^version = \"$$KETOS_BASE_VERSION\"" src/backend/base/pyproject.toml; then echo "$(RED)✗ Ketos-base pyproject.toml version validation failed$(NC)"; exit 1; fi; \
+	if ! grep -q "\"kfx~=$$KETOS_VERSION\"" src/backend/base/pyproject.toml; then echo "$(RED)✗ Ketos-base pyproject.toml kfx pin validation failed$(NC)"; exit 1; fi; \
+	if ! grep -q "^version = \"$$KETOS_VERSION\"" src/kfx/pyproject.toml; then echo "$(RED)✗ KFX pyproject.toml version validation failed$(NC)"; exit 1; fi; \
+	if ! grep -q "\"version\": \"$$KETOS_VERSION\"" src/frontend/package.json; then echo "$(RED)✗ Frontend package.json version validation failed$(NC)"; exit 1; fi; \
 	echo "$(GREEN)✓ All versions updated successfully$(NC)"; \
 	\
 	echo "$(GREEN)Syncing dependencies in parallel...$(NC)"; \
@@ -607,7 +607,7 @@ patch: ## Update version across all projects. Usage: make patch v=1.5.0
 		git status --porcelain; \
 		exit 1; \
 	fi; \
-	EXPECTED_FILES="pyproject.toml uv.lock src/backend/base/pyproject.toml src/lfx/pyproject.toml src/frontend/package.json src/frontend/package-lock.json"; \
+	EXPECTED_FILES="pyproject.toml uv.lock src/backend/base/pyproject.toml src/kfx/pyproject.toml src/frontend/package.json src/frontend/package-lock.json"; \
 	for file in $$EXPECTED_FILES; do \
 		if ! git status --porcelain | grep -q "$$file"; then \
 			echo "$(RED)✗ Expected file $$file was not modified$(NC)"; \
@@ -618,10 +618,10 @@ patch: ## Update version across all projects. Usage: make patch v=1.5.0
 	\
 	echo "$(GREEN)Version update complete!$(NC)"; \
 	echo "$(GREEN)Updated files:$(NC)"; \
-	echo "  - pyproject.toml: $$LANGFLOW_VERSION"; \
-	echo "  - src/backend/base/pyproject.toml: $$LANGFLOW_BASE_VERSION (lfx pin → $$LANGFLOW_VERSION)"; \
-	echo "  - src/lfx/pyproject.toml: $$LANGFLOW_VERSION"; \
-	echo "  - src/frontend/package.json: $$LANGFLOW_VERSION"; \
+	echo "  - pyproject.toml: $$KETOS_VERSION"; \
+	echo "  - src/backend/base/pyproject.toml: $$KETOS_BASE_VERSION (kfx pin → $$KETOS_VERSION)"; \
+	echo "  - src/kfx/pyproject.toml: $$KETOS_VERSION"; \
+	echo "  - src/frontend/package.json: $$KETOS_VERSION"; \
 	echo "  - uv.lock: dependency lock updated"; \
 	echo "  - src/frontend/package-lock.json: dependency lock updated"; \
 	echo "$(GREEN)Dependencies synced successfully!$(NC)"
@@ -653,7 +653,7 @@ locust: ## run locust load tests (options: locust_users=10 locust_spawn_rate=1 l
 	@echo "Using locustfile: $(locust_file)"
 	@export API_KEY=$(locust_api_key) && \
 	export FLOW_ID=$(locust_flow_id) && \
-	export LANGFLOW_HOST=$(locust_host) && \
+	export KETOS_HOST=$(locust_host) && \
 	export MIN_WAIT=$(locust_min_wait) && \
 	export MAX_WAIT=$(locust_max_wait) && \
 	export REQUEST_TIMEOUT=$(locust_request_timeout) && \
@@ -701,12 +701,12 @@ load_test_cliff: ## Find performance cliff with step ramp (5->50 users, 30s step
 	cd src/backend/tests/locust && \
 	if [ "$(html)" = "true" ]; then \
 		echo "$(GREEN)Generating HTML report: cliff_test.html$(NC)"; \
-		uv run locust -f lfx_step_ramp.py --host $(load_test_host) --headless --html cliff_test.html; \
+		uv run locust -f kfx_step_ramp.py --host $(load_test_host) --headless --html cliff_test.html; \
 	else \
-		uv run locust -f lfx_step_ramp.py --host $(load_test_host) --headless; \
+		uv run locust -f kfx_step_ramp.py --host $(load_test_host) --headless; \
 	fi
 
-load_test_lfx_quick: ## Quick LFX load test (30 users, 60s). Options: html=true, load_test_host, load_test_flow_id, load_test_api_key
+load_test_kfx_quick: ## Quick KFX load test (30 users, 60s). Options: html=true, load_test_host, load_test_flow_id, load_test_api_key
 	@echo "$(YELLOW)Running quick 30-user load test (60 seconds)$(NC)"
 	@export FLOW_ID=$(load_test_flow_id) && \
 	export API_KEY=$(load_test_api_key) && \
@@ -714,9 +714,9 @@ load_test_lfx_quick: ## Quick LFX load test (30 users, 60s). Options: html=true,
 	cd src/backend/tests/locust && \
 	if [ "$(html)" = "true" ]; then \
 		echo "$(GREEN)Generating HTML report: quick_test.html$(NC)"; \
-		uv run locust -f lfx_serve_locustfile.py --host $(load_test_host) --headless -u 30 -r 5 -t 60s --html quick_test.html; \
+		uv run locust -f kfx_serve_locustfile.py --host $(load_test_host) --headless -u 30 -r 5 -t 60s --html quick_test.html; \
 	else \
-		uv run locust -f lfx_serve_locustfile.py --host $(load_test_host) --headless -u 30 -r 5 -t 60s; \
+		uv run locust -f kfx_serve_locustfile.py --host $(load_test_host) --headless -u 30 -r 5 -t 60s; \
 	fi
 
 ######################
@@ -725,16 +725,16 @@ load_test_lfx_quick: ## Quick LFX load test (30 users, 60s). Options: html=true,
 
 # Enhanced load testing system with API-based flow loading
 load_test_setup: ## Set up load test environment with starter project flows
-	@echo "$(YELLOW)Setting up Langflow load test environment$(NC)"
-	@cd src/backend/tests/locust && uv run python langflow_setup_test.py --interactive
+	@echo "$(YELLOW)Setting up Ketos load test environment$(NC)"
+	@cd src/backend/tests/locust && uv run python ketos_setup_test.py --interactive
 
 load_test_setup_basic: ## Set up load test environment with Basic Prompting flow
 	@echo "$(YELLOW)Setting up load test environment with Basic Prompting flow$(NC)"
-	@cd src/backend/tests/locust && uv run python langflow_setup_test.py --flow "Basic Prompting" --save-credentials load_test_creds.json
+	@cd src/backend/tests/locust && uv run python ketos_setup_test.py --flow "Basic Prompting" --save-credentials load_test_creds.json
 
 load_test_list_flows: ## List available starter project flows
 	@echo "$(YELLOW)Listing available starter project flows$(NC)"
-	@cd src/backend/tests/locust && uv run python langflow_setup_test.py --list-flows
+	@cd src/backend/tests/locust && uv run python ketos_setup_test.py --list-flows
 
 load_test_run: ## Run load test (automatically sets up if needed). Use FLOW_NAME="Flow Name" to specify flow
 	@echo "$(YELLOW)Running load test with enhanced error logging$(NC)"
@@ -742,37 +742,37 @@ load_test_run: ## Run load test (automatically sets up if needed). Use FLOW_NAME
 		echo "$(BLUE)No credentials found. Running automatic setup...$(NC)"; \
 		if [ -z "$(FLOW_NAME)" ]; then \
 			echo "$(CYAN)Available flows:$(NC)"; \
-			cd src/backend/tests/locust && uv run python langflow_setup_test.py --list-flows; \
+			cd src/backend/tests/locust && uv run python ketos_setup_test.py --list-flows; \
 			echo "$(RED)Please specify a flow: make load_test_run FLOW_NAME=\"Basic Prompting\"$(NC)"; \
 			exit 1; \
 		else \
 			echo "$(BLUE)Setting up with flow: $(FLOW_NAME)$(NC)"; \
-			cd src/backend/tests/locust && uv run python langflow_setup_test.py --flow "$(FLOW_NAME)" --save-credentials load_test_creds.json; \
+			cd src/backend/tests/locust && uv run python ketos_setup_test.py --flow "$(FLOW_NAME)" --save-credentials load_test_creds.json; \
 		fi \
 	fi
 	@cd src/backend/tests/locust && \
 	export API_KEY=$$(python -c "import json; print(json.load(open('load_test_creds.json'))['api_key'])") && \
 	export FLOW_ID=$$(python -c "import json; print(json.load(open('load_test_creds.json'))['flow_id'])") && \
-	uv run python langflow_run_load_test.py --headless --users 20 --duration 120 --no-start-langflow --html load_test_report.html --csv load_test_results
+	uv run python ketos_run_load_test.py --headless --users 20 --duration 120 --no-start-ketos --html load_test_report.html --csv load_test_results
 
-load_test_langflow_quick: ## Quick Langflow load test (10 users, 30s) with HTML report (automatically sets up if needed). Use FLOW_NAME="Flow Name" to specify flow
-	@echo "$(YELLOW)Running quick Langflow load test with HTML report$(NC)"
+load_test_ketos_quick: ## Quick Ketos load test (10 users, 30s) with HTML report (automatically sets up if needed). Use FLOW_NAME="Flow Name" to specify flow
+	@echo "$(YELLOW)Running quick Ketos load test with HTML report$(NC)"
 	@if [ ! -f "src/backend/tests/locust/load_test_creds.json" ]; then \
 		echo "$(BLUE)No credentials found. Running automatic setup...$(NC)"; \
 		if [ -z "$(FLOW_NAME)" ]; then \
 			echo "$(CYAN)Available flows:$(NC)"; \
-			cd src/backend/tests/locust && uv run python langflow_setup_test.py --list-flows; \
-			echo "$(RED)Please specify a flow: make load_test_langflow_quick FLOW_NAME=\"Basic Prompting\"$(NC)"; \
+			cd src/backend/tests/locust && uv run python ketos_setup_test.py --list-flows; \
+			echo "$(RED)Please specify a flow: make load_test_ketos_quick FLOW_NAME=\"Basic Prompting\"$(NC)"; \
 			exit 1; \
 		else \
 			echo "$(BLUE)Setting up with flow: $(FLOW_NAME)$(NC)"; \
-			cd src/backend/tests/locust && uv run python langflow_setup_test.py --flow "$(FLOW_NAME)" --save-credentials load_test_creds.json; \
+			cd src/backend/tests/locust && uv run python ketos_setup_test.py --flow "$(FLOW_NAME)" --save-credentials load_test_creds.json; \
 		fi \
 	fi
 	@cd src/backend/tests/locust && \
 	export API_KEY=$$(python -c "import json; print(json.load(open('load_test_creds.json'))['api_key'])") && \
 	export FLOW_ID=$$(python -c "import json; print(json.load(open('load_test_creds.json'))['flow_id'])") && \
-	uv run python langflow_run_load_test.py --headless --users 10 --duration 30 --no-start-langflow --html quick_test_report.html
+	uv run python ketos_run_load_test.py --headless --users 10 --duration 30 --no-start-ketos --html quick_test_report.html
 
 load_test_stress: ## Stress test (100 users, 5 minutes) with comprehensive reporting (automatically sets up if needed). Use FLOW_NAME="Flow Name" to specify flow
 	@echo "$(YELLOW)Running stress test with comprehensive reporting$(NC)"
@@ -780,62 +780,62 @@ load_test_stress: ## Stress test (100 users, 5 minutes) with comprehensive repor
 		echo "$(BLUE)No credentials found. Running automatic setup...$(NC)"; \
 		if [ -z "$(FLOW_NAME)" ]; then \
 			echo "$(CYAN)Available flows:$(NC)"; \
-			cd src/backend/tests/locust && uv run python langflow_setup_test.py --list-flows; \
+			cd src/backend/tests/locust && uv run python ketos_setup_test.py --list-flows; \
 			echo "$(RED)Please specify a flow: make load_test_stress FLOW_NAME=\"Basic Prompting\"$(NC)"; \
 			exit 1; \
 		else \
 			echo "$(BLUE)Setting up with flow: $(FLOW_NAME)$(NC)"; \
-			cd src/backend/tests/locust && uv run python langflow_setup_test.py --flow "$(FLOW_NAME)" --save-credentials load_test_creds.json; \
+			cd src/backend/tests/locust && uv run python ketos_setup_test.py --flow "$(FLOW_NAME)" --save-credentials load_test_creds.json; \
 		fi \
 	fi
 	@cd src/backend/tests/locust && \
 	export API_KEY=$$(python -c "import json; print(json.load(open('load_test_creds.json'))['api_key'])") && \
 	export FLOW_ID=$$(python -c "import json; print(json.load(open('load_test_creds.json'))['flow_id'])") && \
-	uv run python langflow_run_load_test.py --headless --users 100 --spawn-rate 5 --duration 300 --no-start-langflow --html stress_test_report.html --csv stress_test_results --shape ramp100
+	uv run python ketos_run_load_test.py --headless --users 100 --spawn-rate 5 --duration 300 --no-start-ketos --html stress_test_report.html --csv stress_test_results --shape ramp100
 
 load_test_example: ## Run complete example workflow (setup + test + reports)
 	@echo "$(YELLOW)Running complete load test example workflow$(NC)"
-	@cd src/backend/tests/locust && uv run python langflow_example_workflow.py --auto
+	@cd src/backend/tests/locust && uv run python ketos_example_workflow.py --auto
 
 load_test_clean: ## Clean up load test files and credentials
 	@echo "$(YELLOW)Cleaning up load test files$(NC)"
 	@cd src/backend/tests/locust && rm -f *.json *.html *.csv *.log
 	@echo "$(GREEN)Load test files cleaned$(NC)"
 
-load_test_remote_setup: ## Set up load test for remote instance (requires LANGFLOW_HOST)
-	@if [ -z "$(LANGFLOW_HOST)" ]; then \
-		echo "$(RED)Error: LANGFLOW_HOST environment variable required$(NC)"; \
-		echo "$(YELLOW)Example: export LANGFLOW_HOST=https://your-remote-instance.com$(NC)"; \
+load_test_remote_setup: ## Set up load test for remote instance (requires KETOS_HOST)
+	@if [ -z "$(KETOS_HOST)" ]; then \
+		echo "$(RED)Error: KETOS_HOST environment variable required$(NC)"; \
+		echo "$(YELLOW)Example: export KETOS_HOST=https://your-remote-instance.com$(NC)"; \
 		exit 1; \
 	fi
-	@echo "$(YELLOW)Setting up load test for remote instance: $(LANGFLOW_HOST)$(NC)"
-	@cd src/backend/tests/locust && uv run python langflow_setup_test.py --host $(LANGFLOW_HOST) --flow "Basic Prompting" --save-credentials remote_test_creds.json
+	@echo "$(YELLOW)Setting up load test for remote instance: $(KETOS_HOST)$(NC)"
+	@cd src/backend/tests/locust && uv run python ketos_setup_test.py --host $(KETOS_HOST) --flow "Basic Prompting" --save-credentials remote_test_creds.json
 
 load_test_remote_run: ## Run load test against remote instance (requires prior setup)
-	@if [ -z "$(LANGFLOW_HOST)" ]; then \
-		echo "$(RED)Error: LANGFLOW_HOST environment variable required$(NC)"; \
+	@if [ -z "$(KETOS_HOST)" ]; then \
+		echo "$(RED)Error: KETOS_HOST environment variable required$(NC)"; \
 		exit 1; \
 	fi
 	@if [ ! -f "src/backend/tests/locust/remote_test_creds.json" ]; then \
 		echo "$(RED)Error: No remote credentials found. Run 'make load_test_remote_setup' first$(NC)"; \
 		exit 1; \
 	fi
-	@echo "$(YELLOW)Running load test against remote instance: $(LANGFLOW_HOST)$(NC)"
+	@echo "$(YELLOW)Running load test against remote instance: $(KETOS_HOST)$(NC)"
 	@cd src/backend/tests/locust && \
 	export API_KEY=$$(python -c "import json; print(json.load(open('remote_test_creds.json'))['api_key'])") && \
 	export FLOW_ID=$$(python -c "import json; print(json.load(open('remote_test_creds.json'))['flow_id'])") && \
-	uv run python langflow_run_load_test.py --host $(LANGFLOW_HOST) --no-start-langflow --headless --users 10 --spawn-rate 1 --duration 120 --html remote_test_report.html
+	uv run python ketos_run_load_test.py --host $(KETOS_HOST) --no-start-ketos --headless --users 10 --spawn-rate 1 --duration 120 --html remote_test_report.html
 
 load_test_help: ## Show detailed load testing help
-	@echo "$(GREEN)Langflow Enhanced Load Testing System$(NC)"
+	@echo "$(GREEN)Ketos Enhanced Load Testing System$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Quick Start (Local):$(NC)"
 	@echo "  1. make load_test_setup_basic    # Set up with Basic Prompting flow"
-	@echo "  2. make load_test_langflow_quick # Run quick Langflow test"
+	@echo "  2. make load_test_ketos_quick # Run quick Ketos test"
 	@echo "  3. Open quick_test_report.html  # View results"
 	@echo ""
 	@echo "$(YELLOW)Remote Testing:$(NC)"
-	@echo "  1. export LANGFLOW_HOST=https://your-instance.com"
+	@echo "  1. export KETOS_HOST=https://your-instance.com"
 	@echo "  2. make load_test_remote_setup   # Set up for remote testing"
 	@echo "  3. make load_test_remote_run     # Run test against remote instance"
 	@echo ""
@@ -844,7 +844,7 @@ load_test_help: ## Show detailed load testing help
 	@echo "  load_test_setup_basic  - Quick setup with Basic Prompting"
 	@echo "  load_test_list_flows   - List available starter flows"
 	@echo "  load_test_run          - Standard load test (25 users, 2 min)"
-	@echo "  load_test_langflow_quick - Quick Langflow test (10 users, 30s)"
+	@echo "  load_test_ketos_quick - Quick Ketos test (10 users, 30s)"
 	@echo "  load_test_quick        - Quick complex serve test (30 users, 60s)"
 	@echo "  load_test_stress       - Stress test (100 users, 5 min)"
 	@echo "  load_test_example      - Complete example workflow"
@@ -874,7 +874,7 @@ help_backend: ## show backend-specific commands
 	@echo ''
 	@echo "$(GREEN)Development:$(NC)"
 	@echo "  $(GREEN)make backend$(NC)             - Run backend in development mode"
-	@echo "  $(GREEN)make run_cli$(NC)             - Run Langflow CLI"
+	@echo "  $(GREEN)make run_cli$(NC)             - Run Ketos CLI"
 	@echo "  $(GREEN)make run_clic$(NC)            - Run CLI with fresh frontend build"
 	@echo "  $(GREEN)make run_cli_debug$(NC)       - Run CLI in debug mode"
 	@echo "  $(GREEN)make setup_devcontainer$(NC)  - Set up development container"
@@ -901,22 +901,22 @@ help_backend: ## show backend-specific commands
 	@echo "  $(GREEN)make build$(NC)               - Build the project"
 	@echo "  $(GREEN)make build_and_run$(NC)       - Build and run the project"
 	@echo "  $(GREEN)make build_and_install$(NC)   - Build and install the project"
-	@echo "  $(GREEN)make build_langflow_base$(NC) - Build langflow-base package"
-	@echo "  $(GREEN)make build_langflow$(NC)      - Build langflow package"
+	@echo "  $(GREEN)make build_ketos_base$(NC) - Build ketos-base package"
+	@echo "  $(GREEN)make build_ketos$(NC)      - Build ketos package"
 	@echo "  $(GREEN)make lock$(NC)                - Lock dependencies"
 	@echo "  $(GREEN)make update$(NC)              - Update dependencies"
 	@echo "  $(GREEN)make publish$(NC)             - Publish to PyPI"
 	@echo ''
-	@echo "$(GREEN)LFX Package Commands:$(NC)"
-	@echo "  $(GREEN)make lfx_build$(NC)           - Build LFX package"
-	@echo "  $(GREEN)make lfx_tests$(NC)           - Run LFX tests"
-	@echo "  $(GREEN)make lfx_format$(NC)          - Format LFX code"
-	@echo "  $(GREEN)make lfx_lint$(NC)            - Lint LFX code"
-	@echo "  $(GREEN)make lfx_clean$(NC)           - Clean LFX build artifacts"
-	@echo "  $(GREEN)make lfx_publish$(NC)         - Publish LFX to PyPI"
-	@echo "  $(GREEN)make lfx_docker_build$(NC)    - Build LFX Docker image"
-	@echo "  $(GREEN)make lfx_docker_dev$(NC)      - Start LFX development environment"
-	@echo "  $(GREEN)make lfx_docker_test$(NC)     - Run LFX tests in Docker"
+	@echo "$(GREEN)KFX Package Commands:$(NC)"
+	@echo "  $(GREEN)make kfx_build$(NC)           - Build KFX package"
+	@echo "  $(GREEN)make kfx_tests$(NC)           - Run KFX tests"
+	@echo "  $(GREEN)make kfx_format$(NC)          - Format KFX code"
+	@echo "  $(GREEN)make kfx_lint$(NC)            - Lint KFX code"
+	@echo "  $(GREEN)make kfx_clean$(NC)           - Clean KFX build artifacts"
+	@echo "  $(GREEN)make kfx_publish$(NC)         - Publish KFX to PyPI"
+	@echo "  $(GREEN)make kfx_docker_build$(NC)    - Build KFX Docker image"
+	@echo "  $(GREEN)make kfx_docker_dev$(NC)      - Start KFX development environment"
+	@echo "  $(GREEN)make kfx_docker_test$(NC)     - Run KFX tests in Docker"
 	@echo ''
 	@echo "$(GREEN)SDK Package Commands:$(NC)"
 	@echo "  $(GREEN)make sdk_build$(NC)           - Build SDK package"
@@ -938,7 +938,7 @@ help_test: ## show testing commands
 	@echo "$(GREEN)Backend Unit Tests:$(NC)"
 	@echo "  $(GREEN)make unit_tests$(NC)          - Run backend unit tests"
 	@echo "  $(GREEN)make unit_tests_looponfail$(NC) - Run unit tests with loop on fail"
-	@echo "  $(GREEN)make lfx_tests$(NC)           - Run LFX package tests"
+	@echo "  $(GREEN)make kfx_tests$(NC)           - Run KFX package tests"
 	@echo ''
 	@echo "$(GREEN)Backend Integration Tests:$(NC)"
 	@echo "  $(GREEN)make integration_tests$(NC)   - Run all integration tests"
@@ -997,10 +997,10 @@ help_docker: ## show docker commands
 	@echo "  $(GREEN)make docker_compose_down$(NC) - Stop docker compose"
 	@echo "  $(GREEN)make dcdev_up$(NC)            - Start development docker compose"
 	@echo ''
-	@echo "$(GREEN)LFX Docker:$(NC)"
-	@echo "  $(GREEN)make lfx_docker_build$(NC)    - Build LFX production Docker image"
-	@echo "  $(GREEN)make lfx_docker_dev$(NC)      - Start LFX development environment"
-	@echo "  $(GREEN)make lfx_docker_test$(NC)     - Run LFX tests in Docker"
+	@echo "$(GREEN)KFX Docker:$(NC)"
+	@echo "  $(GREEN)make kfx_docker_build$(NC)    - Build KFX production Docker image"
+	@echo "  $(GREEN)make kfx_docker_dev$(NC)      - Start KFX development environment"
+	@echo "  $(GREEN)make kfx_docker_test$(NC)     - Run KFX tests in Docker"
 	@echo ''
 	@echo "$(GREEN)Note:$(NC) By default, these commands use $(GREEN)podman$(NC)."
 	@echo "      To use Docker instead: $(GREEN)make docker_build DOCKER=docker$(NC)"
@@ -1023,22 +1023,22 @@ help_advanced: ## show advanced and miscellaneous commands
 	@echo "$(GREEN)Version Management:$(NC)"
 	@echo "  $(GREEN)make patch v=X.Y.Z$(NC)       - Update version across all projects"
 	@echo "    Example: make patch v=1.5.0"
-	@echo "    This updates: pyproject.toml, langflow-base, frontend package.json"
+	@echo "    This updates: pyproject.toml, ketos-base, frontend package.json"
 	@echo ''
 	@echo "$(GREEN)Publishing:$(NC)"
 	@echo "  $(GREEN)make publish$(NC)             - Publish to PyPI (use: make publish base=1 or main=1)"
 	@echo "  $(GREEN)make publish_testpypi$(NC)    - Publish to test PyPI"
-	@echo "  $(GREEN)make publish_base$(NC)        - Publish langflow-base to PyPI"
-	@echo "  $(GREEN)make publish_langflow$(NC)    - Publish langflow to PyPI"
-	@echo "  $(GREEN)make lfx_publish$(NC)         - Publish LFX package to PyPI"
-	@echo "  $(GREEN)make lfx_publish_testpypi$(NC) - Publish LFX to test PyPI"
+	@echo "  $(GREEN)make publish_base$(NC)        - Publish ketos-base to PyPI"
+	@echo "  $(GREEN)make publish_ketos$(NC)    - Publish ketos to PyPI"
+	@echo "  $(GREEN)make kfx_publish$(NC)         - Publish KFX package to PyPI"
+	@echo "  $(GREEN)make kfx_publish_testpypi$(NC) - Publish KFX to test PyPI"
 	@echo "  $(GREEN)make sdk_publish$(NC)         - Publish SDK package to PyPI"
 	@echo "  $(GREEN)make sdk_publish_testpypi$(NC) - Publish SDK to test PyPI"
 	@echo ''
 	@echo "$(GREEN)Lock Files:$(NC)"
 	@echo "  $(GREEN)make lock$(NC)                - Lock all dependencies"
-	@echo "  $(GREEN)make lock_base$(NC)           - Lock langflow-base dependencies"
-	@echo "  $(GREEN)make lock_langflow$(NC)       - Lock langflow dependencies"
+	@echo "  $(GREEN)make lock_base$(NC)           - Lock ketos-base dependencies"
+	@echo "  $(GREEN)make lock_ketos$(NC)       - Lock ketos dependencies"
 	@echo ''
 	@echo "$(GREEN)Utilities:$(NC)"
 	@echo "  $(GREEN)make check_tools$(NC)         - Verify required tools are installed"
@@ -1085,11 +1085,11 @@ docs_serve: docs_build ## build and serve documentation locally
 # Note: $(or $(suites),a,b,c) is wrong here — GNU make's `or` returns only the first non-empty token.
 suites ?= curl,python,javascript
 
-api_examples_local: ## run docs API sample files against a local Langflow server
+api_examples_local: ## run the current nine-page manual API smoke against a local Ketos server
 	@echo "$(GREEN)Running docs API examples locally...$(NC)"
 	@SUITES="$(suites)" EXECUTE_MODE=true ./scripts/test-api-examples-local.sh
 
-api_examples_local_syntax: ## syntax-check docs API sample files locally without execution
+api_examples_local_syntax: ## syntax-check the current nine-page manual API examples without network access
 	@echo "$(GREEN)Running docs API example syntax checks locally...$(NC)"
 	@SUITES="$(suites)" EXECUTE_MODE=false ./scripts/test-api-examples-local.sh
 

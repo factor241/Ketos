@@ -8,7 +8,7 @@ import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
-from lfx.base.knowledge_bases.backends import (
+from kfx.base.knowledge_bases.backends import (
     BackendType,
     BaseVectorStoreBackend,
     ChromaBackend,
@@ -17,7 +17,7 @@ from lfx.base.knowledge_bases.backends import (
     register_backend,
     registered_backends,
 )
-from lfx.base.knowledge_bases.backends.registry import _resolve_backend_type
+from kfx.base.knowledge_bases.backends.registry import _resolve_backend_type
 
 
 class _DummyBackend(BaseVectorStoreBackend):

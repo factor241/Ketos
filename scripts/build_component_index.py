@@ -1,7 +1,7 @@
 """Build a static component index for fast startup.
 
 This script generates a prebuilt index of all built-in components by walking
-through the lfx.components package and processing each module. The index is
+through the kfx.components package and processing each module. The index is
 saved as a JSON file that can be loaded instantly at runtime, avoiding the
 need to import all component modules during startup.
 """
@@ -13,15 +13,15 @@ from pathlib import Path
 import orjson
 
 
-def _get_lfx_version():
-    """Get the installed lfx version.
+def _get_kfx_version():
+    """Get the installed kfx version.
 
-    Components are located in LFX, so use LFX.
+    Components are located in KFX, so use KFX.
     """
     from importlib.metadata import version
 
-    version = version("lfx")
-    print(f"Retrieved LFX version: {version}")
+    version = version("kfx")
+    print(f"Retrieved KFX version: {version}")
     return version
 
 
@@ -66,7 +66,7 @@ def _strip_dynamic_fields(obj):
 
 
 def _import_components() -> tuple[dict, int]:
-    """Import all lfx components using the async import function.
+    """Import all KFX components using the async import function.
 
     Returns:
         Tuple of (modules_dict, components_count)
@@ -76,11 +76,11 @@ def _import_components() -> tuple[dict, int]:
     """
     import asyncio
 
-    from lfx.interface.components import import_langflow_components
+    from kfx.interface.components import import_ketos_components
 
     try:
         # Run the async function
-        components_result = asyncio.run(import_langflow_components())
+        components_result = asyncio.run(import_ketos_components())
         modules_dict = components_result.get("components", {})
         components_count = sum(len(v) for v in modules_dict.values())
         print(f"Discovered {components_count} components across {len(modules_dict)} categories")
@@ -92,7 +92,7 @@ def _import_components() -> tuple[dict, int]:
 
 
 def build_component_index() -> dict:
-    """Build the component index by scanning all modules in lfx.components.
+    """Build the component index by scanning all modules in kfx.components.
 
     Returns:
         A dictionary containing version, entries, and sha256 hash
@@ -104,7 +104,7 @@ def build_component_index() -> dict:
     print("Building component index...")
 
     modules_dict, components_count = _import_components()
-    current_version = _get_lfx_version()
+    current_version = _get_kfx_version()
 
     # Convert modules_dict to entries format and sort for determinism
     # Sort by category name (top_level) to ensure consistent ordering
@@ -158,28 +158,28 @@ def build_component_index() -> dict:
 
 
 # Standard location for component index
-COMPONENT_INDEX_PATH = Path(__file__).parent.parent / "src" / "lfx" / "src" / "lfx" / "_assets" / "component_index.json"
+COMPONENT_INDEX_PATH = Path(__file__).parent.parent / "src" / "kfx" / "src" / "kfx" / "_assets" / "component_index.json"
+
+
+def write_component_index(output_path: Path = COMPONENT_INDEX_PATH) -> dict:
+    """Build and write the component index to an explicit output path."""
+    index = build_component_index()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    json_bytes = orjson.dumps(index, option=orjson.OPT_SORT_KEYS | orjson.OPT_INDENT_2)
+    output_path.write_text(json_bytes.decode("utf-8") + "\n", encoding="utf-8")
+    return index
 
 
 def main():
     """Main entry point for building the component index."""
     try:
         # Build the index - will raise on any error
-        index = build_component_index()
+        index = write_component_index(COMPONENT_INDEX_PATH)
     except Exception as e:  # noqa: BLE001
         print(f"Failed to build component index: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # Use the standard component index path (defined at module level)
-    output_path = COMPONENT_INDEX_PATH
-
-    # Create directory if it doesn't exist
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Pretty-print for readable git diffs and resolvable merge conflicts
-    print(f"\nWriting formatted index to {output_path}")
-    json_bytes = orjson.dumps(index, option=orjson.OPT_SORT_KEYS | orjson.OPT_INDENT_2)
-    output_path.write_text(json_bytes.decode("utf-8") + "\n", encoding="utf-8")
+    print(f"\nWriting formatted index to {COMPONENT_INDEX_PATH}")
 
     print("\nIndex successfully written!")
     print(f"  Version: {index['version']}")

@@ -14,17 +14,18 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi import HTTPException
-from langflow.api.v1.mappers.deployments.base import BaseDeploymentMapper
-from langflow.api.v1.mappers.deployments.contracts import (
+from ketos.api.error_codes import CodedHTTPException
+from ketos.api.v1.mappers.deployments.base import BaseDeploymentMapper
+from ketos.api.v1.mappers.deployments.contracts import (
     CreateSnapshotBinding,
     CreateSnapshotBindings,
     UpdateSnapshotBinding,
     UpdateSnapshotBindings,
 )
-from langflow.api.v1.mappers.deployments.watsonx_orchestrate import WatsonxOrchestrateDeploymentMapper
-from langflow.api.v1.schemas.deployments import DeploymentUpdateRequest
-from lfx.services.adapters.deployment.exceptions import ServiceUnavailableError
-from lfx.services.adapters.deployment.schema import (
+from ketos.api.v1.mappers.deployments.watsonx_orchestrate import WatsonxOrchestrateDeploymentMapper
+from ketos.api.v1.schemas.deployments import DeploymentUpdateRequest
+from kfx.services.adapters.deployment.exceptions import ServiceUnavailableError
+from kfx.services.adapters.deployment.schema import (
     DeploymentCreateResult,
     DeploymentGetResult,
     DeploymentType,
@@ -33,8 +34,8 @@ from lfx.services.adapters.deployment.schema import (
     SnapshotListResult,
 )
 
-MODULE = "langflow.api.v1.mappers.deployments.helpers"
-SYNC_MODULE = "langflow.api.v1.mappers.deployments.sync"
+MODULE = "ketos.api.v1.mappers.deployments.helpers"
+SYNC_MODULE = "ketos.api.v1.mappers.deployments.sync"
 
 
 # ---------------------------------------------------------------------------
@@ -121,7 +122,7 @@ def _mock_async_db() -> MagicMock:
 @pytest.mark.asyncio
 @patch(f"{MODULE}.update_deployment_metadata", new_callable=AsyncMock)
 async def test_sync_deployment_display_metadata_passes_provider_metadata(mock_update_metadata):
-    from langflow.api.v1.mappers.deployments.helpers import sync_deployment_display_metadata
+    from ketos.api.v1.mappers.deployments.helpers import sync_deployment_display_metadata
 
     deployment = _mock_deployment_row("rk-1")
     long_description = "x" * 501
@@ -160,7 +161,7 @@ class TestFetchProviderResourceKeys:
             ]
         )
 
-        from langflow.api.v1.mappers.deployments.helpers import fetch_provider_resource_keys
+        from ketos.api.v1.mappers.deployments.helpers import fetch_provider_resource_keys
 
         known_keys, provider_view = await fetch_provider_resource_keys(
             deployment_adapter=adapter,
@@ -184,7 +185,7 @@ class TestFetchProviderResourceKeys:
             ]
         )
 
-        from langflow.api.v1.mappers.deployments.helpers import fetch_provider_resource_keys
+        from ketos.api.v1.mappers.deployments.helpers import fetch_provider_resource_keys
 
         known_keys, provider_view = await fetch_provider_resource_keys(
             deployment_adapter=adapter,
@@ -209,7 +210,7 @@ class TestFetchProviderResourceKeys:
             ]
         )
 
-        from langflow.api.v1.mappers.deployments.helpers import fetch_provider_resource_keys
+        from ketos.api.v1.mappers.deployments.helpers import fetch_provider_resource_keys
 
         with pytest.raises(ValueError, match="empty id"):
             await fetch_provider_resource_keys(
@@ -225,7 +226,7 @@ class TestFetchProviderResourceKeys:
         adapter = AsyncMock()
         adapter.list.return_value = _mock_provider_view([])
 
-        from langflow.api.v1.mappers.deployments.helpers import fetch_provider_resource_keys
+        from ketos.api.v1.mappers.deployments.helpers import fetch_provider_resource_keys
 
         known_keys, provider_view = await fetch_provider_resource_keys(
             deployment_adapter=adapter,
@@ -243,9 +244,9 @@ class TestFetchProviderResourceKeys:
         adapter = AsyncMock()
         adapter.list.side_effect = RuntimeError("provider down")
 
-        from langflow.api.v1.mappers.deployments.helpers import fetch_provider_resource_keys
+        from ketos.api.v1.mappers.deployments.helpers import fetch_provider_resource_keys
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(CodedHTTPException) as exc_info:
             await fetch_provider_resource_keys(
                 deployment_adapter=adapter,
                 user_id=uuid4(),
@@ -255,15 +256,18 @@ class TestFetchProviderResourceKeys:
             )
 
         assert exc_info.value.status_code == 500
+        assert exc_info.value.payload.code == "server.internal_error"
+        assert exc_info.value.detail == "Internal server error."
+        assert exc_info.value.technical_detail == "provider down"
 
     @pytest.mark.asyncio
     async def test_provider_deployment_service_error_uses_mapped_http_status(self):
         adapter = AsyncMock()
         adapter.list.side_effect = ServiceUnavailableError("provider down")
 
-        from langflow.api.v1.mappers.deployments.helpers import fetch_provider_resource_keys
+        from ketos.api.v1.mappers.deployments.helpers import fetch_provider_resource_keys
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(CodedHTTPException) as exc_info:
             await fetch_provider_resource_keys(
                 deployment_adapter=adapter,
                 user_id=uuid4(),
@@ -273,14 +277,16 @@ class TestFetchProviderResourceKeys:
             )
 
         assert exc_info.value.status_code == 503
-        assert exc_info.value.detail == "provider down"
+        assert exc_info.value.payload.code == "deployments.update_failed"
+        assert exc_info.value.detail == "Deployment could not be updated."
+        assert exc_info.value.technical_detail == "provider down"
 
     @pytest.mark.asyncio
     async def test_passes_resource_keys_as_deployment_ids(self):
         adapter = AsyncMock()
         adapter.list.return_value = _mock_provider_view([])
 
-        from langflow.api.v1.mappers.deployments.helpers import fetch_provider_resource_keys
+        from ketos.api.v1.mappers.deployments.helpers import fetch_provider_resource_keys
 
         keys = ["rk-1", "rk-2", "rk-3"]
         await fetch_provider_resource_keys(
@@ -301,7 +307,7 @@ class TestFetchProviderResourceKeys:
     async def test_empty_resource_keys_returns_empty_set(self):
         adapter = AsyncMock()
 
-        from langflow.api.v1.mappers.deployments.helpers import fetch_provider_resource_keys
+        from ketos.api.v1.mappers.deployments.helpers import fetch_provider_resource_keys
 
         known_keys, provider_view = await fetch_provider_resource_keys(
             deployment_adapter=adapter,
@@ -321,7 +327,7 @@ class TestFetchProviderResourceKeys:
         adapter = AsyncMock()
         adapter.list.return_value = _mock_provider_view([])
 
-        from langflow.api.v1.mappers.deployments.helpers import DeploymentType, fetch_provider_resource_keys
+        from ketos.api.v1.mappers.deployments.helpers import DeploymentType, fetch_provider_resource_keys
 
         await fetch_provider_resource_keys(
             deployment_adapter=adapter,
@@ -369,7 +375,7 @@ class TestListDeploymentsSynced:
         mock_count_attachments.return_value = {row1.id: 0, row2.id: 1}
         db = _mock_async_db()
 
-        from langflow.api.v1.mappers.deployments.helpers import list_deployments_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployments_synced
 
         accepted, total, provider_data_by_resource_key = await list_deployments_synced(
             deployment_adapter=AsyncMock(),
@@ -423,7 +429,7 @@ class TestListDeploymentsSynced:
         )  # only rk-good is known
         mock_count_attachments.return_value = {good_row.id: 1}
 
-        from langflow.api.v1.mappers.deployments.helpers import list_deployments_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployments_synced
 
         accepted, _, provider_data_by_resource_key = await list_deployments_synced(
             deployment_adapter=AsyncMock(),
@@ -490,7 +496,7 @@ class TestListDeploymentsSynced:
         mock_count_attachments.return_value = {row1.id: 0, row2.id: 0}
         db = _mock_async_db()
 
-        from langflow.api.v1.mappers.deployments.helpers import list_deployments_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployments_synced
 
         accepted, total, provider_data_by_resource_key = await list_deployments_synced(
             deployment_adapter=AsyncMock(),
@@ -548,7 +554,7 @@ class TestListDeploymentsSynced:
         mock_count_attachments.return_value = {row.id: 0}
         db = _mock_async_db()
 
-        from langflow.api.v1.mappers.deployments.helpers import list_deployments_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployments_synced
 
         accepted, total, _ = await list_deployments_synced(
             deployment_adapter=AsyncMock(),
@@ -578,7 +584,7 @@ class TestListDeploymentsSynced:
         """An empty batch from the DB ends the loop."""
         mock_list.return_value = []
 
-        from langflow.api.v1.mappers.deployments.helpers import list_deployments_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployments_synced
 
         accepted, total, provider_data_by_resource_key = await list_deployments_synced(
             deployment_adapter=AsyncMock(),
@@ -629,7 +635,7 @@ class TestListDeploymentsSynced:
         mock_count_attachments.return_value = {row_match.id: 0}
         db = _mock_async_db()
 
-        from langflow.api.v1.mappers.deployments.helpers import DeploymentType, list_deployments_synced
+        from ketos.api.v1.mappers.deployments.helpers import DeploymentType, list_deployments_synced
 
         accepted, _, _ = await list_deployments_synced(
             deployment_adapter=AsyncMock(),
@@ -683,7 +689,7 @@ class TestListDeploymentsSynced:
         mock_count_attachments.return_value = {good.id: 0}
         db = _mock_async_db()
 
-        from langflow.api.v1.mappers.deployments.helpers import list_deployments_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployments_synced
 
         accepted, _, _ = await list_deployments_synced(
             deployment_adapter=AsyncMock(),
@@ -713,7 +719,7 @@ class TestListDeploymentsSynced:
         """Page 2 with size 5 should start at offset 5."""
         mock_list.return_value = []
 
-        from langflow.api.v1.mappers.deployments.helpers import list_deployments_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployments_synced
 
         await list_deployments_synced(
             deployment_adapter=AsyncMock(),
@@ -742,7 +748,7 @@ class TestListDeploymentsSynced:
         mock_list.return_value = [(stale, 0, [])]
         mock_fetch.return_value = (set(), None)  # never known
 
-        from langflow.api.v1.mappers.deployments.helpers import list_deployments_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployments_synced
 
         accepted, _, _ = await list_deployments_synced(
             deployment_adapter=AsyncMock(),
@@ -769,7 +775,7 @@ class TestListDeploymentsSynced:
         mock_list.return_value = []
         fv_ids = [uuid4(), uuid4()]
 
-        from langflow.api.v1.mappers.deployments.helpers import list_deployments_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployments_synced
 
         await list_deployments_synced(
             deployment_adapter=AsyncMock(),
@@ -796,7 +802,7 @@ class TestListDeploymentsSynced:
         mock_list.return_value = []
         project_id = uuid4()
 
-        from langflow.api.v1.mappers.deployments.helpers import list_deployments_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployments_synced
 
         await list_deployments_synced(
             deployment_adapter=AsyncMock(),
@@ -863,7 +869,7 @@ class _FakeMapper(BaseDeploymentMapper):
 
 class TestCreateSnapshotMapping:
     def test_resolve_snapshot_map_for_create_maps_source_ref_to_flow_version_ids(self):
-        from langflow.api.v1.mappers.deployments.helpers import resolve_snapshot_map_for_create
+        from ketos.api.v1.mappers.deployments.helpers import resolve_snapshot_map_for_create
 
         flow_version_ids = [uuid4(), uuid4()]
         resolved = resolve_snapshot_map_for_create(
@@ -887,7 +893,7 @@ class TestCreateSnapshotMapping:
         }
 
     def test_resolve_snapshot_map_for_create_rejects_missing_bindings(self):
-        from langflow.api.v1.mappers.deployments.helpers import resolve_snapshot_map_for_create
+        from ketos.api.v1.mappers.deployments.helpers import resolve_snapshot_map_for_create
 
         with pytest.raises(HTTPException, match="missing required snapshot bindings"):
             resolve_snapshot_map_for_create(
@@ -899,7 +905,7 @@ class TestCreateSnapshotMapping:
 
 class TestUpdateSnapshotMapping:
     def test_resolve_added_snapshot_bindings_for_update_maps_source_ref(self):
-        from langflow.api.v1.mappers.deployments.helpers import resolve_added_snapshot_bindings_for_update
+        from ketos.api.v1.mappers.deployments.helpers import resolve_added_snapshot_bindings_for_update
 
         flow_version_ids = [uuid4(), uuid4()]
         resolved = resolve_added_snapshot_bindings_for_update(
@@ -923,7 +929,7 @@ class TestUpdateSnapshotMapping:
         ]
 
     def test_resolve_added_snapshot_bindings_for_update_rejects_unexpected_source_ref(self):
-        from langflow.api.v1.mappers.deployments.helpers import resolve_added_snapshot_bindings_for_update
+        from ketos.api.v1.mappers.deployments.helpers import resolve_added_snapshot_bindings_for_update
 
         with pytest.raises(HTTPException, match="Unexpected source_ref in update snapshot bindings"):
             resolve_added_snapshot_bindings_for_update(
@@ -941,7 +947,7 @@ class TestUpdateSnapshotMapping:
             )
 
     def test_resolve_added_snapshot_bindings_for_update_rejects_missing_expected_source_ref(self):
-        from langflow.api.v1.mappers.deployments.helpers import resolve_added_snapshot_bindings_for_update
+        from ketos.api.v1.mappers.deployments.helpers import resolve_added_snapshot_bindings_for_update
 
         with pytest.raises(HTTPException, match="Missing snapshot bindings for added flow versions"):
             resolve_added_snapshot_bindings_for_update(
@@ -957,7 +963,7 @@ class TestUpdateSnapshotMapping:
             )
 
     def test_resolve_snapshot_map_for_create_rejects_unexpected_source_ref(self):
-        from langflow.api.v1.mappers.deployments.helpers import resolve_snapshot_map_for_create
+        from ketos.api.v1.mappers.deployments.helpers import resolve_snapshot_map_for_create
 
         with pytest.raises(HTTPException, match="Unexpected source_ref"):
             resolve_snapshot_map_for_create(
@@ -1188,7 +1194,7 @@ def test_base_mapper_extract_snapshot_bindings_raises_not_implemented():
 
 
 def test_resolve_flow_version_patch_for_update_watsonx_operations():
-    from langflow.api.v1.mappers.deployments.helpers import resolve_flow_version_patch_for_update
+    from ketos.api.v1.mappers.deployments.helpers import resolve_flow_version_patch_for_update
 
     add_id = uuid4()
     unbind_only_id = uuid4()
@@ -1237,7 +1243,7 @@ class _FakeCountDb:
 
 @pytest.mark.asyncio
 async def test_validate_project_scoped_flow_version_ids_accepts_all_ids():
-    from langflow.api.v1.mappers.deployments.helpers import validate_project_scoped_flow_version_ids
+    from ketos.api.v1.mappers.deployments.helpers import validate_project_scoped_flow_version_ids
 
     flow_version_id = uuid4()
     await validate_project_scoped_flow_version_ids(
@@ -1250,7 +1256,7 @@ async def test_validate_project_scoped_flow_version_ids_accepts_all_ids():
 
 @pytest.mark.asyncio
 async def test_validate_project_scoped_flow_version_ids_rejects_out_of_project_ids():
-    from langflow.api.v1.mappers.deployments.helpers import validate_project_scoped_flow_version_ids
+    from ketos.api.v1.mappers.deployments.helpers import validate_project_scoped_flow_version_ids
 
     with pytest.raises(HTTPException, match="selected project"):
         await validate_project_scoped_flow_version_ids(
@@ -1282,7 +1288,7 @@ class TestFetchProviderSnapshotKeys:
             [_mock_snapshot_item(item_id="snap-1"), _mock_snapshot_item(item_id="snap-2")]
         )
 
-        from langflow.api.v1.mappers.deployments.sync import fetch_provider_snapshot_keys
+        from ketos.api.v1.mappers.deployments.sync import fetch_provider_snapshot_keys
 
         result = await fetch_provider_snapshot_keys(
             deployment_adapter=adapter,
@@ -1298,7 +1304,7 @@ class TestFetchProviderSnapshotKeys:
     async def test_empty_snapshot_ids_returns_empty_set(self):
         adapter = AsyncMock()
 
-        from langflow.api.v1.mappers.deployments.sync import fetch_provider_snapshot_keys
+        from ketos.api.v1.mappers.deployments.sync import fetch_provider_snapshot_keys
 
         result = await fetch_provider_snapshot_keys(
             deployment_adapter=adapter,
@@ -1316,9 +1322,9 @@ class TestFetchProviderSnapshotKeys:
         adapter = AsyncMock()
         adapter.list_snapshots.side_effect = RuntimeError("provider down")
 
-        from langflow.api.v1.mappers.deployments.sync import fetch_provider_snapshot_keys
+        from ketos.api.v1.mappers.deployments.sync import fetch_provider_snapshot_keys
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(CodedHTTPException) as exc_info:
             await fetch_provider_snapshot_keys(
                 deployment_adapter=adapter,
                 user_id=uuid4(),
@@ -1328,13 +1334,16 @@ class TestFetchProviderSnapshotKeys:
             )
 
         assert exc_info.value.status_code == 500
+        assert exc_info.value.payload.code == "server.internal_error"
+        assert exc_info.value.detail == "Internal server error."
+        assert exc_info.value.technical_detail == "provider down"
 
     @pytest.mark.asyncio
     async def test_falsy_snapshot_id_from_provider_raises_value_error(self):
         adapter = AsyncMock()
         adapter.list_snapshots.return_value = _mock_snapshot_view([_mock_snapshot_item(item_id="")])
 
-        from langflow.api.v1.mappers.deployments.sync import fetch_provider_snapshot_keys
+        from ketos.api.v1.mappers.deployments.sync import fetch_provider_snapshot_keys
 
         with pytest.raises(ValueError, match="snapshot with an empty id"):
             await fetch_provider_snapshot_keys(
@@ -1375,7 +1384,7 @@ class TestSyncAttachmentSnapshotIds:
             _mock_attachment(flow_version_id=fv_stale_b, provider_snapshot_id="snap-stale", deployment_id=dep_id),
         ]
 
-        from langflow.api.v1.mappers.deployments.sync import sync_attachment_snapshot_ids
+        from ketos.api.v1.mappers.deployments.sync import sync_attachment_snapshot_ids
 
         counts = await sync_attachment_snapshot_ids(
             user_id=uid,
@@ -1405,7 +1414,7 @@ class TestSyncAttachmentSnapshotIds:
             _mock_attachment(provider_snapshot_id="", deployment_id=dep_id),
         ]
 
-        from langflow.api.v1.mappers.deployments.sync import sync_attachment_snapshot_ids
+        from ketos.api.v1.mappers.deployments.sync import sync_attachment_snapshot_ids
 
         with pytest.raises(ValueError, match="provider_snapshot_id must be non-empty"):
             await sync_attachment_snapshot_ids(
@@ -1427,7 +1436,7 @@ class TestSyncAttachmentSnapshotIds:
             _mock_attachment(provider_snapshot_id="   ", deployment_id=dep_id),
         ]
 
-        from langflow.api.v1.mappers.deployments.sync import sync_attachment_snapshot_ids
+        from ketos.api.v1.mappers.deployments.sync import sync_attachment_snapshot_ids
 
         with pytest.raises(ValueError, match="provider_snapshot_id must be non-empty"):
             await sync_attachment_snapshot_ids(
@@ -1447,7 +1456,7 @@ class TestSyncAttachmentSnapshotIds:
             _mock_attachment(provider_snapshot_id="snap-2", deployment_id=dep_id),
         ]
 
-        from langflow.api.v1.mappers.deployments.sync import sync_attachment_snapshot_ids
+        from ketos.api.v1.mappers.deployments.sync import sync_attachment_snapshot_ids
 
         counts = await sync_attachment_snapshot_ids(
             user_id=uuid4(),
@@ -1468,7 +1477,7 @@ class TestSyncAttachmentSnapshotIds:
             _mock_attachment(provider_snapshot_id="snap-2", deployment_id=dep_id),
         ]
 
-        from langflow.api.v1.mappers.deployments.sync import sync_attachment_snapshot_ids
+        from ketos.api.v1.mappers.deployments.sync import sync_attachment_snapshot_ids
 
         counts = await sync_attachment_snapshot_ids(
             user_id=uuid4(),
@@ -1491,7 +1500,7 @@ class TestSyncFlowVersionAttachments:
     @patch(f"{SYNC_MODULE}.delete_unbound_attachments", new_callable=AsyncMock)
     @patch(f"{SYNC_MODULE}.fetch_provider_resource_keys", new_callable=AsyncMock)
     @patch(f"{SYNC_MODULE}.get_deployment_adapter")
-    @patch("langflow.api.v1.mappers.deployments.registry.get_deployment_mapper")
+    @patch("ketos.api.v1.mappers.deployments.registry.get_deployment_mapper")
     @patch(f"{SYNC_MODULE}.list_deployments_for_flows_with_provider_info", new_callable=AsyncMock)
     async def test_snapshot_cleanup_runs_inside_savepoint(
         self,
@@ -1514,7 +1523,7 @@ class TestSyncFlowVersionAttachments:
 
         db = _mock_async_db()
 
-        from langflow.api.v1.mappers.deployments.sync import sync_flow_version_attachments
+        from ketos.api.v1.mappers.deployments.sync import sync_flow_version_attachments
 
         await sync_flow_version_attachments(
             db=db,
@@ -1537,7 +1546,7 @@ class TestSyncDeploymentsAndAttachmentsByProvider:
     @patch(f"{SYNC_MODULE}.delete_unbound_attachments", new_callable=AsyncMock)
     @patch(f"{SYNC_MODULE}.fetch_provider_resource_keys", new_callable=AsyncMock)
     @patch(f"{SYNC_MODULE}.get_deployment_adapter")
-    @patch("langflow.api.v1.mappers.deployments.registry.get_deployment_mapper")
+    @patch("ketos.api.v1.mappers.deployments.registry.get_deployment_mapper")
     async def test_batches_stale_deletions_once_per_provider_group(
         self,
         mock_get_mapper,
@@ -1571,7 +1580,7 @@ class TestSyncDeploymentsAndAttachmentsByProvider:
 
         db = _mock_async_db()
 
-        from langflow.api.v1.mappers.deployments.sync import _sync_deployments_and_attachments_by_provider
+        from ketos.api.v1.mappers.deployments.sync import _sync_deployments_and_attachments_by_provider
 
         await _sync_deployments_and_attachments_by_provider(
             db=db,
@@ -1607,7 +1616,7 @@ class TestProviderAccountScopedSync:
         mock_list_deployments,
         mock_delete_orphans,
     ):
-        from langflow.api.v1.mappers.deployments.sync import sync_flow_deployment_state
+        from ketos.api.v1.mappers.deployments.sync import sync_flow_deployment_state
 
         await sync_flow_deployment_state(
             db=AsyncMock(),
@@ -1628,7 +1637,7 @@ class TestProviderAccountScopedSync:
         mock_sync_by_provider,
         mock_delete_orphans,
     ):
-        from langflow.api.v1.mappers.deployments.sync import sync_flow_deployment_state
+        from ketos.api.v1.mappers.deployments.sync import sync_flow_deployment_state
 
         flow_id = uuid4()
         mock_list_deployments.return_value = [(_mock_deployment_row("rk-1"), "watsonx-orchestrate")]
@@ -1653,7 +1662,7 @@ class TestProviderAccountScopedSync:
         mock_sync_by_provider,
         mock_delete_orphans,
     ):
-        from langflow.api.v1.mappers.deployments.sync import sync_project_deployments
+        from ketos.api.v1.mappers.deployments.sync import sync_project_deployments
 
         project_id = uuid4()
         await sync_project_deployments(
@@ -1676,7 +1685,7 @@ class TestProviderAccountScopedSync:
         mock_sync_by_provider,
         mock_delete_orphans,
     ):
-        from langflow.api.v1.mappers.deployments.sync import sync_flow_deployment_state
+        from ketos.api.v1.mappers.deployments.sync import sync_flow_deployment_state
 
         provider_account_id = uuid4()
         mock_list_deployments.return_value = [(_mock_deployment_row("rk-1"), "watsonx-orchestrate")]
@@ -1701,7 +1710,7 @@ class TestProviderAccountScopedSync:
         mock_sync_by_provider,
         mock_delete_orphans,
     ):
-        from langflow.api.v1.mappers.deployments.sync import sync_flow_version_attachments
+        from ketos.api.v1.mappers.deployments.sync import sync_flow_version_attachments
 
         provider_account_id = uuid4()
         mock_list_deployments.return_value = [(_mock_deployment_row("rk-1"), "watsonx-orchestrate")]
@@ -1726,7 +1735,7 @@ class TestProviderAccountScopedSync:
         mock_sync_by_provider,
         mock_delete_orphans,
     ):
-        from langflow.api.v1.mappers.deployments.sync import sync_project_deployments
+        from ketos.api.v1.mappers.deployments.sync import sync_project_deployments
 
         provider_account_id = uuid4()
         mock_list_deployments.return_value = [(_mock_deployment_row("rk-1"), "watsonx-orchestrate")]
@@ -1751,7 +1760,7 @@ class TestProviderAccountScopedSync:
         mock_sync_by_provider,
         mock_delete_orphans,
     ):
-        from langflow.api.v1.mappers.deployments.sync import sync_flow_deployment_state
+        from ketos.api.v1.mappers.deployments.sync import sync_flow_deployment_state
 
         mock_list_deployments.return_value = [(_mock_deployment_row("rk-1"), "watsonx-orchestrate")]
         await sync_flow_deployment_state(
@@ -1773,7 +1782,7 @@ class TestProviderAccountScopedSync:
         mock_sync_by_provider,
         mock_delete_orphans,
     ):
-        from langflow.api.v1.mappers.deployments.sync import sync_flow_version_attachments
+        from ketos.api.v1.mappers.deployments.sync import sync_flow_version_attachments
 
         mock_list_deployments.return_value = [(_mock_deployment_row("rk-1"), "watsonx-orchestrate")]
         await sync_flow_version_attachments(
@@ -1795,7 +1804,7 @@ class TestProviderAccountScopedSync:
         mock_sync_by_provider,
         mock_delete_orphans,
     ):
-        from langflow.api.v1.mappers.deployments.sync import sync_project_deployments
+        from ketos.api.v1.mappers.deployments.sync import sync_project_deployments
 
         mock_list_deployments.return_value = [(_mock_deployment_row("rk-1"), "watsonx-orchestrate")]
         await sync_project_deployments(
@@ -1819,7 +1828,7 @@ class TestRollbackProviderCreate:
         """Compensating delete is called with the provider resource ID."""
         adapter = AsyncMock()
 
-        from langflow.api.v1.mappers.deployments.helpers import rollback_provider_create
+        from ketos.api.v1.mappers.deployments.helpers import rollback_provider_create
 
         await rollback_provider_create(
             deployment_adapter=adapter,
@@ -1837,7 +1846,7 @@ class TestRollbackProviderCreate:
         """Adapters can clean up create-time side resources before falling back to delete."""
         adapter = AsyncMock()
 
-        from langflow.api.v1.mappers.deployments.helpers import rollback_provider_create
+        from ketos.api.v1.mappers.deployments.helpers import rollback_provider_create
 
         provider_result = {"app_ids": ["app-1"], "tools_with_refs": [{"tool_id": "tool-1", "source_ref": "fv-1"}]}
 
@@ -1860,7 +1869,7 @@ class TestRollbackProviderCreate:
         adapter = AsyncMock()
         adapter.rollback_create_result.side_effect = RuntimeError("rollback boom")
 
-        from langflow.api.v1.mappers.deployments.helpers import rollback_provider_create
+        from ketos.api.v1.mappers.deployments.helpers import rollback_provider_create
 
         await rollback_provider_create(
             deployment_adapter=adapter,
@@ -1880,7 +1889,7 @@ class TestRollbackProviderCreate:
         adapter = AsyncMock()
         adapter.delete.side_effect = RuntimeError("provider unreachable")
 
-        from langflow.api.v1.mappers.deployments.helpers import rollback_provider_create
+        from ketos.api.v1.mappers.deployments.helpers import rollback_provider_create
 
         # Should not raise
         await rollback_provider_create(
@@ -1897,7 +1906,7 @@ class TestRollbackProviderCreate:
         adapter = AsyncMock()
         adapter.rollback_create_result.side_effect = RuntimeError("rollback boom")
 
-        from langflow.api.v1.mappers.deployments.helpers import rollback_provider_create
+        from ketos.api.v1.mappers.deployments.helpers import rollback_provider_create
 
         await rollback_provider_create(
             deployment_adapter=adapter,
@@ -1927,7 +1936,7 @@ class TestRollbackProviderUpdate:
         mapper.resolve_rollback_update = AsyncMock(return_value=None)
         dep_row = _mock_deployment_row("rk-1")
 
-        from langflow.api.v1.mappers.deployments.helpers import rollback_provider_update
+        from ketos.api.v1.mappers.deployments.helpers import rollback_provider_update
 
         await rollback_provider_update(
             deployment_adapter=adapter,
@@ -1951,7 +1960,7 @@ class TestRollbackProviderUpdate:
         dep_row = _mock_deployment_row("rk-1")
         dep_row.deployment_provider_account_id = uuid4()
 
-        from langflow.api.v1.mappers.deployments.helpers import rollback_provider_update
+        from ketos.api.v1.mappers.deployments.helpers import rollback_provider_update
 
         await rollback_provider_update(
             deployment_adapter=adapter,
@@ -1976,7 +1985,7 @@ class TestRollbackProviderUpdate:
         dep_row = _mock_deployment_row("rk-1")
         dep_row.deployment_provider_account_id = uuid4()
 
-        from langflow.api.v1.mappers.deployments.helpers import rollback_provider_update
+        from ketos.api.v1.mappers.deployments.helpers import rollback_provider_update
 
         # Should not raise
         await rollback_provider_update(
@@ -1997,7 +2006,7 @@ class TestRollbackProviderUpdate:
         mapper.resolve_rollback_update = AsyncMock(side_effect=RuntimeError("mapper error"))
         dep_row = _mock_deployment_row("rk-1")
 
-        from langflow.api.v1.mappers.deployments.helpers import rollback_provider_update
+        from ketos.api.v1.mappers.deployments.helpers import rollback_provider_update
 
         # Should not raise
         await rollback_provider_update(
@@ -2018,8 +2027,8 @@ class TestRollbackProviderUpdate:
 # ---------------------------------------------------------------------------
 
 
-DEP_CRUD_MODULE = "langflow.services.database.models.deployment.crud"
-ATT_CRUD_MODULE = "langflow.services.database.models.flow_version_deployment_attachment.crud"
+DEP_CRUD_MODULE = "ketos.services.database.models.deployment.crud"
+ATT_CRUD_MODULE = "ketos.services.database.models.flow_version_deployment_attachment.crud"
 
 
 class TestWxoResolveRollbackUpdate:
@@ -2153,7 +2162,7 @@ class TestListDeploymentsSyncedBindingPhase:
         mock_count_attachments.return_value = {row.id: 2}
         db = _mock_async_db()
 
-        from langflow.api.v1.mappers.deployments.helpers import list_deployments_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployments_synced
 
         accepted, _, provider_data_by_resource_key = await list_deployments_synced(
             deployment_adapter=AsyncMock(),
@@ -2207,7 +2216,7 @@ class TestListDeploymentsSyncedBindingPhase:
         db = _mock_async_db()
         provider_id = uuid4()
 
-        from langflow.api.v1.mappers.deployments.helpers import list_deployments_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployments_synced
 
         accepted, _, _ = await list_deployments_synced(
             deployment_adapter=AsyncMock(),
@@ -2258,7 +2267,7 @@ class TestListDeploymentsSyncedBindingPhase:
         mock_delete_unbound.side_effect = RuntimeError("cleanup failed")
         db = _mock_async_db()
 
-        from langflow.api.v1.mappers.deployments.helpers import list_deployments_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployments_synced
 
         accepted, _, _ = await list_deployments_synced(
             deployment_adapter=AsyncMock(),
@@ -2307,7 +2316,7 @@ class TestListDeploymentsSyncedBindingPhase:
         mock_count_attachments.return_value = {row.id: 3}
         db = _mock_async_db()
 
-        from langflow.api.v1.mappers.deployments.helpers import list_deployments_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployments_synced
 
         accepted, _, _ = await list_deployments_synced(
             deployment_adapter=AsyncMock(),
@@ -2365,7 +2374,7 @@ class TestListDeploymentFlowVersionsSynced:
         )
         db = _mock_async_db()
 
-        from langflow.api.v1.mappers.deployments.helpers import list_deployment_flow_versions_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployment_flow_versions_synced
 
         out_rows, total, snapshot_result = await list_deployment_flow_versions_synced(
             deployment_adapter=adapter,
@@ -2411,7 +2420,7 @@ class TestListDeploymentFlowVersionsSynced:
 
         adapter = AsyncMock()
 
-        from langflow.api.v1.mappers.deployments.helpers import list_deployment_flow_versions_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployment_flow_versions_synced
 
         with pytest.raises(ValueError, match="provider_snapshot_id must be non-empty"):
             await list_deployment_flow_versions_synced(
@@ -2460,7 +2469,7 @@ class TestListDeploymentFlowVersionsSynced:
         mock_sync_snapshot_ids.side_effect = RuntimeError("savepoint failed")
         db = _mock_async_db()
 
-        from langflow.api.v1.mappers.deployments.helpers import list_deployment_flow_versions_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployment_flow_versions_synced
 
         out_rows, total, snapshot_result = await list_deployment_flow_versions_synced(
             deployment_adapter=adapter,
@@ -2500,7 +2509,7 @@ class TestListDeploymentFlowVersionsSynced:
 
         adapter = AsyncMock()
         adapter.list_snapshots.side_effect = RuntimeError("provider down")
-        from langflow.api.v1.mappers.deployments.helpers import list_deployment_flow_versions_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployment_flow_versions_synced
 
         out_rows, total, snapshot_result = await list_deployment_flow_versions_synced(
             deployment_adapter=adapter,
@@ -2531,7 +2540,7 @@ class TestListDeploymentFlowVersionsSynced:
         deployment_id = uuid4()
         flow_id = uuid4()
         adapter = AsyncMock()
-        from langflow.api.v1.mappers.deployments.helpers import list_deployment_flow_versions_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployment_flow_versions_synced
 
         await list_deployment_flow_versions_synced(
             deployment_adapter=adapter,
@@ -2569,7 +2578,7 @@ class TestListDeploymentFlowVersionsSynced:
         adapter = AsyncMock()
         adapter.list_snapshots.return_value = _mock_snapshot_view([_mock_snapshot_item(item_id="")])
 
-        from langflow.api.v1.mappers.deployments.helpers import list_deployment_flow_versions_synced
+        from ketos.api.v1.mappers.deployments.helpers import list_deployment_flow_versions_synced
 
         out_rows, total, snapshot_result = await list_deployment_flow_versions_synced(
             deployment_adapter=adapter,
@@ -2624,7 +2633,7 @@ class _CaptureDb:
 class TestFlowVersionDeploymentAttachmentCrud:
     @pytest.mark.asyncio
     async def test_list_deployment_attachments_with_versions_orders_by_attachment_timestamps(self):
-        from langflow.services.database.models.flow_version_deployment_attachment.crud import (
+        from ketos.services.database.models.flow_version_deployment_attachment.crud import (
             list_deployment_attachments_with_versions,
         )
 
@@ -2647,7 +2656,7 @@ class TestFlowVersionDeploymentAttachmentCrud:
 
     @pytest.mark.asyncio
     async def test_list_deployment_attachments_with_versions_skips_query_when_limit_non_positive(self):
-        from langflow.services.database.models.flow_version_deployment_attachment.crud import (
+        from ketos.services.database.models.flow_version_deployment_attachment.crud import (
             list_deployment_attachments_with_versions,
         )
 
@@ -2665,7 +2674,7 @@ class TestFlowVersionDeploymentAttachmentCrud:
 
     @pytest.mark.asyncio
     async def test_count_deployment_attachments_returns_scalar_count(self):
-        from langflow.services.database.models.flow_version_deployment_attachment.crud import (
+        from ketos.services.database.models.flow_version_deployment_attachment.crud import (
             count_deployment_attachments,
         )
 
@@ -2686,7 +2695,7 @@ class TestFlowVersionDeploymentAttachmentCrud:
 
     @pytest.mark.asyncio
     async def test_count_attachments_by_deployment_ids_joins_flow_version(self):
-        from langflow.services.database.models.flow_version_deployment_attachment.crud import (
+        from ketos.services.database.models.flow_version_deployment_attachment.crud import (
             count_attachments_by_deployment_ids,
         )
 
@@ -2705,7 +2714,7 @@ class TestFlowVersionDeploymentAttachmentCrud:
 
     @pytest.mark.asyncio
     async def test_delete_orphan_attachments_for_flow_ids_joins_flow_version_and_deployment(self):
-        from langflow.services.database.models.flow_version_deployment_attachment.crud import (
+        from ketos.services.database.models.flow_version_deployment_attachment.crud import (
             delete_orphan_attachments_for_flow_ids,
         )
 
@@ -2724,7 +2733,7 @@ class TestFlowVersionDeploymentAttachmentCrud:
 
     @pytest.mark.asyncio
     async def test_delete_orphan_attachments_for_project_joins_flow_scope_and_deployment(self):
-        from langflow.services.database.models.flow_version_deployment_attachment.crud import (
+        from ketos.services.database.models.flow_version_deployment_attachment.crud import (
             delete_orphan_attachments_for_project,
         )
 

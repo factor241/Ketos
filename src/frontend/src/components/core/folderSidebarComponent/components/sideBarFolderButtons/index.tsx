@@ -21,10 +21,8 @@ import {
   usePostUploadFolders,
 } from "@/controllers/API/queries/folders";
 import { useGetDownloadFolders } from "@/controllers/API/queries/folders/use-get-download-folders";
-import { CustomStoreButton } from "@/customization/components/custom-store-button";
 import {
   ENABLE_CUSTOM_PARAM,
-  ENABLE_DATASTAX_LANGFLOW,
   ENABLE_FILE_MANAGEMENT,
   ENABLE_KNOWLEDGE_BASES,
   ENABLE_MCP_NOTICE,
@@ -36,6 +34,7 @@ import { createFileUpload } from "@/helpers/create-file-upload";
 import { getObjectsFromFilelist } from "@/helpers/get-objects-from-filelist";
 import useUploadFlow from "@/hooks/flows/use-upload-flow";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { getFolderDisplayName } from "@/pages/MainPage/pages/main-page-utils";
 import useAuthStore from "@/stores/authStore";
 import type { FlowType } from "@/types/flow";
 import type { FolderType } from "../../../../../pages/MainPage/entities";
@@ -141,7 +140,7 @@ const SideBarFoldersButtonsComponent = ({
 
       getObjectsFromFilelist<UploadedFlowFile>(files)
         .then((objects) => {
-          if (objects.every((flow) => flow.data?.nodes)) {
+          if (objects.every((flow) => "data" in flow && flow.data?.nodes)) {
             uploadFlow({ files })
               .then(() => {
                 setSuccessData({
@@ -199,7 +198,7 @@ const SideBarFoldersButtonsComponent = ({
       },
       {
         onSuccess: (response) => {
-          customGetDownloadFolderBlob(response, id, folderName, setSuccessData);
+          customGetDownloadFolderBlob(response, id, folderName);
         },
         onError: (e) => {
           setErrorData({
@@ -428,19 +427,26 @@ const SideBarFoldersButtonsComponent = ({
                             data-testid={`sidebar-nav-${item.name}`}
                             id={`sidebar-nav-${item.name}`}
                             isActive={checkPathName(item.id!)}
-                            onClick={() => handleChangeFolder!(item.id!)}
+                            onClick={(event) => {
+                              const target = event.target;
+                              if (
+                                target instanceof Element &&
+                                target.closest("[data-folder-options]")
+                              ) {
+                                return;
+                              }
+                              handleChangeFolder!(item.id!);
+                            }}
+                            onDoubleClick={(event) => {
+                              handleDoubleClick(event, item);
+                            }}
                             className={cn(
                               "flex-grow pr-8",
                               hoveredFolderId === item.id && "bg-accent",
                               checkHoveringFolder(item.id!),
                             )}
                           >
-                            <div
-                              onDoubleClick={(event) => {
-                                handleDoubleClick(event, item);
-                              }}
-                              className="flex w-full items-center justify-between gap-2"
-                            >
+                            <div className="flex w-full items-center justify-between gap-2">
                               <div className="flex flex-1 items-center gap-2">
                                 {editFolderName?.edit && !isUpdatingFolder ? (
                                   <InputEditFolderName
@@ -455,15 +461,15 @@ const SideBarFoldersButtonsComponent = ({
                                   />
                                 ) : (
                                   <span className="block w-0 grow truncate text-sm opacity-100">
-                                    {item.name}
+                                    {getFolderDisplayName(item)}
                                   </span>
                                 )}
                               </div>
                             </div>
                           </SidebarMenuButton>
                           <div
+                            data-folder-options
                             className="absolute right-2 top-[0.45rem] flex items-center hover:text-foreground"
-                            onClick={(e) => e.stopPropagation()}
                           >
                             <SelectOptions
                               item={item}
@@ -502,8 +508,6 @@ const SideBarFoldersButtonsComponent = ({
       {ENABLE_FILE_MANAGEMENT && (
         <SidebarFooter className="border-t">
           <div className="grid w-full items-center gap-2 p-2">
-            {/* TODO: Remove this on cleanup */}
-            {ENABLE_DATASTAX_LANGFLOW && <CustomStoreButton />}{" "}
             {ENABLE_KNOWLEDGE_BASES && (
               <SidebarMenuButton
                 onClick={handleKnowledgeNavigation}

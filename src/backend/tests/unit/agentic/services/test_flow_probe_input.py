@@ -8,7 +8,7 @@ already set.
 
 from __future__ import annotations
 
-from langflow.agentic.services.flow_probe_input import PROBE_INPUT_TEXT, apply_probe_input
+from ketos.agentic.services.flow_probe_input import PROBE_INPUT_TEXT, apply_probe_input
 
 
 def _flow(nodes):

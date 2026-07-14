@@ -1,13 +1,7 @@
 import type React from "react";
-import {
-  Trans as TransComponent,
-  type TransProps,
-  useTranslation,
-} from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import Loading from "@/components/ui/loading";
-
-const Trans = TransComponent as unknown as React.FC<TransProps<string>>;
 
 interface NoInputViewProps {
   isBuilding: boolean;
@@ -58,7 +52,7 @@ const NoInputView: React.FC<NoInputViewProps> = ({
                 <a
                   className="underline underline-offset-4"
                   target="_blank"
-                  href="https://docs.langflow.org/components-io#chat-input"
+                  href="https://docs.ketos.test/components-io#chat-input"
                   rel="noopener noreferrer"
                 />
               ),

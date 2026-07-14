@@ -1,7 +1,7 @@
 import pytest
 from langchain_core.tools import ToolException
-from lfx.components.tools.python_repl import PythonREPLToolComponent
-from lfx.components.utilities.python_repl_core import PythonREPLComponent
+from kfx.components.tools.python_repl import PythonREPLToolComponent
+from kfx.components.utilities.python_repl_core import PythonREPLComponent
 
 from tests.base import DID_NOT_EXIST, ComponentTestBaseWithoutClient
 
@@ -182,7 +182,7 @@ class TestPythonREPLComponentSecurity:
         from types import SimpleNamespace
 
         monkeypatch.setattr(
-            "lfx.services.deps.get_settings_service",
+            "kfx.services.deps.get_settings_service",
             lambda: SimpleNamespace(settings=SimpleNamespace(allow_custom_components=False)),
         )
         data = PythonREPLComponent(global_imports="math", python_code="print('SHOULD_NOT_RUN')").run_python_repl().data
@@ -243,7 +243,7 @@ class TestPythonREPLToolComponentSecurity:
         from types import SimpleNamespace
 
         monkeypatch.setattr(
-            "lfx.services.deps.get_settings_service",
+            "kfx.services.deps.get_settings_service",
             lambda: SimpleNamespace(settings=SimpleNamespace(allow_custom_components=False)),
         )
         with pytest.raises(ToolException, match="allow_custom_components"):

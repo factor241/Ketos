@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "case_id": "assistant-modified-flow",
+  "source_format_version": "current",
+  "topology": "chat-prompt-output",
+  "traits": ["assistant-modified", "selected-output"],
+  "stable_ids": {
+    "nodes": ["assistant-input", "assistant-prompt", "assistant-output"],
+    "edges": ["edge:assistant-input:message:assistant-prompt:var1", "edge:assistant-prompt:prompt:assistant-output:input_value"]
+  },
+  "expected_component_types": ["ChatInput", "Prompt Template", "ChatOutput"],
+  "input": "привет",
+  "overrides": {
+    "component_label": "Customer assistant prompt",
+    "field_label": "Customer prompt body",
+    "prompt_template": "Assistant normalized: {var1}"
+  },
+  "expected_runtime": { "result_name": "message", "text": "Assistant normalized: привет" }
+}

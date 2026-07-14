@@ -240,7 +240,7 @@ export default function ToolsTable({
     },
     {
       field: "tags",
-      headerName: "Tags",
+      headerName: t("common.tags"),
       flex: 1,
       hide: true,
     },

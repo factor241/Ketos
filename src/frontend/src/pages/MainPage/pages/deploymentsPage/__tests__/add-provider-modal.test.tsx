@@ -104,13 +104,13 @@ describe("Rendering", () => {
       screen.getByRole("link", { name: "Sign up for watsonx Orchestrate" }),
     ).toHaveAttribute(
       "href",
-      "https://www.ibm.com/products/watsonx-orchestrate?utm_source=langflow&utm_medium=integration&utm_campaign=wxo-integration&utm_content=signup-pricing#pricing",
+      "https://www.ibm.com/products/watsonx-orchestrate?utm_source=ketos&utm_medium=integration&utm_campaign=wxo-integration&utm_content=signup-pricing#pricing",
     );
     expect(
       screen.getByRole("link", { name: "Find your credentials" }),
     ).toHaveAttribute(
       "href",
-      "https://www.ibm.com/docs/en/watsonx/watson-orchestrate/base?topic=api-getting-started&utm_source=langflow&utm_medium=integration&utm_campaign=wxo-integration&utm_content=docs-credentials",
+      "https://www.ibm.com/docs/en/watsonx/watson-orchestrate/base?topic=api-getting-started&utm_source=ketos&utm_medium=integration&utm_campaign=wxo-integration&utm_content=docs-credentials",
     );
   });
 
@@ -271,7 +271,7 @@ describe("Edit mode", () => {
     expect(screen.getByText("Configure Environment")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Update environment name or rotate API key. Service instance URL is fixed after creation.",
+        "Update the environment name or rotate the API key. The service instance URL cannot be changed after creation.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByDisplayValue("Production WxO")).toBeInTheDocument();

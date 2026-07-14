@@ -2,6 +2,11 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import { useGetIngestionRuns } from "@/controllers/API/queries/knowledge-bases/use-get-ingestion-runs";
+import {
+  translateIngestionSourceType,
+  translateIngestionStatus,
+} from "@/pages/MainPage/pages/knowledgePage/utils/ingestionPresentation";
+import { formatRelativeTime } from "@/utils/locale-format";
 import { cn } from "@/utils/utils";
 
 interface IngestionHistoryPanelProps {
@@ -19,30 +24,10 @@ const STATUS_STYLES: Record<string, string> = {
   pending: "bg-muted text-muted-foreground border-border",
 };
 
-const SOURCE_TYPE_LABELS: Record<string, string> = {
-  file_upload: "knowledge.ingestionSourceFileUpload",
-  folder: "knowledge.ingestionSourceFolder",
-  template: "knowledge.ingestionSourceTemplate",
-  google_drive: "knowledge.ingestionSourceGoogleDrive",
-  s3: "knowledge.ingestionSourceS3",
-  onedrive: "knowledge.ingestionSourceOneDrive",
-  sharepoint: "knowledge.ingestionSourceSharePoint",
-};
-
 const HISTORY_LIMIT = 10;
 
-function formatRelativeTime(iso: string): string {
-  const now = Date.now();
-  const then = new Date(iso).getTime();
-  const diffSec = Math.max(0, Math.floor((now - then) / 1000));
-  if (diffSec < 60) return `${diffSec}s ago`;
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
-  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
-  return `${Math.floor(diffSec / 86400)}d ago`;
-}
-
 export function IngestionHistoryPanel({ kbName }: IngestionHistoryPanelProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [expanded, setExpanded] = useState(true);
   const { data, isLoading, isError } = useGetIngestionRuns(
     { kb_name: kbName, page: 1, limit: HISTORY_LIMIT },
@@ -93,12 +78,12 @@ export function IngestionHistoryPanel({ kbName }: IngestionHistoryPanelProps) {
               className="text-xs text-muted-foreground"
               data-testid="kb-ingestion-history-loading"
             >
-              Loading history…
+              {t("knowledge.loadingHistory")}
             </div>
           )}
           {isError && !isLoading && (
             <div className="text-xs text-destructive">
-              Unable to load ingestion history.
+              {t("knowledge.unableToLoadIngestionHistory")}
             </div>
           )}
           {!isLoading && !isError && runs.length === 0 && (
@@ -106,15 +91,13 @@ export function IngestionHistoryPanel({ kbName }: IngestionHistoryPanelProps) {
               className="text-xs text-muted-foreground"
               data-testid="kb-ingestion-history-empty"
             >
-              No sources ingested yet. The first upload will appear here.
+              {t("knowledge.noSourcesIngested")}
             </div>
           )}
           {runs.map((run) => {
             const statusClass =
               STATUS_STYLES[run.status] ?? STATUS_STYLES.pending;
-            const typeLabel = SOURCE_TYPE_LABELS[run.source_type]
-              ? t(SOURCE_TYPE_LABELS[run.source_type])
-              : run.source_type;
+            const typeLabel = translateIngestionSourceType(t, run.source_type);
             const trimmedName = run.source_name?.trim();
             const primaryLabel = trimmedName || typeLabel;
             const showTypeSubtitle = !!trimmedName;
@@ -131,10 +114,14 @@ export function IngestionHistoryPanel({ kbName }: IngestionHistoryPanelProps) {
                       statusClass,
                     )}
                   >
-                    {run.status}
+                    {translateIngestionStatus(t, run.status)}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {formatRelativeTime(run.started_at)}
+                    {formatRelativeTime(
+                      run.started_at,
+                      Date.now(),
+                      i18n.resolvedLanguage ?? i18n.language,
+                    )}
                   </span>
                 </div>
                 <div className="flex flex-col gap-0.5 min-w-0">
@@ -177,7 +164,11 @@ export function IngestionHistoryPanel({ kbName }: IngestionHistoryPanelProps) {
                     </span>
                   )}
                   <span>·</span>
-                  <span>{run.chunks_created} chunks</span>
+                  <span>
+                    {t("knowledge.chunkCount", {
+                      count: run.chunks_created,
+                    })}
+                  </span>
                 </div>
               </div>
             );

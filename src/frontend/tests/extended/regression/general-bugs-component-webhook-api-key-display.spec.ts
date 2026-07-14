@@ -3,7 +3,7 @@ import { adjustScreenView } from "../../utils/adjust-screen-view";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
 import { TEXTS } from "../../utils/constants/texts";
 import { openBlankFlow } from "../../utils/flow/open-blank-flow";
-import { loginLangflow } from "../../utils/login-langflow";
+import { loginKetos } from "../../utils/login-ketos";
 import {
   closeAdvancedOptions,
   disableInspectPanel,
@@ -40,7 +40,7 @@ test(
       });
     });
 
-    await loginLangflow(page);
+    await loginKetos(page);
 
     await awaitBootstrapTest(page, { skipGoto: true });
 

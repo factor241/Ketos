@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
-import LangflowLogo from "@/assets/LangflowLogo.svg?react";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
+import { KetosBrandMark } from "@/components/common/ketos-brand-mark";
 import CardsWrapComponent from "@/components/core/cardsWrapComponent";
 import { Button } from "@/components/ui/button";
 import { useFolderStore } from "@/stores/foldersStore";
@@ -25,7 +25,7 @@ export const EmptyPage = ({ setOpenModal }: EmptyPageProps) => {
       <div className="m-0 h-full w-full bg-secondary p-0">
         <div className="text-container">
           <div className="relative z-20 flex w-full flex-col items-center justify-center gap-2">
-            <LangflowLogo className="h-7 w-8" />
+            <KetosBrandMark label={t("common.ketosLogo")} className="h-7 w-8" />
             <h3
               className="pt-5 font-chivo text-2xl font-semibold text-foreground"
               data-testid="mainpage_title"

@@ -42,7 +42,15 @@ export default function GlobalVariablesPage() {
 
   const DropdownEditor = ({ options, value, onValueChange }) => {
     return (
-      <Dropdown options={options} value={value} onSelect={onValueChange}>
+      <Dropdown
+        id="global-variable-type"
+        options={options}
+        value={value}
+        onSelect={onValueChange}
+        editNode={false}
+        name="type"
+        disabled={false}
+      >
         <div className="-mt-1.5 w-full"></div>
       </Dropdown>
     );
@@ -131,8 +139,7 @@ export default function GlobalVariablesPage() {
 
     if (invalidProviderVars.length > 0) {
       const errorMessages = invalidProviderVars.map(
-        (variable) =>
-          `${variable.name}: ${variable.validation_error || "Invalid API key"}`,
+        (variable) => `${variable.name}: ${t("globalVars.invalidApiKey")}`,
       );
       setErrorData({
         title: t("globalVars.invalidCredentialsTitle"),
@@ -144,7 +151,7 @@ export default function GlobalVariablesPage() {
         ],
       });
     }
-  }, [globalVariables, providerVariableNames, setErrorData]);
+  }, [globalVariables, providerVariableNames, setErrorData, t]);
 
   async function removeVariables() {
     selectedRows.map(async (row) => {

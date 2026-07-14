@@ -1,11 +1,11 @@
-"""Unit tests for LangflowApplication in langflow.server."""
+"""Unit tests for KetosApplication in ketos.server."""
 
 import gc
 import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
-from langflow.server import LangflowApplication
+from ketos.server import KetosApplication
 
 
 class _FakeServer:
@@ -55,7 +55,7 @@ def test_pre_fork_warns_for_non_main_threads(fake_server):
     t.start()
     try:
         ready.wait(timeout=2)
-        LangflowApplication.pre_fork(fake_server, None)
+        KetosApplication.pre_fork(fake_server, None)
     finally:
         stop.set()
         t.join(timeout=2)
@@ -76,7 +76,7 @@ def test_pre_fork_no_thread_warning_for_benign_threads(fake_server):
         patch("psutil.Process") as mock_proc,
     ):
         mock_proc.return_value.net_connections.return_value = []
-        LangflowApplication.pre_fork(fake_server, None)
+        KetosApplication.pre_fork(fake_server, None)
 
     assert _find_warning(fake_server.log, "Ghost threads") is None
 
@@ -88,7 +88,7 @@ def test_pre_fork_no_thread_warning_when_only_main_thread(fake_server):
         patch("psutil.Process") as mock_proc,
     ):
         mock_proc.return_value.net_connections.return_value = []
-        LangflowApplication.pre_fork(fake_server, None)
+        KetosApplication.pre_fork(fake_server, None)
 
     assert _find_warning(fake_server.log, "Ghost threads") is None
 
@@ -108,7 +108,7 @@ def test_pre_fork_warns_for_non_listen_tcp_connections(fake_server, status):
         patch("psutil.Process") as mock_proc,
     ):
         mock_proc.return_value.net_connections.return_value = [conn]
-        LangflowApplication.pre_fork(fake_server, None)
+        KetosApplication.pre_fork(fake_server, None)
 
     warning = _find_warning(fake_server.log, "Ghost TCP connections")
     assert warning is not None, f"Expected a 'Ghost TCP connections' warning for status={status!r}"
@@ -125,7 +125,7 @@ def test_pre_fork_no_tcp_warning_for_listen_only_connections(fake_server):
         patch("psutil.Process") as mock_proc,
     ):
         mock_proc.return_value.net_connections.return_value = [_make_fake_conn("LISTEN")]
-        LangflowApplication.pre_fork(fake_server, None)
+        KetosApplication.pre_fork(fake_server, None)
 
     assert _find_warning(fake_server.log, "Ghost TCP connections") is None
 
@@ -141,7 +141,7 @@ def test_pre_fork_handles_psutil_import_error(fake_server):
         patch("threading.enumerate", return_value=[threading.main_thread()]),
         patch.dict("sys.modules", {"psutil": None}),
     ):
-        LangflowApplication.pre_fork(fake_server, None)
+        KetosApplication.pre_fork(fake_server, None)
 
     assert _find_warning(fake_server.log, "TCP") is None, "Should not log TCP warnings when psutil is missing"
 
@@ -153,7 +153,7 @@ def test_pre_fork_warns_when_psutil_raises(fake_server):
         patch("psutil.Process") as mock_proc,
     ):
         mock_proc.return_value.net_connections.side_effect = RuntimeError("permission denied")
-        LangflowApplication.pre_fork(fake_server, None)
+        KetosApplication.pre_fork(fake_server, None)
 
     warning = _find_warning(fake_server.log, "Failed to inspect")
     assert warning is not None, "Expected a 'Failed to inspect' warning when psutil raises"
@@ -174,7 +174,7 @@ def test_pre_fork_always_runs_gc(fake_server):
         patch.object(gc, "freeze") as mock_freeze,
     ):
         mock_proc.return_value.net_connections.return_value = []
-        LangflowApplication.pre_fork(fake_server, None)
+        KetosApplication.pre_fork(fake_server, None)
 
     mock_collect.assert_called_once()
     mock_freeze.assert_called_once()
@@ -190,7 +190,7 @@ def test_pre_fork_handles_gc_collect_exception(fake_server):
     ):
         mock_proc.return_value.net_connections.return_value = []
         # Must not raise
-        LangflowApplication.pre_fork(fake_server, None)
+        KetosApplication.pre_fork(fake_server, None)
 
     warning = _find_warning(fake_server.log, "gc.collect() raised")
     assert warning is not None, "Expected a warning when gc.collect() raises"
@@ -199,10 +199,10 @@ def test_pre_fork_handles_gc_collect_exception(fake_server):
 
 
 def _make_app(options=None, env_args=None, monkeypatch=None):
-    """Create a LangflowApplication with a dummy WSGI app.
+    """Create a KetosApplication with a dummy WSGI app.
 
     Args:
-        options: Programmatic options passed to LangflowApplication.
+        options: Programmatic options passed to KetosApplication.
         env_args: If provided, set GUNICORN_CMD_ARGS env var before construction.
         monkeypatch: pytest monkeypatch fixture for env manipulation.
     """
@@ -212,7 +212,7 @@ def _make_app(options=None, env_args=None, monkeypatch=None):
     def dummy_app(environ, start_response):
         pass
 
-    return LangflowApplication(dummy_app, options=options)
+    return KetosApplication(dummy_app, options=options)
 
 
 class TestGunicornEnvArgs:
@@ -247,4 +247,4 @@ class TestGunicornEnvArgs:
             monkeypatch=monkeypatch,
         )
 
-        assert app.cfg.settings["worker_class"].get() == "langflow.server.LangflowUvicornWorker"
+        assert app.cfg.settings["worker_class"].get() == "ketos.server.KetosUvicornWorker"

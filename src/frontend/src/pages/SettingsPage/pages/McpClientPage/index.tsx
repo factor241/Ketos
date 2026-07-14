@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -17,12 +18,12 @@ function buildMcpJson(serverUrl: string): string {
   return JSON.stringify(
     {
       mcpServers: {
-        langflow: {
+        ketos: {
           command: "uvx",
-          args: ["--from", "lfx", "lfx-mcp"],
+          args: ["--from", "kfx", "kfx-mcp"],
           env: {
-            LANGFLOW_SERVER_URL: serverUrl,
-            LANGFLOW_API_KEY: "YOUR_API_KEY", // pragma: allowlist secret
+            KETOS_SERVER_URL: serverUrl,
+            KETOS_API_KEY: "YOUR_API_KEY", // pragma: allowlist secret
           },
         },
       },
@@ -34,7 +35,7 @@ function buildMcpJson(serverUrl: string): string {
 
 function getAgentInstructions(
   agent: AgentTab,
-  t: (key: string) => string,
+  t: TFunction<"translation">,
 ): {
   configPath: string;
   steps: string[];
@@ -61,9 +62,9 @@ function getAgentInstructions(
 }
 
 function getClaudeCodeCommand(serverUrl: string): string {
-  return `claude mcp add langflow -- uvx --from lfx lfx-mcp \\
-  -e LANGFLOW_SERVER_URL=${serverUrl} \\
-  -e LANGFLOW_API_KEY=YOUR_API_KEY`;
+  return `claude mcp add ketos -- uvx --from kfx kfx-mcp \\
+  -e KETOS_SERVER_URL=${serverUrl} \\
+  -e KETOS_API_KEY=YOUR_API_KEY`;
 }
 
 export default function McpClientPage() {

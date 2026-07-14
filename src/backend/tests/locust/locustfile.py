@@ -14,13 +14,13 @@ def _(environment, **_kwargs):
 
 
 class FlowRunUser(FastHttpUser):
-    """FlowRunUser simulates users sending requests to the Langflow run endpoint.
+    """FlowRunUser simulates users sending requests to the Ketos run endpoint.
 
     Designed for high-load testing with proper wait times and connection handling.
     Uses FastHttpUser for better performance with keep-alive connections and connection pooling.
 
     Environment Variables:
-      - LANGFLOW_HOST: Base URL for the Langflow server (default: http://localhost:7860)
+      - KETOS_HOST: Base URL for the Ketos server (default: http://localhost:7860)
       - FLOW_ID: UUID or endpoint name of the flow to test (default: 62c21279-f7ca-43e2-b5e3-326ac573db04)
       - API_KEY: API key for authentication, sent as header 'x-api-key' (Required)
       - MIN_WAIT: Minimum wait time between requests in ms (default: 2000)
@@ -40,7 +40,7 @@ class FlowRunUser(FastHttpUser):
     )
 
     # Use the host provided by environment variable or default
-    host = os.getenv("LANGFLOW_HOST", "http://localhost:7860")
+    host = os.getenv("KETOS_HOST", "http://localhost:7860")
 
     # Flow ID from environment variable or default example UUID
     flow_id = os.getenv("FLOW_ID")
@@ -89,7 +89,7 @@ class FlowRunUser(FastHttpUser):
         # Realistic payload that exercises the system
         payload = {
             "input_value": (
-                "Hey, Could you check https://docs.langflow.org for me? Later, could you calculate 1390 / 192 ?"
+                "Hey, Could you check https://docs.ketos.org for me? Later, could you calculate 1390 / 192 ?"
             ),
             "output_type": "chat",
             "input_type": "chat",

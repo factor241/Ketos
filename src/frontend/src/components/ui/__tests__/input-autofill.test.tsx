@@ -5,7 +5,7 @@ import { Input } from "../input";
  * Guards the autofill-suppression contract of the base Input primitive.
  *
  * Browsers (notably Chrome) ignore autocomplete="off" for credential-like
- * fields and inject saved values that Langflow's autosave then persists,
+ * fields and inject saved values that Ketos autosave then persists,
  * corrupting flows. The primitive therefore suppresses autofill by default and
  * only opts back in for real credential forms via `allowAutofill`.
  */

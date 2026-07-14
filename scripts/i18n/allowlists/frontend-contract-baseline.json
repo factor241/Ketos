@@ -1,0 +1,2848 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "def832f409c01f0acd3937b9317dde03d0273552",
+  "reason": "Exact reviewed frontend contract identities: historical migration debt plus typed dynamic translation paths whose keys are closed unions. New, changed, or resolved identities block until explicitly reviewed.",
+  "owner": "frontend-localization",
+  "review_date": "2026-07-11",
+  "issues": {
+    "locales": [
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "alerts.modelsRefreshed",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "chat.deleteSessionsCount",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "chat.sessionsDeletedSuccess",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "deployments.variablesAutoDetected",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "fileManager.selectedCount",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "mainPage.timeElapsed.day",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "mainPage.timeElapsed.hour",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "mainPage.timeElapsed.minute",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "mainPage.timeElapsed.month",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "mainPage.timeElapsed.year",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "mcp.servers.toolsCount",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "mcp.toolCount",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "trace.runsCount",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "updateAllComponents.blockedAndUpdatable",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "updateAllComponents.blockedOnly",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "updateAllComponents.updatableOnly",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "updateAllComponents.updatesAvailable",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "updateComponents.andMustBeUpdated",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "updateComponents.blockedCannotRun",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "updateComponents.cannotRunDisabled",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "updateComponents.mustBeUpdated",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "updateComponents.successCount",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "updateComponents.updatableCount",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "ja",
+        "key": "updateComponents.updatesAvailable",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "alerts.modelsRefreshed",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "chat.deleteSessionsCount",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "chat.sessionsDeletedSuccess",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "deployments.variablesAutoDetected",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "fileManager.selectedCount",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "mainPage.timeElapsed.day",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "mainPage.timeElapsed.hour",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "mainPage.timeElapsed.minute",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "mainPage.timeElapsed.month",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "mainPage.timeElapsed.year",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "mcp.servers.toolsCount",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "mcp.toolCount",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "trace.runsCount",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "updateAllComponents.blockedAndUpdatable",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "updateAllComponents.blockedOnly",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "updateAllComponents.updatableOnly",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "updateAllComponents.updatesAvailable",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "updateComponents.andMustBeUpdated",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "updateComponents.blockedCannotRun",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "updateComponents.cannotRunDisabled",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "updateComponents.mustBeUpdated",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "updateComponents.successCount",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "updateComponents.updatableCount",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "extra_plural_category",
+        "locale": "zh-Hans",
+        "key": "updateComponents.updatesAvailable",
+        "category": "one",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "alerts.modelsRefreshed",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "chat.deleteSessionsCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "chat.sessionsDeletedSuccess",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "deployments.variablesAutoDetected",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "fileManager.selectedCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "mainPage.timeElapsed.day",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "mainPage.timeElapsed.hour",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "mainPage.timeElapsed.minute",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "mainPage.timeElapsed.month",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "mainPage.timeElapsed.year",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "mcp.servers.toolsCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "mcp.toolCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "trace.runsCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "updateAllComponents.blockedAndUpdatable",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "updateAllComponents.blockedOnly",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "updateAllComponents.updatableOnly",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "updateAllComponents.updatesAvailable",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "updateComponents.andMustBeUpdated",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "updateComponents.blockedCannotRun",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "updateComponents.cannotRunDisabled",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "updateComponents.mustBeUpdated",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "updateComponents.successCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "updateComponents.updatableCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "es",
+        "key": "updateComponents.updatesAvailable",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "alerts.modelsRefreshed",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "chat.deleteSessionsCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "chat.sessionsDeletedSuccess",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "deployments.variablesAutoDetected",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "fileManager.selectedCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "mainPage.timeElapsed.day",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "mainPage.timeElapsed.hour",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "mainPage.timeElapsed.minute",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "mainPage.timeElapsed.month",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "mainPage.timeElapsed.year",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "mcp.servers.toolsCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "mcp.toolCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "trace.runsCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "updateAllComponents.blockedAndUpdatable",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "updateAllComponents.blockedOnly",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "updateAllComponents.updatableOnly",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "updateAllComponents.updatesAvailable",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "updateComponents.andMustBeUpdated",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "updateComponents.blockedCannotRun",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "updateComponents.cannotRunDisabled",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "updateComponents.mustBeUpdated",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "updateComponents.successCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "updateComponents.updatableCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "fr",
+        "key": "updateComponents.updatesAvailable",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "alerts.modelsRefreshed",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "chat.deleteSessionsCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "chat.sessionsDeletedSuccess",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "deployments.variablesAutoDetected",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "fileManager.selectedCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "mainPage.timeElapsed.day",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "mainPage.timeElapsed.hour",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "mainPage.timeElapsed.minute",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "mainPage.timeElapsed.month",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "mainPage.timeElapsed.year",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "mcp.servers.toolsCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "mcp.toolCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "trace.runsCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "updateAllComponents.blockedAndUpdatable",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "updateAllComponents.blockedOnly",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "updateAllComponents.updatableOnly",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "updateAllComponents.updatesAvailable",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "updateComponents.andMustBeUpdated",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "updateComponents.blockedCannotRun",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "updateComponents.cannotRunDisabled",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "updateComponents.mustBeUpdated",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "updateComponents.successCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "updateComponents.updatableCount",
+        "category": "many",
+        "count": 1
+      },
+      {
+        "code": "missing_plural_category",
+        "locale": "pt",
+        "key": "updateComponents.updatesAvailable",
+        "category": "many",
+        "count": 1
+      }
+    ],
+    "keys": [
+      {
+        "code": "stale_catalog_key",
+        "key": "alerts.buildStopped",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "alerts.modelsRefreshed_one",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "alerts.modelsRefreshed_other",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "alerts.modelsRefreshed",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "alerts.noChatOutput",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.auth.inactiveUser",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.auth.insufficientPermissions",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.auth.invalidCredentials",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.auth.invalidToken",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.auth.missingCredentials",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.auth.tokenExpired",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.components.notFound",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.components.updateFailed",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.deployments.conflict",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.deployments.notFound",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.deployments.updateFailed",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.extensions.invalidManifest",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.extensions.reloadFailed",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.files.invalid",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.files.notFound",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.files.storageError",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.files.tooLarge",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.flows.alreadyExists",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.flows.invalid",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.flows.notFound",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.knowledge.alreadyExists",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.knowledge.invalidName",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.knowledge.noFiles",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.knowledge.notFound",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.mcp.invalidJson",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.mcp.serverExists",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.mcp.serverNotFound",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.request.badRequest",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.request.rateLimited",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.request.validationFailed",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.server.internal",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiErrors.unknownCode",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiKey.expiry.1month",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiKey.expiry.1week",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiKey.expiry.1year",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiModal.executeFlowStep",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "apiModal.uploadFilesStep",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.analyzing.0",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.analyzing.1",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.analyzing.2",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.analyzing.3",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.analyzing.4",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.analyzing.5",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.analyzing.6",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.analyzing.7",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.checkingDeps.0",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.checkingDeps.1",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.checkingDeps.2",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.checkingDeps.3",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.checkingDeps.4",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.checkingDeps.5",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.checkingDeps.6",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.checkingDeps.7",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.generatingCode.0",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.generatingCode.1",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.generatingCode.2",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.generatingCode.3",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.generatingCode.4",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.generatingCode.5",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.generatingCode.6",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.generatingCode.7",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.identifyingInputs.0",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.identifyingInputs.1",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.identifyingInputs.2",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.identifyingInputs.3",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.identifyingInputs.4",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.identifyingInputs.5",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.identifyingInputs.6",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.identifyingInputs.7",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.validating.0",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.validating.1",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.validating.2",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.validating.3",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.validating.4",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.validating.5",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.validating.6",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.progress.validating.7",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.thinking.0",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.thinking.1",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.thinking.2",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.thinking.3",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.thinking.4",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.thinking.5",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.thinking.6",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "assistant.thinking.7",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "auth.accountExists",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "auth.alertSaveWithApi",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "auth.invalidCredentials",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "auth.saveWithApiCheckbox",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "auth.usernamePlaceholderInput",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "canvas.flowLocked",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "canvas.lockFlow",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "canvas.saving",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "canvas.unlockFlow",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "chat.cannotOpenDescription",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "chat.cannotOpenTitle",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "chat.firstInitialText",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "chat.flowNotBuiltDescription",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "chat.flowNotBuiltTitle",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "chat.secondInitialText",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "component.updateError",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "component.updateErrorTitle",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.agentName",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.agentNameAlreadyExists",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.agentNameAvailable",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.agentNameCannotChange",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.agentNameFormatError",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.attachFlows",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.availableFlows",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.chooseDeployedVersion",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.columnCreated",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.columnProvider",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.columnProviderKey",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.columnUrl",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.confirm",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.current",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.detachFlow",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.duplicateToolName",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.editToolNameExists",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.environmentsDescription",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.failedToLoadDetails",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.failedToUpdate",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.labelProvider",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.new",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.noProviderSnapshot",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.noVersionsFound",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.reviewUpdate",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.reviewUpdateDescription",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.selectDeployedToolToReplace",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.undoDetach",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "deployments.willBeReplaced",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "dialog.chat",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "dialog.code",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "dialog.codeDict",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "dialog.editComponent",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "dialog.exportCode",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "dialog.importFlow",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "dialog.logs",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "dialog.prompt",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "dialog.settings",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "errors.chat",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "errors.combinationAlreadyExists",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "errors.conflict",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "errors.forbidden",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "errors.missingInfo",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "errors.noKeyCombinationRecorded",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "errors.noModelsToRefresh",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "errors.profilePictures",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "errors.rateLimited",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "errors.refreshingModels",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "errors.sendMessage",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "errors.serverUnavailable",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "errors.unauthorized",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "errors.validation",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "extensions.reloadDiagnostics",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "fetchError.retry",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.buildStatus",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.0",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.1",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.10",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.11",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.12",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.13",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.14",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.15",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.16",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.17",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.18",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.19",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.2",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.20",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.21",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.22",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.23",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.24",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.25",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.26",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.27",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.28",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.29",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.3",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.30",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.31",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.32",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.33",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.34",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.35",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.36",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.37",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.38",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.39",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.4",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.40",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.41",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.42",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.43",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.44",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.45",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.46",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.47",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.48",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.49",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.5",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.50",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.51",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.52",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.53",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.54",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.55",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.56",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.57",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.58",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.59",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.6",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.60",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.7",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.8",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.defaultDescription.9",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.missingFields",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.noCompatibleComponents",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.tooltipHiddenOutputsCollapse",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.tooltipHiddenOutputsExpand",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "flow.tooltipOutdatedNode",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "globalVars.columnValue",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "input.editTextTitle",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "input.emptyOutput",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "jsonEditor.pathPlaceholder",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "knowledge.action.updateKnowledge",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "knowledge.errorChunkPreview",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "knowledge.linkedFlowsLabel",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "knowledge.noLinkedFlows",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "knowledge.noSourceFiles",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "knowledge.sourceFilesLabel",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "knowledge.status.cancelling",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "knowledge.status.empty",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "knowledge.status.failed",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "knowledge.status.ingesting",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "knowledge.status.ready",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "mainPage.flowType.components",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "mainPage.flowType.flows",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "mainPage.flowType.mcp",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "mcp.modal.lockedDescription",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "mcp.modal.lockedTitle",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "mcp.servers.toolsCount_one",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "mcp.servers.toolsCount_other",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "memory.autoCapture",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "memory.preprocessingPromptPlaceholder",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "misc.chatTitle",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "misc.fetchError",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "misc.fetchErrorDesc",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "misc.inputHandlerHover",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "misc.inputsModalTitle",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "misc.outputHandlerHover",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "misc.textInputModalTitle",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "misc.timeoutError",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "misc.timeoutErrorDesc",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "modelProviders.errorUpdatingModelStatus",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "nav.myCollection",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "nav.myCollectionDesc",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "project.newName",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "project.starterName",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "settings.lastUsedSpan1",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "settings.lastUsedSpan2",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "settings.noKeysAssigned",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "settings.profilePictureCategory.People",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "settings.profilePictureCategory.Space",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.changedSuccess",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.advancedSettings",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.aiAssistant",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.api",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.changesSave",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.code",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.copy",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.cut",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.delete",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.docs",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.download",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.duplicate",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.flowShare",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.freezePath",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.minimize",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.openPlayground",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.outputInspection",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.paste",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.play",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.redo",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.redoAlt",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.saveComponent",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.searchComponentsSidebar",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.toggleSidebar",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.toolMode",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.undo",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.name.update",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "shortcuts.resetSuccess",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.agents",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.chains",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.data",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.dataSources",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.files",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.filesAndKnowledge",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.flowControl",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.helpers",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.inputOutput",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.linkExtractors",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.llmOperations",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.loaders",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.logic",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.models",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.modelsAndAgents",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.outputParsers",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.processing",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.prompts",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.prototypes",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.retrievers",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.saved",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.textSplitters",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.toolkits",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.utilities",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.category.vectorStores",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.nav.addStickyNotes",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.nav.search",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.nav.stickyNotes",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "sidebar.nav.versions",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "success.apiKeySaved",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "success.fileUploaded",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "success.flowBuilt",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateAllComponents.blockedAndUpdatable_one",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateAllComponents.blockedAndUpdatable_other",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateAllComponents.blockedOnly_one",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateAllComponents.blockedOnly_other",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateAllComponents.customComponentsDisabled",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateAllComponents.dismiss",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateAllComponents.dismissAll",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateAllComponents.reviewAll",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateAllComponents.updatableOnly_one",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateAllComponents.updatableOnly_other",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateAllComponents.updateAll",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateAllComponents.updatesAvailable_one",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateAllComponents.updatesAvailable_other",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateAllComponents.upgradeRequired",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateComponent.columnComponent",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateComponent.columnUpdateType",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateComponent.titleMultiple",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateComponent.titleSingle",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateComponents.andMustBeUpdated_one",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateComponents.andMustBeUpdated_other",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateComponents.cannotRunDisabled_one",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateComponents.cannotRunDisabled_other",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateComponents.mustBeUpdated_one",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateComponents.mustBeUpdated_other",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateComponents.updatesAvailable_one",
+        "count": 1
+      },
+      {
+        "code": "stale_catalog_key",
+        "key": "updateComponents.updatesAvailable_other",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/components/core/assistantPanel/helpers/messages.ts",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/controllers/API/queries/extensions/use-reload-bundle.ts",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/controllers/API/queries/mcp/use-add-mcp-server.ts",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/controllers/API/queries/mcp/use-delete-mcp-server.ts",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/controllers/API/queries/mcp/use-patch-install-mcp.ts",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/controllers/API/queries/mcp/use-patch-mcp-server.ts",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/hooks/extensions/typed-error-formatting.ts",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/hooks/extensions/use-extension-events.ts",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/hooks/files/use-upload-file.ts",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/hooks/flows/use-add-flow.ts",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/modals/apiModal/codeTabs/code-tabs.tsx",
+        "expression": "STEP_TITLE_KEYS[step.title]",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/modals/apiModal/utils/get-curl-code.tsx",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/modals/authModal/index.tsx",
+        "expression": "`authModal.authMethod.${option.id}`",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/modals/createMemoryModal/useCreateMemoryModal.ts",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/modals/secretKeyModal/components/form-key-render.tsx",
+        "expression": "preset.labelKey",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/pages/AdminPage/index.tsx",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/pages/AdminPage/LoginPage/index.tsx",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/categoryDisclouse.tsx",
+        "expression": "item.display_name",
+        "count": 3
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebarSegmentedNav.tsx",
+        "expression": "item.label",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebarSegmentedNav.tsx",
+        "expression": "item.tooltip",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/pages/FlowPage/components/nodeToolbarComponent/shortcutDisplay/index.tsx",
+        "expression": "`shortcuts.name.${toCamelCase(name)}`",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/pages/LoginPage/index.tsx",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/pages/MainPage/components/header/index.tsx",
+        "expression": "`mainPage.flowType.${flowType}`",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/pages/MainPage/pages/knowledgePage/config/knowledgeBaseColumns.tsx",
+        "expression": "c.label",
+        "count": 2
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/pages/SettingsPage/pages/GeneralPage/components/ProfilePictureForm/components/profilePictureChooserComponent/index.tsx",
+        "expression": "`settings.profilePictureCategory.${folder}`",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/pages/SettingsPage/pages/ShortcutsPage/EditShortcutButton/index.tsx",
+        "expression": "`shortcuts.name.${toCamelCase(shortcut[0])}`",
+        "count": 2
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/pages/SettingsPage/pages/ShortcutsPage/index.tsx",
+        "expression": "`shortcuts.name.${toCamelCase(params.data.name)}`",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/pages/SignUpPage/index.tsx",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/utils/reactflowUtils.ts",
+        "expression": "getRandomElement(DESCRIPTIONS)",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/components/core/parameterRenderComponent/components/inputFileComponent/index.tsx",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/CustomNodes/helpers/mutate-template.ts",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/hooks/flows/use-restore-version.ts",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/hooks/flows/use-save-flow.ts",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/modals/IOModal/components/IOFieldView/components/file-input.tsx",
+        "expression": "key",
+        "count": 1
+      },
+      {
+        "code": "unallowlisted_dynamic_key",
+        "path": "src/frontend/src/utils/apiError.ts",
+        "expression": "key",
+        "count": 1
+      }
+    ]
+  }
+}

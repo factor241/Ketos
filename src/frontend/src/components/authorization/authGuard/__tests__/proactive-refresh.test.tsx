@@ -2,7 +2,7 @@
  * Regression tests for the ProtectedRoute proactive token refresh.
  *
  * GHSA-fjgc-vj2f-77hm shortened the auto-login access token from 365 days to
- * ACCESS_TOKEN_EXPIRE_SECONDS (default 1h) and added a refresh_token_lf cookie.
+ * ACCESS_TOKEN_EXPIRE_SECONDS (default 1h) and added a ketos_refresh_token cookie.
  * The proactive refresh interval used to be armed only for manual sessions
  * (`!autoLogin`), so under default AUTO_LOGIN a tab left open past the token
  * lifetime would 401 with no client-side recovery. The interval must now be
@@ -11,7 +11,7 @@
 
 import { act, render } from "@testing-library/react";
 
-// Mirrors the mocked LANGFLOW_ACCESS_TOKEN_EXPIRE_SECONDS below (seconds → ms).
+// Mirrors the mocked KETOS_ACCESS_TOKEN_EXPIRE_SECONDS below (seconds → ms).
 const ACCESS_TOKEN_EXPIRE_SECONDS = 3240;
 const INTERVAL_MS = ACCESS_TOKEN_EXPIRE_SECONDS * 1000;
 
@@ -26,8 +26,8 @@ let mockAuthState: {
 
 jest.mock("@/constants/constants", () => ({
   IS_AUTO_LOGIN: true,
-  LANGFLOW_ACCESS_TOKEN_EXPIRE_SECONDS: 3240,
-  LANGFLOW_ACCESS_TOKEN_EXPIRE_SECONDS_ENV: Number.NaN,
+  KETOS_ACCESS_TOKEN_EXPIRE_SECONDS: 3240,
+  KETOS_ACCESS_TOKEN_EXPIRE_SECONDS_ENV: Number.NaN,
 }));
 
 jest.mock("@/controllers/API/queries/auth", () => ({

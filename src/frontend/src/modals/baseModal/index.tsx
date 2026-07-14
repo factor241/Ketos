@@ -171,7 +171,7 @@ const Footer: React.FC<{
       {close && (
         <DialogClose asChild>
           <Button data-testid="btn-close-modal" type="button">
-            Close
+            {t("common.close")}
           </Button>
         </DialogClose>
       )}

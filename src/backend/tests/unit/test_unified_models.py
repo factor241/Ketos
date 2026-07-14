@@ -1,8 +1,8 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from lfx.base.models import models_dev_catalog
-from lfx.base.models.unified_models import (
+from kfx.base.models import models_dev_catalog
+from kfx.base.models.unified_models import (
     _get_all_provider_mapped_fields,
     apply_provider_variable_config_to_build_config,
     get_embedding_model_options,
@@ -11,8 +11,8 @@ from lfx.base.models.unified_models import (
     handle_model_input_update,
     update_model_options_in_build_config,
 )
-from lfx.base.models.unified_models.build_config import _resolve_dropdown_provider_values
-from lfx.base.models.unified_models.provider_queries import get_models_detailed
+from kfx.base.models.unified_models.build_config import _resolve_dropdown_provider_values
+from kfx.base.models.unified_models.provider_queries import get_models_detailed
 
 
 @pytest.fixture(autouse=True)
@@ -113,8 +113,8 @@ def test_filter_by_model_type_embeddings():
         assert model["metadata"].get("model_type", "llm") == "embeddings"
 
 
-@patch("lfx.base.models.unified_models.model_catalog._fetch_enabled_providers_for_user", new_callable=AsyncMock)
-@patch("lfx.base.models.unified_models.model_catalog._get_model_status", new_callable=AsyncMock)
+@patch("kfx.base.models.unified_models.model_catalog._fetch_enabled_providers_for_user", new_callable=AsyncMock)
+@patch("kfx.base.models.unified_models.model_catalog._get_model_status", new_callable=AsyncMock)
 def test_google_embedding_options_map_dimensions_to_output_dimensionality(mock_get_model_status, mock_fetch_providers):
     mock_get_model_status.return_value = (set(), set())
     mock_fetch_providers.return_value = {"Google Generative AI"}
@@ -438,14 +438,14 @@ def test_get_embeddings_non_list_raises():
         get_embeddings("gpt-4")
 
 
-@patch("lfx.base.models.unified_models.get_api_key_for_provider")
+@patch("kfx.base.models.unified_models.get_api_key_for_provider")
 def test_get_embeddings_missing_api_key_non_ollama_raises(mock_get_api_key):
     mock_get_api_key.return_value = None
     with pytest.raises(ValueError, match="OpenAI API key is required"):
         get_embeddings([_make_openai_embedding_model()])
 
 
-@patch("lfx.base.models.unified_models.get_api_key_for_provider")
+@patch("kfx.base.models.unified_models.get_api_key_for_provider")
 def test_get_embeddings_missing_model_name_raises(mock_get_api_key):
     mock_get_api_key.return_value = "test-key"
     model_dict = {
@@ -457,7 +457,7 @@ def test_get_embeddings_missing_model_name_raises(mock_get_api_key):
         get_embeddings([model_dict])
 
 
-@patch("lfx.base.models.unified_models.get_api_key_for_provider")
+@patch("kfx.base.models.unified_models.get_api_key_for_provider")
 def test_get_embeddings_missing_embedding_class_raises(mock_get_api_key):
     """Unknown providers can't be looked up in EMBEDDING_PROVIDER_CLASS_MAPPING.
 
@@ -473,7 +473,7 @@ def test_get_embeddings_missing_embedding_class_raises(mock_get_api_key):
         get_embeddings([model_dict])
 
 
-@patch("lfx.base.models.unified_models.get_api_key_for_provider")
+@patch("kfx.base.models.unified_models.get_api_key_for_provider")
 def test_get_embeddings_empty_param_mapping_raises(mock_get_api_key):
     """Unknown providers can't be looked up in EMBEDDING_PARAM_MAPPINGS.
 
@@ -489,8 +489,8 @@ def test_get_embeddings_empty_param_mapping_raises(mock_get_api_key):
         get_embeddings([model_dict])
 
 
-@patch("lfx.base.models.unified_models.get_api_key_for_provider")
-@patch("lfx.base.models.unified_models.get_embedding_class")
+@patch("kfx.base.models.unified_models.get_api_key_for_provider")
+@patch("kfx.base.models.unified_models.get_embedding_class")
 def test_get_embeddings_falls_back_when_metadata_stripped(mock_get_class, mock_get_api_key):
     """Selections persisted via the generic ``/models`` catalog lack enriched metadata.
 
@@ -518,8 +518,8 @@ def test_get_embeddings_falls_back_when_metadata_stripped(mock_get_class, mock_g
     assert result == "embeddings-instance"
 
 
-@patch("lfx.base.models.unified_models.get_api_key_for_provider")
-@patch("lfx.base.models.unified_models.get_embedding_class")
+@patch("kfx.base.models.unified_models.get_api_key_for_provider")
+@patch("kfx.base.models.unified_models.get_embedding_class")
 def test_get_embeddings_openai_basic(mock_get_class, mock_get_api_key):
     mock_get_api_key.return_value = "sk-test"
     mock_embedding_class = MagicMock()
@@ -550,8 +550,8 @@ def test_get_embeddings_openai_basic(mock_get_class, mock_get_api_key):
         ),
     ],
 )
-@patch("lfx.base.models.unified_models.get_api_key_for_provider")
-@patch("lfx.base.models.unified_models.get_embedding_class")
+@patch("kfx.base.models.unified_models.get_api_key_for_provider")
+@patch("kfx.base.models.unified_models.get_embedding_class")
 def test_get_embeddings_openai_api_base_env_fallback(
     mock_get_class,
     mock_get_api_key,
@@ -573,8 +573,8 @@ def test_get_embeddings_openai_api_base_env_fallback(
     assert kwargs["base_url"] == expected_base_url
 
 
-@patch("lfx.base.models.unified_models.get_api_key_for_provider")
-@patch("lfx.base.models.unified_models.get_embedding_class")
+@patch("kfx.base.models.unified_models.get_api_key_for_provider")
+@patch("kfx.base.models.unified_models.get_embedding_class")
 def test_get_embeddings_openai_explicit_api_base_overrides_env(mock_get_class, mock_get_api_key, monkeypatch):
     mock_get_api_key.return_value = "sk-test"
     mock_embedding_class = MagicMock()
@@ -592,8 +592,8 @@ def test_get_embeddings_openai_explicit_api_base_overrides_env(mock_get_class, m
     assert kwargs["base_url"] == "http://component.example/v1"
 
 
-@patch("lfx.base.models.unified_models.get_api_key_for_provider")
-@patch("lfx.base.models.unified_models.get_embedding_class")
+@patch("kfx.base.models.unified_models.get_api_key_for_provider")
+@patch("kfx.base.models.unified_models.get_embedding_class")
 def test_get_embeddings_optional_params_only_added_when_mapped(mock_get_class, mock_get_api_key):
     """Parameters only appear in kwargs if their key is in param_mapping."""
     mock_get_api_key.return_value = "sk-test"
@@ -614,8 +614,8 @@ def test_get_embeddings_optional_params_only_added_when_mapped(mock_get_class, m
     assert kwargs.get("dimensions") is None
 
 
-@patch("lfx.base.models.unified_models.get_api_key_for_provider")
-@patch("lfx.base.models.unified_models.get_embedding_class")
+@patch("kfx.base.models.unified_models.get_api_key_for_provider")
+@patch("kfx.base.models.unified_models.get_embedding_class")
 def test_get_embeddings_google_timeout_wrapped_in_dict(mock_get_class, mock_get_api_key):
     """For Google Generative AI, request_timeout is wrapped and dimensions are passed through."""
     mock_get_api_key.return_value = "google-key"
@@ -648,9 +648,9 @@ def test_get_embeddings_google_timeout_wrapped_in_dict(mock_get_class, mock_get_
     assert kwargs.get("request_options") == {"timeout": 30.0}
 
 
-@patch("lfx.base.models.unified_models.get_api_key_for_provider")
-@patch("lfx.base.models.unified_models.get_embedding_class")
-@patch("lfx.base.models.unified_models.get_all_variables_for_provider")
+@patch("kfx.base.models.unified_models.get_api_key_for_provider")
+@patch("kfx.base.models.unified_models.get_embedding_class")
+@patch("kfx.base.models.unified_models.get_all_variables_for_provider")
 def test_get_embeddings_ollama_defaults_to_localhost(mock_get_vars, mock_get_class, mock_get_api_key):
     mock_get_api_key.return_value = None  # Ollama doesn't need an API key
     mock_get_vars.return_value = {}
@@ -672,9 +672,9 @@ def test_get_embeddings_ollama_defaults_to_localhost(mock_get_vars, mock_get_cla
     assert kwargs.get("base_url") == "http://localhost:11434"
 
 
-@patch("lfx.base.models.unified_models.get_api_key_for_provider")
-@patch("lfx.base.models.unified_models.get_embedding_class")
-@patch("lfx.base.models.unified_models.get_all_variables_for_provider")
+@patch("kfx.base.models.unified_models.get_api_key_for_provider")
+@patch("kfx.base.models.unified_models.get_embedding_class")
+@patch("kfx.base.models.unified_models.get_all_variables_for_provider")
 def test_get_embeddings_ollama_custom_base_url(mock_get_vars, mock_get_class, mock_get_api_key):
     mock_get_api_key.return_value = None
     mock_get_vars.return_value = {}
@@ -696,9 +696,9 @@ def test_get_embeddings_ollama_custom_base_url(mock_get_vars, mock_get_class, mo
     assert kwargs.get("base_url") == "http://custom-host:11434"
 
 
-@patch("lfx.base.models.unified_models.get_api_key_for_provider")
-@patch("lfx.base.models.unified_models.get_embedding_class")
-@patch("lfx.base.models.unified_models.get_all_variables_for_provider")
+@patch("kfx.base.models.unified_models.get_api_key_for_provider")
+@patch("kfx.base.models.unified_models.get_embedding_class")
+@patch("kfx.base.models.unified_models.get_all_variables_for_provider")
 def test_get_embeddings_watsonx_url_and_project_id(mock_get_vars, mock_get_class, mock_get_api_key):
     mock_get_api_key.return_value = "ibm-key"
     mock_get_vars.return_value = {}
@@ -731,9 +731,9 @@ def test_get_embeddings_watsonx_url_and_project_id(mock_get_vars, mock_get_class
     assert kwargs.get("project_id") == "proj-123"
 
 
-@patch("lfx.base.models.unified_models.get_api_key_for_provider")
-@patch("lfx.base.models.unified_models.get_embedding_class")
-@patch("lfx.base.models.unified_models.get_all_variables_for_provider")
+@patch("kfx.base.models.unified_models.get_api_key_for_provider")
+@patch("kfx.base.models.unified_models.get_embedding_class")
+@patch("kfx.base.models.unified_models.get_all_variables_for_provider")
 def test_get_embeddings_watsonx_truncate_and_input_text(mock_get_vars, mock_get_class, mock_get_api_key):
     """truncate_input_tokens and input_text should be passed as WatsonX params dict."""
     mock_get_api_key.return_value = "ibm-key"
@@ -776,9 +776,9 @@ def test_get_embeddings_watsonx_truncate_and_input_text(mock_get_vars, mock_get_
     assert return_opts[0]["input_text"] is True
 
 
-@patch("lfx.base.models.unified_models.get_api_key_for_provider")
-@patch("lfx.base.models.unified_models.get_embedding_class")
-@patch("lfx.base.models.unified_models.get_all_variables_for_provider")
+@patch("kfx.base.models.unified_models.get_api_key_for_provider")
+@patch("kfx.base.models.unified_models.get_embedding_class")
+@patch("kfx.base.models.unified_models.get_all_variables_for_provider")
 def test_get_embeddings_watsonx_no_params_when_not_provided(mock_get_vars, mock_get_class, mock_get_api_key):
     """When truncate_input_tokens and input_text are not provided, params should not be set."""
     mock_get_api_key.return_value = "ibm-key"
@@ -811,9 +811,9 @@ def test_get_embeddings_watsonx_no_params_when_not_provided(mock_get_vars, mock_
     assert "params" not in kwargs
 
 
-@patch("lfx.base.models.unified_models.get_api_key_for_provider")
-@patch("lfx.base.models.unified_models.get_embedding_class")
-@patch("lfx.base.models.unified_models.get_all_variables_for_provider")
+@patch("kfx.base.models.unified_models.get_api_key_for_provider")
+@patch("kfx.base.models.unified_models.get_embedding_class")
+@patch("kfx.base.models.unified_models.get_all_variables_for_provider")
 def test_get_embeddings_watsonx_error_wraps_message(mock_get_vars, mock_get_class, mock_get_api_key):
     """IBM WatsonX instantiation errors mentioning url/project get wrapped in a friendlier ValueError."""
     mock_get_api_key.return_value = "ibm-key"
@@ -933,7 +933,7 @@ def test_handle_model_input_update_uses_language_model_options_by_default():
     component = _make_mock_component()
     build_config = {"model": _make_model_field()}
 
-    with patch("lfx.base.models.unified_models.get_language_model_options") as mock_opts:
+    with patch("kfx.base.models.unified_models.get_language_model_options") as mock_opts:
         mock_opts.return_value = []
         handle_model_input_update(component, build_config, field_value="", field_name=None)
         mock_opts.assert_called_once()
@@ -945,7 +945,7 @@ def test_handle_model_input_update_calls_apply_provider_config_when_model_select
     selected_model = [{"name": "gpt-4", "provider": "OpenAI", "metadata": {}}]
     build_config = {"model": _make_model_field(value=selected_model)}
 
-    with patch("lfx.base.models.unified_models.apply_provider_variable_config_to_build_config") as mock_apply:
+    with patch("kfx.base.models.unified_models.apply_provider_variable_config_to_build_config") as mock_apply:
         mock_apply.side_effect = lambda cfg, provider, **kw: cfg  # noqa: ARG005
 
         def get_options(user_id=None):  # noqa: ARG001
@@ -968,7 +968,7 @@ def test_handle_model_input_update_watsonx_embedding_shows_special_fields():
         "input_text": {"show": False},
     }
 
-    with patch("lfx.base.models.unified_models.apply_provider_variable_config_to_build_config") as mock_apply:
+    with patch("kfx.base.models.unified_models.apply_provider_variable_config_to_build_config") as mock_apply:
         mock_apply.side_effect = lambda cfg, provider, **kw: cfg  # noqa: ARG005
 
         result = handle_model_input_update(
@@ -994,7 +994,7 @@ def test_handle_model_input_update_non_watsonx_embedding_hides_special_fields():
         "input_text": {"show": True},
     }
 
-    with patch("lfx.base.models.unified_models.apply_provider_variable_config_to_build_config") as mock_apply:
+    with patch("kfx.base.models.unified_models.apply_provider_variable_config_to_build_config") as mock_apply:
         mock_apply.side_effect = lambda cfg, provider, **kw: cfg  # noqa: ARG005
 
         result = handle_model_input_update(
@@ -1021,7 +1021,7 @@ def test_handle_model_input_update_language_model_prefix_skips_embedding_fields(
         "input_text": {"show": original_show},
     }
 
-    with patch("lfx.base.models.unified_models.apply_provider_variable_config_to_build_config") as mock_apply:
+    with patch("kfx.base.models.unified_models.apply_provider_variable_config_to_build_config") as mock_apply:
         mock_apply.side_effect = lambda cfg, provider, **kw: cfg  # noqa: ARG005
 
         result = handle_model_input_update(
@@ -1108,7 +1108,7 @@ def test_handle_model_input_update_custom_model_field_name():
         },
     }
 
-    with patch("lfx.base.models.unified_models.apply_provider_variable_config_to_build_config") as mock_apply:
+    with patch("kfx.base.models.unified_models.apply_provider_variable_config_to_build_config") as mock_apply:
         mock_apply.side_effect = lambda cfg, provider, **kw: cfg  # noqa: ARG005
 
         result = handle_model_input_update(
@@ -1141,7 +1141,7 @@ def test_handle_model_input_update_custom_field_name_reads_default_from_correct_
         },
     }
 
-    with patch("lfx.base.models.unified_models.apply_provider_variable_config_to_build_config") as mock_apply:
+    with patch("kfx.base.models.unified_models.apply_provider_variable_config_to_build_config") as mock_apply:
         mock_apply.side_effect = lambda cfg, provider, **kw: cfg  # noqa: ARG005
 
         # field_name is "temperature" (not the model field and not a provider-mapped field)
@@ -1253,7 +1253,7 @@ def test_apply_provider_config_preserves_user_typed_credential():
     assert result["api_key"]["show"] is True
 
 
-@patch("lfx.base.models.unified_models.build_config.logger.debug")
+@patch("kfx.base.models.unified_models.build_config.logger.debug")
 def test_apply_provider_config_keeps_current_provider_variable_on_refresh(mock_debug):
     """Refreshing the same provider should not rewrite an already-correct variable key."""
     build_config = {
@@ -1278,7 +1278,7 @@ def test_apply_provider_config_keeps_current_provider_variable_on_refresh(mock_d
     )
 
 
-@patch("lfx.base.models.unified_models.get_all_variables_for_provider")
+@patch("kfx.base.models.unified_models.get_all_variables_for_provider")
 def test_resolve_dropdown_provider_values_sets_resolved_url(mock_get_vars):
     """_resolve_dropdown_provider_values should set the resolved URL on dropdown fields."""
     mock_get_vars.return_value = {"WATSONX_URL": "https://eu-de.ml.cloud.ibm.com"}
@@ -1313,7 +1313,7 @@ def test_resolve_dropdown_provider_values_sets_resolved_url(mock_get_vars):
     assert build_config["api_key"]["load_from_db"] is True
 
 
-@patch("lfx.base.models.unified_models.get_all_variables_for_provider")
+@patch("kfx.base.models.unified_models.get_all_variables_for_provider")
 def test_resolve_dropdown_provider_values_falls_back_to_first_option(mock_get_vars):
     """When the variable can't be resolved, fall back to the first dropdown option."""
     mock_get_vars.return_value = {}  # No variables configured
@@ -1338,7 +1338,7 @@ def test_resolve_dropdown_provider_values_falls_back_to_first_option(mock_get_va
     assert build_config["base_url_ibm_watsonx"]["load_from_db"] is False
 
 
-@patch("lfx.base.models.unified_models.get_all_variables_for_provider")
+@patch("kfx.base.models.unified_models.get_all_variables_for_provider")
 def test_resolve_dropdown_skips_non_dropdown_fields(mock_get_vars):
     """Non-DropdownInput fields should not be touched by _resolve_dropdown_provider_values."""
     mock_get_vars.return_value = {"WATSONX_APIKEY": "secret-key"}  # pragma: allowlist secret
@@ -1396,7 +1396,7 @@ def test_handle_model_input_update_resolves_watsonx_dropdown():
         },
     }
 
-    with patch("lfx.base.models.unified_models.get_all_variables_for_provider") as mock_get_vars:
+    with patch("kfx.base.models.unified_models.get_all_variables_for_provider") as mock_get_vars:
         mock_get_vars.return_value = {"WATSONX_URL": "https://eu-de.ml.cloud.ibm.com"}
 
         result = handle_model_input_update(
@@ -1421,10 +1421,10 @@ def test_get_provider_for_model_name_backwards_compat():
     """Ensure ``get_provider_for_model_name`` stays importable from the package root.
 
     Flows exported from 1.8.x import this helper directly from
-    ``lfx.base.models.unified_models``. The post-refactor package split broke
+    ``kfx.base.models.unified_models``. The post-refactor package split broke
     that import; this test guards against reintroducing the regression.
     """
-    from lfx.base.models.unified_models import get_provider_for_model_name
+    from kfx.base.models.unified_models import get_provider_for_model_name
 
     # Known model round-trips to its provider.
     assert get_provider_for_model_name("gpt-4o") == "OpenAI"

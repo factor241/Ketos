@@ -8,7 +8,7 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.backend.base.langflow.alembic.migration_validator import MigrationValidator
+from src.backend.base.ketos.alembic.migration_validator import MigrationValidator
 
 
 def create_test_migration(content: str, filename: str) -> Path:

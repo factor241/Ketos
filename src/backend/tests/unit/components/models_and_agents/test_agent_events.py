@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 import pytest
 from langchain_core.agents import AgentFinish
 from langchain_core.messages import AIMessageChunk
-from lfx.base.agents.events import (
+from kfx.base.agents.events import (
     _extract_output_text,
     handle_on_chain_end,
     handle_on_chain_start,
@@ -15,10 +15,10 @@ from lfx.base.agents.events import (
     handle_on_tool_start,
     process_agent_events,
 )
-from lfx.schema.content_block import ContentBlock
-from lfx.schema.content_types import ToolContent
-from lfx.schema.message import Message
-from lfx.utils.constants import MESSAGE_SENDER_AI
+from kfx.schema.content_block import ContentBlock
+from kfx.schema.content_types import ToolContent
+from kfx.schema.message import Message
+from kfx.utils.constants import MESSAGE_SENDER_AI
 
 
 async def create_event_iterator(events: list[dict[str, Any]]) -> AsyncIterator[dict[str, Any]]:

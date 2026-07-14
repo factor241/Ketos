@@ -1,4 +1,5 @@
 import { cloneDeep } from "lodash";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { UUID_PARSING_ERROR } from "@/constants/constants";
 import { usePostAddFlow } from "@/controllers/API/queries/flows/use-post-add-flow";
@@ -22,12 +23,9 @@ import {
 } from "@/utils/reactflowUtils";
 import useDeleteFlow from "./use-delete-flow";
 
-const FLOW_CREATION_ERROR = "Flow creation error";
-const FOLDER_NOT_FOUND_ERROR = "Folder not found. Redirecting to flows...";
-const FLOW_CREATION_ERROR_MESSAGE =
-  "An unexpected error occurred, please try again";
 const REDIRECT_DELAY = 3000;
 const useAddFlow = () => {
+  const { t } = useTranslation();
   const flows = useFlowsManagerStore((state) => state.flows);
   const setFlows = useFlowsManagerStore((state) => state.setFlows);
   const { deleteFlow } = useDeleteFlow();
@@ -132,7 +130,7 @@ const useAddFlow = () => {
           const detail = error?.response?.data?.detail;
           if (Array.isArray(detail) && detail[0]?.type === UUID_PARSING_ERROR) {
             setNoticeData({
-              title: FOLDER_NOT_FOUND_ERROR,
+              title: t("flows.folderNotFoundRedirect"),
             });
             setTimeout(() => {
               window.location.href = `/flows`;
@@ -142,8 +140,10 @@ const useAddFlow = () => {
           }
 
           useAlertStore.getState().setErrorData({
-            title: FLOW_CREATION_ERROR,
-            list: extractApiErrorMessages(error),
+            title: t("flows.creationError"),
+            list: extractApiErrorMessages(error, (key, params) =>
+              t(key, params),
+            ),
           });
           reject(error); // Re-throw the error so the caller can handle it if needed},
         },

@@ -1,3 +1,5 @@
+import { compareForPresentation } from "@/utils/locale-format";
+
 export default function sensitiveSort(a: string, b: string): number {
   // Extract the name and number from each string using regular expressions
   const regex = /(.+) \((\w+)\)/;
@@ -9,7 +11,7 @@ export default function sensitiveSort(a: string, b: string): number {
     const nameA = matchA[1];
     const nameB = matchB[1];
     if (nameA !== nameB) {
-      return nameA.localeCompare(nameB);
+      return compareForPresentation(nameA, nameB);
     }
 
     // If the names are the same, compare the numbers numerically
@@ -19,6 +21,6 @@ export default function sensitiveSort(a: string, b: string): number {
   } else {
     // Handle cases where one or both strings do not match the expected pattern
     // Simple strings are treated as pure alphabetical comparisons
-    return a.localeCompare(b);
+    return compareForPresentation(a, b);
   }
 }

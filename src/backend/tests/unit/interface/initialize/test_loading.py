@@ -2,7 +2,7 @@ import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from lfx.interface.initialize.loading import (
+from kfx.interface.initialize.loading import (
     update_params_with_load_from_db_fields,
     update_table_params_with_load_from_db_fields,
 )
@@ -29,7 +29,7 @@ async def test_update_params_fallback_to_env_when_variable_not_found():
     load_from_db_fields = ["api_key"]
 
     # Call the function with fallback enabled
-    with patch("lfx.interface.initialize.loading.session_scope") as mock_session_scope:
+    with patch("kfx.interface.initialize.loading.session_scope") as mock_session_scope:
         mock_session_scope.return_value.__aenter__.return_value = MagicMock()
 
         result = await update_params_with_load_from_db_fields(
@@ -58,7 +58,7 @@ async def test_update_params_raises_when_variable_not_found_and_no_fallback():
     load_from_db_fields = ["api_key"]
 
     # Call the function with fallback disabled
-    with patch("lfx.interface.initialize.loading.session_scope") as mock_session_scope:
+    with patch("kfx.interface.initialize.loading.session_scope") as mock_session_scope:
         mock_session_scope.return_value.__aenter__.return_value = MagicMock()
 
         with pytest.raises(ValueError, match="TEST_API_KEY variable not found"):
@@ -85,7 +85,7 @@ async def test_update_params_uses_database_variable_when_found():
     load_from_db_fields = ["api_key"]
 
     # Call the function
-    with patch("lfx.interface.initialize.loading.session_scope") as mock_session_scope:
+    with patch("kfx.interface.initialize.loading.session_scope") as mock_session_scope:
         mock_session_scope.return_value.__aenter__.return_value = MagicMock()
 
         result = await update_params_with_load_from_db_fields(
@@ -119,7 +119,7 @@ async def test_update_params_sets_none_when_no_env_var_and_fallback_enabled():
     load_from_db_fields = ["api_key"]
 
     # Call the function with fallback enabled
-    with patch("lfx.interface.initialize.loading.session_scope") as mock_session_scope:
+    with patch("kfx.interface.initialize.loading.session_scope") as mock_session_scope:
         mock_session_scope.return_value.__aenter__.return_value = MagicMock()
 
         result = await update_params_with_load_from_db_fields(
@@ -142,7 +142,7 @@ async def test_update_params_raises_on_user_id_not_set():
     load_from_db_fields = ["api_key"]
 
     # Should raise with fallback enabled
-    with patch("lfx.interface.initialize.loading.session_scope") as mock_session_scope:
+    with patch("kfx.interface.initialize.loading.session_scope") as mock_session_scope:
         mock_session_scope.return_value.__aenter__.return_value = MagicMock()
 
         with pytest.raises(ValueError, match="User id is not set"):
@@ -151,7 +151,7 @@ async def test_update_params_raises_on_user_id_not_set():
             )
 
     # Should also raise with fallback disabled
-    with patch("lfx.interface.initialize.loading.session_scope") as mock_session_scope:
+    with patch("kfx.interface.initialize.loading.session_scope") as mock_session_scope:
         mock_session_scope.return_value.__aenter__.return_value = MagicMock()
 
         with pytest.raises(ValueError, match="User id is not set"):
@@ -172,7 +172,7 @@ async def test_update_params_skips_empty_fields():
     load_from_db_fields = ["api_key", "another_key", "valid_key"]
 
     # Call the function
-    with patch("lfx.interface.initialize.loading.session_scope") as mock_session_scope:
+    with patch("kfx.interface.initialize.loading.session_scope") as mock_session_scope:
         mock_session = MagicMock()
         mock_session_scope.return_value.__aenter__.return_value = mock_session
 
@@ -220,8 +220,8 @@ async def test_update_params_handles_multiple_fields():
 
     # Call the function with proper mocking - NOTICE THE CORRECT PATCH PATH
     with (
-        patch("lfx.interface.initialize.loading.session_scope") as mock_session_scope,
-        patch("lfx.services.deps.get_settings_service") as mock_get_settings,
+        patch("kfx.interface.initialize.loading.session_scope") as mock_session_scope,
+        patch("kfx.services.deps.get_settings_service") as mock_get_settings,
     ):
         # Create a proper mock session that won't be detected as NoopSession
         mock_session = MagicMock()
@@ -281,7 +281,7 @@ async def test_update_table_params_with_load_from_db_fields_basic():
     }
 
     # Call the function
-    with patch("lfx.interface.initialize.loading.session_scope") as mock_session_scope:
+    with patch("kfx.interface.initialize.loading.session_scope") as mock_session_scope:
         mock_session_scope.return_value.__aenter__.return_value = MagicMock()
 
         result = await update_table_params_with_load_from_db_fields(
@@ -322,7 +322,7 @@ async def test_update_table_params_respects_cell_level_literal_marker():
         "table_data_load_from_db_columns": ["header"],
     }
 
-    with patch("lfx.interface.initialize.loading.session_scope") as mock_session_scope:
+    with patch("kfx.interface.initialize.loading.session_scope") as mock_session_scope:
         mock_session_scope.return_value.__aenter__.return_value = MagicMock()
 
         result = await update_table_params_with_load_from_db_fields(
@@ -349,7 +349,7 @@ async def test_update_table_params_respects_cell_level_global_variable_marker():
         "table_data_load_from_db_columns": ["header"],
     }
 
-    with patch("lfx.interface.initialize.loading.session_scope") as mock_session_scope:
+    with patch("kfx.interface.initialize.loading.session_scope") as mock_session_scope:
         mock_session_scope.return_value.__aenter__.return_value = MagicMock()
 
         result = await update_table_params_with_load_from_db_fields(
@@ -384,7 +384,7 @@ async def test_update_table_params_with_fallback_to_env():
     }
 
     # Call the function with fallback enabled
-    with patch("lfx.interface.initialize.loading.session_scope") as mock_session_scope:
+    with patch("kfx.interface.initialize.loading.session_scope") as mock_session_scope:
         mock_session_scope.return_value.__aenter__.return_value = MagicMock()
 
         result = await update_table_params_with_load_from_db_fields(
@@ -432,7 +432,7 @@ async def test_update_table_params_mixed_db_and_env():
     }
 
     # Call the function with fallback enabled
-    with patch("lfx.interface.initialize.loading.session_scope") as mock_session_scope:
+    with patch("kfx.interface.initialize.loading.session_scope") as mock_session_scope:
         mock_session_scope.return_value.__aenter__.return_value = MagicMock()
 
         result = await update_table_params_with_load_from_db_fields(
@@ -502,7 +502,7 @@ async def test_update_table_params_non_dict_rows():
         "table_data_load_from_db_columns": ["username"],
     }
 
-    with patch("lfx.interface.initialize.loading.session_scope") as mock_session_scope:
+    with patch("kfx.interface.initialize.loading.session_scope") as mock_session_scope:
         mock_session_scope.return_value.__aenter__.return_value = MagicMock()
 
         result = await update_table_params_with_load_from_db_fields(
@@ -547,8 +547,8 @@ async def test_update_params_with_table_fields():
 
     load_from_db_fields = ["regular_field", "table:table_data"]
 
-    # Call the main function (lfx version with table support)
-    with patch("lfx.interface.initialize.loading.session_scope") as mock_session_scope:
+    # Call the main function (kfx version with table support)
+    with patch("kfx.interface.initialize.loading.session_scope") as mock_session_scope:
         mock_session_scope.return_value.__aenter__.return_value = MagicMock()
 
         result = await update_params_with_load_from_db_fields(
@@ -580,7 +580,7 @@ async def test_update_table_params_handles_user_id_not_set_error():
         "table_data_load_from_db_columns": ["username"],
     }
 
-    with patch("lfx.interface.initialize.loading.session_scope") as mock_session_scope:
+    with patch("kfx.interface.initialize.loading.session_scope") as mock_session_scope:
         mock_session_scope.return_value.__aenter__.return_value = MagicMock()
 
         with pytest.raises(ValueError, match="User id is not set"):

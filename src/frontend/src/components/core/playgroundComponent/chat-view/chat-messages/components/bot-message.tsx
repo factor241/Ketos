@@ -1,9 +1,9 @@
 import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import LangflowLogo from "@/assets/LangflowLogo.svg?react";
 import IconComponent, {
   ForwardedIconComponent,
 } from "@/components/common/genericIconComponent";
+import { KetosBrandMark } from "@/components/common/ketos-brand-mark";
 import MessageMetadata from "@/components/common/messageMetadataComponent";
 import { ContentBlockDisplay } from "@/components/core/chatComponents/ContentBlockDisplay";
 import { useUpdateMessage } from "@/controllers/API/queries/messages";
@@ -107,7 +107,7 @@ export const BotMessage = memo(
 
     const editedFlag = chat.edit ? (
       <div className="mt-2 text-xs text-muted-foreground text-right">
-        (Edited)
+        {t("playground.edited")}
       </div>
     ) : null;
 
@@ -148,14 +148,14 @@ export const BotMessage = memo(
                   }
                 >
                   <div className="flex h-5 w-5 items-center justify-center">
-                    <LangflowLogo className="h-4 w-4 text-black" />
+                    <KetosBrandMark decorative className="h-4 w-4" />
                   </div>
                 </div>
               )}
 
               <div className="flex w-full flex-col min-w-0">
                 <span className="text-sm font-medium text-foreground mb-1">
-                  {chat.sender_name ?? "AI"}
+                  {chat.sender_name ?? t("playground.aiSender")}
                 </span>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   {!thinkingActive && displayTime > 0 && (

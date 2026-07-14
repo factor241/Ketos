@@ -25,17 +25,17 @@ test(
     await page.getByTestId("code-button-modal").last().click();
 
     const codeInputCode = `
-# from langflow.field_typing import Data
-from langflow.custom import Component
-from langflow.io import CodeInput, Output
-from langflow.schema import Data
+# from ketos.field_typing import Data
+from ketos.custom import Component
+from ketos.io import CodeInput, Output
+from ketos.schema import Data
 from time import sleep
-from langflow.schema.message import Message
+from ketos.schema.message import Message
 
 class CustomComponent(Component):
     display_name = "Custom Component"
     description = "Use as a template to create your own component."
-    documentation: str = "https://docs.langflow.org/components-custom-components"
+    documentation: str = "https://docs.ketos.test/components-custom-components"
     icon = "custom_components"
     name = "CustomComponent"
 
@@ -71,11 +71,11 @@ class CustomComponent(Component):
       'def python_function(text: str) -> st:    """This is a default python function that returns the input text"""    return text';
 
     const customComponentCode = `from typing import Callable
-from langflow.field_typing import Code
-from langflow.interface.custom.custom_component import CustomComponent
-from langflow.interface.custom.utils import get_function
+from ketos.field_typing import Code
+from ketos.interface.custom.custom_component import CustomComponent
+from ketos.interface.custom.utils import get_function
 
-class PythonFunctionComponent(CustomComponent):
+class PythonFunctionComponent(Component):
     def python_function(text: str) -> str:
         """This is a default python function that returns the input text"""
         return text`;

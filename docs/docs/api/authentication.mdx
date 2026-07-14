@@ -1,0 +1,20 @@
+---
+title: API authentication
+slug: /api/authentication
+---
+
+Send a Ketos API key in the dedicated header:
+
+```http
+x-api-key: YOUR_KETOS_API_KEY
+```
+
+Set an environment-backed key for local operation with
+`KETOS_API_KEY_SOURCE=env` and `KETOS_API_KEY`. Do not put credentials in URLs,
+examples, flow JSON, or source control.
+
+`Authorization: Bearer ...` is reserved for JWT or OAuth access tokens obtained
+from an identity flow. An API key is not a bearer token.
+
+Request-scoped global variables use headers beginning with
+`X-KETOS-GLOBAL-VAR-`. The suffix is the variable name.

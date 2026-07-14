@@ -1,4 +1,6 @@
-export const getModalPropsApiKey = (t: (key: string) => string) => {
+import type { TFunction } from "i18next";
+
+export const getModalPropsApiKey = (t: TFunction<"translation">) => {
   const modalProps = {
     title: t("modal.secretKey.createTitle"),
     description: t("modal.secretKey.createDescription"),

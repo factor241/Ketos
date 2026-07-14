@@ -3,9 +3,9 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
-from langflow.services.database.models.vertex_builds.crud import log_vertex_build
-from langflow.services.database.models.vertex_builds.model import VertexBuildBase, VertexBuildTable
-from lfx.services.settings.base import Settings
+from ketos.services.database.models.vertex_builds.crud import log_vertex_build
+from ketos.services.database.models.vertex_builds.model import VertexBuildBase, VertexBuildTable
+from kfx.services.settings.base import Settings
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -77,7 +77,7 @@ async def create_test_builds(async_session: AsyncSession, count: int, flow_id, v
 @pytest.mark.asyncio
 async def test_log_vertex_build_basic(async_session: AsyncSession, vertex_build_data, mock_settings):
     """Test basic vertex build logging."""
-    with patch("langflow.services.database.models.vertex_builds.crud.get_settings_service") as mock_settings_service:
+    with patch("ketos.services.database.models.vertex_builds.crud.get_settings_service") as mock_settings_service:
         mock_settings_service.return_value.settings = mock_settings
 
         result = await log_vertex_build(async_session, vertex_build_data)
@@ -91,7 +91,7 @@ async def test_log_vertex_build_basic(async_session: AsyncSession, vertex_build_
 @pytest.mark.asyncio
 async def test_log_vertex_build_max_global_limit(async_session: AsyncSession, vertex_build_data, mock_settings):
     """Test that global build limit is enforced."""
-    with patch("langflow.services.database.models.vertex_builds.crud.get_settings_service") as mock_settings_service:
+    with patch("ketos.services.database.models.vertex_builds.crud.get_settings_service") as mock_settings_service:
         mock_settings_service.return_value.settings = mock_settings
 
         # Use helper function instead of loop
@@ -109,7 +109,7 @@ async def test_log_vertex_build_max_global_limit(async_session: AsyncSession, ve
 @pytest.mark.asyncio
 async def test_log_vertex_build_max_per_vertex_limit(async_session: AsyncSession, vertex_build_data, mock_settings):
     """Test that per-vertex build limit is enforced."""
-    with patch("langflow.services.database.models.vertex_builds.crud.get_settings_service") as mock_settings_service:
+    with patch("ketos.services.database.models.vertex_builds.crud.get_settings_service") as mock_settings_service:
         mock_settings_service.return_value.settings = mock_settings
 
         # Create more builds than the per-vertex limit for the same vertex
@@ -135,7 +135,7 @@ async def test_log_vertex_build_max_per_vertex_limit(async_session: AsyncSession
 @pytest.mark.asyncio
 async def test_log_vertex_build_integrity_error(async_session: AsyncSession, vertex_build_data, mock_settings):
     """Test handling of integrity errors."""
-    with patch("langflow.services.database.models.vertex_builds.crud.get_settings_service") as mock_settings_service:
+    with patch("ketos.services.database.models.vertex_builds.crud.get_settings_service") as mock_settings_service:
         mock_settings_service.return_value.settings = mock_settings
 
         # First, log the original build
@@ -274,7 +274,7 @@ async def test_log_vertex_build_with_different_limits(
 @pytest.mark.asyncio
 async def test_concurrent_log_vertex_build(vertex_build_data, mock_settings):
     """Test concurrent build logging."""
-    with patch("langflow.services.database.models.vertex_builds.crud.get_settings_service") as mock_settings_service:
+    with patch("ketos.services.database.models.vertex_builds.crud.get_settings_service") as mock_settings_service:
         mock_settings_service.return_value.settings = mock_settings
 
         import asyncio

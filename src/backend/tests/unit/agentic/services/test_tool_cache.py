@@ -20,7 +20,7 @@ import asyncio
 from contextvars import copy_context
 
 import pytest
-from lfx.mcp.tool_cache import (
+from kfx.mcp.tool_cache import (
     MAX_CACHE_ENTRIES,
     cached_tool_call,
     reset_tool_cache,
@@ -240,7 +240,7 @@ class TestFlowBuilderToolsIntegration:
         reset_tool_cache()
 
     def test_search_components_should_use_request_cache(self):
-        from lfx.mcp.flow_builder_tools import SearchComponentTypes
+        from kfx.mcp.flow_builder_tools import SearchComponentTypes
 
         tool = SearchComponentTypes()
         tool.query = "ChatInput"
@@ -248,7 +248,7 @@ class TestFlowBuilderToolsIntegration:
         # Two back-to-back calls. The underlying registry walk should
         # happen ONCE per (tool_name, args). We assert this via a side
         # channel: patching the inner load_local_registry to count calls.
-        import lfx.mcp.flow_builder_tools.read_tools as fbt  # B2: patch the resolution site
+        import kfx.mcp.flow_builder_tools.read_tools as fbt  # B2: patch the resolution site
 
         calls = 0
         original = fbt._load_registry_user_aware
@@ -268,12 +268,12 @@ class TestFlowBuilderToolsIntegration:
         assert calls == 1, "search_components must hit cache on repeat call"
 
     def test_describe_component_should_use_request_cache(self):
-        from lfx.mcp.flow_builder_tools import DescribeComponentType
+        from kfx.mcp.flow_builder_tools import DescribeComponentType
 
         tool = DescribeComponentType()
         tool.component_type = "ChatInput"
 
-        import lfx.mcp.flow_builder_tools.read_tools as fbt  # B2: patch the resolution site
+        import kfx.mcp.flow_builder_tools.read_tools as fbt  # B2: patch the resolution site
 
         calls = 0
         original = fbt._load_registry_user_aware
@@ -293,11 +293,11 @@ class TestFlowBuilderToolsIntegration:
         assert calls == 1, "describe_component must hit cache on repeat call"
 
     def test_describe_component_with_different_types_should_miss_cache(self):
-        from lfx.mcp.flow_builder_tools import DescribeComponentType
+        from kfx.mcp.flow_builder_tools import DescribeComponentType
 
         tool = DescribeComponentType()
 
-        import lfx.mcp.flow_builder_tools.read_tools as fbt  # B2: patch the resolution site
+        import kfx.mcp.flow_builder_tools.read_tools as fbt  # B2: patch the resolution site
 
         calls = 0
         original = fbt._load_registry_user_aware
@@ -320,12 +320,12 @@ class TestFlowBuilderToolsIntegration:
         assert calls == 2
 
     def test_reset_tool_cache_should_force_refetch_on_next_describe(self):
-        from lfx.mcp.flow_builder_tools import DescribeComponentType
+        from kfx.mcp.flow_builder_tools import DescribeComponentType
 
         tool = DescribeComponentType()
         tool.component_type = "ChatInput"
 
-        import lfx.mcp.flow_builder_tools.read_tools as fbt  # B2: patch the resolution site
+        import kfx.mcp.flow_builder_tools.read_tools as fbt  # B2: patch the resolution site
 
         calls = 0
         original = fbt._load_registry_user_aware

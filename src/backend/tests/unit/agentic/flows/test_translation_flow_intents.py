@@ -11,7 +11,7 @@ examples are missing here, the LLM has no way to learn the routing.
 
 import re
 
-from langflow.agentic.flows.translation_flow import TRANSLATION_PROMPT
+from ketos.agentic.flows.translation_flow import TRANSLATION_PROMPT
 
 
 class TestManageFilesIntentDeclared:
@@ -113,7 +113,7 @@ class TestFileQuestionDisambiguationStillHolds:
     """Regression guard — the original file-question disambiguation rule must survive the Slice 4 edits."""
 
     def test_translation_prompt_should_include_disambiguation_rule_for_file_question(self):
-        """`how do I save a file?` is a Langflow question, not a file action."""
+        """`how do I save a file?` is a Ketos question, not a file action."""
         prompt = TRANSLATION_PROMPT
         # Either as an explicit rule line OR as a question example.
         rule_or_example = (

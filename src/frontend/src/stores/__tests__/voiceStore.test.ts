@@ -488,7 +488,7 @@ describe("useVoiceStore", () => {
           // Additional properties that shouldn't break the store
           extra: { data: "value" },
           metadata: ["tag1", "tag2"],
-        } as any,
+        },
       ];
 
       act(() => {

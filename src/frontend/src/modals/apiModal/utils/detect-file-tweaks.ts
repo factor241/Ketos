@@ -1,5 +1,5 @@
-/** Checks if the tweaks object contains any file-related fields (path for File, file_path for VideoFile, files for ChatInput). */
-export function hasFileTweaks(tweaks: Record<string, any>): boolean {
+/** Checks if the tweaks object contains unknown file-related fields (path for File, file_path for VideoFile, files for ChatInput). */
+export function hasFileTweaks(tweaks: Record<string, unknown>): boolean {
   for (const [_nodeId, tweak] of Object.entries(tweaks)) {
     if (!tweak || typeof tweak !== "object") continue;
 
@@ -18,7 +18,7 @@ export function hasFileTweaks(tweaks: Record<string, any>): boolean {
 }
 
 /** Checks specifically for ChatInput files field (v1 API). */
-export function hasChatInputFiles(tweaks: Record<string, any>): boolean {
+export function hasChatInputFiles(tweaks: Record<string, unknown>): boolean {
   return Object.values(tweaks).some(
     (tweak) =>
       tweak &&
@@ -29,7 +29,9 @@ export function hasChatInputFiles(tweaks: Record<string, any>): boolean {
 }
 
 /** Gets node ID for single ChatInput with files (v1). Returns null if none. */
-export function getChatInputNodeId(tweaks: Record<string, any>): string | null {
+export function getChatInputNodeId(
+  tweaks: Record<string, unknown>,
+): string | null {
   for (const [nodeId, tweak] of Object.entries(tweaks)) {
     if (!tweak || typeof tweak !== "object") continue;
 
@@ -42,7 +44,7 @@ export function getChatInputNodeId(tweaks: Record<string, any>): string | null {
 }
 
 /** Gets node ID for single File/VideoFile (v2). Returns null if none. */
-export function getFileNodeId(tweaks: Record<string, any>): string | null {
+export function getFileNodeId(tweaks: Record<string, unknown>): string | null {
   for (const [nodeId, tweak] of Object.entries(tweaks)) {
     if (!tweak || typeof tweak !== "object") continue;
 
@@ -58,7 +60,9 @@ export function getFileNodeId(tweaks: Record<string, any>): string | null {
 }
 
 /** Gets all node IDs for ChatInputs with files (v1). */
-export function getAllChatInputNodeIds(tweaks: Record<string, any>): string[] {
+export function getAllChatInputNodeIds(
+  tweaks: Record<string, unknown>,
+): string[] {
   const nodeIds: string[] = [];
   for (const [nodeId, tweak] of Object.entries(tweaks)) {
     if (!tweak || typeof tweak !== "object") continue;
@@ -72,7 +76,7 @@ export function getAllChatInputNodeIds(tweaks: Record<string, any>): string[] {
 }
 
 /** Gets all node IDs for File/VideoFile components (v2). */
-export function getAllFileNodeIds(tweaks: Record<string, any>): string[] {
+export function getAllFileNodeIds(tweaks: Record<string, unknown>): string[] {
   const nodeIds: string[] = [];
   for (const [nodeId, tweak] of Object.entries(tweaks)) {
     if (!tweak || typeof tweak !== "object") continue;
@@ -93,9 +97,9 @@ export function getAllFileNodeIds(tweaks: Record<string, any>): string[] {
 
 /** Filters out file-related tweaks, returning only non-file ones. */
 export function getNonFileTypeTweaks(
-  tweaks: Record<string, any>,
-): Record<string, any> {
-  const nonFileTweaks: Record<string, any> = {};
+  tweaks: Record<string, unknown>,
+): Record<string, unknown> {
+  const nonFileTweaks: Record<string, unknown> = {};
   for (const [nodeId, tweak] of Object.entries(tweaks)) {
     if (!tweak || typeof tweak !== "object") {
       nonFileTweaks[nodeId] = tweak;

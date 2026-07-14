@@ -10,7 +10,7 @@ pass on both eager (<=0.136) and lazy (>=0.137) inclusion.
 import pytest
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
-from langflow.services.tracing.otel_fastapi_patch import (
+from ketos.services.tracing.otel_fastapi_patch import (
     _safe_get_route_details,
     patch_otel_fastapi_route_details,
 )
@@ -40,7 +40,7 @@ def test_patch_is_idempotent():
 
     assert first is second
     assert first is _safe_get_route_details
-    assert getattr(otel_fastapi, "_langflow_route_details_patched", False) is True
+    assert getattr(otel_fastapi, "_ketos_route_details_patched", False) is True
 
 
 def test_safe_route_details_partial_match_does_not_raise():

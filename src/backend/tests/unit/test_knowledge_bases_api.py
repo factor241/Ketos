@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pandas as pd
 import pytest
 from httpx import AsyncClient
-from langflow.api.utils import knowledge_base_service
-from langflow.api.utils.kb_helpers import (
+from ketos.api.utils import knowledge_base_service
+from ketos.api.utils.kb_helpers import (
     KBAnalysisHelper,
     KBIngestionHelper,
     KBStorageHelper,
@@ -111,8 +111,8 @@ class TestGetKBMetaData:
         assert result["chunks"] == 10
         assert result["embedding_provider"] == "OpenAI"
 
-    @patch("langflow.api.utils.kb_helpers.KBStorageHelper.get_directory_size")
-    @patch("langflow.api.utils.kb_helpers.KBAnalysisHelper.update_text_metrics")
+    @patch("ketos.api.utils.kb_helpers.KBStorageHelper.get_directory_size")
+    @patch("ketos.api.utils.kb_helpers.KBAnalysisHelper.update_text_metrics")
     def test_get_metadata_fast_recounts_stale_zero_chunk_metadata(
         self, mock_update_metrics, mock_get_directory_size, mock_kb_path
     ):
@@ -153,9 +153,9 @@ class TestGetKBMetaData:
         mock_update_metrics.assert_called_once()
         mock_get_directory_size.assert_called_once_with(mock_kb_path)
 
-    @patch("langflow.api.utils.kb_helpers.KBAnalysisHelper._detect_embedding_provider")
-    @patch("langflow.api.utils.kb_helpers.KBAnalysisHelper._detect_embedding_model")
-    @patch("langflow.api.utils.kb_helpers.KBStorageHelper.get_directory_size")
+    @patch("ketos.api.utils.kb_helpers.KBAnalysisHelper._detect_embedding_provider")
+    @patch("ketos.api.utils.kb_helpers.KBAnalysisHelper._detect_embedding_model")
+    @patch("ketos.api.utils.kb_helpers.KBStorageHelper.get_directory_size")
     def test_get_metadata_slow_path(self, mock_size, mock_model, mock_provider, mock_kb_path):
         mock_size.return_value = 2048
         mock_provider.return_value = "Anthropic"
@@ -192,8 +192,8 @@ class TestPreviewChunks:
 class TestKnowledgeBaseAPI:
     """Tests for KR CRUD endpoints."""
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_fresh_chroma_client")
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_fresh_chroma_client")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_create_knowledge_base(
         self, mock_root, mock_fresh_client, client: AsyncClient, logged_in_headers, active_user, tmp_path
     ):
@@ -360,7 +360,7 @@ class TestKnowledgeBaseAPI:
         assert body["ok"] is False
         assert body["message"]
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_create_kb_path_traversal_single_level(
         self, mock_root, client: AsyncClient, logged_in_headers, tmp_path
     ):
@@ -390,7 +390,7 @@ class TestKnowledgeBaseAPI:
             "VULNERABILITY CONFIRMED: path traversal created a directory outside the user's KB root"
         )
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_create_kb_path_traversal_absolute_path(
         self, mock_root, client: AsyncClient, logged_in_headers, tmp_path
     ):
@@ -421,7 +421,7 @@ class TestKnowledgeBaseAPI:
             "VULNERABILITY CONFIRMED: absolute path in kb_name created a directory outside the KB root"
         )
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_create_kb_path_traversal_prefix_ambiguity(
         self, mock_root, client: AsyncClient, logged_in_headers, tmp_path
     ):
@@ -455,8 +455,8 @@ class TestKnowledgeBaseAPI:
             "VULNERABILITY CONFIRMED: prefix-ambiguity attack created a directory outside the user's KB root"
         )
 
-    @patch("langflow.api.v1.knowledge_bases.logger.warning")
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.logger.warning")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_create_kb_path_traversal_logs_warning(
         self, mock_root, mock_warning, client: AsyncClient, logged_in_headers, tmp_path
     ):
@@ -493,9 +493,13 @@ class TestKnowledgeBaseAPI:
             },
         )
         assert response.status_code == 400
-        assert "at least 3 characters" in response.json()["detail"]
+        body = response.json()
+        assert "at least 3 characters" in body["detail"]
+        assert body["code"] == "knowledge.invalid_name"
+        assert body["params"] == {"min_length": 3}
+        assert "technical_detail" not in body
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_create_duplicate_kb(self, mock_root, client: AsyncClient, logged_in_headers, tmp_path):
         mock_root.return_value = tmp_path
         kb_user_path = tmp_path / "activeuser"
@@ -512,9 +516,13 @@ class TestKnowledgeBaseAPI:
             },
         )
         assert response.status_code == 409
-        assert "already exists" in response.json()["detail"]
+        body = response.json()
+        assert "already exists" in body["detail"]
+        assert body["code"] == "knowledge.already_exists"
+        assert body["params"] == {"name": "Duplicate_KB"}
+        assert "technical_detail" not in body
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_create_duplicate_kb_rejects_existing_db_row_without_directory(
         self,
         mock_root,
@@ -544,12 +552,12 @@ class TestKnowledgeBaseAPI:
         assert "already exists" in response.json()["detail"]
         assert not (tmp_path / active_user.username / "Duplicate_DB_KB").exists()
 
-    @patch("langflow.api.v1.knowledge_bases.knowledge_base_service.backfill_from_disk", new_callable=AsyncMock)
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.knowledge_base_service.backfill_from_disk", new_callable=AsyncMock)
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_list_knowledge_bases(
         self, mock_root, mock_backfill, client: AsyncClient, logged_in_headers, active_user, tmp_path
     ):
-        from langflow.api.utils import knowledge_base_service
+        from ketos.api.utils import knowledge_base_service
 
         mock_root.return_value = tmp_path
         record = await knowledge_base_service.create_record(
@@ -577,7 +585,7 @@ class TestKnowledgeBaseAPI:
         assert kb["size"] == 1024
         mock_backfill.assert_not_awaited()
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_list_and_detail_reflect_cleared_db_separator(
         self,
         mock_root,
@@ -621,7 +629,7 @@ class TestKnowledgeBaseAPI:
         assert detail["chunk_overlap"] == 64
         assert detail["separator"] is None
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_list_knowledge_bases_falls_back_to_disk_when_user_has_no_rows(
         self, mock_root, client: AsyncClient, logged_in_headers, tmp_path
     ):
@@ -657,7 +665,7 @@ class TestKnowledgeBaseAPI:
             kb["backend_type"] == "opensearch" and kb["backend_config"] == {"index_name": "kb1_index"} for kb in data
         )
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_get_knowledge_base_detail(self, mock_root, client: AsyncClient, logged_in_headers, tmp_path):
         mock_root.return_value = tmp_path
         kb_path = tmp_path / "activeuser" / "Detail_KB"
@@ -685,11 +693,11 @@ class TestKnowledgeBaseAPI:
         assert data["backend_type"] == "postgres"
         assert data["backend_config"] == {"collection_name": "detail_kb"}
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_get_knowledge_base_detail_prefers_db_row_when_dir_missing(
         self, mock_root, client: AsyncClient, logged_in_headers, active_user, tmp_path
     ):
-        from langflow.api.utils import knowledge_base_service
+        from ketos.api.utils import knowledge_base_service
 
         mock_root.return_value = tmp_path
         record = await knowledge_base_service.create_record(
@@ -715,9 +723,9 @@ class TestKnowledgeBaseAPI:
         assert data["backend_type"] == "opensearch"
         assert data["backend_config"] == {"index_name": "db_only_index"}
 
-    @patch("langflow.api.v1.knowledge_bases.knowledge_base_service.create_record", new_callable=AsyncMock)
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_fresh_chroma_client")
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.knowledge_base_service.create_record", new_callable=AsyncMock)
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_fresh_chroma_client")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_create_knowledge_base_rolls_back_when_db_persist_fails(
         self,
         mock_root,
@@ -744,11 +752,11 @@ class TestKnowledgeBaseAPI:
         assert response.status_code == 500
         assert not (tmp_path / "activeuser" / "Rollback_KB").exists()
 
-    @patch("langflow.api.utils.kb_helpers.KBStorageHelper.delete_storage", return_value=True)
-    @patch("langflow.api.v1.knowledge_bases.create_backend")
-    @patch("langflow.api.v1.knowledge_bases.knowledge_base_service.delete_by_user_and_name", new_callable=AsyncMock)
-    @patch("langflow.api.v1.knowledge_bases.knowledge_base_service.get_by_user_and_name", new_callable=AsyncMock)
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.utils.kb_helpers.KBStorageHelper.delete_storage", return_value=True)
+    @patch("ketos.api.v1.knowledge_bases.create_backend")
+    @patch("ketos.api.v1.knowledge_bases.knowledge_base_service.delete_by_user_and_name", new_callable=AsyncMock)
+    @patch("ketos.api.v1.knowledge_bases.knowledge_base_service.get_by_user_and_name", new_callable=AsyncMock)
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_delete_knowledge_base(
         self,
         mock_root,
@@ -781,11 +789,11 @@ class TestKnowledgeBaseAPI:
         mock_delete.assert_called_once()
         mock_delete_record.assert_awaited_once()
 
-    @patch("langflow.api.utils.kb_helpers.KBStorageHelper.delete_storage", return_value=True)
-    @patch("langflow.api.v1.knowledge_bases.create_backend")
-    @patch("langflow.api.v1.knowledge_bases.knowledge_base_service.delete_by_user_and_name", new_callable=AsyncMock)
-    @patch("langflow.api.v1.knowledge_bases.knowledge_base_service.get_by_user_and_name", new_callable=AsyncMock)
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.utils.kb_helpers.KBStorageHelper.delete_storage", return_value=True)
+    @patch("ketos.api.v1.knowledge_bases.create_backend")
+    @patch("ketos.api.v1.knowledge_bases.knowledge_base_service.delete_by_user_and_name", new_callable=AsyncMock)
+    @patch("ketos.api.v1.knowledge_bases.knowledge_base_service.get_by_user_and_name", new_callable=AsyncMock)
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_delete_knowledge_base_survives_remote_backend_auth_failure(
         self,
         mock_root,
@@ -837,10 +845,10 @@ class TestKnowledgeBaseAPI:
         assert "astra" in data["warning"].lower()
         assert "manual" in data["warning"].lower()
 
-    @patch("langflow.api.v1.knowledge_bases.create_backend")
-    @patch("langflow.api.v1.knowledge_bases.knowledge_base_service.delete_by_user_and_name", new_callable=AsyncMock)
-    @patch("langflow.api.v1.knowledge_bases.knowledge_base_service.get_by_user_and_name", new_callable=AsyncMock)
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.create_backend")
+    @patch("ketos.api.v1.knowledge_bases.knowledge_base_service.delete_by_user_and_name", new_callable=AsyncMock)
+    @patch("ketos.api.v1.knowledge_bases.knowledge_base_service.get_by_user_and_name", new_callable=AsyncMock)
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_delete_knowledge_base_cleans_up_orphan_db_row(
         self,
         mock_root,
@@ -883,8 +891,8 @@ class TestKnowledgeBaseAPI:
         backend.teardown.assert_awaited_once()
         mock_delete_record.assert_awaited_once()
 
-    @patch("langflow.api.v1.knowledge_bases.knowledge_base_service.get_by_user_and_name", new_callable=AsyncMock)
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.knowledge_base_service.get_by_user_and_name", new_callable=AsyncMock)
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_delete_knowledge_base_truly_missing_still_404s(
         self,
         mock_root,
@@ -906,8 +914,8 @@ class TestKnowledgeBaseAPI:
         response = await client.delete("api/v1/knowledge_bases/Nonexistent", headers=logged_in_headers)
         assert response.status_code == 404
 
-    @patch("langflow.api.utils.kb_helpers.KBStorageHelper.delete_storage", return_value=True)
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.utils.kb_helpers.KBStorageHelper.delete_storage", return_value=True)
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_delete_knowledge_base_cancels_inflight_ingestion(
         self,
         mock_root,
@@ -931,8 +939,8 @@ class TestKnowledgeBaseAPI:
           ``CANCELLED`` with a ``finished_timestamp`` set.
         - The KB row itself is removed.
         """
-        from langflow.services.database.models.jobs.model import JobStatus, JobType
-        from langflow.services.deps import get_job_service
+        from ketos.services.database.models.jobs.model import JobStatus, JobType
+        from ketos.services.deps import get_job_service
 
         mock_root.return_value = tmp_path
         kb_name = "Inflight_Ingest_KB"
@@ -978,8 +986,8 @@ class TestKnowledgeBaseAPI:
         refetched = await knowledge_base_service.get_by_user_and_name(active_user.id, kb_name)
         assert refetched is None
 
-    @patch("langflow.api.utils.kb_helpers.KBStorageHelper.delete_storage", return_value=True)
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.utils.kb_helpers.KBStorageHelper.delete_storage", return_value=True)
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_delete_knowledge_base_leaves_unrelated_jobs_alone(
         self,
         mock_root,
@@ -997,8 +1005,8 @@ class TestKnowledgeBaseAPI:
         regresses against an over-broad query that would match every
         ``IN_PROGRESS`` job.
         """
-        from langflow.services.database.models.jobs.model import JobStatus, JobType
-        from langflow.services.deps import get_job_service
+        from ketos.services.database.models.jobs.model import JobStatus, JobType
+        from ketos.services.deps import get_job_service
 
         mock_root.return_value = tmp_path
         kb_name = "Target_KB"
@@ -1046,8 +1054,8 @@ class TestKnowledgeBaseAPI:
         assert other_job is not None
         assert other_job.status == JobStatus.IN_PROGRESS
 
-    @patch("langflow.api.utils.kb_helpers.KBStorageHelper.delete_storage", return_value=True)
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.utils.kb_helpers.KBStorageHelper.delete_storage", return_value=True)
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_bulk_delete_knowledge_bases(
         self, mock_root, mock_delete, client: AsyncClient, logged_in_headers, tmp_path
     ):
@@ -1069,9 +1077,9 @@ class TestKnowledgeBaseAPI:
         assert "NonExistent" in data["not_found"]
         assert mock_delete.called
 
-    @patch("langflow.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
-    @patch("langflow.api.utils.kb_helpers.KBStorageHelper.delete_storage", return_value=True)
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
+    @patch("ketos.api.utils.kb_helpers.KBStorageHelper.delete_storage", return_value=True)
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_bulk_delete_skips_memory_base_kbs(
         self,
         mock_root,
@@ -1121,7 +1129,7 @@ class TestKnowledgeBaseAPI:
         assert "PlainKB" in deleted_paths
         assert "MBKB" not in deleted_paths
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_bulk_delete_path_traversal_single_level(
         self, mock_root, client: AsyncClient, logged_in_headers, tmp_path
     ):
@@ -1144,7 +1152,7 @@ class TestKnowledgeBaseAPI:
         )
         assert victim_kb.exists(), "VULNERABILITY CONFIRMED: path traversal deleted another user's KB"
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_bulk_delete_path_traversal_multi_level(
         self, mock_root, client: AsyncClient, logged_in_headers, tmp_path
     ):
@@ -1165,7 +1173,7 @@ class TestKnowledgeBaseAPI:
         assert response.status_code == 403
         assert victim_kb.exists(), "VULNERABILITY CONFIRMED: multi-level traversal deleted data outside user dir"
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_bulk_delete_path_traversal_prefix_ambiguity(
         self, mock_root, client: AsyncClient, logged_in_headers, tmp_path
     ):
@@ -1193,7 +1201,7 @@ class TestKnowledgeBaseAPI:
         )
         assert victim_kb.exists(), "VULNERABILITY CONFIRMED: prefix-ambiguity attack deleted another user's KB"
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_bulk_delete_path_traversal_encoded_sequences(
         self, mock_root, client: AsyncClient, logged_in_headers, tmp_path
     ):
@@ -1220,8 +1228,8 @@ class TestKnowledgeBaseAPI:
         assert response.status_code == 404
         assert victim_kb.exists(), "VULNERABILITY CONFIRMED: encoded traversal deleted another user's KB"
 
-    @patch("langflow.api.v1.knowledge_bases.logger")
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.logger")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_bulk_delete_path_traversal_logs_warning(
         self, mock_root, mock_logger, client: AsyncClient, logged_in_headers, tmp_path
     ):
@@ -1242,10 +1250,10 @@ class TestKnowledgeBaseAPI:
         warning_args = mock_logger.warning.call_args[0]
         assert "activeuser" in str(warning_args), "Warning log must include the requesting user"
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
-    @patch("langflow.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
-    @patch("langflow.api.v1.knowledge_bases.get_job_service")
-    @patch("langflow.api.v1.knowledge_bases.get_task_service")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
+    @patch("ketos.api.v1.knowledge_bases.get_job_service")
+    @patch("ketos.api.v1.knowledge_bases.get_task_service")
     async def test_ingest_files(
         self,
         mock_task,
@@ -1289,7 +1297,7 @@ class TestKnowledgeBaseAPI:
         data = response.json()
         assert "id" in data
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_ingest_non_existent_kb(self, mock_root, client: AsyncClient, logged_in_headers, tmp_path):
         mock_root.return_value = tmp_path
         response = await client.post(
@@ -1299,8 +1307,8 @@ class TestKnowledgeBaseAPI:
         )
         assert response.status_code == 404
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
-    @patch("langflow.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
     async def test_ingest_invalid_config(self, mock_meta, mock_root, client: AsyncClient, logged_in_headers, tmp_path):
         mock_root.return_value = tmp_path
         (tmp_path / "activeuser" / "Invalid-KB").mkdir(parents=True)
@@ -1314,8 +1322,8 @@ class TestKnowledgeBaseAPI:
         assert response.status_code == 400
         assert "Invalid embedding configuration" in response.json()["detail"]
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
-    @patch("langflow.api.v1.knowledge_bases.create_backend")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.create_backend")
     async def test_get_chunks_pagination_and_search(
         self, mock_create_backend, mock_root, client: AsyncClient, logged_in_headers, tmp_path
     ):
@@ -1327,7 +1335,7 @@ class TestKnowledgeBaseAPI:
         paginate-in-Python path that works across Chroma / Mongo /
         Astra / Postgres.
         """
-        from lfx.base.knowledge_bases.backends.base import IngestedDocument
+        from kfx.base.knowledge_bases.backends.base import IngestedDocument
 
         mock_root.return_value = tmp_path
         kb_dir = tmp_path / "activeuser" / "KB1"
@@ -1367,7 +1375,7 @@ class TestKnowledgeBaseAPI:
         assert data["total"] == 25
         assert [chunk["id"] for chunk in data["chunks"]] == [str(i) for i in range(10, 20)]
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_get_chunks_non_existent_kb_returns_404(
         self,
         mock_root,
@@ -1381,8 +1389,8 @@ class TestKnowledgeBaseAPI:
 
         assert response.status_code == 404
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
-    @patch("langflow.api.v1.knowledge_bases.create_backend")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.create_backend")
     async def test_get_chunks_metadata_filter(
         self, mock_create_backend, mock_root, client: AsyncClient, logged_in_headers, tmp_path
     ):
@@ -1395,7 +1403,7 @@ class TestKnowledgeBaseAPI:
         """
         import json as _json
 
-        from lfx.base.knowledge_bases.backends.base import IngestedDocument
+        from kfx.base.knowledge_bases.backends.base import IngestedDocument
 
         mock_root.return_value = tmp_path
         kb_dir = tmp_path / "activeuser" / "KB1"
@@ -1460,15 +1468,15 @@ class TestKnowledgeBaseAPI:
         data = response.json()
         assert sorted(chunk["id"] for chunk in data["chunks"]) == ["2", "3"]
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
-    @patch("langflow.api.v1.knowledge_bases.create_backend")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.create_backend")
     async def test_get_metadata_keys_returns_distinct_user_keys(
         self, mock_create_backend, mock_root, client: AsyncClient, logged_in_headers, tmp_path
     ):
         """``/metadata/keys`` returns distinct user keys + sample values, hides reserved."""
         import json as _json
 
-        from lfx.base.knowledge_bases.backends.base import IngestedDocument
+        from kfx.base.knowledge_bases.backends.base import IngestedDocument
 
         mock_root.return_value = tmp_path
         kb_dir = tmp_path / "activeuser" / "KB1"
@@ -1530,16 +1538,16 @@ class TestKnowledgeBaseAPI:
         assert sorted(data["keys"]["tags"]) == ["audit", "review", "urgent"]
         assert data["truncated"] is False
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
-    @patch("langflow.api.v1.knowledge_bases.create_backend")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.create_backend")
     async def test_get_metadata_keys_caps_distinct_values_per_key(
         self, mock_create_backend, mock_root, client: AsyncClient, logged_in_headers, tmp_path
     ):
         """Distinct values per key are capped — response sets ``truncated=true``."""
         import json as _json
 
-        from langflow.api.v1.knowledge_bases import KB_METADATA_KEYS_VALUES_CAP
-        from lfx.base.knowledge_bases.backends.base import IngestedDocument
+        from ketos.api.v1.knowledge_bases import KB_METADATA_KEYS_VALUES_CAP
+        from kfx.base.knowledge_bases.backends.base import IngestedDocument
 
         mock_root.return_value = tmp_path
         kb_dir = tmp_path / "activeuser" / "KB1"
@@ -1571,7 +1579,7 @@ class TestKnowledgeBaseAPI:
         assert len(data["keys"]["variant"]) == KB_METADATA_KEYS_VALUES_CAP
         assert data["truncated"] is True
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_get_metadata_keys_empty_kb_returns_empty_response(
         self, mock_root, client: AsyncClient, logged_in_headers, tmp_path
     ):
@@ -1592,14 +1600,14 @@ class TestKnowledgeBaseAPI:
 class TestPerformIngestionTask:
     """Tests for the internal KBIngestionHelper.perform_ingestion background task."""
 
-    @patch("langflow.api.utils.ingestion_run_service.finalize_run", new_callable=AsyncMock)
-    @patch("langflow.api.utils.ingestion_run_service.mark_running", new_callable=AsyncMock)
-    @patch("langflow.api.utils.ingestion_run_service.create_run", new_callable=AsyncMock)
-    @patch("langflow.api.utils.kb_helpers.create_backend")
-    @patch("langflow.api.utils.kb_helpers.KBIngestionHelper.build_embeddings", new_callable=AsyncMock)
-    @patch("langflow.api.utils.kb_helpers.KBAnalysisHelper.get_metadata")
-    @patch("langflow.api.utils.kb_helpers.KBStorageHelper.get_directory_size")
-    @patch("langflow.api.utils.kb_helpers.KBAnalysisHelper.update_text_metrics")
+    @patch("ketos.api.utils.ingestion_run_service.finalize_run", new_callable=AsyncMock)
+    @patch("ketos.api.utils.ingestion_run_service.mark_running", new_callable=AsyncMock)
+    @patch("ketos.api.utils.ingestion_run_service.create_run", new_callable=AsyncMock)
+    @patch("ketos.api.utils.kb_helpers.create_backend")
+    @patch("ketos.api.utils.kb_helpers.KBIngestionHelper.build_embeddings", new_callable=AsyncMock)
+    @patch("ketos.api.utils.kb_helpers.KBAnalysisHelper.get_metadata")
+    @patch("ketos.api.utils.kb_helpers.KBStorageHelper.get_directory_size")
+    @patch("ketos.api.utils.kb_helpers.KBAnalysisHelper.update_text_metrics")
     async def test_perform_ingestion_success(
         self,
         mock_update,
@@ -1657,7 +1665,7 @@ class TestPerformIngestionTask:
 
         # Finalize should mark the run SUCCEEDED when every item lands.
         finalize_kwargs = mock_finalize_run.await_args.kwargs
-        from lfx.base.knowledge_bases.ingestion_sources.base import IngestionRunStatus
+        from kfx.base.knowledge_bases.ingestion_sources.base import IngestionRunStatus
 
         assert finalize_kwargs["status"] is IngestionRunStatus.SUCCEEDED
         assert finalize_kwargs["summary"].succeeded == 1
@@ -1669,14 +1677,14 @@ class TestPerformIngestionTask:
         assert written_docs, "expected at least one chunk document to be written"
         assert all(doc.metadata.get("source_type") == "file_upload" for doc in written_docs)
 
-    @patch("langflow.api.utils.ingestion_run_service.finalize_run", new_callable=AsyncMock)
-    @patch("langflow.api.utils.ingestion_run_service.mark_running", new_callable=AsyncMock)
-    @patch("langflow.api.utils.ingestion_run_service.create_run", new_callable=AsyncMock)
-    @patch("langflow.api.utils.kb_helpers.create_backend")
-    @patch("langflow.api.utils.kb_helpers.KBIngestionHelper.build_embeddings", new_callable=AsyncMock)
-    @patch("langflow.api.utils.kb_helpers.KBAnalysisHelper.get_metadata")
-    @patch("langflow.api.utils.kb_helpers.KBStorageHelper.get_directory_size")
-    @patch("langflow.api.utils.kb_helpers.KBAnalysisHelper.update_text_metrics_via_backend", new_callable=AsyncMock)
+    @patch("ketos.api.utils.ingestion_run_service.finalize_run", new_callable=AsyncMock)
+    @patch("ketos.api.utils.ingestion_run_service.mark_running", new_callable=AsyncMock)
+    @patch("ketos.api.utils.ingestion_run_service.create_run", new_callable=AsyncMock)
+    @patch("ketos.api.utils.kb_helpers.create_backend")
+    @patch("ketos.api.utils.kb_helpers.KBIngestionHelper.build_embeddings", new_callable=AsyncMock)
+    @patch("ketos.api.utils.kb_helpers.KBAnalysisHelper.get_metadata")
+    @patch("ketos.api.utils.kb_helpers.KBStorageHelper.get_directory_size")
+    @patch("ketos.api.utils.kb_helpers.KBAnalysisHelper.update_text_metrics_via_backend", new_callable=AsyncMock)
     async def test_perform_ingestion_skipped_only_is_partial(
         self,
         mock_update_metrics,  # noqa: ARG002
@@ -1731,7 +1739,7 @@ class TestPerformIngestionTask:
             job_service=AsyncMock(),
         )
 
-        from lfx.base.knowledge_bases.ingestion_sources.base import IngestionRunStatus
+        from kfx.base.knowledge_bases.ingestion_sources.base import IngestionRunStatus
 
         mock_finalize_run.assert_awaited_once()
         finalize_kwargs = mock_finalize_run.await_args.kwargs
@@ -1742,15 +1750,15 @@ class TestPerformIngestionTask:
         # No docs should have been written when every item was skipped.
         mock_backend.add_documents.assert_not_called()
 
-    @patch("langflow.api.utils.ingestion_run_service.finalize_run", new_callable=AsyncMock)
-    @patch("langflow.api.utils.ingestion_run_service.mark_running", new_callable=AsyncMock)
-    @patch("langflow.api.utils.ingestion_run_service.create_run", new_callable=AsyncMock)
-    @patch("langflow.api.utils.knowledge_base_service.get_by_user_and_name", new_callable=AsyncMock)
-    @patch("langflow.api.utils.kb_helpers.create_backend")
-    @patch("langflow.api.utils.kb_helpers.KBIngestionHelper.build_embeddings", new_callable=AsyncMock)
-    @patch("langflow.api.utils.kb_helpers.KBAnalysisHelper.get_metadata")
-    @patch("langflow.api.utils.kb_helpers.KBStorageHelper.get_directory_size")
-    @patch("langflow.api.utils.kb_helpers.KBAnalysisHelper.update_text_metrics_via_backend", new_callable=AsyncMock)
+    @patch("ketos.api.utils.ingestion_run_service.finalize_run", new_callable=AsyncMock)
+    @patch("ketos.api.utils.ingestion_run_service.mark_running", new_callable=AsyncMock)
+    @patch("ketos.api.utils.ingestion_run_service.create_run", new_callable=AsyncMock)
+    @patch("ketos.api.utils.knowledge_base_service.get_by_user_and_name", new_callable=AsyncMock)
+    @patch("ketos.api.utils.kb_helpers.create_backend")
+    @patch("ketos.api.utils.kb_helpers.KBIngestionHelper.build_embeddings", new_callable=AsyncMock)
+    @patch("ketos.api.utils.kb_helpers.KBAnalysisHelper.get_metadata")
+    @patch("ketos.api.utils.kb_helpers.KBStorageHelper.get_directory_size")
+    @patch("ketos.api.utils.kb_helpers.KBAnalysisHelper.update_text_metrics_via_backend", new_callable=AsyncMock)
     async def test_perform_ingestion_routes_through_configured_backend(
         self,
         mock_update_metrics,
@@ -1813,12 +1821,12 @@ class TestPerformIngestionTask:
         assert backend_kwargs["user_id"] == current_user.id
         mock_update_metrics.assert_awaited_once_with(mock_meta.return_value, mock_backend)
 
-    @patch("langflow.api.utils.ingestion_run_service.finalize_run", new_callable=AsyncMock)
-    @patch("langflow.api.utils.ingestion_run_service.mark_running", new_callable=AsyncMock)
-    @patch("langflow.api.utils.ingestion_run_service.create_run", new_callable=AsyncMock)
-    @patch("langflow.api.utils.kb_helpers.create_backend")
-    @patch("langflow.api.utils.kb_helpers.KBIngestionHelper.build_embeddings", new_callable=AsyncMock)
-    @patch("langflow.api.utils.kb_helpers.KBIngestionHelper.cleanup_chroma_chunks_by_job", new_callable=AsyncMock)
+    @patch("ketos.api.utils.ingestion_run_service.finalize_run", new_callable=AsyncMock)
+    @patch("ketos.api.utils.ingestion_run_service.mark_running", new_callable=AsyncMock)
+    @patch("ketos.api.utils.ingestion_run_service.create_run", new_callable=AsyncMock)
+    @patch("ketos.api.utils.kb_helpers.create_backend")
+    @patch("ketos.api.utils.kb_helpers.KBIngestionHelper.build_embeddings", new_callable=AsyncMock)
+    @patch("ketos.api.utils.kb_helpers.KBIngestionHelper.cleanup_chroma_chunks_by_job", new_callable=AsyncMock)
     async def test_perform_ingestion_rollback(
         self,
         mock_cleanup,
@@ -1869,7 +1877,7 @@ class TestPerformIngestionTask:
         # visibility UI doesn't show stuck RUNNING rows.
         mock_finalize_run.assert_awaited_once()
         finalize_kwargs = mock_finalize_run.await_args.kwargs
-        from lfx.base.knowledge_bases.ingestion_sources.base import IngestionRunStatus
+        from kfx.base.knowledge_bases.ingestion_sources.base import IngestionRunStatus
 
         assert finalize_kwargs["status"] is IngestionRunStatus.FAILED
         assert finalize_kwargs["error_message"] == "Chroma error"
@@ -1878,16 +1886,16 @@ class TestPerformIngestionTask:
 class TestCancelIngestion:
     """Tests for the cancel_ingestion endpoint."""
 
-    @patch("langflow.api.v1.knowledge_bases.KBIngestionHelper.cleanup_chroma_chunks_by_job")
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
-    @patch("langflow.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
+    @patch("ketos.api.v1.knowledge_bases.KBIngestionHelper.cleanup_chroma_chunks_by_job")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
     async def test_cancel_ingestion_success(
         self, mock_meta, mock_root, mock_cleanup, client: AsyncClient, logged_in_headers, tmp_path
     ):
         from unittest.mock import patch as mock_patch
 
-        from langflow.services.deps import get_service
-        from langflow.services.schema import ServiceType
+        from ketos.services.deps import get_service
+        from ketos.services.schema import ServiceType
 
         mock_root.return_value = tmp_path
         kb_path = tmp_path / "activeuser" / "Test_KB"
@@ -1921,7 +1929,7 @@ class TestCancelIngestion:
                 return mock_task_service_inst
             return original_get_service(service_type, default)
 
-        with mock_patch("langflow.services.deps.get_service", side_effect=get_service_side_effect):
+        with mock_patch("ketos.services.deps.get_service", side_effect=get_service_side_effect):
             response = await client.post(
                 "api/v1/knowledge_bases/Test_KB/cancel",
                 headers=logged_in_headers,
@@ -1933,8 +1941,8 @@ class TestCancelIngestion:
             mock_task_service_inst.revoke_task.assert_called_once_with(job_id)
             mock_job_service_inst.update_job_status.assert_called_once()
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
-    @patch("langflow.api.v1.knowledge_bases.get_job_service")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.get_job_service")
     async def test_cancel_ingestion_not_found(
         self, mock_job_service, mock_root, client: AsyncClient, logged_in_headers, tmp_path
     ):
@@ -1954,9 +1962,12 @@ class TestCancelIngestion:
         )
 
         assert response.status_code == 404
-        assert "no ingestion job found" in response.json()["detail"].lower()
+        body = response.json()
+        assert "no ingestion job found" in body["detail"].lower()
+        assert body["code"] == "request.bad_request"
+        assert "technical_detail" not in body
 
-    @patch("langflow.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
+    @patch("ketos.api.v1.knowledge_bases.KBStorageHelper.get_root_path")
     async def test_cancel_ingestion_kb_not_found(self, mock_root, client: AsyncClient, logged_in_headers, tmp_path):
         mock_root.return_value = tmp_path
 

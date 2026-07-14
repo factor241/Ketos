@@ -9,8 +9,8 @@ label bugs stay caught.
 from __future__ import annotations
 
 import pytest
-from langflow.agentic.services.flow_types import EDIT_CONTINUATION_INPUT, PLAN_APPROVAL_INPUT
-from langflow.agentic.services.request_framing import decide_progress_step
+from ketos.agentic.services.flow_types import EDIT_CONTINUATION_INPUT, PLAN_APPROVAL_INPUT
+from ketos.agentic.services.request_framing import decide_progress_step
 
 
 def _step(**kw):
@@ -38,7 +38,7 @@ def _step(**kw):
             ("generating_component", "Generating component..."),
         ),
         # plain flow request (no run/approval/continuation) → the RICH
-        # `generating_flow` step (so the frontend shows the Langflow flow
+        # `generating_flow` step (so the frontend shows the Ketos flow
         # icon/card immediately, same as `generating_component`), but with
         # a NEUTRAL message — at this point we still can't promise
         # "Generating plan..." (the agent may direct-edit). Requirement

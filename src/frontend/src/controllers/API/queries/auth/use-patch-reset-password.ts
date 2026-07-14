@@ -18,7 +18,7 @@ export const useResetPassword: useMutationFunctionType<
   async function resetPassword({
     user_id,
     password,
-  }: resetPasswordParams): Promise<any> {
+  }: resetPasswordParams): Promise<resetPasswordParams> {
     const res = await api.patch(
       `${getURL("USERS")}/${user_id}/reset-password`,
       password,
@@ -28,7 +28,7 @@ export const useResetPassword: useMutationFunctionType<
 
   const mutation: UseMutationResult<
     resetPasswordParams,
-    any,
+    Error,
     resetPasswordParams
   > = mutate(["useResetPassword"], resetPassword, options);
 

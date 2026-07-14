@@ -13,20 +13,28 @@ jest.mock("@/components/common/genericIconComponent", () => ({
 }));
 
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, ...props }: any) => (
+  Button: ({ children, ...props }: React.ComponentProps<"button">) => (
     <button {...props}>{children}</button>
   ),
 }));
 
 jest.mock("@/utils/utils", () => ({
-  cn: (...args: any[]) => args.filter(Boolean).join(" "),
+  cn: (...args: unknown[]) => args.filter(Boolean).join(" "),
 }));
 
 jest.mock(
   "../../parameterRenderComponent/components/toggleShadComponent",
   () => ({
     __esModule: true,
-    default: ({ value, handleOnNewValue, id }: any) => (
+    default: ({
+      value,
+      handleOnNewValue,
+      id,
+    }: {
+      value: boolean;
+      handleOnNewValue: () => void;
+      id: string;
+    }) => (
       <div
         data-testid={`toggle-${id}`}
         data-value={value}

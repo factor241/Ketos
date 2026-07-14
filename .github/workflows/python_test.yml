@@ -12,7 +12,7 @@ on:
     inputs:
       python-versions:
         description: "(Optional) Python versions to test"
-        required: true
+        required: false
         type: string
         default: "['3.10', '3.11', '3.12', '3.13', '3.14']"
       ref:
@@ -43,7 +43,7 @@ on:
         options:
           - ubuntu-latest
           - self-hosted
-          - '["self-hosted", "linux", "ARM64", "langflow-ai-arm64-40gb-ephemeral"]'
+          - '["self-hosted", "linux", "ARM64", "ketos-local-arm64-40gb-ephemeral"]'
         default: ubuntu-latest
 env:
   POETRY_VERSION: "1.8.2"
@@ -143,8 +143,8 @@ jobs:
           PYLEAK_LOG_LEVEL: debug # enable pyleak logging
           DO_NOT_TRACK: true # disable telemetry reporting
 
-  lfx-tests:
-    name: LFX Tests - Python ${{ matrix.python-version }}
+  kfx-tests:
+    name: KFX Tests - Python ${{ matrix.python-version }}
     runs-on: ${{ (inputs['runs-on'] && startsWith(format('{0}', inputs['runs-on']), '[') && fromJSON(inputs['runs-on'])) || inputs['runs-on'] || github.event.inputs['runs-on'] || 'ubuntu-latest' }}
     strategy:
       matrix:
@@ -160,8 +160,8 @@ jobs:
           cache-dependency-glob: "uv.lock"
           python-version: ${{ matrix.python-version }}
           prune-cache: false
-      - name: Run lfx tests
-        run: make lfx_tests
+      - name: Run kfx tests
+        run: make kfx_tests
         env:
           DO_NOT_TRACK: true # disable telemetry reporting
 
@@ -170,20 +170,20 @@ jobs:
         if: matrix.python-version == '3.10'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./src/lfx/coverage.xml
-          flags: lfx
-          name: lfx-coverage
+          files: ./src/kfx/coverage.xml
+          flags: kfx
+          name: kfx-coverage
           fail_ci_if_error: false
-          directory: ./src/lfx/
+          directory: ./src/kfx/
 
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v6
         if: matrix.python-version == '3.10'
         with:
-          name: lfx-coverage-report
+          name: kfx-coverage-report
           path: |
-            src/lfx/coverage.xml
-            src/lfx/htmlcov/
+            src/kfx/coverage.xml
+            src/kfx/htmlcov/
           retention-days: 30
 
   test-cli:
@@ -207,13 +207,13 @@ jobs:
 
       - name: Check Version
         id: check-version
-        # We need to print $3 because langflow-base is a dependency of langflow
+        # We need to print $3 because ketos-base is a dependency of ketos
         # For langlow we'd use print $2
         run: |
-          version=$(uv tree | grep 'langflow-base' | awk '{print $3}' | sed 's/^v//' | head -n 1)
-          url="https://pypi.org/pypi/langflow-base/json"
+          version=$(uv tree | grep 'ketos-base' | awk '{print $3}' | sed 's/^v//' | head -n 1)
+          url="https://pypi.org/pypi/ketos-base/json"
           if [ ${{ inputs.nightly }} == true ]; then
-            url="https://pypi.org/pypi/langflow-base-nightly/json"
+            url="https://pypi.org/pypi/ketos-base-nightly/json"
           fi
 
           last_released_version=$(curl -s $url | jq -r '.releases | keys | .[]' | sort -V | tail -n 1)
@@ -239,7 +239,7 @@ jobs:
         if: steps.check-version.outputs.skipped == 'false'
         run: |
           source new-venv/bin/activate
-          python -m langflow run --host localhost --port 7860 --backend-only &
+          python -m ketos run --host localhost --port 7860 --backend-only &
           SERVER_PID=$!
           # Wait for the server to start
           timeout 120 bash -c 'until curl -f http://localhost:7860/api/v1/auto_login; do sleep 5; done' || (echo "Server did not start in time" && kill $SERVER_PID && exit 1)

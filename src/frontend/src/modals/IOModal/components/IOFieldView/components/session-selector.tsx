@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import IconComponent from "@/components/common/genericIconComponent";
 import ShadTooltip from "@/components/common/shadTooltipComponent";
+import { getSessionTitle } from "@/components/core/playgroundComponent/chat-view/chat-header/utils/get-session-title";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -127,6 +128,7 @@ export default function SessionSelector({
   const setNewSessionCloseVoiceAssistant = useVoiceStore(
     (state) => state.setNewSessionCloseVoiceAssistant,
   );
+  const sessionTitle = getSessionTitle(session, currentFlowId);
 
   return (
     <div
@@ -169,11 +171,9 @@ export default function SessionSelector({
               </button>
             </div>
           ) : (
-            <ShadTooltip styleClasses="z-50" content={session}>
+            <ShadTooltip styleClasses="z-50" content={sessionTitle}>
               <div className="relative w-full overflow-hidden">
-                <span className="w-full truncate">
-                  {session === currentFlowId ? "Default Session" : session}
-                </span>
+                <span className="w-full truncate">{sessionTitle}</span>
                 <div
                   className={cn(
                     "pointer-events-none absolute left-0 right-0 top-0 h-full whitespace-nowrap",
@@ -211,6 +211,7 @@ export default function SessionSelector({
                 inputRef.current?.focus();
               }}
               data-confirm="true"
+              aria-label={t("chat.options")}
               className={cn(
                 "h-8 w-fit border-none bg-transparent p-2 focus:ring-0",
                 isVisible ? "visible" : "invisible group-hover:visible",
@@ -226,7 +227,7 @@ export default function SessionSelector({
             >
               <div className="flex items-center">
                 <IconComponent name="SquarePen" className="mr-2 h-4 w-4" />
-                Rename
+                {t("playgroundComponent.rename")}
               </div>
             </SelectItem>
             <SelectItem
@@ -236,7 +237,7 @@ export default function SessionSelector({
               <div className="flex w-full items-center justify-between">
                 <div className="flex items-center">
                   <IconComponent name="Scroll" className="mr-2 h-4 w-4" />
-                  Message logs
+                  {t("playgroundComponent.messageLogs")}
                 </div>
               </div>
             </SelectItem>
@@ -246,7 +247,7 @@ export default function SessionSelector({
             >
               <div className="flex items-center text-status-red hover:text-status-red">
                 <IconComponent name="Trash2" className="mr-2 h-4 w-4" />
-                Delete
+                {t("playgroundComponent.deleteSession")}
               </div>
             </SelectItem>
           </SelectContent>

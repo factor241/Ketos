@@ -1,0 +1,29 @@
+# ketos-environments.toml
+#
+# Copy this file to ketos-environments.toml (in your project root or
+# ~/.config/ketos/environments.toml) and fill in your instance details.
+#
+# The api_key_env field names an *environment variable* that holds the API key.
+# This keeps secrets out of the config file and out of version control.
+#
+# Lookup order for this file:
+#   1. Explicit path passed to get_client() / load_environments()
+#   2. KETOS_ENVIRONMENTS_FILE environment variable
+#   3. ketos-environments.toml in the current working directory
+#   4. ~/.config/ketos/environments.toml
+
+[environments.local]
+url = "http://localhost:7860"
+# No api_key_env means unauthenticated (AUTO_LOGIN must be enabled)
+
+[environments.staging]
+url = "https://staging.ketos.example.com"
+api_key_env = "KETOS_STAGING_API_KEY" # pragma: allowlist secret
+
+[environments.production]
+url = "https://ketos.example.com"
+api_key_env = "KETOS_PROD_API_KEY" # pragma: allowlist secret
+
+# Which environment is used when no name is specified
+[defaults]
+environment = "staging"

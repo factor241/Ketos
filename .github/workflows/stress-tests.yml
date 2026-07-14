@@ -19,13 +19,13 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_USER: langflow
-          POSTGRES_PASSWORD: langflow
-          POSTGRES_DB: langflow
+          POSTGRES_USER: ketos
+          POSTGRES_PASSWORD: ketos
+          POSTGRES_DB: ketos
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U langflow"
+          --health-cmd="pg_isready -U ketos"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -49,8 +49,8 @@ jobs:
 
       - name: Run stress test
         env:
-          DB_URL: "postgresql+psycopg://langflow:langflow@localhost:5432/langflow"  # pragma: allowlist secret
-          LANGFLOW_TELEMETRY_WRITER_ENABLED: "true"
+          DB_URL: "postgresql+psycopg://ketos:ketos@localhost:5432/ketos"  # pragma: allowlist secret
+          KETOS_TELEMETRY_WRITER_ENABLED: "true"
         run: |
           uv run python src/backend/tests/stress/stress_telemetry_writes.py \
             --concurrency 50 --seconds 15

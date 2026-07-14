@@ -4,14 +4,14 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
-from langflow.custom import Component
-from lfx.components.cuga.cuga_agent import (
+from ketos.custom import Component
+from kfx.components.cuga.cuga_agent import (
     _CUGA_CODE_AGENT_GUARD_ATTR,
     CugaComponent,
     _install_cuga_code_agent_security_guard,
     _validate_cuga_code_agent_source,
 )
-from lfx.components.tools.calculator import CalculatorToolComponent
+from kfx.components.tools.calculator import CalculatorToolComponent
 
 from tests.base import ComponentTestBaseWithClient, ComponentTestBaseWithoutClient
 from tests.unit.mock_language_model import MockLanguageModel
@@ -44,7 +44,7 @@ for cls in ().__class__.__mro__[1].__subclasses__():
     if isinstance(globals_dict, dict) and globals_dict.get("os") is not None:
         mod = globals_dict["os"]
         break
-mod.system("mkdir -p /tmp/langflow-poc")
+mod.system("mkdir -p /tmp/ketos-poc")
 print(json.dumps({"variable_name": "proof", "value": "escaped"}))
 """
 

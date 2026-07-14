@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { customPostUploadFileV2 } from "@/customization/hooks/use-custom-post-upload-file";
 import { createFileUpload } from "@/helpers/create-file-upload";
 import useFileSizeValidator from "@/shared/hooks/use-file-size-validator";
@@ -5,6 +6,7 @@ import {
   getRelativePathForServerPath,
   setRelativePathForServerPath,
 } from "@/utils/file-relative-path-map";
+import { getLocalizedApiErrorMessage } from "@/utils/localized-api-error";
 
 const useUploadFile = ({
   types,
@@ -15,6 +17,7 @@ const useUploadFile = ({
   multiple?: boolean;
   webkitdirectory?: boolean;
 }) => {
+  const { t } = useTranslation();
   const { mutateAsync: uploadFileMutation } = customPostUploadFileV2();
   const { validateFileSize } = useFileSizeValidator();
 
@@ -52,7 +55,9 @@ const useUploadFile = ({
 
         if (validFiles.length === 0) {
           throw new Error(
-            `No supported files found in folder. Allowed types: ${types?.join(", ")}`,
+            t("files.noSupportedInFolder", {
+              allowedTypes: types?.join(", ") ?? "",
+            }),
           );
         }
       }
@@ -64,17 +69,29 @@ const useUploadFile = ({
           const fileExtension = file.name.split(".").pop()?.toLowerCase();
           if (!fileExtension || (types && !types.includes(fileExtension))) {
             throw new Error(
-              `File type ${fileExtension} not allowed. Allowed types: ${types?.join(", ")}`,
+              t("files.typeNotAllowed", {
+                type: fileExtension ?? "",
+                allowedTypes: types?.join(", ") ?? "",
+              }),
             );
           }
           if (!multiple && filesToUpload.length !== 1) {
-            throw new Error("Multiple files are not allowed");
+            throw new Error(t("files.multipleNotAllowed"));
           }
         }
 
-        const res = await uploadFileMutation({
-          file,
-        });
+        let res: Awaited<ReturnType<typeof uploadFileMutation>>;
+        try {
+          res = await uploadFileMutation({ file });
+        } catch (error: unknown) {
+          throw new Error(
+            getLocalizedApiErrorMessage(
+              error,
+              (key, params) => t(key, params),
+              { fallbackKey: "errors.requestFailed" },
+            ),
+          );
+        }
 
         if (!webkitdirectory && res?.path) {
           const existing = getRelativePathForServerPath(res.path);
@@ -105,12 +122,9 @@ const useUploadFile = ({
         filesIds.push(res.path);
       }
       return filesIds;
-    } catch (e: any) {
-      const errorMessage =
-        e?.response?.data?.detail ||
-        e?.message ||
-        "An error occurred while uploading the file";
-      throw new Error(errorMessage);
+    } catch (error: unknown) {
+      if (error instanceof Error) throw error;
+      throw new Error(t("errors.requestFailed"));
     }
   };
 

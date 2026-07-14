@@ -69,7 +69,7 @@ export function useModelConnectionLogic({
           targetHandle: pseudoSourceHandle,
           type: "LanguageModel",
           color: "datatype-fuchsia",
-        } as any;
+        };
 
         // Mark this node as being in connection mode, clear the model value
         // and provider-specific credential fields so the backend cannot
@@ -86,7 +86,7 @@ export function useModelConnectionLogic({
               };
             }
             for (const [key, field] of Object.entries(template)) {
-              const f = field as any;
+              const f = field;
               if (f?.password || f?._input_type === "SecretStrInput") {
                 template[key] = { ...f, value: "", load_from_db: false };
               }
@@ -104,7 +104,9 @@ export function useModelConnectionLogic({
         );
 
         // Show compatible handles glow
-        store.setFilterEdge(grouped);
+        store.setFilterEdge(
+          grouped as unknown as Parameters<typeof store.setFilterEdge>[0],
+        );
         store.setFilterType(filterObj);
       } catch (error) {
         console.warn("Error setting up connection mode:", error);

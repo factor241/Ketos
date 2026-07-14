@@ -19,10 +19,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
-from gp_client import BASE_URL, GP_INSTANCE, TARGET_LANGS, get_headers
+from gp_client import BASE_URL, GP_INSTANCE, TARGET_LANGS, get_headers, get_tls_verify
 
-DEFAULT_SOURCE = Path(__file__).parent.parent.parent / "src/backend/base/langflow/locales/en.json"
-GP_BACKEND_BUNDLE = os.getenv("GP_BACKEND_BUNDLE", "langflow-ui-backend-v2")
+DEFAULT_SOURCE = Path(__file__).parent.parent.parent / "src/backend/base/ketos/locales/en.json"
+GP_BACKEND_BUNDLE = os.getenv("GP_BACKEND_BUNDLE", "ketos-ui-backend-v2")
 REQUEST_TIMEOUT = 60
 
 
@@ -32,7 +32,7 @@ def fetch_translated_count(lang: str, en_keys: set) -> tuple[int, int]:
     response = requests.get(
         url,
         headers=get_headers(url, "GET"),
-        verify=False,  # noqa: S501
+        verify=get_tls_verify(),
         timeout=REQUEST_TIMEOUT,
     )
     response.raise_for_status()
@@ -41,27 +41,38 @@ def fetch_translated_count(lang: str, en_keys: set) -> tuple[int, int]:
     return translated, len(en_keys)
 
 
-def print_status(en_keys: set, comp_keys: set, other_keys: set) -> None:
+def _translated_keys(data: dict, en_keys: set[str]) -> set[str]:
+    translated = set()
+    for key in en_keys:
+        entry = data.get(key)
+        value = entry.get("value", "") if isinstance(entry, dict) else entry
+        if isinstance(value, str) and value.strip():
+            translated.add(key)
+    return translated
+
+
+def print_status(en_keys: set, comp_keys: set, other_keys: set, languages: list[str] | None = None) -> bool:
     now = datetime.now(timezone.utc).strftime("%H:%M:%S UTC")
     print(f"\n=== Backend translation status — {GP_BACKEND_BUNDLE} ({now}) ===")
     print(f"{'Lang':<10} {'Components':>20} {'Other':>15} {'Total':>15}")
     print("-" * 65)
 
     all_done = True
-    for lang in TARGET_LANGS:
+    for lang in languages or TARGET_LANGS:
         try:
             url = f"{BASE_URL}/{GP_INSTANCE}/v2/bundles/{GP_BACKEND_BUNDLE}/{lang}"
             response = requests.get(
                 url,
                 headers=get_headers(url, "GET"),
-                verify=False,  # noqa: S501  # Why: IBM GP's TLS cert has historically caused verification failures in CI
+                verify=get_tls_verify(),
                 timeout=REQUEST_TIMEOUT,
             )
             response.raise_for_status()
             data = response.json().get("resourceStrings", {})
 
-            comp_done = sum(1 for k in data if k in comp_keys)
-            other_done = sum(1 for k in data if k in other_keys)
+            translated = _translated_keys(data, en_keys)
+            comp_done = len(translated & comp_keys)
+            other_done = len(translated & other_keys)
             total_done = comp_done + other_done
             total = len(en_keys)
 
@@ -72,21 +83,24 @@ def print_status(en_keys: set, comp_keys: set, other_keys: set) -> None:
             other_str = f"{other_done}/{len(other_keys)}"
             total_str = f"{total_done}/{total} ({total_pct:.1f}%)"
 
-            done_marker = "✓" if comp_done == len(comp_keys) else " "
-            print(f"{done_marker} {lang:<8} {comp_str:>20} {other_str:>15} {total_str:>15}")
+            complete = total_done == total and total > 0
+            done_marker = "✓" if complete else " "
+            state = "COMPLETE" if complete else "INCOMPLETE"
+            print(f"{done_marker} {lang:<8} {comp_str:>20} {other_str:>15} {total_str:>15}  {state}")
 
-            if comp_done < len(comp_keys):
+            if not complete:
                 all_done = False
 
-        except Exception as e:  # noqa: BLE001
-            print(f"  {lang:<8} ERROR: {e}")
+        except Exception as error:  # noqa: BLE001
+            print(f"  {lang:<8} ERROR: {type(error).__name__}")
             all_done = False
 
     print()
     if all_done:
-        print("All languages fully translated. Run download_backend_translations.py to save.")
+        print("Selected languages are fully translated. Run download.py --target backend to save.")
     else:
         print("Still in progress — run again later or use --watch to poll automatically.")
+    return all_done
 
 
 def main() -> None:
@@ -99,6 +113,7 @@ def main() -> None:
         metavar="SECONDS",
         help="Poll repeatedly every N seconds (default 60)",
     )
+    parser.add_argument("--lang", choices=TARGET_LANGS, help="Check one target language (for example, ru)")
     args = parser.parse_args()
 
     if not DEFAULT_SOURCE.exists():
@@ -115,12 +130,14 @@ def main() -> None:
         print(f"Watching every {interval}s — Ctrl+C to stop.")
         try:
             while True:
-                print_status(en_keys, comp_keys, other_keys)
+                print_status(en_keys, comp_keys, other_keys, [args.lang] if args.lang else None)
                 time.sleep(interval)
         except KeyboardInterrupt:
             print("\nStopped.")
     else:
-        print_status(en_keys, comp_keys, other_keys)
+        complete = print_status(en_keys, comp_keys, other_keys, [args.lang] if args.lang else None)
+        if not complete:
+            raise SystemExit(1)
 
 
 if __name__ == "__main__":

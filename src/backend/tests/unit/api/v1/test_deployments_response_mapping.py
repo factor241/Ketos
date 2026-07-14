@@ -2,8 +2,8 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from uuid import uuid4
 
-from langflow.api.v1.mappers.deployments.base import BaseDeploymentMapper
-from lfx.services.adapters.deployment.schema import (
+from ketos.api.v1.mappers.deployments.base import BaseDeploymentMapper
+from kfx.services.adapters.deployment.schema import (
     DeploymentCreateResult,
     DeploymentListResult,
     DeploymentType,
@@ -279,7 +279,7 @@ def test_shape_deployment_list_items_with_flow_filter() -> None:
 
 
 def test_shape_config_list_result_pagination() -> None:
-    from lfx.services.adapters.deployment.schema import ConfigListItem, ConfigListResult
+    from kfx.services.adapters.deployment.schema import ConfigListItem, ConfigListResult
 
     mapper = BaseDeploymentMapper()
     configs = [ConfigListItem(id=f"cfg-{i}", name=f"Config {i}") for i in range(5)]
@@ -299,7 +299,7 @@ def test_shape_config_list_result_pagination() -> None:
 
 
 def test_shape_config_list_result_empty() -> None:
-    from lfx.services.adapters.deployment.schema import ConfigListResult
+    from kfx.services.adapters.deployment.schema import ConfigListResult
 
     mapper = BaseDeploymentMapper()
     result = ConfigListResult(configs=[], provider_result=None)

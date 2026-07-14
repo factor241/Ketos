@@ -13,8 +13,8 @@ import time
 
 import psutil
 import pytest
-from lfx.base.mcp.util import MCPSessionManager
-from lfx.log.logger import logger
+from kfx.base.mcp.util import MCPSessionManager
+from kfx.log.logger import logger
 from mcp import StdioServerParameters
 
 pytestmark = [

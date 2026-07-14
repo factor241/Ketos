@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import {
   IS_AUTO_LOGIN,
-  LANGFLOW_ACCESS_TOKEN_EXPIRE_SECONDS,
-  LANGFLOW_ACCESS_TOKEN_EXPIRE_SECONDS_ENV,
+  KETOS_ACCESS_TOKEN_EXPIRE_SECONDS,
+  KETOS_ACCESS_TOKEN_EXPIRE_SECONDS_ENV,
 } from "@/constants/constants";
 import { useRefreshAccessToken } from "@/controllers/API/queries/auth";
 import { CustomNavigate } from "@/customization/components/custom-navigate";
@@ -13,7 +13,9 @@ export const ProtectedRoute = ({ children }) => {
   const { mutate: mutateRefresh } = useRefreshAccessToken();
   const autoLogin = useAuthStore((state) => state.autoLogin);
   const isAutoLoginEnv = IS_AUTO_LOGIN;
-  const testMockAutoLogin = sessionStorage.getItem("testMockAutoLogin");
+  const testMockAutoLogin = sessionStorage.getItem(
+    "ketos-test-mock-auto-login",
+  );
 
   const shouldRedirect =
     !isAuthenticated &&
@@ -21,8 +23,8 @@ export const ProtectedRoute = ({ children }) => {
     (!autoLogin || !isAutoLoginEnv);
 
   useEffect(() => {
-    const envRefreshTime = LANGFLOW_ACCESS_TOKEN_EXPIRE_SECONDS_ENV;
-    const automaticRefreshTime = LANGFLOW_ACCESS_TOKEN_EXPIRE_SECONDS;
+    const envRefreshTime = KETOS_ACCESS_TOKEN_EXPIRE_SECONDS_ENV;
+    const automaticRefreshTime = KETOS_ACCESS_TOKEN_EXPIRE_SECONDS;
 
     const accessTokenTimer = isNaN(envRefreshTime)
       ? automaticRefreshTime
@@ -35,7 +37,7 @@ export const ProtectedRoute = ({ children }) => {
     // Proactively refresh the access token before it expires for any
     // authenticated session — manual login AND auto-login. Auto-login tokens
     // are now short-lived (ACCESS_TOKEN_EXPIRE_SECONDS) and ``/auto_login`` sets
-    // a ``refresh_token_lf`` cookie, so the session must refresh transparently
+    // a ``ketos_refresh_token`` cookie, so the session must refresh transparently
     // via ``/refresh`` instead of relying on a long-lived token. Without this, a
     // tab left open past the token lifetime would 401 with no client-side
     // recovery until a full page reload.

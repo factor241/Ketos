@@ -1,8 +1,14 @@
 import type { FuseResult } from "fuse.js";
 import type { APIDataType } from "@/types/api";
 
+type SidebarSearchItem = {
+  category: string;
+  key: string;
+  [property: string]: unknown;
+};
+
 export const combinedResultsFn = (
-  fuseResults: FuseResult<any>[],
+  fuseResults: FuseResult<SidebarSearchItem>[],
   data: APIDataType,
 ) => {
   return Object.fromEntries(

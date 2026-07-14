@@ -38,6 +38,8 @@ export function serializeMessages(
 ): SerializedAssistantMessage[] {
   return messages.map((msg) => {
     const { timestamp, progress, result, ...rest } = msg;
+    // Progress is transient streaming state and is intentionally not persisted.
+    void progress;
     const serialized: SerializedAssistantMessage = {
       ...rest,
       timestamp: timestamp.toISOString(),

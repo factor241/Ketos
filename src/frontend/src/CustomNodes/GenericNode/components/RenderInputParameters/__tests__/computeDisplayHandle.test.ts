@@ -9,7 +9,7 @@ import { computeDisplayHandle } from "../utils";
 
 describe("computeDisplayHandle", () => {
   describe("type handling", () => {
-    it("should return false for all LANGFLOW_SUPPORTED_TYPES without input_types", () => {
+    it("should return false for all KETOS_SUPPORTED_TYPES without input_types", () => {
       const supportedTypes = [
         "str",
         "bool",

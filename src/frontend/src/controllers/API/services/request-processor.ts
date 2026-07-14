@@ -54,17 +54,35 @@ export function UseRequestProcessor(): {
     });
   }
 
-  function mutate(
-    mutationKey: UseMutationOptions["mutationKey"],
-    mutationFn: UseMutationOptions["mutationFn"],
-    options: Omit<UseMutationOptions, "mutationFn" | "mutationKey"> = {},
+  function mutate<
+    TData = unknown,
+    TError = Error,
+    TVariables = void,
+    TOnMutateResult = unknown,
+  >(
+    mutationKey: UseMutationOptions<
+      TData,
+      TError,
+      TVariables,
+      TOnMutateResult
+    >["mutationKey"],
+    mutationFn: UseMutationOptions<
+      TData,
+      TError,
+      TVariables,
+      TOnMutateResult
+    >["mutationFn"],
+    options: Omit<
+      UseMutationOptions<TData, TError, TVariables, TOnMutateResult>,
+      "mutationFn" | "mutationKey"
+    > = {},
   ) {
-    return useMutation({
+    return useMutation<TData, TError, TVariables, TOnMutateResult>({
       mutationKey,
       mutationFn,
-      onSettled: (data, error, variables, context) => {
+      onSettled: (data, error, variables, onMutateResult, context) => {
         queryClient.invalidateQueries({ queryKey: mutationKey });
-        options.onSettled && options.onSettled(data, error, variables, context);
+        options.onSettled?.(data, error, variables, onMutateResult, context);
       },
       ...options,
       retry: options.retry ?? mutationRetry,

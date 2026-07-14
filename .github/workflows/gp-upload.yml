@@ -6,7 +6,7 @@ on:
       - "release-*"
     paths:
       - "src/frontend/src/locales/en.json"
-      - "src/backend/base/langflow/locales/en.json"
+      - "src/backend/base/ketos/locales/en.json"
   workflow_dispatch:
 
 jobs:
@@ -66,7 +66,7 @@ jobs:
     if: >-
       github.actor != 'github-actions[bot]' && (
         github.event_name == 'workflow_dispatch' ||
-        contains(toJSON(github.event.commits.*.modified), 'src/backend/base/langflow/locales/en.json')
+        contains(toJSON(github.event.commits.*.modified), 'src/backend/base/ketos/locales/en.json')
       )
 
     steps:

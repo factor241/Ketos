@@ -12,7 +12,7 @@
 
 ## Conditional Queries
 
-Use the `enabled` option to conditionally run queries. Langflow hooks pass through `options` to `UseRequestProcessor`, which passes them to `useQuery`.
+Use the `enabled` option to conditionally run queries. Ketos hooks pass through `options` to `UseRequestProcessor`, which passes them to `useQuery`.
 
 ```typescript
 // Pattern: Disable query when not authenticated
@@ -260,7 +260,7 @@ const { data, error, isError } = useGetFlow(
 
 ## Streaming Requests
 
-Langflow uses `performStreamingRequest()` from `controllers/API/api.tsx` for build and chat streaming. This uses the browser `fetch` API (not Axios) with Server-Sent Events (SSE) parsing.
+Ketos uses `performStreamingRequest()` from `controllers/API/api.tsx` for build and chat streaming. This uses the browser `fetch` API (not Axios) with Server-Sent Events (SSE) parsing.
 
 ### Streaming Architecture
 

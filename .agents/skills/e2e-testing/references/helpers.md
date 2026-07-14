@@ -153,7 +153,7 @@ withEventDeliveryModes(
 );
 ```
 
-Why: Langflow supports 3 event delivery modes. A bug that only appears in polling mode would be missed if tests only run in streaming mode. This helper ensures all modes are covered without writing 3x the tests.
+Why: Ketos supports 3 event delivery modes. A bug that only appears in polling mode would be missed if tests only run in streaming mode. This helper ensures all modes are covered without writing 3x the tests.
 
 ## Advanced Patterns
 
@@ -170,7 +170,7 @@ Closes the old edit modal. **Deprecated**.
 When to create a new helper:
 - The same 5+ lines of setup appear in 3+ test files (DRY)
 - The pattern involves complex waits or retries that are easy to get wrong
-- The helper encapsulates Langflow-specific knowledge (e.g., global variable badge behavior)
+- The helper encapsulates Ketos-specific knowledge (e.g., global variable badge behavior)
 
 When NOT to create a helper:
 - For a single test's setup (keep it inline)

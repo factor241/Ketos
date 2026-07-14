@@ -1,4 +1,4 @@
-"""Regression tests for https://github.com/langflow-ai/langflow/pull/12908.
+"""Regression tests for https://github.com/ketos-ai/ketos/pull/12908.
 
 Original repro: a CREDENTIAL-typed global variable routed into a non-password
 input field (e.g. TextInputComponent.input_value, a MultilineInput) leaked the
@@ -22,12 +22,12 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from lfx.components.input_output import TextInputComponent
-from lfx.custom import Component
-from lfx.inputs.inputs import SecretStrInput
-from lfx.interface.initialize.loading import update_params_with_load_from_db_fields
-from lfx.io import Output
-from lfx.schema.message import Message
+from kfx.components.input_output import TextInputComponent
+from kfx.custom import Component
+from kfx.inputs.inputs import SecretStrInput
+from kfx.interface.initialize.loading import update_params_with_load_from_db_fields
+from kfx.io import Output
+from kfx.schema.message import Message
 from pydantic import SecretStr, ValidationError
 
 # Sentinel used as a stand-in for a "real" CREDENTIAL global variable's value.
@@ -47,8 +47,8 @@ def _patch_resolution(get_variable_return):
     mock_session.__aenter__ = AsyncMock(return_value=mock_session)
     mock_session.__aexit__ = AsyncMock(return_value=None)
 
-    session_patcher = patch("lfx.interface.initialize.loading.session_scope")
-    settings_patcher = patch("lfx.services.deps.get_settings_service")
+    session_patcher = patch("kfx.interface.initialize.loading.session_scope")
+    settings_patcher = patch("kfx.services.deps.get_settings_service")
     get_variable_mock = AsyncMock(return_value=get_variable_return)
     return session_patcher, settings_patcher, mock_session, get_variable_mock
 
@@ -184,7 +184,7 @@ async def test_credential_variable_accepted_when_use_global_variable_toggled_on(
     the field-level check on `value` ran before `password` was populated in
     `info.data`.
     """
-    from lfx.inputs.inputs import MultilineInput
+    from kfx.inputs.inputs import MultilineInput
 
     field = MultilineInput(name="input_value", value=SecretStr(_LEAKY_SECRET), password=True)
     assert isinstance(field.value, SecretStr)

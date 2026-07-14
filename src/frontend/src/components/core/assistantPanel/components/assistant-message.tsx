@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import langflowAssistantIcon from "@/assets/langflow_assistant.svg";
+import { KetosAssistantMark } from "@/components/common/ketos-brand-mark";
 import MessageMetadata from "@/components/common/messageMetadataComponent";
 import { CustomProfileIcon } from "@/customization/components/custom-profile-icon";
 import { cn } from "@/utils/utils";
@@ -131,7 +131,7 @@ export function AssistantMessageItem({
   }
   const thinkingMessage =
     message.progress?.step === "generating_document"
-      ? message.progress.message || "Generating document..."
+      ? message.progress.message || t("assistant.generatingDocument")
       : randomThinking;
 
   // True when the rich loading state (component or flow build) should render
@@ -168,10 +168,10 @@ export function AssistantMessageItem({
           <CustomProfileIcon className="h-7 w-7 shrink-0 rounded-full" />
         ) : (
           <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg">
-            <img
-              src={langflowAssistantIcon}
-              alt={t("assistant.title")}
-              className="h-full w-full object-cover"
+            <KetosAssistantMark
+              state="active"
+              label={t("assistant.title")}
+              className="h-full w-full"
             />
           </div>
         )}

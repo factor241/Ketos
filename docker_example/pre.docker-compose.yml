@@ -1,34 +1,48 @@
-version: "3.8"
+name: ketos-pre
 
 services:
-  langflow:
-    image: langflowai/langflow:1.0-alpha
+  ketos:
+    image: ${KETOS_IMAGE:-ketos/ketos:local}
+    pull_policy: never
+    restart: unless-stopped
     ports:
       - "7860:7860"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
-      - LANGFLOW_DATABASE_URL=postgresql://langflow:langflow@postgres:5432/langflow
+      - KETOS_DATABASE_URL=postgresql://ketos:ketos@postgres:5432/ketos
       # This variable defines where the logs, file storage, monitor data and secret keys are stored.
-      - LANGFLOW_CONFIG_DIR=app/langflow
+      - KETOS_CONFIG_DIR=/app/ketos
     volumes:
-      - langflow-data:/app/langflow
+      - ketos-data:/app/ketos
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7860/health_check')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   postgres:
     # Pinned to a specific Debian base (trixie) so the postgres:16 tag does not
     # silently roll its OS underneath us — that roll causes a glibc collation
-    # version mismatch warning on existing volumes. Matches the langflow image
-    # base. See https://github.com/langflow-ai/langflow/issues/9608
+    # version mismatch warning on existing volumes. Matches the ketos image
+    # base. See https://git.ketos.test/ketos/ketos/issues/9608
     image: postgres:16-trixie
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: langflow
-      POSTGRES_PASSWORD: langflow
-      POSTGRES_DB: langflow
+      POSTGRES_USER: ketos
+      POSTGRES_PASSWORD: ketos
+      POSTGRES_DB: ketos
     ports:
       - "5432:5432"
     volumes:
-      - langflow-postgres:/var/lib/postgresql/data
+      - ketos-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
-  langflow-postgres:
-  langflow-data:
+  ketos-postgres:
+  ketos-data:

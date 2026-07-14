@@ -26,13 +26,15 @@ export default function FileCardWrapper({
 
   return (
     <div key={index} className="flex flex-col gap-2">
-      <span
+      <button
+        type="button"
         onClick={() => setShow(!show)}
-        className="flex cursor-pointer gap-2 text-sm text-muted-foreground"
+        className="flex cursor-pointer gap-2 border-0 bg-transparent p-0 text-sm text-muted-foreground"
+        aria-expanded={show}
       >
         {formatFileName(name, 50)}
         <ForwardedIconComponent name={show ? "ChevronDown" : "ChevronRight"} />
-      </span>
+      </button>
       <CustomFileCard
         showFile={show}
         fileName={name}

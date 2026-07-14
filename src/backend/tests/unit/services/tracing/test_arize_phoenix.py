@@ -1,6 +1,6 @@
 import pytest
-from langflow.services.tracing.arize_phoenix import ArizePhoenixTracer
-from lfx.schema.data import Data
+from ketos.services.tracing.arize_phoenix import ArizePhoenixTracer
+from kfx.schema.data import Data
 
 
 @pytest.fixture

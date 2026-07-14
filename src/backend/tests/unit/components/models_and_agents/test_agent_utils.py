@@ -2,7 +2,7 @@
 
 from unittest.mock import Mock
 
-from lfx.base.agents.utils import get_chat_output_sender_name
+from kfx.base.agents.utils import get_chat_output_sender_name
 
 
 class TestGetChatOutputSenderName:

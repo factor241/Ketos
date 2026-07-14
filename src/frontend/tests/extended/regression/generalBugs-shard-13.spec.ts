@@ -80,7 +80,7 @@ test(
 
     await page.getByTestId("shared-button-flow").click();
 
-    await page.waitForSelector("text=Publish workflow to the Langflow Store.", {
+    await page.waitForSelector("text=Publish workflow to the Ketos Store.", {
       timeout: 10000,
     });
     await page.waitForSelector('[data-testid="shared-button-flow"]', {

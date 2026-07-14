@@ -1,19 +1,12 @@
 name: Deploy Storybook to GitHub Pages
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'src/frontend/**/*.stories.*'
-      - 'src/frontend/.storybook/**'
-      - 'src/frontend/package.json'
-      - '.github/workflows/deploy-storybook.yml'
-  workflow_dispatch: # Allow manual trigger
+  workflow_dispatch:
 
 jobs:
   deploy:
     name: Deploy Storybook
+    if: ${{ vars.KETOS_EXTERNAL_RELEASE_ENABLED == 'true' && github.event_name == 'workflow_dispatch' && github.ref_type == 'tag' && vars.KETOS_RELEASE_COMMIT == github.sha && vars.KETOS_EXTERNAL_RELEASE == format('publish:{0}', github.sha) }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -22,6 +15,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
 
       - uses: actions/setup-node@v6
         with:
@@ -46,4 +41,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-

@@ -1,5 +1,5 @@
 import pytest
-from lfx.components.input_output import TextOutputComponent
+from kfx.components.input_output import TextOutputComponent
 
 from tests.base import ComponentTestBaseWithoutClient
 

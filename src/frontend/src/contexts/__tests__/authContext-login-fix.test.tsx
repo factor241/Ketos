@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { ReactNode, useContext } from "react";
 
 // Mock all dependencies
@@ -41,7 +41,12 @@ jest.mock("@/utils/local-storage-util", () => ({
 const mockSetIsAuthenticated = jest.fn();
 const mockSetIsAdmin = jest.fn();
 
-const mockAuthStore = (selector: any) => {
+type MockAuthState = {
+  setIsAuthenticated: typeof mockSetIsAuthenticated;
+  setIsAdmin: typeof mockSetIsAdmin;
+};
+
+const mockAuthStore = (selector?: (state: MockAuthState) => unknown) => {
   const state = {
     setIsAuthenticated: mockSetIsAuthenticated,
     setIsAdmin: mockSetIsAdmin,
@@ -49,32 +54,23 @@ const mockAuthStore = (selector: any) => {
   return selector ? selector(state) : state;
 };
 
-(mockAuthStore as any).getState = () => ({
+const mockAuthStoreWithState = mockAuthStore as typeof mockAuthStore & {
+  getState: () => MockAuthState;
+};
+
+mockAuthStoreWithState.getState = () => ({
   setIsAuthenticated: mockSetIsAuthenticated,
   setIsAdmin: mockSetIsAdmin,
 });
 
 jest.mock("@/stores/authStore", () => ({
   __esModule: true,
-  default: mockAuthStore,
-}));
-
-const mockCheckHasStore = jest.fn();
-const mockFetchApiData = jest.fn();
-
-jest.mock("@/stores/storeStore", () => ({
-  useStoreStore: (selector: any) => {
-    const state = {
-      checkHasStore: mockCheckHasStore,
-      fetchApiData: mockFetchApiData,
-    };
-    return selector(state);
-  },
+  default: mockAuthStoreWithState,
 }));
 
 jest.mock("@/stores/darkStore", () => ({
   useDarkStore: {
-    getState: () => ({ refreshStars: jest.fn() }),
+    getState: () => ({}),
     setState: jest.fn(),
     subscribe: jest.fn(),
     destroy: jest.fn(),
@@ -146,14 +142,8 @@ describe("AuthContext - Login Fix for Race Condition", () => {
 
       // Mock cookie getter to return the access token
       mockCookiesInstance.get.mockImplementation((name) => {
-        if (name === "access_token_lf") return accessToken;
+        if (name === "ketos_access_token") return accessToken;
         return null;
-      });
-
-      // Track when setIsAuthenticated is called
-      let authSetCallCount = 0;
-      mockSetIsAuthenticated.mockImplementation(() => {
-        authSetCallCount++;
       });
 
       // Start login
@@ -210,7 +200,7 @@ describe("AuthContext - Login Fix for Race Condition", () => {
 
       // Mock cookie getter to return the access token
       mockCookiesInstance.get.mockImplementation((name) => {
-        if (name === "access_token_lf") return accessToken;
+        if (name === "ketos_access_token") return accessToken;
         return null;
       });
 
@@ -251,7 +241,7 @@ describe("AuthContext - Login Fix for Race Condition", () => {
 
       // Mock cookie getter to return the access token
       mockCookiesInstance.get.mockImplementation((name) => {
-        if (name === "access_token_lf") return accessToken;
+        if (name === "ketos_access_token") return accessToken;
         return null;
       });
 
@@ -291,7 +281,7 @@ describe("AuthContext - Login Fix for Race Condition", () => {
 
       // Mock cookie getter to return the access token
       mockCookiesInstance.get.mockImplementation((name) => {
-        if (name === "access_token_lf") return accessToken;
+        if (name === "ketos_access_token") return accessToken;
         return null;
       });
 
@@ -329,7 +319,7 @@ describe("AuthContext - Login Fix for Race Condition", () => {
 
       // Mock cookie getter to return the access token
       mockCookiesInstance.get.mockImplementation((name) => {
-        if (name === "access_token_lf") return accessToken;
+        if (name === "ketos_access_token") return accessToken;
         return null;
       });
 
@@ -348,9 +338,6 @@ describe("AuthContext - Login Fix for Race Condition", () => {
         const getUserCallback = mockMutateLoggedUser.mock.calls[0][1].onSuccess;
         getUserCallback(mockUserData);
       });
-
-      expect(mockCheckHasStore).toHaveBeenCalled();
-      expect(mockFetchApiData).toHaveBeenCalled();
 
       // Complete globalVariables
       act(() => {
@@ -376,17 +363,17 @@ describe("AuthContext - Login Fix for Race Condition", () => {
 
       // Verify all cookies were set (with options parameter)
       expect(mockCookiesInstance.set).toHaveBeenCalledWith(
-        "access_token_lf",
+        "ketos_access_token",
         accessToken,
         expect.any(Object),
       );
       expect(mockCookiesInstance.set).toHaveBeenCalledWith(
-        "auto_login_lf",
+        "ketos_auto_login",
         "login",
         expect.any(Object),
       );
       expect(mockCookiesInstance.set).toHaveBeenCalledWith(
-        "refresh_token_lf",
+        "ketos_refresh_token",
         refreshToken,
         expect.any(Object),
       );
@@ -404,9 +391,9 @@ describe("AuthContext - Login Fix for Race Condition", () => {
         (call) => call[0],
       );
 
-      expect(setCallArgs).toContain("access_token_lf");
-      expect(setCallArgs).toContain("auto_login_lf");
-      expect(setCallArgs).not.toContain("refresh_token_lf");
+      expect(setCallArgs).toContain("ketos_access_token");
+      expect(setCallArgs).toContain("ketos_auto_login");
+      expect(setCallArgs).not.toContain("ketos_refresh_token");
     });
   });
 
@@ -428,7 +415,7 @@ describe("AuthContext - Login Fix for Race Condition", () => {
 
       // Mock cookie getter to return the access token
       mockCookiesInstance.get.mockImplementation((name) => {
-        if (name === "access_token_lf") return accessToken;
+        if (name === "ketos_access_token") return accessToken;
         return null;
       });
 
@@ -459,8 +446,6 @@ describe("AuthContext - Login Fix for Race Condition", () => {
       });
 
       // Verify user data processed
-      expect(mockCheckHasStore).toHaveBeenCalled();
-      expect(mockFetchApiData).toHaveBeenCalled();
 
       // Verify isAuthenticated STILL not set
       expect(mockSetIsAuthenticated).not.toHaveBeenCalled();
@@ -484,7 +469,7 @@ describe("AuthContext - Login Fix for Race Condition", () => {
 
       // Mock cookie getter to return tokens
       mockCookiesInstance.get.mockImplementation((name) => {
-        if (name === "access_token_lf") return "token3"; // Last token set
+        if (name === "ketos_access_token") return "token3"; // Last token set
         return null;
       });
 
@@ -513,7 +498,7 @@ describe("AuthContext - Login Fix for Race Condition", () => {
       });
 
       expect(mockCookiesInstance.set).toHaveBeenCalledWith(
-        "auto_login_lf",
+        "ketos_auto_login",
         "auto",
         expect.any(Object),
       );

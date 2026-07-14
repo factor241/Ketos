@@ -2,6 +2,7 @@ import type { FlowType } from "../../../types/flow";
 
 export type FolderType = {
   name: string;
+  display_name?: string | null;
   description: string;
   id?: string | null;
   parent_id: string;
@@ -12,6 +13,7 @@ export type FolderType = {
 export type PaginatedFolderType = {
   folder: {
     name: string;
+    display_name?: string | null;
     description: string;
     id?: string | null;
     parent_id: string;

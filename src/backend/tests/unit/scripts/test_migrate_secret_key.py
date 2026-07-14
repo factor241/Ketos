@@ -11,8 +11,8 @@ from uuid import uuid4
 import pytest
 from cryptography.fernet import Fernet
 from httpx import AsyncClient
-from langflow.services.deps import get_settings_service
-from langflow.services.variable.constants import CREDENTIAL_TYPE
+from ketos.services.deps import get_settings_service
+from ketos.services.variable.constants import CREDENTIAL_TYPE
 from sqlalchemy import create_engine, text
 
 
@@ -23,7 +23,7 @@ def migrate_module():
     # Script is at: scripts/migrate_secret_key.py
     # Need to go up 5 levels to repo root, then into scripts/
     test_file = Path(__file__).resolve()
-    repo_root = test_file.parents[5]  # Goes to langflow repo root
+    repo_root = test_file.parents[5]  # Goes to ketos repo root
     script_path = repo_root / "scripts" / "migrate_secret_key.py"
 
     if not script_path.exists():
@@ -278,7 +278,7 @@ class TestDatabaseMigrationUnit:
     def test_migrate_user_store_api_key(self, migrate_module, sqlite_db, old_key, new_key):
         """Test migrating user.store_api_key column."""
         user_id = str(uuid4())
-        original_value = "langflow-store-api-key"
+        original_value = "ketos-store-api-key"
         encrypted_value = migrate_module.encrypt_with_key(original_value, old_key)
 
         with sqlite_db.connect() as conn:
@@ -440,23 +440,33 @@ class TestKeyFileManagement:
 
     def test_get_config_dir_default(self, migrate_module, monkeypatch):
         """Test default config directory uses platformdirs."""
-        from platformdirs import user_cache_dir
+        from platformdirs import user_config_path
 
-        monkeypatch.delenv("LANGFLOW_CONFIG_DIR", raising=False)
+        monkeypatch.delenv("KETOS_CONFIG_DIR", raising=False)
         result = migrate_module.get_config_dir()
-        expected = Path(user_cache_dir("langflow", "langflow"))
+        expected = Path(user_config_path("ketos", "Ketos"))
         assert result == expected
 
     def test_get_config_dir_from_env(self, migrate_module, monkeypatch):
         """Test config directory from environment variable."""
-        monkeypatch.setenv("LANGFLOW_CONFIG_DIR", "/custom/config")
+        monkeypatch.setenv("KETOS_CONFIG_DIR", "/custom/config")
         result = migrate_module.get_config_dir()
         assert result == Path("/custom/config")
+
+    def test_old_config_environment_has_no_effect(self, migrate_module, monkeypatch):
+        old_prefix = "LANG" + "FLOW"
+        monkeypatch.setenv(f"{old_prefix}_CONFIG_DIR", "/pre-cutover/config")
+        monkeypatch.delenv("KETOS_CONFIG_DIR", raising=False)
+        assert migrate_module.get_config_dir() == migrate_module.get_default_config_dir()
+
+    def test_default_database_is_only_ketos_data_database(self, migrate_module, tmp_path):
+        (tmp_path / "ketos.db").touch()
+        assert migrate_module.get_default_database_url(tmp_path) == f"sqlite:///{tmp_path / 'ketos.db'}"
 
 
 @pytest.mark.usefixtures("client")
 class TestMigrationWithRealDatabase:
-    """Integration tests using real Langflow database fixtures."""
+    """Integration tests using real Ketos database fixtures."""
 
     async def test_credential_variable_stored_encrypted(
         self,
@@ -527,30 +537,30 @@ class TestMigrationWithRealDatabase:
 
 @pytest.mark.usefixtures("client")
 class TestMigrationCompatibility:
-    """Test that migration script is compatible with Langflow's encryption."""
+    """Test that migration script is compatible with Ketos's encryption."""
 
-    def test_script_encryption_matches_langflow(self, migrate_module):
-        """Verify migration script produces same results as Langflow's auth utils."""
-        from langflow.services.auth import utils as auth_utils
+    def test_script_encryption_matches_ketos(self, migrate_module):
+        """Verify migration script produces same results as Ketos's auth utils."""
+        from ketos.services.auth import utils as auth_utils
 
         settings_service = get_settings_service()
         secret_key = settings_service.auth_settings.SECRET_KEY.get_secret_value()
 
         plaintext = "test-api-key-compatibility"
 
-        # Encrypt with Langflow
-        langflow_encrypted = auth_utils.encrypt_api_key(plaintext, settings_service)
+        # Encrypt with Ketos
+        ketos_encrypted = auth_utils.encrypt_api_key(plaintext, settings_service)
 
         # Decrypt with migration script
-        script_decrypted = migrate_module.decrypt_with_key(langflow_encrypted, secret_key)
+        script_decrypted = migrate_module.decrypt_with_key(ketos_encrypted, secret_key)
         assert script_decrypted == plaintext
 
         # Encrypt with migration script
         script_encrypted = migrate_module.encrypt_with_key(plaintext, secret_key)
 
-        # Decrypt with Langflow
-        langflow_decrypted = auth_utils.decrypt_api_key(script_encrypted, settings_service)
-        assert langflow_decrypted == plaintext
+        # Decrypt with Ketos
+        ketos_decrypted = auth_utils.decrypt_api_key(script_encrypted, settings_service)
+        assert ketos_decrypted == plaintext
 
 
 class TestTransactionAtomicity:

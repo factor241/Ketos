@@ -1,5 +1,5 @@
 import pytest
-from lfx.components.models_and_agents import PromptComponent
+from kfx.components.models_and_agents import PromptComponent
 
 from tests.base import ComponentTestBaseWithClient
 

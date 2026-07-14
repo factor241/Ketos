@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 
-Write-Host "Starting Langflow frontend build process..." -ForegroundColor Green
+Write-Host "Starting Ketos frontend build process..." -ForegroundColor Green
 
 # Get script directory and project root
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
@@ -49,7 +49,7 @@ try {
         throw "Neither build nor dist directory found in src\frontend"
     }
 
-    $targetDir = "src\backend\base\langflow\frontend"
+    $targetDir = "src\backend\base\ketos\frontend"
     Write-Host "Copying from $buildDir to $targetDir"
 
     # Create target directory if it doesn't exist
@@ -74,5 +74,5 @@ try {
 }
 
 Write-Host "`nFrontend build process completed!" -ForegroundColor Green
-Write-Host "You can now run the backend with: uv run langflow run" -ForegroundColor Cyan
+Write-Host "You can now run the backend with: uv run ketos run" -ForegroundColor Cyan
 Read-Host "Press Enter to exit"

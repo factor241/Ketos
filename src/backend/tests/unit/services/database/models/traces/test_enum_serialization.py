@@ -13,8 +13,8 @@ and keep the PG enum type names aligned with the migration.
 from __future__ import annotations
 
 import pytest
-from langflow.services.database.models.flow.model import Flow
-from langflow.services.database.models.traces.model import (
+from ketos.services.database.models.flow.model import Flow
+from ketos.services.database.models.traces.model import (
     SpanKind,
     SpanStatus,
     SpanTable,
@@ -216,7 +216,7 @@ async def _traces_db_engine():
 
 @pytest.mark.asyncio
 class TestLegacyUppercaseRowsRoundTripThroughOrm:
-    """End-to-end regression for https://github.com/langflow-ai/langflow/issues/13318.
+    """End-to-end regression for https://github.com/ketos-ai/ketos/issues/13318.
 
     Before ``values_callable=_enum_values`` shipped in v1.9.2, the trace/span
     enum columns persisted the enum *names* (``"OK"``, ``"ERROR"``, ``"CHAIN"``).

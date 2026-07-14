@@ -9,7 +9,7 @@ import { useGetFolderQuery } from "@/controllers/API/queries/folders/use-get-fol
 import { CustomBanner } from "@/customization/components/custom-banner";
 import { CustomMcpServerTab } from "@/customization/components/custom-McpServerTab";
 import {
-  ENABLE_DATASTAX_LANGFLOW,
+  ENABLE_DATASTAX_KETOS,
   ENABLE_MCP,
 } from "@/customization/feature-flags";
 import { useCustomNavigate } from "@/customization/hooks/use-custom-navigate";
@@ -28,7 +28,7 @@ import { isFolderEmpty } from "./utils/isFolderEmpty";
 const HomePage = ({ type }: { type: "flows" | "components" | "mcp" }) => {
   const { t } = useTranslation();
   const [view, setView] = useState<"grid" | "list">(() => {
-    const savedView = localStorage.getItem("view");
+    const savedView = localStorage.getItem("ketos-home-view");
     return savedView === "grid" || savedView === "list" ? savedView : "list";
   });
   const [newProjectModal, setNewProjectModal] = useState(false);
@@ -94,7 +94,7 @@ const HomePage = ({ type }: { type: "flows" | "components" | "mcp" }) => {
   };
 
   useEffect(() => {
-    localStorage.setItem("view", view);
+    localStorage.setItem("ketos-home-view", view);
   }, [view]);
 
   const handlePageChange = useCallback((newPageIndex, newPageSize) => {
@@ -281,7 +281,7 @@ const HomePage = ({ type }: { type: "flows" | "components" | "mcp" }) => {
         data-testid="cards-wrapper"
       >
         <div className="flex h-full w-full flex-col 3xl:container">
-          {ENABLE_DATASTAX_LANGFLOW && <CustomBanner />}
+          {ENABLE_DATASTAX_KETOS && <CustomBanner />}
           <div className="flex flex-1 flex-col justify-start p-4">
             <div className="flex h-full flex-col justify-start">
               <HeaderComponent

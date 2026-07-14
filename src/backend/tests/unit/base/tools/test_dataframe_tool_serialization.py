@@ -2,10 +2,10 @@
 
 import pandas as pd
 import pytest
-from lfx.base.tools.component_tool import ComponentToolkit
-from lfx.custom import Component
-from lfx.io import MessageTextInput, Output
-from lfx.schema.dataframe import DataFrame, Table
+from kfx.base.tools.component_tool import ComponentToolkit
+from kfx.custom import Component
+from kfx.io import MessageTextInput, Output
+from kfx.schema.dataframe import DataFrame, Table
 
 
 class DataFrameComponent(Component):

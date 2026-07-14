@@ -1,9 +1,7 @@
+import type { TFunction } from "i18next";
 import type { GlobalVariable } from "@/types/global_variables";
 
-// The stored value (env-var key) intentionally keeps its legacy name so
-// existing user installations continue to read the same global variable
-// after the UI rename from "Knowledge Backends" to "DB Providers".
-export const ACTIVE_DB_PROVIDER_VARIABLE = "LANGFLOW_KNOWLEDGE_BACKEND";
+export const ACTIVE_DB_PROVIDER_VARIABLE = "KETOS_KNOWLEDGE_BACKEND";
 
 export const OPENSEARCH_VARIABLES = {
   URL: "OPENSEARCH_URL",
@@ -41,19 +39,20 @@ export type AvailableDBProviderId = Extract<
 
 export interface DBProviderTextField {
   kind?: "text";
-  label: string;
+  labelKey: string;
   variableKey: string;
   required: boolean;
   isSecret: boolean;
-  placeholder: string;
+  placeholder?: string;
+  placeholderKey?: string;
   defaultValue?: string;
 }
 
 export interface DBProviderBooleanField {
   kind: "boolean";
-  label: string;
+  labelKey: string;
   variableKey: string;
-  helperText?: string;
+  helperTextKey?: string;
   defaultValue: boolean;
 }
 
@@ -64,7 +63,7 @@ export type DBProviderConfigField =
 export interface DBProviderOption {
   id: DBProviderId;
   label: string;
-  description: string;
+  descriptionKey: string;
   icon: string;
   status: "available" | "coming_soon";
   defaultEnabled?: boolean;
@@ -75,8 +74,7 @@ export const DB_PROVIDER_OPTIONS: DBProviderOption[] = [
   {
     id: "chroma",
     label: "Chroma Local",
-    description:
-      "Local vector storage bundled with Langflow. No additional configuration required.",
+    descriptionKey: "settings.dbProviders.providers.chroma.description",
     icon: "Chroma",
     status: "available",
     defaultEnabled: true,
@@ -85,33 +83,33 @@ export const DB_PROVIDER_OPTIONS: DBProviderOption[] = [
   {
     id: "chroma_cloud",
     label: "Chroma Cloud",
-    description: "Managed Chroma Cloud vector storage via api.trychroma.com.",
+    descriptionKey: "settings.dbProviders.providers.chroma_cloud.description",
     icon: "Chroma",
     status: "available",
     configFields: [
       {
-        label: "API Key",
+        labelKey: "settings.dbProviders.fields.CHROMA_API_KEY.label",
         variableKey: CHROMA_CLOUD_VARIABLES.API_KEY,
         required: true,
         isSecret: true,
         placeholder: "ck-…",
       },
       {
-        label: "Tenant",
+        labelKey: "settings.dbProviders.fields.CHROMA_TENANT.label",
         variableKey: CHROMA_CLOUD_VARIABLES.TENANT,
         required: false,
         isSecret: false,
         placeholder: "default-tenant",
       },
       {
-        label: "Database",
+        labelKey: "settings.dbProviders.fields.CHROMA_DATABASE.label",
         variableKey: CHROMA_CLOUD_VARIABLES.DATABASE,
         required: false,
         isSecret: false,
         placeholder: "default-database",
       },
       {
-        label: "Region",
+        labelKey: "settings.dbProviders.fields.CHROMA_REGION.label",
         variableKey: CHROMA_CLOUD_VARIABLES.REGION,
         required: false,
         isSecret: false,
@@ -123,13 +121,12 @@ export const DB_PROVIDER_OPTIONS: DBProviderOption[] = [
   {
     id: "opensearch",
     label: "OpenSearch",
-    description:
-      "External OpenSearch k-NN index for self-hosted or managed clusters.",
+    descriptionKey: "settings.dbProviders.providers.opensearch.description",
     icon: "OpenSearch",
     status: "available",
     configFields: [
       {
-        label: "Cluster URL",
+        labelKey: "settings.dbProviders.fields.OPENSEARCH_URL.label",
         variableKey: OPENSEARCH_VARIABLES.URL,
         required: true,
         isSecret: false,
@@ -144,32 +141,33 @@ export const DB_PROVIDER_OPTIONS: DBProviderOption[] = [
         // upstream proxy) can set these env vars to a placeholder
         // value; OpenSearch ignores the credentials when auth is not
         // enforced.
-        label: "Username",
+        labelKey: "settings.dbProviders.fields.OPENSEARCH_USERNAME.label",
         variableKey: OPENSEARCH_VARIABLES.USERNAME,
         required: true,
         isSecret: false,
         placeholder: "admin",
       },
       {
-        label: "Password",
+        labelKey: "settings.dbProviders.fields.OPENSEARCH_PASSWORD.label",
         variableKey: OPENSEARCH_VARIABLES.PASSWORD,
         required: true,
         isSecret: true,
-        placeholder: "Enter OpenSearch password",
+        placeholderKey:
+          "settings.dbProviders.fields.OPENSEARCH_PASSWORD.placeholder",
       },
       {
-        label: "Default index name",
+        labelKey: "settings.dbProviders.fields.OPENSEARCH_INDEX_NAME.label",
         variableKey: OPENSEARCH_VARIABLES.INDEX_NAME,
         required: true,
         isSecret: false,
-        placeholder: "langflow_knowledge",
+        placeholder: "ketos_knowledge",
       },
       {
         // LangChain's OpenSearchVectorSearch stores KB embeddings under
         // ``vector_field`` (its hardwired default), so that is the field the
         // backend reads them back from. Defaulting elsewhere persisted a
         // never-written name and left ``include_embeddings`` retrieval empty.
-        label: "Vector field",
+        labelKey: "settings.dbProviders.fields.OPENSEARCH_VECTOR_FIELD.label",
         variableKey: OPENSEARCH_VARIABLES.VECTOR_FIELD,
         required: false,
         isSecret: false,
@@ -177,7 +175,7 @@ export const DB_PROVIDER_OPTIONS: DBProviderOption[] = [
         defaultValue: "vector_field",
       },
       {
-        label: "Text field",
+        labelKey: "settings.dbProviders.fields.OPENSEARCH_TEXT_FIELD.label",
         variableKey: OPENSEARCH_VARIABLES.TEXT_FIELD,
         required: false,
         isSecret: false,
@@ -186,18 +184,18 @@ export const DB_PROVIDER_OPTIONS: DBProviderOption[] = [
       },
       {
         kind: "boolean",
-        label: "Use TLS (HTTPS)",
+        labelKey: "settings.dbProviders.fields.OPENSEARCH_USE_SSL.label",
         variableKey: OPENSEARCH_VARIABLES.USE_SSL,
-        helperText:
-          "Connect over HTTPS. Disable for plain-HTTP clusters. Defaults to the URL scheme when unset.",
+        helperTextKey:
+          "settings.dbProviders.fields.OPENSEARCH_USE_SSL.helperText",
         defaultValue: true,
       },
       {
         kind: "boolean",
-        label: "Verify TLS certificate",
+        labelKey: "settings.dbProviders.fields.OPENSEARCH_VERIFY_CERTS.label",
         variableKey: OPENSEARCH_VARIABLES.VERIFY_CERTS,
-        helperText:
-          "Disable for self-signed certificates (the default OpenSearch container ships one).",
+        helperTextKey:
+          "settings.dbProviders.fields.OPENSEARCH_VERIFY_CERTS.helperText",
         defaultValue: true,
       },
     ],
@@ -205,7 +203,7 @@ export const DB_PROVIDER_OPTIONS: DBProviderOption[] = [
   {
     id: "astra",
     label: "Astra DB",
-    description: "Managed Cassandra vector storage.",
+    descriptionKey: "settings.dbProviders.providers.astra.description",
     icon: "AstraDB",
     status: "coming_soon",
     configFields: [],
@@ -213,7 +211,7 @@ export const DB_PROVIDER_OPTIONS: DBProviderOption[] = [
   {
     id: "mongodb",
     label: "MongoDB Atlas",
-    description: "Atlas Vector Search backend.",
+    descriptionKey: "settings.dbProviders.providers.mongodb.description",
     icon: "MongoDB",
     status: "coming_soon",
     configFields: [],
@@ -221,7 +219,7 @@ export const DB_PROVIDER_OPTIONS: DBProviderOption[] = [
   {
     id: "postgres",
     label: "Postgres pgvector",
-    description: "Postgres-backed vector storage.",
+    descriptionKey: "settings.dbProviders.providers.postgres.description",
     icon: "Postgres",
     status: "coming_soon",
     configFields: [],
@@ -235,6 +233,90 @@ export const AVAILABLE_DB_PROVIDER_OPTIONS = DB_PROVIDER_OPTIONS.filter(
     id: AvailableDBProviderId;
   } => provider.status === "available",
 );
+
+/**
+ * Resolves the finite DB-provider presentation registry through literal
+ * translation calls. Provider IDs and configuration keys remain protocol
+ * values; only their descriptions and field chrome are localized.
+ */
+export function translateDBProviderDescription(
+  t: TFunction,
+  providerId: DBProviderId,
+): string {
+  switch (providerId) {
+    case "chroma":
+      return t("settings.dbProviders.providers.chroma.description");
+    case "chroma_cloud":
+      return t("settings.dbProviders.providers.chroma_cloud.description");
+    case "opensearch":
+      return t("settings.dbProviders.providers.opensearch.description");
+    case "astra":
+      return t("settings.dbProviders.providers.astra.description");
+    case "mongodb":
+      return t("settings.dbProviders.providers.mongodb.description");
+    case "postgres":
+      return t("settings.dbProviders.providers.postgres.description");
+  }
+}
+
+export function translateDBProviderFieldLabel(
+  t: TFunction,
+  variableKey: string,
+): string {
+  switch (variableKey) {
+    case CHROMA_CLOUD_VARIABLES.API_KEY:
+      return t("settings.dbProviders.fields.CHROMA_API_KEY.label");
+    case CHROMA_CLOUD_VARIABLES.TENANT:
+      return t("settings.dbProviders.fields.CHROMA_TENANT.label");
+    case CHROMA_CLOUD_VARIABLES.DATABASE:
+      return t("settings.dbProviders.fields.CHROMA_DATABASE.label");
+    case CHROMA_CLOUD_VARIABLES.REGION:
+      return t("settings.dbProviders.fields.CHROMA_REGION.label");
+    case OPENSEARCH_VARIABLES.URL:
+      return t("settings.dbProviders.fields.OPENSEARCH_URL.label");
+    case OPENSEARCH_VARIABLES.USERNAME:
+      return t("settings.dbProviders.fields.OPENSEARCH_USERNAME.label");
+    case OPENSEARCH_VARIABLES.PASSWORD:
+      return t("settings.dbProviders.fields.OPENSEARCH_PASSWORD.label");
+    case OPENSEARCH_VARIABLES.INDEX_NAME:
+      return t("settings.dbProviders.fields.OPENSEARCH_INDEX_NAME.label");
+    case OPENSEARCH_VARIABLES.VECTOR_FIELD:
+      return t("settings.dbProviders.fields.OPENSEARCH_VECTOR_FIELD.label");
+    case OPENSEARCH_VARIABLES.TEXT_FIELD:
+      return t("settings.dbProviders.fields.OPENSEARCH_TEXT_FIELD.label");
+    case OPENSEARCH_VARIABLES.USE_SSL:
+      return t("settings.dbProviders.fields.OPENSEARCH_USE_SSL.label");
+    case OPENSEARCH_VARIABLES.VERIFY_CERTS:
+      return t("settings.dbProviders.fields.OPENSEARCH_VERIFY_CERTS.label");
+    default:
+      return variableKey;
+  }
+}
+
+export function translateDBProviderFieldPlaceholder(
+  t: TFunction,
+  field: DBProviderTextField,
+): string | undefined {
+  return field.variableKey === OPENSEARCH_VARIABLES.PASSWORD
+    ? t("settings.dbProviders.fields.OPENSEARCH_PASSWORD.placeholder")
+    : field.placeholder;
+}
+
+export function translateDBProviderFieldHelperText(
+  t: TFunction,
+  variableKey: string,
+): string | undefined {
+  switch (variableKey) {
+    case OPENSEARCH_VARIABLES.USE_SSL:
+      return t("settings.dbProviders.fields.OPENSEARCH_USE_SSL.helperText");
+    case OPENSEARCH_VARIABLES.VERIFY_CERTS:
+      return t(
+        "settings.dbProviders.fields.OPENSEARCH_VERIFY_CERTS.helperText",
+      );
+    default:
+      return undefined;
+  }
+}
 
 export function getGlobalVariableValue(
   variables: GlobalVariable[],

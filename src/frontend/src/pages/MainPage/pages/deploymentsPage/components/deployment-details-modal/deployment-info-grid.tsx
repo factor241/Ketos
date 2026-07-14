@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
+import { formatDate as formatLocaleDate } from "@/utils/locale-format";
 import { type Deployment, getDeploymentDisplayName } from "../../types";
 
 interface DeploymentInfoGridProps {
@@ -9,7 +10,7 @@ interface DeploymentInfoGridProps {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, {
+  return formatLocaleDate(iso, {
     year: "numeric",
     month: "short",
     day: "numeric",

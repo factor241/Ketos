@@ -12,8 +12,9 @@ from urllib.parse import urlparse
 import pytest
 from anyio import Path
 from httpx import AsyncClient
-from langflow.initial_setup.constants import STARTER_FOLDER_NAME
-from langflow.initial_setup.setup import (
+from ketos.initial_setup.constants import STARTER_FOLDER_NAME
+from ketos.initial_setup.setup import (
+    _sorted_starter_project_paths,
     copy_profile_pictures,
     detect_github_url,
     get_project_data,
@@ -21,11 +22,11 @@ from langflow.initial_setup.setup import (
     load_starter_projects,
     update_projects_components_with_latest_component_versions,
 )
-from langflow.interface.components import get_and_cache_all_types_dict
-from langflow.services.auth.utils import create_super_user
-from langflow.services.database.models import Flow
-from langflow.services.database.models.folder.model import Folder
-from langflow.services.deps import get_settings_service, session_scope
+from ketos.interface.components import get_and_cache_all_types_dict
+from ketos.services.auth.utils import create_super_user
+from ketos.services.database.models import Flow
+from ketos.services.database.models.folder.model import Folder
+from ketos.services.deps import get_settings_service, session_scope
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
@@ -35,6 +36,15 @@ async def test_load_starter_projects():
     assert isinstance(projects, list)
     assert all(isinstance(project[1], dict) for project in projects)
     assert all(isinstance(project[0], Path) for project in projects)
+
+
+async def test_starter_project_traversal_is_sorted(tmp_path: SyncPath):
+    for name in ("Zulu.json", "Alpha.json", "Middle.json"):
+        (tmp_path / name).write_text("{}", encoding="utf-8")
+
+    paths = await _sorted_starter_project_paths(Path(tmp_path))
+
+    assert [path.name for path in paths] == ["Alpha.json", "Middle.json", "Zulu.json"]
 
 
 async def test_get_project_data():
@@ -201,48 +211,48 @@ async def test_refresh_starter_projects():
     ("url", "expected"),
     [
         (
-            "https://github.com/langflow-ai/langflow-bundles",
-            "https://github.com/langflow-ai/langflow-bundles/archive/refs/heads/main.zip",
+            "https://github.com/ketos-ai/ketos-bundles",
+            "https://github.com/ketos-ai/ketos-bundles/archive/refs/heads/main.zip",
         ),
         (
-            "https://github.com/langflow-ai/langflow-bundles/",
-            "https://github.com/langflow-ai/langflow-bundles/archive/refs/heads/main.zip",
+            "https://github.com/ketos-ai/ketos-bundles/",
+            "https://github.com/ketos-ai/ketos-bundles/archive/refs/heads/main.zip",
         ),
         (
-            "https://github.com/langflow-ai/langflow-bundles.git",
-            "https://github.com/langflow-ai/langflow-bundles/archive/refs/heads/main.zip",
+            "https://github.com/ketos-ai/ketos-bundles.git",
+            "https://github.com/ketos-ai/ketos-bundles/archive/refs/heads/main.zip",
         ),
         (
-            "https://github.com/langflow-ai/langflow-bundles/tree/some.branch-0_1",
-            "https://github.com/langflow-ai/langflow-bundles/archive/refs/heads/some.branch-0_1.zip",
+            "https://github.com/ketos-ai/ketos-bundles/tree/some.branch-0_1",
+            "https://github.com/ketos-ai/ketos-bundles/archive/refs/heads/some.branch-0_1.zip",
         ),
         (
-            "https://github.com/langflow-ai/langflow-bundles/tree/some/branch",
-            "https://github.com/langflow-ai/langflow-bundles/archive/refs/heads/some/branch.zip",
+            "https://github.com/ketos-ai/ketos-bundles/tree/some/branch",
+            "https://github.com/ketos-ai/ketos-bundles/archive/refs/heads/some/branch.zip",
         ),
         (
-            "https://github.com/langflow-ai/langflow-bundles/tree/some/branch/",
-            "https://github.com/langflow-ai/langflow-bundles/archive/refs/heads/some/branch.zip",
+            "https://github.com/ketos-ai/ketos-bundles/tree/some/branch/",
+            "https://github.com/ketos-ai/ketos-bundles/archive/refs/heads/some/branch.zip",
         ),
         (
-            "https://github.com/langflow-ai/langflow-bundles/releases/tag/v1.0.0-0_1",
-            "https://github.com/langflow-ai/langflow-bundles/archive/refs/tags/v1.0.0-0_1.zip",
+            "https://github.com/ketos-ai/ketos-bundles/releases/tag/v1.0.0-0_1",
+            "https://github.com/ketos-ai/ketos-bundles/archive/refs/tags/v1.0.0-0_1.zip",
         ),
         (
-            "https://github.com/langflow-ai/langflow-bundles/releases/tag/foo/v1.0.0",
-            "https://github.com/langflow-ai/langflow-bundles/archive/refs/tags/foo/v1.0.0.zip",
+            "https://github.com/ketos-ai/ketos-bundles/releases/tag/foo/v1.0.0",
+            "https://github.com/ketos-ai/ketos-bundles/archive/refs/tags/foo/v1.0.0.zip",
         ),
         (
-            "https://github.com/langflow-ai/langflow-bundles/releases/tag/foo/v1.0.0/",
-            "https://github.com/langflow-ai/langflow-bundles/archive/refs/tags/foo/v1.0.0.zip",
+            "https://github.com/ketos-ai/ketos-bundles/releases/tag/foo/v1.0.0/",
+            "https://github.com/ketos-ai/ketos-bundles/archive/refs/tags/foo/v1.0.0.zip",
         ),
         (
-            "https://github.com/langflow-ai/langflow-bundles/commit/68428ce16729a385fe1bcc0f1ec91fd5f5f420b9",
-            "https://github.com/langflow-ai/langflow-bundles/archive/68428ce16729a385fe1bcc0f1ec91fd5f5f420b9.zip",
+            "https://github.com/ketos-ai/ketos-bundles/commit/68428ce16729a385fe1bcc0f1ec91fd5f5f420b9",
+            "https://github.com/ketos-ai/ketos-bundles/archive/68428ce16729a385fe1bcc0f1ec91fd5f5f420b9.zip",
         ),
         (
-            "https://github.com/langflow-ai/langflow-bundles/commit/68428ce16729a385fe1bcc0f1ec91fd5f5f420b9/",
-            "https://github.com/langflow-ai/langflow-bundles/archive/68428ce16729a385fe1bcc0f1ec91fd5f5f420b9.zip",
+            "https://github.com/ketos-ai/ketos-bundles/commit/68428ce16729a385fe1bcc0f1ec91fd5f5f420b9/",
+            "https://github.com/ketos-ai/ketos-bundles/archive/68428ce16729a385fe1bcc0f1ec91fd5f5f420b9.zip",
         ),
         ("https://example.com/myzip.zip", "https://example.com/myzip.zip"),
     ],
@@ -269,7 +279,7 @@ async def test_detect_github_url(url, expected):
 async def test_load_bundles_from_urls():
     settings_service = get_settings_service()
     settings_service.settings.bundle_urls = [
-        "https://github.com/langflow-ai/langflow-bundles/commit/68428ce16729a385fe1bcc0f1ec91fd5f5f420b9"
+        "https://github.com/ketos-ai/ketos-bundles/commit/68428ce16729a385fe1bcc0f1ec91fd5f5f420b9"
     ]
     settings_service.auth_settings.AUTO_LOGIN = True
 
@@ -289,7 +299,7 @@ async def test_load_bundles_from_urls():
 
     try:
         assert len(components_paths) == 1
-        assert "langflow-bundles-68428ce16729a385fe1bcc0f1ec91fd5f5f420b9/components" in components_paths[0]
+        assert "ketos-bundles-68428ce16729a385fe1bcc0f1ec91fd5f5f420b9/components" in components_paths[0]
 
         content = await (Path(components_paths[0]) / "embeddings" / "openai2.py").read_text(encoding="utf-8")
         assert "OpenAIEmbeddings2Component" in content
@@ -307,9 +317,9 @@ async def test_load_bundles_from_urls():
 
 @pytest.fixture
 def set_fs_flows_polling_interval():
-    os.environ["LANGFLOW_FS_FLOWS_POLLING_INTERVAL"] = "100"
+    os.environ["KETOS_FS_FLOWS_POLLING_INTERVAL"] = "100"
     yield
-    os.unsetenv("LANGFLOW_FS_FLOWS_POLLING_INTERVAL")
+    os.unsetenv("KETOS_FS_FLOWS_POLLING_INTERVAL")
 
 
 @pytest.mark.usefixtures("set_fs_flows_polling_interval")
@@ -333,7 +343,7 @@ async def test_sync_flows_from_fs(client: AsyncClient, logged_in_headers):
 
         # Construct the full path where the file was saved
         # The API saves relative paths to: storage_service.data_dir / "flows" / user_id / filename
-        from langflow.services.deps import get_storage_service
+        from ketos.services.deps import get_storage_service
 
         storage_service = get_storage_service()
         flow_file = storage_service.data_dir / "flows" / str(user_id) / flow_filename
@@ -375,7 +385,7 @@ def profile_pictures_temp_config(monkeypatch):
     config_path = SyncPath(temp_dir)
 
     # Set the config_dir to our temp directory
-    monkeypatch.setenv("LANGFLOW_CONFIG_DIR", str(config_path))
+    monkeypatch.setenv("KETOS_CONFIG_DIR", str(config_path))
 
     yield config_path
 
@@ -455,7 +465,7 @@ async def test_copy_profile_pictures_is_idempotent():
 
 async def test_copy_profile_pictures_source_exists():
     """Test that the source profile pictures directory exists in the package."""
-    from langflow.initial_setup import setup
+    from ketos.initial_setup import setup
 
     source_path = Path(setup.__file__).parent / "profile_pictures"
     assert await source_path.exists(), "Source profile_pictures directory should exist in package"
@@ -510,7 +520,7 @@ async def test_profile_picture_can_be_downloaded(client: AsyncClient, logged_in_
 
 async def test_copy_profile_pictures_handles_missing_config_dir():
     """Test that copy_profile_pictures raises error when config_dir is not set."""
-    with patch("langflow.initial_setup.setup.get_storage_service") as mock_storage:
+    with patch("ketos.initial_setup.setup.get_storage_service") as mock_storage:
         mock_settings = AsyncMock()
         mock_settings.settings_service.settings.config_dir = None
         mock_storage.return_value = mock_settings
@@ -721,7 +731,7 @@ def test_update_projects_resolves_parser_via_component_type_alias():
 
 async def test_update_project_file_success():
     """Test that update_project_file successfully writes to a writable path."""
-    from langflow.initial_setup.setup import update_project_file
+    from ketos.initial_setup.setup import update_project_file
 
     with tempfile.TemporaryDirectory() as temp_dir:
         project_path = Path(temp_dir) / "test_project.json"
@@ -742,7 +752,7 @@ async def test_update_project_file_success():
 
 async def test_update_project_file_readonly_filesystem():
     """Test that update_project_file handles read-only filesystem gracefully."""
-    from langflow.initial_setup.setup import update_project_file
+    from ketos.initial_setup.setup import update_project_file
 
     project_path = Path("/nonexistent/readonly/path/test_project.json")
     project = {"name": "Test Project", "data": {"old": "data"}}
@@ -757,7 +767,7 @@ async def test_update_project_file_readonly_filesystem():
 
 async def test_update_project_file_permission_denied():
     """Test that update_project_file handles permission denied gracefully."""
-    from langflow.initial_setup.setup import update_project_file
+    from ketos.initial_setup.setup import update_project_file
 
     with tempfile.TemporaryDirectory() as temp_dir:
         project_path = Path(temp_dir) / "test_project.json"
@@ -765,7 +775,7 @@ async def test_update_project_file_permission_denied():
         updated_data = {"new": "data"}
 
         # Mock aiofiles.open to raise OSError (permission denied)
-        with patch("langflow.initial_setup.setup.aiofiles.open") as mock_open:
+        with patch("ketos.initial_setup.setup.aiofiles.open") as mock_open:
             mock_open.side_effect = OSError(13, "Permission denied")
 
             # Should not raise
@@ -777,13 +787,13 @@ async def test_update_project_file_permission_denied():
 
 async def test_update_project_file_logs_debug_on_oserror():
     """Test that update_project_file logs a debug message on OSError."""
-    from langflow.initial_setup.setup import update_project_file
+    from ketos.initial_setup.setup import update_project_file
 
     project_path = Path("/nonexistent/readonly/path/test_project.json")
     project = {"name": "Test Project", "data": {"old": "data"}}
     updated_data = {"new": "data"}
 
-    with patch("langflow.initial_setup.setup.logger") as mock_logger:
+    with patch("ketos.initial_setup.setup.logger") as mock_logger:
         mock_logger.adebug = AsyncMock()
         await update_project_file(project_path, project, updated_data)
         # Verify debug log was called (either success or error path)

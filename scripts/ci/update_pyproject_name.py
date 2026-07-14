@@ -15,8 +15,8 @@ def update_pyproject_name(pyproject_path: str, new_project_name: str) -> None:
     ``complete`` / ``all`` / ``image-description`` extras) to the new name. Without
     this, a renamed package's extras keep pointing at the old (PyPI) distribution
     and fail to resolve during nightly builds — e.g. the docling bundle's ``all``
-    extra (``"lfx-docling[local,chunking,image-description]"``) would still demand
-    the stable ``lfx-docling`` after the package became ``lfx-docling-nightly``.
+    extra (``"kfx-docling[local,chunking,image-description]"``) would still demand
+    the stable ``kfx-docling`` after the package became ``kfx-docling-nightly``.
     """
     filepath = BASE_DIR / pyproject_path
     content = filepath.read_text(encoding="utf-8")
@@ -37,9 +37,9 @@ def update_pyproject_name(pyproject_path: str, new_project_name: str) -> None:
     # Rewrite this package's own `"<old name>[extra]"` self-references to the new
     # name so extras resolve against the renamed workspace member instead of
     # leaking the old name to PyPI. This generalizes the previous hardcoded
-    # langflow-base / langflow handling to every renamed package (lfx, the SDK,
-    # and each `lfx-*` bundle). The leading quote + escaped exact name keep
-    # `"lfx[..."` from matching `"lfx-docling[..."`.
+    # ketos-base / ketos handling to every renamed package (kfx, the SDK,
+    # and each `kfx-*` bundle). The leading quote + escaped exact name keep
+    # `"kfx[..."` from matching `"kfx-docling[..."`.
     if old_project_name != new_project_name:
         self_ref_pattern = re.compile(rf'"{re.escape(old_project_name)}\[([^\]]+)\]"')
         content = self_ref_pattern.sub(rf'"{new_project_name}[\1]"', content)
@@ -48,19 +48,19 @@ def update_pyproject_name(pyproject_path: str, new_project_name: str) -> None:
 
 
 def update_uv_dep(pyproject_path: str, new_project_name: str) -> None:
-    """Update the langflow-base dependency in pyproject.toml."""
+    """Update the ketos-base dependency in pyproject.toml."""
     filepath = BASE_DIR / pyproject_path
     content = filepath.read_text(encoding="utf-8")
 
-    if new_project_name == "langflow-nightly":
-        pattern = re.compile(r"langflow = \{ workspace = true \}")
-        replacement = "langflow-nightly = { workspace = true }"
-    elif new_project_name == "langflow-base-nightly":
-        pattern = re.compile(r"langflow-base = \{ workspace = true \}")
-        replacement = "langflow-base-nightly = { workspace = true }"
-    elif new_project_name == "langflow-sdk-nightly":
-        pattern = re.compile(r"langflow-sdk = \{ workspace = true \}")
-        replacement = "langflow-sdk-nightly = { workspace = true }"
+    if new_project_name == "ketos-nightly":
+        pattern = re.compile(r"ketos = \{ workspace = true \}")
+        replacement = "ketos-nightly = { workspace = true }"
+    elif new_project_name == "ketos-base-nightly":
+        pattern = re.compile(r"ketos-base = \{ workspace = true \}")
+        replacement = "ketos-base-nightly = { workspace = true }"
+    elif new_project_name == "ketos-sdk-nightly":
+        pattern = re.compile(r"ketos-sdk = \{ workspace = true \}")
+        replacement = "ketos-sdk-nightly = { workspace = true }"
     else:
         msg = f"Invalid project name: {new_project_name}"
         raise ValueError(msg)
@@ -75,7 +75,7 @@ def update_uv_dep(pyproject_path: str, new_project_name: str) -> None:
 
 def main() -> None:
     if len(sys.argv) != ARGUMENT_NUMBER:
-        msg = "Must specify project name and build type, e.g. langflow-nightly base"
+        msg = "Must specify project name and build type, e.g. ketos-nightly base"
         raise ValueError(msg)
     new_project_name = sys.argv[1]
     build_type = sys.argv[2]

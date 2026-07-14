@@ -1,6 +1,6 @@
 import { readSkipAll, writeSkipAll } from "../skip-all-storage";
 
-const STORAGE_KEY = "langflow-assistant-skip-all";
+const STORAGE_KEY = "ketos-assistant-skip-all";
 
 describe("skip-all storage", () => {
   beforeEach(() => {
@@ -9,6 +9,12 @@ describe("skip-all storage", () => {
 
   describe("readSkipAll", () => {
     it("should_return_false_when_key_is_absent", () => {
+      expect(readSkipAll()).toBe(false);
+    });
+
+    it("ignores the pre-cutover local storage key", () => {
+      const oldKey = `${["lang", "flow"].join("")}-assistant-skip-all`;
+      localStorage.setItem(oldKey, "true");
       expect(readSkipAll()).toBe(false);
     });
 

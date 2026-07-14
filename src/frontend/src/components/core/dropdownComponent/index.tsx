@@ -9,6 +9,7 @@ import { BUILD_PANEL_COLLISION_PADDING_PX } from "@/constants/constants";
 import { usePostTemplateValue } from "@/controllers/API/queries/nodes/use-post-template-value";
 import useAlertStore from "@/stores/alertStore";
 import useFlowStore from "@/stores/flowStore";
+import { getOptionLabel, getOptionMetadata } from "@/utils/option-presentation";
 import {
   convertStringToHTML,
   getStatusColor,
@@ -33,6 +34,12 @@ import {
 } from "../../ui/popover";
 import type { BaseInputProps } from "../parameterRenderComponent/types";
 
+type DropdownProps = Omit<
+  BaseInputProps,
+  "nodeId" | "nodeClass" | "handleNodeClass" | "handleOnNewValue"
+> &
+  DropDownComponent;
+
 export default function Dropdown({
   disabled,
   isLoading,
@@ -55,12 +62,27 @@ export default function Dropdown({
   toggle,
   inspectionPanel,
   ...baseInputProps
-}: BaseInputProps & DropDownComponent): JSX.Element {
+}: DropdownProps): JSX.Element {
   const { t } = useTranslation();
   const validOptions = useMemo(
     () => filterNullOptions(options),
     [options, value],
   );
+  const optionMetadataByValue = useMemo(() => {
+    // biome-ignore lint/suspicious/noExplicitAny: legacy metadata shape is provider-defined
+    const metadataMap: Record<string, any> = {};
+    validOptions.forEach((option) => {
+      const metadata = getOptionMetadata(
+        option,
+        validOptions,
+        optionsMetaData ?? [],
+      );
+      if (metadata) metadataMap[option] = metadata;
+    });
+    return metadataMap;
+  }, [optionsMetaData, validOptions]);
+  const optionLabel = (option: string) =>
+    getOptionLabel(option, validOptions, optionsMetaData ?? []);
 
   // Initialize state and refs
   const [open, setOpen] = useState(children ? true : false);
@@ -102,7 +124,13 @@ export default function Dropdown({
 
   const sourceOptions = dialogInputs?.fields ? dialogInputs : externalOptions;
   const { firstWord } = formatName(name);
-  const fuse = new Fuse(validOptions, { keys: ["name", "value"] });
+  const fuse = new Fuse(
+    validOptions.map((option) => ({
+      value: option,
+      label: optionLabel(option),
+    })),
+    { keys: ["label", "value"] },
+  );
   const PopoverContentDropdown =
     children || editNode || inspectionPanel
       ? PopoverContent
@@ -128,6 +156,8 @@ export default function Dropdown({
       "org_id",
       "id",
       "updated_at",
+      "label",
+      "value",
     ],
   ) => {
     return Object.fromEntries(
@@ -152,7 +182,7 @@ export default function Dropdown({
 
     // Search existing options
     const searchValues = fuse.search(value);
-    let filtered = searchValues.map((search) => search.item);
+    let filtered = searchValues.map((search) => search.item.value);
 
     // If the search value exactly matches one of the custom options, include it
     const customOptions = filteredOptions.filter(
@@ -179,17 +209,10 @@ export default function Dropdown({
 
     // Create a new metadata array that directly maps to filtered options
     if (optionsMetaData) {
-      // Create a map of option -> metadata for quick lookup
-      // biome-ignore lint/suspicious/noExplicitAny: legacy
-      const metadataMap: Record<string, any> = {};
-      validOptions.forEach((option, index) => {
-        if (optionsMetaData[index]) {
-          metadataMap[option] = optionsMetaData[index];
-        }
-      });
-
       // Map each filtered option to its metadata (or undefined for custom values)
-      const newMetadata = filtered.map((option) => metadataMap[option]);
+      const newMetadata = filtered.map(
+        (option) => optionMetadataByValue[option],
+      );
       setFilteredMetadata(newMetadata);
     } else {
       setFilteredMetadata(undefined);
@@ -197,6 +220,8 @@ export default function Dropdown({
   };
 
   const handleSourceOptions = async (value: string) => {
+    if (!nodeId || !nodeClass || !handleNodeClass) return;
+
     setWaitingForResponse(true);
     setOpen(false);
 
@@ -214,6 +239,8 @@ export default function Dropdown({
   };
 
   const handleRefreshButtonPress = async () => {
+    if (!nodeId || !nodeClass || !handleNodeClass) return;
+
     setRefreshOptions(true);
     setOpen(false);
 
@@ -236,7 +263,8 @@ export default function Dropdown({
   };
 
   const formatTooltipContent = (option: string, index: number) => {
-    if (!filteredMetadata?.[index]) return option;
+    const localizedLabel = optionLabel(option);
+    if (!filteredMetadata?.[index]) return localizedLabel;
 
     const metadata = filteredMetadata[index];
     const metadataEntries = Object.entries(metadata)
@@ -245,7 +273,9 @@ export default function Dropdown({
           value !== null &&
           key !== "icon" &&
           key !== "id" &&
-          key !== "updated_at",
+          key !== "updated_at" &&
+          key !== "label" &&
+          key !== "value",
       )
       .map(([key, value]) => {
         const displayValue =
@@ -256,8 +286,8 @@ export default function Dropdown({
       });
 
     return metadataEntries.length > 0
-      ? `${firstWord}: ${option}\n${metadataEntries.join("\n")}`
-      : option;
+      ? `${firstWord}: ${localizedLabel}\n${metadataEntries.join("\n")}`
+      : localizedLabel;
   };
 
   // Auto-select a newly created option (e.g. knowledge base) once it appears in the options list
@@ -288,16 +318,8 @@ export default function Dropdown({
 
         // Reset filteredMetadata to match the new filteredOptions
         if (optionsMetaData) {
-          // biome-ignore lint/suspicious/noExplicitAny: legacy
-          const metadataMap: Record<string, any> = {};
-          validOptions.forEach((option, index) => {
-            if (optionsMetaData[index]) {
-              metadataMap[option] = optionsMetaData[index];
-            }
-          });
-
           const newMetadata = [...validOptions, ...customValuesInFiltered].map(
-            (option) => metadataMap[option],
+            (option) => optionMetadataByValue[option],
           );
           setFilteredMetadata(newMetadata);
         }
@@ -314,7 +336,7 @@ export default function Dropdown({
     ) {
       onSelect("", undefined, true);
     }
-  }, [open, validOptions]);
+  }, [open, validOptions, optionsMetaData, optionMetadataByValue]);
 
   const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
@@ -344,11 +366,7 @@ export default function Dropdown({
   );
 
   const renderSelectedIcon = () => {
-    const selectedIndex = filteredOptions.findIndex(
-      (option) => option === value,
-    );
-    const iconMetadata =
-      selectedIndex >= 0 ? filteredMetadata?.[selectedIndex]?.icon : undefined;
+    const iconMetadata = optionMetadataByValue[value]?.icon;
 
     return iconMetadata ? (
       <ForwardedIconComponent
@@ -395,7 +413,7 @@ export default function Dropdown({
                 <>
                   {
                     options?.includes(value) ? (
-                      value
+                      optionLabel(value)
                     ) : // this logic is used for the agents component, if you update make sure to test the agent component
                     sourceOptions?.fields?.data?.node?.name ===
                       "connect_other_models" ? (
@@ -470,9 +488,9 @@ export default function Dropdown({
               <div>
                 <CommandItem
                   value={option}
-                  onSelect={(currentValue) => {
+                  onSelect={() => {
                     onSelect(
-                      currentValue,
+                      option,
                       undefined,
                       undefined,
                       filteredMetadata?.[index],
@@ -499,7 +517,7 @@ export default function Dropdown({
                       })}
                     >
                       <div className="text-[13px] mr-2 whitespace-nowrap flex-shrink-0">
-                        {option}
+                        {optionLabel(option)}
                       </div>
                       {filteredMetadata?.[index]?.status && (
                         <span
@@ -570,7 +588,7 @@ export default function Dropdown({
             disabled
             className="w-full text-center text-sm text-muted-foreground px-2.5 py-1.5"
           >
-            No options found
+            {t("multiselect.noValuesFound")}
           </CommandItem>
         )}
       </CommandGroup>
@@ -616,24 +634,26 @@ export default function Dropdown({
                   name="RefreshCcw"
                   className={cn("h-3 w-3")}
                 />
-                Refresh list
+                {t("modelInput.refreshList")}
               </div>
             </CommandItem>
           )}
-          <NodeDialog
-            open={openDialog}
-            dialogInputs={dialogInputs}
-            onClose={() => {
-              setOpenDialog(false);
-              setOpen(false);
-            }}
-            onCreated={(createdValue) => {
-              setPendingSelect(createdValue);
-            }}
-            nodeId={nodeId!}
-            name={name!}
-            nodeClass={nodeClass!}
-          />
+          {nodeId && nodeClass && (
+            <NodeDialog
+              open={openDialog}
+              dialogInputs={dialogInputs}
+              onClose={() => {
+                setOpenDialog(false);
+                setOpen(false);
+              }}
+              onCreated={(createdValue) => {
+                setPendingSelect(createdValue);
+              }}
+              nodeId={nodeId}
+              name={name}
+              nodeClass={nodeClass}
+            />
+          )}
         </CommandGroup>
       )}
     </CommandList>
@@ -670,7 +690,7 @@ export default function Dropdown({
                     name="RefreshCcw"
                     className={cn("refresh-icon h-3 w-3 text-primary")}
                   />
-                  Refresh list
+                  {t("modelInput.refreshList")}
                 </div>
               </Button>
             </CommandItem>
@@ -707,7 +727,7 @@ export default function Dropdown({
               className="h-4 w-4 flex-shrink-0"
             />
           )}
-          <span className="truncate text-sm">{value}</span>
+          <span className="truncate text-sm">{optionLabel(value)}</span>
         </div>
       ) : (
         <div className="w-full truncate">{renderTriggerButton()}</div>

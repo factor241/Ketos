@@ -14,22 +14,22 @@ const mockApiPost = jest.fn();
 
 jest.mock("@/stores/authStore", () => {
   const mockState = { autoLogin: false };
-  const mockStore = jest.fn((selector: any) => {
-    if (selector.toString().includes("logout")) return mockLogout;
+  const mockStore = jest.fn((selector: unknown) => {
+    if (String(selector).includes("logout")) return mockLogout;
     return false;
-  }) as any;
+  }) as jest.Mock & { getState: jest.Mock };
   mockStore.getState = jest.fn(() => mockState);
   return mockStore;
 });
 
 jest.mock("@/stores/flowStore", () => {
-  const mockStore = jest.fn() as any;
+  const mockStore = jest.fn() as jest.Mock & { getState: jest.Mock };
   mockStore.getState = jest.fn(() => ({ resetFlowState: mockResetFlowState }));
   return mockStore;
 });
 
 jest.mock("@/stores/flowsManagerStore", () => {
-  const mockStore = jest.fn() as any;
+  const mockStore = jest.fn() as jest.Mock & { getState: jest.Mock };
   mockStore.getState = jest.fn(() => ({
     resetStore: mockResetFlowsManagerStore,
   }));
@@ -76,7 +76,7 @@ jest.mock("react-cookie", () => ({
 jest.mock("@/constants/constants", () => ({
   ...jest.requireActual("@/constants/constants"),
   IS_AUTO_LOGIN: false, // Override to disable auto login for testing
-  LANGFLOW_AUTO_LOGIN_OPTION: "auto_login_lf",
+  KETOS_AUTO_LOGIN_OPTION: "ketos_auto_login",
 }));
 
 jest.mock("@/controllers/API/helpers/constants", () => ({

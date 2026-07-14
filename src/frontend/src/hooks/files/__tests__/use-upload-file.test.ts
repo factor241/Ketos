@@ -124,7 +124,7 @@ describe("useUploadFile", () => {
       const uploadFile = result.current;
 
       await expect(uploadFile({ files: [mockFile] })).rejects.toThrow(
-        "File type exe not allowed. Allowed types: pdf, txt",
+        "The exe file type is not allowed. Allowed types: pdf, txt",
       );
 
       expect(mockUploadFileMutation).not.toHaveBeenCalled();
@@ -142,7 +142,7 @@ describe("useUploadFile", () => {
 
       // When there's no dot, split(".").pop() returns the filename itself ("test")
       await expect(uploadFile({ files: [mockFile] })).rejects.toThrow(
-        "File type test not allowed",
+        "The test file type is not allowed. Allowed types: pdf",
       );
 
       expect(mockUploadFileMutation).not.toHaveBeenCalled();
@@ -161,7 +161,7 @@ describe("useUploadFile", () => {
       const uploadFile = result.current;
 
       await expect(uploadFile({ files: mockFiles })).rejects.toThrow(
-        "Multiple files are not allowed",
+        "You can upload only one file.",
       );
     });
 
@@ -208,7 +208,7 @@ describe("useUploadFile", () => {
       expect(mockUploadFileMutation).not.toHaveBeenCalled();
     });
 
-    it("should handle upload mutation errors", async () => {
+    it("should localize upload mutation errors without exposing raw messages", async () => {
       // Reset mockValidateFileSize from previous test
       mockValidateFileSize.mockReset();
       mockUploadFileMutation.mockRejectedValue(new Error("Upload failed"));
@@ -223,8 +223,31 @@ describe("useUploadFile", () => {
       const uploadFile = result.current;
 
       await expect(uploadFile({ files: [mockFile] })).rejects.toThrow(
-        "Upload failed",
+        "The request could not be completed. Please try again.",
       );
+    });
+
+    it("should resolve a stable upload error code before raw detail", async () => {
+      const rawDetail = "private object-store exception";
+      mockUploadFileMutation.mockRejectedValue({
+        response: {
+          status: 500,
+          data: { code: "files.storage_error", detail: rawDetail },
+        },
+      });
+
+      const mockFile = new File(["content"], "test.pdf", {
+        type: "application/pdf",
+      });
+      const { result } = renderHook(() =>
+        useUploadFile({ types: ["pdf"], multiple: false }),
+      );
+
+      const rejection = result.current({ files: [mockFile] });
+      await expect(rejection).rejects.toThrow(
+        "The file could not be saved. Try again.",
+      );
+      await expect(rejection).rejects.not.toThrow(rawDetail);
     });
 
     it("should allow any file type when types is undefined", async () => {

@@ -10,9 +10,9 @@ import httpx
 import pytest
 import respx
 from httpx import Response
-from lfx.components.data_source.api_request import APIRequestComponent
-from lfx.schema import Data
-from lfx.schema.dotdict import dotdict
+from kfx.components.data_source.api_request import APIRequestComponent
+from kfx.schema import Data
+from kfx.schema.dotdict import dotdict
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -487,7 +487,7 @@ class TestAPIRequestSSRFProtection:
         component.url_input = "http://127.0.0.1:8080"
 
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "false"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "false"}),
             respx.mock,
         ):
             respx.get("http://127.0.0.1:8080").mock(return_value=Response(200, json={"status": "ok"}))
@@ -501,7 +501,7 @@ class TestAPIRequestSSRFProtection:
         component.url_input = "http://127.0.0.1:8080/admin"
 
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             pytest.raises(ValueError, match="SSRF Protection"),
         ):
             await component.make_api_request()
@@ -511,7 +511,7 @@ class TestAPIRequestSSRFProtection:
         component.url_input = "http://0.0.0.0:8080/admin"
 
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             pytest.raises(ValueError, match="SSRF Protection"),
         ):
             await component.make_api_request()
@@ -521,7 +521,7 @@ class TestAPIRequestSSRFProtection:
         component.url_input = "http://192.168.1.1/config"
 
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             pytest.raises(ValueError, match="SSRF Protection"),
         ):
             await component.make_api_request()
@@ -531,7 +531,7 @@ class TestAPIRequestSSRFProtection:
         component.url_input = "http://10.0.0.1/admin"
 
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             pytest.raises(ValueError, match="SSRF Protection"),
         ):
             await component.make_api_request()
@@ -541,7 +541,7 @@ class TestAPIRequestSSRFProtection:
         component.url_input = "http://172.16.0.1/internal"
 
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             pytest.raises(ValueError, match="SSRF Protection"),
         ):
             await component.make_api_request()
@@ -551,7 +551,7 @@ class TestAPIRequestSSRFProtection:
         component.url_input = "http://169.254.169.254/latest/meta-data/"
 
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             pytest.raises(ValueError, match="SSRF Protection"),
         ):
             await component.make_api_request()
@@ -561,7 +561,7 @@ class TestAPIRequestSSRFProtection:
         component.url_input = "http://169.254.1.1/api"
 
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             pytest.raises(ValueError, match="SSRF Protection"),
         ):
             await component.make_api_request()
@@ -571,11 +571,11 @@ class TestAPIRequestSSRFProtection:
         """Test that SSRF protection allows legitimate public URLs."""
         public_urls = [
             "https://api.openai.com/v1/chat/completions",
-            "https://api.github.com/repos/langflow-ai/langflow",
+            "https://api.github.com/repos/ketos-ai/ketos",
             "https://www.google.com",
         ]
 
-        with patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}):
+        with patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}):
             for url in public_urls:
                 component.url_input = url
                 respx.get(url).mock(return_value=Response(200, json={"status": "ok"}))
@@ -592,8 +592,8 @@ class TestAPIRequestSSRFProtection:
             patch.dict(
                 os.environ,
                 {
-                    "LANGFLOW_SSRF_PROTECTION_ENABLED": "true",
-                    "LANGFLOW_SSRF_ALLOWED_HOSTS": "internal.company.local",
+                    "KETOS_SSRF_PROTECTION_ENABLED": "true",
+                    "KETOS_SSRF_ALLOWED_HOSTS": "internal.company.local",
                 },
             ),
             respx.mock,
@@ -612,8 +612,8 @@ class TestAPIRequestSSRFProtection:
             patch.dict(
                 os.environ,
                 {
-                    "LANGFLOW_SSRF_PROTECTION_ENABLED": "true",
-                    "LANGFLOW_SSRF_ALLOWED_HOSTS": "192.168.1.100",
+                    "KETOS_SSRF_PROTECTION_ENABLED": "true",
+                    "KETOS_SSRF_ALLOWED_HOSTS": "192.168.1.100",
                 },
             ),
             respx.mock,
@@ -632,8 +632,8 @@ class TestAPIRequestSSRFProtection:
             patch.dict(
                 os.environ,
                 {
-                    "LANGFLOW_SSRF_PROTECTION_ENABLED": "true",
-                    "LANGFLOW_SSRF_ALLOWED_HOSTS": "192.168.1.0/24",
+                    "KETOS_SSRF_PROTECTION_ENABLED": "true",
+                    "KETOS_SSRF_ALLOWED_HOSTS": "192.168.1.0/24",
                 },
             ),
             respx.mock,
@@ -652,8 +652,8 @@ class TestAPIRequestSSRFProtection:
             patch.dict(
                 os.environ,
                 {
-                    "LANGFLOW_SSRF_PROTECTION_ENABLED": "true",
-                    "LANGFLOW_SSRF_ALLOWED_HOSTS": "localhost,192.168.1.0/24,internal.local",
+                    "KETOS_SSRF_PROTECTION_ENABLED": "true",
+                    "KETOS_SSRF_ALLOWED_HOSTS": "localhost,192.168.1.0/24,internal.local",
                 },
             ),
             respx.mock,
@@ -670,8 +670,8 @@ class TestAPIRequestSSRFProtection:
         component.url_input = "https://example.com/api"
 
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
-            patch("lfx.components.data_source.api_request.create_ssrf_protected_client") as mock_create_client,
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
+            patch("kfx.components.data_source.api_request.create_ssrf_protected_client") as mock_create_client,
             respx.mock,
         ):
             # Mock the context manager returned by create_ssrf_protected_client
@@ -696,8 +696,8 @@ class TestAPIRequestSSRFProtection:
         component.url_input = "https://example.com/api"
 
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "false"}),
-            patch("lfx.components.data_source.api_request.create_ssrf_protected_client") as mock_create_client,
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "false"}),
+            patch("kfx.components.data_source.api_request.create_ssrf_protected_client") as mock_create_client,
             respx.mock,
         ):
             respx.get("https://example.com/api").mock(return_value=Response(200, json={"status": "ok"}))
@@ -717,7 +717,7 @@ class TestAPIRequestSSRFProtection:
         component.log = MagicMock()
 
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "false"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "false"}),
             respx.mock,
         ):
             respx.get("https://example.com/api").mock(return_value=Response(200, json={"status": "ok"}))
@@ -735,7 +735,7 @@ class TestAPIRequestSSRFProtection:
         component.url_input = "example.com"
 
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "false"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "false"}),
             respx.mock,
         ):
             respx.get("https://example.com").mock(return_value=Response(200, json={"status": "ok"}))
@@ -748,7 +748,7 @@ class TestAPIRequestSSRFProtection:
         component.url_input = "http://example.com"
 
         with (
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "false"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "false"}),
             respx.mock,
         ):
             respx.get("http://example.com").mock(return_value=Response(200, json={"status": "ok"}))
@@ -834,7 +834,7 @@ class TestAPIRequestRedirectSSRFProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=_resolve_public),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             pytest.raises(ValueError, match="blocked redirect"),
         ):
             await component.make_api_request()
@@ -850,7 +850,7 @@ class TestAPIRequestRedirectSSRFProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=_resolve_public),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             pytest.raises(ValueError, match="blocked redirect"),
         ):
             await component.make_api_request()
@@ -874,7 +874,7 @@ class TestAPIRequestRedirectSSRFProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=resolve),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             pytest.raises(ValueError, match="blocked redirect"),
         ):
             await component.make_api_request()
@@ -895,7 +895,7 @@ class TestAPIRequestRedirectSSRFProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=_resolve_public),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
         ):
             result = await component.make_api_request()
 
@@ -920,7 +920,7 @@ class TestAPIRequestRedirectSSRFProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=_resolve_public),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
             pytest.raises(ValueError, match="exceeded the maximum"),
         ):
             await component.make_api_request()
@@ -933,7 +933,7 @@ class TestAPIRequestRedirectSSRFProtection:
         )
         respx.get("http://127.0.0.1:9999/ok").mock(return_value=Response(200, json={"status": "reached"}))
 
-        with patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "false"}):
+        with patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "false"}):
             result = await component.make_api_request()
 
         assert result.data["status_code"] == 200
@@ -954,7 +954,7 @@ class TestAPIRequestRedirectSSRFProtection:
 
         with (
             patch("socket.getaddrinfo", side_effect=_resolve_public),
-            patch.dict(os.environ, {"LANGFLOW_SSRF_PROTECTION_ENABLED": "true"}),
+            patch.dict(os.environ, {"KETOS_SSRF_PROTECTION_ENABLED": "true"}),
         ):
             result = await component.make_api_request()
 

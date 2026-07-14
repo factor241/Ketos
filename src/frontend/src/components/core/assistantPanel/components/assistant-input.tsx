@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
@@ -25,16 +26,29 @@ const GENERATING_STEPS: AgenticStepType[] = [
   "generating_document",
 ];
 
-// Intent-specific placeholder per generating step (no random rotation while
-// the LLM produces a component or flow).
-const GENERATING_PLACEHOLDER: Partial<Record<AgenticStepType, string>> = {
-  generating: "Generating response...",
-  generating_component: "Generating component...",
-  generating_plan: "Generating plan...",
-  generating_flow: "Generating flow...",
-  orchestrating: "Orchestrating...",
-  generating_document: "Generating document...",
-};
+// Finite resolver keeps every catalog key literal visible to the key scanner
+// while preserving the stable backend step identifiers.
+export function getGeneratingPlaceholder(
+  step: AgenticStepType | null,
+  t: TFunction,
+): string | null {
+  switch (step) {
+    case "generating":
+      return t("assistant.generatingResponse");
+    case "generating_component":
+      return t("assistant.generatingComponent");
+    case "generating_plan":
+      return t("assistant.generatingPlan");
+    case "generating_flow":
+      return t("assistant.generatingFlow");
+    case "orchestrating":
+      return t("assistant.orchestrating");
+    case "generating_document":
+      return t("assistant.generatingDocument");
+    default:
+      return null;
+  }
+}
 
 // Hook for rotating placeholder messages during post-generation processing
 function useAnimatedPlaceholder(
@@ -88,8 +102,6 @@ interface AssistantInputProps {
    * room for the upward-opening list in the compact (no-messages) layout. */
   onMentionOpenChange?: (open: boolean) => void;
 }
-
-const REFINING_PLAN_PLACEHOLDER = "Tell me what to change…";
 
 export function AssistantInput({
   onSend,
@@ -235,6 +247,18 @@ export function AssistantInput({
           compact ? "gap-1" : "gap-4",
         )}
         onClick={() => textareaRef.current?.focus()}
+        role="button"
+        tabIndex={0}
+        aria-label="Focus assistant message input"
+        onKeyDown={(event) => {
+          if (
+            event.target === event.currentTarget &&
+            (event.key === "Enter" || event.key === " ")
+          ) {
+            event.preventDefault();
+            textareaRef.current?.focus();
+          }
+        }}
       >
         {mentions.isOpen && (
           <AssistantMentionPopover
@@ -262,10 +286,10 @@ export function AssistantInput({
               isProcessing
                 ? isPostGenerationStep
                   ? ""
-                  : (currentStep && GENERATING_PLACEHOLDER[currentStep]) ||
+                  : getGeneratingPlaceholder(currentStep, t) ||
                     t("assistant.workingOnIt")
                 : isRefiningPlan
-                  ? REFINING_PLAN_PLACEHOLDER
+                  ? t("assistant.refinePlanPlaceholder")
                   : (placeholder ?? idlePlaceholder)
             }
             disabled={disabled || isProcessing}

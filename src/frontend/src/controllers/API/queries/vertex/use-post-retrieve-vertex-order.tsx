@@ -34,7 +34,7 @@ export const usePostRetrieveVertexOrder: useMutationFunctionType<
   }: retrieveGetVerticesOrder): Promise<retrieveGetVerticesOrderResponse> => {
     // nodeId is optional and is a query parameter
     // if nodeId is not provided, the API will return all vertices
-    const config: AxiosRequestConfig<any> = {};
+    const config: AxiosRequestConfig<unknown> = {};
     if (stopNodeId) {
       config["params"] = { stop_component_id: decodeURIComponent(stopNodeId) };
     } else if (startNodeId) {

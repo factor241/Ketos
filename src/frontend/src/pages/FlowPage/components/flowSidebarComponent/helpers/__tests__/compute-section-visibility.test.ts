@@ -107,7 +107,7 @@ describe("computeSectionVisibility", () => {
 
     // Regression: searching for "Agent" with MCP servers configured should
     // show both core components AND MCP results, not hide core components.
-    // See: https://github.com/langflow-ai/langflow/pull/11513
+    // Regression contract retained from the upstream pull request 11513.
     it("should show BOTH components and MCP when search matches both", () => {
       const result = computeSectionVisibility({
         ...baseInput,

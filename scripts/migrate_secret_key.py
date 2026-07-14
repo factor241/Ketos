@@ -8,7 +8,7 @@ This script handles the full key rotation lifecycle:
 5. Saves the new key
 
 Migrated database fields:
-- user.store_api_key: Langflow Store API keys
+- user.store_api_key: Ketos API keys
 - variable.value: All encrypted variable values
 - folder.auth_settings: MCP oauth_client_secret and api_key fields
 
@@ -30,26 +30,39 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from cryptography.fernet import Fernet, InvalidToken
-from platformdirs import user_cache_dir
+from platformdirs import user_config_path, user_data_path
 from sqlalchemy import create_engine, text
 
 MINIMUM_KEY_LENGTH = 32
 SENSITIVE_AUTH_FIELDS = ["oauth_client_secret", "api_key"]
-# Must match langflow.services.variable.constants.CREDENTIAL_TYPE
+# Must match ketos.services.variable.constants.CREDENTIAL_TYPE
 CREDENTIAL_TYPE = "Credential"
 
 
 def get_default_config_dir() -> Path:
-    """Get the default Langflow config directory using platformdirs."""
-    return Path(user_cache_dir("langflow", "langflow"))
+    """Get the canonical Ketos config directory using platformdirs."""
+    return Path(user_config_path("ketos", "Ketos"))
+
+
+def get_default_data_dir() -> Path:
+    """Get the canonical, separate Ketos data directory."""
+    config_dir = get_default_config_dir()
+    data_dir = Path(user_data_path("ketos", "Ketos"))
+    return data_dir / "data" if data_dir == config_dir else data_dir
 
 
 def get_config_dir() -> Path:
-    """Get the Langflow config directory from environment or default."""
-    config_dir = os.environ.get("LANGFLOW_CONFIG_DIR")
+    """Get the Ketos config directory from environment or platformdirs."""
+    config_dir = os.environ.get("KETOS_CONFIG_DIR")
     if config_dir:
         return Path(config_dir)
     return get_default_config_dir()
+
+
+def get_data_dir() -> Path:
+    """Get the Ketos data directory from environment or platformdirs."""
+    data_dir = os.environ.get("KETOS_DATA_DIR")
+    return Path(data_dir) if data_dir else get_default_data_dir()
 
 
 def set_secure_permissions(file_path: Path) -> None:
@@ -99,8 +112,8 @@ def ensure_valid_key(s: str) -> bytes:
     key by seeding random with the input string. For longer keys, pads with
     '=' to ensure valid base64 encoding.
 
-    NOTE: This function is duplicated from langflow.services.auth.utils.ensure_valid_key
-    to keep the migration script self-contained (can run without full Langflow installation).
+    NOTE: This function is duplicated from ketos.services.auth.utils.ensure_valid_key
+    to keep the migration script self-contained (can run without a full Ketos installation).
     Keep in sync if encryption logic changes.
     """
     if len(s) < MINIMUM_KEY_LENGTH:
@@ -207,9 +220,9 @@ def verify_migration(conn, new_key: str) -> tuple[int, int]:
     return verified, failed
 
 
-def get_default_database_url(config_dir: Path) -> str | None:
+def get_default_database_url(data_dir: Path) -> str | None:
     """Get database URL from default SQLite location."""
-    default_db = config_dir / "langflow.db"
+    default_db = data_dir / "ketos.db"
     if default_db.exists():
         return f"sqlite:///{default_db}"
     return None
@@ -229,7 +242,7 @@ def migrate(
     """Run the secret key migration.
 
     Args:
-        config_dir: Path to Langflow config directory containing secret_key file.
+        config_dir: Path to Ketos config directory containing secret_key file.
         database_url: SQLAlchemy database connection URL.
         old_key: Current secret key. If None, reads from config_dir/secret_key.
         new_key: New secret key. If None, generates a secure random key.
@@ -400,7 +413,7 @@ def migrate(
         print(f"\nMigrated {total_migrated} items, {total_failed} failures")
         print(f"\nBackup key location: {config_dir}/secret_key.backup.*")
         print("\nNext steps:")
-        print("1. Start Langflow and verify everything works")
+        print("1. Start Ketos and verify everything works")
         print("2. Users must log in again (JWT sessions invalidated)")
         print("3. Once verified, you may delete the backup key file")
 
@@ -412,9 +425,10 @@ def migrate(
 
 def main():
     default_config = get_config_dir()
+    default_data = get_data_dir()
 
     parser = argparse.ArgumentParser(
-        description="Migrate Langflow encrypted data to a new secret key",
+        description="Rotate Ketos encrypted data to a new secret key",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -425,7 +439,7 @@ Examples:
   %(prog)s
 
   # Custom database and config
-  %(prog)s --database-url postgresql://user:pass@host/db --config-dir /etc/langflow  # pragma: allowlist secret
+  %(prog)s --database-url postgresql://user:pass@host/db --config-dir /etc/ketos  # pragma: allowlist secret
 
   # Provide keys explicitly
   %(prog)s --old-key "current-key" --new-key "replacement-key"
@@ -442,14 +456,21 @@ Examples:
         type=Path,
         default=default_config,
         metavar="PATH",
-        help=f"Langflow config directory (default: {default_config})",
+        help=f"Ketos config directory (default: {default_config})",
+    )
+    parser.add_argument(
+        "--data-dir",
+        type=Path,
+        default=default_data,
+        metavar="PATH",
+        help=f"Ketos data directory containing ketos.db (default: {default_data})",
     )
     parser.add_argument(
         "--database-url",
         type=str,
         default=None,
         metavar="URL",
-        help="Database connection URL (default: sqlite in config dir)",
+        help="Database connection URL (default: ketos.db in data dir)",
     )
     parser.add_argument(
         "--old-key",
@@ -469,10 +490,10 @@ Examples:
     args = parser.parse_args()
 
     # Resolve database URL
-    database_url = args.database_url or get_default_database_url(args.config_dir)
+    database_url = args.database_url or get_default_database_url(args.data_dir)
     if not database_url:
         print("Error: Could not determine database URL.")
-        print(f"  No database found at {args.config_dir}/langflow.db")
+        print(f"  No database found at {args.data_dir}/ketos.db")
         print("  Use --database-url to specify the database location")
         sys.exit(1)
 

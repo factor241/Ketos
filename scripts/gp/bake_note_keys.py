@@ -13,9 +13,9 @@ collide when a note is deleted and a new one added at the same position.
 en.json is managed exclusively by extract_backend_strings.py — run that after
 baking to pick up any new or changed note keys.
 
-Usage (from repo root, no virtualenv required):
-    python scripts/gp/bake_note_keys.py
-    python scripts/gp/bake_note_keys.py --dry-run   # preview without writing
+Usage (from repo root):
+    uv run python scripts/gp/bake_note_keys.py
+    uv run python scripts/gp/bake_note_keys.py --dry-run   # preview without writing
 """
 
 from __future__ import annotations
@@ -27,11 +27,11 @@ import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent.parent
-STARTER_PROJECTS_DIR = REPO_ROOT / "src/backend/base/langflow/initial_setup/starter_projects"
+STARTER_PROJECTS_DIR = REPO_ROOT / "src/backend/base/ketos/initial_setup/starter_projects"
 
 # NOTE: _safe_flow_key and _note_hash are intentionally kept inline (not imported from
-# langflow.utils.i18n_keys) because this script is designed to run WITHOUT a virtualenv —
-# the CI workflow calls it before the Python environment is set up.  bake_note_keys.py
+# ketos.utils.i18n_keys) so the bootstrap-safe script does not require the backend
+# package to be importable. CI still invokes it through ``uv run``. bake_note_keys.py
 # only writes template_notes.{key} values that are read back verbatim by i18n.py at
 # runtime, so a local drift here does NOT affect component-translation correctness.
 
@@ -94,7 +94,7 @@ def main() -> None:
     template_count = len(list(STARTER_PROJECTS_DIR.glob("*.json")))
     print(f"\nBaked {total_changed} i18n_key(s) across {template_count} templates.")
     if total_changed > 0 and not args.dry_run:
-        print("Run extract_backend_strings.py to update en.json.")
+        print("Run `uv run python scripts/gp/extract_backend_strings.py` to update en.json.")
 
 
 if __name__ == "__main__":

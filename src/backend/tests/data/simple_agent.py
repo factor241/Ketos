@@ -1,27 +1,27 @@
-"""A simple agent flow example for Langflow.
+"""A simple agent flow example for Ketos.
 
-This script demonstrates how to set up a conversational agent using Langflow's
+This script demonstrates how to set up a conversational agent using Ketos's
 Agent component with web search capabilities.
 
 Features:
 - Uses the new flattened component access (cp.AgentComponent instead of deep imports)
-- Configures logging to 'langflow.log' at INFO level
+- Configures logging to 'ketos.log' at INFO level
 - Creates an agent with OpenAI GPT model
 - Provides web search tools via URLComponent
 - Connects ChatInput → Agent → ChatOutput
 
 Usage:
-    uv run lfx run simple_agent.py "How are you?"
+    uv run kfx run simple_agent.py "How are you?"
 """
 
 import os
 from pathlib import Path
 
-from lfx.graph import Graph
-from lfx.log.logger import LogConfig
+from kfx.graph import Graph
+from kfx.log.logger import LogConfig
 
 # Using the new flattened component access
-from lfx import components as cp
+from kfx import components as cp
 
 
 async def get_graph() -> Graph:
@@ -36,7 +36,7 @@ async def get_graph() -> Graph:
     """
     log_config = LogConfig(
         log_level="INFO",
-        log_file=Path("langflow.log"),
+        log_file=Path("ketos.log"),
     )
 
     # Showcase the new flattened component access - no need for deep imports!

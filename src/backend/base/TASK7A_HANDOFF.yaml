@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "producer": "T4-backend",
+  "status": "ready_with_deferred_cross_package_gates",
+  "base_distribution": {
+    "name": "ketos-base",
+    "import_owner": "ketos",
+    "source_root": "src/backend/base/ketos",
+    "console_scripts": []
+  },
+  "root_metapackage": {
+    "project_name": "ketos",
+    "dependencies": ["ketos-base[complete]>=0.10.2"],
+    "tool_uv_sources": {"ketos-base": {"workspace": true}},
+    "project_scripts": {"ketos": "ketos.ketos_launcher:main"},
+    "wheel": {
+      "bypass_selection": true,
+      "packages": [],
+      "reason": "ketos-base is the sole owner of ketos/**"
+    },
+    "remove_paths": ["src/backend/ketos"]
+  },
+  "task4_staging": {
+    "include": [
+      "src/backend/base/pyproject.toml",
+      "src/backend/base/TASK7A_HANDOFF.yaml",
+      "src/backend/base/ketos/**",
+      "src/backend/tests/**"
+    ],
+    "exclude": [
+      "src/backend/base/ketos/frontend/**",
+      "src/backend/base/ketos/**/__pycache__/**",
+      "src/backend/base/ketos/**/*.pyc",
+      "src/backend/base/ketos/**/*.db",
+      "src/backend/base/ketos/**/*.db-wal",
+      "src/backend/base/ketos/**/*.db-shm"
+    ],
+    "excluded_owner": {
+      "src/backend/base/ketos/frontend/**": "T17-generated-artifacts"
+    }
+  },
+  "deferred_gates": [
+    "T5 kfx import and component execution",
+    "T7A root workspace resolution and ketos CLI",
+    "T17 generated embedded frontend and package data"
+  ]
+}

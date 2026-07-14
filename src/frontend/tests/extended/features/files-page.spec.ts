@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { expect, test } from "../../fixtures";
-import { addFlowToTestOnEmptyLangflow } from "../../utils/add-flow-to-test-on-empty-langflow";
+import { addFlowToTestOnEmptyKetos } from "../../utils/add-flow-to-test-on-empty-ketos";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
 import { TEXTS } from "../../utils/constants/texts";
 import { generateRandomFilename } from "../../utils/generate-filename";
@@ -13,12 +13,12 @@ test(
   async ({ page }) => {
     await awaitBootstrapTest(page, { skipModal: true });
 
-    const firstRunLangflow = await page
+    const firstRunKetos = await page
       .getByTestId("empty-project-description")
       .count();
 
-    if (firstRunLangflow > 0) {
-      await addFlowToTestOnEmptyLangflow(page);
+    if (firstRunKetos > 0) {
+      await addFlowToTestOnEmptyKetos(page);
     }
 
     await page.waitForSelector('[data-testid="mainpage_title"]', {
@@ -58,12 +58,12 @@ test(
 
     await awaitBootstrapTest(page, { skipModal: true });
 
-    const firstRunLangflow = await page
+    const firstRunKetos = await page
       .getByTestId("empty-project-description")
       .count();
 
-    if (firstRunLangflow > 0) {
-      await addFlowToTestOnEmptyLangflow(page);
+    if (firstRunKetos > 0) {
+      await addFlowToTestOnEmptyKetos(page);
     }
 
     await page.waitForSelector('[data-testid="mainpage_title"]', {
@@ -101,12 +101,12 @@ test(
 
     await awaitBootstrapTest(page, { skipModal: true });
 
-    const firstRunLangflow = await page
+    const firstRunKetos = await page
       .getByTestId("empty-project-description")
       .count();
 
-    if (firstRunLangflow > 0) {
-      await addFlowToTestOnEmptyLangflow(page);
+    if (firstRunKetos > 0) {
+      await addFlowToTestOnEmptyKetos(page);
     }
 
     await page.waitForSelector('[data-testid="mainpage_title"]', {
@@ -169,12 +169,12 @@ test(
 
     await awaitBootstrapTest(page, { skipModal: true });
 
-    const firstRunLangflow = await page
+    const firstRunKetos = await page
       .getByTestId("empty-project-description")
       .count();
 
-    if (firstRunLangflow > 0) {
-      await addFlowToTestOnEmptyLangflow(page);
+    if (firstRunKetos > 0) {
+      await addFlowToTestOnEmptyKetos(page);
     }
 
     await page.waitForSelector('[data-testid="mainpage_title"]', {
@@ -241,12 +241,12 @@ test(
 
     await awaitBootstrapTest(page, { skipModal: true });
 
-    const firstRunLangflow = await page
+    const firstRunKetos = await page
       .getByTestId("empty-project-description")
       .count();
 
-    if (firstRunLangflow > 0) {
-      await addFlowToTestOnEmptyLangflow(page);
+    if (firstRunKetos > 0) {
+      await addFlowToTestOnEmptyKetos(page);
     }
 
     await page.waitForSelector('[data-testid="mainpage_title"]', {
@@ -340,12 +340,12 @@ test(
 
     await awaitBootstrapTest(page, { skipModal: true });
 
-    const firstRunLangflow = await page
+    const firstRunKetos = await page
       .getByTestId("empty-project-description")
       .count();
 
-    if (firstRunLangflow > 0) {
-      await addFlowToTestOnEmptyLangflow(page);
+    if (firstRunKetos > 0) {
+      await addFlowToTestOnEmptyKetos(page);
     }
 
     await page.waitForSelector('[data-testid="mainpage_title"]', {

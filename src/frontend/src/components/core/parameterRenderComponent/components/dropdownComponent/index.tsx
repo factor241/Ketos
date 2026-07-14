@@ -26,12 +26,12 @@ export default function DropdownComponent({
   ...baseInputProps
 }: InputProps<string, DropDownComponentType>): JSX.Element | null {
   const onChange = (
-    value: any,
+    value: unknown,
     dbValue?: boolean,
     skipSnapshot?: boolean,
-    selectedMetadata?: any,
+    selectedMetadata?: unknown,
   ) => {
-    const changes: Record<string, any> = {
+    const changes: Record<string, unknown> = {
       value,
       load_from_db: dbValue,
     };
@@ -46,6 +46,11 @@ export default function DropdownComponent({
     return null;
   }
 
+  const nodeContextProps =
+    nodeId && nodeClass
+      ? { nodeId, nodeClass, handleNodeClass, handleOnNewValue }
+      : {};
+
   return (
     <div className="flex w-full items-center gap-4">
       <Dropdown
@@ -53,9 +58,7 @@ export default function DropdownComponent({
         editNode={editNode}
         toggle={toggle}
         options={options}
-        nodeId={nodeId}
-        nodeClass={nodeClass}
-        handleNodeClass={handleNodeClass}
+        {...nodeContextProps}
         optionsMetaData={optionsMetaData}
         onSelect={onChange}
         placeholder={placeholder}

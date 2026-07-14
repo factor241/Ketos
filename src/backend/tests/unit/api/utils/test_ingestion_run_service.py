@@ -13,10 +13,10 @@ from __future__ import annotations
 import uuid
 
 import pytest
-from langflow.api.utils import ingestion_run_service
-from langflow.services.database.models.jobs.model import Job, JobStatus, JobType
-from langflow.services.deps import session_scope
-from lfx.base.knowledge_bases.ingestion_sources.base import (
+from ketos.api.utils import ingestion_run_service
+from ketos.services.database.models.jobs.model import Job, JobStatus, JobType
+from ketos.services.deps import session_scope
+from kfx.base.knowledge_bases.ingestion_sources.base import (
     IngestionItemResult,
     IngestionItemStatus,
     IngestionRunStatus,
@@ -308,7 +308,7 @@ class TestRunRowProjection:
         one a stranger). The indexed filter must surface only the
         kb_record-matched run.
         """
-        from langflow.api.utils import knowledge_base_service
+        from ketos.api.utils import knowledge_base_service
 
         # Create a real KB record so the indexed path activates.
         kb_record = await knowledge_base_service.create_record(

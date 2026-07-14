@@ -113,15 +113,15 @@ export default defineConfig({
   webServer: [
     {
       command:
-        "uv run uvicorn --factory langflow.main:create_app --host localhost --port 7860 --loop asyncio --log-level error --no-access-log",
+        "uv run uvicorn --factory ketos.main:create_app --host localhost --port 7860 --loop asyncio --log-level error --no-access-log",
       port: 7860,
       env: {
-        LANGFLOW_DATABASE_URL: "sqlite:///./temp",
-        LANGFLOW_AUTO_LOGIN: "true",
-        LANGFLOW_SUPERUSER: "langflow",
-        LANGFLOW_SUPERUSER_PASSWORD: "test-superuser-password", // pragma: allowlist secret
-        LANGFLOW_DEACTIVATE_TRACING: "true",
-        LANGFLOW_LOG_LEVEL: "ERROR",
+        KETOS_DATABASE_URL: "sqlite:///./temp",
+        KETOS_AUTO_LOGIN: "true",
+        KETOS_SUPERUSER: "ketos",
+        KETOS_SUPERUSER_PASSWORD: "test-superuser-password", // pragma: allowlist secret
+        KETOS_DEACTIVATE_TRACING: "true",
+        KETOS_LOG_LEVEL: "ERROR",
         DO_NOT_TRACK: "true",
       },
       stdout: "ignore",

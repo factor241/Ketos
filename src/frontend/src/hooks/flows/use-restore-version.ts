@@ -6,6 +6,7 @@ import { getURL } from "@/controllers/API/helpers/constants";
 import useApplyFlowToCanvas from "@/hooks/flows/use-apply-flow-to-canvas";
 import useAlertStore from "@/stores/alertStore";
 import useVersionPreviewStore from "@/stores/versionPreviewStore";
+import { getLocalizedApiErrorMessage } from "@/utils/localized-api-error";
 
 export default function useRestoreVersion(flowId: string) {
   const { t } = useTranslation();
@@ -39,13 +40,16 @@ export default function useRestoreVersion(flowId: string) {
 
         queryClient.invalidateQueries({ queryKey: ["useGetFlowVersions"] });
         applyFlowToCanvas(updatedFlow);
-        // biome-ignore lint/suspicious/noExplicitAny: legacy
-      } catch (err: any) {
-        const apiDetail = err?.response?.data?.detail;
-        const message = apiDetail ?? err?.message ?? "Unknown error";
+      } catch (error: unknown) {
         setErrorData({
           title: t("errors.failedToRestoreVersion"),
-          list: [message],
+          list: [
+            getLocalizedApiErrorMessage(
+              error,
+              (key, params) => t(key, params),
+              { fallbackKey: "errors.requestFailed" },
+            ),
+          ],
         });
         setIsRestoring(false);
         return;

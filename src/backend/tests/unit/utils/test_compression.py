@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 from unittest.mock import patch
 
 from fastapi import Response
-from langflow.utils.compression import compress_response
+from ketos.utils.compression import compress_response
 
 
 class TestCompressResponse:
@@ -197,7 +197,7 @@ class TestCompressResponse:
 
         assert content_length == actual_length
 
-    @patch("langflow.utils.compression.jsonable_encoder")
+    @patch("ketos.utils.compression.jsonable_encoder")
     def test_compress_response_jsonable_encoder_called(self, mock_encoder):
         """Test that jsonable_encoder is called on the data."""
         data = {"test": "data"}
@@ -207,7 +207,7 @@ class TestCompressResponse:
 
         mock_encoder.assert_called_once_with(data)
 
-    @patch("langflow.utils.compression.gzip.compress")
+    @patch("ketos.utils.compression.gzip.compress")
     def test_compress_response_gzip_compression_level(self, mock_compress):
         """Test that gzip.compress is called with correct compression level."""
         data = {"test": "data"}

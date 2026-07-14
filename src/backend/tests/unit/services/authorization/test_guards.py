@@ -6,8 +6,8 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
-from langflow.services.authorization import guards as authz_guards
-from langflow.services.authorization.actions import (
+from ketos.services.authorization import guards as authz_guards
+from ketos.services.authorization.actions import (
     DeploymentAction,
     FileAction,
     FlowAction,

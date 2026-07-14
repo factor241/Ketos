@@ -12,11 +12,15 @@ interface IPostUploadFile {
 
 export const usePostUploadFileV2: useMutationFunctionType<
   undefined,
-  IPostUploadFile
+  IPostUploadFile,
+  FileType,
+  Error
 > = (params, options?) => {
   const { mutate, queryClient } = UseRequestProcessor();
 
-  const postUploadFileFn = async (payload: IPostUploadFile): Promise<any> => {
+  const postUploadFileFn = async (
+    payload: IPostUploadFile,
+  ): Promise<FileType> => {
     const formData = new FormData();
 
     // Build set of existing paths (server-side path is typically full filename)
@@ -73,15 +77,15 @@ export const usePostUploadFileV2: useMutationFunctionType<
     });
 
     try {
-      const response = await api.post<any>(
+      const response = await api.post<FileType>(
         `${getURL("FILE_MANAGEMENT", {}, true)}`,
         formData,
         {
           onUploadProgress: (progressEvent) => {
             if (progressEvent.progress) {
-              queryClient.setQueryData(["useGetFilesV2"], (old: any) => {
+              queryClient.setQueryData<FileType[]>(["useGetFilesV2"], (old) => {
                 if (!Array.isArray(old)) return [];
-                return old.map((file: any) => {
+                return old.map((file) => {
                   if (file?.id === "temp") {
                     return { ...file, progress: progressEvent.progress };
                   }
@@ -99,9 +103,9 @@ export const usePostUploadFileV2: useMutationFunctionType<
       // a race window where the optimistic path (just the filename) differs
       // from the server path (user_id/filename), causing checkboxes to
       // appear unchecked until the background refetch completes.
-      queryClient.setQueryData(["useGetFilesV2"], (old: any) => {
+      queryClient.setQueryData<FileType[]>(["useGetFilesV2"], (old) => {
         if (!Array.isArray(old)) return [response.data];
-        return old.map((file: any) =>
+        return old.map((file) =>
           file?.id === "temp" ? { ...response.data } : file,
         );
       });
@@ -110,7 +114,7 @@ export const usePostUploadFileV2: useMutationFunctionType<
     } catch (e) {
       queryClient.setQueryData(["useGetFilesV2"], (old: FileType[]) => {
         if (!Array.isArray(old)) return [];
-        return old.map((file: any) => {
+        return old.map((file) => {
           if (file?.id === "temp") {
             return { ...file, progress: -1 };
           }
@@ -121,26 +125,25 @@ export const usePostUploadFileV2: useMutationFunctionType<
     }
   };
 
-  const mutation: UseMutationResult<IPostUploadFile, any, IPostUploadFile> =
-    mutate(
-      ["usePostUploadFileV2"],
-      async (payload: IPostUploadFile) => {
-        const res = await postUploadFileFn(payload);
-        return res;
+  const mutation: UseMutationResult<FileType, Error, IPostUploadFile> = mutate(
+    ["usePostUploadFileV2"],
+    async (payload: IPostUploadFile) => {
+      const res = await postUploadFileFn(payload);
+      return res;
+    },
+    {
+      onSettled: (data, error, variables, context) => {
+        if (!error) {
+          queryClient.invalidateQueries({
+            queryKey: ["useGetFilesV2"],
+          });
+        }
+        options?.onSettled?.(data, error, variables, context);
       },
-      {
-        onSettled: (data, error, variables, context) => {
-          if (!error) {
-            queryClient.invalidateQueries({
-              queryKey: ["useGetFilesV2"],
-            });
-          }
-          options?.onSettled?.(data, error, variables, context);
-        },
-        retry: 0,
-        ...options,
-      },
-    );
+      retry: 0,
+      ...options,
+    },
+  );
 
   return mutation;
 };

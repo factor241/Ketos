@@ -37,7 +37,7 @@ export function ParameterRenderComponent({
   templateData,
   templateValue,
   editNode,
-  showParameter,
+  showParameter = true,
   inspectionPanel = false,
   handleNodeClass,
   nodeClass,
@@ -54,8 +54,8 @@ export function ParameterRenderComponent({
   templateData: Partial<InputFieldType>;
   templateValue: unknown;
   editNode: boolean;
-  showParameter: boolean;
-  inspectionPanel: boolean;
+  showParameter?: boolean;
+  inspectionPanel?: boolean;
   handleNodeClass: (value: unknown, code?: string, type?: string) => void;
   nodeClass: APIClassType;
   disabled: boolean;
@@ -108,6 +108,7 @@ export function ParameterRenderComponent({
             <MultiselectComponent
               {...baseInputProps}
               combobox={templateData.combobox}
+              optionsMetaData={templateData.options_metadata}
               options={
                 (Array.isArray(templateData.options)
                   ? templateData.options
@@ -236,7 +237,7 @@ export function ParameterRenderComponent({
             columns={
               templateData?.table_schema?.columns ?? templateData?.table_schema
             }
-            tableTitle={templateData?.display_name ?? "Table"}
+            tableTitle={templateData?.display_name ?? t("table.title")}
             table_options={templateData?.table_options}
             trigger_icon={templateData?.trigger_icon}
             trigger_text={templateData?.trigger_text}
@@ -248,7 +249,7 @@ export function ParameterRenderComponent({
           <ToolsComponent
             {...baseInputProps}
             description={templateData.info || t("paramRender.addOrEditData")}
-            title={nodeClass?.display_name ?? "Tools"}
+            title={nodeClass?.display_name ?? t("sidebar.category.tools")}
             icon={nodeClass?.icon ?? ""}
             template={nodeClass?.template}
           />
@@ -257,7 +258,7 @@ export function ParameterRenderComponent({
         return (
           <SliderComponent
             {...baseInputProps}
-            value={templateValue}
+            value={String(templateValue ?? "")}
             rangeSpec={templateData.rangeSpec ?? templateData.range_spec}
             minLabel={templateData?.min_label}
             maxLabel={templateData?.max_label}
@@ -276,6 +277,7 @@ export function ParameterRenderComponent({
             helperText={templateData?.helper_text}
             helperMetadata={templateData?.helper_text_metadata}
             options={templateData?.options}
+            optionsMetaData={templateData?.options_metadata}
             searchCategory={templateData?.search_category}
             limit={templateData?.limit}
             id={`sortablelist_${id}`}
@@ -308,6 +310,7 @@ export function ParameterRenderComponent({
           <TabComponent
             {...baseInputProps}
             options={templateData?.options || []}
+            optionsMetaData={templateData?.options_metadata}
             id={`tab_${id}`}
           />
         );

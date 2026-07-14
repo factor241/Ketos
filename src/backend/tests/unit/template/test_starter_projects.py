@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
-# Import langflow validation utilities
-from langflow.utils.template_validation import (
+# Import ketos validation utilities
+from ketos.utils.template_validation import (
     validate_flow_can_build,
     validate_flow_execution,
     validate_template_structure,
@@ -25,7 +25,7 @@ from langflow.utils.template_validation import (
 
 def get_starter_projects_path() -> Path:
     """Get path to starter projects directory."""
-    return Path("src/backend/base/langflow/initial_setup/starter_projects")
+    return Path("src/backend/base/ketos/initial_setup/starter_projects")
 
 
 def get_template_files():
@@ -43,7 +43,7 @@ def get_basic_template_files():
 @pytest.fixture(autouse=True)
 def disable_tracing(monkeypatch):
     """Disable tracing for all template tests."""
-    monkeypatch.setenv("LANGFLOW_DEACTIVATE_TRACING", "true")
+    monkeypatch.setenv("KETOS_DEACTIVATE_TRACING", "true")
 
 
 class TestStarterProjects:
@@ -133,7 +133,7 @@ class TestStarterProjects:
             if not module_path or json_field_order is None:
                 continue
 
-            # Parse module path: "lfx.components.foo.bar.ClassName"
+            # Parse module path: "kfx.components.foo.bar.ClassName"
             parts = module_path.rsplit(".", 1)
             if len(parts) != 2:
                 continue

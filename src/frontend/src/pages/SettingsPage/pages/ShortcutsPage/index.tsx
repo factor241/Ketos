@@ -58,7 +58,7 @@ export default function ShortcutsPage() {
       const fixedName = toCamelCase(name);
       updateUniqueShortcut(fixedName, shortcut);
     });
-    localStorage.removeItem("langflow-shortcuts");
+    localStorage.removeItem("ketos-shortcuts");
   }
 
   return (

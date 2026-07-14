@@ -4,10 +4,10 @@ Includes regression tests for QA-reported bugs.
 """
 
 import pytest
-from lfx.components.processing.text_operations import TextOperations
-from lfx.schema.data import Data
-from lfx.schema.dataframe import DataFrame
-from lfx.schema.message import Message
+from kfx.components.processing.text_operations import TextOperations
+from kfx.schema.data import Data
+from kfx.schema.dataframe import DataFrame
+from kfx.schema.message import Message
 
 from tests.base import ComponentTestBaseWithoutClient
 

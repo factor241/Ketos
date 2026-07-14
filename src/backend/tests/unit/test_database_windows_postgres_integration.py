@@ -9,7 +9,7 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
-from langflow.services.database.service import DatabaseService
+from ketos.services.database.service import DatabaseService
 
 
 class TestDatabaseServiceWindowsPostgres:
@@ -29,9 +29,9 @@ class TestDatabaseServiceWindowsPostgres:
         return mock_service
 
     @patch("platform.system")
-    @patch.dict(os.environ, {"LANGFLOW_DATABASE_URL": "postgresql://user:pass@localhost/db"}, clear=True)
-    @patch("langflow.services.database.service.create_async_engine")
-    @patch("langflow.services.database.service.configure_windows_postgres_event_loop")
+    @patch.dict(os.environ, {"KETOS_DATABASE_URL": "postgresql://user:pass@localhost/db"}, clear=True)
+    @patch("ketos.services.database.service.create_async_engine")
+    @patch("ketos.services.database.service.configure_windows_postgres_event_loop")
     def test_windows_postgresql_configures_event_loop(
         self, mock_configure, mock_create_engine, mock_platform, mock_settings_service
     ):
@@ -46,7 +46,7 @@ class TestDatabaseServiceWindowsPostgres:
 
     @patch("platform.system")
     @patch.dict(os.environ, {}, clear=True)
-    @patch("langflow.services.database.service.create_async_engine")
+    @patch("ketos.services.database.service.create_async_engine")
     def test_linux_postgresql_no_event_loop_change(self, mock_create_engine, mock_platform, mock_settings_service):
         """Test that Linux + PostgreSQL doesn't change event loop."""
         mock_platform.return_value = "Linux"
@@ -61,7 +61,7 @@ class TestDatabaseServiceWindowsPostgres:
 
     @patch("platform.system")
     @patch.dict(os.environ, {}, clear=True)
-    @patch("langflow.services.database.service.create_async_engine")
+    @patch("ketos.services.database.service.create_async_engine")
     def test_macos_postgresql_no_event_loop_change(self, mock_create_engine, mock_platform, mock_settings_service):
         """Test that macOS + PostgreSQL doesn't change event loop."""
         mock_platform.return_value = "Darwin"
@@ -76,8 +76,8 @@ class TestDatabaseServiceWindowsPostgres:
 
     @patch("platform.system")
     @patch.dict(os.environ, {}, clear=True)
-    @patch("langflow.services.database.service.create_async_engine")
-    @patch("langflow.services.database.service.configure_windows_postgres_event_loop")
+    @patch("ketos.services.database.service.create_async_engine")
+    @patch("ketos.services.database.service.configure_windows_postgres_event_loop")
     def test_windows_sqlite_no_event_loop_change(
         self, mock_configure, mock_create_engine, mock_platform, mock_settings_service
     ):
@@ -98,7 +98,7 @@ class TestDatabaseServiceWindowsPostgres:
             ("postgres://user:pass@localhost/db", "postgresql+psycopg://user:pass@localhost/db"),
         ]
 
-        with patch("langflow.services.database.service.create_async_engine") as mock_create_engine:
+        with patch("ketos.services.database.service.create_async_engine") as mock_create_engine:
             mock_create_engine.return_value = MagicMock()
 
             for input_url, expected_url in test_cases:
@@ -111,21 +111,21 @@ class TestDatabaseServiceWindowsPostgres:
         """Test that Docker environments work correctly."""
         mock_platform.return_value = "Linux"
         os.environ["DOCKER_CONTAINER"] = "true"
-        mock_settings_service.settings.database_url = "postgresql://postgres:5432/langflow"
+        mock_settings_service.settings.database_url = "postgresql://postgres:5432/ketos"
 
-        with patch("langflow.services.database.service.create_async_engine") as mock_create_engine:
+        with patch("ketos.services.database.service.create_async_engine") as mock_create_engine:
             mock_create_engine.return_value = MagicMock()
 
             # Should not raise any errors
             service = DatabaseService(mock_settings_service)
-            assert service.database_url == "postgresql+psycopg://postgres:5432/langflow"
+            assert service.database_url == "postgresql+psycopg://postgres:5432/ketos"
 
     @pytest.mark.asyncio
     async def test_async_operations_work_after_configuration(self, mock_settings_service):
         """Test that async operations work correctly after event loop configuration."""
         mock_settings_service.settings.database_url = "sqlite:///test.db"
 
-        with patch("langflow.services.database.service.create_async_engine") as mock_create_engine:
+        with patch("ketos.services.database.service.create_async_engine") as mock_create_engine:
             mock_engine = MagicMock()
             mock_create_engine.return_value = mock_engine
 

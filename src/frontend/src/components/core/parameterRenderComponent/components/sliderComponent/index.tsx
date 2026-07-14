@@ -21,15 +21,6 @@ const DARK_COLOR_TEXT = "#52525b";
 const LIGHT_COLOR_BACKGROUND = "#e4e4e7";
 const LIGHT_COLOR_TEXT = "#52525b";
 
-const DEFAULT_SLIDER_BUTTONS_OPTIONS = [
-  { id: 0, label: "Precise" },
-  { id: 1, label: "Balanced" },
-  { id: 2, label: "Creative" },
-  { id: 3, label: "Wild" },
-];
-
-const MIN_LABEL = "Precise";
-const MAX_LABEL = "Creative";
 const MIN_LABEL_ICON = "pencil-ruler";
 const MAX_LABEL_ICON = "palette";
 
@@ -43,27 +34,20 @@ export default function SliderComponent({
   disabled,
   rangeSpec,
   editNode = false,
-  minLabel = MIN_LABEL,
-  maxLabel = MAX_LABEL,
+  minLabel,
+  maxLabel,
   minLabelIcon = MIN_LABEL_ICON,
   maxLabelIcon = MAX_LABEL_ICON,
   sliderButtons = false,
-  sliderButtonsOptions = DEFAULT_SLIDER_BUTTONS_OPTIONS,
+  sliderButtonsOptions,
   handleOnNewValue,
   showParameter = true,
-}: InputProps<string[] | number[], SliderComponentType>): JSX.Element | null {
+}: InputProps<unknown, SliderComponentType>): JSX.Element | null {
   const min = rangeSpec?.min ?? -2;
   const max = rangeSpec?.max ?? 2;
 
-  sliderButtonsOptions =
-    sliderButtons && sliderButtonsOptions && sliderButtonsOptions.length > 0
-      ? sliderButtonsOptions
-      : DEFAULT_SLIDER_BUTTONS_OPTIONS;
-
   minLabelIcon = minLabelIcon || MIN_LABEL_ICON;
   maxLabelIcon = maxLabelIcon || MAX_LABEL_ICON;
-  minLabel = minLabel || MIN_LABEL;
-  maxLabel = maxLabel || MAX_LABEL;
 
   const valueAsNumber = getMinOrMaxValue(Number(value), min, max);
   const step = rangeSpec?.step ?? 0.01;
@@ -98,12 +82,24 @@ export default function SliderComponent({
     Wild: t("slider.wild"),
   };
 
-  const displayMinLabel = labelTranslations[minLabel] ?? minLabel;
-  const displayMaxLabel = labelTranslations[maxLabel] ?? maxLabel;
-  const displaySliderButtonsOptions = sliderButtonsOptions.map((opt) => ({
-    ...opt,
-    label: labelTranslations[opt.label] ?? opt.label,
-  }));
+  const displayMinLabel = minLabel
+    ? (labelTranslations[minLabel] ?? minLabel)
+    : t("slider.precise");
+  const displayMaxLabel = maxLabel
+    ? (labelTranslations[maxLabel] ?? maxLabel)
+    : t("slider.creative");
+  const displaySliderButtonsOptions =
+    sliderButtons && sliderButtonsOptions && sliderButtonsOptions.length > 0
+      ? sliderButtonsOptions.map((option) => ({
+          ...option,
+          label: labelTranslations[option.label] ?? option.label,
+        }))
+      : [
+          { id: 0, label: t("slider.precise") },
+          { id: 1, label: t("slider.balanced") },
+          { id: 2, label: t("slider.creative") },
+          { id: 3, label: t("slider.wild") },
+        ];
 
   const isDark = useDarkStore((state) => state.dark);
 
@@ -243,16 +239,17 @@ export default function SliderComponent({
                 data-testid="slider_input"
               />
             ) : (
-              <span
+              <button
+                type="button"
                 onClick={() => {
                   setIsEditing(true);
                   setInputValue(valueAsNumber.toFixed(2));
                 }}
                 data-testid={`default_slider_display_value${editNode ? "_advanced" : ""}`}
-                className="relative bottom-[1px] font-mono text-sm hover:cursor-text"
+                className="relative bottom-[1px] border-0 bg-transparent p-0 font-mono text-sm hover:cursor-text"
               >
                 {valueAsNumber.toFixed(2)}
-              </span>
+              </button>
             )}
           </div>
         </div>

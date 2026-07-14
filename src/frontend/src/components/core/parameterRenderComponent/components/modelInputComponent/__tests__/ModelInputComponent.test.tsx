@@ -213,6 +213,65 @@ describe("ModelInputComponent", () => {
     jest.clearAllMocks();
   });
 
+  it("closes interactive surfaces when it becomes disabled", async () => {
+    const user = userEvent.setup();
+    const { rerenderWithProvider } = renderWithQueryClient(
+      <ModelInputComponent {...defaultProps} />,
+    );
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByTestId("manage-model-providers"));
+    expect(screen.getByTestId("model-provider-modal")).toBeInTheDocument();
+
+    rerenderWithProvider(<ModelInputComponent {...defaultProps} disabled />);
+
+    expect(
+      screen.queryByTestId("model-provider-modal"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox")).toBeDisabled();
+    expect(
+      screen.queryByTestId("manage-model-providers"),
+    ).not.toBeInTheDocument();
+
+    rerenderWithProvider(<ModelInputComponent {...defaultProps} />);
+    expect(
+      screen.queryByTestId("model-provider-modal"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("manage-model-providers"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("disables the provider setup trigger when empty", () => {
+    jest.mocked(useGetModelProviders).mockReturnValueOnce({
+      data: [],
+      isLoading: false,
+      isFetching: false,
+      error: null,
+      refetch: jest.fn(),
+    } as never);
+    renderWithQueryClient(
+      <ModelInputComponent {...defaultProps} options={[]} disabled />,
+    );
+
+    expect(screen.getByRole("combobox")).toBeDisabled();
+    expect(screen.getByText("Receiving input")).toBeInTheDocument();
+  });
+
+  it("does not auto-select a model while disabled", () => {
+    const handleOnNewValue = jest.fn();
+    renderWithQueryClient(
+      <ModelInputComponent
+        {...defaultProps}
+        value={[]}
+        disabled
+        handleOnNewValue={handleOnNewValue}
+      />,
+    );
+
+    expect(handleOnNewValue).not.toHaveBeenCalled();
+  });
+
   describe("Rendering", () => {
     it("should keep combobox enabled when no options are provided", async () => {
       const user = userEvent.setup();

@@ -14,10 +14,10 @@ jest.mock("@/controllers/API/helpers/constants", () => ({
 jest.mock("@/controllers/API/services/request-processor", () => ({
   UseRequestProcessor: jest.fn(() => ({
     mutate: jest.fn((_key, fn, _options) => ({
-      mutate: async (data: any) => {
+      mutate: async (data: unknown) => {
         return await fn(data);
       },
-      mutateAsync: async (data: any) => {
+      mutateAsync: async (data: unknown) => {
         return await fn(data);
       },
     })),

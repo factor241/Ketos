@@ -7,7 +7,7 @@ import type { KnowledgeBaseInfo } from "@/controllers/API/queries/knowledge-base
 
 const mockApiGet = jest.fn();
 jest.mock("@/controllers/API/api", () => ({
-  api: { get: (...args: any[]) => mockApiGet(...args) },
+  api: { get: (...args: unknown[]) => mockApiGet(...args) },
 }));
 
 jest.mock("@/controllers/API/helpers/constants", () => ({
@@ -56,7 +56,7 @@ afterEach(() => {
 
 describe("useKnowledgeBasePolling", () => {
   describe("pollingRef state", () => {
-    it("sets pollingRef.current to true when any KB is in a busy status", () => {
+    it("sets pollingRef.current to true when unknown KB is in a busy status", () => {
       const qc = makeQueryClient();
       const tableRef = { current: null };
       const kbs = [

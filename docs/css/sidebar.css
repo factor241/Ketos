@@ -105,33 +105,6 @@
   height: 100%;
 }
 
-/* Pin the Desktop CTA (last item) to the bottom of the sidebar column */
-@media (min-width: 997px) {
-  .theme-doc-sidebar-container nav.menu {
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 auto;
-    min-height: 0;
-    /* Docusaurus default .menu padding includes bottom gap under the last item */
-    padding-bottom: 0 !important;
-  }
-
-  .theme-doc-sidebar-container nav.menu .menu__list {
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 auto;
-    min-height: 0;
-    padding-bottom: 0;
-    margin-bottom: 0;
-  }
-
-  /* HTML sidebar item: className is on the <li> (may not include .menu__list-item) */
-  .theme-doc-sidebar-container nav.menu .menu__list > li.sidebar-ad {
-    margin-top: auto;
-    flex-shrink: 0;
-  }
-}
-
 /* Sidebar Chevrons - tiny, subtle arrows */
 .menu__link--sublist-caret::after,
 .menu__caret::before {

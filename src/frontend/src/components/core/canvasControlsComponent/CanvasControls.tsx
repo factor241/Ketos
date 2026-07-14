@@ -4,9 +4,8 @@ import { ArrowRight, X } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
-import langflowAssistantIcon from "@/assets/langflow_assistant.svg";
-import langflowAssistantIdleIcon from "@/assets/langflow_assistant_idle.svg";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
+import { KetosAssistantMark } from "@/components/common/ketos-brand-mark";
 import {
   readAssistantDiscovered,
   writeAssistantDiscovered,
@@ -21,7 +20,7 @@ import type { AllNodeType } from "@/types/flow";
 import CanvasControlsDropdown from "./CanvasControlsDropdown";
 import HelpDropdown from "./HelpDropdown";
 
-// Delay before the "Try the new Langflow Assistant!" tooltip surfaces, in ms.
+// Delay before the "Try the new Ketos Assistant!" tooltip surfaces, in ms.
 // Long enough that an active user mid-task isn't interrupted; short enough
 // that a user who landed on the canvas and paused gets the hint.
 const ONBOARDING_TOOLTIP_DELAY_MS = 10_000;
@@ -180,24 +179,23 @@ const CanvasControls = ({
                 className="group/btn relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-md hover:bg-muted"
                 onClick={handleAssistantClick}
               >
-                {/* Idle state — uses the design-tuned
-                    ``langflow_assistant_idle.svg`` (noise filter + brand tint
-                    baked into the SVG). Hidden whenever the panel is open so
+                {/* Idle state uses canonical light/dark theme variants, so
+                    dark and high-contrast surfaces retain legibility. It is
+                    hidden whenever the panel is open so
                     the button reads as "active" alongside the open panel. */}
-                <img
-                  src={langflowAssistantIdleIcon}
-                  alt="Langflow Assistant"
-                  className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-150 ${
+                <KetosAssistantMark
+                  state="idle"
+                  label={t("assistant.title")}
+                  className={`absolute inset-1 h-6 w-6 text-muted-foreground transition-opacity duration-150 ${
                     assistantSidebarOpen ? "opacity-0" : "group-hover:opacity-0"
                   }`}
                 />
                 {/* Brand-lit icon — surfaces on hover AND while the panel is
                     open; both states share the same active brand identity. */}
-                <img
-                  src={langflowAssistantIcon}
-                  alt=""
-                  aria-hidden="true"
-                  className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-150 ${
+                <KetosAssistantMark
+                  decorative
+                  state="active"
+                  className={`absolute inset-1 h-6 w-6 transition-opacity duration-150 ${
                     assistantSidebarOpen
                       ? "opacity-100"
                       : "opacity-0 group-hover:opacity-100"
@@ -229,7 +227,7 @@ const CanvasControls = ({
               <button
                 type="button"
                 data-testid="assistant-onboarding-dismiss"
-                aria-label="Dismiss assistant onboarding tooltip"
+                aria-label={t("assistant.dismissOnboarding")}
                 className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted-foreground/10 hover:text-foreground"
                 onClick={handleDismissTooltip}
               >
@@ -239,7 +237,7 @@ const CanvasControls = ({
               <button
                 type="button"
                 data-testid="assistant-onboarding-open"
-                aria-label="Open Langflow Assistant"
+                aria-label={t("assistant.open")}
                 className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-foreground transition-colors hover:bg-muted-foreground/10"
                 onClick={handleAssistantClick}
               >
@@ -281,10 +279,10 @@ const CanvasControls = ({
             }`}
             title={
               !selectedNode
-                ? "Select a node to open the Inspector Panel"
+                ? t("canvas.selectNodeForInspector")
                 : inspectionPanelVisible
-                  ? "Hide Inspector Panel"
-                  : "Show Inspector Panel"
+                  ? t("canvas.hideInspector")
+                  : t("canvas.showInspector")
             }
             onClick={() => setInspectionPanelVisible(!inspectionPanelVisible)}
           >

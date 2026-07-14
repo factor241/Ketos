@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
-from langflow.services.authorization.service import LangflowAuthorizationService
+from ketos.services.authorization.service import KetosAuthorizationService
 
 
 @pytest.fixture
@@ -14,7 +14,7 @@ def authz_service():
     settings = SimpleNamespace(
         auth_settings=SimpleNamespace(AUTHZ_ENABLED=False, AUTHZ_SUPERUSER_BYPASS=True),
     )
-    return LangflowAuthorizationService(settings)
+    return KetosAuthorizationService(settings)
 
 
 @pytest.mark.anyio

@@ -37,7 +37,7 @@ const SKIP_ALL_APPROVAL_TEXT =
 // survives the approval boundary and it can finish the rest of the
 // original request (e.g. running the flow). Must stay byte-identical to
 // `EDIT_CONTINUATION_INPUT` in
-// src/backend/base/langflow/agentic/services/flow_types.py.
+// src/backend/base/ketos/agentic/services/flow_types.py.
 const EDIT_CONTINUATION_INPUT =
   "The proposed canvas edits were applied. Continue with the remaining steps of my previous request (for example, running the flow). If editing was the entire request, just confirm briefly.";
 
@@ -238,8 +238,8 @@ export function useAssistantChat(): UseAssistantChatReturn {
         const echoUserId = uid.randomUUID(10);
         const ackId = uid.randomUUID(10);
         const announcement = next
-          ? "Skip-all mode enabled. Plans, flow proposals, and validated components will be approved automatically."
-          : "Skip-all mode disabled. Plans, flow proposals, and validated components will wait for your Continue click.";
+          ? t("assistant.skipAllEnabled")
+          : t("assistant.skipAllDisabled");
         setMessages((prev) => [
           ...prev,
           {
@@ -640,12 +640,14 @@ export function useAssistantChat(): UseAssistantChatReturn {
             content: code,
             validated: false,
             componentCode: code,
-            validationError: `Failed to add component: ${errorMessage}`,
+            validationError: t("assistant.failedToAddComponent", {
+              error: errorMessage,
+            }),
           },
         }));
       }
     },
-    [messages, validateComponent, addComponent, updateMessage],
+    [messages, validateComponent, addComponent, updateMessage, t],
   );
 
   const handleRetry = useCallback(

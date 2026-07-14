@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "artifacts": [
+    {
+      "path": "docs/openapi/openapi.json",
+      "disposition": "generated",
+      "producer": "docs/openapi/generate_openapi.py",
+      "command": "uv run python docs/openapi/generate_openapi.py"
+    },
+    {
+      "path": "docs/openapi/\u006cangflow-workflows-openapi.json",
+      "disposition": "deleted",
+      "reason": "The upstream-named OpenAPI duplicate is replaced by docs/openapi/openapi.json and has no current Ketos consumer."
+    },
+    {
+      "path": "docs/static/llms.txt",
+      "disposition": "deleted",
+      "reason": "The upstream static index has no current Ketos source or deterministic producer."
+    },
+    {
+      "path": "docs/static/llms-full.txt",
+      "disposition": "deleted",
+      "reason": "The upstream static corpus has no current Ketos source or deterministic producer."
+    },
+    {
+      "path": "docs/static/files/AssemblyAI_Flow.json",
+      "disposition": "deleted",
+      "reason": "The historical downloadable flow is not referenced by the current documentation."
+    },
+    {
+      "path": "docs/static/files/Conversational_Notion_Agent.json",
+      "disposition": "deleted",
+      "reason": "The historical downloadable flow is not referenced by the current documentation."
+    },
+    {
+      "path": "docs/static/files/Meeting_Notes_Agent.json",
+      "disposition": "deleted",
+      "reason": "The historical downloadable flow is not referenced by the current documentation."
+    },
+    {
+      "path": "docs/static/files/eval_and_remediate_cleanlab.json",
+      "disposition": "deleted",
+      "reason": "The historical downloadable flow is not referenced by the current documentation."
+    }
+  ]
+}

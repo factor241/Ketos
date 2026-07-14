@@ -1,4 +1,6 @@
+import type { TFunction } from "i18next";
 import { Check, Link as LinkIcon, Plus, Settings, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { BuildTask } from "../assistant-panel.types";
 
 interface AssistantBuildTasksProps {
@@ -16,6 +18,7 @@ interface AssistantBuildTasksProps {
  * Undo lives at the canvas level (Ctrl+Z), not on these bullets.
  */
 export function AssistantBuildTasks({ tasks }: AssistantBuildTasksProps) {
+  const { t } = useTranslation();
   if (tasks.length === 0) return null;
   // No bordered box: these are pure results (completed ops, no
   // human-in-the-loop), so they render as compact lines — text with a
@@ -33,7 +36,7 @@ export function AssistantBuildTasks({ tasks }: AssistantBuildTasksProps) {
           className="flex items-center gap-2 text-sm text-muted-foreground"
         >
           {renderIcon(task)}
-          <span>{renderLabel(task)}</span>
+          <span>{renderLabel(task, t)}</span>
           <Check className="h-3.5 w-3.5 text-accent-emerald-foreground" />
         </li>
       ))}
@@ -55,15 +58,25 @@ function renderIcon(task: BuildTask) {
   }
 }
 
-function renderLabel(task: BuildTask) {
+function renderLabel(task: BuildTask, t: TFunction) {
+  const component = t("assistant.buildTask.component");
   switch (task.action) {
     case "add_component":
-      return `Added ${task.componentType ?? task.componentId ?? "component"}`;
+      return t("assistant.buildTask.added", {
+        component: task.componentType ?? task.componentId ?? component,
+      });
     case "remove_component":
-      return `Removed ${task.componentId ?? "component"}`;
+      return t("assistant.buildTask.removed", {
+        component: task.componentId ?? component,
+      });
     case "connect":
-      return `Wired ${task.sourceId ?? "source"} → ${task.targetId ?? "target"}`;
+      return t("assistant.buildTask.wired", {
+        source: task.sourceId ?? t("assistant.buildTask.source"),
+        target: task.targetId ?? t("assistant.buildTask.target"),
+      });
     case "configure":
-      return `Configured ${task.componentId ?? "component"}`;
+      return t("assistant.buildTask.configured", {
+        component: task.componentId ?? component,
+      });
   }
 }

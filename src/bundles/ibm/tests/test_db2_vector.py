@@ -1,6 +1,6 @@
-"""Unit tests for the DB2 Vector Store component (lfx-ibm bundle).
+"""Unit tests for the DB2 Vector Store component (kfx-ibm bundle).
 
-The component used to live at ``lfx.components.ibm.db2_vector`` and was
+The component used to live at ``kfx.components.ibm.db2_vector`` and was
 tested under ``src/backend/tests/unit/components/ibm/`` using the in-tree
 ``ComponentTestBaseWithoutClient`` helper.  It has since been extracted
 into a standalone bundle; these tests now travel with the bundle and
@@ -18,9 +18,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from langchain_core.embeddings import Embeddings
-from lfx.schema.data import Data
-from lfx.schema.message import Message
-from lfx_ibm.components.ibm.db2_vector import DB2VectorStoreComponent
+from kfx.schema.data import Data
+from kfx.schema.message import Message
+from kfx_ibm.components.ibm.db2_vector import DB2VectorStoreComponent
 
 # ibm-db (ibm_db_dbi) ships no linux/aarch64 wheel.  The imports above work
 # without it (db2_vector imports the driver lazily inside build_vector_store),
@@ -163,7 +163,7 @@ class TestDB2VectorStoreComponent:
         with patch("ibm_db_dbi.connect") as mock_connect:
             mock_connect.return_value = MagicMock()
 
-            from lfx_ibm.components.ibm.db2vs import DB2VS
+            from kfx_ibm.components.ibm.db2vs import DB2VS
 
             with (
                 patch.object(DB2VS, "__init__", return_value=None),
@@ -299,7 +299,7 @@ class TestDB2VectorStoreComponent:
             mock_connection = MagicMock()
             mock_connect.return_value = mock_connection
 
-            from lfx_ibm.components.ibm.db2vs import DB2VS
+            from kfx_ibm.components.ibm.db2vs import DB2VS
 
             mock_vector_store = MagicMock()
             with (
@@ -376,7 +376,7 @@ class TestDB2VectorStoreComponent:
 
             result = component.perform_search()
 
-            from lfx.schema.dataframe import DataFrame
+            from kfx.schema.dataframe import DataFrame
 
             assert isinstance(result, DataFrame)
 
@@ -430,7 +430,7 @@ class TestDB2VectorStoreComponent:
                 mock_connection = MagicMock()
                 mock_connect.return_value = mock_connection
 
-                from lfx_ibm.components.ibm.db2vs import DB2VS
+                from kfx_ibm.components.ibm.db2vs import DB2VS
 
                 with patch.object(DB2VS, "__init__", return_value=None):
                     component.build_vector_store()
@@ -466,7 +466,7 @@ class TestDB2VectorStoreComponent:
                 mock_connection = MagicMock()
                 mock_connect.return_value = mock_connection
 
-                from lfx_ibm.components.ibm.db2vs import DB2VS
+                from kfx_ibm.components.ibm.db2vs import DB2VS
 
                 with patch.object(DB2VS, "__init__", return_value=None):
                     component.build_vector_store()
@@ -489,7 +489,7 @@ class TestDB2VectorStoreComponent:
         component.ssl_certificate_path = "https://example.com/cert.crt"
 
         with (
-            patch("lfx_ibm.components.ibm.db2_security.download_certificate") as mock_download,
+            patch("kfx_ibm.components.ibm.db2_security.download_certificate") as mock_download,
             patch("ibm_db_dbi.connect") as mock_connect,
             patch.object(component, "_add_documents_to_vector_store"),
         ):
@@ -499,7 +499,7 @@ class TestDB2VectorStoreComponent:
             mock_connection = MagicMock()
             mock_connect.return_value = mock_connection
 
-            from lfx_ibm.components.ibm.db2vs import DB2VS
+            from kfx_ibm.components.ibm.db2vs import DB2VS
 
             with patch.object(DB2VS, "__init__", return_value=None):
                 component.build_vector_store()
@@ -523,7 +523,7 @@ class TestDB2VectorStoreComponent:
         component.ssl_certificate_path = "https://example.com/cert.crt"
 
         with (
-            patch("lfx_ibm.components.ibm.db2_security.download_certificate") as mock_download,
+            patch("kfx_ibm.components.ibm.db2_security.download_certificate") as mock_download,
             patch("ibm_db_dbi.connect") as mock_connect,
             patch("pathlib.Path.unlink") as mock_unlink,
         ):
@@ -638,7 +638,7 @@ class TestDB2VectorStoreComponent:
             mock_connect.return_value = mock_connection
 
             from langchain_core.documents import Document
-            from lfx_ibm.components.ibm.db2vs import DB2VS
+            from kfx_ibm.components.ibm.db2vs import DB2VS
 
             # Mock filter to return documents
             filtered_doc = Document(page_content="Test document", metadata={"some": "metadata"})
@@ -671,7 +671,7 @@ class TestDB2VectorStoreComponent:
             mock_connection = MagicMock()
             mock_connect.return_value = mock_connection
 
-            from lfx_ibm.components.ibm.db2vs import DB2VS
+            from kfx_ibm.components.ibm.db2vs import DB2VS
 
             mock_vector_store = MagicMock()
             with (
@@ -751,7 +751,7 @@ class TestDB2VectorStoreComponent:
             mock_connection = MagicMock()
             mock_connect.return_value = mock_connection
 
-            from lfx_ibm.components.ibm.db2vs import DB2VS
+            from kfx_ibm.components.ibm.db2vs import DB2VS
 
             with patch.object(DB2VS, "__init__", return_value=None):
                 component.build_vector_store()
@@ -777,7 +777,7 @@ class TestDB2VectorStoreComponent:
             mock_connect.return_value = mock_connection
 
             from langchain_community.vectorstores.utils import DistanceStrategy
-            from lfx_ibm.components.ibm.db2vs import DB2VS
+            from kfx_ibm.components.ibm.db2vs import DB2VS
 
             # Test COSINE
             component.distance_strategy = "COSINE"
@@ -824,7 +824,7 @@ class TestDB2VectorStoreComponent:
             mock_connection = MagicMock()
             mock_connect.return_value = mock_connection
 
-            from lfx_ibm.components.ibm.db2vs import DB2VS
+            from kfx_ibm.components.ibm.db2vs import DB2VS
 
             # Mock DB2VS to raise an error
             with patch.object(DB2VS, "__init__", side_effect=Exception("DB2VS creation failed")):
@@ -845,7 +845,7 @@ class TestDB2VectorStoreComponent:
             mock_connection = MagicMock()
             mock_connect.return_value = mock_connection
 
-            from lfx_ibm.components.ibm.db2vs import DB2VS
+            from kfx_ibm.components.ibm.db2vs import DB2VS
 
             mock_vector_store = MagicMock()
             with patch.object(DB2VS, "__init__", return_value=None):
@@ -866,7 +866,7 @@ class TestDB2VectorStoreComponent:
             mock_connection = MagicMock()
             mock_connect.return_value = mock_connection
 
-            from lfx_ibm.components.ibm.db2vs import DB2VS
+            from kfx_ibm.components.ibm.db2vs import DB2VS
 
             mock_vector_store = MagicMock()
             with (
@@ -886,7 +886,7 @@ class TestDB2VectorStoreComponent:
             mock_connection = MagicMock()
             mock_connect.return_value = mock_connection
 
-            from lfx_ibm.components.ibm.db2vs import DB2VS
+            from kfx_ibm.components.ibm.db2vs import DB2VS
 
             with patch.object(DB2VS, "__init__", return_value=None) as mock_init:
                 component.build_vector_store()
@@ -907,7 +907,7 @@ class TestDB2VectorStoreComponent:
             mock_connection = MagicMock()
             mock_connect.return_value = mock_connection
 
-            from lfx_ibm.components.ibm.db2vs import DB2VS
+            from kfx_ibm.components.ibm.db2vs import DB2VS
 
             with patch.object(DB2VS, "__init__", return_value=None) as mock_init:
                 component.build_vector_store()
@@ -928,7 +928,7 @@ class TestDB2VectorStoreComponent:
             mock_connection = MagicMock()
             mock_connect.return_value = mock_connection
 
-            from lfx_ibm.components.ibm.db2vs import DB2VS
+            from kfx_ibm.components.ibm.db2vs import DB2VS
 
             with patch.object(DB2VS, "__init__", return_value=None) as mock_init:
                 component.build_vector_store()
@@ -939,7 +939,7 @@ class TestDB2VectorStoreComponent:
 
     def test_bulk_insert_mode_uses_executemany(self, mock_embedding):
         """Test that bulk insert mode uses executemany() for better performance."""
-        from lfx_ibm.components.ibm.db2vs import DB2VS
+        from kfx_ibm.components.ibm.db2vs import DB2VS
 
         mock_connection = MagicMock()
         mock_cursor = MagicMock()
@@ -947,10 +947,10 @@ class TestDB2VectorStoreComponent:
 
         # Mock table operations
         with (
-            patch("lfx_ibm.components.ibm.db2vs._table_exists", return_value=False),
-            patch("lfx_ibm.components.ibm.db2vs._create_table"),
+            patch("kfx_ibm.components.ibm.db2vs._table_exists", return_value=False),
+            patch("kfx_ibm.components.ibm.db2vs._create_table"),
             patch(
-                "lfx_ibm.components.ibm.db2vs._get_column_names",
+                "kfx_ibm.components.ibm.db2vs._get_column_names",
                 return_value={"id": "id", "embedding": "embedding", "metadata": "metadata", "text": "text"},
             ),
         ):
@@ -977,7 +977,7 @@ class TestDB2VectorStoreComponent:
 
     def test_row_by_row_insert_mode_uses_execute(self, mock_embedding):
         """Test that row-by-row insert mode uses execute() for each document."""
-        from lfx_ibm.components.ibm.db2vs import DB2VS
+        from kfx_ibm.components.ibm.db2vs import DB2VS
 
         mock_connection = MagicMock()
         mock_cursor = MagicMock()
@@ -985,10 +985,10 @@ class TestDB2VectorStoreComponent:
 
         # Mock table operations
         with (
-            patch("lfx_ibm.components.ibm.db2vs._table_exists", return_value=False),
-            patch("lfx_ibm.components.ibm.db2vs._create_table"),
+            patch("kfx_ibm.components.ibm.db2vs._table_exists", return_value=False),
+            patch("kfx_ibm.components.ibm.db2vs._create_table"),
             patch(
-                "lfx_ibm.components.ibm.db2vs._get_column_names",
+                "kfx_ibm.components.ibm.db2vs._get_column_names",
                 return_value={"id": "id", "embedding": "embedding", "metadata": "metadata", "text": "text"},
             ),
         ):
@@ -1031,7 +1031,7 @@ class TestDB2VectorStoreComponent:
             mock_connection.cursor.return_value = mock_cursor
             mock_connect.return_value = mock_connection
 
-            from lfx_ibm.components.ibm.db2vs import DB2VS
+            from kfx_ibm.components.ibm.db2vs import DB2VS
 
             with (
                 patch.object(DB2VS, "__init__", return_value=None),
@@ -1047,7 +1047,7 @@ class TestDB2VectorStoreComponent:
 
     def test_bulk_insert_performance_benefit(self, mock_embedding):
         """Test that bulk insert reduces database round-trips."""
-        from lfx_ibm.components.ibm.db2vs import DB2VS
+        from kfx_ibm.components.ibm.db2vs import DB2VS
 
         mock_connection = MagicMock()
         mock_cursor = MagicMock()
@@ -1055,10 +1055,10 @@ class TestDB2VectorStoreComponent:
 
         # Mock table operations
         with (
-            patch("lfx_ibm.components.ibm.db2vs._table_exists", return_value=False),
-            patch("lfx_ibm.components.ibm.db2vs._create_table"),
+            patch("kfx_ibm.components.ibm.db2vs._table_exists", return_value=False),
+            patch("kfx_ibm.components.ibm.db2vs._create_table"),
             patch(
-                "lfx_ibm.components.ibm.db2vs._get_column_names",
+                "kfx_ibm.components.ibm.db2vs._get_column_names",
                 return_value={"id": "id", "embedding": "embedding", "metadata": "metadata", "text": "text"},
             ),
         ):
@@ -1101,7 +1101,7 @@ class TestDB2VectorStoreComponent:
 
     def test_bulk_insert_with_empty_documents(self, mock_embedding):
         """Test bulk insert handles empty document list gracefully."""
-        from lfx_ibm.components.ibm.db2vs import DB2VS
+        from kfx_ibm.components.ibm.db2vs import DB2VS
 
         mock_connection = MagicMock()
         mock_cursor = MagicMock()
@@ -1109,10 +1109,10 @@ class TestDB2VectorStoreComponent:
 
         # Mock table operations
         with (
-            patch("lfx_ibm.components.ibm.db2vs._table_exists", return_value=False),
-            patch("lfx_ibm.components.ibm.db2vs._create_table"),
+            patch("kfx_ibm.components.ibm.db2vs._table_exists", return_value=False),
+            patch("kfx_ibm.components.ibm.db2vs._create_table"),
             patch(
-                "lfx_ibm.components.ibm.db2vs._get_column_names",
+                "kfx_ibm.components.ibm.db2vs._get_column_names",
                 return_value={"id": "id", "embedding": "embedding", "metadata": "metadata", "text": "text"},
             ),
         ):
@@ -1133,7 +1133,7 @@ class TestDB2VectorStoreComponent:
 
     def test_bulk_insert_with_special_characters(self, mock_embedding):
         """Test bulk insert preserves special characters in bound parameters."""
-        from lfx_ibm.components.ibm.db2vs import DB2VS
+        from kfx_ibm.components.ibm.db2vs import DB2VS
 
         mock_connection = MagicMock()
         mock_cursor = MagicMock()
@@ -1141,10 +1141,10 @@ class TestDB2VectorStoreComponent:
 
         # Mock table operations
         with (
-            patch("lfx_ibm.components.ibm.db2vs._table_exists", return_value=False),
-            patch("lfx_ibm.components.ibm.db2vs._create_table"),
+            patch("kfx_ibm.components.ibm.db2vs._table_exists", return_value=False),
+            patch("kfx_ibm.components.ibm.db2vs._create_table"),
             patch(
-                "lfx_ibm.components.ibm.db2vs._get_column_names",
+                "kfx_ibm.components.ibm.db2vs._get_column_names",
                 return_value={"id": "id", "embedding": "embedding", "metadata": "metadata", "text": "text"},
             ),
         ):
@@ -1196,7 +1196,7 @@ class TestDB2VectorStoreComponent:
             mock_connection = MagicMock()
             mock_connect.return_value = mock_connection
 
-            from lfx_ibm.components.ibm.db2vs import DB2VS
+            from kfx_ibm.components.ibm.db2vs import DB2VS
 
             with patch.object(DB2VS, "__init__", return_value=None), patch.object(component, "log") as mock_log:
                 component.build_vector_store()
@@ -1216,7 +1216,7 @@ class TestDB2VectorStoreComponent:
             mock_connection = MagicMock()
             mock_connect.return_value = mock_connection
 
-            from lfx_ibm.components.ibm.db2vs import DB2VS
+            from kfx_ibm.components.ibm.db2vs import DB2VS
 
             with patch.object(DB2VS, "__init__", return_value=None), patch.object(component, "log") as mock_log:
                 component.build_vector_store()
@@ -1226,7 +1226,7 @@ class TestDB2VectorStoreComponent:
 
     def test_bulk_insert_error_handling(self, mock_embedding):
         """Test that bulk insert handles errors gracefully with rollback."""
-        from lfx_ibm.components.ibm.db2vs import DB2VS
+        from kfx_ibm.components.ibm.db2vs import DB2VS
 
         mock_connection = MagicMock()
         mock_cursor = MagicMock()
@@ -1237,10 +1237,10 @@ class TestDB2VectorStoreComponent:
 
         # Mock table operations
         with (
-            patch("lfx_ibm.components.ibm.db2vs._table_exists", return_value=False),
-            patch("lfx_ibm.components.ibm.db2vs._create_table"),
+            patch("kfx_ibm.components.ibm.db2vs._table_exists", return_value=False),
+            patch("kfx_ibm.components.ibm.db2vs._create_table"),
             patch(
-                "lfx_ibm.components.ibm.db2vs._get_column_names",
+                "kfx_ibm.components.ibm.db2vs._get_column_names",
                 return_value={"id": "id", "embedding": "embedding", "metadata": "metadata", "text": "text"},
             ),
         ):

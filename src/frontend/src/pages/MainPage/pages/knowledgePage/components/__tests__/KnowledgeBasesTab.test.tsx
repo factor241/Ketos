@@ -46,6 +46,15 @@ jest.mock(
   }),
 );
 
+const mockCompareForPresentation = jest.fn((left: string, right: string) =>
+  left === right ? 0 : left < right ? 1 : -1,
+);
+jest.mock("@/utils/locale-format", () => ({
+  compareForPresentation: (left: string, right: string) =>
+    mockCompareForPresentation(left, right),
+  formatNumber: (value: number) => String(value),
+}));
+
 const mockSetErrorData = jest.fn();
 const mockSetSuccessData = jest.fn();
 const mockSetNoticeData = jest.fn();
@@ -291,14 +300,18 @@ describe("KnowledgeBasesTab", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("passes sorted KB rows to the table", () => {
+    it("passes locale-aware sorted KB rows to the table", () => {
       render(<KnowledgeBasesTab {...defaultProps} />, {
         wrapper: createWrapper(),
       });
-      // KB One (alphabetically first) should appear before KB Two
+      // The mocked locale comparator sorts descending, making its use visible.
       const rows = screen.getAllByTestId(/^row-/);
-      expect(rows[0]).toHaveTextContent("KB One");
-      expect(rows[1]).toHaveTextContent("KB Two");
+      expect(rows[0]).toHaveTextContent("KB Two");
+      expect(rows[1]).toHaveTextContent("KB One");
+      expect(mockCompareForPresentation).toHaveBeenCalledWith(
+        "KB Two",
+        "KB One",
+      );
     });
   });
 

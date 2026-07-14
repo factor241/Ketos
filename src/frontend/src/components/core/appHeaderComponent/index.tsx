@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import AlertDropdown from "@/alerts/alertDropDown";
-import LangflowLogo from "@/assets/LangflowLogo.svg?react";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
+import { KetosBrandMark } from "@/components/common/ketos-brand-mark";
 import ModelProviderCount from "@/components/common/modelProviderCountComponent";
-import ShadTooltip from "@/components/common/shadTooltipComponent";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import CustomAccountMenu from "@/customization/components/custom-AccountMenu";
-import CustomLangflowCounts from "@/customization/components/custom-langflow-counts";
 import { CustomOrgSelector } from "@/customization/components/custom-org-selector";
 import { useCustomNavigate } from "@/customization/hooks/use-custom-navigate";
 import useTheme from "@/customization/hooks/use-custom-theme";
@@ -61,11 +59,12 @@ export default function AppHeader(): JSX.Element {
       >
         <Button
           unstyled
+          aria-label={t("header.home")}
           onClick={() => navigate("/")}
           className="mr-1 flex h-8 w-8 items-center"
           data-testid="icon-ChevronLeft"
         >
-          <LangflowLogo className="h-5 w-5" />
+          <KetosBrandMark decorative className="h-5 w-5" />
         </Button>
         <CustomOrgSelector />
       </div>
@@ -81,43 +80,38 @@ export default function AppHeader(): JSX.Element {
         data-testid="header_right_section_wrapper"
       >
         {false && <ModelProviderCount />}
-        <div className="hidden pr-2 whitespace-nowrap lg:inline-flex lg:items-center">
-          <CustomLangflowCounts />
-        </div>
         <AlertDropdown
           notificationRef={notificationContentRef}
           onClose={() => setActiveState(null)}
+          tooltipContent={t("header.notifications")}
         >
-          <ShadTooltip content={t("header.notifications")} side="bottom">
-            <AlertDropdown onClose={() => setActiveState(null)}>
-              <Button
-                ref={notificationRef}
-                unstyled
-                onClick={() =>
-                  setActiveState((prev) =>
-                    prev === "notifications" ? null : "notifications",
-                  )
-                }
-                data-testid="notification_button"
-              >
-                <div className="hit-area-hover group relative items-center rounded-md px-2 py-2 text-muted-foreground">
-                  <span className={getNotificationBadge()} />
-                  <ForwardedIconComponent
-                    name="Bell"
-                    className={`side-bar-button-size h-4 w-4 ${
-                      activeState === "notifications"
-                        ? "text-primary"
-                        : "text-muted-foreground group-hover:text-primary"
-                    }`}
-                    strokeWidth={2}
-                  />
-                  <span className="hidden whitespace-nowrap">
-                    {t("header.notificationsLabel")}
-                  </span>
-                </div>
-              </Button>
-            </AlertDropdown>
-          </ShadTooltip>
+          <Button
+            ref={notificationRef}
+            unstyled
+            aria-label={t("header.notificationsLabel")}
+            onClick={() =>
+              setActiveState((prev) =>
+                prev === "notifications" ? null : "notifications",
+              )
+            }
+            data-testid="notification_button"
+          >
+            <div className="hit-area-hover group relative items-center rounded-md px-2 py-2 text-muted-foreground">
+              <span className={getNotificationBadge()} />
+              <ForwardedIconComponent
+                name="Bell"
+                className={`side-bar-button-size h-4 w-4 ${
+                  activeState === "notifications"
+                    ? "text-primary"
+                    : "text-muted-foreground group-hover:text-primary"
+                }`}
+                strokeWidth={2}
+              />
+              <span className="hidden whitespace-nowrap">
+                {t("header.notificationsLabel")}
+              </span>
+            </div>
+          </Button>
         </AlertDropdown>
         <Separator
           orientation="vertical"

@@ -8,7 +8,7 @@ from __future__ import annotations
 import copy
 import json
 
-from langflow.api.utils.core import normalize_code_for_import, normalize_flow_for_export
+from ketos.api.utils.core import normalize_code_for_import, normalize_flow_for_export
 
 # ---------------------------------------------------------------------------
 # Helpers

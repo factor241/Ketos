@@ -4,12 +4,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from langchain_core.embeddings import Embeddings
-from lfx.base.vectorstores.chroma_security import (
+from kfx.base.vectorstores.chroma_security import (
     chroma_client_create_collection_kwargs,
     chroma_langchain_collection_kwargs,
 )
-from lfx.components.chroma import ChromaVectorStoreComponent
-from lfx.schema.data import Data
+from kfx.components.chroma import ChromaVectorStoreComponent
+from kfx.schema.data import Data
 
 from tests.base import ComponentTestBaseWithoutClient, VersionComponentMapping
 
@@ -140,7 +140,7 @@ class TestChromaVectorStoreComponent(ComponentTestBaseWithoutClient):
     @pytest.fixture
     def default_kwargs(self, tmp_path: Path) -> dict[str, Any]:
         """Return the default kwargs for the component."""
-        from lfx.components.openai.openai import OpenAIEmbeddingsComponent
+        from kfx.components.openai.openai import OpenAIEmbeddingsComponent
 
         from tests.api_keys import get_openai_api_key
 
@@ -373,7 +373,7 @@ class TestChromaVectorStoreComponent(ComponentTestBaseWithoutClient):
         self, component_class: type[ChromaVectorStoreComponent], default_kwargs: dict[str, Any]
     ) -> None:
         """Test the chroma_collection_to_data function."""
-        from lfx.base.vectorstores.utils import chroma_collection_to_data
+        from kfx.base.vectorstores.utils import chroma_collection_to_data
 
         # Create a collection with documents and metadata
         test_data = [
@@ -402,7 +402,7 @@ class TestChromaVectorStoreComponent(ComponentTestBaseWithoutClient):
         self, component_class: type[ChromaVectorStoreComponent], default_kwargs: dict[str, Any]
     ) -> None:
         """Test the chroma_collection_to_data function with documents that have no metadata."""
-        from lfx.base.vectorstores.utils import chroma_collection_to_data
+        from kfx.base.vectorstores.utils import chroma_collection_to_data
 
         # Create a collection with documents but no metadata
         test_data = [
@@ -429,7 +429,7 @@ class TestChromaVectorStoreComponent(ComponentTestBaseWithoutClient):
         self, component_class: type[ChromaVectorStoreComponent], default_kwargs: dict[str, Any]
     ) -> None:
         """Test the chroma_collection_to_data function with an empty collection."""
-        from lfx.base.vectorstores.utils import chroma_collection_to_data
+        from kfx.base.vectorstores.utils import chroma_collection_to_data
 
         # Create an empty collection
         component: ChromaVectorStoreComponent = component_class().set(**default_kwargs)
@@ -446,7 +446,7 @@ class TestChromaVectorStoreComponent(ComponentTestBaseWithoutClient):
         self, component_class: type[ChromaVectorStoreComponent], default_kwargs: dict[str, Any]
     ) -> None:
         """Test that complex metadata is properly filtered and simple types are preserved."""
-        from langflow.base.vectorstores.utils import chroma_collection_to_data
+        from ketos.base.vectorstores.utils import chroma_collection_to_data
 
         # Create test data that covers the original error scenario and validation
         test_data = [

@@ -1,6 +1,6 @@
 import "./i18n";
 import ReactDOM from "react-dom/client";
-import { detectedLang, loadLanguage } from "./i18n";
+import i18n, { detectedLang, loadLanguage } from "./i18n";
 import reportWebVitals from "./reportWebVitals";
 
 import "./style/classes.css";
@@ -13,7 +13,8 @@ import "./style/applies.css";
 // @ts-ignore
 import App from "./customization/custom-App";
 
-loadLanguage(detectedLang).then(() => {
+loadLanguage(detectedLang).then(async () => {
+  await i18n.changeLanguage(detectedLang);
   const root = ReactDOM.createRoot(
     document.getElementById("root") as HTMLElement,
   );

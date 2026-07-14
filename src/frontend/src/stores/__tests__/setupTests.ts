@@ -6,7 +6,7 @@
 // Mock crypto.getRandomValues for tests that use UUID generation
 Object.defineProperty(global, "crypto", {
   value: {
-    getRandomValues: (arr: any[]) => {
+    getRandomValues: (arr: Uint8Array) => {
       for (let i = 0; i < arr.length; i++) {
         arr[i] = Math.floor(Math.random() * 256);
       }

@@ -1,5 +1,5 @@
 import type { Edge } from "@xyflow/react";
-import { LANGFLOW_SUPPORTED_TYPES } from "@/constants/constants";
+import { KETOS_SUPPORTED_TYPES } from "@/constants/constants";
 import { scapedJSONStringfy } from "@/utils/reactflowUtils";
 
 export type DisplayHandleTemplate = {
@@ -28,18 +28,13 @@ export const computeDisplayHandle = (
   const optionalHandle = template.input_types;
   const hasRefreshButton = template.refresh_button;
   const isModelInput = type === "model";
-  const hasInputTypes =
-    optionalHandle &&
-    Array.isArray(optionalHandle) &&
-    optionalHandle.length > 0;
-
   // Always show handle for model inputs
   if (isModelInput) {
     return true;
   }
 
   return !!(
-    (!LANGFLOW_SUPPORTED_TYPES.has(type ?? "") ||
+    (!KETOS_SUPPORTED_TYPES.has(type ?? "") ||
       (optionalHandle && optionalHandle.length > 0)) &&
     !(isToolMode && template.tool_mode) &&
     !hasRefreshButton

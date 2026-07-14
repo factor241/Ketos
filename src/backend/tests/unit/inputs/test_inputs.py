@@ -1,5 +1,5 @@
 import pytest
-from lfx.inputs.inputs import (
+from kfx.inputs.inputs import (
     BoolInput,
     CodeInput,
     DataInput,
@@ -23,7 +23,7 @@ from lfx.inputs.inputs import (
     TableInput,
     instantiate_input,
 )
-from lfx.schema.message import Message
+from kfx.schema.message import Message
 from pydantic import ValidationError
 
 

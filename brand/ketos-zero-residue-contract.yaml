@@ -1,0 +1,150 @@
+version: 1
+analysis_commit: de591b28cbade3483b2040aa338906a8834d6400
+baseline:
+  # Frozen from KETOS_COMPLETE_RENAME_PLAN.md section 2. Stage 0 permits
+  # decreases only; cutover permits no non-legal occurrence at all.
+  brand_file_count: 3375
+  brand_match_count: 48991
+  brand_path_count: 879
+  executor_file_count: 2051
+  executor_match_count: 20085
+  executor_path_count: 1408
+  upstream_endpoint_count: 19
+  scan_issue_count: 3
+legal_files:
+  - path: LICENSE
+    sha256: 48d4a7496209a9e1f2f549384251b69319360c3a38127cf513473590be383359
+  - path: NOTICE
+    sha256: dad6ed5d6468b1962f598e35f334ecc661408b3cf137289073a03b3cfd77442e
+  - path: src/ketos-stepflow/NOTICE
+    sha256: d5fe5257f43692583fb8f66bb222dd0250a277fcab482bb50de6d124e9243cd4
+  - path: src/backend/base/LICENSE
+    sha256: 48d4a7496209a9e1f2f549384251b69319360c3a38127cf513473590be383359
+  - path: src/backend/base/NOTICE
+    sha256: dad6ed5d6468b1962f598e35f334ecc661408b3cf137289073a03b3cfd77442e
+  - path: src/sdk/LICENSE
+    sha256: 48d4a7496209a9e1f2f549384251b69319360c3a38127cf513473590be383359
+  - path: src/sdk/NOTICE
+    sha256: dad6ed5d6468b1962f598e35f334ecc661408b3cf137289073a03b3cfd77442e
+  - path: src/kfx/LICENSE
+    sha256: 48d4a7496209a9e1f2f549384251b69319360c3a38127cf513473590be383359
+  - path: src/kfx/NOTICE
+    sha256: dad6ed5d6468b1962f598e35f334ecc661408b3cf137289073a03b3cfd77442e
+  - path: src/bundles/arxiv/LICENSE
+    sha256: 48d4a7496209a9e1f2f549384251b69319360c3a38127cf513473590be383359
+  - path: src/bundles/arxiv/NOTICE
+    sha256: dad6ed5d6468b1962f598e35f334ecc661408b3cf137289073a03b3cfd77442e
+  - path: src/bundles/docling/LICENSE
+    sha256: 48d4a7496209a9e1f2f549384251b69319360c3a38127cf513473590be383359
+  - path: src/bundles/docling/NOTICE
+    sha256: dad6ed5d6468b1962f598e35f334ecc661408b3cf137289073a03b3cfd77442e
+  - path: src/bundles/duckduckgo/LICENSE
+    sha256: 48d4a7496209a9e1f2f549384251b69319360c3a38127cf513473590be383359
+  - path: src/bundles/duckduckgo/NOTICE
+    sha256: dad6ed5d6468b1962f598e35f334ecc661408b3cf137289073a03b3cfd77442e
+  - path: src/bundles/ibm/LICENSE
+    sha256: 48d4a7496209a9e1f2f549384251b69319360c3a38127cf513473590be383359
+  - path: src/bundles/ibm/NOTICE
+    sha256: dad6ed5d6468b1962f598e35f334ecc661408b3cf137289073a03b3cfd77442e
+legal_allowlist:
+  - path: LICENSE
+    line: 3
+    expected_text: Copyright (c) 2024 Langflow
+    sha256: ee5c60702953feefa3f7f7583357eebcb6f86262c7f358f94fa54d5b2f3cf6e5
+  - path: NOTICE
+    line: 3
+    expected_text: Ketos is an independent, unofficial derivative of Langflow, originally available at https://github.com/langflow-ai/langflow and licensed under the MIT License.
+    sha256: 2ebb1650a1b2da2d5a1bf096808130552434130a9d69c86e870ce4f659c9cc67
+  - path: NOTICE
+    line: 5
+    expected_text: Ketos is not affiliated with, endorsed by, or sponsored by Langflow or its copyright holders.
+    sha256: 110664a2f1d8547c062d6da1174e0ac1e241ff17bd6f682e8ddae6ab1e2d7558
+  - path: src/ketos-stepflow/NOTICE
+    line: 3
+    expected_text: This product includes software derived from Langflow Stepflow, licensed under the Apache License, Version 2.0.
+    sha256: c72391e84fb13e0ea10fa2029b46a695f9a842a681be3e332accdaf37a623f7c
+  - path: src/backend/base/LICENSE
+    line: 3
+    expected_text: Copyright (c) 2024 Langflow
+    sha256: ee5c60702953feefa3f7f7583357eebcb6f86262c7f358f94fa54d5b2f3cf6e5
+  - path: src/backend/base/NOTICE
+    line: 3
+    expected_text: Ketos is an independent, unofficial derivative of Langflow, originally available at https://github.com/langflow-ai/langflow and licensed under the MIT License.
+    sha256: 2ebb1650a1b2da2d5a1bf096808130552434130a9d69c86e870ce4f659c9cc67
+  - path: src/backend/base/NOTICE
+    line: 5
+    expected_text: Ketos is not affiliated with, endorsed by, or sponsored by Langflow or its copyright holders.
+    sha256: 110664a2f1d8547c062d6da1174e0ac1e241ff17bd6f682e8ddae6ab1e2d7558
+  - path: src/sdk/LICENSE
+    line: 3
+    expected_text: Copyright (c) 2024 Langflow
+    sha256: ee5c60702953feefa3f7f7583357eebcb6f86262c7f358f94fa54d5b2f3cf6e5
+  - path: src/sdk/NOTICE
+    line: 3
+    expected_text: Ketos is an independent, unofficial derivative of Langflow, originally available at https://github.com/langflow-ai/langflow and licensed under the MIT License.
+    sha256: 2ebb1650a1b2da2d5a1bf096808130552434130a9d69c86e870ce4f659c9cc67
+  - path: src/sdk/NOTICE
+    line: 5
+    expected_text: Ketos is not affiliated with, endorsed by, or sponsored by Langflow or its copyright holders.
+    sha256: 110664a2f1d8547c062d6da1174e0ac1e241ff17bd6f682e8ddae6ab1e2d7558
+  - path: src/kfx/LICENSE
+    line: 3
+    expected_text: Copyright (c) 2024 Langflow
+    sha256: ee5c60702953feefa3f7f7583357eebcb6f86262c7f358f94fa54d5b2f3cf6e5
+  - path: src/kfx/NOTICE
+    line: 3
+    expected_text: Ketos is an independent, unofficial derivative of Langflow, originally available at https://github.com/langflow-ai/langflow and licensed under the MIT License.
+    sha256: 2ebb1650a1b2da2d5a1bf096808130552434130a9d69c86e870ce4f659c9cc67
+  - path: src/kfx/NOTICE
+    line: 5
+    expected_text: Ketos is not affiliated with, endorsed by, or sponsored by Langflow or its copyright holders.
+    sha256: 110664a2f1d8547c062d6da1174e0ac1e241ff17bd6f682e8ddae6ab1e2d7558
+  - path: src/bundles/arxiv/LICENSE
+    line: 3
+    expected_text: Copyright (c) 2024 Langflow
+    sha256: ee5c60702953feefa3f7f7583357eebcb6f86262c7f358f94fa54d5b2f3cf6e5
+  - path: src/bundles/arxiv/NOTICE
+    line: 3
+    expected_text: Ketos is an independent, unofficial derivative of Langflow, originally available at https://github.com/langflow-ai/langflow and licensed under the MIT License.
+    sha256: 2ebb1650a1b2da2d5a1bf096808130552434130a9d69c86e870ce4f659c9cc67
+  - path: src/bundles/arxiv/NOTICE
+    line: 5
+    expected_text: Ketos is not affiliated with, endorsed by, or sponsored by Langflow or its copyright holders.
+    sha256: 110664a2f1d8547c062d6da1174e0ac1e241ff17bd6f682e8ddae6ab1e2d7558
+  - path: src/bundles/docling/LICENSE
+    line: 3
+    expected_text: Copyright (c) 2024 Langflow
+    sha256: ee5c60702953feefa3f7f7583357eebcb6f86262c7f358f94fa54d5b2f3cf6e5
+  - path: src/bundles/docling/NOTICE
+    line: 3
+    expected_text: Ketos is an independent, unofficial derivative of Langflow, originally available at https://github.com/langflow-ai/langflow and licensed under the MIT License.
+    sha256: 2ebb1650a1b2da2d5a1bf096808130552434130a9d69c86e870ce4f659c9cc67
+  - path: src/bundles/docling/NOTICE
+    line: 5
+    expected_text: Ketos is not affiliated with, endorsed by, or sponsored by Langflow or its copyright holders.
+    sha256: 110664a2f1d8547c062d6da1174e0ac1e241ff17bd6f682e8ddae6ab1e2d7558
+  - path: src/bundles/duckduckgo/LICENSE
+    line: 3
+    expected_text: Copyright (c) 2024 Langflow
+    sha256: ee5c60702953feefa3f7f7583357eebcb6f86262c7f358f94fa54d5b2f3cf6e5
+  - path: src/bundles/duckduckgo/NOTICE
+    line: 3
+    expected_text: Ketos is an independent, unofficial derivative of Langflow, originally available at https://github.com/langflow-ai/langflow and licensed under the MIT License.
+    sha256: 2ebb1650a1b2da2d5a1bf096808130552434130a9d69c86e870ce4f659c9cc67
+  - path: src/bundles/duckduckgo/NOTICE
+    line: 5
+    expected_text: Ketos is not affiliated with, endorsed by, or sponsored by Langflow or its copyright holders.
+    sha256: 110664a2f1d8547c062d6da1174e0ac1e241ff17bd6f682e8ddae6ab1e2d7558
+  - path: src/bundles/ibm/LICENSE
+    line: 3
+    expected_text: Copyright (c) 2024 Langflow
+    sha256: ee5c60702953feefa3f7f7583357eebcb6f86262c7f358f94fa54d5b2f3cf6e5
+  - path: src/bundles/ibm/NOTICE
+    line: 3
+    expected_text: Ketos is an independent, unofficial derivative of Langflow, originally available at https://github.com/langflow-ai/langflow and licensed under the MIT License.
+    sha256: 2ebb1650a1b2da2d5a1bf096808130552434130a9d69c86e870ce4f659c9cc67
+  - path: src/bundles/ibm/NOTICE
+    line: 5
+    expected_text: Ketos is not affiliated with, endorsed by, or sponsored by Langflow or its copyright holders.
+    sha256: 110664a2f1d8547c062d6da1174e0ac1e241ff17bd6f682e8ddae6ab1e2d7558
+negative_test_allowlist: []

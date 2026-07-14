@@ -22,8 +22,8 @@ jest.mock("@/components/ui/button", () => ({
 
 jest.mock("@/utils/mcpUtils", () => ({
   AUTH_METHODS: {
-    apikey: { label: "API Key" },
-    oauth: { label: "OAuth" },
+    apikey: { labelKey: "authModal.authMethod.apikey" },
+    oauth: { labelKey: "authModal.authMethod.oauth" },
   },
 }));
 

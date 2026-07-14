@@ -2,7 +2,7 @@
 
 import json
 
-from langflow.agentic.helpers.code_extraction import extract_flow_json
+from ketos.agentic.helpers.code_extraction import extract_flow_json
 
 
 class TestExtractFlowJson:

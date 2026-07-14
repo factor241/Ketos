@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StickToBottom } from "use-stick-to-bottom";
-import LangflowLogo from "@/assets/LangflowLogo.svg?react";
+import { KetosBrandMark } from "@/components/common/ketos-brand-mark";
 import { SafariScrollFix } from "@/components/common/safari-scroll-fix";
 import { TextEffectPerChar } from "@/components/ui/textAnimation";
 import CustomChatInput from "@/customization/components/custom-chat-input";
@@ -195,20 +195,20 @@ export default function ChatView({
             ) : (
               <div className="flex flex-grow w-full flex-col items-center justify-center">
                 <div className="flex flex-col items-center justify-center gap-4 p-8">
-                  <LangflowLogo
-                    title={t("common.langflowLogo")}
+                  <KetosBrandMark
+                    label={t("common.ketosLogo")}
                     className="h-10 w-10 scale-[1.5]"
                   />
                   <div className="flex flex-col items-center justify-center">
                     <h3 className="mt-2 pb-2 text-2xl font-semibold text-primary">
-                      New chat
+                      {t("modal.io.newChat")}
                     </h3>
                     <p
                       className="text-lg text-muted-foreground"
                       data-testid="new-chat-text"
                     >
                       <TextEffectPerChar>
-                        Test your flow with a chat prompt
+                        {t("playground.testPrompt")}
                       </TextEffectPerChar>
                     </p>
                   </div>

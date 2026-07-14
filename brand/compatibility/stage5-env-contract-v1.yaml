@@ -1,0 +1,323 @@
+schema: ketos.brand-environment-contract
+version: 1
+status: frozen-local
+scope:
+  included:
+  - Settings model fields
+  - AuthSettings model fields
+  - fixed KETOS_*/LANGFLOW_* direct-read suffixes reviewed in BRAND_ENV_POLICIES
+  excluded_dynamic_namespaces:
+  - namespace: third-party provider credential variables
+    reason: names are provider-defined rather than fixed Ketos/Langflow settings suffixes
+  - namespace: user-selected runtime and environment variables
+    reason: names are data selected at runtime rather than fixed branded settings suffixes
+  - namespace: KETOS_<provider-variable> convenience aliases
+    reason: bounded provider credential aliasing is not a LANGFLOW_* compatibility setting
+source:
+  tree_sha256: ccf68a24e0d875ac73559f135437a751e71841727e9c046edec4cdfe51d5e307
+  files:
+  - src/kfx/src/kfx/brand_env.py
+  - src/kfx/src/kfx/services/settings/auth.py
+  - src/kfx/src/kfx/services/settings/base.py
+  - src/kfx/src/kfx/services/settings/brand_env.py
+  - src/kfx/src/kfx/services/settings/groups/__init__.py
+  - src/kfx/src/kfx/services/settings/groups/cache.py
+  - src/kfx/src/kfx/services/settings/groups/components.py
+  - src/kfx/src/kfx/services/settings/groups/database.py
+  - src/kfx/src/kfx/services/settings/groups/mcp.py
+  - src/kfx/src/kfx/services/settings/groups/observability.py
+  - src/kfx/src/kfx/services/settings/groups/paths.py
+  - src/kfx/src/kfx/services/settings/groups/runtime.py
+  - src/kfx/src/kfx/services/settings/groups/security.py
+  - src/kfx/src/kfx/services/settings/groups/server.py
+  - src/kfx/src/kfx/services/settings/groups/storage.py
+  - src/kfx/src/kfx/services/settings/groups/telemetry.py
+  - src/kfx/src/kfx/services/settings/groups/ui.py
+  - src/kfx/src/kfx/services/settings/groups/variables.py
+resolution:
+  precedence: KETOS_* > LANGFLOW_* > default
+  legacy_only: select legacy and emit one value-redacted deprecation warning
+  equal_dual: accept and select canonical without conflict diagnostic
+  unequal_dual:
+    public_warn: select canonical and emit one value-redacted conflict warning
+    public_error: fail closed without selecting or disclosing either value
+    secret_error: fail closed without selecting or disclosing either value
+  diagnostics:
+    values_redacted: true
+    immutable_metadata_only: true
+    allowed_fields:
+    - code
+    - canonical_name
+    - legacy_name
+    - sensitivity
+    - selected
+  unknown_suffix: fail closed with UnclassifiedBrandEnvError
+  unprefixed_tier: false
+inventory:
+  settings_model_fields: 149
+  auth_model_fields: 32
+  unique_model_suffixes: 180
+  reviewed_direct_only_suffixes: 26
+  registry_suffixes: 209
+  policy_groups:
+    public_warn: 48
+    public_error: 148
+    secret_error: 13
+  sensitivity:
+    public: 196
+    secret: 13
+  conflict_policy:
+    warn: 48
+    error: 161
+  validation_aliases: 0
+  duplicate_suffixes: 0
+  model_suffixes_missing_policy: 0
+  group_union_missing_registry: 0
+  group_union_unknown_to_registry: 0
+  unresolved_direct_read_exceptions: 0
+  unresolved_ambiguities: 0
+direct_reads:
+  reviewed_direct_only_suffixes:
+  - API_KEY
+  - ASSISTANT_VERIFY_FLOWS
+  - DEBUG_FORK_GHOSTS
+  - DESKTOP
+  - DEV_EXTENSIONS_DIR
+  - ENV
+  - ENVIRONMENT
+  - ENVIRONMENTS_FILE
+  - FS_TOOL_BASE_DIR
+  - GUNICORN_PRELOAD
+  - LOG_ENV
+  - LOG_FORMAT
+  - LOG_LEVELS
+  - LOG_REDACT_KEYS
+  - LOG_RETRIEVER_BUFFER_SIZE
+  - LOG_TRACE_LOCALS
+  - MIGRATION_LOCK_TIMEOUT_S
+  - MODELS_DEV_REFRESH
+  - NATIVE_TRACING
+  - PRETTY_LOGS
+  - REQUEST_VARIABLES
+  - SEED_DIR
+  - SERVER_URL
+  - SERVICE_NAME
+  - URL
+  - VERSION
+  exception_rule: A fixed branded suffix outside Settings/AuthSettings is allowed only when it has an exact BRAND_ENV_POLICIES
+    entry; dynamic provider/user namespaces are excluded above.
+  unresolved_exceptions: []
+  unresolved_ambiguities: []
+policy_groups:
+  public_warn:
+  - ALEMBIC_LOG_FILE
+  - ALEMBIC_LOG_TO_STDOUT
+  - AUTO_SAVING
+  - AUTO_SAVING_INTERVAL
+  - ENVIRONMENT
+  - FRONTEND_TIMEOUT
+  - FS_FLOWS_POLLING_INTERVAL
+  - HEALTH_CHECK_MAX_RETRIES
+  - HIDE_GETTING_STARTED_PROGRESS
+  - HIDE_LOGOUT_BUTTON
+  - HIDE_NEW_FLOW_BUTTON
+  - HIDE_NEW_PROJECT_BUTTON
+  - HIDE_STARTER_PROJECTS
+  - LOG_ENV
+  - LOG_FILE
+  - LOG_FORMAT
+  - LOG_LEVEL
+  - LOG_LEVELS
+  - LOG_RETRIEVER_BUFFER_SIZE
+  - MAX_FILE_SIZE_UPLOAD
+  - MAX_FLOW_VERSION_ENTRIES_PER_FLOW
+  - MAX_INGESTION_TIMEOUT_SECS
+  - MAX_ITEMS_LENGTH
+  - MAX_TEXT_LENGTH
+  - MAX_TRANSACTIONS_TO_KEEP
+  - MAX_VERTEX_BUILDS_PER_VERTEX
+  - MAX_VERTEX_BUILDS_TO_KEEP
+  - OPEN_BROWSER
+  - PRETTY_LOGS
+  - PUBLIC_FLOW_CLEANUP_INTERVAL
+  - PUBLIC_FLOW_EXPIRATION
+  - SENTRY_PROFILES_SAMPLE_RATE
+  - SENTRY_TRACES_SAMPLE_RATE
+  - SERVICE_NAME
+  - TELEMETRY_WRITER_BATCH_SIZE
+  - TELEMETRY_WRITER_BATCH_SIZE_BYTES
+  - TELEMETRY_WRITER_CLEANUP_INTERVAL_S
+  - TELEMETRY_WRITER_FLUSH_INTERVAL_S
+  - TELEMETRY_WRITER_MAX_QUEUE
+  - TELEMETRY_WRITER_MAX_QUEUE_BYTES
+  - TELEMETRY_WRITER_ORPHAN_MAX_AGE_S
+  - TELEMETRY_WRITER_SHUTDOWN_DRAIN_S
+  - TELEMETRY_WRITER_SIZE_STRATEGY
+  - USER_AGENT
+  - VERSION
+  - WEBHOOK_POLLING_INTERVAL
+  - WORKERS
+  - WORKER_TIMEOUT
+  public_error:
+  - ACCESS_HTTPONLY
+  - ACCESS_SAME_SITE
+  - ACCESS_SECURE
+  - ACCESS_TOKEN_EXPIRE_SECONDS
+  - ADD_PROJECTS_TO_MCP_SERVERS
+  - AGENTIC_EXPERIENCE
+  - ALGORITHM
+  - ALLOW_COMPONENTS_PATHS_OVERRIDE
+  - ALLOW_CUSTOM_COMPONENTS
+  - ALLOW_PUBLIC_CUSTOM_COMPONENTS
+  - API_KEY_ALGORITHM
+  - API_KEY_SOURCE
+  - API_V1_STR
+  - ASSISTANT_VERIFY_FLOWS
+  - AUTHZ_AUDIT_ENABLED
+  - AUTHZ_AUDIT_RETENTION_DAYS
+  - AUTHZ_ENABLED
+  - AUTHZ_SUPERUSER_BYPASS
+  - AUTO_LOGIN
+  - BACKEND_ONLY
+  - BUNDLE_URLS
+  - CACHE_DIR
+  - CACHE_EXPIRE
+  - CACHE_TYPE
+  - CELERY_ENABLED
+  - COMPONENTS_INDEX_PATH
+  - COMPONENTS_PATH
+  - CONFIG_DIR
+  - COOKIE_DOMAIN
+  - CORS_ALLOW_CREDENTIALS
+  - CORS_ALLOW_HEADERS
+  - CORS_ALLOW_METHODS
+  - CORS_ORIGINS
+  - CREATE_STARTER_PROJECTS
+  - CUSTOM_COMPONENT_ADMIN_ONLY
+  - DATABASE_CONNECTION_RETRY
+  - DATA_DIR
+  - DB_CONNECT_TIMEOUT
+  - DEACTIVATE_TRACING
+  - DEBUG_FORK_GHOSTS
+  - DESKTOP
+  - DEV
+  - DEVELOPER_API_ENABLED
+  - DEV_EXTENSIONS_DIR
+  - DIRECTORY_COMPONENT_ALLOWED_ROOTS
+  - DISABLE_TRACK_APIKEY_USAGE
+  - DOWNLOAD_WEBHOOK_URL
+  - DO_NOT_TRACK
+  - EMBEDDED_MODE
+  - ENABLE_EXTENSION_RELOAD
+  - ENABLE_SIGNUP
+  - ENABLE_SUPERUSER_CLI
+  - ENV
+  - ENVIRONMENTS_FILE
+  - EVENT_DELIVERY
+  - FALLBACK_TO_ENV_VAR
+  - FEATURE_MVP_COMPONENTS
+  - FEATURE_WXO_DEPLOYMENTS
+  - FRONTEND_PATH
+  - FS_TOOL_BASE_DIR
+  - GUNICORN_PRELOAD
+  - HOST
+  - JOB_QUEUE_TYPE
+  - KB_ALLOWED_FOLDER_ROOTS
+  - KNOWLEDGE_BASES_DIR
+  - LANGCHAIN_CACHE
+  - LAZY_LOAD_COMPONENTS
+  - LIKE_WEBHOOK_URL
+  - LOAD_FLOWS_OVERWRITE_ON_NAME_MATCH
+  - LOAD_FLOWS_PATH
+  - LOG_REDACT_KEYS
+  - LOG_TRACE_LOCALS
+  - MAX_OVERFLOW
+  - MCP_BASE_URL
+  - MCP_COMPOSER_ENABLED
+  - MCP_COMPOSER_VERSION
+  - MCP_MAX_SESSIONS_PER_SERVER
+  - MCP_SERVERS_LOCKED
+  - MCP_SERVER_ENABLED
+  - MCP_SERVER_ENABLE_PROGRESS_NOTIFICATIONS
+  - MCP_SERVER_TIMEOUT
+  - MCP_SESSION_CLEANUP_INTERVAL
+  - MCP_SESSION_IDLE_TIMEOUT
+  - MCP_TOOL_EXECUTION_TIMEOUT
+  - MIGRATION_LOCK_TIMEOUT_S
+  - MODELS_DEV_REFRESH
+  - NATIVE_TRACING
+  - NEW_USER_IS_ACTIVE
+  - OBJECT_STORAGE_BUCKET_NAME
+  - OBJECT_STORAGE_PREFIX
+  - OBJECT_STORAGE_TAGS
+  - POOL_SIZE
+  - PORT
+  - PROMETHEUS_ENABLED
+  - PROMETHEUS_PORT
+  - PUBLIC_KEY
+  - RATE_LIMIT_ENABLED
+  - RATE_LIMIT_PER_MINUTE
+  - RATE_LIMIT_TRUST_PROXY
+  - REDIS_CACHE_EXPIRE
+  - REDIS_DB
+  - REDIS_HOST
+  - REDIS_PORT
+  - REDIS_QUEUE_CANCEL_CHANNEL_ENABLED
+  - REDIS_QUEUE_CANCEL_MARKER_TTL
+  - REDIS_QUEUE_DB
+  - REDIS_QUEUE_HOST
+  - REDIS_QUEUE_POLLING_STALE_THRESHOLD_S
+  - REDIS_QUEUE_POLLING_WATCHDOG_INTERVAL_S
+  - REDIS_QUEUE_PORT
+  - REDIS_QUEUE_STARTUP_GRACE_S
+  - REDIS_QUEUE_TTL
+  - REFRESH_HTTPONLY
+  - REFRESH_SAME_SITE
+  - REFRESH_SECURE
+  - REFRESH_TOKEN_EXPIRE_SECONDS
+  - REMOVE_API_KEYS
+  - ROOT_PATH
+  - RUNTIME_PORT
+  - SEED_DIR
+  - SERVER_URL
+  - SKIP_AUTH_AUTO_LOGIN
+  - SKIP_MCP_AUTO_INIT
+  - SQLITE_PRAGMAS
+  - SSL_CERT_FILE
+  - SSL_KEY_FILE
+  - SSO_CONFIG_FILE
+  - SSO_ENABLED
+  - SSO_PROVIDER
+  - SSRF_ALLOWED_HOSTS
+  - SSRF_PROTECTION_ENABLED
+  - STORAGE_TYPE
+  - STORE
+  - STORE_ENVIRONMENT_VARIABLES
+  - STORE_URL
+  - SUPERUSER
+  - TELEMETRY_BASE_URL
+  - TELEMETRY_WRITER_ENABLED
+  - TELEMETRY_WRITER_OUTBOX_DIR
+  - TEMP_DIR
+  - TRANSACTIONS_STORAGE_ENABLED
+  - UPDATE_STARTER_PROJECTS
+  - URL
+  - USE_NOOP_DATABASE
+  - VARIABLES_TO_GET_FROM_ENVIRONMENT
+  - VARIABLE_STORE
+  - VERTEX_BUILDS_STORAGE_ENABLED
+  - WEBHOOK_AUTH_ENABLE
+  secret_error:
+  - API_KEY
+  - DATABASE_URL
+  - DB_CONNECTION_SETTINGS
+  - DB_DRIVER_CONNECTION_SETTINGS
+  - PRIVATE_KEY
+  - RATE_LIMIT_STORAGE_URI
+  - REDIS_QUEUE_URL
+  - REDIS_URL
+  - REQUEST_VARIABLES
+  - SECRET_KEY
+  - SENTRY_DSN
+  - SUPERUSER_PASSWORD
+  - SUPERUSER_TOKEN

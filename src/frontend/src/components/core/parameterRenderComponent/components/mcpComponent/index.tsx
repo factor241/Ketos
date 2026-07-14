@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { mutateTemplate } from "@/CustomNodes/helpers/mutate-template";
 import ShadTooltip from "@/components/common/shadTooltipComponent";
@@ -39,6 +39,8 @@ export default function McpComponent({
 }: InputProps<McpServerValue>): JSX.Element | null {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const disabledRef = useRef(disabled);
+  disabledRef.current = disabled;
   const {
     data: mcpServers,
     refetch: refetchMCPServers,
@@ -87,6 +89,7 @@ export default function McpComponent({
 
   const refreshNodeClass = useCallback(
     (newNodeClass: APIClassType) => {
+      if (disabledRef.current) return;
       handleNodeClass?.(newNodeClass);
       clearStaleErrorStatus();
     },
@@ -116,10 +119,12 @@ export default function McpComponent({
       setSelectedItem((current) =>
         current[0]?.name === nextName ? current : [{ name: nextName }],
       );
-      handleOnNewValue(
-        { value: { name: "", config: {} } },
-        { skipSnapshot: true },
-      );
+      if (!disabled) {
+        handleOnNewValue(
+          { value: { name: "", config: {} } },
+          { skipSnapshot: true },
+        );
+      }
       return;
     }
     setSelectedItem((current) =>
@@ -129,6 +134,7 @@ export default function McpComponent({
 
   // Handle selection from dialog
   const handleSelection = (item: McpSelectionItem) => {
+    if (disabled) return;
     setSelectedItem([{ name: item.name }]);
     handleOnNewValue(
       { value: { name: item.name, config: {} } },
@@ -138,10 +144,12 @@ export default function McpComponent({
   };
 
   const handleAddButtonClick = () => {
+    if (disabled) return;
     setAddOpen(true);
   };
 
   const handleSaveButtonClick = () => {
+    if (disabled) return;
     addMcpServer(
       {
         name,
@@ -162,16 +170,19 @@ export default function McpComponent({
   };
 
   const handleRemoveButtonClick = () => {
+    if (disabled) return;
     handleOnNewValue({ value: { name: "", config: {} } });
   };
 
   const handleRefreshButtonClick = async () => {
+    if (disabledRef.current) return;
     if (!name || !nodeClass || !nodeId) return;
 
     setIsRefreshing(true);
     setOpen(false);
     try {
       await refetchMCPServers();
+      if (disabledRef.current) return;
       await mutateTemplate(
         { name, config: config ?? {} },
         nodeId,
@@ -181,6 +192,7 @@ export default function McpComponent({
         setErrorData,
         "mcp_server",
         () => {
+          if (disabledRef.current) return;
           clearStaleErrorStatus();
           setIsRefreshing(false);
         },
@@ -188,22 +200,29 @@ export default function McpComponent({
         true,
       );
     } catch (error) {
+      if (disabledRef.current) return;
       setIsRefreshing(false);
       setErrorData({
         title: t("errors.refreshMcpServer"),
         list: [error instanceof Error ? error.message : String(error)],
       });
     } finally {
-      setTimeout(() => setIsRefreshing(false), 5000);
+      if (!disabledRef.current) {
+        setTimeout(() => {
+          if (!disabledRef.current) setIsRefreshing(false);
+        }, 5000);
+      }
     }
   };
 
   const handleOpenListSelectionDialog = () => {
+    if (disabled) return;
     setOpen(true);
   };
   const handleCloseListSelectionDialog = () => setOpen(false);
 
   const handleSuccess = (server: string) => {
+    if (disabledRef.current) return;
     handleOnNewValue(
       { value: { name: server, config: {} } },
       { setNodeClass: clearStaleErrorStatus },
@@ -263,7 +282,7 @@ export default function McpComponent({
               />
             </div>
           </Button>
-          {showSaveButton && (
+          {!disabled && showSaveButton && (
             <Button
               variant="primary"
               size="iconMd"
@@ -304,6 +323,7 @@ export default function McpComponent({
           size="sm"
           onClick={handleAddButtonClick}
           data-testid="add-mcp-server-simple-button"
+          disabled={disabled}
         >
           <span>{t("input.addMcpServer")}</span>
         </Button>
@@ -311,7 +331,7 @@ export default function McpComponent({
       {options && (
         <>
           <ListSelectionComponent
-            open={open}
+            open={disabled ? false : open}
             onClose={handleCloseListSelectionDialog}
             onSelection={handleSelection}
             setSelectedList={setSelectedItem}
@@ -327,11 +347,13 @@ export default function McpComponent({
             addButtonText={t("mcp.addServer")}
             onAddButtonClick={handleAddButtonClick}
           />
-          <AddMcpServerModal
-            open={addOpen}
-            setOpen={setAddOpen}
-            onSuccess={handleSuccess}
-          />
+          {!disabled && (
+            <AddMcpServerModal
+              open={addOpen}
+              setOpen={setAddOpen}
+              onSuccess={handleSuccess}
+            />
+          )}
         </>
       )}
       {selectedServerError && (

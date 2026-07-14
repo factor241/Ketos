@@ -26,7 +26,7 @@ def test_real_migration():
 
         # Create alembic.ini
         alembic_cfg = Config()
-        alembic_cfg.set_main_option("script_location", "src/backend/base/langflow/alembic")
+        alembic_cfg.set_main_option("script_location", "src/backend/base/ketos/alembic")
         alembic_cfg.set_main_option("sqlalchemy.url", f"sqlite:///{db_path}")
 
         # Run migration

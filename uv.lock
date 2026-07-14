@@ -35,6 +35,11 @@ members = [
     "kfx-docling",
     "kfx-duckduckgo",
     "kfx-ibm",
+    "langflow",
+    "langflow-base",
+    "langflow-sdk",
+    "langflow-stepflow",
+    "lfx",
 ]
 overrides = [
     { name = "dynaconf", specifier = ">=3.2.13" },
@@ -9660,6 +9665,121 @@ wheels = [
 ]
 
 [[package]]
+name = "langflow"
+version = "1.10.2"
+source = { editable = "src/compat/langflow" }
+dependencies = [
+    { name = "ketos" },
+    { name = "langflow-base" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ketos", editable = "." },
+    { name = "langflow-base", editable = "src/compat/langflow-base" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=9.0.3" },
+    { name = "ruff", specifier = ">=0.9.10" },
+]
+
+[[package]]
+name = "langflow-base"
+version = "0.10.2"
+source = { editable = "src/compat/langflow-base" }
+dependencies = [
+    { name = "ketos-base" },
+    { name = "lfx" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ketos-base", editable = "src/backend/base" },
+    { name = "lfx", editable = "src/compat/lfx" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=9.0.3" },
+    { name = "ruff", specifier = ">=0.9.10" },
+]
+
+[[package]]
+name = "langflow-sdk"
+version = "0.2.2"
+source = { editable = "src/compat/langflow-sdk" }
+dependencies = [
+    { name = "ketos-sdk" },
+]
+
+[package.optional-dependencies]
+testing = [
+    { name = "ketos-sdk", extra = ["testing"] },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ketos-sdk", editable = "src/sdk" },
+    { name = "ketos-sdk", extras = ["testing"], marker = "extra == 'testing'", editable = "src/sdk" },
+]
+provides-extras = ["testing"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=9.0.3" },
+    { name = "ruff", specifier = ">=0.9.10" },
+]
+
+[[package]]
+name = "langflow-stepflow"
+version = "0.1.0"
+source = { editable = "src/compat/langflow-stepflow" }
+dependencies = [
+    { name = "ketos-stepflow" },
+    { name = "langflow-base" },
+    { name = "lfx" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ketos-stepflow", editable = "src/ketos-stepflow" },
+    { name = "langflow-base", editable = "src/compat/langflow-base" },
+    { name = "lfx", editable = "src/compat/lfx" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=9.0.3" },
+    { name = "ruff", specifier = ">=0.9.10" },
+]
+
+[[package]]
 name = "langfuse"
 version = "3.15.0"
 source = { registry = "https://pypi.org/simple" }
@@ -9822,6 +9942,33 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/49/ac/21a1f8aa3777f5658576777ea76bfb124b702c520bbe90edf4ae9915eafa/lazy_loader-0.5.tar.gz", hash = "sha256:717f9179a0dbed357012ddad50a5ad3d5e4d9a0b8712680d4e687f5e6e6ed9b3", size = 15294, upload-time = "2026-03-06T15:45:09.054Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8a/a1/8d812e53a5da1687abb10445275d41a8b13adb781bbf7196ddbcf8d88505/lazy_loader-0.5-py3-none-any.whl", hash = "sha256:ab0ea149e9c554d4ffeeb21105ac60bed7f3b4fd69b1d2360a4add51b170b005", size = 8044, upload-time = "2026-03-06T15:45:07.668Z" },
+]
+
+[[package]]
+name = "lfx"
+version = "1.10.2"
+source = { editable = "src/compat/lfx" }
+dependencies = [
+    { name = "kfx" },
+    { name = "langflow-sdk" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "kfx", editable = "src/kfx" },
+    { name = "langflow-sdk", editable = "src/compat/langflow-sdk" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=9.0.3" },
+    { name = "ruff", specifier = ">=0.9.10" },
 ]
 
 [[package]]

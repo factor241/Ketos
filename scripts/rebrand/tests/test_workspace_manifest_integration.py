@@ -10,6 +10,7 @@ import sys
 import tarfile
 import time
 from collections import defaultdict
+from copy import deepcopy
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -19,6 +20,26 @@ import tomllib
 ROOT = Path(__file__).resolve().parents[3]
 OLD_PRODUCT = "lang" + "flow"
 OLD_EXECUTOR = "l" + "fx"
+CANONICAL_PACKAGE_PATHS = {
+    "ketos-base": "src/backend/base",
+    "ketos": ".",
+    "kfx": "src/kfx",
+    "ketos-stepflow": "src/ketos-stepflow",
+    "ketos-sdk": "src/sdk",
+}
+LEGACY_PACKAGE_PATHS = {
+    f"{OLD_PRODUCT}-base": f"src/compat/{OLD_PRODUCT}-base",
+    OLD_PRODUCT: f"src/compat/{OLD_PRODUCT}",
+    OLD_EXECUTOR: f"src/compat/{OLD_EXECUTOR}",
+    f"{OLD_PRODUCT}-sdk": f"src/compat/{OLD_PRODUCT}-sdk",
+    f"{OLD_PRODUCT}-stepflow": f"src/compat/{OLD_PRODUCT}-stepflow",
+}
+BUNDLE_PACKAGE_PATHS = {
+    "kfx-duckduckgo": "src/bundles/duckduckgo",
+    "kfx-arxiv": "src/bundles/arxiv",
+    "kfx-ibm": "src/bundles/ibm",
+    "kfx-docling": "src/bundles/docling",
+}
 _INHERITED_PYTHON_PATH_ENV_VARS = (
     "CONDA_PREFIX",
     "PIP_PREFIX",
@@ -121,32 +142,63 @@ def test_workspace_contains_every_canonical_package_once() -> None:
     members = manifest["tool"]["uv"]["workspace"]["members"]
 
     assert members == [
-        "src/backend/base",
-        ".",
-        "src/kfx",
-        "src/ketos-stepflow",
-        "src/sdk",
-        "src/bundles/duckduckgo",
-        "src/bundles/arxiv",
-        "src/bundles/ibm",
-        "src/bundles/docling",
+        *CANONICAL_PACKAGE_PATHS.values(),
+        *LEGACY_PACKAGE_PATHS.values(),
+        *BUNDLE_PACKAGE_PATHS.values(),
     ]
     assert len(members) == len(set(members))
-    workspace_sources = {
-        "ketos-base",
-        "ketos",
-        "kfx",
-        "ketos-sdk",
-        "ketos-stepflow",
-        "kfx-duckduckgo",
-        "kfx-arxiv",
-        "kfx-ibm",
-        "kfx-docling",
-    }
+    workspace_sources = set(CANONICAL_PACKAGE_PATHS | LEGACY_PACKAGE_PATHS | BUNDLE_PACKAGE_PATHS)
     assert set(sources) == workspace_sources | {"torch", "torchvision"}
     assert all(sources[name] == {"workspace": True} for name in workspace_sources)
     assert sources["torch"] == {"index": "pytorch-cpu"}
     assert sources["torchvision"] == {"index": "pytorch-cpu"}
+
+    package_manifests = {
+        name: tomllib.loads((ROOT / path / "pyproject.toml").read_text(encoding="utf-8"))
+        for name, path in (CANONICAL_PACKAGE_PATHS | LEGACY_PACKAGE_PATHS).items()
+        if path != "."
+    }
+    package_manifests["ketos"] = manifest
+    expected_namespace_owners = {
+        "ketos": "ketos-base",
+        "kfx": "kfx",
+        "ketos_sdk": "ketos-sdk",
+        "ketos_stepflow": "ketos-stepflow",
+        OLD_PRODUCT: f"{OLD_PRODUCT}-base",
+        f"{OLD_PRODUCT}_compat": f"{OLD_PRODUCT}-base",
+        OLD_EXECUTOR: OLD_EXECUTOR,
+        f"{OLD_EXECUTOR}_compat": OLD_EXECUTOR,
+        f"{OLD_PRODUCT}_sdk": f"{OLD_PRODUCT}-sdk",
+        f"{OLD_PRODUCT}_stepflow": f"{OLD_PRODUCT}-stepflow",
+    }
+    actual_namespace_owners: dict[str, str] = {}
+    for distribution, package_manifest in package_manifests.items():
+        wheel = package_manifest["tool"]["hatch"]["build"]["targets"]["wheel"]
+        for package_path in wheel.get("packages", []):
+            namespace = Path(package_path).name
+            assert namespace not in actual_namespace_owners, namespace
+            actual_namespace_owners[namespace] = distribution
+    assert actual_namespace_owners == expected_namespace_owners
+    assert package_manifests["ketos"]["tool"]["hatch"]["build"]["targets"]["wheel"] == {
+        "bypass-selection": True,
+    }
+    assert package_manifests[OLD_PRODUCT]["tool"]["hatch"]["build"]["targets"]["wheel"] == {
+        "bypass-selection": True,
+    }
+
+    expected_compatibility_dependencies = {
+        f"{OLD_PRODUCT}-base": ["ketos-base==0.10.2", f"{OLD_EXECUTOR}==1.10.2"],
+        OLD_PRODUCT: ["ketos==1.10.2", f"{OLD_PRODUCT}-base==0.10.2"],
+        OLD_EXECUTOR: ["kfx==1.10.2", f"{OLD_PRODUCT}-sdk==0.2.2"],
+        f"{OLD_PRODUCT}-sdk": ["ketos-sdk==0.2.2"],
+        f"{OLD_PRODUCT}-stepflow": [
+            "ketos-stepflow==0.1.0",
+            f"{OLD_EXECUTOR}==1.10.2",
+            f"{OLD_PRODUCT}-base==0.10.2",
+        ],
+    }
+    for distribution, expected_dependencies in expected_compatibility_dependencies.items():
+        assert package_manifests[distribution]["project"]["dependencies"] == expected_dependencies
 
 
 def test_bundle_dependencies_and_sources_use_kfx_names() -> None:
@@ -160,8 +212,16 @@ def test_bundle_dependencies_and_sources_use_kfx_names() -> None:
 
 
 def test_root_tool_paths_use_canonical_namespaces() -> None:
-    manifest_text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    manifest = _root_manifest()
     make_text = "\n".join((ROOT / name).read_text(encoding="utf-8") for name in ("Makefile", "Makefile.frontend"))
+
+    compatibility_metadata = deepcopy(manifest)
+    sources = compatibility_metadata["tool"]["uv"]["sources"]
+    members = compatibility_metadata["tool"]["uv"]["workspace"]["members"]
+    for distribution, member in LEGACY_PACKAGE_PATHS.items():
+        assert sources.pop(distribution) == {"workspace": True}
+        members.remove(member)
+    unauthorized_manifest_text = json.dumps(compatibility_metadata, sort_keys=True)
 
     for forbidden in (
         OLD_PRODUCT,
@@ -170,7 +230,7 @@ def test_root_tool_paths_use_canonical_namespaces() -> None:
         OLD_PRODUCT.upper() + "_AUTO_LOGIN",
         OLD_PRODUCT.upper() + "_HOST",
     ):
-        assert forbidden not in manifest_text
+        assert forbidden not in unauthorized_manifest_text
         assert forbidden not in make_text
 
     assert "src/backend/base/ketos/frontend" in make_text

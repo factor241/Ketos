@@ -1,0 +1,30 @@
+[project]
+name = "langflow-sdk"
+version = "0.2.2"
+description = "Compatibility aliases for the canonical Ketos SDK"
+license = "MIT"
+requires-python = ">=3.10,<3.15"
+dependencies = ["ketos-sdk==0.2.2"]
+
+[project.optional-dependencies]
+testing = ["ketos-sdk[testing]==0.2.2"]
+
+[build-system]
+requires = ["hatchling==1.31.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/langflow_sdk"]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["/tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "ruff>=0.9.10",
+]

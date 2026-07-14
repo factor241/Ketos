@@ -54,7 +54,7 @@ if TYPE_CHECKING:
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
-    """Register Ketos-specific CLI options."""
+    """Register canonical and compatibility integration-test options."""
     group = parser.getgroup("ketos", "Ketos integration testing options")
     options = {
         "--ketos-env": {
@@ -81,6 +81,30 @@ def pytest_addoption(parser: pytest.Parser) -> None:
             "metavar": "PATH",
             "help": "Path to ketos-environments.toml (overrides default discovery).",
         },
+        "--langflow-env": {
+            "dest": "langflow_env",
+            "default": None,
+            "metavar": "NAME",
+            "help": "Compatibility alias for --ketos-env.",
+        },
+        "--langflow-url": {
+            "dest": "langflow_url",
+            "default": None,
+            "metavar": "URL",
+            "help": "Compatibility alias for --ketos-url.",
+        },
+        "--langflow-api-key": {
+            "dest": "langflow_api_key",
+            "default": None,
+            "metavar": "KEY",
+            "help": "Compatibility alias for --ketos-api-key.",
+        },
+        "--langflow-environments-file": {
+            "dest": "langflow_environments_file",
+            "default": None,
+            "metavar": "PATH",
+            "help": "Compatibility alias for --ketos-environments-file.",
+        },
     }
 
     # Multiple integration plugins can coexist in the same environment.
@@ -96,12 +120,22 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 def _resolve_url_credentials(request: pytest.FixtureRequest) -> tuple[str, str | None] | None:
-    """Extract (url, api_key) from CLI options / env vars, or return None."""
-    url: str | None = request.config.getoption("ketos_url") or os.getenv("KETOS_URL")
+    """Extract credentials with the canonical family taking precedence."""
+    url: str | None = (
+        request.config.getoption("ketos_url")
+        or os.getenv("KETOS_URL")
+        or request.config.getoption("langflow_url")
+        or os.getenv("LANGFLOW_URL")
+    )
     if not url:
         return None
     # pragma: allowlist secret
-    api_key: str | None = request.config.getoption("ketos_api_key") or os.getenv("KETOS_API_KEY")
+    api_key: str | None = (
+        request.config.getoption("ketos_api_key")
+        or os.getenv("KETOS_API_KEY")
+        or request.config.getoption("langflow_api_key")
+        or os.getenv("LANGFLOW_API_KEY")
+    )
     return url, api_key
 
 
@@ -122,11 +156,21 @@ def _resolve_async_url_client(request: pytest.FixtureRequest) -> AsyncKetosClien
 
 
 def _env_name(request: pytest.FixtureRequest) -> str | None:
-    return request.config.getoption("ketos_env") or os.getenv("KETOS_ENV")
+    return (
+        request.config.getoption("ketos_env")
+        or os.getenv("KETOS_ENV")
+        or request.config.getoption("langflow_env")
+        or os.getenv("LANGFLOW_ENV")
+    )
 
 
 def _env_file(request: pytest.FixtureRequest) -> str | None:
-    return request.config.getoption("ketos_environments_file") or os.getenv("KETOS_ENVIRONMENTS_FILE")
+    return (
+        request.config.getoption("ketos_environments_file")
+        or os.getenv("KETOS_ENVIRONMENTS_FILE")
+        or request.config.getoption("langflow_environments_file")
+        or os.getenv("LANGFLOW_ENVIRONMENTS_FILE")
+    )
 
 
 _SKIP_MSG = "No Ketos connection configured. Pass --ketos-url <URL> or --ketos-env <NAME> to enable integration tests."
@@ -190,6 +234,12 @@ async def async_ketos_client(request: pytest.FixtureRequest) -> AsyncKetosClient
 
     yield client
     await client.aclose()
+
+
+# Compatibility fixture names intentionally reference the same decorated
+# implementations. The ketos-sdk pytest11 entry point is the sole plugin owner.
+langflow_client = ketos_client
+async_langflow_client = async_ketos_client
 
 
 # ---------------------------------------------------------------------------

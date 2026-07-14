@@ -196,6 +196,7 @@ CANONICAL_BRAND_VALUES: dict[str, object] = {
 
 LEGACY_CATEGORIES = (
     "import_alias",
+    "cli_alias",
     "env_alias",
     "data_path",
     "historical_migration",
@@ -204,7 +205,7 @@ LEGACY_CATEGORIES = (
     "external_resource_id",
     "legal_provenance",
 )
-LEGACY_SUBTYPES = ("package_alias", "extension_manifest")
+LEGACY_SUBTYPES = ("package_alias", "pytest_alias", "extension_manifest")
 LEGACY_OCCURRENCE_FIELDS = (
     "category",
     "subtype",
@@ -238,6 +239,16 @@ RESERVED_HOSTS = {
     "registry.ketos.test",
     "registry.invalid",
 }
+PYTEST_COMPATIBILITY_BRIDGE_PATHS = {
+    "src/kfx/src/kfx/testing/plugin.py",
+    "src/kfx/tests/unit/test_testing_plugin_compatibility.py",
+    "src/sdk/src/ketos_sdk/testing.py",
+    "src/sdk/tests/test_testing.py",
+}
+WORKSPACE_PACKAGE_MANIFEST_PATHS = {"pyproject.toml", "uv.lock"}
+S2_COMPATIBILITY_ACCEPTANCE_TEST_PATH = "scripts/rebrand/tests/test_s2_compatibility_check.py"
+S2_COMPATIBILITY_CHECKER_PATH = "scripts/rebrand/check_s2_compatibility.py"
+S2_DISTRIBUTION_CONTRACT_PATH = "brand/compatibility/s2-distribution-contract.yaml"
 FROZEN_UPSTREAM_REMOTE = "https://github.com/" + _LEGACY_PRODUCT_TEXT + "-ai/" + _LEGACY_PRODUCT_TEXT + ".git"
 MUTABLE_EXTERNAL_FIELDS = {
     "site_url",
@@ -564,6 +575,8 @@ def validate_legacy_contract(path: Path | str, *, repository_root: Path | str | 
             errors.append(f"{context}.subtype: unknown subtype")
         if subtype == "package_alias" and item.get("category") != "import_alias":
             errors.append(f"{context}.subtype: package_alias requires import_alias")
+        if subtype == "pytest_alias" and item.get("category") != "import_alias":
+            errors.append(f"{context}.subtype: pytest_alias requires import_alias")
         if subtype == "extension_manifest" and item.get("category") != "historical_fixture":
             errors.append(f"{context}.subtype: extension_manifest requires historical_fixture")
         locator = item.get("locator")
@@ -1010,6 +1023,43 @@ def _technical_locator(path: str, line_number: int, line: str, kind: str) -> str
             return f"historical_fixture:{path}:{line_number}"
         if stripped.startswith("path:"):
             return f"historical_fixture:{path}:{line_number}"
+    if re.search(rf"\b{re.escape(_LEGACY_PRODUCT_TEXT.upper())}_[A-Z0-9_]+\b", line):
+        return f"env_alias:{path}:{line_number}"
+    if re.search(rf"(?<![a-z0-9_])--{re.escape(_LEGACY_PRODUCT_TEXT)}-[a-z0-9-]+", lowered):
+        return f"cli_alias:{path}:{line_number}"
+    if re.search(rf"\b{re.escape(_LEGACY_EXECUTOR_TEXT.upper())}_[A-Z0-9_]+\b", line):
+        return f"env_alias:{path}:{line_number}"
+    if re.search(rf"(?<![a-z0-9_])--{re.escape(_LEGACY_EXECUTOR_TEXT)}-[a-z0-9-]+", lowered):
+        return f"cli_alias:{path}:{line_number}"
+    if path == S2_COMPATIBILITY_ACCEPTANCE_TEST_PATH:
+        stripped = lowered.strip().removesuffix(",")
+        if stripped in {
+            f'"{_LEGACY_PRODUCT_TEXT}"',
+            f'"{_LEGACY_EXECUTOR_TEXT}"',
+            f'"{_LEGACY_EXECUTOR_TEXT}-mcp"',
+        }:
+            return f"cli_alias:{path}:{line_number}"
+        if "pytest11" in lowered:
+            return f"import_alias:pytest_alias:{path}:{line_number}"
+        return f"import_alias:package_alias:{path}:{line_number}"
+    if path == S2_COMPATIBILITY_CHECKER_PATH:
+        if lowered.lstrip().startswith("all_clis ="):
+            return f"cli_alias:{path}:{line_number}"
+        return f"import_alias:package_alias:{path}:{line_number}"
+    if path == S2_DISTRIBUTION_CONTRACT_PATH:
+        if lowered.strip() in {
+            f"- {_LEGACY_PRODUCT_TEXT}",
+            f"- {_LEGACY_EXECUTOR_TEXT}",
+            f"- {_LEGACY_EXECUTOR_TEXT}-mcp",
+        }:
+            return f"cli_alias:{path}:{line_number}"
+        return f"import_alias:package_alias:{path}:{line_number}"
+    if path in PYTEST_COMPATIBILITY_BRIDGE_PATHS:
+        return f"import_alias:pytest_alias:{path}:{line_number}"
+    if path in WORKSPACE_PACKAGE_MANIFEST_PATHS:
+        return f"import_alias:package_alias:{path}:{line_number}"
+    if lowered_path.startswith("src/compat/"):
+        return f"import_alias:package_alias:{path}:{line_number}"
     if kind.startswith("legacy_executor") and any(
         token in lowered
         for token in (
@@ -1021,6 +1071,24 @@ def _technical_locator(path: str, line_number: int, line: str, kind: str) -> str
         )
     ):
         return f"import_alias:package_alias:{path}:{line_number}"
+    if kind.startswith("legacy_brand") and (
+        any(
+            token in lowered
+            for token in (
+                "import " + _LEGACY_PRODUCT_TEXT,
+                "from " + _LEGACY_PRODUCT_TEXT,
+                'name = "' + _LEGACY_PRODUCT_TEXT,
+                "name = '" + _LEGACY_PRODUCT_TEXT,
+                _LEGACY_PRODUCT_TEXT + "-sdk",
+                _LEGACY_PRODUCT_TEXT + "-base",
+                _LEGACY_PRODUCT_TEXT + "-stepflow",
+                _LEGACY_PRODUCT_TEXT + "_sdk",
+                _LEGACY_PRODUCT_TEXT + "_stepflow",
+            )
+        )
+        or re.search(rf"\b{re.escape(_LEGACY_PRODUCT_TEXT.capitalize())}[A-Z][A-Za-z0-9_]*\b", line) is not None
+    ):
+        return f"import_alias:package_alias:{path}:{line_number}"
     if any(
         token in lowered
         for token in (
@@ -1030,8 +1098,6 @@ def _technical_locator(path: str, line_number: int, line: str, kind: str) -> str
         )
     ):
         return f"historical_fixture:extension_manifest:{path}:{line_number}"
-    if _LEGACY_PRODUCT_TEXT + "_" in lowered:
-        return f"env_alias:{path}:{line_number}"
     if "." + _LEGACY_PRODUCT_TEXT in lowered:
         return f"data_path:{path}:{line_number}"
     if "migration" in lowered_path or "alembic" in lowered_path:
@@ -1043,14 +1109,42 @@ def _technical_locator(path: str, line_number: int, line: str, kind: str) -> str
     return None
 
 
-def _legacy_locator_match_limits(legacy: dict[str, Any]) -> dict[str, int]:
-    """Bind each ledger item to an exact match multiplicity."""
-    limits = {item["locator"]: 1 for item in legacy.get("occurrences", [])}
-    frozen_remote_prefix = f"external_resource_id:{_LEGACY_CONTRACT_RELATIVE_PATH}:"
-    frozen_remote_matches = len(_PRODUCT_RE.findall(FROZEN_UPSTREAM_REMOTE.encode()))
-    for locator in limits:
-        if locator.startswith(frozen_remote_prefix):
-            limits[locator] = frozen_remote_matches
+def _legacy_locator_match_limits(
+    legacy: dict[str, Any],
+    *,
+    repository_root: Path | str | None = None,
+) -> dict[str, int]:
+    """Bind each ledger item to the exact match count at its source location."""
+    root = Path(repository_root or Path.cwd()).resolve()
+    limits: dict[str, int] = {}
+    for item in legacy.get("occurrences", []):
+        locator = item["locator"]
+        locator_prefix = item.get("category", "")
+        subtype = item.get("subtype")
+        if subtype is not None:
+            locator_prefix += f":{subtype}"
+        locator_body = locator.removeprefix(locator_prefix + ":")
+        locator_path, _, locator_line_text = locator_body.rpartition(":")
+        if not locator_line_text.isdigit():
+            limits[locator] = 1
+            continue
+        locator_line = int(locator_line_text)
+        if locator_line == 0:
+            source_text = locator_path
+        else:
+            source_path = root / locator_path
+            try:
+                source_lines = source_path.read_text(encoding="utf-8").splitlines()
+                source_text = source_lines[locator_line - 1]
+            except (OSError, IndexError, UnicodeError):
+                limits[locator] = 1
+                continue
+        encoded = source_text.encode("utf-8")
+        match_count = 0
+        for kind, pattern in (("legacy_brand", _PRODUCT_RE), ("legacy_executor", _EXECUTOR_RE)):
+            if _technical_locator(locator_path, locator_line, source_text, kind) == locator:
+                match_count += len(pattern.findall(encoded))
+        limits[locator] = max(match_count, 1)
     return limits
 
 
@@ -1323,7 +1417,9 @@ def scan_root(
         profile=profile,
         excluded_path=excluded,
         legacy_locators=locators,
-        legacy_locator_limits=_legacy_locator_match_limits(legacy or {}),
+        legacy_locator_limits=_legacy_locator_match_limits(
+            legacy or {}, repository_root=legacy_path.resolve().parents[1]
+        ),
     )
     _add_pending_evidence_violation(report, legacy or {}, profile)
     report.pop("_path_counts")
@@ -1378,7 +1474,7 @@ def _compute_baseline_evidence(
     except ValueError:
         excluded_path = None
     expected_locators = {item["locator"] for item in legacy.get("occurrences", [])}
-    locator_limits = _legacy_locator_match_limits(legacy)
+    locator_limits = _legacy_locator_match_limits(legacy, repository_root=repo)
     reports: dict[str, dict[str, Any]] = {}
     for profile in PROFILES:
         reports[profile] = _scan_blobs(
@@ -1503,7 +1599,7 @@ def scan_repository(
     if legacy_errors:
         return {"baseline": None, "allowed_residue": [], "violations": [], "contract_errors": legacy_errors}
     locators = {item["locator"] for item in (legacy or {}).get("occurrences", [])}
-    locator_limits = _legacy_locator_match_limits(legacy or {})
+    locator_limits = _legacy_locator_match_limits(legacy or {}, repository_root=repo_path)
     if _has_tracked_worktree_changes(repo_path):
         report = _scan_blobs(
             _worktree_blobs(

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 import jsonschema
@@ -16,25 +15,6 @@ BUNDLE_ROOT = REPO_ROOT / "src" / "bundles"
 KFX_EXTENSION_ROOT = REPO_ROOT / "src" / "kfx" / "src" / "kfx" / "extension"
 PUBLIC_BUNDLE_API = REPO_ROOT / "BUNDLE_API.md"
 EXTENSIONS_HTTP_API = REPO_ROOT / "src" / "backend" / "base" / "ketos" / "api" / "v1" / "extensions.py"
-SOURCE_SUFFIXES = {".js", ".jsx", ".py", ".ts", ".tsx"}
-SOURCE_SCAN_EXCLUDED_DIRS = {
-    ".venv",
-    "__pycache__",
-    "build",
-    "coverage",
-    "dist",
-    "node_modules",
-}
-ACTIVE_EXTENSION_MIGRATION_SCAN_PATHS = (
-    PUBLIC_BUNDLE_API,
-    EXTENSIONS_HTTP_API,
-    *sorted(BUNDLE_ROOT.rglob("*.md")),
-    *sorted(KFX_EXTENSION_ROOT.rglob("*.py")),
-)
-ACTIVE_EXTENSION_MIGRATION_WORDING_ALLOWLIST = {
-    BUNDLE_ROOT / "NIGHTLY.md": {"db-migration-validation.yml"},
-}
-
 _VALID_MANIFEST = {
     "$schema": EXTENSION_SCHEMA_URL,
     "id": "kfx-current",
@@ -80,28 +60,22 @@ def test_published_schema_rejects_noncanonical_manifest_schema_url(schema_url: s
         validator.validate({**_VALID_MANIFEST, "$schema": schema_url})
 
 
-def test_migration_runtime_and_graph_hook_are_absent() -> None:
-    assert not list((KFX_EXTENSION_ROOT / "migration").glob("*.py"))
-    assert not (KFX_EXTENSION_ROOT / "migration" / "migration_table.json").exists()
+def test_migration_runtime_is_available_without_enabling_the_graph_hook() -> None:
+    from kfx.extension.migration import load_migration_table, migrate_flow_payload
+
+    table, error = load_migration_table()
+
+    assert error is None
+    assert table is not None
+    assert table.schema_version == 1
+    assert callable(migrate_flow_payload)
+    assert (KFX_EXTENSION_ROOT / "migration" / "migration_table.json").is_file()
 
     graph_source = (REPO_ROOT / "src" / "kfx" / "src" / "kfx" / "graph" / "graph" / "base.py").read_text(
         encoding="utf-8"
     )
     assert "migrate_flow_payload" not in graph_source
     assert "flow_" + "migrated" not in graph_source
-
-
-def test_removed_flow_migration_event_is_absent_from_source_and_tests() -> None:
-    removed_event = "flow_" + "migrated"
-    offenders: list[str] = []
-    for root, directory_names, file_names in os.walk(REPO_ROOT / "src"):
-        directory_names[:] = sorted(name for name in directory_names if name not in SOURCE_SCAN_EXCLUDED_DIRS)
-        for file_name in sorted(file_names):
-            path = Path(root) / file_name
-            if path.suffix in SOURCE_SUFFIXES and removed_event in path.read_text(encoding="utf-8"):
-                offenders.append(path.relative_to(REPO_ROOT).as_posix())
-
-    assert offenders == []
 
 
 def test_public_contract_has_no_removed_flow_migration_surface() -> None:
@@ -126,27 +100,21 @@ def test_public_contract_has_no_removed_flow_migration_surface() -> None:
     assert offenders == {}
 
 
-def test_active_extension_contract_has_no_migration_acceptance_wording() -> None:
-    offenders = {
-        path.relative_to(REPO_ROOT).as_posix(): [
-            f"{line_number}:{line.strip()}"
-            for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1)
-            if "migrat" in line.casefold()
-            and not any(
-                protected_term in line
-                for protected_term in ACTIVE_EXTENSION_MIGRATION_WORDING_ALLOWLIST.get(path, set())
-            )
-        ]
-        for path in ACTIVE_EXTENSION_MIGRATION_SCAN_PATHS
-    }
+def test_migration_table_targets_only_canonical_extension_slots() -> None:
+    from kfx.extension.migration import load_migration_table
 
-    assert {path: hits for path, hits in offenders.items() if hits} == {}
+    table, error = load_migration_table()
+
+    assert error is None
+    assert table is not None
+    assert all(entry.target.startswith("ext:") for entry in table.entries)
+    assert all(entry.target.endswith(("@official", "@extra")) for entry in table.entries)
 
 
-def test_extension_facade_has_no_migration_or_component_compatibility_bridge() -> None:
+def test_extension_facade_exports_the_versioned_migration_bridge() -> None:
     from kfx import extension
 
-    removed_names = {
+    migration_names = {
         "MIGRATION_SCHEMA_VERSION",
         "MIGRATION_TABLE_PATH",
         "MigrationEntry",
@@ -155,10 +123,9 @@ def test_extension_facade_has_no_migration_or_component_compatibility_bridge() -
         "NodeRewriteRecord",
         "load_migration_table",
         "migrate_flow_payload",
-        "filter_component_entry_points",
-        "filter_plugin_entry_points",
     }
-    assert removed_names.isdisjoint(dir(extension))
+    assert migration_names <= set(dir(extension))
+    assert all(getattr(extension, name) is not None for name in migration_names)
 
 
 @pytest.mark.parametrize("bundle", ["arxiv", "docling", "duckduckgo", "ibm"])

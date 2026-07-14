@@ -1,0 +1,87 @@
+schema_version: 1
+stage: S2
+verdict: PASS
+source_base_commit: 53643cb1b6519d051d39a7ff16460cf047f763b0
+wheelset_sha256: d28c2bea33e51629ce1bdc045a3738a8225d145be720755b37696c0d3e942e67
+external_publication:
+  gate: E2
+  status: BLOCKED
+  publisher_identity: null
+  effect: local_artifact_acceptance_only
+canonical_distributions:
+  ketos-base: 6958d868bb07d3ce004f641352d3f05a1ec10ca1bd8f69128ad36b6eb9993c98
+  ketos: 5e948afdb6f728a69878309f5bc25c45ed31d4c4f2e2661e4ff7f395dfcc152a
+  kfx: 415a4d56a1121af658efa9dcdc9dd00f6164436987c67f7c9c6df0e047f89fab
+  ketos-sdk: c60aba6dee45b63ebc3089f75f4e6861bcbbda30b996ea156c510f5949e6a072
+  ketos-stepflow: 2d3bcb78afb5bc3603f3626bc40ac9fcbc3338853f96cc611f37943b526d2e6f
+legacy_distributions:
+  langflow-base: a25e78545495a9d5f6221f86e3c0d73d006103a7a20315b717bfaf4ec2b8db64
+  langflow: 8ca6a59679630081b192d9449af5721c1f0233977362d4305fe67439b3d2accf
+  lfx: bf8159a07ebb0bd17ad84c4023940b3600f74ea02787af2cf895c08387637878
+  langflow-sdk: 27283dddc7ec09abd5f87b9c25c21be5d884498c4b5f1b1fd5448a6b339c4396
+  langflow-stepflow: 3d5659c00df2ec46edc5d123f22b7d41efa3d0f713547378844619ffe45a9c67
+ownership_pairs:
+  - canonical: ketos-base
+    legacy: langflow-base
+    overlap: []
+  - canonical: ketos
+    legacy: langflow
+    overlap: []
+  - canonical: kfx
+    legacy: lfx
+    overlap: []
+  - canonical: ketos-sdk
+    legacy: langflow-sdk
+    overlap: []
+  - canonical: ketos-stepflow
+    legacy: langflow-stepflow
+    overlap: []
+module_maps:
+  backend:
+    path: src/compat/langflow-base/src/langflow_compat/module-map-v1.json
+    sha256: 4e89be9f30664a097fdeade4125caf8ac1568a1fb2ec9081ebd549e85ad4e6f1
+    mapped_modules: 1154
+  executor:
+    path: src/compat/lfx/src/lfx_compat/module-map-v1.json
+    sha256: aacbadc146f45b9bf0f049b8dc7b02c2c4e21c5774e8578d2cabfa50ede4d5bd
+    mapped_modules: 974
+  sdk:
+    mapped_modules: 12
+  stepflow:
+    mapped_modules: 22
+identity_matrix:
+  backend_modules: PASS
+  backend_renamed_exports: PASS
+  executor_modules: PASS
+  executor_objects: PASS
+  sdk_clients_and_exceptions: PASS
+  stepflow_modules_and_renamed_symbols: PASS
+pytest_owners:
+  executor:
+    distribution: kfx
+    entry_point: kfx.testing
+  sdk:
+    distribution: ketos-sdk
+    entry_point: ketos_sdk.testing
+runtime_matrix:
+  scenarios:
+    canonical-only: PASS
+    legacy-only: PASS
+    canonical-then-legacy: PASS
+    legacy-then-canonical: PASS
+  commands: 41
+  duration_seconds: 461.979
+  peak_used_ram_gib: 6.638
+  cli_help:
+    - ketos
+    - langflow
+    - kfx
+    - lfx
+    - kfx-mcp
+    - lfx-mcp
+evidence:
+  root: /Volumes/Projects/.ketos-rebrand-evidence/ketos_canvas_mod_main/s2/wheelset-d28c2bea33e51629ce1bdc045a3738a8225d145be720755b37696c0d3e942e67
+  tree_sha256: 9c3e1c36e3fcfc9566d6c7a3b82d1cdd23eedc202a2bd869478840e5e1e66a30
+  corrective_pass_sha256: 0a476a2e0a3f47425ae887f43dff270466de099f795e022ab39ae80f92ae64b3
+  first_run_fail_sha256: 78cf25d889960890cf47073d804a3a22e55757c4799733046d90d71c00e26c92
+  local_proof_fail_sha256: b63f903a12190f668c9b2b1a43cdc580260170a00fd5b725ca88f6929fd28623

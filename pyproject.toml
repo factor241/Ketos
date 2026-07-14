@@ -73,6 +73,11 @@ ketos = { workspace = true }
 kfx = { workspace = true }
 ketos-sdk = { workspace = true }
 ketos-stepflow = { workspace = true }
+langflow-base = { workspace = true }
+langflow = { workspace = true }
+lfx = { workspace = true }
+langflow-sdk = { workspace = true }
+langflow-stepflow = { workspace = true }
 # ketos-extensions:bundle-sources-start
 kfx-duckduckgo = { workspace = true }
 kfx-arxiv = { workspace = true }
@@ -89,6 +94,11 @@ members = [
     "src/kfx",
     "src/ketos-stepflow",
     "src/sdk",
+    "src/compat/langflow-base",
+    "src/compat/langflow",
+    "src/compat/lfx",
+    "src/compat/langflow-sdk",
+    "src/compat/langflow-stepflow",
     # ketos-extensions:bundle-members-start
     "src/bundles/duckduckgo",
     "src/bundles/arxiv",

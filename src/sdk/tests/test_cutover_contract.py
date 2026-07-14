@@ -1,4 +1,4 @@
-"""Filesystem and metadata contracts for the destructive SDK cutover."""
+"""Filesystem and metadata contracts for canonical and compatibility SDKs."""
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ def test_only_ketos_environment_example_exists() -> None:
     assert not (SDK_ROOT / f"{old_brand}-environments.toml.example").exists()
 
 
-def test_sdk_tree_has_no_legacy_brand_residue() -> None:
+def test_legacy_brand_is_confined_to_compatibility_and_legal_surfaces() -> None:
     old_brand = "lang" + "flow"
     forbidden = (old_brand, old_brand.replace("g", "g_"), old_brand.replace("g", "g-"))
     offenders: list[str] = []
@@ -62,4 +62,13 @@ def test_sdk_tree_has_no_legacy_brand_residue() -> None:
                 continue
             if any(token in text.casefold() for token in forbidden):
                 offenders.append(relative)
-    assert offenders == []
+
+    # The canonical distribution remains Ketos-only. Legacy identifiers are
+    # permitted only in the single canonical pytest implementation, its
+    # compatibility contract, and immutable legal attribution files.
+    assert sorted(offenders) == [
+        "LICENSE",
+        "NOTICE",
+        "src/ketos_sdk/testing.py",
+        "tests/test_testing.py",
+    ]

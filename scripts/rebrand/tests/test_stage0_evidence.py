@@ -50,20 +50,39 @@ def pending_legacy_contract() -> dict:
     return contract
 
 
-def test_self_contract_locator_requires_exact_path_scalar_at_real_line() -> None:
+def occurrence_source_path(item: dict) -> Path:
+    locator_prefix = item["category"]
+    if item["subtype"] is not None:
+        locator_prefix += f":{item['subtype']}"
+    locator_body = item["locator"].removeprefix(locator_prefix + ":")
+    locator_path, separator, locator_line = locator_body.rpartition(":")
+    assert separator == ":"
+    assert locator_line.isdigit()
+    return Path(locator_path)
+
+
+def test_self_contract_locator_uses_exact_loaded_path_and_escaped_real_line() -> None:
     scanner = load_scanner()
     relative_path = LEGACY.relative_to(ROOT).as_posix()
-    exact_scalar = f"    - {relative_path}"
-    contract_lines = LEGACY.read_text(encoding="utf-8").splitlines()
-    real_line = contract_lines.index(exact_scalar) + 1
-    expected = f"historical_fixture:{relative_path}:{real_line}"
+    contract_text = LEGACY.read_text(encoding="utf-8")
+    contract = yaml.safe_load(contract_text)
+    document = yaml.compose(contract_text)
+    assert isinstance(document, yaml.MappingNode)
+    baseline_node = next(value for key, value in document.value if key.value == "baseline")
+    assert isinstance(baseline_node, yaml.MappingNode)
+    paths_node = next(value for key, value in baseline_node.value if key.value == "paths")
+    assert isinstance(paths_node, yaml.SequenceNode)
+    self_path_node = next(node for node in paths_node.value if node.value == relative_path)
+    real_line = self_path_node.start_mark.line + 1
+    raw_line = contract_text.splitlines()[real_line - 1]
 
-    assert scanner._technical_locator(relative_path, real_line, exact_scalar, "legacy_brand") == expected
-    assert scanner._technical_locator(relative_path, real_line + 1, exact_scalar, "legacy_brand") is None
-    assert scanner._technical_locator(relative_path, real_line, f"prefix {exact_scalar}", "legacy_brand") is None
-    assert scanner._technical_locator(relative_path, real_line, f"{exact_scalar}.bak", "legacy_brand") is None
-    assert scanner._technical_locator(relative_path, real_line, "    - other.yaml", "legacy_brand") is None
-    assert scanner._technical_locator("brand/other-contract.yaml", real_line, exact_scalar, "legacy_brand") is None
+    assert relative_path in contract["baseline"]["paths"]
+    assert "\\u0066" in raw_line
+    assert scanner._technical_locator(relative_path, real_line, raw_line, "legacy_brand") is None
+    assert scanner._technical_locator(relative_path, 0, relative_path, "legacy_brand") == (
+        f"historical_fixture:{relative_path}:0"
+    )
+    assert scanner._technical_locator("brand/other-contract.yaml", 0, relative_path, "legacy_brand") is None
 
 
 def test_legacy_contract_uses_ancestral_evidence_base_commit(tmp_path: Path) -> None:
@@ -88,13 +107,10 @@ def test_legacy_contract_uses_ancestral_evidence_base_commit(tmp_path: Path) -> 
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.name", "Stage Zero"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.email", "stage0@example.invalid"], cwd=repo, check=True)
-    referenced = [
-        LEGACY.relative_to(ROOT),
-        Path("scripts/rebrand/tests/test_stage0_contract.py"),
-        Path("scripts/rebrand/tests/fixtures/legacy-extension-v1.toml"),
-        Path("scripts/rebrand/tests/fixtures/legacy-package-alias.txt"),
-    ]
-    for relative in referenced:
+    referenced = {LEGACY.relative_to(ROOT)}
+    referenced.update(occurrence_source_path(item) for item in contract["occurrences"])
+    referenced.update(Path(item["compatibility_test"]) for item in contract["occurrences"])
+    for relative in sorted(referenced):
         destination = repo / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(ROOT / relative, destination)

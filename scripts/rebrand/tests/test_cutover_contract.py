@@ -651,3 +651,21 @@ def test_synthetic_archive_issue_path_cannot_be_overwritten_by_real_path(tmp_pat
         item["kind"] == "duplicate_scan_path" and item["path"] == sentinel_path
         for item in actionable_violations(report)
     )
+
+
+def test_stage5_migration_surfaces_receive_semantic_locators() -> None:
+    scanner = load_scanner()
+    legacy = scanner._LEGACY_PRODUCT_TEXT  # noqa: SLF001 - scanner contract fixture.
+    cases = (
+        ("brand/compatibility/stage5-env-contract-v1.yaml", f"legacy {legacy.upper()} compatibility"),
+        ("src/backend/base/ketos/brand_state/discovery.py", f"legacy {legacy} state"),
+        ("src/kfx/src/kfx/brand_env.py", f"{legacy.title()} fallback"),
+    )
+
+    for path, line in cases:
+        assert (
+            scanner._technical_locator(  # noqa: SLF001 - validates the scanner's semantic classifier.
+                path, 7, line, "legacy_brand"
+            )
+            == f"historical_migration:{path}:7"
+        )

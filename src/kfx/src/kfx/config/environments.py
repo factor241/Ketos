@@ -40,6 +40,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from kfx.brand_env import get_brand_env_policy, resolve_brand_env
 from kfx.config.paths import ketos_config_dir
 
 # ---------------------------------------------------------------------------
@@ -280,9 +281,21 @@ def resolve_environment(
 
     if config_path is None:
         # No config file found — try env-var fallback before giving up
-        lf_url = os.environ.get("KETOS_URL")
+        url_policy = get_brand_env_policy("URL")
+        lf_url = resolve_brand_env(
+            "URL",
+            None,
+            sensitivity=url_policy.sensitivity,
+            conflict_policy=url_policy.conflict_policy,
+        )
         if lf_url and env is None:
-            lf_key = api_key or os.environ.get("KETOS_API_KEY")
+            api_key_policy = get_brand_env_policy("API_KEY")
+            lf_key = api_key or resolve_brand_env(
+                "API_KEY",
+                None,
+                sensitivity=api_key_policy.sensitivity,
+                conflict_policy=api_key_policy.conflict_policy,
+            )
             return KetosEnvironment(name="__env__", url=lf_url, api_key=lf_key)
 
         if env is not None:

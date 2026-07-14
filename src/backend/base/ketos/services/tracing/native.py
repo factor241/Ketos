@@ -8,12 +8,12 @@ without requiring external services like LangSmith or LangFuse.
 from __future__ import annotations
 
 import asyncio
-import os
 from collections import OrderedDict
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid5
 
+from kfx.brand_env import resolve_brand_env
 from kfx.log.logger import logger
 from typing_extensions import override
 
@@ -29,8 +29,8 @@ from ketos.services.tracing.span_sorting import (
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from langchain_classic.callbacks.base import BaseCallbackHandler
     from kfx.graph.vertex.base import Vertex
+    from langchain_classic.callbacks.base import BaseCallbackHandler
 
     from ketos.services.tracing.schema import Log
 
@@ -112,7 +112,12 @@ class NativeTracer(BaseTracer):
     @staticmethod
     def _is_enabled() -> bool:
         """Opt-out rather than opt-in so new deployments get tracing without extra config."""
-        return os.getenv("KETOS_NATIVE_TRACING", "true").lower() not in ("false", "0", "no")
+        return resolve_brand_env(
+            "NATIVE_TRACING",
+            "true",
+            sensitivity="public",
+            conflict_policy="error",
+        ).lower() not in ("false", "0", "no")
 
     @property
     def ready(self) -> bool:

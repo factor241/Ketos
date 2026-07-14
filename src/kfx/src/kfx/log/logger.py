@@ -4,7 +4,6 @@ import contextlib
 import json
 import logging
 import logging.handlers
-import os
 import sys
 import warnings
 from collections import deque
@@ -18,6 +17,7 @@ import structlog
 from loguru import logger as loguru_logger
 from typing_extensions import NotRequired
 
+from kfx.brand_env import get_brand_env_policy, resolve_brand_env
 from kfx.config.paths import ketos_cache_dir
 from kfx.settings import DEV
 
@@ -29,6 +29,18 @@ except ImportError:
     _otel_trace = None
 
 VALID_LOG_LEVELS = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+
+
+def _resolve_registered_brand_env(name: str, default: str) -> str:
+    """Resolve a reviewed direct-read setting through the shared brand policy."""
+    policy = get_brand_env_policy(name)
+    return resolve_brand_env(
+        name,
+        default,
+        sensitivity=policy.sensitivity,
+        conflict_policy=policy.conflict_policy,
+    )
+
 
 # Map log level names to integers
 LOG_LEVEL_MAP = {
@@ -149,7 +161,7 @@ class SizedLogBuffer:
         """Get the maximum buffer size."""
         # Get it dynamically to allow for env variable changes
         if self._max == 0:
-            env_buffer_size = os.getenv("KETOS_LOG_RETRIEVER_BUFFER_SIZE", "0")
+            env_buffer_size = _resolve_registered_brand_env("LOG_RETRIEVER_BUFFER_SIZE", "0")
             if env_buffer_size.isdigit():
                 self._max = int(env_buffer_size)
         return self._max
@@ -190,9 +202,9 @@ def add_serialized(_logger: Any, _method_name: str, event_dict: dict[str, Any]) 
 
 def _get_service_info() -> dict[str, str]:
     """Read service metadata once so it can be injected into every log record."""
-    service = os.getenv("KETOS_SERVICE_NAME", "ketos")
-    version = os.getenv("KETOS_VERSION", "")
-    environment = os.getenv("KETOS_ENVIRONMENT", "")
+    service = _resolve_registered_brand_env("SERVICE_NAME", "ketos")
+    version = _resolve_registered_brand_env("VERSION", "")
+    environment = _resolve_registered_brand_env("ENVIRONMENT", "")
     info = {"service": service}
     if version:
         info["version"] = version
@@ -317,7 +329,7 @@ def _apply_logger_level_overrides() -> None:
     warning instead of being silently dropped so operators see typos like
     ``WARN`` instead of ``WARNING``.
     """
-    raw = os.getenv("KETOS_LOG_LEVELS", "").strip()
+    raw = _resolve_registered_brand_env("LOG_LEVELS", "").strip()
     if not raw:
         return
     for pair in raw.split(","):
@@ -445,21 +457,23 @@ def configure(
     # was both a real footgun and a source of test-isolation flakiness (a prior
     # same-level configure() made a later file-mode configure() do nothing,
     # surfacing as FileNotFoundError when a test read the log file).
-    if log_level is None and os.getenv("KETOS_LOG_LEVEL", "").upper() in VALID_LOG_LEVELS:
-        log_level = os.getenv("KETOS_LOG_LEVEL")
+    if log_level is None:
+        env_log_level = _resolve_registered_brand_env("LOG_LEVEL", "")
+        if env_log_level.upper() in VALID_LOG_LEVELS:
+            log_level = env_log_level
     if log_level is None or log_level.upper() not in LOG_LEVEL_MAP:
         log_level = "ERROR"
 
     if log_file is None:
-        env_log_file = os.getenv("KETOS_LOG_FILE", "")
+        env_log_file = _resolve_registered_brand_env("LOG_FILE", "")
         log_file = Path(env_log_file) if env_log_file else None
 
     if log_env is None:
-        log_env = os.getenv("KETOS_LOG_ENV", "")
+        log_env = _resolve_registered_brand_env("LOG_ENV", "")
 
     # Get log format from env if not provided
     if log_format is None:
-        log_format = os.getenv("KETOS_LOG_FORMAT")
+        log_format = _resolve_registered_brand_env("LOG_FORMAT", "") or None
 
     numeric_level = LOG_LEVEL_MAP.get(log_level.upper(), logging.ERROR)
 
@@ -491,7 +505,9 @@ def configure(
             event_dict.setdefault(key, value)
         return event_dict
 
-    extra_redact = frozenset(k.strip().lower() for k in os.getenv("KETOS_LOG_REDACT_KEYS", "").split(",") if k.strip())
+    extra_redact = frozenset(
+        k.strip().lower() for k in _resolve_registered_brand_env("LOG_REDACT_KEYS", "").split(",") if k.strip()
+    )
     redact_processor = _build_redact_processor(extra_redact)
 
     processors: list[Any] = [
@@ -532,7 +548,8 @@ def configure(
     # `show_locals` is OFF by default in JSON output because frame locals can
     # leak secrets (API keys, env, request bodies). Opt in with
     # KETOS_LOG_TRACE_LOCALS=true when you need it for local debugging.
-    show_locals = os.getenv("KETOS_LOG_TRACE_LOCALS", "false").lower() == "true"
+    show_locals = _resolve_registered_brand_env("LOG_TRACE_LOCALS", "false").lower() == "true"
+    pretty_logs = _resolve_registered_brand_env("PRETTY_LOGS", "true").lower() == "true"
     json_traceback = structlog.processors.ExceptionRenderer(
         structlog.tracebacks.ExceptionDictTransformer(show_locals=show_locals, max_frames=50)
     )
@@ -586,18 +603,16 @@ def configure(
             key_order += ["filename", "func_name", "lineno"]
 
         processors.append(structlog.processors.KeyValueRenderer(key_order=key_order, drop_missing=True))
-    else:
-        # Use rich console for pretty printing based on environment variable
-        log_stdout_pretty = os.getenv("KETOS_PRETTY_LOGS", "true").lower() == "true"
-        if log_stdout_pretty:
-            # If custom format is provided, use KeyValueRenderer with custom format
-            if log_format:
-                processors.append(structlog.processors.format_exc_info)
-                processors.append(structlog.processors.KeyValueRenderer())
-            else:
-                processors.append(structlog.dev.ConsoleRenderer(colors=True))
+    # Use rich console for pretty printing based on environment variable
+    elif pretty_logs:
+        # If custom format is provided, use KeyValueRenderer with custom format
+        if log_format:
+            processors.append(structlog.processors.format_exc_info)
+            processors.append(structlog.processors.KeyValueRenderer())
         else:
-            _append_json_tail()
+            processors.append(structlog.dev.ConsoleRenderer(colors=True))
+    else:
+        _append_json_tail()
 
     # Create the filtering wrapper. ``numeric_level`` was resolved above for the
     # fingerprint. Attach min_level (kept for back-compat) and the full config
@@ -665,9 +680,7 @@ def configure(
     # routed into structlog so it comes out as JSON instead of unstructured
     # text. In non-JSON modes leave stdlib alone so dev console output stays
     # readable.
-    json_mode = log_env.lower() in ("container", "container_json") or (
-        not log_env and os.getenv("KETOS_PRETTY_LOGS", "true").lower() != "true"
-    )
+    json_mode = log_env.lower() in ("container", "container_json") or (not log_env and not pretty_logs)
     if json_mode and not log_file:
         _install_stdlib_intercept(numeric_level)
 

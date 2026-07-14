@@ -1,8 +1,20 @@
 # celeryconfig.py
 import os
 
-ketos_redis_host = os.environ.get("KETOS_REDIS_HOST")
-ketos_redis_port = os.environ.get("KETOS_REDIS_PORT")
+from kfx.brand_env import resolve_brand_env
+
+ketos_redis_host = resolve_brand_env(
+    "REDIS_HOST",
+    None,
+    sensitivity="public",
+    conflict_policy="error",
+)
+ketos_redis_port = resolve_brand_env(
+    "REDIS_PORT",
+    None,
+    sensitivity="public",
+    conflict_policy="error",
+)
 # broker default user
 
 if ketos_redis_host and ketos_redis_port:

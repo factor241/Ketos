@@ -1,9 +1,9 @@
 """Helper for Windows + PostgreSQL event loop configuration."""
 
 import asyncio
-import os
 import platform
 
+from kfx.brand_env import resolve_brand_env
 from kfx.log.logger import logger
 
 KETOS_DATABASE_URL = "KETOS_DATABASE_URL"
@@ -22,7 +22,7 @@ def configure_windows_postgres_event_loop(source: str | None = None) -> bool:
     if platform.system() != "Windows":
         return False
 
-    db_url = os.environ.get(KETOS_DATABASE_URL, "")
+    db_url = resolve_brand_env("DATABASE_URL", "", sensitivity="secret", conflict_policy="error")
     if not db_url or not any(db_url.startswith(prefix) for prefix in POSTGRESQL_PREFIXES):
         return False
 

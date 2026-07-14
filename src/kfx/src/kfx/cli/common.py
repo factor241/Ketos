@@ -23,6 +23,7 @@ from urllib.parse import urlparse
 import httpx
 import typer
 
+from kfx.brand_env import get_brand_env_policy, resolve_brand_env
 from kfx.cli.runtime_variables import build_request_variables_from_global_vars
 from kfx.cli.script_loader import (
     extract_structured_result,
@@ -121,7 +122,13 @@ def get_api_key() -> str:
     is resolved via :func:`kfx.config.resolve_environment` and the
     ``api_key_env`` field in the canonical Ketos environments file.
     """
-    api_key = os.getenv("KETOS_API_KEY")
+    policy = get_brand_env_policy("API_KEY")
+    api_key = resolve_brand_env(
+        "API_KEY",
+        None,
+        sensitivity=policy.sensitivity,
+        conflict_policy=policy.conflict_policy,
+    )
     if not api_key:
         msg = "KETOS_API_KEY environment variable is not set"
         raise ValueError(msg)

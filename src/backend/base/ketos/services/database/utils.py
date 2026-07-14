@@ -7,11 +7,19 @@ from uuid import UUID
 
 from alembic.util.exc import CommandError
 from kfx.log.logger import logger
-from sqlmodel import text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 if TYPE_CHECKING:
     from ketos.services.database.service import DatabaseService
+
+
+_RECOVERABLE_ALEMBIC_REVISION_ERROR = "Target database is not up to date"
+
+
+def is_unrecoverable_alembic_revision_error(exc: BaseException) -> bool:
+    """Return whether Alembic cannot map the persisted revision to vendored history."""
+    normalized = " ".join(str(exc).split()).rstrip(".")
+    return normalized != _RECOVERABLE_ALEMBIC_REVISION_ERROR
 
 
 async def initialize_database(*, fix_migration: bool = False) -> None:
@@ -47,21 +55,11 @@ async def initialize_database(*, fix_migration: bool = False) -> None:
         raise RuntimeError(msg) from exc
     try:
         await database_service.run_migrations(fix=fix_migration)
-    except CommandError as exc:
-        error_message = str(exc)
-        if (
-            "overlaps with other requested revisions" in error_message
-            or "Can't locate revision identified by" in error_message
-        ):
-            # Wrong revision in the DB: delete alembic_version and re-run migrations
-            logger.warning("Wrong revision in DB, deleting alembic_version table and running migrations again")
-            from ketos.services.deps import session_scope
-
-            async with session_scope() as session:
-                await session.exec(text("DROP TABLE alembic_version"))
-            await database_service.run_migrations(fix=fix_migration)
-        else:
-            raise
+    except CommandError:
+        # Unknown, overlapping, or otherwise invalid persisted revisions must
+        # never be repaired by deleting Alembic history. Operators need the
+        # original error so they can supply the matching versioned artifact.
+        raise
     except Exception as exc:
         error_message = str(exc)
         # if the exception involves tables already existing

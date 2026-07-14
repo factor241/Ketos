@@ -42,6 +42,7 @@ from importlib import metadata as importlib_metadata
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
+from kfx.brand_env import resolve_brand_env
 from kfx.extension._paths import SKIP_DIR_NAMES, is_within
 from kfx.extension.errors import ExtensionError
 from kfx.extension.manifest import (
@@ -653,7 +654,7 @@ def discover_seed_extensions(
         missing seed roots and per-subdirectory manifest failures.
     """
     if seed_dir_env is None:
-        seed_dir_env = os.environ.get(SEED_DIR_ENV_VAR)
+        seed_dir_env = resolve_brand_env("SEED_DIR", "", sensitivity="public", conflict_policy="error")
 
     seed_paths, errors = _resolve_seed_paths(seed_dir_env=seed_dir_env, default=default)
     extensions: list[DiscoveredExtension] = []

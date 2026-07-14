@@ -1,13 +1,15 @@
 import secrets
 from enum import Enum
 from pathlib import Path
-from typing import Literal
+from typing import ClassVar, Literal
 
 from passlib.context import CryptContext
 from pydantic import Field, SecretStr, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
+from typing_extensions import override
 
 from kfx.log.logger import logger
+from kfx.services.settings.brand_env import BrandEnvSettingsSource
 from kfx.services.settings.constants import DEFAULT_SUPERUSER, DEFAULT_SUPERUSER_PASSWORD
 from kfx.services.settings.utils import (
     derive_public_key_from_private,
@@ -177,9 +179,26 @@ class AuthSettings(BaseSettings):
         ),
     )
 
-    pwd_context: CryptContext = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    pwd_context: ClassVar[CryptContext] = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
     model_config = SettingsConfigDict(validate_assignment=True, extra="ignore", env_prefix="KETOS_")
+
+    @classmethod
+    @override
+    def settings_customise_sources(  # type: ignore[misc]
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return (
+            init_settings,
+            BrandEnvSettingsSource(settings_cls),
+            dotenv_settings,
+            file_secret_settings,
+        )
 
     def reset_credentials(self) -> None:
         # Preserve the configured username but scrub the password from memory to avoid plaintext exposure.

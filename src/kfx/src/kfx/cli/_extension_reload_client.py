@@ -8,11 +8,12 @@ and is responsible only for argument parsing and rendering.
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
+
+from kfx.brand_env import get_brand_env_policy, resolve_brand_env
 
 DEFAULT_TARGET = "http://localhost:7860"
 """Fallback Ketos server URL when neither ``--target`` nor ``KETOS_HOST`` is set."""
@@ -42,10 +43,16 @@ class ReloadHttpResponse:
 
 
 def resolve_target(explicit: str | None) -> str:
-    """Pick the server URL to call.  Precedence: explicit > $KETOS_HOST > default."""
+    """Pick the server URL to call. Precedence: explicit > branded HOST > default."""
     if explicit:
         return explicit.rstrip("/")
-    env_target = os.environ.get("KETOS_HOST")
+    policy = get_brand_env_policy("HOST")
+    env_target = resolve_brand_env(
+        "HOST",
+        None,
+        sensitivity=policy.sensitivity,
+        conflict_policy=policy.conflict_policy,
+    )
     if env_target:
         return env_target.rstrip("/")
     return DEFAULT_TARGET
@@ -55,7 +62,13 @@ def resolve_api_key(explicit: str | None) -> str | None:
     """Pick the API key to send.  Precedence: explicit > env > None."""
     if explicit:
         return explicit
-    return os.environ.get("KETOS_API_KEY")
+    policy = get_brand_env_policy("API_KEY")
+    return resolve_brand_env(
+        "API_KEY",
+        None,
+        sensitivity=policy.sensitivity,
+        conflict_policy=policy.conflict_policy,
+    )
 
 
 def reload_via_http(

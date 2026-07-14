@@ -5,6 +5,17 @@ from pydantic import BaseModel, field_validator, model_validator
 
 from kfx.constants import BASE_COMPONENTS_PATH
 from kfx.log.logger import logger
+from kfx.services.settings.brand_env import _read_brand_env_without_warning
+
+
+def _split_components_paths(value: str) -> list[str]:
+    """Accept both the documented comma form and the platform path separator."""
+    return [
+        entry
+        for comma_group in value.split(",")
+        for raw_entry in comma_group.split(os.pathsep)
+        if (entry := raw_entry.strip())
+    ]
 
 
 class ComponentsSettings(BaseModel):
@@ -71,7 +82,10 @@ class ComponentsSettings(BaseModel):
         appended to the provided list if not already present. If the input list is empty or missing, it is
         set to an empty list.
         """
-        env_value = os.getenv("KETOS_COMPONENTS_PATH")
+        raw_values = value if isinstance(value, list) else [value] if value else []
+        value = [entry for raw_value in raw_values for entry in _split_components_paths(str(raw_value))]
+
+        env_value = _read_brand_env_without_warning("COMPONENTS_PATH", None)
         if env_value:
             logger.debug("Adding KETOS_COMPONENTS_PATH to components_path")
             # Split on os.pathsep so multi-entry env vars
@@ -79,10 +93,7 @@ class ComponentsSettings(BaseModel):
             # parsed as multiple components paths instead of one literal
             # non-existent path. Empty segments (e.g. trailing pathsep) are
             # ignored.
-            for raw_entry in env_value.split(os.pathsep):
-                entry = raw_entry.strip()
-                if not entry:
-                    continue
+            for entry in _split_components_paths(env_value):
                 if not Path(entry).exists():
                     # Surface at warning so a typo in KETOS_COMPONENTS_PATH
                     # is visible in default log levels rather than silently
@@ -97,10 +108,6 @@ class ComponentsSettings(BaseModel):
 
         if not value:
             value = [BASE_COMPONENTS_PATH]
-        elif isinstance(value, Path):
-            value = [str(value)]
-        elif isinstance(value, list):
-            value = [str(p) if isinstance(p, Path) else p for p in value]
         return value
 
     @model_validator(mode="after")
@@ -117,14 +124,14 @@ class ComponentsSettings(BaseModel):
         if self.allow_custom_components or self.allow_components_paths_override:
             return self
 
-        env_components_path = os.getenv("KETOS_COMPONENTS_PATH")
+        env_components_path = _read_brand_env_without_warning("COMPONENTS_PATH", None)
         if env_components_path:
             # The env var may be a comma-separated list; CustomSource splits it
             # before the field validator runs, so self.components_path contains
             # individual entries rather than the raw comma-joined string.
             # In-place removal avoids re-triggering ``set_components_path``, which
             # would re-read KETOS_COMPONENTS_PATH and append the paths again.
-            env_paths = [p.strip() for p in env_components_path.split(",") if p.strip()]
+            env_paths = _split_components_paths(env_components_path)
             stripped_any = False
             for env_path in env_paths:
                 while env_path in self.components_path:
@@ -141,7 +148,7 @@ class ComponentsSettings(BaseModel):
         # Only strip the index path when it came from the env var, mirroring the
         # components_path handling above. A value set via config/YAML is not part of
         # the env-var bypass this flag governs, so leave it untouched.
-        env_components_index_path = os.getenv("KETOS_COMPONENTS_INDEX_PATH")
+        env_components_index_path = _read_brand_env_without_warning("COMPONENTS_INDEX_PATH", None)
         if env_components_index_path and self.components_index_path == env_components_index_path:
             logger.warning(
                 "Ignoring KETOS_COMPONENTS_INDEX_PATH=%s: "

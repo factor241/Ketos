@@ -23,6 +23,7 @@ import ipaddress
 import socket
 from urllib.parse import urlparse
 
+from kfx.brand_env import get_brand_env_policy, resolve_brand_env
 from kfx.logging import logger
 from kfx.services.deps import get_settings_service
 
@@ -77,11 +78,13 @@ def is_ssrf_protection_enabled() -> bool:
     Returns:
         bool: True if SSRF protection is enabled, False otherwise.
     """
-    # Read directly from environment variable to support test mocking with patch.dict()
-    # This ensures tests can override the protection state without settings service caching issues
-    import os
-
-    env_value = os.getenv("KETOS_SSRF_PROTECTION_ENABLED")
+    policy = get_brand_env_policy("SSRF_PROTECTION_ENABLED")
+    env_value = resolve_brand_env(
+        "SSRF_PROTECTION_ENABLED",
+        None,
+        sensitivity=policy.sensitivity,
+        conflict_policy=policy.conflict_policy,
+    )
     if env_value is not None:
         # Environment variable is set - use it (supports test mocking)
         return env_value.lower() in ("true", "1", "yes", "on")
@@ -96,11 +99,13 @@ def get_allowed_hosts() -> list[str]:
     Returns:
         list[str]: Stripped hostnames or CIDR blocks from settings, or empty list if unset.
     """
-    # Read directly from environment variable to support test mocking with patch.dict()
-    # This ensures tests can override the allowlist without settings service caching issues
-    import os
-
-    env_value = os.getenv("KETOS_SSRF_ALLOWED_HOSTS", "")
+    policy = get_brand_env_policy("SSRF_ALLOWED_HOSTS")
+    env_value = resolve_brand_env(
+        "SSRF_ALLOWED_HOSTS",
+        "",
+        sensitivity=policy.sensitivity,
+        conflict_policy=policy.conflict_policy,
+    )
     if env_value:
         # Parse comma-separated list from environment variable
         return [host.strip() for host in env_value.split(",") if host.strip()]

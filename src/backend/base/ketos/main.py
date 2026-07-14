@@ -19,6 +19,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi_pagination import add_pagination
 from filelock import FileLock
+from kfx.brand_env import resolve_brand_env
 from kfx.config.paths import ketos_temp_dir
 from kfx.interface.utils import setup_llm_caching
 from kfx.log.logger import configure, logger
@@ -508,7 +509,12 @@ def get_lifespan(*, fix_migration=False, version=None):
             # fetch. Tests set this: the startup fetch otherwise fires from a
             # background task during whatever test is running, hitting the
             # network and tripping event-loop-block detectors (pyleak).
-            if os.getenv("KETOS_MODELS_DEV_REFRESH", "true").lower() not in ("false", "0", "no"):
+            if resolve_brand_env(
+                "MODELS_DEV_REFRESH",
+                "true",
+                sensitivity="public",
+                conflict_policy="error",
+            ).lower() not in ("false", "0", "no"):
                 models_dev_refresh_task = asyncio.create_task(refresh_models_dev_periodically())
             else:
                 await logger.adebug("models.dev refresh disabled via KETOS_MODELS_DEV_REFRESH")
@@ -551,7 +557,12 @@ def get_lifespan(*, fix_migration=False, version=None):
             from ketos.__main__ import get_number_of_workers
             from ketos.cli.progress import create_ketos_shutdown_progress
 
-            log_level = os.getenv("KETOS_LOG_LEVEL", "info").lower()
+            log_level = resolve_brand_env(
+                "LOG_LEVEL",
+                "info",
+                sensitivity="public",
+                conflict_policy="warn",
+            ).lower()
             num_workers = get_number_of_workers(get_settings_service().settings.workers)
             shutdown_progress = create_ketos_shutdown_progress(
                 verbose=log_level == "debug", multiple_workers=num_workers > 1
@@ -797,7 +808,12 @@ def create_app():
         response.headers["Vary"] = ", ".join(vary_tokens)
         return response
 
-    if prome_port_str := os.environ.get("KETOS_PROMETHEUS_PORT"):
+    if prome_port_str := resolve_brand_env(
+        "PROMETHEUS_PORT",
+        None,
+        sensitivity="public",
+        conflict_policy="error",
+    ):
         # set here for create_app() entry point
         prome_port = int(prome_port_str)
         if prome_port > 0 and prome_port < MAX_PORT:

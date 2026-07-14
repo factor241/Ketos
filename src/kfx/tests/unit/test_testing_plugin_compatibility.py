@@ -126,8 +126,8 @@ def test_legacy_local_family_remains_supported(monkeypatch) -> None:
 def test_canonical_remote_environment_precedes_legacy_cli(monkeypatch) -> None:
     monkeypatch.setenv("KETOS_URL", "https://ketos-env.example")
     monkeypatch.setenv("KETOS_API_KEY", "ketos-env-key")
-    monkeypatch.setenv("LANGFLOW_URL", "https://langflow-env.example")
-    monkeypatch.setenv("LANGFLOW_API_KEY", "langflow-env-key")
+    monkeypatch.setenv("LANGFLOW_URL", "https://ketos-env.example")
+    monkeypatch.setenv("LANGFLOW_API_KEY", "ketos-env-key")
     client = object()
     sdk = SimpleNamespace(KetosClient=MagicMock(return_value=client))
     monkeypatch.setitem(sys.modules, "ketos_sdk", sdk)
@@ -186,3 +186,29 @@ def test_legacy_remote_family_uses_canonical_async_client(monkeypatch) -> None:
 
     assert plugin._resolve_async_remote_client(request) is client
     sdk.AsyncKetosClient.assert_called_once_with(base_url="https://legacy.example", api_key="legacy-key")
+
+
+def test_remote_secret_environment_conflict_fails_closed_without_values(monkeypatch) -> None:
+    import pytest
+    from kfx.brand_env import BrandEnvConflictError
+
+    monkeypatch.setenv("KETOS_URL", "https://same.example")
+    monkeypatch.setenv("LANGFLOW_URL", "https://same.example")
+    monkeypatch.setenv("KETOS_API_KEY", "canonical-secret")
+    monkeypatch.setenv("LANGFLOW_API_KEY", "legacy-secret")
+    request = _Request(
+        ketos_url=None,
+        ketos_api_key=None,
+        ketos_env=None,
+        ketos_environments_file=None,
+        langflow_url=None,
+        langflow_api_key=None,
+        langflow_env=None,
+        langflow_environments_file=None,
+    )
+
+    with pytest.raises(BrandEnvConflictError) as caught:
+        plugin._resolve_remote_client(request)
+
+    assert "canonical-secret" not in str(caught.value)
+    assert "legacy-secret" not in repr(caught.value)

@@ -6,6 +6,7 @@ from typing import Any
 
 from gunicorn import glogging
 from gunicorn.app.base import BaseApplication
+from kfx.brand_env import resolve_brand_env
 from kfx.log.logger import InterceptHandler
 from uvicorn.workers import UvicornWorker
 
@@ -111,11 +112,15 @@ class KetosApplication(BaseApplication):
     @classmethod
     def pre_fork(cls, server, _worker):
         import gc
-        import os
         import threading
 
         all_non_main = [t for t in threading.enumerate() if t.is_alive() and t is not threading.main_thread()]
-        debug_mode = os.environ.get("KETOS_DEBUG_FORK_GHOSTS", "").lower() in ("1", "true", "yes")
+        debug_mode = resolve_brand_env(
+            "DEBUG_FORK_GHOSTS",
+            "",
+            sensitivity="public",
+            conflict_policy="error",
+        ).lower() in ("1", "true", "yes")
 
         if debug_mode and all_non_main:
             names = [t.name for t in all_non_main]

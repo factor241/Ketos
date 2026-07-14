@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import os
 import platform
 import traceback
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 import httpx
+from kfx.brand_env import resolve_brand_env
 from kfx.log.logger import logger
 
 from ketos.services.base import Service
@@ -50,7 +50,14 @@ class TelemetryService(Service):
         self.worker_task: asyncio.Task | None = None
         # Check for do-not-track settings
         self.do_not_track = (
-            os.getenv("DO_NOT_TRACK", "False").lower() == "true" or settings_service.settings.do_not_track
+            resolve_brand_env(
+                "DO_NOT_TRACK",
+                "False",
+                sensitivity="public",
+                conflict_policy="error",
+            ).lower()
+            == "true"
+            or settings_service.settings.do_not_track
         )
         self.log_package_version_task: asyncio.Task | None = None
         self.log_package_email_task: asyncio.Task | None = None
@@ -131,7 +138,14 @@ class TelemetryService(Service):
 
     def _get_ketos_desktop(self) -> bool:
         # Coerce to bool, could be 1, 0, True, False, "1", "0", "True", "False"
-        return str(os.getenv("KETOS_DESKTOP", "False")).lower() in {"1", "true"}
+        return str(
+            resolve_brand_env(
+                "DESKTOP",
+                "False",
+                sensitivity="public",
+                conflict_policy="error",
+            )
+        ).lower() in {"1", "true"}
 
     def _get_client_type(self) -> str:
         return "desktop" if self._get_ketos_desktop() else "oss"

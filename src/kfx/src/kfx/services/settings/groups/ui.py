@@ -1,4 +1,4 @@
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import BaseModel
 
 from kfx.serialization.constants import MAX_ITEMS_LENGTH, MAX_TEXT_LENGTH
 
@@ -30,13 +30,7 @@ class UiSettings(BaseModel):
     ``mcp_servers_locked`` or ``custom_component_admin_only``. Configure those
     explicitly based on your deployment hardening requirements.
     """
-    hide_getting_started_progress: bool = Field(
-        default=False,
-        validation_alias=AliasChoices(
-            "KETOS_HIDE_GETTING_STARTED_PROGRESS",
-            "HIDE_GETTING_STARTED_PROGRESS",
-        ),
-    )
+    hide_getting_started_progress: bool = False
     """If set to True, hides the getting-started onboarding progress UI."""
     hide_logout_button: bool = False
     """If set to True, hides the Logout button in the account menu."""

@@ -1,3 +1,5 @@
+import sys as _bootstrap_sys
+
 # macOS Objective-C fork-safety guard.
 #
 # Gunicorn forks workers; on Darwin, Objective-C runtime fork-safety checks
@@ -18,6 +20,12 @@ if __name__ == "__main__":
     if _platform.system() == "Darwin" and not _os.environ.get("OBJC_DISABLE_INITIALIZE_FORK_SAFETY"):
         _os.environ["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
         _os.execv(_sys.executable, [_sys.executable, "-m", "ketos.__main__", *_sys.argv[1:]])  # noqa: S606
+
+if len(_bootstrap_sys.argv) > 1 and _bootstrap_sys.argv[1] == "migrate-brand-state":
+    from ketos.cli.brand_state import main as _brand_state_main
+
+    _brand_state_main(_bootstrap_sys.argv[2:])
+    raise SystemExit(0)
 
 import asyncio
 import inspect
@@ -40,6 +48,7 @@ from dotenv import load_dotenv
 from fastapi import HTTPException
 from httpx import HTTPError
 from jwt import InvalidTokenError
+from kfx.brand_env import resolve_brand_env
 from kfx.log.logger import configure, logger
 from kfx.services.settings.constants import DEFAULT_SUPERUSER
 from multiprocess import cpu_count
@@ -64,6 +73,10 @@ from ketos.utils.version import is_pre_release as ketos_is_pre_release
 
 app = typer.Typer(no_args_is_help=True)
 console = Console()
+
+from ketos.cli.brand_state import migrate_brand_state as _migrate_brand_state  # noqa: E402
+
+app.command(name="migrate-brand-state")(_migrate_brand_state)
 if platform.system() == "Windows":
     console = Console(legacy_windows=True, emoji=False)
 
@@ -416,7 +429,15 @@ def run(
         load_dotenv(env_file, override=True)
 
     # Set and normalize log level, with precedence: cli > env > default
-    log_level = (log_level or os.environ.get("KETOS_LOG_LEVEL") or "info").lower()
+    log_level = (
+        log_level
+        or resolve_brand_env(
+            "LOG_LEVEL",
+            "info",
+            sensitivity="public",
+            conflict_policy="warn",
+        )
+    ).lower()
     os.environ["KETOS_LOG_LEVEL"] = log_level
 
     configure(log_level=log_level, log_file=log_file, log_rotation=log_rotation)
@@ -433,11 +454,6 @@ def run(
 
     # Step 1: Checking Environment
     with progress.step(1):
-        for key, value in os.environ.items():
-            new_key = key.replace("KETOS_", "")
-            if hasattr(settings_service.auth_settings, new_key):
-                setattr(settings_service.auth_settings, new_key, value)
-
         frame = inspect.currentframe()
         valid_args: list = []
         values: dict = {}
@@ -516,7 +532,15 @@ def run(
         # the direct-uvicorn path there is no master/worker split and no fork,
         # so the env var is silently inert. Warn loudly so users diagnosing
         # "preload isn't doing anything on my Mac" don't have to read source.
-        if os.environ.get("KETOS_GUNICORN_PRELOAD", "false").lower() == "true":
+        if (
+            resolve_brand_env(
+                "GUNICORN_PRELOAD",
+                "false",
+                sensitivity="public",
+                conflict_policy="error",
+            ).lower()
+            == "true"
+        ):
             logger.warning(
                 "KETOS_GUNICORN_PRELOAD=true is ignored on %s: this platform "
                 "uses single-process uvicorn (no fork), so master preload / "
@@ -537,9 +561,9 @@ def run(
             progress.print_summary()
             print_banner(str(host), int(port or 7860), protocol)
 
-        from ketos.helpers.windows_postgres_helper import KETOS_DATABASE_URL, POSTGRESQL_PREFIXES
+        from ketos.helpers.windows_postgres_helper import POSTGRESQL_PREFIXES
 
-        db_url = os.environ.get(KETOS_DATABASE_URL, "")
+        db_url = resolve_brand_env("DATABASE_URL", "", sensitivity="secret", conflict_policy="error")
         loop_type = "asyncio"
         if (
             platform.system() == "Windows"
@@ -579,7 +603,13 @@ def run(
                 "certfile": ssl_cert_file_path,
                 "keyfile": ssl_key_file_path,
                 "log_level": log_level.lower() if log_level is not None else "info",
-                "preload_app": os.environ.get("KETOS_GUNICORN_PRELOAD", "false").lower() == "true",
+                "preload_app": resolve_brand_env(
+                    "GUNICORN_PRELOAD",
+                    "false",
+                    sensitivity="public",
+                    conflict_policy="error",
+                ).lower()
+                == "true",
             }
             server = KetosApplication(app_factory, options)
 
@@ -801,7 +831,13 @@ def print_banner(host: str, port: int, protocol: str) -> None:
             "We collect anonymous usage data to improve Ketos.\n"
             "To opt out, set: [bold]DO_NOT_TRACK=true[/bold] in your environment."
         )
-        if os.getenv("DO_NOT_TRACK", os.getenv("KETOS_DO_NOT_TRACK", "False")).lower() != "true"
+        if resolve_brand_env(
+            "DO_NOT_TRACK",
+            "False",
+            sensitivity="public",
+            conflict_policy="error",
+        ).lower()
+        != "true"
         else (
             "We are [bold]not[/bold] collecting anonymous usage data to improve Ketos.\n"
             "To contribute, set: [bold]DO_NOT_TRACK=false[/bold] in your environment."
@@ -842,19 +878,37 @@ def superuser(
     password: str = typer.Option(
         None, help="Password for the superuser. Ignored when AUTO_LOGIN generates the bootstrap password."
     ),
-    log_level: str = typer.Option("error", help="Logging level.", envvar="KETOS_LOG_LEVEL"),
-    auth_token: str = typer.Option(
-        None, help="Authentication token of existing superuser.", envvar="KETOS_SUPERUSER_TOKEN"
-    ),
+    log_level: str | None = typer.Option(None, help="Logging level."),
+    auth_token: str | None = typer.Option(None, help="Authentication token of existing superuser."),
 ) -> None:
     """Create a superuser.
 
     When AUTO_LOGIN is enabled, uses configured or generated bootstrap credentials.
     In production mode, requires authentication.
     """
+    log_level, auth_token = _resolve_superuser_cli_env(log_level, auth_token)
     configure(log_level=log_level)
 
     asyncio.run(_create_superuser(username, password, auth_token))
+
+
+def _resolve_superuser_cli_env(log_level: str | None, auth_token: str | None) -> tuple[str, str | None]:
+    """Apply explicit CLI > reviewed canonical/legacy environment precedence."""
+    resolved_log_level = log_level or resolve_brand_env(
+        "LOG_LEVEL",
+        "error",
+        sensitivity="public",
+        conflict_policy="warn",
+    )
+    resolved_auth_token = auth_token
+    if resolved_auth_token is None:
+        resolved_auth_token = resolve_brand_env(
+            "SUPERUSER_TOKEN",
+            None,
+            sensitivity="secret",
+            conflict_policy="error",
+        )
+    return resolved_log_level, resolved_auth_token
 
 
 async def _create_superuser(username: str, password: str, auth_token: str | None):

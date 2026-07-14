@@ -13,6 +13,7 @@ except ImportError as exc:
     msg = "pytest is required for kfx.testing. Install it with: pip install pytest  (or pip install 'kfx[dev]')"
     raise ImportError(msg) from exc
 
+from kfx.brand_env import get_brand_env_policy, resolve_brand_env
 from kfx.testing.runners import (
     AsyncLocalFlowRunner,
     AsyncRemoteFlowRunner,
@@ -176,11 +177,21 @@ def _brand_option(
     legacy_env: str,
 ) -> Any:
     """Resolve a dual-brand option with the canonical family taking precedence."""
+    if not canonical_env.startswith("KETOS_") or legacy_env != f"LANGFLOW_{canonical_env.removeprefix('KETOS_')}":
+        msg = "pytest brand environment names must be an exact canonical/legacy pair"
+        raise ValueError(msg)
+    suffix = canonical_env.removeprefix("KETOS_")
+    policy = get_brand_env_policy(suffix)
+    env_value = resolve_brand_env(
+        suffix,
+        None,
+        sensitivity=policy.sensitivity,
+        conflict_policy=policy.conflict_policy,
+    )
     return _first_configured(
         request.config.getoption(canonical_option, default=None),
-        os.environ.get(canonical_env),
+        env_value,
         request.config.getoption(legacy_option, default=None),
-        os.environ.get(legacy_env),
     )
 
 

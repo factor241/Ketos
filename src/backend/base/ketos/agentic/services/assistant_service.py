@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import copy
-import os
 from contextlib import aclosing
 from time import perf_counter
 from typing import TYPE_CHECKING, Any
@@ -66,7 +65,6 @@ from ketos.agentic.services.flow_types import (
     EDIT_CONTINUATION_INPUT,
     EXECUTION_RETRY_TEMPLATE,
     FLOW_BUILDER_ASSISTANT_FLOW,
-    FLOW_VERIFICATION_ENABLED_ENV,
     FLOW_VERIFICATION_RETRY_TEMPLATE,
     MAX_CANVAS_SUMMARY_CHARS,
     MAX_VALIDATION_RETRIES,
@@ -94,7 +92,10 @@ if TYPE_CHECKING:
 
 def _flow_verification_enabled() -> bool:
     """Kill switch — disabled when the env var is 0/false/no/off."""
-    return os.getenv(FLOW_VERIFICATION_ENABLED_ENV, "1").strip().lower() not in {"0", "false", "no", "off"}
+    from kfx.brand_env import resolve_brand_env
+
+    value = resolve_brand_env("ASSISTANT_VERIFY_FLOWS", "1", sensitivity="public", conflict_policy="error")
+    return value.strip().lower() not in {"0", "false", "no", "off"}
 
 
 async def _verify_flow_before_delivery(

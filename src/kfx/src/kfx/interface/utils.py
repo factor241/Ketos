@@ -1,6 +1,5 @@
 import base64
 import json
-import os
 from io import BytesIO
 from pathlib import Path
 from string import Formatter
@@ -9,6 +8,7 @@ import yaml
 from langchain_core.language_models import BaseLanguageModel
 from PIL.Image import Image
 
+from kfx.brand_env import get_brand_env_policy, resolve_brand_env
 from kfx.log.logger import logger
 from kfx.services.chat.config import ChatConfig
 from kfx.services.deps import get_settings_service
@@ -95,10 +95,17 @@ def setup_llm_caching() -> None:
 
 
 def set_langchain_cache(settings) -> None:
-    from ketos.interface.importing.utils import import_class
+    from kfx.interface.importing.utils import import_class
     from langchain_core.globals import set_llm_cache
 
-    if cache_type := os.getenv("KETOS_LANGCHAIN_CACHE"):
+    policy = get_brand_env_policy("LANGCHAIN_CACHE")
+    cache_type = resolve_brand_env(
+        "LANGCHAIN_CACHE",
+        None,
+        sensitivity=policy.sensitivity,
+        conflict_policy=policy.conflict_policy,
+    )
+    if cache_type:
         try:
             cache_class = import_class(f"langchain_community.cache.{cache_type or settings.LANGCHAIN_CACHE}")
 

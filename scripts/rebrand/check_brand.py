@@ -1100,7 +1100,9 @@ def _technical_locator(path: str, line_number: int, line: str, kind: str) -> str
         return f"historical_fixture:extension_manifest:{path}:{line_number}"
     if "." + _LEGACY_PRODUCT_TEXT in lowered:
         return f"data_path:{path}:{line_number}"
-    if "migration" in lowered_path or "alembic" in lowered_path:
+    if any(
+        marker in lowered_path for marker in ("migration", "alembic", "brand_state", "brand_env", "stage5-env-contract")
+    ):
         return f"historical_migration:{path}:{line_number}"
     if any(marker in lowered_path for marker in ("fixture", "starter", "snapshot")):
         return f"historical_fixture:{path}:{line_number}"

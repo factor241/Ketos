@@ -1,6 +1,4 @@
-import os
-
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 from kfx.services.settings.constants import AGENTIC_VARIABLES, VARIABLES_TO_GET_FROM_ENVIRONMENT
 
@@ -36,11 +34,12 @@ class VariablesSettings(BaseModel):
         if isinstance(value, str):
             value = value.split(",")
 
-        result = list(set(VARIABLES_TO_GET_FROM_ENVIRONMENT + value))
+        return list(set(VARIABLES_TO_GET_FROM_ENVIRONMENT + value))
 
-        # Add agentic variables if agentic_experience is enabled
-        # Check env var directly since we can't access instance attributes in validator
-        if os.getenv("KETOS_AGENTIC_EXPERIENCE", "true").lower() == "true":
-            result.extend(AGENTIC_VARIABLES)
-
-        return list(set(result))
+    @model_validator(mode="after")
+    def add_agentic_variables(self):
+        """Derive the environment allow-list from the resolved model value."""
+        if self.agentic_experience:
+            variables = list(set(self.variables_to_get_from_environment + AGENTIC_VARIABLES))
+            object.__setattr__(self, "variables_to_get_from_environment", variables)
+        return self

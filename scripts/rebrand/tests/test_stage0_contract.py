@@ -70,6 +70,7 @@ BRAND_FIELDS = {
 }
 CATEGORIES = {
     "import_alias",
+    "cli_alias",
     "env_alias",
     "data_path",
     "historical_migration",
@@ -248,6 +249,19 @@ def test_legacy_subtype_category_pairs_are_strict(tmp_path: Path) -> None:
     assert any("package_alias requires import_alias" in error for error in errors)
 
 
+def test_pytest_alias_subtype_requires_import_alias(tmp_path: Path) -> None:
+    scanner = load_scanner()
+    contract = yaml.safe_load(LEGACY.read_text(encoding="utf-8"))
+    pytest_alias = deepcopy(contract["occurrences"][0])
+    pytest_alias["category"] = "wire_protocol"
+    pytest_alias["subtype"] = "pytest_alias"
+    contract["occurrences"] = [pytest_alias]
+
+    errors = scanner.validate_legacy_contract(write_yaml(tmp_path / "legacy.yaml", contract))
+
+    assert any("pytest_alias requires import_alias" in error for error in errors)
+
+
 @pytest.mark.parametrize(
     "profile",
     ["stage0", "cutover", "final", "release"],
@@ -404,6 +418,163 @@ def test_technical_profile_requires_the_exact_path_and_line_locator() -> None:
     )
     assert not any(item["kind"] == "unledgered_technical_residue" for item in allowed["violations"])
     assert any(item["kind"] == "unledgered_technical_residue" for item in denied["violations"])
+
+
+def test_compatibility_package_locators_distinguish_package_cli_and_env_aliases() -> None:
+    scanner = load_scanner()
+    legacy = old_product()
+    compat_path = f"src/compat/{legacy}-sdk/src/{legacy}_sdk/__init__.py"
+
+    assert scanner._technical_locator(compat_path, 0, compat_path, "legacy_brand") == (
+        f"import_alias:package_alias:{compat_path}:0"
+    )
+    assert scanner._technical_locator("src/sdk/tests/test_testing.py", 7, f'"--{legacy}-url"', "legacy_brand") == (
+        "cli_alias:src/sdk/tests/test_testing.py:7"
+    )
+    env_locator = scanner._technical_locator(
+        "src/sdk/tests/test_testing.py", 8, f'"{legacy.upper()}_URL"', "legacy_brand"
+    )
+    assert env_locator == "env_alias:src/sdk/tests/test_testing.py:8"
+
+
+def test_wave2_pytest_bridge_and_workspace_locators_are_semantic_and_exact() -> None:
+    scanner = load_scanner()
+    executor = old_executor()
+    product = old_product()
+    kfx_plugin = "src/kfx/src/kfx/testing/plugin.py"
+    sdk_plugin = "src/sdk/src/ketos_sdk/testing.py"
+
+    assert scanner._technical_locator(kfx_plugin, 51, f'"--{executor}-env-file"', "legacy_executor") == (
+        f"cli_alias:{kfx_plugin}:51"
+    )
+    assert scanner._technical_locator(
+        kfx_plugin, 289, f'os.environ.get("{executor.upper()}_ENV_FILE")', "legacy_executor"
+    ) == (f"env_alias:{kfx_plugin}:289")
+    assert scanner._technical_locator(
+        kfx_plugin, 287, f'_get_marker_arg(request, "{executor}_env_file")', "legacy_executor"
+    ) == (f"import_alias:pytest_alias:{kfx_plugin}:287")
+    assert scanner._technical_locator(sdk_plugin, 241, f"{product}_client = ketos_client", "legacy_brand") == (
+        f"import_alias:pytest_alias:{sdk_plugin}:241"
+    )
+    assert scanner._technical_locator(
+        "pyproject.toml", 79, f"{executor} = {{ workspace = true }}", "legacy_executor"
+    ) == ("import_alias:package_alias:pyproject.toml:79")
+    assert scanner._technical_locator("uv.lock", 9722, f'name = "{product}-sdk"', "legacy_brand") == (
+        "import_alias:package_alias:uv.lock:9722"
+    )
+
+    assert (
+        scanner._technical_locator(
+            "src/backend/tests/test_unrelated.py",
+            1,
+            f'fixture = "{product}_client"',
+            "legacy_brand",
+        )
+        is None
+    )
+
+
+def test_s2_acceptance_test_locators_distinguish_cli_pytest_and_package_aliases() -> None:
+    scanner = load_scanner()
+    executor = old_executor()
+    product = old_product()
+    acceptance_test = "scripts/rebrand/tests/test_s2_compatibility_check.py"
+
+    assert scanner._technical_locator(acceptance_test, 120, f'"{product}",', "legacy_brand") == (
+        f"cli_alias:{acceptance_test}:120"
+    )
+    assert scanner._technical_locator(acceptance_test, 122, f'"{executor}",', "legacy_executor") == (
+        f"cli_alias:{acceptance_test}:122"
+    )
+    assert (
+        scanner._technical_locator(
+            acceptance_test,
+            87,
+            f'"[pytest11]\\n{executor} = {executor}.testing\\n",',
+            "legacy_executor",
+        )
+        == f"import_alias:pytest_alias:{acceptance_test}:87"
+    )
+    assert scanner._technical_locator(acceptance_test, 128, f'"{product}.server",', "legacy_brand") == (
+        f"import_alias:package_alias:{acceptance_test}:128"
+    )
+    assert (
+        scanner._technical_locator(
+            "scripts/rebrand/tests/test_unrelated.py",
+            1,
+            f'"{product}",',
+            "legacy_brand",
+        )
+        is None
+    )
+
+
+def test_s2_checker_and_handoff_locators_distinguish_cli_and_package_aliases() -> None:
+    scanner = load_scanner()
+    executor = old_executor()
+    product = old_product()
+    checker = "scripts/rebrand/check_s2_compatibility.py"
+    handoff = "brand/compatibility/s2-distribution-contract.yaml"
+
+    assert (
+        scanner._technical_locator(
+            checker,
+            55,
+            f'ALL_CLIS = ("ketos", "{product}", "kfx", "{executor}", "kfx-mcp", "{executor}-mcp")',
+            "legacy_brand",
+        )
+        == f"cli_alias:{checker}:55"
+    )
+    assert scanner._technical_locator(checker, 48, f'    "{product}",', "legacy_brand") == (
+        f"import_alias:package_alias:{checker}:48"
+    )
+    assert scanner._technical_locator(handoff, 19, f"  {product}: digest", "legacy_brand") == (
+        f"import_alias:package_alias:{handoff}:19"
+    )
+    assert scanner._technical_locator(handoff, 77, f"    - {product}", "legacy_brand") == (f"cli_alias:{handoff}:77")
+    assert scanner._technical_locator(handoff, 79, f"    - {executor}", "legacy_executor") == (
+        f"cli_alias:{handoff}:79"
+    )
+
+
+def test_scanner_source_has_no_unclassified_self_matches() -> None:
+    scanner = load_scanner()
+    zero = yaml.safe_load(ZERO.read_text(encoding="utf-8"))
+    report = scanner._scan_blobs(
+        [scanner.Blob("scripts/rebrand/check_brand.py", SCANNER.read_bytes())],
+        zero,
+        profile="technical-compatibility",
+        excluded_path=None,
+        legacy_locators=set(),
+    )
+
+    assert not any(
+        item["kind"] == "unledgered_technical_residue" and item["locator"].startswith("unclassified:")
+        for item in report["violations"]
+    )
+
+
+def test_locator_match_limit_is_derived_from_the_exact_source_location(tmp_path: Path) -> None:
+    scanner = load_scanner()
+    legacy = old_product()
+    relative = f"src/compat/{legacy}-sdk/src/{legacy}_sdk/__init__.py"
+    source = tmp_path / relative
+    source.parent.mkdir(parents=True)
+    source.write_text("# compatibility root\n", encoding="utf-8")
+    locator = f"import_alias:package_alias:{relative}:0"
+    contract = {
+        "occurrences": [
+            {
+                "category": "import_alias",
+                "subtype": "package_alias",
+                "locator": locator,
+            }
+        ]
+    }
+
+    limits = scanner._legacy_locator_match_limits(contract, repository_root=tmp_path)
+
+    assert limits == {locator: 2}
 
 
 def test_scanner_tests_and_archives_are_not_exempt() -> None:

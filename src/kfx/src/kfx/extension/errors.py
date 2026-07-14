@@ -1,10 +1,10 @@
 """Typed errors for the Ketos Extension System.
 
-Every error from validate / loader / reload / events surfaces as a
+Every error from validate / loader / reload / migration / events surfaces as a
 structured object: ``{code, message, hint, ref_url}``, emitted identically by
 CLI (stderr + non-zero exit) and HTTP (non-2xx body).  Codes are kebab-case
 (``reload-in-progress``, ``template-deferred-in-this-milestone``,
-``duplicate-component-name``).
+``component-name-ambiguous``).
 
 ``format_extension_error`` is the single place that turns one of these into a
 human-readable string.  No other code in the extension system formats error
@@ -36,7 +36,7 @@ the form ``#<error-code>`` (e.g. ``#manifest-invalid``).
 #   2. a snapshot test in ``tests/unit/extension/test_errors.py``,
 #   3. a documented reference URL anchor.
 #
-# Loader / reload / events codes are added when those subsystems
+# Loader / reload / migration / events codes are added when those subsystems
 # land.
 ERROR_CODES: frozenset[str] = frozenset(
     {
@@ -74,6 +74,12 @@ ERROR_CODES: frozenset[str] = frozenset(
         "extension-target-exists",
         "extension-target-invalid",
         "local-extension-missing",
+        # Migration-specific codes
+        "migration-table-missing",
+        "migration-table-unreadable",
+        "migration-table-invalid",
+        "component-not-found-with-hint",
+        "component-name-ambiguous",
         # Production install / discovery
         "installed-extension-immutable",
         "seed-directory-immutable",
@@ -246,9 +252,7 @@ _BRANCH_TEMPLATES: dict[str, str] = {
     "inline-bundle-name-invalid": (
         "Inline bundle directory {content!r} does not match the bundle name pattern (lowercase snake_case)."
     ),
-    "inline-path-missing": (
-        "KETOS_COMPONENTS_PATH entry {content!r} does not exist or is not a directory; skipped."
-    ),
+    "inline-path-missing": ("KETOS_COMPONENTS_PATH entry {content!r} does not exist or is not a directory; skipped."),
     "inline-path-unreadable": ("KETOS_COMPONENTS_PATH entry {content!r} could not be enumerated: {message}"),
     "bundle-json-invalid": (
         "Inline bundle.json at {location} is unreadable or malformed; falling back to derived id/version."
@@ -257,6 +261,15 @@ _BRANCH_TEMPLATES: dict[str, str] = {
     "extension-target-invalid": ("Cannot create extension at {location}: {message}"),
     "local-extension-missing": (
         "Registered dev extension at {location} is missing or no longer a directory; skipping until it reappears."
+    ),
+    "migration-table-missing": ("Migration table not found at {location}."),
+    "migration-table-unreadable": ("Could not read migration table at {location}: {message}"),
+    "migration-table-invalid": ("Invalid migration table at {location}: {message}"),
+    "component-not-found-with-hint": (
+        "Legacy component reference {content!r} (in flow node {location}) is not in the migration table."
+    ),
+    "component-name-ambiguous": (
+        "Legacy component reference {content!r} (in flow node {location}) matches more than one migration entry."
     ),
     "installed-extension-immutable": ("Extension {content!r} is installed via pip and cannot be mutated at runtime."),
     "seed-directory-immutable": ("Extension {content!r} comes from a seed directory and cannot be mutated at runtime."),

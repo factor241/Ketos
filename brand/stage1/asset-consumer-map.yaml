@@ -1,0 +1,162 @@
+schema_version: 1
+mode: pre-e1-inventory-only
+inventory_base_commit: 53643cb1b6519d051d39a7ff16460cf047f763b0
+asset_manifest_sha256: adaefafaf6285f358fae453e47c1afab627528a177e2cacd141896b7309ff658
+consumer_switch_allowed: false
+manifest_outputs:
+- brand/assets/generated/assistant/ketos-assistant-16.png
+- brand/assets/generated/assistant/ketos-assistant-32.png
+- brand/assets/generated/assistant/ketos-assistant-48.png
+- brand/assets/generated/favicon/ketos-favicon.ico
+- brand/assets/generated/favicon/ketos-favicon.svg
+- brand/assets/generated/maskable/ketos-maskable-192.png
+- brand/assets/generated/maskable/ketos-maskable-512.png
+- brand/assets/generated/png/ketos-128.png
+- brand/assets/generated/png/ketos-180.png
+- brand/assets/generated/png/ketos-192.png
+- brand/assets/generated/png/ketos-256.png
+- brand/assets/generated/png/ketos-32.png
+- brand/assets/generated/png/ketos-512.png
+- brand/assets/generated/social/ketos-social-1200x630.png
+- brand/assets/generated/splash/ketos-splash-480.png
+- brand/assets/generated/splash/ketos-splash-960.png
+- brand/assets/generated/svg/ketos-horizontal-black.svg
+- brand/assets/generated/svg/ketos-horizontal-color.svg
+- brand/assets/generated/svg/ketos-horizontal-currentcolor.svg
+- brand/assets/generated/svg/ketos-horizontal-dark.svg
+- brand/assets/generated/svg/ketos-horizontal-light.svg
+- brand/assets/generated/svg/ketos-horizontal-white.svg
+- brand/assets/generated/svg/ketos-stacked-black.svg
+- brand/assets/generated/svg/ketos-stacked-color.svg
+- brand/assets/generated/svg/ketos-stacked-currentcolor.svg
+- brand/assets/generated/svg/ketos-stacked-dark.svg
+- brand/assets/generated/svg/ketos-stacked-light.svg
+- brand/assets/generated/svg/ketos-stacked-white.svg
+- brand/assets/generated/svg/ketos-symbol-black.svg
+- brand/assets/generated/svg/ketos-symbol-color.svg
+- brand/assets/generated/svg/ketos-symbol-currentcolor.svg
+- brand/assets/generated/svg/ketos-symbol-dark.svg
+- brand/assets/generated/svg/ketos-symbol-light.svg
+- brand/assets/generated/svg/ketos-symbol-white.svg
+- brand/assets/generated/ui/ketos-ui-16.png
+- brand/assets/generated/ui/ketos-ui-20.png
+- brand/assets/generated/ui/ketos-ui-24.png
+- brand/assets/generated/ui/ketos-ui-32.png
+- brand/assets/generated/ui/ketos-ui-48.png
+- brand/assets/generated/ui/ketos-ui-60.png
+copy_edges:
+- canonical_path: brand/assets/generated/favicon/ketos-favicon.ico
+  consumer_path: docs/static/img/ketos-favicon.ico
+  status: CURRENT_BYTE_IDENTICAL_COPY
+- canonical_path: brand/assets/generated/favicon/ketos-favicon.ico
+  consumer_path: src/frontend/public/favicon.ico
+  status: CURRENT_BYTE_IDENTICAL_COPY
+- canonical_path: brand/assets/generated/favicon/ketos-favicon.svg
+  consumer_path: docs/static/img/ketos-favicon.svg
+  status: CURRENT_BYTE_IDENTICAL_COPY
+- canonical_path: brand/assets/generated/favicon/ketos-favicon.svg
+  consumer_path: src/frontend/public/ketos-favicon.svg
+  status: CURRENT_BYTE_IDENTICAL_COPY
+- canonical_path: brand/assets/generated/social/ketos-social-1200x630.png
+  consumer_path: docs/static/img/ketos-social-1200x630.png
+  status: CURRENT_BYTE_IDENTICAL_COPY
+- canonical_path: brand/assets/generated/svg/ketos-horizontal-color.svg
+  consumer_path: docs/static/img/ketos-docs-light.svg
+  status: CURRENT_BYTE_IDENTICAL_COPY
+- canonical_path: brand/assets/generated/svg/ketos-horizontal-dark.svg
+  consumer_path: src/frontend/src/assets/ketos-horizontal-dark.svg
+  status: CURRENT_BYTE_IDENTICAL_COPY
+- canonical_path: brand/assets/generated/svg/ketos-horizontal-light.svg
+  consumer_path: src/frontend/src/assets/ketos-horizontal-light.svg
+  status: CURRENT_BYTE_IDENTICAL_COPY
+- canonical_path: brand/assets/generated/svg/ketos-horizontal-white.svg
+  consumer_path: docs/static/img/ketos-docs-dark.svg
+  status: CURRENT_BYTE_IDENTICAL_COPY
+- canonical_path: brand/assets/generated/svg/ketos-symbol-dark.svg
+  consumer_path: src/frontend/src/assets/ketos-symbol-dark.svg
+  status: CURRENT_BYTE_IDENTICAL_COPY
+- canonical_path: brand/assets/generated/svg/ketos-symbol-light.svg
+  consumer_path: src/frontend/src/assets/ketos-symbol-light.svg
+  status: CURRENT_BYTE_IDENTICAL_COPY
+runtime_edges:
+- consumer_path: docs/static/img/ketos-docs-dark.svg
+  locator: docs/docusaurus.config.js:img/ketos-docs-dark.svg
+- consumer_path: docs/static/img/ketos-docs-light.svg
+  locator: docs/docusaurus.config.js:img/ketos-docs-light.svg
+- consumer_path: docs/static/img/ketos-favicon.ico
+  locator: docs/docusaurus.config.js:img/ketos-favicon.ico
+- consumer_path: docs/static/img/ketos-social-1200x630.png
+  locator: docs/docusaurus.config.js:img/ketos-social-1200x630.png
+- consumer_path: src/frontend/public/ketos-favicon.svg
+  locator: src/frontend/index.html:/ketos-favicon.svg
+- consumer_path: src/frontend/public/ketos-favicon.svg
+  locator: src/frontend/public/manifest.json:/ketos-favicon.svg
+- consumer_path: src/frontend/src/assets/ketos-horizontal-dark.svg
+  locator: src/frontend/src/components/common/ketos-mcp-composition.tsx:@/assets/ketos-horizontal-dark.svg
+- consumer_path: src/frontend/src/assets/ketos-horizontal-dark.svg
+  locator: src/frontend/src/pages/MainPage/pages/empty-page.tsx:@/assets/ketos-horizontal-dark.svg
+- consumer_path: src/frontend/src/assets/ketos-horizontal-light.svg
+  locator: src/frontend/src/components/common/ketos-mcp-composition.tsx:@/assets/ketos-horizontal-light.svg
+- consumer_path: src/frontend/src/assets/ketos-horizontal-light.svg
+  locator: src/frontend/src/pages/MainPage/pages/empty-page.tsx:@/assets/ketos-horizontal-light.svg
+- consumer_path: src/frontend/src/assets/ketos-symbol-dark.svg
+  locator: src/frontend/src/components/common/ketos-brand-mark.tsx:@/assets/ketos-symbol-dark.svg
+- consumer_path: src/frontend/src/assets/ketos-symbol-light.svg
+  locator: src/frontend/src/components/common/ketos-brand-mark.tsx:@/assets/ketos-symbol-light.svg
+unused_outputs:
+- brand/assets/generated/assistant/ketos-assistant-16.png
+- brand/assets/generated/assistant/ketos-assistant-32.png
+- brand/assets/generated/assistant/ketos-assistant-48.png
+- brand/assets/generated/maskable/ketos-maskable-192.png
+- brand/assets/generated/maskable/ketos-maskable-512.png
+- brand/assets/generated/png/ketos-128.png
+- brand/assets/generated/png/ketos-180.png
+- brand/assets/generated/png/ketos-192.png
+- brand/assets/generated/png/ketos-256.png
+- brand/assets/generated/png/ketos-32.png
+- brand/assets/generated/png/ketos-512.png
+- brand/assets/generated/splash/ketos-splash-480.png
+- brand/assets/generated/splash/ketos-splash-960.png
+- brand/assets/generated/svg/ketos-horizontal-black.svg
+- brand/assets/generated/svg/ketos-horizontal-currentcolor.svg
+- brand/assets/generated/svg/ketos-stacked-black.svg
+- brand/assets/generated/svg/ketos-stacked-color.svg
+- brand/assets/generated/svg/ketos-stacked-currentcolor.svg
+- brand/assets/generated/svg/ketos-stacked-dark.svg
+- brand/assets/generated/svg/ketos-stacked-light.svg
+- brand/assets/generated/svg/ketos-stacked-white.svg
+- brand/assets/generated/svg/ketos-symbol-black.svg
+- brand/assets/generated/svg/ketos-symbol-color.svg
+- brand/assets/generated/svg/ketos-symbol-currentcolor.svg
+- brand/assets/generated/svg/ketos-symbol-white.svg
+- brand/assets/generated/ui/ketos-ui-16.png
+- brand/assets/generated/ui/ketos-ui-20.png
+- brand/assets/generated/ui/ketos-ui-24.png
+- brand/assets/generated/ui/ketos-ui-32.png
+- brand/assets/generated/ui/ketos-ui-48.png
+- brand/assets/generated/ui/ketos-ui-60.png
+unused_proof:
+  method: tracked-runtime-literal-search
+  status: PASS
+  scope:
+  - docs
+  - src/frontend
+  excludes:
+  - tests
+  - stories
+  - binary-assets
+verdicts:
+  inventory: PASS
+  e1: BLOCKED
+  asset_matrix: RED
+  ocr_acceptance: PENDING
+  stage1: BLOCKED
+blockers:
+- E1_VISUAL_RIGHTS_APPROVAL_MISSING
+- UI_18_PX_MISSING
+- UI_22_PX_MISSING
+- FAVICON_24_PX_FRAME_MISSING
+- MCP_704X396_MISSING
+- MCP_1408X792_MISSING
+- SOCIAL_PREVIEW_1200X628_MISSING
+- OCR_106_OF_106_PENDING

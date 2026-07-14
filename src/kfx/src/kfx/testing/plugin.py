@@ -26,35 +26,56 @@ from kfx.testing.runners import (
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
-    """Register kfx-specific CLI options."""
+    """Register canonical KFX/Ketos and legacy LFX/Langflow options once."""
     group = parser.getgroup("kfx", "kfx local flow execution options")
-    group.addoption(
-        "--kfx-env-file",
-        dest="kfx_env_file",
-        default=None,
-        metavar="PATH",
-        help="Path to a .env file loaded before each flow execution.",
-    )
-    group.addoption(
-        "--kfx-timeout",
-        dest="kfx_timeout",
-        default=None,
-        type=float,
-        metavar="SECONDS",
-        help="Default timeout in seconds for flow execution (0 = no limit).",
-    )
-    group.addoption(
-        "--kfx-flow-dir",
-        dest="kfx_flow_dir",
-        default=None,
-        metavar="DIR",
-        help="Base directory for resolving relative flow paths (default: cwd).",
-    )
+    local_options = {
+        "--kfx-env-file": {
+            "dest": "kfx_env_file",
+            "default": None,
+            "metavar": "PATH",
+            "help": "Path to a .env file loaded before each flow execution.",
+        },
+        "--kfx-timeout": {
+            "dest": "kfx_timeout",
+            "default": None,
+            "type": float,
+            "metavar": "SECONDS",
+            "help": "Default timeout in seconds for flow execution (0 = no limit).",
+        },
+        "--kfx-flow-dir": {
+            "dest": "kfx_flow_dir",
+            "default": None,
+            "metavar": "DIR",
+            "help": "Base directory for resolving relative flow paths (default: cwd).",
+        },
+        "--lfx-env-file": {
+            "dest": "lfx_env_file",
+            "default": None,
+            "metavar": "PATH",
+            "help": "Compatibility alias for --kfx-env-file.",
+        },
+        "--lfx-timeout": {
+            "dest": "lfx_timeout",
+            "default": None,
+            "type": float,
+            "metavar": "SECONDS",
+            "help": "Compatibility alias for --kfx-timeout.",
+        },
+        "--lfx-flow-dir": {
+            "dest": "lfx_flow_dir",
+            "default": None,
+            "metavar": "DIR",
+            "help": "Compatibility alias for --kfx-flow-dir.",
+        },
+    }
+    for flag, kwargs in local_options.items():
+        with contextlib.suppress(ValueError):
+            group.addoption(flag, **kwargs)
 
     # Guard against duplicate registration when ketos-sdk[testing] is also installed.
     # Both plugins expose the same --ketos-* options; only register them once.
     remote = parser.getgroup("ketos", "Ketos remote integration testing options")
-    _remote_opts = {
+    remote_options = {
         "--ketos-env": {
             "dest": "ketos_env",
             "default": None,
@@ -82,8 +103,32 @@ def pytest_addoption(parser: pytest.Parser) -> None:
             "metavar": "PATH",
             "help": "Path to environments config file (.yaml or .toml; overrides default lookup).",
         },
+        "--langflow-env": {
+            "dest": "langflow_env",
+            "default": None,
+            "metavar": "NAME",
+            "help": "Compatibility alias for --ketos-env.",
+        },
+        "--langflow-url": {
+            "dest": "langflow_url",
+            "default": None,
+            "metavar": "URL",
+            "help": "Compatibility alias for --ketos-url.",
+        },
+        "--langflow-api-key": {
+            "dest": "langflow_api_key",
+            "default": None,
+            "metavar": "KEY",
+            "help": "Compatibility alias for --ketos-api-key.",
+        },
+        "--langflow-environments-file": {
+            "dest": "langflow_environments_file",
+            "default": None,
+            "metavar": "PATH",
+            "help": "Compatibility alias for --ketos-environments-file.",
+        },
     }
-    for flag, kwargs in _remote_opts.items():
+    for flag, kwargs in remote_options.items():
         with contextlib.suppress(ValueError):
             remote.addoption(flag, **kwargs)
 
@@ -100,6 +145,14 @@ def pytest_configure(config: pytest.Config) -> None:
     )
     config.addinivalue_line(
         "markers",
+        "lfx_env_file(path): compatibility alias for kfx_env_file(path)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "lfx_timeout(seconds): compatibility alias for kfx_timeout(seconds)",
+    )
+    config.addinivalue_line(
+        "markers",
         "integration: integration test that requires a live Ketos instance",
     )
 
@@ -110,6 +163,27 @@ _SKIP_NO_REMOTE = (
 )
 
 
+def _first_configured(*values: Any) -> Any:
+    """Return the first configured value while preserving numeric zero."""
+    return next((value for value in values if value is not None and value != ""), None)
+
+
+def _brand_option(
+    request: pytest.FixtureRequest,
+    canonical_option: str,
+    canonical_env: str,
+    legacy_option: str,
+    legacy_env: str,
+) -> Any:
+    """Resolve a dual-brand option with the canonical family taking precedence."""
+    return _first_configured(
+        request.config.getoption(canonical_option, default=None),
+        os.environ.get(canonical_env),
+        request.config.getoption(legacy_option, default=None),
+        os.environ.get(legacy_env),
+    )
+
+
 def _resolve_remote_client(request: pytest.FixtureRequest) -> Any | None:
     """Return a sync SDK client if remote options are configured, else ``None``.
 
@@ -117,8 +191,8 @@ def _resolve_remote_client(request: pytest.FixtureRequest) -> Any | None:
     1. ``--ketos-url`` / ``KETOS_URL`` -- direct URL (with optional ``--ketos-api-key``)
     2. ``--ketos-env`` / ``KETOS_ENV`` -- named environment from TOML/YAML file
     """
-    url: str | None = request.config.getoption("ketos_url", default=None) or os.environ.get("KETOS_URL")
-    env_name: str | None = request.config.getoption("ketos_env", default=None) or os.environ.get("KETOS_ENV")
+    url: str | None = _brand_option(request, "ketos_url", "KETOS_URL", "langflow_url", "LANGFLOW_URL")
+    env_name: str | None = _brand_option(request, "ketos_env", "KETOS_ENV", "langflow_env", "LANGFLOW_ENV")
 
     if not url and not env_name:
         return None
@@ -129,12 +203,22 @@ def _resolve_remote_client(request: pytest.FixtureRequest) -> Any | None:
         pytest.skip("ketos-sdk is required for remote testing. Install: pip install ketos-sdk")
 
     if url:
-        api_key: str | None = request.config.getoption("ketos_api_key", default=None) or os.environ.get("KETOS_API_KEY")
-        return ketos_sdk.Client(base_url=url, api_key=api_key)
+        api_key: str | None = _brand_option(
+            request,
+            "ketos_api_key",
+            "KETOS_API_KEY",
+            "langflow_api_key",
+            "LANGFLOW_API_KEY",
+        )
+        return ketos_sdk.KetosClient(base_url=url, api_key=api_key)
 
     # Named environment
-    env_file: str | None = request.config.getoption("ketos_environments_file", default=None) or os.environ.get(
-        "KETOS_ENVIRONMENTS_FILE"
+    env_file: str | None = _brand_option(
+        request,
+        "ketos_environments_file",
+        "KETOS_ENVIRONMENTS_FILE",
+        "langflow_environments_file",
+        "LANGFLOW_ENVIRONMENTS_FILE",
     )
     try:
         from pathlib import Path as _Path
@@ -148,8 +232,8 @@ def _resolve_remote_client(request: pytest.FixtureRequest) -> Any | None:
 
 def _resolve_async_remote_client(request: pytest.FixtureRequest) -> Any | None:
     """Return an async SDK client if remote options are configured, else ``None``."""
-    url: str | None = request.config.getoption("ketos_url", default=None) or os.environ.get("KETOS_URL")
-    env_name: str | None = request.config.getoption("ketos_env", default=None) or os.environ.get("KETOS_ENV")
+    url: str | None = _brand_option(request, "ketos_url", "KETOS_URL", "langflow_url", "LANGFLOW_URL")
+    env_name: str | None = _brand_option(request, "ketos_env", "KETOS_ENV", "langflow_env", "LANGFLOW_ENV")
 
     if not url and not env_name:
         return None
@@ -160,11 +244,21 @@ def _resolve_async_remote_client(request: pytest.FixtureRequest) -> Any | None:
         pytest.skip("ketos-sdk is required for remote testing. Install: pip install ketos-sdk")
 
     if url:
-        api_key: str | None = request.config.getoption("ketos_api_key", default=None) or os.environ.get("KETOS_API_KEY")
-        return ketos_sdk.AsyncClient(base_url=url, api_key=api_key)
+        api_key: str | None = _brand_option(
+            request,
+            "ketos_api_key",
+            "KETOS_API_KEY",
+            "langflow_api_key",
+            "LANGFLOW_API_KEY",
+        )
+        return ketos_sdk.AsyncKetosClient(base_url=url, api_key=api_key)
 
-    env_file: str | None = request.config.getoption("ketos_environments_file", default=None) or os.environ.get(
-        "KETOS_ENVIRONMENTS_FILE"
+    env_file: str | None = _brand_option(
+        request,
+        "ketos_environments_file",
+        "KETOS_ENVIRONMENTS_FILE",
+        "langflow_environments_file",
+        "LANGFLOW_ENVIRONMENTS_FILE",
     )
     try:
         from pathlib import Path as _Path
@@ -185,24 +279,35 @@ def _get_marker_arg(request: pytest.FixtureRequest, name: str) -> Any:
 def _resolve_runner_config(
     request: pytest.FixtureRequest,
 ) -> tuple[str | None, float | None, Path | None]:
-    """Return ``(env_file, timeout, base_dir)`` with marker > CLI > env-var precedence."""
-    # env_file: marker > --kfx-env-file > KFX_ENV_FILE
-    env_file: str | None = (
-        _get_marker_arg(request, "kfx_env_file")
-        or request.config.getoption("kfx_env_file", default=None)
-        or os.environ.get("KFX_ENV_FILE")
+    """Resolve local settings with canonical brand precedence and legacy fallback."""
+    env_file: str | None = _first_configured(
+        _get_marker_arg(request, "kfx_env_file"),
+        request.config.getoption("kfx_env_file", default=None),
+        os.environ.get("KFX_ENV_FILE"),
+        _get_marker_arg(request, "lfx_env_file"),
+        request.config.getoption("lfx_env_file", default=None),
+        os.environ.get("LFX_ENV_FILE"),
     )
 
-    # timeout: marker > --kfx-timeout > KFX_TIMEOUT
-    timeout: float | None = _get_marker_arg(request, "kfx_timeout")
-    if timeout is None:
-        raw_t = request.config.getoption("kfx_timeout", default=None) or os.environ.get("KFX_TIMEOUT")
-        if raw_t is not None:
-            with contextlib.suppress(TypeError, ValueError):
-                timeout = float(raw_t)
+    timeout: float | None = None
+    raw_timeout = _first_configured(
+        _get_marker_arg(request, "kfx_timeout"),
+        request.config.getoption("kfx_timeout", default=None),
+        os.environ.get("KFX_TIMEOUT"),
+        _get_marker_arg(request, "lfx_timeout"),
+        request.config.getoption("lfx_timeout", default=None),
+        os.environ.get("LFX_TIMEOUT"),
+    )
+    if raw_timeout is not None:
+        with contextlib.suppress(TypeError, ValueError):
+            timeout = float(raw_timeout)
 
-    # base_dir: --kfx-flow-dir > KFX_FLOW_DIR > None (defaults to cwd in runner)
-    dir_str: str | None = request.config.getoption("kfx_flow_dir", default=None) or os.environ.get("KFX_FLOW_DIR")
+    dir_str: str | None = _first_configured(
+        request.config.getoption("kfx_flow_dir", default=None),
+        os.environ.get("KFX_FLOW_DIR"),
+        request.config.getoption("lfx_flow_dir", default=None),
+        os.environ.get("LFX_FLOW_DIR"),
+    )
     base_dir: Path | None = Path(dir_str) if dir_str else None
 
     return env_file, timeout, base_dir

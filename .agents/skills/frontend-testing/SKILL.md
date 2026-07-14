@@ -1,3 +1,8 @@
+---
+name: frontend-testing
+description: Use when writing, reviewing, debugging, or improving Jest and React Testing Library tests for Ketos frontend components, hooks, utilities, and Zustand stores.
+---
+
 # Frontend Testing Skill - Ketos
 
 ## When to Apply

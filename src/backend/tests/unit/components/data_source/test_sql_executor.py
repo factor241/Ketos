@@ -3,9 +3,9 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-from lfx.components.data_source.sql_executor import SQL_DATABASE_ENGINE_ARGS, SQLComponent
-from lfx.schema import DataFrame, Message
-from lfx.services.cache.utils import CacheMiss
+from kfx.components.data_source.sql_executor import SQL_DATABASE_ENGINE_ARGS, SQLComponent
+from kfx.schema import DataFrame, Message
+from kfx.services.cache.utils import CacheMiss
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -122,7 +122,7 @@ class TestSQLComponent(ComponentTestBaseWithoutClient):
         component = component_class(**default_kwargs)
         component._shared_component_cache = cache
 
-        with patch("lfx.components.data_source.sql_executor.SQLDatabase.from_uri") as mock_from_uri:
+        with patch("kfx.components.data_source.sql_executor.SQLDatabase.from_uri") as mock_from_uri:
             component.maybe_create_db()
 
         assert component.db is cached_db
@@ -136,7 +136,7 @@ class TestSQLComponent(ComponentTestBaseWithoutClient):
         component._shared_component_cache = cache
 
         with patch(
-            "lfx.components.data_source.sql_executor.SQLDatabase.from_uri",
+            "kfx.components.data_source.sql_executor.SQLDatabase.from_uri",
             return_value=created_db,
         ) as mock_from_uri:
             component.maybe_create_db()

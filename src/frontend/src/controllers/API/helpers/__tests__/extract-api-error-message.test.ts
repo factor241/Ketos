@@ -1,9 +1,46 @@
-import { extractApiErrorMessage } from "../extract-api-error-message";
+import {
+  extractApiErrorDiagnosticMessage,
+  extractApiErrorMessage,
+} from "../extract-api-error-message";
 
 describe("extractApiErrorMessage", () => {
   const FALLBACK = "Default error";
 
-  it("should_return_string_detail_when_detail_is_string", () => {
+  it("should_resolve_stable_code_before_legacy_detail", () => {
+    const error = {
+      response: {
+        data: {
+          code: "mcp.server_not_found",
+          detail: "raw server lookup exception",
+        },
+      },
+    };
+
+    const result = extractApiErrorMessage(
+      error,
+      FALLBACK,
+      (key) => `translated:${key}`,
+    );
+
+    expect(result).toBe("translated:apiErrors.mcp.serverNotFound");
+    expect(result).not.toContain("raw server lookup exception");
+  });
+
+  it("should_localize_the_safe_fallback_for_a_legacy_response", () => {
+    const result = extractApiErrorMessage(
+      {
+        response: {
+          data: { detail: "raw legacy backend detail" },
+        },
+      },
+      FALLBACK,
+      (key) => `translated:${key}`,
+    );
+
+    expect(result).toBe("translated:errors.requestFailed");
+  });
+
+  it("should_not_return_string_detail_from_the_safe_UI_helper", () => {
     // Arrange — simple string detail (e.g. HTTPException)
     const error = {
       response: { data: { detail: "Server not found" } },
@@ -13,7 +50,7 @@ describe("extractApiErrorMessage", () => {
     const result = extractApiErrorMessage(error, FALLBACK);
 
     // Assert
-    expect(result).toBe("Server not found");
+    expect(result).toBe(FALLBACK);
   });
 
   it("should_return_joined_msg_fields_when_detail_is_array_of_validation_errors", () => {
@@ -37,7 +74,7 @@ describe("extractApiErrorMessage", () => {
     };
 
     // Act
-    const result = extractApiErrorMessage(error, FALLBACK);
+    const result = extractApiErrorDiagnosticMessage(error, FALLBACK);
 
     // Assert — must be the readable msg, NOT "[object Object]"
     expect(result).toBe(
@@ -60,7 +97,7 @@ describe("extractApiErrorMessage", () => {
     };
 
     // Act
-    const result = extractApiErrorMessage(error, FALLBACK);
+    const result = extractApiErrorDiagnosticMessage(error, FALLBACK);
 
     // Assert
     expect(result).toBe(
@@ -79,7 +116,7 @@ describe("extractApiErrorMessage", () => {
     };
 
     // Act
-    const result = extractApiErrorMessage(error, FALLBACK);
+    const result = extractApiErrorDiagnosticMessage(error, FALLBACK);
 
     // Assert — should use String() coercion, not crash
     expect(result).toBe("[object Object]");
@@ -92,7 +129,7 @@ describe("extractApiErrorMessage", () => {
     };
 
     // Act
-    const result = extractApiErrorMessage(error, FALLBACK);
+    const result = extractApiErrorDiagnosticMessage(error, FALLBACK);
 
     // Assert
     expect(result).toBe("Invalid configuration");
@@ -107,7 +144,7 @@ describe("extractApiErrorMessage", () => {
     };
 
     // Act
-    const result = extractApiErrorMessage(error, FALLBACK);
+    const result = extractApiErrorDiagnosticMessage(error, FALLBACK);
 
     // Assert
     expect(result).toBe("Connection refused");
@@ -120,7 +157,7 @@ describe("extractApiErrorMessage", () => {
     };
 
     // Act
-    const result = extractApiErrorMessage(error, FALLBACK);
+    const result = extractApiErrorDiagnosticMessage(error, FALLBACK);
 
     // Assert
     expect(result).toBe('{"code":500,"info":"crash"}');
@@ -131,7 +168,7 @@ describe("extractApiErrorMessage", () => {
     const error = { message: "Network Error" };
 
     // Act
-    const result = extractApiErrorMessage(error, FALLBACK);
+    const result = extractApiErrorDiagnosticMessage(error, FALLBACK);
 
     // Assert
     expect(result).toBe("Network Error");
@@ -142,7 +179,7 @@ describe("extractApiErrorMessage", () => {
     const error = {};
 
     // Act
-    const result = extractApiErrorMessage(error, FALLBACK);
+    const result = extractApiErrorDiagnosticMessage(error, FALLBACK);
 
     // Assert
     expect(result).toBe(FALLBACK);

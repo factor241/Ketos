@@ -1,8 +1,8 @@
 """GenerateComponent MCP tool — the single-agent-loop keystone.
 
 Lets ONE agent loop create a custom component mid-task (the Claude Code
-pattern: one agent, many tools). Lives in lfx.mcp.flow_builder_tools but
-exercised here because it lazily imports langflow.agentic.services.
+pattern: one agent, many tools). Lives in kfx.mcp.flow_builder_tools but
+exercised here because it lazily imports ketos.agentic.services.
 """
 
 from __future__ import annotations
@@ -10,9 +10,9 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import AsyncMock, patch
 
-from lfx.mcp.flow_builder_tools import GenerateComponent
+from kfx.mcp.flow_builder_tools import GenerateComponent
 
-EFV = "langflow.agentic.services.assistant_service.execute_flow_with_validation"
+EFV = "ketos.agentic.services.assistant_service.execute_flow_with_validation"
 
 
 def _run(tool: GenerateComponent):
@@ -62,8 +62,8 @@ class TestGenerateComponentTool:
         assert "error" in data.data
 
     def test_passes_request_provider_model_and_user_from_context(self):
-        from langflow.agentic.services.agent_run_context import reset_agent_run_model, set_agent_run_model
-        from langflow.agentic.services.user_components_context import (
+        from ketos.agentic.services.agent_run_context import reset_agent_run_model, set_agent_run_model
+        from ketos.agentic.services.user_components_context import (
             reset_current_user_id,
             set_current_user_id,
         )
@@ -108,7 +108,7 @@ class TestGenerateComponentContextIsolation:
     """
 
     def test_should_preserve_parent_canvas_and_events_when_generating_component_during_build(self):
-        from lfx.mcp.flow_builder_tools import (
+        from kfx.mcp.flow_builder_tools import (
             _emit,
             drain_flow_events,
             get_working_flow,

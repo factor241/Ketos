@@ -48,7 +48,7 @@ const regressionCallLog: {
 // Mock state - use unique prefix to avoid conflicts with other test files
 let regressionMockIsAuthenticated = false;
 let regressionMockAutoLogin: boolean | undefined = undefined;
-const REGRESSION_IS_AUTO_LOGIN = false; // Simulating LANGFLOW_AUTO_LOGIN=false
+const REGRESSION_IS_AUTO_LOGIN = false; // Simulating KETOS_AUTO_LOGIN=false
 
 // Mock functions - use unique prefix to avoid conflicts
 const regressionMockMutationLogout = jest.fn(() => {
@@ -135,7 +135,7 @@ describe("Auto-Login Race Condition - Regression Prevention", () => {
       // Zustand resets to defaults: isAuthenticated=false
       // User actually has valid HttpOnly cookies (not yet validated)
       regressionMockIsAuthenticated = false;
-      regressionMockAutoLogin = false; // LANGFLOW_AUTO_LOGIN=false
+      regressionMockAutoLogin = false; // KETOS_AUTO_LOGIN=false
 
       // Act: Run the FIXED error handler
       await handleAutoLoginError_FIXED();

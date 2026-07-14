@@ -65,7 +65,7 @@ describe("refresh token functionality", () => {
         expect.stringContaining("refresh"),
       );
       expect(mockCookieManagerSet).toHaveBeenCalledWith(
-        "refresh_token_lf",
+        "ketos_refresh_token",
         "new-refresh-token",
       );
       expect(result).toEqual(mockRefreshResponse);
@@ -127,7 +127,7 @@ describe("refresh token functionality", () => {
 
       expect(mockCookieManagerSet).toHaveBeenCalledTimes(1);
       expect(mockCookieManagerSet).toHaveBeenCalledWith(
-        "refresh_token_lf",
+        "ketos_refresh_token",
         "refresh-token-xyz",
       );
     });
@@ -146,7 +146,7 @@ describe("refresh token functionality", () => {
 
       // Verify cookie was set before response was returned
       expect(mockCookieManagerSet).toHaveBeenCalledWith(
-        "refresh_token_lf",
+        "ketos_refresh_token",
         "refresh-token-abc",
       );
       expect(response).toEqual(mockRefreshResponse);

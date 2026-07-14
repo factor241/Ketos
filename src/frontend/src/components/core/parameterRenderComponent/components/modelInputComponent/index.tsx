@@ -8,7 +8,6 @@ import { useGetModelProviders } from "@/controllers/API/queries/models/use-get-m
 import { usePostTemplateValue } from "@/controllers/API/queries/nodes/use-post-template-value";
 import { useRefreshModelInputs } from "@/hooks/use-refresh-model-inputs";
 import ModelProviderModal from "@/modals/modelProviderModal";
-import useAlertStore from "@/stores/alertStore";
 import useFlowStore from "@/stores/flowStore";
 import type { APIClassType } from "@/types/api";
 import type { NodeDataType } from "@/types/flow";
@@ -51,13 +50,14 @@ export default function ModelInputComponent({
   ModelInputComponentType): JSX.Element | null {
   const { t } = useTranslation();
   const resolvedPlaceholder = placeholder ?? t("model.setupProvider");
-  const { setErrorData } = useAlertStore();
   const refButton = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [openManageProvidersDialog, setOpenManageProvidersDialog] =
     useState(false);
   const [isRefreshingAfterClose, setIsRefreshingAfterClose] = useState(false);
   const [refreshOptions, setRefreshOptions] = useState(false);
+  const disabledRef = useRef(disabled);
+  disabledRef.current = disabled;
   const isBuilding = useFlowStore((state) => state.isBuilding);
   const buildInfo = useFlowStore((state) => state.buildInfo);
   const showingBuildPanel =
@@ -93,6 +93,13 @@ export default function ModelInputComponent({
   );
 
   const { refreshAllModelInputs } = useRefreshModelInputs();
+
+  useEffect(() => {
+    if (!disabled) return;
+    setOpen(false);
+    setOpenManageProvidersDialog(false);
+    setRefreshOptions(false);
+  }, [disabled]);
 
   // Ref to track if we've already processed the empty options state
   // prevents infinite loop when no models are available
@@ -433,7 +440,7 @@ export default function ModelInputComponent({
   }, [value, flatOptions, isConnectionMode, externalOptions, providersData]);
 
   useEffect(() => {
-    if (flatOptions.length === 0 || isConnectionMode) return;
+    if (disabled || flatOptions.length === 0 || isConnectionMode) return;
     if (hasProcessedEmptyRef.current) return;
 
     const isEmpty = !value || value.length === 0;
@@ -475,13 +482,21 @@ export default function ModelInputComponent({
     ];
     handleOnNewValue({ value: newValue });
     hasProcessedEmptyRef.current = true;
-  }, [flatOptions, value, handleOnNewValue, isConnectionMode, providersData]);
+  }, [
+    disabled,
+    flatOptions,
+    value,
+    handleOnNewValue,
+    isConnectionMode,
+    providersData,
+  ]);
 
   /**
    * Handles model selection from the dropdown.
    */
   const handleModelSelect = useCallback(
     (modelName: string) => {
+      if (disabledRef.current) return;
       setConnectionMode(false);
       // Clear the _connection_mode flag from the model field template
       // so the backend resumes normal update_build_config behavior.
@@ -536,6 +551,7 @@ export default function ModelInputComponent({
   );
 
   const handleRefreshButtonPress = useCallback(async () => {
+    if (disabledRef.current) return;
     setOpen(false);
     setRefreshOptions(true);
     try {
@@ -543,12 +559,13 @@ export default function ModelInputComponent({
     } catch {
       // refreshAllModelInputs handles its own error notifications via alertStore
     } finally {
-      setRefreshOptions(false);
+      if (!disabledRef.current) setRefreshOptions(false);
     }
   }, [refreshAllModelInputs]);
 
   const handleManageProvidersDialogClose = useCallback(
     (opts?: { hasChanges?: boolean }) => {
+      if (disabledRef.current) return;
       setOpenManageProvidersDialog(false);
       // Only enter the post-close loading state when the modal will actually
       // refresh model inputs. When the user opens the dialog and closes it
@@ -603,6 +620,7 @@ export default function ModelInputComponent({
   );
 
   const handleRetryLoad = useCallback(() => {
+    if (disabledRef.current) return;
     void refetchProviders();
     void refetchEnabledModels();
   }, [refetchProviders, refetchEnabledModels]);
@@ -653,7 +671,9 @@ export default function ModelInputComponent({
       {renderFooterButton(
         t("modelInput.manageProviders"),
         "Settings",
-        () => setOpenManageProvidersDialog(true),
+        () => {
+          if (!disabledRef.current) setOpenManageProvidersDialog(true);
+        },
         "manage-model-providers",
       )}
     </div>
@@ -692,7 +712,11 @@ export default function ModelInputComponent({
               {renderFooterButton(
                 t("modelInput.connectOtherModels"),
                 externalOptions.fields.data.node.icon || "CornerDownLeft",
-                () => handleExternalOptions("connect_other_models"),
+                () => {
+                  if (!disabledRef.current) {
+                    handleExternalOptions("connect_other_models");
+                  }
+                },
                 "connect-other-models",
               )}
             </div>
@@ -728,12 +752,17 @@ export default function ModelInputComponent({
   // Clicking it jumps straight to the provider manager so the user can
   // enable the provider without losing their selection.
   const showConfigureAffordance =
-    selectedModel?.metadata?.not_enabled_locally === true;
+    !disabled && selectedModel?.metadata?.not_enabled_locally === true;
 
   // Main render
   return (
     <>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover
+        open={!disabled && open}
+        onOpenChange={(nextOpen) => {
+          if (!disabledRef.current) setOpen(nextOpen);
+        }}
+      >
         <div className="flex w-full items-center gap-2">
           <div className="min-w-0 flex-1 truncate">
             <ModelTrigger
@@ -743,7 +772,9 @@ export default function ModelInputComponent({
               selectedModel={selectedModel}
               placeholder={resolvedPlaceholder}
               hasEnabledProviders={hasEnabledProviders ?? false}
-              onOpenManageProviders={() => setOpenManageProvidersDialog(true)}
+              onOpenManageProviders={() => {
+                if (!disabledRef.current) setOpenManageProvidersDialog(true);
+              }}
               id={id}
               refButton={refButton}
               showEmptyState={showEmptyState}
@@ -768,7 +799,7 @@ export default function ModelInputComponent({
         {renderPopoverContent()}
       </Popover>
 
-      {openManageProvidersDialog && (
+      {!disabled && openManageProvidersDialog && (
         <ModelProviderModal
           open={openManageProvidersDialog}
           onClose={handleManageProvidersDialogClose}

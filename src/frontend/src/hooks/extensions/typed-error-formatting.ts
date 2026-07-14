@@ -12,8 +12,70 @@
  */
 
 import type { ExtensionErrorPayload } from "@/controllers/API/queries/extensions";
+import i18n from "@/i18n";
 
 export type TypedErrorAlertList = { title: string; list: string[] } | undefined;
+
+type ExtensionDiagnosticTranslationKey =
+  | "extensions.reloadDiagnostics"
+  | "apiErrors.extensions.invalidManifest"
+  | "apiErrors.extensions.reloadFailed"
+  | "apiErrors.unknownCode";
+
+type ExtensionDiagnosticTranslate = (
+  key: ExtensionDiagnosticTranslationKey,
+  params?: Record<string, string>,
+) => string;
+
+const INVALID_MANIFEST_CODES = new Set([
+  "bundle-empty",
+  "bundle-json-invalid",
+  "bundle-path-not-found",
+  "build-method-missing",
+  "duplicate-bundle-name",
+  "duplicate-component-name",
+  "duplicate-inline-bundle",
+  "field-deferred-in-this-milestone",
+  "import-star-disallowed",
+  "inline-bundle-name-invalid",
+  "inline-path-missing",
+  "inline-path-unreadable",
+  "manifest-invalid",
+  "manifest-not-found",
+  "manifest-unreadable",
+  "module-import-failed",
+  "multi-bundle-unsupported",
+  "no-component-subclass",
+  "path-escape",
+  "reload-bundle-name-mismatch",
+  "reload-source-missing",
+  "syntax-error",
+  "top-level-io-disallowed",
+  "version-constraint-unsatisfied",
+]);
+
+const RELOAD_FAILURE_CODES = new Set([
+  "extension-reload-disabled",
+  "reload-bundle-not-installed",
+  "reload-class-retag-failed",
+  "reload-failed",
+  "reload_failed",
+  "reload-in-progress",
+  "reload-post-swap-hook-failed",
+]);
+
+function localizeExtensionDiagnostic(
+  payload: ExtensionErrorPayload,
+  translate: ExtensionDiagnosticTranslate,
+): string {
+  if (INVALID_MANIFEST_CODES.has(payload.code)) {
+    return translate("apiErrors.extensions.invalidManifest");
+  }
+  if (RELOAD_FAILURE_CODES.has(payload.code)) {
+    return translate("apiErrors.extensions.reloadFailed");
+  }
+  return translate("apiErrors.unknownCode", { code: payload.code });
+}
 
 /**
  * Render a list of typed errors / warnings into the alert-store list shape.
@@ -25,18 +87,17 @@ export type TypedErrorAlertList = { title: string; list: string[] } | undefined;
  */
 export function renderTypedErrorList(
   payloads: readonly ExtensionErrorPayload[],
+  translate: ExtensionDiagnosticTranslate = (key, params) =>
+    i18n.t(key, params),
 ): TypedErrorAlertList {
   if (payloads.length === 0) {
     return undefined;
   }
-  const list = payloads.flatMap((p) => {
-    const lines: string[] = [`[${p.code}] ${p.message}`];
-    if (p.hint) {
-      lines.push(`  ${p.hint}`);
-    }
-    return lines;
-  });
-  return { title: "Reload diagnostics", list };
+  const list = payloads.map(
+    (payload) =>
+      `[${payload.code}] ${localizeExtensionDiagnostic(payload, translate)}`,
+  );
+  return { title: translate("extensions.reloadDiagnostics"), list };
 }
 
 /**

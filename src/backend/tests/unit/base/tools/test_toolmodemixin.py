@@ -1,7 +1,7 @@
-from langflow.custom import Component
+from ketos.custom import Component
 
 # Import all input types
-from langflow.io import (
+from ketos.io import (
     BoolInput,
     DataFrameInput,
     DataInput,
@@ -19,15 +19,15 @@ from langflow.io import (
     StrInput,
     TableInput,
 )
-from lfx.base.tools.component_tool import ComponentToolkit
-from lfx.schema import Data
+from kfx.base.tools.component_tool import ComponentToolkit
+from kfx.schema import Data
 from pydantic import BaseModel
 
 
 class AllInputsComponent(Component):
     display_name = "All Inputs Component"
-    description = "A component with all input types available in Langflow."
-    documentation: str = "http://docs.langflow.org/components/all_inputs"
+    description = "A component with all input types available in Ketos."
+    documentation: str = "http://docs.ketos.org/components/all_inputs"
     icon = "code"
     name = "AllInputsComponent"
 
@@ -163,7 +163,7 @@ def test_component_inputs_toolkit():
 def test_table_input_preserves_list_dict():
     """Test that TableInput with tool_mode=True preserves all dicts in a list.
 
-    Regression test for: https://github.com/langflow-ai/langflow/issues/12062
+    Regression test for: https://github.com/ketos-ai/ketos/issues/12062
     """
     component = AllInputsComponent()
 

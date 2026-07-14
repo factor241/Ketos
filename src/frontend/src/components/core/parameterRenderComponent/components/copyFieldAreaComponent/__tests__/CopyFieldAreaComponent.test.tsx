@@ -14,7 +14,11 @@ jest.mock("@/components/common/genericIconComponent", () => {
     name,
     className,
     ...props
-  }: any) {
+  }: {
+    dataTestId?: string;
+    name: string;
+    className?: string;
+  } & React.ComponentProps<"span">) {
     // Since the actual component structure has onClick on parent div,
     // we need to make sure clicks bubble up correctly
     return (

@@ -1,6 +1,6 @@
 export const track = async (
   name: string,
-  properties: Record<string, any> = {},
+  properties: Record<string, unknown> = {},
   id: string = "",
 ): Promise<void> => {
   return;
@@ -9,7 +9,7 @@ export const track = async (
 export const trackFlowBuild = async (
   flowName: string,
   isError?: boolean,
-  properties?: Record<string, any>,
+  properties?: Record<string, unknown>,
 ): Promise<void> => {
   return;
 };

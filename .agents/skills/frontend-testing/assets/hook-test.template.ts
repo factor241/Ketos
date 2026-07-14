@@ -1,5 +1,5 @@
 /**
- * Test template for custom React hooks in Langflow.
+ * Test template for custom React hooks in Ketos.
  *
  * Usage:
  * 1. Copy this file to `__tests__/use-hook-name.test.ts`

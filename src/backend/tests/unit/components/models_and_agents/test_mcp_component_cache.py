@@ -12,9 +12,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from lfx.base.agents.utils import safe_cache_get, safe_cache_set
-from lfx.components.models_and_agents.mcp_component import MCPToolsComponent
-from lfx.schema.dataframe import DataFrame
+from kfx.base.agents.utils import safe_cache_get, safe_cache_set
+from kfx.components.models_and_agents.mcp_component import MCPToolsComponent
+from kfx.schema.dataframe import DataFrame
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -139,7 +139,7 @@ class TestMCPComponentCache(ComponentTestBaseWithoutClient):
         }
         safe_cache_set(component._shared_component_cache, "servers", {server_name: cache_data})
 
-        with patch("lfx.base.mcp.util.update_tools") as mock_update_tools:
+        with patch("kfx.base.mcp.util.update_tools") as mock_update_tools:
             # This should NOT be called if cache is working
             mock_update_tools.return_value = (None, [], {})
 
@@ -507,9 +507,9 @@ class TestMCPComponentCache(ComponentTestBaseWithoutClient):
         component.use_cache = False
 
         with (
-            patch("langflow.api.v2.mcp.get_server") as mock_get_server,
-            patch("lfx.services.deps.session_scope"),
-            patch("langflow.services.database.models.user.crud.get_user_by_id") as mock_get_user,
+            patch("ketos.api.v2.mcp.get_server") as mock_get_server,
+            patch("kfx.services.deps.session_scope"),
+            patch("ketos.services.database.models.user.crud.get_user_by_id") as mock_get_user,
         ):
             # Simulate server error
             mock_get_server.side_effect = Exception("Server connection failed")

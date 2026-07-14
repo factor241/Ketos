@@ -2,7 +2,7 @@ import { MarkdownField } from "@/modals/IOModal/components/chatView/chatMessage/
 
 type CustomMarkdownFieldProps = {
   isAudioMessage: boolean;
-  chat: any;
+  chat: unknown;
   isEmpty: boolean;
   chatMessage: string;
   editedFlag: React.ReactNode;

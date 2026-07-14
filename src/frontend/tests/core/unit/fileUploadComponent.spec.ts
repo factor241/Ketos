@@ -1,11 +1,11 @@
 import fs from "fs";
 import path from "path";
 import { expect, test } from "../../fixtures";
-import { addLegacyComponents } from "../../utils/add-legacy-components";
 import { adjustScreenView } from "../../utils/adjust-screen-view";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
 import { TEXTS } from "../../utils/constants/texts";
-import { dismissLegacyWarnings } from "../../utils/dismiss-legacy-warnings";
+import { dismissComponentWarnings } from "../../utils/dismiss-component-warnings";
+import { enableOptionalComponents } from "../../utils/enable-optional-components";
 import { ensureFileSelected } from "../../utils/ensure-checkbox-checked";
 import { openBlankFlow } from "../../utils/flow/open-blank-flow";
 import { generateRandomFilename } from "../../utils/generate-filename";
@@ -37,7 +37,7 @@ test(
 
     await disableInspectPanel(page);
 
-    await addLegacyComponents(page);
+    await enableOptionalComponents(page);
 
     await page.getByTestId("sidebar-search-input").click();
     await page.getByTestId("sidebar-search-input").fill("file");
@@ -448,7 +448,7 @@ test(
 
     await disableInspectPanel(page);
 
-    await addLegacyComponents(page);
+    await enableOptionalComponents(page);
 
     await page.getByTestId("sidebar-search-input").click();
     await page.getByTestId("sidebar-search-input").fill("file");
@@ -758,7 +758,7 @@ test(
     });
     await page.getByTestId("blank-flow").click();
 
-    await addLegacyComponents(page);
+    await enableOptionalComponents(page);
 
     // Add a file component to the flow
     await page.getByTestId("sidebar-search-input").click();
@@ -830,7 +830,7 @@ test(
 
     await disableInspectPanel(page);
 
-    await addLegacyComponents(page);
+    await enableOptionalComponents(page);
 
     // Add Read File Component
     await page.getByTestId("sidebar-search-input").click();
@@ -929,7 +929,7 @@ test(
     // Text Input is legacy; its "Legacy" warning bar increases node height and
     // can overlap the Read File handle. Dismiss the bars so the layout stays
     // compact and the handles are clickable.
-    await dismissLegacyWarnings(page);
+    await dismissComponentWarnings(page);
 
     // Connect first Text Input to Read File
     const targetHandle = page.getByTestId(
@@ -962,7 +962,7 @@ test(
     await adjustScreenView(page);
 
     // Dismiss the second Text Input's legacy bar before connecting it.
-    await dismissLegacyWarnings(page);
+    await dismissComponentWarnings(page);
 
     // Connect second Text Input to Read File
     const sourceHandle2 = page

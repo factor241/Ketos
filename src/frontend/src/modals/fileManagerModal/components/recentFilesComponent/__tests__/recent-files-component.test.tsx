@@ -5,6 +5,14 @@ import type { FileType } from "@/types/file_management";
 import { setRelativePathForServerPath } from "@/utils/file-relative-path-map";
 import RecentFilesComponent from "../index";
 
+const mockCompareForPresentation = jest.fn((left: string, right: string) =>
+  left === right ? 0 : left < right ? 1 : -1,
+);
+jest.mock("@/utils/locale-format", () => ({
+  compareForPresentation: (left: string, right: string) =>
+    mockCompareForPresentation(left, right),
+}));
+
 type InputProps = ComponentPropsWithoutRef<"input">;
 type ButtonProps = ComponentPropsWithoutRef<"button"> & {
   children?: ReactNode;
@@ -145,6 +153,39 @@ describe("RecentFilesComponent", () => {
     expect(screen.getByTestId("file-row-/server/a.txt")).toBeInTheDocument();
     expect(screen.getByTestId("file-row-/server/b.txt")).toBeInTheDocument();
     expect(screen.queryByTestId("files-renderer")).not.toBeInTheDocument();
+  });
+
+  it("orders hierarchy entries with the active locale comparator", () => {
+    const alpha = makeServerFile({
+      id: "alpha",
+      name: "alpha",
+      path: "/server/alpha.txt",
+    });
+    const beta = makeServerFile({
+      id: "beta",
+      name: "beta",
+      path: "/server/beta.txt",
+    });
+
+    setRelativePathForServerPath(alpha.path, "Alpha/alpha.txt");
+    setRelativePathForServerPath(beta.path, "Beta/beta.txt");
+
+    render(
+      <RecentFilesComponent
+        files={[alpha, beta]}
+        selectedFiles={[]}
+        setSelectedFiles={jest.fn()}
+        types={["txt"]}
+        isList={true}
+      />,
+    );
+
+    const folderRows = screen
+      .getAllByRole("button")
+      .filter((button) => button.hasAttribute("aria-expanded"));
+    expect(folderRows[0]).toHaveTextContent("Beta");
+    expect(folderRows[1]).toHaveTextContent("Alpha");
+    expect(mockCompareForPresentation).toHaveBeenCalledWith("Beta", "Alpha");
   });
 
   it("switches to flat renderer when searching", () => {

@@ -6,21 +6,25 @@
 ################################
 
 # 1. force platform to the current architecture to increase build speed time on multi-platform builds
-FROM --platform=$BUILDPLATFORM node:lts-bookworm-slim AS builder-base
+FROM --platform=$BUILDPLATFORM node:22.14.0-bookworm-slim AS builder-base
+ARG VITE_ENABLE_RUSSIAN_LOCALE=true
+ENV VITE_ENABLE_RUSSIAN_LOCALE=${VITE_ENABLE_RUSSIAN_LOCALE}
 COPY src/frontend /frontend
 
-RUN cd /frontend && npm install && npm run build
+RUN cd /frontend \
+    && npm ci \
+    && ESBUILD_BINARY_PATH="" NODE_OPTIONS="--max-old-space-size=4096" JOBS=1 npm run build
 
 ################################
 # RUNTIME
 ################################
 FROM nginxinc/nginx-unprivileged:stable-bookworm-perl AS runtime
 
-LABEL org.opencontainers.image.title=langflow-frontend
-LABEL org.opencontainers.image.authors=['Langflow']
+LABEL org.opencontainers.image.title=ketos-frontend
+LABEL org.opencontainers.image.authors=['Ketos']
 LABEL org.opencontainers.image.licenses=MIT
-LABEL org.opencontainers.image.url=https://github.com/langflow-ai/langflow
-LABEL org.opencontainers.image.source=https://github.com/langflow-ai/langflow
+LABEL org.opencontainers.image.url=https://git.ketos.test/ketos/ketos
+LABEL org.opencontainers.image.source=https://git.ketos.test/ketos/ketos
 
 COPY --from=builder-base --chown=nginx /frontend/build /usr/share/nginx/html
 COPY --chown=nginx ./docker/frontend/start-nginx.sh /start-nginx.sh

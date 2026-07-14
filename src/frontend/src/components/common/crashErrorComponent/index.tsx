@@ -30,7 +30,7 @@ export default function CrashErrorComponent({
                 <p>
                   {t("crash.descriptionBefore")}{" "}
                   <a
-                    href="https://github.com/langflow-ai/langflow/issues"
+                    href="https://git.ketos.test/ketos/ketos/issues"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="font-medium hover:underline"
@@ -51,7 +51,7 @@ export default function CrashErrorComponent({
                 </Button>
 
                 <a
-                  href="https://github.com/langflow-ai/langflow/issues/new"
+                  href="https://git.ketos.test/ketos/ketos/issues/new"
                   target="_blank"
                   rel="noopener noreferrer"
                 >

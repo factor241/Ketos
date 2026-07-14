@@ -9,7 +9,7 @@ importing the buffer module directly.
 from __future__ import annotations
 
 import pytest
-from langflow.agentic.services.conversation_buffer import (
+from ketos.agentic.services.conversation_buffer import (
     ConversationBuffer,
     ConversationTurn,
 )
@@ -17,7 +17,7 @@ from langflow.agentic.services.conversation_buffer import (
 
 @pytest.fixture
 def fresh_buffer(monkeypatch):
-    import langflow.agentic.services.conversation_buffer as module
+    import ketos.agentic.services.conversation_buffer as module
 
     buf = ConversationBuffer()
     monkeypatch.setattr(module, "_singleton", buf)
@@ -25,7 +25,7 @@ def fresh_buffer(monkeypatch):
 
 
 def test_clear_session_history_should_drop_the_named_session(fresh_buffer):
-    from langflow.agentic.services.assistant_service import clear_session_history
+    from ketos.agentic.services.assistant_service import clear_session_history
 
     fresh_buffer.push("alice", "s1", ConversationTurn(user="x", assistant="y"))
     fresh_buffer.push("alice", "s2", ConversationTurn(user="a", assistant="b"))
@@ -38,7 +38,7 @@ def test_clear_session_history_should_drop_the_named_session(fresh_buffer):
 
 
 def test_clear_session_history_should_skip_when_session_id_none(fresh_buffer):
-    from langflow.agentic.services.assistant_service import clear_session_history
+    from ketos.agentic.services.assistant_service import clear_session_history
 
     fresh_buffer.push("alice", "s1", ConversationTurn(user="x", assistant="y"))
     # Should not raise and should not touch any session.
@@ -47,7 +47,7 @@ def test_clear_session_history_should_skip_when_session_id_none(fresh_buffer):
 
 
 def test_clear_session_history_should_skip_when_user_id_none(fresh_buffer):
-    from langflow.agentic.services.assistant_service import clear_session_history
+    from ketos.agentic.services.assistant_service import clear_session_history
 
     fresh_buffer.push("alice", "s1", ConversationTurn(user="x", assistant="y"))
     # Should not raise and should not touch any session.
@@ -60,7 +60,7 @@ def test_clear_session_history_should_not_drop_other_users_session_with_same_id(
 
     One tenant cannot wipe another's buffer by guessing/replaying a session_id.
     """
-    from langflow.agentic.services.assistant_service import clear_session_history
+    from ketos.agentic.services.assistant_service import clear_session_history
 
     fresh_buffer.push("alice", "s1", ConversationTurn(user="x", assistant="y"))
 
@@ -74,6 +74,6 @@ def test_clear_session_history_should_not_drop_other_users_session_with_same_id(
 def test_clear_session_history_should_be_idempotent_for_unknown_session(
     fresh_buffer,  # noqa: ARG001 — fixture patches the singleton to a fresh buffer
 ):
-    from langflow.agentic.services.assistant_service import clear_session_history
+    from ketos.agentic.services.assistant_service import clear_session_history
 
     clear_session_history("alice", "never-pushed")  # no error

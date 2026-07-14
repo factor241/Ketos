@@ -9,15 +9,15 @@ from uuid import UUID
 
 import httpx
 import pytest
-from langflow_sdk import AsyncClient, Client
-from langflow_sdk.exceptions import LangflowHTTPError
-from langflow_sdk.models import Flow
+from ketos_sdk import AsyncKetosClient, KetosClient
+from ketos_sdk.exceptions import KetosHTTPError
+from ketos_sdk.models import Flow
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-_BASE_URL = "http://langflow.test"
+_BASE_URL = "http://ketos.test"
 _FLOW_ID = "00000000-0000-0000-0000-000000000042"
 
 _SAMPLE_FLOW: dict[str, Any] = {
@@ -87,14 +87,14 @@ class _AsyncMockTransport(httpx.AsyncBaseTransport):
         )
 
 
-def _sync_client(transport: _MockTransport) -> Client:
+def _sync_client(transport: _MockTransport) -> KetosClient:
     http = httpx.Client(base_url=_BASE_URL, transport=transport)
-    return Client(_BASE_URL, httpx_client=http)
+    return KetosClient(_BASE_URL, httpx_client=http)
 
 
-def _async_client(transport: _AsyncMockTransport) -> AsyncClient:
+def _async_client(transport: _AsyncMockTransport) -> AsyncKetosClient:
     http = httpx.AsyncClient(base_url=_BASE_URL, transport=transport)
-    return AsyncClient(_BASE_URL, httpx_client=http)
+    return AsyncKetosClient(_BASE_URL, httpx_client=http)
 
 
 # ---------------------------------------------------------------------------
@@ -166,7 +166,7 @@ def test_push_sends_put_request(tmp_path: Path) -> None:
     flow_file.write_text(json.dumps(_SAMPLE_FLOW), encoding="utf-8")
 
     http = httpx.Client(base_url=_BASE_URL, transport=_CapturingTransport())
-    client = Client(_BASE_URL, httpx_client=http)
+    client = KetosClient(_BASE_URL, httpx_client=http)
     client.push(flow_file)
     client.close()
 
@@ -188,7 +188,7 @@ def test_push_does_not_include_id_in_body(tmp_path: Path) -> None:
     flow_file.write_text(json.dumps(_SAMPLE_FLOW), encoding="utf-8")
 
     http = httpx.Client(base_url=_BASE_URL, transport=_CapturingTransport())
-    client = Client(_BASE_URL, httpx_client=http)
+    client = KetosClient(_BASE_URL, httpx_client=http)
     client.push(flow_file)
     client.close()
 
@@ -250,7 +250,7 @@ def test_pull_returns_dict_without_output() -> None:
 @pytest.mark.unit
 def test_pull_raises_on_http_error() -> None:
     client = _sync_client(_MockTransport(status=404, body={"detail": "Not found"}))
-    with pytest.raises(LangflowHTTPError):
+    with pytest.raises(KetosHTTPError):
         client.pull(_FLOW_ID)
     client.close()
 
@@ -274,7 +274,7 @@ def test_push_project_pushes_all_json_files(tmp_path: Path) -> None:
             return httpx.Response(200, json=_FLOW_RESPONSE, request=request)
 
     http = httpx.Client(base_url=_BASE_URL, transport=_CapturingTransport())
-    client = Client(_BASE_URL, httpx_client=http)
+    client = KetosClient(_BASE_URL, httpx_client=http)
     results = client.push_project(tmp_path)
     client.close()
 
@@ -326,7 +326,7 @@ def test_pull_project_writes_normalized_flows(tmp_path: Path) -> None:
             return httpx.Response(200, content=zip_bytes, request=request)
 
     http = httpx.Client(base_url=_BASE_URL, transport=_ZipTransport())
-    client = Client(_BASE_URL, httpx_client=http)
+    client = KetosClient(_BASE_URL, httpx_client=http)
     out_dir = tmp_path / "project"
     written = client.pull_project("some-project-id", output_dir=out_dir)
     client.close()
@@ -356,7 +356,7 @@ def test_pull_project_creates_output_dir(tmp_path: Path) -> None:
             return httpx.Response(200, content=zip_bytes, request=request)
 
     http = httpx.Client(base_url=_BASE_URL, transport=_ZipTransport())
-    client = Client(_BASE_URL, httpx_client=http)
+    client = KetosClient(_BASE_URL, httpx_client=http)
     out_dir = tmp_path / "new" / "deep" / "dir"
     client.pull_project("proj-id", output_dir=out_dir)
     client.close()
@@ -365,7 +365,7 @@ def test_pull_project_creates_output_dir(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# AsyncClient variants
+# AsyncKetosClient variants
 # ---------------------------------------------------------------------------
 
 
@@ -442,7 +442,7 @@ async def test_async_pull_project_writes_flows(tmp_path: Path) -> None:
             return httpx.Response(200, content=zip_bytes, request=request)
 
     http = httpx.AsyncClient(base_url=_BASE_URL, transport=_AsyncZipTransport())
-    client = AsyncClient(_BASE_URL, httpx_client=http)
+    client = AsyncKetosClient(_BASE_URL, httpx_client=http)
     out_dir = tmp_path / "output"
     written = await client.pull_project("proj-id", output_dir=out_dir)
     await client.aclose()

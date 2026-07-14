@@ -255,7 +255,9 @@ export default function RecentFilesComponent({
             </span>
             <DeleteConfirmationModal
               onConfirm={() => handleBulkDelete()}
-              description={`file${selectedFiles.length > 1 ? "s" : ""}`}
+              description={t("fileManager.deleteDescription", {
+                count: selectedFiles.length,
+              })}
             >
               <Button
                 variant="destructive"
@@ -323,7 +325,7 @@ export default function RecentFilesComponent({
                               }
                             }}
                           >
-                            <div onClick={(e) => e.stopPropagation()}>
+                            <div>
                               <Checkbox
                                 checked={
                                   isIndeterminate ? "indeterminate" : isChecked
@@ -361,6 +363,7 @@ export default function RecentFilesComponent({
                                     );
                                   }
                                 }}
+                                onClick={(event) => event.stopPropagation()}
                                 className="focus-visible:ring-0"
                               />
                             </div>

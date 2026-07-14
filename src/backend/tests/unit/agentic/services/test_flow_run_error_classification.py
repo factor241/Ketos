@@ -9,7 +9,7 @@ bugs. This classifier is the pure decision at the heart of that loop.
 from __future__ import annotations
 
 import pytest
-from langflow.agentic.services.flow_run_error_classification import (
+from ketos.agentic.services.flow_run_error_classification import (
     RunErrorKind,
     classify_run_error,
 )

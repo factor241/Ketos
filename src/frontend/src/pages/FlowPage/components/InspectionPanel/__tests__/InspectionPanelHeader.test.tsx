@@ -1,7 +1,18 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 import type { NodeDataType } from "@/types/flow";
-import InspectionPanelHeader from "../components/InspectionPanelHeader";
+import InspectionPanelHeaderComponent from "../components/InspectionPanelHeader";
+
+function InspectionPanelHeader({ data }: { data: NodeDataType }) {
+  return (
+    <InspectionPanelHeaderComponent
+      data={data}
+      isEditingFields={false}
+      setIsEditingFields={jest.fn()}
+    />
+  );
+}
 
 // Mock EditableHeaderContent
 const mockHandleSave = jest.fn();
@@ -39,9 +50,14 @@ jest.mock("@/CustomNodes/hooks/use-handle-new-value", () => ({
 const mockSetNoticeData = jest.fn();
 const mockSetSuccessData = jest.fn();
 
+interface AlertState {
+  setNoticeData: typeof mockSetNoticeData;
+  setSuccessData: typeof mockSetSuccessData;
+}
+
 jest.mock("@/stores/alertStore", () => ({
   __esModule: true,
-  default: (selector: any) =>
+  default: <T,>(selector: (state: AlertState) => T): T =>
     selector({
       setNoticeData: mockSetNoticeData,
       setSuccessData: mockSetSuccessData,
@@ -49,46 +65,85 @@ jest.mock("@/stores/alertStore", () => ({
 }));
 
 jest.mock("@/stores/shortcuts", () => ({
-  useShortcutsStore: (selector: any) =>
+  useShortcutsStore: <T,>(
+    selector: (state: {
+      shortcuts: Array<{ name: string; key: string }>;
+      advancedSettings: string;
+    }) => T,
+  ): T =>
     selector({
       shortcuts: [
         { name: "Docs", key: "d" },
         { name: "Code", key: "c" },
       ],
+      advancedSettings: "mod+shift+a",
     }),
 }));
 
 // Mock components
 jest.mock("@/components/common/genericIconComponent", () => ({
   __esModule: true,
-  default: ({ name }: any) => <span data-testid={`icon-${name}`}>{name}</span>,
+  default: ({ name }: { name: string }) => (
+    <span data-testid={`icon-${name}`}>{name}</span>
+  ),
 }));
 
 jest.mock("@/components/common/shadTooltipComponent", () => ({
   __esModule: true,
-  default: ({ children, content }: any) => (
-    <div title={content}>{children}</div>
-  ),
+  default: ({
+    children,
+    content,
+  }: {
+    children: ReactNode;
+    content: ReactNode;
+  }) => {
+    const title =
+      typeof content === "string" || typeof content === "number"
+        ? String(content)
+        : undefined;
+
+    return <div title={title}>{children}</div>;
+  },
 }));
 
 jest.mock("@/components/ui/badge", () => ({
-  Badge: ({ children, onClick, ...props }: any) => (
-    <span onClick={onClick} {...props}>
+  Badge: ({
+    children,
+    variant: _variant,
+    size: _size,
+    ...props
+  }: ButtonHTMLAttributes<HTMLButtonElement> & {
+    variant?: string;
+    size?: string;
+  }) => (
+    <button type="button" {...props}>
       {children}
-    </span>
+    </button>
   ),
 }));
 
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, ...props }: any) => (
-    <button onClick={onClick} {...props}>
+  Button: ({
+    children,
+    unstyled: _unstyled,
+    ...props
+  }: ButtonHTMLAttributes<HTMLButtonElement> & { unstyled?: boolean }) => (
+    <button type="button" {...props}>
       {children}
     </button>
   ),
 }));
 
 jest.mock("../../nodeToolbarComponent/components/toolbar-button", () => ({
-  ToolbarButton: ({ icon, onClick, dataTestId }: any) => (
+  ToolbarButton: ({
+    icon,
+    onClick,
+    dataTestId,
+  }: {
+    icon: ReactNode;
+    onClick: () => void;
+    dataTestId: string;
+  }) => (
     <button onClick={onClick} data-testid={dataTestId}>
       {icon}
     </button>
@@ -97,7 +152,13 @@ jest.mock("../../nodeToolbarComponent/components/toolbar-button", () => ({
 
 jest.mock("@/modals/codeAreaModal", () => ({
   __esModule: true,
-  default: ({ open, setOpen, setValue }: any) =>
+  default: ({
+    open,
+    setOpen,
+  }: {
+    open: boolean;
+    setOpen: (open: boolean) => void;
+  }) =>
     open ? (
       <div data-testid="code-modal">
         <button onClick={() => setOpen(false)} data-testid="close-code-modal">
@@ -112,7 +173,7 @@ jest.mock("@/customization/utils/custom-open-new-tab", () => ({
 }));
 
 jest.mock("@/utils/utils", () => ({
-  cn: (...classes: any[]) => classes.filter(Boolean).join(" "),
+  cn: (...classes: unknown[]) => classes.filter(Boolean).join(" "),
 }));
 
 describe("InspectionPanelHeader", () => {
@@ -206,8 +267,7 @@ describe("InspectionPanelHeader", () => {
       expect(customOpenNewTab).toHaveBeenCalledWith("https://docs.example.com");
     });
 
-    it("should show notice when docs not available", async () => {
-      const user = userEvent.setup();
+    it("should show notice when docs not available", () => {
       const data = createMockData({ documentation: undefined });
       // Manually add docs button for testing
       const dataWithButton = { ...data };
@@ -306,17 +366,6 @@ describe("InspectionPanelHeader", () => {
   });
 
   describe("Close Functionality", () => {
-    it("should call onClose when provided", async () => {
-      const onClose = jest.fn();
-      const data = createMockData();
-
-      render(<InspectionPanelHeader data={data} onClose={onClose} />);
-
-      // onClose would be called by parent component, not directly by header
-      // This test verifies the prop is accepted
-      expect(onClose).not.toHaveBeenCalled();
-    });
-
     it("should work without onClose callback", () => {
       const data = createMockData();
 

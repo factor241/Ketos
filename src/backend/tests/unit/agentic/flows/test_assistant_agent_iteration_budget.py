@@ -11,8 +11,8 @@ recursion-limit error tells the user to break the request into parts.
 import json
 from pathlib import Path
 
-FLOW_PATH = Path(__file__).parents[4] / "base" / "langflow" / "agentic" / "flows" / "LangflowAssistant.json"
-PY_FLOW_PATH = Path(__file__).parents[4] / "base" / "langflow" / "agentic" / "flows" / "flow_builder_assistant.py"
+FLOW_PATH = Path(__file__).parents[4] / "base" / "ketos" / "agentic" / "flows" / "KetosAssistant.json"
+PY_FLOW_PATH = Path(__file__).parents[4] / "base" / "ketos" / "agentic" / "flows" / "flow_builder_assistant.py"
 
 COMPONENT_DEFAULT_ITERATIONS = 15
 
@@ -21,7 +21,7 @@ def test_should_keep_json_agents_at_the_component_default_budget():
     data = json.loads(FLOW_PATH.read_text(encoding="utf-8"))
     agents = [n["data"] for n in data["data"]["nodes"] if n.get("data", {}).get("type") == "Agent"]
 
-    assert agents, "LangflowAssistant.json must contain Agent nodes"
+    assert agents, "KetosAssistant.json must contain Agent nodes"
     for agent in agents:
         configured = agent["node"]["template"]["max_iterations"]["value"]
         assert configured == COMPONENT_DEFAULT_ITERATIONS, (

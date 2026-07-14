@@ -1,19 +1,12 @@
 import type { UseQueryResult } from "@tanstack/react-query";
-import type { useQueryFunctionType } from "@/types/api";
+import type { Users, useQueryFunctionType } from "@/types/api";
 import { api } from "../../api";
 import { getURL } from "../../helpers/constants";
 import { UseRequestProcessor } from "../../services/request-processor";
 
 export interface SessionResponse {
   authenticated: boolean;
-  user?: {
-    id: string;
-    username: string;
-    is_active: boolean;
-    is_superuser: boolean;
-    [key: string]: any;
-  };
-  store_api_key?: string;
+  user?: Users;
 }
 
 export const useGetAuthSession: useQueryFunctionType<

@@ -61,15 +61,11 @@ export type InputComponentType = {
   hasRefreshButton?: boolean;
   inspectionPanel?: boolean;
 };
-export type DropDownComponent = {
+type DropDownBase = {
   disabled?: boolean;
   isLoading?: boolean;
   value: string;
   combobox?: boolean;
-  nodeId: string;
-  nodeClass: APIClassType;
-  // biome-ignore lint/suspicious/noExplicitAny: pre-existing loose handler type
-  handleNodeClass: (value: any, code?: string, type?: string) => void;
   options: string[];
   // biome-ignore lint/suspicious/noExplicitAny: pre-existing untyped metadata array
   optionsMetaData?: any[];
@@ -92,6 +88,23 @@ export type DropDownComponent = {
   externalOptions?: any;
   toggle?: boolean;
 };
+
+type NodeBackedDropDown = {
+  nodeId: string;
+  nodeClass: APIClassType;
+  handleNodeClass: (value: APIClassType, code?: string, type?: string) => void;
+  handleOnNewValue: handleOnNewValueType;
+};
+
+type StandaloneDropDown = {
+  nodeId?: never;
+  nodeClass?: never;
+  handleNodeClass?: never;
+  handleOnNewValue?: handleOnNewValueType;
+};
+
+export type DropDownComponent = DropDownBase &
+  (NodeBackedDropDown | StandaloneDropDown);
 export type ParameterComponentType = {
   selected?: boolean;
   data: NodeDataType;
@@ -477,11 +490,11 @@ export type ApiKeyType = {
   onCloseModal?: () => void;
   modalProps?: {
     title?: string;
-    description?: string | ReactElement | HTMLElement;
-    inputLabel?: string | ReactElement | HTMLElement | ReactNode;
+    description?: ReactNode;
+    inputLabel?: ReactNode;
     inputPlaceholder?: string;
     buttonText?: string;
-    generatedKeyMessage?: string | ReactElement | HTMLElement;
+    generatedKeyMessage?: ReactNode;
     showIcon?: boolean;
     size?:
       | "x-small"
@@ -499,10 +512,6 @@ export type ApiKeyType = {
   };
 };
 
-export type StoreApiKeyType = {
-  children: ReactElement;
-  disabled?: boolean;
-};
 export type groupedObjType = {
   family: string;
   type: string;

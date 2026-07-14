@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import { Button } from "@/components/ui/button";
@@ -209,7 +210,7 @@ function VersionSummaryCard({
 
 function getDeploymentTypeLabel(
   deploymentType: DeploymentType,
-  t: (key: string) => string,
+  t: TFunction<"translation">,
 ) {
   if (deploymentType === "agent") {
     return t("deployments.agentTypeLabel");

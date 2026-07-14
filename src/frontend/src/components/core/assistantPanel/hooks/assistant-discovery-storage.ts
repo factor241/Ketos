@@ -1,5 +1,5 @@
 /**
- * Persistent flag tracking whether the user has discovered the Langflow
+ * Persistent flag tracking whether the user has discovered the Ketos
  * Assistant. Used to suppress the onboarding affordances ("New" pill on the
  * canvas controls button + idle tooltip) once the user has acknowledged the
  * feature.
@@ -14,7 +14,7 @@
  * surface; nothing user-visible breaks.
  */
 
-const ASSISTANT_DISCOVERED_STORAGE_KEY = "langflow-assistant-discovered";
+const ASSISTANT_DISCOVERED_STORAGE_KEY = "ketos-assistant-discovered";
 
 export function readAssistantDiscovered(): boolean {
   try {

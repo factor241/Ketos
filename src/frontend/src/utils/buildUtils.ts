@@ -1,5 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
-import type { AxiosError } from "axios";
+import { type AxiosError, isAxiosError } from "axios";
 import { handleMessageEvent } from "@/components/core/playgroundComponent/chat-view/utils/message-event-handler";
 import {
   findLastBotMessage,
@@ -109,52 +109,49 @@ export async function updateVerticesOrder(
   verticesToRun: string[];
 }> {
   logFlowLoad("Updating vertices order");
-  return new Promise(async (resolve, reject) => {
-    const setErrorData = useAlertStore.getState().setErrorData;
-    let orderResponse;
-    try {
-      orderResponse = await getVerticesOrder(
-        flowId,
-        startNodeId,
-        stopNodeId,
-        nodes,
-        edges,
-      );
-      logFlowLoad("Got vertices order response:", orderResponse);
-      // biome-ignore lint/suspicious/noExplicitAny: legacy
-    } catch (error: any) {
-      logFlowLoad("Error getting vertices order:", error);
-      setErrorData({
-        title: i18n.t("errors.missedFields"),
-        list: [error.response?.data?.detail ?? "Unknown Error"],
-      });
-      useFlowStore.getState().setIsBuilding(false);
-      throw new Error("Invalid components");
-    }
-    // orderResponse.data.ids,
-    // for each id we need to build the VertexLayerElementType object as
-    // {id: id, reference: id}
-    const verticesLayers: Array<Array<VertexLayerElementType>> =
-      orderResponse.data.ids.map((id: string) => {
-        return [{ id: id, reference: id }];
-      });
-
-    const runId = orderResponse.data.run_id;
-    const verticesToRun = orderResponse.data.vertices_to_run;
-
-    useFlowStore
-      .getState()
-      .updateBuildStatus(verticesToRun, BuildStatus.TO_BUILD);
-
-    const verticesIds = orderResponse.data.ids;
-    useFlowStore.getState().updateVerticesBuild({
-      verticesLayers,
-      verticesIds,
-      runId,
-      verticesToRun,
+  const setErrorData = useAlertStore.getState().setErrorData;
+  let orderResponse;
+  try {
+    orderResponse = await getVerticesOrder(
+      flowId,
+      startNodeId,
+      stopNodeId,
+      nodes,
+      edges,
+    );
+    logFlowLoad("Got vertices order response:", orderResponse);
+  } catch (error: unknown) {
+    logFlowLoad("Error getting vertices order:", error);
+    const detail = isAxiosError<{ detail?: string }>(error)
+      ? error.response?.data?.detail
+      : undefined;
+    setErrorData({
+      title: i18n.t("errors.missedFields"),
+      list: [detail ?? "Unknown Error"],
     });
-    resolve({ verticesLayers, verticesIds, runId, verticesToRun });
+    useFlowStore.getState().setIsBuilding(false);
+    throw new Error("Invalid components");
+  }
+  const verticesLayers: Array<Array<VertexLayerElementType>> =
+    orderResponse.data.ids.map((id: string) => {
+      return [{ id: id, reference: id }];
+    });
+
+  const runId = orderResponse.data.run_id;
+  const verticesToRun = orderResponse.data.vertices_to_run;
+
+  useFlowStore
+    .getState()
+    .updateBuildStatus(verticesToRun, BuildStatus.TO_BUILD);
+
+  const verticesIds = orderResponse.data.ids;
+  useFlowStore.getState().updateVerticesBuild({
+    verticesLayers,
+    verticesIds,
+    runId,
+    verticesToRun,
   });
+  return { verticesLayers, verticesIds, runId, verticesToRun };
 }
 
 export async function buildFlowVerticesWithFallback(
@@ -352,8 +349,8 @@ export async function buildFlowVertices({
         if (errorData.detail) {
           errorDetail = errorData.detail;
         }
-      } catch (parseError) {
-        console.debug("Could not parse error response body:", parseError);
+      } catch {
+        // Preserve the generic error detail when the response is not JSON.
       }
       throw new Error(errorDetail);
     }
@@ -443,7 +440,7 @@ export async function buildFlowVertices({
     }
     onBuildError!("Error Building Flow", [
       (error as Error).message ||
-        "Langflow was not able to connect to the server. Please make sure your connection is working properly.",
+        "Ketos was not able to connect to the server. Please make sure your connection is working properly.",
     ]);
     throw error;
   }

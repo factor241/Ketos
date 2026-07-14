@@ -9,9 +9,9 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
-from langflow.agentic.utils.template_create import create_flow_from_template_and_get_link
+from ketos.agentic.utils.template_create import create_flow_from_template_and_get_link
 
-MODULE = "langflow.agentic.utils.template_create"
+MODULE = "ketos.agentic.utils.template_create"
 
 USER_ID = uuid4()
 FOLDER_ID = uuid4()

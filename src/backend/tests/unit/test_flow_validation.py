@@ -1,4 +1,4 @@
-"""Tests for flow validation utilities (lfx.utils.flow_validation).
+"""Tests for flow validation utilities (kfx.utils.flow_validation).
 
 Covers:
 - Hash-based validation: blocked (unknown type) and outdated (hash mismatch)
@@ -14,8 +14,8 @@ import hashlib
 from types import SimpleNamespace
 
 import pytest
-from lfx.interface.components import component_cache
-from lfx.utils.flow_validation import (
+from kfx.interface.components import component_cache
+from kfx.utils.flow_validation import (
     CustomComponentValidationError,
     _compute_code_hash,
     _get_invalid_components,
@@ -267,7 +267,7 @@ class TestValidateFlowForCurrentSettings:
     def test_validator_blocks_unknown_type(self, monkeypatch):
         settings_service = SimpleNamespace(settings=SimpleNamespace(allow_custom_components=False))
         monkeypatch.setattr(
-            "lfx.services.deps.get_settings_service",
+            "kfx.services.deps.get_settings_service",
             lambda: settings_service,
         )
         monkeypatch.setattr(
@@ -292,7 +292,7 @@ class TestValidateFlowForCurrentSettings:
     def test_validator_fail_closed_when_component_hashes_missing(self, monkeypatch):
         settings_service = SimpleNamespace(settings=SimpleNamespace(allow_custom_components=False))
         monkeypatch.setattr(
-            "lfx.services.deps.get_settings_service",
+            "kfx.services.deps.get_settings_service",
             lambda: settings_service,
         )
         monkeypatch.setattr(component_cache, "type_to_current_hash", None)
@@ -306,10 +306,10 @@ class TestValidateFlowForCurrentSettings:
 
 
 class TestBuildCodeHashLookups:
-    """Tests for _build_code_hash_lookups in lfx.interface.components."""
+    """Tests for _build_code_hash_lookups in kfx.interface.components."""
 
     def test_populates_hash_lookups_from_all_types_dict(self):
-        from lfx.interface.components import ComponentCache, _build_code_hash_lookups
+        from kfx.interface.components import ComponentCache, _build_code_hash_lookups
 
         cache = ComponentCache()
         cache.all_types_dict = {
@@ -332,7 +332,7 @@ class TestBuildCodeHashLookups:
         assert cache.all_known_hashes == {"abc123def456", "789012ghijkl"}
 
     def test_skips_components_without_metadata(self):
-        from lfx.interface.components import ComponentCache, _build_code_hash_lookups
+        from kfx.interface.components import ComponentCache, _build_code_hash_lookups
 
         cache = ComponentCache()
         cache.all_types_dict = {
@@ -348,7 +348,7 @@ class TestBuildCodeHashLookups:
         assert cache.type_to_current_hash["WithMeta"] == {"hash123hash1"}
 
     def test_skips_components_without_code_hash(self):
-        from lfx.interface.components import ComponentCache, _build_code_hash_lookups
+        from kfx.interface.components import ComponentCache, _build_code_hash_lookups
 
         cache = ComponentCache()
         cache.all_types_dict = {
@@ -363,7 +363,7 @@ class TestBuildCodeHashLookups:
 
     def test_empty_all_types_dict_is_noop(self):
         """Empty dict is falsy, so _build_code_hash_lookups treats it the same as None."""
-        from lfx.interface.components import ComponentCache, _build_code_hash_lookups
+        from kfx.interface.components import ComponentCache, _build_code_hash_lookups
 
         cache = ComponentCache()
         cache.all_types_dict = {}
@@ -374,7 +374,7 @@ class TestBuildCodeHashLookups:
         assert cache.all_known_hashes is None
 
     def test_dict_with_empty_category_produces_empty_lookups(self):
-        from lfx.interface.components import ComponentCache, _build_code_hash_lookups
+        from kfx.interface.components import ComponentCache, _build_code_hash_lookups
 
         cache = ComponentCache()
         cache.all_types_dict = {"models": {}}
@@ -384,7 +384,7 @@ class TestBuildCodeHashLookups:
         assert cache.all_known_hashes == set()
 
     def test_none_all_types_dict_is_noop(self):
-        from lfx.interface.components import ComponentCache, _build_code_hash_lookups
+        from kfx.interface.components import ComponentCache, _build_code_hash_lookups
 
         cache = ComponentCache()
         assert cache.type_to_current_hash is None
@@ -393,7 +393,7 @@ class TestBuildCodeHashLookups:
         assert cache.type_to_current_hash is None
 
     def test_prompt_alias_is_registered_for_legacy_prompt_nodes(self):
-        from lfx.interface.components import ComponentCache, _build_code_hash_lookups
+        from kfx.interface.components import ComponentCache, _build_code_hash_lookups
 
         cache = ComponentCache()
         cache.all_types_dict = {
@@ -412,7 +412,7 @@ class TestBuildCodeHashLookups:
         assert cache.type_to_current_hash["Prompt"] == {"prompthash12"}
 
     def test_legacy_alias_does_not_overwrite_direct_key(self):
-        from lfx.interface.components import ComponentCache, _build_code_hash_lookups
+        from kfx.interface.components import ComponentCache, _build_code_hash_lookups
 
         cache = ComponentCache()
         cache.all_types_dict = {
@@ -509,7 +509,7 @@ class TestBuildCodeHashLookups:
         )
 
     def test_non_dict_values_in_all_types_dict_skipped(self):
-        from lfx.interface.components import ComponentCache, _build_code_hash_lookups
+        from kfx.interface.components import ComponentCache, _build_code_hash_lookups
 
         cache = ComponentCache()
         cache.all_types_dict = {
@@ -535,7 +535,7 @@ class TestCustomComponentsFromPathPassValidation:
 
     def test_custom_component_passes_when_indexed(self):
         """A custom component from components_path should pass validation at startup."""
-        from lfx.interface.components import ComponentCache, _build_code_hash_lookups
+        from kfx.interface.components import ComponentCache, _build_code_hash_lookups
 
         builtin_code = "class ChatInput(Component): ..."
         custom_code = "class MyCustomRAG(Component): ..."
@@ -575,7 +575,7 @@ class TestCustomComponentsFromPathPassValidation:
 
     def test_custom_component_blocked_when_not_indexed(self):
         """A component NOT loaded from components_path should still be blocked."""
-        from lfx.interface.components import ComponentCache, _build_code_hash_lookups
+        from kfx.interface.components import ComponentCache, _build_code_hash_lookups
 
         builtin_code = "class ChatInput(Component): ..."
 
@@ -609,7 +609,7 @@ class TestCustomComponentsFromPathPassValidation:
 
     def test_modified_custom_component_detected_as_outdated(self):
         """Modified custom component code is detected as outdated."""
-        from lfx.interface.components import ComponentCache, _build_code_hash_lookups
+        from kfx.interface.components import ComponentCache, _build_code_hash_lookups
 
         original_code = "class MyCustomRAG(Component): pass"
         tampered_code = "class MyCustomRAG(Component): import os; os.system('rm -rf /')"
@@ -639,7 +639,7 @@ class TestCustomComponentsFromPathPassValidation:
 
     def test_mixed_builtin_and_custom_flow(self):
         """A flow mixing built-in and custom components should pass when all are indexed."""
-        from lfx.interface.components import ComponentCache, _build_code_hash_lookups
+        from kfx.interface.components import ComponentCache, _build_code_hash_lookups
 
         builtin_code = "class ChatInput(Component): ..."
         custom_code = "class MyCustomRAG(Component): ..."
@@ -676,7 +676,7 @@ class TestCustomComponentsFromPathPassValidation:
 
     def test_duplicate_name_both_versions_accepted(self):
         """Duplicate component names accept both built-in and custom hashes."""
-        from lfx.interface.components import ComponentCache, _build_code_hash_lookups
+        from kfx.interface.components import ComponentCache, _build_code_hash_lookups
 
         builtin_code = "class CustomComponent(Component): pass  # built-in"
         custom_code = "class CustomComponent(Component): pass  # user version"
@@ -813,7 +813,7 @@ class TestGetTrustedCodeForValidation:
         Security core: when attacker bytes collide with a known template hash,
         the lookup must return the server's trusted source.
         """
-        import lfx.utils.flow_validation as fv
+        import kfx.utils.flow_validation as fv
 
         trusted = "class TextInput:\n    pass  # the real built-in\n"
         malicious = "import os\n_pwn = os.system('id')\n"

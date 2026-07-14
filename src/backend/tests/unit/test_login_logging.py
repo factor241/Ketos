@@ -5,15 +5,15 @@ from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
-from langflow.services.database.models.user.model import User
-from langflow.services.deps import session_scope
+from ketos.services.database.models.user.model import User
+from ketos.services.deps import session_scope
 from sqlmodel import select
 
 
 @pytest.mark.asyncio
 async def test_failed_login_nonexistent_user_logs(client: AsyncClient):
     """Test that failed login for non-existent user is logged with hashed username."""
-    with patch("langflow.services.auth.service.logger") as mock_logger:
+    with patch("ketos.services.auth.service.logger") as mock_logger:
         response = await client.post(
             "/api/v1/login",
             data={"username": "nonexistent_user", "password": "wrong_password"},  # pragma: allowlist secret
@@ -40,7 +40,7 @@ async def test_failed_login_nonexistent_user_logs(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_failed_login_wrong_password_logs(client: AsyncClient, active_user):
     """Test that failed login with wrong password is logged."""
-    with patch("langflow.services.auth.service.logger") as mock_logger:
+    with patch("ketos.services.auth.service.logger") as mock_logger:
         response = await client.post(
             "/api/v1/login",
             data={"username": active_user.username, "password": "wrong_password"},  # pragma: allowlist secret
@@ -66,7 +66,7 @@ async def test_failed_login_inactive_user_logs(client: AsyncClient):
     async with session_scope() as session:
         from datetime import datetime, timezone
 
-        from langflow.services.deps import get_auth_service
+        from ketos.services.deps import get_auth_service
 
         inactive_user = User(
             username="inactiveuser",
@@ -80,7 +80,7 @@ async def test_failed_login_inactive_user_logs(client: AsyncClient):
         await session.refresh(inactive_user)
         user_id = str(inactive_user.id)
 
-    with patch("langflow.services.auth.service.logger") as mock_logger:
+    with patch("ketos.services.auth.service.logger") as mock_logger:
         response = await client.post(
             "/api/v1/login",
             data={"username": "inactiveuser", "password": "testpassword"},  # pragma: allowlist secret
@@ -110,7 +110,7 @@ async def test_failed_login_inactive_user_logs(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_successful_login_logs(client: AsyncClient, active_user):
     """Test that successful login is logged."""
-    with patch("langflow.services.auth.service.logger") as mock_logger:
+    with patch("ketos.services.auth.service.logger") as mock_logger:
         response = await client.post(
             "/api/v1/login",
             data={"username": active_user.username, "password": "testpassword"},  # pragma: allowlist secret
@@ -131,7 +131,7 @@ async def test_successful_login_logs(client: AsyncClient, active_user):
 @pytest.mark.asyncio
 async def test_login_logs_contain_ip_address(client: AsyncClient):
     """Test that login logs contain IP address."""
-    with patch("langflow.services.auth.service.logger") as mock_logger:
+    with patch("ketos.services.auth.service.logger") as mock_logger:
         response = await client.post(
             "/api/v1/login",
             data={"username": "nonexistent", "password": "wrong"},  # pragma: allowlist secret
@@ -149,7 +149,7 @@ async def test_login_logs_contain_ip_address(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_login_logs_no_pii(client: AsyncClient):
     """Test that login logs do not contain PII (email, full name, plain username)."""
-    with patch("langflow.services.auth.service.logger") as mock_logger:
+    with patch("ketos.services.auth.service.logger") as mock_logger:
         response = await client.post(
             "/api/v1/login",
             data={"username": "test_user", "password": "wrong"},  # pragma: allowlist secret
@@ -179,7 +179,7 @@ async def test_login_logs_no_pii(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_login_logs_real_output_format(client: AsyncClient):
     """Test that login logs use structlog kwargs format (not nested extra dict)."""
-    with patch("langflow.services.auth.service.logger") as mock_logger:
+    with patch("ketos.services.auth.service.logger") as mock_logger:
         response = await client.post(
             "/api/v1/login",
             data={"username": "nonexistent_user", "password": "wrong"},  # pragma: allowlist secret

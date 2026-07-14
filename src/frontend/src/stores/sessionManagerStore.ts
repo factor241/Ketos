@@ -4,8 +4,7 @@ import type {
   SessionManagerStoreType,
 } from "@/types/zustand/sessionManager";
 
-const LOCAL_SESSIONS_KEY = (flowId: string) =>
-  `langflow_local_sessions_${flowId}`;
+const LOCAL_SESSIONS_KEY = (flowId: string) => `ketos-local-sessions-${flowId}`;
 
 function loadLocalSessions(flowId: string): string[] {
   try {

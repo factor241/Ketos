@@ -1,6 +1,5 @@
 import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
-import { convertTestName } from "@/components/common/storeCardComponent/utils/convert-test-name";
 import {
   Sidebar,
   SidebarContent,
@@ -12,6 +11,7 @@ import {
   SidebarMenuItem,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { convertTestName } from "@/utils/convert-test-name";
 import { cn } from "@/utils/utils";
 import { useIsMobile } from "../../../../hooks/use-mobile";
 import type { NavProps } from "../../../../types/templates/types";

@@ -1,7 +1,7 @@
-from lfx.custom.custom_component.component import Component
-from lfx.io import Output, TableInput
-from lfx.schema.data import Data
-from lfx.schema.table import Column
+from kfx.custom.custom_component.component import Component
+from kfx.io import Output, TableInput
+from kfx.schema.data import Data
+from kfx.schema.table import Column
 
 
 class TableSchemaDemoComponent(Component):

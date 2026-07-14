@@ -19,7 +19,7 @@ jest.mock("../../helpers/messages", () => ({
 }));
 
 jest.mock("../../assistant-panel.constants", () => ({
-  getAssistantPlaceholder: () => "Ask me anything about Langflow...",
+  getAssistantPlaceholder: () => "Ask me anything about Ketos...",
 }));
 
 describe("AssistantInput", () => {
@@ -38,7 +38,7 @@ describe("AssistantInput", () => {
       render(<AssistantInput {...defaultProps} />);
 
       expect(
-        screen.getByPlaceholderText("Ask me anything about Langflow..."),
+        screen.getByPlaceholderText("Ask me anything about Ketos..."),
       ).toBeInTheDocument();
     });
 
@@ -94,7 +94,7 @@ describe("AssistantInput", () => {
       ).toBeInTheDocument();
     });
 
-    it("should show 'Generating flow...' during 'generating_flow' step", () => {
+    it("should show the localized flow-generation label during 'generating_flow' step", () => {
       // Regression: 'generating_flow' must behave like the other generating
       // steps (no rotating placeholder, static intent-specific text) so the
       // user sees a stable label instead of cycling random messages.
@@ -107,7 +107,7 @@ describe("AssistantInput", () => {
       );
 
       expect(
-        screen.getByPlaceholderText("Generating flow..."),
+        screen.getByPlaceholderText("Generating flow"),
       ).toBeInTheDocument();
     });
 
@@ -182,7 +182,7 @@ describe("AssistantInput", () => {
       );
 
       expect(
-        screen.getByPlaceholderText("Generating flow..."),
+        screen.getByPlaceholderText("Generating flow"),
       ).toBeInTheDocument();
     });
   });
@@ -245,7 +245,7 @@ describe("AssistantInput", () => {
       // input boots with a model and matches the production contract that
       // ModelSelector's auto-select effect normally satisfies.
       localStorage.setItem(
-        "langflow-assistant-selected-model",
+        "ketos-assistant-selected-model",
         JSON.stringify({
           id: "OpenAI-gpt-4o",
           name: "gpt-4o",
@@ -356,7 +356,7 @@ describe("AssistantInput", () => {
   });
 
   describe("command history (arrow-up / arrow-down)", () => {
-    const STORAGE_KEY = "langflow-assistant-input-history";
+    const STORAGE_KEY = "ketos-assistant-input-history";
 
     beforeEach(() => {
       localStorage.clear();
@@ -418,7 +418,7 @@ describe("AssistantInput", () => {
       // for AssistantInput's handleSend to call through. Use the model
       // from localStorage trick: prime it.
       localStorage.setItem(
-        "langflow-assistant-selected-model",
+        "ketos-assistant-selected-model",
         JSON.stringify(model),
       );
 

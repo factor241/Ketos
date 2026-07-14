@@ -1,5 +1,5 @@
-name: Langflow Release
-run-name: Langflow Release by @${{ github.actor }}
+name: Ketos Release
+run-name: Ketos Release by @${{ github.actor }}
 
 on:
   workflow_dispatch:
@@ -9,22 +9,22 @@ on:
         required: true
         type: string
       release_package_base:
-        description: "Release Langflow Base"
+        description: "Release Ketos Base"
         required: true
         type: boolean
         default: false
       release_package_main:
-        description: "Release Langflow"
+        description: "Release Ketos"
         required: true
         type: boolean
         default: false
-      release_lfx:
-        description: "Release LFX package (manually triggered)"
+      release_kfx:
+        description: "Release KFX package (manually triggered)"
         required: false
         type: boolean
         default: false
       release_sdk:
-        description: "Release langflow-sdk package (required when releasing LFX)"
+        description: "Release ketos-sdk package (required when releasing KFX)"
         required: false
         type: boolean
         default: false
@@ -34,12 +34,12 @@ on:
         type: boolean
         default: false
       build_docker_base:
-        description: "Build Docker Image for Langflow Base"
+        description: "Build Docker Image for Ketos Base"
         required: true
         type: boolean
         default: false
       build_docker_main:
-        description: "Build Docker Image for Langflow"
+        description: "Build Docker Image for Ketos"
         required: true
         type: boolean
         default: false
@@ -74,7 +74,7 @@ jobs:
           echo "release_tag: ${{ inputs.release_tag }}"
           echo "release_package_base: ${{ inputs.release_package_base }}"
           echo "release_package_main: ${{ inputs.release_package_main }}"
-          echo "release_lfx: ${{ inputs.release_lfx }}"
+          echo "release_kfx: ${{ inputs.release_kfx }}"
           echo "release_sdk: ${{ inputs.release_sdk }}"
           echo "release_bundles: ${{ inputs.release_bundles }}"
           echo "build_docker_base: ${{ inputs.build_docker_base }}"
@@ -108,6 +108,15 @@ jobs:
           fi
 
           echo "Validated: '${{ inputs.release_tag }}' is a valid tag."
+
+      - name: Bind release tag to approved workflow commit
+        run: |
+          release_sha=$(git rev-parse "${{ inputs.release_tag }}^{commit}")
+          if [ "$release_sha" != "$GITHUB_SHA" ]; then
+            echo "Release tag resolves to $release_sha, but approved workflow commit is $GITHUB_SHA."
+            exit 1
+          fi
+          echo "Release tag is bound to approved commit $GITHUB_SHA."
 
   validate-tag-format:
     name: Validate Tag Format and Check for Duplicates
@@ -152,26 +161,26 @@ jobs:
   validate-dependencies:
     name: Validate Release Dependencies
     runs-on: ubuntu-latest
-    if: ${{ inputs.release_package_base || inputs.release_package_main || inputs.release_lfx || inputs.release_sdk || inputs.build_docker_base || inputs.build_docker_main }}
+    if: ${{ inputs.release_package_base || inputs.release_package_main || inputs.release_kfx || inputs.release_sdk || inputs.build_docker_base || inputs.build_docker_main }}
     needs: [validate-tag]
     steps:
       - name: Validate that build-base is enabled if build-main is enabled
         run: |
           if [ "${{ inputs.release_package_main }}" = "true" ] && [ "${{ inputs.release_package_base }}" = "false" ]; then
-            echo "Error: Cannot release Langflow Main without releasing Langflow Base."
+            echo "Error: Cannot release Ketos Main without releasing Ketos Base."
             echo "Please enable 'release_package_base' or disable 'release_package_main'."
             exit 1
           fi
 
-          if [ "${{ inputs.release_lfx }}" = "true" ] && [ "${{ inputs.release_sdk }}" = "false" ]; then
-            echo "Error: Cannot release LFX without releasing langflow-sdk."
-            echo "LFX depends on langflow-sdk. Please enable 'release_sdk' or disable 'release_lfx'."
+          if [ "${{ inputs.release_kfx }}" = "true" ] && [ "${{ inputs.release_sdk }}" = "false" ]; then
+            echo "Error: Cannot release KFX without releasing ketos-sdk."
+            echo "KFX depends on ketos-sdk. Please enable 'release_sdk' or disable 'release_kfx'."
             exit 1
           fi
 
           if [ "${{ inputs.release_package_main }}" = "true" ] && [ "${{ inputs.release_bundles }}" = "false" ]; then
-            echo "Error: Cannot release Langflow Main without releasing bundles."
-            echo "Langflow Main pins exact bundle versions (lfx-arxiv, lfx-duckduckgo, ...). Please enable 'release_bundles' or disable 'release_package_main'."
+            echo "Error: Cannot release Ketos Main without releasing bundles."
+            echo "Ketos Main pins exact bundle versions (kfx-arxiv, kfx-duckduckgo, ...). Please enable 'release_bundles' or disable 'release_package_main'."
             exit 1
           fi
 
@@ -264,7 +273,7 @@ jobs:
             local base_version="$2"
             local versions_file="$3"
             local rc_number
-            rc_number=$(uv run ./scripts/ci/langflow_pre_release_tag.py "$base_version" --print-rc-number - < "$versions_file")
+            rc_number=$(uv run ./scripts/ci/ketos_pre_release_tag.py "$base_version" --print-rc-number - < "$versions_file")
             echo "${label}: next rc number for ${base_version} is ${rc_number}"
             if [ "$rc_number" -gt "$max_rc" ]; then
               max_rc="$rc_number"
@@ -275,26 +284,26 @@ jobs:
 
           if [ "${{ inputs.release_package_main }}" = "true" ]; then
             version="$(read_pyproject_version pyproject.toml)"
-            fetch_pypi_versions "langflow" "$tmp_dir/langflow-pypi.txt"
-            consider_versions "PyPI langflow" "$version" "$tmp_dir/langflow-pypi.txt"
+            fetch_pypi_versions "ketos" "$tmp_dir/ketos-pypi.txt"
+            consider_versions "PyPI ketos" "$version" "$tmp_dir/ketos-pypi.txt"
           fi
 
           if [ "${{ inputs.release_package_base }}" = "true" ]; then
             version="$(read_pyproject_version src/backend/base/pyproject.toml)"
-            fetch_pypi_versions "langflow-base" "$tmp_dir/langflow-base-pypi.txt"
-            consider_versions "PyPI langflow-base" "$version" "$tmp_dir/langflow-base-pypi.txt"
+            fetch_pypi_versions "ketos-base" "$tmp_dir/ketos-base-pypi.txt"
+            consider_versions "PyPI ketos-base" "$version" "$tmp_dir/ketos-base-pypi.txt"
           fi
 
-          if [ "${{ inputs.release_lfx }}" = "true" ]; then
-            version="$(read_pyproject_version src/lfx/pyproject.toml)"
-            fetch_pypi_versions "lfx" "$tmp_dir/lfx-pypi.txt"
-            consider_versions "PyPI lfx" "$version" "$tmp_dir/lfx-pypi.txt"
+          if [ "${{ inputs.release_kfx }}" = "true" ]; then
+            version="$(read_pyproject_version src/kfx/pyproject.toml)"
+            fetch_pypi_versions "kfx" "$tmp_dir/kfx-pypi.txt"
+            consider_versions "PyPI kfx" "$version" "$tmp_dir/kfx-pypi.txt"
           fi
 
-          if [ "${{ inputs.release_sdk || inputs.release_lfx }}" = "true" ]; then
+          if [ "${{ inputs.release_sdk || inputs.release_kfx }}" = "true" ]; then
             version="$(read_pyproject_version src/sdk/pyproject.toml)"
-            fetch_pypi_versions "langflow-sdk" "$tmp_dir/langflow-sdk-pypi.txt"
-            consider_versions "PyPI langflow-sdk" "$version" "$tmp_dir/langflow-sdk-pypi.txt"
+            fetch_pypi_versions "ketos-sdk" "$tmp_dir/ketos-sdk-pypi.txt"
+            consider_versions "PyPI ketos-sdk" "$version" "$tmp_dir/ketos-sdk-pypi.txt"
           fi
 
           if [ "${{ inputs.release_bundles }}" = "true" ]; then
@@ -317,16 +326,16 @@ jobs:
 
           if [ "${{ inputs.build_docker_main }}" = "true" ]; then
             version="$(read_pyproject_version pyproject.toml)"
-            fetch_docker_tags "langflowai/langflow" "$tmp_dir/langflow-docker.txt"
-            grep -v '^base-' "$tmp_dir/langflow-docker.txt" | grep -vE '\-(amd64|arm64)$' > "$tmp_dir/langflow-docker-release-tags.txt" || true
-            consider_versions "Docker langflowai/langflow" "$version" "$tmp_dir/langflow-docker-release-tags.txt"
+            fetch_docker_tags "registry.invalid/ketos/ketos" "$tmp_dir/ketos-docker.txt"
+            grep -v '^base-' "$tmp_dir/ketos-docker.txt" | grep -vE '\-(amd64|arm64)$' > "$tmp_dir/ketos-docker-release-tags.txt" || true
+            consider_versions "Docker registry.invalid/ketos/ketos" "$version" "$tmp_dir/ketos-docker-release-tags.txt"
           fi
 
           if [ "${{ inputs.build_docker_base }}" = "true" ]; then
             version="$(read_pyproject_version src/backend/base/pyproject.toml)"
-            fetch_docker_tags "langflowai/langflow" "$tmp_dir/langflow-base-docker.txt"
-            grep -E '^base-' "$tmp_dir/langflow-base-docker.txt" | grep -vE '\-(amd64|arm64)$' | sed 's/^base-//' > "$tmp_dir/langflow-base-docker-release-tags.txt" || true
-            consider_versions "Docker langflowai/langflow base" "$version" "$tmp_dir/langflow-base-docker-release-tags.txt"
+            fetch_docker_tags "registry.invalid/ketos/ketos" "$tmp_dir/ketos-base-docker.txt"
+            grep -E '^base-' "$tmp_dir/ketos-base-docker.txt" | grep -vE '\-(amd64|arm64)$' | sed 's/^base-//' > "$tmp_dir/ketos-base-docker-release-tags.txt" || true
+            consider_versions "Docker registry.invalid/ketos/ketos base" "$version" "$tmp_dir/ketos-base-docker-release-tags.txt"
           fi
 
           echo "Shared pre-release rc number: ${max_rc}"
@@ -368,11 +377,11 @@ jobs:
 
           if [ ${{inputs.pre_release}} == "true" ]; then
             rc_number="${{ needs.determine-rc-number.outputs.rc_number }}"
-            version="$(uv run ./scripts/ci/langflow_pre_release_tag.py "$version" --rc-number "$rc_number")"
+            version="$(uv run ./scripts/ci/ketos_pre_release_tag.py "$version" --rc-number "$rc_number")"
             echo "Shared release candidate number: rc$rc_number"
             echo "Base pre-release version to be released: $version"
           else
-            last_released_version=$(curl -s "https://pypi.org/pypi/langflow-base/json" | jq -r '.releases | keys | .[]' | grep -vE '(a|b|rc|dev|alpha|beta)' | sort -V | tail -n 1)
+            last_released_version=$(curl -s "https://pypi.org/pypi/ketos-base/json" | jq -r '.releases | keys | .[]' | grep -vE '(a|b|rc|dev|alpha|beta)' | sort -V | tail -n 1)
             echo "Latest base release version: $last_released_version"
           fi
 
@@ -412,16 +421,16 @@ jobs:
       - name: Determine version
         id: version
         run: |
-          version=$(uv tree | grep -E '^langflow(-nightly)?[[:space:]]' | awk '{print $2}' | sed 's/^v//')
+          version=$(uv tree | grep -E '^ketos(-nightly)?[[:space:]]' | awk '{print $2}' | sed 's/^v//')
           echo "Main version from pyproject.toml: $version"
 
           if [ ${{inputs.pre_release}} == "true" ]; then
             rc_number="${{ needs.determine-rc-number.outputs.rc_number }}"
-            version="$(uv run ./scripts/ci/langflow_pre_release_tag.py "$version" --rc-number "$rc_number")"
+            version="$(uv run ./scripts/ci/ketos_pre_release_tag.py "$version" --rc-number "$rc_number")"
             echo "Shared release candidate number: rc$rc_number"
             echo "Main pre-release version to be released: $version"
           else
-            last_released_version=$(curl -s "https://pypi.org/pypi/langflow/json" | jq -r '.releases | keys | .[]' | grep -vE '(a|b|rc|dev|alpha|beta)' | sort -V | tail -n 1)
+            last_released_version=$(curl -s "https://pypi.org/pypi/ketos/json" | jq -r '.releases | keys | .[]' | grep -vE '(a|b|rc|dev|alpha|beta)' | sort -V | tail -n 1)
             echo "Latest main release version: $last_released_version"
           fi
 
@@ -434,8 +443,8 @@ jobs:
             echo skipped=false >> $GITHUB_OUTPUT
           fi
 
-  determine-lfx-version:
-    name: Determine LFX Version
+  determine-kfx-version:
+    name: Determine KFX Version
     needs: [validate-tag, validate-dependencies, determine-rc-number]
     runs-on: ubuntu-latest
     outputs:
@@ -455,27 +464,27 @@ jobs:
           python-version: "3.13"
           prune-cache: false
 
-      - name: Install LFX dependencies
-        run: uv sync --dev --package lfx
+      - name: Install KFX dependencies
+        run: uv sync --dev --package kfx
 
       - name: Determine version
         id: version
         run: |
-          version=$(uv tree | grep 'lfx' | awk '{print $3}' | sed 's/^v//' | head -n 2 | xargs)
-          echo "LFX version from pyproject.toml: $version"
+          version=$(uv tree | grep 'kfx' | awk '{print $3}' | sed 's/^v//' | head -n 2 | xargs)
+          echo "KFX version from pyproject.toml: $version"
 
           if [ ${{inputs.pre_release}} == "true" ]; then
             rc_number="${{ needs.determine-rc-number.outputs.rc_number }}"
-            version="$(uv run ./scripts/ci/langflow_pre_release_tag.py "$version" --rc-number "$rc_number")"
+            version="$(uv run ./scripts/ci/ketos_pre_release_tag.py "$version" --rc-number "$rc_number")"
             echo "Shared release candidate number: rc$rc_number"
-            echo "LFX pre-release version to be released: $version"
+            echo "KFX pre-release version to be released: $version"
           else
-            last_released_version=$(curl -s "https://pypi.org/pypi/lfx/json" | jq -r '.releases | keys | .[]' | grep -vE '(a|b|rc|dev|alpha|beta)' | sort -V | tail -n 1)
-            echo "Latest LFX release version: $last_released_version"
+            last_released_version=$(curl -s "https://pypi.org/pypi/kfx/json" | jq -r '.releases | keys | .[]' | grep -vE '(a|b|rc|dev|alpha|beta)' | sort -V | tail -n 1)
+            echo "Latest KFX release version: $last_released_version"
           fi
 
           if [ "$version" = "$last_released_version" ]; then
-            echo "LFX pypi version $version is already released. Skipping release."
+            echo "KFX pypi version $version is already released. Skipping release."
             echo skipped=true >> $GITHUB_OUTPUT
             exit 1
           else
@@ -486,7 +495,7 @@ jobs:
   determine-sdk-version:
     name: Determine SDK Version
     needs: [validate-tag, validate-dependencies, determine-rc-number]
-    if: ${{ inputs.release_sdk || inputs.release_lfx }}
+    if: ${{ inputs.release_sdk || inputs.release_kfx }}
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -506,7 +515,7 @@ jobs:
           prune-cache: false
 
       - name: Install SDK dependencies
-        run: uv sync --dev --package langflow-sdk
+        run: uv sync --dev --package ketos-sdk
 
       - name: Determine version
         id: version
@@ -518,25 +527,25 @@ jobs:
           ")
           echo "SDK version from pyproject.toml: $version"
 
-          # Check if langflow-sdk exists on PyPI (may be first release)
-          pypi_response=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/langflow-sdk/json")
+          # Check if ketos-sdk exists on PyPI (may be first release)
+          pypi_response=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/ketos-sdk/json")
           if [ "$pypi_response" = "404" ]; then
-            echo "langflow-sdk has never been published to PyPI. This will be the first release."
+            echo "ketos-sdk has never been published to PyPI. This will be the first release."
             last_released_version=""
             if [ ${{inputs.pre_release}} == "true" ]; then
               rc_number="${{ needs.determine-rc-number.outputs.rc_number }}"
-              version="$(uv run ./scripts/ci/langflow_pre_release_tag.py "$version" --rc-number "$rc_number")"
+              version="$(uv run ./scripts/ci/ketos_pre_release_tag.py "$version" --rc-number "$rc_number")"
               echo "Shared release candidate number: rc$rc_number"
               echo "SDK pre-release version to be released: $version"
             fi
           else
             if [ ${{inputs.pre_release}} == "true" ]; then
               rc_number="${{ needs.determine-rc-number.outputs.rc_number }}"
-              version="$(uv run ./scripts/ci/langflow_pre_release_tag.py "$version" --rc-number "$rc_number")"
+              version="$(uv run ./scripts/ci/ketos_pre_release_tag.py "$version" --rc-number "$rc_number")"
               echo "Shared release candidate number: rc$rc_number"
               echo "SDK pre-release version to be released: $version"
             else
-              last_released_version=$(curl -s "https://pypi.org/pypi/langflow-sdk/json" | jq -r '.releases | keys | .[]' | grep -vE '(a|b|rc|dev|alpha|beta)' | sort -V | tail -n 1)
+              last_released_version=$(curl -s "https://pypi.org/pypi/ketos-sdk/json" | jq -r '.releases | keys | .[]' | grep -vE '(a|b|rc|dev|alpha|beta)' | sort -V | tail -n 1)
               echo "Latest SDK release version: $last_released_version"
             fi
           fi
@@ -564,7 +573,7 @@ jobs:
     secrets: inherit
 
   build-sdk:
-    name: Build langflow-sdk
+    name: Build ketos-sdk
     needs: [determine-sdk-version]
     if: ${{ needs.determine-sdk-version.outputs.skipped == 'false' }}
     runs-on: ubuntu-latest
@@ -594,7 +603,7 @@ jobs:
           echo "Updated pyproject.toml version:"
           grep "^version" pyproject.toml
       - name: Build project for distribution
-        run: make sdk_build args="--wheel"
+        run: make sdk_build
       - name: Verify built version
         run: |
           EXPECTED_VERSION="${{ needs.determine-sdk-version.outputs.version }}"
@@ -621,21 +630,21 @@ jobs:
           # importlib.metadata returns the PEP 440 canonical form, so normalize
           # the expected version the same way the wheel filename check does.
           NORMALIZED_VERSION=$(echo "$EXPECTED_VERSION" | sed 's/\.rc/rc/g; s/\.a/a/g; s/\.b/b/g; s/\.dev/dev/g')
-          ./test-env/bin/python -c "from importlib.metadata import version; import langflow_sdk; installed_version = version('langflow-sdk'); print(f'langflow-sdk {installed_version} imported successfully'); assert installed_version == '$NORMALIZED_VERSION', f'Installed version {installed_version} does not match expected version $NORMALIZED_VERSION'"
+          ./test-env/bin/python -c "from importlib.metadata import version; import ketos_sdk; installed_version = version('ketos-sdk'); print(f'ketos-sdk {installed_version} imported successfully'); assert installed_version == '$NORMALIZED_VERSION', f'Installed version {installed_version} does not match expected version $NORMALIZED_VERSION'"
       - name: Upload Artifact
         uses: actions/upload-artifact@v6
         with:
           name: dist-sdk
           path: src/sdk/dist
 
-  build-lfx:
-    name: Build LFX
-    needs: [determine-lfx-version, determine-sdk-version, build-sdk]
+  build-kfx:
+    name: Build KFX
+    needs: [determine-kfx-version, determine-sdk-version, build-sdk]
     if: |
       always() &&
       !cancelled() &&
-      needs.determine-lfx-version.result == 'success' &&
-      needs.determine-lfx-version.outputs.skipped == 'false'
+      needs.determine-kfx-version.result == 'success' &&
+      needs.determine-kfx-version.outputs.skipped == 'false'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -655,55 +664,55 @@ jobs:
         with:
           name: dist-sdk
           path: ./sdk-dist
-      - name: Install LFX dependencies
-        run: uv sync --dev --package lfx
+      - name: Install KFX dependencies
+        run: uv sync --dev --package kfx
       - name: Set version for pre-release
         if: ${{ inputs.pre_release }}
         run: |
-          VERSION="${{ needs.determine-lfx-version.outputs.version }}"
+          VERSION="${{ needs.determine-kfx-version.outputs.version }}"
           echo "Setting pre-release version to: $VERSION"
-          cd src/lfx
+          cd src/kfx
 
-          # Update version in lfx pyproject.toml
+          # Update version in kfx pyproject.toml
           sed -i.bak "s/^version = .*/version = \"$VERSION\"/" pyproject.toml
 
           # Verify the change
           echo "Updated pyproject.toml version:"
           grep "^version" pyproject.toml
-      - name: Update langflow-sdk dependency for pre-release
+      - name: Update ketos-sdk dependency for pre-release
         if: ${{ inputs.pre_release && needs.build-sdk.result == 'success' }}
         run: |
           SDK_VERSION="${{ needs.determine-sdk-version.outputs.version }}"
-          echo "Updating langflow-sdk dependency to allow pre-release version: $SDK_VERSION"
-          cd src/lfx
+          echo "Updating ketos-sdk dependency to allow pre-release version: $SDK_VERSION"
+          cd src/kfx
 
-          # Extract current langflow-sdk constraint from pyproject.toml
-          CURRENT_CONSTRAINT=$(grep -E '^\s*"langflow-sdk' pyproject.toml | head -1)
+          # Extract current ketos-sdk constraint from pyproject.toml
+          CURRENT_CONSTRAINT=$(grep -E '^\s*"ketos-sdk' pyproject.toml | head -1)
           echo "Current constraint: $CURRENT_CONSTRAINT"
 
           # Create new constraint using the next major derived from SDK_VERSION
           SDK_BASE_VERSION=$(echo "$SDK_VERSION" | sed 's/[^0-9.].*$//')
           SDK_MAJOR=$(echo "$SDK_BASE_VERSION" | cut -d. -f1)
           NEXT_MAJOR=$((SDK_MAJOR + 1))
-          NEW_CONSTRAINT="\"langflow-sdk>=$SDK_VERSION,<$NEXT_MAJOR.dev0\""
+          NEW_CONSTRAINT="\"ketos-sdk>=$SDK_VERSION,<$NEXT_MAJOR.dev0\""
 
           echo "New constraint: $NEW_CONSTRAINT"
 
           # Replace the constraint
-          sed -i.bak "s|\"langflow-sdk[^\"]*\"|$NEW_CONSTRAINT|" pyproject.toml
+          sed -i.bak "s|\"ketos-sdk[^\"]*\"|$NEW_CONSTRAINT|" pyproject.toml
 
           # Verify the change
-          echo "Updated langflow-sdk dependency:"
-          grep "langflow-sdk" pyproject.toml
+          echo "Updated ketos-sdk dependency:"
+          grep "ketos-sdk" pyproject.toml
       - name: Build project for distribution
         run: |
-          cd src/lfx
+          cd src/kfx
           rm -rf dist/
-          uv build --wheel --out-dir dist
+          uv build --out-dir dist
       - name: Verify built version
         run: |
-          EXPECTED_VERSION="${{ needs.determine-lfx-version.outputs.version }}"
-          WHEEL_FILE=$(ls src/lfx/dist/*.whl)
+          EXPECTED_VERSION="${{ needs.determine-kfx-version.outputs.version }}"
+          WHEEL_FILE=$(ls src/kfx/dist/*.whl)
           echo "Built wheel: $WHEEL_FILE"
 
           NORMALIZED_VERSION=$(echo "$EXPECTED_VERSION" | sed 's/\.rc/rc/g; s/\.a/a/g; s/\.b/b/g; s/\.dev/dev/g')
@@ -719,8 +728,8 @@ jobs:
           echo "✅ Version verified: $EXPECTED_VERSION"
       - name: Test CLI
         run: |
-          cd src/lfx
-          # Use a clean venv and install both SDK and LFX wheels together
+          cd src/kfx
+          # Use a clean venv and install both SDK and KFX wheels together
           # so uv can resolve the local SDK dependency without falling back to PyPI.
           uv venv test-env --seed
           if [ -d "../../sdk-dist" ]; then
@@ -729,23 +738,23 @@ jobs:
           else
             uv pip install --python ./test-env/bin/python --force-reinstall dist/*.whl
           fi
-          ./test-env/bin/lfx --help
+          ./test-env/bin/kfx --help
       - name: Upload Artifact
         uses: actions/upload-artifact@v6
         with:
-          name: dist-lfx
-          path: src/lfx/dist
+          name: dist-kfx
+          path: src/kfx/dist
 
   build-base:
-    name: Build Langflow Base
-    needs: [build-lfx, build-sdk, determine-base-version, determine-lfx-version]
+    name: Build Ketos Base
+    needs: [build-kfx, build-sdk, determine-base-version, determine-kfx-version]
     if: |
       always() &&
       !cancelled() &&
       inputs.release_package_base &&
       needs.determine-base-version.result == 'success' &&
       needs.determine-base-version.outputs.skipped == 'false' &&
-      needs.build-lfx.result == 'success'
+      needs.build-kfx.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -759,23 +768,23 @@ jobs:
           cache-dependency-glob: "uv.lock"
           python-version: "3.12"
           prune-cache: false
-      - name: Download LFX artifact
+      - name: Download KFX artifact
         uses: actions/download-artifact@v7
         with:
-          name: dist-lfx
-          path: ./lfx-dist
+          name: dist-kfx
+          path: ./kfx-dist
       - name: Download SDK artifact
         if: needs.build-sdk.result == 'success'
         uses: actions/download-artifact@v7
         with:
           name: dist-sdk
           path: ./sdk-dist
-      - name: Install dependencies with local LFX and SDK wheels
+      - name: Install dependencies with local KFX and SDK wheels
         run: |
           # Create virtual environment
           uv venv
           # Install using pip with local wheel directories as find-links
-          FIND_LINKS="--find-links ./lfx-dist"
+          FIND_LINKS="--find-links ./kfx-dist"
           if [ -d "./sdk-dist" ]; then
             FIND_LINKS="$FIND_LINKS --find-links ./sdk-dist"
           fi
@@ -796,15 +805,15 @@ jobs:
           # Verify the change
           echo "Updated pyproject.toml version:"
           grep "^version" pyproject.toml
-      - name: Update lfx dependency for pre-release
+      - name: Update kfx dependency for pre-release
         if: ${{ inputs.pre_release }}
         run: |
-          LFX_VERSION="${{ needs.determine-lfx-version.outputs.version }}"
-          echo "Updating lfx dependency to allow pre-release version: $LFX_VERSION"
+          KFX_VERSION="${{ needs.determine-kfx-version.outputs.version }}"
+          echo "Updating kfx dependency to allow pre-release version: $KFX_VERSION"
           cd src/backend/base
 
-          # Extract current lfx constraint from pyproject.toml
-          CURRENT_CONSTRAINT=$(grep -E '^\s*"lfx' pyproject.toml | head -1)
+          # Extract current kfx constraint from pyproject.toml
+          CURRENT_CONSTRAINT=$(grep -E '^\s*"kfx' pyproject.toml | head -1)
           echo "Current constraint: $CURRENT_CONSTRAINT"
 
           # Extract the major.minor version (e.g., "1.10" from "~=1.10.0", or from the
@@ -815,19 +824,19 @@ jobs:
           MINOR=${MAJOR_MINOR#*.}
           NEXT_MINOR=$((MINOR + 1))
 
-          # Create new constraint: >=LFX_VERSION,<MAJOR.(MINOR+1).dev0
-          NEW_CONSTRAINT="\"lfx>=$LFX_VERSION,<$MAJOR.$NEXT_MINOR.dev0\""
+          # Create new constraint: >=KFX_VERSION,<MAJOR.(MINOR+1).dev0
+          NEW_CONSTRAINT="\"kfx>=$KFX_VERSION,<$MAJOR.$NEXT_MINOR.dev0\""
 
           echo "New constraint: $NEW_CONSTRAINT"
 
           # Replace the constraint
-          sed -i.bak "s|\"lfx[^\"]*\"|$NEW_CONSTRAINT|" pyproject.toml
+          sed -i.bak "s|\"kfx[^\"]*\"|$NEW_CONSTRAINT|" pyproject.toml
 
           # Verify the change
-          echo "Updated lfx dependency:"
-          grep "lfx" pyproject.toml
+          echo "Updated kfx dependency:"
+          grep "kfx" pyproject.toml
       - name: Build project for distribution
-        run: make build base=true args="--wheel"
+        run: make build base=true
       - name: Verify built version
         run: |
           EXPECTED_VERSION="${{ needs.determine-base-version.outputs.version }}"
@@ -851,7 +860,7 @@ jobs:
           mkdir src/backend/base/dist
           mv dist/*.whl src/backend/base/dist
           uv pip install src/backend/base/dist/*.whl
-          uv run python -m langflow run --host localhost --port 7860 --backend-only &
+          uv run python -m ketos run --host localhost --port 7860 --backend-only &
           SERVER_PID=$!
           # Wait for the server to start
           timeout 120 bash -c 'until curl -f http://localhost:7860/api/v1/auto_login; do sleep 2; done' || (echo "Server did not start in time" && kill $SERVER_PID && exit 1)
@@ -875,15 +884,15 @@ jobs:
           path: src/backend/base/dist
 
   build-main:
-    name: Build Langflow Main
+    name: Build Ketos Main
     needs:
       [
         build-base,
-        build-lfx,
+        build-kfx,
         build-sdk,
         determine-base-version,
         determine-main-version,
-        determine-lfx-version,
+        determine-kfx-version,
       ]
     if: |
       always() &&
@@ -892,7 +901,7 @@ jobs:
       needs.determine-main-version.result == 'success' &&
       needs.determine-main-version.outputs.skipped == 'false' &&
       needs.build-base.result == 'success' &&
-      needs.build-lfx.result == 'success'
+      needs.build-kfx.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -906,11 +915,11 @@ jobs:
           cache-dependency-glob: "uv.lock"
           python-version: "3.12"
           prune-cache: false
-      - name: Download LFX artifact
+      - name: Download KFX artifact
         uses: actions/download-artifact@v7
         with:
-          name: dist-lfx
-          path: ./lfx-dist
+          name: dist-kfx
+          path: ./kfx-dist
       - name: Download SDK artifact
         if: needs.build-sdk.result == 'success'
         uses: actions/download-artifact@v7
@@ -927,7 +936,7 @@ jobs:
           # Create virtual environment
           uv venv
           # Install using pip with local wheel directories as find-links
-          FIND_LINKS="--find-links ./lfx-dist --find-links ./base-dist"
+          FIND_LINKS="--find-links ./kfx-dist --find-links ./base-dist"
           if [ -d "./sdk-dist" ]; then
             FIND_LINKS="$FIND_LINKS --find-links ./sdk-dist"
           fi
@@ -947,14 +956,14 @@ jobs:
           # Verify the change
           echo "Updated pyproject.toml version:"
           grep "^version" pyproject.toml
-      - name: Update langflow-base dependency for pre-release
+      - name: Update ketos-base dependency for pre-release
         if: ${{ inputs.pre_release }}
         run: |
           BASE_VERSION="${{ needs.determine-base-version.outputs.version }}"
           echo "Base version for pre-release: $BASE_VERSION"
 
-          # Extract current langflow-base constraint from pyproject.toml
-          CURRENT_CONSTRAINT=$(grep -E '^\s*"langflow-base' pyproject.toml | head -1)
+          # Extract current ketos-base constraint from pyproject.toml
+          CURRENT_CONSTRAINT=$(grep -E '^\s*"ketos-base' pyproject.toml | head -1)
           echo "Current constraint: $CURRENT_CONSTRAINT"
 
           # Extract the major.minor version (e.g., "0.8" from "~=0.8.0")
@@ -962,22 +971,22 @@ jobs:
           NEXT_MAJOR=$((${MAJOR_MINOR%.*} + 1))
 
           # Create new constraint: >=BASE_VERSION,<NEXT_MAJOR.dev0 (preserve [complete] extra)
-          NEW_CONSTRAINT="\"langflow-base[complete]>=$BASE_VERSION,<$NEXT_MAJOR.dev0\""
+          NEW_CONSTRAINT="\"ketos-base[complete]>=$BASE_VERSION,<$NEXT_MAJOR.dev0\""
 
           echo "New constraint: $NEW_CONSTRAINT"
 
           # Replace the constraint
-          sed -i.bak "s|\"langflow-base[^\"]*\"|$NEW_CONSTRAINT|" pyproject.toml
+          sed -i.bak "s|\"ketos-base[^\"]*\"|$NEW_CONSTRAINT|" pyproject.toml
 
           # Verify the change
           echo "Updated dependency:"
-          grep "langflow-base" pyproject.toml
+          grep "ketos-base" pyproject.toml
       - name: Build project for pre-release distribution
         if: ${{ inputs.pre_release }}
-        run: make build pre=true args="--no-sources --wheel"
+        run: make build pre=true args="--no-sources"
       - name: Build project for distribution
         if: ${{ !inputs.pre_release }}
-        run: make build main=true args="--no-sources --wheel"
+        run: make build main=true args="--no-sources"
       - name: Verify built version
         run: |
           EXPECTED_VERSION="${{ needs.determine-main-version.outputs.version }}"
@@ -998,7 +1007,7 @@ jobs:
       - name: Test CLI
         run: |
           uv pip install dist/*.whl
-          uv run python -m langflow run --host localhost --port 7860 --backend-only &
+          uv run python -m ketos run --host localhost --port 7860 --backend-only &
           SERVER_PID=$!
           # Wait for the server to start
           timeout 120 bash -c 'until curl -f http://localhost:7860/health_check; do sleep 2; done' || (echo "Server did not start in time" && kill $SERVER_PID && exit 1)
@@ -1022,13 +1031,13 @@ jobs:
           path: dist
 
   build-bundles:
-    name: Build Langflow Bundles
-    needs: [build-lfx, determine-lfx-version, determine-rc-number]
+    name: Build Ketos Bundles
+    needs: [build-kfx, determine-kfx-version, determine-rc-number]
     if: |
       always() &&
       !cancelled() &&
       inputs.release_bundles &&
-      needs.build-lfx.result == 'success'
+      needs.build-kfx.result == 'success'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -1064,29 +1073,29 @@ jobs:
           print(data["project"]["version"])
           PY
           )
-            VERSION=$(uv run ./scripts/ci/langflow_pre_release_tag.py "$CURRENT_VERSION" --rc-number "$RC_NUMBER")
+            VERSION=$(uv run ./scripts/ci/ketos_pre_release_tag.py "$CURRENT_VERSION" --rc-number "$RC_NUMBER")
             sed -i.bak "0,/^version = /s|^version = .*|version = \"$VERSION\"|" "$pyproject"
             rm -f "${pyproject}.bak"
             grep "^version" "$pyproject" | sed "s|^|  ${pyproject}: |"
           done
-      - name: Relax bundle lfx floor for pre-release
+      - name: Relax bundle kfx floor for pre-release
         if: ${{ inputs.pre_release }}
         run: |
-          # Bundles floor lfx at the release line (e.g. lfx>=1.10.0). A pre-release
+          # Bundles floor kfx at the release line (e.g. kfx>=1.10.0). A pre-release
           # such as 1.10.0rc0 sorts BELOW 1.10.0 under PEP 440, so it fails that
           # floor and the cross-platform install test cannot resolve. Mirror what
-          # build-base / build-main / build-lfx already do for pre-release: rewrite
-          # the floor to the exact pre-release lfx version, preserving the bundle's
+          # build-base / build-main / build-kfx already do for pre-release: rewrite
+          # the floor to the exact pre-release kfx version, preserving the bundle's
           # wide <2.0.0 BUNDLE_API cap. Stable source stays at >=1.10.0 -- only the
           # RC wheels are relaxed, at build time.
-          LFX_VERSION="${{ needs.determine-lfx-version.outputs.version }}"
-          echo "Relaxing bundle lfx floor to pre-release version: $LFX_VERSION"
+          KFX_VERSION="${{ needs.determine-kfx-version.outputs.version }}"
+          echo "Relaxing bundle kfx floor to pre-release version: $KFX_VERSION"
           for pyproject in src/bundles/*/pyproject.toml; do
-            sed -i.bak -E "s|\"lfx>=[^\"]*\"|\"lfx>=${LFX_VERSION},<2.0.0\"|" "$pyproject"
+            sed -i.bak -E "s|\"kfx>=[^\"]*\"|\"kfx>=${KFX_VERSION},<2.0.0\"|" "$pyproject"
             rm -f "${pyproject}.bak"
-            grep -E '"lfx>=' "$pyproject" | sed "s|^|  ${pyproject}: |"
+            grep -E '"kfx>=' "$pyproject" | sed "s|^|  ${pyproject}: |"
           done
-      - name: Build bundle wheels
+      - name: Build bundle distributions
         id: build
         run: |
           shopt -s nullglob
@@ -1100,8 +1109,8 @@ jobs:
           BUNDLES_DIST="$PWD/bundles-dist"
           for bundle_pyproject in "${bundles[@]}"; do
             bundle_dir=$(dirname "$bundle_pyproject")
-            echo "Building wheel for $bundle_dir"
-            (cd "$bundle_dir" && uv build --wheel --out-dir "$BUNDLES_DIST")
+            echo "Building wheel and sdist for $bundle_dir"
+            (cd "$bundle_dir" && uv build --out-dir "$BUNDLES_DIST")
           done
           echo "bundles-found=1" >> $GITHUB_OUTPUT
           ls -la bundles-dist/
@@ -1114,22 +1123,22 @@ jobs:
 
   test-cross-platform:
     name: Test Cross-Platform Installation
-    needs: [build-base, build-main, build-lfx, build-sdk, build-bundles]
+    needs: [build-base, build-main, build-kfx, build-sdk, build-bundles]
     if: |
       always() &&
       !cancelled() &&
-      (needs.build-base.result == 'success' || needs.build-main.result == 'success' || needs.build-lfx.result == 'success')
+      (needs.build-base.result == 'success' || needs.build-main.result == 'success' || needs.build-kfx.result == 'success')
     uses: ./.github/workflows/cross-platform-test.yml
     with:
       base-artifact-name: "dist-base"
       main-artifact-name: "dist-main"
-      lfx-artifact-name: "dist-lfx"
+      kfx-artifact-name: "dist-kfx"
       sdk-artifact-name: ${{ needs.build-sdk.result == 'success' && 'dist-sdk' || '' }}
       bundles-artifact-name: ${{ needs.build-bundles.result == 'success' && needs.build-bundles.outputs.bundles-found == '1' && 'dist-bundles' || '' }}
       pre_release: ${{ inputs.pre_release }}
 
   publish-base:
-    name: Publish Langflow Base to PyPI
+    name: Publish Ketos Base to PyPI
     if: |
       always() &&
       !cancelled() &&
@@ -1137,10 +1146,14 @@ jobs:
       needs.build-base.result == 'success' &&
       needs.test-cross-platform.result == 'success' &&
       needs.ci.result == 'success' &&
-      (needs.publish-lfx.result == 'success' || needs.publish-lfx.result == 'skipped')
-    needs: [build-base, test-cross-platform, ci, publish-lfx]
+      (needs.publish-kfx.result == 'success' || needs.publish-kfx.result == 'skipped')
+    needs: [build-base, test-cross-platform, ci, publish-kfx]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout approved release commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
       - name: Download base artifact
         uses: actions/download-artifact@v7
         with:
@@ -1155,12 +1168,14 @@ jobs:
         if: ${{ !inputs.dry_run }}
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
+          KETOS_EXTERNAL_RELEASE: ${{ vars.KETOS_EXTERNAL_RELEASE }}
         run: |
-          cd src/backend/base && uv publish dist/*.whl
+          cd src/backend/base && uv run python "$GITHUB_WORKSPACE/scripts/ci/require_external_release.py" && uv publish dist/*.whl
 
   publish-bundles:
     name: Publish Bundles to PyPI
-    needs: [build-bundles, test-cross-platform, ci, publish-lfx]
+    needs: [build-bundles, test-cross-platform, ci, publish-kfx]
     if: |
       always() &&
       !cancelled() &&
@@ -1169,9 +1184,13 @@ jobs:
       needs.build-bundles.outputs.bundles-found == '1' &&
       needs.test-cross-platform.result == 'success' &&
       needs.ci.result == 'success' &&
-      (needs.publish-lfx.result == 'success' || needs.publish-lfx.result == 'skipped')
+      (needs.publish-kfx.result == 'success' || needs.publish-kfx.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout approved release commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
       - name: Download bundles artifact
         uses: actions/download-artifact@v7
         with:
@@ -1186,6 +1205,8 @@ jobs:
         if: ${{ !inputs.dry_run }}
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
+          KETOS_EXTERNAL_RELEASE: ${{ vars.KETOS_EXTERNAL_RELEASE }}
         run: |
           shopt -s nullglob
           wheels=(bundles-dist/*.whl)
@@ -1199,7 +1220,7 @@ jobs:
             # Tolerate "already exists" so reruns -- or a bundle whose version is
             # unchanged and already on PyPI -- do not fail the job. Matches the
             # duplicate-tolerant publish in release_bundles.yml.
-            if ! err=$(uv publish "$wheel" 2>&1); then
+            if ! err=$(uv run python "$GITHUB_WORKSPACE/scripts/ci/require_external_release.py" && uv publish "$wheel" 2>&1); then
               echo "$err"
               if echo "$err" | grep -qiE 'already exists|file already exists|HTTP 400|duplicate'; then
                 echo "Skipping $wheel: already published."
@@ -1214,7 +1235,7 @@ jobs:
           fi
 
   publish-main:
-    name: Publish Langflow Main to PyPI
+    name: Publish Ketos Main to PyPI
     if: |
       always() &&
       !cancelled() &&
@@ -1227,6 +1248,10 @@ jobs:
     needs: [build-main, test-cross-platform, publish-base, publish-bundles, ci]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout approved release commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
       - name: Download main artifact
         uses: actions/download-artifact@v7
         with:
@@ -1241,11 +1266,13 @@ jobs:
         if: ${{ !inputs.dry_run }}
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
+          KETOS_EXTERNAL_RELEASE: ${{ vars.KETOS_EXTERNAL_RELEASE }}
         run: |
-          uv publish dist/*.whl
+          uv run python "$GITHUB_WORKSPACE/scripts/ci/require_external_release.py" && uv publish dist/*.whl
 
   publish-sdk:
-    name: Publish langflow-sdk to PyPI
+    name: Publish ketos-sdk to PyPI
     needs: [build-sdk, test-cross-platform, ci]
     if: |
       always() &&
@@ -1259,7 +1286,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.release_tag }}
+          ref: ${{ github.sha }}
       - name: Download SDK artifact
         uses: actions/download-artifact@v7
         with:
@@ -1274,41 +1301,49 @@ jobs:
         if: ${{ !inputs.dry_run }}
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
+          KETOS_EXTERNAL_RELEASE: ${{ vars.KETOS_EXTERNAL_RELEASE }}
         run: |
-          make sdk_publish
+          uv run python "$GITHUB_WORKSPACE/scripts/ci/require_external_release.py" && make sdk_publish
 
-  publish-lfx:
-    name: Publish LFX to PyPI
-    needs: [build-lfx, test-cross-platform, ci, publish-sdk]
+  publish-kfx:
+    name: Publish KFX to PyPI
+    needs: [build-kfx, test-cross-platform, ci, publish-sdk]
     if: |
       always() &&
       !cancelled() &&
-      inputs.release_lfx &&
-      needs.build-lfx.result == 'success' &&
+      inputs.release_kfx &&
+      needs.build-kfx.result == 'success' &&
       needs.test-cross-platform.result == 'success' &&
       needs.ci.result == 'success' &&
       (needs.publish-sdk.result == 'success' || needs.publish-sdk.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
-      - name: Download LFX artifact
+      - name: Checkout approved release commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+      - name: Download KFX artifact
         uses: actions/download-artifact@v7
         with:
-          name: dist-lfx
-          path: src/lfx/dist
+          name: dist-kfx
+          path: src/kfx/dist
       - name: Setup Environment
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: false
           python-version: "3.13"
-      - name: Publish LFX to PyPI
+      - name: Publish KFX to PyPI
         if: ${{ !inputs.dry_run }}
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
+          KETOS_EXTERNAL_RELEASE: ${{ vars.KETOS_EXTERNAL_RELEASE }}
         run: |
-          cd src/lfx && uv publish dist/*.whl
+          cd src/kfx && uv run python "$GITHUB_WORKSPACE/scripts/ci/require_external_release.py" && uv publish dist/*.whl
 
   call_docker_build_base:
-    name: Call Docker Build Workflow for Langflow Base
+    name: Call Docker Build Workflow for Ketos Base
     if: ${{ inputs.build_docker_base }}
     needs: [ci, determine-base-version]
     uses: ./.github/workflows/docker-build-v2.yml
@@ -1321,7 +1356,7 @@ jobs:
     secrets: inherit
 
   call_docker_build_main:
-    name: Call Docker Build Workflow for Langflow
+    name: Call Docker Build Workflow for Ketos
     if: ${{ inputs.build_docker_main }}
     needs: [ci, determine-main-version]
     uses: ./.github/workflows/docker-build-v2.yml
@@ -1334,7 +1369,7 @@ jobs:
     secrets: inherit
 
   call_docker_build_main_backend:
-    name: Call Docker Build Workflow for Langflow Backend
+    name: Call Docker Build Workflow for Ketos Backend
     if: ${{ inputs.build_docker_main && !inputs.dry_run }}
     needs: [call_docker_build_main, determine-main-version]
     uses: ./.github/workflows/docker-build-v2.yml
@@ -1347,7 +1382,7 @@ jobs:
     secrets: inherit
 
   call_docker_build_main_frontend:
-    name: Call Docker Build Workflow for Langflow Frontend
+    name: Call Docker Build Workflow for Ketos Frontend
     if: ${{ inputs.build_docker_main && !inputs.dry_run }}
     needs: [call_docker_build_main, determine-main-version]
     uses: ./.github/workflows/docker-build-v2.yml
@@ -1360,7 +1395,7 @@ jobs:
     secrets: inherit
 
   call_docker_build_main_ep:
-    name: Call Docker Build Workflow for Langflow with Entrypoint
+    name: Call Docker Build Workflow for Ketos with Entrypoint
     if: ${{ inputs.build_docker_main }}
     needs: [ci, determine-main-version]
     uses: ./.github/workflows/docker-build-v2.yml
@@ -1373,7 +1408,7 @@ jobs:
     secrets: inherit
 
   call_docker_build_main_all:
-    name: Call Docker Build Workflow for langflow-all
+    name: Call Docker Build Workflow for ketos-all
     if: ${{ inputs.build_docker_main }}
     needs: [ci, determine-main-version]
     uses: ./.github/workflows/docker-build-v2.yml
@@ -1385,11 +1420,190 @@ jobs:
       push_to_registry: ${{ !inputs.dry_run }}
     secrets: inherit
 
+  supply-chain:
+    name: Generate immutable supply-chain documents
+    runs-on: ubuntu-latest
+    needs:
+      [
+        determine-main-version,
+        build-sdk,
+        build-kfx,
+        build-base,
+        build-main,
+        build-bundles,
+        call_docker_build_base,
+        call_docker_build_main,
+        call_docker_build_main_backend,
+        call_docker_build_main_frontend,
+        call_docker_build_main_ep,
+        call_docker_build_main_all,
+      ]
+    if: |
+      always() &&
+      !cancelled() &&
+      (needs.build-sdk.result == 'success' ||
+       needs.build-kfx.result == 'success' ||
+       needs.build-base.result == 'success' ||
+       needs.build-main.result == 'success' ||
+       needs.build-bundles.result == 'success' ||
+       needs.call_docker_build_base.result == 'success' ||
+       needs.call_docker_build_main.result == 'success' ||
+       needs.call_docker_build_main_backend.result == 'success' ||
+       needs.call_docker_build_main_frontend.result == 'success' ||
+       needs.call_docker_build_main_ep.result == 'success' ||
+       needs.call_docker_build_main_all.result == 'success')
+    steps:
+      - name: Checkout approved release commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup supply-chain runtime
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+          python-version: "3.13"
+
+      - name: Download SDK distributions
+        if: ${{ needs.build-sdk.result == 'success' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-sdk
+          path: release-inputs/distributions/sdk
+
+      - name: Download KFX distributions
+        if: ${{ needs.build-kfx.result == 'success' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-kfx
+          path: release-inputs/distributions/kfx
+
+      - name: Download Ketos Base distributions
+        if: ${{ needs.build-base.result == 'success' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-base
+          path: release-inputs/distributions/base
+
+      - name: Download Ketos distributions
+        if: ${{ needs.build-main.result == 'success' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-main
+          path: release-inputs/distributions/main
+
+      - name: Download bundle distributions
+        if: ${{ needs.build-bundles.result == 'success' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-bundles
+          path: release-inputs/distributions/bundles
+
+      - name: Download immutable OCI subjects from completed image builds
+        if: |
+          needs.call_docker_build_base.result == 'success' ||
+          needs.call_docker_build_main.result == 'success' ||
+          needs.call_docker_build_main_backend.result == 'success' ||
+          needs.call_docker_build_main_frontend.result == 'success' ||
+          needs.call_docker_build_main_ep.result == 'success' ||
+          needs.call_docker_build_main_all.result == 'success'
+        uses: actions/download-artifact@v7
+        with:
+          pattern: oci-subject-*
+          path: release-inputs/oci-subjects
+          merge-multiple: true
+
+      - name: Generate release archive and supply-chain documents
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="${{ needs.determine-main-version.outputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="${{ inputs.release_tag }}"
+            VERSION="${VERSION#v}"
+          fi
+
+          SOURCE_DATE_EPOCH="$(git show -s --format=%ct "$GITHUB_SHA")"
+          export SOURCE_DATE_EPOCH
+          SOURCE_URI="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+
+          mkdir -p release-inputs/release-archives supply-chain/
+          git archive --format=tar --prefix="ketos-${VERSION}/" "$GITHUB_SHA" \
+            | gzip -n > "release-inputs/release-archives/ketos-${VERSION}-source.tar.gz"
+          git archive --format=zip --prefix="ketos-${VERSION}/" "$GITHUB_SHA" \
+            > "release-inputs/release-archives/ketos-${VERSION}-source.zip"
+
+          mapfile -d '' release_files < <(
+            find release-inputs -type f \
+              \( -name '*.whl' -o -name '*.tar.gz' -o -name '*.zip' \) \
+              -print0 | sort -z
+          )
+          if [ "${#release_files[@]}" -eq 0 ]; then
+            echo "No immutable release inputs were collected."
+            exit 1
+          fi
+
+          artifact_args=()
+          for artifact in "${release_files[@]}"; do
+            artifact_args+=(--artifact "${artifact#release-inputs/}")
+          done
+
+          expected_oci_args=()
+          if [ "${{ inputs.build_docker_base }}" = "true" ]; then
+            expected_oci_args+=(--expected-release-type base)
+          fi
+          if [ "${{ inputs.build_docker_main }}" = "true" ]; then
+            expected_oci_args+=(--expected-release-type main --expected-release-type main-ep --expected-release-type main-all)
+            if [ "${{ inputs.dry_run }}" != "true" ]; then
+              expected_oci_args+=(--expected-release-type main-backend --expected-release-type main-frontend)
+            fi
+          fi
+
+          oci_args=()
+          if [ "${#expected_oci_args[@]}" -gt 0 ]; then
+            mapfile -t oci_subjects < <(
+              uv run python scripts/ci/collect_oci_subjects.py \
+                --input-dir release-inputs/oci-subjects \
+                "${expected_oci_args[@]}"
+            )
+            if [ "${#oci_subjects[@]}" -eq 0 ]; then
+              echo "Selected OCI builds did not produce immutable subjects."
+              exit 1
+            fi
+            for subject in "${oci_subjects[@]}"; do
+              oci_args+=(--oci-subject "$subject")
+            done
+          fi
+
+          uv run python scripts/ci/generate_supply_chain.py \
+            --artifact-root release-inputs \
+            "${artifact_args[@]}" \
+            "${oci_args[@]}" \
+            --output-dir supply-chain \
+            --source-uri "$SOURCE_URI" \
+            --commit-sha "$GITHUB_SHA" \
+            --source-date-epoch "$SOURCE_DATE_EPOCH" \
+            --name ketos \
+            --version "$VERSION"
+
+      - name: Upload supply-chain documents
+        uses: actions/upload-artifact@v6
+        with:
+          name: supply-chain
+          path: supply-chain/
+
+      - name: Upload deterministic release archive
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-archives
+          path: release-inputs/release-archives/
+
   create_release:
     name: Create Release
     runs-on: ubuntu-latest
     needs:
-      [determine-main-version, build-main, publish-main, validate-tag-format]
+      [determine-main-version, build-main, publish-main, validate-tag-format, supply-chain]
     if: |
       always() &&
       !cancelled() &&
@@ -1397,36 +1611,45 @@ jobs:
       inputs.create_release &&
       needs.build-main.result == 'success' &&
       needs.publish-main.result == 'success' &&
+      needs.supply-chain.result == 'success' &&
       needs.validate-tag-format.result == 'success'
     steps:
+      - name: Checkout approved release commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+      - name: Setup release gate runtime
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+          python-version: "3.13"
       - uses: actions/download-artifact@v4
         with:
           name: dist-main
           path: dist
-      # The release must attach to the dispatched v-prefixed tag. Passing the
-      # bare version as `tag` made GitHub mint a new lightweight tag at the
-      # default-branch HEAD — the wrong commit, still carrying the previous
-      # version (main only adopts the new version via the post-release
-      # back-merge). Pre-releases keep their computed tag (e.g. 1.10.0rc1),
-      # but `commit` pins any newly minted tag to the release commit.
-      - name: Resolve release commit
-        id: release_commit
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          sha=$(gh api "repos/${{ github.repository }}/commits/${{ inputs.release_tag }}" --jq '.sha')
-          echo "Release tag '${{ inputs.release_tag }}' resolves to commit $sha"
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v7
+        with:
+          name: supply-chain
+          path: supply-chain
+      - uses: actions/download-artifact@v7
+        with:
+          name: release-archives
+          path: release-archives
       - name: Create Release
+        env:
+          KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
+          KETOS_EXTERNAL_RELEASE: ${{ vars.KETOS_EXTERNAL_RELEASE }}
+        run: uv run python "$GITHUB_WORKSPACE/scripts/ci/require_external_release.py"
+      - name: Publish approved GitHub release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: dist/*
+          artifacts: "dist/*,release-archives/*,supply-chain/*"
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           generateReleaseNotes: true
           prerelease: ${{ inputs.pre_release }}
           tag: ${{ inputs.pre_release && needs.determine-main-version.outputs.version || inputs.release_tag }}
           name: ${{ needs.determine-main-version.outputs.version }}
-          commit: ${{ steps.release_commit.outputs.sha }}
+          commit: ${{ github.sha }}
           allowUpdates: true
           updateOnlyUnreleased: false

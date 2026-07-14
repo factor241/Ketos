@@ -1,10 +1,10 @@
 import * as dotenv from "dotenv";
 import path from "path";
 import { test } from "../../fixtures";
-import { addLegacyComponents } from "../../utils/add-legacy-components";
 import { adjustScreenView } from "../../utils/adjust-screen-view";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
 import { TEXTS } from "../../utils/constants/texts";
+import { enableOptionalComponents } from "../../utils/enable-optional-components";
 import {
   closeAdvancedOptions,
   openAdvancedOptions,
@@ -31,7 +31,7 @@ test(
     });
     await page.getByTestId("blank-flow").click();
 
-    await addLegacyComponents(page);
+    await enableOptionalComponents(page);
 
     //---------------------------------- CHAT INPUT
     await page.getByTestId("sidebar-search-input").click();
@@ -69,7 +69,7 @@ test(
     await page
       .getByTestId("inputlist_str_texts_0")
       .first()
-      .fill("big news! langflow 1.0 is out");
+      .fill("big news! ketos 1.0 is out");
     await page
       .getByTestId("inputlist_str_texts_1")
       .first()

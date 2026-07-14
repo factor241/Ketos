@@ -7,17 +7,17 @@ from httpx import AsyncClient
 
 
 async def _attach_deployment_to_flow(*, user_id: UUID, flow_id: UUID, project_id: UUID) -> None:
-    from langflow.services.database.models.deployment.model import Deployment
-    from langflow.services.database.models.deployment_provider_account.model import (
+    from ketos.services.database.models.deployment.model import Deployment
+    from ketos.services.database.models.deployment_provider_account.model import (
         DeploymentProviderAccount,
         DeploymentProviderKey,
     )
-    from langflow.services.database.models.flow_version.model import FlowVersion
-    from langflow.services.database.models.flow_version_deployment_attachment.model import (
+    from ketos.services.database.models.flow_version.model import FlowVersion
+    from ketos.services.database.models.flow_version_deployment_attachment.model import (
         FlowVersionDeploymentAttachment,
     )
-    from langflow.services.deps import session_scope
-    from lfx.services.adapters.deployment.schema import DeploymentType
+    from ketos.services.deps import session_scope
+    from kfx.services.adapters.deployment.schema import DeploymentType
 
     async with session_scope() as session:
         provider = DeploymentProviderAccount(
@@ -353,9 +353,9 @@ async def test_read_flows_user_isolation(client: AsyncClient, logged_in_headers,
     """Test that read_flows returns only flows from the current user."""
     from uuid import uuid4
 
-    from langflow.services.auth.utils import get_password_hash
-    from langflow.services.database.models.user.model import User
-    from langflow.services.deps import session_scope
+    from ketos.services.auth.utils import get_password_hash
+    from ketos.services.database.models.user.model import User
+    from ketos.services.deps import session_scope
 
     # Create a second user
     other_user_id = uuid4()
@@ -799,9 +799,9 @@ async def test_upsert_flow_updates_existing_flow(client: AsyncClient, logged_in_
 
 async def test_upsert_flow_returns_404_for_other_users_flow(client: AsyncClient, logged_in_headers):
     """Test that PUT returns 404 when trying to upsert another user's flow (avoids leaking existence)."""
-    from langflow.services.auth.utils import get_password_hash
-    from langflow.services.database.models.user.model import User
-    from langflow.services.deps import session_scope
+    from ketos.services.auth.utils import get_password_hash
+    from ketos.services.database.models.user.model import User
+    from ketos.services.deps import session_scope
 
     # Create another user
     other_user_id = uuid.uuid4()

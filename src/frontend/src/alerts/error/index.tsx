@@ -12,6 +12,12 @@ export default function ErrorAlert({
   removeAlert,
 }: ErrorAlertType): JSX.Element {
   const [show, setShow] = useState(true);
+  const dismiss = () => {
+    setShow(false);
+    setTimeout(() => {
+      removeAlert(id);
+    }, 500);
+  };
   useEffect(() => {
     if (show) {
       setTimeout(() => {
@@ -35,11 +41,14 @@ export default function ErrorAlert({
       leaveTo={"transform translate-x-[-100%]"}
     >
       <div
-        onClick={() => {
-          setShow(false);
-          setTimeout(() => {
-            removeAlert(id);
-          }, 500);
+        role="button"
+        tabIndex={0}
+        onClick={dismiss}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            dismiss();
+          }
         }}
         className="error-build-message noflow nowheel nopan nodelete nodrag"
       >

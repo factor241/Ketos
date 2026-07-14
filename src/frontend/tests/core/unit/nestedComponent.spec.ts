@@ -1,7 +1,7 @@
 import { expect, test } from "../../fixtures";
-import { addLegacyComponents } from "../../utils/add-legacy-components";
 import { adjustScreenView } from "../../utils/adjust-screen-view";
 import { TEXTS } from "../../utils/constants/texts";
+import { enableOptionalComponents } from "../../utils/enable-optional-components";
 
 import { openBlankFlow } from "../../utils/flow/open-blank-flow";
 import {
@@ -19,7 +19,7 @@ test(
     await page.getByTestId("sidebar-search-input").click();
     await page.getByTestId("sidebar-search-input").fill("alter metadata");
 
-    await addLegacyComponents(page);
+    await enableOptionalComponents(page);
 
     await page.waitForTimeout(500);
 

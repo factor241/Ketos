@@ -48,7 +48,7 @@ export default function PromptModal({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   function checkVariables(valueToCheck: string): void {
-    // Match *any* brace run around an identifier
+    // Match *unknown* brace run around an identifier
     const regex = /(\{+)([^{}]+)(\}+)/g;
     const matches: string[] = [];
     let match: RegExpExecArray | null = regex.exec(valueToCheck);
@@ -202,9 +202,15 @@ export default function PromptModal({
       const { x, y } = clickPosition;
 
       // Use caretPositionFromPoint to get the closest text position. Does not work on Safari.
-      if ("caretPositionFromPoint" in document) {
+      const documentWithCaret = document as Document & {
+        caretPositionFromPoint?: (
+          x: number,
+          y: number,
+        ) => { offset: number } | null;
+      };
+      if (documentWithCaret.caretPositionFromPoint) {
         const range =
-          (document as any).caretPositionFromPoint(x, y)?.offset ?? 0;
+          documentWithCaret.caretPositionFromPoint(x, y)?.offset ?? 0;
         if (range) {
           const position = range;
           textArea.setSelectionRange(position, position);

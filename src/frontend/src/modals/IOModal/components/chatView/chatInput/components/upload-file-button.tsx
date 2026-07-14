@@ -1,8 +1,6 @@
+import { useTranslation } from "react-i18next";
 import ShadTooltip from "@/components/common/shadTooltipComponent";
-import {
-  CHAT_UPLOAD_ATTACHMENT_ACCEPT,
-  CHAT_UPLOAD_ATTACHMENT_TOOLTIP,
-} from "@/constants/file-upload-constants";
+import { CHAT_UPLOAD_ATTACHMENT_ACCEPT } from "@/constants/file-upload-constants";
 import ForwardedIconComponent from "../../../../../../components/common/genericIconComponent";
 import { Button } from "../../../../../../components/ui/button";
 
@@ -12,6 +10,8 @@ const UploadFileButton = ({
   handleButtonClick,
   isBuilding,
 }) => {
+  const { t } = useTranslation();
+
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     handleButtonClick();
@@ -21,7 +21,7 @@ const UploadFileButton = ({
     <ShadTooltip
       styleClasses="z-50"
       side="right"
-      content={CHAT_UPLOAD_ATTACHMENT_TOOLTIP}
+      content={t("chat.attachFileTooltip")}
     >
       <div>
         <input
@@ -41,6 +41,7 @@ const UploadFileButton = ({
           }`}
           onClick={handleClick}
           unstyled
+          aria-label={t("chat.attachFileTooltip")}
         >
           <ForwardedIconComponent className="h-[18px] w-[18px]" name="File" />
         </Button>

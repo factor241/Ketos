@@ -1,5 +1,10 @@
+jest.unmock("react-i18next");
+
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { I18nextProvider } from "react-i18next";
+import i18n from "@/i18n";
+import { createTestI18n } from "@/test-utils/create-test-i18n";
 import type { ProviderAccount, ProviderCredentials } from "../types";
 
 // ---------------------------------------------------------------------------
@@ -65,11 +70,28 @@ beforeEach(() => {
   mockProviderAccountsData = undefined;
 });
 
+afterEach(async () => {
+  await i18n.changeLanguage("en");
+});
+
 // ---------------------------------------------------------------------------
 // Basic rendering
 // ---------------------------------------------------------------------------
 
 describe("Basic rendering", () => {
+  it("renders the provider beta badge in Russian", async () => {
+    const russian = await createTestI18n("ru");
+
+    render(
+      <I18nextProvider i18n={russian}>
+        <StepProvider />
+      </I18nextProvider>,
+    );
+
+    expect(screen.getByText("Бета")).toBeInTheDocument();
+    expect(screen.queryByText("Beta")).not.toBeInTheDocument();
+  });
+
   it("renders the Provider heading", () => {
     render(<StepProvider />);
     expect(screen.getByText("Provider")).toBeInTheDocument();
@@ -98,13 +120,13 @@ describe("Basic rendering", () => {
       screen.getByRole("link", { name: "Sign up for watsonx Orchestrate" }),
     ).toHaveAttribute(
       "href",
-      "https://www.ibm.com/products/watsonx-orchestrate?utm_source=langflow&utm_medium=integration&utm_campaign=wxo-integration&utm_content=signup-pricing#pricing",
+      "https://www.ibm.com/products/watsonx-orchestrate?utm_source=ketos&utm_medium=integration&utm_campaign=wxo-integration&utm_content=signup-pricing#pricing",
     );
     expect(
       screen.getByRole("link", { name: "Find your credentials" }),
     ).toHaveAttribute(
       "href",
-      "https://www.ibm.com/docs/en/watsonx/watson-orchestrate/base?topic=api-getting-started&utm_source=langflow&utm_medium=integration&utm_campaign=wxo-integration&utm_content=docs-credentials",
+      "https://www.ibm.com/docs/en/watsonx/watson-orchestrate/base?topic=api-getting-started&utm_source=ketos&utm_medium=integration&utm_campaign=wxo-integration&utm_content=docs-credentials",
     );
   });
 });

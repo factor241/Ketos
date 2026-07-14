@@ -5,9 +5,9 @@ from typing import Any
 from anyio import Path
 from fastapi import status
 from httpx import AsyncClient
-from langflow.api.v1.schemas import CustomComponentRequest, UpdateCustomComponentRequest
-from lfx.components.models_and_agents.agent import AgentComponent
-from lfx.custom.utils import build_custom_component_template
+from ketos.api.v1.schemas import CustomComponentRequest, UpdateCustomComponentRequest
+from kfx.components.models_and_agents.agent import AgentComponent
+from kfx.custom.utils import build_custom_component_template
 
 
 async def test_get_version(client: AsyncClient):
@@ -65,7 +65,7 @@ async def test_update_component_model_name_options(client: AsyncClient, logged_i
     template = component_node["template"]
     assert "model" in template, f"model field not found. Available fields: {list(template.keys())}"
 
-    # load the code from the file at lfx.components.models_and_agents.agent.py asynchronously
+    # load the code from the file at kfx.components.models_and_agents.agent.py asynchronously
     # we are at str/backend/tests/unit/api/v1/test_endpoints.py
     # find the file by using the class AgentComponent
     agent_component_file = await asyncio.to_thread(inspect.getsourcefile, AgentComponent)
@@ -104,7 +104,7 @@ async def test_custom_component_update_admin_only_allows_known_template_refresh(
     client: AsyncClient, logged_in_headers: dict, monkeypatch
 ):
     """Non-admin users can refresh known server templates in admin-only mode."""
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings_service = get_settings_service()
     admin_only_enabled = True
@@ -134,7 +134,7 @@ async def test_custom_component_update_admin_only_blocks_unknown_custom_code(
     client: AsyncClient, logged_in_headers: dict, monkeypatch
 ):
     """Non-admin users cannot edit truly custom code in admin-only mode."""
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings_service = get_settings_service()
     admin_only_enabled = True
@@ -142,7 +142,7 @@ async def test_custom_component_update_admin_only_blocks_unknown_custom_code(
     monkeypatch.setattr(settings_service.settings, "allow_custom_components", True)
 
     component_code = """
-from lfx.custom import Component
+from kfx.custom import Component
 
 class TestMetadataComponent(Component):
     display_name = "Test Metadata Component"
@@ -171,7 +171,7 @@ async def test_custom_component_create_admin_only_allows_known_template_refresh(
     monkeypatch,
 ):
     """Non-admin users can create/refresh known server templates in admin-only mode."""
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings_service = get_settings_service()
     admin_only_enabled = True
@@ -193,7 +193,7 @@ async def test_custom_component_create_admin_only_blocks_unknown_custom_code(
     monkeypatch,
 ):
     """Non-admin users cannot create truly custom code in admin-only mode."""
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings_service = get_settings_service()
     admin_only_enabled = True
@@ -201,7 +201,7 @@ async def test_custom_component_create_admin_only_blocks_unknown_custom_code(
     monkeypatch.setattr(settings_service.settings, "allow_custom_components", True)
 
     component_code = """
-from lfx.custom import Component
+from kfx.custom import Component
 
 class TestMetadataComponent(Component):
     display_name = "Test Metadata Component"
@@ -223,7 +223,7 @@ async def test_custom_component_create_admin_only_allows_superuser(
     logged_in_headers_super_user: dict,
     monkeypatch,
 ):
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings_service = get_settings_service()
     admin_only_enabled = True
@@ -231,7 +231,7 @@ async def test_custom_component_create_admin_only_allows_superuser(
     monkeypatch.setattr(settings_service.settings, "allow_custom_components", True)
 
     code = """
-from lfx.custom import Component
+from kfx.custom import Component
 
 class SuperUserMetadataComponent(Component):
     display_name = "SuperUser Metadata Component"
@@ -257,7 +257,7 @@ async def test_custom_component_update_admin_only_allows_superuser(
     logged_in_headers_super_user: dict,
     monkeypatch,
 ):
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings_service = get_settings_service()
     admin_only_enabled = True
@@ -265,7 +265,7 @@ async def test_custom_component_update_admin_only_allows_superuser(
     monkeypatch.setattr(settings_service.settings, "allow_custom_components", True)
 
     component_code = """
-from lfx.custom import Component
+from kfx.custom import Component
 
 class SuperUserUpdateMetadataComponent(Component):
     display_name = "SuperUser Update Metadata Component"
@@ -294,9 +294,9 @@ class SuperUserUpdateMetadataComponent(Component):
 async def test_custom_component_endpoint_returns_metadata(client: AsyncClient, logged_in_headers: dict):
     """Test that the /custom_component endpoint returns metadata with module and code_hash."""
     component_code = """
-from lfx.custom import Component
-from lfx.inputs import MessageTextInput
-from lfx.template.field.base import Output
+from kfx.custom import Component
+from kfx.inputs import MessageTextInput
+from kfx.template.field.base import Output
 
 class TestMetadataComponent(Component):
     display_name = "Test Metadata Component"
@@ -343,8 +343,8 @@ class TestMetadataComponent(Component):
 async def test_custom_component_endpoint_metadata_consistency(client: AsyncClient, logged_in_headers: dict):
     """Test that the same component code produces consistent metadata."""
     component_code = """
-from lfx.custom import Component
-from lfx.template.field.base import Output
+from kfx.custom import Component
+from kfx.template.field.base import Output
 
 class ConsistencyTestComponent(Component):
     display_name = "Consistency Test"
@@ -456,7 +456,7 @@ async def test_get_config_returns_500_on_settings_error(client: AsyncClient, mon
         raise RuntimeError(error_message)
 
     # Patch get_settings_service at the module level
-    monkeypatch.setattr("langflow.api.v1.endpoints.get_settings_service", raise_settings_error)
+    monkeypatch.setattr("ketos.api.v1.endpoints.get_settings_service", raise_settings_error)
 
     response = await client.get("api/v1/config")
     result = response.json()
@@ -486,7 +486,7 @@ async def test_get_config_authenticated_returns_full_config(client: AsyncClient,
 
 async def test_get_config_embedded_mode_cascades_hide_flags(client: AsyncClient, logged_in_headers: dict, monkeypatch):
     """Embedded mode should only force UI hide flags, not security lock flags."""
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings_service = get_settings_service()
     monkeypatch.setattr(settings_service.settings, "embedded_mode", True)
@@ -518,7 +518,7 @@ async def test_get_config_embedded_mode_false_keeps_individual_hide_flags(
     client: AsyncClient, logged_in_headers: dict, monkeypatch
 ):
     """When embedded mode is disabled, individual hide flags should retain explicit values."""
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings_service = get_settings_service()
     monkeypatch.setattr(settings_service.settings, "embedded_mode", False)
@@ -542,7 +542,7 @@ async def test_get_config_embedded_mode_false_keeps_individual_hide_flags(
 
 async def test_get_config_returns_mcp_and_admin_only_flags(client: AsyncClient, logged_in_headers: dict, monkeypatch):
     """Config response should expose lock/admin feature flags from settings."""
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings_service = get_settings_service()
     monkeypatch.setattr(settings_service.settings, "mcp_servers_locked", True)
@@ -574,7 +574,7 @@ async def test_get_config_returns_mcp_base_url(client: AsyncClient, logged_in_he
 
 
 async def test_get_config_mcp_base_url_defaults_to_empty(client: AsyncClient, logged_in_headers: dict):
-    """Test that mcp_base_url defaults to empty string when LANGFLOW_MCP_BASE_URL is not set."""
+    """Test that mcp_base_url defaults to empty string when KETOS_MCP_BASE_URL is not set."""
     response = await client.get("api/v1/config", headers=logged_in_headers)
     result = response.json()
     assert response.status_code == status.HTTP_200_OK
@@ -583,15 +583,15 @@ async def test_get_config_mcp_base_url_defaults_to_empty(client: AsyncClient, lo
 
 async def test_get_config_mcp_base_url_from_settings(client: AsyncClient, logged_in_headers: dict, monkeypatch):
     """Test that mcp_base_url reflects the value from settings."""
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings_service = get_settings_service()
-    monkeypatch.setattr(settings_service.settings, "mcp_base_url", "https://langflow.example.com")
+    monkeypatch.setattr(settings_service.settings, "mcp_base_url", "https://ketos.example.com")
 
     response = await client.get("api/v1/config", headers=logged_in_headers)
     result = response.json()
     assert response.status_code == status.HTTP_200_OK
-    assert result["mcp_base_url"] == "https://langflow.example.com"
+    assert result["mcp_base_url"] == "https://ketos.example.com"
 
 
 async def test_deprecated_upload_rejects_unauthenticated(client: AsyncClient, flow):
@@ -636,7 +636,7 @@ async def test_deprecated_upload_enforces_max_file_size(
     this route by uploading arbitrarily large files, bypassing the limit the
     non-deprecated twin at /api/v1/files/upload/{flow_id} already enforces.
     """
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings_service = get_settings_service()
     monkeypatch.setattr(settings_service.settings, "max_file_size_upload", 1)  # 1 MB
@@ -668,9 +668,9 @@ async def test_custom_component_runs_trusted_copy_on_hash_collision(
     payload writes a file at import time, so if it ever executed the sentinel
     would exist. It must not.
     """
-    import lfx.utils.flow_validation as fv
-    from langflow.services.deps import get_settings_service
-    from lfx.interface.components import component_cache
+    import kfx.utils.flow_validation as fv
+    from ketos.services.deps import get_settings_service
+    from kfx.interface.components import component_cache
 
     # The server's trusted copy for the (collided) hash: a benign, buildable component.
     trusted_path = Path(__file__).parent.parent.parent.parent / "data" / "dynamic_output_component.py"
@@ -681,9 +681,9 @@ async def test_custom_component_runs_trusted_copy_on_hash_collision(
     # at build time if the client bytes were executed.
     sentinel = tmp_path / "pwned.txt"
     malicious_code = (
-        "from lfx.custom import Component\n"
-        "from lfx.inputs import MessageTextInput\n"
-        "from lfx.template.field.base import Output\n"
+        "from kfx.custom import Component\n"
+        "from kfx.inputs import MessageTextInput\n"
+        "from kfx.template.field.base import Output\n"
         f"_pwn = open({str(sentinel)!r}, 'w').write('pwned')\n"
         "class EvilComponent(Component):\n"
         '    display_name = "Evil Component"\n'
@@ -730,18 +730,18 @@ async def test_custom_component_update_runs_trusted_copy_on_hash_collision(
     not the colliding client bytes — so the substitution can't be undone by
     persisting the response into a saved flow and re-building it.
     """
-    import lfx.utils.flow_validation as fv
-    from langflow.services.deps import get_settings_service
-    from lfx.interface.components import component_cache
+    import kfx.utils.flow_validation as fv
+    from ketos.services.deps import get_settings_service
+    from kfx.interface.components import component_cache
 
     trusted_path = Path(__file__).parent.parent.parent.parent / "data" / "dynamic_output_component.py"
     trusted_code = await trusted_path.read_text(encoding="utf-8")
 
     sentinel = tmp_path / "pwned_update.txt"
     malicious_code = (
-        "from lfx.custom import Component\n"
-        "from lfx.inputs import MessageTextInput\n"
-        "from lfx.template.field.base import Output\n"
+        "from kfx.custom import Component\n"
+        "from kfx.inputs import MessageTextInput\n"
+        "from kfx.template.field.base import Output\n"
         f"_pwn = open({str(sentinel)!r}, 'w').write('pwned')\n"
         "class EvilComponent(Component):\n"
         '    display_name = "Evil Component"\n'
@@ -790,11 +790,11 @@ async def test_custom_component_fails_closed_when_no_trusted_copy(
     index, or a collision against a hash whose source failed the integrity
     check), the endpoint must fail closed rather than fall back to client bytes.
     """
-    import lfx.utils.flow_validation as fv
-    from langflow.services.deps import get_settings_service
-    from lfx.interface.components import component_cache
+    import kfx.utils.flow_validation as fv
+    from ketos.services.deps import get_settings_service
+    from kfx.interface.components import component_cache
 
-    code = 'from lfx.custom import Component\nclass Anything(Component):\n    display_name = "Anything"\n'
+    code = 'from kfx.custom import Component\nclass Anything(Component):\n    display_name = "Anything"\n'
 
     settings_service = get_settings_service()
     monkeypatch.setattr(settings_service.settings, "allow_custom_components", False)

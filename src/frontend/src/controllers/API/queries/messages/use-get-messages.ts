@@ -1,9 +1,10 @@
 import { keepPreviousData } from "@tanstack/react-query";
 import type { ColDef, ColGroupDef } from "ag-grid-community";
+import { isAuthenticatedPlayground } from "@/modals/IOModal/helpers/playground-auth";
 import useFlowStore from "@/stores/flowStore";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
 import { useMessagesStore } from "@/stores/messagesStore";
-import { isAuthenticatedPlayground } from "@/modals/IOModal/helpers/playground-auth";
+import { ketosFlowSessionKey } from "@/utils/ketos-storage-keys";
 import type { useQueryFunctionType } from "../../../../types/api";
 import {
   extractColumnsFromRows,
@@ -39,8 +40,8 @@ export const useGetMessagesQuery: useQueryFunctionType<
     }
     if (params) {
       // Process params to ensure session_id is properly encoded
-      const processedParams = { ...params } as any;
-      if (processedParams.session_id) {
+      const processedParams: Record<string, unknown> = { ...params };
+      if (typeof processedParams.session_id === "string") {
         processedParams.session_id = prepareSessionIdForAPI(
           processedParams.session_id,
         );
@@ -49,21 +50,23 @@ export const useGetMessagesQuery: useQueryFunctionType<
     }
 
     if (!isPlaygroundPage) {
-      return await api.get<any>(`${getURL("MESSAGES")}`, config);
+      return await api.get<object[]>(`${getURL("MESSAGES")}`, config);
     }
 
     // Authenticated users on playground: fetch ALL messages from DB via shared endpoint
     // (no session_id filter — ChatView filters locally by visibleSession)
     if (isAuthenticatedPlayground()) {
       const sourceFlowId = useFlowsManagerStore.getState().currentFlowId;
-      return await api.get<any>(`${getURL("MESSAGES")}/shared`, {
+      return await api.get<object[]>(`${getURL("MESSAGES")}/shared`, {
         params: { source_flow_id: sourceFlowId },
       });
     }
 
     // Anonymous/auto-login: use sessionStorage (original behavior)
     return {
-      data: JSON.parse(window.sessionStorage.getItem(id ?? "") || "[]"),
+      data: JSON.parse(
+        window.sessionStorage.getItem(ketosFlowSessionKey(id)) || "[]",
+      ),
     };
   };
 

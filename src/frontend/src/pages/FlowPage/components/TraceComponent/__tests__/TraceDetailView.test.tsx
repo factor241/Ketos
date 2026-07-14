@@ -98,4 +98,27 @@ describe("TraceDetailView", () => {
       expect(codeBlocks[1]).toHaveTextContent('"result": "world"');
     });
   });
+
+  it("uses a localized fallback for an unnamed summary span", () => {
+    mockTrace = {
+      id: "trace-unnamed",
+      name: "",
+      status: "ok",
+      startTime: "2024-01-01T00:00:00Z",
+      totalLatencyMs: 1,
+      totalTokens: 0,
+      totalCost: 0,
+      flowId: "flow-1",
+      sessionId: "session-1",
+      input: {},
+      output: {},
+      spans: [],
+    };
+
+    render(<TraceDetailView traceId="trace-unnamed" />);
+
+    expect(
+      within(screen.getByTestId("span-node-trace-unnamed")).getByText("Run"),
+    ).toBeInTheDocument();
+  });
 });

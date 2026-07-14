@@ -12,16 +12,6 @@ jest.mock("@/stores/alertStore", () => ({
     selector({ setErrorData: mockSetErrorData }),
 }));
 
-jest.mock("@/controllers/API/helpers/get-axios-error-message", () => ({
-  getAxiosErrorMessage: (
-    err: unknown,
-    fallback = "An unknown error occurred",
-  ) => {
-    if (err instanceof Error) return err.message;
-    return fallback;
-  },
-}));
-
 import { useErrorAlert } from "../use-error-alert";
 
 // ---------------------------------------------------------------------------
@@ -33,7 +23,7 @@ describe("useErrorAlert", () => {
     mockSetErrorData.mockClear();
   });
 
-  it("calls setErrorData with the provided title and extracted error message", () => {
+  it("does not expose an exception message", () => {
     const { result } = renderHook(() => useErrorAlert());
 
     act(() => {
@@ -42,11 +32,11 @@ describe("useErrorAlert", () => {
 
     expect(mockSetErrorData).toHaveBeenCalledWith({
       title: "Delete failed",
-      list: ["network failure"],
+      list: ["The request could not be completed. Please try again."],
     });
   });
 
-  it("uses fallback message for non-Error values", () => {
+  it("uses the semantic request failure for non-Error values", () => {
     const { result } = renderHook(() => useErrorAlert());
 
     act(() => {
@@ -55,7 +45,29 @@ describe("useErrorAlert", () => {
 
     expect(mockSetErrorData).toHaveBeenCalledWith({
       title: "Oops",
-      list: ["An unknown error occurred"],
+      list: ["The request could not be completed. Please try again."],
+    });
+  });
+
+  it("localizes a stable deployment error code before the generic fallback", () => {
+    const { result } = renderHook(() => useErrorAlert());
+
+    act(() => {
+      result.current("Update failed", {
+        response: {
+          status: 404,
+          data: {
+            code: "deployments.not_found",
+            detail: "provider-internal text",
+            params: { deployment_id: "dep-1" },
+          },
+        },
+      });
+    });
+
+    expect(mockSetErrorData).toHaveBeenCalledWith({
+      title: "Update failed",
+      list: ["The deployment was not found."],
     });
   });
 
@@ -68,7 +80,7 @@ describe("useErrorAlert", () => {
 
     expect(mockSetErrorData).toHaveBeenCalledWith({
       title: "Error",
-      list: ["An unknown error occurred"],
+      list: ["The request could not be completed. Please try again."],
     });
   });
 
@@ -81,7 +93,7 @@ describe("useErrorAlert", () => {
 
     expect(mockSetErrorData).toHaveBeenCalledWith({
       title: "Error",
-      list: ["An unknown error occurred"],
+      list: ["The request could not be completed. Please try again."],
     });
   });
 
@@ -107,11 +119,11 @@ describe("useErrorAlert", () => {
     expect(mockSetErrorData).toHaveBeenCalledTimes(2);
     expect(mockSetErrorData).toHaveBeenNthCalledWith(1, {
       title: "First error",
-      list: ["error one"],
+      list: ["The request could not be completed. Please try again."],
     });
     expect(mockSetErrorData).toHaveBeenNthCalledWith(2, {
       title: "Second error",
-      list: ["error two"],
+      list: ["The request could not be completed. Please try again."],
     });
   });
 });

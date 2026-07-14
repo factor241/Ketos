@@ -14,8 +14,8 @@ is bound to the request, the fs component used to mint the tools has
 
 from __future__ import annotations
 
-from langflow.agentic.flows import flow_builder_assistant as fba
-from langflow.agentic.services.user_components_context import (
+from ketos.agentic.flows import flow_builder_assistant as fba
+from ketos.agentic.services.user_components_context import (
     reset_current_user_id,
     set_current_user_id,
 )

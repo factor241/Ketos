@@ -1,19 +1,22 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type React from "react";
 import type { AllNodeType } from "@/types/flow";
 import InspectionPanel from "../index";
 
 // Mock framer-motion
 jest.mock("framer-motion", () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+    div: ({ children, ...props }: React.ComponentProps<"div">) => (
+      <div {...props}>{children}</div>
+    ),
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+  AnimatePresence: ({ children }: React.PropsWithChildren) => <>{children}</>,
 }));
 
 // Mock @xyflow/react Panel
 jest.mock("@xyflow/react", () => ({
-  Panel: ({ children, ...props }: any) => (
+  Panel: ({ children, ...props }: React.ComponentProps<"div">) => (
     <div data-testid="xyflow-panel" {...props}>
       {children}
     </div>
@@ -27,7 +30,12 @@ jest.mock("../components/InspectionPanelHeader", () => {
     onClose,
     isEditingFields,
     setIsEditingFields,
-  }: any) {
+  }: {
+    data: AllNodeType["data"];
+    onClose?: () => void;
+    isEditingFields: boolean;
+    setIsEditingFields: (editing: boolean) => void;
+  }) {
     return (
       <div data-testid="inspection-panel-header">
         <span>Header for {data?.id || "unknown"}</span>
@@ -50,7 +58,13 @@ jest.mock("../components/InspectionPanelHeader", () => {
 
 // Mock InspectionPanelFields
 jest.mock("../components/InspectionPanelFields", () => {
-  return function MockInspectionPanelFields({ data, isEditingFields }: any) {
+  return function MockInspectionPanelFields({
+    data,
+    isEditingFields,
+  }: {
+    data: AllNodeType["data"];
+    isEditingFields: boolean;
+  }) {
     return (
       <div data-testid="inspection-panel-fields">
         <span>Fields for {data?.id || "unknown"}</span>
@@ -69,7 +83,7 @@ jest.mock("@/components/ui/separator", () => ({
 
 // Mock Button
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, ...props }: any) => (
+  Button: ({ children, onClick, ...props }: React.ComponentProps<"button">) => (
     <button onClick={onClick} {...props}>
       {children}
     </button>
@@ -78,7 +92,7 @@ jest.mock("@/components/ui/button", () => ({
 
 // Mock utils
 jest.mock("@/utils/utils", () => ({
-  cn: (...classes: any[]) => classes.filter(Boolean).join(" "),
+  cn: (...classes: unknown[]) => classes.filter(Boolean).join(" "),
 }));
 
 describe("InspectionPanel", () => {
@@ -123,8 +137,21 @@ describe("InspectionPanel", () => {
     });
 
     it("should not render for non-genericNode types", () => {
-      const mockNode = createMockNode();
-      mockNode.type = "customNode";
+      const mockNode: AllNodeType = {
+        id: "note-1",
+        type: "noteNode",
+        position: { x: 0, y: 0 },
+        data: {
+          id: "note-1",
+          type: "Note",
+          node: {
+            display_name: "Note",
+            description: "A note",
+            documentation: "",
+            template: {},
+          },
+        },
+      };
 
       render(<InspectionPanel selectedNode={mockNode} />);
 
@@ -319,11 +346,11 @@ describe("InspectionPanel", () => {
 
   describe("Edge Cases", () => {
     it("should handle node without data gracefully", () => {
-      const mockNode = {
+      const mockNode: AllNodeType = {
         id: "test-node",
         type: "genericNode",
         position: { x: 0, y: 0 },
-        data: null as any,
+        data: null as unknown as AllNodeType["data"],
       };
 
       expect(() => {

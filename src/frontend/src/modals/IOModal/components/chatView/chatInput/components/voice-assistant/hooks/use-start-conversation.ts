@@ -26,10 +26,8 @@ export const useStartConversation = (
     }
 
     const audioSettings = JSON.parse(
-      getLocalStorage("lf_audio_settings_playground") || "{}",
+      getLocalStorage("ketos-audio-settings-playground") || "{}",
     );
-    const _audioLanguage =
-      getLocalStorage("lf_audio_language_playground") || "en-US";
 
     wsRef.current = new WebSocket(url);
 
@@ -38,7 +36,7 @@ export const useStartConversation = (
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(
           JSON.stringify({
-            type: "langflow.elevenlabs.config",
+            type: "ketos.elevenlabs.config",
             enabled: audioSettings.provider === "elevenlabs",
             voice_id:
               audioSettings.provider === "elevenlabs"
@@ -70,7 +68,7 @@ export const useStartConversation = (
         // 1000 is normal closure
         console.warn(`WebSocket closed with code ${event.code}`);
       }
-      setStatus(`Disconnected (${event.code})`);
+      setStatus(i18n.t("voiceAssistant.disconnected", { code: event.code }));
       stopRecording();
     };
 

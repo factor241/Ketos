@@ -8,7 +8,7 @@ export default function IoJsonInput({
   left,
   output,
 }: IOJSONInputComponentType): JSX.Element {
-  const ref = useRef<any>(null);
+  const ref = useRef<unknown>(null);
   ref.current = value;
 
   const jsonEditorRef = useRef<VanillaJsonEditor | null>(null);

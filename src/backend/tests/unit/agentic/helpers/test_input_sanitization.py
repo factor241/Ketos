@@ -6,18 +6,18 @@ Tests cover:
 - Input normalization (whitespace, null bytes)
 """
 
-from langflow.agentic.helpers.input_sanitization import (
+from ketos.agentic.helpers.input_sanitization import (
     REFUSAL_MESSAGE,
     sanitize_input,
 )
 
 
 class TestSanitizeInputCleanInputs:
-    """Tests that legitimate Langflow questions pass sanitization."""
+    """Tests that legitimate Ketos questions pass sanitization."""
 
-    def test_should_pass_normal_langflow_question(self):
-        """Normal Langflow question should pass."""
-        result = sanitize_input("How do I create a component in Langflow?")
+    def test_should_pass_normal_ketos_question(self):
+        """Normal Ketos question should pass."""
+        result = sanitize_input("How do I create a component in Ketos?")
         assert result.is_safe is True
         assert result.violation is None
 
@@ -44,12 +44,12 @@ class TestSanitizeInputCleanInputs:
 
     def test_should_pass_system_in_legitimate_context(self):
         """'system' in legitimate context should not trigger false positive."""
-        result = sanitize_input("How do I configure system settings in Langflow?")
+        result = sanitize_input("How do I configure system settings in Ketos?")
         assert result.is_safe is True
 
     def test_should_pass_portuguese_question(self):
-        """Portuguese Langflow question should pass."""
-        result = sanitize_input("Como criar um fluxo no Langflow?")
+        """Portuguese Ketos question should pass."""
+        result = sanitize_input("Como criar um fluxo no Ketos?")
         assert result.is_safe is True
 
 
@@ -171,9 +171,9 @@ class TestSanitizeInputNormalization:
 class TestRefusalMessage:
     """Tests for the refusal message constant."""
 
-    def test_refusal_message_mentions_langflow(self):
-        """Refusal message should mention Langflow to redirect the user."""
-        assert "Langflow" in REFUSAL_MESSAGE
+    def test_refusal_message_mentions_ketos(self):
+        """Refusal message should mention Ketos to redirect the user."""
+        assert "Ketos" in REFUSAL_MESSAGE
 
     def test_refusal_message_is_not_empty(self):
         """Refusal message should not be empty."""

@@ -19,7 +19,14 @@ export type ComponentDisplayNamesType = Record<
   {
     display_name: string[];
     description: string[];
-    fields?: Record<string, { display_name: string[] }>;
+    fields?: Record<
+      string,
+      {
+        display_name: string[];
+        presentation?: Record<string, string[]>;
+      }
+    >;
+    outputs?: Record<string, { display_name?: string[]; info?: string[] }>;
   }
 >;
 
@@ -187,6 +194,7 @@ export type changeUser = {
   is_superuser?: boolean;
   password?: string;
   profile_image?: string;
+  preferred_locale?: string | null;
   optins?: {
     github_starred?: boolean;
     discord_clicked?: boolean;
@@ -206,6 +214,7 @@ export type Users = {
   is_active: boolean;
   is_superuser: boolean;
   profile_image: string;
+  preferred_locale?: string | null;
   create_at: Date;
   updated_at: Date;
   optins?: {
@@ -315,14 +324,29 @@ export type QueryFunctionType = (
   // biome-ignore lint/suspicious/noExplicitAny: legacy
 ) => UseQueryResult<any>;
 
-export type MutationFunctionType = (
-  mutationKey: UseMutationOptions["mutationKey"],
-  // biome-ignore lint/suspicious/noExplicitAny: legacy
-  mutationFn: UseMutationOptions<any, any, any>["mutationFn"],
-  // biome-ignore lint/suspicious/noExplicitAny: legacy
-  options?: Omit<UseMutationOptions<any, any>, "mutationFn" | "mutationKey">,
-  // biome-ignore lint/suspicious/noExplicitAny: legacy
-) => UseMutationResult<any, any, any, any>;
+export type MutationFunctionType = <
+  TData = unknown,
+  TError = Error,
+  TVariables = void,
+  TOnMutateResult = unknown,
+>(
+  mutationKey: UseMutationOptions<
+    TData,
+    TError,
+    TVariables,
+    TOnMutateResult
+  >["mutationKey"],
+  mutationFn: UseMutationOptions<
+    TData,
+    TError,
+    TVariables,
+    TOnMutateResult
+  >["mutationFn"],
+  options?: Omit<
+    UseMutationOptions<TData, TError, TVariables, TOnMutateResult>,
+    "mutationFn" | "mutationKey"
+  >,
+) => UseMutationResult<TData, TError, TVariables, TOnMutateResult>;
 
 export type useMutationFunctionType<
   Params,
@@ -335,14 +359,14 @@ export type useMutationFunctionType<
 > = Params extends undefined
   ? (
       options?: Omit<
-        UseMutationOptions<Data, Error>,
+        UseMutationOptions<Data, Error, Variables>,
         "mutationFn" | "mutationKey"
       >,
     ) => UseMutationResult<Data, Error, Variables>
   : (
       params: Params,
       options?: Omit<
-        UseMutationOptions<Data, Error>,
+        UseMutationOptions<Data, Error, Variables>,
         "mutationFn" | "mutationKey"
       >,
     ) => UseMutationResult<Data, Error, Variables>;

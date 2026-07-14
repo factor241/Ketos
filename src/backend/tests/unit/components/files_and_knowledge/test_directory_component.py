@@ -3,9 +3,9 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-from lfx.components.files_and_knowledge.directory import DirectoryComponent
-from lfx.schema import Data, DataFrame
-from lfx.services.deps import get_settings_service
+from kfx.components.files_and_knowledge.directory import DirectoryComponent
+from kfx.schema import Data, DataFrame
+from kfx.services.deps import get_settings_service
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -39,9 +39,9 @@ class TestDirectoryComponent(ComponentTestBaseWithoutClient):
             {"version": "1.1.1", "module": "data", "file_name": "directory"},
         ]
 
-    @patch("lfx.components.data.directory.parallel_load_data")
-    @patch("lfx.components.data.directory.retrieve_file_paths")
-    @patch("lfx.components.data.DirectoryComponent.resolve_path")
+    @patch("kfx.components.data.directory.parallel_load_data")
+    @patch("kfx.components.data.directory.retrieve_file_paths")
+    @patch("kfx.components.data.DirectoryComponent.resolve_path")
     def test_directory_component_build_with_multithreading(
         self, mock_resolve_path, mock_retrieve_file_paths, mock_parallel_load_data
     ):
@@ -283,7 +283,7 @@ class TestDirectoryComponent(ComponentTestBaseWithoutClient):
         outside = tmp_path / "tmp"
         workspace.mkdir()
         outside.mkdir()
-        (outside / "poc_langflow_001.txt").write_text("outside secret", encoding="utf-8")
+        (outside / "poc_ketos_001.txt").write_text("outside secret", encoding="utf-8")
         monkeypatch.chdir(workspace)
 
         directory_component = DirectoryComponent()
@@ -306,7 +306,7 @@ class TestDirectoryComponent(ComponentTestBaseWithoutClient):
         outside = tmp_path / "tmp"
         workspace.mkdir()
         outside.mkdir()
-        (outside / "poc_langflow_002.txt").write_text("outside secret", encoding="utf-8")
+        (outside / "poc_ketos_002.txt").write_text("outside secret", encoding="utf-8")
         monkeypatch.chdir(workspace)
 
         directory_component = DirectoryComponent()
@@ -528,7 +528,7 @@ class TestDirectoryComponent(ComponentTestBaseWithoutClient):
             assert "regular" in texts
             assert "hidden" in texts
 
-    @patch("lfx.components.data.directory.parallel_load_data")
+    @patch("kfx.components.data.directory.parallel_load_data")
     def test_directory_with_multithreading(self, mock_parallel_load, monkeypatch):
         """Test DirectoryComponent with multithreading enabled."""
         directory_component = DirectoryComponent()

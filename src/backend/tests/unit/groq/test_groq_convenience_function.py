@@ -2,7 +2,7 @@
 
 from unittest.mock import patch
 
-from lfx.base.models.groq_model_discovery import GroqModelDiscovery, get_groq_models
+from kfx.base.models.groq_model_discovery import GroqModelDiscovery, get_groq_models
 
 
 class TestGetGroqModelsConvenienceFunction:

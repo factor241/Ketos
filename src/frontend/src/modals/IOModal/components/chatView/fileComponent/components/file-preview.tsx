@@ -60,7 +60,7 @@ export default function FilePreview({
           </div>
         )
       ) : error ? (
-        <div>Error...</div>
+        <div>{t("playground.fileError")}</div>
       ) : (
         <div
           className={`relative mt-2 ${
@@ -70,7 +70,7 @@ export default function FilePreview({
           {isImage ? (
             <img
               src={URL.createObjectURL(file)}
-              alt="file"
+              alt={t("playground.filePreviewAlt")}
               className="block h-full w-full rounded-md border border-border"
             />
           ) : (
@@ -88,6 +88,15 @@ export default function FilePreview({
             <div
               className="group flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-muted p-2 transition-all hover:bg-input"
               onClick={onDelete}
+              role="button"
+              tabIndex={0}
+              aria-label={t("playgroundComponent.deleteFile")}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onDelete();
+                }
+              }}
             >
               <IconComponent
                 name="X"

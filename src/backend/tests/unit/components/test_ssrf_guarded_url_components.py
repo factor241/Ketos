@@ -1,26 +1,26 @@
 from unittest.mock import patch
 
 import pytest
-from lfx.components.deepseek.deepseek import DEEPSEEK_MODELS, DeepSeekModelComponent
-from lfx.components.glean.glean_search_api import GleanAPIWrapper
-from lfx.components.homeassistant.home_assistant_control import HomeAssistantControl
-from lfx.components.homeassistant.list_home_assistant_states import ListHomeAssistantStates
-from lfx.components.huggingface.huggingface_inference_api import HuggingFaceInferenceAPIEmbeddingsComponent
-from lfx.components.litellm.litellm_proxy import LiteLLMProxyComponent
-from lfx.components.lmstudio.lmstudioembeddings import LMStudioEmbeddingsComponent
-from lfx.components.lmstudio.lmstudiomodel import LMStudioModelComponent
-from lfx.components.ollama.ollama import ChatOllamaComponent
-from lfx.components.ollama.ollama_embeddings import OllamaEmbeddingsComponent
-from lfx.components.xai.xai import XAI_DEFAULT_MODELS, XAIModelComponent
-from lfx.utils.ssrf_protection import SSRFProtectionError
+from kfx.components.deepseek.deepseek import DEEPSEEK_MODELS, DeepSeekModelComponent
+from kfx.components.glean.glean_search_api import GleanAPIWrapper
+from kfx.components.homeassistant.home_assistant_control import HomeAssistantControl
+from kfx.components.homeassistant.list_home_assistant_states import ListHomeAssistantStates
+from kfx.components.huggingface.huggingface_inference_api import HuggingFaceInferenceAPIEmbeddingsComponent
+from kfx.components.litellm.litellm_proxy import LiteLLMProxyComponent
+from kfx.components.lmstudio.lmstudioembeddings import LMStudioEmbeddingsComponent
+from kfx.components.lmstudio.lmstudiomodel import LMStudioModelComponent
+from kfx.components.ollama.ollama import ChatOllamaComponent
+from kfx.components.ollama.ollama_embeddings import OllamaEmbeddingsComponent
+from kfx.components.xai.xai import XAI_DEFAULT_MODELS, XAIModelComponent
+from kfx.utils.ssrf_protection import SSRFProtectionError
 
 BLOCKED_URL = "http://169.254.169.254/latest/meta-data"
 
 
 @pytest.fixture(autouse=True)
 def enable_ssrf_protection(monkeypatch):
-    monkeypatch.setenv("LANGFLOW_SSRF_PROTECTION_ENABLED", "true")
-    monkeypatch.delenv("LANGFLOW_SSRF_ALLOWED_HOSTS", raising=False)
+    monkeypatch.setenv("KETOS_SSRF_PROTECTION_ENABLED", "true")
+    monkeypatch.delenv("KETOS_SSRF_ALLOWED_HOSTS", raising=False)
 
 
 @pytest.mark.asyncio
@@ -38,7 +38,7 @@ def test_lmstudio_model_build_blocks_metadata_url_before_openai_client():
     component = LMStudioModelComponent(base_url=BLOCKED_URL, model_name="model", api_key="test")
 
     with (
-        patch("lfx.components.lmstudio.lmstudiomodel.ChatOpenAI") as mock_chat_openai,
+        patch("kfx.components.lmstudio.lmstudiomodel.ChatOpenAI") as mock_chat_openai,
         pytest.raises(ValueError, match="SSRF Protection"),
     ):
         component.build_model()
@@ -50,7 +50,7 @@ def test_lmstudio_embeddings_build_blocks_metadata_url_before_sdk_client():
     component = LMStudioEmbeddingsComponent(base_url=BLOCKED_URL, model="model", api_key="test")
 
     with (
-        patch("lfx.components.lmstudio.lmstudioembeddings.NVIDIAEmbeddings", create=True) as mock_embeddings,
+        patch("kfx.components.lmstudio.lmstudioembeddings.NVIDIAEmbeddings", create=True) as mock_embeddings,
         pytest.raises(ValueError, match="SSRF Protection"),
     ):
         component.build_embeddings()
@@ -113,7 +113,7 @@ def test_xai_build_blocks_metadata_url_before_openai_client():
     component = XAIModelComponent(base_url=BLOCKED_URL, api_key="test")
 
     with (
-        patch("lfx.components.xai.xai.ChatOpenAI") as mock_chat_openai,
+        patch("kfx.components.xai.xai.ChatOpenAI") as mock_chat_openai,
         pytest.raises(ValueError, match="SSRF Protection"),
     ):
         component.build_model()
@@ -149,7 +149,7 @@ def test_ollama_embeddings_build_blocks_metadata_url_before_sdk_client():
     component = OllamaEmbeddingsComponent(base_url=BLOCKED_URL, model_name="model")
 
     with (
-        patch("lfx.components.ollama.ollama_embeddings.OllamaEmbeddings") as mock_embeddings,
+        patch("kfx.components.ollama.ollama_embeddings.OllamaEmbeddings") as mock_embeddings,
         pytest.raises(ValueError, match="SSRF Protection"),
     ):
         component.build_embeddings()
@@ -161,7 +161,7 @@ def test_ollama_build_blocks_metadata_url_before_sdk_client():
     component = ChatOllamaComponent(base_url=BLOCKED_URL, model_name="model", mirostat="Disabled")
 
     with (
-        patch("lfx.components.ollama.ollama.ChatOllama") as mock_chat_ollama,
+        patch("kfx.components.ollama.ollama.ChatOllama") as mock_chat_ollama,
         pytest.raises(ValueError, match="SSRF Protection"),
     ):
         component.build_model()
@@ -174,7 +174,7 @@ def test_litellm_build_blocks_metadata_url_before_httpx_and_openai_client():
 
     with (
         patch("httpx.Client.get") as mock_get,
-        patch("lfx.components.litellm.litellm_proxy.ChatOpenAI") as mock_chat_openai,
+        patch("kfx.components.litellm.litellm_proxy.ChatOpenAI") as mock_chat_openai,
         pytest.raises(ValueError, match="SSRF Protection"),
     ):
         component.build_model()

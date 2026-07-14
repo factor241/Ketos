@@ -19,7 +19,7 @@ interface IGetFolder {
 }
 
 const addQueryParams = (url: string, params: IGetFolder): string => {
-  return buildQueryStringUrl(url, params);
+  return buildQueryStringUrl(url, { ...params });
 };
 
 export const useGetFolderQuery: useQueryFunctionType<

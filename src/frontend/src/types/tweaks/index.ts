@@ -4,7 +4,6 @@ export type GetCodesType = {
   getJsApiCode?: (GetCodeType) => string;
   getPythonApiCode?: (GetCodeType) => string;
   getPythonCode?: (GetCodeType) => string;
-  getWidgetCode?: (GetCodeType) => string;
 };
 
 export type GetCodeType = {

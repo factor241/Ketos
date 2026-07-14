@@ -4,15 +4,15 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
-from langflow.api.v1.deployments import list_deployments
-from langflow.api.v1.mappers.deployments.base import BaseDeploymentMapper
-from langflow.services.database.models.deployment.crud import create_deployment
-from langflow.services.database.models.deployment.crud import get_deployment as get_deployment_db
-from langflow.services.database.models.deployment_provider_account.crud import create_provider_account
-from langflow.services.database.models.folder.model import Folder
-from langflow.services.database.models.user.model import User
-from langflow.services.utils import register_builtin_adapters
-from lfx.services.adapters.deployment.schema import (
+from ketos.api.v1.deployments import list_deployments
+from ketos.api.v1.mappers.deployments.base import BaseDeploymentMapper
+from ketos.services.database.models.deployment.crud import create_deployment
+from ketos.services.database.models.deployment.crud import get_deployment as get_deployment_db
+from ketos.services.database.models.deployment_provider_account.crud import create_provider_account
+from ketos.services.database.models.folder.model import Folder
+from ketos.services.database.models.user.model import User
+from ketos.services.utils import register_builtin_adapters
+from kfx.services.adapters.deployment.schema import (
     DeploymentGetResult,
     DeploymentListResult,
     DeploymentType,
@@ -118,7 +118,7 @@ class _NoSnapshotBindingMapper(BaseDeploymentMapper):
 @pytest.mark.asyncio
 async def test_list_deployments_db_mode_syncs_display_name(async_session, active_user):
     """Integration test: DB-backed list syncs provider display_name into deployment rows."""
-    with patch("langflow.services.utils.FEATURE_FLAGS.wxo_deployments", new=True):
+    with patch("ketos.services.utils.FEATURE_FLAGS.wxo_deployments", new=True):
         # Manually register adapters since app initialization might have skipped it
         register_builtin_adapters()
 
@@ -187,16 +187,16 @@ async def test_list_deployments_db_mode_syncs_display_name(async_session, active
 
         with (
             patch(
-                "langflow.api.v1.mappers.deployments.helpers.fetch_provider_resource_keys",
+                "ketos.api.v1.mappers.deployments.helpers.fetch_provider_resource_keys",
                 new_callable=AsyncMock,
                 side_effect=mock_fetch_provider_resource_keys,
             ),
             patch(
-                "langflow.api.v1.deployments.resolve_deployment_adapter",
+                "ketos.api.v1.deployments.resolve_deployment_adapter",
                 return_value=SimpleNamespace(),
             ),
             patch(
-                "langflow.api.v1.deployments.get_deployment_mapper",
+                "ketos.api.v1.deployments.get_deployment_mapper",
                 return_value=_NoSnapshotBindingMapper(),
             ),
         ):
@@ -222,7 +222,7 @@ async def test_list_deployments_db_mode_syncs_display_name(async_session, active
 @pytest.mark.asyncio
 async def test_list_deployments_provider_mode_lists_entries(async_session, active_user):
     """Integration test: load_from_provider lists provider-owned deployment entries."""
-    with patch("langflow.services.utils.FEATURE_FLAGS.wxo_deployments", new=True):
+    with patch("ketos.services.utils.FEATURE_FLAGS.wxo_deployments", new=True):
         register_builtin_adapters()
 
         project_a = Folder(name=f"project-a-{uuid4()}", user_id=active_user.id)
@@ -249,11 +249,11 @@ async def test_list_deployments_provider_mode_lists_entries(async_session, activ
         )
         with (
             patch(
-                "langflow.api.v1.deployments.resolve_deployment_adapter",
+                "ketos.api.v1.deployments.resolve_deployment_adapter",
                 return_value=fake_adapter,
             ),
             patch(
-                "langflow.api.v1.deployments.get_deployment_mapper",
+                "ketos.api.v1.deployments.get_deployment_mapper",
                 return_value=_NoSnapshotBindingMapper(),
             ),
         ):
@@ -273,7 +273,7 @@ async def test_list_deployments_provider_mode_lists_entries(async_session, activ
 @pytest.mark.asyncio
 async def test_list_deployments_project_id_filter_db_mode(async_session, active_user):
     """Integration test: DB-backed list filters by project_id and syncs display_name."""
-    with patch("langflow.services.utils.FEATURE_FLAGS.wxo_deployments", new=True):
+    with patch("ketos.services.utils.FEATURE_FLAGS.wxo_deployments", new=True):
         register_builtin_adapters()
 
         project_a = Folder(name=f"project-a-{uuid4()}", user_id=active_user.id)
@@ -333,16 +333,16 @@ async def test_list_deployments_project_id_filter_db_mode(async_session, active_
 
         with (
             patch(
-                "langflow.api.v1.mappers.deployments.helpers.fetch_provider_resource_keys",
+                "ketos.api.v1.mappers.deployments.helpers.fetch_provider_resource_keys",
                 new_callable=AsyncMock,
                 side_effect=mock_fetch_provider_resource_keys,
             ),
             patch(
-                "langflow.api.v1.deployments.resolve_deployment_adapter",
+                "ketos.api.v1.deployments.resolve_deployment_adapter",
                 return_value=SimpleNamespace(),
             ),
             patch(
-                "langflow.api.v1.deployments.get_deployment_mapper",
+                "ketos.api.v1.deployments.get_deployment_mapper",
                 return_value=_NoSnapshotBindingMapper(),
             ),
         ):
@@ -397,7 +397,7 @@ async def test_get_deployment_synced_updates_provider_metadata_in_db(async_sessi
         description="Provider description",
     )
 
-    from langflow.api.v1.mappers.deployments.helpers import get_deployment_synced
+    from ketos.api.v1.mappers.deployments.helpers import get_deployment_synced
 
     synced_deployment, provider_result, attached_count = await get_deployment_synced(
         deployment_adapter=_FakeDeploymentAdapter([provider_deployment]),
@@ -423,7 +423,7 @@ async def test_get_deployment_synced_updates_provider_metadata_in_db(async_sessi
 
 @pytest.mark.asyncio
 async def test_list_deployments_syncs_provider_metadata_in_db(async_session, active_user):
-    with patch("langflow.services.utils.FEATURE_FLAGS.wxo_deployments", new=True):
+    with patch("ketos.services.utils.FEATURE_FLAGS.wxo_deployments", new=True):
         register_builtin_adapters()
 
         project = Folder(name=f"project-list-sync-{uuid4()}", user_id=active_user.id)
@@ -461,11 +461,11 @@ async def test_list_deployments_syncs_provider_metadata_in_db(async_session, act
 
         with (
             patch(
-                "langflow.api.v1.deployments.resolve_deployment_adapter",
+                "ketos.api.v1.deployments.resolve_deployment_adapter",
                 return_value=_FakeDeploymentAdapter([provider_deployment]),
             ),
             patch(
-                "langflow.api.v1.deployments.get_deployment_mapper",
+                "ketos.api.v1.deployments.get_deployment_mapper",
                 return_value=_NoSnapshotBindingMapper(),
             ),
         ):

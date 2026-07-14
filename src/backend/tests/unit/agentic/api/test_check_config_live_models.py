@@ -15,11 +15,11 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
-from langflow.agentic.api.router import check_assistant_config
-from langflow.services.database.models.user.model import User
+from ketos.agentic.api.router import check_assistant_config
+from ketos.services.database.models.user.model import User
 
-ROUTER_MODULE = "langflow.agentic.api.router"
-PROVIDER_MODULE = "langflow.agentic.services.provider_service"
+ROUTER_MODULE = "ketos.agentic.api.router"
+PROVIDER_MODULE = "ketos.agentic.services.provider_service"
 
 INSTALLED_OLLAMA_MODELS = [
     {"name": "gpt-oss:20b", "tool_calling": True, "model_type": "llm"},

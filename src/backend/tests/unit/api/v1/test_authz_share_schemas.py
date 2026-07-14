@@ -11,7 +11,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 import pytest
-from langflow.api.v1.schemas.authz_shares import ShareCreate
+from ketos.api.v1.schemas.authz_shares import ShareCreate
 from pydantic import ValidationError
 
 

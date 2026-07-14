@@ -1,6 +1,14 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type React from "react";
 import UpdateAllComponents from "../index";
+
+type StoreSelector<T> = (state: T) => unknown;
+type AlertState = {
+  setErrorData: jest.Mock;
+  setNoticeData: jest.Mock;
+  setSuccessData: jest.Mock;
+};
 
 const mockAddDismissedNodes = jest.fn();
 const mockRemoveDismissedNodes = jest.fn();
@@ -11,22 +19,24 @@ const mockUpdateAllNodes = jest.fn();
 const mockValidateComponentCode = jest.fn();
 const mockProcessNodeAdvancedFields = jest.fn();
 
-let flowStoreState: any;
-let mockTemplates: Record<string, any>;
+let flowStoreState: Record<string, unknown>;
+let mockTemplates: Record<string, unknown>;
 
 jest.mock("@xyflow/react", () => ({
   useUpdateNodeInternals: () => jest.fn(),
 }));
 
 jest.mock("framer-motion", () => ({
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+  AnimatePresence: ({ children }: React.PropsWithChildren) => <>{children}</>,
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+    div: ({ children, ...props }: React.ComponentProps<"div">) => (
+      <div {...props}>{children}</div>
+    ),
   },
 }));
 
 jest.mock("@/CustomNodes/helpers/process-node-advanced-fields", () => ({
-  processNodeAdvancedFields: (...args: any[]) =>
+  processNodeAdvancedFields: (...args: unknown[]) =>
     mockProcessNodeAdvancedFields(...args),
 }));
 
@@ -36,7 +46,12 @@ jest.mock("@/CustomNodes/hooks/use-update-all-nodes", () => ({
 }));
 
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, loading, ...props }: any) => (
+  Button: ({
+    children,
+    onClick,
+    loading,
+    ...props
+  }: React.ComponentProps<"button"> & { loading?: boolean }) => (
     <button onClick={onClick} data-loading={loading} {...props}>
       {children}
     </button>
@@ -55,7 +70,7 @@ jest.mock(
 jest.mock("@/modals/updateComponentModal", () => () => null);
 
 jest.mock("@/stores/alertStore", () => {
-  const useAlertStore = (selector: any) =>
+  const useAlertStore = (selector: StoreSelector<AlertState>) =>
     selector({
       setErrorData: mockSetErrorData,
       setNoticeData: jest.fn(),
@@ -74,7 +89,7 @@ jest.mock("@/stores/alertStore", () => {
 });
 
 jest.mock("@/stores/flowStore", () => {
-  const useFlowStore = (selector?: any) =>
+  const useFlowStore = (selector?: StoreSelector<Record<string, unknown>>) =>
     selector ? selector(flowStoreState) : flowStoreState;
   useFlowStore.getState = () => flowStoreState;
 
@@ -88,28 +103,32 @@ jest.mock("@/stores/flowStore", () => {
 
 jest.mock("@/stores/flowsManagerStore", () => ({
   __esModule: true,
-  default: (selector: any) =>
+  default: (selector: StoreSelector<{ takeSnapshot: jest.Mock }>) =>
     selector({
       takeSnapshot: mockTakeSnapshot,
     }),
 }));
 
 jest.mock("@/stores/typesStore", () => ({
-  useTypesStore: (selector: any) =>
+  useTypesStore: (
+    selector: StoreSelector<{ templates: Record<string, unknown> }>,
+  ) =>
     selector({
       templates: mockTemplates,
     }),
 }));
 
 jest.mock("@/stores/utilityStore", () => ({
-  useUtilityStore: (selector: any) =>
+  useUtilityStore: (
+    selector: StoreSelector<{ allowCustomComponents: boolean }>,
+  ) =>
     selector({
       allowCustomComponents: false,
     }),
 }));
 
 jest.mock("@/utils/utils", () => ({
-  cn: (...classes: any[]) => classes.filter(Boolean).join(" "),
+  cn: (...classes: unknown[]) => classes.filter(Boolean).join(" "),
 }));
 
 const mockSetNodes = jest.fn();

@@ -9,7 +9,7 @@ This test suite validates SSL certificate verification functionality for MCP cli
 
 import httpx
 import pytest
-from lfx.base.mcp.util import (
+from kfx.base.mcp.util import (
     MCPStreamableHttpClient,
     create_mcp_http_client_with_ssl_option,
 )

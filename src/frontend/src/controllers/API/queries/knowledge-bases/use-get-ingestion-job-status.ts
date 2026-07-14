@@ -15,6 +15,17 @@ interface GetIngestionJobStatusParams {
   job_id: string | null;
 }
 
+function hasIngestionStatus(
+  value: unknown,
+): value is Pick<IngestionJobStatusResponse, "status"> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "status" in value &&
+    typeof value.status === "string"
+  );
+}
+
 export const useGetIngestionJobStatus: useQueryFunctionType<
   GetIngestionJobStatusParams,
   IngestionJobStatusResponse
@@ -27,7 +38,7 @@ export const useGetIngestionJobStatus: useQueryFunctionType<
     return res.data;
   };
 
-  const queryResult: UseQueryResult<IngestionJobStatusResponse, any> = query(
+  const queryResult: UseQueryResult<IngestionJobStatusResponse, Error> = query(
     ["useGetIngestionJobStatus", params?.job_id],
     getStatusFn,
     {
@@ -35,9 +46,8 @@ export const useGetIngestionJobStatus: useQueryFunctionType<
       refetchInterval: (query) => {
         const data = query.state.data;
         if (
-          data?.status === "completed" ||
-          data?.status === "failed" ||
-          data?.status === "cancelled"
+          hasIngestionStatus(data) &&
+          ["completed", "failed", "cancelled"].includes(data.status)
         ) {
           return false;
         }

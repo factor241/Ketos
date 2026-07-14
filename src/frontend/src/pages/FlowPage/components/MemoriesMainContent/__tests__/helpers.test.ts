@@ -1,26 +1,7 @@
+import { getIntlLocale } from "@/utils/locale-format";
 import { formatDate, formatTimestamp } from "../helpers";
 
 describe("Memories helpers", () => {
-  const originalToLocaleString = Date.prototype.toLocaleString;
-
-  beforeAll(() => {
-    // Force deterministic formatting regardless of machine locale/timezone.
-    Date.prototype.toLocaleString = function (
-      _locales?: Intl.LocalesArgument,
-      options?: Intl.DateTimeFormatOptions,
-    ) {
-      return originalToLocaleString.call(this, "en-US", {
-        ...(options ?? {}),
-        timeZone: "UTC",
-        hour12: false,
-      });
-    };
-  });
-
-  afterAll(() => {
-    Date.prototype.toLocaleString = originalToLocaleString;
-  });
-
   it("returns fallback values for empty dates", () => {
     expect(formatDate()).toBe("Never");
     expect(formatTimestamp()).toBe("-");
@@ -32,11 +13,24 @@ describe("Memories helpers", () => {
   });
 
   it("formats valid dates", () => {
-    const date = formatDate("2025-01-15T10:30:00.000Z");
-    // Include Z to avoid local-time parsing differences.
+    const value = new Date("2025-01-15T10:30:00.000Z");
+    const date = formatDate(value.toISOString());
     const timestamp = formatTimestamp("2025-01-15   10:30:00Z");
+    const expectedDate = new Intl.DateTimeFormat(getIntlLocale(), {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(value);
+    const expectedTimestamp = new Intl.DateTimeFormat(getIntlLocale(), {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }).format(value);
 
-    expect(date).toBe("Jan 15, 10:30");
-    expect(timestamp).toBe("Jan 15, 10:30:00");
+    expect(date).toBe(expectedDate);
+    expect(timestamp).toBe(expectedTimestamp);
   });
 });

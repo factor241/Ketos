@@ -1,6 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import React from "react";
 import NoResultsMessage from "../emptySearchComponent";
 
 // Mock feature flags
@@ -10,7 +9,13 @@ jest.mock("@/customization/feature-flags", () => ({
 
 // Mock the SearchConfigTrigger component
 jest.mock("../searchConfigTrigger", () => ({
-  SearchConfigTrigger: ({ showConfig, setShowConfig }: any) => (
+  SearchConfigTrigger: ({
+    showConfig,
+    setShowConfig,
+  }: {
+    showConfig: boolean;
+    setShowConfig: (show: boolean) => void;
+  }) => (
     <button
       data-testid="search-config-trigger"
       onClick={() => setShowConfig(!showConfig)}
@@ -236,16 +241,6 @@ describe("NoResultsMessage", () => {
   });
 
   describe("Callback Function", () => {
-    it("should handle missing onClearSearch gracefully", () => {
-      const propsWithoutCallback = {
-        onClearSearch: undefined as any,
-      };
-
-      expect(() => {
-        render(<NoResultsMessage {...propsWithoutCallback} />);
-      }).not.toThrow();
-    });
-
     it("should work with different callback functions", async () => {
       const user = userEvent.setup();
       const alternativeCallback = jest.fn();

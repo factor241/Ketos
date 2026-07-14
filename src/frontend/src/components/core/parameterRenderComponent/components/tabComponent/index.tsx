@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs-button";
+import { getOptionLabel } from "@/utils/option-presentation";
 import { testIdCase } from "@/utils/utils";
 import type { InputProps, TabComponentType } from "../../types";
 
@@ -10,6 +11,7 @@ export default function TabComponent({
   handleOnNewValue,
   disabled,
   options = [],
+  optionsMetaData = [],
   showParameter = true,
   ...baseInputProps
 }: InputProps<string, TabComponentType>): JSX.Element | null {
@@ -31,10 +33,11 @@ export default function TabComponent({
     handleOnNewValue({ value }, {});
   };
 
-  // Validate tab values - maximum 3 tabs, each with maximum 20 characters
-  const validOptions = options
-    .slice(0, 3)
-    .map((tab) => (tab.length > 20 ? tab.substring(0, 20) : tab));
+  // Limit the number of tabs, but never alter their machine values.
+  const validOptions = options.slice(0, 3).map((value) => ({
+    value,
+    label: getOptionLabel(value, options, optionsMetaData),
+  }));
 
   if (!showParameter) {
     return null;
@@ -52,12 +55,12 @@ export default function TabComponent({
           {validOptions.map((tab, index) => (
             <TabsTrigger
               key={`${id}_tab_${index}`}
-              value={tab}
+              value={tab.value}
               className="block flex-1 truncate px-2"
               disabled={disabled}
-              data-testid={`tab_${index}_${testIdCase(tab)}`}
+              data-testid={`tab_${index}_${testIdCase(tab.value)}`}
             >
-              {tab}
+              {tab.label}
             </TabsTrigger>
           ))}
         </TabsList>

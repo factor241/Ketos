@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 import pytest
-from langflow.memory import (
+from ketos.memory import (
     aadd_messages,
     aadd_messagetables,
     add_messages,
@@ -15,16 +15,16 @@ from langflow.memory import (
     delete_messages,
     get_messages,
 )
-from langflow.schema.content_block import ContentBlock
-from langflow.schema.content_types import TextContent, ToolContent
-from langflow.schema.message import MAX_ATTACHMENT_SIZE_BYTES, Message
-from langflow.schema.properties import Properties, Source
+from ketos.schema.content_block import ContentBlock
+from ketos.schema.content_types import TextContent, ToolContent
+from ketos.schema.message import MAX_ATTACHMENT_SIZE_BYTES, Message
+from ketos.schema.properties import Properties, Source
 
 # Assuming you have these imports available
-from langflow.services.database.models.message import MessageCreate, MessageRead
-from langflow.services.database.models.message.model import MessageTable
-from langflow.services.deps import session_scope
-from langflow.services.tracing.utils import convert_to_langchain_type
+from ketos.services.database.models.message import MessageCreate, MessageRead
+from ketos.services.database.models.message.model import MessageTable
+from ketos.services.deps import session_scope
+from ketos.services.tracing.utils import convert_to_langchain_type
 
 
 @pytest.fixture
@@ -195,7 +195,7 @@ def test_to_lc_message_skips_unsupported_file_attachments(monkeypatch):
         events.append(event)
 
     monkeypatch.setattr(
-        "lfx.schema.message.logger",
+        "kfx.schema.message.logger",
         SimpleNamespace(debug=record, warning=record, error=lambda *_args, **_kwargs: None),
     )
 
@@ -540,8 +540,8 @@ class TestMessageBaseFromMessageFilePaths:
 
     def test_from_message_with_session_id_in_file_path(self):
         """Test that file paths containing session_id are correctly processed."""
-        from langflow.services.database.models.message.model import MessageTable
-        from lfx.schema.image import Image
+        from ketos.services.database.models.message.model import MessageTable
+        from kfx.schema.image import Image
 
         session_id = "test-session-123"
         file_path = f"/uploads/{session_id}/image.png"
@@ -562,8 +562,8 @@ class TestMessageBaseFromMessageFilePaths:
 
     def test_from_message_with_session_id_not_in_file_path(self):
         """Test that file paths NOT containing session_id are preserved as-is."""
-        from langflow.services.database.models.message.model import MessageTable
-        from lfx.schema.image import Image
+        from ketos.services.database.models.message.model import MessageTable
+        from kfx.schema.image import Image
 
         session_id = "test-session-123"
         file_path = "/uploads/other-session/image.png"
@@ -584,8 +584,8 @@ class TestMessageBaseFromMessageFilePaths:
 
     def test_from_message_with_no_session_id(self):
         """Test that file paths are preserved when session_id is empty."""
-        from langflow.services.database.models.message.model import MessageTable
-        from lfx.schema.image import Image
+        from ketos.services.database.models.message.model import MessageTable
+        from kfx.schema.image import Image
 
         file_path = "/uploads/some-folder/image.png"
         img = Image(path=file_path, url=f"http://example.com{file_path}")
@@ -605,8 +605,8 @@ class TestMessageBaseFromMessageFilePaths:
 
     def test_from_message_with_session_id_at_end_of_path(self):
         """Test edge case where session_id is at the end of path (no parts after split)."""
-        from langflow.services.database.models.message.model import MessageTable
-        from lfx.schema.image import Image
+        from ketos.services.database.models.message.model import MessageTable
+        from kfx.schema.image import Image
 
         session_id = "test-session-123"
         # Path ends with session_id - split will have empty second part
@@ -634,8 +634,8 @@ class TestMessageBaseFromMessageFilePaths:
         and session_id "abc", split gives ["uploads/", "/folder/", "/image.png"].
         parts[1] is "/folder/" so result is "abc/folder/".
         """
-        from langflow.services.database.models.message.model import MessageTable
-        from lfx.schema.image import Image
+        from ketos.services.database.models.message.model import MessageTable
+        from kfx.schema.image import Image
 
         session_id = "abc"
         # Path has session_id appearing twice
@@ -659,8 +659,8 @@ class TestMessageBaseFromMessageFilePaths:
 
     def test_from_message_with_multiple_files_mixed_paths(self):
         """Test multiple files with different path scenarios."""
-        from langflow.services.database.models.message.model import MessageTable
-        from lfx.schema.image import Image
+        from ketos.services.database.models.message.model import MessageTable
+        from kfx.schema.image import Image
 
         session_id = "session-xyz"
         images = [
@@ -691,7 +691,7 @@ class TestMessageBaseFromMessageFilePaths:
         so the image is not processed but the original message.files remains unchanged.
         Since no image_paths are collected, message.files keeps the original Image objects.
         """
-        from lfx.schema.image import Image
+        from kfx.schema.image import Image
 
         session_id = "test-session"
         img = Image(path="", url="http://example.com/image.png")
@@ -714,7 +714,7 @@ class TestMessageBaseFromMessageFilePaths:
 
         Similar to empty path case - the Image is not processed but remains in message.files.
         """
-        from lfx.schema.image import Image
+        from kfx.schema.image import Image
 
         session_id = "test-session"
         img = Image(path=None, url="http://example.com/image.png")
@@ -733,8 +733,8 @@ class TestMessageBaseFromMessageFilePaths:
 
     def test_from_message_with_image_no_url(self):
         """Test that Image without url attribute still works (url defaults to None)."""
-        from langflow.services.database.models.message.model import MessageTable
-        from lfx.schema.image import Image
+        from ketos.services.database.models.message.model import MessageTable
+        from kfx.schema.image import Image
 
         session_id = "test-session"
         file_path = f"/uploads/{session_id}/image.png"
@@ -757,8 +757,8 @@ class TestMessageBaseFromMessageFilePaths:
 
     def test_from_message_with_empty_session_id_preserves_path(self):
         """Test file path handling when session_id is empty string."""
-        from langflow.services.database.models.message.model import MessageTable
-        from lfx.schema.image import Image
+        from ketos.services.database.models.message.model import MessageTable
+        from kfx.schema.image import Image
 
         file_path = "/uploads/folder/image.png"
         img = Image(path=file_path, url=f"http://example.com{file_path}")
@@ -778,8 +778,8 @@ class TestMessageBaseFromMessageFilePaths:
 
     def test_from_message_with_uuid_session_id(self):
         """Test file path handling with UUID session_id."""
-        from langflow.services.database.models.message.model import MessageTable
-        from lfx.schema.image import Image
+        from ketos.services.database.models.message.model import MessageTable
+        from kfx.schema.image import Image
 
         session_uuid = uuid4()
         session_id_str = str(session_uuid)
@@ -801,7 +801,7 @@ class TestMessageBaseFromMessageFilePaths:
 
     def test_from_message_preserves_string_files(self):
         """Test that string file paths are preserved correctly."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         message = Message(
             text="Test message",
@@ -824,8 +824,8 @@ class TestMessageBaseFromMessageFilePaths:
         message.files is REPLACED by image_paths. String paths are not preserved in image_paths
         because they don't have path/url attributes.
         """
-        from langflow.services.database.models.message.model import MessageTable
-        from lfx.schema.image import Image
+        from ketos.services.database.models.message.model import MessageTable
+        from kfx.schema.image import Image
 
         session_id = "test-session"
         file_path = f"/uploads/{session_id}/image.png"
@@ -849,8 +849,8 @@ class TestMessageBaseFromMessageFilePaths:
 
     def test_from_message_with_special_characters_in_session_id(self):
         """Test message with special characters in session_id."""
-        from langflow.services.database.models.message.model import MessageTable
-        from lfx.schema.image import Image
+        from ketos.services.database.models.message.model import MessageTable
+        from kfx.schema.image import Image
 
         special_session_id = "session:with/special@chars#123"
         file_path = f"/uploads/{special_session_id}/image.png"
@@ -871,8 +871,8 @@ class TestMessageBaseFromMessageFilePaths:
 
     def test_from_message_with_unicode_in_file_path(self):
         """Test message with unicode characters in file path."""
-        from langflow.services.database.models.message.model import MessageTable
-        from lfx.schema.image import Image
+        from ketos.services.database.models.message.model import MessageTable
+        from kfx.schema.image import Image
 
         session_id = "test-session"
         file_path = f"/uploads/{session_id}/imagem_日本語.png"
@@ -902,7 +902,7 @@ class TestMessageModelPostInitFiles:
 
     def test_model_post_init_with_image_instance(self):
         """Test that existing Image instances are preserved."""
-        from lfx.schema.image import Image
+        from kfx.schema.image import Image
 
         img = Image(path="/path/to/image.png")
         message = Message(
@@ -919,7 +919,7 @@ class TestMessageModelPostInitFiles:
 
     def test_model_post_init_with_string_image_path(self, tmp_path):
         """Test string path that is an image file."""
-        from lfx.schema.image import Image
+        from kfx.schema.image import Image
         from PIL import Image as PILImage
 
         img_path = tmp_path / "photo.jpg"
@@ -994,7 +994,7 @@ class TestMessageModelPostInitFiles:
 
     def test_model_post_init_with_multiple_images(self, tmp_path):
         """Test multiple image files."""
-        from lfx.schema.image import Image
+        from kfx.schema.image import Image
         from PIL import Image as PILImage
 
         img_path1 = tmp_path / "image1.png"
@@ -1016,7 +1016,7 @@ class TestMessageModelPostInitFiles:
 
     def test_model_post_init_mixed_image_and_non_image(self, tmp_path):
         """Test mixed image and non-image files."""
-        from lfx.schema.image import Image
+        from kfx.schema.image import Image
         from PIL import Image as PILImage
 
         img_path = tmp_path / "image.png"
@@ -1039,7 +1039,7 @@ class TestMessageModelPostInitFiles:
 
     def test_model_post_init_preserves_existing_image_instances(self, tmp_path):
         """Test that existing Image instances are not re-processed."""
-        from lfx.schema.image import Image
+        from kfx.schema.image import Image
         from PIL import Image as PILImage
 
         img_path = tmp_path / "image.png"
@@ -1075,7 +1075,7 @@ class TestMessageEdgeCases:
 
     def test_from_message_missing_required_fields(self):
         """Test from_message raises error when required fields are missing."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         # Missing text
         message = Message(
@@ -1090,7 +1090,7 @@ class TestMessageEdgeCases:
 
     def test_from_message_missing_sender(self):
         """Test from_message raises error when sender is missing."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         message = Message(
             text="Test",
@@ -1104,7 +1104,7 @@ class TestMessageEdgeCases:
 
     def test_from_message_missing_sender_name(self):
         """Test from_message raises error when sender_name is missing."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         message = Message(
             text="Test",
@@ -1118,7 +1118,7 @@ class TestMessageEdgeCases:
 
     def test_from_message_with_invalid_flow_id(self):
         """Test from_message raises error with invalid flow_id string."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         message = Message(
             text="Test",
@@ -1132,7 +1132,7 @@ class TestMessageEdgeCases:
 
     def test_from_message_with_valid_uuid_string_flow_id(self):
         """Test from_message accepts valid UUID string as flow_id."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         message = Message(
             text="Test",
@@ -1148,7 +1148,7 @@ class TestMessageEdgeCases:
 
     def test_from_message_uses_message_run_id_when_explicit_run_id_missing(self):
         """Test from_message falls back to message.run_id."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         run_id = uuid4()
         message = Message(
@@ -1165,7 +1165,7 @@ class TestMessageEdgeCases:
 
     def test_from_message_with_iterator_text(self):
         """Test from_message handles iterator text gracefully."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         def text_generator():
             yield "chunk1"
@@ -1185,7 +1185,7 @@ class TestMessageEdgeCases:
 
     def test_from_message_timestamp_string_format(self):
         """Test from_message parses timestamp string correctly."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         message = Message(
             text="Test",
@@ -1204,7 +1204,7 @@ class TestMessageEdgeCases:
 
     def test_from_message_timestamp_iso_format(self):
         """Test from_message parses ISO format timestamp."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         message = Message(
             text="Test",
@@ -1248,7 +1248,7 @@ class TestMessageEdgeCases:
 
     def test_session_id_validator_with_uuid(self):
         """Test session_id validator handles UUID objects."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         session_uuid = uuid4()
         message = MessageCreate(
@@ -1263,9 +1263,9 @@ class TestMessageEdgeCases:
 
     def test_content_blocks_validation(self):
         """Test content_blocks field validation."""
-        from langflow.services.database.models.message.model import MessageTable
-        from lfx.schema.content_block import ContentBlock as LfxContentBlock
-        from lfx.schema.content_types import TextContent as LfxTextContent
+        from ketos.services.database.models.message.model import MessageTable
+        from kfx.schema.content_block import ContentBlock as LfxContentBlock
+        from kfx.schema.content_types import TextContent as LfxTextContent
 
         content_block = LfxContentBlock(
             title="Test Block",
@@ -1286,9 +1286,9 @@ class TestMessageEdgeCases:
 
     def test_properties_validation(self):
         """Test properties field validation."""
-        from langflow.services.database.models.message.model import MessageTable
-        from lfx.schema.properties import Properties as LfxProperties
-        from lfx.schema.properties import Source as LfxSource
+        from ketos.services.database.models.message.model import MessageTable
+        from kfx.schema.properties import Properties as LfxProperties
+        from kfx.schema.properties import Source as LfxSource
 
         props = LfxProperties(
             text_color="blue",
@@ -1315,7 +1315,7 @@ class TestMessageResponseFromMessage:
 
     def test_from_message_missing_required_raises_error(self):
         """Test MessageResponse.from_message raises error for missing required fields."""
-        from lfx.schema.message import MessageResponse
+        from kfx.schema.message import MessageResponse
 
         message = Message(
             text=None,
@@ -1342,31 +1342,31 @@ class TestSanitizeJson:
 
     def test_sanitize_nan_float_returns_none(self):
         """float('nan') must be replaced with None."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         assert MessageTable._sanitize_json(float("nan")) is None
 
     def test_sanitize_positive_inf_returns_none(self):
         """float('inf') must be replaced with None."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         assert MessageTable._sanitize_json(float("inf")) is None
 
     def test_sanitize_negative_inf_returns_none(self):
         """float('-inf') must be replaced with None."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         assert MessageTable._sanitize_json(float("-inf")) is None
 
     def test_sanitize_normal_float_preserved(self):
         """Normal finite floats must pass through unchanged."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         assert MessageTable._sanitize_json(3.14) == pytest.approx(3.14)
 
     def test_sanitize_nan_nested_in_dict(self):
         """NaN inside a dict value is replaced with None."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         result = MessageTable._sanitize_json({"score": float("nan"), "label": "ok"})
         assert result["score"] is None
@@ -1374,14 +1374,14 @@ class TestSanitizeJson:
 
     def test_sanitize_inf_nested_in_list(self):
         """Infinity inside a list is replaced with None."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         result = MessageTable._sanitize_json([1.0, float("inf"), 2.0])
         assert result == [1.0, None, 2.0]
 
     def test_sanitize_deeply_nested_nan(self):
         """NaN buried inside a nested dict/list is sanitized recursively."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         data = {"outer": {"inner": [float("nan"), {"deep": float("inf")}]}}
         result = MessageTable._sanitize_json(data)
@@ -1390,7 +1390,7 @@ class TestSanitizeJson:
 
     def test_sanitize_non_float_types_unchanged(self):
         """Strings, ints, bools, and None must not be altered."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         assert MessageTable._sanitize_json("hello") == "hello"
         assert MessageTable._sanitize_json(42) == 42
@@ -1407,7 +1407,7 @@ class TestSanitizeJson:
         """
         import decimal
 
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         d = decimal.Decimal("NaN")
         assert MessageTable._sanitize_json(d) is None
@@ -1418,7 +1418,7 @@ class TestSanitizeJson:
 
     def test_properties_validator_strips_nan(self):
         """NaN inside properties dict is removed by the field validator."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         msg = MessageTable(
             sender="AI",
@@ -1433,7 +1433,7 @@ class TestSanitizeJson:
 
     def test_content_blocks_validator_strips_nan(self):
         """NaN inside content_blocks list is removed by the field validator."""
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         msg = MessageTable(
             sender="AI",
@@ -1450,8 +1450,8 @@ class TestSanitizeJson:
 
     def test_from_message_with_nan_in_properties(self):
         """from_message correctly sanitizes NaN values inside message.properties."""
-        from langflow.schema.properties import Properties
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.schema.properties import Properties
+        from ketos.services.database.models.message.model import MessageTable
 
         props = Properties()
         # Inject a NaN via a workaround (bypass Pydantic validation)
@@ -1486,7 +1486,7 @@ class TestSanitizeJson:
         import json
         import math
 
-        from langflow.services.database.models.message.model import MessageTable
+        from ketos.services.database.models.message.model import MessageTable
 
         # Build a raw content-block dict with float('inf') in duration —
         # this bypasses Pydantic so the forbidden value reaches _sanitize_json.

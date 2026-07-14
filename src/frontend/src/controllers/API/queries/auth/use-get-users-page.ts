@@ -10,9 +10,12 @@ interface getUsersQueryParams {
   search?: string;
 }
 
-export const useGetUsers: useMutationFunctionType<any, getUsersQueryParams> = (
-  options?,
-) => {
+export const useGetUsers: useMutationFunctionType<
+  undefined,
+  getUsersQueryParams,
+  Users[],
+  Error
+> = (options?) => {
   const { mutate } = UseRequestProcessor();
 
   async function getUsers({
@@ -31,11 +34,8 @@ export const useGetUsers: useMutationFunctionType<any, getUsersQueryParams> = (
     return [];
   }
 
-  const mutation: UseMutationResult<
-    getUsersQueryParams,
-    any,
-    getUsersQueryParams
-  > = mutate(["useGetUsers"], getUsers, options);
+  const mutation: UseMutationResult<Users[], Error, getUsersQueryParams> =
+    mutate(["useGetUsers"], getUsers, options);
 
   return mutation;
 };

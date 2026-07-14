@@ -4,7 +4,7 @@ import os
 from unittest.mock import Mock, patch
 
 import pytest
-from lfx.components.mem0.mem0_chat_memory import Mem0MemoryComponent
+from kfx.components.mem0.mem0_chat_memory import Mem0MemoryComponent
 
 
 @pytest.mark.unit
@@ -12,7 +12,7 @@ class TestMem0CloudValidation:
     """Test Mem0 component cloud validation."""
 
     def test_mem0_telemetry_is_disabled_by_default(self):
-        """Langflow should not start mem0's PostHog telemetry on component import."""
+        """Ketos should not start mem0's PostHog telemetry on component import."""
         from mem0.memory import telemetry as mem0_telemetry
 
         assert os.environ["MEM0_TELEMETRY"] == "False"
@@ -30,12 +30,12 @@ class TestMem0CloudValidation:
             error_msg = str(exc_info.value).lower()
             assert "astra" in error_msg or "cloud" in error_msg
 
-    @patch("lfx.components.mem0.mem0_chat_memory.Memory")
+    @patch("kfx.components.mem0.mem0_chat_memory.Memory")
     def test_build_mem0_works_when_not_in_cloud(self, mock_memory):
         """build_mem0 works when not in cloud, passing the OpenAI key through mem0 config.
 
         The key must NOT be written to os.environ: that is process-global and persists
-        across requests, so in a shared serving process (lfx serve) one caller's key
+        across requests, so in a shared serving process (kfx serve) one caller's key
         would leak into other concurrent requests.
         """
         with patch.dict(os.environ, {"ASTRA_CLOUD_DISABLE_COMPONENT": "false"}):

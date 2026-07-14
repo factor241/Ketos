@@ -10,7 +10,7 @@ try:
 except ImportError:
     pytest.skip("agentics-py and crewai not installed", allow_module_level=True)
 
-from lfx.components.agentics.areduce_component import AreduceComponent
+from kfx.components.agentics.areduce_component import AreduceComponent
 
 
 @pytest.mark.unit

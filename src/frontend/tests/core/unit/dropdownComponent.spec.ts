@@ -141,12 +141,12 @@ test(
     await page.locator("textarea").press("Control+a");
     const emptyOptionsCode = `from langchain_aws import ChatBedrock as BedrockChat
 
-from langflow.base.constants import STREAM_INFO_TEXT
-from langflow.base.models.model import LCModelComponent
-from langflow.field_typing import BaseLanguageModel, Text
-from langflow.io import BoolInput, DictInput, DropdownInput, StrInput
-from langflow.io import MessageInput
-from langflow.io import Output
+from ketos.base.constants import STREAM_INFO_TEXT
+from ketos.base.models.model import LCModelComponent
+from ketos.field_typing import BaseLanguageModel, Text
+from ketos.io import BoolInput, DictInput, DropdownInput, StrInput
+from ketos.io import MessageInput
+from ketos.io import Output
 
 class AmazonBedrockComponent(LCModelComponent):
     display_name: str = "Amazon Bedrock"

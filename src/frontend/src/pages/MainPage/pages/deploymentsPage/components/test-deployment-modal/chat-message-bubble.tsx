@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
@@ -17,6 +18,7 @@ function ToolTraceItem({
   trace: NonNullable<ChatMessage["toolTraces"]>[number];
 }) {
   const [open, setOpen] = useState(false);
+  const { t } = useTranslation();
 
   return (
     <div className="rounded border border-border overflow-hidden">
@@ -47,7 +49,7 @@ function ToolTraceItem({
           {trace.input !== undefined && (
             <div>
               <div className="text-muted-foreground mb-0.5 font-medium">
-                Input
+                {t("trace.input")}
               </div>
               <pre className="overflow-x-auto rounded bg-muted p-1.5 text-xs whitespace-pre-wrap break-all">
                 {formatTraceValue(trace.input)}
@@ -57,7 +59,7 @@ function ToolTraceItem({
           {trace.output !== undefined && (
             <div>
               <div className="text-muted-foreground mb-0.5 font-medium">
-                Output
+                {t("trace.output")}
               </div>
               <pre className="overflow-x-auto rounded bg-muted p-1.5 text-xs whitespace-pre-wrap break-all">
                 {formatTraceValue(trace.output)}
@@ -78,7 +80,6 @@ function ToolTracesPanel({
   return (
     <div className="mt-2 flex flex-col gap-1 text-xs">
       {traces.map((trace, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: traces have no stable id
         <ToolTraceItem key={i} trace={trace} />
       ))}
     </div>

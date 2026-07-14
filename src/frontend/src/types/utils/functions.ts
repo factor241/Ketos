@@ -4,7 +4,6 @@ export type getCodesObjProps = {
   pythonApiCode: string;
   jsApiCode: string;
   pythonCode: string;
-  widgetCode: string;
 };
 
 export type getCodesObjReturn = Array<{ name: string; code: string }>;
@@ -26,7 +25,7 @@ export interface ColumnField {
   description?: string;
   load_from_db?: boolean;
   disable_edit?: boolean;
-  default?: any;
+  default?: unknown;
   edit_mode?: "modal" | "inline" | "popover";
   hidden?: boolean;
   options?: string[];

@@ -2,7 +2,7 @@ import * as Form from "@radix-ui/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
-import LangflowLogo from "@/assets/LangflowLogo.svg?react";
+import { KetosBrandMark } from "@/components/common/ketos-brand-mark";
 import ShadTooltip from "@/components/common/shadTooltipComponent";
 import { useLoginUser } from "@/controllers/API/queries/auth";
 import { CustomLink } from "@/customization/components/custom-link";
@@ -18,6 +18,7 @@ import type {
   inputHandlerEventType,
   loginInputStateType,
 } from "../../types/components";
+import { getLocalizedApiErrorMessage } from "../../utils/localized-api-error";
 
 export default function LoginPage(): JSX.Element {
   const [inputState, setInputState] =
@@ -55,7 +56,12 @@ export default function LoginPage(): JSX.Element {
       onError: (error) => {
         setErrorData({
           title: t("errors.signin"),
-          list: [error["response"]["data"]["detail"]],
+          list: [
+            getLocalizedApiErrorMessage(error, (key) => t(key), {
+              fallbackKey: "errors.requestFailed",
+              statusKeys: { 401: "auth.invalidCredentials" },
+            }),
+          ],
         });
       },
     });
@@ -76,8 +82,8 @@ export default function LoginPage(): JSX.Element {
     >
       <div className="flex h-full w-full flex-col items-center justify-center bg-muted">
         <div className="flex w-full max-w-xs flex-col items-center justify-center gap-2">
-          <LangflowLogo
-            title={t("common.langflowLogo")}
+          <KetosBrandMark
+            label={t("common.ketosLogo")}
             className="mb-4 h-10 w-10 scale-[1.5]"
           />
           <span className="mb-6 text-2xl font-semibold text-primary text-center">

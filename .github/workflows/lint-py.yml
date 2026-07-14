@@ -41,7 +41,7 @@ jobs:
         run: uv sync
       - name: Run Mypy
         run: |
-          uv run mypy --namespace-packages -p "langflow"
+          uv run mypy --namespace-packages -p "ketos"
         env:
           GITHUB_TOKEN: ${{ secrets.github_token }}
 

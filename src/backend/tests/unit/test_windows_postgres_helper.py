@@ -13,8 +13,8 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
-from langflow.helpers.windows_postgres_helper import (
-    LANGFLOW_DATABASE_URL,
+from ketos.helpers.windows_postgres_helper import (
+    KETOS_DATABASE_URL,
     POSTGRESQL_PREFIXES,
     configure_windows_postgres_event_loop,
 )
@@ -35,7 +35,7 @@ class TestWindowsPostgresHelper:
 
     def test_constants_defined(self):
         """Test that required constants are properly defined."""
-        assert LANGFLOW_DATABASE_URL == "LANGFLOW_DATABASE_URL"
+        assert KETOS_DATABASE_URL == "KETOS_DATABASE_URL"
         assert POSTGRESQL_PREFIXES == ("postgresql", "postgres")
 
     @patch("platform.system")
@@ -44,7 +44,7 @@ class TestWindowsPostgresHelper:
         """Test that non-Windows systems return False and don't change event loop."""
         for system in ["Linux", "Darwin", "FreeBSD"]:
             mock_platform.return_value = system
-            os.environ[LANGFLOW_DATABASE_URL] = "postgresql://user:pass@localhost/db"
+            os.environ[KETOS_DATABASE_URL] = "postgresql://user:pass@localhost/db"
 
             result = configure_windows_postgres_event_loop()
 
@@ -61,7 +61,7 @@ class TestWindowsPostgresHelper:
         assert result is False
 
     @patch("platform.system")
-    @patch.dict(os.environ, {"LANGFLOW_DATABASE_URL": "sqlite:///test.db"}, clear=True)
+    @patch.dict(os.environ, {"KETOS_DATABASE_URL": "sqlite:///test.db"}, clear=True)
     def test_windows_with_sqlite_returns_false(self, mock_platform):
         """Test Windows with SQLite returns False and doesn't change event loop."""
         mock_platform.return_value = "Windows"
@@ -72,7 +72,7 @@ class TestWindowsPostgresHelper:
 
     @patch.object(asyncio, "WindowsSelectorEventLoopPolicy", MockWindowsSelectorPolicy, create=True)
     @patch("platform.system")
-    @patch.dict(os.environ, {"LANGFLOW_DATABASE_URL": "postgresql://user:pass@localhost/db"}, clear=True)
+    @patch.dict(os.environ, {"KETOS_DATABASE_URL": "postgresql://user:pass@localhost/db"}, clear=True)
     @patch("asyncio.get_event_loop_policy")
     @patch("asyncio.set_event_loop_policy")
     def test_windows_with_postgresql_sets_policy(self, mock_set_policy, mock_get_policy, mock_platform):
@@ -91,7 +91,7 @@ class TestWindowsPostgresHelper:
 
     @patch.object(asyncio, "WindowsSelectorEventLoopPolicy", MockWindowsSelectorPolicy, create=True)
     @patch("platform.system")
-    @patch.dict(os.environ, {"LANGFLOW_DATABASE_URL": "postgres://user:pass@localhost/db"}, clear=True)
+    @patch.dict(os.environ, {"KETOS_DATABASE_URL": "postgres://user:pass@localhost/db"}, clear=True)
     @patch("asyncio.get_event_loop_policy")
     @patch("asyncio.set_event_loop_policy")
     def test_windows_with_postgres_protocol_sets_policy(self, mock_set_policy, mock_get_policy, mock_platform):
@@ -107,7 +107,7 @@ class TestWindowsPostgresHelper:
 
     @patch.object(asyncio, "WindowsSelectorEventLoopPolicy", MockWindowsSelectorPolicy, create=True)
     @patch("platform.system")
-    @patch.dict(os.environ, {"LANGFLOW_DATABASE_URL": "postgresql://user:pass@localhost/db"}, clear=True)
+    @patch.dict(os.environ, {"KETOS_DATABASE_URL": "postgresql://user:pass@localhost/db"}, clear=True)
     @patch("asyncio.get_event_loop_policy")
     @patch("asyncio.set_event_loop_policy")
     def test_windows_with_selector_already_set_returns_false(self, mock_set_policy, mock_get_policy, mock_platform):
@@ -123,10 +123,10 @@ class TestWindowsPostgresHelper:
 
     @patch.object(asyncio, "WindowsSelectorEventLoopPolicy", MockWindowsSelectorPolicy, create=True)
     @patch("platform.system")
-    @patch.dict(os.environ, {"LANGFLOW_DATABASE_URL": "postgresql://user:pass@localhost/db"}, clear=True)
+    @patch.dict(os.environ, {"KETOS_DATABASE_URL": "postgresql://user:pass@localhost/db"}, clear=True)
     @patch("asyncio.get_event_loop_policy")
     @patch("asyncio.set_event_loop_policy")
-    @patch("langflow.helpers.windows_postgres_helper.logger")
+    @patch("ketos.helpers.windows_postgres_helper.logger")
     def test_logging_includes_source_when_provided(self, mock_logger, mock_set_policy, mock_get_policy, mock_platform):  # noqa: ARG002
         """Test that source is included in log context when provided."""
         mock_platform.return_value = "Windows"
@@ -146,7 +146,7 @@ class TestWindowsPostgresHelper:
         )
 
     @patch("platform.system")
-    @patch.dict(os.environ, {"LANGFLOW_DATABASE_URL": "mysql://user:pass@localhost/db"}, clear=True)
+    @patch.dict(os.environ, {"KETOS_DATABASE_URL": "mysql://user:pass@localhost/db"}, clear=True)
     def test_windows_with_other_database_returns_false(self, mock_platform):
         """Test Windows with non-PostgreSQL database returns False."""
         mock_platform.return_value = "Windows"
@@ -159,7 +159,7 @@ class TestWindowsPostgresHelper:
     def test_docker_environment_not_affected(self, mock_platform):
         """Test that Docker environments (typically Linux) are not affected."""
         mock_platform.return_value = "Linux"
-        os.environ[LANGFLOW_DATABASE_URL] = "postgresql://user:pass@postgres:5432/langflow"
+        os.environ[KETOS_DATABASE_URL] = "postgresql://user:pass@postgres:5432/ketos"
         os.environ["DOCKER_CONTAINER"] = "true"
 
         original_policy = asyncio.get_event_loop_policy()
@@ -187,14 +187,14 @@ class TestWindowsPostgresHelper:
         mock_policy = MagicMock()
         mock_get_policy.return_value = mock_policy
 
-        with patch.dict(os.environ, {LANGFLOW_DATABASE_URL: db_url}, clear=True):
+        with patch.dict(os.environ, {KETOS_DATABASE_URL: db_url}, clear=True):
             result = configure_windows_postgres_event_loop()
 
         assert result is True
         mock_set_policy.assert_called_once()
 
     @patch("platform.system")
-    @patch.dict(os.environ, {"LANGFLOW_DATABASE_URL": "postgresql://user:pass@localhost/db"}, clear=True)
+    @patch.dict(os.environ, {"KETOS_DATABASE_URL": "postgresql://user:pass@localhost/db"}, clear=True)
     def test_windows_without_policy_class_returns_false(self, mock_platform):
         """Test that if WindowsSelectorEventLoopPolicy class is unavailable, returns False."""
         mock_platform.return_value = "Windows"

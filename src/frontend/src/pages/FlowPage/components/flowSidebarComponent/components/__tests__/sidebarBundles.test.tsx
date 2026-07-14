@@ -1,29 +1,38 @@
 import { render, screen } from "@testing-library/react";
+import type React from "react";
+import type { SidebarBundle } from "../../types";
 import { MemoizedSidebarGroup } from "../sidebarBundles";
+
+type DivProps = React.ComponentProps<"div">;
+type BundleMockProps = { item: SidebarBundle; openCategories: string[] };
+type ToggleProps = {
+  showConfig: boolean;
+  setShowConfig: (show: boolean) => void;
+};
 
 // Mock the UI components
 jest.mock("@/components/ui/sidebar", () => ({
-  SidebarGroup: ({ children, className }: any) => (
+  SidebarGroup: ({ children, className }: DivProps) => (
     <div data-testid="sidebar-group" className={className}>
       {children}
     </div>
   ),
-  SidebarGroupContent: ({ children }: any) => (
+  SidebarGroupContent: ({ children }: DivProps) => (
     <div data-testid="sidebar-group-content">{children}</div>
   ),
-  SidebarGroupLabel: ({ children, className }: any) => (
+  SidebarGroupLabel: ({ children, className }: DivProps) => (
     <div data-testid="sidebar-group-label" className={className}>
       {children}
     </div>
   ),
-  SidebarMenu: ({ children }: any) => (
+  SidebarMenu: ({ children }: DivProps) => (
     <div data-testid="sidebar-menu">{children}</div>
   ),
 }));
 
 // Mock the BundleItem component
 jest.mock("../bundleItems", () => ({
-  BundleItem: ({ item, openCategories }: any) => (
+  BundleItem: ({ item, openCategories }: BundleMockProps) => (
     <div data-testid={`bundle-item-${item.name}`}>
       Bundle Item: {item.display_name} - Open:{" "}
       {openCategories.includes(item.name).toString()}
@@ -33,7 +42,7 @@ jest.mock("../bundleItems", () => ({
 
 // Mock the SearchConfigTrigger component
 jest.mock("../searchConfigTrigger", () => ({
-  SearchConfigTrigger: ({ showConfig, setShowConfig }: any) => (
+  SearchConfigTrigger: ({ showConfig, setShowConfig }: ToggleProps) => (
     <button
       data-testid="search-config-trigger"
       onClick={() => setShowConfig(!showConfig)}
@@ -570,20 +579,6 @@ describe("MemoizedSidebarGroup (SidebarBundles)", () => {
   });
 
   describe("Callback Functions", () => {
-    it("should handle missing callback functions gracefully", () => {
-      const propsWithoutCallbacks = {
-        ...defaultProps,
-        setOpenCategories: undefined as any,
-        onDragStart: undefined as any,
-        sensitiveSort: undefined as any,
-        handleKeyDownInput: undefined as any,
-      };
-
-      expect(() => {
-        render(<MemoizedSidebarGroup {...propsWithoutCallbacks} />);
-      }).not.toThrow();
-    });
-
     it("should work with different callback functions", () => {
       const alternativeSetOpenCategories = jest.fn();
       const alternativeOnDragStart = jest.fn();

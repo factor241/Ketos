@@ -6,6 +6,7 @@ import {
   formatTokens,
   formatTotalLatency,
   getSpanIcon,
+  getSpanStatusLabel,
   getStatusIconProps,
 } from "./traceViewHelpers";
 import { SpanNodeProps } from "./types";
@@ -117,8 +118,8 @@ export function SpanNode({
 
       <IconComponent
         name={iconName}
-        className={`h-4 w-4 ${colorClass} ${shouldSpin ? "animate-spin" : ""}`}
-        aria-label={span.status}
+        className={cn("h-4 w-4", colorClass, shouldSpin && "animate-spin")}
+        aria-label={getSpanStatusLabel(span.status)}
         dataTestId={`flow-log-status-${span.status}`}
         skipFallback
       />

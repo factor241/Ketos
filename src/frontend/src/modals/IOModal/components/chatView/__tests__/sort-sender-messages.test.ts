@@ -47,7 +47,10 @@ describe("sortSenderMessages", () => {
       const messages = [
         createMockMessage("2025-08-29T08:51:23Z", false, "iso"),
         createMockMessage("2025-08-29 08:51:21 UTC", true, "utc"),
-        createMockMessage("2025-08-29 08:51:22", true, "no-tz"),
+        // A timezone-less timestamp is interpreted in the host timezone.
+        // Keep it on the following day so the ordering is deterministic in
+        // every supported timezone.
+        createMockMessage("2025-08-30 08:51:22", true, "no-tz"),
       ];
 
       const sorted = [...messages].sort(sortSenderMessages);
@@ -56,7 +59,7 @@ describe("sortSenderMessages", () => {
       const sortedTimes = sorted.map((m) => new Date(m.timestamp).getTime());
       expect(sortedTimes[0]).toBeLessThan(sortedTimes[1]);
       expect(sortedTimes[1]).toBeLessThan(sortedTimes[2]);
-      expect(sorted[0].id).toBe("utc"); // 08:51:21 is earliest
+      expect(sorted[0].id).toBe("utc");
     });
 
     it("should handle messages spanning multiple days", () => {

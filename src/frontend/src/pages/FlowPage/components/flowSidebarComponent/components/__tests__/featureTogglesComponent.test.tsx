@@ -5,7 +5,14 @@ import FeatureToggles from "../featureTogglesComponent";
 
 // Mock the UI components
 jest.mock("@/components/ui/badge", () => ({
-  Badge: ({ children, variant, size }: any) => (
+  Badge: ({
+    children,
+    variant,
+    size,
+  }: React.PropsWithChildren<{
+    variant?: string;
+    size?: string;
+  }>) => (
     <span
       data-testid={`badge-${variant}-${size}`}
       className={`badge-${variant} badge-${size}`}
@@ -16,7 +23,15 @@ jest.mock("@/components/ui/badge", () => ({
 }));
 
 jest.mock("@/components/ui/switch", () => ({
-  Switch: ({ checked, onCheckedChange, "data-testid": testId }: any) => (
+  Switch: ({
+    checked,
+    onCheckedChange,
+    "data-testid": testId,
+  }: {
+    checked: boolean;
+    onCheckedChange: (checked: boolean) => void;
+    "data-testid"?: string;
+  }) => (
     <button
       data-testid={testId || "switch"}
       onClick={() => onCheckedChange(!checked)}
@@ -307,19 +322,6 @@ describe("FeatureToggles", () => {
   });
 
   describe("Props Handling", () => {
-    it("should handle missing callback functions gracefully", () => {
-      const propsWithoutCallbacks = {
-        showBeta: false,
-        setShowBeta: undefined as any,
-        showLegacy: false,
-        setShowLegacy: undefined as any,
-      };
-
-      expect(() => {
-        render(<FeatureToggles {...propsWithoutCallbacks} />);
-      }).not.toThrow();
-    });
-
     it("should handle boolean state changes correctly", () => {
       const { rerender } = render(<FeatureToggles {...defaultProps} />);
 

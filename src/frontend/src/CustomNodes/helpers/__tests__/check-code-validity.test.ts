@@ -1,25 +1,34 @@
+import type { APIClassType, InputFieldType } from "@/types/api";
+import type { NodeDataType } from "@/types/flow";
 import { checkCodeValidity } from "../check-code-validity";
 
 describe("checkCodeValidity", () => {
-  const customComponentData = {
-    type: "CustomComponent",
-    node: {
-      edited: false,
-      template: {
-        code: {
-          value: "user custom code",
-        },
-      },
-    },
-  } as Parameters<typeof checkCodeValidity>[0];
+  const inputField = (value: string): InputFieldType => ({
+    type: "code",
+    required: false,
+    list: false,
+    show: true,
+    readonly: false,
+    value,
+  });
 
-  const templates = {
+  const customComponentNode: APIClassType = {
+    edited: false,
+    description: "Custom component",
+    display_name: "Custom Component",
+    documentation: "",
+    template: { code: inputField("user custom code") },
+  };
+
+  const customComponentData: NodeDataType = {
+    id: "custom-component-1",
+    type: "CustomComponent",
+    node: customComponentNode,
+  };
+
+  const templates: Record<string, APIClassType> = {
     CustomComponent: {
-      template: {
-        code: {
-          value: "user custom code",
-        },
-      },
+      ...customComponentNode,
       outputs: [],
     },
   };

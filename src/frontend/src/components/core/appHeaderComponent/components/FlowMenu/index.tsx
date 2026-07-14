@@ -21,6 +21,7 @@ import useAlertStore from "@/stores/alertStore";
 import useFlowStore from "@/stores/flowStore";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
 import { useShortcutsStore } from "@/stores/shortcuts";
+import { formatDateTime } from "@/utils/locale-format";
 import { swatchColors } from "@/utils/styleUtils";
 import { cn, getNumberFromString } from "@/utils/utils";
 
@@ -102,8 +103,9 @@ export const MenuBar = memo((): JSX.Element => {
           >
             {currentFolder?.name && (
               <div className="hidden truncate md:flex">
-                <div
-                  className="cursor-pointer truncate text-sm text-muted-foreground hover:text-primary"
+                <button
+                  type="button"
+                  className="cursor-pointer truncate bg-transparent p-0 text-sm text-muted-foreground hover:text-primary"
                   onClick={() => {
                     navigate(
                       currentFolder?.id
@@ -113,7 +115,7 @@ export const MenuBar = memo((): JSX.Element => {
                   }}
                 >
                   {currentFolder?.name}
-                </div>
+                </button>
               </div>
             )}
           </div>
@@ -162,7 +164,7 @@ export const MenuBar = memo((): JSX.Element => {
                       : t("flow.saveChanges")
                     : t("flow.savedHover") +
                       (updatedAt
-                        ? new Date(updatedAt).toLocaleString("en-US", {
+                        ? formatDateTime(updatedAt, {
                             hour: "numeric",
                             minute: "numeric",
                           })

@@ -1,8 +1,8 @@
-type TFunction = (key: string, opts?: object) => string;
+import type { TFunction } from "i18next";
 
 export const timeElapsed = (
   dateTimeString: string | undefined,
-  t?: TFunction,
+  t: TFunction<"translation">,
 ): string => {
   if (!dateTimeString) {
     return "";
@@ -20,36 +20,16 @@ export const timeElapsed = (
   const years = Math.floor(months / 12);
 
   if (years > 0) {
-    return t
-      ? t("mainPage.timeElapsed.year", { count: years })
-      : years === 1
-        ? `${years} year`
-        : `${years} years`;
+    return t("mainPage.timeElapsed.year", { count: years });
   } else if (months > 0) {
-    return t
-      ? t("mainPage.timeElapsed.month", { count: months })
-      : months === 1
-        ? `${months} month`
-        : `${months} months`;
+    return t("mainPage.timeElapsed.month", { count: months });
   } else if (days > 0) {
-    return t
-      ? t("mainPage.timeElapsed.day", { count: days })
-      : days === 1
-        ? `${days} day`
-        : `${days} days`;
+    return t("mainPage.timeElapsed.day", { count: days });
   } else if (hours > 0) {
-    return t
-      ? t("mainPage.timeElapsed.hour", { count: hours })
-      : hours === 1
-        ? `${hours} hour`
-        : `${hours} hours`;
+    return t("mainPage.timeElapsed.hour", { count: hours });
   } else if (minutes > 0) {
-    return t
-      ? t("mainPage.timeElapsed.minute", { count: minutes })
-      : minutes === 1
-        ? `${minutes} minute`
-        : `${minutes} minutes`;
+    return t("mainPage.timeElapsed.minute", { count: minutes });
   } else {
-    return t ? t("mainPage.timeElapsed.lessThanMinute") : "less than a minute";
+    return t("mainPage.timeElapsed.lessThanMinute");
   }
 };

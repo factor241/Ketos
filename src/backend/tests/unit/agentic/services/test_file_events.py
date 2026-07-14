@@ -4,7 +4,7 @@ These events are emitted by the agent's filesystem tools (write_file / edit_file
 and drained by `assistant_service` between LLM tokens so the frontend can render
 a card for each file as it materializes.
 
-Pattern mirrors `lfx.mcp.flow_builder_tools._flow_events_var` but with a fresh
+Pattern mirrors `kfx.mcp.flow_builder_tools._flow_events_var` but with a fresh
 ContextVar so file-event consumers don't have to import flow-builder internals.
 """
 
@@ -14,7 +14,7 @@ from contextvars import copy_context
 from unittest.mock import MagicMock
 
 import pytest
-from langflow.agentic.services.file_events import (
+from ketos.agentic.services.file_events import (
     drain_file_events,
     emit_file_event,
     reset_file_events,
@@ -116,7 +116,7 @@ class TestContextIsolation:
         emit into the SAME queue the parent will drain.
 
         This mirrors the production wiring in
-        ``lfx.mcp.flow_builder_tools._flow_events_var``: reset allocates a
+        ``kfx.mcp.flow_builder_tools._flow_events_var``: reset allocates a
         deque in the parent context BEFORE spawning child tasks, so the
         children inherit the same object by reference. Cross-request
         isolation is provided at the FastAPI level (each request task has

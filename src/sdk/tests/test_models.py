@@ -9,7 +9,7 @@ from pathlib import Path
 from uuid import UUID
 
 import pytest
-from langflow_sdk.models import Flow, FlowCreate, FlowUpdate, Project, RunOutput, RunRequest, RunResponse
+from ketos_sdk.models import Flow, FlowCreate, FlowUpdate, Project, RunOutput, RunRequest, RunResponse
 
 # ---------------------------------------------------------------------------
 # Model round-trip tests
@@ -212,7 +212,7 @@ class TestRunResponseHelpers:
 
 
 def test_load_environments(tmp_path: Path):
-    config = tmp_path / "langflow-environments.toml"
+    config = tmp_path / "ketos-environments.toml"
     config.write_text(
         textwrap.dedent("""\
             [environments.staging]
@@ -231,39 +231,67 @@ def test_load_environments(tmp_path: Path):
     fake_key = "test-key-not-a-real-secret"  # pragma: allowlist secret
     os.environ["TEST_KEY_STAGING"] = fake_key
 
-    from langflow_sdk.environments import get_environment, load_environments
+    from ketos_sdk.environments import get_environment, load_environments
 
     try:
-        envs = load_environments(config)
+        with pytest.warns(UserWarning, match="literal api_key"):
+            envs = load_environments(config)
         assert "staging" in envs
         assert envs["staging"].url == "https://staging.example.com"
         assert envs["staging"].api_key == fake_key
         assert envs["production"].api_key == "not-a-real-secret"  # pragma: allowlist secret
 
-        default_env = get_environment(config_file=config)
+        with pytest.warns(UserWarning, match="literal api_key"):
+            default_env = get_environment(config_file=config)
         assert default_env.name == "staging"
     finally:
         os.environ.pop("TEST_KEY_STAGING", None)
 
 
 def test_environment_not_found(tmp_path: Path):
-    config = tmp_path / "langflow-environments.toml"
+    config = tmp_path / "ketos-environments.toml"
     config.write_text("[environments.staging]\nurl = 'https://x.com'\n")
 
-    from langflow_sdk.environments import get_environment
-    from langflow_sdk.exceptions import EnvironmentNotFoundError
+    from ketos_sdk.environments import get_environment
+    from ketos_sdk.exceptions import KetosEnvironmentNotFoundError
 
-    with pytest.raises(EnvironmentNotFoundError, match="production"):
+    with pytest.raises(KetosEnvironmentNotFoundError, match="production"):
         get_environment("production", config_file=config)
 
 
 def test_missing_url_raises(tmp_path: Path):
-    config = tmp_path / "langflow-environments.toml"
+    config = tmp_path / "ketos-environments.toml"
     # Intentionally omit 'url' to trigger the validation error
     config.write_text("[environments.bad]\ndescription = 'oops'\n")
 
-    from langflow_sdk.environments import load_environments
-    from langflow_sdk.exceptions import EnvironmentConfigError
+    from ketos_sdk.environments import load_environments
+    from ketos_sdk.exceptions import KetosEnvironmentConfigError
 
-    with pytest.raises(EnvironmentConfigError, match="url"):
+    with pytest.raises(KetosEnvironmentConfigError, match="url"):
         load_environments(config)
+
+
+def test_environment_discovery_ignores_current_working_directory(tmp_path: Path, monkeypatch):
+    from ketos_sdk import environments
+
+    cwd_config = tmp_path / "ketos-environments.toml"
+    cwd_config.write_text("[environments.old]\nurl = 'https://old.invalid'\n", encoding="utf-8")
+    canonical = tmp_path / "canonical"
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("KETOS_ENVIRONMENTS_FILE", raising=False)
+    monkeypatch.setattr(environments, "user_config_path", lambda *_args: canonical)
+
+    assert list(environments._candidate_paths(None)) == [canonical / "ketos-environments.toml"]  # noqa: SLF001
+
+
+def test_old_environment_file_variable_has_no_effect(tmp_path: Path, monkeypatch):
+    from ketos_sdk import environments
+
+    old_prefix = "LANG" + "FLOW"
+    monkeypatch.setenv(f"{old_prefix}_ENVIRONMENTS_FILE", str(tmp_path / "old.toml"))
+    monkeypatch.delenv("KETOS_ENVIRONMENTS_FILE", raising=False)
+    monkeypatch.setattr(environments, "user_config_path", lambda *_args: tmp_path / "canonical")
+
+    assert list(environments._candidate_paths(None)) == [  # noqa: SLF001
+        tmp_path / "canonical" / "ketos-environments.toml"
+    ]

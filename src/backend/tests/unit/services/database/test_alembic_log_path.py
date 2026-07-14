@@ -1,6 +1,6 @@
 """Tests for Alembic migration-log path resolution and read-only resilience.
 
-Regression coverage for https://github.com/langflow-ai/langflow/issues/11143:
+Regression coverage for https://github.com/ketos-ai/ketos/issues/11143:
 the default Alembic log path resolved into the installed package directory,
 which is read-only in hardened container/Kubernetes deployments (non-root user
 or read-only root filesystem). Opening it for writing raised an unhandled
@@ -23,7 +23,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from langflow.services.database.service import DatabaseService
+from ketos.services.database.service import DatabaseService
 
 
 def _make_service(
@@ -48,7 +48,7 @@ def _make_service(
     settings.alembic_log_to_stdout = alembic_log_to_stdout
     settings.config_dir = config_dir
 
-    with patch("langflow.services.database.service.create_async_engine", return_value=MagicMock()):
+    with patch("ketos.services.database.service.create_async_engine", return_value=MagicMock()):
         return DatabaseService(mock_settings_service)
 
 
@@ -61,20 +61,20 @@ class TestAlembicLogPathResolution:
     def test_relative_path_resolves_under_config_dir_not_package(self, tmp_path):
         """A relative log path must resolve under the writable config_dir.
 
-        It must NOT resolve into the installed langflow package directory, which
+        It must NOT resolve into the installed ketos package directory, which
         is the read-only location that caused the crash.
         """
-        import langflow
+        import ketos
 
         service = _make_service(config_dir=str(tmp_path), alembic_log_file="alembic/alembic.log")
 
         assert service.alembic_log_path == tmp_path / "alembic" / "alembic.log"
         # Guard against regressing to the package directory.
-        package_dir = Path(langflow.__file__).parent.resolve()
+        package_dir = Path(ketos.__file__).parent.resolve()
         assert package_dir not in service.alembic_log_path.resolve().parents
 
     def test_absolute_path_is_preserved(self, tmp_path):
-        """An absolute LANGFLOW_ALEMBIC_LOG_FILE is used verbatim."""
+        """An absolute KETOS_ALEMBIC_LOG_FILE is used verbatim."""
         absolute = tmp_path / "custom" / "alembic.log"
         service = _make_service(config_dir=str(tmp_path), alembic_log_file=str(absolute))
         assert service.alembic_log_path == absolute
@@ -157,7 +157,7 @@ class TestInitializeAlembicLogFile:
     async def test_oserror_is_swallowed(self, tmp_path):
         """A read-only filesystem during init must not abort startup."""
         service = _make_service(config_dir=str(tmp_path), alembic_log_file="alembic.log")
-        with patch("langflow.services.database.service.anyio.Path") as mock_anyio_path:
+        with patch("ketos.services.database.service.anyio.Path") as mock_anyio_path:
             instance = mock_anyio_path.return_value
             instance.mkdir = AsyncMock(side_effect=OSError(errno.EROFS, "Read-only file system"))
             instance.touch = AsyncMock()

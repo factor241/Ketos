@@ -31,8 +31,6 @@ export const useGetAutoLogin: useQueryFunctionType<undefined, undefined> = (
   const setAutoLogin = useAuthStore((state) => state.setAutoLogin);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isLoginPage = location.pathname.includes("login");
-  const autoLogin = useAuthStore((state) => state.autoLogin);
-
   const retryCountRef = useRef(0);
   const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
 

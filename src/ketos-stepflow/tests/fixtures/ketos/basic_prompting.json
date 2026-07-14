@@ -1,0 +1,69 @@
+{
+  "name": "Ketos Basic Prompting",
+  "description": "Canonical Ketos Stepflow fixture for prompt execution.",
+  "data": {
+    "nodes": [
+      {
+        "id": "ChatInput-b6UCc",
+        "data": {
+          "type": "ChatInput",
+          "node": {
+            "display_name": "Chat Input",
+            "template": {
+              "code": {"value": "from kfx.custom.custom_component.component import Component\nfrom kfx.io import BoolInput, MessageTextInput, Output\nfrom kfx.schema.message import Message\n\nclass ChatInput(Component):\n    display_name = \"Chat Input\"\n    inputs = [MessageTextInput(name=\"input_value\", display_name=\"Input\"), BoolInput(name=\"should_store_message\", display_name=\"Store\", value=False)]\n    outputs = [Output(display_name=\"Message\", name=\"message\", method=\"message_response\")]\n    async def message_response(self):\n        return Message(text=str(self.input_value))\n"},
+              "input_value": {"type": "str", "value": ""},
+              "should_store_message": {"type": "bool", "value": false}
+            },
+            "outputs": [{"name": "message", "method": "message_response", "types": ["Message"]}]
+          }
+        }
+      },
+      {
+        "id": "Prompt-t2oaK",
+        "data": {
+          "type": "Prompt",
+          "node": {
+            "display_name": "Prompt Template",
+            "template": {
+              "code": {"value": "from kfx.custom.custom_component.component import Component\nfrom kfx.io import MessageTextInput, Output\nfrom kfx.schema.message import Message\n\nclass PromptComponent(Component):\n    display_name = \"Prompt Template\"\n    inputs = [MessageTextInput(name=\"template\", display_name=\"Template\")]\n    outputs = [Output(display_name=\"Prompt\", name=\"prompt\", method=\"build_prompt\")]\n    async def build_prompt(self):\n        return Message(text=str(self.template))\n"},
+              "template": {"type": "str", "value": "Answer helpfully."}
+            },
+            "outputs": [{"name": "prompt", "method": "build_prompt", "types": ["Message"]}]
+          }
+        }
+      },
+      {
+        "id": "LanguageModelComponent-kBOja",
+        "data": {
+          "type": "LanguageModelComponent",
+          "node": {
+            "display_name": "Language Model",
+            "template": {
+              "code": {"value": "from kfx.custom.custom_component.component import Component\nfrom kfx.io import MessageTextInput, Output\nfrom kfx.schema.message import Message\n\nclass LanguageModelComponent(Component):\n    display_name = \"Language Model\"\n    inputs = [MessageTextInput(name=\"input_value\", display_name=\"Input\"), MessageTextInput(name=\"system_message\", display_name=\"System\"), MessageTextInput(name=\"api_key\", display_name=\"API Key\")]\n    outputs = [Output(display_name=\"Message\", name=\"message\", method=\"build_message\")]\n    async def build_message(self):\n        return Message(text=str(self.input_value))\n"},
+              "input_value": {"type": "str", "value": ""},
+              "system_message": {"type": "str", "value": ""},
+              "api_key": {"type": "str", "value": ""}
+            },
+            "outputs": [{"name": "message", "method": "build_message", "types": ["Message"]}]
+          }
+        }
+      },
+      {
+        "id": "ChatOutput-yK0AU",
+        "data": {
+          "type": "ChatOutput",
+          "node": {
+            "display_name": "Chat Output",
+            "template": {"input_value": {"type": "str", "value": ""}},
+            "outputs": [{"name": "message", "method": "message_response", "types": ["Message"]}]
+          }
+        }
+      }
+    ],
+    "edges": [
+      {"source": "ChatInput-b6UCc", "target": "Prompt-t2oaK", "source_handle": "message", "target_handle": "template"},
+      {"source": "Prompt-t2oaK", "target": "LanguageModelComponent-kBOja", "source_handle": "prompt", "target_handle": "input_value"},
+      {"source": "LanguageModelComponent-kBOja", "target": "ChatOutput-yK0AU", "source_handle": "message", "target_handle": "input_value"}
+    ]
+  }
+}

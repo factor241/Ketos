@@ -10,14 +10,16 @@ export default function ShortcutDisplay({
 }: {
   display_name?: string;
   name?: string;
-  shortcut: string;
+  shortcut?: string;
   sidebar?: boolean;
 }): JSX.Element {
   const { t } = useTranslation();
   const translatedName = name
-    ? t(`shortcuts.name.${toCamelCase(name)}`, { defaultValue: display_name })
+    ? t(`shortcuts.name.${toCamelCase(name)}`, {
+        defaultValue: display_name ?? name,
+      })
     : display_name;
-  const fixedShortcut = shortcut?.split("+");
+  const fixedShortcut = shortcut?.split("+") ?? [];
   return (
     <>
       {sidebar ? (

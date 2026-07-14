@@ -1,10 +1,13 @@
+import type { UseQueryOptions } from "@tanstack/react-query";
 import { useVoiceStore } from "@/stores/voiceStore";
-import { useQueryFunctionType } from "@/types/api";
 import { api } from "../../api";
 import { getURL } from "../../helpers/constants";
 import { UseRequestProcessor } from "../../services/request-processor";
 
-export const useGetVoiceList = (elevenlabsApiKey: string, options?: any) => {
+export const useGetVoiceList = (
+  elevenlabsApiKey: string,
+  options?: Omit<UseQueryOptions, "queryFn" | "queryKey">,
+) => {
   const { query } = UseRequestProcessor();
   const setVoices = useVoiceStore((state) => state.setVoices);
   const voices = useVoiceStore((state) => state.voices);

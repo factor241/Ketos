@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
-from langflow.services.authorization import audit as authz_audit
+from ketos.services.authorization import audit as authz_audit
 
 from ._common import (
     install_audit_recorder,
@@ -124,7 +124,7 @@ async def test_drain_pending_audit_writes_is_safe_when_idle():
 @pytest.mark.anyio
 async def test_ensure_permission_fails_closed_on_plugin_exception(monkeypatch, fake_user):
     """If the authz plugin raises, ``ensure_permission`` must deny (403), not bubble 500."""
-    from langflow.services.authorization import guards as authz_guards
+    from ketos.services.authorization import guards as authz_guards
 
     install_settings(monkeypatch, authz_enabled=True, audit_enabled=False)
 

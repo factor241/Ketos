@@ -7,6 +7,7 @@ import {
   NOTE_NODE_MIN_HEIGHT,
   NOTE_NODE_MIN_WIDTH,
 } from "@/constants/constants";
+import { useCanvasReadOnly } from "@/contexts/canvas-read-only-context";
 import { useGetNoteTranslationsQuery } from "@/controllers/API/queries/flows/use-get-note-translations";
 import { useAlternate } from "@/shared/hooks/use-alternate";
 import useFlowStore, { syncNoteTranslations } from "@/stores/flowStore";
@@ -71,8 +72,9 @@ function NoteNode({
   selected?: boolean;
 }) {
   const { t } = useTranslation();
+  const isCanvasReadOnly = useCanvasReadOnly();
   const nodeRef = useRef<HTMLDivElement>(null);
-  const [isEditingDescription, setIsEditingDescription] = useAlternate(false);
+  const [isEditingDescription, , setIsEditingDescription] = useAlternate(false);
 
   const currentFlow = useFlowStore((state) => state.currentFlow);
   const setNode = useFlowStore((state) => state.setNode);
@@ -121,20 +123,30 @@ function NoteNode({
   const debouncedResize = useMemo(
     () =>
       debounce((width: number, height: number) => {
+        if (isCanvasReadOnly) return;
         setNode(data.id, (node) => ({ ...node, width, height }));
       }, 5),
-    [data.id, setNode],
+    [data.id, isCanvasReadOnly, setNode],
   );
+
+  useEffect(() => {
+    if (isCanvasReadOnly) {
+      setIsEditingDescription(false);
+      debouncedResize.cancel();
+    }
+
+    return () => debouncedResize.cancel();
+  }, [debouncedResize, isCanvasReadOnly, setIsEditingDescription]);
 
   // Only render toolbar when note is selected
   const toolbar = useMemo(
     () =>
-      selected ? (
+      selected && !isCanvasReadOnly ? (
         <div className="absolute -top-12 left-1/2 z-50 -translate-x-1/2">
           <NoteToolbarComponent data={data} bgColor={bgColorKey} />
         </div>
       ) : null,
-    [data, bgColorKey, selected],
+    [bgColorKey, data, isCanvasReadOnly, selected],
   );
 
   // Generate text color classes based on background (light text on dark bg, dark on light)
@@ -159,11 +171,13 @@ function NoteNode({
       <NodeResizer
         minWidth={NOTE_NODE_MIN_WIDTH}
         minHeight={NOTE_NODE_MIN_HEIGHT}
-        onResize={(_, { width, height }) => debouncedResize(width, height)}
+        onResize={(_, { width, height }) => {
+          if (!isCanvasReadOnly) debouncedResize(width, height);
+        }}
         onResizeEnd={() => {
           debouncedResize.flush();
         }}
-        isVisible={selected}
+        isVisible={selected && !isCanvasReadOnly}
         lineClassName="!border !border-muted-foreground"
       />
 

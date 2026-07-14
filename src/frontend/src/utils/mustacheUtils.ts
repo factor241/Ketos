@@ -1,6 +1,6 @@
 /**
  * Security utilities for mustache template processing.
- * Mirrors the backend validation in lfx/utils/mustache_security.py
+ * Mirrors the backend validation in kfx/utils/mustache_security.py
  */
 
 // Regex pattern for simple variables only - same as backend

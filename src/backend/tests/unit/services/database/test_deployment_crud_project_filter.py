@@ -1,16 +1,16 @@
 from uuid import uuid4
 
 import pytest
-from langflow.services.database.models.deployment.crud import (
+from ketos.services.database.models.deployment.crud import (
     count_deployments_by_provider,
     create_deployment,
     list_deployments_page,
 )
-from langflow.services.database.models.deployment_provider_account.model import DeploymentProviderAccount
-from langflow.services.database.models.deployment_provider_account.schemas import DeploymentProviderKey
-from langflow.services.database.models.folder.model import Folder
-from langflow.services.database.models.user.model import User
-from lfx.services.adapters.deployment.schema import DeploymentType
+from ketos.services.database.models.deployment_provider_account.model import DeploymentProviderAccount
+from ketos.services.database.models.deployment_provider_account.schemas import DeploymentProviderKey
+from ketos.services.database.models.folder.model import Folder
+from ketos.services.database.models.user.model import User
+from kfx.services.adapters.deployment.schema import DeploymentType
 from sqlalchemy.ext.asyncio import AsyncSession
 
 

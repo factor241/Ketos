@@ -9,6 +9,10 @@ export default function SuccessAlert({
   removeAlert,
 }: SuccessAlertType): JSX.Element {
   const [show, setShow] = useState(true);
+  const dismiss = () => {
+    setShow(false);
+    removeAlert(id);
+  };
   useEffect(() => {
     if (show) {
       setTimeout(() => {
@@ -30,9 +34,14 @@ export default function SuccessAlert({
       leaveTo={"transform translate-x-[-100%]"}
     >
       <div
-        onClick={() => {
-          setShow(false);
-          removeAlert(id);
+        role="button"
+        tabIndex={0}
+        onClick={dismiss}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            dismiss();
+          }
         }}
         className="success-alert noflow nowheel nopan nodelete nodrag"
       >

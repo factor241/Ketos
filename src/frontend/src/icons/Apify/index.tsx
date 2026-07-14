@@ -13,5 +13,5 @@ export const ApifyWhiteIcon = forwardRef<
   SVGSVGElement,
   React.PropsWithChildren<{}>
 >((props, ref) => {
-  return <img src={ApifyWhiteImage} alt="Apify White Logo" {...props} />;
+  return <img src={ApifyWhiteImage} alt="Apify" {...props} />;
 });

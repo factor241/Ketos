@@ -1,5 +1,12 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type {
+  APIClassType,
+  CustomComponentRequest,
+  InputFieldType,
+} from "@/types/api";
+import type { ComponentsToUpdateType } from "@/types/zustand/flow";
+import type { processNodeAdvancedFields } from "../../helpers/process-node-advanced-fields";
 import GenericNode from "../index";
 
 const mockUpdateNodeInternals = jest.fn();
@@ -15,8 +22,40 @@ const mockRemoveDismissedNodes = jest.fn();
 const mockRegisterNodeUpdate = jest.fn();
 const mockCompleteNodeUpdate = jest.fn();
 
-let mockTemplates: Record<string, any>;
-let mockFlowStoreState: any;
+type MockFlowStoreState = {
+  deleteNode: typeof mockDeleteNode;
+  setNode: typeof mockSetNode;
+  edges: [];
+  setEdges: typeof mockSetEdges;
+  dismissedNodes: string[];
+  addDismissedNodes: jest.Mock;
+  removeDismissedNodes: typeof mockRemoveDismissedNodes;
+  dismissedNodesLegacy: string[];
+  addDismissedNodesLegacy: jest.Mock;
+  componentsToUpdate: ComponentsToUpdateType[];
+  nodes: Array<{ id: string; selected: boolean }>;
+  rightClickedNodeId: string | null;
+};
+
+const inputField = (value: string): InputFieldType => ({
+  type: "code",
+  required: false,
+  list: false,
+  show: true,
+  readonly: false,
+  value,
+});
+
+const promptNodeClass = (value: string): APIClassType => ({
+  display_name: "Prompt",
+  description: "Prompt node",
+  documentation: "",
+  template: { code: inputField(value) },
+  outputs: [],
+});
+
+let mockTemplates: Record<string, APIClassType>;
+let mockFlowStoreState: MockFlowStoreState;
 
 jest.mock("@xyflow/react", () => ({
   useUpdateNodeInternals: () => mockUpdateNodeInternals,
@@ -150,8 +189,9 @@ jest.mock("../../hooks/use-update-node-code", () => ({
 }));
 
 jest.mock("../../helpers/process-node-advanced-fields", () => ({
-  processNodeAdvancedFields: (...args: any[]) =>
-    mockProcessNodeAdvancedFields(...args),
+  processNodeAdvancedFields: (
+    ...args: Parameters<typeof processNodeAdvancedFields>
+  ) => mockProcessNodeAdvancedFields(...args),
 }));
 
 jest.mock("../components/NodeDescription", () => ({
@@ -215,11 +255,7 @@ describe("GenericNode dismissed update recovery", () => {
     jest.clearAllMocks();
 
     mockTemplates = {
-      Prompt: {
-        template: {
-          code: { value: "server_code" },
-        },
-      },
+      Prompt: promptNodeClass("server_code"),
     };
 
     mockFlowStoreState = {
@@ -235,6 +271,7 @@ describe("GenericNode dismissed update recovery", () => {
       componentsToUpdate: [
         {
           id: "node-1",
+          display_name: "Prompt",
           outdated: true,
           blocked: false,
           breakingChange: false,
@@ -250,26 +287,17 @@ describe("GenericNode dismissed update recovery", () => {
       rightClickedNodeId: null,
     };
 
-    mockProcessNodeAdvancedFields.mockReturnValue({
-      display_name: "Prompt",
-      description: "Prompt node",
-      template: {
-        code: { value: "server_code" },
-      },
-      outputs: [],
-    });
+    mockProcessNodeAdvancedFields.mockReturnValue(
+      promptNodeClass("server_code"),
+    );
 
     mockValidateComponentCode.mockImplementation(
-      (_payload, { onSuccess }: { onSuccess: (value: any) => void }) => {
+      (
+        _payload,
+        { onSuccess }: { onSuccess: (value: CustomComponentRequest) => void },
+      ) => {
         onSuccess({
-          data: {
-            display_name: "Prompt",
-            description: "Prompt node",
-            template: {
-              code: { value: "server_code" },
-            },
-            outputs: [],
-          },
+          data: promptNodeClass("server_code"),
           type: "Prompt",
         });
       },
@@ -285,14 +313,7 @@ describe("GenericNode dismissed update recovery", () => {
         data={{
           id: "node-1",
           type: "Prompt",
-          node: {
-            display_name: "Prompt",
-            description: "Prompt node",
-            template: {
-              code: { value: "old_code" },
-            },
-            outputs: [],
-          },
+          node: promptNodeClass("old_code"),
         }}
       />,
     );

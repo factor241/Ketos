@@ -1,9 +1,9 @@
-"""Tests for langflow.api.v1.global_variable_defaults.
+"""Tests for ketos.api.v1.global_variable_defaults.
 
 Covers the gap where API-uploaded flows ignore global-variable default_fields
 because load_from_db isn't auto-set on the stored template.
 
-See https://github.com/langflow-ai/langflow/issues/11781.
+See https://github.com/ketos-ai/ketos/issues/11781.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from langflow.api.v1.global_variable_defaults import (
+from ketos.api.v1.global_variable_defaults import (
     apply_global_variable_defaults,
     apply_unavailable_fields_to_graph,
     build_unavailable_fields_map,
@@ -332,11 +332,11 @@ class TestApplyGlobalVariableDefaultsAsync:
 
         with (
             patch(
-                "langflow.api.v1.global_variable_defaults.get_variable_service",
+                "ketos.api.v1.global_variable_defaults.get_variable_service",
                 return_value=mock_service,
             ),
             patch(
-                "langflow.api.v1.global_variable_defaults.session_scope",
+                "ketos.api.v1.global_variable_defaults.session_scope",
                 return_value=mock_session_cm,
             ),
         ):
@@ -357,7 +357,7 @@ class TestApplyGlobalVariableDefaultsAsync:
             ]
         }
         with patch(
-            "langflow.api.v1.global_variable_defaults.get_variable_service",
+            "ketos.api.v1.global_variable_defaults.get_variable_service",
             side_effect=RuntimeError("DB unavailable"),
         ):
             result = await apply_global_variable_defaults(graph_data, user_id="user-1")

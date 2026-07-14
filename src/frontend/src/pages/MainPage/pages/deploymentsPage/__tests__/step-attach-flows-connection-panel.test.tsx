@@ -80,9 +80,11 @@ const defaultProps = {
   onAttachConnection: jest.fn(),
   onCreateConnection: jest.fn(),
   isDuplicateName: false,
-};
+} satisfies React.ComponentProps<typeof ConnectionPanel>;
 
-function renderPanel(overrides: Partial<typeof defaultProps> = {}) {
+function renderPanel(
+  overrides: Partial<React.ComponentProps<typeof ConnectionPanel>> = {},
+) {
   const props = { ...defaultProps, ...overrides };
   return render(<ConnectionPanel {...props} />);
 }

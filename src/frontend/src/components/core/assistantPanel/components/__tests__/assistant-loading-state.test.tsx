@@ -280,11 +280,11 @@ describe("AssistantLoadingState", () => {
 
   describe("flow-build icon mode for documents", () => {
     // UX requirement (user request): generating_document gets the SAME
-    // minimal animated Langflow-glyph mode as generating_flow /
+    // minimal animated Ketos-glyph mode as generating_flow /
     // orchestrating — NOT the bordered streaming card (which previously
     // looked like a glitch morphing into the file card), and NOT the
     // generic dotted thinking line.
-    it("should render the icon-only Langflow glyph for 'generating_document'", () => {
+    it("should render the icon-only Ketos glyph for 'generating_document'", () => {
       render(
         <AssistantLoadingState
           progress={createProgress({

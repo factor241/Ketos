@@ -24,7 +24,7 @@ beforeAll(() => {
   // during the test without throwing. MouseEvent is a constructible, bubbling
   // stand-in for PointerEvent; the handlers only read event.pointerId, which is
   // harmlessly undefined here.
-  if (!("PointerEvent" in window)) {
+  if (typeof window.PointerEvent !== "function") {
     window.PointerEvent = window.MouseEvent as unknown as typeof PointerEvent;
   }
   if (!Element.prototype.setPointerCapture) {
@@ -61,6 +61,8 @@ const renderSliderInNode = () => {
       data-testid="rf-node"
       onPointerDown={parentPointerDown}
       onClick={parentClick}
+      role="button"
+      tabIndex={0}
     >
       <SliderComponent {...sliderProps} />
       <button type="button" data-testid="bubbling-control">

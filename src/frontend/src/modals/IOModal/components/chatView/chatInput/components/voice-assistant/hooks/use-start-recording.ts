@@ -1,4 +1,6 @@
 import type { MutableRefObject } from "react";
+import i18n from "@/i18n";
+import { getIntlLocale } from "@/utils/locale-format";
 
 export const useStartRecording = async (
   audioContextRef: MutableRefObject<AudioContext | null>,
@@ -15,9 +17,11 @@ export const useStartRecording = async (
   setStatus: (status: string) => void,
 ) => {
   try {
-    const selectedMicrophone = localStorage.getItem("lf_selected_microphone");
+    const selectedMicrophone = localStorage.getItem(
+      "ketos-selected-microphone",
+    );
     const preferredLanguage =
-      localStorage.getItem("lf_preferred_language") || "en-US";
+      localStorage.getItem("ketos-preferred-language") || getIntlLocale();
 
     const stream = await navigator?.mediaDevices?.getUserMedia({
       audio: {
@@ -96,12 +100,20 @@ export const useStartRecording = async (
       setIsRecording(true);
     } catch (err) {
       console.error("AudioWorklet failed to load:", err);
-      setStatus("Error initializing audio: " + (err as Error).message);
+      setStatus(
+        i18n.t("voiceAssistant.audioInitializationError", {
+          error: (err as Error).message,
+        }),
+      );
     } finally {
       URL.revokeObjectURL(workletUrl);
     }
   } catch (err) {
     console.error("Error accessing microphone:", err);
-    setStatus("Error: " + (err as Error).message);
+    setStatus(
+      i18n.t("voiceAssistant.microphoneError", {
+        error: (err as Error).message,
+      }),
+    );
   }
 };

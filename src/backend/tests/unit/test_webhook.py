@@ -4,7 +4,7 @@ from unittest.mock import patch
 import aiofiles
 import anyio
 import pytest
-from langflow.services.event_manager import WebhookEventManager
+from ketos.services.event_manager import WebhookEventManager
 
 
 @pytest.fixture(autouse=True)
@@ -60,7 +60,7 @@ async def test_webhook_with_json_payload(client, added_webhook_test, created_api
 async def test_webhook_endpoint_requires_api_key_when_auto_login_false(client, added_webhook_test):
     """Test that webhook endpoint requires API key when WEBHOOK_AUTH_ENABLE=true."""
     # Modify the auth_settings.WEBHOOK_AUTH_ENABLE on the real settings service
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings_service = get_settings_service()
     original_webhook_auth_enable = settings_service.auth_settings.WEBHOOK_AUTH_ENABLE
@@ -106,7 +106,7 @@ async def test_webhook_endpoint_with_valid_api_key(client, added_webhook_test, c
 async def test_webhook_endpoint_unauthorized_user_flow(client, added_webhook_test):
     """Test that webhook fails when user doesn't own the flow."""
     # Modify the auth_settings.WEBHOOK_AUTH_ENABLE on the real settings service
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings_service = get_settings_service()
     original_webhook_auth_enable = settings_service.auth_settings.WEBHOOK_AUTH_ENABLE
@@ -145,7 +145,7 @@ async def test_webhook_flow_on_run_endpoint(client, added_webhook_test, created_
 async def test_webhook_with_auto_login_enabled(client, added_webhook_test):
     """Test webhook behavior when WEBHOOK_AUTH_ENABLE=false - should work without API key."""
     # Modify the auth_settings.WEBHOOK_AUTH_ENABLE on the real settings service
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings_service = get_settings_service()
     original_webhook_auth_enable = settings_service.auth_settings.WEBHOOK_AUTH_ENABLE
@@ -170,16 +170,16 @@ def test_webhook_auth_enable_defaults_to_true():
 
     Defaulting to False previously allowed anyone who knew a flow UUID to execute
     that flow unauthenticated as the flow owner. We read the class-level default
-    directly so a stray LANGFLOW_WEBHOOK_AUTH_ENABLE env var can't mask a regression.
+    directly so a stray KETOS_WEBHOOK_AUTH_ENABLE env var can't mask a regression.
     """
-    from lfx.services.settings.auth import AuthSettings
+    from kfx.services.settings.auth import AuthSettings
 
     assert AuthSettings.model_fields["WEBHOOK_AUTH_ENABLE"].default is True
 
 
 async def test_webhook_rejects_unauthenticated_request_by_default(client, added_webhook_test):
     """Under the default config, an unauthenticated POST to /webhook must return 403."""
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings_service = get_settings_service()
     # Confirm the runtime default matches the secure-by-default value before exercising it.
@@ -195,7 +195,7 @@ async def test_webhook_rejects_unauthenticated_request_by_default(client, added_
 async def test_webhook_with_random_payload_requires_auth(client, added_webhook_test, created_api_key):
     """Test that webhook with random payload still requires authentication."""
     # Modify the auth_settings.WEBHOOK_AUTH_ENABLE on the real settings service
-    from langflow.services.deps import get_settings_service
+    from ketos.services.deps import get_settings_service
 
     settings_service = get_settings_service()
 
@@ -251,7 +251,7 @@ async def test_webhook_invalid_api_key(client, added_webhook_test):
     from unittest.mock import AsyncMock, MagicMock
 
     from fastapi import HTTPException
-    from langflow.services.auth.service import AuthService
+    from ketos.services.auth.service import AuthService
 
     # Create a mock settings service with WEBHOOK_AUTH_ENABLE=True
     mock_auth_settings = MagicMock()
@@ -265,7 +265,7 @@ async def test_webhook_invalid_api_key(client, added_webhook_test):
     mock_auth_service.settings_service = mock_settings_service
     mock_auth_service.get_webhook_user = AsyncMock(side_effect=HTTPException(status_code=403, detail="Invalid API key"))
 
-    with patch("langflow.api.v1.endpoints.get_auth_service", return_value=mock_auth_service):
+    with patch("ketos.api.v1.endpoints.get_auth_service", return_value=mock_auth_service):
         endpoint_name = added_webhook_test["endpoint_name"]
         endpoint = f"api/v1/webhook/{endpoint_name}"
         payload = {"test": "data"}
@@ -280,7 +280,7 @@ async def test_webhook_missing_api_key_when_required(client, added_webhook_test)
     from unittest.mock import AsyncMock, MagicMock
 
     from fastapi import HTTPException
-    from langflow.services.auth.service import AuthService
+    from ketos.services.auth.service import AuthService
 
     # Create a mock settings service with WEBHOOK_AUTH_ENABLE=True
     mock_auth_settings = MagicMock()
@@ -296,7 +296,7 @@ async def test_webhook_missing_api_key_when_required(client, added_webhook_test)
         side_effect=HTTPException(status_code=403, detail="API key required when webhook authentication is enabled")
     )
 
-    with patch("langflow.api.v1.endpoints.get_auth_service", return_value=mock_auth_service):
+    with patch("ketos.api.v1.endpoints.get_auth_service", return_value=mock_auth_service):
         endpoint_name = added_webhook_test["endpoint_name"]
         endpoint = f"api/v1/webhook/{endpoint_name}"
         payload = {"test": "data"}
@@ -455,9 +455,9 @@ async def test_webhook_multiple_executions_create_multiple_builds(client, added_
 
 async def test_vertex_builds_endpoint_returns_empty_for_new_flow(client, logged_in_headers):
     """Test that vertex builds endpoint returns empty for a flow with no executions."""
-    from langflow.services.database.models.flow.model import FlowCreate
-    from lfx.components.input_output import ChatInput
-    from lfx.graph import Graph
+    from ketos.services.database.models.flow.model import FlowCreate
+    from kfx.components.input_output import ChatInput
+    from kfx.graph import Graph
 
     # Create a new flow without executing it
     chat_input = ChatInput()
@@ -607,7 +607,7 @@ class TestGetVertexIdsFromFlow:
         """Should return empty list when flow.data is None."""
         from unittest.mock import Mock
 
-        from langflow.api.v1.endpoints import _get_vertex_ids_from_flow
+        from ketos.api.v1.endpoints import _get_vertex_ids_from_flow
 
         flow = Mock()
         flow.data = None
@@ -620,7 +620,7 @@ class TestGetVertexIdsFromFlow:
         """Should return empty list when nodes array is empty."""
         from unittest.mock import Mock
 
-        from langflow.api.v1.endpoints import _get_vertex_ids_from_flow
+        from ketos.api.v1.endpoints import _get_vertex_ids_from_flow
 
         flow = Mock()
         flow.data = {"nodes": []}
@@ -633,7 +633,7 @@ class TestGetVertexIdsFromFlow:
         """Should return empty list when nodes key is missing."""
         from unittest.mock import Mock
 
-        from langflow.api.v1.endpoints import _get_vertex_ids_from_flow
+        from ketos.api.v1.endpoints import _get_vertex_ids_from_flow
 
         flow = Mock()
         flow.data = {"other_key": "value"}
@@ -646,7 +646,7 @@ class TestGetVertexIdsFromFlow:
         """Should extract all vertex IDs from nodes."""
         from unittest.mock import Mock
 
-        from langflow.api.v1.endpoints import _get_vertex_ids_from_flow
+        from ketos.api.v1.endpoints import _get_vertex_ids_from_flow
 
         flow = Mock()
         flow.data = {
@@ -665,7 +665,7 @@ class TestGetVertexIdsFromFlow:
         """Should skip nodes that don't have an id field."""
         from unittest.mock import Mock
 
-        from langflow.api.v1.endpoints import _get_vertex_ids_from_flow
+        from ketos.api.v1.endpoints import _get_vertex_ids_from_flow
 
         flow = Mock()
         flow.data = {
@@ -694,7 +694,7 @@ class TestSimpleRunFlowTask:
         """Should emit vertices_sorted event when emit_events=True and has listeners."""
         from unittest.mock import AsyncMock, Mock, patch
 
-        from langflow.api.v1.endpoints import simple_run_flow_task
+        from ketos.api.v1.endpoints import simple_run_flow_task
 
         flow = Mock()
         flow.id = "test-flow-id"
@@ -703,8 +703,8 @@ class TestSimpleRunFlowTask:
         input_request = Mock()
 
         with (
-            patch("langflow.api.v1.endpoints.simple_run_flow", new_callable=AsyncMock) as mock_run,
-            patch("langflow.api.v1.endpoints.webhook_event_manager") as mock_manager,
+            patch("ketos.api.v1.endpoints.simple_run_flow", new_callable=AsyncMock) as mock_run,
+            patch("ketos.api.v1.endpoints.webhook_event_manager") as mock_manager,
         ):
             mock_run.return_value = {"result": "success"}
             mock_manager.emit = AsyncMock()
@@ -735,7 +735,7 @@ class TestSimpleRunFlowTask:
         """Should not emit events when emit_events=False."""
         from unittest.mock import AsyncMock, Mock, patch
 
-        from langflow.api.v1.endpoints import simple_run_flow_task
+        from ketos.api.v1.endpoints import simple_run_flow_task
 
         flow = Mock()
         flow.id = "test-flow-id"
@@ -744,8 +744,8 @@ class TestSimpleRunFlowTask:
         input_request = Mock()
 
         with (
-            patch("langflow.api.v1.endpoints.simple_run_flow", new_callable=AsyncMock) as mock_run,
-            patch("langflow.api.v1.endpoints.webhook_event_manager") as mock_manager,
+            patch("ketos.api.v1.endpoints.simple_run_flow", new_callable=AsyncMock) as mock_run,
+            patch("ketos.api.v1.endpoints.webhook_event_manager") as mock_manager,
         ):
             mock_run.return_value = {"result": "success"}
             mock_manager.emit = AsyncMock()
@@ -764,7 +764,7 @@ class TestSimpleRunFlowTask:
         """Should emit end event with error when exception occurs."""
         from unittest.mock import AsyncMock, Mock, patch
 
-        from langflow.api.v1.endpoints import simple_run_flow_task
+        from ketos.api.v1.endpoints import simple_run_flow_task
 
         flow = Mock()
         flow.id = "test-flow-id"
@@ -773,9 +773,9 @@ class TestSimpleRunFlowTask:
         input_request = Mock()
 
         with (
-            patch("langflow.api.v1.endpoints.simple_run_flow", new_callable=AsyncMock) as mock_run,
-            patch("langflow.api.v1.endpoints.webhook_event_manager") as mock_manager,
-            patch("langflow.api.v1.endpoints.logger") as mock_logger,
+            patch("ketos.api.v1.endpoints.simple_run_flow", new_callable=AsyncMock) as mock_run,
+            patch("ketos.api.v1.endpoints.webhook_event_manager") as mock_manager,
+            patch("ketos.api.v1.endpoints.logger") as mock_logger,
         ):
             mock_run.side_effect = Exception("Test error")
             mock_manager.emit = AsyncMock()
@@ -803,7 +803,7 @@ class TestSimpleRunFlowTask:
         """Should log telemetry on successful execution."""
         from unittest.mock import AsyncMock, Mock, patch
 
-        from langflow.api.v1.endpoints import simple_run_flow_task
+        from ketos.api.v1.endpoints import simple_run_flow_task
 
         flow = Mock()
         flow.id = "test-flow-id"
@@ -813,7 +813,7 @@ class TestSimpleRunFlowTask:
         telemetry_service = Mock()
         telemetry_service.log_package_run = AsyncMock()
 
-        with patch("langflow.api.v1.endpoints.simple_run_flow", new_callable=AsyncMock) as mock_run:
+        with patch("ketos.api.v1.endpoints.simple_run_flow", new_callable=AsyncMock) as mock_run:
             mock_run.return_value = {"result": "success"}
 
             await simple_run_flow_task(
@@ -844,13 +844,13 @@ class TestWebhookEventsStreamAuth:
         from unittest.mock import Mock, patch
 
         from fastapi import HTTPException
-        from langflow.api.v1.endpoints import get_flow_for_sse_user
+        from ketos.api.v1.endpoints import get_flow_for_sse_user
 
         mock_user = Mock()
         mock_user.id = "different-user-id"
 
         # Mock get_flow_by_id_or_endpoint_name to raise 404 as it would if user doesn't own it
-        with patch("langflow.api.v1.endpoints.get_flow_by_id_or_endpoint_name") as mock_get_flow:
+        with patch("ketos.api.v1.endpoints.get_flow_by_id_or_endpoint_name") as mock_get_flow:
             mock_get_flow.side_effect = HTTPException(status_code=404, detail="Flow identifier test-flow-id not found")
 
             with pytest.raises(HTTPException) as exc_info:
@@ -914,7 +914,7 @@ class TestWebhookEventsStreamAuth:
         from uuid import uuid4
 
         from fastapi import HTTPException
-        from langflow.api.v1 import endpoints as endpoints_module
+        from ketos.api.v1 import endpoints as endpoints_module
 
         owner = SimpleNamespace(id=uuid4(), is_superuser=False)
         attacker = SimpleNamespace(id=uuid4(), is_superuser=False)

@@ -77,7 +77,7 @@ const TEST_MODEL = {
   provider: "openai",
   displayName: "GPT-4",
 };
-const STORAGE_KEY = "langflow-assistant-skip-all";
+const STORAGE_KEY = "ketos-assistant-skip-all";
 
 async function flushTimers() {
   // setTimeout(0) used to defer auto-approves to next tick.

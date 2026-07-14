@@ -72,7 +72,7 @@ describe("useTrackThinkingDuration", () => {
   });
 
   it("sets start time when building starts", () => {
-    const { result, rerender } = renderHook(
+    const { rerender } = renderHook(
       ({ isBuilding }) => useTrackThinkingDuration(isBuilding),
       { initialProps: { isBuilding: false } },
     );

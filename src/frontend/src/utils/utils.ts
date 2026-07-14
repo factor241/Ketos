@@ -1,14 +1,13 @@
 import type { ColDef, ColGroupDef, ValueParserParams } from "ag-grid-community";
 import clsx, { type ClassValue } from "clsx";
-import moment from "moment";
+import type { Cookies } from "react-cookie";
+import { twMerge } from "tailwind-merge";
+// Date/time presentation is centralized in locale-format instead of moment-timezone.
 import TableAutoCellRender from "@/components/core/parameterRenderComponent/components/tableComponent/components/tableAutoCellRender";
 import TableDropdownCellEditor from "@/components/core/parameterRenderComponent/components/tableComponent/components/tableDropdownCellEditor";
 import i18n from "@/i18n";
 import useAlertStore from "@/stores/alertStore";
 import { type ColumnField, FormatterType } from "@/types/utils/functions";
-import "moment-timezone";
-import type { Cookies } from "react-cookie";
-import { twMerge } from "tailwind-merge";
 import {
   DRAG_EVENTS_CUSTOM_TYPESS,
   MESSAGES_TABLE_ORDER,
@@ -30,6 +29,7 @@ import type { AllNodeType, NodeDataType } from "../types/flow";
 import type { FlowState } from "../types/tabs";
 import { isErrorLog } from "../types/utils/typeCheckingUtils";
 import { getLocalStorage } from "./local-storage-util";
+import { formatDateTime } from "./locale-format";
 import { parseString } from "./stringManipulation";
 
 export function classNames(...classes: Array<string>): string {
@@ -777,10 +777,7 @@ export const formatPlaceholderName = (name) => {
     .map((word: string) => word.toLowerCase())
     .join(" ");
 
-  const firstWord = formattedName.split(" ")[0];
-  const prefix = /^[aeiou]/i.test(firstWord) ? "an" : "a";
-
-  return `Select ${prefix} ${formattedName}`;
+  return i18n.t("input.selectPlaceholder", { name: formattedName });
 };
 
 export const formatName = (name) => {
@@ -881,20 +878,15 @@ export function testIdCase(str: string): string {
 }
 
 export const convertUTCToLocalTimezone = (timestamp: string) => {
-  const localTimezone = moment.tz.guess();
-  return moment.utc(timestamp).tz(localTimezone).format("MM/DD/YYYY HH:mm:ss");
-};
-
-export const formatNumber = (num: number | undefined): string => {
-  if (num === undefined) return "0";
-
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(0) + "M";
-  }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(0) + "k";
-  }
-  return num?.toString();
+  return formatDateTime(timestamp, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
 };
 
 export function getOS() {

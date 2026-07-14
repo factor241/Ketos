@@ -1,9 +1,9 @@
 ---
 name: e2e-testing
-description: Write and review Playwright E2E tests for Langflow. Trigger when the user asks to write, fix, or review E2E tests, spec files, Playwright tests, or integration tests that exercise the full UI. Also trigger when modifying data-testid attributes, test helpers in tests/utils/, or fixture configuration.
+description: Write and review Playwright E2E tests for Ketos. Trigger when the user asks to write, fix, or review E2E tests, spec files, Playwright tests, or integration tests that exercise the full UI. Also trigger when modifying data-testid attributes, test helpers in tests/utils/, or fixture configuration.
 ---
 
-# Langflow E2E Testing (Playwright)
+# Ketos E2E Testing (Playwright)
 
 ## When to Apply
 
@@ -216,7 +216,7 @@ test("should show error on invalid input", { tag: ["@release"] }, async ({ page 
 
 ### Priority (in order of preference)
 
-1. **`getByTestId`** — Most stable, used 95% of the time in Langflow
+1. **`getByTestId`** — Most stable, used 95% of the time in Ketos
 2. **`getByRole`** — For buttons, headings, and form elements
 3. **`getByText`** — For visible text content
 4. **`waitForSelector`** — For CSS selectors and dynamic elements

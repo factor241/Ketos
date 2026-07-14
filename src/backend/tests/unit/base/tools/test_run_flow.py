@@ -2,21 +2,21 @@ from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
 from uuid import uuid4
 
 import pytest
-from lfx.base.tools.run_flow import RunFlowBaseComponent
-from lfx.graph.graph.base import Graph
-from lfx.graph.vertex.base import Vertex
-from lfx.interface.components import component_cache
-from lfx.schema.data import Data
-from lfx.schema.dotdict import dotdict
-from lfx.services.cache.utils import CacheMiss
-from lfx.template.field.base import Output
-from lfx.utils.flow_validation import CustomComponentValidationError
+from kfx.base.tools.run_flow import RunFlowBaseComponent
+from kfx.graph.graph.base import Graph
+from kfx.graph.vertex.base import Vertex
+from kfx.interface.components import component_cache
+from kfx.schema.data import Data
+from kfx.schema.dotdict import dotdict
+from kfx.services.cache.utils import CacheMiss
+from kfx.template.field.base import Output
+from kfx.utils.flow_validation import CustomComponentValidationError
 
 
 @pytest.fixture
 def mock_shared_cache():
     """Mock the shared component cache service."""
-    with patch("lfx.base.tools.run_flow.get_shared_component_cache_service") as mock_get_cache:
+    with patch("kfx.base.tools.run_flow.get_shared_component_cache_service") as mock_get_cache:
         mock_cache = MagicMock()
         mock_cache.get = AsyncMock()
         mock_cache.set = AsyncMock()
@@ -30,7 +30,7 @@ class TestRunFlowBaseComponentInitialization:
 
     def test_init_creates_cache_service(self):
         """Test that __init__ creates the shared component cache service."""
-        with patch("lfx.base.tools.run_flow.get_shared_component_cache_service") as mock_get_cache:
+        with patch("kfx.base.tools.run_flow.get_shared_component_cache_service") as mock_get_cache:
             mock_cache = MagicMock()
             mock_get_cache.return_value = mock_cache
 
@@ -77,7 +77,7 @@ class TestRunFlowBaseComponentFlowRetrieval:
         flow_id = str(uuid4())
         expected_flow = Data(data={"name": "test_flow"})
 
-        with patch("lfx.base.tools.run_flow.get_flow_by_id_or_name", new_callable=AsyncMock) as mock_get:
+        with patch("kfx.base.tools.run_flow.get_flow_by_id_or_name", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = expected_flow
 
             result = await component.get_flow(flow_id_selected=flow_id)
@@ -97,7 +97,7 @@ class TestRunFlowBaseComponentFlowRetrieval:
         flow_name = "test_flow"
         expected_flow = Data(data={"name": flow_name})
 
-        with patch("lfx.base.tools.run_flow.get_flow_by_id_or_name", new_callable=AsyncMock) as mock_get:
+        with patch("kfx.base.tools.run_flow.get_flow_by_id_or_name", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = expected_flow
 
             result = await component.get_flow(flow_name_selected=flow_name)
@@ -115,7 +115,7 @@ class TestRunFlowBaseComponentFlowRetrieval:
         component = RunFlowBaseComponent()
         component._user_id = str(uuid4())
 
-        with patch("lfx.base.tools.run_flow.get_flow_by_id_or_name", new_callable=AsyncMock) as mock_get:
+        with patch("kfx.base.tools.run_flow.get_flow_by_id_or_name", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = None
 
             result = await component.get_flow(flow_id_selected=str(uuid4()))
@@ -173,7 +173,7 @@ class TestRunFlowBaseComponentFlowRetrieval:
         with (
             patch.object(component, "_flow_cache_call") as mock_cache_call,
             patch.object(component, "get_flow", new_callable=AsyncMock) as mock_get_flow,
-            patch("lfx.base.tools.run_flow.Graph.from_payload") as mock_from_payload,
+            patch("kfx.base.tools.run_flow.Graph.from_payload") as mock_from_payload,
         ):
             mock_cache_call.return_value = None  # Not in cache
             mock_get_flow.return_value = flow_data
@@ -212,7 +212,7 @@ class TestRunFlowBaseComponentFlowRetrieval:
             patch.object(component, "_flow_cache_call") as mock_cache_call,
             patch.object(component, "_is_cached_flow_up_to_date") as mock_is_up_to_date,
             patch.object(component, "get_flow", new_callable=AsyncMock) as mock_get_flow,
-            patch("lfx.base.tools.run_flow.Graph.from_payload") as mock_from_payload,
+            patch("kfx.base.tools.run_flow.Graph.from_payload") as mock_from_payload,
         ):
             # First call returns stale graph, second call is delete, third call is set
             mock_cache_call.side_effect = [stale_graph, None, None]
@@ -256,7 +256,7 @@ class TestRunFlowBaseComponentFlowRetrieval:
         )
 
         monkeypatch.setattr(
-            "lfx.services.deps.get_settings_service",
+            "kfx.services.deps.get_settings_service",
             lambda: MagicMock(settings=MagicMock(allow_custom_components=False)),
         )
         monkeypatch.setattr(component_cache, "type_to_current_hash", {"ChatInput": "known-hash"})

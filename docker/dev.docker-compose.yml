@@ -1,42 +1,43 @@
+name: ketos-dev
+
 networks:
-  dev-langflow:
+  dev-ketos:
 
 services:
-  langflow:
+  ketos:
     build:
       context: ..
       dockerfile: docker/dev.Dockerfile
-    image: dev-langflow
-    container_name: dev-langflow
+    image: dev-ketos
+    container_name: dev-ketos
     restart: always
     ports:
       - "7860:7860"
       - "3000:3000"
     environment:
       - PYTHONDONTWRITEBYTECODE=1
-      - LANGFLOW_DATABASE_URL=postgresql://langflow:langflow@postgres:5432/langflow
-      - LANGFLOW_SUPERUSER=langflow
-      - LANGFLOW_SUPERUSER_PASSWORD=langflow
-      - LANGFLOW_CONFIG_DIR=/var/lib/langflow
+      - KETOS_DATABASE_URL=postgresql://ketos:ketos@postgres:5432/ketos
+      - KETOS_SUPERUSER=ketos
+      - KETOS_SUPERUSER_PASSWORD=ketos
+      - KETOS_CONFIG_DIR=/var/lib/ketos
     env_file:
-      - ../.env
+      - ${KETOS_ENV_FILE:-../.env}
     volumes:
       - ../:/app
     depends_on:
       - postgres
     networks:
-      -  dev-langflow
+      -  dev-ketos
 
 
   postgres:
     container_name: postgres
     image: pgvector/pgvector:pg16
     environment:
-      POSTGRES_USER: langflow
-      POSTGRES_PASSWORD: langflow
-      POSTGRES_DB: langflow
+      POSTGRES_USER: ketos
+      POSTGRES_PASSWORD: ketos
+      POSTGRES_DB: ketos
     ports:
       - "5432:5432"
     networks:
-      -  dev-langflow
-
+      -  dev-ketos

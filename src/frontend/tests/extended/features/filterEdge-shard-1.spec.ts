@@ -1,9 +1,9 @@
 import type { Locator } from "@playwright/test";
 
 import { expect, test } from "../../fixtures";
-import { addLegacyComponents } from "../../utils/add-legacy-components";
 import { adjustScreenView } from "../../utils/adjust-screen-view";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
+import { enableOptionalComponents } from "../../utils/enable-optional-components";
 
 async function findVisibleElement(
   elements: Locator[],
@@ -28,7 +28,7 @@ test(
       timeout: 3000,
     });
 
-    await addLegacyComponents(page);
+    await enableOptionalComponents(page);
 
     await page.getByTestId("sidebar-search-input").click();
     await page.getByTestId("sidebar-search-input").fill("retrievalqa");

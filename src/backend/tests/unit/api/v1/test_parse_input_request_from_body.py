@@ -14,8 +14,8 @@ import orjson
 import pytest
 from fastapi import FastAPI, Request
 from httpx import ASGITransport, AsyncClient
-from langflow.api.v1.endpoints import parse_input_request_from_body
-from langflow.api.v1.schemas import SimplifiedAPIRequest
+from ketos.api.v1.endpoints import parse_input_request_from_body
+from ketos.api.v1.schemas import SimplifiedAPIRequest
 
 
 def _build_app() -> FastAPI:

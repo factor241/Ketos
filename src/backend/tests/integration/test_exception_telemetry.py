@@ -4,7 +4,7 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from langflow.services.telemetry.schema import (
+from ketos.services.telemetry.schema import (
     ComponentPayload,
     ExceptionPayload,
     PlaygroundPayload,
@@ -12,7 +12,7 @@ from langflow.services.telemetry.schema import (
     ShutdownPayload,
     VersionPayload,
 )
-from langflow.services.telemetry.service import TelemetryService
+from ketos.services.telemetry.service import TelemetryService
 
 
 class TestExceptionTelemetryIntegration:
@@ -27,7 +27,7 @@ class TestExceptionTelemetryIntegration:
         telemetry_service.do_not_track = False
         telemetry_service.client_type = "oss"
         telemetry_service.common_telemetry_fields = {
-            "langflow_version": "1.0.0",
+            "ketos_version": "1.0.0",
             "platform": "python_package",
             "os": "darwin",
         }
@@ -84,7 +84,7 @@ class TestExceptionTelemetryIntegration:
         telemetry_service.do_not_track = False
         telemetry_service.client_type = "oss"
         telemetry_service.common_telemetry_fields = {
-            "langflow_version": "1.0.0",
+            "ketos_version": "1.0.0",
             "platform": "python_package",
             "os": "darwin",
         }
@@ -209,7 +209,7 @@ class TestTelemetryPayloadValidation:
 
     def test_component_inputs_payload_creation_and_serialization(self):
         """Test ComponentInputsPayload creation and serialization."""
-        from langflow.services.telemetry.schema import ComponentInputsPayload
+        from ketos.services.telemetry.schema import ComponentInputsPayload
 
         payload = ComponentInputsPayload(
             component_run_id="run-abc-123",
@@ -299,7 +299,7 @@ class TestTelemetryPayloadValidation:
     def test_version_payload_creation_and_serialization(self):
         """Test VersionPayload creation and serialization."""
         payload = VersionPayload(
-            package="langflow",
+            package="ketos",
             version="1.5.0",
             platform="macOS-14.0-arm64",
             python="3.11",
@@ -310,7 +310,7 @@ class TestTelemetryPayloadValidation:
             client_type="oss",
         )
 
-        assert payload.package == "langflow"
+        assert payload.package == "ketos"
         assert payload.version == "1.5.0"
         assert payload.platform == "macOS-14.0-arm64"
         assert payload.python == "3.11"
@@ -321,7 +321,7 @@ class TestTelemetryPayloadValidation:
 
         serialized = payload.model_dump(by_alias=True)
         expected = {
-            "package": "langflow",
+            "package": "ketos",
             "version": "1.5.0",
             "platform": "macOS-14.0-arm64",
             "python": "3.11",
@@ -451,7 +451,7 @@ class TestComponentInputTelemetry:
 
     def test_serialize_primitive_values(self):
         """Test that primitive values are serialized correctly."""
-        from lfx.serialization.serialization import serialize
+        from kfx.serialization.serialization import serialize
 
         # Test primitives
         assert serialize("test") == "test"
@@ -463,7 +463,7 @@ class TestComponentInputTelemetry:
 
     def test_serialize_list_of_primitives(self):
         """Test that lists of primitives are serialized correctly."""
-        from lfx.serialization.serialization import serialize
+        from kfx.serialization.serialization import serialize
 
         assert serialize([1, 2, 3]) == [1, 2, 3]
         assert serialize(["a", "b", "c"]) == ["a", "b", "c"]
@@ -472,7 +472,7 @@ class TestComponentInputTelemetry:
 
     def test_serialize_dict(self):
         """Test that dictionaries are serialized recursively."""
-        from lfx.serialization.serialization import serialize
+        from kfx.serialization.serialization import serialize
 
         result = serialize({"key": "value", "num": 42})
         assert result == {"key": "value", "num": 42}
@@ -482,7 +482,7 @@ class TestComponentInputTelemetry:
 
     def test_serialize_bytes(self):
         """Test that bytes are decoded to strings."""
-        from lfx.serialization.serialization import serialize
+        from kfx.serialization.serialization import serialize
 
         result = serialize(b"test")
         assert isinstance(result, str)
@@ -490,7 +490,7 @@ class TestComponentInputTelemetry:
 
     def test_serialize_complex_objects(self):
         """Test that complex objects return useful representations."""
-        from lfx.serialization.serialization import serialize
+        from kfx.serialization.serialization import serialize
 
         class CustomClass:
             def __str__(self):
@@ -503,7 +503,7 @@ class TestComponentInputTelemetry:
 
     def test_serialize_unserializable_object(self):
         """Test that truly unserializable objects return a sentinel."""
-        from lfx.serialization.serialization import serialize
+        from kfx.serialization.serialization import serialize
 
         # Create an object that can't be easily serialized
         class UnserializableClass:
@@ -518,7 +518,7 @@ class TestComponentInputTelemetry:
 
     def test_component_inputs_payload_with_dict(self):
         """Test ComponentInputsPayload with dict."""
-        from langflow.services.telemetry.schema import ComponentInputsPayload
+        from ketos.services.telemetry.schema import ComponentInputsPayload
 
         inputs_dict = {
             "temperature": 0.7,
@@ -540,7 +540,7 @@ class TestComponentInputTelemetry:
 
     def test_sensitive_field_types_constant(self):
         """Test that SENSITIVE_FIELD_TYPES contains expected types."""
-        from lfx.inputs.input_mixin import SENSITIVE_FIELD_TYPES, FieldTypes
+        from kfx.inputs.input_mixin import SENSITIVE_FIELD_TYPES, FieldTypes
 
         # Verify sensitive types are included
         assert FieldTypes.PASSWORD in SENSITIVE_FIELD_TYPES
@@ -551,7 +551,7 @@ class TestComponentInputTelemetry:
 
     def test_track_in_telemetry_field_exists(self):
         """Test that track_in_telemetry field exists in input classes."""
-        from lfx.inputs.inputs import BoolInput, IntInput, SecretStrInput, StrInput
+        from kfx.inputs.inputs import BoolInput, IntInput, SecretStrInput, StrInput
 
         # Regular input should default to False (opt-in model)
         regular_input = StrInput(name="test")
@@ -574,7 +574,7 @@ class TestComponentInputTelemetry:
 
     def test_multiple_component_inputs_same_run(self):
         """Test multiple ComponentInputsPayload for same run_id."""
-        from langflow.services.telemetry.schema import ComponentInputsPayload
+        from ketos.services.telemetry.schema import ComponentInputsPayload
 
         run_id = "run-xyz-789"
 
@@ -600,7 +600,7 @@ class TestComponentInputTelemetry:
 
     def test_component_payload_with_run_id_integration(self):
         """Test ComponentPayload with run_id for joining data."""
-        from langflow.services.telemetry.schema import ComponentInputsPayload, ComponentPayload
+        from ketos.services.telemetry.schema import ComponentInputsPayload, ComponentPayload
 
         run_id = "run-integration-123"
         component_id = "TestComponent-xyz"

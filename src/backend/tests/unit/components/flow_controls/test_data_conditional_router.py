@@ -1,8 +1,8 @@
 from unittest.mock import patch
 
 import pytest
-from langflow.schema.data import Data
-from lfx.components.flow_controls.data_conditional_router import DataConditionalRouterComponent
+from ketos.schema.data import Data
+from kfx.components.flow_controls.data_conditional_router import DataConditionalRouterComponent
 
 from tests.base import ComponentTestBaseWithoutClient
 

@@ -1,10 +1,15 @@
 import type { UseMutationResult } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import type { useMutationFunctionType } from "@/types/api";
 import type { MCPServerType } from "@/types/mcp";
 import { api } from "../../api";
 import { getURL } from "../../helpers/constants";
 import { extractApiErrorMessage } from "../../helpers/extract-api-error-message";
 import { UseRequestProcessor } from "../../services/request-processor";
+import {
+  getMcpSuccessMessage,
+  type McpSuccessTranslator,
+} from "./mcp-success-messages";
 import type { getMCPServersResponse } from "./use-get-mcp-servers";
 
 interface PatchMCPServerResponse {
@@ -16,6 +21,7 @@ export const usePatchMCPServer: useMutationFunctionType<
   MCPServerType,
   PatchMCPServerResponse
 > = (options?) => {
+  const { t } = useTranslation();
   const { mutate, queryClient } = UseRequestProcessor();
 
   async function patchMCPServer(
@@ -57,13 +63,16 @@ export const usePatchMCPServer: useMutationFunctionType<
       );
 
       return {
-        message: res.data?.message || "MCP Server patched successfully",
+        message:
+          res.data?.message ||
+          getMcpSuccessMessage("updated", t as unknown as McpSuccessTranslator),
       };
     } catch (error: unknown) {
       throw new Error(
         extractApiErrorMessage(
           error as Parameters<typeof extractApiErrorMessage>[0],
           "Failed to patch MCP Server",
+          (key, params) => t(key, params),
         ),
       );
     }
@@ -77,14 +86,14 @@ export const usePatchMCPServer: useMutationFunctionType<
     ...options,
     retry: 0,
 
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, onMutateResult, context) => {
       queryClient.invalidateQueries({
         queryKey: ["useGetMCPServers"],
       });
       queryClient.invalidateQueries({
         queryKey: ["useGetMCPServer", variables.name],
       });
-      options?.onSuccess?.(data, variables, context);
+      options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 

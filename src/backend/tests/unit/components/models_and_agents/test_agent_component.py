@@ -4,14 +4,14 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
-from langflow.custom import Component
-from lfx.base.models.anthropic_constants import ANTHROPIC_MODELS
-from lfx.base.models.openai_constants import (
+from ketos.custom import Component
+from kfx.base.models.anthropic_constants import ANTHROPIC_MODELS
+from kfx.base.models.openai_constants import (
     OPENAI_CHAT_MODEL_NAMES,
     OPENAI_REASONING_MODEL_NAMES,
 )
-from lfx.components.models_and_agents import AgentComponent
-from lfx.components.tools.calculator import CalculatorToolComponent
+from kfx.components.models_and_agents import AgentComponent
+from kfx.components.tools.calculator import CalculatorToolComponent
 
 from tests.base import ComponentTestBaseWithClient, ComponentTestBaseWithoutClient
 from tests.unit.mock_language_model import MockLanguageModel
@@ -65,8 +65,8 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
 
     async def test_agent_filters_empty_chat_history_messages(self):
         """Test that empty messages in chat history are filtered out."""
-        from lfx.base.agents.utils import data_to_messages
-        from lfx.schema.message import Message
+        from kfx.base.agents.utils import data_to_messages
+        from kfx.schema.message import Message
 
         # Create messages with varying content
         empty_message = Message(text="", sender="User", sender_name="User")
@@ -88,7 +88,7 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
         instead of just the string 'hi how are you'.
         """
         from langchain_core.messages import HumanMessage
-        from lfx.schema.message import Message
+        from kfx.schema.message import Message
 
         # Create a Message object with text content
         message = Message(text="hi how are you", sender="User", sender_name="User")
@@ -128,7 +128,7 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
 
     async def test_agent_handles_multimodal_message_input(self, component_class, default_kwargs):
         """Test that agent properly extracts text from multimodal Message objects."""
-        from lfx.schema.message import Message
+        from kfx.schema.message import Message
 
         # Create a Message object with text content (no actual files for testing)
         message = Message(text="What is in this image?", sender="User", sender_name="User")
@@ -182,10 +182,10 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
         assert watsonx_url_input.show is False
         assert project_id_input.show is False
 
-    @patch("lfx.base.models.unified_models.get_language_model_options")
+    @patch("kfx.base.models.unified_models.get_language_model_options")
     async def test_update_build_config_shows_watsonx_fields(self, mock_opts, component_class, default_kwargs):
         """Test that update_build_config shows WatsonX fields when IBM WatsonX is selected."""
-        from lfx.schema.dotdict import dotdict
+        from kfx.schema.dotdict import dotdict
 
         # Simulate selecting an IBM WatsonX model
         watsonx_model_value = [
@@ -219,12 +219,12 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
         assert updated_config["base_url_ibm_watsonx"]["required"] is False
         assert updated_config["project_id"]["required"] is False
 
-    @patch("lfx.base.models.unified_models.get_language_model_options")
+    @patch("kfx.base.models.unified_models.get_language_model_options")
     async def test_update_build_config_hides_watsonx_fields_for_other_providers(
         self, mock_opts, component_class, default_kwargs
     ):
         """Test that update_build_config hides WatsonX fields when other providers are selected."""
-        from lfx.schema.dotdict import dotdict
+        from kfx.schema.dotdict import dotdict
 
         # Simulate selecting an OpenAI model
         openai_model_value = [
@@ -279,7 +279,7 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
         component.api_key = "test-api-key"
 
         # Mock get_llm to capture the arguments
-        with patch("lfx.components.models_and_agents.agent.get_llm") as mock_get_llm:
+        with patch("kfx.components.models_and_agents.agent.get_llm") as mock_get_llm:
             mock_get_llm.return_value = MockLanguageModel()
 
             # Mock other required methods
@@ -295,8 +295,8 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
             assert call_kwargs.get("watsonx_url") == "https://us-south.ml.cloud.ibm.com"
             assert call_kwargs.get("watsonx_project_id") == "test-project-id"
 
-    @patch("lfx.components.models_and_agents.agent.get_language_model_options")
-    @patch("lfx.components.models_and_agents.agent.get_llm")
+    @patch("kfx.components.models_and_agents.agent.get_language_model_options")
+    @patch("kfx.components.models_and_agents.agent.get_llm")
     async def test_get_agent_requirements_supports_legacy_agent_llm_model_name(
         self, mock_get_llm, mock_get_options, component_class, default_kwargs
     ):
@@ -327,7 +327,7 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
 
         assert mock_get_llm.call_args.kwargs["model"] == [mock_get_options.return_value[0]]
 
-    @patch("lfx.components.models_and_agents.agent.get_llm")
+    @patch("kfx.components.models_and_agents.agent.get_llm")
     async def test_get_agent_requirements_accepts_connected_model_instance(
         self, mock_get_llm, component_class, default_kwargs
     ):
@@ -347,8 +347,8 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
         assert llm_model is connected_model
         assert mock_get_llm.call_args.kwargs["model"] is connected_model
 
-    @patch("lfx.components.models_and_agents.agent.AgentComponent.get_memory_data")
-    @patch("lfx.components.models_and_agents.agent.get_llm")
+    @patch("kfx.components.models_and_agents.agent.AgentComponent.get_memory_data")
+    @patch("kfx.components.models_and_agents.agent.get_llm")
     async def test_agent_passes_max_tokens_to_get_llm(
         self, mock_get_llm, mock_get_memory_data, component_class, default_kwargs
     ):
@@ -379,8 +379,8 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
         assert "max_tokens" in call_kwargs, "max_tokens should be passed to get_llm"
         assert call_kwargs["max_tokens"] == 500
 
-    @patch("lfx.components.models_and_agents.agent.AgentComponent.get_memory_data")
-    @patch("lfx.components.models_and_agents.agent.get_llm")
+    @patch("kfx.components.models_and_agents.agent.AgentComponent.get_memory_data")
+    @patch("kfx.components.models_and_agents.agent.get_llm")
     async def test_agent_passes_none_max_tokens_when_not_set(
         self, mock_get_llm, mock_get_memory_data, component_class, default_kwargs
     ):
@@ -415,8 +415,8 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
         assert "max_tokens" in call_kwargs, "max_tokens should be passed to get_llm even when None"
         assert call_kwargs["max_tokens"] is None
 
-    @patch("lfx.components.models_and_agents.agent.AgentComponent.get_memory_data")
-    @patch("lfx.components.models_and_agents.agent.get_llm")
+    @patch("kfx.components.models_and_agents.agent.AgentComponent.get_memory_data")
+    @patch("kfx.components.models_and_agents.agent.get_llm")
     async def test_agent_max_tokens_with_provider_specific_field_name(
         self, mock_get_llm, mock_get_memory_data, component_class, default_kwargs
     ):
@@ -484,8 +484,8 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
             "stream toggle is hidden under Advanced so users don't accidentally disable it."
         )
 
-    @patch("lfx.components.models_and_agents.agent.AgentComponent.get_memory_data")
-    @patch("lfx.components.models_and_agents.agent.get_llm")
+    @patch("kfx.components.models_and_agents.agent.AgentComponent.get_memory_data")
+    @patch("kfx.components.models_and_agents.agent.get_llm")
     async def test_should_force_stream_true_to_get_llm_even_when_toggle_is_false(
         self, mock_get_llm, mock_get_memory_data, component_class, default_kwargs
     ):
@@ -494,7 +494,7 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
         Belt-and-suspenders against the PR-#13155 regression: even if a future change
         accidentally re-wires ``_get_llm`` to read ``self.stream`` (and the saved value
         is False), the contract is that ``get_llm`` MUST receive ``stream=True`` so the
-        chat model is built with ``streaming=True``. Mirror of the lfx-side test
+        chat model is built with ``streaming=True``. Mirror of the kfx-side test
         ``test_should_pass_stream_true_to_get_llm_when_self_stream_toggle_is_false``.
         """
         from unittest.mock import AsyncMock, MagicMock
@@ -515,8 +515,8 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
             f"Got stream={call_kwargs.get('stream')!r}. The Agent has no opt-out from streaming."
         )
 
-    @patch("lfx.components.models_and_agents.agent.AgentComponent.get_memory_data")
-    @patch("lfx.components.models_and_agents.agent.get_llm")
+    @patch("kfx.components.models_and_agents.agent.AgentComponent.get_memory_data")
+    @patch("kfx.components.models_and_agents.agent.get_llm")
     async def test_should_pass_stream_value_to_get_llm_when_stream_input_is_enabled(
         self, mock_get_llm, mock_get_memory_data, component_class, default_kwargs
     ):
@@ -563,7 +563,7 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
         component._get_shared_callbacks = list
         component.set_tools_callbacks = lambda *_: None
 
-        with patch("lfx.components.models_and_agents.agent.get_llm") as mock_get_llm:
+        with patch("kfx.components.models_and_agents.agent.get_llm") as mock_get_llm:
             mock_get_llm.return_value = MockLanguageModel()
             _, _, tools = await component.get_agent_requirements()
 
@@ -589,7 +589,7 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
         component._get_shared_callbacks = list
         component.set_tools_callbacks = lambda *_: None
 
-        with patch("lfx.components.models_and_agents.agent.get_llm") as mock_get_llm:
+        with patch("kfx.components.models_and_agents.agent.get_llm") as mock_get_llm:
             mock_get_llm.return_value = MockLanguageModel()
             _, _, tools = await component.get_agent_requirements()
 
@@ -611,7 +611,7 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
         """
         from unittest.mock import AsyncMock
 
-        from lfx.components.utilities.calculator_core import CalculatorComponent
+        from kfx.components.utilities.calculator_core import CalculatorComponent
 
         # An external connection delivers exactly the StructuredTool that
         # CalculatorComponent.to_toolkit() produces — re-use the same path here.
@@ -627,7 +627,7 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
         component._get_shared_callbacks = list
         component.set_tools_callbacks = lambda *_: None
 
-        with patch("lfx.components.models_and_agents.agent.get_llm") as mock_get_llm:
+        with patch("kfx.components.models_and_agents.agent.get_llm") as mock_get_llm:
             mock_get_llm.return_value = MockLanguageModel()
             _, _, tools = await component.get_agent_requirements()
 
@@ -690,7 +690,7 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
         component.create_agent_runnable = MagicMock(return_value=MagicMock())
         component.run_agent = AsyncMock(return_value=MagicMock())
 
-        with patch("lfx.components.models_and_agents.agent.get_llm") as mock_get_llm:
+        with patch("kfx.components.models_and_agents.agent.get_llm") as mock_get_llm:
             mock_get_llm.return_value = MockLanguageModel()
             await component.message_response()
 
@@ -742,7 +742,7 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
         component.create_agent_runnable = MagicMock(return_value=MagicMock())
         component.run_agent = AsyncMock(return_value=MagicMock(content='{"answer": "42"}'))
 
-        with patch("lfx.components.models_and_agents.agent.get_llm") as mock_get_llm:
+        with patch("kfx.components.models_and_agents.agent.get_llm") as mock_get_llm:
             mock_get_llm.return_value = MockLanguageModel()
             await component.json_response()
 
@@ -763,7 +763,7 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
         """
         from unittest.mock import AsyncMock, MagicMock
 
-        from lfx.schema.message import Message
+        from kfx.schema.message import Message
 
         default_kwargs["add_calculator_tool"] = False
         default_kwargs["add_current_date_tool"] = False
@@ -802,7 +802,7 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
 
         component.run_agent = fake_run_agent
 
-        with patch("lfx.components.models_and_agents.agent.get_llm") as mock_get_llm:
+        with patch("kfx.components.models_and_agents.agent.get_llm") as mock_get_llm:
             mock_get_llm.return_value = MockLanguageModel()
             await component.json_response()
 
@@ -855,7 +855,7 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
 
         component.run_agent = exploding_run_agent
 
-        with patch("lfx.components.models_and_agents.agent.get_llm") as mock_get_llm:
+        with patch("kfx.components.models_and_agents.agent.get_llm") as mock_get_llm:
             mock_get_llm.return_value = MockLanguageModel()
             # json_response handles the exception internally and returns an error Data,
             # so the exception is swallowed gracefully — but the swap must already be undone.
@@ -866,16 +866,16 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
             "otherwise a subsequent message_response would silently drop chat emissions."
         )
         # And the restored function must actually be callable as send_message.
-        from lfx.schema.message import Message
+        from kfx.schema.message import Message
 
         await component.send_message(Message(text="post-fallback"))
         assert len(post_emissions) == 1
 
     async def test_should_accept_add_calculator_tool_in_default_keys(self, component_class, default_kwargs):
         """update_build_config's default_keys validation must include add_calculator_tool."""
-        from lfx.schema.dotdict import dotdict
+        from kfx.schema.dotdict import dotdict
 
-        with patch("lfx.components.models_and_agents.agent.get_language_model_options") as mock_opts:
+        with patch("kfx.components.models_and_agents.agent.get_language_model_options") as mock_opts:
             mock_opts.return_value = [
                 {
                     "name": "gpt-4o",
@@ -976,9 +976,9 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
         raises ``ValueError: Missing required keys`` because the key is gone
         from the generated template.
         """
-        from lfx.schema.dotdict import dotdict
+        from kfx.schema.dotdict import dotdict
 
-        with patch("lfx.components.models_and_agents.agent.get_language_model_options") as mock_opts:
+        with patch("kfx.components.models_and_agents.agent.get_language_model_options") as mock_opts:
             mock_opts.return_value = [
                 {
                     "name": "gpt-4o",
@@ -1028,7 +1028,7 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
         ``agent_description`` is set, and the old value when an old serialized
         component still defines and sets it.
         """
-        from lfx.base.agents.agent import DEFAULT_TOOLS_DESCRIPTION
+        from kfx.base.agents.agent import DEFAULT_TOOLS_DESCRIPTION
 
         component = await self.component_setup(component_class, default_kwargs)
 
@@ -1274,7 +1274,7 @@ class TestAgentComponentWithClient(ComponentTestBaseWithClient):
         instead of just the string 'hi how are you'.
         """
         api_key = os.getenv("OPENAI_API_KEY")
-        from lfx.schema.message import Message
+        from kfx.schema.message import Message
 
         # Create a Message object as input (simulating ChatInput component output)
         message_input = Message(text="What is 5 + 3?", sender="User", sender_name="User")
@@ -1300,8 +1300,8 @@ class TestAgentComponentWithClient(ComponentTestBaseWithClient):
     async def test_agent_receives_string_from_message_object_with_anthropic(self):
         """Test that agent receives string input from Message object with actual Anthropic call."""
         api_key = os.getenv("ANTHROPIC_API_KEY")
-        from lfx.base.models.anthropic_constants import ANTHROPIC_MODELS_DETAILED
-        from lfx.schema.message import Message
+        from kfx.base.models.anthropic_constants import ANTHROPIC_MODELS_DETAILED
+        from kfx.schema.message import Message
 
         # Create a Message object as input (simulating ChatInput component output)
         message_input = Message(text="What is 7 + 2?", sender="User", sender_name="User")
@@ -1373,7 +1373,7 @@ class TestAgentComponentWithClient(ComponentTestBaseWithClient):
         """Test that Agent component handles whitespace-only input without errors with Anthropic."""
         api_key = os.getenv("ANTHROPIC_API_KEY")
         tools = [CalculatorToolComponent().build_tool()]
-        from lfx.base.models.anthropic_constants import ANTHROPIC_MODELS_DETAILED
+        from kfx.base.models.anthropic_constants import ANTHROPIC_MODELS_DETAILED
 
         # Test with whitespace-only input
         agent = AgentComponent(

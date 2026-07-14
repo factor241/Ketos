@@ -40,7 +40,7 @@ const MicrophoneSelect = ({
 
         if (audioInputDevices.length > 0 && !selectedMicrophone) {
           const savedMicrophoneId = localStorage.getItem(
-            "lf_selected_microphone",
+            "ketos-selected-microphone",
           );
           if (
             savedMicrophoneId &&
@@ -98,7 +98,9 @@ const MicrophoneSelect = ({
               <SelectItem key={device?.deviceId} value={device?.deviceId}>
                 <div className="max-w-[220px] truncate text-left">
                   {device?.label ||
-                    `Microphone ${device?.deviceId?.slice(0, 5)}...`}
+                    t("voice.microphoneFallback", {
+                      id: device?.deviceId?.slice(0, 5),
+                    })}
                 </div>
               </SelectItem>
             ))}

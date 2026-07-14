@@ -23,13 +23,13 @@ import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from langflow.agentic.services.assistant_service import (
+from ketos.agentic.services.assistant_service import (
     execute_flow_with_validation_streaming,
 )
-from langflow.agentic.services.flow_types import FlowExecutionError, IntentResult
+from ketos.agentic.services.flow_types import FlowExecutionError, IntentResult
 
-MODULE = "langflow.agentic.services.assistant_service"
-PROVIDER_MODULE = "langflow.agentic.services.provider_service"
+MODULE = "ketos.agentic.services.assistant_service"
+PROVIDER_MODULE = "ketos.agentic.services.provider_service"
 
 OLLAMA_MODEL_NOT_FOUND_ERROR = "Error building Component Language Model: model 'llama3.3' not found (status code: 404)."
 

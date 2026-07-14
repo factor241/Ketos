@@ -1,8 +1,7 @@
-//import LangflowLogoColor from "@/assets/LangflowLogocolor.svg?react";
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
+import { KetosBrandMark } from "@/components/common/ketos-brand-mark";
 import ThemeButtons from "@/components/core/appHeaderComponent/components/ThemeButtons";
 import { useGetMessagesQuery } from "@/controllers/API/queries/messages";
 import { useDeleteSession } from "@/controllers/API/queries/messages/use-delete-sessions";
@@ -10,11 +9,10 @@ import { useGetSessionsFromFlowQuery } from "@/controllers/API/queries/messages/
 import { ENABLE_PUBLISH } from "@/customization/feature-flags";
 import { track } from "@/customization/utils/analytics";
 import { customOpenNewTab } from "@/customization/utils/custom-open-new-tab";
-import { LangflowButtonRedirectTarget } from "@/customization/utils/urls";
+import { KetosButtonRedirectTarget } from "@/customization/utils/urls";
 import { isAuthenticatedPlayground } from "@/modals/IOModal/helpers/playground-auth";
 import { useUtilityStore } from "@/stores/utilityStore";
 import { swatchColors } from "@/utils/styleUtils";
-import LangflowLogoColor from "../../assets/LangflowLogoColor.svg?react";
 import IconComponent from "../../components/common/genericIconComponent";
 import ShadTooltip from "../../components/common/shadTooltipComponent";
 import { Button } from "../../components/ui/button";
@@ -23,10 +21,11 @@ import useFlowStore from "../../stores/flowStore";
 import useFlowsManagerStore from "../../stores/flowsManagerStore";
 import { useMessagesStore } from "../../stores/messagesStore";
 import type { IOModalPropsType } from "../../types/components";
+import { ketosFlowSessionKey } from "../../utils/ketos-storage-keys";
 import { cn, getNumberFromString } from "../../utils/utils";
 import BaseModal from "../baseModal";
 import { ChatViewWrapper } from "./components/chat-view-wrapper";
-import { createNewSessionName } from "./components/chatView/chatInput/components/voice-assistant/helpers/create-new-session-name";
+import { createNewSessionId } from "./components/chatView/chatInput/components/voice-assistant/helpers/create-new-session-name";
 import { SelectedViewField } from "./components/selected-view-field";
 import { SidebarOpenView } from "./components/sidebar-open-view";
 import { useGetFlowId } from "./hooks/useGetFlowId";
@@ -86,7 +85,8 @@ export default function IOModal({
   const [visibleSession, setvisibleSession] = useState<string | undefined>(
     currentFlowId,
   );
-  const PlaygroundTitle = playgroundPage && flowName ? flowName : "Playground";
+  const PlaygroundTitle =
+    playgroundPage && flowName ? flowName : t("playground.title");
 
   const {
     data: sessionsFromDb,
@@ -233,7 +233,10 @@ export default function IOModal({
 
   useEffect(() => {
     if (playgroundPage && !isAuthenticatedPlayground() && messages.length > 0) {
-      window.sessionStorage.setItem(currentFlowId, JSON.stringify(messages));
+      window.sessionStorage.setItem(
+        ketosFlowSessionKey(currentFlowId),
+        JSON.stringify(messages),
+      );
     }
     if (newChatOnPlayground && !sessionsLoading) {
       const handleRefetchAndSetSession = async () => {
@@ -256,7 +259,7 @@ export default function IOModal({
 
   useEffect(() => {
     if (!visibleSession) {
-      setSessionId(createNewSessionName());
+      setSessionId(createNewSessionId());
       setCurrentSessionId(currentFlowId);
     } else if (visibleSession) {
       setSessionId(visibleSession);
@@ -304,9 +307,9 @@ export default function IOModal({
 
   const showPublishOptions = playgroundPage && ENABLE_PUBLISH;
 
-  const LangflowButtonClick = () => {
-    track("LangflowButtonClick");
-    customOpenNewTab(LangflowButtonRedirectTarget());
+  const KetosButtonClick = () => {
+    track("KetosButtonClick");
+    customOpenNewTab(KetosButtonRedirectTarget());
   };
 
   const swatchIndex =
@@ -401,6 +404,7 @@ export default function IOModal({
                       variant="ghost"
                       className="flex h-8 w-8 items-center justify-center !p-0"
                       onClick={() => setSidebarOpen(!sidebarOpen)}
+                      aria-label={t("modal.io.hideSidebar")}
                     >
                       <IconComponent
                         name={sidebarOpen ? "PanelLeftClose" : "PanelLeftOpen"}
@@ -428,13 +432,13 @@ export default function IOModal({
                       <ThemeButtons />
                     </div>
                     <Button
-                      onClick={LangflowButtonClick}
+                      onClick={KetosButtonClick}
                       variant="primary"
                       className="w-full !rounded-xl shadow-lg"
                     >
-                      <LangflowLogoColor />
+                      <KetosBrandMark decorative className="h-5 w-5" />
                       <div className="text-sm">
-                        {t("modal.io.builtWithLangflow")}
+                        {t("modal.io.builtWithKetos")}
                       </div>
                     </Button>
                   </div>
@@ -446,14 +450,17 @@ export default function IOModal({
                 <ShadTooltip
                   styleClasses="z-50"
                   side="right"
-                  content={t("modal.io.builtWithLangflowTooltip")}
+                  content={t("modal.io.builtWithKetosTooltip")}
                 >
                   <Button
                     variant="primary"
                     className="h-12 w-12 !rounded-xl !p-4 shadow-lg"
-                    onClick={LangflowButtonClick}
+                    onClick={KetosButtonClick}
                   >
-                    <LangflowLogoColor className="h-[18px] w-[18px] scale-150" />
+                    <KetosBrandMark
+                      decorative
+                      className="h-[18px] w-[18px] scale-150"
+                    />
                   </Button>
                 </ShadTooltip>
               </div>

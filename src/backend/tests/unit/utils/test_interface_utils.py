@@ -1,5 +1,5 @@
 import pytest
-from langflow.interface.utils import extract_input_variables_from_prompt
+from ketos.interface.utils import extract_input_variables_from_prompt
 
 
 @pytest.mark.parametrize(

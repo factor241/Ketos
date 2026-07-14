@@ -7,6 +7,15 @@
  */
 
 describe("useModelConnectionLogic", () => {
+  type ModelSelection = Array<{ name: string }> | null | undefined;
+  type TemplateField = {
+    password?: boolean;
+    _input_type?: string;
+    _connection_mode?: boolean;
+    [key: string]: unknown;
+  };
+  type Template = Record<string, TemplateField>;
+
   describe("effective input types defaulting", () => {
     const getEffectiveInputTypes = (inputTypes: string[]): string[] => {
       return inputTypes.length > 0 ? inputTypes : ["LanguageModel"];
@@ -91,7 +100,7 @@ describe("useModelConnectionLogic", () => {
     // entering connection mode so the backend doesn't retain stale config.
     const computeSelectedModel = (
       isConnectionMode: boolean,
-      value: any,
+      value: ModelSelection,
       flatOptions: Array<{ name: string; icon?: string; provider?: string }>,
       externalDisplayName?: string,
       externalIcon?: string,
@@ -149,7 +158,7 @@ describe("useModelConnectionLogic", () => {
       const previousValue = [
         { name: "gpt-4", icon: "Bot", provider: "OpenAI" },
       ];
-      const clearedValue: any[] = [];
+      const clearedValue: unknown[] = [];
 
       expect(clearedValue).toEqual([]);
       expect(clearedValue).not.toEqual(previousValue);
@@ -158,7 +167,7 @@ describe("useModelConnectionLogic", () => {
     it("should never send a string value to handleOnNewValue", () => {
       // The old bug: handleOnNewValue({ value: "connect_other_models" })
       // caused "string indices must be integers, not 'str'" on the backend.
-      const newValue: any[] = [];
+      const newValue: unknown[] = [];
       expect(typeof newValue).not.toBe("string");
       expect(Array.isArray(newValue)).toBe(true);
     });
@@ -166,9 +175,7 @@ describe("useModelConnectionLogic", () => {
 
   describe("credential clearing in connection mode", () => {
     // Pure logic: useModelConnectionLogic.setNode clears password fields
-    const clearCredentialFields = (
-      template: Record<string, any>,
-    ): Record<string, any> => {
+    const clearCredentialFields = (template: Template): Template => {
       const updated = { ...template };
       if (updated.model) {
         updated.model = {
@@ -233,9 +240,7 @@ describe("useModelConnectionLogic", () => {
   });
 
   describe("exiting connection mode clears _connection_mode flag", () => {
-    const exitConnectionMode = (
-      template: Record<string, any>,
-    ): Record<string, any> => {
+    const exitConnectionMode = (template: Template): Template => {
       const updated = { ...template };
       if (updated.model?._connection_mode) {
         updated.model = { ...updated.model, _connection_mode: false };

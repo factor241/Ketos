@@ -2,26 +2,22 @@ import { cloneDeep } from "lodash";
 import { useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
-import { usePostAddApiKey } from "@/controllers/API/queries/api-keys";
 import {
   useResetPassword,
   useUpdateUser,
 } from "@/controllers/API/queries/auth";
-import { useGetProfilePicturesQuery } from "@/controllers/API/queries/files";
 import { CustomTermsLinks } from "@/customization/components/custom-terms-links";
 import { ENABLE_PROFILE_ICONS } from "@/customization/feature-flags";
 import useAuthStore from "@/stores/authStore";
 import { CONTROL_PATCH_USER_STATE } from "../../../../constants/constants";
 import { AuthContext } from "../../../../contexts/authContext";
 import useAlertStore from "../../../../stores/alertStore";
-import { useStoreStore } from "../../../../stores/storeStore";
 import type {
   inputHandlerEventType,
   patchUserInputStateType,
 } from "../../../../types/components";
 import useScrollToElement from "../hooks/use-scroll-to-element";
 import GeneralPageHeaderComponent from "./components/GeneralPageHeader";
-import LanguageFormComponent from "./components/LanguageForm";
 import PasswordFormComponent from "./components/PasswordForm";
 import ProfilePictureFormComponent from "./components/ProfilePictureForm";
 
@@ -38,11 +34,6 @@ export const GeneralPage = () => {
   const { userData, setUserData } = useContext(AuthContext);
   const { password, cnfPassword, profilePicture } = inputState;
   const autoLogin = useAuthStore((state) => state.autoLogin);
-
-  const { storeApiKey } = useContext(AuthContext);
-  const setHasApiKey = useStoreStore((state) => state.updateHasApiKey);
-  const setValidApiKey = useStoreStore((state) => state.updateValidApiKey);
-  const setLoadingApiKey = useStoreStore((state) => state.updateLoadingApiKey);
 
   const { mutate: mutateResetPassword } = useResetPassword();
   const { mutate: mutatePatchUser } = useUpdateUser();
@@ -65,19 +56,16 @@ export const GeneralPage = () => {
             handleInput({ target: { name: "cnfPassword", value: "" } });
             setSuccessData({ title: t("success.changesSaved") });
           },
-          onError: (error) => {
+          onError: (_error) => {
             setErrorData({
               title: t("errors.saveChanges"),
-              // biome-ignore lint/suspicious/noExplicitAny: legacy
-              list: [(error as any)?.response?.data?.detail],
+              list: [t("errors.requestFailed")],
             });
           },
         },
       );
     }
   };
-
-  const handleGetProfilePictures = useGetProfilePicturesQuery();
 
   const handlePatchProfilePicture = (profile_picture) => {
     if (profile_picture !== "") {
@@ -90,11 +78,10 @@ export const GeneralPage = () => {
             setUserData(newUserData);
             setSuccessData({ title: t("success.changesSaved") });
           },
-          onError: (error) => {
+          onError: (_error) => {
             setErrorData({
               title: t("errors.saveChanges"),
-              // biome-ignore lint/suspicious/noExplicitAny: legacy
-              list: [(error as any)?.response?.data?.detail],
+              list: [t("errors.requestFailed")],
             });
           },
         },
@@ -103,33 +90,6 @@ export const GeneralPage = () => {
   };
 
   useScrollToElement(scrollId);
-
-  const { mutate } = usePostAddApiKey({
-    onSuccess: () => {
-      setSuccessData({ title: t("auth.saveApiKeySuccess") });
-      setHasApiKey(true);
-      setValidApiKey(true);
-      setLoadingApiKey(false);
-      handleInput({ target: { name: "apikey", value: "" } });
-    },
-    onError: (error) => {
-      setErrorData({
-        title: t("errors.saveApiKey"),
-        // biome-ignore lint/suspicious/noExplicitAny: legacy
-        list: [(error as any)?.response?.data?.detail],
-      });
-      setHasApiKey(false);
-      setValidApiKey(false);
-      setLoadingApiKey(false);
-    },
-  });
-
-  const _handleSaveKey = (apikey: string) => {
-    if (apikey) {
-      mutate({ key: apikey });
-      storeApiKey(apikey);
-    }
-  };
 
   function handleInput({
     target: { name, value },
@@ -142,14 +102,11 @@ export const GeneralPage = () => {
       <GeneralPageHeaderComponent />
 
       <div className="flex w-full flex-col gap-6">
-        <LanguageFormComponent />
-
         {ENABLE_PROFILE_ICONS && (
           <ProfilePictureFormComponent
             profilePicture={profilePicture}
             handleInput={handleInput}
             handlePatchProfilePicture={handlePatchProfilePicture}
-            handleGetProfilePictures={handleGetProfilePictures}
             userData={userData}
           />
         )}

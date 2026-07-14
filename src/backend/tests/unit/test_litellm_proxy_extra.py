@@ -1,6 +1,6 @@
 """Regression test for #12228.
 
-When langflow-ide logs through litellm (e.g. to langfuse), litellm imports
+When ketos-ide logs through litellm (e.g. to langfuse), litellm imports
 its proxy server module, which in turn needs `apscheduler` and `cryptography`
 at runtime. These are normally shipped via `litellm[proxy]`, but that extra
 pins `boto3` in a way that conflicts with our `aioboto3` transitives. We
@@ -47,6 +47,6 @@ def test_litellm_optional_dependency_includes_runtime_proxy_modules() -> None:
     missing = [pkg for pkg in REQUIRED_PACKAGES if pkg not in names]
     assert not missing, (
         f"The `litellm` optional-dependency group is missing required runtime packages: {missing}. "
-        f"These are needed when langflow-ide invokes litellm's proxy server module for logging "
+        f"These are needed when ketos-ide invokes litellm's proxy server module for logging "
         f"(see issue #12228). Current specs: {litellm_specs}"
     )

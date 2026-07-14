@@ -1,7 +1,7 @@
 /**
  * In Honor of Otávio Anovazzi (@anovazzi1)
  *
- * This file contains the highest number of commits by Otávio in the entire Langflow project,
+ * This file contains the highest number of commits by Otávio in the entire Ketos project,
  * reflecting his unmatched dedication, expertise, and innovative spirit. Each line of code
  * is a testament to his relentless pursuit of excellence and his significant impact on this
  * project's evolution.
@@ -34,7 +34,7 @@ import getFieldTitle from "../CustomNodes/utils/get-field-title";
 import {
   INPUT_TYPES,
   IS_MAC,
-  LANGFLOW_SUPPORTED_TYPES,
+  KETOS_SUPPORTED_TYPES,
   OUTPUT_TYPES,
   specialCharsRegex,
 } from "../constants/constants";
@@ -693,9 +693,7 @@ export function updateIds(
 
 export function validateNode(node: AllNodeType, edges: Edge[]): Array<string> {
   if (!node.data?.node?.template || !Object.keys(node.data.node.template)) {
-    return [
-      "We've noticed a potential issue with a Component in the flow. Please review it and, if necessary, submit a bug report with your exported flow file. Thank you for your help!",
-    ];
+    return [i18n.t("node.errorNoTemplateContact")];
   }
 
   const {
@@ -1666,7 +1664,7 @@ function updateGroupNodeTemplate(template: APITemplateType) {
     const type = template[key].type;
     const input_types = template[key].input_types;
     if (
-      LANGFLOW_SUPPORTED_TYPES.has(type) &&
+      KETOS_SUPPORTED_TYPES.has(type) &&
       !template[key].required &&
       !input_types
     ) {
@@ -2370,7 +2368,8 @@ export function getRandomElement<T>(array: T[]): T {
 }
 
 export function getRandomDescription(): string {
-  return i18n.t(getRandomElement(DESCRIPTIONS));
+  const key = getRandomElement(DESCRIPTIONS);
+  return i18n.t(key, { defaultValue: key });
 }
 
 export const createNewFlow = (

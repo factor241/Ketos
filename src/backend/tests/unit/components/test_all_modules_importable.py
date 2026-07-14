@@ -18,8 +18,8 @@ import importlib
 import pkgutil
 
 import pytest
-from langflow import components
-from lfx.interface.components import _warm_circular_imports
+from kfx import components
+from kfx.interface.components import _warm_circular_imports
 
 
 class TestAllModulesImportable:
@@ -50,8 +50,8 @@ class TestAllModulesImportable:
         # Components whose underlying packages are gated to python_version<'3.14'
         # in pyproject.toml because upstream pins exclude 3.14. These are expected
         # to fail import on 3.14 until the upstreams adapt.
-        # NOTE: ibm.* moved to the lfx-ibm bundle (src/bundles/ibm) and is no
-        # longer iterated through ``langflow.components``; the watsonx
+        # NOTE: ibm.* moved to the kfx-ibm bundle (src/bundles/ibm) and is no
+        # longer iterated through ``kfx.components``; the watsonx
         # 3.14-gating moved with them.
         gated_on_py314 = {
             "altk.ALTKAgentComponent",
@@ -138,15 +138,15 @@ class TestAllModulesImportable:
         if failed_mappings:
             pytest.fail(f"Inconsistent mappings: {failed_mappings}")
 
-    def test_backward_compatibility_imports(self):
-        """Test that traditional import patterns still work."""
+    def test_canonical_component_imports(self):
+        """Test that canonical component import patterns work."""
         # Test some key imports that should always work
         traditional_imports = [
-            ("langflow.components.openai", "OpenAIModelComponent"),
-            ("langflow.components.anthropic", "AnthropicModelComponent"),
-            ("langflow.components.data", "APIRequestComponent"),
-            ("langflow.components.models_and_agents", "AgentComponent"),
-            ("langflow.components.helpers", "CalculatorComponent"),
+            ("kfx.components.openai", "OpenAIModelComponent"),
+            ("kfx.components.anthropic", "AnthropicModelComponent"),
+            ("kfx.components.data", "APIRequestComponent"),
+            ("kfx.components.models_and_agents", "AgentComponent"),
+            ("kfx.components.helpers", "CalculatorComponent"),
         ]
 
         failed_imports = []
@@ -357,17 +357,17 @@ class TestDirectModuleImports:
     """
 
     @pytest.mark.asyncio
-    async def test_all_lfx_component_modules_directly_importable(self):
-        """Test that all lfx component modules can be directly imported.
+    async def test_all_kfx_component_modules_directly_importable(self):
+        """Test that all kfx component modules can be directly imported.
 
         This bypasses the lazy import system to catch actual import errors
         like deprecated imports, syntax errors, etc. Uses async for 3-5x
         performance improvement.
         """
         try:
-            import lfx.components as components_pkg
+            import kfx.components as components_pkg
         except ImportError:
-            pytest.skip("lfx.components not available")
+            pytest.skip("kfx.components not available")
 
         # Collect all module names
         module_names = []
@@ -476,15 +476,15 @@ class TestDirectModuleImports:
         from pathlib import Path
 
         try:
-            import lfx
+            import kfx
 
-            lfx_path = Path(lfx.__file__).parent
+            kfx_path = Path(kfx.__file__).parent
         except ImportError:
-            pytest.skip("lfx package not found")
+            pytest.skip("kfx package not found")
 
-        components_path = lfx_path / "components"
+        components_path = kfx_path / "components"
         if not components_path.exists():
-            pytest.skip("lfx.components directory not found")
+            pytest.skip("kfx.components directory not found")
 
         deprecated_imports = []
 
@@ -515,7 +515,7 @@ class TestDirectModuleImports:
                         # Check against deprecated patterns
                         for deprecated, replacement in deprecated_patterns:
                             if module.startswith(deprecated):
-                                relative_path = py_file.relative_to(lfx_path)
+                                relative_path = py_file.relative_to(kfx_path)
                                 deprecated_imports.append(
                                     f"{relative_path}:{node.lineno}: "
                                     f"Uses deprecated '{deprecated}' - should use '{replacement}'"
@@ -542,11 +542,11 @@ class TestDirectModuleImports:
         when dependencies are available.
         """
         vector_store_components = [
-            ("lfx.components.chroma", "ChromaVectorStoreComponent"),
-            ("lfx.components.pinecone", "PineconeVectorStoreComponent"),
-            ("lfx.components.qdrant", "QdrantVectorStoreComponent"),
-            ("lfx.components.weaviate", "WeaviateVectorStoreComponent"),
-            ("lfx.components.vectorstores", "LocalDBComponent"),
+            ("kfx.components.chroma", "ChromaVectorStoreComponent"),
+            ("kfx.components.pinecone", "PineconeVectorStoreComponent"),
+            ("kfx.components.qdrant", "QdrantVectorStoreComponent"),
+            ("kfx.components.weaviate", "WeaviateVectorStoreComponent"),
+            ("kfx.components.vectorstores", "LocalDBComponent"),
         ]
 
         async def test_vector_store_import(module_name, class_name):
@@ -603,7 +603,7 @@ class TestDirectModuleImports:
         imported after fixing the deprecated langchain.embeddings.base import.
         """
         try:
-            from lfx.components.qdrant import QdrantVectorStoreComponent
+            from kfx.components.qdrant import QdrantVectorStoreComponent
 
             # Verify it's a class
             assert isinstance(QdrantVectorStoreComponent, type)

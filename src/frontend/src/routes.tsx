@@ -19,8 +19,6 @@ import {
   ENABLE_FILE_MANAGEMENT,
   ENABLE_KNOWLEDGE_BASES,
 } from "./customization/feature-flags";
-import { CustomRoutesStore } from "./customization/utils/custom-routes-store";
-import { CustomRoutesStorePages } from "./customization/utils/custom-routes-store-pages";
 import { AppAuthenticatedPage } from "./pages/AppAuthenticatedPage";
 import { AppInitPage } from "./pages/AppInitPage";
 import { AppWrapperPage } from "./pages/AppWrapperPage";
@@ -36,6 +34,7 @@ import ApiKeysPage from "./pages/SettingsPage/pages/ApiKeysPage";
 import DBProvidersPage from "./pages/SettingsPage/pages/DBProvidersPage";
 import GeneralPage from "./pages/SettingsPage/pages/GeneralPage";
 import GlobalVariablesPage from "./pages/SettingsPage/pages/GlobalVariablesPage";
+import LanguagePage from "./pages/SettingsPage/pages/LanguagePage";
 import MCPServersPage from "./pages/SettingsPage/pages/MCPServersPage";
 import McpClientPage from "./pages/SettingsPage/pages/McpClientPage";
 import ModelProvidersPage from "./pages/SettingsPage/pages/ModelProvidersPage";
@@ -161,6 +160,7 @@ const router = createBrowserRouter(
                   <Route path="mcp-client" element={<McpClientPage />} />
 
                   <Route path="api-keys" element={<ApiKeysPage />} />
+                  <Route path="language" element={<LanguagePage />} />
                   <Route
                     path="general/:scrollId?"
                     element={
@@ -171,9 +171,7 @@ const router = createBrowserRouter(
                   />
                   <Route path="shortcuts" element={<ShortcutsPage />} />
                   <Route path="messages" element={<MessagesPage />} />
-                  {CustomRoutesStore()}
                 </Route>
-                {CustomRoutesStorePages()}
                 <Route path="account">
                   <Route path="delete" element={<DeleteAccountPage />}></Route>
                 </Route>

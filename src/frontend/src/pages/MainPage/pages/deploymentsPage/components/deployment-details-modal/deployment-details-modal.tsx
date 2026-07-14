@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,6 +31,7 @@ export default function DeploymentDetailsModal({
   deployment,
   providerName,
 }: DeploymentDetailsModalProps) {
+  const { t } = useTranslation();
   const deploymentId = deployment?.id ?? "";
 
   const { data: details, isFetching: isFetchingDetails } = useGetDeployment(
@@ -77,10 +79,10 @@ export default function DeploymentDetailsModal({
       <DialogContent className="flex w-[700px] !max-w-none flex-col gap-0 overflow-hidden rounded-xl border bg-background p-0 shadow-lg">
         <div className="flex flex-col items-start border-b px-6 py-4">
           <DialogTitle className="text-lg font-semibold">
-            Deployment Details
+            {t("deployments.detailsTitle")}
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            View deployment configuration and attached flows.
+            {t("deployments.detailsDescription")}
           </DialogDescription>
         </div>
 
@@ -111,7 +113,7 @@ export default function DeploymentDetailsModal({
             onClick={() => setOpen(false)}
             data-testid="deployment-details-close"
           >
-            Close
+            {t("common.close")}
           </Button>
         </div>
       </DialogContent>

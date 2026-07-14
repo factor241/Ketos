@@ -108,11 +108,11 @@ function updateComponentCode(
 
   // Update imports
   if (updates.imports) {
-    const importPattern = /from\s+lfx\.io\s+import\s+([^;\n]+)/;
+    const importPattern = /from\s+kfx\.io\s+import\s+([^;\n]+)/;
     const newImports = updates.imports.join(", ");
     updatedCode = updatedCode.replace(
       importPattern,
-      `from langflow.io import ${newImports}`,
+      `from ketos.io import ${newImports}`,
     );
   }
 

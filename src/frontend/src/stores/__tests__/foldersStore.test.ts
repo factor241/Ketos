@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import type { FolderType } from "../../pages/MainPage/entities";
+import type { FlowType } from "../../types/flow";
 import { useFolderStore } from "../foldersStore";
 
 const mockFolder: FolderType = {
@@ -24,7 +25,6 @@ describe("useFolderStore", () => {
   beforeEach(() => {
     act(() => {
       useFolderStore.setState({
-        loadingById: false,
         myCollectionId: "",
         folderToEdit: null,
         folderDragging: false,
@@ -39,7 +39,6 @@ describe("useFolderStore", () => {
     it("should have correct initial state", () => {
       const { result } = renderHook(() => useFolderStore());
 
-      expect(result.current.loadingById).toBe(false);
       expect(result.current.myCollectionId).toBe("");
       expect(result.current.folderToEdit).toBeNull();
       expect(result.current.folderDragging).toBe(false);
@@ -283,7 +282,7 @@ describe("useFolderStore", () => {
       const { result } = renderHook(() => useFolderStore());
       const folderWithFlows: FolderType = {
         ...mockFolder,
-        flows: [{ id: "flow-1" } as any],
+        flows: [{ id: "flow-1" } as unknown as FlowType],
       };
 
       act(() => {
@@ -321,17 +320,6 @@ describe("useFolderStore", () => {
       expect(result.current.folderDragging).toBe(false);
       expect(result.current.folderIdDragging).toBe("");
       expect(result.current.folders).toEqual([]);
-    });
-
-    it("should not affect loadingById field", () => {
-      const { result } = renderHook(() => useFolderStore());
-
-      act(() => {
-        useFolderStore.setState({ loadingById: true });
-        result.current.resetStore();
-      });
-
-      expect(result.current.loadingById).toBe(true);
     });
   });
 

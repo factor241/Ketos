@@ -1,8 +1,14 @@
 import type { ColDef } from "ag-grid-community";
 import IconComponent from "@/components/common/genericIconComponent";
+import { parseSpanStatus } from "@/controllers/API/queries/traces/helpers";
 import i18n from "@/i18n";
 import { formatSmartTimestamp } from "@/utils/dateTime";
-import { formatTotalLatency, getStatusIconProps } from "../traceViewHelpers";
+import { cn } from "@/utils/utils";
+import {
+  formatTotalLatency,
+  getSpanStatusLabel,
+  getStatusIconProps,
+} from "../traceViewHelpers";
 import {
   formatObjectValue,
   formatRunValue,
@@ -109,14 +115,20 @@ export function createFlowTracesColumns({
       editable: false,
       cellRenderer: (params: { value: string | null | undefined }) => {
         const status = params.value ?? "unknown";
-        const { colorClass, iconName, shouldSpin } = getStatusIconProps(status);
+        const normalizedStatus = parseSpanStatus(status);
+        const { colorClass, iconName, shouldSpin } =
+          getStatusIconProps(normalizedStatus);
 
         return (
           <div className="flex items-center">
             <IconComponent
               name={iconName}
-              className={`h-4 w-4 ${colorClass} ${shouldSpin ? "animate-spin" : ""}`}
-              aria-label={status}
+              className={cn(
+                "h-4 w-4",
+                colorClass,
+                shouldSpin && "animate-spin",
+              )}
+              aria-label={getSpanStatusLabel(normalizedStatus)}
               dataTestId={`flow-log-status-${status}`}
               skipFallback
             />

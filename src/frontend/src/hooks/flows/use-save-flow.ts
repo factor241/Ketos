@@ -6,6 +6,7 @@ import useAlertStore from "@/stores/alertStore";
 import useFlowStore from "@/stores/flowStore";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
 import type { AllNodeType, EdgeType, FlowType } from "@/types/flow";
+import { getLocalizedApiErrorMessage } from "@/utils/localized-api-error";
 import { customStringify } from "@/utils/reactflowUtils";
 
 const useSaveFlow = () => {
@@ -112,16 +113,19 @@ const useSaveFlow = () => {
                   reject(new Error("Flows variable undefined"));
                 }
               },
-              // biome-ignore lint/suspicious/noExplicitAny: legacy
-              onError: (e: any) => {
-                const detail =
-                  e.response?.data?.detail || e.message || "Unknown error";
+              onError: (error: unknown) => {
                 setErrorData({
                   title: t("errors.failedToSaveFlow"),
-                  list: [detail],
+                  list: [
+                    getLocalizedApiErrorMessage(
+                      error,
+                      (key, params) => t(key, params),
+                      { fallbackKey: "errors.requestFailed" },
+                    ),
+                  ],
                 });
                 setSaveLoading(false);
-                reject(e);
+                reject(error);
               },
             },
           );

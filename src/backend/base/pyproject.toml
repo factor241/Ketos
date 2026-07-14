@@ -1,23 +1,17 @@
 [project]
-name = "langflow-base"
+name = "ketos-base"
 version = "0.10.2"
 description = "A Python package with a built-in web application"
 requires-python = ">=3.10,<3.15"
 license = "MIT"
+license-files = ["LICENSE", "NOTICE"]
 keywords = ["nlp", "langchain", "openai", "gpt", "gui"]
 readme = "README.md"
-maintainers = [
-    { name = "Carlos Coelho", email = "carlos@langflow.org" },
-    { name = "Cristhian Zanforlin", email = "cristhian.lousa@gmail.com" },
-    { name = "Gabriel Almeida", email = "gabriel@langflow.org" },
-    { name = "Lucas Eduoli", email = "lucaseduoli@gmail.com" },
-    { name = "Otávio Anovazzi", email = "otavio2204@gmail.com" },
-    { name = "Rodrigo Nader", email = "rodrigo@langflow.org" },
-    { name = "Italo dos Anjos", email = "italojohnnydosanjos@gmail.com" },
-]
 
 dependencies = [
-    "lfx~=1.10.2",
+    "kfx~=1.10.2",
+    "celery>=5.6.0,<6.0.0",
+    "eventlet>=0.41.0,<1.0.0",
     "fastapi>=0.135.0,<1.0.0",
     "slowapi>=0.1.9,<1.0.0",
     "httpx[http2]>=0.27,<1.0.0",
@@ -140,7 +134,14 @@ dev = [
 
 
 [tool.hatch.build.targets.wheel]
-packages = ["langflow"]
+packages = ["ketos"]
+include = [
+    "ketos/locales/*.json",
+    "ketos/frontend/**/*",
+]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["/TASK7A_HANDOFF.yaml"]
 
 
 [tool.pytest.ini_options]
@@ -156,22 +157,22 @@ asyncio_default_fixture_loop_scope = "function"
 
 [tool.codeflash]
 # All paths are relative to this pyproject.toml's directory.
-module-root = "langflow"
+module-root = "ketos"
 tests-root = "../tests/unit"
 test-framework = "pytest"
-ignore-paths = ["langflow/components/"]
+ignore-paths = ["ketos/components/"]
 formatter-cmds = ["ruff check --exit-zero --fix $file", "ruff format $file"]
 # disable plugins that might interfere with runtime measurement
 pytest-cmd = "pytest -p no:profiling -p no:sugar -p no:xdist -p no:cov -p no:split"
 
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling==1.31.0"]
 build-backend = "hatchling.build"
 
 [project.urls]
-Repository = "https://github.com/langflow-ai/langflow"
-Documentation = "https://docs.langflow.org"
+Repository = "https://git.ketos.test/ketos/ketos"
+Documentation = "https://docs.ketos.test"
 # Optional dependencies
 [project.optional-dependencies]
 audio = [
@@ -243,7 +244,7 @@ ctransformers = ["ctransformers>=0.2.10"]
 # which only supports Python 3.14 from pydantic 2.13 onward. Without this guard
 # the langfuse SDK raises pydantic.v1.errors.ConfigError on import in Python
 # 3.14 environments (e.g. the official Docker image), causing tracing to
-# silently no-op. See https://github.com/langflow-ai/langflow/issues/13317.
+# silently no-op. See https://github.com/ketos-ai/ketos/issues/13317.
 langfuse = ["langfuse~=3.8", "pydantic>=2.13.0"]
 langwatch = ["langwatch~=0.10.0; python_version < '3.14'"]
 langsmith = ["langsmith>=0.3.42,<1.0.0"]
@@ -268,9 +269,9 @@ serpapi = ["google-search-results>=2.4.1,<3.0.0"]
 google-api = ["google-api-python-client~=2.161"]
 wikipedia = ["wikipedia==1.4.0"]
 fake-useragent = ["fake-useragent>=2.0.0"]
-# duckduckgo: the runtime dep for the extracted lfx-duckduckgo bundle.
-# Public consumers should install lfx-duckduckgo directly (pip-installing
-# langflow-base no longer pulls in ddgs by default).  The extra remains
+# duckduckgo: the runtime dep for the extracted kfx-duckduckgo bundle.
+# Public consumers should install kfx-duckduckgo directly (pip-installing
+# ketos-base no longer pulls in ddgs by default).  The extra remains
 # defined here so docker/build_and_push_base.Dockerfile can route ddgs
 # through the locked sync (``uv sync --extra duckduckgo``) instead of an
 # unpinned ``uv pip install ddgs`` that would silently drift across
@@ -303,10 +304,10 @@ litellm = [
     # litellm has no Python 3.14-compatible release: every version from 1.83.8
     # onward declares Requires-Python <3.14, so nothing satisfying our >=1.85.1
     # floor installs on 3.14 (the newest 3.14-installable litellm is 1.83.7).
-    # Gate it off on 3.14 so `pip install langflow` resolves there instead of
+    # Gate it off on 3.14 so `pip install ketos` resolves there instead of
     # dead-ending; drop the marker once upstream ships a 3.14-compatible litellm.
     "litellm>=1.85.1,<2.0.0; python_version < '3.14'",
-    # Runtime deps from litellm[proxy] that langflow-ide hits when logging
+    # Runtime deps from litellm[proxy] that ketos-ide hits when logging
     # to langfuse via litellm.proxy.proxy_server (issue #12228). The full
     # [proxy] extra pins boto3==1.43.1, which conflicts with our aioboto3
     # transitive cap, so we pull in just the missing modules instead.
@@ -375,12 +376,12 @@ docling = [
     "docling-slim[cli,convert-core,extract-core,feat-ocr-rapidocr,format-latex,format-office,format-pdf,format-web,models-local,service-client]>=2.36.1,<3.0.0; sys_platform != 'darwin' or platform_machine != 'x86_64'",
 ]
 docling-chunking = [
-    "langflow-base[docling]",
+    "ketos-base[docling]",
     "docling-core[chunking]>=2.77.0,<3.0.0",
     "tiktoken>=0.7.0",
 ]
 docling-image-description = [
-    "langflow-base[docling]",
+    "ketos-base[docling]",
     "langchain-docling>=1.1.0",
 ]
 
@@ -427,126 +428,123 @@ ibm-watsonx-clients = [
 ]
 
 complete = [
-    "langflow-base[couchbase]",
-    "langflow-base[cassandra]",
-    "langflow-base[clickhouse]",
-    "langflow-base[mongodb]",
-    "langflow-base[supabase]",
-    "langflow-base[redis]",
-    "langflow-base[elasticsearch]",
-    "langflow-base[faiss]",
-    "langflow-base[qdrant]",
-    "langflow-base[qdrant-vectors]",
-    "langflow-base[weaviate]",
-    "langflow-base[chroma]",
-    "langflow-base[upstash]",
-    "langflow-base[pinecone]",
-    "langflow-base[milvus]",
-    "langflow-base[mongodb-vectors]",
-    "langflow-base[astradb]",
-    "langflow-base[openai]",
-    "langflow-base[anthropic]",
-    "langflow-base[cohere]",
-    "langflow-base[google]",
-    "langflow-base[ollama]",
-    "langflow-base[nvidia]",
-    "langflow-base[mistral]",
-    "langflow-base[sambanova]",
-    "langflow-base[groq]",
-    "langflow-base[langfuse]",
-    "langflow-base[langwatch]",
-    "langflow-base[langsmith]",
-    "langflow-base[arize]",
-    "langflow-base[pypdf]",
-    "langflow-base[docx]",
-    "langflow-base[pytube]",
-    # "langflow-base[crewai]",  # commented out due to httpx version conflict
-    "langflow-base[smolagents]",
-    "langflow-base[opendsstar]",
-    "langflow-base[beautifulsoup]",
-    "langflow-base[serpapi]",
-    "langflow-base[google-api]",
-    "langflow-base[wikipedia]",
-    "langflow-base[fake-useragent]",
-    # duckduckgo was an extra of langflow-base; it has been moved to
-    # the standalone lfx-duckduckgo bundle (now a regular dep of langflow).
-    "langflow-base[yfinance]",
-    "langflow-base[wolframalpha]",
-    "langflow-base[pyarrow]",
-    "langflow-base[fastavro]",
-    "langflow-base[gitpython]",
-    "langflow-base[nltk]",
-    "langflow-base[lark]",
-    "langflow-base[huggingface]",
-    "langflow-base[metaphor]",
-    "langflow-base[metal]",
-    "langflow-base[markup]",
-    "langflow-base[aws]",
-    "langflow-base[numexpr]",
-    "langflow-base[qianfan]",
-    "langflow-base[pgvector]",
-    "langflow-base[litellm]",
-    "langflow-base[zep]",
-    "langflow-base[youtube]",
-    "langflow-base[markdown]",
-    "langflow-base[kubernetes]",
-    "langflow-base[json-repair]",
-    "langflow-base[composio]",
-    "langflow-base[ragstack]",
-    "langflow-base[opensearch]",
-    "langflow-base[atlassian]",
-    "langflow-base[mem0]",
-    "langflow-base[needle]",
-    "langflow-base[sseclient]",
-    "langflow-base[openinference]",
-    "langflow-base[mcp]",
-    "langflow-base[ag2]",
-    "langflow-base[scrapegraph]",
-    "langflow-base[apify]",
-    "langflow-base[spider]",
+    "ketos-base[couchbase]",
+    "ketos-base[cassandra]",
+    "ketos-base[clickhouse]",
+    "ketos-base[mongodb]",
+    "ketos-base[supabase]",
+    "ketos-base[redis]",
+    "ketos-base[elasticsearch]",
+    "ketos-base[faiss]",
+    "ketos-base[qdrant]",
+    "ketos-base[qdrant-vectors]",
+    "ketos-base[weaviate]",
+    "ketos-base[chroma]",
+    "ketos-base[upstash]",
+    "ketos-base[pinecone]",
+    "ketos-base[milvus]",
+    "ketos-base[mongodb-vectors]",
+    "ketos-base[astradb]",
+    "ketos-base[openai]",
+    "ketos-base[anthropic]",
+    "ketos-base[cohere]",
+    "ketos-base[google]",
+    "ketos-base[ollama]",
+    "ketos-base[nvidia]",
+    "ketos-base[mistral]",
+    "ketos-base[sambanova]",
+    "ketos-base[groq]",
+    "ketos-base[langfuse]",
+    "ketos-base[langwatch]",
+    "ketos-base[langsmith]",
+    "ketos-base[arize]",
+    "ketos-base[pypdf]",
+    "ketos-base[docx]",
+    "ketos-base[pytube]",
+    # "ketos-base[crewai]",  # commented out due to httpx version conflict
+    "ketos-base[smolagents]",
+    "ketos-base[opendsstar]",
+    "ketos-base[beautifulsoup]",
+    "ketos-base[serpapi]",
+    "ketos-base[google-api]",
+    "ketos-base[wikipedia]",
+    "ketos-base[fake-useragent]",
+    # duckduckgo was an extra of ketos-base; it has been moved to
+    # the standalone kfx-duckduckgo bundle (now a regular dep of ketos).
+    "ketos-base[yfinance]",
+    "ketos-base[wolframalpha]",
+    "ketos-base[pyarrow]",
+    "ketos-base[fastavro]",
+    "ketos-base[gitpython]",
+    "ketos-base[nltk]",
+    "ketos-base[lark]",
+    "ketos-base[huggingface]",
+    "ketos-base[metaphor]",
+    "ketos-base[metal]",
+    "ketos-base[markup]",
+    "ketos-base[aws]",
+    "ketos-base[numexpr]",
+    "ketos-base[qianfan]",
+    "ketos-base[pgvector]",
+    "ketos-base[litellm]",
+    "ketos-base[zep]",
+    "ketos-base[youtube]",
+    "ketos-base[markdown]",
+    "ketos-base[kubernetes]",
+    "ketos-base[json-repair]",
+    "ketos-base[composio]",
+    "ketos-base[ragstack]",
+    "ketos-base[opensearch]",
+    "ketos-base[atlassian]",
+    "ketos-base[mem0]",
+    "ketos-base[needle]",
+    "ketos-base[sseclient]",
+    "ketos-base[openinference]",
+    "ketos-base[mcp]",
+    "ketos-base[ag2]",
+    "ketos-base[scrapegraph]",
+    "ketos-base[apify]",
+    "ketos-base[spider]",
     # ALTK
-    "langflow-base[altk]",
+    "ketos-base[altk]",
     # Toolguard
-    "langflow-base[toolguard]",
+    "ketos-base[toolguard]",
     # Additional LangChain integrations
-    "langflow-base[langchain-huggingface]",
-    "langflow-base[langchain-unstructured]",
-    "langflow-base[graph-retriever]",
-    "langflow-base[langchain-mcp-adapters]",
+    "ketos-base[langchain-huggingface]",
+    "ketos-base[langchain-unstructured]",
+    "ketos-base[graph-retriever]",
+    "ketos-base[langchain-mcp-adapters]",
     # Additional monitoring
-    "langflow-base[opik]",
-    "langflow-base[traceloop]",
-    "langflow-base[openlayer]",
+    "ketos-base[opik]",
+    "ketos-base[traceloop]",
+    "ketos-base[openlayer]",
     # Document processing / OCR
-    "langflow-base[docling]",
-    "langflow-base[easyocr]",
+    "ketos-base[docling]",
+    "ketos-base[easyocr]",
     # Additional tools
-    "langflow-base[cleanlab]",
-    "langflow-base[twelvelabs]",
-    "langflow-base[jigsawstack]",
-    "langflow-base[assemblyai]",
+    "ketos-base[cleanlab]",
+    "ketos-base[twelvelabs]",
+    "ketos-base[jigsawstack]",
+    "ketos-base[assemblyai]",
     # Data processing
-    "langflow-base[datasets]",
-    "langflow-base[fastparquet]",
+    "ketos-base[datasets]",
+    "ketos-base[fastparquet]",
     # Vision / ML
-    "langflow-base[vlmrun]",
-    "langflow-base[cuga]",
-    "langflow-base[mlx]",
+    "ketos-base[vlmrun]",
+    "ketos-base[cuga]",
+    "ketos-base[mlx]",
     # MCP
-    "langflow-base[fastmcp]",
+    "ketos-base[fastmcp]",
     # AWS extras
-    "langflow-base[aioboto3]",
+    "ketos-base[aioboto3]",
     # Astra
-    "langflow-base[astrapy]",
+    "ketos-base[astrapy]",
     # Windows-specific
-    "langflow-base[gassist]",
+    "ketos-base[gassist]",
     # wxO deployment adapter,
-    "langflow-base[ibm-watsonx-clients]"
+    "ketos-base[ibm-watsonx-clients]"
 ]
 
 all = [
-    "langflow-base[complete]",
+    "ketos-base[complete]",
 ]
-
-[project.scripts]
-langflow-base = "langflow.langflow_launcher:main"

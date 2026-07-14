@@ -1,4 +1,5 @@
 import type { UseMutationResult } from "@tanstack/react-query";
+import type { AxiosResponse } from "axios";
 import { customGetDownloadTypeFolders } from "@/customization/utils/custom-get-download-folders";
 import type { useMutationFunctionType } from "@/types/api";
 import { api } from "../../api";
@@ -10,26 +11,28 @@ interface IGetDownloadFolders {
 }
 
 export const useGetDownloadFolders: useMutationFunctionType<
-  any, // Changed to any since we're getting the full response
-  IGetDownloadFolders
+  undefined,
+  IGetDownloadFolders,
+  AxiosResponse<Blob>,
+  Error
 > = (options?) => {
   const { mutate } = UseRequestProcessor();
 
   const downloadFoldersFn = async (
     payload: IGetDownloadFolders,
-  ): Promise<any> => {
-    const response = await api.get<any>(
+  ): Promise<AxiosResponse<Blob>> => {
+    const response = await api.get<Blob>(
       `${getURL("PROJECTS")}/download/${payload.folderId}`,
       customGetDownloadTypeFolders(),
     );
     return response;
   };
 
-  const mutation: UseMutationResult<any, any, IGetDownloadFolders> = mutate(
-    ["useGetDownloadFolders"],
-    downloadFoldersFn,
-    options,
-  );
+  const mutation: UseMutationResult<
+    AxiosResponse<Blob>,
+    Error,
+    IGetDownloadFolders
+  > = mutate(["useGetDownloadFolders"], downloadFoldersFn, options);
 
   return mutation;
 };

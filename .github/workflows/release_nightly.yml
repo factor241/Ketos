@@ -1,26 +1,26 @@
-name: Langflow Nightly Build
-run-name: Langflow Nightly Release by @${{ github.actor }}
+name: Ketos Nightly Build
+run-name: Ketos Nightly Release by @${{ github.actor }}
 
 on:
   workflow_call:
     inputs:
       build_docker_base:
-        description: "Build Docker Image for Langflow Nightly Base"
-        required: true
-        type: boolean
-        default: false
-      build_docker_main:
-        description: "Build Docker Image for Langflow Nightly"
-        required: true
-        type: boolean
-        default: false
-      build_docker_ep:
-        description: "Build Docker Image for Langflow Nightly with Entrypoint"
+        description: "Build Docker Image for Ketos Nightly Base"
         required: false
         type: boolean
         default: false
-      build_lfx:
-        description: "Build and release LFX package"
+      build_docker_main:
+        description: "Build Docker Image for Ketos Nightly"
+        required: false
+        type: boolean
+        default: false
+      build_docker_ep:
+        description: "Build Docker Image for Ketos Nightly with Entrypoint"
+        required: false
+        type: boolean
+        default: false
+      build_kfx:
+        description: "Build and release KFX package"
         required: false
         type: boolean
         default: false
@@ -32,8 +32,8 @@ on:
         description: "Tag for the nightly base build"
         required: true
         type: string
-      nightly_tag_lfx:
-        description: "Tag for the nightly LFX build"
+      nightly_tag_kfx:
+        description: "Tag for the nightly KFX build"
         required: false
         type: string
       nightly_tag_sdk:
@@ -42,7 +42,7 @@ on:
         type: string
       push_to_registry:
         description: "Whether to push images to registries. Set to false for testing builds without publishing."
-        required: true
+        required: false
         type: boolean
         default: false
 
@@ -51,9 +51,9 @@ env:
   PYTHON_VERSION: "3.13"
 
 jobs:
-  build-nightly-lfx:
-    name: Build LFX Nightly
-    if: ${{ inputs.build_lfx }}
+  build-nightly-kfx:
+    name: Build KFX Nightly
+    if: ${{ inputs.build_kfx }}
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.verify.outputs.version }}
@@ -64,7 +64,7 @@ jobs:
       - name: Check out the code at a specific ref
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.nightly_tag_release }}
+          ref: ${{ github.sha }}
           persist-credentials: true
       - name: "Setup Environment"
         uses: astral-sh/setup-uv@v6
@@ -73,16 +73,16 @@ jobs:
           cache-dependency-glob: "uv.lock"
           python-version: ${{ env.PYTHON_VERSION }}
           prune-cache: false
-      - name: Install LFX dependencies
-        run: cd src/lfx && uv sync
+      - name: Install KFX dependencies
+        run: cd src/kfx && uv sync
 
       - name: Verify SDK Nightly Name and Version
-        if: ${{ inputs.build_lfx }}
+        if: ${{ inputs.build_kfx }}
         run: |
           name=$(grep '^name = "' src/sdk/pyproject.toml | head -n 1 | sed 's/.*"\(.*\)".*/\1/')
           version=$(grep '^version = "' src/sdk/pyproject.toml | head -n 1 | sed 's/.*"\(.*\)".*/\1/')
-          if [ "$name" != "langflow-sdk" ]; then
-            echo "Name $name does not match langflow-sdk. Exiting the workflow."
+          if [ "$name" != "ketos-sdk" ]; then
+            echo "Name $name does not match ketos-sdk. Exiting the workflow."
             exit 1
           fi
           if [ "v$version" != "${{ inputs.nightly_tag_sdk }}" ]; then
@@ -93,60 +93,60 @@ jobs:
       - name: Verify Nightly Name and Version
         id: verify
         run: |
-          cd src/lfx
-          # Root the tree at lfx; a bare `grep lfx` matches bundles like `lfx-ibm` first.
-          name=$(uv tree --package lfx | head -n 1 | awk '{print $1}')
-          version=$(uv tree --package lfx | head -n 1 | awk '{print $2}')
-          if [ "$name" != "lfx" ]; then
-            echo "Name $name does not match lfx. Exiting the workflow."
+          cd src/kfx
+          # Root the tree at kfx; a bare `grep kfx` matches bundles like `kfx-ibm` first.
+          name=$(uv tree --package kfx | head -n 1 | awk '{print $1}')
+          version=$(uv tree --package kfx | head -n 1 | awk '{print $2}')
+          if [ "$name" != "kfx" ]; then
+            echo "Name $name does not match kfx. Exiting the workflow."
             exit 1
           fi
-          if [ "$version" != "${{ inputs.nightly_tag_lfx }}" ]; then
-            echo "Version $version does not match nightly tag ${{ inputs.nightly_tag_lfx }}. Exiting the workflow."
+          if [ "$version" != "${{ inputs.nightly_tag_kfx }}" ]; then
+            echo "Version $version does not match nightly tag ${{ inputs.nightly_tag_kfx }}. Exiting the workflow."
             exit 1
           fi
           # Strip the leading `v` from the version
           version=$(echo $version | sed 's/^v//')
           echo "version=$version" >> $GITHUB_OUTPUT
 
-      - name: Build langflow-sdk for distribution
+      - name: Build ketos-sdk for distribution
         run: |
           make sdk_build args="--wheel"
 
-      - name: Build LFX for distribution
+      - name: Build KFX for distribution
         run: |
-          cd src/lfx
+          cd src/kfx
           rm -rf dist/
           uv build --wheel --out-dir dist
 
-      - name: Test LFX CLI
+      - name: Test KFX CLI
         run: |
-          cd src/lfx
+          cd src/kfx
           # Use a clean venv and install both wheels together so uv can resolve
           # the local SDK dependency without falling back to PyPI.
           uv venv test-env --seed
           uv pip install --python ./test-env/bin/python --force-reinstall ../sdk/dist/*.whl dist/*.whl
-          ./test-env/bin/lfx --help
-          echo "LFX CLI test completed successfully"
+          ./test-env/bin/kfx --help
+          echo "KFX CLI test completed successfully"
 
       # PyPI publishing moved to after cross-platform testing
 
-      - name: Upload langflow-sdk Artifact
+      - name: Upload ketos-sdk Artifact
         uses: actions/upload-artifact@v6
         with:
           name: dist-nightly-sdk
           path: src/sdk/dist
 
-      - name: Upload LFX Artifact
+      - name: Upload KFX Artifact
         uses: actions/upload-artifact@v6
         with:
-          name: dist-nightly-lfx
-          path: src/lfx/dist
+          name: dist-nightly-kfx
+          path: src/kfx/dist
 
   build-nightly-base:
-    name: Build Langflow Nightly Base
-    needs: [build-nightly-lfx]
-    if: ${{ always() && (needs.build-nightly-lfx.result == 'success' || inputs.build_lfx == false) }}
+    name: Build Ketos Nightly Base
+    needs: [build-nightly-kfx]
+    if: ${{ always() && (needs.build-nightly-kfx.result == 'success' || inputs.build_kfx == false) }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -158,7 +158,7 @@ jobs:
       - name: Check out the code at a specific ref
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.nightly_tag_release }}
+          ref: ${{ github.sha }}
           persist-credentials: true
       - name: "Setup Environment"
         uses: astral-sh/setup-uv@v6
@@ -168,35 +168,35 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           prune-cache: false
 
-      - name: Download LFX artifact
-        if: inputs.build_lfx
+      - name: Download KFX artifact
+        if: inputs.build_kfx
         uses: actions/download-artifact@v7
         with:
-          name: dist-nightly-lfx
-          path: lfx-dist
+          name: dist-nightly-kfx
+          path: kfx-dist
 
       - name: Install the project
         run: uv sync
 
-      - name: Force reinstall LFX from built wheel
-        if: inputs.build_lfx
+      - name: Force reinstall KFX from built wheel
+        if: inputs.build_kfx
         run: |
-          echo "Installing LFX from built wheel to test the actual distribution package..."
+          echo "Installing KFX from built wheel to test the actual distribution package..."
           # While workspace resolution installs from source, we want to test the exact
           # wheel that will be published to PyPI to catch any packaging issues
-          uv pip install --force-reinstall --no-deps lfx-dist/*.whl
+          uv pip install --force-reinstall --no-deps kfx-dist/*.whl
 
       - name: Verify Nightly Name and Version
         id: verify
         run: |
-          # Root the tree at langflow-base; it prints as a top-level `langflow-base v<ver>` line,
-          # so a bare `grep langflow-base` would read the version into $name and leave $version empty.
-          name=$(uv tree --package langflow-base | head -n 1 | awk '{print $1}')
-          version=$(uv tree --package langflow-base | head -n 1 | awk '{print $2}')
-          # Strip extras from package name (e.g., "langflow-base[complete]" -> "langflow-base")
+          # Root the tree at ketos-base; it prints as a top-level `ketos-base v<ver>` line,
+          # so a bare `grep ketos-base` would read the version into $name and leave $version empty.
+          name=$(uv tree --package ketos-base | head -n 1 | awk '{print $1}')
+          version=$(uv tree --package ketos-base | head -n 1 | awk '{print $2}')
+          # Strip extras from package name (e.g., "ketos-base[complete]" -> "ketos-base")
           name_without_extras=$(echo $name | sed 's/\[.*\]//')
-          if [ "$name_without_extras" != "langflow-base" ]; then
-            echo "Name $name_without_extras does not match langflow-base. Exiting the workflow."
+          if [ "$name_without_extras" != "ketos-base" ]; then
+            echo "Name $name_without_extras does not match ketos-base. Exiting the workflow."
             echo "skipped=true" >> $GITHUB_OUTPUT
             exit 1
           fi
@@ -210,13 +210,13 @@ jobs:
           echo "version=$version" >> $GITHUB_OUTPUT
           echo "skipped=false" >> $GITHUB_OUTPUT
 
-      - name: Build Langflow Base for distribution
+      - name: Build Ketos Base for distribution
         run: |
           rm -rf src/backend/base/dist
           rm -rf dist
           make build base=true args="--no-sources --wheel"
 
-      - name: Test Langflow Base CLI
+      - name: Test Ketos Base CLI
         run: |
           # TODO: Unsure why the whl is not built in src/backend/base/dist
           mkdir src/backend/base/dist
@@ -224,7 +224,7 @@ jobs:
           # Install with [complete] extra to test all optional dependencies
           WHEEL_FILE=$(ls src/backend/base/dist/*.whl)
           uv pip install "${WHEEL_FILE}[complete]"
-          uv run python -m langflow run --host localhost --port 7860 --backend-only &
+          uv run python -m ketos run --host localhost --port 7860 --backend-only &
           SERVER_PID=$!
           # Wait for the server to start
           timeout 120 bash -c 'until curl -f http://localhost:7860/api/v1/auto_login; do sleep 2; done' || (echo "Server did not start in time" && kill $SERVER_PID && exit 1)
@@ -248,7 +248,7 @@ jobs:
           path: src/backend/base/dist
 
   build-nightly-main:
-    name: Build Langflow Nightly Main
+    name: Build Ketos Nightly Main
     needs: [build-nightly-base]
     runs-on: ubuntu-latest
     outputs:
@@ -261,7 +261,7 @@ jobs:
       - name: Check out the code at a specific ref
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.nightly_tag_release}}
+          ref: ${{ github.sha }}
           persist-credentials: true
       - name: "Setup Environment"
         uses: astral-sh/setup-uv@v6
@@ -271,12 +271,12 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           prune-cache: false
 
-      - name: Download LFX artifact
-        if: inputs.build_lfx
+      - name: Download KFX artifact
+        if: inputs.build_kfx
         uses: actions/download-artifact@v7
         with:
-          name: dist-nightly-lfx
-          path: lfx-dist
+          name: dist-nightly-kfx
+          path: kfx-dist
 
       - name: Download base artifact
         uses: actions/download-artifact@v7
@@ -291,20 +291,20 @@ jobs:
         run: |
           # While workspace resolution installs from source, we want to test the exact
           # wheels that will be published to PyPI to catch any packaging issues
-          if [ "${{ inputs.build_lfx }}" == "true" ]; then
-            echo "Installing LFX from built wheel..."
-            uv pip install --force-reinstall --no-deps lfx-dist/*.whl
+          if [ "${{ inputs.build_kfx }}" == "true" ]; then
+            echo "Installing KFX from built wheel..."
+            uv pip install --force-reinstall --no-deps kfx-dist/*.whl
           fi
-          echo "Installing langflow-base from built wheel..."
+          echo "Installing ketos-base from built wheel..."
           uv pip install --force-reinstall --no-deps base-dist/*.whl
 
       - name: Verify Nightly Name and Version
         id: verify
         run: |
-          name=$(uv tree | grep -E '^langflow[[:space:]]' | awk '{print $1}')
-          version=$(uv tree | grep -E '^langflow[[:space:]]' | awk '{print $2}')
-          if [ "$name" != "langflow" ]; then
-            echo "Name $name does not match langflow. Exiting the workflow."
+          name=$(uv tree | grep -E '^ketos[[:space:]]' | awk '{print $1}')
+          version=$(uv tree | grep -E '^ketos[[:space:]]' | awk '{print $2}')
+          if [ "$name" != "ketos" ]; then
+            echo "Name $name does not match ketos. Exiting the workflow."
             exit 1
           fi
           if [ "$version" != "${{ inputs.nightly_tag_release }}" ]; then
@@ -318,12 +318,12 @@ jobs:
         if: needs.build-nightly-base.outputs.skipped == 'false'
         run: sleep 300 # wait for 5 minutes to ensure PyPI propagation of base
 
-      - name: Build Langflow Main for distribution
+      - name: Build Ketos Main for distribution
         run: make build main=true args="--no-sources --wheel"
-      - name: Test Langflow Main CLI
+      - name: Test Ketos Main CLI
         run: |
           uv pip install dist/*.whl
-          uv run python -m langflow run --host localhost --port 7860 --backend-only &
+          uv run python -m ketos run --host localhost --port 7860 --backend-only &
           SERVER_PID=$!
           # Wait for the server to start
           timeout 120 bash -c 'until curl -f http://localhost:7860/health_check; do sleep 2; done' || (echo "Server did not start in time" && kill $SERVER_PID && exit 1)
@@ -338,12 +338,12 @@ jobs:
             echo "Server terminated successfully"
           fi
 
-      - name: Prepare Langflow Main artifact
+      - name: Prepare Ketos Main artifact
         run: |
           shopt -s nullglob
-          MAIN_WHEELS=(dist/langflow-*.whl)
+          MAIN_WHEELS=(dist/ketos-*.whl)
           if [ ${#MAIN_WHEELS[@]} -ne 1 ]; then
-            echo "Expected exactly one langflow wheel in dist/, found ${#MAIN_WHEELS[@]}"
+            echo "Expected exactly one ketos wheel in dist/, found ${#MAIN_WHEELS[@]}"
             ls -la dist/
             exit 1
           fi
@@ -388,56 +388,58 @@ jobs:
 
   test-cross-platform:
     name: Test Cross-Platform Installation
-    needs: [build-nightly-lfx, build-nightly-base, build-nightly-main]
+    needs: [build-nightly-kfx, build-nightly-base, build-nightly-main]
     uses: ./.github/workflows/cross-platform-test.yml
     with:
       base-artifact-name: "dist-nightly-base"
       main-artifact-name: "dist-nightly-main"
-      lfx-artifact-name: "dist-nightly-lfx"
+      kfx-artifact-name: "dist-nightly-kfx"
       sdk-artifact-name: "dist-nightly-sdk"
       bundles-artifact-name: "dist-nightly-bundles"
       pre_release: true
 
-  publish-nightly-lfx:
-    name: Publish LFX Nightly to PyPI
-    needs: [build-nightly-lfx, test-cross-platform, publish-nightly-sdk]
-    if: ${{ inputs.build_lfx }}
+  publish-nightly-kfx:
+    name: Publish KFX Nightly to PyPI
+    needs: [build-nightly-kfx, test-cross-platform, publish-nightly-sdk]
+    if: ${{ inputs.build_kfx }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out the code
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.nightly_tag_release }}
+          ref: ${{ github.sha }}
           persist-credentials: true
-      - name: Download LFX artifact
+      - name: Download KFX artifact
         uses: actions/download-artifact@v7
         with:
-          name: dist-nightly-lfx
-          path: src/lfx/dist
+          name: dist-nightly-kfx
+          path: src/kfx/dist
       - name: Setup Environment
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: false
           python-version: "3.13"
-      - name: Publish LFX to PyPI
+      - name: Publish KFX to PyPI
         env:
           POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
+          KETOS_EXTERNAL_RELEASE: ${{ vars.KETOS_EXTERNAL_RELEASE }}
         run: |
-          make lfx_publish
+          uv run python "$GITHUB_WORKSPACE/scripts/ci/require_external_release.py" && make kfx_publish
 
   publish-nightly-sdk:
     name: Publish SDK Nightly to PyPI
-    needs: [build-nightly-lfx, test-cross-platform]
-    if: ${{ inputs.build_lfx }}
+    needs: [build-nightly-kfx, test-cross-platform]
+    if: ${{ inputs.build_kfx }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out the code
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.nightly_tag_release }}
+          ref: ${{ github.sha }}
           persist-credentials: true
-      - name: Download langflow-sdk artifact
+      - name: Download ketos-sdk artifact
         uses: actions/download-artifact@v7
         with:
           name: dist-nightly-sdk
@@ -451,19 +453,21 @@ jobs:
         env:
           POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
+          KETOS_EXTERNAL_RELEASE: ${{ vars.KETOS_EXTERNAL_RELEASE }}
         run: |
-          make sdk_publish
+          uv run python "$GITHUB_WORKSPACE/scripts/ci/require_external_release.py" && make sdk_publish
 
   publish-nightly-base:
-    name: Publish Langflow Base Nightly to PyPI
-    needs: [build-nightly-base, test-cross-platform, publish-nightly-lfx]
-    if: ${{ always() && needs.build-nightly-base.result == 'success' && needs.test-cross-platform.result == 'success' && (needs.publish-nightly-lfx.result == 'success' || inputs.build_lfx == false) }}
+    name: Publish Ketos Base Nightly to PyPI
+    needs: [build-nightly-base, test-cross-platform, publish-nightly-kfx]
+    if: ${{ always() && needs.build-nightly-base.result == 'success' && needs.test-cross-platform.result == 'success' && (needs.publish-nightly-kfx.result == 'success' || inputs.build_kfx == false) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.nightly_tag_release }}
+          ref: ${{ github.sha }}
           persist-credentials: true
       - name: Download base artifact
         uses: actions/download-artifact@v7
@@ -480,19 +484,21 @@ jobs:
         env:
           POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
+          KETOS_EXTERNAL_RELEASE: ${{ vars.KETOS_EXTERNAL_RELEASE }}
         run: |
-          make publish base=true
+          uv run python "$GITHUB_WORKSPACE/scripts/ci/require_external_release.py" && make publish base=true
 
   publish-nightly-bundles:
     name: Publish Bundle Dependencies to PyPI
-    needs: [build-nightly-main, test-cross-platform, publish-nightly-lfx]
-    if: ${{ always() && needs.build-nightly-main.result == 'success' && needs.build-nightly-main.outputs.bundles-found == '1' && needs.test-cross-platform.result == 'success' && (needs.publish-nightly-lfx.result == 'success' || inputs.build_lfx == false) }}
+    needs: [build-nightly-main, test-cross-platform, publish-nightly-kfx]
+    if: ${{ always() && needs.build-nightly-main.result == 'success' && needs.build-nightly-main.outputs.bundles-found == '1' && needs.test-cross-platform.result == 'success' && (needs.publish-nightly-kfx.result == 'success' || inputs.build_kfx == false) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.nightly_tag_release }}
+          ref: ${{ github.sha }}
           persist-credentials: true
       - name: Download bundles artifact
         uses: actions/download-artifact@v7
@@ -507,6 +513,8 @@ jobs:
       - name: Publish bundle dependencies to PyPI
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
+          KETOS_EXTERNAL_RELEASE: ${{ vars.KETOS_EXTERNAL_RELEASE }}
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -597,7 +605,7 @@ jobs:
             published=0
             while true; do
               # Re-running a nightly without bumping bundle versions should be a no-op.
-              if err=$(uv publish "$wheel" 2>&1); then
+              if err=$(uv run python "$GITHUB_WORKSPACE/scripts/ci/require_external_release.py" && uv publish "$wheel" 2>&1); then
                 echo "$err"
                 published=1
                 break
@@ -637,7 +645,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.nightly_tag_release }}
+          ref: ${{ github.sha }}
           persist-credentials: true
       - name: Setup Environment
         uses: astral-sh/setup-uv@v6
@@ -666,11 +674,11 @@ jobs:
           for dependency in data["project"].get("dependencies", []):
             requirement = Requirement(dependency)
             name = canonicalize_name(requirement.name)
-            if name.startswith("lfx-"):
+            if name.startswith("kfx-"):
               requirements.append(requirement)
 
           if not requirements:
-            print("No direct lfx-* dependencies found.")
+            print("No direct kfx-* dependencies found.")
             sys.exit(0)
 
           missing = []
@@ -711,7 +719,7 @@ jobs:
           PY
 
   publish-nightly-main:
-    name: Publish Langflow Main Nightly to PyPI
+    name: Publish Ketos Main Nightly to PyPI
     needs: [build-nightly-main, test-cross-platform, publish-nightly-base, check-nightly-main-pypi-dependencies]
     if: ${{ always() && needs.build-nightly-main.result == 'success' && needs.test-cross-platform.result == 'success' && needs.publish-nightly-base.result == 'success' && needs.check-nightly-main-pypi-dependencies.result == 'success' }}
     runs-on: ubuntu-latest
@@ -719,7 +727,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.nightly_tag_release }}
+          ref: ${{ github.sha }}
           persist-credentials: true
       - name: Download main artifact
         uses: actions/download-artifact@v7
@@ -735,50 +743,52 @@ jobs:
         env:
           POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
+          KETOS_EXTERNAL_RELEASE: ${{ vars.KETOS_EXTERNAL_RELEASE }}
         run: |
-          make publish main=true
+          uv run python "$GITHUB_WORKSPACE/scripts/ci/require_external_release.py" && make publish main=true
 
   call_docker_build_base:
-    name: Call Docker Build Workflow for Langflow Base
+    name: Call Docker Build Workflow for Ketos Base
     if: ${{ always() && inputs.build_docker_base }}
     needs: [build-nightly-base, build-nightly-main]
     uses: ./.github/workflows/docker-nightly-build.yml
     with:
-      ref: ${{ inputs.nightly_tag_release }}
+      ref: ${{ github.sha }}
       release_type: nightly-base
       push_to_registry: ${{ inputs.push_to_registry }}
     secrets: inherit
 
   call_docker_build_main:
-    name: Call Docker Build Workflow for Langflow
+    name: Call Docker Build Workflow for Ketos
     if: ${{ always() && inputs.build_docker_main }}
     needs: [build-nightly-main, call_docker_build_base]
     uses: ./.github/workflows/docker-nightly-build.yml
     with:
-      ref: ${{ inputs.nightly_tag_release }}
+      ref: ${{ github.sha }}
       release_type: nightly-main
       push_to_registry: ${{ inputs.push_to_registry }}
     secrets: inherit
 
   # TODO: Uncomment this when our runner can fit the builds that contain pytorch (and other large dependencies)
   # call_docker_build_main_all:
-  #   name: Call Docker Build Workflow for langflow-all
+  #   name: Call Docker Build Workflow for ketos-all
   #   if: always() && ${{ inputs.build_docker_main == 'true' }}
   #   needs: [build-nightly-main]
   #   uses: ./.github/workflows/docker-nightly-build.yml
   #   with:
-  #     ref: ${{ inputs.nightly_tag_release }}
+  #     ref: ${{ github.sha }}
   #     release_type: nightly-main-all
   #     main_version: ${{ inputs.nightly_tag_release }}
   #   secrets: inherit
 
   # call_docker_build_main_ep:
-  #   name: Call Docker Build Workflow for Langflow with Entrypoint
+  #   name: Call Docker Build Workflow for Ketos with Entrypoint
   #   if: ${{ always() && inputs.build_docker_ep }}
   #   needs: [build-nightly-main, call_docker_build_main]
   #   uses: ./.github/workflows/docker-build-v2.yml
   #   with:
-  #     ref: ${{ inputs.nightly_tag_release }}
+  #     ref: ${{ github.sha }}
   #     release_type: main-ep
   #     push_to_registry: ${{ inputs.push_to_registry }}
   #   secrets: inherit

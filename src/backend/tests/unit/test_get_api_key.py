@@ -1,7 +1,7 @@
 import asyncio
 from uuid import uuid4
 
-import langflow.services.database.models.api_key.crud as crud_module
+import ketos.services.database.models.api_key.crud as crud_module
 import pytest
 from cryptography.fernet import InvalidToken
 

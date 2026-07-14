@@ -8,13 +8,13 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
-from langflow.services.database.models.api_key.crud import (
+from ketos.services.database.models.api_key.crud import (
     _check_key_from_db,
     create_api_key,
     hash_api_key,
 )
-from langflow.services.database.models.api_key.model import ApiKey, ApiKeyCreate
-from langflow.services.database.models.user.model import User
+from ketos.services.database.models.api_key.model import ApiKey, ApiKeyCreate
+from ketos.services.database.models.user.model import User
 
 _TEST_PASSWORD = "hashed"  # noqa: S105  # pragma: allowlist secret
 
@@ -59,7 +59,7 @@ def mock_settings(monkeypatch):
         settings=SimpleNamespace(disable_track_apikey_usage=False),
     )
     monkeypatch.setattr(
-        "langflow.services.database.models.api_key.crud.get_settings_service",
+        "ketos.services.database.models.api_key.crud.get_settings_service",
         lambda: settings,
     )
     return settings
@@ -73,7 +73,7 @@ async def test_create_api_key_stores_hash(async_session, mock_settings, monkeypa
     await async_session.commit()
 
     monkeypatch.setattr(
-        "langflow.services.database.models.api_key.crud.auth_utils.encrypt_api_key",
+        "ketos.services.database.models.api_key.crud.auth_utils.encrypt_api_key",
         lambda key, **_kwargs: f"encrypted-{key}",
     )
 
@@ -130,7 +130,7 @@ async def test_check_key_fallback_for_legacy_keys(async_session, mock_settings, 
     await async_session.flush()
 
     monkeypatch.setattr(
-        "langflow.services.database.models.api_key.crud.auth_utils.decrypt_api_key",
+        "ketos.services.database.models.api_key.crud.auth_utils.decrypt_api_key",
         lambda val, **_kwargs: val,
     )
 
@@ -158,7 +158,7 @@ async def test_check_key_fallback_backfills_hash(async_session, mock_settings, m
     await async_session.flush()
 
     monkeypatch.setattr(
-        "langflow.services.database.models.api_key.crud.auth_utils.decrypt_api_key",
+        "ketos.services.database.models.api_key.crud.auth_utils.decrypt_api_key",
         lambda val, **_kwargs: val,
     )
 
@@ -172,7 +172,7 @@ async def test_check_key_fallback_backfills_hash(async_session, mock_settings, m
 async def test_check_key_no_match_returns_none(async_session, mock_settings, monkeypatch):
     """Non-existent key must return None."""
     monkeypatch.setattr(
-        "langflow.services.database.models.api_key.crud.auth_utils.decrypt_api_key",
+        "ketos.services.database.models.api_key.crud.auth_utils.decrypt_api_key",
         lambda val, **_kwargs: val,
     )
 
@@ -206,7 +206,7 @@ async def test_check_key_skips_orphaned_encrypted_keys(async_session, mock_setti
     await async_session.flush()
 
     monkeypatch.setattr(
-        "langflow.services.database.models.api_key.crud.auth_utils.decrypt_api_key",
+        "ketos.services.database.models.api_key.crud.auth_utils.decrypt_api_key",
         lambda val, **_kwargs: "" if val.startswith("gAAAAA") else val,
     )
 
@@ -356,7 +356,7 @@ async def test_create_api_key_stores_expires_at(async_session, mock_settings, mo
     await async_session.commit()
 
     monkeypatch.setattr(
-        "langflow.services.database.models.api_key.crud.auth_utils.encrypt_api_key",
+        "ketos.services.database.models.api_key.crud.auth_utils.encrypt_api_key",
         lambda key, **_kwargs: f"encrypted-{key}",
     )
 
@@ -380,7 +380,7 @@ async def test_create_api_key_no_expires_at_is_none(async_session, mock_settings
     await async_session.commit()
 
     monkeypatch.setattr(
-        "langflow.services.database.models.api_key.crud.auth_utils.encrypt_api_key",
+        "ketos.services.database.models.api_key.crud.auth_utils.encrypt_api_key",
         lambda key, **_kwargs: f"encrypted-{key}",
     )
 

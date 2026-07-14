@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 from fastapi import HTTPException
-from langflow.api.utils.kb_metadata import (
+from ketos.api.utils.kb_metadata import (
     parse_per_file_metadata,
     parse_user_metadata,
     validate_user_metadata,

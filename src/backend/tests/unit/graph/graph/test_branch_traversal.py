@@ -1,8 +1,8 @@
-from lfx.custom.custom_component.component import Component
-from lfx.graph.graph.base import Graph
-from lfx.graph.vertex.base import VertexStates
-from lfx.io import MessageTextInput, Output
-from lfx.schema.message import Message
+from kfx.custom.custom_component.component import Component
+from kfx.graph.graph.base import Graph
+from kfx.graph.vertex.base import VertexStates
+from kfx.io import MessageTextInput, Output
+from kfx.schema.message import Message
 
 
 class TwoOutputSource(Component):

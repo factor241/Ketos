@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
-import LangflowLogo from "@/assets/LangflowLogo.svg?react";
+import { KetosBrandMark } from "@/components/common/ketos-brand-mark";
 import { useLoginUser } from "@/controllers/API/queries/auth";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
@@ -13,6 +13,7 @@ import type {
   inputHandlerEventType,
   loginInputStateType,
 } from "../../../types/components";
+import { getLocalizedApiErrorMessage } from "../../../utils/localized-api-error";
 
 export default function LoginAdminPage() {
   const [inputState, setInputState] =
@@ -44,7 +45,12 @@ export default function LoginAdminPage() {
       onError: (error) => {
         setErrorData({
           title: t("errors.signin"),
-          list: [error["response"]["data"]["detail"]],
+          list: [
+            getLocalizedApiErrorMessage(error, (key) => t(key), {
+              fallbackKey: "errors.requestFailed",
+              statusKeys: { 401: "auth.invalidCredentials" },
+            }),
+          ],
         });
       },
     });
@@ -53,8 +59,8 @@ export default function LoginAdminPage() {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center bg-muted">
       <div className="flex w-72 flex-col items-center justify-center gap-2">
-        <LangflowLogo
-          title={t("common.langflowLogo")}
+        <KetosBrandMark
+          label={t("common.ketosLogo")}
           className="h-10 w-10 scale-[1.5]"
         />
         <span className="mb-6 text-2xl font-semibold text-primary">

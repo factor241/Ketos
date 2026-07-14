@@ -11,25 +11,25 @@ import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from langflow.agentic.helpers.code_extraction import extract_python_code
-from langflow.agentic.helpers.sse import (
+from ketos.agentic.helpers.code_extraction import extract_python_code
+from ketos.agentic.helpers.sse import (
     format_complete_event,
     format_error_event,
     format_progress_event,
 )
-from langflow.agentic.helpers.validation import validate_component_code
-from langflow.agentic.services.assistant_service import (
+from ketos.agentic.helpers.validation import validate_component_code
+from ketos.agentic.services.assistant_service import (
     execute_flow_with_validation,
     execute_flow_with_validation_streaming,
 )
-from langflow.agentic.services.flow_types import (
+from ketos.agentic.services.flow_types import (
     VALIDATION_RETRY_TEMPLATE,
     IntentResult,
 )
 
-VALID_COMPONENT_CODE = """from langflow.custom import Component
-from langflow.io import MessageTextInput, Output
-from langflow.schema.message import Message
+VALID_COMPONENT_CODE = """from ketos.custom import Component
+from ketos.io import MessageTextInput, Output
+from ketos.schema.message import Message
 
 
 class HelloWorldComponent(Component):
@@ -48,8 +48,8 @@ class HelloWorldComponent(Component):
         return Message(text=f"Hello, {self.input_value}!")
 """
 
-INVALID_COMPONENT_CODE = """from langflow.custom import Component
-from langflow.io import MessageTextInput, Output
+INVALID_COMPONENT_CODE = """from ketos.custom import Component
+from ketos.io import MessageTextInput, Output
 
 class BrokenComponent(Component)  # Missing colon here
     display_name = "Broken"
@@ -65,9 +65,9 @@ class BrokenComponent(Component)  # Missing colon here
 
 CUTOFF_COMPONENT_CODE = """from __future__ import annotations
 
-from langflow.custom import Component
-from langflow.io import MessageTextInput, Output
-from langflow.schema.message import Message
+from ketos.custom import Component
+from ketos.io import MessageTextInput, Output
+from ketos.schema.message import Message
 
 
 class SentimentAnalyzer(Component):
@@ -195,11 +195,11 @@ class TestStreamingValidationFlow:
 
         with (
             patch(
-                "langflow.agentic.services.assistant_service.classify_intent",
+                "ketos.agentic.services.assistant_service.classify_intent",
                 side_effect=_mock_intent_classification("generate_component"),
             ),
             patch(
-                "langflow.agentic.services.assistant_service.execute_flow_file_streaming",
+                "ketos.agentic.services.assistant_service.execute_flow_file_streaming",
                 side_effect=_mock_streaming_result(mock_flow_result),
             ),
         ):
@@ -241,11 +241,11 @@ class TestStreamingValidationFlow:
 
         with (
             patch(
-                "langflow.agentic.services.assistant_service.classify_intent",
+                "ketos.agentic.services.assistant_service.classify_intent",
                 side_effect=_mock_intent_classification("generate_component"),
             ),
             patch(
-                "langflow.agentic.services.assistant_service.execute_flow_file_streaming",
+                "ketos.agentic.services.assistant_service.execute_flow_file_streaming",
                 side_effect=_mock_streaming_sequence([invalid_response, valid_response]),
             ),
         ):
@@ -281,11 +281,11 @@ class TestStreamingValidationFlow:
 
         with (
             patch(
-                "langflow.agentic.services.assistant_service.classify_intent",
+                "ketos.agentic.services.assistant_service.classify_intent",
                 side_effect=_mock_intent_classification("generate_component"),
             ),
             patch(
-                "langflow.agentic.services.assistant_service.execute_flow_file_streaming",
+                "ketos.agentic.services.assistant_service.execute_flow_file_streaming",
                 side_effect=_mock_streaming_result(invalid_response),
             ),
         ):
@@ -315,15 +315,15 @@ class TestStreamingValidationFlow:
     @pytest.mark.asyncio
     async def test_no_code_in_response_returns_as_is(self):
         """When response has no code (question intent), should return without validation."""
-        text_only_response = {"result": "Langflow is a visual flow builder for LLM applications."}
+        text_only_response = {"result": "Ketos is a visual flow builder for LLM applications."}
 
         with (
             patch(
-                "langflow.agentic.services.assistant_service.classify_intent",
+                "ketos.agentic.services.assistant_service.classify_intent",
                 side_effect=_mock_intent_classification("question"),
             ),
             patch(
-                "langflow.agentic.services.assistant_service.execute_flow_file_streaming",
+                "ketos.agentic.services.assistant_service.execute_flow_file_streaming",
                 side_effect=_mock_streaming_result(text_only_response),
             ),
         ):
@@ -331,7 +331,7 @@ class TestStreamingValidationFlow:
                 event
                 async for event in execute_flow_with_validation_streaming(
                     flow_filename="test.json",
-                    input_value="what is langflow?",
+                    input_value="what is ketos?",
                     global_variables={},
                     max_retries=3,
                 )
@@ -371,11 +371,11 @@ class TestStreamingValidationFlow:
 
         with (
             patch(
-                "langflow.agentic.services.assistant_service.classify_intent",
+                "ketos.agentic.services.assistant_service.classify_intent",
                 side_effect=_mock_intent_classification("generate_component"),
             ),
             patch(
-                "langflow.agentic.services.assistant_service.execute_flow_file_streaming",
+                "ketos.agentic.services.assistant_service.execute_flow_file_streaming",
                 side_effect=mock_streaming_error,
             ),
             patch("asyncio.sleep", new_callable=AsyncMock),
@@ -422,11 +422,11 @@ class TestStreamingValidationFlow:
 
         with (
             patch(
-                "langflow.agentic.services.assistant_service.classify_intent",
+                "ketos.agentic.services.assistant_service.classify_intent",
                 side_effect=_mock_intent_classification("question"),
             ),
             patch(
-                "langflow.agentic.services.assistant_service.execute_flow_file_streaming",
+                "ketos.agentic.services.assistant_service.execute_flow_file_streaming",
                 side_effect=mock_streaming_error,
             ),
         ):
@@ -434,7 +434,7 @@ class TestStreamingValidationFlow:
                 event
                 async for event in execute_flow_with_validation_streaming(
                     flow_filename="test.json",
-                    input_value="what is langflow?",
+                    input_value="what is ketos?",
                     global_variables={},
                     max_retries=3,
                 )
@@ -472,11 +472,11 @@ class TestValidationRetryBehavior:
 
         with (
             patch(
-                "langflow.agentic.services.assistant_service.classify_intent",
+                "ketos.agentic.services.assistant_service.classify_intent",
                 side_effect=_mock_intent_classification("generate_component"),
             ),
             patch(
-                "langflow.agentic.services.assistant_service.execute_flow_file_streaming",
+                "ketos.agentic.services.assistant_service.execute_flow_file_streaming",
                 side_effect=mock_streaming,
             ),
         ):
@@ -507,7 +507,7 @@ class TestNonStreamingValidation:
         mock_flow_result = {"result": f"```python\n{VALID_COMPONENT_CODE}\n```"}
 
         with patch(
-            "langflow.agentic.services.assistant_service.execute_flow_file",
+            "ketos.agentic.services.assistant_service.execute_flow_file",
             new_callable=AsyncMock,
             return_value=mock_flow_result,
         ):
@@ -538,7 +538,7 @@ class TestNonStreamingValidation:
             return valid_response
 
         with patch(
-            "langflow.agentic.services.assistant_service.execute_flow_file",
+            "ketos.agentic.services.assistant_service.execute_flow_file",
             side_effect=mock_execute_flow,
         ):
             result = await execute_flow_with_validation(
@@ -557,7 +557,7 @@ class TestNonStreamingValidation:
         invalid_response = {"result": f"```python\n{INVALID_COMPONENT_CODE}\n```"}
 
         with patch(
-            "langflow.agentic.services.assistant_service.execute_flow_file",
+            "ketos.agentic.services.assistant_service.execute_flow_file",
             new_callable=AsyncMock,
             return_value=invalid_response,
         ):
@@ -592,11 +592,11 @@ This component will process your input."""
 
         with (
             patch(
-                "langflow.agentic.services.assistant_service.classify_intent",
+                "ketos.agentic.services.assistant_service.classify_intent",
                 side_effect=_mock_intent_classification("generate_component"),
             ),
             patch(
-                "langflow.agentic.services.assistant_service.execute_flow_file_streaming",
+                "ketos.agentic.services.assistant_service.execute_flow_file_streaming",
                 side_effect=_mock_streaming_result(response_with_text),
             ),
         ):
@@ -631,11 +631,11 @@ This component will process your input."""
 
         with (
             patch(
-                "langflow.agentic.services.assistant_service.classify_intent",
+                "ketos.agentic.services.assistant_service.classify_intent",
                 side_effect=_mock_intent_classification("generate_component"),
             ),
             patch(
-                "langflow.agentic.services.assistant_service.execute_flow_file_streaming",
+                "ketos.agentic.services.assistant_service.execute_flow_file_streaming",
                 side_effect=_mock_streaming_result(response_with_unclosed),
             ),
         ):
@@ -662,11 +662,11 @@ This component will process your input."""
 
         with (
             patch(
-                "langflow.agentic.services.assistant_service.classify_intent",
+                "ketos.agentic.services.assistant_service.classify_intent",
                 side_effect=_mock_intent_classification("generate_component"),
             ),
             patch(
-                "langflow.agentic.services.assistant_service.execute_flow_file_streaming",
+                "ketos.agentic.services.assistant_service.execute_flow_file_streaming",
                 side_effect=_mock_streaming_result(mock_flow_result),
             ),
         ):
@@ -696,11 +696,11 @@ This component will process your input."""
 
         with (
             patch(
-                "langflow.agentic.services.assistant_service.classify_intent",
+                "ketos.agentic.services.assistant_service.classify_intent",
                 side_effect=_mock_intent_classification("generate_component"),
             ),
             patch(
-                "langflow.agentic.services.assistant_service.execute_flow_file_streaming",
+                "ketos.agentic.services.assistant_service.execute_flow_file_streaming",
                 side_effect=_mock_streaming_result(invalid_response),
             ),
         ):
@@ -742,11 +742,11 @@ Here's the implementation:
 
         with (
             patch(
-                "langflow.agentic.services.assistant_service.classify_intent",
+                "ketos.agentic.services.assistant_service.classify_intent",
                 side_effect=_mock_intent_classification("generate_component"),
             ),
             patch(
-                "langflow.agentic.services.assistant_service.execute_flow_file_streaming",
+                "ketos.agentic.services.assistant_service.execute_flow_file_streaming",
                 side_effect=_mock_streaming_result(response_with_apology),
             ),
         ):
@@ -786,11 +786,11 @@ Here's the implementation:
 
         with (
             patch(
-                "langflow.agentic.services.assistant_service.classify_intent",
+                "ketos.agentic.services.assistant_service.classify_intent",
                 side_effect=_mock_intent_classification("generate_component"),
             ),
             patch(
-                "langflow.agentic.services.assistant_service.execute_flow_file_streaming",
+                "ketos.agentic.services.assistant_service.execute_flow_file_streaming",
                 side_effect=_mock_streaming_result(cutoff_response),
             ),
         ):
@@ -833,11 +833,11 @@ Here's the implementation:
 
         with (
             patch(
-                "langflow.agentic.services.assistant_service.classify_intent",
+                "ketos.agentic.services.assistant_service.classify_intent",
                 side_effect=_mock_intent_classification("generate_component"),
             ),
             patch(
-                "langflow.agentic.services.assistant_service.execute_flow_file_streaming",
+                "ketos.agentic.services.assistant_service.execute_flow_file_streaming",
                 side_effect=_mock_streaming_sequence([cutoff_response, cutoff_response, valid_response]),
             ),
         ):
@@ -869,8 +869,8 @@ Here's the implementation:
 ```python
 from __future__ import annotations
 
-from langflow.custom import Component
-from langflow.io import MessageTextInput, Output
+from ketos.custom import Component
+from ketos.io import MessageTextInput, Output
 
 
 class SentimentComponent(Component):

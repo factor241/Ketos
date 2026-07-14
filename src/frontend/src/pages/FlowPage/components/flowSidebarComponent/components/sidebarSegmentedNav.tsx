@@ -35,7 +35,10 @@ const SidebarSegmentedNav = () => {
               <Separator className="mx-auto my-1 w-5" />
             )}
             <SidebarMenuItem className="px-1 pt-1">
-              <ShadTooltip content={t(item.tooltip)} side="right">
+              <ShadTooltip
+                content={t(item.tooltip, { defaultValue: item.tooltip })}
+                side="right"
+              >
                 <SidebarMenuButton
                   size="md"
                   onClick={() => {
@@ -71,7 +74,9 @@ const SidebarSegmentedNav = () => {
                     name={item.icon}
                     className="h-5 w-5"
                   />
-                  <span className="sr-only">{t(item.label)}</span>
+                  <span className="sr-only">
+                    {t(item.label, { defaultValue: item.label })}
+                  </span>
                 </SidebarMenuButton>
               </ShadTooltip>
             </SidebarMenuItem>

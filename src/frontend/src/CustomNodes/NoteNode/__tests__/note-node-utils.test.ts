@@ -122,8 +122,16 @@ describe("NoteNode Utility Functions", () => {
       });
 
       it('should return "dark" for null-like input', () => {
-        expect(getContrastTextColor(null as any)).toBe("dark");
-        expect(getContrastTextColor(undefined as any)).toBe("dark");
+        expect(
+          getContrastTextColor(
+            null as unknown as Parameters<typeof getContrastTextColor>[0],
+          ),
+        ).toBe("dark");
+        expect(
+          getContrastTextColor(
+            undefined as unknown as Parameters<typeof getContrastTextColor>[0],
+          ),
+        ).toBe("dark");
       });
     });
   });

@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from langflow.agentic.services.provider_service import get_enabled_providers_for_user
+from ketos.agentic.services.provider_service import get_enabled_providers_for_user
 
 
 class TestGetEnabledProvidersForUserMulti:
@@ -28,15 +28,15 @@ class TestGetEnabledProvidersForUserMulti:
 
         mock_variables = [var1, var2, var3]
 
-        with patch("langflow.agentic.services.provider_service.get_variable_service") as mock_get_service:
-            from langflow.services.variable.service import DatabaseVariableService
+        with patch("ketos.agentic.services.provider_service.get_variable_service") as mock_get_service:
+            from ketos.services.variable.service import DatabaseVariableService
 
             mock_service = MagicMock(spec=DatabaseVariableService)
             mock_service.get_all.return_value = mock_variables
             mock_get_service.return_value = mock_service
 
             with patch(
-                "langflow.agentic.services.provider_service.get_provider_required_variable_keys"
+                "ketos.agentic.services.provider_service.get_provider_required_variable_keys"
             ) as mock_get_keys:
                 # WatsonX requires these 3 keys
                 mock_get_keys.side_effect = (
@@ -46,7 +46,7 @@ class TestGetEnabledProvidersForUserMulti:
                 )
 
                 with patch(
-                    "langflow.agentic.services.provider_service.get_model_provider_variable_mapping"
+                    "ketos.agentic.services.provider_service.get_model_provider_variable_mapping"
                 ) as mock_get_map:
                     mock_get_map.return_value = {"IBM WatsonX": "WATSONX_APIKEY"}
 
@@ -71,15 +71,15 @@ class TestGetEnabledProvidersForUserMulti:
 
         mock_variables = [var1, var2]
 
-        with patch("langflow.agentic.services.provider_service.get_variable_service") as mock_get_service:
-            from langflow.services.variable.service import DatabaseVariableService
+        with patch("ketos.agentic.services.provider_service.get_variable_service") as mock_get_service:
+            from ketos.services.variable.service import DatabaseVariableService
 
             mock_service = MagicMock(spec=DatabaseVariableService)
             mock_service.get_all.return_value = mock_variables
             mock_get_service.return_value = mock_service
 
             with patch(
-                "langflow.agentic.services.provider_service.get_provider_required_variable_keys"
+                "ketos.agentic.services.provider_service.get_provider_required_variable_keys"
             ) as mock_get_keys:
                 # WatsonX requires these 3 keys
                 mock_get_keys.side_effect = (
@@ -89,7 +89,7 @@ class TestGetEnabledProvidersForUserMulti:
                 )
 
                 with patch(
-                    "langflow.agentic.services.provider_service.get_model_provider_variable_mapping"
+                    "ketos.agentic.services.provider_service.get_model_provider_variable_mapping"
                 ) as mock_get_map:
                     mock_get_map.return_value = {"IBM WatsonX": "WATSONX_APIKEY"}
 

@@ -23,7 +23,8 @@ interface PostGlobalVariablesResponse {
 
 export const usePostGlobalVariables: useMutationFunctionType<
   undefined,
-  PostGlobalVariablesParams
+  PostGlobalVariablesParams,
+  PostGlobalVariablesResponse
 > = (options?) => {
   const { mutate, queryClient } = UseRequestProcessor();
 

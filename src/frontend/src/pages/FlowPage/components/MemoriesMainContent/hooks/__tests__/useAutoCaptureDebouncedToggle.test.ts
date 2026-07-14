@@ -199,7 +199,7 @@ describe("useAutoCaptureDebouncedToggle", () => {
       });
     });
 
-    it("shows error toast when mutation fails", () => {
+    it("shows a safe localized error toast when mutation fails", () => {
       const mutate = jest.fn((_, opts) =>
         opts?.onError?.(new Error("api error")),
       );
@@ -211,8 +211,11 @@ describe("useAutoCaptureDebouncedToggle", () => {
       act(() => jest.runAllTimers());
       expect(mockSetErrorData).toHaveBeenCalledWith({
         title: "Failed to update auto-capture",
-        list: ["api error"],
+        list: ["The request could not be completed. Please try again."],
       });
+      expect(JSON.stringify(mockSetErrorData.mock.calls)).not.toContain(
+        "api error",
+      );
     });
 
     it("shows exactly one error toast on failure — no duplicate from mutation level", () => {

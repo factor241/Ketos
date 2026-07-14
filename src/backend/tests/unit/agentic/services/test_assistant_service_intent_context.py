@@ -18,22 +18,22 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from langflow.agentic.services.assistant_service import (
+from ketos.agentic.services.assistant_service import (
     execute_flow_with_validation_streaming,
 )
-from langflow.agentic.services.conversation_buffer import (
+from ketos.agentic.services.conversation_buffer import (
     ConversationBuffer,
     ConversationTurn,
 )
-from langflow.agentic.services.flow_types import IntentResult
+from ketos.agentic.services.flow_types import IntentResult
 
-MODULE = "langflow.agentic.services.assistant_service"
+MODULE = "ketos.agentic.services.assistant_service"
 
 
 @pytest.fixture
 def fresh_buffer(monkeypatch):
     """Swap the module-level singleton with a fresh, empty buffer."""
-    import langflow.agentic.services.conversation_buffer as module
+    import ketos.agentic.services.conversation_buffer as module
 
     buf = ConversationBuffer()
     monkeypatch.setattr(module, "_singleton", buf)
@@ -98,7 +98,7 @@ async def test_should_pass_none_context_to_classify_intent_for_fresh_session(
         await _drain(
             execute_flow_with_validation_streaming(
                 flow_filename="TestFlow",
-                input_value="what is langflow?",
+                input_value="what is ketos?",
                 global_variables={},
                 session_id="agentic_fresh",
                 user_id="user-1",
@@ -119,12 +119,12 @@ async def test_should_not_leak_working_flow_when_off_topic_after_canvas_seed(fre
     must still leave the working-flow ContextVar clean for the next request
     on this asyncio task.
     """
-    from lfx.mcp.flow_builder_tools import get_working_flow, reset_working_flow
+    from kfx.mcp.flow_builder_tools import get_working_flow, reset_working_flow
 
     reset_working_flow()
 
     async def fake_summary(_flow_id, **_kwargs):  # accepts user_id kwarg from production (I2)
-        from lfx.mcp.flow_builder_tools import init_working_flow
+        from kfx.mcp.flow_builder_tools import init_working_flow
 
         init_working_flow({"data": {"nodes": [{"id": "Agent-1"}], "edges": []}}, "flow-1")
         return "nodes: Agent-1"

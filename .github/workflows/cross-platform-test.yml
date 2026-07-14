@@ -3,8 +3,8 @@ name: Cross-Platform Installation Test
 on:
   workflow_dispatch:
     inputs:
-      langflow-version:
-        description: "Langflow version to test from PyPI (leave empty to test from source)"
+      ketos-version:
+        description: "Ketos version to test from PyPI (leave empty to test from source)"
         required: false
         type: string
         default: ""
@@ -18,12 +18,12 @@ on:
         description: "Name of the main package artifact"
         required: true
         type: string
-      lfx-artifact-name:
-        description: "Name of the LFX package artifact"
+      kfx-artifact-name:
+        description: "Name of the KFX package artifact"
         required: false
         type: string
       sdk-artifact-name:
-        description: "Name of the langflow-sdk package artifact"
+        description: "Name of the ketos-sdk package artifact"
         required: false
         type: string
       bundles-artifact-name:
@@ -40,11 +40,11 @@ jobs:
   build-if-needed:
     name: Build Packages (if no artifacts provided)
     runs-on: ubuntu-latest
-    if: inputs.langflow-version == '' && contains(github.workflow_ref, 'cross-platform-test.yml')
+    if: inputs.ketos-version == '' && contains(github.workflow_ref, 'cross-platform-test.yml')
     outputs:
       base-artifact-name: ${{ steps.set-names.outputs.base-artifact-name }}
       main-artifact-name: ${{ steps.set-names.outputs.main-artifact-name }}
-      lfx-artifact-name: ${{ steps.set-names.outputs.lfx-artifact-name }}
+      kfx-artifact-name: ${{ steps.set-names.outputs.kfx-artifact-name }}
       sdk-artifact-name: ${{ steps.set-names.outputs.sdk-artifact-name }}
       bundles-artifact-name: ${{ steps.set-names.outputs.bundles-artifact-name }}
     steps:
@@ -63,22 +63,22 @@ jobs:
       - name: Build frontend
         run: make build_frontend
       - name: Build base package
-        run: make build_langflow_base args="--wheel"
+        run: make build_ketos_base args="--wheel"
       - name: Move base package to correct directory
         run: |
           # Base package builds to dist/ but should be in src/backend/base/dist/
           mkdir -p src/backend/base/dist
-          mv dist/langflow_base*.whl src/backend/base/dist/
-      - name: Build LFX package
+          mv dist/ketos_base*.whl src/backend/base/dist/
+      - name: Build KFX package
         run: |
-          cd src/lfx
+          cd src/kfx
           uv build --wheel --out-dir dist
       - name: Build SDK package
         run: |
           cd src/sdk
           uv build --wheel --out-dir dist
       - name: Build main package
-        run: make build_langflow args="--wheel"
+        run: make build_ketos args="--wheel"
       - name: Build bundle wheels
         id: build-bundles
         run: |
@@ -98,11 +98,11 @@ jobs:
           done
           echo "bundles-found=1" >> $GITHUB_OUTPUT
           ls -la bundles-dist/
-      - name: Upload lfx artifact
+      - name: Upload kfx artifact
         uses: actions/upload-artifact@v6
         with:
-          name: adhoc-dist-lfx
-          path: src/lfx/dist
+          name: adhoc-dist-kfx
+          path: src/kfx/dist
       - name: Upload SDK artifact
         uses: actions/upload-artifact@v6
         with:
@@ -129,7 +129,7 @@ jobs:
         run: |
           echo "base-artifact-name=adhoc-dist-base" >> $GITHUB_OUTPUT
           echo "main-artifact-name=adhoc-dist-main" >> $GITHUB_OUTPUT
-          echo "lfx-artifact-name=adhoc-dist-lfx" >> $GITHUB_OUTPUT
+          echo "kfx-artifact-name=adhoc-dist-kfx" >> $GITHUB_OUTPUT
           echo "sdk-artifact-name=adhoc-dist-sdk" >> $GITHUB_OUTPUT
           if [ "${{ steps.build-bundles.outputs.bundles-found }}" = "1" ]; then
             echo "bundles-artifact-name=adhoc-dist-bundles" >> $GITHUB_OUTPUT
@@ -201,7 +201,7 @@ jobs:
         id: install-method
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            if [ -n "${{ inputs.langflow-version }}" ]; then
+            if [ -n "${{ inputs.ketos-version }}" ]; then
               echo "method=pypi" >> $GITHUB_OUTPUT
             else
               echo "method=wheel" >> $GITHUB_OUTPUT
@@ -235,19 +235,19 @@ jobs:
         shell: bash
 
       # Download artifacts for wheel installation
-      - name: Download langflow-sdk package artifact
+      - name: Download ketos-sdk package artifact
         if: steps.install-method.outputs.method == 'wheel' && (inputs.sdk-artifact-name != '' || needs.build-if-needed.outputs.sdk-artifact-name != '')
         uses: actions/download-artifact@v7
         with:
           name: ${{ inputs.sdk-artifact-name || needs.build-if-needed.outputs.sdk-artifact-name || 'adhoc-dist-sdk' }}
           path: ./sdk-dist
 
-      - name: Download LFX package artifact
-        if: steps.install-method.outputs.method == 'wheel' && (inputs.lfx-artifact-name != '' || needs.build-if-needed.outputs.lfx-artifact-name != '')
+      - name: Download KFX package artifact
+        if: steps.install-method.outputs.method == 'wheel' && (inputs.kfx-artifact-name != '' || needs.build-if-needed.outputs.kfx-artifact-name != '')
         uses: actions/download-artifact@v7
         with:
-          name: ${{ inputs.lfx-artifact-name || needs.build-if-needed.outputs.lfx-artifact-name || 'adhoc-dist-lfx' }}
-          path: ./lfx-dist
+          name: ${{ inputs.kfx-artifact-name || needs.build-if-needed.outputs.kfx-artifact-name || 'adhoc-dist-kfx' }}
+          path: ./kfx-dist
 
       - name: Download base package artifact
         if: steps.install-method.outputs.method == 'wheel'
@@ -289,7 +289,7 @@ jobs:
 
           refresh_find_links() {
             FIND_LINKS=()
-            for wheel_dir in ./sdk-dist ./lfx-dist ./base-dist ./bundles-dist; do
+            for wheel_dir in ./sdk-dist ./kfx-dist ./base-dist ./bundles-dist; do
               if [ -d "$wheel_dir" ]; then
                 FIND_LINKS+=(--find-links "$wheel_dir")
               fi
@@ -306,7 +306,7 @@ jobs:
             printf 'Installing %s wheel(s):\n' "$label"
             printf '%s\n' "$@"
             refresh_find_links
-            # Use `if-necessary-or-explicit` (not `allow`): nightly langflow* wheels
+            # Use `if-necessary-or-explicit` (not `allow`): nightly ketos* wheels
             # are .dev pre-releases so we need to allow them explicitly, but `allow`
             # leaks to transitive deps and resolves pre-release pydantic alphas
             # (e.g. 2.14.0a1) which break langchain-core's module-level
@@ -315,9 +315,9 @@ jobs:
           }
 
           SDK_WHEELS=(./sdk-dist/*.whl)
-          LFX_WHEELS=(./lfx-dist/*.whl)
-          if [ ${#SDK_WHEELS[@]} -gt 0 ] || [ ${#LFX_WHEELS[@]} -gt 0 ]; then
-            install_wheels "SDK/LFX" "${SDK_WHEELS[@]}" "${LFX_WHEELS[@]}"
+          KFX_WHEELS=(./kfx-dist/*.whl)
+          if [ ${#SDK_WHEELS[@]} -gt 0 ] || [ ${#KFX_WHEELS[@]} -gt 0 ]; then
+            install_wheels "SDK/KFX" "${SDK_WHEELS[@]}" "${KFX_WHEELS[@]}"
           fi
 
           BASE_WHEELS=(./base-dist/*.whl)
@@ -331,9 +331,9 @@ jobs:
           MAIN_WHEELS=()
           while IFS= read -r wheel; do
             MAIN_WHEELS+=("$wheel")
-          done < <(find ./main-dist -name "langflow*.whl" ! -name "langflow_base*.whl" -type f | sort)
+          done < <(find ./main-dist -name "ketos*.whl" ! -name "ketos_base*.whl" -type f | sort)
           if [ ${#MAIN_WHEELS[@]} -ne 1 ]; then
-            echo "Expected exactly one langflow wheel in ./main-dist, found ${#MAIN_WHEELS[@]}"
+            echo "Expected exactly one ketos wheel in ./main-dist, found ${#MAIN_WHEELS[@]}"
             find ./main-dist -name "*.whl" -type f | sort
             exit 1
           fi
@@ -341,23 +341,23 @@ jobs:
         shell: bash
 
       # PyPI installation steps
-      - name: Install langflow from PyPI (Windows)
+      - name: Install ketos from PyPI (Windows)
         if: steps.install-method.outputs.method == 'pypi' && matrix.os == 'windows'
         run: |
-          if [ -n "${{ inputs.langflow-version }}" ]; then
-            uv pip install --python ./test-env/Scripts/python.exe langflow==${{ inputs.langflow-version }}
+          if [ -n "${{ inputs.ketos-version }}" ]; then
+            uv pip install --python ./test-env/Scripts/python.exe ketos==${{ inputs.ketos-version }}
           else
-            uv pip install --python ./test-env/Scripts/python.exe langflow
+            uv pip install --python ./test-env/Scripts/python.exe ketos
           fi
         shell: bash
 
-      - name: Install langflow from PyPI (Unix)
+      - name: Install ketos from PyPI (Unix)
         if: steps.install-method.outputs.method == 'pypi' && matrix.os != 'windows'
         run: |
-          if [ -n "${{ inputs.langflow-version }}" ]; then
-            uv pip install --python ./test-env/bin/python langflow==${{ inputs.langflow-version }}
+          if [ -n "${{ inputs.ketos-version }}" ]; then
+            uv pip install --python ./test-env/bin/python ketos==${{ inputs.ketos-version }}
           else
-            uv pip install --python ./test-env/bin/python langflow
+            uv pip install --python ./test-env/bin/python ketos
           fi
         shell: bash
 
@@ -378,13 +378,13 @@ jobs:
       - name: Test CLI help command
         if: matrix.os == 'windows'
         run: |
-          uv run --python ./test-env/Scripts/python.exe python -m langflow --help
+          uv run --python ./test-env/Scripts/python.exe python -m ketos --help
         shell: cmd
 
       - name: Test CLI help command (Unix)
         if: matrix.os != 'windows'
         run: |
-          uv run --python ./test-env/bin/python python -m langflow --help
+          uv run --python ./test-env/bin/python python -m ketos --help
         shell: bash
 
       - name: Test server startup (Windows)
@@ -392,7 +392,7 @@ jobs:
         timeout-minutes: 5
         run: |
           # Start server in background
-          $serverProcess = Start-Process -FilePath ".\test-env\Scripts\python.exe" -ArgumentList "-m", "langflow", "run", "--host", "localhost", "--port", "7860", "--backend-only" -PassThru -WindowStyle Hidden
+          $serverProcess = Start-Process -FilePath ".\test-env\Scripts\python.exe" -ArgumentList "-m", "ketos", "run", "--host", "localhost", "--port", "7860", "--backend-only" -PassThru -WindowStyle Hidden
 
           # Wait for server to be ready (GitHub Actions will timeout after 5 minutes)
           do {
@@ -418,7 +418,7 @@ jobs:
           OBJC_DISABLE_INITIALIZE_FORK_SAFETY: YES
         run: |
           # Start server in background
-          ./test-env/bin/python -m langflow run --host localhost --port 7860 --backend-only &
+          ./test-env/bin/python -m ketos run --host localhost --port 7860 --backend-only &
           SERVER_PID=$!
 
           # Wait for server to be ready (GitHub Actions will timeout after 5 minutes)
@@ -440,10 +440,10 @@ jobs:
         run: |
           test-env\Scripts\python.exe -c "
           try:
-              import langflow
-              print('✅ langflow import successful on ${{ matrix.os }}-${{ matrix.arch }}')
+              import ketos
+              print('✅ ketos import successful on ${{ matrix.os }}-${{ matrix.arch }}')
           except Exception as e:
-              print(f'❌ langflow import failed on ${{ matrix.os }}-${{ matrix.arch }}: {e}')
+              print(f'❌ ketos import failed on ${{ matrix.os }}-${{ matrix.arch }}: {e}')
               exit(1)
           "
         shell: cmd
@@ -453,10 +453,10 @@ jobs:
         run: |
           ./test-env/bin/python -c "
           try:
-              import langflow
-              print('✅ langflow import successful on ${{ matrix.os }}-${{ matrix.arch }}')
+              import ketos
+              print('✅ ketos import successful on ${{ matrix.os }}-${{ matrix.arch }}')
           except Exception as e:
-              print(f'❌ langflow import failed on ${{ matrix.os }}-${{ matrix.arch }}: {e}')
+              print(f'❌ ketos import failed on ${{ matrix.os }}-${{ matrix.arch }}: {e}')
               exit(1)
           "
         shell: bash
@@ -472,7 +472,7 @@ jobs:
       matrix:
         include:
           # Python 3.14 - Experimental (non-blocking) to monitor ecosystem readiness.
-          # macOS Intel (x86_64) is intentionally omitted: langflow requires
+          # macOS Intel (x86_64) is intentionally omitted: ketos requires
           # onnxruntime>=1.26 on Python >=3.14 (pyproject.toml), but onnxruntime
           # dropped macOS x86_64 wheels at 1.24 — so macOS Intel + py3.14 is
           # permanently unsatisfiable (older onnxruntime that still ships macOS
@@ -497,7 +497,7 @@ jobs:
         id: install-method
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            if [ -n "${{ inputs.langflow-version }}" ]; then
+            if [ -n "${{ inputs.ketos-version }}" ]; then
               echo "method=pypi" >> $GITHUB_OUTPUT
             else
               echo "method=wheel" >> $GITHUB_OUTPUT
@@ -531,19 +531,19 @@ jobs:
         shell: bash
 
       # Download artifacts for wheel installation
-      - name: Download langflow-sdk package artifact
+      - name: Download ketos-sdk package artifact
         if: steps.install-method.outputs.method == 'wheel' && (inputs.sdk-artifact-name != '' || needs.build-if-needed.outputs.sdk-artifact-name != '')
         uses: actions/download-artifact@v7
         with:
           name: ${{ inputs.sdk-artifact-name || needs.build-if-needed.outputs.sdk-artifact-name || 'adhoc-dist-sdk' }}
           path: ./sdk-dist
 
-      - name: Download LFX package artifact
-        if: steps.install-method.outputs.method == 'wheel' && (inputs.lfx-artifact-name != '' || needs.build-if-needed.outputs.lfx-artifact-name != '')
+      - name: Download KFX package artifact
+        if: steps.install-method.outputs.method == 'wheel' && (inputs.kfx-artifact-name != '' || needs.build-if-needed.outputs.kfx-artifact-name != '')
         uses: actions/download-artifact@v7
         with:
-          name: ${{ inputs.lfx-artifact-name || needs.build-if-needed.outputs.lfx-artifact-name || 'adhoc-dist-lfx' }}
-          path: ./lfx-dist
+          name: ${{ inputs.kfx-artifact-name || needs.build-if-needed.outputs.kfx-artifact-name || 'adhoc-dist-kfx' }}
+          path: ./kfx-dist
 
       - name: Download base package artifact
         if: steps.install-method.outputs.method == 'wheel'
@@ -585,7 +585,7 @@ jobs:
 
           refresh_find_links() {
             FIND_LINKS=()
-            for wheel_dir in ./sdk-dist ./lfx-dist ./base-dist ./bundles-dist; do
+            for wheel_dir in ./sdk-dist ./kfx-dist ./base-dist ./bundles-dist; do
               if [ -d "$wheel_dir" ]; then
                 FIND_LINKS+=(--find-links "$wheel_dir")
               fi
@@ -607,9 +607,9 @@ jobs:
           }
 
           SDK_WHEELS=(./sdk-dist/*.whl)
-          LFX_WHEELS=(./lfx-dist/*.whl)
-          if [ ${#SDK_WHEELS[@]} -gt 0 ] || [ ${#LFX_WHEELS[@]} -gt 0 ]; then
-            install_wheels "SDK/LFX" "${SDK_WHEELS[@]}" "${LFX_WHEELS[@]}"
+          KFX_WHEELS=(./kfx-dist/*.whl)
+          if [ ${#SDK_WHEELS[@]} -gt 0 ] || [ ${#KFX_WHEELS[@]} -gt 0 ]; then
+            install_wheels "SDK/KFX" "${SDK_WHEELS[@]}" "${KFX_WHEELS[@]}"
           fi
 
           BASE_WHEELS=(./base-dist/*.whl)
@@ -623,9 +623,9 @@ jobs:
           MAIN_WHEELS=()
           while IFS= read -r wheel; do
             MAIN_WHEELS+=("$wheel")
-          done < <(find ./main-dist -name "langflow*.whl" ! -name "langflow_base*.whl" -type f | sort)
+          done < <(find ./main-dist -name "ketos*.whl" ! -name "ketos_base*.whl" -type f | sort)
           if [ ${#MAIN_WHEELS[@]} -ne 1 ]; then
-            echo "Expected exactly one langflow wheel in ./main-dist, found ${#MAIN_WHEELS[@]}"
+            echo "Expected exactly one ketos wheel in ./main-dist, found ${#MAIN_WHEELS[@]}"
             find ./main-dist -name "*.whl" -type f | sort
             exit 1
           fi
@@ -637,30 +637,30 @@ jobs:
         run: |
           # Expose the local wheel dirs so dependency re-resolution (the
           # pre-release path below drops --no-deps) can find the local
-          # pre-release lfx/base wheels. Without these, uv re-resolves
-          # langflow-base's `lfx>=X.Y.Zrc0` constraint against PyPI only, where
+          # pre-release kfx/base wheels. Without these, uv re-resolves
+          # ketos-base's `kfx>=X.Y.Zrc0` constraint against PyPI only, where
           # the matching rc/dev wheel is not published yet, and fails with
           # "No solution found when resolving dependencies".
           FIND_LINKS=()
-          for wheel_dir in ./sdk-dist ./lfx-dist ./base-dist ./bundles-dist; do
+          for wheel_dir in ./sdk-dist ./kfx-dist ./base-dist ./bundles-dist; do
             if [ -d "$wheel_dir" ]; then
               FIND_LINKS+=(--find-links "$wheel_dir")
             fi
           done
 
-          # Reinstall LFX if it was provided
-          if [ -n "${{ inputs.lfx-artifact-name || needs.build-if-needed.outputs.lfx-artifact-name }}" ]; then
-            LFX_WHEEL=$(find ./lfx-dist -name "*.whl" -type f | head -1)
-            if [ -n "$LFX_WHEEL" ]; then
-              echo "Force reinstalling LFX: $LFX_WHEEL"
-              INSTALL_WHEELS=("$LFX_WHEEL")
+          # Reinstall KFX if it was provided
+          if [ -n "${{ inputs.kfx-artifact-name || needs.build-if-needed.outputs.kfx-artifact-name }}" ]; then
+            KFX_WHEEL=$(find ./kfx-dist -name "*.whl" -type f | head -1)
+            if [ -n "$KFX_WHEEL" ]; then
+              echo "Force reinstalling KFX: $KFX_WHEEL"
+              INSTALL_WHEELS=("$KFX_WHEEL")
               SDK_WHEEL=""
               if [ -d ./sdk-dist ]; then
                 SDK_WHEEL=$(find ./sdk-dist -name "*.whl" -type f | head -1)
               fi
               if [ -n "$SDK_WHEEL" ]; then
-                echo "Force reinstalling langflow-sdk with LFX: $SDK_WHEEL"
-                INSTALL_WHEELS=("$SDK_WHEEL" "$LFX_WHEEL")
+                echo "Force reinstalling ketos-sdk with KFX: $SDK_WHEEL"
+                INSTALL_WHEELS=("$SDK_WHEEL" "$KFX_WHEEL")
               fi
               NO_DEPS="--no-deps"
               if [ "${{ inputs.pre_release }}" = "true" ]; then
@@ -673,13 +673,13 @@ jobs:
           # Reinstall base
           BASE_WHEEL=$(find ./base-dist -name "*.whl" -type f | head -1)
           if [ -n "$BASE_WHEEL" ]; then
-            echo "Force reinstalling langflow-base: $BASE_WHEEL"
+            echo "Force reinstalling ketos-base: $BASE_WHEEL"
             INSTALL_WHEELS=("$BASE_WHEEL")
             NO_DEPS="--no-deps"
             if [ "${{ inputs.pre_release }}" = "true" ]; then
               # Keep local pre-release roots explicit while re-resolving deps. uv's
               # if-necessary-or-explicit mode does not allow pre-release transitive
-              # deps found only through --find-links, such as langflow-sdk dev wheels.
+              # deps found only through --find-links, such as ketos-sdk dev wheels.
               NO_DEPS=""
               LOCAL_WHEELS=()
               if [ -d ./sdk-dist ]; then
@@ -688,10 +688,10 @@ jobs:
                   LOCAL_WHEELS+=("$SDK_WHEEL")
                 fi
               fi
-              if [ -d ./lfx-dist ]; then
-                LFX_WHEEL=$(find ./lfx-dist -name "*.whl" -type f | head -1)
-                if [ -n "$LFX_WHEEL" ]; then
-                  LOCAL_WHEELS+=("$LFX_WHEEL")
+              if [ -d ./kfx-dist ]; then
+                KFX_WHEEL=$(find ./kfx-dist -name "*.whl" -type f | head -1)
+                if [ -n "$KFX_WHEEL" ]; then
+                  LOCAL_WHEELS+=("$KFX_WHEEL")
                 fi
               fi
               INSTALL_WHEELS=("${LOCAL_WHEELS[@]}" "$BASE_WHEEL")
@@ -705,30 +705,30 @@ jobs:
         run: |
           # Expose the local wheel dirs so dependency re-resolution (the
           # pre-release path below drops --no-deps) can find the local
-          # pre-release lfx/base wheels. Without these, uv re-resolves
-          # langflow-base's `lfx>=X.Y.Zrc0` constraint against PyPI only, where
+          # pre-release kfx/base wheels. Without these, uv re-resolves
+          # ketos-base's `kfx>=X.Y.Zrc0` constraint against PyPI only, where
           # the matching rc/dev wheel is not published yet, and fails with
           # "No solution found when resolving dependencies".
           FIND_LINKS=()
-          for wheel_dir in ./sdk-dist ./lfx-dist ./base-dist ./bundles-dist; do
+          for wheel_dir in ./sdk-dist ./kfx-dist ./base-dist ./bundles-dist; do
             if [ -d "$wheel_dir" ]; then
               FIND_LINKS+=(--find-links "$wheel_dir")
             fi
           done
 
-          # Reinstall LFX if it was provided
-          if [ -n "${{ inputs.lfx-artifact-name || needs.build-if-needed.outputs.lfx-artifact-name }}" ]; then
-            LFX_WHEEL=$(find ./lfx-dist -name "*.whl" -type f | head -1)
-            if [ -n "$LFX_WHEEL" ]; then
-              echo "Force reinstalling LFX: $LFX_WHEEL"
-              INSTALL_WHEELS=("$LFX_WHEEL")
+          # Reinstall KFX if it was provided
+          if [ -n "${{ inputs.kfx-artifact-name || needs.build-if-needed.outputs.kfx-artifact-name }}" ]; then
+            KFX_WHEEL=$(find ./kfx-dist -name "*.whl" -type f | head -1)
+            if [ -n "$KFX_WHEEL" ]; then
+              echo "Force reinstalling KFX: $KFX_WHEEL"
+              INSTALL_WHEELS=("$KFX_WHEEL")
               SDK_WHEEL=""
               if [ -d ./sdk-dist ]; then
                 SDK_WHEEL=$(find ./sdk-dist -name "*.whl" -type f | head -1)
               fi
               if [ -n "$SDK_WHEEL" ]; then
-                echo "Force reinstalling langflow-sdk with LFX: $SDK_WHEEL"
-                INSTALL_WHEELS=("$SDK_WHEEL" "$LFX_WHEEL")
+                echo "Force reinstalling ketos-sdk with KFX: $SDK_WHEEL"
+                INSTALL_WHEELS=("$SDK_WHEEL" "$KFX_WHEEL")
               fi
               NO_DEPS="--no-deps"
               if [ "${{ inputs.pre_release }}" = "true" ]; then
@@ -741,13 +741,13 @@ jobs:
           # Reinstall base
           BASE_WHEEL=$(find ./base-dist -name "*.whl" -type f | head -1)
           if [ -n "$BASE_WHEEL" ]; then
-            echo "Force reinstalling langflow-base: $BASE_WHEEL"
+            echo "Force reinstalling ketos-base: $BASE_WHEEL"
             INSTALL_WHEELS=("$BASE_WHEEL")
             NO_DEPS="--no-deps"
             if [ "${{ inputs.pre_release }}" = "true" ]; then
               # Keep local pre-release roots explicit while re-resolving deps. uv's
               # if-necessary-or-explicit mode does not allow pre-release transitive
-              # deps found only through --find-links, such as langflow-sdk dev wheels.
+              # deps found only through --find-links, such as ketos-sdk dev wheels.
               NO_DEPS=""
               LOCAL_WHEELS=()
               if [ -d ./sdk-dist ]; then
@@ -756,10 +756,10 @@ jobs:
                   LOCAL_WHEELS+=("$SDK_WHEEL")
                 fi
               fi
-              if [ -d ./lfx-dist ]; then
-                LFX_WHEEL=$(find ./lfx-dist -name "*.whl" -type f | head -1)
-                if [ -n "$LFX_WHEEL" ]; then
-                  LOCAL_WHEELS+=("$LFX_WHEEL")
+              if [ -d ./kfx-dist ]; then
+                KFX_WHEEL=$(find ./kfx-dist -name "*.whl" -type f | head -1)
+                if [ -n "$KFX_WHEEL" ]; then
+                  LOCAL_WHEELS+=("$KFX_WHEEL")
                 fi
               fi
               INSTALL_WHEELS=("${LOCAL_WHEELS[@]}" "$BASE_WHEEL")
@@ -769,23 +769,23 @@ jobs:
         shell: bash
 
       # PyPI installation steps
-      - name: Install langflow from PyPI (Windows)
+      - name: Install ketos from PyPI (Windows)
         if: steps.install-method.outputs.method == 'pypi' && matrix.os == 'windows'
         run: |
-          if [ -n "${{ inputs.langflow-version }}" ]; then
-            uv pip install --python ./test-env/Scripts/python.exe langflow==${{ inputs.langflow-version }}
+          if [ -n "${{ inputs.ketos-version }}" ]; then
+            uv pip install --python ./test-env/Scripts/python.exe ketos==${{ inputs.ketos-version }}
           else
-            uv pip install --python ./test-env/Scripts/python.exe langflow
+            uv pip install --python ./test-env/Scripts/python.exe ketos
           fi
         shell: bash
 
-      - name: Install langflow from PyPI (Unix)
+      - name: Install ketos from PyPI (Unix)
         if: steps.install-method.outputs.method == 'pypi' && matrix.os != 'windows'
         run: |
-          if [ -n "${{ inputs.langflow-version }}" ]; then
-            uv pip install --python ./test-env/bin/python langflow==${{ inputs.langflow-version }}
+          if [ -n "${{ inputs.ketos-version }}" ]; then
+            uv pip install --python ./test-env/bin/python ketos==${{ inputs.ketos-version }}
           else
-            uv pip install --python ./test-env/bin/python langflow
+            uv pip install --python ./test-env/bin/python ketos
           fi
         shell: bash
 
@@ -806,13 +806,13 @@ jobs:
       - name: Test CLI help command (Windows)
         if: matrix.os == 'windows'
         run: |
-          uv run --python ./test-env/Scripts/python.exe python -m langflow --help
+          uv run --python ./test-env/Scripts/python.exe python -m ketos --help
         shell: cmd
 
       - name: Test CLI help command (Unix)
         if: matrix.os != 'windows'
         run: |
-          uv run --python ./test-env/bin/python python -m langflow --help
+          uv run --python ./test-env/bin/python python -m ketos --help
         shell: bash
 
       - name: Test server startup (Windows)
@@ -820,7 +820,7 @@ jobs:
         timeout-minutes: 5
         run: |
           # Start server in background
-          $serverProcess = Start-Process -FilePath ".\test-env\Scripts\python.exe" -ArgumentList "-m", "langflow", "run", "--host", "localhost", "--port", "7860", "--backend-only" -PassThru -WindowStyle Hidden
+          $serverProcess = Start-Process -FilePath ".\test-env\Scripts\python.exe" -ArgumentList "-m", "ketos", "run", "--host", "localhost", "--port", "7860", "--backend-only" -PassThru -WindowStyle Hidden
 
           # Wait for server to be ready (GitHub Actions will timeout after 5 minutes)
           do {
@@ -846,7 +846,7 @@ jobs:
           OBJC_DISABLE_INITIALIZE_FORK_SAFETY: YES
         run: |
           # Start server in background
-          ./test-env/bin/python -m langflow run --host localhost --port 7860 --backend-only &
+          ./test-env/bin/python -m ketos run --host localhost --port 7860 --backend-only &
           SERVER_PID=$!
 
           # Wait for server to be ready (GitHub Actions will timeout after 5 minutes)
@@ -868,10 +868,10 @@ jobs:
         run: |
           test-env\Scripts\python.exe -c "
           try:
-              import langflow
-              print('✅ langflow import successful on ${{ matrix.os }}-${{ matrix.arch }}')
+              import ketos
+              print('✅ ketos import successful on ${{ matrix.os }}-${{ matrix.arch }}')
           except Exception as e:
-              print(f'❌ langflow import failed on ${{ matrix.os }}-${{ matrix.arch }}: {e}')
+              print(f'❌ ketos import failed on ${{ matrix.os }}-${{ matrix.arch }}: {e}')
               exit(1)
           "
         shell: cmd
@@ -881,10 +881,10 @@ jobs:
         run: |
           ./test-env/bin/python -c "
           try:
-              import langflow
-              print('✅ langflow import successful on ${{ matrix.os }}-${{ matrix.arch }}')
+              import ketos
+              print('✅ ketos import successful on ${{ matrix.os }}-${{ matrix.arch }}')
           except Exception as e:
-              print(f'❌ langflow import failed on ${{ matrix.os }}-${{ matrix.arch }}: {e}')
+              print(f'❌ ketos import failed on ${{ matrix.os }}-${{ matrix.arch }}: {e}')
               exit(1)
           "
         shell: bash
@@ -907,7 +907,7 @@ jobs:
           if [ "$stable_result" = "success" ]; then
             if [ "$experimental_result" = "success" ]; then
               if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-                if [ -n "${{ inputs.langflow-version }}" ]; then
+                if [ -n "${{ inputs.ketos-version }}" ]; then
                   echo "✅ All PyPI installation tests passed (including Python 3.14)"
                 else
                   echo "✅ All source build and installation tests passed (including Python 3.14)"
@@ -917,7 +917,7 @@ jobs:
               fi
             else
               if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-                if [ -n "${{ inputs.langflow-version }}" ]; then
+                if [ -n "${{ inputs.ketos-version }}" ]; then
                   echo "✅ PyPI installation tests passed (Python 3.14 experimental failures are acceptable)"
                 else
                   echo "✅ Source build and installation tests passed (Python 3.14 experimental failures are acceptable)"

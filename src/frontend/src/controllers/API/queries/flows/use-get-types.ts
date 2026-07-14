@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { normalizeLanguage } from "@/constants/languages";
 import { ENABLE_KNOWLEDGE_BASES } from "@/customization/feature-flags";
 import {
   recomputeComponentsToUpdateIfNeeded,
@@ -20,6 +22,10 @@ export const useGetTypes: useQueryFunctionType<
   { checkCache?: boolean }
 > = (options) => {
   const { query } = UseRequestProcessor();
+  const { i18n } = useTranslation();
+  const requestLanguage = normalizeLanguage(
+    i18n.resolvedLanguage || i18n.language,
+  );
   const setLoading = useFlowsManagerStore((state) => state.setIsLoading);
   const setTypes = useTypesStore((state) => state.setTypes);
   const setComponentDisplayNames = useTypesStore(
@@ -50,6 +56,13 @@ export const useGetTypes: useQueryFunctionType<
         delete data.knowledge_bases;
       }
 
+      if (
+        normalizeLanguage(i18n.resolvedLanguage || i18n.language) !==
+        requestLanguage
+      ) {
+        return data;
+      }
+
       if (componentDisplayNames) {
         setComponentDisplayNames(componentDisplayNames);
       }
@@ -65,7 +78,7 @@ export const useGetTypes: useQueryFunctionType<
   };
 
   const queryResult = query(
-    ["useGetTypes"],
+    ["useGetTypes", requestLanguage],
     () => getTypesFn(options?.checkCache),
     {
       refetchOnWindowFocus: false,

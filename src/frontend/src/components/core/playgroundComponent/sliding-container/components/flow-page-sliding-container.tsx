@@ -35,10 +35,8 @@ export function FlowPageSlidingContainerContent({
   const {
     activeSessionId,
     sessions,
-    fetchedSessions,
     createSession,
     deleteSession,
-    deleteSessionLocalOnly,
     bulkDeleteSessions,
     renameSession,
     selectSession,
@@ -77,7 +75,7 @@ export function FlowPageSlidingContainerContent({
     if (chatHistory.length > prevChatLenRef.current) {
       const lastMsg = chatHistory[chatHistory.length - 1];
       if (lastMsg?.isSend) {
-        window.dispatchEvent(new Event("langflow-scroll-to-bottom"));
+        window.dispatchEvent(new Event("ketos-scroll-to-bottom"));
         stickyInstance.scrollToBottom("smooth");
       }
     }
@@ -131,6 +129,8 @@ export function FlowPageSlidingContainerContent({
 
   return (
     <div
+      role="region"
+      aria-label="Chat panel"
       className="h-full w-full muted shadow-lg flex flex-col relative z-[50] @container/chat-panel"
       onDragOver={dragOver}
       onDragEnter={dragEnter}
@@ -198,6 +198,7 @@ export function FlowPageSlidingContainerContent({
               >
                 <ChatInput
                   noInput={noInput}
+                  playgroundPage={true}
                   files={files}
                   setFiles={setFiles}
                   isDragging={isDragging}

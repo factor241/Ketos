@@ -1,4 +1,4 @@
-"""Unit tests for langflow.core.celery_app module."""
+"""Unit tests for ketos.core.celery_app module."""
 
 from unittest.mock import MagicMock, patch
 
@@ -11,7 +11,7 @@ class TestMakeCelery:
 
     def test_make_celery_creates_celery_instance(self):
         """Test that make_celery creates a functional Celery instance."""
-        from langflow.core.celery_app import make_celery
+        from ketos.core.celery_app import make_celery
 
         # Create a mock config module
         mock_config = MagicMock()
@@ -20,9 +20,9 @@ class TestMakeCelery:
         mock_config.accept_content = ["json"]
 
         # Mock the import of the config module
-        with patch.dict("sys.modules", {"langflow.core.celeryconfig": mock_config}):
+        with patch.dict("sys.modules", {"ketos.core.celeryconfig": mock_config}):
             # Act - Create a real Celery instance
-            celery_app = make_celery("test_app", "langflow.core.celeryconfig")
+            celery_app = make_celery("test_app", "ketos.core.celeryconfig")
 
             # Assert - Test actual functionality
             assert celery_app.main == "test_app"
@@ -36,7 +36,7 @@ class TestMakeCelery:
 
     def test_make_celery_configures_from_object(self):
         """Test that configuration is actually applied to the Celery instance."""
-        from langflow.core.celery_app import make_celery
+        from ketos.core.celery_app import make_celery
 
         # Create a mock config module with specific values
         mock_config = MagicMock()
@@ -45,8 +45,8 @@ class TestMakeCelery:
         mock_config.accept_content = ["json", "pickle"]
         mock_config.task_serializer = "json"
 
-        with patch.dict("sys.modules", {"langflow.core.celeryconfig": mock_config}):
-            celery_app = make_celery("test_app", "langflow.core.celeryconfig")
+        with patch.dict("sys.modules", {"ketos.core.celeryconfig": mock_config}):
+            celery_app = make_celery("test_app", "ketos.core.celeryconfig")
 
             # Verify configuration was actually applied
             assert celery_app.conf.broker_url == "redis://test:6379/0"
@@ -55,16 +55,16 @@ class TestMakeCelery:
 
     def test_make_celery_sets_task_routes(self):
         """Test that different app names create different Celery instances."""
-        from langflow.core.celery_app import make_celery
+        from ketos.core.celery_app import make_celery
 
         mock_config = MagicMock()
         mock_config.broker_url = "memory://"
         mock_config.result_backend = "cache+memory://"
         mock_config.accept_content = ["json"]
 
-        with patch.dict("sys.modules", {"langflow.core.celeryconfig": mock_config}):
-            app1 = make_celery("app1", "langflow.core.celeryconfig")
-            app2 = make_celery("app2", "langflow.core.celeryconfig")
+        with patch.dict("sys.modules", {"ketos.core.celeryconfig": mock_config}):
+            app1 = make_celery("app1", "ketos.core.celeryconfig")
+            app2 = make_celery("app2", "ketos.core.celeryconfig")
 
             # Different apps should have different main names
             assert app1.main == "app1"
@@ -73,15 +73,15 @@ class TestMakeCelery:
 
     def test_make_celery_returns_celery_instance(self):
         """Test that the returned Celery app can perform basic operations."""
-        from langflow.core.celery_app import make_celery
+        from ketos.core.celery_app import make_celery
 
         mock_config = MagicMock()
         mock_config.broker_url = "memory://"
         mock_config.result_backend = "cache+memory://"
         mock_config.accept_content = ["json"]
 
-        with patch.dict("sys.modules", {"langflow.core.celeryconfig": mock_config}):
-            celery_app = make_celery("test_app", "langflow.core.celeryconfig")
+        with patch.dict("sys.modules", {"ketos.core.celeryconfig": mock_config}):
+            celery_app = make_celery("test_app", "ketos.core.celeryconfig")
 
             # Test that the app can be inspected
             assert celery_app.main == "test_app"
@@ -97,15 +97,15 @@ class TestMakeCelery:
 
     def test_make_celery_with_different_app_names(self):
         """Test that the Celery app can work with actual task definitions."""
-        from langflow.core.celery_app import make_celery
+        from ketos.core.celery_app import make_celery
 
         mock_config = MagicMock()
         mock_config.broker_url = "memory://"
         mock_config.result_backend = "cache+memory://"
         mock_config.accept_content = ["json"]
 
-        with patch.dict("sys.modules", {"langflow.core.celeryconfig": mock_config}):
-            celery_app = make_celery("test_app", "langflow.core.celeryconfig")
+        with patch.dict("sys.modules", {"ketos.core.celeryconfig": mock_config}):
+            celery_app = make_celery("test_app", "ketos.core.celeryconfig")
 
             # Define a simple task
             @celery_app.task
@@ -126,7 +126,7 @@ class TestMakeCelery:
 
     def test_make_celery_with_different_configs(self):
         """Test that make_celery works with different configuration strings."""
-        from langflow.core.celery_app import make_celery
+        from ketos.core.celery_app import make_celery
 
         # Test with different config modules
         mock_config1 = MagicMock()
@@ -139,19 +139,19 @@ class TestMakeCelery:
         mock_config2.result_backend = "redis://test2:6379/0"
         mock_config2.accept_content = ["pickle"]
 
-        with patch.dict("sys.modules", {"langflow.core.celeryconfig": mock_config1}):
-            app1 = make_celery("test_app", "langflow.core.celeryconfig")
+        with patch.dict("sys.modules", {"ketos.core.celeryconfig": mock_config1}):
+            app1 = make_celery("test_app", "ketos.core.celeryconfig")
             assert app1.conf.broker_url == "redis://test1:6379/0"
 
-        with patch.dict("sys.modules", {"langflow.core.celeryconfig": mock_config2}):
-            app2 = make_celery("test_app", "langflow.core.celeryconfig")
+        with patch.dict("sys.modules", {"ketos.core.celeryconfig": mock_config2}):
+            app2 = make_celery("test_app", "ketos.core.celeryconfig")
             assert app2.conf.broker_url == "redis://test2:6379/0"
 
     def test_make_celery_function_signature(self):
         """Test that make_celery function has the expected signature."""
         import inspect
 
-        from langflow.core.celery_app import make_celery
+        from ketos.core.celery_app import make_celery
 
         # Assert
         sig = inspect.signature(make_celery)
@@ -162,7 +162,7 @@ class TestMakeCelery:
 
     def test_make_celery_docstring(self):
         """Test that make_celery function exists and is callable."""
-        from langflow.core.celery_app import make_celery
+        from ketos.core.celery_app import make_celery
 
         # Assert
         # The function exists and is callable
@@ -171,10 +171,10 @@ class TestMakeCelery:
 
     def test_make_celery_error_handling(self):
         """Test that make_celery function handles errors appropriately."""
-        from langflow.core.celery_app import make_celery
+        from ketos.core.celery_app import make_celery
 
         # Test with invalid config that causes Celery to fail
-        with patch("langflow.core.celery_app.Celery") as mock_celery_class:
+        with patch("ketos.core.celery_app.Celery") as mock_celery_class:
             mock_celery_class.side_effect = Exception("Celery creation failed")
 
             with pytest.raises(Exception, match="Celery creation failed"):
@@ -183,7 +183,7 @@ class TestMakeCelery:
     def test_make_celery_configuration_application(self):
         """Test that the module-level celery_app instance is created correctly."""
         # This tests the actual instance created at module level
-        from langflow.core.celery_app import celery_app
+        from ketos.core.celery_app import celery_app
 
         # Should be a Celery instance
         assert hasattr(celery_app, "main")
@@ -191,4 +191,4 @@ class TestMakeCelery:
         assert hasattr(celery_app, "send_task")
 
         # Should have the expected app name
-        assert celery_app.main == "langflow"
+        assert celery_app.main == "ketos"

@@ -17,7 +17,7 @@ import pytest
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from lfx.graph.graph.base import Graph
+    from kfx.graph.graph.base import Graph
 
 from .test_execution_path_equivalence import ExecutionTrace, ExecutionTracer, assert_execution_equivalence
 
@@ -49,7 +49,7 @@ def loop_csv_path() -> Generator[Path, None, None]:
 
 async def run_via_async_start_traced(graph: Graph) -> ExecutionTrace:
     """Run graph using async_start path with full tracing."""
-    from lfx.graph.graph.constants import Finish
+    from kfx.graph.graph.constants import Finish
 
     trace = ExecutionTrace(path_name="async_start")
     tracer = ExecutionTracer(graph, trace)
@@ -79,8 +79,8 @@ async def run_via_arun_traced(graph: Graph) -> ExecutionTrace:
     """Run graph using arun path with full tracing."""
     from uuid import uuid4
 
-    from langflow.schema.schema import INPUT_FIELD_NAME
-    from lfx.schema.schema import InputValueRequest
+    from ketos.schema.schema import INPUT_FIELD_NAME
+    from kfx.schema.schema import InputValueRequest
 
     trace = ExecutionTrace(path_name="arun")
     tracer = ExecutionTracer(graph, trace)
@@ -129,7 +129,7 @@ async def test_flow_execution_equivalence(flow_name: str):
     """Test that a flow produces identical results via both execution paths."""
     from uuid import uuid4
 
-    from lfx.graph.graph.base import Graph
+    from kfx.graph.graph.base import Graph
 
     flow_path = TEST_DATA_DIR / flow_name
 

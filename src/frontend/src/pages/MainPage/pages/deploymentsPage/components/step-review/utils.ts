@@ -3,7 +3,7 @@ import {
   getScopedValueForUniqueFlowVersion,
 } from "../../helpers/version-scope";
 import type { ConnectionItem } from "../../types";
-import { getDefaultDeploymentToolName, UNKNOWN_FLOW_NAME } from "../../types";
+import { DEFAULT_FLOW_NAME, getDefaultDeploymentToolName } from "../../types";
 import type { ReviewFlowItem } from "./types";
 
 function getToolNameForReview(
@@ -36,6 +36,7 @@ interface BuildReviewFlowsParams {
     }
   >;
   toolNameByFlow: Map<string, string>;
+  unknownFlowLabel: string;
 }
 
 export function buildReviewFlows({
@@ -45,6 +46,7 @@ export function buildReviewFlows({
   removedFlowIds,
   selectedVersionByFlow,
   toolNameByFlow,
+  unknownFlowLabel,
 }: BuildReviewFlowsParams): ReviewFlowItem[] {
   const selectedItems = Array.from(selectedVersionByFlow.entries()).map(
     ([attachmentKey, entry]) => ({
@@ -89,8 +91,11 @@ export function buildReviewFlows({
         };
       });
 
-      const flowName = flow?.name ?? entry.flowName ?? UNKNOWN_FLOW_NAME;
-      const defaultToolName = getDefaultDeploymentToolName(flowName);
+      const stableFlowName = flow?.name ?? entry.flowName;
+      const flowName = stableFlowName ?? unknownFlowLabel;
+      const defaultToolName = getDefaultDeploymentToolName(
+        stableFlowName ?? DEFAULT_FLOW_NAME,
+      );
 
       return {
         attachmentKey: normalizedAttachmentKey,

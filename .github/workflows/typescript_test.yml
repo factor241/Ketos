@@ -11,6 +11,14 @@ on:
         required: true
       TAVILY_API_KEY:
         required: true
+      SEARCH_API_KEY:
+        required: false
+      ASTRA_DB_APPLICATION_TOKEN:
+        required: false
+      ASTRA_DB_API_ENDPOINT:
+        required: false
+      ENV_VARS:
+        required: false
     inputs:
       suites:
         description: "Test suites to run (JSON array)"
@@ -61,7 +69,7 @@ on:
           - ubuntu-latest
           - windows-latest
           - self-hosted
-          - '["self-hosted", "linux", "ARM64", "langflow-ai-arm64-40gb-ephemeral"]'
+          - '["self-hosted", "linux", "ARM64", "ketos-local-arm64-40gb-ephemeral"]'
         default: ubuntu-latest
 
 env:
@@ -71,7 +79,7 @@ env:
   # This path is used for caching across workflows
   PLAYWRIGHT_BROWSERS_PATH: "ms-playwright"
   PLAYWRIGHT_VERSION: "1.59.1"
-  LANGFLOW_FEATURE_WXO_DEPLOYMENTS: "true"
+  KETOS_FEATURE_WXO_DEPLOYMENTS: "true"
 
 jobs:
   determine-test-suite:
@@ -291,16 +299,14 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.determine-test-suite.outputs.matrix) }}
     env:
-      OPENAI_API_KEY: ${{ inputs.openai_api_key || secrets.OPENAI_API_KEY }}
-      STORE_API_KEY: ${{ inputs.store_api_key || secrets.STORE_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      STORE_API_KEY: ${{ secrets.STORE_API_KEY }}
       SEARCH_API_KEY: "${{ secrets.SEARCH_API_KEY }}"
       ASTRA_DB_APPLICATION_TOKEN: "${{ secrets.ASTRA_DB_APPLICATION_TOKEN }}"
       ASTRA_DB_API_ENDPOINT: "${{ secrets.ASTRA_DB_API_ENDPOINT }}"
       ANTHROPIC_API_KEY: "${{ secrets.ANTHROPIC_API_KEY }}"
       TAVILY_API_KEY: "${{ secrets.TAVILY_API_KEY }}"
-      LANGFLOW_DEACTIVE_TRACING: "true"
-    outputs:
-      failed: ${{ steps.check-failure.outputs.failed }}
+      KETOS_DEACTIVE_TRACING: "true"
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6

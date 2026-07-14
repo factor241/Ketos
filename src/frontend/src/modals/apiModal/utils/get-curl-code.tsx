@@ -1,8 +1,9 @@
-import { ENABLE_DATASTAX_LANGFLOW } from "@/customization/feature-flags";
+import { ENABLE_DATASTAX_KETOS } from "@/customization/feature-flags";
 import {
   getApiSampleHeaders,
   getBaseUrl,
 } from "@/customization/utils/custom-code-samples";
+import i18n from "@/i18n";
 import { GetCodeType } from "@/types/tweaks";
 import {
   getAllChatInputNodeIds,
@@ -10,6 +11,10 @@ import {
   getNonFileTypeTweaks,
   hasFileTweaks,
 } from "./detect-file-tweaks";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
 /**
  * Generates a cURL command for making a POST request to a webhook endpoint.
@@ -40,7 +45,7 @@ export function getCurlWebhookCode({
   "${baseUrl}" \\
   -H 'Content-Type: application/json' \\${
     webhookAuthEnable ? `\n  -H 'x-api-key: <your api key>' \\` : ""
-  }${ENABLE_DATASTAX_LANGFLOW ? `${getApiSampleHeaders("curl")}` : ""}
+  }${ENABLE_DATASTAX_KETOS ? `${getApiSampleHeaders("curl")}` : ""}
   -d '{"any": "data"}'
   `.trim();
 }
@@ -52,12 +57,17 @@ export function getNewCurlCode({
   processedPayload,
   platform,
   shouldDisplayApiKey,
+  translate = (key) => i18n.t(key),
 }: {
   flowId: string;
   endpointName: string;
+  // biome-ignore lint/suspicious/noExplicitAny: legacy API sample payload supports arbitrary tweak shapes
   processedPayload: any;
   platform?: "unix" | "powershell";
   shouldDisplayApiKey: boolean;
+  translate?: (
+    key: "apiModal.uploadFilesStep" | "apiModal.executeFlowStep",
+  ) => string;
 }): { steps: { title: string; code: string }[] } | string {
   const baseUrl = getBaseUrl();
   const apiUrl = `${baseUrl}/api/v1/run/${endpointName || flowId}`;
@@ -70,7 +80,12 @@ export function getNewCurlCode({
       : "unix");
 
   // Check if there are file uploads
-  const tweaks = processedPayload.tweaks || {};
+  const tweaks =
+    processedPayload.tweaks &&
+    typeof processedPayload.tweaks === "object" &&
+    !Array.isArray(processedPayload.tweaks)
+      ? (processedPayload.tweaks as Record<string, unknown>)
+      : {};
   const hasFiles = hasFileTweaks(tweaks);
 
   // If no file uploads, use existing logic
@@ -148,7 +163,7 @@ ${getApiSampleHeaders("curl")}
      --form "file=@your_image_${uploadCounter}.jpg"`,
       );
     }
-    const originalTweak = tweaks[nodeId];
+    const originalTweak = isRecord(tweaks[nodeId]) ? tweaks[nodeId] : {};
     const modifiedTweak = { ...originalTweak };
     modifiedTweak.files = [
       `REPLACE_WITH_FILE_PATH_FROM_UPLOAD_${uploadCounter}`,
@@ -181,7 +196,7 @@ ${getApiSampleHeaders("curl")}
      --form "file=@your_file_${uploadCounter}.pdf"`,
       );
     }
-    const originalTweak = tweaks[nodeId];
+    const originalTweak = isRecord(tweaks[nodeId]) ? tweaks[nodeId] : {};
     const modifiedTweak = { ...originalTweak };
     if ("path" in originalTweak) {
       modifiedTweak.path = [
@@ -231,8 +246,8 @@ ${allTweaks}
     // Return structured steps instead of concatenated string
     return {
       steps: [
-        { title: "Upload files to the server", code: uploadStep },
-        { title: "Execute the flow with uploaded files", code: executeStep },
+        { title: translate("apiModal.uploadFilesStep"), code: uploadStep },
+        { title: translate("apiModal.executeFlowStep"), code: executeStep },
       ],
     };
   } else {
@@ -257,8 +272,8 @@ ${allTweaks}
     // Return structured steps instead of concatenated string
     return {
       steps: [
-        { title: "Upload files to the server", code: uploadStep },
-        { title: "Execute the flow with uploaded files", code: executeStep },
+        { title: translate("apiModal.uploadFilesStep"), code: uploadStep },
+        { title: translate("apiModal.executeFlowStep"), code: executeStep },
       ],
     };
   }

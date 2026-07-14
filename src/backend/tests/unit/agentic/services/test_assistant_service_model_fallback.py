@@ -21,12 +21,12 @@ import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from langflow.agentic.services.assistant_service import (
+from ketos.agentic.services.assistant_service import (
     execute_flow_with_validation_streaming,
 )
-from langflow.agentic.services.flow_types import FlowExecutionError, IntentResult
+from ketos.agentic.services.flow_types import FlowExecutionError, IntentResult
 
-MODULE = "langflow.agentic.services.assistant_service"
+MODULE = "ketos.agentic.services.assistant_service"
 
 # The exact error wrapping the assistant receives from the LLM call when
 # OpenAI returns 403 model_not_found. Lifted verbatim from

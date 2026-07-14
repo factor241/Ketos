@@ -1,11 +1,11 @@
-"""Unit tests for the langflow.helpers.flow module."""
+"""Unit tests for the ketos.helpers.flow module."""
 
 import pytest
-from lfx.utils.langflow_utils import has_langflow_memory
+from kfx.utils.ketos_utils import has_ketos_memory
 
 # Globals
 
-_LANGFLOW_HELPER_MODULE_FLOW = "langflow.helpers.flow"
+_KETOS_HELPER_MODULE_FLOW = "ketos.helpers.flow"
 
 # Helper Functions
 
@@ -18,70 +18,70 @@ def is_helper_module(module, module_name):
 
 
 class TestDynamicImport:
-    """Test dynamic imports of the langflow implementation."""
+    """Test dynamic imports of the ketos implementation."""
 
-    def test_langflow_available(self):
-        """Test whether the langflow implementation is available."""
-        # Langflow implementation should be available
-        if not has_langflow_memory():
-            pytest.fail("Langflow implementation is not available")
+    def test_ketos_available(self):
+        """Test whether the ketos implementation is available."""
+        # Ketos implementation should be available
+        if not has_ketos_memory():
+            pytest.fail("Ketos implementation is not available")
 
     def test_helpers_import_build_schema_from_inputs(self):
-        """Test the lfx.helpers.build_schema_from_inputs import."""
+        """Test the kfx.helpers.build_schema_from_inputs import."""
         try:
-            from lfx.helpers import build_schema_from_inputs
+            from kfx.helpers import build_schema_from_inputs
         except (ImportError, ModuleNotFoundError) as e:
-            pytest.fail(f"Failed to dynamically import lfx.helpers.build_schema_from_inputs: {e}")
+            pytest.fail(f"Failed to dynamically import kfx.helpers.build_schema_from_inputs: {e}")
 
-        # Helper module should be the langflow implementation
-        assert is_helper_module(build_schema_from_inputs, _LANGFLOW_HELPER_MODULE_FLOW)
+        # Helper module should be the ketos implementation
+        assert is_helper_module(build_schema_from_inputs, _KETOS_HELPER_MODULE_FLOW)
 
     def test_helpers_import_get_arg_names(self):
-        """Test the lfx.helpers.get_arg_names import."""
+        """Test the kfx.helpers.get_arg_names import."""
         try:
-            from lfx.helpers import get_arg_names
+            from kfx.helpers import get_arg_names
         except (ImportError, ModuleNotFoundError) as e:
-            pytest.fail(f"Failed to dynamically import lfx.helpers.get_arg_names: {e}")
+            pytest.fail(f"Failed to dynamically import kfx.helpers.get_arg_names: {e}")
 
-        # Helper module should be the langflow implementation
-        assert is_helper_module(get_arg_names, _LANGFLOW_HELPER_MODULE_FLOW)
+        # Helper module should be the ketos implementation
+        assert is_helper_module(get_arg_names, _KETOS_HELPER_MODULE_FLOW)
 
     def test_helpers_import_get_flow_inputs(self):
-        """Test the lfx.helpers.get_flow_inputs import."""
+        """Test the kfx.helpers.get_flow_inputs import."""
         try:
-            from lfx.helpers import get_flow_inputs
+            from kfx.helpers import get_flow_inputs
         except (ImportError, ModuleNotFoundError) as e:
-            pytest.fail(f"Failed to dynamically import lfx.helpers.get_flow_inputs: {e}")
+            pytest.fail(f"Failed to dynamically import kfx.helpers.get_flow_inputs: {e}")
 
-        # Helper module should be the langflow implementation
-        assert is_helper_module(get_flow_inputs, _LANGFLOW_HELPER_MODULE_FLOW)
+        # Helper module should be the ketos implementation
+        assert is_helper_module(get_flow_inputs, _KETOS_HELPER_MODULE_FLOW)
 
     def test_helpers_import_list_flows(self):
-        """Test the lfx.helpers.list_flows import."""
+        """Test the kfx.helpers.list_flows import."""
         try:
-            from lfx.helpers import list_flows
+            from kfx.helpers import list_flows
         except (ImportError, ModuleNotFoundError) as e:
-            pytest.fail(f"Failed to dynamically import lfx.helpers.list_flows: {e}")
+            pytest.fail(f"Failed to dynamically import kfx.helpers.list_flows: {e}")
 
-        # Helper module should be the langflow implementation
-        assert is_helper_module(list_flows, _LANGFLOW_HELPER_MODULE_FLOW)
+        # Helper module should be the ketos implementation
+        assert is_helper_module(list_flows, _KETOS_HELPER_MODULE_FLOW)
 
     def test_helpers_import_load_flow(self):
-        """Test the lfx.helpers.load_flow import."""
+        """Test the kfx.helpers.load_flow import."""
         try:
-            from lfx.helpers import load_flow
+            from kfx.helpers import load_flow
         except (ImportError, ModuleNotFoundError) as e:
-            pytest.fail(f"Failed to dynamically import lfx.helpers.load_flow: {e}")
+            pytest.fail(f"Failed to dynamically import kfx.helpers.load_flow: {e}")
 
-        # Helper module should be the langflow implementation
-        assert is_helper_module(load_flow, _LANGFLOW_HELPER_MODULE_FLOW)
+        # Helper module should be the ketos implementation
+        assert is_helper_module(load_flow, _KETOS_HELPER_MODULE_FLOW)
 
     def test_helpers_import_run_flow(self):
-        """Test the lfx.helpers.run_flow import."""
+        """Test the kfx.helpers.run_flow import."""
         try:
-            from lfx.helpers import run_flow
+            from kfx.helpers import run_flow
         except (ImportError, ModuleNotFoundError) as e:
-            pytest.fail(f"Failed to dynamically import lfx.helpers.run_flow: {e}")
+            pytest.fail(f"Failed to dynamically import kfx.helpers.run_flow: {e}")
 
-        # Helper module should be the langflow implementation
-        assert is_helper_module(run_flow, _LANGFLOW_HELPER_MODULE_FLOW)
+        # Helper module should be the ketos implementation
+        assert is_helper_module(run_flow, _KETOS_HELPER_MODULE_FLOW)

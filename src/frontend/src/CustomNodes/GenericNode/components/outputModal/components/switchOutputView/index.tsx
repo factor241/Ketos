@@ -104,7 +104,7 @@ const SwitchOutputView: React.FC<SwitchOutputViewProps> = ({
                 "font-medium text-lg" + (tool?.description ? " mb-2" : "")
               }
             >
-              {tool.name || `Tool ${index + 1}`}
+              {tool.name || t("output.toolLabel", { index: index + 1 })}
             </div>
             {tool?.description && (
               <div
@@ -203,9 +203,7 @@ const SwitchOutputView: React.FC<SwitchOutputViewProps> = ({
             />
             <AlertTitle>{t("output.streamingNotSupported")}</AlertTitle>
             <AlertDescription>
-              {
-                "Use the playground to interact with components that stream data"
-              }
+              {t("output.usePlaygroundForStreaming")}
             </AlertDescription>
           </Alert>
         </div>

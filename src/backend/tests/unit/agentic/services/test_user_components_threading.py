@@ -15,11 +15,11 @@ import secrets
 from typing import TYPE_CHECKING
 
 import pytest
-from langflow.agentic.services.user_components import (
+from ketos.agentic.services.user_components import (
     get_user_components_dir,
     register_user_component,
 )
-from langflow.agentic.services.user_components_context import (
+from ketos.agentic.services.user_components_context import (
     current_user_id,
     reset_current_user_id,
     set_current_user_id,
@@ -29,9 +29,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 SAMPLE_CODE = (
-    "from lfx.custom import Component\n"
-    "from lfx.io import FloatInput, Output\n"
-    "from lfx.schema import Data\n"
+    "from kfx.custom import Component\n"
+    "from kfx.io import FloatInput, Output\n"
+    "from kfx.schema import Data\n"
     "\n"
     "class SumComponent(Component):\n"
     "    inputs = [FloatInput(name='a'), FloatInput(name='b')]\n"
@@ -43,10 +43,10 @@ SAMPLE_CODE = (
 
 @pytest.fixture
 def isolated_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setenv("LANGFLOW_FS_TOOL_BASE_DIR", str(tmp_path))
+    monkeypatch.setenv("KETOS_FS_TOOL_BASE_DIR", str(tmp_path))
     (tmp_path / ".fs_pepper").write_bytes(secrets.token_bytes(32))
 
-    from lfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
+    from kfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
 
     monkeypatch.setattr(
         FileSystemToolComponent,
@@ -114,7 +114,7 @@ class TestOverlayConsumesContextVar:
 
         # Explicit pass-through still wins, but the call here uses the
         # ContextVar — we'll add a wrapper that does the read.
-        from langflow.agentic.services.user_components_overlay import (
+        from ketos.agentic.services.user_components_overlay import (
             load_registry_for_current_user,
         )
 
@@ -129,7 +129,7 @@ class TestOverlayConsumesContextVar:
         )
         # ContextVar is None (setup_method reset it).
 
-        from langflow.agentic.services.user_components_overlay import (
+        from ketos.agentic.services.user_components_overlay import (
             load_registry_for_current_user,
         )
 
@@ -147,7 +147,7 @@ class TestRegisterIfValid:
     """
 
     def test_should_register_on_valid_input(self, isolated_sandbox: Path) -> None:  # noqa: ARG002
-        from langflow.agentic.services.user_components import (
+        from ketos.agentic.services.user_components import (
             register_user_component_if_valid,
         )
 
@@ -164,7 +164,7 @@ class TestRegisterIfValid:
         assert (components_dir / "SumComponent.py").exists()
 
     def test_should_return_none_and_swallow_when_user_id_missing(self, isolated_sandbox: Path) -> None:  # noqa: ARG002
-        from langflow.agentic.services.user_components import (
+        from ketos.agentic.services.user_components import (
             register_user_component_if_valid,
         )
 
@@ -177,7 +177,7 @@ class TestRegisterIfValid:
         assert result is None  # swallowed, not raised
 
     def test_should_return_none_and_swallow_when_class_name_missing(self, isolated_sandbox: Path) -> None:  # noqa: ARG002
-        from langflow.agentic.services.user_components import (
+        from ketos.agentic.services.user_components import (
             register_user_component_if_valid,
         )
 
@@ -190,7 +190,7 @@ class TestRegisterIfValid:
         assert result is None
 
     def test_should_return_none_and_swallow_when_class_name_unsafe(self, isolated_sandbox: Path) -> None:  # noqa: ARG002
-        from langflow.agentic.services.user_components import (
+        from ketos.agentic.services.user_components import (
             register_user_component_if_valid,
         )
 
@@ -205,7 +205,7 @@ class TestRegisterIfValid:
         assert result is None
 
     def test_should_return_none_and_swallow_when_code_empty(self, isolated_sandbox: Path) -> None:  # noqa: ARG002
-        from langflow.agentic.services.user_components import (
+        from ketos.agentic.services.user_components import (
             register_user_component_if_valid,
         )
 
@@ -228,7 +228,7 @@ class TestRegisterIfValid:
         (e.g., disk full) should propagate so observability is not
         silently degraded. We force one via monkey-patching.
         """
-        from langflow.agentic.services import user_components as uc_mod
+        from ketos.agentic.services import user_components as uc_mod
 
         def boom(*args, **kwargs):  # noqa: ARG001
             msg = "disk on fire"

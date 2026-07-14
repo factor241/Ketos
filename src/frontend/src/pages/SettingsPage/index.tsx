@@ -2,28 +2,22 @@ import { useTranslation } from "react-i18next";
 import { Outlet, type To } from "react-router-dom";
 import SideBarButtonsComponent from "@/components/core/sidebarComponent";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { CustomStoreSidebar } from "@/customization/components/custom-store-sidebar";
-import {
-  ENABLE_DATASTAX_LANGFLOW,
-  ENABLE_LANGFLOW_STORE,
-  ENABLE_PROFILE_ICONS,
-} from "@/customization/feature-flags";
+import { ENABLE_PROFILE_ICONS } from "@/customization/feature-flags";
 import useAuthStore from "@/stores/authStore";
-import { useStoreStore } from "@/stores/storeStore";
 import ForwardedIconComponent from "../../components/common/genericIconComponent";
 import PageLayout from "../../components/common/pageLayout";
 export default function SettingsPage(): JSX.Element {
   const { t } = useTranslation();
   const autoLogin = useAuthStore((state) => state.autoLogin);
-  const hasStore = useStoreStore((state) => state.hasStore);
 
   // Hides the General settings if there is nothing to show
-  const showGeneralSettings = ENABLE_PROFILE_ICONS || hasStore || !autoLogin;
+  const showGeneralSettings = ENABLE_PROFILE_ICONS || !autoLogin;
 
   const sidebarNavItems: {
     href?: string;
     title: string;
     icon: React.ReactNode;
+    testId?: string;
   }[] = [];
 
   if (showGeneralSettings) {
@@ -40,6 +34,17 @@ export default function SettingsPage(): JSX.Element {
   }
 
   sidebarNavItems.push(
+    {
+      title: t("settings.languageTitle"),
+      href: "/settings/language",
+      testId: "sidebar-nav-language",
+      icon: (
+        <ForwardedIconComponent
+          name="Languages"
+          className="w-4 flex-shrink-0 justify-start stroke-[1.5]"
+        />
+      ),
+    },
     {
       title: t("settings.nav.mcpServers"),
       href: "/settings/mcp-servers",
@@ -113,12 +118,6 @@ export default function SettingsPage(): JSX.Element {
     },
   );
 
-  // TODO: Remove this on cleanup
-  if (!ENABLE_DATASTAX_LANGFLOW) {
-    const langflowItems = CustomStoreSidebar(true, ENABLE_LANGFLOW_STORE);
-    sidebarNavItems.splice(2, 0, ...langflowItems);
-  }
-
   return (
     <PageLayout
       backTo={-1 as To}
@@ -126,7 +125,7 @@ export default function SettingsPage(): JSX.Element {
       description={t("settings.description")}
     >
       <SidebarProvider width="15rem" defaultOpen={false}>
-        <SideBarButtonsComponent items={sidebarNavItems} />
+        <SideBarButtonsComponent items={sidebarNavItems} wrapLabels />
         <main className="flex flex-1 overflow-hidden">
           <div className="flex flex-1 flex-col overflow-x-hidden pt-1">
             <Outlet />

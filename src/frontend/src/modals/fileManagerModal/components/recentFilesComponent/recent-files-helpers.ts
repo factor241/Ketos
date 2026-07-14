@@ -1,5 +1,6 @@
 import type { FileType } from "@/types/file_management";
 import { getRelativePathForServerPath } from "@/utils/file-relative-path-map";
+import { compareForPresentation } from "@/utils/locale-format";
 
 export type FileTreeNode =
   | {
@@ -79,7 +80,7 @@ export function buildFileTree(files: FileType[]) {
     const entries = Array.from(map.entries());
     entries.sort(([aName, aNode], [bName, bNode]) => {
       if (aNode.kind !== bNode.kind) return aNode.kind === "folder" ? -1 : 1;
-      return aName.localeCompare(bName);
+      return compareForPresentation(aName, bName);
     });
 
     return entries

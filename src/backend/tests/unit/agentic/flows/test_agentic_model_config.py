@@ -15,8 +15,8 @@ These tests assert the EXACT failing contract: the model class
 from __future__ import annotations
 
 import pytest
-from langflow.agentic.flows.model_config import build_model_config
-from lfx.base.models.unified_models.class_registry import get_model_class
+from ketos.agentic.flows.model_config import build_model_config
+from kfx.base.models.unified_models.class_registry import get_model_class
 
 
 def _model_class_is_resolvable(class_name: str) -> None:

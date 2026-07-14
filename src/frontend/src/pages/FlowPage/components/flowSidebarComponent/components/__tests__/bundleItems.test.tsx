@@ -1,11 +1,17 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
+import type { BundleItemProps } from "../../types";
 import { BundleItem } from "../bundleItems";
+
+type DisclosureProps = React.ComponentProps<"div"> & {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+};
 
 // Mock the UI components
 jest.mock("@/components/common/genericIconComponent", () => ({
   __esModule: true,
-  default: ({ name, className }: any) => (
+  default: ({ name, className }: { name: string; className?: string }) => (
     <span data-testid={`icon-${name}`} className={className}>
       {name}
     </span>
@@ -13,7 +19,7 @@ jest.mock("@/components/common/genericIconComponent", () => ({
 }));
 
 jest.mock("@/components/ui/disclosure", () => ({
-  Disclosure: ({ children, open, onOpenChange }: any) => (
+  Disclosure: ({ children, open, onOpenChange }: DisclosureProps) => (
     <div
       data-testid="disclosure"
       data-open={open}
@@ -21,16 +27,20 @@ jest.mock("@/components/ui/disclosure", () => ({
     >
       {React.Children.map(children, (child, index) => {
         if (index === 0) {
-          return React.cloneElement(child, { onOpenChange });
+          return React.isValidElement<{
+            onOpenChange?: (open: boolean) => void;
+          }>(child)
+            ? React.cloneElement(child, { onOpenChange })
+            : child;
         }
         return child;
       })}
     </div>
   ),
-  DisclosureContent: ({ children }: any) => (
+  DisclosureContent: ({ children }: React.ComponentProps<"div">) => (
     <div data-testid="disclosure-content">{children}</div>
   ),
-  DisclosureTrigger: ({ children, className }: any) => (
+  DisclosureTrigger: ({ children, className }: React.ComponentProps<"div">) => (
     <div data-testid="disclosure-trigger" className={className}>
       {children}
     </div>
@@ -38,19 +48,22 @@ jest.mock("@/components/ui/disclosure", () => ({
 }));
 
 jest.mock("@/components/ui/sidebar", () => ({
-  SidebarMenuButton: ({ children, asChild }: any) => (
+  SidebarMenuButton: ({
+    children,
+    asChild,
+  }: React.ComponentProps<"div"> & { asChild?: boolean }) => (
     <div data-testid="sidebar-menu-button">
       {asChild ? children : <button>{children}</button>}
     </div>
   ),
-  SidebarMenuItem: ({ children }: any) => (
+  SidebarMenuItem: ({ children }: React.ComponentProps<"div">) => (
     <div data-testid="sidebar-menu-item">{children}</div>
   ),
 }));
 
 // Mock the SidebarItemsList component
 jest.mock("../sidebarItemsList", () => {
-  return function MockSidebarItemsList(props: any) {
+  return function MockSidebarItemsList(props: BundleItemProps) {
     return (
       <div data-testid="sidebar-items-list">Items for {props.item?.name}</div>
     );
@@ -190,10 +203,11 @@ describe("BundleItem", () => {
       // Simulate disclosure opening by rerendering with different props
       const propsWithHandlerCall = {
         ...defaultProps,
-        setOpenCategories: (updateFn: any) => {
-          const newCategories = updateFn(["other-category"]);
+        setOpenCategories: (update: React.SetStateAction<string[]>) => {
+          const newCategories =
+            typeof update === "function" ? update(["other-category"]) : update;
           expect(newCategories).toEqual(["other-category", "test-bundle"]);
-          mockSetOpenCategories(updateFn);
+          mockSetOpenCategories(update);
         },
       };
 
@@ -212,10 +226,13 @@ describe("BundleItem", () => {
       const propsWithOpenCategory = {
         ...defaultProps,
         openCategories: ["test-bundle", "other-bundle"],
-        setOpenCategories: (updateFn: any) => {
-          const newCategories = updateFn(["test-bundle", "other-bundle"]);
+        setOpenCategories: (update: React.SetStateAction<string[]>) => {
+          const newCategories =
+            typeof update === "function"
+              ? update(["test-bundle", "other-bundle"])
+              : update;
           expect(newCategories).toEqual(["other-bundle"]);
-          mockSetOpenCategories(updateFn);
+          mockSetOpenCategories(update);
         },
       };
 

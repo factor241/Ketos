@@ -1,7 +1,7 @@
-from lfx.components.input_output import ChatInput, ChatOutput
-from lfx.components.models_and_agents import PromptComponent
-from lfx.graph import Graph
-from lfx.schema.message import Message
+from kfx.components.input_output import ChatInput, ChatOutput
+from kfx.components.models_and_agents import PromptComponent
+from kfx.graph import Graph
+from kfx.schema.message import Message
 
 from tests.integration.utils import pyleak_marker, run_flow
 

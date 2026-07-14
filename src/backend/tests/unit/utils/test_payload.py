@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-from langflow.utils.payload import extract_input_variables, get_root_vertex
+from ketos.utils.payload import extract_input_variables, get_root_vertex
 
 
 class TestExtractInputVariables:

@@ -2,13 +2,13 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-from lfx.base.tools.component_tool import ComponentToolkit
-from lfx.components.data_source.sql_executor import SQLComponent
-from lfx.components.input_output.chat_output import ChatOutput
-from lfx.components.langchain_utilities import ToolCallingAgentComponent
-from lfx.components.openai.openai_chat_model import OpenAIModelComponent
-from lfx.components.tools.calculator import CalculatorToolComponent
-from lfx.graph.graph.base import Graph
+from kfx.base.tools.component_tool import ComponentToolkit
+from kfx.components.data_source.sql_executor import SQLComponent
+from kfx.components.input_output.chat_output import ChatOutput
+from kfx.components.langchain_utilities import ToolCallingAgentComponent
+from kfx.components.openai.openai_chat_model import OpenAIModelComponent
+from kfx.components.tools.calculator import CalculatorToolComponent
+from kfx.graph.graph.base import Graph
 from pydantic import BaseModel
 
 from tests.api_keys import get_openai_api_key
@@ -176,7 +176,7 @@ class TestComponentToolEventEmission:
         import json
         from unittest.mock import MagicMock
 
-        from lfx.events.event_manager import create_default_event_manager
+        from kfx.events.event_manager import create_default_event_manager
 
         calculator_component = CalculatorToolComponent(_id="test-component-id")
 
@@ -208,8 +208,8 @@ class TestComponentToolEventEmission:
         import json
         from unittest.mock import MagicMock
 
-        from lfx.base.tools.constants import TOOL_OUTPUT_NAME
-        from lfx.events.event_manager import create_default_event_manager
+        from kfx.base.tools.constants import TOOL_OUTPUT_NAME
+        from kfx.events.event_manager import create_default_event_manager
 
         class LoggingCalculator(CalculatorToolComponent):
             def run_model(self):
@@ -255,7 +255,7 @@ class TestComponentToolEventEmission:
         """Verify no log events are emitted when component does not call self.log() during execution."""
         from unittest.mock import MagicMock
 
-        from lfx.events.event_manager import create_default_event_manager
+        from kfx.events.event_manager import create_default_event_manager
 
         calculator_component = CalculatorToolComponent(_id="test-component-id")
 
@@ -275,7 +275,7 @@ class TestComponentToolEventEmission:
         """Verify both build_start and build_end events are emitted."""
         from unittest.mock import MagicMock
 
-        from lfx.events.event_manager import create_default_event_manager
+        from kfx.events.event_manager import create_default_event_manager
 
         calculator_component = CalculatorToolComponent(_id="test-component-id")
 
@@ -310,8 +310,8 @@ class TestComponentToolAsyncEventEmission:
         import json
         from unittest.mock import MagicMock
 
-        from lfx.base.tools.component_tool import _build_output_async_function
-        from lfx.events.event_manager import create_default_event_manager
+        from kfx.base.tools.component_tool import _build_output_async_function
+        from kfx.events.event_manager import create_default_event_manager
 
         calculator_component = CalculatorToolComponent(_id="test-async-component-id")
 
@@ -339,7 +339,7 @@ class TestComponentToolAsyncEventEmission:
 
     async def test_async_no_event_emission_without_event_manager(self):
         """Verify async tool works correctly when no event_manager is set."""
-        from lfx.base.tools.component_tool import _build_output_async_function
+        from kfx.base.tools.component_tool import _build_output_async_function
 
         calculator_component = CalculatorToolComponent()
 
@@ -362,7 +362,7 @@ class TestComponentToolExceptionHandling:
         """Verify build_end is still emitted when the component raises, so the frontend does not get stuck."""
         from unittest.mock import MagicMock, patch
 
-        from lfx.events.event_manager import create_default_event_manager
+        from kfx.events.event_manager import create_default_event_manager
 
         calculator_component = CalculatorToolComponent(_id="test-exception-component-id")
 
@@ -386,7 +386,7 @@ class TestComponentToolExceptionHandling:
         """Verify build_start is emitted before the exception, and both events are present."""
         from unittest.mock import MagicMock, patch
 
-        from lfx.events.event_manager import create_default_event_manager
+        from kfx.events.event_manager import create_default_event_manager
 
         calculator_component = CalculatorToolComponent(_id="test-exception-component-id")
 
@@ -419,8 +419,8 @@ class TestComponentToolAsyncExceptionHandling:
         from unittest.mock import MagicMock
 
         from langchain_core.tools.base import ToolException
-        from lfx.base.tools.component_tool import _build_output_async_function
-        from lfx.events.event_manager import create_default_event_manager
+        from kfx.base.tools.component_tool import _build_output_async_function
+        from kfx.events.event_manager import create_default_event_manager
 
         calculator_component = CalculatorToolComponent(_id="test-async-exception-id")
 
@@ -445,7 +445,7 @@ class TestComponentToolAsyncExceptionHandling:
         """Verify events are delivered when a sync tool runs in a thread executor (call_soon_threadsafe path)."""
         import asyncio
 
-        from lfx.events.event_manager import create_default_event_manager
+        from kfx.events.event_manager import create_default_event_manager
 
         # Use a real asyncio.Queue so call_soon_threadsafe actually enqueues items
         real_queue: asyncio.Queue = asyncio.Queue()

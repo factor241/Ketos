@@ -5,7 +5,7 @@ import sys
 from unittest.mock import Mock, patch
 
 import pytest
-from lfx.base.models.groq_model_discovery import GroqModelDiscovery
+from kfx.base.models.groq_model_discovery import GroqModelDiscovery
 
 
 class TestGroqModelDiscoveryErrors:
@@ -21,7 +21,7 @@ class TestGroqModelDiscoveryErrors:
         assert "llama-3.3-70b-versatile" in models
         assert len(models) == 2
 
-    @patch("lfx.base.models.groq_model_discovery.requests.get")
+    @patch("kfx.base.models.groq_model_discovery.requests.get")
     def test_api_connection_error_returns_fallback(self, mock_get, mock_api_key, mock_requests_get_failure):
         """Test that API connection errors return fallback models."""
         mock_get.side_effect = mock_requests_get_failure
@@ -33,7 +33,7 @@ class TestGroqModelDiscoveryErrors:
         assert "llama-3.1-8b-instant" in models
         assert "llama-3.3-70b-versatile" in models
 
-    @patch("lfx.base.models.groq_model_discovery.requests.get")
+    @patch("kfx.base.models.groq_model_discovery.requests.get")
     def test_api_timeout_returns_fallback(self, mock_get, mock_api_key, mock_requests_get_timeout):
         """Test that API timeouts return fallback models."""
         mock_get.side_effect = mock_requests_get_timeout
@@ -45,7 +45,7 @@ class TestGroqModelDiscoveryErrors:
         assert "llama-3.1-8b-instant" in models
         assert "llama-3.3-70b-versatile" in models
 
-    @patch("lfx.base.models.groq_model_discovery.requests.get")
+    @patch("kfx.base.models.groq_model_discovery.requests.get")
     def test_api_unauthorized_returns_fallback(self, mock_get, mock_api_key, mock_requests_get_unauthorized):
         """Test that unauthorized API requests return fallback models."""
         mock_get.side_effect = mock_requests_get_unauthorized
@@ -57,7 +57,7 @@ class TestGroqModelDiscoveryErrors:
         assert "llama-3.1-8b-instant" in models
         assert "llama-3.3-70b-versatile" in models
 
-    @patch("lfx.base.models.groq_model_discovery.requests.get")
+    @patch("kfx.base.models.groq_model_discovery.requests.get")
     def test_invalid_api_response_returns_fallback(self, mock_get, mock_api_key):
         """Test that invalid API response structure returns fallback models."""
         # Mock response with missing 'data' field
@@ -108,7 +108,7 @@ class TestGroqModelDiscoveryErrors:
         # This should not raise an exception
         discovery._save_cache(sample_models_metadata)
 
-    @patch("lfx.base.models.groq_model_discovery.requests.get")
+    @patch("kfx.base.models.groq_model_discovery.requests.get")
     def test_import_error_during_chat_test_returns_fallback(self, mock_get, mock_api_key, temp_cache_dir):
         """Test that get_models returns fallback models when groq is not installed.
 

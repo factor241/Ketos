@@ -1,12 +1,12 @@
 """Tests for MCP reverse proxy support (root_path / X-Forwarded-Prefix).
 
-Covers the fix for https://github.com/langflow-ai/langflow/issues/9797 where MCP
-SSE transport breaks when Langflow sits behind a reverse proxy that adds a URL
+Covers the fix for https://github.com/ketos-ai/ketos/issues/9797 where MCP
+SSE transport breaks when Ketos sits behind a reverse proxy that adds a URL
 prefix (basePath).
 """
 
 import pytest
-from langflow.api.v1.mcp_projects import get_project_sse, project_sse_transports
+from ketos.api.v1.mcp_projects import get_project_sse, project_sse_transports
 from mcp.server.sse import SseServerTransport
 
 pytestmark = pytest.mark.asyncio
@@ -52,7 +52,7 @@ class TestForwardedPrefixMiddleware:
 
     async def _captured_downstream_root_path(self, *, configured_root_path, headers=None):
         # Import the middleware logic inline to test it in isolation
-        from langflow.main import get_settings_service
+        from ketos.main import get_settings_service
         from starlette.requests import Request
         from starlette.responses import PlainTextResponse
 
@@ -108,14 +108,14 @@ class TestForwardedPrefixMiddleware:
         """Verify the middleware sets root_path visible to downstream code."""
         root_path = await self._captured_downstream_root_path(
             configured_root_path="/enabled",
-            headers={"X-Forwarded-Prefix": "/langflow"},
+            headers={"X-Forwarded-Prefix": "/ketos"},
         )
 
-        assert root_path == "/langflow"
+        assert root_path == "/ketos"
 
     async def test_middleware_ignores_header_when_root_path_not_configured(self):
         """When root_path is not set, X-Forwarded-Prefix is ignored."""
-        from langflow.main import get_settings_service
+        from ketos.main import get_settings_service
         from starlette.requests import Request
 
         settings = get_settings_service().settings
@@ -163,14 +163,14 @@ class TestRootPathSetting:
     """Test that the root_path setting exists and defaults to empty."""
 
     def test_root_path_default_empty(self):
-        from lfx.services.settings.base import Settings
+        from kfx.services.settings.base import Settings
 
         s = Settings()
         assert s.root_path == ""
 
     def test_root_path_can_be_set(self, monkeypatch):
-        from lfx.services.settings.base import Settings
+        from kfx.services.settings.base import Settings
 
-        monkeypatch.setenv("LANGFLOW_ROOT_PATH", "/basePath")
+        monkeypatch.setenv("KETOS_ROOT_PATH", "/basePath")
         s = Settings()
         assert s.root_path == "/basePath"

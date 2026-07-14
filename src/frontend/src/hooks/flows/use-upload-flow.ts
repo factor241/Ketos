@@ -14,10 +14,12 @@ const useUploadFlow = () => {
   }: {
     files: File[];
   }): Promise<FlowType[]> => {
-    const objectList = await getObjectsFromFilelist<any>(files);
+    const objectList = await getObjectsFromFilelist<
+      FlowType | { flows: FlowType[] }
+    >(files);
     const flows: FlowType[] = [];
     objectList.forEach((object) => {
-      if (object.flows) {
+      if ("flows" in object) {
         object.flows.forEach((flow: FlowType) => {
           flows.push(flow);
         });

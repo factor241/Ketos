@@ -11,7 +11,7 @@
 ┌─────────────────────────────────────────────────────────────┐
 │ Phase 1: Build Packages (15-20 min) - NO CI DEPENDENCY     │
 ├─────────────────────────────────────────────────────────────┤
-│ • build-lfx                                                  │
+│ • build-kfx                                                  │
 │ • build-base                                                 │
 │ • build-main                                                 │
 └─────────────────────────────────────────────────────────────┘
@@ -41,7 +41,7 @@
 ├─────────────────────────────────────────────────────────────┤
 │ • publish-base (line 602: needs ci)                         │
 │ • publish-main (line 625: needs ci)                         │
-│ • publish-lfx (line 648: needs ci)                          │
+│ • publish-kfx (line 648: needs ci)                          │
 │ • call_docker_build_base (line 671: needs ci)              │
 │ • call_docker_build_main (line 683: needs ci)              │
 └─────────────────────────────────────────────────────────────┘

@@ -1,5 +1,9 @@
 import { componentsToIgnoreUpdate } from "@/constants/constants";
-import type { OutputFieldType } from "@/types/api";
+import type {
+  APIClassType,
+  APITemplateType,
+  OutputFieldType,
+} from "@/types/api";
 import type { NodeDataType } from "../../types/flow";
 
 export type CodeValidityType = {
@@ -27,8 +31,8 @@ const codeIsOutdated = (
 const codeHasBreakingChange = (
   originalOutputs?: OutputFieldType[],
   userOutputs?: OutputFieldType[],
-  originalTemplate?: { [key: string]: any },
-  userTemplate?: { [key: string]: any },
+  originalTemplate?: APITemplateType,
+  userTemplate?: APITemplateType,
 ): boolean => {
   // Check outputs
   if (
@@ -59,7 +63,7 @@ const codeHasBreakingChange = (
 
 export const checkCodeValidity = (
   data: NodeDataType,
-  templates: { [key: string]: any },
+  templates: Record<string, APIClassType>,
   allowCustomComponents = true,
 ): CodeValidityType | undefined => {
   if (!data?.node || !templates) return;
@@ -156,8 +160,8 @@ const outputsAreEqual = (
 
 // Helper to check if all input_types in original are contained in user
 const inputTypesContained = (
-  originalTemplate: { [key: string]: any },
-  userTemplate: { [key: string]: any },
+  originalTemplate: APITemplateType,
+  userTemplate: APITemplateType,
 ): boolean => {
   for (const key of Object.keys(originalTemplate)) {
     const origField = originalTemplate[key];
@@ -180,8 +184,8 @@ const inputTypesContained = (
 
 // Helper to check if template keys are equal
 const templateKeysEqual = (
-  originalTemplate: { [key: string]: any },
-  userTemplate: { [key: string]: any },
+  originalTemplate: APITemplateType,
+  userTemplate: APITemplateType,
 ): boolean => {
   const origKeys = Object.keys(originalTemplate).sort();
   const userKeys = Object.keys(userTemplate).sort();

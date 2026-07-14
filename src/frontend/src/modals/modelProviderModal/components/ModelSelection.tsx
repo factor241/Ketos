@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
@@ -49,7 +50,7 @@ const TAG_ORDER: Array<CapabilityTag["id"]> = [
 const buildCapabilityTags = (
   model: Model,
   showEmbeddingTag: boolean,
-  t: (key: string, options?: { defaultValue: string }) => string,
+  t: TFunction,
 ): CapabilityTag[] => {
   const metadata = (model.metadata ?? {}) as Record<string, unknown>;
   const isEmbedding = metadata.model_type === "embeddings";
@@ -58,37 +59,37 @@ const buildCapabilityTags = (
   if (showEmbeddingTag && isEmbedding) {
     tags.embedding = {
       id: "embedding",
-      label: t("modelProviders.tag.embedding", { defaultValue: "embedding" }),
+      label: t("modelProviders.tag.embedding"),
     };
   }
   if (metadata.tool_calling === true) {
     tags.tool = {
       id: "tool",
-      label: t("modelProviders.tag.tool", { defaultValue: "tool" }),
+      label: t("modelProviders.tag.tool"),
     };
   }
   if (metadata.reasoning === true) {
     tags.reasoning = {
       id: "reasoning",
-      label: t("modelProviders.tag.reasoning", { defaultValue: "reasoning" }),
+      label: t("modelProviders.tag.reasoning"),
     };
   }
   if (metadata.vision === true) {
     tags.vision = {
       id: "vision",
-      label: t("modelProviders.tag.vision", { defaultValue: "vision" }),
+      label: t("modelProviders.tag.vision"),
     };
   }
   if (metadata.search === true) {
     tags.search = {
       id: "search",
-      label: t("modelProviders.tag.search", { defaultValue: "search" }),
+      label: t("modelProviders.tag.search"),
     };
   }
   if (metadata.preview === true) {
     tags.preview = {
       id: "preview",
-      label: t("modelProviders.tag.preview", { defaultValue: "preview" }),
+      label: t("modelProviders.tag.preview"),
     };
   }
 
@@ -108,12 +109,14 @@ const ModelRow = ({
 }: ModelRowProps) => {
   const { t } = useTranslation();
   const tags = buildCapabilityTags(model, !!showEmbeddingTag, t);
+  const icon =
+    typeof model.metadata?.icon === "string" ? model.metadata.icon : "Bot";
 
   return (
     <div className="flex flex-row items-center justify-between h-[24px]">
       <div className="flex flex-row items-center gap-2">
         <ForwardedIconComponent
-          name={model.metadata?.icon || "Bot"}
+          name={icon}
           className={cn("w-5 h-5", { grayscale: !isEnabledModel })}
         />
         <span
@@ -269,12 +272,9 @@ const ModelSelection = ({
               data-testid={`${testIdPrefix}-deprecated-summary`}
             >
               {deprecatedModels.length === 1
-                ? t("modelProviders.showDeprecatedSingular", {
-                    defaultValue: "Show 1 deprecated model",
-                  })
+                ? t("modelProviders.showDeprecatedSingular")
                 : t("modelProviders.showDeprecated", {
                     count: deprecatedModels.length,
-                    defaultValue: "Show {{count}} deprecated models",
                   })}
             </summary>
             <div className="flex flex-col gap-2 pt-3">
@@ -316,12 +316,8 @@ const ModelSelection = ({
           icon="Search"
           value={modelQuery}
           onChange={(event) => setModelQuery(event.target.value)}
-          placeholder={t("modelProviders.searchModels", {
-            defaultValue: "Search models…",
-          })}
-          aria-label={t("modelProviders.searchModels", {
-            defaultValue: "Search models…",
-          })}
+          placeholder={t("modelProviders.searchModels")}
+          aria-label={t("modelProviders.searchModels")}
           data-testid="model-search-input"
         />
       )}
@@ -330,9 +326,7 @@ const ModelSelection = ({
           className="text-muted-foreground px-1 py-2 text-sm"
           data-testid="model-search-empty"
         >
-          {t("modelProviders.noModelsMatch", {
-            defaultValue: "No models match your search.",
-          })}
+          {t("modelProviders.noModelsMatch")}
         </div>
       ) : null}
       {isOllama && noModelsAvailable ? (

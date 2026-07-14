@@ -75,6 +75,18 @@ jest.mock("@/controllers/API/queries/extensions", () => ({
   },
 }));
 
+jest.mock("@/hooks/extensions/typed-error-formatting", () => ({
+  renderTypedErrorList: (payloads: ExtensionErrorPayload[]) =>
+    payloads.length === 0
+      ? undefined
+      : {
+          title: "Reload diagnostics",
+          list: payloads.map(
+            (payload) => `[${payload.code}] Localized extension diagnostic`,
+          ),
+        },
+}));
+
 interface IconProps {
   name: string;
   className?: string;
@@ -94,11 +106,27 @@ interface TranslateOpts {
   defaultValue?: string;
   [key: string]: string | number | undefined;
 }
+const mockBundleTranslations: Record<string, string> = {
+  "sidebar.bundles.reload.success.noChanges":
+    "Reloaded {{bundle}} (no source changes detected)",
+  "sidebar.bundles.reload.success.withChanges":
+    "Reloaded {{bundle}} (+{{added}} / -{{removed}} / ~{{changed}} components)",
+  "sidebar.bundles.reload.success.warnings":
+    "Reloaded {{bundle}} with warnings",
+  "sidebar.bundles.reload.failure.structural": "Reload failed for {{bundle}}",
+  "sidebar.bundles.reload.inProgress":
+    "Reload already in progress for {{bundle}}",
+  "sidebar.bundles.reload.failure.network": "Could not reload {{bundle}}",
+  "sidebar.bundles.reload.overflowAria": "Open actions for {{bundle}}",
+  "sidebar.bundles.reload.action": "Reload",
+  "node.downloadUnknownError": "Unknown error",
+  "errors.requestFailed": "The request could not be completed.",
+};
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, opts?: TranslateOpts) => {
-      if (!opts || typeof opts !== "object") return key;
-      const value: string = opts.defaultValue ?? key;
+      const value = mockBundleTranslations[key] ?? opts?.defaultValue ?? key;
+      if (!opts || typeof opts !== "object") return value;
       return Object.keys(opts).reduce((acc, k) => {
         if (k === "defaultValue") return acc;
         const replacement = opts[k];
@@ -169,7 +197,7 @@ import BundleHeaderActions from "../bundleHeaderActions";
 
 const baseProps = {
   bundleName: "openai",
-  extensionId: "lfx-openai",
+  extensionId: "kfx-openai",
   displayName: "OpenAI",
 };
 
@@ -234,7 +262,7 @@ describe("BundleHeaderActions", () => {
     fireEvent.click(screen.getByTestId("bundle-header-reload-openai"));
     expect(mutateMock).toHaveBeenCalledTimes(1);
     expect(mutateMock).toHaveBeenCalledWith({
-      extensionId: "lfx-openai",
+      extensionId: "kfx-openai",
       bundleName: "openai",
     } satisfies ReloadVars);
   });
@@ -285,7 +313,7 @@ describe("BundleHeaderActions", () => {
     expect(invalidateQueries).not.toHaveBeenCalled();
   });
 
-  it("emits an error toast with typed-error hints on ok=false", () => {
+  it("emits an error toast with localized diagnostics on ok=false", () => {
     render(<BundleHeaderActions {...baseProps} />);
     lastOptions.onSuccess?.(
       makeResponse({ ok: false, errors: [makeTypedError()] }),
@@ -296,22 +324,25 @@ describe("BundleHeaderActions", () => {
     expect(call.list).toEqual(
       expect.arrayContaining([
         expect.stringContaining("[module-import-failed]"),
-        expect.stringContaining("Add X to your requirements."),
+        expect.stringContaining("Localized extension diagnostic"),
       ]),
     );
+    expect(JSON.stringify(call)).not.toContain("Add X to your requirements.");
   });
 
   it("treats reload-in-progress as a notice, not an error", () => {
     render(<BundleHeaderActions {...baseProps} />);
-    lastOptions.onError?.(new Error("reload-in-progress: already running"));
+    lastOptions.onError?.(new Error("reload-in-progress"));
     expect(setNoticeData).toHaveBeenCalledTimes(1);
     expect(setErrorData).not.toHaveBeenCalled();
   });
 
-  it("surfaces transport errors with the underlying message", () => {
+  it("hides transport diagnostics behind a localized generic message", () => {
     render(<BundleHeaderActions {...baseProps} />);
     lastOptions.onError?.(new Error("Network down"));
     expect(setErrorData).toHaveBeenCalledTimes(1);
-    expect(setErrorData.mock.calls[0][0].list).toEqual(["Network down"]);
+    expect(setErrorData.mock.calls[0][0].list).toEqual([
+      "The request could not be completed.",
+    ]);
   });
 });

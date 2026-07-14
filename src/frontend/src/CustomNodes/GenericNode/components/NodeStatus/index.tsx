@@ -10,6 +10,7 @@ import ShadTooltip from "@/components/common/shadTooltipComponent";
 import { Button } from "@/components/ui/button";
 import { ICON_STROKE_WIDTH } from "@/constants/constants";
 import { BuildStatus } from "@/constants/enums";
+import { useCanvasReadOnly } from "@/contexts/canvas-read-only-context";
 import { usePostTemplateValue } from "@/controllers/API/queries/nodes/use-post-template-value";
 import { track } from "@/customization/utils/analytics";
 import { customOpenNewTab } from "@/customization/utils/custom-open-new-tab";
@@ -60,6 +61,9 @@ export default function NodeStatus({
   getValidationStatus: (data) => VertexBuildTypeAPI | null;
 }) {
   const { t } = useTranslation();
+  const isCanvasReadOnly = useCanvasReadOnly();
+  const readOnlyRef = useRef(isCanvasReadOnly);
+  readOnlyRef.current = isCanvasReadOnly;
   const nodeId_ = data.node?.flow?.data
     ? (findLastNode(data.node?.flow.data!)?.id ?? nodeId)
     : nodeId;
@@ -111,6 +115,7 @@ export default function NodeStatus({
 
   // Start polling when connection is initiated
   const startPolling = () => {
+    if (isCanvasReadOnly) return;
     stopPolling();
     setIsPolling(true);
 
@@ -119,6 +124,7 @@ export default function NodeStatus({
       data.id,
       data.node,
       (newNode) => {
+        if (readOnlyRef.current) return;
         setNode(nodeId, (old) => ({
           ...old,
           data: { ...old.data, node: newNode },
@@ -144,12 +150,15 @@ export default function NodeStatus({
       setErrorData,
       nodeAuth?.name ?? "auth_link",
       () => {
+        if (readOnlyRef.current) return;
         pollingInterval.current = setInterval(() => {
+          if (readOnlyRef.current) return;
           mutateTemplate(
             { validate: data.node?.template?.auth?.value || "" },
             data.id,
             data.node,
             (newNode) => {
+              if (readOnlyRef.current) return;
               setNode(nodeId, (old) => ({
                 ...old,
                 data: { ...old.data, node: newNode },
@@ -178,12 +187,14 @@ export default function NodeStatus({
   }, [isAuthenticated]);
 
   const handleDisconnect = () => {
+    if (isCanvasReadOnly) return;
     setIsPolling(true);
     mutateTemplate(
       "disconnect",
       data.id,
       data.node,
       (newNode) => {
+        if (readOnlyRef.current) return;
         setNode(nodeId, (old) => ({
           ...old,
           data: { ...old.data, node: newNode },
@@ -206,7 +217,13 @@ export default function NodeStatus({
     if (pollingTimeout.current) clearTimeout(pollingTimeout.current);
   };
 
+  useEffect(() => {
+    if (!isCanvasReadOnly) return;
+    stopPolling();
+  }, [isCanvasReadOnly]);
+
   function handlePlayWShortcut() {
+    if (isCanvasReadOnly) return;
     if (buildStatus === BuildStatus.BUILDING || isBuilding || !selected) return;
     setValidationStatus(null);
     buildFlow({
@@ -217,7 +234,10 @@ export default function NodeStatus({
 
   const play = useShortcutsStore((state) => state.play);
   const flowPool = useFlowStore((state) => state.flowPool);
-  useHotkeys(play, handlePlayWShortcut, { preventDefault: true });
+  useHotkeys(play, handlePlayWShortcut, {
+    preventDefault: true,
+    enabled: !isCanvasReadOnly,
+  });
   useValidationStatusString(validationStatus, setValidationString);
   useUpdateValidationStatus(
     nodeId_,
@@ -271,6 +291,7 @@ export default function NodeStatus({
   ]);
 
   useEffect(() => {
+    if (isCanvasReadOnly) return;
     if (buildStatus === BuildStatus.BUILT && !isBuilding) {
       setNode(
         nodeId,
@@ -289,13 +310,14 @@ export default function NodeStatus({
         false,
       );
     }
-  }, [buildStatus, isBuilding]);
+  }, [buildStatus, isBuilding, isCanvasReadOnly]);
 
   const [isHovered, setIsHovered] = useState(false);
 
   const stopBuilding = useFlowStore((state) => state.stopBuilding);
 
   const handleClickRun = () => {
+    if (isCanvasReadOnly) return;
     setFlowPool({});
 
     if (BuildStatus.BUILDING === buildStatus && isHovered) {
@@ -332,6 +354,7 @@ export default function NodeStatus({
   };
 
   const handleClickConnect = () => {
+    if (isCanvasReadOnly) return;
     if (connectionLink === "error") return;
     if (isAuthenticated) {
       handleDisconnect();
@@ -460,8 +483,8 @@ export default function NodeStatus({
             </ShadTooltip>
           )}
 
-          {nodeAuth && showNode && (
-            <ShadTooltip content={nodeAuth.auth_tooltip || "Connect"}>
+          {!isCanvasReadOnly && nodeAuth && showNode && (
+            <ShadTooltip content={nodeAuth.auth_tooltip || t("node.connect")}>
               <div>
                 <Button
                   unstyled
@@ -513,15 +536,16 @@ export default function NodeStatus({
           )}
         </div>
       )}
-      {showNode && (
+      {!isCanvasReadOnly && showNode && (
         <ShadTooltip content={getTooltipContent()}>
-          <div
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            onClick={handleClickRun}
-            className="-m-0.5"
-          >
-            <Button unstyled className="nodrag button-run-bg group">
+          <div className="-m-0.5">
+            <Button
+              unstyled
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+              onClick={handleClickRun}
+              className="nodrag button-run-bg group"
+            >
               <div data-testid={`button_run_` + display_name.toLowerCase()}>
                 <IconComponent
                   name={iconName}

@@ -1,4 +1,5 @@
 import type { ChangeEvent, KeyboardEvent } from "react";
+import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import { Input } from "@/components/ui/input";
 
@@ -19,15 +20,16 @@ const InputSearchComponent = ({
   value,
   onKeyDown,
 }: InputSearchComponentProps) => {
+  const { t } = useTranslation();
   const pagePath = window.location.pathname;
 
   const getSearchPlaceholder = () => {
     if (pagePath.includes("flows")) {
-      return "Search Flows";
+      return t("mainPage.searchFlows");
     } else if (pagePath.includes("components")) {
-      return "Search Components";
+      return t("mainPage.searchComponents");
     } else {
-      return "Search Flows and Components";
+      return t("mainPage.searchFlowsAndComponents");
     }
   };
 
@@ -44,8 +46,10 @@ const InputSearchComponent = ({
           value={value}
         />
         <button
+          type="button"
           onClick={onClick}
           disabled={loading}
+          aria-label={t("mainPage.searchButton")}
           className="absolute bottom-0 right-4 top-0 my-auto h-6 cursor-pointer stroke-1 text-muted-foreground"
           data-testid="search-store-button"
         >

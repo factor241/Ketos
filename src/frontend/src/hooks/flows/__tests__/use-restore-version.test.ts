@@ -11,7 +11,7 @@ jest.mock("@tanstack/react-query", () => ({
 
 const apiPostMock = jest.fn();
 jest.mock("@/controllers/API/api", () => ({
-  api: { post: (...args: any[]) => apiPostMock(...args) },
+  api: { post: (...args: unknown[]) => apiPostMock(...args) },
 }));
 jest.mock("@/controllers/API/helpers/constants", () => ({
   getURL: () => "/api/v1/flows",
@@ -27,7 +27,12 @@ const setSuccessDataMock = jest.fn();
 const setErrorDataMock = jest.fn();
 jest.mock("@/stores/alertStore", () => ({
   __esModule: true,
-  default: (selector: any) =>
+  default: (
+    selector: (state: {
+      setSuccessData: typeof setSuccessDataMock;
+      setErrorData: typeof setErrorDataMock;
+    }) => unknown,
+  ) =>
     selector({
       setSuccessData: setSuccessDataMock,
       setErrorData: setErrorDataMock,
@@ -37,14 +42,22 @@ jest.mock("@/stores/alertStore", () => ({
 const clearPreviewMock = jest.fn();
 const setPreviewStateMock = jest.fn();
 jest.mock("@/stores/versionPreviewStore", () => {
-  const store: any = (selector: any) =>
-    selector({ clearPreview: clearPreviewMock });
-  store.getState = () => ({
+  const store = (
+    selector: (state: { clearPreview: typeof clearPreviewMock }) => unknown,
+  ) => selector({ clearPreview: clearPreviewMock });
+  const typedStore = store as typeof store & {
+    getState: () => {
+      clearPreview: typeof clearPreviewMock;
+      didRestore: boolean;
+    };
+    setState: (...args: unknown[]) => void;
+  };
+  typedStore.getState = () => ({
     clearPreview: clearPreviewMock,
     didRestore: false,
   });
-  store.setState = (...args: any[]) => setPreviewStateMock(...args);
-  return { __esModule: true, default: store };
+  typedStore.setState = (...args: unknown[]) => setPreviewStateMock(...args);
+  return { __esModule: true, default: typedStore };
 });
 
 // ---------------------------------------------------------------------------
@@ -120,7 +133,7 @@ describe("useRestoreVersion", () => {
     expect(onSuccessMock).toHaveBeenCalled();
   });
 
-  it("shows error when API returns null data", async () => {
+  it("uses a safe localized fallback when restored data is invalid", async () => {
     apiPostMock.mockResolvedValueOnce({
       data: { id: "flow-1", data: null },
     });
@@ -134,18 +147,21 @@ describe("useRestoreVersion", () => {
     // Should NOT apply to canvas
     expect(applyFlowToCanvasMock).not.toHaveBeenCalled();
 
-    // Should show error with our guard message
     expect(setErrorDataMock).toHaveBeenCalledWith({
       title: "Failed to restore version",
-      list: ["Restored version contains no flow data"],
+      list: ["The request could not be completed. Please try again."],
     });
 
     expect(result.current.isRestoring).toBe(false);
   });
 
-  it("shows API error detail when API call fails", async () => {
+  it("localizes a stable API error code without exposing detail", async () => {
+    const rawDetail = "Version lookup database traceback";
     apiPostMock.mockRejectedValueOnce({
-      response: { data: { detail: "Version not found" } },
+      response: {
+        status: 404,
+        data: { code: "flows.not_found", detail: rawDetail },
+      },
     });
 
     const { result } = renderHook(() => useRestoreVersion("flow-1"));
@@ -158,11 +174,14 @@ describe("useRestoreVersion", () => {
 
     expect(setErrorDataMock).toHaveBeenCalledWith({
       title: "Failed to restore version",
-      list: ["Version not found"],
+      list: ["The flow was not found."],
     });
+    expect(JSON.stringify(setErrorDataMock.mock.calls)).not.toContain(
+      rawDetail,
+    );
   });
 
-  it("shows applyFlowToCanvas error message (not API detail) when canvas apply throws", async () => {
+  it("does not expose an applyFlowToCanvas exception in the UI", async () => {
     apiPostMock.mockResolvedValueOnce({
       data: { id: "flow-1", data: { nodes: [{ id: "n1" }], edges: [] } },
     });
@@ -176,15 +195,14 @@ describe("useRestoreVersion", () => {
       await result.current.restore("entry-1");
     });
 
-    // Should show the thrown error message, not an empty API detail
     expect(setErrorDataMock).toHaveBeenCalledWith({
       title: "Failed to restore version",
-      list: ["processFlows destroyed all nodes — aborting"],
+      list: ["The request could not be completed. Please try again."],
     });
   });
 
   it("sets isRestoring to true during restore and false after", async () => {
-    let resolvePost: (value: any) => void;
+    let resolvePost: (value: unknown) => void;
     apiPostMock.mockReturnValueOnce(
       new Promise((resolve) => {
         resolvePost = resolve;
@@ -226,7 +244,7 @@ describe("useRestoreVersion", () => {
     expect(onSuccessMock).not.toHaveBeenCalled();
   });
 
-  it("falls back to 'Unknown error' when error has no message or API detail", async () => {
+  it("uses the localized request fallback for an unknown error", async () => {
     apiPostMock.mockRejectedValueOnce({});
 
     const { result } = renderHook(() => useRestoreVersion("flow-1"));
@@ -237,7 +255,7 @@ describe("useRestoreVersion", () => {
 
     expect(setErrorDataMock).toHaveBeenCalledWith({
       title: "Failed to restore version",
-      list: ["Unknown error"],
+      list: ["The request could not be completed. Please try again."],
     });
   });
 });

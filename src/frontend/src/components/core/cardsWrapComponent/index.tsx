@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
 import { cn } from "../../../utils/utils";
 import IconComponent from "../../common/genericIconComponent";
@@ -8,10 +9,11 @@ export default function CardsWrapComponent({
   children,
   dragMessage,
 }: {
-  onFileDrop?: (e: any) => void;
+  onFileDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
   children: JSX.Element | JSX.Element[];
   dragMessage?: string;
 }) {
+  const { t } = useTranslation();
   const [isDragging, setIsDragging] = useState(false);
   const isIOModalOpen = useFlowsManagerStore((state) => state.IOModalOpen);
   useEffect(() => {
@@ -32,7 +34,7 @@ export default function CardsWrapComponent({
     };
   }, []);
 
-  const dragOver = (e) => {
+  const dragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     if (
       e.dataTransfer.types.some((types) => types === "Files") &&
@@ -43,7 +45,7 @@ export default function CardsWrapComponent({
     }
   };
 
-  const dragEnter = (e) => {
+  const dragEnter = (e: React.DragEvent<HTMLDivElement>) => {
     if (
       e.dataTransfer.types.some((types) => types === "Files") &&
       onFileDrop &&
@@ -54,12 +56,12 @@ export default function CardsWrapComponent({
     e.preventDefault();
   };
 
-  const dragLeave = (e) => {
+  const dragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     if (onFileDrop && !isIOModalOpen) setIsDragging(false);
   };
 
-  const onDrop = (e) => {
+  const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     if (onFileDrop && !isIOModalOpen) onFileDrop(e);
     setIsDragging(false);
@@ -71,6 +73,8 @@ export default function CardsWrapComponent({
       onDragEnter={dragEnter}
       onDragLeave={dragLeave}
       onDrop={onDrop}
+      role="region"
+      aria-label={dragMessage ?? t("ioModal.dropFileHere")}
       className={cn(
         "h-full w-full",
         isDragging
@@ -81,7 +85,7 @@ export default function CardsWrapComponent({
       {isDragging ? (
         <>
           <IconComponent name="ArrowUpToLine" className="h-12 w-12 stroke-1" />
-          {dragMessage ? dragMessage : "Drop your file here"}
+          {dragMessage ? dragMessage : t("ioModal.dropFileHere")}
         </>
       ) : (
         children

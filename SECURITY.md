@@ -1,15 +1,19 @@
-# Langflow Security Policy & Responsible Disclosure
+# Ketos Security Policy and Responsible Disclosure
 
-This security policy applies to all public projects under the langflow-ai organization on GitHub. We prioritize security and continuously work to safeguard our systems. However, vulnerabilities can still exist. If you identify a security issue, please report it to us so we can address it promptly.
+This policy applies to the Ketos test fork. We prioritize security and work to
+address reported vulnerabilities promptly.
 
-### Security/Bugfix Versions
+## Security and bug-fix versions
 
-- Fixes are released either as part of the next minor version (e.g., 1.3.0 → 1.4.0) or as an on-demand patch version (e.g., 1.3.0 → 1.3.1).
-- Security fixes are given priority and might be enough to cause a new version to be released.
+- Fixes may be released in the next minor version or in an on-demand patch.
+- Security fixes receive priority and may trigger a dedicated release.
 
 ## Report a vulnerability
 
-Please do not report security vulnerabilities through public GitHub issues or GitHub security advisories.
-To report a vulnerability, submit a report on [HackerOne](https://hackerone.com/ibm).
-Include a clear description of the issue, steps to reproduce, the Langflow version, and any known or suggested mitigations.
-Our team aims to respond to all new vulnerability reports within **7 business days**.
+Do not disclose security vulnerabilities in public issues. Report them to
+security@ketos.test (test-only contact for the local test environment; it is not
+a production security service).
+
+Include a clear description, reproduction steps, the affected Ketos version,
+impact, and any known or suggested mitigations. The test project aims to
+acknowledge new reports within **7 business days**.

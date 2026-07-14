@@ -13,7 +13,7 @@ from unittest import mock
 import pytest
 from fastapi import status
 from httpx import AsyncClient
-from langflow.services.variable.constants import CREDENTIAL_TYPE, GENERIC_TYPE
+from ketos.services.variable.constants import CREDENTIAL_TYPE, GENERIC_TYPE
 
 pytestmark = pytest.mark.no_blockbuster
 
@@ -48,7 +48,7 @@ async def test_should_validate_key_with_saved_base_url_when_creating_openai_key(
         "type": CREDENTIAL_TYPE,
         "default_fields": [],
     }
-    with mock.patch("langflow.api.v1.variable.validate_model_provider_key") as validate:
+    with mock.patch("ketos.api.v1.variable.validate_model_provider_key") as validate:
         response = await client.post("api/v1/variables/", json=key_variable, headers=logged_in_headers)
 
     assert response.status_code == status.HTTP_201_CREATED
@@ -65,8 +65,8 @@ async def test_should_validate_with_owner_provider_vars_not_caller_in_share_awar
     from unittest.mock import AsyncMock
     from uuid import uuid4
 
-    from langflow.api.v1 import variable as variable_module
-    from langflow.services.database.models.variable.model import VariableUpdate
+    from ketos.api.v1 import variable as variable_module
+    from ketos.services.database.models.variable.model import VariableUpdate
 
     caller = SimpleNamespace(id=uuid4())
     owner_id = uuid4()

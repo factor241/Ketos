@@ -1,7 +1,7 @@
 import { expect, test } from "../../fixtures";
-import { addLegacyComponents } from "../../utils/add-legacy-components";
 import { adjustScreenView } from "../../utils/adjust-screen-view";
 import { TEXTS } from "../../utils/constants/texts";
+import { enableOptionalComponents } from "../../utils/enable-optional-components";
 import { openBlankFlow } from "../../utils/flow/open-blank-flow";
 import { uploadFile } from "../../utils/upload-file";
 import { zoomOut } from "../../utils/zoom-out";
@@ -12,7 +12,7 @@ test(
   async ({ page }) => {
     await openBlankFlow(page);
 
-    await addLegacyComponents(page);
+    await enableOptionalComponents(page);
 
     await page.waitForSelector(
       '[data-testid="sidebar-custom-component-button"]',

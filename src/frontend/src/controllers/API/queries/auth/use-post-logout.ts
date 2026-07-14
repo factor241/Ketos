@@ -1,7 +1,4 @@
-import {
-  IS_AUTO_LOGIN,
-  LANGFLOW_AUTO_LOGIN_OPTION,
-} from "@/constants/constants";
+import { IS_AUTO_LOGIN, KETOS_AUTO_LOGIN_OPTION } from "@/constants/constants";
 import useAuthStore from "@/stores/authStore";
 import useFlowStore from "@/stores/flowStore";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
@@ -21,10 +18,10 @@ export const useLogout: useMutationFunctionType<undefined, void> = (
   const logout = useAuthStore((state) => state.logout);
   const isAutoLoginEnv = IS_AUTO_LOGIN;
 
-  async function logoutUser(): Promise<any> {
+  async function logoutUser(): Promise<unknown> {
     const autoLogin =
       useAuthStore.getState().autoLogin ||
-      getAuthCookie(cookies, LANGFLOW_AUTO_LOGIN_OPTION) === "auto" ||
+      getAuthCookie(cookies, KETOS_AUTO_LOGIN_OPTION) === "auto" ||
       isAutoLoginEnv;
 
     if (autoLogin) {

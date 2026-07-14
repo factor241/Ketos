@@ -15,8 +15,8 @@ on:
       push_to_registry:
         required: false
         type: boolean
-        default: true
-        description: "Whether to push images to registries. Set to false for testing builds without publishing."
+        default: false
+        description: "Reserved compatibility input; external registry publishing is disabled."
 
   workflow_dispatch:
     inputs:
@@ -33,7 +33,7 @@ on:
         type: string
         description: "Ref to check out (branch, tag, or commit). This is required -- it specifies where the source code for the release is located. Note that if running via Github Actions, this tag (formatted as, e.g., v1.5.1.dev36) must be manually created and pushed to a branch prior to running the workflow."
       push_to_registry:
-        description: "Whether to push images to registries. Set to false for testing builds without publishing."
+        description: "Reserved compatibility input; external registry publishing is disabled."
         required: false
         type: boolean
         default: false
@@ -49,10 +49,10 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: [Langflow-runner]
+            runner: [Ketos-runner]
           - arch: arm64
             runner:
-              [self-hosted, linux, ARM64, langflow-ai-arm64-40gb-ephemeral]
+              [self-hosted, linux, ARM64, ketos-local-arm64-40gb-ephemeral]
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Check out the code
@@ -72,11 +72,11 @@ jobs:
         id: version
         run: |
           echo "Extracting base version from pyproject.toml"
-          # Anchor to the langflow-base workspace-root line (same pattern as the
-          # langflow extraction below): the unanchored grep used to match a
+          # Anchor to the ketos-base workspace-root line (same pattern as the
+          # ketos extraction below): the unanchored grep used to match a
           # dependency line whose version sat in field 3, but uv tree now lists
-          # the langflow-base root line first, which has no third field.
-          version=$(uv tree 2>/dev/null | grep -E '^langflow-base[[:space:]]' | cut -d' ' -f2 | sed 's/^v//' | head -n 1)
+          # the ketos-base root line first, which has no third field.
+          version=$(uv tree 2>/dev/null | grep -E '^ketos-base[[:space:]]' | cut -d' ' -f2 | sed 's/^v//' | head -n 1)
 
 
           # Verify nightly tag format
@@ -92,8 +92,8 @@ jobs:
         id: tags
         run: |
           version="${{ steps.version.outputs.version }}"
-          echo "docker_tags=langflowai/langflow-nightly:base-${version}-${{ matrix.arch }},langflowai/langflow:base-${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
-          echo "ghcr_tags=ghcr.io/langflow-ai/langflow-nightly:base-${version}-${{ matrix.arch }},ghcr.io/langflow-ai/langflow:base-${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "docker_tags=registry.invalid/ketos/ketos-nightly:base-${version}-${{ matrix.arch }},registry.invalid/ketos/ketos:base-${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "ghcr_tags=registry.invalid/ketos/ketos-nightly:base-${version}-${{ matrix.arch }},registry.invalid/ketos/ketos:base-${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
 
       - name: Docker cleanup
         run: |
@@ -120,12 +120,12 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ inputs.push_to_registry }}
+          push: false # external publish disabled; immutable gate required
           pull: true
           file: ./docker/build_and_push_base.Dockerfile
           tags: ${{ steps.tags.outputs.docker_tags }}
           platforms: linux/${{ matrix.arch }}
-          provenance: false
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -133,12 +133,12 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ inputs.push_to_registry }}
+          push: false # external publish disabled; immutable gate required
           pull: true
           file: ./docker/build_and_push_base.Dockerfile
           tags: ${{ steps.tags.outputs.ghcr_tags }}
           platforms: linux/${{ matrix.arch }}
-          provenance: false
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -149,10 +149,10 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: [Langflow-runner]
+            runner: [Ketos-runner]
           - arch: arm64
             runner:
-              [self-hosted, linux, ARM64, langflow-ai-arm64-40gb-ephemeral]
+              [self-hosted, linux, ARM64, ketos-local-arm64-40gb-ephemeral]
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Check out the code
@@ -172,7 +172,7 @@ jobs:
         id: version
         run: |
           echo "Extracting main version from pyproject.toml"
-          version=$(uv tree 2>/dev/null | grep -E '^langflow(-nightly)?[[:space:]]' | cut -d' ' -f2 | sed 's/^v//')
+          version=$(uv tree 2>/dev/null | grep -E '^ketos(-nightly)?[[:space:]]' | cut -d' ' -f2 | sed 's/^v//')
 
           # Verify nightly tag format
           if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.dev[0-9]+$ ]]; then
@@ -187,8 +187,8 @@ jobs:
         id: tags
         run: |
           version="${{ steps.version.outputs.version }}"
-          echo "docker_tags=langflowai/langflow-nightly:${version}-${{ matrix.arch }},langflowai/langflow:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
-          echo "ghcr_tags=ghcr.io/langflow-ai/langflow-nightly:${version}-${{ matrix.arch }},ghcr.io/langflow-ai/langflow:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "docker_tags=registry.invalid/ketos/ketos-nightly:${version}-${{ matrix.arch }},registry.invalid/ketos/ketos:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "ghcr_tags=registry.invalid/ketos/ketos-nightly:${version}-${{ matrix.arch }},registry.invalid/ketos/ketos:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
 
       - name: Docker cleanup
         run: |
@@ -215,12 +215,12 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ inputs.push_to_registry }}
+          push: false # external publish disabled; immutable gate required
           pull: true
           file: ./docker/build_and_push.Dockerfile
           tags: ${{ steps.tags.outputs.docker_tags }}
           platforms: linux/${{ matrix.arch }}
-          provenance: false
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -228,12 +228,12 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ inputs.push_to_registry }}
+          push: false # external publish disabled; immutable gate required
           pull: true
           file: ./docker/build_and_push.Dockerfile
           tags: ${{ steps.tags.outputs.ghcr_tags }}
           platforms: linux/${{ matrix.arch }}
-          provenance: false
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -244,10 +244,10 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: [Langflow-runner]
+            runner: [Ketos-runner]
           - arch: arm64
             runner:
-              [self-hosted, linux, ARM64, langflow-ai-arm64-40gb-ephemeral]
+              [self-hosted, linux, ARM64, ketos-local-arm64-40gb-ephemeral]
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Check out the code
@@ -267,7 +267,7 @@ jobs:
         id: version
         run: |
           echo "Extracting main version from pyproject.toml"
-          version=$(uv tree 2>/dev/null | grep -E '^langflow(-nightly)?[[:space:]]' | cut -d' ' -f2 | sed 's/^v//')
+          version=$(uv tree 2>/dev/null | grep -E '^ketos(-nightly)?[[:space:]]' | cut -d' ' -f2 | sed 's/^v//')
 
           # Verify nightly tag format
           if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.dev[0-9]+$ ]]; then
@@ -282,8 +282,8 @@ jobs:
         id: tags
         run: |
           version="${{ steps.version.outputs.version }}"
-          echo "docker_tags=langflowai/langflow-nightly-all:${version}-${{ matrix.arch }},langflowai/langflow-all:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
-          echo "ghcr_tags=ghcr.io/langflow-ai/langflow-nightly-all:${version}-${{ matrix.arch }},ghcr.io/langflow-ai/langflow-all:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "docker_tags=registry.invalid/ketos/ketos-nightly-all:${version}-${{ matrix.arch }},registry.invalid/ketos/ketos-all:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "ghcr_tags=registry.invalid/ketos/ketos-nightly-all:${version}-${{ matrix.arch }},registry.invalid/ketos/ketos-all:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
 
       - name: Docker cleanup
         run: |
@@ -310,12 +310,12 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ inputs.push_to_registry }}
+          push: false # external publish disabled; immutable gate required
           pull: true
           file: ./docker/build_and_push_with_extras.Dockerfile
           tags: ${{ steps.tags.outputs.docker_tags }}
           platforms: linux/${{ matrix.arch }}
-          provenance: false
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -323,20 +323,20 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ inputs.push_to_registry }}
+          push: false # external publish disabled; immutable gate required
           pull: true
           file: ./docker/build_and_push_with_extras.Dockerfile
           tags: ${{ steps.tags.outputs.ghcr_tags }}
           platforms: linux/${{ matrix.arch }}
-          provenance: false
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   create-nightly-manifest:
-    name: Create Multi-Arch Nightly Manifest
+    name: External nightly manifest publication disabled
     needs: [build-nightly-base, build-nightly-main, build-nightly-main-all]
     runs-on: ubuntu-latest
-    if: ${{ always() && inputs.push_to_registry && (needs.build-nightly-base.result == 'success' || needs.build-nightly-main.result == 'success' || needs.build-nightly-main-all.result == 'success') }}
+    if: ${{ inputs.push_to_registry }}
     steps:
       - name: Setup Environment
         uses: astral-sh/setup-uv@v6
@@ -349,15 +349,15 @@ jobs:
       - name: Check out the code
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ github.sha }}
 
       - name: Get version
         id: version
         run: |
           if [[ "${{ inputs.release_type }}" == "nightly-base" ]]; then
-            version=$(uv tree 2>/dev/null | grep -E '^langflow-base[[:space:]]' | cut -d' ' -f2 | sed 's/^v//' | head -n 1)
+            version=$(uv tree 2>/dev/null | grep -E '^ketos-base[[:space:]]' | cut -d' ' -f2 | sed 's/^v//' | head -n 1)
           else
-            version=$(uv tree 2>/dev/null | grep -E '^langflow(-nightly)?[[:space:]]' | cut -d' ' -f2 | sed 's/^v//')
+            version=$(uv tree 2>/dev/null | grep -E '^ketos(-nightly)?[[:space:]]' | cut -d' ' -f2 | sed 's/^v//')
           fi
           echo "Using version: $version"
           echo version=$version >> $GITHUB_OUTPUT
@@ -368,28 +368,28 @@ jobs:
           version="${{ steps.version.outputs.version }}"
           case "${{ inputs.release_type }}" in
             "nightly-base")
-              # Push versioned tag to canonical langflow repo (matches PyPI langflow-base .devN publish).
+              # Push versioned tag to canonical ketos repo (matches PyPI ketos-base .devN publish).
               # :base-latest is only set on the -nightly repo to avoid overwriting the stable :base-latest
-              # on langflowai/langflow with a pre-release image.
-              echo "final_tags=langflowai/langflow-nightly:base-${version},langflowai/langflow-nightly:base-latest,langflowai/langflow:base-${version},ghcr.io/langflow-ai/langflow-nightly:base-${version},ghcr.io/langflow-ai/langflow-nightly:base-latest,ghcr.io/langflow-ai/langflow:base-${version}" >> $GITHUB_OUTPUT
-              echo "arch_base=langflowai/langflow-nightly:base-${version}" >> $GITHUB_OUTPUT
-              echo "ghcr_arch_base=ghcr.io/langflow-ai/langflow-nightly:base-${version}" >> $GITHUB_OUTPUT
+              # on registry.invalid/ketos/ketos with a pre-release image.
+              echo "final_tags=registry.invalid/ketos/ketos-nightly:base-${version},registry.invalid/ketos/ketos-nightly:base-latest,registry.invalid/ketos/ketos:base-${version},registry.invalid/ketos/ketos-nightly:base-${version},registry.invalid/ketos/ketos-nightly:base-latest,registry.invalid/ketos/ketos:base-${version}" >> $GITHUB_OUTPUT
+              echo "arch_base=registry.invalid/ketos/ketos-nightly:base-${version}" >> $GITHUB_OUTPUT
+              echo "ghcr_arch_base=registry.invalid/ketos/ketos-nightly:base-${version}" >> $GITHUB_OUTPUT
               ;;
             "nightly-main")
-              # Push versioned tag to canonical langflow repo (matches PyPI langflow .devN publish).
+              # Push versioned tag to canonical ketos repo (matches PyPI ketos .devN publish).
               # :latest is only set on the -nightly repo to avoid overwriting the stable :latest
-              # on langflowai/langflow with a pre-release image.
-              echo "final_tags=langflowai/langflow-nightly:${version},langflowai/langflow-nightly:latest,langflowai/langflow:${version},ghcr.io/langflow-ai/langflow-nightly:${version},ghcr.io/langflow-ai/langflow-nightly:latest,ghcr.io/langflow-ai/langflow:${version}" >> $GITHUB_OUTPUT
-              echo "arch_base=langflowai/langflow-nightly:${version}" >> $GITHUB_OUTPUT
-              echo "ghcr_arch_base=ghcr.io/langflow-ai/langflow-nightly:${version}" >> $GITHUB_OUTPUT
+              # on registry.invalid/ketos/ketos with a pre-release image.
+              echo "final_tags=registry.invalid/ketos/ketos-nightly:${version},registry.invalid/ketos/ketos-nightly:latest,registry.invalid/ketos/ketos:${version},registry.invalid/ketos/ketos-nightly:${version},registry.invalid/ketos/ketos-nightly:latest,registry.invalid/ketos/ketos:${version}" >> $GITHUB_OUTPUT
+              echo "arch_base=registry.invalid/ketos/ketos-nightly:${version}" >> $GITHUB_OUTPUT
+              echo "ghcr_arch_base=registry.invalid/ketos/ketos-nightly:${version}" >> $GITHUB_OUTPUT
               ;;
             "nightly-main-all")
-              # Push versioned tag to canonical langflow-all repo (matches PyPI publish).
+              # Push versioned tag to canonical ketos-all repo (matches PyPI publish).
               # :latest is only set on the -nightly-all repo to avoid overwriting the stable :latest
-              # on langflowai/langflow-all with a pre-release image.
-              echo "final_tags=langflowai/langflow-nightly-all:${version},langflowai/langflow-nightly-all:latest,langflowai/langflow-all:${version},ghcr.io/langflow-ai/langflow-nightly-all:${version},ghcr.io/langflow-ai/langflow-nightly-all:latest,ghcr.io/langflow-ai/langflow-all:${version}" >> $GITHUB_OUTPUT
-              echo "arch_base=langflowai/langflow-nightly-all:${version}" >> $GITHUB_OUTPUT
-              echo "ghcr_arch_base=ghcr.io/langflow-ai/langflow-nightly-all:${version}" >> $GITHUB_OUTPUT
+              # on registry.invalid/ketos/ketos-all with a pre-release image.
+              echo "final_tags=registry.invalid/ketos/ketos-nightly-all:${version},registry.invalid/ketos/ketos-nightly-all:latest,registry.invalid/ketos/ketos-all:${version},registry.invalid/ketos/ketos-nightly-all:${version},registry.invalid/ketos/ketos-nightly-all:latest,registry.invalid/ketos/ketos-all:${version}" >> $GITHUB_OUTPUT
+              echo "arch_base=registry.invalid/ketos/ketos-nightly-all:${version}" >> $GITHUB_OUTPUT
+              echo "ghcr_arch_base=registry.invalid/ketos/ketos-nightly-all:${version}" >> $GITHUB_OUTPUT
               ;;
             *)
               echo "Error: Invalid release_type: ${{ inputs.release_type }}" >&2
@@ -397,37 +397,5 @@ jobs:
               ;;
           esac
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.TEMP_GHCR_TOKEN}}
-
-      - name: Create and push multi-arch nightly manifests
-        run: |
-          # Split tags and create manifests for each
-          IFS=',' read -ra TAGS <<< "${{ steps.tags.outputs.final_tags }}"
-          for tag in "${TAGS[@]}"; do
-            echo "Creating manifest for $tag"
-
-            # Determine architecture-specific tags
-            if [[ "$tag" == *"langflowai"* ]]; then
-              amd64_tag="${{ steps.tags.outputs.arch_base }}-amd64"
-              arm64_tag="${{ steps.tags.outputs.arch_base }}-arm64"
-            else
-              amd64_tag="${{ steps.tags.outputs.ghcr_arch_base }}-amd64"
-              arm64_tag="${{ steps.tags.outputs.ghcr_arch_base }}-arm64"
-            fi
-
-            docker buildx imagetools create \
-              --tag "$tag" \
-              "$amd64_tag" \
-              "$arm64_tag"
-          done
+      - name: Confirm external nightly manifest publication is disabled
+        run: echo "Architecture images are local-only; no remote nightly manifest is published."

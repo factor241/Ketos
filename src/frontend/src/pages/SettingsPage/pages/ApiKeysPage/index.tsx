@@ -60,13 +60,13 @@ export default function ApiKeysPage() {
                   : t("success.keysDeleted"),
             });
           },
-          onError: (error) => {
+          onError: (_error) => {
             setErrorData({
               title:
                 selectedRows.length === 1
                   ? t("errors.deleteKey")
                   : t("errors.deleteKeys"),
-              list: [error?.response?.data?.detail],
+              list: [t("errors.requestFailed")],
             });
           },
         },

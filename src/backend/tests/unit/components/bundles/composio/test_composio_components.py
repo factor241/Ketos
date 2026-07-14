@@ -4,11 +4,11 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
-from lfx.base.composio.composio_base import ComposioBaseComponent
-from lfx.components.composio.composio_api import ComposioAPIComponent
-from lfx.components.composio.outlook_composio import ComposioOutlookAPIComponent
-from lfx.schema.data import Data
-from lfx.schema.message import Message
+from kfx.base.composio.composio_base import ComposioBaseComponent
+from kfx.components.composio.composio_api import ComposioAPIComponent
+from kfx.components.composio.outlook_composio import ComposioOutlookAPIComponent
+from kfx.schema.data import Data
+from kfx.schema.message import Message
 
 
 @pytest.mark.unit
@@ -76,7 +76,7 @@ def _make_component(action_key: str, fields: dict) -> ComposioOutlookAPIComponen
 class TestExecuteActionRichTypeCoercion:
     """Regression: Message and Data objects must be coerced to primitives before being passed to the Composio API.
 
-    When a ChatInput node is wired to a str field (e.g. subject, body), Langflow
+    When a ChatInput node is wired to a str field (e.g. subject, body), Ketos
     stores a Message object in the component attribute.  execute_action previously
     forwarded the raw object to composio.tools.execute, which caused the API call
     to fail or send a stringified object instead of plain text.

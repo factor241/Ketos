@@ -1,6 +1,6 @@
 {
     "name": "Vector Store",
-    "description": "An agent that can query a Vector Store.\nTry asking \"How do I upload examples to Langflow?\"\n\n\n\n",
+    "description": "An agent that can query a Vector Store.\nTry asking \"How do I upload examples to Ketos?\"\n\n\n\n",
     "data": {
         "nodes": [
             {
@@ -101,7 +101,7 @@
                                 "info": "",
                                 "type": "str",
                                 "list": false,
-                                "value": "Instructions to upload examples to Langflow Community Examples"
+                                "value": "Instructions to upload examples to Ketos Community Examples"
                             },
                             "name": {
                                 "required": true,
@@ -592,7 +592,7 @@
                                 "placeholder": "",
                                 "show": true,
                                 "multiline": false,
-                                "value": "langflow",
+                                "value": "ketos",
                                 "password": false,
                                 "name": "collection_name",
                                 "advanced": false,
@@ -853,7 +853,7 @@
                                 "placeholder": "",
                                 "show": true,
                                 "multiline": false,
-                                "value": "http://docs.langflow.org/examples/how-upload-examples",
+                                "value": "http://docs.ketos.org/examples/how-upload-examples",
                                 "password": false,
                                 "name": "web_path",
                                 "display_name": "Web Page",

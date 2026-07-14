@@ -1,13 +1,13 @@
-"""Rename ``lfx-*`` bundle packages to their ``-nightly`` counterparts.
+"""Rename ``kfx-*`` bundle packages to their ``-nightly`` counterparts.
 
 Bundles under ``src/bundles/*`` follow the same package-rename convention as
-``langflow``, ``langflow-base``, ``lfx``, and ``langflow-sdk``: for nightly
+``ketos``, ``ketos-base``, ``kfx``, and ``ketos-sdk``: for nightly
 builds, the distribution is published as ``<name>-nightly`` so the regular
 (non-nightly) PyPI name stays untouched.
 
 This script (a) renames each bundle's ``[project] name`` to
 ``<name>-nightly``, (b) bumps its version to ``<base>.dev<N>``, (c) rewrites
-its ``lfx`` runtime dep so it resolves against the renamed ``lfx-nightly``
+its ``kfx`` runtime dep so it resolves against the renamed ``kfx-nightly``
 workspace member, and (d) updates the root ``pyproject.toml`` so its bundle
 deps and ``[tool.uv.sources]`` entries reference the renamed packages.
 
@@ -22,11 +22,11 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.parent.parent
 
-# Matches the lfx dep specifier inside a bundle pyproject's dependencies list.
-# Accepts the bundle default ("lfx>=X.Y.Z" with an optional upper bound),
-# legacy ~=/==, and the already-rewritten "lfx-nightly==X.Y.Z" form (idempotent).
-_LFX_DEP_PATTERN = re.compile(
-    r'"lfx(?:-nightly)?'
+# Matches the kfx dep specifier inside a bundle pyproject's dependencies list.
+# Accepts the bundle default ("kfx>=X.Y.Z" with an optional upper bound),
+# legacy ~=/==, and the already-rewritten "kfx-nightly==X.Y.Z" form (idempotent).
+_KFX_DEP_PATTERN = re.compile(
+    r'"kfx(?:-nightly)?'
     r"(?:"
     r"(?:~=|==)[\d.]+(?:\.(?:post|dev|a|b|rc)\d+)*"
     r"|"
@@ -58,13 +58,13 @@ def _extract_dev_n(tag: str) -> str:
     return match.group(1)
 
 
-def rename_bundle_pyproject(pyproject_path: Path, lfx_version: str, dev_n: str) -> tuple[str, str, str] | None:
+def rename_bundle_pyproject(pyproject_path: Path, kfx_version: str, dev_n: str) -> tuple[str, str, str] | None:
     """Rewrite a single bundle ``pyproject.toml`` for nightly publication.
 
     - ``[project] name``         → ``<base_name>-nightly``
     - ``[project] version``      → ``<base_version>.dev<N>``
     - entry-point key            → ``<base_name>-nightly``
-    - ``"lfx>=...,<..."`` dep    → ``"lfx-nightly==<lfx_version>"``
+    - ``"kfx>=...,<..."`` dep    → ``"kfx-nightly==<kfx_version>"``
 
     Returns ``(base_name, nightly_name, nightly_version)`` so the caller can
     update the root pyproject. Returns ``None`` if the file has no
@@ -87,14 +87,14 @@ def rename_bundle_pyproject(pyproject_path: Path, lfx_version: str, dev_n: str) 
 
     # Entry-point key. The key may already be the nightly form on a re-run.
     entry_point_pattern = re.compile(
-        rf'(\[project\.entry-points\."langflow\.extensions"\]\s*\n)'
+        rf'(\[project\.entry-points\."ketos\.extensions"\]\s*\n)'
         rf"{re.escape(base_name)}(?:-nightly)?"
         rf'(\s*=\s*"[^"]+")'
     )
     content = entry_point_pattern.sub(rf"\g<1>{nightly_name}\g<2>", content, count=1)
 
-    # Rewrite the lfx dep regardless of which form it's in.
-    content = _LFX_DEP_PATTERN.sub(f'"lfx-nightly=={lfx_version}"', content)
+    # Rewrite the kfx dep regardless of which form it's in.
+    content = _KFX_DEP_PATTERN.sub(f'"kfx-nightly=={kfx_version}"', content)
 
     pyproject_path.write_text(content, encoding="utf-8")
     return base_name, nightly_name, nightly_version
@@ -135,7 +135,7 @@ def update_root_pyproject_for_bundle(
     root_pyproject.write_text(content, encoding="utf-8")
 
 
-def update_bundles_for_nightly(lfx_tag: str) -> list[tuple[str, str, str]]:
+def update_bundles_for_nightly(kfx_tag: str) -> list[tuple[str, str, str]]:
     """Rename every ``src/bundles/*`` package to its ``-nightly`` counterpart.
 
     Returns a list of ``(base_name, nightly_name, nightly_version)`` tuples
@@ -145,13 +145,13 @@ def update_bundles_for_nightly(lfx_tag: str) -> list[tuple[str, str, str]]:
     if not bundles_dir.is_dir():
         return []
 
-    lfx_version = lfx_tag.lstrip("v")
-    dev_n = _extract_dev_n(lfx_version)
+    kfx_version = kfx_tag.lstrip("v")
+    dev_n = _extract_dev_n(kfx_version)
     root_pyproject = BASE_DIR / "pyproject.toml"
 
     results: list[tuple[str, str, str]] = []
     for bundle_pyproject in sorted(bundles_dir.glob("*/pyproject.toml")):
-        renamed = rename_bundle_pyproject(bundle_pyproject, lfx_version, dev_n)
+        renamed = rename_bundle_pyproject(bundle_pyproject, kfx_version, dev_n)
         if renamed is None:
             continue
         base_name, nightly_name, nightly_version = renamed
@@ -165,14 +165,14 @@ def main() -> None:
     """Entry point.
 
     Usage:
-        update_bundle_versions.py <lfx_tag>
+        update_bundle_versions.py <kfx_tag>
 
-    ``lfx_tag`` is the LFX nightly tag (e.g., ``v0.5.0.dev38``); its ``.devN``
+    ``kfx_tag`` is the KFX nightly tag (e.g., ``v0.5.0.dev38``); its ``.devN``
     suffix is reused for all bundles so they share a single nightly cadence.
     """
     expected_args = 2
     if len(sys.argv) != expected_args:
-        print("Usage: update_bundle_versions.py <lfx_tag>")
+        print("Usage: update_bundle_versions.py <kfx_tag>")
         sys.exit(1)
     update_bundles_for_nightly(sys.argv[1])
 

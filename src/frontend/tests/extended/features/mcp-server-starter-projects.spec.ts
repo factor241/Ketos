@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
-import { cleanOldFolders } from "../../utils/clean-old-folders";
+import { clearTestFolders } from "../../utils/clear-test-folders";
 import { TEXTS } from "../../utils/constants/texts";
 import { convertTestName } from "../../utils/convert-test-name";
 import { navigateSettingsPages } from "../../utils/go-to-settings";
@@ -15,7 +15,7 @@ test(
       skipModal: true,
     });
 
-    await cleanOldFolders(page);
+    await clearTestFolders(page);
 
     await navigateSettingsPages(page, "Settings", "MCP Servers");
 

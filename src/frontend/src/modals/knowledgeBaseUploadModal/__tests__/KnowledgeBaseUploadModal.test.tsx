@@ -236,16 +236,51 @@ describe("KnowledgeBaseUploadModal", () => {
       ).toBeInTheDocument();
     });
 
-    it("does not render the Hide Configuration footer toggle", () => {
+    it("hides and restores source configuration from the footer toggle", async () => {
+      const user = userEvent.setup();
       render(<KnowledgeBaseUploadModal open={true} setOpen={jest.fn()} />, {
         wrapper: createWrapper(),
       });
+
+      await user.click(
+        screen.getByRole("button", { name: /Hide Configuration/i }),
+      );
       expect(
-        screen.queryByRole("button", { name: /Hide Configuration/i }),
-      ).not.toBeInTheDocument();
+        screen.getByRole("button", { name: /^Ingest Content$/i }),
+      ).toBeInTheDocument();
+
+      await user.click(
+        screen.getByRole("button", { name: /^Ingest Content$/i }),
+      );
       expect(
-        screen.queryByRole("button", { name: /^Ingest Content$/i }),
+        screen.getByRole("button", { name: /Hide Configuration/i }),
+      ).toBeInTheDocument();
+    });
+
+    it("removes collapsed source configuration controls from the tab order and accessibility tree", async () => {
+      const user = userEvent.setup();
+      render(<KnowledgeBaseUploadModal open={true} setOpen={jest.fn()} />, {
+        wrapper: createWrapper(),
+      });
+
+      await user.click(
+        screen.getByRole("button", { name: /Hide Configuration/i }),
+      );
+
+      expect(screen.queryByTestId("kb-browse-btn")).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("kb-chunk-size-input"),
       ).not.toBeInTheDocument();
+
+      await user.tab();
+      expect(document.activeElement).not.toHaveAttribute(
+        "data-testid",
+        "kb-browse-btn",
+      );
+      expect(document.activeElement).not.toHaveAttribute(
+        "data-testid",
+        "kb-chunk-size-input",
+      );
     });
 
     it("disables chunking inputs until at least one source is added", async () => {
@@ -524,7 +559,7 @@ describe("KnowledgeBaseUploadModal", () => {
       await user.click(screen.getByTestId("kb-create-button"));
       await waitFor(() =>
         expect(mockSetErrorData).toHaveBeenCalledWith({
-          title: "Knowledge base already exists",
+          title: "Failed to create knowledge base",
         }),
       );
     });

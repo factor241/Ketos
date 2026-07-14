@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { convertTestName } from "@/components/common/storeCardComponent/utils/convert-test-name";
 import { Badge } from "@/components/ui/badge";
+import { convertTestName } from "@/utils/convert-test-name";
 import { nodeColorsName } from "@/utils/styleUtils";
 
 export default function HandleTooltipComponent({
@@ -20,18 +20,20 @@ export default function HandleTooltipComponent({
 }) {
   const { t } = useTranslation();
   const tooltips = tooltipTitle.split("\n");
-  const plural = tooltips.length > 1 ? "s" : "";
+  const direction = isInput ? t("node.input") : t("node.output");
+  const compatibleDirection = isInput ? t("node.outputs") : t("node.inputs");
 
   return (
     <div className="font-medium">
       {isSameNode ? (
-        "Can't connect to the same node"
+        t("node.cannotConnectSameNode")
       ) : (
         <div className="flex items-center gap-1.5">
           {isConnecting ? (
             isCompatible ? (
               <span>
-                <span className="font-semibold">Connect</span> to
+                <span className="font-semibold">{t("node.connect")}</span>{" "}
+                {t("node.to")}
               </span>
             ) : (
               <span>{t("node.incompatibleWith")}</span>
@@ -39,8 +41,8 @@ export default function HandleTooltipComponent({
           ) : (
             <span className="text-xs">
               {isInput
-                ? `Input${plural} type${plural}`
-                : `Output${plural} type${plural}`}
+                ? t("node.inputType", { count: tooltips.length })
+                : t("node.outputType", { count: tooltips.length })}
               :{" "}
             </span>
           )}
@@ -61,17 +63,22 @@ export default function HandleTooltipComponent({
               {word}
             </Badge>
           ))}
-          {isConnecting && <span>{isInput ? `input` : `output`}</span>}
+          {isConnecting && <span>{direction}</span>}
         </div>
       )}
       {!isConnecting && (
         <div className="mt-2 flex flex-col gap-0.5 text-xs leading-6">
           <div>
-            <b>Drag</b> to connect compatible {!isInput ? "inputs" : "outputs"}
+            <b>{t("node.drag")}</b>{" "}
+            {t("node.connectCompatible", {
+              direction: compatibleDirection,
+            })}
           </div>
           <div>
-            <b>Click</b> to filter compatible {!isInput ? "inputs" : "outputs"}{" "}
-            and components
+            <b>{t("node.click")}</b>{" "}
+            {t("node.filterCompatible", {
+              direction: compatibleDirection,
+            })}
           </div>
         </div>
       )}

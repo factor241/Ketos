@@ -10,13 +10,13 @@ try:
 except ImportError:
     pytest.skip("agentics-py and crewai not installed", allow_module_level=True)
 
-from lfx.components.agentics import AgenerateComponent, AMapComponent, AreduceComponent
-from lfx.components.agentics.constants import (
+from kfx.components.agentics import AgenerateComponent, AMapComponent, AreduceComponent
+from kfx.components.agentics.constants import (
     TRANSDUCTION_AMAP,
     TRANSDUCTION_AREDUCE,
     TRANSDUCTION_GENERATE,
 )
-from lfx.components.agentics.inputs.common_inputs import GENERATED_FIELDS_TABLE_SCHEMA
+from kfx.components.agentics.inputs.common_inputs import GENERATED_FIELDS_TABLE_SCHEMA
 
 
 @pytest.mark.unit

@@ -1,6 +1,6 @@
-from langflow.processing.process import process_tweaks
-from langflow.services.deps import get_session_service
-from langflow.services.utils import register_all_service_factories
+from ketos.processing.process import process_tweaks
+from ketos.services.deps import get_session_service
+from ketos.services.utils import register_all_service_factories
 
 
 def test_no_tweaks():
@@ -434,7 +434,7 @@ def test_tweak_no_node_id_numeric():
 
 def test_tweaks_schema_accepts_bool():
     """Tweaks model must accept boolean root-level values without coercion."""
-    from lfx.schema.graph import Tweaks
+    from kfx.schema.graph import Tweaks
 
     tweaks = Tweaks(root={"stream": False, "enabled": True})
     assert tweaks.root["stream"] is False
@@ -446,7 +446,7 @@ def test_tweaks_schema_accepts_bool():
 
 def test_tweaks_schema_accepts_numerics():
     """Tweaks model must accept int and float root-level values."""
-    from lfx.schema.graph import Tweaks
+    from kfx.schema.graph import Tweaks
 
     tweaks = Tweaks(root={"temperature": 0.7, "max_tokens": 256})
     assert tweaks.root["temperature"] == 0.7
@@ -456,7 +456,7 @@ def test_tweaks_schema_accepts_numerics():
 def test_tweaks_schema_rejects_invalid():
     """Tweaks model should still reject unsupported value types."""
     import pytest
-    from lfx.schema.graph import Tweaks
+    from kfx.schema.graph import Tweaks
     from pydantic import ValidationError
 
     with pytest.raises(ValidationError):
@@ -467,7 +467,7 @@ def test_apply_tweaks_code_override_prevention():
     """Test that code tweaks are prevented and logged as warning."""
     from unittest.mock import patch
 
-    from langflow.processing.process import apply_tweaks
+    from ketos.processing.process import apply_tweaks
 
     # Create a simple node with template including code field
     node = {
@@ -486,7 +486,7 @@ def test_apply_tweaks_code_override_prevention():
     node_tweaks = {"code": "malicious_code_injection", "param1": "new_value"}
 
     # Capture log output
-    with patch("langflow.processing.process.logger") as mock_logger:
+    with patch("ketos.processing.process.logger") as mock_logger:
         apply_tweaks(node, node_tweaks)
 
         # Verify warning was logged for code override attempt (and names the field)
@@ -503,7 +503,7 @@ def test_apply_tweaks_code_only_prevention():
     """Test that only code tweaks are prevented when trying to override code alone."""
     from unittest.mock import patch
 
-    from langflow.processing.process import apply_tweaks
+    from ketos.processing.process import apply_tweaks
 
     # Create a simple node with template including code field
     node = {
@@ -521,7 +521,7 @@ def test_apply_tweaks_code_only_prevention():
     node_tweaks = {"code": "attempted_code_injection"}
 
     # Capture log output
-    with patch("langflow.processing.process.logger") as mock_logger:
+    with patch("ketos.processing.process.logger") as mock_logger:
         apply_tweaks(node, node_tweaks)
 
         # Verify warning was logged and names the offending field (not a generic "Code field").
@@ -536,7 +536,7 @@ def test_apply_tweaks_blocks_code_type_field_with_other_name():
 
     The old guard only blocked the literal field name 'code'. Block by field *type*.
     """
-    from langflow.processing.process import apply_tweaks
+    from ketos.processing.process import apply_tweaks
 
     node = {
         "id": "n",
@@ -565,7 +565,7 @@ def test_apply_tweaks_blocks_code_execution_component_fields():
     (CODE_EXECUTION_FIELD_NAMES). 'global_imports' is the import allow-list that
     populates the exec() namespace and must stay blocked too.
     """
-    from langflow.processing.process import apply_tweaks
+    from ketos.processing.process import apply_tweaks
 
     node = {
         "id": "n",
@@ -591,7 +591,7 @@ def test_apply_tweaks_allows_benign_fields_on_code_execution_component():
     Regression for the over-block where every field on a code-execution node was
     dropped — renaming a Python REPL tool (name/description) must still work.
     """
-    from langflow.processing.process import apply_tweaks
+    from ketos.processing.process import apply_tweaks
 
     node = {
         "id": "n",
@@ -620,7 +620,7 @@ def test_apply_tweaks_blocks_removed_python_code_structured_tool_code():
     Its type is retained in CODE_EXECUTION_COMPONENT_TYPES to keep stored code in
     existing flows un-overridable; the tweak guard must cover 'tool_code' too.
     """
-    from langflow.processing.process import apply_tweaks
+    from ketos.processing.process import apply_tweaks
 
     node = {
         "id": "n",
@@ -636,7 +636,7 @@ def test_apply_tweaks_blocks_removed_python_code_structured_tool_code():
 
 def test_apply_tweaks_blocks_csv_agent_dangerous_code_flag():
     """CSVAgent's LangChain Python-execution opt-in is a sandbox boundary."""
-    from langflow.processing.process import apply_tweaks
+    from ketos.processing.process import apply_tweaks
 
     node = {
         "id": "n",
@@ -661,7 +661,7 @@ def test_apply_tweaks_smart_transform_blocks_instruction_allows_data():
 
     Other inputs (data, sample_size, ...) carry no code and stay tweakable.
     """
-    from langflow.processing.process import apply_tweaks
+    from ketos.processing.process import apply_tweaks
 
     node = {
         "id": "n",
@@ -683,7 +683,7 @@ def test_apply_tweaks_smart_transform_blocks_instruction_allows_data():
 
 def test_apply_tweaks_mcp_field_type():
     """Test that MCP field types are handled correctly with dict values."""
-    from langflow.processing.process import apply_tweaks
+    from ketos.processing.process import apply_tweaks
 
     # Create a node with an MCP field type
     node = {
@@ -721,7 +721,7 @@ def test_apply_tweaks_mcp_field_type():
 
 def test_apply_tweaks_mcp_field_with_string_value():
     """Test that MCP field types handle string values correctly."""
-    from langflow.processing.process import apply_tweaks
+    from ketos.processing.process import apply_tweaks
 
     # Create a node with an MCP field type
     node = {
@@ -749,7 +749,7 @@ def test_apply_tweaks_mcp_field_with_string_value():
 
 def test_apply_tweaks_field_type_extraction():
     """Test that field type is safely extracted with .get() to avoid KeyError."""
-    from langflow.processing.process import apply_tweaks
+    from ketos.processing.process import apply_tweaks
 
     # Create a node with a field that has no explicit type
     node = {
@@ -785,7 +785,7 @@ def test_apply_tweaks_dict_field_type():
     the dict keys and set them as top-level template properties instead of setting
     the field's value. This caused headers passed via tweaks to be ignored.
     """
-    from langflow.processing.process import apply_tweaks
+    from ketos.processing.process import apply_tweaks
 
     # Create a node with a dict field type (like MCP Tools headers)
     node = {
@@ -826,7 +826,7 @@ def test_apply_tweaks_dict_field_type():
 
 def test_apply_tweaks_dict_field_overwrites_list_default():
     """Test that a dict tweak fully replaces a list-format default value on a dict field."""
-    from langflow.processing.process import apply_tweaks
+    from ketos.processing.process import apply_tweaks
 
     node = {
         "id": "node1",
@@ -855,7 +855,7 @@ def test_apply_tweaks_dict_field_value_wrapped_list():
     the list of key-value pairs is wrapped in a "value" key. The tweak should
     unwrap this and set the inner list as the field's value.
     """
-    from langflow.processing.process import apply_tweaks
+    from ketos.processing.process import apply_tweaks
 
     node = {
         "id": "MCPTools-svrRq",

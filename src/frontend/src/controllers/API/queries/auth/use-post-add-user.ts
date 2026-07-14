@@ -17,11 +17,11 @@ export const useAddUser: useMutationFunctionType<undefined, UserInputType> = (
     return res.data;
   };
 
-  const mutation: UseMutationResult<Array<Users>, any, UserInputType> = mutate(
-    ["useAddUser"],
-    addUserFunction,
-    options,
-  );
+  const mutation: UseMutationResult<
+    Array<Users>,
+    Error,
+    UserInputType
+  > = mutate(["useAddUser"], addUserFunction, options);
 
   return mutation;
 };

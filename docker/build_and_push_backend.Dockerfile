@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Keep this syntax directive! It's used to enable Docker BuildKit
 #
-# Backend-only Langflow image
+# Backend-only Ketos image
 # - No frontend code or assets
 # - No Playwright
 
@@ -28,25 +28,26 @@ RUN apt-get update \
 
 # Copy only backend source (excludes frontend)
 COPY ./src/backend ./src/backend
-COPY ./src/lfx ./src/lfx
+COPY ./src/kfx ./src/kfx
 COPY ./src/sdk ./src/sdk
 
-# Create venv and install langflow-base with dependencies
+# Create venv and install ketos-base with dependencies
 # Using uv pip instead of uv sync to avoid workspace complexities
 RUN uv venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 ENV VIRTUAL_ENV="/app/.venv"
 
-# Install langflow-base with all extras except dev (which includes Playwright).
-# This image ships the langflow-base core only.  Extension bundles
-# (lfx-duckduckgo, lfx-arxiv, lfx-ibm, lfx-docling) are intentionally NOT
-# installed here -- they belong to the full ``langflow`` distribution, not
-# the lean core.  Use the ``langflow`` image, or ``pip install`` the bundle
+# Install ketos-base with all extras except dev (which includes Playwright).
+# This image ships the ketos-base core only.  Extension bundles
+# (kfx-duckduckgo, kfx-arxiv, kfx-ibm, kfx-docling) are intentionally NOT
+# installed here -- they belong to the full ``ketos`` distribution, not
+# the lean core.  Use the ``ketos`` image, or ``pip install`` the bundle
 # alongside this image, to add those components.
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install \
+        "flower==2.0.1" \
         ./src/sdk \
-        ./src/lfx \
+        ./src/kfx \
         "./src/backend/base[complete,postgresql]"
 
 ################################
@@ -88,29 +89,29 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 # Create home directory and ensure proper ownership
 # The user needs write access to /app/data (home) and /app (workdir).
-# Also pre-create /app/langflow (LANGFLOW_CONFIG_DIR used by the docker_example
+# Also pre-create /app/ketos (KETOS_CONFIG_DIR used by the docker_example
 # compose file) with the non-root user as owner, so a fresh named volume mounted
-# at /app/langflow inherits the correct ownership/permissions and the in-container
+# at /app/ketos inherits the correct ownership/permissions and the in-container
 # uid=1000 user can write secret_key, profile_pictures, etc. Without this, the
-# volume would be initialized as root:root and Langflow would crash with
-# PermissionError on /app/langflow/secret_key (issue #10437).
+# volume would be initialized as root:root and Ketos would crash with
+# PermissionError on /app/ketos/secret_key (issue #10437).
 # Note: .venv is already owned by 1000:0 via COPY --chown above, so no recursive chown needed
-RUN mkdir -p /app/data /app/langflow \
-    && chown -R 1000:0 /app/data /app/langflow \
-    && chmod -R g+rwX /app/langflow \
+RUN mkdir -p /app/data /app/ketos \
+    && chown -R 1000:0 /app/data /app/ketos \
+    && chmod -R g+rwX /app/ketos \
     && chown 1000:0 /app
 
-LABEL org.opencontainers.image.title=langflow-backend
-LABEL org.opencontainers.image.authors=['Langflow']
+LABEL org.opencontainers.image.title=ketos-backend
+LABEL org.opencontainers.image.authors=['Ketos']
 LABEL org.opencontainers.image.licenses=MIT
-LABEL org.opencontainers.image.url=https://github.com/langflow-ai/langflow
-LABEL org.opencontainers.image.source=https://github.com/langflow-ai/langflow
+LABEL org.opencontainers.image.url=https://git.ketos.test/ketos/ketos
+LABEL org.opencontainers.image.source=https://git.ketos.test/ketos/ketos
 
 USER user
 WORKDIR /app
 
-ENV LANGFLOW_HOST=0.0.0.0
-ENV LANGFLOW_PORT=7860
-ENV LANGFLOW_AUTO_LOGIN=false
+ENV KETOS_HOST=0.0.0.0
+ENV KETOS_PORT=7860
+ENV KETOS_AUTO_LOGIN=false
 
-CMD ["python", "-m", "langflow", "run", "--backend-only"]
+CMD ["python", "-m", "ketos", "run", "--backend-only"]

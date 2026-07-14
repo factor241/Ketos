@@ -1,5 +1,5 @@
 import pytest
-from lfx.base.models.cometapi_constants import COMETAPI_MODELS, MODEL_NAMES
+from kfx.base.models.cometapi_constants import COMETAPI_MODELS, MODEL_NAMES
 
 
 class TestCometAPIConstants:

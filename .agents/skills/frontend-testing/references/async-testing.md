@@ -1,6 +1,6 @@
 # Async Testing Patterns
 
-Patterns for testing asynchronous behavior in Langflow with Jest and React Testing Library.
+Patterns for testing asynchronous behavior in Ketos with Jest and React Testing Library.
 
 ## waitFor
 

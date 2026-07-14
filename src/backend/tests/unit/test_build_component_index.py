@@ -1,143 +1,113 @@
-"""Tests for the build_component_index.py script."""
+"""Deterministic contracts for ``scripts/build_component_index.py``."""
+
+from __future__ import annotations
 
 import hashlib
+import importlib.util
+import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import orjson
 import pytest
 
+SCRIPT = Path(__file__).resolve().parents[4] / "scripts" / "build_component_index.py"
 
-class TestBuildComponentIndexScript:
-    """Tests for the build_component_index.py script."""
 
-    def test_build_script_creates_valid_structure(self):
-        """Test that the build script creates a valid index structure."""
-        import importlib.util
-        import sys
+@pytest.fixture
+def build_module():
+    spec = importlib.util.spec_from_file_location("build_component_index", SCRIPT)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
-        # Get path to build script
-        script_path = Path(__file__).parent.parent.parent.parent / "scripts" / "build_component_index.py"
 
-        if not script_path.exists():
-            pytest.skip("build_component_index.py script not found")
-
-        # Load the module
-        spec = importlib.util.spec_from_file_location("build_component_index", script_path)
-        build_module = importlib.util.module_from_spec(spec)
-        sys.modules["build_component_index"] = build_module
-
-        with patch("asyncio.run") as mock_run:
-            # Mock component data
-            mock_run.return_value = {
-                "components": {
-                    "TestCategory": {
-                        "TestComponent": {
-                            "display_name": "Test Component",
-                            "description": "A test component",
-                            "template": {"code": {"type": "code"}},
-                        }
-                    }
+def _components(*, reverse: bool = False) -> dict:
+    categories = [
+        (
+            "Zeta",
+            {
+                "Later": {
+                    "display_name": "Later",
+                    "metadata": {"timestamp": "runtime", "stable": True},
+                    "template": {},
                 }
-            }
+            },
+        ),
+        (
+            "Alpha",
+            {
+                "Second": {"display_name": "Second", "template": {}},
+                "First": {"display_name": "First", "template": {}},
+            },
+        ),
+    ]
+    if reverse:
+        categories.reverse()
+    return {category: dict(reversed(list(items.items()))) if reverse else items for category, items in categories}
 
-            spec.loader.exec_module(build_module)
-            index = build_module.build_component_index()
 
-        assert index is not None
-        assert "version" in index
-        assert "entries" in index
-        assert "sha256" in index
-        assert isinstance(index["entries"], list)
+def test_imports_ketos_components_and_uses_kfx_version(build_module) -> None:
+    importer = AsyncMock(return_value={"components": _components()})
 
-    def test_build_script_minifies_json(self, tmp_path):
-        """Test that the build script always minifies JSON output."""
-        import importlib.util
-        import sys
+    with (
+        patch("kfx.interface.components.import_ketos_components", importer),
+        patch("importlib.metadata.version", return_value="1.10.2") as version,
+    ):
+        index = build_module.build_component_index()
 
-        script_path = Path(__file__).parent.parent.parent.parent / "scripts" / "build_component_index.py"
+    importer.assert_awaited_once_with()
+    version.assert_called_once_with("kfx")
+    assert index["version"] == "1.10.2"
+    assert index["metadata"] == {"num_components": 3, "num_modules": 2}
 
-        if not script_path.exists():
-            pytest.skip("build_component_index.py script not found")
 
-        spec = importlib.util.spec_from_file_location("build_component_index", script_path)
-        build_module = importlib.util.module_from_spec(spec)
-        sys.modules["build_component_index"] = build_module
+def test_temp_outputs_are_byte_identical_for_different_discovery_order(build_module, tmp_path: Path) -> None:
+    first = tmp_path / "first.json"
+    second = tmp_path / "second.json"
 
-        with (
-            patch("asyncio.run") as mock_run,
-            patch("importlib.metadata.version", return_value="1.0.0.test"),
-        ):
-            mock_run.return_value = {
-                "components": {
-                    "TestCategory": {
-                        "TestComponent": {
-                            "display_name": "Test",
-                            "template": {},
-                        }
-                    }
-                }
-            }
+    with (
+        patch.object(
+            build_module,
+            "_import_components",
+            side_effect=[(_components(), 3), (_components(reverse=True), 3)],
+        ),
+        patch.object(build_module, "_get_kfx_version", return_value="1.10.2"),
+    ):
+        build_module.write_component_index(first)
+        build_module.write_component_index(second)
 
-            spec.loader.exec_module(build_module)
-            index = build_module.build_component_index()
+    assert first.read_bytes() == second.read_bytes()
+    payload = orjson.loads(first.read_bytes())
+    assert [entry[0] for entry in payload["entries"]] == ["Alpha", "Zeta"]
+    assert list(payload["entries"][0][1]) == ["First", "Second"]
+    assert "timestamp" not in payload["entries"][1][1]["Later"]["metadata"]
 
-            # Write using the build module's logic
-            json_bytes = orjson.dumps(index, option=orjson.OPT_SORT_KEYS)
-            test_file = tmp_path / "test_index.json"
-            test_file.write_text(json_bytes.decode("utf-8"), encoding="utf-8")
 
-            # Verify it's minified (single line)
-            content = test_file.read_text()
-            lines = content.strip().split("\n")
-            assert len(lines) == 1, "JSON should be minified to a single line"
+def test_sha256_covers_every_field_except_sha256(build_module) -> None:
+    with (
+        patch.object(build_module, "_import_components", return_value=(_components(), 3)),
+        patch.object(build_module, "_get_kfx_version", return_value="1.10.2"),
+    ):
+        index = build_module.build_component_index()
 
-    def test_build_script_sha256_integrity(self):
-        """Test that SHA256 hash is correctly calculated."""
-        import importlib.util
-        import sys
+    unhashed = dict(index)
+    actual = unhashed.pop("sha256")
+    expected = hashlib.sha256(orjson.dumps(unhashed, option=orjson.OPT_SORT_KEYS)).hexdigest()
+    assert actual == expected
 
-        script_path = Path(__file__).parent.parent.parent.parent / "scripts" / "build_component_index.py"
 
-        if not script_path.exists():
-            pytest.skip("build_component_index.py script not found")
+def test_default_output_is_the_kfx_asset(build_module) -> None:
+    expected = SCRIPT.parents[1] / "src" / "kfx" / "src" / "kfx" / "_assets" / "component_index.json"
+    assert expected == build_module.COMPONENT_INDEX_PATH
 
-        spec = importlib.util.spec_from_file_location("build_component_index", script_path)
-        build_module = importlib.util.module_from_spec(spec)
-        sys.modules["build_component_index"] = build_module
 
-        with (
-            patch("asyncio.run") as mock_run,
-            patch("importlib.metadata.version", return_value="1.0.0.test"),
-        ):
-            mock_run.return_value = {"components": {"TestCategory": {"TestComponent": {"template": {}}}}}
-
-            spec.loader.exec_module(build_module)
-            index = build_module.build_component_index()
-
-            # Verify hash
-            index_without_hash = {"version": index["version"], "entries": index["entries"]}
-            payload = orjson.dumps(index_without_hash, option=orjson.OPT_SORT_KEYS)
-            expected_hash = hashlib.sha256(payload).hexdigest()
-
-            assert index["sha256"] == expected_hash
-
-    def test_build_script_handles_import_errors(self):
-        """Test that build script handles import errors gracefully."""
-        import importlib.util
-        import sys
-
-        script_path = Path(__file__).parent.parent.parent.parent / "scripts" / "build_component_index.py"
-
-        if not script_path.exists():
-            pytest.skip("build_component_index.py script not found")
-
-        spec = importlib.util.spec_from_file_location("build_component_index", script_path)
-        build_module = importlib.util.module_from_spec(spec)
-        sys.modules["build_component_index"] = build_module
-
-        with patch("asyncio.run", side_effect=ImportError("Cannot import")):
-            spec.loader.exec_module(build_module)
-            index = build_module.build_component_index()
-
-            assert index is None
+def test_component_import_errors_fail_closed(build_module) -> None:
+    with (
+        patch("kfx.interface.components.import_ketos_components", AsyncMock(side_effect=ImportError("broken"))),
+        pytest.raises(RuntimeError, match="Failed to import components: broken"),
+    ):
+        build_module.build_component_index()

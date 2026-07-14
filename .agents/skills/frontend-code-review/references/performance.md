@@ -169,7 +169,7 @@ Category: Performance
 
 ### Description
 
-When reading from Zustand stores, always use selectors to subscribe to only the specific slices of state the component needs. Selecting the entire store object causes the component to re-render on every store update, even for unrelated state changes. Langflow has 15+ Zustand stores; careless subscriptions can create cascading performance problems.
+When reading from Zustand stores, always use selectors to subscribe to only the specific slices of state the component needs. Selecting the entire store object causes the component to re-render on every store update, even for unrelated state changes. Ketos has 15+ Zustand stores; careless subscriptions can create cascading performance problems.
 
 ### Suggested Fix
 

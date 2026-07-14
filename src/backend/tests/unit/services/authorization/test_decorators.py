@@ -6,8 +6,8 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
-from langflow.services.authorization.actions import FlowAction
-from langflow.services.authorization.decorators import requires_flow_permission
+from ketos.services.authorization.actions import FlowAction
+from ketos.services.authorization.decorators import requires_flow_permission
 
 from ._common import install_audit_recorder, install_authz, install_settings
 

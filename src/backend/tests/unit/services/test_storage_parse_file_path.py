@@ -3,8 +3,8 @@
 from unittest.mock import Mock
 
 import pytest
-from langflow.services.storage.local import LocalStorageService
-from langflow.services.storage.s3 import S3StorageService
+from ketos.services.storage.local import LocalStorageService
+from ketos.services.storage.s3 import S3StorageService
 
 
 class TestLocalStorageParseFilePath:
@@ -15,7 +15,7 @@ class TestLocalStorageParseFilePath:
         # Mock the services
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
 
         service = LocalStorageService(mock_session, mock_settings)
 
@@ -28,7 +28,7 @@ class TestLocalStorageParseFilePath:
         """Test parsing path without data_dir."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
 
         service = LocalStorageService(mock_session, mock_settings)
 
@@ -41,7 +41,7 @@ class TestLocalStorageParseFilePath:
         """Test parsing path with nested flow_id."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
 
         service = LocalStorageService(mock_session, mock_settings)
 
@@ -54,7 +54,7 @@ class TestLocalStorageParseFilePath:
         """Test parsing just a filename with no directory."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
 
         service = LocalStorageService(mock_session, mock_settings)
 
@@ -72,7 +72,7 @@ class TestS3StorageParseFilePath:
         # Mock the services
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
         mock_settings.settings.object_storage_bucket_name = "test-bucket"
         mock_settings.settings.object_storage_prefix = "files/"
         mock_settings.settings.object_storage_tags = {}
@@ -88,7 +88,7 @@ class TestS3StorageParseFilePath:
         """Test parsing path without S3 prefix."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
         mock_settings.settings.object_storage_bucket_name = "test-bucket"
         mock_settings.settings.object_storage_prefix = "files/"
         mock_settings.settings.object_storage_tags = {}
@@ -104,7 +104,7 @@ class TestS3StorageParseFilePath:
         """Test parsing path with nested flow_id."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
         mock_settings.settings.object_storage_bucket_name = "test-bucket"
         mock_settings.settings.object_storage_prefix = "files-test-1/"
         mock_settings.settings.object_storage_tags = {}
@@ -113,16 +113,16 @@ class TestS3StorageParseFilePath:
 
         # Test with nested flow_id (real-world example from logs)
         flow_id, file_name = service.parse_file_path(
-            "files-test-1/afffa27a-a9f0-4511-b1a9-7e6cb2b3df05/2025-12-07_14-47-29_langflow_pid_mem_usage.png"
+            "files-test-1/afffa27a-a9f0-4511-b1a9-7e6cb2b3df05/2025-12-07_14-47-29_ketos_pid_mem_usage.png"
         )
         assert flow_id == "afffa27a-a9f0-4511-b1a9-7e6cb2b3df05"
-        assert file_name == "2025-12-07_14-47-29_langflow_pid_mem_usage.png"
+        assert file_name == "2025-12-07_14-47-29_ketos_pid_mem_usage.png"
 
     def test_parse_nested_flow_id_without_prefix(self):
         """Test parsing nested flow_id without prefix."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
         mock_settings.settings.object_storage_bucket_name = "test-bucket"
         mock_settings.settings.object_storage_prefix = "files-test-1/"
         mock_settings.settings.object_storage_tags = {}
@@ -131,16 +131,16 @@ class TestS3StorageParseFilePath:
 
         # Test without prefix (as seen in error logs)
         flow_id, file_name = service.parse_file_path(
-            "afffa27a-a9f0-4511-b1a9-7e6cb2b3df05/2025-12-07_14-47-29_langflow_pid_mem_usage.png"
+            "afffa27a-a9f0-4511-b1a9-7e6cb2b3df05/2025-12-07_14-47-29_ketos_pid_mem_usage.png"
         )
         assert flow_id == "afffa27a-a9f0-4511-b1a9-7e6cb2b3df05"
-        assert file_name == "2025-12-07_14-47-29_langflow_pid_mem_usage.png"
+        assert file_name == "2025-12-07_14-47-29_ketos_pid_mem_usage.png"
 
     def test_parse_just_filename(self):
         """Test parsing just a filename with no directory."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
         mock_settings.settings.object_storage_bucket_name = "test-bucket"
         mock_settings.settings.object_storage_prefix = "files/"
         mock_settings.settings.object_storage_tags = {}
@@ -156,7 +156,7 @@ class TestS3StorageParseFilePath:
         """Test parsing when prefix is empty."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
         mock_settings.settings.object_storage_bucket_name = "test-bucket"
         mock_settings.settings.object_storage_prefix = ""
         mock_settings.settings.object_storage_tags = {}
@@ -176,7 +176,7 @@ class TestParseFilePathRoundTrip:
         """Test that parse reverses build for local storage."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
 
         service = LocalStorageService(mock_session, mock_settings)
 
@@ -193,7 +193,7 @@ class TestParseFilePathRoundTrip:
         """Test that parse reverses build for S3 storage."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
         mock_settings.settings.object_storage_bucket_name = "test-bucket"
         mock_settings.settings.object_storage_prefix = "files/"
         mock_settings.settings.object_storage_tags = {}
@@ -213,7 +213,7 @@ class TestParseFilePathRoundTrip:
         """Test round trip with nested flow_id."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
         mock_settings.settings.object_storage_bucket_name = "test-bucket"
         mock_settings.settings.object_storage_prefix = "files-test-1/"
         mock_settings.settings.object_storage_tags = {}
@@ -222,17 +222,16 @@ class TestParseFilePathRoundTrip:
 
         # Build a path with nested flow_id
         full_path = service.build_full_path(
-            "afffa27a-a9f0-4511-b1a9-7e6cb2b3df05", "2025-12-07_14-47-29_langflow_pid_mem_usage.png"
+            "afffa27a-a9f0-4511-b1a9-7e6cb2b3df05", "2025-12-07_14-47-29_ketos_pid_mem_usage.png"
         )
         assert (
-            full_path
-            == "files-test-1/afffa27a-a9f0-4511-b1a9-7e6cb2b3df05/2025-12-07_14-47-29_langflow_pid_mem_usage.png"
+            full_path == "files-test-1/afffa27a-a9f0-4511-b1a9-7e6cb2b3df05/2025-12-07_14-47-29_ketos_pid_mem_usage.png"
         )
 
         # Parse it back
         flow_id, file_name = service.parse_file_path(full_path)
         assert flow_id == "afffa27a-a9f0-4511-b1a9-7e6cb2b3df05"
-        assert file_name == "2025-12-07_14-47-29_langflow_pid_mem_usage.png"
+        assert file_name == "2025-12-07_14-47-29_ketos_pid_mem_usage.png"
 
 
 class TestLocalStorageParseFilePathWindowsCompatibility:
@@ -250,7 +249,7 @@ class TestLocalStorageParseFilePathWindowsCompatibility:
         """Test parsing a Windows-style path with backslashes."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "C:\\data"
+        mock_settings.settings.data_dir = "C:\\data"
 
         service = LocalStorageService(mock_session, mock_settings)
 
@@ -262,7 +261,7 @@ class TestLocalStorageParseFilePathWindowsCompatibility:
         """Test parsing a Windows relative path without data_dir."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "C:\\data"
+        mock_settings.settings.data_dir = "C:\\data"
 
         service = LocalStorageService(mock_session, mock_settings)
 
@@ -278,7 +277,7 @@ class TestLocalStorageParseFilePathWindowsCompatibility:
         """Test parsing Windows path with nested flow_id."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "C:\\data"
+        mock_settings.settings.data_dir = "C:\\data"
 
         service = LocalStorageService(mock_session, mock_settings)
 
@@ -290,7 +289,7 @@ class TestLocalStorageParseFilePathWindowsCompatibility:
         """Test parsing path with mixed forward and backslashes."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
 
         service = LocalStorageService(mock_session, mock_settings)
 
@@ -302,7 +301,7 @@ class TestLocalStorageParseFilePathWindowsCompatibility:
         """Test parsing just a filename on Windows."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "C:\\data"
+        mock_settings.settings.data_dir = "C:\\data"
 
         service = LocalStorageService(mock_session, mock_settings)
 
@@ -318,12 +317,12 @@ class TestLocalStorageParseFilePathWindowsCompatibility:
         """Test parsing Windows path with UUID flow_id (real-world scenario)."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "C:\\Users\\user\\AppData\\Local\\langflow"
+        mock_settings.settings.data_dir = "C:\\Users\\user\\AppData\\Local\\ketos"
 
         service = LocalStorageService(mock_session, mock_settings)
 
         flow_id, file_name = service.parse_file_path(
-            "C:\\Users\\user\\AppData\\Local\\langflow\\afffa27a-a9f0-4511-b1a9-7e6cb2b3df05\\uploaded_file.png"
+            "C:\\Users\\user\\AppData\\Local\\ketos\\afffa27a-a9f0-4511-b1a9-7e6cb2b3df05\\uploaded_file.png"
         )
         assert flow_id == "afffa27a-a9f0-4511-b1a9-7e6cb2b3df05"
         assert file_name == "uploaded_file.png"
@@ -332,7 +331,7 @@ class TestLocalStorageParseFilePathWindowsCompatibility:
         """Test that backslashes are normalized to forward slashes."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
 
         service = LocalStorageService(mock_session, mock_settings)
 
@@ -345,7 +344,7 @@ class TestLocalStorageParseFilePathWindowsCompatibility:
         """Test parsing deeply nested path with backslashes."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
 
         service = LocalStorageService(mock_session, mock_settings)
 
@@ -362,7 +361,7 @@ class TestLocalStorageParseFilePathEdgeCases:
         """Test parsing an empty string."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
 
         service = LocalStorageService(mock_session, mock_settings)
 
@@ -374,7 +373,7 @@ class TestLocalStorageParseFilePathEdgeCases:
         """Test parsing path with spaces in names."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
 
         service = LocalStorageService(mock_session, mock_settings)
 
@@ -386,7 +385,7 @@ class TestLocalStorageParseFilePathEdgeCases:
         """Test parsing path with special characters."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
 
         service = LocalStorageService(mock_session, mock_settings)
 
@@ -398,7 +397,7 @@ class TestLocalStorageParseFilePathEdgeCases:
         """Test parsing deeply nested path."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
 
         service = LocalStorageService(mock_session, mock_settings)
 
@@ -419,7 +418,7 @@ class TestLocalStorageParseFilePathEdgeCases:
         """Test parsing various relative path formats."""
         mock_session = Mock()
         mock_settings = Mock()
-        mock_settings.settings.config_dir = "/data"
+        mock_settings.settings.data_dir = "/data"
 
         service = LocalStorageService(mock_session, mock_settings)
 

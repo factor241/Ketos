@@ -5,9 +5,16 @@ import { buildSpan } from "./spanTestUtils";
 
 jest.mock("@/components/common/genericIconComponent", () => ({
   __esModule: true,
-  default: ({ name, ...props }: { name: string }) => (
-    <span data-testid={`icon-${name}`} {...props} />
-  ),
+  default: ({
+    name,
+    dataTestId,
+    skipFallback: _skipFallback,
+    ...props
+  }: {
+    name: string;
+    dataTestId?: string;
+    skipFallback?: boolean;
+  }) => <span data-testid={dataTestId ?? `icon-${name}`} {...props} />,
 }));
 
 jest.mock("@/components/core/codeTabsComponent", () => ({
@@ -183,6 +190,10 @@ describe("SpanDetail", () => {
       />,
     );
 
-    expect(screen.getByText("error")).toBeInTheDocument();
+    expect(screen.getAllByText("Error").length).toBeGreaterThan(0);
+    expect(screen.getByTestId("flow-log-status-error")).toHaveAttribute(
+      "aria-label",
+      "Error",
+    );
   });
 });

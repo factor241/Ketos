@@ -48,10 +48,10 @@ jobs:
           echo "$CHANGED"
 
           # --- Backend Python ---------------------------------------------
-          # Source: .py under src/backend or src/lfx, excluding tests,
+          # Source: .py under src/backend or src/kfx, excluding tests,
           # migrations and dunder/init plumbing.
           PY_SRC=$(echo "$CHANGED" \
-            | grep -E '^(src/backend|src/lfx)/.*\.py$' \
+            | grep -E '^(src/backend|src/kfx)/.*\.py$' \
             | grep -Ev '(^|/)tests?/' \
             | grep -Ev '(^|/)(test_[^/]+|conftest)\.py$' \
             | grep -Ev '/alembic/versions/' \

@@ -40,7 +40,7 @@ def langfuse_env_vars():
 @pytest.fixture(autouse=True)
 def reset_langfuse_shared_client():
     """Clear the cached Langfuse client between tests so mocks don't leak."""
-    from langflow.services.tracing.langfuse import _reset_shared_client_for_tests
+    from ketos.services.tracing.langfuse import _reset_shared_client_for_tests
 
     _reset_shared_client_for_tests()
     yield
@@ -51,7 +51,7 @@ class TestOtelParentSpanBuilder:
     """``_build_otel_parent_span`` turns the flow ids into an OTel parent span."""
 
     def test_returns_none_when_ids_missing(self):
-        from langflow.services.tracing.langfuse import _build_otel_parent_span
+        from ketos.services.tracing.langfuse import _build_otel_parent_span
 
         assert _build_otel_parent_span(None, "b" * 16) is None
         assert _build_otel_parent_span("a" * 32, None) is None
@@ -59,12 +59,12 @@ class TestOtelParentSpanBuilder:
 
     def test_returns_none_for_non_hex_ids(self):
         """Mock span ids (non-hex) degrade gracefully instead of raising."""
-        from langflow.services.tracing.langfuse import _build_otel_parent_span
+        from ketos.services.tracing.langfuse import _build_otel_parent_span
 
         assert _build_otel_parent_span("not-hex", "child-span-id") is None
 
     def test_builds_span_context_from_hex_ids(self):
-        from langflow.services.tracing.langfuse import _build_otel_parent_span
+        from ketos.services.tracing.langfuse import _build_otel_parent_span
 
         trace_id = "a" * 32
         span_id = "b" * 16
@@ -106,7 +106,7 @@ class TestRootRunReparentingHandler:
     """The subclass activates the parent span for root LLM runs only."""
 
     def _make_handler(self, trace_id="a" * 32, span_id="b" * 16, *, with_parent=True):
-        from langflow.services.tracing.langfuse import (
+        from ketos.services.tracing.langfuse import (
             _build_otel_parent_span,
             _root_run_reparenting_handler_cls,
         )
@@ -208,10 +208,10 @@ class TestRootGenerationNestsUnderFlowTrace:
     def test_root_llm_generation_shares_flow_trace_and_nests_under_component(self):
         pytest.importorskip("langfuse")
         pytest.importorskip("langchain_core")
-        import langflow.services.tracing.langfuse as langfuse_module
+        import ketos.services.tracing.langfuse as langfuse_module
         from langchain_core.messages import AIMessage, HumanMessage
         from langchain_core.outputs import ChatGeneration, LLMResult
-        from langflow.services.tracing.langfuse import LangFuseTracer
+        from ketos.services.tracing.langfuse import LangFuseTracer
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import SimpleSpanProcessor
         from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter

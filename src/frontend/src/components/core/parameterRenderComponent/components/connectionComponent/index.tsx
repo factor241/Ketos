@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState } from "react";
 import ListSelectionComponent from "@/CustomNodes/GenericNode/components/ListSelectionComponent";
+import type { ListSelectionItem } from "@/CustomNodes/GenericNode/components/ListSelectionComponent/ListItem";
 import { mutateTemplate } from "@/CustomNodes/helpers/mutate-template";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import { Button } from "@/components/ui/button";
@@ -15,8 +16,8 @@ export type ConnectionComponentProps = {
   tooltip?: string;
   name: string;
   helperText?: string;
-  helperMetadata?: any;
-  options?: any[];
+  helperMetadata?: { icon: string | undefined; variant: string };
+  options?: ListSelectionItem[];
   searchCategory?: string[];
   buttonMetadata?: { variant?: string; icon?: string };
   connectionLink?: string;
@@ -34,7 +35,7 @@ const ConnectionComponent = ({
   buttonMetadata = { variant: "destructive", icon: "unplug" },
   connectionLink = "",
   ...baseInputProps
-}: InputProps<any, ConnectionComponentProps>) => {
+}: InputProps<string, ConnectionComponentProps>) => {
   const {
     value,
     handleOnNewValue,
@@ -42,6 +43,7 @@ const ConnectionComponent = ({
     nodeClass,
     nodeId,
     placeholder,
+    disabled,
   } = baseInputProps;
 
   const setErrorData = useAlertStore((state) => state.setErrorData);
@@ -52,10 +54,37 @@ const ConnectionComponent = ({
   const [link, setLink] = useState("");
   const [isPolling, setIsPolling] = useState(false);
   const [open, setOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<any[]>([]);
+  const [selectedItem, setSelectedItem] = useState<ListSelectionItem[]>([]);
 
   const pollingInterval = useRef<NodeJS.Timeout | null>(null);
   const pollingTimeout = useRef<NodeJS.Timeout | null>(null);
+  const disabledRef = useRef(disabled);
+  disabledRef.current = disabled;
+  const handleNodeClassIfEditable = (
+    newNodeClass: APIClassType,
+    code?: string,
+    type?: string,
+  ) => {
+    if (disabledRef.current) return;
+    handleNodeClass?.(newNodeClass, code, type);
+  };
+
+  useEffect(() => {
+    if (!disabled) return;
+    setOpen(false);
+    setIsPolling(false);
+    setLink(connectionLink || "");
+    if (pollingInterval.current) clearInterval(pollingInterval.current);
+    if (pollingTimeout.current) clearTimeout(pollingTimeout.current);
+  }, [connectionLink, disabled]);
+
+  useEffect(
+    () => () => {
+      if (pollingInterval.current) clearInterval(pollingInterval.current);
+      if (pollingTimeout.current) clearTimeout(pollingTimeout.current);
+    },
+    [],
+  );
 
   const postTemplateValue = usePostTemplateValue({
     parameterId: name,
@@ -95,6 +124,7 @@ const ConnectionComponent = ({
 
   // Handles the connection button click to open connection in new tab and start polling
   const handleConnectionButtonClick = () => {
+    if (disabled) return;
     if (selectedItem?.length === 0) return;
 
     customOpenNewTab(link);
@@ -104,6 +134,7 @@ const ConnectionComponent = ({
 
   // Initiates polling to check connection status periodically
   const startPolling = () => {
+    if (disabled) return;
     if (!selectedItem[0]?.name) return;
 
     setLink("loading");
@@ -116,15 +147,17 @@ const ConnectionComponent = ({
 
     // Set up polling interval - check connection status every 3 seconds
     pollingInterval.current = setInterval(() => {
+      if (disabledRef.current) return;
       mutateTemplate(
         { validate: selectedItem[0]?.name || "" },
         nodeId,
         nodeClass,
-        handleNodeClass,
+        handleNodeClassIfEditable,
         postTemplateValue,
         setErrorData,
         name,
         () => {
+          if (disabledRef.current) return;
           // Check if the connection was successful
           if (connectionLink === "validated") {
             stopPolling();
@@ -154,7 +187,8 @@ const ConnectionComponent = ({
   };
 
   // Updates selected item and triggers parent component update
-  const handleSelection = (item: any) => {
+  const handleSelection = (item: ListSelectionItem) => {
+    if (disabled) return;
     setIsAuthenticated(false);
     setSelectedItem([{ name: item.name }]);
     setLink(item.link === "validated" ? "validated" : "loading");
@@ -165,7 +199,10 @@ const ConnectionComponent = ({
   };
 
   // Dialog control handlers
-  const handleOpenListSelectionDialog = () => setOpen(true);
+  const handleOpenListSelectionDialog = () => {
+    if (disabled) return;
+    setOpen(true);
+  };
   const handleCloseListSelectionDialog = () => setOpen(false);
 
   // Render component
@@ -177,6 +214,7 @@ const ConnectionComponent = ({
           size="xs"
           role="combobox"
           onClick={handleOpenListSelectionDialog}
+          disabled={disabled}
           className="dropdown-component-outline input-edit-node w-full py-2"
         >
           <div className={cn("flex w-full items-center justify-start text-sm")}>
@@ -201,7 +239,12 @@ const ConnectionComponent = ({
             size="icon"
             variant="ghost"
             loading={link === "loading" || isPolling}
-            disabled={!selectedItem[0]?.name || link === "" || link === "error"}
+            disabled={
+              disabled ||
+              !selectedItem[0]?.name ||
+              link === "" ||
+              link === "error"
+            }
             className={cn(
               "h-9 w-10 rounded-md border disabled:opacity-50",
               buttonMetadata.variant && `border-${buttonMetadata.variant}`,
@@ -231,7 +274,7 @@ const ConnectionComponent = ({
       )}
 
       <ListSelectionComponent
-        open={open}
+        open={disabled ? false : open}
         onClose={handleCloseListSelectionDialog}
         onSelection={handleSelection}
         searchCategories={searchCategory}

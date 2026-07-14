@@ -3,9 +3,9 @@ from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
-from langflow.services.database.models.deployment.crud import create_deployment, update_deployment
-from langflow.services.database.models.deployment.model import Deployment
-from lfx.services.adapters.deployment.schema import DeploymentType
+from ketos.services.database.models.deployment.crud import create_deployment, update_deployment
+from ketos.services.database.models.deployment.model import Deployment
+from kfx.services.adapters.deployment.schema import DeploymentType
 
 
 def _fake_db():

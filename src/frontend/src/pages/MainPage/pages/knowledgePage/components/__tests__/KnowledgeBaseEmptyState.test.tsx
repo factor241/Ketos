@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import KnowledgeBaseEmptyState from "../KnowledgeBaseEmptyState";
 
@@ -33,7 +33,7 @@ jest.mock("@/modals/knowledgeBaseUploadModal/KnowledgeBaseUploadModal", () => {
   }: {
     open: boolean;
     setOpen: (open: boolean) => void;
-    onSubmit: (data: any) => void;
+    onSubmit: (data: unknown) => void;
   }) {
     return open ? (
       <div data-testid="upload-modal">
@@ -65,7 +65,7 @@ jest.mock("@/components/common/genericIconComponent", () => {
 });
 
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, ...props }: any) => (
+  Button: ({ children, onClick, ...props }: React.ComponentProps<"button">) => (
     <button onClick={onClick} {...props}>
       {children}
     </button>

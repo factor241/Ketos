@@ -3,8 +3,8 @@ from unittest.mock import patch
 
 import pytest
 from langchain_core.messages import AIMessage
-from lfx.components.llm_operations.batch_run import BatchRunComponent
-from lfx.schema import DataFrame
+from kfx.components.llm_operations.batch_run import BatchRunComponent
+from kfx.schema import DataFrame
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -316,7 +316,7 @@ class TestBatchRunComponent(ComponentTestBaseWithoutClient):
         """Helper to get a fresh build_config dict from the component's frontend node."""
         return component.to_frontend_node()["data"]["node"]["template"]
 
-    @patch("lfx.base.models.unified_models.get_language_model_options")
+    @patch("kfx.base.models.unified_models.get_language_model_options")
     async def test_update_build_config_shows_watsonx_fields_when_watsonx_selected(
         self, mock_opts, component_class, default_kwargs
     ):
@@ -334,7 +334,7 @@ class TestBatchRunComponent(ComponentTestBaseWithoutClient):
         assert updated["base_url_ibm_watsonx"]["required"] is False
         assert updated["project_id"]["show"] is True
 
-    @patch("lfx.base.models.unified_models.get_language_model_options")
+    @patch("kfx.base.models.unified_models.get_language_model_options")
     async def test_update_build_config_hides_watsonx_fields_when_openai_selected(
         self, mock_opts, component_class, default_kwargs
     ):

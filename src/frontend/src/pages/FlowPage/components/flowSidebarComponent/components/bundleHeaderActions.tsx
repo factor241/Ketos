@@ -78,16 +78,12 @@ const BundleHeaderActionsInner = ({
           added === 0 && removed === 0 && changed === 0
             ? t("sidebar.bundles.reload.success.noChanges", {
                 bundle: displayName,
-                defaultValue:
-                  "Reloaded {{bundle}} (no source changes detected)",
               })
             : t("sidebar.bundles.reload.success.withChanges", {
                 bundle: displayName,
                 added,
                 removed,
                 changed,
-                defaultValue:
-                  "Reloaded {{bundle}} (+{{added}} / -{{removed}} / ~{{changed}} components)",
               });
         const list = renderTypedErrorList(data.warnings);
         setSuccessData({
@@ -102,7 +98,6 @@ const BundleHeaderActionsInner = ({
           setNoticeData({
             title: t("sidebar.bundles.reload.success.warnings", {
               bundle: displayName,
-              defaultValue: "Reloaded {{bundle}} with warnings",
             }),
             list: list.list,
           });
@@ -113,7 +108,6 @@ const BundleHeaderActionsInner = ({
       setErrorData({
         title: t("sidebar.bundles.reload.failure.structural", {
           bundle: displayName,
-          defaultValue: "Reload failed for {{bundle}}",
         }),
         ...(list ? { list: list.list } : {}),
       });
@@ -124,11 +118,10 @@ const BundleHeaderActionsInner = ({
       // failure: another tab / worker is already swapping the same bundle.
       // Use the notice toast so the user gets feedback without alarming
       // red styling.
-      if (message.startsWith("reload-in-progress:")) {
+      if (message === "reload-in-progress") {
         setNoticeData({
           title: t("sidebar.bundles.reload.inProgress", {
             bundle: displayName,
-            defaultValue: "Reload already in progress for {{bundle}}",
           }),
         });
         return;
@@ -136,9 +129,8 @@ const BundleHeaderActionsInner = ({
       setErrorData({
         title: t("sidebar.bundles.reload.failure.network", {
           bundle: displayName,
-          defaultValue: "Could not reload {{bundle}}",
         }),
-        list: [message || "Unknown error"],
+        list: [t("errors.requestFailed")],
       });
     },
   });
@@ -189,7 +181,6 @@ const BundleHeaderActionsInner = ({
         data-testid={`bundle-header-overflow-${bundleName}`}
         aria-label={t("sidebar.bundles.reload.overflowAria", {
           bundle: displayName,
-          defaultValue: "Open actions for {{bundle}}",
         })}
       >
         <ForwardedIconComponent
@@ -209,9 +200,7 @@ const BundleHeaderActionsInner = ({
           data-testid={`bundle-header-reload-${bundleName}`}
         >
           <ForwardedIconComponent name="RefreshCw" className="mr-2 h-4 w-4" />
-          {t("sidebar.bundles.reload.action", {
-            defaultValue: "Reload",
-          })}
+          {t("sidebar.bundles.reload.action")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

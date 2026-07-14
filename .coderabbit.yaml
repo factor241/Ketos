@@ -26,7 +26,7 @@ reviews:
   poem: false
   labeling_instructions: []
   path_filters:
-    - "!src/backend/base/langflow/initial_setup/starter_projects"
+    - "!src/backend/base/ketos/initial_setup/starter_projects"
   path_instructions: []
   abort_on_close: true
   disable_cache: false

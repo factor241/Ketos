@@ -16,14 +16,14 @@ from pydantic import SecretStr
 class TestGetApiKeyForProviderDbFallback:
     """Tests for get_api_key_for_provider when api_key param is None (second path)."""
 
-    @patch("lfx.base.models.unified_models.credentials.get_model_provider_variable_mapping")
-    @patch("lfx.base.models.unified_models.credentials.run_until_complete")
+    @patch("kfx.base.models.unified_models.credentials.get_model_provider_variable_mapping")
+    @patch("kfx.base.models.unified_models.credentials.run_until_complete")
     def test_should_fallback_to_env_when_db_lookup_raises_value_error(self, mock_run, mock_mapping, monkeypatch):
         """When variable_service.get_variable raises ValueError (variable not found in DB).
 
         get_api_key_for_provider should fall back to os.getenv() instead of returning None.
         """
-        from lfx.base.models.unified_models.credentials import get_api_key_for_provider
+        from kfx.base.models.unified_models.credentials import get_api_key_for_provider
 
         user_id = str(uuid4())
         mock_mapping.return_value = {"OpenAI": "OPENAI_API_KEY"}
@@ -35,14 +35,14 @@ class TestGetApiKeyForProviderDbFallback:
 
         assert result == "sk-test-env-key"
 
-    @patch("lfx.base.models.unified_models.credentials.get_model_provider_variable_mapping")
-    @patch("lfx.base.models.unified_models.credentials.run_until_complete")
+    @patch("kfx.base.models.unified_models.credentials.get_model_provider_variable_mapping")
+    @patch("kfx.base.models.unified_models.credentials.run_until_complete")
     def test_should_fallback_to_env_when_db_lookup_returns_empty_string(self, mock_run, mock_mapping, monkeypatch):
         """When decryption fails, get_variable returns empty string.
 
         get_api_key_for_provider should fall back to os.getenv().
         """
-        from lfx.base.models.unified_models.credentials import get_api_key_for_provider
+        from kfx.base.models.unified_models.credentials import get_api_key_for_provider
 
         user_id = str(uuid4())
         mock_mapping.return_value = {"OpenAI": "OPENAI_API_KEY"}
@@ -54,14 +54,14 @@ class TestGetApiKeyForProviderDbFallback:
 
         assert result == "sk-test-env-key"
 
-    @patch("lfx.base.models.unified_models.credentials.get_model_provider_variable_mapping")
-    @patch("lfx.base.models.unified_models.credentials.run_until_complete")
+    @patch("kfx.base.models.unified_models.credentials.get_model_provider_variable_mapping")
+    @patch("kfx.base.models.unified_models.credentials.run_until_complete")
     def test_should_fallback_to_env_when_variable_service_is_none(self, mock_run, mock_mapping, monkeypatch):
         """When variable_service is None (service not available in thread context).
 
         get_api_key_for_provider should fall back to os.getenv().
         """
-        from lfx.base.models.unified_models.credentials import get_api_key_for_provider
+        from kfx.base.models.unified_models.credentials import get_api_key_for_provider
 
         user_id = str(uuid4())
         mock_mapping.return_value = {"OpenAI": "OPENAI_API_KEY"}
@@ -73,11 +73,11 @@ class TestGetApiKeyForProviderDbFallback:
 
         assert result == "sk-test-env-key"
 
-    @patch("lfx.base.models.unified_models.credentials.get_model_provider_variable_mapping")
-    @patch("lfx.base.models.unified_models.credentials.run_until_complete")
+    @patch("kfx.base.models.unified_models.credentials.get_model_provider_variable_mapping")
+    @patch("kfx.base.models.unified_models.credentials.run_until_complete")
     def test_should_return_none_when_both_db_and_env_unavailable(self, mock_run, mock_mapping, monkeypatch):
         """When both DB lookup and env var are unavailable, should return None."""
-        from lfx.base.models.unified_models.credentials import get_api_key_for_provider
+        from kfx.base.models.unified_models.credentials import get_api_key_for_provider
 
         user_id = str(uuid4())
         mock_mapping.return_value = {"OpenAI": "OPENAI_API_KEY"}
@@ -89,11 +89,11 @@ class TestGetApiKeyForProviderDbFallback:
 
         assert result is None
 
-    @patch("lfx.base.models.unified_models.credentials.get_model_provider_variable_mapping")
-    @patch("lfx.base.models.unified_models.credentials.run_until_complete")
+    @patch("kfx.base.models.unified_models.credentials.get_model_provider_variable_mapping")
+    @patch("kfx.base.models.unified_models.credentials.run_until_complete")
     def test_should_return_db_value_when_db_lookup_succeeds(self, mock_run, mock_mapping):
         """When DB lookup succeeds, should return the DB value (no env fallback needed)."""
-        from lfx.base.models.unified_models.credentials import get_api_key_for_provider
+        from kfx.base.models.unified_models.credentials import get_api_key_for_provider
 
         user_id = str(uuid4())
         mock_mapping.return_value = {"OpenAI": "OPENAI_API_KEY"}
@@ -103,11 +103,11 @@ class TestGetApiKeyForProviderDbFallback:
 
         assert result == "sk-from-database"
 
-    @patch("lfx.base.models.unified_models.credentials.get_model_provider_variable_mapping")
-    @patch("lfx.base.models.unified_models.credentials.run_until_complete")
+    @patch("kfx.base.models.unified_models.credentials.get_model_provider_variable_mapping")
+    @patch("kfx.base.models.unified_models.credentials.run_until_complete")
     def test_should_unwrap_secretstr_from_db_lookup(self, mock_run, mock_mapping):
         """DB credential variables are SecretStr and must be unwrapped before provider use."""
-        from lfx.base.models.unified_models.credentials import get_api_key_for_provider
+        from kfx.base.models.unified_models.credentials import get_api_key_for_provider
 
         user_id = str(uuid4())
         mock_mapping.return_value = {"OpenAI": "OPENAI_API_KEY"}
@@ -117,10 +117,10 @@ class TestGetApiKeyForProviderDbFallback:
 
         assert result == "sk-from-database"
 
-    @patch("lfx.base.models.unified_models.credentials.run_until_complete")
+    @patch("kfx.base.models.unified_models.credentials.run_until_complete")
     def test_should_unwrap_secretstr_from_explicit_variable_name_lookup(self, mock_run, monkeypatch):
         """Explicit var-name inputs should resolve to the raw secret, not SecretStr's mask."""
-        from lfx.base.models.unified_models.credentials import get_api_key_for_provider
+        from kfx.base.models.unified_models.credentials import get_api_key_for_provider
 
         user_id = str(uuid4())
         mock_run.return_value = SecretStr("sk-from-database")
@@ -132,21 +132,21 @@ class TestGetApiKeyForProviderDbFallback:
 
     def test_should_unwrap_secretstr_literal_api_key(self):
         """SecretStr inputs should be passed to provider clients as raw strings."""
-        from lfx.base.models.unified_models.credentials import get_api_key_for_provider
+        from kfx.base.models.unified_models.credentials import get_api_key_for_provider
 
         result = get_api_key_for_provider(None, "OpenAI", SecretStr("sk-direct"))
 
         assert result == "sk-direct"
 
-    @patch("lfx.base.models.unified_models.credentials.get_model_provider_variable_mapping")
+    @patch("kfx.base.models.unified_models.credentials.get_model_provider_variable_mapping")
     def test_should_fallback_to_env_when_user_id_is_none(self, mock_mapping, monkeypatch):
-        """No user_id (lfx run) must still resolve credentials from os.environ.
+        """No user_id (kfx run) must still resolve credentials from os.environ.
 
         Reproducer: a flow exported with empty api_key + load_from_db=False is executed
-        via `lfx run`. user_id is None, api_key is empty/None — the function should still
+        via `kfx run`. user_id is None, api_key is empty/None — the function should still
         try the canonical env var (e.g. WATSONX_APIKEY) before giving up.
         """
-        from lfx.base.models.unified_models.credentials import get_api_key_for_provider
+        from kfx.base.models.unified_models.credentials import get_api_key_for_provider
 
         mock_mapping.return_value = {"IBM WatsonX": "WATSONX_APIKEY"}
         monkeypatch.setenv("WATSONX_APIKEY", "shell-exported-key")
@@ -155,10 +155,10 @@ class TestGetApiKeyForProviderDbFallback:
 
         assert result == "shell-exported-key"
 
-    @patch("lfx.base.models.unified_models.credentials.get_model_provider_variable_mapping")
+    @patch("kfx.base.models.unified_models.credentials.get_model_provider_variable_mapping")
     def test_should_return_none_when_user_id_none_and_env_unset(self, mock_mapping, monkeypatch):
         """No user_id and no env var: nothing to return."""
-        from lfx.base.models.unified_models.credentials import get_api_key_for_provider
+        from kfx.base.models.unified_models.credentials import get_api_key_for_provider
 
         mock_mapping.return_value = {"IBM WatsonX": "WATSONX_APIKEY"}
         monkeypatch.delenv("WATSONX_APIKEY", raising=False)
@@ -179,7 +179,7 @@ class TestExplicitVarNameDbPrecedence:
     env read silently bypassed that boundary.
     """
 
-    @patch("lfx.base.models.unified_models.credentials.run_until_complete")
+    @patch("kfx.base.models.unified_models.credentials.run_until_complete")
     def test_should_prefer_db_global_variable_over_env_for_explicit_var_name(self, mock_run, monkeypatch):
         user_id = str(uuid4())
         # The user's valid key, stored as a DB global variable (SecretStr).
@@ -187,13 +187,13 @@ class TestExplicitVarNameDbPrecedence:
         # The stale/revoked key in .env that must NOT win.
         monkeypatch.setenv("OPENAI_API_KEY", "sk-env-revoked")
 
-        from lfx.base.models.unified_models.credentials import get_api_key_for_provider
+        from kfx.base.models.unified_models.credentials import get_api_key_for_provider
 
         result = get_api_key_for_provider(user_id, "OpenAI", "OPENAI_API_KEY")
 
         assert result == "sk-db-valid"
 
-    @patch("lfx.base.models.unified_models.credentials.run_until_complete")
+    @patch("kfx.base.models.unified_models.credentials.run_until_complete")
     def test_should_fallback_to_env_for_var_name_when_db_has_no_value(self, mock_run, monkeypatch):
         # Regression guard: DB-first must still fall back to env when the user
         # has no such DB variable (the value the .env provides is the only one).
@@ -201,17 +201,17 @@ class TestExplicitVarNameDbPrecedence:
         mock_run.return_value = None
         monkeypatch.setenv("OPENAI_API_KEY", "sk-env-fallback")
 
-        from lfx.base.models.unified_models.credentials import get_api_key_for_provider
+        from kfx.base.models.unified_models.credentials import get_api_key_for_provider
 
         result = get_api_key_for_provider(user_id, "OpenAI", "OPENAI_API_KEY")
 
         assert result == "sk-env-fallback"
 
     def test_should_use_env_for_var_name_when_no_user_id(self, monkeypatch):
-        # lfx run (no user): no DB to consult, so the env var is the source.
+        # kfx run (no user): no DB to consult, so the env var is the source.
         monkeypatch.setenv("OPENAI_API_KEY", "sk-env-only")
 
-        from lfx.base.models.unified_models.credentials import get_api_key_for_provider
+        from kfx.base.models.unified_models.credentials import get_api_key_for_provider
 
         result = get_api_key_for_provider(None, "OpenAI", "OPENAI_API_KEY")
 
@@ -221,7 +221,7 @@ class TestExplicitVarNameDbPrecedence:
 class TestGetAllVariablesForProviderDbFallback:
     """Tests for get_all_variables_for_provider when DB lookup yields nothing.
 
-    Bug: Langflow Assistant rejects requests with
+    Bug: Ketos Assistant rejects requests with
     `400 Missing required configuration for OpenAI: OPENAI_API_KEY` even when
     the env var is set, whenever a Variable row exists in the DB but its
     ciphertext was encrypted with a different SECRET_KEY (Fernet
@@ -231,8 +231,8 @@ class TestGetAllVariablesForProviderDbFallback:
     required key is missing from the resulting dict.
     """
 
-    @patch("lfx.base.models.unified_models.credentials.get_provider_all_variables")
-    @patch("lfx.base.models.unified_models.credentials.run_until_complete")
+    @patch("kfx.base.models.unified_models.credentials.get_provider_all_variables")
+    @patch("kfx.base.models.unified_models.credentials.run_until_complete")
     def test_should_fallback_to_env_when_db_lookup_returns_empty_for_required_key(
         self, mock_run, mock_provider_vars, monkeypatch
     ):
@@ -244,7 +244,7 @@ class TestGetAllVariablesForProviderDbFallback:
         `os.environ` for the missing required keys, exactly mirroring the
         post-async env fallback used by `get_api_key_for_provider`.
         """
-        from lfx.base.models.unified_models.credentials import get_all_variables_for_provider
+        from kfx.base.models.unified_models.credentials import get_all_variables_for_provider
 
         user_id = str(uuid4())
         mock_provider_vars.return_value = [{"variable_key": "OPENAI_API_KEY"}]
@@ -257,15 +257,15 @@ class TestGetAllVariablesForProviderDbFallback:
 
         assert result == {"OPENAI_API_KEY": "sk-test-env-key"}
 
-    @patch("lfx.base.models.unified_models.credentials.get_provider_all_variables")
-    @patch("lfx.base.models.unified_models.credentials.run_until_complete")
+    @patch("kfx.base.models.unified_models.credentials.get_provider_all_variables")
+    @patch("kfx.base.models.unified_models.credentials.run_until_complete")
     def test_should_fallback_to_env_only_for_keys_missing_from_db(self, mock_run, mock_provider_vars, monkeypatch):
         """Keys returned by DB win; env only fills the gaps for missing keys.
 
         Guards against an over-broad fix that lets env values overwrite
         successfully decrypted DB values.
         """
-        from lfx.base.models.unified_models.credentials import get_all_variables_for_provider
+        from kfx.base.models.unified_models.credentials import get_all_variables_for_provider
 
         user_id = str(uuid4())
         mock_provider_vars.return_value = [

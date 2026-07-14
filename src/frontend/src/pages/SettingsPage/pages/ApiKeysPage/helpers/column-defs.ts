@@ -1,9 +1,10 @@
+import type { TFunction } from "i18next";
 import TableAutoCellRender from "@/components/core/parameterRenderComponent/components/tableComponent/components/tableAutoCellRender";
 import CreatedAtCellRender from "../components/CreatedAtCellRender";
 import ExpiryDateCellRender from "../components/ExpiryDateCellRender";
 import LastUsedAtCellRender from "../components/LastUsedAtCellRender";
 
-export const getColumnDefs = (t: (key: string) => string) => {
+export const getColumnDefs = (t: TFunction<"translation">) => {
   return [
     {
       headerCheckboxSelection: true,

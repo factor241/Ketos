@@ -45,7 +45,7 @@ const ToolsModal = forwardRef<AgGridReact, ToolsModalProps>(
       }
     };
 
-    const [data, setData] = useState<any[]>(cloneDeep(rows));
+    const [data, setData] = useState<unknown[]>(cloneDeep(rows));
 
     useEffect(() => {
       if (placeholder === "Loading actions...") {

@@ -1,0 +1,20 @@
+---
+title: KFX extensions
+slug: /extensions/overview
+---
+
+Extensions package components outside the application core. The current
+contract uses:
+
+- entry-point group `ketos.extensions`
+- manifest table `[tool.ketos.extension]`
+- schema `https://schemas.ketos.test/extension/v1.json`
+- component base `kfx.custom.Component`
+- declarations from `kfx.io`
+
+Installed and seed extensions use the `official` slot. Loose roots from
+`KETOS_COMPONENTS_PATH` use the `extra` slot. Component class names are
+persisted identifiers and cannot be renamed after release.
+
+See the repository [Bundle API](https://git.ketos.test/ketos/ketos/blob/main/BUNDLE_API.md)
+for the exact manifest, validation, loader, reload, and error contracts.

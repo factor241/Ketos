@@ -29,6 +29,11 @@ jest.mock("../../../helpers/constants", () => ({
   getURL: jest.fn(() => "http://localhost/api/v1/agentic/assist/stream"),
 }));
 
+jest.mock("@/i18n", () => ({
+  __esModule: true,
+  default: { t: (key: string) => `translated:${key}` },
+}));
+
 import { postAssistStream } from "../use-post-assist-stream";
 
 // Helper: encode a string as Uint8Array
@@ -201,7 +206,11 @@ describe("event dispatch", () => {
     const onError = jest.fn();
     await postAssistStream({ flow_id: "f1", input_value: "" }, { onError });
 
-    expect(onError).toHaveBeenCalledWith(errorEvent);
+    expect(onError).toHaveBeenCalledWith({
+      event: "error",
+      message: "translated:assistant.streamError",
+    });
+    expect(JSON.stringify(onError.mock.calls)).not.toContain("Rate limit");
   });
 
   it("should dispatch onError when the stream ends without a terminal event", async () => {
@@ -331,7 +340,7 @@ describe("buffer handling", () => {
     expect(onError).toHaveBeenCalledWith(
       expect.objectContaining({
         event: "error",
-        message: expect.stringContaining("malformed"),
+        message: "translated:errors.receivedMalformedEvent",
       }),
     );
     // Stream should continue processing after the malformed event
@@ -371,7 +380,7 @@ describe("buffer handling", () => {
 });
 
 describe("error responses", () => {
-  it("should call onError with JSON detail for non-200", async () => {
+  it("should map JSON backend detail to a semantic message for non-200", async () => {
     mockFetch.mockResolvedValue(
       createMockResponse(400, [], JSON.stringify({ detail: "Bad request" })),
     );
@@ -380,11 +389,14 @@ describe("error responses", () => {
     await postAssistStream({ flow_id: "f1", input_value: "" }, { onError });
 
     expect(onError).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "Bad request" }),
+      expect.objectContaining({
+        message: "translated:assistant.requestFailed",
+      }),
     );
+    expect(JSON.stringify(onError.mock.calls)).not.toContain("Bad request");
   });
 
-  it("should call onError with text for non-JSON error", async () => {
+  it("should not expose a plain-text backend error", async () => {
     mockFetch.mockResolvedValue(
       createMockResponse(500, [], "Internal Server Error"),
     );
@@ -393,7 +405,12 @@ describe("error responses", () => {
     await postAssistStream({ flow_id: "f1", input_value: "" }, { onError });
 
     expect(onError).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "Internal Server Error" }),
+      expect.objectContaining({
+        message: "translated:assistant.requestFailed",
+      }),
+    );
+    expect(JSON.stringify(onError.mock.calls)).not.toContain(
+      "Internal Server Error",
     );
   });
 
@@ -408,7 +425,7 @@ describe("error responses", () => {
     await postAssistStream({ flow_id: "f1", input_value: "" }, { onError });
 
     expect(onError).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "No response body" }),
+      expect.objectContaining({ message: "translated:errors.noResponseBody" }),
     );
   });
 

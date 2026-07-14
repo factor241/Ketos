@@ -1,12 +1,19 @@
 import { ADJECTIVES, NOUNS } from "../../../../../flow_constants";
+import i18n from "../../../../../i18n";
 import { getRandomElement } from "../../../../../utils/reactflowUtils";
-import { toTitleCase } from "../../../../../utils/utils";
 
 export default function getRandomName(
   retry: number = 0,
   noSpace: boolean = false,
   maxRetries: number = 3,
 ): string {
+  if (!noSpace) {
+    const suffix = Math.floor(Math.random() * 10_000)
+      .toString()
+      .padStart(4, "0");
+    return i18n.t("flow.groupDefaultName", { suffix });
+  }
+
   const left: string[] = ADJECTIVES;
   const right: string[] = NOUNS;
 
@@ -29,7 +36,6 @@ export default function getRandomName(
   }
 
   // Construct the final name
-  const final_name = noSpace ? `${lv}_${rv}` : `${lv} ${rv}`;
-  // Return title case final name
-  return toTitleCase(final_name);
+  const final_name = `${lv}_${rv}`;
+  return final_name;
 }

@@ -2,19 +2,19 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from langflow.services.auth.utils import create_super_user
-from langflow.services.database.models.user.model import User
-from langflow.services.utils import teardown_superuser
-from lfx.services.settings.constants import (
+from ketos.services.auth.utils import create_super_user
+from ketos.services.database.models.user.model import User
+from ketos.services.utils import teardown_superuser
+from kfx.services.settings.constants import (
     DEFAULT_SUPERUSER,
     DEFAULT_SUPERUSER_PASSWORD,
 )
 from sqlalchemy.exc import IntegrityError
 
-# @patch("langflow.services.deps.get_session")
-# @patch("langflow.services.utils.create_super_user")
-# @patch("langflow.services.deps.get_settings_service")
-# # @patch("langflow.services.utils.verify_password")
+# @patch("ketos.services.deps.get_session")
+# @patch("ketos.services.utils.create_super_user")
+# @patch("ketos.services.deps.get_settings_service")
+# # @patch("ketos.services.utils.verify_password")
 # def test_setup_superuser(
 #     mock_get_session, mock_create_super_user, mock_get_settings_service
 # ):
@@ -94,8 +94,8 @@ from sqlalchemy.exc import IntegrityError
 #     assert str(actual_expr) == str(expected_expr)
 
 
-@patch("langflow.services.deps.get_settings_service")
-@patch("langflow.services.deps.get_session")
+@patch("ketos.services.deps.get_settings_service")
+@patch("ketos.services.deps.get_session")
 async def test_teardown_superuser_default_superuser(mock_get_session, mock_get_settings_service):
     mock_settings_service = MagicMock()
     mock_settings_service.auth_settings.AUTO_LOGIN = True
@@ -159,9 +159,9 @@ async def test_create_super_user_race_condition():
 
     mock_session.commit.side_effect = IntegrityError("statement", "params", Exception("orig"))
     with (
-        patch("langflow.services.auth.service.get_user_by_username", mock_get_user_by_username),
-        patch("langflow.services.auth.utils.get_password_hash", mock_get_password_hash),
-        patch("langflow.services.database.models.user.model.User") as mock_user_class,
+        patch("ketos.services.auth.service.get_user_by_username", mock_get_user_by_username),
+        patch("ketos.services.auth.utils.get_password_hash", mock_get_password_hash),
+        patch("ketos.services.database.models.user.model.User") as mock_user_class,
     ):
         # Configure the User class mock to return our mock_user when instantiated
         mock_user_class.return_value = mock_user
@@ -195,9 +195,9 @@ async def test_create_super_user_race_condition_no_user_found():
     mock_session.commit.side_effect = integrity_error
 
     with (
-        patch("langflow.services.auth.service.get_user_by_username", mock_get_user_by_username),
-        patch("langflow.services.auth.utils.get_password_hash", mock_get_password_hash),
-        patch("langflow.services.database.models.user.model.User", return_value=mock_user),
+        patch("ketos.services.auth.service.get_user_by_username", mock_get_user_by_username),
+        patch("ketos.services.auth.utils.get_password_hash", mock_get_password_hash),
+        patch("ketos.services.database.models.user.model.User", return_value=mock_user),
         pytest.raises(IntegrityError),
     ):
         await create_super_user("testuser", "password", mock_session)
@@ -230,7 +230,7 @@ async def test_create_super_user_concurrent_workers():
     # get_user_by_username returns None initially, then the created user for worker 2
     mock_get_user_by_username.side_effect = [None, None, mock_user]
 
-    with patch("langflow.services.auth.service.get_user_by_username", mock_get_user_by_username):
+    with patch("ketos.services.auth.service.get_user_by_username", mock_get_user_by_username):
         # Simulate concurrent execution using asyncio.gather
         result1, result2 = await asyncio.gather(
             create_super_user("admin", "password", mock_session1),

@@ -1,5 +1,3 @@
-import { stringToBool } from "@/utils/utils";
-
 const XAISVG = (props) => (
   <svg
     fill={props.isDark ? "#ffffff" : "#0A0A0A"}

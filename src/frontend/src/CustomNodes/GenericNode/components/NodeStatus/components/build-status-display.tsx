@@ -3,17 +3,25 @@ import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import { BuildStatus } from "@/constants/enums";
 import type { UsageType } from "@/types/chat";
 import { formatTokenCount } from "@/utils/format-token-count";
+import { formatDateTime } from "@/utils/locale-format";
 
 const StatusMessage = ({ children, className = "text-foreground" }) => (
   <span className={`flex ${className}`}>{children}</span>
 );
 
-const TimeStamp = ({ prefix, time }) => (
-  <div className="flex items-center text-xxs text-secondary-foreground">
-    <div>{prefix}</div>
-    <div className="ml-1 text-secondary-foreground">{time}</div>
-  </div>
-);
+const TimeStamp = ({ prefix, time }) => {
+  const date = new Date(time);
+  const displayTime = Number.isNaN(date.getTime())
+    ? time
+    : formatDateTime(time);
+
+  return (
+    <div className="flex items-center text-xxs text-secondary-foreground">
+      <div>{prefix}</div>
+      <div className="ml-1 text-secondary-foreground">{displayTime}</div>
+    </div>
+  );
+};
 
 const Duration = ({ duration }) => {
   const { t } = useTranslation();

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://schemas.ketos.test/extension/v1.json",
+  "id": "kfx-ibm",
+  "version": "0.1.1",
+  "name": "IBM",
+  "description": "IBM components (Db2 Vector Store + watsonx.ai LLM and embeddings) as a standalone Ketos Extension Bundle.",
+  "kfx": {
+    "compat": ["1"]
+  },
+  "bundles": [
+    {
+      "name": "ibm",
+      "path": "components/ibm"
+    }
+  ]
+}

@@ -1,9 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
+import type { FlowType } from "@/types/flow";
 import FlowSettingsComponent from "../index";
 
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, loading, ...rest }) => (
+  Button: ({
+    children,
+    loading: _loading,
+    ...rest
+  }: React.ComponentProps<"button"> & { loading?: boolean }) => (
     <button {...rest}>{children}</button>
   ),
 }));
@@ -11,7 +16,7 @@ jest.mock("@/components/ui/button", () => ({
 // Simplify Radix Form to a native form that respects onSubmit
 jest.mock("@radix-ui/react-form", () => ({
   __esModule: true,
-  Root: React.forwardRef<HTMLFormElement, any>(
+  Root: React.forwardRef<HTMLFormElement, React.ComponentProps<"form">>(
     ({ children, onSubmit }, ref) => (
       <form onSubmit={onSubmit} ref={ref}>
         {children}
@@ -20,7 +25,12 @@ jest.mock("@radix-ui/react-form", () => ({
   ),
   Submit: ({ asChild, children }) => {
     if (asChild && React.isValidElement(children)) {
-      return React.cloneElement(children as any, { type: "submit" });
+      return React.cloneElement(
+        children as React.ReactElement<
+          React.ButtonHTMLAttributes<HTMLButtonElement>
+        >,
+        { type: "submit" },
+      );
     }
     return <button type="submit">Submit</button>;
   },
@@ -97,8 +107,9 @@ describe("FlowSettingsComponent", () => {
     id: "1",
     name: "Flow",
     description: "Desc",
+    data: null,
     locked: false,
-  } as any;
+  } satisfies FlowType;
 
   beforeEach(() => {
     jest.clearAllMocks();

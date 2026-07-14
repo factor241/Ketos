@@ -52,7 +52,7 @@ export default function InspectionPanelHeader({
     setSuccessData({ title: t("success.componentIdCopied") });
   }, [data.id, setSuccessData]);
 
-  const handleOpenCode = useCallback(() => {
+  const _handleOpenCode = useCallback(() => {
     if (hasCode) {
       setOpenCodeModal(true);
     }
@@ -63,9 +63,9 @@ export default function InspectionPanelHeader({
       return customOpenNewTab(data.node.documentation);
     }
     setNoticeData({
-      title: `${data.id} docs is not available at the moment.`,
+      title: t("node.docsUnavailable", { id: data.id }),
     });
-  }, [data.id, data.node?.documentation, setNoticeData]);
+  }, [data.id, data.node?.documentation, setNoticeData, t]);
 
   // Wrapper to match CodeAreaModal's expected signature
   const handleSetValue = useCallback(
@@ -79,7 +79,7 @@ export default function InspectionPanelHeader({
 
   const hasDocs = (data.node?.documentation ?? "") !== "";
 
-  const isCustomComponent = useMemo(() => {
+  const _isCustomComponent = useMemo(() => {
     const isCustom = data.type === "CustomComponent" && !data.node?.edited;
     if (isCustom) {
       data.node.edited = true;

@@ -4,14 +4,14 @@ from unittest.mock import Mock
 
 import anyio
 import pytest
-from langflow.services.storage.local import LocalStorageService
+from ketos.services.storage.local import LocalStorageService
 
 
 @pytest.fixture
 def mock_settings_service():
     """Create a mock settings service."""
     settings_service = Mock()
-    settings_service.settings.config_dir = "/tmp/langflow_test"  # noqa: S108
+    settings_service.settings.data_dir = "/tmp/ketos_test"  # noqa: S108
     return settings_service
 
 
@@ -24,8 +24,8 @@ def mock_session_service():
 @pytest.fixture
 async def local_storage_service(mock_session_service, mock_settings_service, tmp_path):
     """Create a LocalStorageService instance for testing."""
-    # Override the config dir to use tmp_path
-    mock_settings_service.settings.config_dir = str(tmp_path)
+    # Override the data dir to use tmp_path
+    mock_settings_service.settings.data_dir = str(tmp_path)
     service = LocalStorageService(mock_session_service, mock_settings_service)
     yield service
     # Cleanup
@@ -453,7 +453,7 @@ class TestLocalStorageServiceEdgeCases:
         Under concurrent execution, aiofile/caio would leak kernel AIO contexts
         causing EAGAIN after ~150-200 runs. This test verifies that writing a file
         and immediately reading it back works reliably under concurrency with the
-        aiofiles backend. See https://github.com/langflow-ai/langflow/issues/12414
+        aiofiles backend. See https://github.com/ketos-ai/ketos/issues/12414
         """
         flow_id = "concurrent_rw_flow"
         num_files = 50

@@ -1,10 +1,10 @@
-# Domain-Specific Component Testing for Langflow
+# Domain-Specific Component Testing for Ketos
 
-Patterns for testing Langflow-specific components that have unique architectural concerns.
+Patterns for testing Ketos-specific components that have unique architectural concerns.
 
 ## Flow/Graph Components
 
-Langflow's flow editor is built on `@xyflow/react` (React Flow). These components require specific mocking strategies.
+Ketos's flow editor is built on `@xyflow/react` (React Flow). These components require specific mocking strategies.
 
 ### GenericNode
 
@@ -581,13 +581,13 @@ describe("getPythonApiCode", () => {
 });
 ```
 
-## Testing Tips for Langflow Components
+## Testing Tips for Ketos Components
 
 1. **Node template data**: Create reusable mock node data objects. The template structure is deeply nested and used across many components.
 
 2. **Store interdependencies**: Many components read from multiple stores (flowStore, typesStore, alertStore). Mock or initialize all relevant stores.
 
-3. **data-testid conventions**: Langflow uses `data-testid` extensively. Common patterns:
+3. **data-testid conventions**: Ketos uses `data-testid` extensively. Common patterns:
    - `popover-anchor-input-{name}` for input fields
    - `handle-{type}-{position}` for flow handles
    - `sidebar-nav-{action}` for sidebar buttons

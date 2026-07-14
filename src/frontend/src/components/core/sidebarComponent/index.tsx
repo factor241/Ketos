@@ -16,11 +16,16 @@ type SideBarButtonsComponentProps = {
     href?: string;
     title: string;
     icon: React.ReactNode;
+    testId?: string;
   }[];
   handleOpenNewFolderModal?: () => void;
+  wrapLabels?: boolean;
 };
 
-const SideBarButtonsComponent = ({ items }: SideBarButtonsComponentProps) => {
+const SideBarButtonsComponent = ({
+  items,
+  wrapLabels = false,
+}: SideBarButtonsComponentProps) => {
   const location = useLocation();
   const pathname = location.pathname;
 
@@ -28,7 +33,7 @@ const SideBarButtonsComponent = ({ items }: SideBarButtonsComponentProps) => {
 
   return (
     <Sidebar collapsible={isMobile ? "icon" : "none"} className="border-none">
-      <SidebarContent className="pr-6">
+      <SidebarContent className="pr-6 group-data-[collapsible=icon]:pr-0">
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -37,14 +42,25 @@ const SideBarButtonsComponent = ({ items }: SideBarButtonsComponentProps) => {
                   <CustomLink to={item.href!} replace>
                     <SidebarMenuButton
                       size="md"
+                      className={
+                        wrapLabels
+                          ? "h-auto min-h-9 items-start group-data-[collapsible=icon]:!min-h-8 group-data-[collapsible=icon]:items-center"
+                          : undefined
+                      }
                       isActive={
                         item.href ? pathname.endsWith(item.href) : false
                       }
-                      data-testid={`sidebar-nav-${item.title}`}
+                      data-testid={item.testId ?? `sidebar-nav-${item.title}`}
                       tooltip={item.title}
                     >
                       {item.icon}
-                      <span className="block max-w-full truncate">
+                      <span
+                        className={
+                          wrapLabels
+                            ? "block max-w-full break-words !overflow-visible !text-clip !whitespace-normal group-data-[collapsible=icon]:hidden"
+                            : "block max-w-full truncate"
+                        }
+                      >
                         {item.title}
                       </span>
                     </SidebarMenuButton>

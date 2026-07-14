@@ -5,7 +5,7 @@ create/update payload-heavy scenarios for the Watsonx Orchestrate provider.
 
 Warning:
 --------
-This script performs live integration calls and creates real resources in langflow
+This script performs live integration calls and creates real resources in Ketos
 and Watsonx Orchestrate (agents, snapshots/tools, and configs/connections).
 By default, cleanup runs at the end of execution, but cleanup is best-effort:
 if the process is interrupted or provider deletes fail, resources may remain.
@@ -114,8 +114,8 @@ from uuid import UUID, uuid4
 import httpx
 from dotenv import load_dotenv
 from ibm_watsonx_orchestrate_clients.tools.tool_client import ClientAPIException
-from langflow.services.adapters.deployment.context import DeploymentAdapterContext, DeploymentProviderIDContext
-from langflow.services.adapters.deployment.watsonx_orchestrate import WxOCredentials
+from ketos.services.adapters.deployment.context import DeploymentAdapterContext, DeploymentProviderIDContext
+from ketos.services.adapters.deployment.watsonx_orchestrate import WxOCredentials
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -1778,7 +1778,7 @@ class DeploymentsApiParallelE2E:
         if self._client_mod is not None:
             return
 
-        import langflow.services.adapters.deployment.watsonx_orchestrate.client as client_mod
+        import ketos.services.adapters.deployment.watsonx_orchestrate.client as client_mod
 
         self._client_mod = client_mod
         self._original_resolve_wxo_client_credentials = client_mod.resolve_wxo_client_credentials
@@ -1949,7 +1949,7 @@ class DeploymentsApiParallelE2E:
         return version_ids
 
     def _resolve_starter_project_paths(self, *, count: int) -> list[Path]:
-        starter_root = Path(__file__).resolve().parents[3] / "src/backend/base/langflow/initial_setup/starter_projects"
+        starter_root = Path(__file__).resolve().parents[3] / "src/backend/base/ketos/initial_setup/starter_projects"
         if not starter_root.is_dir():
             msg = f"starter projects directory not found: {starter_root}"
             raise RuntimeError(msg)
@@ -2058,8 +2058,8 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run deployments API create/update matrix against /api/v1/deployments."
     )
-    parser.add_argument("--base-url", default=os.getenv("LANGFLOW_BASE_URL", "http://localhost:7860"))
-    parser.add_argument("--api-key", default=os.getenv("LANGFLOW_API_KEY", ""))
+    parser.add_argument("--base-url", default=os.getenv("KETOS_BASE_URL", "http://localhost:7860"))
+    parser.add_argument("--api-key", default=os.getenv("KETOS_API_KEY", ""))
     parser.add_argument("--instance-url", default=os.getenv("WXO_INSTANCE_URL", ""))
     parser.add_argument("--provider-api-key", default=os.getenv("WXO_API_KEY", ""))
     parser.add_argument("--provider-tenant-id", default=os.getenv("WXO_TENANT_ID"))
@@ -2069,13 +2069,13 @@ def _parse_args() -> argparse.Namespace:
         default=os.getenv("WXO_E2E_FLOW_VERSION_IDS", ""),
         help="Comma-separated flow version UUIDs. First is required; second enables add/remove patch scenario.",
     )
-    parser.add_argument("--project-id", default=os.getenv("LANGFLOW_PROJECT_ID"))
+    parser.add_argument("--project-id", default=os.getenv("KETOS_PROJECT_ID"))
     parser.add_argument(
         "--starter-project-files",
         default=os.getenv("WXO_E2E_STARTER_PROJECT_FILES", ""),
         help=(
             "Optional comma-separated starter project filenames from "
-            "src/backend/base/langflow/initial_setup/starter_projects."
+            "src/backend/base/ketos/initial_setup/starter_projects."
         ),
     )
     parser.add_argument(
@@ -2118,7 +2118,7 @@ def _require(value: str, env_name: str) -> str:
 async def _main() -> int:
     load_dotenv()
     args = _parse_args()
-    api_key = _require(args.api_key, "LANGFLOW_API_KEY/--api-key")
+    api_key = _require(args.api_key, "KETOS_API_KEY/--api-key")
     instance_url = _require(args.instance_url, "WXO_INSTANCE_URL/--instance-url")
     provider_api_key = _require(args.provider_api_key, "WXO_API_KEY/--provider-api-key")
     flow_version_ids = _parse_uuid_list(args.flow_version_ids)

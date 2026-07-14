@@ -24,8 +24,8 @@ on:
       push_to_registry:
         required: false
         type: boolean
-        default: true
-        description: "Whether to push images to registries. Set to false for testing builds without publishing."
+        default: false
+        description: "Reserved compatibility input; external registry publishing is disabled."
 
   workflow_dispatch:
     inputs:
@@ -55,7 +55,7 @@ on:
         type: string
         default: ""
       push_to_registry:
-        description: "Whether to push images to registries. Set to false for testing builds without publishing."
+        description: "Reserved compatibility input; external registry publishing is disabled."
         required: false
         type: boolean
         default: false
@@ -88,22 +88,22 @@ jobs:
       - name: Determine version
         id: version
         run: |
-          version=$(uv tree 2>/dev/null | grep '^langflow-base' | cut -d' ' -f2 | sed 's/^v//')
+          version=$(uv tree 2>/dev/null | grep '^ketos-base' | cut -d' ' -f2 | sed 's/^v//')
           echo "Base version from pyproject.toml: $version"
 
           if [ -n "${{ inputs.version_override }}" ]; then
             version="${{ inputs.version_override }}"
             echo "Using version override: $version"
             if [ ${{inputs.pre_release}} != "true" ]; then
-              last_released_version=$(curl -s "https://registry.hub.docker.com/v2/repositories/langflowai/langflow/tags?page_size=100" | jq -r '.results[].name' | grep -E '^base-' | grep -vE '\-(amd64|arm64)$' | grep -v 'latest' | sed 's/^base-//' | sort -V | tail -n 1)
+              last_released_version=$(curl -s "https://registry.hub.docker.com/v2/repositories/registry.invalid/ketos/ketos/tags?page_size=100" | jq -r '.results[].name' | grep -E '^base-' | grep -vE '\-(amd64|arm64)$' | grep -v 'latest' | sed 's/^base-//' | sort -V | tail -n 1)
               echo "Latest base release version: $last_released_version"
             fi
           elif [ ${{inputs.pre_release}} == "true" ]; then
-            released_versions=$(curl -s "https://registry.hub.docker.com/v2/repositories/langflowai/langflow/tags?page_size=100" | jq -r '.results[].name' | grep -E '^base-' | grep -vE '\-(amd64|arm64)$' | sed 's/^base-//' || true)
-            version="$(printf '%s\n' "$released_versions" | uv run ./scripts/ci/langflow_pre_release_tag.py "$version" -)"
+            released_versions=$(curl -s "https://registry.hub.docker.com/v2/repositories/registry.invalid/ketos/ketos/tags?page_size=100" | jq -r '.results[].name' | grep -E '^base-' | grep -vE '\-(amd64|arm64)$' | sed 's/^base-//' || true)
+            version="$(printf '%s\n' "$released_versions" | uv run ./scripts/ci/ketos_pre_release_tag.py "$version" -)"
             echo "Base pre-release version to be released: $version"
           else
-            last_released_version=$(curl -s "https://registry.hub.docker.com/v2/repositories/langflowai/langflow/tags?page_size=100" | jq -r '.results[].name' | grep -E '^base-' | grep -vE '\-(amd64|arm64)$' | grep -v 'latest' | sed 's/^base-//' | sort -V | tail -n 1)
+            last_released_version=$(curl -s "https://registry.hub.docker.com/v2/repositories/registry.invalid/ketos/ketos/tags?page_size=100" | jq -r '.results[].name' | grep -E '^base-' | grep -vE '\-(amd64|arm64)$' | grep -v 'latest' | sed 's/^base-//' | sort -V | tail -n 1)
             echo "Latest base release version: $last_released_version"
           fi
 
@@ -140,22 +140,22 @@ jobs:
       - name: Determine version
         id: version
         run: |
-          version=$(uv tree 2>/dev/null | grep -E '^langflow(-nightly)?[[:space:]]' | cut -d' ' -f2 | sed 's/^v//')
+          version=$(uv tree 2>/dev/null | grep -E '^ketos(-nightly)?[[:space:]]' | cut -d' ' -f2 | sed 's/^v//')
           echo "Main version from pyproject.toml: $version"
 
           if [ -n "${{ inputs.version_override }}" ]; then
             version="${{ inputs.version_override }}"
             echo "Using version override: $version"
             if [ ${{inputs.pre_release}} != "true" ]; then
-              last_released_version=$(curl -s "https://registry.hub.docker.com/v2/repositories/langflowai/langflow/tags?page_size=100" | jq -r '.results[].name' | grep -v '^base-' | grep -vE '\-(amd64|arm64)$' | grep -v 'latest' | sort -V | tail -n 1)
+              last_released_version=$(curl -s "https://registry.hub.docker.com/v2/repositories/registry.invalid/ketos/ketos/tags?page_size=100" | jq -r '.results[].name' | grep -v '^base-' | grep -vE '\-(amd64|arm64)$' | grep -v 'latest' | sort -V | tail -n 1)
               echo "Latest main release version: $last_released_version"
             fi
           elif [ ${{inputs.pre_release}} == "true" ]; then
-            released_versions=$(curl -s "https://registry.hub.docker.com/v2/repositories/langflowai/langflow/tags?page_size=100" | jq -r '.results[].name' | grep -v '^base-' | grep -vE '\-(amd64|arm64)$' || true)
-            version="$(printf '%s\n' "$released_versions" | uv run ./scripts/ci/langflow_pre_release_tag.py "$version" -)"
+            released_versions=$(curl -s "https://registry.hub.docker.com/v2/repositories/registry.invalid/ketos/ketos/tags?page_size=100" | jq -r '.results[].name' | grep -v '^base-' | grep -vE '\-(amd64|arm64)$' || true)
+            version="$(printf '%s\n' "$released_versions" | uv run ./scripts/ci/ketos_pre_release_tag.py "$version" -)"
             echo "Main pre-release version to be released: $version"
           else
-            last_released_version=$(curl -s "https://registry.hub.docker.com/v2/repositories/langflowai/langflow/tags?page_size=100" | jq -r '.results[].name' | grep -v '^base-' | grep -vE '\-(amd64|arm64)$' | grep -v 'latest' | sort -V | tail -n 1)
+            last_released_version=$(curl -s "https://registry.hub.docker.com/v2/repositories/registry.invalid/ketos/ketos/tags?page_size=100" | jq -r '.results[].name' | grep -v '^base-' | grep -vE '\-(amd64|arm64)$' | grep -v 'latest' | sort -V | tail -n 1)
             echo "Latest main release version: $last_released_version"
           fi
 
@@ -177,10 +177,10 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: [Langflow-runner]
+            runner: [Ketos-runner]
           - arch: arm64
             runner:
-              [self-hosted, linux, ARM64, langflow-ai-arm64-40gb-ephemeral]
+              [self-hosted, linux, ARM64, ketos-local-arm64-40gb-ephemeral]
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Check out the code
@@ -192,8 +192,8 @@ jobs:
         id: tags
         run: |
           version="${{ needs.determine-base-version.outputs.version }}"
-          echo "docker_tags=langflowai/langflow:base-${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
-          echo "ghcr_tags=ghcr.io/langflow-ai/langflow:base-${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "docker_tags=registry.invalid/ketos/ketos:base-${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "ghcr_tags=registry.invalid/ketos/ketos:base-${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
 
       - name: Docker cleanup
         run: |
@@ -217,26 +217,47 @@ jobs:
           password: ${{ secrets.TEMP_GHCR_TOKEN}}
 
       - name: Build and push to Docker Hub
+        id: oci_build
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ inputs.push_to_registry }}
+          push: false # external publish disabled; immutable gate required
           file: ./docker/build_and_push_base.Dockerfile
           tags: ${{ steps.tags.outputs.docker_tags }}
           platforms: linux/${{ matrix.arch }}
-          provenance: false
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Record immutable OCI subject
+        env:
+          ARCH: ${{ matrix.arch }}
+          IMAGE_DIGEST: ${{ steps.oci_build.outputs.digest }}
+          IMAGE_TAG: ${{ steps.tags.outputs.docker_tags }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$IMAGE_DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$'
+          IMAGE_NAME="${IMAGE_TAG%:*}"
+          printf '{"arch":"%s","release_type":"%s","subject":"%s@%s"}\n' \
+            "$ARCH" "$RELEASE_TYPE" "$IMAGE_NAME" "$IMAGE_DIGEST" \
+            > "oci-subject-${RELEASE_TYPE}-${ARCH}.json"
+
+      - name: Upload immutable OCI subject
+        uses: actions/upload-artifact@v6
+        with:
+          name: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}
+          path: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}.json
 
       - name: Build and push to GitHub Container Registry
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ inputs.push_to_registry }}
+          push: false # external publish disabled; immutable gate required
           file: ./docker/build_and_push_base.Dockerfile
           tags: ${{ steps.tags.outputs.ghcr_tags }}
           platforms: linux/${{ matrix.arch }}
-          provenance: false
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -248,10 +269,10 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: [Langflow-runner]
+            runner: [Ketos-runner]
           - arch: arm64
             runner:
-              [self-hosted, linux, ARM64, langflow-ai-arm64-40gb-ephemeral]
+              [self-hosted, linux, ARM64, ketos-local-arm64-40gb-ephemeral]
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Check out the code
@@ -263,8 +284,8 @@ jobs:
         id: tags
         run: |
           version="${{ needs.determine-main-version.outputs.version }}"
-          echo "docker_tags=langflowai/langflow:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
-          echo "ghcr_tags=ghcr.io/langflow-ai/langflow:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "docker_tags=registry.invalid/ketos/ketos:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "ghcr_tags=registry.invalid/ketos/ketos:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
 
       - name: Docker cleanup
         run: |
@@ -288,26 +309,47 @@ jobs:
           password: ${{ secrets.TEMP_GHCR_TOKEN}}
 
       - name: Build and push to Docker Hub
+        id: oci_build
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ inputs.push_to_registry }}
+          push: false # external publish disabled; immutable gate required
           file: ./docker/build_and_push.Dockerfile
           tags: ${{ steps.tags.outputs.docker_tags }}
           platforms: linux/${{ matrix.arch }}
-          provenance: false
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Record immutable OCI subject
+        env:
+          ARCH: ${{ matrix.arch }}
+          IMAGE_DIGEST: ${{ steps.oci_build.outputs.digest }}
+          IMAGE_TAG: ${{ steps.tags.outputs.docker_tags }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$IMAGE_DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$'
+          IMAGE_NAME="${IMAGE_TAG%:*}"
+          printf '{"arch":"%s","release_type":"%s","subject":"%s@%s"}\n' \
+            "$ARCH" "$RELEASE_TYPE" "$IMAGE_NAME" "$IMAGE_DIGEST" \
+            > "oci-subject-${RELEASE_TYPE}-${ARCH}.json"
+
+      - name: Upload immutable OCI subject
+        uses: actions/upload-artifact@v6
+        with:
+          name: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}
+          path: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}.json
 
       - name: Build and push to GitHub Container Registry
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ inputs.push_to_registry }}
+          push: false # external publish disabled; immutable gate required
           file: ./docker/build_and_push.Dockerfile
           tags: ${{ steps.tags.outputs.ghcr_tags }}
           platforms: linux/${{ matrix.arch }}
-          provenance: false
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -319,10 +361,10 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: [Langflow-runner]
+            runner: [Ketos-runner]
           - arch: arm64
             runner:
-              [self-hosted, linux, ARM64, langflow-ai-arm64-40gb-ephemeral]
+              [self-hosted, linux, ARM64, ketos-local-arm64-40gb-ephemeral]
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Check out the code
@@ -334,8 +376,8 @@ jobs:
         id: tags
         run: |
           version="${{ needs.determine-main-version.outputs.version }}"
-          echo "docker_tags=langflowai/langflow-backend:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
-          echo "ghcr_tags=ghcr.io/langflow-ai/langflow-backend:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "docker_tags=registry.invalid/ketos/ketos-backend:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "ghcr_tags=registry.invalid/ketos/ketos-backend:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
 
       - name: Docker cleanup
         run: |
@@ -352,18 +394,39 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push to Docker Hub
+        id: oci_build
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ inputs.push_to_registry }}
+          push: false # external publish disabled; immutable gate required
           build-args: |
-            LANGFLOW_IMAGE=langflowai/langflow:${{ needs.determine-main-version.outputs.version }}-${{ matrix.arch }}
+            KETOS_IMAGE=registry.invalid/ketos/ketos:${{ needs.determine-main-version.outputs.version }}-${{ matrix.arch }}
           file: ./docker/build_and_push_backend.Dockerfile
           tags: ${{ steps.tags.outputs.docker_tags }}
           platforms: linux/${{ matrix.arch }}
-          provenance: false
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Record immutable OCI subject
+        env:
+          ARCH: ${{ matrix.arch }}
+          IMAGE_DIGEST: ${{ steps.oci_build.outputs.digest }}
+          IMAGE_TAG: ${{ steps.tags.outputs.docker_tags }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$IMAGE_DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$'
+          IMAGE_NAME="${IMAGE_TAG%:*}"
+          printf '{"arch":"%s","release_type":"%s","subject":"%s@%s"}\n' \
+            "$ARCH" "$RELEASE_TYPE" "$IMAGE_NAME" "$IMAGE_DIGEST" \
+            > "oci-subject-${RELEASE_TYPE}-${ARCH}.json"
+
+      - name: Upload immutable OCI subject
+        uses: actions/upload-artifact@v6
+        with:
+          name: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}
+          path: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}.json
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -376,13 +439,13 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ inputs.push_to_registry }}
+          push: false # external publish disabled; immutable gate required
           build-args: |
-            LANGFLOW_IMAGE=ghcr.io/langflow-ai/langflow:${{ needs.determine-main-version.outputs.version }}-${{ matrix.arch }}
+            KETOS_IMAGE=registry.invalid/ketos/ketos:${{ needs.determine-main-version.outputs.version }}-${{ matrix.arch }}
           file: ./docker/build_and_push_backend.Dockerfile
           tags: ${{ steps.tags.outputs.ghcr_tags }}
           platforms: linux/${{ matrix.arch }}
-          provenance: false
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -394,10 +457,10 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: [Langflow-runner]
+            runner: [Ketos-runner]
           - arch: arm64
             runner:
-              [self-hosted, linux, ARM64, langflow-ai-arm64-40gb-ephemeral]
+              [self-hosted, linux, ARM64, ketos-local-arm64-40gb-ephemeral]
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Check out the code
@@ -409,8 +472,8 @@ jobs:
         id: tags
         run: |
           version="${{ needs.determine-main-version.outputs.version }}"
-          echo "docker_tags=langflowai/langflow-frontend:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
-          echo "ghcr_tags=ghcr.io/langflow-ai/langflow-frontend:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "docker_tags=registry.invalid/ketos/ketos-frontend:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "ghcr_tags=registry.invalid/ketos/ketos-frontend:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
 
       - name: Docker cleanup
         run: |
@@ -427,16 +490,37 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push to Docker Hub
+        id: oci_build
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ inputs.push_to_registry }}
+          push: false # external publish disabled; immutable gate required
           file: ./docker/frontend/build_and_push_frontend.Dockerfile
           tags: ${{ steps.tags.outputs.docker_tags }}
           platforms: linux/${{ matrix.arch }}
-          provenance: false
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Record immutable OCI subject
+        env:
+          ARCH: ${{ matrix.arch }}
+          IMAGE_DIGEST: ${{ steps.oci_build.outputs.digest }}
+          IMAGE_TAG: ${{ steps.tags.outputs.docker_tags }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$IMAGE_DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$'
+          IMAGE_NAME="${IMAGE_TAG%:*}"
+          printf '{"arch":"%s","release_type":"%s","subject":"%s@%s"}\n' \
+            "$ARCH" "$RELEASE_TYPE" "$IMAGE_NAME" "$IMAGE_DIGEST" \
+            > "oci-subject-${RELEASE_TYPE}-${ARCH}.json"
+
+      - name: Upload immutable OCI subject
+        uses: actions/upload-artifact@v6
+        with:
+          name: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}
+          path: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}.json
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -449,11 +533,11 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ inputs.push_to_registry }}
+          push: false # external publish disabled; immutable gate required
           file: ./docker/frontend/build_and_push_frontend.Dockerfile
           tags: ${{ steps.tags.outputs.ghcr_tags }}
           platforms: linux/${{ matrix.arch }}
-          provenance: false
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -465,10 +549,10 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: [Langflow-runner]
+            runner: [Ketos-runner]
           - arch: arm64
             runner:
-              [self-hosted, linux, ARM64, langflow-ai-arm64-40gb-ephemeral]
+              [self-hosted, linux, ARM64, ketos-local-arm64-40gb-ephemeral]
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Check out the code
@@ -480,8 +564,8 @@ jobs:
         id: tags
         run: |
           version="${{ needs.determine-main-version.outputs.version }}"
-          echo "docker_tags=langflowai/langflow-ep:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
-          echo "ghcr_tags=ghcr.io/langflow-ai/langflow-ep:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "docker_tags=registry.invalid/ketos/ketos-ep:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "ghcr_tags=registry.invalid/ketos/ketos-ep:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
 
       - name: Docker cleanup
         run: |
@@ -505,26 +589,47 @@ jobs:
           password: ${{ secrets.TEMP_GHCR_TOKEN}}
 
       - name: Build and push to Docker Hub
+        id: oci_build
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ inputs.push_to_registry }}
+          push: false # external publish disabled; immutable gate required
           file: ./docker/build_and_push_ep.Dockerfile
           tags: ${{ steps.tags.outputs.docker_tags }}
           platforms: linux/${{ matrix.arch }}
-          provenance: false
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Record immutable OCI subject
+        env:
+          ARCH: ${{ matrix.arch }}
+          IMAGE_DIGEST: ${{ steps.oci_build.outputs.digest }}
+          IMAGE_TAG: ${{ steps.tags.outputs.docker_tags }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$IMAGE_DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$'
+          IMAGE_NAME="${IMAGE_TAG%:*}"
+          printf '{"arch":"%s","release_type":"%s","subject":"%s@%s"}\n' \
+            "$ARCH" "$RELEASE_TYPE" "$IMAGE_NAME" "$IMAGE_DIGEST" \
+            > "oci-subject-${RELEASE_TYPE}-${ARCH}.json"
+
+      - name: Upload immutable OCI subject
+        uses: actions/upload-artifact@v6
+        with:
+          name: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}
+          path: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}.json
 
       - name: Build and push to GitHub Container Registry
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ inputs.push_to_registry }}
+          push: false # external publish disabled; immutable gate required
           file: ./docker/build_and_push_ep.Dockerfile
           tags: ${{ steps.tags.outputs.ghcr_tags }}
           platforms: linux/${{ matrix.arch }}
-          provenance: false
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -536,10 +641,10 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: [Langflow-runner]
+            runner: [Ketos-runner]
           - arch: arm64
             runner:
-              [self-hosted, linux, ARM64, langflow-ai-arm64-40gb-ephemeral]
+              [self-hosted, linux, ARM64, ketos-local-arm64-40gb-ephemeral]
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Check out the code
@@ -551,8 +656,8 @@ jobs:
         id: tags
         run: |
           version="${{ needs.determine-main-version.outputs.version }}"
-          echo "docker_tags=langflowai/langflow-all:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
-          echo "ghcr_tags=ghcr.io/langflow-ai/langflow-all:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "docker_tags=registry.invalid/ketos/ketos-all:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "ghcr_tags=registry.invalid/ketos/ketos-all:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
 
       - name: Docker cleanup
         run: |
@@ -576,31 +681,52 @@ jobs:
           password: ${{ secrets.TEMP_GHCR_TOKEN}}
 
       - name: Build and push to Docker Hub
+        id: oci_build
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ inputs.push_to_registry }}
+          push: false # external publish disabled; immutable gate required
           file: ./docker/build_and_push_with_extras.Dockerfile
           tags: ${{ steps.tags.outputs.docker_tags }}
           platforms: linux/${{ matrix.arch }}
-          provenance: false
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Record immutable OCI subject
+        env:
+          ARCH: ${{ matrix.arch }}
+          IMAGE_DIGEST: ${{ steps.oci_build.outputs.digest }}
+          IMAGE_TAG: ${{ steps.tags.outputs.docker_tags }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$IMAGE_DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$'
+          IMAGE_NAME="${IMAGE_TAG%:*}"
+          printf '{"arch":"%s","release_type":"%s","subject":"%s@%s"}\n' \
+            "$ARCH" "$RELEASE_TYPE" "$IMAGE_NAME" "$IMAGE_DIGEST" \
+            > "oci-subject-${RELEASE_TYPE}-${ARCH}.json"
+
+      - name: Upload immutable OCI subject
+        uses: actions/upload-artifact@v6
+        with:
+          name: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}
+          path: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}.json
 
       - name: Build and push to GitHub Container Registry
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ inputs.push_to_registry }}
+          push: false # external publish disabled; immutable gate required
           file: ./docker/build_and_push_with_extras.Dockerfile
           tags: ${{ steps.tags.outputs.ghcr_tags }}
           platforms: linux/${{ matrix.arch }}
-          provenance: false
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   create-manifest:
-    name: Create Multi-Arch Manifest
+    name: External manifest publication disabled
     needs:
       [
         build-base,
@@ -613,20 +739,28 @@ jobs:
         determine-main-version,
       ]
     runs-on: ubuntu-latest
-    if: ${{ always() && inputs.push_to_registry && (needs.build-base.result == 'success' || needs.build-main.result == 'success' || needs.build-main-backend.result == 'success' || needs.build-main-frontend.result == 'success' || needs.build-main-ep.result == 'success' || needs.build-main-all.result == 'success') }}
+    if: ${{ inputs.push_to_registry }}
     steps:
       - name: Check out the code
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ github.sha }}
+
+      - name: Setup Environment
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: "3.13"
+          prune-cache: false
 
       - name: Get version
         id: version
         run: |
           if [[ "${{ inputs.release_type }}" == "base" ]]; then
-            version=$(uv tree 2>/dev/null | grep 'langflow-base' | awk '{print $3}' | sed 's/^v//' | head -n 1)
+            version=$(uv tree 2>/dev/null | grep 'ketos-base' | awk '{print $3}' | sed 's/^v//' | head -n 1)
           else
-            version=$(uv tree 2>/dev/null | grep -E '^langflow(-nightly)?[[:space:]]' | cut -d' ' -f2 | sed 's/^v//')
+            version=$(uv tree 2>/dev/null | grep -E '^ketos(-nightly)?[[:space:]]' | cut -d' ' -f2 | sed 's/^v//')
           fi
           echo "Using version: $version"
           echo version=$version >> $GITHUB_OUTPUT
@@ -639,57 +773,57 @@ jobs:
             "base")
               version="${{ needs.determine-base-version.outputs.version }}"
               if [[ "${{ inputs.pre_release }}" == "true" ]]; then
-                echo "final_tags=langflowai/langflow:base-${version},ghcr.io/langflow-ai/langflow:base-${version}" >> $GITHUB_OUTPUT
+                echo "final_tags=registry.invalid/ketos/ketos:base-${version},registry.invalid/ketos/ketos:base-${version}" >> $GITHUB_OUTPUT
               else
-                echo "final_tags=langflowai/langflow:base-${version},langflowai/langflow:base-latest,ghcr.io/langflow-ai/langflow:base-${version},ghcr.io/langflow-ai/langflow:base-latest" >> $GITHUB_OUTPUT
+                echo "final_tags=registry.invalid/ketos/ketos:base-${version},registry.invalid/ketos/ketos:base-latest,registry.invalid/ketos/ketos:base-${version},registry.invalid/ketos/ketos:base-latest" >> $GITHUB_OUTPUT
               fi
-              echo "arch_base=langflowai/langflow:base-${version}" >> $GITHUB_OUTPUT
-              echo "ghcr_arch_base=ghcr.io/langflow-ai/langflow:base-${version}" >> $GITHUB_OUTPUT
+              echo "arch_base=registry.invalid/ketos/ketos:base-${version}" >> $GITHUB_OUTPUT
+              echo "ghcr_arch_base=registry.invalid/ketos/ketos:base-${version}" >> $GITHUB_OUTPUT
               ;;
             "main")
               if [[ "${{ inputs.pre_release }}" == "true" ]]; then
-                echo "final_tags=langflowai/langflow:${version},ghcr.io/langflow-ai/langflow:${version}" >> $GITHUB_OUTPUT
+                echo "final_tags=registry.invalid/ketos/ketos:${version},registry.invalid/ketos/ketos:${version}" >> $GITHUB_OUTPUT
               else
-                echo "final_tags=langflowai/langflow:${version},langflowai/langflow:latest,ghcr.io/langflow-ai/langflow:${version},ghcr.io/langflow-ai/langflow:latest" >> $GITHUB_OUTPUT
+                echo "final_tags=registry.invalid/ketos/ketos:${version},registry.invalid/ketos/ketos:latest,registry.invalid/ketos/ketos:${version},registry.invalid/ketos/ketos:latest" >> $GITHUB_OUTPUT
               fi
-              echo "arch_base=langflowai/langflow:${version}" >> $GITHUB_OUTPUT
-              echo "ghcr_arch_base=ghcr.io/langflow-ai/langflow:${version}" >> $GITHUB_OUTPUT
+              echo "arch_base=registry.invalid/ketos/ketos:${version}" >> $GITHUB_OUTPUT
+              echo "ghcr_arch_base=registry.invalid/ketos/ketos:${version}" >> $GITHUB_OUTPUT
               ;;
             "main-backend")
               if [[ "${{ inputs.pre_release }}" == "true" ]]; then
-                echo "final_tags=langflowai/langflow-backend:${version},ghcr.io/langflow-ai/langflow-backend:${version}" >> $GITHUB_OUTPUT
+                echo "final_tags=registry.invalid/ketos/ketos-backend:${version},registry.invalid/ketos/ketos-backend:${version}" >> $GITHUB_OUTPUT
               else
-                echo "final_tags=langflowai/langflow-backend:${version},langflowai/langflow-backend:latest,ghcr.io/langflow-ai/langflow-backend:${version},ghcr.io/langflow-ai/langflow-backend:latest" >> $GITHUB_OUTPUT
+                echo "final_tags=registry.invalid/ketos/ketos-backend:${version},registry.invalid/ketos/ketos-backend:latest,registry.invalid/ketos/ketos-backend:${version},registry.invalid/ketos/ketos-backend:latest" >> $GITHUB_OUTPUT
               fi
-              echo "arch_base=langflowai/langflow-backend:${version}" >> $GITHUB_OUTPUT
-              echo "ghcr_arch_base=ghcr.io/langflow-ai/langflow-backend:${version}" >> $GITHUB_OUTPUT
+              echo "arch_base=registry.invalid/ketos/ketos-backend:${version}" >> $GITHUB_OUTPUT
+              echo "ghcr_arch_base=registry.invalid/ketos/ketos-backend:${version}" >> $GITHUB_OUTPUT
               ;;
             "main-frontend")
               if [[ "${{ inputs.pre_release }}" == "true" ]]; then
-                echo "final_tags=langflowai/langflow-frontend:${version},ghcr.io/langflow-ai/langflow-frontend:${version}" >> $GITHUB_OUTPUT
+                echo "final_tags=registry.invalid/ketos/ketos-frontend:${version},registry.invalid/ketos/ketos-frontend:${version}" >> $GITHUB_OUTPUT
               else
-                echo "final_tags=langflowai/langflow-frontend:${version},langflowai/langflow-frontend:latest,ghcr.io/langflow-ai/langflow-frontend:${version},ghcr.io/langflow-ai/langflow-frontend:latest" >> $GITHUB_OUTPUT
+                echo "final_tags=registry.invalid/ketos/ketos-frontend:${version},registry.invalid/ketos/ketos-frontend:latest,registry.invalid/ketos/ketos-frontend:${version},registry.invalid/ketos/ketos-frontend:latest" >> $GITHUB_OUTPUT
               fi
-              echo "arch_base=langflowai/langflow-frontend:${version}" >> $GITHUB_OUTPUT
-              echo "ghcr_arch_base=ghcr.io/langflow-ai/langflow-frontend:${version}" >> $GITHUB_OUTPUT
+              echo "arch_base=registry.invalid/ketos/ketos-frontend:${version}" >> $GITHUB_OUTPUT
+              echo "ghcr_arch_base=registry.invalid/ketos/ketos-frontend:${version}" >> $GITHUB_OUTPUT
               ;;
             "main-ep")
               if [[ "${{ inputs.pre_release }}" == "true" ]]; then
-                echo "final_tags=langflowai/langflow-ep:${version},ghcr.io/langflow-ai/langflow-ep:${version}" >> $GITHUB_OUTPUT
+                echo "final_tags=registry.invalid/ketos/ketos-ep:${version},registry.invalid/ketos/ketos-ep:${version}" >> $GITHUB_OUTPUT
               else
-                echo "final_tags=langflowai/langflow-ep:${version},langflowai/langflow-ep:latest,ghcr.io/langflow-ai/langflow-ep:${version},ghcr.io/langflow-ai/langflow-ep:latest" >> $GITHUB_OUTPUT
+                echo "final_tags=registry.invalid/ketos/ketos-ep:${version},registry.invalid/ketos/ketos-ep:latest,registry.invalid/ketos/ketos-ep:${version},registry.invalid/ketos/ketos-ep:latest" >> $GITHUB_OUTPUT
               fi
-              echo "arch_base=langflowai/langflow-ep:${version}" >> $GITHUB_OUTPUT
-              echo "ghcr_arch_base=ghcr.io/langflow-ai/langflow-ep:${version}" >> $GITHUB_OUTPUT
+              echo "arch_base=registry.invalid/ketos/ketos-ep:${version}" >> $GITHUB_OUTPUT
+              echo "ghcr_arch_base=registry.invalid/ketos/ketos-ep:${version}" >> $GITHUB_OUTPUT
               ;;
             "main-all")
               if [[ "${{ inputs.pre_release }}" == "true" ]]; then
-                echo "final_tags=langflowai/langflow-all:${version},ghcr.io/langflow-ai/langflow-all:${version}" >> $GITHUB_OUTPUT
+                echo "final_tags=registry.invalid/ketos/ketos-all:${version},registry.invalid/ketos/ketos-all:${version}" >> $GITHUB_OUTPUT
               else
-                echo "final_tags=langflowai/langflow-all:${version},langflowai/langflow-all:latest,ghcr.io/langflow-ai/langflow-all:${version},ghcr.io/langflow-ai/langflow-all:latest" >> $GITHUB_OUTPUT
+                echo "final_tags=registry.invalid/ketos/ketos-all:${version},registry.invalid/ketos/ketos-all:latest,registry.invalid/ketos/ketos-all:${version},registry.invalid/ketos/ketos-all:latest" >> $GITHUB_OUTPUT
               fi
-              echo "arch_base=langflowai/langflow-all:${version}" >> $GITHUB_OUTPUT
-              echo "ghcr_arch_base=ghcr.io/langflow-ai/langflow-all:${version}" >> $GITHUB_OUTPUT
+              echo "arch_base=registry.invalid/ketos/ketos-all:${version}" >> $GITHUB_OUTPUT
+              echo "ghcr_arch_base=registry.invalid/ketos/ketos-all:${version}" >> $GITHUB_OUTPUT
               ;;
             *)
               echo "Error: Invalid release_type: ${{ inputs.release_type }}" >&2
@@ -697,37 +831,5 @@ jobs:
               ;;
           esac
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.TEMP_GHCR_TOKEN}}
-
-      - name: Create and push multi-arch manifests
-        run: |
-          # Split tags and create manifests for each
-          IFS=',' read -ra TAGS <<< "${{ steps.tags.outputs.final_tags }}"
-          for tag in "${TAGS[@]}"; do
-            echo "Creating manifest for $tag"
-
-            # Determine architecture-specific tags
-            if [[ "$tag" == *"langflowai"* ]]; then
-              amd64_tag="${{ steps.tags.outputs.arch_base }}-amd64"
-              arm64_tag="${{ steps.tags.outputs.arch_base }}-arm64"
-            else
-              amd64_tag="${{ steps.tags.outputs.ghcr_arch_base }}-amd64"
-              arm64_tag="${{ steps.tags.outputs.ghcr_arch_base }}-arm64"
-            fi
-
-            docker buildx imagetools create \
-              --tag "$tag" \
-              "$amd64_tag" \
-              "$arm64_tag"
-          done
+      - name: Confirm external manifest publication is disabled
+        run: echo "Architecture images are local-only; no remote manifest is published."

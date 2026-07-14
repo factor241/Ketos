@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from langflow.services.database.models.auth import (
+from ketos.services.database.models.auth import (
     AuthzAuditLog,
     AuthzEditLock,
     AuthzRole,
@@ -17,8 +17,8 @@ from langflow.services.database.models.auth import (
     SharePermissionLevel,
     ShareScope,
 )
-from langflow.services.database.models.flow.model import Flow
-from langflow.services.database.models.user.model import User
+from ketos.services.database.models.flow.model import Flow
+from ketos.services.database.models.user.model import User
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 

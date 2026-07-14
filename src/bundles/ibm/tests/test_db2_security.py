@@ -1,7 +1,7 @@
 """Unit tests for lightweight DB2 security helpers."""
 
 import pytest
-from lfx_ibm.components.ibm.db2_security import (
+from kfx_ibm.components.ibm.db2_security import (
     create_safe_error_message,
     validate_database_name,
     validate_hostname,
@@ -45,7 +45,7 @@ def test_validate_port_rejects_out_of_range_value():
 
 def test_validate_identifier_accepts_table_name():
     """Safe SQL identifiers should pass validation."""
-    assert validate_identifier("LANGFLOW_VECTORS", "table name") == "LANGFLOW_VECTORS"
+    assert validate_identifier("KETOS_VECTORS", "table name") == "KETOS_VECTORS"
 
 
 def test_validate_identifier_rejects_invalid_identifier():

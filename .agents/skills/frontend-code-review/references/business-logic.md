@@ -59,7 +59,7 @@ Category: Business Logic
 
 ### Description
 
-The Axios HTTP client in `src/frontend/src/controllers/API/` is configured with interceptors that handle authentication headers, token refresh, retry logic, and error normalization. Do not duplicate any of this logic in individual API call sites or components. Use the configured Axios instance (via the API controller helpers) for all backend requests. Do not create new Axios instances or use raw `fetch()` for API calls to the Langflow backend.
+The Axios HTTP client in `src/frontend/src/controllers/API/` is configured with interceptors that handle authentication headers, token refresh, retry logic, and error normalization. Do not duplicate any of this logic in individual API call sites or components. Use the configured Axios instance (via the API controller helpers) for all backend requests. Do not create new Axios instances or use raw `fetch()` for API calls to the Ketos backend.
 
 ### Suggested Fix
 
@@ -197,7 +197,7 @@ Category: Business Logic
 
 ### Description
 
-Langflow has a customization layer in `src/frontend/src/customization/` that allows overriding default behaviors and components. When adding new features that may need to be customized (e.g., branding, feature flags, custom components), use the customization layer rather than hardcoding values. Check `src/frontend/src/customization/` for existing customization points before adding new ones.
+Ketos has a customization layer in `src/frontend/src/customization/` that allows overriding default behaviors and components. When adding new features that may need to be customized (e.g., branding, feature flags, custom components), use the customization layer rather than hardcoding values. Check `src/frontend/src/customization/` for existing customization points before adding new ones.
 
 ## React Hook Form + Zod for form validation
 

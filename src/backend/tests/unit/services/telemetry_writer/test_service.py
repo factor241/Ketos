@@ -2,7 +2,7 @@
 
 The service is exercised end-to-end against a real in-memory SQLite database
 (no mocking of the persistence layer). We bypass ``start()`` in most tests so
-we don't have to bring up the entire langflow service manager — instead each
+we don't have to bring up the entire ketos service manager — instead each
 test wires up the writer's internals directly against the test
 ``async_session`` fixture's engine.
 """
@@ -11,15 +11,14 @@ from __future__ import annotations
 
 import asyncio
 import shutil
-import tempfile
 import warnings
-from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from langflow.services.database.models.transactions.model import TransactionBase, TransactionTable
-from langflow.services.database.models.vertex_builds.model import VertexBuildBase, VertexBuildTable
-from langflow.services.telemetry_writer.service import (
+from ketos.services.database.models.transactions.model import TransactionBase, TransactionTable
+from ketos.services.database.models.vertex_builds.model import VertexBuildBase, VertexBuildTable
+from ketos.services.telemetry_writer.service import (
     _FAILURE_ESCALATION_THRESHOLD,
     TelemetryWriterService,
     _write_owner_file,
@@ -29,6 +28,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession as SQLModelAsyncSession
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class _FakeSettings:
@@ -471,7 +473,7 @@ async def test_spill_restore_round_trip_writes_realistic_payload_to_db(writer_wi
 
 
 def _find_dead_pid(start: int = 99_999, max_checks: int = 50_000) -> int:
-    from langflow.services.telemetry_writer.service import _pid_alive
+    from ketos.services.telemetry_writer.service import _pid_alive
 
     pid = start
     for _ in range(max_checks):
@@ -800,7 +802,7 @@ async def test_teardown_spills_remaining_buffer(tmp_path: Path) -> None:
         }
     )
     # Manually wire enough state to exercise teardown's spill path without
-    # going through start() (which needs the full langflow service stack).
+    # going through start() (which needs the full ketos service stack).
     writer._started = True
     writer._shutdown_event = asyncio.Event()
     writer._shutdown_event.set()
@@ -817,10 +819,6 @@ async def test_teardown_spills_remaining_buffer(tmp_path: Path) -> None:
 
     # Clean up the outbox directory tree.
     shutil.rmtree(outbox, ignore_errors=True)
-    # Also clean up our potential tempfile fallback if used.
-    fallback = Path(tempfile.gettempdir()) / "langflow_telemetry_outbox"
-    if fallback.exists() and fallback.is_dir() and not any(fallback.iterdir()):
-        fallback.rmdir()
 
 
 async def test_retention_sweep_caps_vertex_builds_per_vertex(writer_with_engine) -> None:

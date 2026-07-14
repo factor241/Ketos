@@ -2,8 +2,8 @@ import importlib
 import sys
 
 import pytest
-from lfx.components.processing.data_operations import DataOperationsComponent
-from lfx.schema import Data
+from kfx.components.processing.data_operations import DataOperationsComponent
+from kfx.schema import Data
 
 from tests.base import ComponentTestBaseWithoutClient
 
@@ -28,10 +28,10 @@ def test_should_import_module_when_jq_not_installed(monkeypatch):
     monkeypatch.setattr("builtins.__import__", mock_import)
 
     # Force reimport of the module
-    monkeypatch.delitem(sys.modules, "lfx.components.processing.data_operations", raising=False)
+    monkeypatch.delitem(sys.modules, "kfx.components.processing.data_operations", raising=False)
 
     # This must NOT raise ModuleNotFoundError
-    mod = importlib.import_module("lfx.components.processing.data_operations")
+    mod = importlib.import_module("kfx.components.processing.data_operations")
     component_cls = mod.DataOperationsComponent
 
     # Non-jq operations must work
@@ -233,7 +233,7 @@ class TestDataOperationsComponent(ComponentTestBaseWithoutClient):
 
     def test_update_build_config_clears_input_fields_when_operation_removed(self):
         """Test that removing the selected operation hides all operation-specific input fields."""
-        from lfx.schema.dotdict import dotdict
+        from kfx.schema.dotdict import dotdict
 
         component = DataOperationsComponent(
             data=Data(data={"key1": "value1"}),

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { type DragEvent, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
 import { cn } from "@/utils/utils";
 
@@ -6,13 +7,13 @@ export default function DragWrapComponent({
   onFileDrop,
   children,
 }: {
-  onFileDrop?: (e: any) => void;
+  onFileDrop?: (event: DragEvent<HTMLDivElement>) => void;
   children: JSX.Element | JSX.Element[];
 }) {
+  const { t } = useTranslation();
   const [isDragging, setIsDragging] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const isIOModalOpen = useFlowsManagerStore((state) => state.IOModalOpen);
-  const [filesCount, setFilesCount] = useState(0);
   useEffect(() => {
     // Function to handle visibility change
     const handleVisibilityChange = () => {
@@ -31,7 +32,7 @@ export default function DragWrapComponent({
     };
   }, []);
 
-  const dragOver = (e) => {
+  const dragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setMousePosition({ x: e.clientX, y: e.clientY });
     if (
@@ -40,30 +41,28 @@ export default function DragWrapComponent({
       !isIOModalOpen
     ) {
       setIsDragging(true);
-      setFilesCount(e.dataTransfer.items.length);
     }
   };
 
-  const dragEnter = (e) => {
+  const dragEnter = (e: DragEvent<HTMLDivElement>) => {
     if (
       e.dataTransfer.types.some((types) => types === "Files") &&
       onFileDrop &&
       !isIOModalOpen
     ) {
       setIsDragging(true);
-      setFilesCount(e.dataTransfer.items.length);
     }
     e.preventDefault();
   };
 
-  const dragLeave = (e) => {
+  const dragLeave = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     if (onFileDrop && !isIOModalOpen) {
       setIsDragging(false);
     }
   };
 
-  const onDrop = (e) => {
+  const onDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     if (onFileDrop && !isIOModalOpen) onFileDrop(e);
     setIsDragging(false);
@@ -79,6 +78,8 @@ export default function DragWrapComponent({
       onDrop={onDrop}
       className={cn("relative h-full w-full transition-all")}
       data-testid="drag-wrap-component"
+      role="region"
+      aria-label={t("files.dropToUpload")}
     >
       <div
         className={cn(
@@ -110,7 +111,7 @@ export default function DragWrapComponent({
         >
           <div className="w-44 rounded-2xl bg-accent-indigo-foreground px-2.5 py-0.5 text-center backdrop-blur-sm">
             <span className="font-mono text-xs text-primary-foreground">
-              Drop file{filesCount > 1 ? "s" : ""} to upload
+              {t("files.dropToUpload")}
             </span>
           </div>
         </div>

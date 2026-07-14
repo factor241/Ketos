@@ -3,12 +3,12 @@
 ## Scope
 - Covers: SQLAlchemy/SQLModel async session and transaction lifecycle, query construction, user scoping, raw SQL boundaries, write-path concurrency safeguards, and async-specific pitfalls.
 - Key modules:
-  - Session management (canonical source): `lfx.services.deps.session_scope`, `lfx.services.deps.session_scope_readonly`
-  - Langflow wrappers (delegates to lfx): `langflow.services.deps.session_scope`, `langflow.services.deps.session_scope_readonly`
-  - Injectable dependencies: `lfx.services.deps.injectable_session_scope`, `lfx.services.deps.injectable_session_scope_readonly`
-  - Database service: `langflow.services.database.service.DatabaseService`
-  - Model CRUD functions: `src/backend/base/langflow/services/database/models/*/crud.py`
-- Import preference: Use `from langflow.services.deps import session_scope` in Langflow code for consistency. The Langflow wrappers are thin `@asynccontextmanager` functions that delegate to `lfx.services.deps`. Only import directly from `lfx` when working inside the `lfx` package itself.
+  - Session management (canonical source): `kfx.services.deps.session_scope`, `kfx.services.deps.session_scope_readonly`
+  - Ketos wrappers (delegates to kfx): `ketos.services.deps.session_scope`, `ketos.services.deps.session_scope_readonly`
+  - Injectable dependencies: `kfx.services.deps.injectable_session_scope`, `kfx.services.deps.injectable_session_scope_readonly`
+  - Database service: `ketos.services.database.service.DatabaseService`
+  - Model CRUD functions: `src/backend/base/ketos/services/database/models/*/crud.py`
+- Import preference: Use `from ketos.services.deps import session_scope` in Ketos code for consistency. The Ketos wrappers are thin `@asynccontextmanager` functions that delegate to `kfx.services.deps`. Only import directly from `kfx` when working inside the `kfx` package itself.
 - Does NOT cover: table/model schema and migration design details (handled by `db-schema-rule.md`).
 
 ## Rules
@@ -16,7 +16,7 @@
 ### Use `session_scope()` context manager with explicit transaction awareness
 - Category: best practices
 - Severity: critical
-- Description: Langflow uses async sessions exclusively. The `session_scope()` context manager provides auto-commit on successful exit and auto-rollback on exception. For read-only paths, use `session_scope_readonly()` which skips commit overhead. In route handlers, use the injectable variants via `Depends(injectable_session_scope)`. Missing commits can silently drop intended updates, while ad-hoc or long-lived transactions increase contention and deadlock risk.
+- Description: Ketos uses async sessions exclusively. The `session_scope()` context manager provides auto-commit on successful exit and auto-rollback on exception. For read-only paths, use `session_scope_readonly()` which skips commit overhead. In route handlers, use the injectable variants via `Depends(injectable_session_scope)`. Missing commits can silently drop intended updates, while ad-hoc or long-lived transactions increase contention and deadlock risk.
 - Suggested fix:
   - For write operations in services/CRUD: use `async with session_scope() as session:` which auto-commits on success.
   - For read-only operations: use `async with session_scope_readonly() as session:` to avoid unnecessary commit calls.
@@ -27,7 +27,7 @@
     ```python
     # Creating a raw session without the context manager
     from sqlmodel.ext.asyncio.session import AsyncSession
-    from langflow.services.deps import get_service
+    from ketos.services.deps import get_service
 
     db_service = get_service(ServiceType.DATABASE_SERVICE)
     session = AsyncSession(db_service.engine)
@@ -37,7 +37,7 @@
     ```
   - Good:
     ```python
-    from langflow.services.deps import session_scope
+    from ketos.services.deps import session_scope
 
     async with session_scope() as session:
         flow = (await session.execute(select(Flow).where(Flow.id == flow_id))).scalar_one()
@@ -45,7 +45,7 @@
         # session_scope auto-commits on successful exit
 
     # For read-only operations:
-    from langflow.services.deps import session_scope_readonly
+    from ketos.services.deps import session_scope_readonly
 
     async with session_scope_readonly() as session:
         flows = (await session.execute(select(Flow).where(Flow.user_id == user_id))).scalars().all()
@@ -54,7 +54,7 @@
 ### Enforce `user_id` scoping on user-owned queries
 - Category: security
 - Severity: critical
-- Description: Reads and writes against user-owned tables must be scoped by `user_id` to prevent cross-user data leakage or corruption. Langflow uses `user_id` (not `tenant_id`) for user-scoped data isolation. Every query on user-owned entities (flows, variables, folders, messages, API keys) must include a `user_id` filter.
+- Description: Reads and writes against user-owned tables must be scoped by `user_id` to prevent cross-user data leakage or corruption. Ketos uses `user_id` (not `tenant_id`) for user-scoped data isolation. Every query on user-owned entities (flows, variables, folders, messages, API keys) must include a `user_id` filter.
 - Suggested fix: Add `user_id` predicate to all user-owned entity queries and propagate user context through service interfaces. The `current_user.id` is available from the `get_current_active_user` dependency in route handlers.
 - Example:
   - Bad:
@@ -75,7 +75,7 @@
 ### Prefer SQLAlchemy/SQLModel expressions over raw SQL
 - Category: maintainability
 - Severity: suggestion
-- Description: Raw SQL via `text()` should be exceptional. ORM/Core expressions are easier to evolve, safer to compose, dialect-portable (SQLite + PostgreSQL), and more consistent with the codebase. Langflow uses `sqlmodel.select()` for queries which provides both type safety and dialect portability.
+- Description: Raw SQL via `text()` should be exceptional. ORM/Core expressions are easier to evolve, safer to compose, dialect-portable (SQLite + PostgreSQL), and more consistent with the codebase. Ketos uses `sqlmodel.select()` for queries which provides both type safety and dialect portability.
 - Suggested fix: Rewrite straightforward raw SQL into SQLModel `select/update/delete` expressions; keep raw SQL only when required by clear technical constraints (e.g., database-specific administrative queries).
 - Example:
   - Bad:
@@ -102,7 +102,7 @@
 ### Do not run blocking operations inside async session scopes
 - Category: performance
 - Severity: critical
-- Description: Langflow runs on an async event loop (uvicorn + FastAPI). Blocking calls inside a session scope (synchronous I/O, `time.sleep()`, CPU-bound computation, synchronous HTTP requests) block the entire event loop and starve other coroutines. This also extends transaction duration unnecessarily, increasing lock contention.
+- Description: Ketos runs on an async event loop (uvicorn + FastAPI). Blocking calls inside a session scope (synchronous I/O, `time.sleep()`, CPU-bound computation, synchronous HTTP requests) block the entire event loop and starve other coroutines. This also extends transaction duration unnecessarily, increasing lock contention.
 - Suggested fix:
   - Move blocking operations outside the session scope.
   - Use `asyncio.to_thread()` or `anyio.to_thread.run_sync()` for CPU-bound or synchronous I/O work.
@@ -136,7 +136,7 @@
 ### Protect write paths with concurrency safeguards
 - Category: quality
 - Severity: critical
-- Description: Multi-writer paths without explicit concurrency control can silently overwrite data. Choose the safeguard based on contention level, lock scope, and throughput cost instead of defaulting to one strategy. Langflow's async architecture means multiple coroutines may attempt concurrent writes.
+- Description: Multi-writer paths without explicit concurrency control can silently overwrite data. Choose the safeguard based on contention level, lock scope, and throughput cost instead of defaulting to one strategy. Ketos's async architecture means multiple coroutines may attempt concurrent writes.
 - Suggested fix:
   - **Optimistic locking**: Use when contention is usually low and retries are acceptable. Add a version or `updated_at` guard in `WHERE` and treat `rowcount == 0` as a conflict.
   - **SELECT ... FOR UPDATE**: Use when contention is high on the same rows and strict in-transaction serialization is required. Keep transactions short to reduce lock wait/deadlock risk.

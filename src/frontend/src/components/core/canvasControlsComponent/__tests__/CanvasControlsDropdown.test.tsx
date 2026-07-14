@@ -20,7 +20,8 @@ let mockStoreValues = {
 
 jest.mock("@xyflow/react", () => ({
   useReactFlow: () => mockReactFlowFns,
-  useStore: (selector: any) => selector(mockStoreValues),
+  useStore: (selector: (state: typeof mockStoreValues) => unknown) =>
+    selector(mockStoreValues),
 }));
 
 // Mock dependencies
@@ -36,23 +37,30 @@ jest.mock("@/components/common/genericIconComponent", () => ({
 }));
 
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, ...props }: any) => (
+  Button: ({ children, ...props }: React.ComponentProps<"button">) => (
     <button {...props}>{children}</button>
   ),
 }));
 
 jest.mock("@/components/ui/dropdown-menu", () => ({
-  DropdownMenu: ({ children, ...props }: any) => (
+  DropdownMenu: ({ children, ...props }: React.ComponentProps<"div">) => (
     <div data-testid="dropdown-menu" {...props}>
       {children}
     </div>
   ),
-  DropdownMenuTrigger: ({ children, asChild, ...props }: any) => (
+  DropdownMenuTrigger: ({
+    children,
+    asChild: _asChild,
+    ...props
+  }: React.ComponentProps<"div"> & { asChild?: boolean }) => (
     <div data-testid="dropdown-trigger" {...props}>
       {children}
     </div>
   ),
-  DropdownMenuContent: ({ children, ...props }: any) => (
+  DropdownMenuContent: ({
+    children,
+    ...props
+  }: React.ComponentProps<"div">) => (
     <div data-testid="dropdown-content" {...props}>
       {children}
     </div>
@@ -65,7 +73,19 @@ jest.mock("@/components/ui/separator", () => ({
 
 jest.mock("../DropdownControlButton", () => ({
   __esModule: true,
-  default: ({ testId, onClick, disabled, label, shortcut }: any) => (
+  default: ({
+    testId,
+    onClick,
+    disabled,
+    label,
+    shortcut,
+  }: {
+    testId: string;
+    onClick?: React.MouseEventHandler<HTMLButtonElement>;
+    disabled?: boolean;
+    label: string;
+    shortcut?: string;
+  }) => (
     <button
       data-testid={testId + "_dropdown"}
       onClick={onClick}
@@ -80,7 +100,7 @@ jest.mock("../DropdownControlButton", () => ({
 
 jest.mock("../utils/canvasUtils", () => ({
   formatZoomPercentage: jest.fn((zoom: number) => `${Math.round(zoom * 100)}%`),
-  reactFlowSelector: jest.fn((state: any) => state),
+  reactFlowSelector: jest.fn((state: unknown) => state),
 }));
 
 describe("CanvasControlsDropdown", () => {

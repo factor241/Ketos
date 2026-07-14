@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { AlertStoreType } from "@/types/zustand/alert";
 
 import DragFilesComponent from "../index";
 
@@ -25,10 +26,13 @@ jest.mock("@/hooks/files/use-upload-file", () => ({
 }));
 
 const createFileUploadMock = jest.fn();
+type CreateFileUpload =
+  typeof import("@/helpers/create-file-upload").createFileUpload;
 
 jest.mock("@/helpers/create-file-upload", () => ({
   __esModule: true,
-  createFileUpload: (...args: any[]) => createFileUploadMock(...args),
+  createFileUpload: (...args: Parameters<CreateFileUpload>) =>
+    createFileUploadMock(...args),
 }));
 
 jest.mock("@/stores/utilityStore", () => ({
@@ -42,7 +46,11 @@ const setSuccessDataMock = jest.fn();
 
 jest.mock("@/stores/alertStore", () => ({
   __esModule: true,
-  default: (selector: (s: any) => unknown) =>
+  default: (
+    selector: (
+      state: Pick<AlertStoreType, "setErrorData" | "setSuccessData">,
+    ) => unknown,
+  ) =>
     selector({
       setErrorData: setErrorDataMock,
       setSuccessData: setSuccessDataMock,
@@ -258,7 +266,7 @@ describe("DragFilesComponent", () => {
     await waitFor(() => {
       expect(setErrorDataMock).toHaveBeenCalledWith({
         title: "Error uploading file",
-        list: ["nope"],
+        list: ["An error occurred while uploading the file"],
       });
     });
 

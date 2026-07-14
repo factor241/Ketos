@@ -1,9 +1,9 @@
 from unittest.mock import MagicMock
 
 import pytest
-from lfx.components.deepseek.deepseek import DeepSeekModelComponent
-from lfx.custom.custom_component.component import Component
-from lfx.custom.utils import build_custom_component_template
+from kfx.components.deepseek.deepseek import DeepSeekModelComponent
+from kfx.custom.custom_component.component import Component
+from kfx.custom.utils import build_custom_component_template
 
 
 def test_deepseek_initialization():
@@ -83,7 +83,7 @@ def test_deepseek_get_models(mocker):
     component = DeepSeekModelComponent()
 
     # Mock SSRF-safe httpx helper
-    mock_get = mocker.patch("lfx.components.deepseek.deepseek.ssrf_safe_httpx_get")
+    mock_get = mocker.patch("kfx.components.deepseek.deepseek.ssrf_safe_httpx_get")
     mock_response = MagicMock()
     mock_response.json.return_value = {"data": [{"id": "deepseek-chat"}, {"id": "deepseek-coder"}]}
     mock_get.return_value = mock_response
@@ -114,4 +114,4 @@ def test_deepseek_error_handling(mock_chat_openai):
 
 @pytest.fixture(autouse=True)
 def disable_ssrf_protection(monkeypatch):
-    monkeypatch.setenv("LANGFLOW_SSRF_PROTECTION_ENABLED", "false")
+    monkeypatch.setenv("KETOS_SSRF_PROTECTION_ENABLED", "false")

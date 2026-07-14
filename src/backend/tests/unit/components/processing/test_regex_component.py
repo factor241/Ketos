@@ -1,7 +1,7 @@
 import pytest
-from lfx.components.processing.regex import RegexExtractorComponent
-from lfx.schema import Data
-from lfx.schema.message import Message
+from kfx.components.processing.regex import RegexExtractorComponent
+from kfx.schema import Data
+from kfx.schema.message import Message
 
 from tests.base import ComponentTestBaseWithoutClient
 

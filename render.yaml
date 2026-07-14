@@ -1,24 +1,24 @@
 services:
   # A Docker web service
   - type: web
-    name: langflow
+    name: ketos
     runtime: docker
     dockerfilePath: ./docker/render.Dockerfile
-    repo: https://github.com/langflow-ai/langflow
+    repo: https://git.ketos.test/ketos/ketos
     branch: main
     plan: standard
     healthCheckPath: /health_check
     autoDeploy: false
     envVars:
-      - key: LANGFLOW_DATABASE_URL
-        value: sqlite:////app/data/.cache/langflow/langflow.db
-      - key: LANGFLOW_HOST
+      - key: KETOS_DATABASE_URL
+        value: sqlite:////app/data/.cache/ketos/ketos.db
+      - key: KETOS_HOST
         value: 0.0.0.0
-      - key: LANGFLOW_PORT
+      - key: KETOS_PORT
         # default render port https://docs.render.com/web-services#port-binding
         value: 10000
-      - key: LANGFLOW_LOG_LEVEL
+      - key: KETOS_LOG_LEVEL
         value: INFO
     disk:
-      name: langflow-data
+      name: ketos-data
       mountPath: /app/data

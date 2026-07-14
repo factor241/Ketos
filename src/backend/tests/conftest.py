@@ -18,24 +18,24 @@ from blockbuster import blockbuster_ctx
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
-from langflow.initial_setup.constants import STARTER_FOLDER_NAME
-from langflow.main import create_app
-from langflow.services.database.models.api_key.model import ApiKey, UnmaskedApiKeyRead
-from langflow.services.database.models.flow.model import Flow, FlowCreate, FlowRead
-from langflow.services.database.models.folder.model import Folder
-from langflow.services.database.models.transactions.model import TransactionTable
-from langflow.services.database.models.user.model import User, UserCreate, UserRead
-from langflow.services.database.models.vertex_builds.crud import delete_vertex_builds_by_flow_id_unchecked
-from langflow.services.deps import (
+from ketos.initial_setup.constants import STARTER_FOLDER_NAME
+from ketos.main import create_app
+from ketos.services.database.models.api_key.model import ApiKey, UnmaskedApiKeyRead
+from ketos.services.database.models.flow.model import Flow, FlowCreate, FlowRead
+from ketos.services.database.models.folder.model import Folder
+from ketos.services.database.models.transactions.model import TransactionTable
+from ketos.services.database.models.user.model import User, UserCreate, UserRead
+from ketos.services.database.models.vertex_builds.crud import delete_vertex_builds_by_flow_id_unchecked
+from ketos.services.deps import (
     get_auth_service,
     get_db_service,
     get_settings_service,
     is_settings_service_initialized,
     session_scope,
 )
-from lfx.components.input_output import ChatInput
-from lfx.graph import Graph
-from lfx.log.logger import logger
+from kfx.components.input_output import ChatInput
+from kfx.graph import Graph
+from kfx.log.logger import logger
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, SQLModel, create_engine, select
@@ -51,9 +51,9 @@ load_dotenv()
 @pytest.fixture(scope="session", autouse=True)
 def disable_rate_limiting():
     """Disable rate limiting for all tests to prevent 429 errors during test execution."""
-    os.environ["LANGFLOW_RATE_LIMIT_ENABLED"] = "false"
+    os.environ["KETOS_RATE_LIMIT_ENABLED"] = "false"
     yield
-    os.environ.pop("LANGFLOW_RATE_LIMIT_ENABLED", None)
+    os.environ.pop("KETOS_RATE_LIMIT_ENABLED", None)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -66,9 +66,9 @@ def disable_models_dev_refresh():
     running when the request lands. The bundled static model lists are used
     instead, which is also deterministic.
     """
-    os.environ["LANGFLOW_MODELS_DEV_REFRESH"] = "false"
+    os.environ["KETOS_MODELS_DEV_REFRESH"] = "false"
     yield
-    os.environ.pop("LANGFLOW_MODELS_DEV_REFRESH", None)
+    os.environ.pop("KETOS_MODELS_DEV_REFRESH", None)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -82,21 +82,21 @@ def disable_mcp_auto_init():
     inflating every app-fixture test by ~130s and pushing the heaviest test split past the
     CI step timeout. Skipping it keeps the boot local and deterministic.
     """
-    previous_env_value = os.environ.get("LANGFLOW_SKIP_MCP_AUTO_INIT")
+    previous_env_value = os.environ.get("KETOS_SKIP_MCP_AUTO_INIT")
     previous_setting = (
         get_settings_service().settings.skip_mcp_auto_init
         if is_settings_service_initialized()
         else (previous_env_value or "").lower() in {"1", "true", "yes", "on"}
     )
 
-    os.environ["LANGFLOW_SKIP_MCP_AUTO_INIT"] = "true"
+    os.environ["KETOS_SKIP_MCP_AUTO_INIT"] = "true"
     if is_settings_service_initialized():
         get_settings_service().set("skip_mcp_auto_init", value=True)
     yield
     if previous_env_value is None:
-        os.environ.pop("LANGFLOW_SKIP_MCP_AUTO_INIT", None)
+        os.environ.pop("KETOS_SKIP_MCP_AUTO_INIT", None)
     else:
-        os.environ["LANGFLOW_SKIP_MCP_AUTO_INIT"] = previous_env_value
+        os.environ["KETOS_SKIP_MCP_AUTO_INIT"] = previous_env_value
     if is_settings_service_initialized():
         get_settings_service().set("skip_mcp_auto_init", previous_setting)
 
@@ -128,7 +128,7 @@ def blockbuster(request):
             (
                 bb.functions["os.stat"]
                 # TODO: make set_class_code async
-                .can_block_in("langflow/custom/custom_component/component.py", "set_class_code")
+                .can_block_in("ketos/custom/custom_component/component.py", "set_class_code")
                 # TODO: follow discussion in https://github.com/encode/httpx/discussions/3456
                 .can_block_in("httpx/_client.py", "_init_transport")
                 .can_block_in("rich/traceback.py", "_render_stack")
@@ -243,7 +243,7 @@ async def delete_transactions_by_flow_id(db: AsyncSession, flow_id: UUID):
 
 
 async def _delete_transactions_and_vertex_builds(session, flows: list[Flow]):
-    from langflow.services.database.models.jobs.model import Job
+    from ketos.services.database.models.jobs.model import Job
 
     flow_ids = [flow.id for flow in flows]
     for flow_id in flow_ids:
@@ -328,12 +328,12 @@ def load_flows_dir():
 
 @pytest.fixture(name="distributed_env")
 def _setup_env(monkeypatch):
-    monkeypatch.setenv("LANGFLOW_CACHE_TYPE", "redis")
-    monkeypatch.setenv("LANGFLOW_REDIS_HOST", "result_backend")
-    monkeypatch.setenv("LANGFLOW_REDIS_PORT", "6379")
-    monkeypatch.setenv("LANGFLOW_REDIS_DB", "0")
-    monkeypatch.setenv("LANGFLOW_REDIS_EXPIRE", "3600")
-    monkeypatch.setenv("LANGFLOW_REDIS_PASSWORD", "")
+    monkeypatch.setenv("KETOS_CACHE_TYPE", "redis")
+    monkeypatch.setenv("KETOS_REDIS_HOST", "result_backend")
+    monkeypatch.setenv("KETOS_REDIS_PORT", "6379")
+    monkeypatch.setenv("KETOS_REDIS_DB", "0")
+    monkeypatch.setenv("KETOS_REDIS_EXPIRE", "3600")
+    monkeypatch.setenv("KETOS_REDIS_PASSWORD", "")
     monkeypatch.setenv("FLOWER_UNAUTHENTICATED_API", "True")
     monkeypatch.setenv("BROKER_URL", "redis://result_backend:6379/0")
     monkeypatch.setenv("RESULT_BACKEND", "redis://result_backend:6379/0")
@@ -347,18 +347,18 @@ def distributed_client_fixture(
     distributed_env,  # noqa: ARG001
 ):
     # Here we load the .env from ../deploy/.env
-    from langflow.core import celery_app
+    from ketos.core import celery_app
 
     db_dir = tempfile.mkdtemp()
     try:
         db_path = Path(db_dir) / "test.db"
-        monkeypatch.setenv("LANGFLOW_DATABASE_URL", f"sqlite:///{db_path}")
-        monkeypatch.setenv("LANGFLOW_AUTO_LOGIN", "false")
-        monkeypatch.setenv("LANGFLOW_SUPERUSER", "langflow")
-        monkeypatch.setenv("LANGFLOW_SUPERUSER_PASSWORD", "test-superuser-password")
-        # monkeypatch langflow.services.task.manager.USE_CELERY to True
+        monkeypatch.setenv("KETOS_DATABASE_URL", f"sqlite:///{db_path}")
+        monkeypatch.setenv("KETOS_AUTO_LOGIN", "false")
+        monkeypatch.setenv("KETOS_SUPERUSER", "ketos")
+        monkeypatch.setenv("KETOS_SUPERUSER_PASSWORD", "test-superuser-password")
+        # monkeypatch ketos.services.task.manager.USE_CELERY to True
         # monkeypatch.setattr(manager, "USE_CELERY", True)
-        monkeypatch.setattr(celery_app, "celery_app", celery_app.make_celery("langflow", Config))
+        monkeypatch.setattr(celery_app, "celery_app", celery_app.make_celery("ketos", Config))
 
         # def get_session_override():
         #     return session
@@ -466,7 +466,7 @@ def json_loop_test():
 
 @pytest.fixture(autouse=True)
 def deactivate_tracing(monkeypatch):
-    monkeypatch.setenv("LANGFLOW_DEACTIVATE_TRACING", "true")
+    monkeypatch.setenv("KETOS_DEACTIVATE_TRACING", "true")
     yield
     monkeypatch.undo()
 
@@ -476,16 +476,16 @@ def disable_telemetry_writer(monkeypatch):
     # Tests assert on freshly-written transactions / vertex_builds rows. The
     # batched writer is a production optimization; in tests we want the
     # synchronous legacy DB path so reads-after-writes are visible.
-    monkeypatch.setenv("LANGFLOW_TELEMETRY_WRITER_ENABLED", "false")
+    monkeypatch.setenv("KETOS_TELEMETRY_WRITER_ENABLED", "false")
     yield
     monkeypatch.undo()
 
 
 @pytest.fixture
 def use_noop_session(monkeypatch):
-    monkeypatch.setenv("LANGFLOW_USE_NOOP_DATABASE", "1")
+    monkeypatch.setenv("KETOS_USE_NOOP_DATABASE", "1")
     # Optionally patch the Settings object if needed
-    # from lfx.services.settings.base import Settings
+    # from kfx.services.settings.base import Settings
     # monkeypatch.setattr(Settings, "use_noop_database", True)
     yield
     monkeypatch.undo()
@@ -506,19 +506,19 @@ async def client_fixture(
         def init_app():
             db_dir = tempfile.mkdtemp()
             db_path = Path(db_dir) / "test.db"
-            monkeypatch.setenv("LANGFLOW_DATABASE_URL", f"sqlite:///{db_path}")
-            monkeypatch.setenv("LANGFLOW_AUTO_LOGIN", "false")
-            monkeypatch.setenv("LANGFLOW_SUPERUSER", "langflow")
-            monkeypatch.setenv("LANGFLOW_SUPERUSER_PASSWORD", "test-superuser-password")
+            monkeypatch.setenv("KETOS_DATABASE_URL", f"sqlite:///{db_path}")
+            monkeypatch.setenv("KETOS_AUTO_LOGIN", "false")
+            monkeypatch.setenv("KETOS_SUPERUSER", "ketos")
+            monkeypatch.setenv("KETOS_SUPERUSER_PASSWORD", "test-superuser-password")
             monkeypatch.setenv("DO_NOT_TRACK", "true")
             if "load_flows" in request.keywords:
                 shutil.copyfile(
                     pytest.BASIC_EXAMPLE_PATH, Path(load_flows_dir) / "c54f9130-f2fa-4a3e-b22a-3856d946351b.json"
                 )
-                monkeypatch.setenv("LANGFLOW_LOAD_FLOWS_PATH", load_flows_dir)
-                monkeypatch.setenv("LANGFLOW_AUTO_LOGIN", "true")
+                monkeypatch.setenv("KETOS_LOAD_FLOWS_PATH", load_flows_dir)
+                monkeypatch.setenv("KETOS_AUTO_LOGIN", "true")
             # Clear the services cache
-            from lfx.services.manager import get_service_manager
+            from kfx.services.manager import get_service_manager
 
             get_service_manager().factories.clear()
             get_service_manager().services.clear()  # Clear the services cache
@@ -544,7 +544,7 @@ async def client_fixture(
 
 @pytest.fixture
 def runner(tmp_path):
-    env = {"LANGFLOW_DATABASE_URL": f"sqlite:///{tmp_path}/test.db"}
+    env = {"KETOS_DATABASE_URL": f"sqlite:///{tmp_path}/test.db"}
     return CliRunner(env=env)
 
 

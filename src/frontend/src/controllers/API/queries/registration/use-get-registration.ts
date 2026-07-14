@@ -20,7 +20,7 @@ export const useGetRegistration: useQueryFunctionType<
     return res.data;
   };
 
-  const queryResult: UseQueryResult<RegistrationInfo, any> = query(
+  const queryResult: UseQueryResult<RegistrationInfo, Error> = query(
     ["useGetRegistration"],
     getRegistration,
     {

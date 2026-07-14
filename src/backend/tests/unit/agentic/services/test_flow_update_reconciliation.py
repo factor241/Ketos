@@ -21,7 +21,7 @@ compound, incremental-only, idempotency.
 
 from __future__ import annotations
 
-from langflow.agentic.services.assistant_service import _reconcile_flow_updates
+from ketos.agentic.services.assistant_service import _reconcile_flow_updates
 
 
 def _reconcile(updates, **state):

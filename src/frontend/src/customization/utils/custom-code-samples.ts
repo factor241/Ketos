@@ -21,10 +21,6 @@ export function formatJsHeadersForInline(): string {
   );
 }
 
-export function getWidgetAdditionalHeaders(): string {
-  return "";
-}
-
 export function getBaseUrl(): string {
   const { protocol, host } = customGetHostProtocol();
 

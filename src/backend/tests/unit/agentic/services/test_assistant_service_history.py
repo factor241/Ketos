@@ -13,7 +13,7 @@ we don't need to drive the full SSE flow.
 from __future__ import annotations
 
 import pytest
-from langflow.agentic.services.conversation_buffer import (
+from ketos.agentic.services.conversation_buffer import (
     ConversationBuffer,
     ConversationTurn,
 )
@@ -22,7 +22,7 @@ from langflow.agentic.services.conversation_buffer import (
 @pytest.fixture
 def fresh_buffer(monkeypatch):
     """Swap the module-level singleton with a fresh, empty buffer."""
-    import langflow.agentic.services.conversation_buffer as module
+    import ketos.agentic.services.conversation_buffer as module
 
     buf = ConversationBuffer()
     monkeypatch.setattr(module, "_singleton", buf)
@@ -31,7 +31,7 @@ def fresh_buffer(monkeypatch):
 
 def test_inject_history_should_prefix_input_with_oldest_first_turns(fresh_buffer):
     """The helper used by assistant_service injects prior turns before the new input."""
-    from langflow.agentic.services.assistant_service import inject_conversation_history
+    from ketos.agentic.services.assistant_service import inject_conversation_history
 
     fresh_buffer.push(
         "alice",
@@ -62,7 +62,7 @@ def test_inject_history_should_prefix_input_with_oldest_first_turns(fresh_buffer
 def test_inject_history_should_return_unchanged_input_when_no_session_history(
     fresh_buffer,  # noqa: ARG001 — fixture patches the singleton to a fresh buffer
 ):
-    from langflow.agentic.services.assistant_service import inject_conversation_history
+    from ketos.agentic.services.assistant_service import inject_conversation_history
 
     wrapped = inject_conversation_history(user_id="alice", session_id="never-pushed", input_value="hi")
 
@@ -74,7 +74,7 @@ def test_inject_history_should_return_unchanged_input_when_session_id_none(
 ):
     # An anonymous request (no session_id) carries no history — must
     # noop rather than blow up.
-    from langflow.agentic.services.assistant_service import inject_conversation_history
+    from ketos.agentic.services.assistant_service import inject_conversation_history
 
     wrapped = inject_conversation_history(user_id="alice", session_id=None, input_value="hi")
 
@@ -85,7 +85,7 @@ def test_inject_history_should_return_unchanged_input_when_user_id_none(
     fresh_buffer,  # noqa: ARG001 — fixture patches the singleton to a fresh buffer
 ):
     # Anonymous tenant (no auth context). Refuse to read shared state.
-    from langflow.agentic.services.assistant_service import inject_conversation_history
+    from ketos.agentic.services.assistant_service import inject_conversation_history
 
     wrapped = inject_conversation_history(user_id=None, session_id="s1", input_value="hi")
 
@@ -93,7 +93,7 @@ def test_inject_history_should_return_unchanged_input_when_user_id_none(
 
 
 def test_record_turn_should_push_completed_exchange_to_buffer(fresh_buffer):
-    from langflow.agentic.services.assistant_service import record_conversation_turn
+    from ketos.agentic.services.assistant_service import record_conversation_turn
 
     record_conversation_turn(
         user_id="alice",
@@ -109,7 +109,7 @@ def test_record_turn_should_push_completed_exchange_to_buffer(fresh_buffer):
 
 
 def test_record_turn_should_skip_when_session_id_none(fresh_buffer):
-    from langflow.agentic.services.assistant_service import record_conversation_turn
+    from ketos.agentic.services.assistant_service import record_conversation_turn
 
     record_conversation_turn(
         user_id="alice",
@@ -123,7 +123,7 @@ def test_record_turn_should_skip_when_session_id_none(fresh_buffer):
 
 
 def test_record_turn_should_skip_when_user_id_none(fresh_buffer):
-    from langflow.agentic.services.assistant_service import record_conversation_turn
+    from ketos.agentic.services.assistant_service import record_conversation_turn
 
     record_conversation_turn(
         user_id=None,
@@ -139,7 +139,7 @@ def test_record_turn_should_skip_when_user_id_none(fresh_buffer):
 def test_record_turn_should_skip_empty_responses(fresh_buffer):
     # A cancelled or errored turn ends up with an empty assistant_response.
     # Storing it would just pollute the next turn's context.
-    from langflow.agentic.services.assistant_service import record_conversation_turn
+    from ketos.agentic.services.assistant_service import record_conversation_turn
 
     record_conversation_turn(
         user_id="alice",
@@ -166,7 +166,7 @@ class TestCrossTenantIsolation:
         self,
         fresh_buffer,  # noqa: ARG002 — fixture patches the singleton to a fresh buffer
     ):
-        from langflow.agentic.services.assistant_service import (
+        from ketos.agentic.services.assistant_service import (
             inject_conversation_history,
             record_conversation_turn,
         )
@@ -204,7 +204,7 @@ class TestCrossTenantIsolation:
     ):
         # Sanity twin: the same user (matching user_id + session_id) STILL sees
         # their own history. Proves the fix doesn't over-isolate.
-        from langflow.agentic.services.assistant_service import (
+        from ketos.agentic.services.assistant_service import (
             inject_conversation_history,
             record_conversation_turn,
         )

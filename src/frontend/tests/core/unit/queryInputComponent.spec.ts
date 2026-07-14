@@ -65,8 +65,8 @@ test(
     );
 
     newCode = newCode.replace(
-      `from lfx.inputs.inputs import BoolInput, DictInput, DropdownInput, IntInput, SecretStrInput, SliderInput, StrInput`,
-      `from lfx.inputs.inputs import BoolInput, DictInput, DropdownInput, IntInput, SecretStrInput, SliderInput, StrInput, QueryInput`,
+      `from kfx.inputs.inputs import BoolInput, DictInput, DropdownInput, IntInput, SecretStrInput, SliderInput, StrInput`,
+      `from kfx.inputs.inputs import BoolInput, DictInput, DropdownInput, IntInput, SecretStrInput, SliderInput, StrInput, QueryInput`,
     );
 
     // make sure codes are different

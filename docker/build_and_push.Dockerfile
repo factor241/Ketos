@@ -10,6 +10,10 @@
 # 2. do not add --platform=$BUILDPLATFORM because the pydantic binaries must be resolved for the final architecture
 # Use a Python image with uv pre-installed
 FROM ghcr.io/astral-sh/uv:python3.14-trixie-slim AS builder
+ARG NODE_VERSION=22.14.0
+ARG NPM_VERSION=10.9.2
+ARG VITE_ENABLE_RUSSIAN_LOCALE=true
+ENV VITE_ENABLE_RUSSIAN_LOCALE=${VITE_ENABLE_RUSSIAN_LOCALE}
 
 # Install the project into `/app`
 WORKDIR /app
@@ -36,10 +40,11 @@ RUN apt-get update \
     && if [ "$ARCH" = "amd64" ]; then NODE_ARCH="x64"; \
        elif [ "$ARCH" = "arm64" ]; then NODE_ARCH="arm64"; \
        else NODE_ARCH="$ARCH"; fi \
-    && NODE_VERSION="22.14.0" \
     && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" \
     | tar -xJ -C /usr/local --strip-components=1 \
-    && npm install -g npm@latest \
+    && npm install -g "npm@${NPM_VERSION}" \
+    && test "$(node --version)" = "v${NODE_VERSION}" \
+    && test "$(npm --version)" = "${NPM_VERSION}" \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -49,8 +54,8 @@ COPY ./README.md /app/README.md
 COPY ./pyproject.toml /app/pyproject.toml
 COPY ./src/backend/base/README.md /app/src/backend/base/README.md
 COPY ./src/backend/base/pyproject.toml /app/src/backend/base/pyproject.toml
-COPY ./src/lfx/README.md /app/src/lfx/README.md
-COPY ./src/lfx/pyproject.toml /app/src/lfx/pyproject.toml
+COPY ./src/kfx/README.md /app/src/kfx/README.md
+COPY ./src/kfx/pyproject.toml /app/src/kfx/pyproject.toml
 COPY ./src/sdk/README.md /app/src/sdk/README.md
 COPY ./src/sdk/pyproject.toml /app/src/sdk/pyproject.toml
 # Workspace bundles (LE-1023 pilot+): every directory under ``src/bundles``
@@ -73,7 +78,7 @@ WORKDIR /tmp/src/frontend
 RUN --mount=type=cache,target=/root/.npm \
     npm ci \
     && ESBUILD_BINARY_PATH="" NODE_OPTIONS="--max-old-space-size=4096" JOBS=1 npm run build \
-    && cp -r build /app/src/backend/langflow/frontend \
+    && cp -r build /app/src/backend/base/ketos/frontend \
     && rm -rf /tmp/src/frontend
 
 WORKDIR /app
@@ -87,6 +92,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Setup user, utilities and copy the virtual environment only
 ################################
 FROM python:3.14-slim-trixie AS runtime
+ARG NODE_VERSION=22.14.0
+ARG NPM_VERSION=10.9.2
 
 
 RUN apt-get update \
@@ -100,38 +107,36 @@ RUN ARCH=$(dpkg --print-architecture) \
     && if [ "$ARCH" = "amd64" ]; then NODE_ARCH="x64"; \
        elif [ "$ARCH" = "arm64" ]; then NODE_ARCH="arm64"; \
        else NODE_ARCH="$ARCH"; fi \
-    && NODE_VERSION=$(curl -fsSL https://nodejs.org/dist/latest-v22.x/ \
-                    | sed -nE "s/.*node-v([0-9]+\.[0-9]+\.[0-9]+)-linux-${NODE_ARCH}\.tar\.xz.*/\1/p" \
-                    | head -1) \
-    && if [ -z "$NODE_VERSION" ]; then echo "ERROR: Could not determine Node.js version" && exit 1; fi \
     && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" \
     | tar -xJ -C /usr/local --strip-components=1 \
-    && npm install -g npm@latest
+    && npm install -g "npm@${NPM_VERSION}" \
+    && test "$(node --version)" = "v${NODE_VERSION}" \
+    && test "$(npm --version)" = "${NPM_VERSION}"
 RUN useradd user -u 1000 -g 0 --no-create-home --home-dir /app/data
 
 COPY --from=builder --chown=1000 /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Pre-create LANGFLOW_CONFIG_DIR (the default location used by the docker_example
+# Pre-create KETOS_CONFIG_DIR (the default location used by the docker_example
 # compose file) with the non-root user as owner. When the official compose mounts
-# a fresh named volume at /app/langflow, Docker copies this directory's ownership
+# a fresh named volume at /app/ketos, Docker copies this directory's ownership
 # and permissions into the new volume, so the in-container uid=1000 user can
 # write secret_key, profile_pictures, etc. Without this, the volume is created
-# as root:root and Langflow crashes during startup with PermissionError on
-# /app/langflow/secret_key. See https://github.com/langflow-ai/langflow/issues/10437
-RUN mkdir -p /app/langflow && chown -R 1000:0 /app/langflow && chmod -R g+rwX /app/langflow
+# as root:root and Ketos crashes during startup with PermissionError on
+# /app/ketos/secret_key. See https://git.ketos.test/ketos/ketos/issues/10437
+RUN mkdir -p /app/ketos && chown -R 1000:0 /app/ketos && chmod -R g+rwX /app/ketos
 
-LABEL org.opencontainers.image.title=langflow
-LABEL org.opencontainers.image.authors=['Langflow']
+LABEL org.opencontainers.image.title=ketos
+LABEL org.opencontainers.image.authors=['Ketos']
 LABEL org.opencontainers.image.licenses=MIT
-LABEL org.opencontainers.image.url=https://github.com/langflow-ai/langflow
-LABEL org.opencontainers.image.source=https://github.com/langflow-ai/langflow
+LABEL org.opencontainers.image.url=https://git.ketos.test/ketos/ketos
+LABEL org.opencontainers.image.source=https://git.ketos.test/ketos/ketos
 
 USER user
 WORKDIR /app
 
-ENV LANGFLOW_HOST=0.0.0.0
-ENV LANGFLOW_PORT=7860
-ENV LANGFLOW_AUTO_LOGIN=false
+ENV KETOS_HOST=0.0.0.0
+ENV KETOS_PORT=7860
+ENV KETOS_AUTO_LOGIN=false
 
-CMD ["langflow", "run"]
+CMD ["ketos", "run"]

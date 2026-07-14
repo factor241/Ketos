@@ -5,6 +5,12 @@ import {
   type PaginatedIngestionRunResponse,
   useGetIngestionRuns,
 } from "@/controllers/API/queries/knowledge-bases/use-get-ingestion-runs";
+import { formatNumber, formatRelativeTime } from "@/utils/locale-format";
+import { cn } from "@/utils/utils";
+import {
+  translateIngestionSourceType,
+  translateIngestionStatus,
+} from "../utils/ingestionPresentation";
 import IngestionRunDetailModal from "./IngestionRunDetailModal";
 
 interface IngestionRunsSectionProps {
@@ -30,32 +36,13 @@ const STATUS_STYLES: Record<string, string> = {
   pending: "bg-muted text-muted-foreground border-border",
 };
 
-const SOURCE_TYPE_LABELS: Record<string, string> = {
-  file_upload: "knowledge.ingestionSourceFileUpload",
-  folder: "knowledge.ingestionSourceFolder",
-  template: "knowledge.ingestionSourceTemplate",
-  google_drive: "knowledge.ingestionSourceGoogleDrive",
-  s3: "knowledge.ingestionSourceS3",
-  onedrive: "knowledge.ingestionSourceOneDrive",
-  sharepoint: "knowledge.ingestionSourceSharePoint",
-};
-
 function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024) return `${formatNumber(bytes)} B`;
+  if (bytes < 1024 * 1024)
+    return `${formatNumber(bytes / 1024, { maximumFractionDigits: 1 })} KB`;
   if (bytes < 1024 * 1024 * 1024)
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-}
-
-function formatRelativeTime(iso: string): string {
-  const now = Date.now();
-  const then = new Date(iso).getTime();
-  const diffSec = Math.max(0, Math.floor((now - then) / 1000));
-  if (diffSec < 60) return `${diffSec}s ago`;
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
-  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
-  return `${Math.floor(diffSec / 86400)}d ago`;
+    return `${formatNumber(bytes / (1024 * 1024), { maximumFractionDigits: 1 })} MB`;
+  return `${formatNumber(bytes / (1024 * 1024 * 1024), { maximumFractionDigits: 1 })} GB`;
 }
 
 const IngestionRunsSection = ({ kbName }: IngestionRunsSectionProps) => {
@@ -89,7 +76,7 @@ const IngestionRunsSection = ({ kbName }: IngestionRunsSectionProps) => {
         <h4 className="text-sm font-medium">{t("knowledge.ingestionRuns")}</h4>
         {data?.total ? (
           <span className="text-xs text-muted-foreground">
-            {data.total} total
+            {t("knowledge.totalCount", { count: data.total })}
           </span>
         ) : null}
       </div>
@@ -101,13 +88,12 @@ const IngestionRunsSection = ({ kbName }: IngestionRunsSectionProps) => {
       )}
       {isError && (
         <div className="text-sm text-destructive">
-          Unable to load ingestion runs.
+          {t("knowledge.unableToLoadIngestionRuns")}
         </div>
       )}
       {!isLoading && !isError && data?.runs.length === 0 && (
         <div className="text-sm text-muted-foreground">
-          No ingestion runs yet. Upload a file or ingest a folder to see history
-          here.
+          {t("knowledge.noIngestionRuns")}
         </div>
       )}
 
@@ -115,9 +101,7 @@ const IngestionRunsSection = ({ kbName }: IngestionRunsSectionProps) => {
         {data?.runs.map((run) => {
           const statusClass =
             STATUS_STYLES[run.status] ?? STATUS_STYLES.pending;
-          const sourceLabel = SOURCE_TYPE_LABELS[run.source_type]
-            ? t(SOURCE_TYPE_LABELS[run.source_type])
-            : run.source_type;
+          const sourceLabel = translateIngestionSourceType(t, run.source_type);
           return (
             <button
               key={run.id}
@@ -127,9 +111,12 @@ const IngestionRunsSection = ({ kbName }: IngestionRunsSectionProps) => {
             >
               <div className="flex items-center justify-between gap-2">
                 <span
-                  className={`rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${statusClass}`}
+                  className={cn(
+                    "rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                    statusClass,
+                  )}
                 >
-                  {run.status}
+                  {translateIngestionStatus(t, run.status)}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {formatRelativeTime(run.started_at)}
@@ -165,7 +152,11 @@ const IngestionRunsSection = ({ kbName }: IngestionRunsSectionProps) => {
                   </span>
                 )}
                 <span>·</span>
-                <span>{run.chunks_created} chunks</span>
+                <span>
+                  {t("knowledge.chunkCount", {
+                    count: run.chunks_created,
+                  })}
+                </span>
                 {run.total_bytes > 0 && (
                   <>
                     <span>·</span>

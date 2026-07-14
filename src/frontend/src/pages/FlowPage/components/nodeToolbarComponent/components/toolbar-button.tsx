@@ -5,6 +5,13 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/utils";
 import ShortcutDisplay from "../shortcutDisplay";
 
+type ShortcutDisplayProps = Omit<
+  Parameters<typeof ShortcutDisplay>[0],
+  "shortcut"
+> & {
+  shortcut?: string;
+};
+
 export const ToolbarButton = memo(
   ({
     onClick,
@@ -17,7 +24,7 @@ export const ToolbarButton = memo(
     onClick: () => void;
     icon: string;
     label?: string;
-    shortcut?: any;
+    shortcut?: ShortcutDisplayProps;
     className?: string;
     dataTestId?: string;
   }) => (

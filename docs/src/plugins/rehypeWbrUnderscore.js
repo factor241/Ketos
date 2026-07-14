@@ -4,7 +4,7 @@
  * Rehype plugin that does two things to markdown tables:
  *
  * 1. Inserts U+200B (zero-width space) after every underscore inside <code>
- *    elements in <td> cells, so env-var names like LANGFLOW_CONFIG_DIR wrap
+ *    elements in <td> cells, so env-var names like KETOS_CONFIG_DIR wrap
  *    at underscore boundaries without breaking the inline-code styling.
  *
  * 2. Detects columns whose header text matches CENTER_COLUMNS and adds the

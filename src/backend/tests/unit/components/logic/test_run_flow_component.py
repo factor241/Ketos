@@ -4,12 +4,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from lfx.base.tools.run_flow import RunFlowBaseComponent
-from lfx.components.flow_controls.run_flow import RunFlowComponent
-from lfx.graph.graph.base import Graph
-from lfx.schema.data import Data
-from lfx.schema.dotdict import dotdict
-from lfx.schema.message import Message
+from kfx.base.tools.run_flow import RunFlowBaseComponent
+from kfx.components.flow_controls.run_flow import RunFlowComponent
+from kfx.graph.graph.base import Graph
+from kfx.schema.data import Data
+from kfx.schema.dotdict import dotdict
+from kfx.schema.message import Message
 
 
 class TestRunFlowComponentInitialization:
@@ -519,7 +519,7 @@ class TestRunFlowComponentUpdateBuildConfig:
 
         component.get_graph = AsyncMock(return_value=mock_graph)
 
-        with patch("lfx.base.tools.run_flow.run_flow", new=AsyncMock(return_value=[])) as mock_run_flow:
+        with patch("kfx.base.tools.run_flow.run_flow", new=AsyncMock(return_value=[])) as mock_run_flow:
             await component._run_flow_with_cached_graph(
                 user_id=component.user_id,
                 output_type="any",

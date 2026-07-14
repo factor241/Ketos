@@ -25,7 +25,7 @@ interface NodeDialogProps {
   open: boolean;
   onClose: () => void;
   onCreated?: (value: string) => void;
-  dialogInputs: {
+  dialogInputs?: {
     fields: { data: { node: APIClassType } };
     functionality: string;
   };
@@ -85,6 +85,8 @@ export const NodeDialog: React.FC<NodeDialogProps> = ({
   const { fields, functionality: submitButtonText } = dialogInputs || {};
   const dialogNodeData = fields?.data?.node;
   const dialogTemplate = dialogNodeData?.template || {};
+
+  if (!dialogNodeData) return null;
 
   const setNodeClass = (newNode: APIClassType) => {
     const targetNode = nodes.find((node) => node.id === nodeId);
@@ -308,7 +310,10 @@ export const NodeDialog: React.FC<NodeDialogProps> = ({
                 handleNodeClass={() => {}}
                 nodeClass={dialogNodeData}
                 disabled={
-                  (fieldValue as { disabled: boolean })?.disabled ?? false
+                  typeof fieldValue === "object" &&
+                  fieldValue !== null &&
+                  "disabled" in fieldValue &&
+                  fieldValue.disabled === true
                 }
                 placeholder={
                   (fieldValue as { placeholder: string })?.placeholder ?? ""
@@ -321,7 +326,7 @@ export const NodeDialog: React.FC<NodeDialogProps> = ({
 
         <DialogFooter className="px-5 pt-3">
           <Button variant="secondary" onClick={handleCloseDialog}>
-            Cancel
+            {t("modal.cancelButton")}
           </Button>
           <Button
             variant="default"

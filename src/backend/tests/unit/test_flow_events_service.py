@@ -1,7 +1,7 @@
 import multiprocessing
 import time
 
-from langflow.services.flow_events.service import FlowEventsService
+from ketos.services.flow_events.service import FlowEventsService
 
 
 def _worker_append(cache_dir, flow_id, event_type, summary):
@@ -225,7 +225,7 @@ def test_multi_process_visibility(tmp_path):
         args=(str(shared_dir), "flow-mp", "component_added", "from-other-process"),
     )
     proc.start()
-    # Generous bound: a spawned child cold-imports the full langflow package
+    # Generous bound: a spawned child cold-imports the full ketos package
     # (plus coverage's multiprocessing hooks in CI), which can take >10s on a
     # loaded CI runner sharing 4 vCPUs with another xdist worker.
     proc.join(timeout=60)

@@ -1,9 +1,9 @@
-"""Unit tests for timestamp validator functions in both langflow and lfx schemas."""
+"""Unit tests for timestamp validator functions in both ketos and kfx schemas."""
 
 from datetime import datetime, timezone
 
-import langflow.schema.validators as lf_validators
-import lfx.schema.validators as lfx_validators
+import ketos.schema.validators as lf_validators
+import kfx.schema.validators as kfx_validators
 import pytest
 
 # ---------------------------------------------------------------------------
@@ -20,8 +20,8 @@ def _utc(year, month, day, hour, minute, second, microsecond=0):
 # ---------------------------------------------------------------------------
 
 VALIDATOR_MODULES = [
-    pytest.param(lf_validators, id="langflow"),
-    pytest.param(lfx_validators, id="lfx"),
+    pytest.param(lf_validators, id="ketos"),
+    pytest.param(kfx_validators, id="kfx"),
 ]
 
 
@@ -133,24 +133,24 @@ class TestMessageOrdering:
 class TestEncoderCompatibility:
     """encode_datetime output must be parseable by both validator chains."""
 
-    def test_encode_datetime_parseable_by_langflow_str_to_timestamp(self):
-        from langflow.schema.encoders import encode_datetime
+    def test_encode_datetime_parseable_by_ketos_str_to_timestamp(self):
+        from ketos.schema.encoders import encode_datetime
 
         dt = _utc(2024, 8, 20, 14, 0, 0, 654321)
         encoded = encode_datetime(dt)
         recovered = lf_validators.str_to_timestamp(encoded)
         assert recovered == dt
 
-    def test_encode_datetime_parseable_by_lfx_str_to_timestamp(self):
-        from langflow.schema.encoders import encode_datetime
+    def test_encode_datetime_parseable_by_kfx_str_to_timestamp(self):
+        from ketos.schema.encoders import encode_datetime
 
         dt = _utc(2024, 8, 20, 14, 0, 0, 654321)
         encoded = encode_datetime(dt)
-        recovered = lfx_validators.str_to_timestamp(encoded)
+        recovered = kfx_validators.str_to_timestamp(encoded)
         assert recovered == dt
 
     def test_encode_datetime_includes_microseconds(self):
-        from langflow.schema.encoders import encode_datetime
+        from ketos.schema.encoders import encode_datetime
 
         dt = _utc(2024, 1, 1, 0, 0, 0, 123456)
         result = encode_datetime(dt)

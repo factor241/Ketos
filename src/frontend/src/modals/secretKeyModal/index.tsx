@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ENABLE_DATASTAX_LANGFLOW } from "@/customization/feature-flags";
+import { ENABLE_DATASTAX_KETOS } from "@/customization/feature-flags";
 import { useGenerateToken } from "@/customization/hooks/use-custom-generate-token";
 import { createApiKey } from "../../controllers/API";
 import useAlertStore from "../../stores/alertStore";
@@ -20,18 +20,12 @@ export interface ModalConfigProps {
   showIcon?: boolean;
 }
 
-interface SecretKeyModalProps {
-  userId?: string;
-  size?: string;
-  modalProps?: ModalConfigProps;
-}
-
 export default function SecretKeyModal({
   children,
   data,
   onCloseModal,
   modalProps,
-}: ApiKeyType & { modalProps: SecretKeyModalProps }) {
+}: ApiKeyType) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [apiKeyName, setApiKeyName] = useState(data?.apikeyname ?? "");
@@ -42,7 +36,7 @@ export default function SecretKeyModal({
   const setSuccessData = useAlertStore((state) => state.setSuccessData);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const generateToken = useGenerateToken();
-  const modalConfigProps = modalProps?.modalProps ?? modalProps;
+  const modalConfigProps = modalProps;
 
   useEffect(() => {
     if (open) {
@@ -90,7 +84,7 @@ export default function SecretKeyModal({
 
   async function handleSubmitForm() {
     if (apiKeyValue) setOpen(false);
-    if (ENABLE_DATASTAX_LANGFLOW) {
+    if (ENABLE_DATASTAX_KETOS) {
       handleDataStaxKey();
     } else {
       handleOSSKey();
@@ -99,7 +93,16 @@ export default function SecretKeyModal({
 
   const handleDataStaxKey = async () => {
     try {
-      const { token } = await generateToken();
+      const generated: unknown = await generateToken();
+      const token =
+        typeof generated === "string"
+          ? generated
+          : typeof generated === "object" &&
+              generated !== null &&
+              "token" in generated &&
+              typeof generated.token === "string"
+            ? generated.token
+            : "";
       setApiKeyValue(token);
       setRenderKey(true);
     } catch (error) {
@@ -149,7 +152,7 @@ export default function SecretKeyModal({
             textCopied={textCopied}
             renderKey={renderKey}
           />
-        ) : ENABLE_DATASTAX_LANGFLOW ? (
+        ) : ENABLE_DATASTAX_KETOS ? (
           <></>
         ) : (
           <FormKeyRender

@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "active_wave": "R1",
+  "policy": "This file contains blocking system-owned migration debt only. Permanent exact exemptions belong in frontend-hardcoded.json entries and may never overlap these identities.",
+  "entries": [],
+  "static_html_baseline_inventory": []
+}

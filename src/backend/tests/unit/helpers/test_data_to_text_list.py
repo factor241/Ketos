@@ -1,6 +1,6 @@
 import pytest
-from langflow.helpers.data import data_to_text_list
-from lfx.schema import Data
+from ketos.helpers.data import data_to_text_list
+from kfx.schema import Data
 
 
 @pytest.mark.parametrize(

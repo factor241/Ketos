@@ -289,7 +289,7 @@ describe("useDeploymentChat", () => {
     expect(result.current.messages[1]).toMatchObject({
       role: "assistant",
       isLoading: false,
-      error: "Run started but no run ID was returned.",
+      error: "The run started, but the server did not return a run ID.",
     });
     expect(result.current.isWaitingForResponse).toBe(false);
     expect(mockGetRun).not.toHaveBeenCalled();
@@ -313,7 +313,7 @@ describe("useDeploymentChat", () => {
     expect(result.current.messages[1]).toMatchObject({
       role: "assistant",
       isLoading: false,
-      error: "Network error",
+      error: "Failed to start run",
     });
     expect(result.current.isWaitingForResponse).toBe(false);
   });
@@ -449,7 +449,7 @@ describe("useDeploymentChat", () => {
 
     await waitFor(() => {
       expect(result.current.messages[1].error).toBe(
-        "Run timed out. Please try again.",
+        "The run timed out. Please try again.",
       );
     });
 
@@ -480,13 +480,15 @@ describe("useDeploymentChat", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.messages[1].error).toBe("Poll failed");
+      expect(result.current.messages[1].error).toBe(
+        "Failed to fetch run status",
+      );
     });
 
     expect(result.current.isWaitingForResponse).toBe(false);
   });
 
-  it("shows 'Run failed.' when run has failed_at and no last_error", async () => {
+  it("shows a semantic failure when run has failed_at", async () => {
     mockPostRun.mockResolvedValueOnce(makePostResponse());
     mockGetRun.mockResolvedValueOnce(
       makeGetResponse({
@@ -515,11 +517,13 @@ describe("useDeploymentChat", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.messages[1].error).toBe("Run failed.");
+      expect(result.current.messages[1].error).toBe(
+        "The deployment run failed.",
+      );
     });
   });
 
-  it("shows last_error when run has failed_at with a specific error message", async () => {
+  it("does not expose backend last_error when a run fails", async () => {
     mockPostRun.mockResolvedValueOnce(makePostResponse());
     mockGetRun.mockResolvedValueOnce(
       makeGetResponse({
@@ -550,7 +554,10 @@ describe("useDeploymentChat", () => {
 
     await waitFor(() => {
       expect(result.current.messages[1].error).toBe(
-        "Tool invocation failed: timeout",
+        "The deployment run failed.",
+      );
+      expect(result.current.messages[1].error).not.toContain(
+        "Tool invocation failed",
       );
     });
   });

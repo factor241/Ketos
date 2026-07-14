@@ -13,9 +13,9 @@ import json
 from pathlib import Path
 
 import pytest
-from lfx.base.agents.default_system_prompt import DEFAULT_SYSTEM_PROMPT_TEMPLATE
+from kfx.base.agents.default_system_prompt import DEFAULT_SYSTEM_PROMPT_TEMPLATE
 
-STARTER_PROJECTS_DIR = Path(__file__).parent.parent / "base" / "langflow" / "initial_setup" / "starter_projects"
+STARTER_PROJECTS_DIR = Path(__file__).parent.parent / "base" / "ketos" / "initial_setup" / "starter_projects"
 
 # QA observed this exact legacy text in starter project Agents on the cz/default-sys-prompt branch.
 LEGACY_AGENT_SYSTEM_PROMPT = "You are a helpful assistant that can use tools to answer questions and perform tasks."

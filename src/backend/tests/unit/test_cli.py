@@ -9,6 +9,7 @@ import typer
 from ketos.__main__ import (
     DIRECT_UVICORN_PLATFORMS,
     _create_superuser,
+    _resolve_superuser_cli_env,
     api_key_banner,
     app,
     build_direct_uvicorn_kwargs,
@@ -387,3 +388,38 @@ def test_ensure_multi_worker_safe_allows_redis_queue():
     """Redis-backed job queue shares state across workers; multi-worker is safe."""
     with patch("ketos.__main__.get_settings_service", return_value=_settings_service_with_queue("redis")):
         ensure_multi_worker_safe(num_workers=4)
+
+
+def test_superuser_cli_accepts_legacy_environment(monkeypatch) -> None:
+    from kfx.brand_env import BrandEnvLegacyWarning
+
+    monkeypatch.delenv("KETOS_LOG_LEVEL", raising=False)
+    monkeypatch.delenv("KETOS_SUPERUSER_TOKEN", raising=False)
+    monkeypatch.setenv("LANGFLOW_LOG_LEVEL", "warning")
+    monkeypatch.setenv("LANGFLOW_SUPERUSER_TOKEN", "legacy-token")
+
+    with pytest.warns(BrandEnvLegacyWarning):
+        assert _resolve_superuser_cli_env(None, None) == ("warning", "legacy-token")
+
+
+def test_superuser_cli_explicit_values_override_environment(monkeypatch) -> None:
+    monkeypatch.setenv("KETOS_LOG_LEVEL", "warning")
+    monkeypatch.setenv("LANGFLOW_LOG_LEVEL", "info")
+    monkeypatch.setenv("KETOS_SUPERUSER_TOKEN", "canonical-secret")
+    monkeypatch.setenv("LANGFLOW_SUPERUSER_TOKEN", "legacy-secret")
+
+    assert _resolve_superuser_cli_env("debug", "explicit-token") == ("debug", "explicit-token")
+
+
+def test_superuser_cli_rejects_secret_conflict_without_values(monkeypatch) -> None:
+    from kfx.brand_env import BrandEnvConflictError
+
+    monkeypatch.setenv("KETOS_SUPERUSER_TOKEN", "canonical-secret")
+    monkeypatch.setenv("LANGFLOW_SUPERUSER_TOKEN", "legacy-secret")
+
+    with pytest.raises(BrandEnvConflictError) as raised:
+        _resolve_superuser_cli_env("error", None)
+
+    message = str(raised.value)
+    assert "canonical-secret" not in message
+    assert "legacy-secret" not in message

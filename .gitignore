@@ -298,3 +298,9 @@ tmp_toolguard/
 #whitesource
 whitesource/
 /.codex
+
+# Local verification and agent-generated diagnostics
+.artifacts/
+.superpowers/
+graphify-out/
+MagicMock/

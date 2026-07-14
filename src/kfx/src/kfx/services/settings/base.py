@@ -21,15 +21,16 @@ import asyncio
 import contextlib
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
 
 import aiofiles
 import orjson
 import yaml
-from pydantic_settings import BaseSettings, EnvSettingsSource, PydanticBaseSettingsSource, SettingsConfigDict
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 from typing_extensions import override
 
 from kfx.constants import BASE_COMPONENTS_PATH as BASE_COMPONENTS_PATH  # noqa: PLC0414  # re-export for back-compat
+from kfx.services.settings.brand_env import BrandEnvSettingsSource
+from kfx.services.settings.brand_env import is_list_of_any as _is_list_of_any
 from kfx.services.settings.groups import (
     CacheSettings,
     ComponentsSettings,
@@ -46,44 +47,8 @@ from kfx.services.settings.groups import (
     VariablesSettings,
 )
 
-if TYPE_CHECKING:
-    from pydantic.fields import FieldInfo
-
-
-def is_list_of_any(field: FieldInfo) -> bool:
-    """Check if the given field is a list or an optional list of any type.
-
-    Args:
-        field (FieldInfo): The field to be checked.
-
-    Returns:
-        bool: True if the field is a list or a list of any type, False otherwise.
-    """
-    if field.annotation is None:
-        return False
-    try:
-        union_args = field.annotation.__args__ if hasattr(field.annotation, "__args__") else []
-
-        return field.annotation.__origin__ is list or any(
-            arg.__origin__ is list for arg in union_args if hasattr(arg, "__origin__")
-        )
-    except AttributeError:
-        return False
-
-
-class CustomSource(EnvSettingsSource):
-    @override
-    def prepare_field_value(self, field_name: str, field: FieldInfo, value: Any, value_is_complex: bool) -> Any:  # type: ignore[misc]
-        # allow comma-separated list parsing
-
-        # fieldInfo contains the annotation of the field
-        if is_list_of_any(field):
-            if isinstance(value, str):
-                value = value.split(",")
-            if isinstance(value, list):
-                return value
-
-        return super().prepare_field_value(field_name, field, value, value_is_complex)
+CustomSource = BrandEnvSettingsSource
+is_list_of_any = _is_list_of_any
 
 
 class Settings(
@@ -157,7 +122,7 @@ class Settings(
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
-        return (CustomSource(settings_cls), init_settings)
+        return (BrandEnvSettingsSource(settings_cls), init_settings)
 
 
 def save_settings_to_yaml(settings: Settings, file_path: str) -> None:

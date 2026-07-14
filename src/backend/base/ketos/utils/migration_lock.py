@@ -2,36 +2,37 @@
 
 from __future__ import annotations
 
-import hashlib
-import os
 import time
 from contextlib import contextmanager
 
 import sqlalchemy as sa
+from kfx.brand_env import resolve_brand_env
 from kfx.log.logger import logger
 
 DEFAULT_NAMESPACE = "ketos:schema-migrations"
 DEFAULT_TIMEOUT_S = 300.0
 POLL_INTERVAL_S = 2.0
+MIGRATION_ADVISORY_LOCK_ID = 0x4C616E67666C6F77
 
 
 def migration_lock_id(namespace: str | None = None) -> int:
-    configured = namespace if namespace is not None else os.getenv("KETOS_MIGRATION_LOCK_NAMESPACE")
-    if configured is None:
-        value = DEFAULT_NAMESPACE
-    elif not configured or configured != configured.strip():
-        logger.warning("Invalid migration lock namespace; using canonical default")
-        value = DEFAULT_NAMESPACE
-    else:
-        value = configured
-    return int.from_bytes(hashlib.sha256(value.encode()).digest()[:8], "big") % (2**63 - 1)
+    """Return the persisted schema lock shared with legacy deployments.
 
-
-MIGRATION_ADVISORY_LOCK_ID = migration_lock_id(DEFAULT_NAMESPACE)
+    ``namespace`` remains accepted for source compatibility but cannot change
+    the lock identity: doing so would split migration coordination between old
+    and new workers.
+    """
+    del namespace
+    return MIGRATION_ADVISORY_LOCK_ID
 
 
 def migration_lock_timeout_s() -> float:
-    raw = os.getenv("KETOS_MIGRATION_LOCK_TIMEOUT_S")
+    raw = resolve_brand_env(
+        "MIGRATION_LOCK_TIMEOUT_S",
+        None,
+        sensitivity="public",
+        conflict_policy="error",
+    )
     if raw is None:
         return DEFAULT_TIMEOUT_S
     try:

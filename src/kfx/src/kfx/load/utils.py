@@ -1,7 +1,8 @@
-import os
 from pathlib import Path
 
 import httpx
+
+from kfx.brand_env import get_brand_env_policy, resolve_brand_env
 
 
 class UploadError(Exception):
@@ -31,7 +32,17 @@ def upload(file_path: str, host: str, flow_id: str, api_key: str | None = None):
     """
     try:
         url = f"{host}/api/v1/upload/{flow_id}"
-        resolved_api_key = api_key if api_key is not None else os.environ.get("KETOS_API_KEY")
+        api_key_policy = get_brand_env_policy("API_KEY")
+        resolved_api_key = (
+            api_key
+            if api_key is not None
+            else resolve_brand_env(
+                "API_KEY",
+                None,
+                sensitivity=api_key_policy.sensitivity,
+                conflict_policy=api_key_policy.conflict_policy,
+            )
+        )
         headers = {"x-api-key": resolved_api_key} if resolved_api_key else {}
         with Path(file_path).open("rb") as file:
             response = httpx.post(url, files={"file": file}, headers=headers)

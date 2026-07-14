@@ -20,7 +20,6 @@ Validate whichever environment is the default in your config::
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any
 
@@ -183,8 +182,8 @@ def login_command(
     key_source = ""
     if key_env_name and env_cfg.api_key:
         key_source = f"  [dim]from env var {key_env_name}[/dim]"
-    elif os.environ.get("KETOS_API_KEY") == env_cfg.api_key and env_cfg.api_key:
-        key_source = "  [dim]from KETOS_API_KEY[/dim]"
+    elif env_cfg.name == "__env__" and env_cfg.api_key:
+        key_source = "  [dim]from branded API_KEY environment[/dim]"
 
     env_label = env_cfg.name if env_cfg.name not in ("__inline__", "__env__") else "(inline)"
 

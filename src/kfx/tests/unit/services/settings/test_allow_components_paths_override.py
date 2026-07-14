@@ -1,5 +1,6 @@
 """Tests for allow_components_paths_override enforcement in Settings."""
 
+import os
 import tempfile
 
 from kfx.services.settings.base import Settings
@@ -90,3 +91,17 @@ def test_multi_path_env_var_stripped_when_override_false(monkeypatch):
         settings = Settings()
         assert tmp1 not in settings.components_path
         assert tmp2 not in settings.components_path
+
+
+def test_pathsep_env_var_stripped_when_override_false(monkeypatch):
+    """Platform-separated entries cannot survive disabled override enforcement."""
+    _clear_env(monkeypatch)
+    with tempfile.TemporaryDirectory() as tmp1, tempfile.TemporaryDirectory() as tmp2:
+        monkeypatch.setenv("KETOS_ALLOW_CUSTOM_COMPONENTS", "false")
+        monkeypatch.setenv("KETOS_ALLOW_COMPONENTS_PATHS_OVERRIDE", "false")
+        monkeypatch.setenv("KETOS_COMPONENTS_PATH", os.pathsep.join((tmp1, tmp2)))
+
+        settings = Settings()
+        assert tmp1 not in settings.components_path
+        assert tmp2 not in settings.components_path
+        assert os.pathsep.join((tmp1, tmp2)) not in settings.components_path

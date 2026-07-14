@@ -1,12 +1,12 @@
 import binascii
 import datetime
 import hashlib
-import os
 import secrets
 from typing import TYPE_CHECKING
 from uuid import UUID
 
 from cryptography.fernet import InvalidToken
+from kfx.brand_env import resolve_brand_env
 from kfx.log.logger import logger
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -192,7 +192,12 @@ async def _check_key_from_env(session: AsyncSession, api_key: str, settings_serv
     """
     from ketos.services.database.models.user.crud import get_user_by_username
 
-    env_api_key = os.getenv("KETOS_API_KEY")
+    env_api_key = resolve_brand_env(
+        "API_KEY",
+        None,
+        sensitivity="secret",
+        conflict_policy="error",
+    )
     if not env_api_key:
         return None
 

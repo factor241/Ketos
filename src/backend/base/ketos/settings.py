@@ -1,6 +1,14 @@
-import os
+from kfx.brand_env import resolve_brand_env
 
-DEV = os.getenv("KETOS_DEV", "false").lower() == "true"
+DEV = (
+    resolve_brand_env(
+        "DEV",
+        "false",
+        sensitivity="public",
+        conflict_policy="error",
+    ).lower()
+    == "true"
+)
 
 
 def _set_dev(value) -> None:

@@ -52,6 +52,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from kfx.brand_env import get_brand_env_policy, resolve_brand_env
 from kfx.extension.errors import ExtensionError
 from kfx.extension.loader import load_extension
 from kfx.extension.loader._types import LoadResult
@@ -83,11 +84,23 @@ def _default_state_dir() -> Path:
 
     Created lazily on first write.
     """
-    override = os.environ.get("KETOS_DEV_EXTENSIONS_DIR")
+    override_policy = get_brand_env_policy("DEV_EXTENSIONS_DIR")
+    override = resolve_brand_env(
+        "DEV_EXTENSIONS_DIR",
+        None,
+        sensitivity=override_policy.sensitivity,
+        conflict_policy=override_policy.conflict_policy,
+    )
     if override:
         return Path(override)
 
-    config_dir = os.environ.get("KETOS_CONFIG_DIR")
+    config_policy = get_brand_env_policy("CONFIG_DIR")
+    config_dir = resolve_brand_env(
+        "CONFIG_DIR",
+        None,
+        sensitivity=config_policy.sensitivity,
+        conflict_policy=config_policy.conflict_policy,
+    )
     if config_dir:
         return Path(config_dir) / "extensions"
 

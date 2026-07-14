@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 from pydantic import BaseModel, field_validator
@@ -83,10 +82,7 @@ class DatabaseSettings(BaseModel):
             msg = f"Invalid database_url provided: '{sanitized}'"
             raise ValueError(msg)
 
-        if ketos_database_url := os.getenv("KETOS_DATABASE_URL"):
-            value = ketos_database_url
-            logger.debug("Using KETOS_DATABASE_URL env variable")
-        else:
+        if value is None:
             if not info.data.get("data_dir"):
                 msg = "data_dir not set, please set it or provide a database_url"
                 raise ValueError(msg)

@@ -21,8 +21,10 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
+from ketos.services.database.service import (
+    POSTGRESQL_SCHEMA_MIGRATION_LOCK_ID as _MIGRATION_ADVISORY_LOCK_ID,
+)
 from ketos.services.database.service import _postgres_migration_lock
-from ketos.utils.migration_lock import MIGRATION_ADVISORY_LOCK_ID as _MIGRATION_ADVISORY_LOCK_ID
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -57,22 +59,23 @@ def _executed_sql(conn_mock: MagicMock) -> list[str]:
     return [str(call.args[0]) for call in conn_mock.execute.call_args_list]
 
 
-def test_lock_namespace_is_ketos_only_and_shared_with_alembic(monkeypatch):
-    from ketos.utils.migration_lock import acquire_transaction_lock, migration_lock_id
+def test_lock_id_is_fixed_and_shared_with_alembic(monkeypatch):
+    from ketos.utils.migration_lock import MIGRATION_ADVISORY_LOCK_ID, acquire_transaction_lock, migration_lock_id
 
     monkeypatch.setenv("KETOS_MIGRATION_LOCK_NAMESPACE", "ketos-test-namespace")
     conn = MagicMock()
     lock_id = acquire_transaction_lock(conn)
-    assert lock_id == migration_lock_id()
+    assert lock_id == _MIGRATION_ADVISORY_LOCK_ID == MIGRATION_ADVISORY_LOCK_ID
+    assert migration_lock_id() == migration_lock_id("ignored-legacy-namespace") == _MIGRATION_ADVISORY_LOCK_ID
     assert any(f"pg_advisory_xact_lock({lock_id})" in sql for sql in _executed_sql(conn))
 
 
-@pytest.mark.parametrize("invalid_namespace", ["", "   ", " leading", "trailing "])
-def test_invalid_lock_namespace_falls_back_to_canonical_default(monkeypatch, invalid_namespace: str):
-    from ketos.utils.migration_lock import DEFAULT_NAMESPACE, migration_lock_id
+@pytest.mark.parametrize("configured_namespace", ["", "   ", "leading", "legacy:schema-migrations"])
+def test_configured_lock_namespace_cannot_change_persisted_lock(monkeypatch, configured_namespace: str):
+    from ketos.utils.migration_lock import migration_lock_id
 
-    monkeypatch.setenv("KETOS_MIGRATION_LOCK_NAMESPACE", invalid_namespace)
-    assert migration_lock_id() == migration_lock_id(DEFAULT_NAMESPACE)
+    monkeypatch.setenv("KETOS_MIGRATION_LOCK_NAMESPACE", configured_namespace)
+    assert migration_lock_id() == _MIGRATION_ADVISORY_LOCK_ID
 
 
 @pytest.mark.parametrize("invalid_timeout", ["invalid", "0", "-1"])

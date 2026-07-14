@@ -8,12 +8,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 from typing import TYPE_CHECKING, Any
 
 import httpx
 from starlette.status import HTTP_204_NO_CONTENT
 
+from kfx.brand_env import get_brand_env_policy, resolve_brand_env
 from kfx.log.logger import logger
 
 if TYPE_CHECKING:
@@ -36,8 +36,22 @@ class KetosClient:
         api_key: str | None = None,
         access_token: str | None = None,
     ):
-        self.server_url = (server_url or os.environ.get("KETOS_SERVER_URL", "http://localhost:7860")).rstrip("/")
-        self.api_key = api_key or os.environ.get("KETOS_API_KEY")
+        server_url_policy = get_brand_env_policy("SERVER_URL")
+        resolved_server_url = server_url or resolve_brand_env(
+            "SERVER_URL",
+            "http://localhost:7860",
+            sensitivity=server_url_policy.sensitivity,
+            conflict_policy=server_url_policy.conflict_policy,
+        )
+        api_key_policy = get_brand_env_policy("API_KEY")
+        resolved_api_key = api_key or resolve_brand_env(
+            "API_KEY",
+            None,
+            sensitivity=api_key_policy.sensitivity,
+            conflict_policy=api_key_policy.conflict_policy,
+        )
+        self.server_url = resolved_server_url.rstrip("/")
+        self.api_key = resolved_api_key
         self.access_token = access_token
         self._http: httpx.AsyncClient | None = None
         self._lock = asyncio.Lock()

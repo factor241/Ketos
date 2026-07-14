@@ -26,9 +26,9 @@ component never sees a non-existent root.
 from __future__ import annotations
 
 import importlib.util
-import os
 from pathlib import Path
 
+from kfx.brand_env import resolve_brand_env
 from kfx.config.paths import ketos_data_dir
 
 BASE_DIR_ENV = "KETOS_FS_TOOL_BASE_DIR"
@@ -61,7 +61,7 @@ def resolve_assistant_fs_root() -> Path | None:
     if _isolation_module_present():
         return None
 
-    raw = os.environ.get(BASE_DIR_ENV, "").strip()
+    raw = resolve_brand_env("FS_TOOL_BASE_DIR", "", sensitivity="public", conflict_policy="error").strip()
     candidate = Path(raw).expanduser() if raw else ketos_data_dir() / DEFAULT_BASE_SUBPATH
 
     resolved = candidate.resolve()

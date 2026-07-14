@@ -93,3 +93,25 @@ class TestLoadIsolationConfig:
         assert first.base_dir == (first_data / suffix).resolve()
         assert second.base_dir == (second_data / suffix).resolve()
         assert first.base_dir != second.base_dir
+
+    def test_injected_mapping_supports_legacy_only_and_rejects_conflict(self, tmp_path: Path) -> None:
+        from kfx.brand_env import BrandEnvConflictError, BrandEnvLegacyWarning
+        from kfx.components.files_and_knowledge._filesystem_isolation import load_isolation_config
+
+        legacy = tmp_path / "legacy-root"
+        canonical = tmp_path / "canonical-root"
+        with pytest.warns(BrandEnvLegacyWarning):
+            config = load_isolation_config(
+                env={"LANGFLOW_FS_TOOL_BASE_DIR": str(legacy)},
+                default_config_dir=tmp_path,
+            )
+        assert config.base_dir == legacy.resolve()
+
+        with pytest.raises(BrandEnvConflictError):
+            load_isolation_config(
+                env={
+                    "KETOS_FS_TOOL_BASE_DIR": str(canonical),
+                    "LANGFLOW_FS_TOOL_BASE_DIR": str(legacy),
+                },
+                default_config_dir=tmp_path,
+            )

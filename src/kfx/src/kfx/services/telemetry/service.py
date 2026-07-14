@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 
+from kfx.brand_env import get_brand_env_policy, resolve_brand_env
 from kfx.log.logger import logger
 from kfx.services.telemetry.base import BaseTelemetryService
 from kfx.services.telemetry.schema import (
@@ -30,6 +31,7 @@ from kfx.services.telemetry.schema import (
 if TYPE_CHECKING:
     from pydantic import BaseModel
 
+
 class TelemetryService(BaseTelemetryService):
     """Async telemetry service that sends events to Scarf via query params."""
 
@@ -40,7 +42,15 @@ class TelemetryService(BaseTelemetryService):
         do_not_track: bool | None = None,
     ):
         super().__init__()
-        self.base_url = base_url or os.environ.get("KETOS_TELEMETRY_BASE_URL")
+        if not base_url:
+            policy = get_brand_env_policy("TELEMETRY_BASE_URL")
+            base_url = resolve_brand_env(
+                "TELEMETRY_BASE_URL",
+                base_url,
+                sensitivity=policy.sensitivity,
+                conflict_policy=policy.conflict_policy,
+            )
+        self.base_url = base_url
 
         if do_not_track is None:
             do_not_track = os.environ.get("DO_NOT_TRACK", "true").lower() in {"1", "true"}

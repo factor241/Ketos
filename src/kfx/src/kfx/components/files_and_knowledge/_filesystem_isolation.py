@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from kfx.brand_env import _resolve_brand_env_from_mapping
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
@@ -42,7 +44,13 @@ def load_isolation_config(
     Why ``env`` is injected: lets tests pass a tiny dict instead of patching
     ``os.environ`` (which leaks across xdist workers and is order-dependent).
     """
-    base_dir_raw = env.get(BASE_DIR_ENV)
+    base_dir_raw = _resolve_brand_env_from_mapping(
+        "FS_TOOL_BASE_DIR",
+        "",
+        environ=env,
+        sensitivity="public",
+        conflict_policy="error",
+    )
     if not base_dir_raw or not base_dir_raw.strip():
         base_dir_raw = str(default_config_dir / DEFAULT_BASE_DIR_NAME)
 

@@ -3,6 +3,7 @@
 import json
 import os
 
+from kfx.brand_env import get_brand_env_policy, resolve_brand_env
 from kfx.log.logger import logger
 from kfx.services.base import Service
 from kfx.services.variable.request_scope import (
@@ -46,7 +47,13 @@ class VariableService(Service):
         if is_env_fallback_disabled():
             return {}
 
-        raw = os.getenv("KETOS_REQUEST_VARIABLES")
+        policy = get_brand_env_policy("REQUEST_VARIABLES")
+        raw = resolve_brand_env(
+            "REQUEST_VARIABLES",
+            None,
+            sensitivity=policy.sensitivity,
+            conflict_policy=policy.conflict_policy,
+        )
         if not raw:
             return {}
         try:

@@ -44,7 +44,7 @@ export const ThemeButtons = ({ variant = "icon" }: ThemeButtonsProps) => {
 
   if (variant === "menu") {
     const menuItemClassName =
-      "relative z-10 inline-flex min-w-0 flex-1 basis-0 cursor-pointer items-center justify-center rounded-full px-1.5 py-1 text-xs leading-4 outline-none [&>span:first-child]:hidden";
+      "relative z-10 inline-flex min-w-0 flex-1 basis-0 cursor-pointer items-center justify-center rounded-full px-1.5 py-1 text-xs leading-4 outline-none transition-colors [transition-duration:180ms] ease-out focus:bg-transparent [&>span:first-child]:hidden";
 
     return (
       <DropdownMenuRadioGroup
@@ -54,7 +54,8 @@ export const ThemeButtons = ({ variant = "icon" }: ThemeButtonsProps) => {
       >
         <div
           aria-hidden="true"
-          className={`absolute bottom-0.5 left-0.5 top-0.5 w-[calc((100%_-_0.25rem)/3)] rounded-full bg-accent-amber-foreground dark:bg-accent-purple-foreground ${hasInteracted ? "transition-all duration-300" : ""}`}
+          data-testid="theme-selection-indicator"
+          className={`absolute bottom-0.5 left-0.5 top-0.5 w-[calc((100%_-_0.25rem)/3)] rounded-full bg-accent-amber-foreground dark:bg-accent-purple-foreground ${hasInteracted ? "transition-transform [transition-duration:180ms] ease-out" : ""}`}
           style={{
             transform: `translateX(${selectedTheme === "light" ? "0" : selectedTheme === "dark" ? "100%" : "200%"})`,
           }}
@@ -67,7 +68,7 @@ export const ThemeButtons = ({ variant = "icon" }: ThemeButtonsProps) => {
           onSelect={(event) => event.preventDefault()}
           className={`${menuItemClassName} ${
             selectedTheme === "light"
-              ? "text-background"
+              ? "text-background hover:bg-transparent"
               : "text-foreground hover:bg-accent-amber-foreground hover:text-background"
           }`}
         >
@@ -81,7 +82,7 @@ export const ThemeButtons = ({ variant = "icon" }: ThemeButtonsProps) => {
           onSelect={(event) => event.preventDefault()}
           className={`${menuItemClassName} ${
             selectedTheme === "dark"
-              ? "bg-indigo-foreground text-background hover:bg-indigo-foreground"
+              ? "text-background hover:bg-transparent"
               : "text-foreground hover:bg-indigo-foreground hover:text-background"
           }`}
         >
@@ -95,7 +96,7 @@ export const ThemeButtons = ({ variant = "icon" }: ThemeButtonsProps) => {
           onSelect={(event) => event.preventDefault()}
           className={`${menuItemClassName} ${
             selectedTheme === "system"
-              ? "bg-foreground text-background"
+              ? "text-background hover:bg-transparent"
               : "hover:bg-foreground hover:text-background"
           }`}
         >
@@ -115,12 +116,15 @@ export const ThemeButtons = ({ variant = "icon" }: ThemeButtonsProps) => {
     >
       {/* Sliding Indicator - Behind the Buttons */}
       <div
+        data-testid="theme-selection-indicator"
         className={`${
           isLabeled
             ? "absolute bottom-0.5 left-0.5 top-0.5 w-[calc((100%_-_0.25rem)/3)] rounded-full bg-accent-amber-foreground"
             : "absolute bottom-0.5 left-[1px] top-0.5 w-[30%] rounded-full bg-accent-amber-foreground"
         } ${
-          hasInteracted ? "transition-all duration-300" : ""
+          hasInteracted
+            ? "transition-transform [transition-duration:180ms] ease-out"
+            : ""
         } dark:bg-accent-purple-foreground`}
         style={{
           transform: isLabeled
@@ -143,11 +147,11 @@ export const ThemeButtons = ({ variant = "icon" }: ThemeButtonsProps) => {
         aria-pressed={isLabeled ? selectedTheme === "light" : undefined}
         className={`${
           isLabeled
-            ? "relative z-10 inline-flex min-w-0 flex-1 basis-0 items-center justify-center rounded-full px-1.5 py-1 text-xs leading-4"
-            : "relative z-10 inline-flex items-center rounded-full px-1"
+            ? "relative z-10 inline-flex min-w-0 flex-1 basis-0 items-center justify-center rounded-full px-1.5 py-1 text-xs leading-4 transition-colors [transition-duration:180ms] ease-out"
+            : "relative z-10 inline-flex items-center rounded-full px-1 transition-colors [transition-duration:180ms] ease-out"
         } ${
           selectedTheme === "light"
-            ? "text-background"
+            ? "text-background hover:bg-transparent"
             : "text-foreground hover:bg-accent-amber-foreground hover:text-background"
         }`}
         onClick={() => handleThemeChange("light")}
@@ -167,11 +171,11 @@ export const ThemeButtons = ({ variant = "icon" }: ThemeButtonsProps) => {
         aria-pressed={isLabeled ? selectedTheme === "dark" : undefined}
         className={`${
           isLabeled
-            ? "relative z-10 inline-flex min-w-0 flex-1 basis-0 items-center justify-center rounded-full px-1.5 py-1 text-xs leading-4"
-            : "relative z-10 mx-1 inline-flex items-center rounded-full px-1"
+            ? "relative z-10 inline-flex min-w-0 flex-1 basis-0 items-center justify-center rounded-full px-1.5 py-1 text-xs leading-4 transition-colors [transition-duration:180ms] ease-out"
+            : "relative z-10 mx-1 inline-flex items-center rounded-full px-1 transition-colors [transition-duration:180ms] ease-out"
         } ${
           selectedTheme === "dark"
-            ? "bg-indigo-foreground text-background hover:bg-indigo-foreground"
+            ? "text-background hover:bg-transparent"
             : "text-foreground hover:bg-indigo-foreground hover:text-background"
         }`}
         onClick={() => handleThemeChange("dark")}
@@ -191,11 +195,11 @@ export const ThemeButtons = ({ variant = "icon" }: ThemeButtonsProps) => {
         aria-pressed={isLabeled ? selectedTheme === "system" : undefined}
         className={`${
           isLabeled
-            ? "relative z-10 inline-flex min-w-0 flex-1 basis-0 items-center justify-center rounded-full px-1.5 py-1 text-xs leading-4"
-            : "relative z-10 inline-flex items-center rounded-full px-1"
+            ? "relative z-10 inline-flex min-w-0 flex-1 basis-0 items-center justify-center rounded-full px-1.5 py-1 text-xs leading-4 transition-colors [transition-duration:180ms] ease-out"
+            : "relative z-10 inline-flex items-center rounded-full px-1 transition-colors [transition-duration:180ms] ease-out"
         } ${
           selectedTheme === "system"
-            ? "bg-foreground text-background"
+            ? "text-background hover:bg-transparent"
             : "hover:bg-foreground hover:text-background"
         }`}
         onClick={() => handleThemeChange("system")}

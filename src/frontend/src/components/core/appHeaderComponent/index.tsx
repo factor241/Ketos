@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation, useParams } from "react-router-dom";
 import AlertDropdown from "@/alerts/alertDropDown";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import { KetosBrandMark } from "@/components/common/ketos-brand-mark";
@@ -9,18 +10,26 @@ import { Separator } from "@/components/ui/separator";
 import CustomAccountMenu from "@/customization/components/custom-AccountMenu";
 import { CustomOrgSelector } from "@/customization/components/custom-org-selector";
 import { useCustomNavigate } from "@/customization/hooks/use-custom-navigate";
-import useTheme from "@/customization/hooks/use-custom-theme";
 import useAlertStore from "@/stores/alertStore";
+import useFlowStore from "@/stores/flowStore";
 import FlowMenu from "./components/FlowMenu";
+import { shouldShowLegacyHeaderAccountMenu } from "./header-visibility";
 
 export default function AppHeader(): JSX.Element {
   const { t } = useTranslation();
   const notificationCenter = useAlertStore((state) => state.notificationCenter);
+  const onFlowPage = useFlowStore((state) => state.onFlowPage);
   const navigate = useCustomNavigate();
+  const { pathname } = useLocation();
+  const { customParam } = useParams();
   const [activeState, setActiveState] = useState<"notifications" | null>(null);
   const notificationRef = useRef<HTMLButtonElement | null>(null);
   const notificationContentRef = useRef<HTMLDivElement | null>(null);
-  useTheme();
+  const showLegacyAccountMenu = shouldShowLegacyHeaderAccountMenu(
+    pathname,
+    customParam,
+    onFlowPage,
+  );
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -113,14 +122,18 @@ export default function AppHeader(): JSX.Element {
             </div>
           </Button>
         </AlertDropdown>
-        <Separator
-          orientation="vertical"
-          className="my-auto h-7 dark:border-border"
-        />
+        {showLegacyAccountMenu && (
+          <>
+            <Separator
+              orientation="vertical"
+              className="my-auto h-7 dark:border-border"
+            />
 
-        <div className="flex">
-          <CustomAccountMenu />
-        </div>
+            <div className="flex">
+              <CustomAccountMenu />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

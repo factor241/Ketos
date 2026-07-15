@@ -24,7 +24,6 @@ declare global {
     readonly KETOS_MCP_COMPOSER_ENABLED: string;
     readonly KETOS_EXTENSION_RELOAD_ENABLED?: string;
     readonly KETOS_WXO_UTM_SOURCE?: string;
-    readonly VITE_ENABLE_RUSSIAN_LOCALE?: string;
     readonly VITE_STRICT_RU_I18N?: string;
   }
 

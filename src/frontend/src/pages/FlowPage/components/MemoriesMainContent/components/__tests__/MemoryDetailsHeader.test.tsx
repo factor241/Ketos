@@ -6,6 +6,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import type { MemoryInfo } from "@/controllers/API/queries/memories/types";
+import ru from "@/locales/ru.json";
 import { ALL_SESSIONS_VALUE } from "../../hooks/useMemorySessionResolver";
 import type { MemoryDetailsHeaderProps } from "../../types";
 import { MemoryDetailsHeader } from "../MemoryDetailsHeader";
@@ -407,7 +408,7 @@ describe("MemoryDetailsHeader", () => {
       await waitFor(() => {
         expect(mockSetErrorData).toHaveBeenCalledWith({
           title: "Failed to refresh memory",
-          list: ["The request could not be completed. Please try again."],
+          list: [ru["errors.requestFailed"]],
         });
       });
       expect(JSON.stringify(mockSetErrorData.mock.calls)).not.toContain(

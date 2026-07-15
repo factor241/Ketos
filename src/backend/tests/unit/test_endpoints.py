@@ -636,7 +636,8 @@ async def test_invalid_run_with_input_type_chat(client, simple_api_test, created
     }
     response = await client.post(f"/api/v1/run/{flow_id}", headers=headers, json=payload)
     assert response.status_code == status.HTTP_400_BAD_REQUEST, response.text
-    assert "If you pass an input_value to the chat input, you cannot pass a tweak with the same name." in response.text
+    assert response.json()["code"] == "flows.invalid"
+    assert "same name" not in response.text
 
 
 @pytest.mark.benchmark

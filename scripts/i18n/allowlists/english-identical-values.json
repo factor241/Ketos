@@ -20,30 +20,6 @@
       "review_date": "2026-07-11"
     },
     {
-      "key": "account.github",
-      "value": "GitHub",
-      "reason": "Protected product self-name; the exact brand is the complete label.",
-      "owner": "localization-governance",
-      "reviewer": "ru-linguistic-reviewer",
-      "review_date": "2026-07-11"
-    },
-    {
-      "key": "account.discord",
-      "value": "Discord",
-      "reason": "Protected product self-name; the exact brand is the complete account label.",
-      "owner": "localization-governance",
-      "reviewer": "ru-linguistic-reviewer",
-      "review_date": "2026-07-11"
-    },
-    {
-      "key": "account.twitter",
-      "value": "X",
-      "reason": "Protected social-platform self-name; the exact Latin brand is the complete account label.",
-      "owner": "localization-governance",
-      "reviewer": "ru-linguistic-reviewer",
-      "review_date": "2026-07-11"
-    },
-    {
       "key": "mcp.modal.tabJson",
       "value": "JSON",
       "reason": "Protected data-format abbreviation; the exact token is the complete tab label.",

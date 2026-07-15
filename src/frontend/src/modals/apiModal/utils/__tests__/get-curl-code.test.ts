@@ -1,3 +1,4 @@
+import ru from "@/locales/ru.json";
 import { getCurlWebhookCode, getNewCurlCode } from "../get-curl-code";
 
 // Mock the customGetHostProtocol
@@ -278,7 +279,7 @@ describe("getNewCurlCode", () => {
       expect(result.steps).toHaveLength(2);
 
       // Check upload step
-      expect(result.steps[0].title).toContain("Upload files");
+      expect(result.steps[0].title).toBe(ru["apiModal.uploadFilesStep"]);
       expect(result.steps[0].code).toContain("curl --request POST");
       expect(result.steps[0].code).toContain(
         "/api/v1/files/upload/test-flow-123",
@@ -286,7 +287,7 @@ describe("getNewCurlCode", () => {
       expect(result.steps[0].code).toContain('--form "file=@your_image_1.jpg"');
 
       // Check execute step
-      expect(result.steps[1].title).toContain("Execute");
+      expect(result.steps[1].title).toBe(ru["apiModal.executeFlowStep"]);
       expect(result.steps[1].code).toContain("/api/v1/run/test-endpoint");
       expect(result.steps[1].code).toContain(
         "REPLACE_WITH_FILE_PATH_FROM_UPLOAD_1",
@@ -849,8 +850,8 @@ describe("getNewCurlCode", () => {
         },
       }) as { steps: { title: string; code: string }[] };
 
-      expect(result.steps[0].title).toMatch(/upload/i);
-      expect(result.steps[1].title).toMatch(/execute/i);
+      expect(result.steps[0].title).toBe(ru["apiModal.uploadFilesStep"]);
+      expect(result.steps[1].title).toBe(ru["apiModal.executeFlowStep"]);
     });
   });
 });

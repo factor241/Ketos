@@ -1,15 +1,25 @@
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
 ROOT = Path(__file__).parents[3]
 RUNBOOK = ROOT / "docs/localization/ru/release-rollout-rollback.md"
+SIDEBAR_PLAN = ROOT / "PLAN_SIDEBAR_ACCOUNT_REDESIGN.md"
+SURFACE_MANIFEST = ROOT / "docs/localization/ru/surface-manifest.csv"
+FRONTEND_LOCALES = ROOT / "src/frontend/src/locales"
+BACKEND_LOCALES = ROOT / "src/backend/base/ketos/locales"
 
 
 def _runbook() -> str:
     assert RUNBOOK.is_file(), f"missing release runbook: {RUNBOOK}"  # noqa: S101
     return RUNBOOK.read_text(encoding="utf-8")
+
+
+def _rollback_section() -> str:
+    text = _runbook()
+    return text[text.index("## 8. Rollback") : text.index("## 9. Release evidence")]
 
 
 def test_release_runbook_covers_every_required_production_topology() -> None:
@@ -49,12 +59,9 @@ def test_release_runbook_has_measurable_canary_and_non_destructive_rollback() ->
     assert "fallback = 0" in text  # noqa: S101
     assert "missing-key = 0" in text  # noqa: S101
     assert "failed-loading = 0" in text  # noqa: S101
-    assert "VITE_ENABLE_RUSSIAN_LOCALE=false" in text  # noqa: S101
-    assert "shipped: false" in text  # noqa: S101
-    assert "недостаточно" in text.lower()  # noqa: S101
     assert "не изменять `preferred_locale`" in text  # noqa: S101
     assert "не удалять `ru.json`" in text  # noqa: S101
-    assert "предыдущий digest" in text.lower()  # noqa: S101
+    assert "предыдущий совместимый digest" in text.lower()  # noqa: S101
 
 
 def test_release_runbook_links_machine_readable_r11_contracts() -> None:
@@ -71,7 +78,7 @@ def test_release_runbook_links_machine_readable_r11_contracts() -> None:
         assert contract in text, f"runbook is missing R11 evidence contract {contract!r}"  # noqa: S101
 
 
-def test_release_runbook_has_executable_persistent_rollback_rehearsal() -> None:
+def test_release_runbook_has_executable_previous_digest_rollback_rehearsal() -> None:
     text = _runbook()
 
     required_contracts = (
@@ -79,24 +86,32 @@ def test_release_runbook_has_executable_persistent_rollback_rehearsal() -> None:
         "trap rollback_rehearsal_cleanup EXIT",
         'ROLLBACK_DATA_VOLUME="ketos-ru-rehearsal-${RELEASE_ID}"',
         '-v "${ROLLBACK_DATA_VOLUME}:/app/ketos"',
-        'ROLLBACK_PHASE="enabled-before"',
-        'ROLLBACK_PHASE="disabled"',
-        'ROLLBACK_PHASE="enabled-after"',
+        'ROLLBACK_PHASE="current-before"',
+        'ROLLBACK_PHASE="previous-compatible"',
+        'ROLLBACK_PHASE="current-after"',
+        'start_rollback_rehearsal "${PREVIOUS_COMPATIBLE_DIGEST}"',
         "/api/v1/users/whoami",
         'profile.preferred_locale !== "ru"',
         "document.documentElement.lang",
-        'localStorage.getItem("languagePreference")',
-        "languagePreference:${profileId}",
+        'localStorage.getItem("ketos-language-preference")',
         'page.getByRole("option", { name: "Русский", exact: true })',
         "preferencePatchRequests.length",
     )
     for contract in required_contracts:
         assert contract in text, f"runbook is missing executable rollback contract {contract!r}"  # noqa: S101
 
-    enabled_before = text.index('ROLLBACK_PHASE="enabled-before"')
-    disabled = text.index('ROLLBACK_PHASE="disabled"')
-    enabled_after = text.index('ROLLBACK_PHASE="enabled-after"')
-    assert enabled_before < disabled < enabled_after  # noqa: S101
+    current_before = text.index('ROLLBACK_PHASE="current-before"')
+    previous = text.index('ROLLBACK_PHASE="previous-compatible"')
+    current_after = text.index('ROLLBACK_PHASE="current-after"')
+    assert current_before < previous < current_after  # noqa: S101
+
+
+def test_release_runbook_uses_only_the_current_language_storage_key() -> None:
+    text = _runbook()
+
+    assert "ketos-language-preference" in text  # noqa: S101
+    assert 'localStorage.getItem("languagePreference")' not in text  # noqa: S101
+    assert "languagePreference:${profileId}" not in text  # noqa: S101
 
 
 def test_release_runbook_separates_local_ids_registry_digests_and_locale_artifacts() -> None:
@@ -113,61 +128,35 @@ def test_release_runbook_separates_local_ids_registry_digests_and_locale_artifac
     assert "оба `ru.json`" not in text  # noqa: RUF001, S101
 
 
-def test_release_runbook_publishes_and_captures_exact_disabled_registry_digest() -> None:
-    text = _runbook()
+def test_release_runbook_requires_a_pinned_previous_compatible_registry_digest() -> None:
+    text = _rollback_section()
 
     required_contracts = (
-        'ROLLBACK_REGISTRY_REPOSITORY="${CANARY_REGISTRY_REPOSITORY}"',
-        'ROLLBACK_UNIFIED_PUBLISH_IMAGE="${ROLLBACK_REGISTRY_REPOSITORY}:ru-disabled-${RELEASE_ID}"',
-        'docker push "${ROLLBACK_UNIFIED_PUBLISH_IMAGE}"',
-        "RepoDigests",
-        'startswith(f"{repository}@")',
-        "rollback-disabled-registry-digest.txt",
-        "test -s .artifacts/i18n-release/rollback-disabled-registry-digest.txt",
+        "PREVIOUS_COMPATIBLE_DIGEST",
+        "@sha256:",
+        'docker pull "${PREVIOUS_COMPATIBLE_DIGEST}"',
+        "previous-compatible-registry-digest.txt",
+        "test -s .artifacts/i18n-release/previous-compatible-registry-digest.txt",
     )
     for contract in required_contracts:
-        assert contract in text, f"runbook is missing immutable disabled publish contract {contract!r}"  # noqa: S101
-
-    push = text.index('docker push "${ROLLBACK_UNIFIED_PUBLISH_IMAGE}"')
-    capture = text.index("rollback-disabled-registry-digest.txt")
-    assert push < capture  # noqa: S101
+        assert contract in text, f"runbook is missing previous digest contract {contract!r}"  # noqa: S101
 
 
-def test_release_runbook_builds_and_rehearses_disabled_wheel() -> None:
+def test_release_runbook_removes_locale_kill_switch_and_disabled_artifacts() -> None:
     text = _runbook()
 
-    required_contracts = (
-        "VITE_ENABLE_RUSSIAN_LOCALE=false make build_frontend",
-        "rollback-wheel-disabled-dist",
-        "rollback-wheel-enabled-dist",
-        "rollback-wheel-disabled-venv",
-        "rollback-wheel-enabled-venv",
-        'assert "ketos/locales/ru.json" in names',
-        "assert len(ru_chunks) == 1",
-        'EXPECTED_LANG="en"',
-        'EXPECTED_RU_OPTION_COUNT="0"',
-        'EXPECTED_LANG="ru"',
-        'EXPECTED_RU_OPTION_COUNT="1"',
-        "wheel_rollback_cleanup()",
-        "trap wheel_rollback_cleanup EXIT",
-    )
-    for contract in required_contracts:
-        assert contract in text, f"runbook is missing disabled wheel rehearsal contract {contract!r}"  # noqa: S101
-
-
-def test_release_runbook_executes_disabled_image_artifact_and_selector_assertions() -> None:
-    text = _runbook()
-
-    required_contracts = (
-        'assert_disabled_unified_artifacts "${ROLLBACK_UNIFIED_IMAGE}"',
-        'assert_disabled_standalone_artifacts "${BACKEND_IMAGE}" "${ROLLBACK_FRONTEND_IMAGE}"',
-        'assert root.joinpath("locales", "ru.json").is_file()',
-        "assert len(chunks) == 1",
-        "EXPECTED_RU_OPTION_COUNT",
+    forbidden_contracts = (
+        "_".join(("VITE", "ENABLE", "RUSSIAN", "LOCALE")),  # noqa: FLY002
+        "shipped: false",
+        "ru-disabled",
+        "rollback-disabled",
+        "ROLLBACK_UNIFIED_IMAGE",
+        "ROLLBACK_FRONTEND_IMAGE",
+        "DISABLED_WHEEL",
         'EXPECTED_RU_OPTION_COUNT="0"',
     )
-    for contract in required_contracts:
-        assert contract in text, f"runbook is missing executable disabled artifact contract {contract!r}"  # noqa: S101
+    for contract in forbidden_contracts:
+        assert contract not in text, f"runbook still contains obsolete contract {contract!r}"  # noqa: S101
 
 
 def test_release_runbook_smoke_blocks_install_cleanup_traps() -> None:
@@ -191,3 +180,25 @@ def test_release_runbook_uses_only_current_ketos_kfx_product_identities() -> Non
     required_contracts = ("ketos-base", "ketos/locales", "ketos/frontend", "/app/ketos", "kfx")
     for contract in required_contracts:
         assert contract in text, f"runbook is missing current product identity {contract!r}"  # noqa: S101
+
+
+def test_sidebar_plan_targets_only_en_and_ru_locales() -> None:
+    text = SIDEBAR_PLAN.read_text(encoding="utf-8")
+
+    assert "2 локали (en, ru)" in text  # noqa: S101
+    assert not re.search(r"\b8\s+(?:файлов\s+)?локал", text)  # noqa: S101
+    assert "{en,ru,de,ja,fr,es,pt,zh-Hans}.json" not in text  # noqa: S101
+
+
+def test_surface_manifest_names_exact_en_ru_catalog_baselines() -> None:
+    text = SURFACE_MANIFEST.read_text(encoding="utf-8")
+
+    frontend_en = len(json.loads((FRONTEND_LOCALES / "en.json").read_text(encoding="utf-8")))
+    frontend_ru = len(json.loads((FRONTEND_LOCALES / "ru.json").read_text(encoding="utf-8")))
+    backend_en = len(json.loads((BACKEND_LOCALES / "en.json").read_text(encoding="utf-8")))
+    backend_ru = len(json.loads((BACKEND_LOCALES / "ru.json").read_text(encoding="utf-8")))
+
+    assert f"frontend_en_{frontend_en}_ru_{frontend_ru}" in text  # noqa: S101
+    assert f"backend_en_{backend_en}_ru_{backend_ru}" in text  # noqa: S101
+    assert "frontend_locales_7x2068" not in text  # noqa: S101
+    assert "backend_en_6781_targets_6x6761" not in text  # noqa: S101

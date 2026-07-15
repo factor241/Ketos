@@ -7,8 +7,6 @@
 
 # 1. force platform to the current architecture to increase build speed time on multi-platform builds
 FROM --platform=$BUILDPLATFORM node:22.14.0-bookworm-slim AS builder-base
-ARG VITE_ENABLE_RUSSIAN_LOCALE=true
-ENV VITE_ENABLE_RUSSIAN_LOCALE=${VITE_ENABLE_RUSSIAN_LOCALE}
 COPY src/frontend /frontend
 
 RUN cd /frontend \

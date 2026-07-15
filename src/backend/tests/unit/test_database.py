@@ -558,7 +558,8 @@ async def test_upload_file_flows_mixed_items_returns_422(client: AsyncClient, lo
         headers=logged_in_headers,
     )
     assert response.status_code == 422
-    assert "flows[1]" in response.json()["detail"]
+    assert response.json()["detail"] == "Invalid JSON: an item in 'flows' is not an object"
+    assert "flows[1]" not in response.text
 
 
 @pytest.mark.usefixtures("session")
@@ -858,7 +859,7 @@ async def test_upload_zip_with_invalid_json(client: AsyncClient, json_flow: str,
 
 @pytest.mark.usefixtures("session")
 async def test_upload_zip_exceeding_max_entries(client: AsyncClient, json_flow: str, logged_in_headers, monkeypatch):
-    """ZIP with more JSON entries than the limit raises 400."""
+    """ZIP with too many JSON entries returns the safe coded 400 envelope."""
     import ketos.api.utils.zip_utils as zip_utils_mod
 
     monkeypatch.setattr(zip_utils_mod, "MAX_ZIP_ENTRIES", 3)
@@ -878,7 +879,13 @@ async def test_upload_zip_exceeding_max_entries(client: AsyncClient, json_flow: 
         headers=logged_in_headers,
     )
     assert response.status_code == 400
-    assert "exceeding the limit" in response.json()["detail"]
+    assert response.json() == {
+        "code": "flows.invalid",
+        "detail": "The uploaded file is not a valid ZIP archive.",
+        "message": "The uploaded file is not a valid ZIP archive.",
+        "params": {},
+    }
+    assert "exceeding the limit" not in response.text
 
 
 @pytest.mark.usefixtures("session")

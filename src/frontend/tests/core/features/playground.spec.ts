@@ -108,7 +108,7 @@ test(
 
     // create new session (use sidebar new-chat button)
     await page.getByTestId(TID.newChat).click();
-    await expect(page.getByTitle("New Session 0")).toBeVisible();
+    await expect(page.getByTestId(TID.sessionSelector)).toHaveCount(2);
 
     // check rename session
     await page

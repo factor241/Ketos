@@ -21,7 +21,7 @@ GP_USER_ID = os.getenv("GP_ADMIN_USER_ID")
 GP_PASSWORD = os.getenv("GP_ADMIN_PASSWORD")
 GP_INSTANCE = os.getenv("GP_INSTANCE", "ketos-test")
 GP_BUNDLE = os.getenv("GP_BUNDLE", "ketos-ui")
-TARGET_LANGS = ["fr", "ja", "es", "de", "pt", "zh-Hans", "ru"]
+TARGET_LANGS = ["ru"]
 REQUEST_TIMEOUT = 30
 
 

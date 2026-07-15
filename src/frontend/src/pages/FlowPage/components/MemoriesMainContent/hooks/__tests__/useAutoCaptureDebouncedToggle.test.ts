@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import type { MemoryInfo } from "@/controllers/API/queries/memories/types";
+import ru from "@/locales/ru.json";
 import { useAutoCaptureDebouncedToggle } from "../useAutoCaptureDebouncedToggle";
 
 // ---------------------------------------------------------------------------
@@ -211,7 +212,7 @@ describe("useAutoCaptureDebouncedToggle", () => {
       act(() => jest.runAllTimers());
       expect(mockSetErrorData).toHaveBeenCalledWith({
         title: "Failed to update auto-capture",
-        list: ["The request could not be completed. Please try again."],
+        list: [ru["errors.requestFailed"]],
       });
       expect(JSON.stringify(mockSetErrorData.mock.calls)).not.toContain(
         "api error",

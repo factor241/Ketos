@@ -24,11 +24,6 @@ jest.mock("@/controllers/API/queries/auth", () => ({
   useUpdateUser: () => ({ mutate: jest.fn() }),
 }));
 
-jest.mock(
-  "@/customization/components/custom-get-started-progress",
-  () => () => <div data-testid="custom-get-started-progress" />,
-);
-
 jest.mock("@/stores/authStore", () => ({
   __esModule: true,
   default: () => undefined,

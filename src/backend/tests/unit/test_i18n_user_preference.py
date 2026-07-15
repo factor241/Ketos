@@ -32,12 +32,24 @@ def test_user_update_rejects_unsupported_locale() -> None:
         UserUpdate.model_validate({"preferred_locale": "xx-ZZ"})
 
 
+def test_removed_locale_is_no_longer_supported() -> None:
+    assert i18n_utils.normalize_supported_locale("fr-FR") is None
+
+
 def test_user_read_safely_falls_back_for_invalid_stored_preference() -> None:
     user = User(username="legacy-locale-user", password="not-a-real-hash", preferred_locale="xx-ZZ")  # noqa: S106
 
     user_read = UserRead.model_validate(user, from_attributes=True)
 
-    assert user_read.preferred_locale == "en"
+    assert user_read.preferred_locale == "ru"
+
+
+def test_user_read_safely_falls_back_for_removed_stored_preference() -> None:
+    user = User(username="removed-locale-user", password="not-a-real-hash", preferred_locale="de")  # noqa: S106
+
+    user_read = UserRead.model_validate(user, from_attributes=True)
+
+    assert user_read.preferred_locale == "ru"
 
 
 async def test_whoami_exposes_nullable_preference(
@@ -126,7 +138,7 @@ async def test_preferred_locale_null_explicitly_resets_to_default(
     effective_locale = (
         i18n_utils.normalize_supported_locale(whoami.json()["preferred_locale"]) or i18n_utils.DEFAULT_LOCALE
     )
-    assert effective_locale == "en"
+    assert effective_locale == "ru"
 
 
 async def test_regular_user_cannot_change_another_users_preference(
@@ -199,6 +211,20 @@ async def test_api_rejects_unsupported_preference(
     assert response.status_code == 422
 
 
+async def test_api_rejects_removed_preference(
+    client: AsyncClient,
+    active_user,
+    logged_in_headers: dict[str, str],
+) -> None:
+    response = await client.patch(
+        f"api/v1/users/{active_user.id}",
+        json={"preferred_locale": "fr"},
+        headers=logged_in_headers,
+    )
+
+    assert response.status_code == 422
+
+
 async def test_config_exposes_supported_and_default_locales_for_public_and_authenticated_clients(
     client: AsyncClient,
     logged_in_headers: dict[str, str],
@@ -207,8 +233,8 @@ async def test_config_exposes_supported_and_default_locales_for_public_and_authe
     default_locale = getattr(i18n_utils, "DEFAULT_LOCALE", None)
 
     assert supported_locales is not None
-    assert default_locale == "en"
-    assert "ru" in supported_locales
+    assert default_locale == "ru"
+    assert supported_locales == ("en", "ru")
 
     for headers in ({}, logged_in_headers):
         response = await client.get("api/v1/config", headers=headers)

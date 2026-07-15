@@ -8,7 +8,7 @@ const IDENTICAL_ALLOWLIST_PATH = path.resolve(
   __dirname,
   "../../../../scripts/i18n/allowlists/english-identical-values.json",
 );
-const SHIPPED_LOCALES = ["de", "en", "es", "fr", "ja", "pt", "ru", "zh-Hans"];
+const SHIPPED_LOCALES = ["en", "ru"];
 const PLURAL_SUFFIX = /_(zero|one|two|few|many|other)$/;
 const SEMANTIC_KEYS = [
   "assistant.filePreviewUnavailable",

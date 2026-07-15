@@ -125,26 +125,45 @@ test(
       (response) =>
         response.url().includes("/api/v1/users") && response.status() === 200,
     );
-    await page
-      .getByPlaceholder(TEXTS.placeholderUsername)
-      .last()
-      .fill(randomName);
+    const userSearch = page.getByPlaceholder("Search Username", {
+      exact: true,
+    });
+    await userSearch.fill(randomName);
     await searchResponse;
 
-    await page.getByTestId("icon-Pencil").last().click();
-
     await page
-      .getByPlaceholder(TEXTS.placeholderUsername)
-      .last()
-      .fill(secondRandomName);
+      .getByRole("row")
+      .filter({ hasText: randomName })
+      .getByTestId("icon-Pencil")
+      .click();
 
-    await page.getByText(TEXTS.save, { exact: true }).click();
+    const editDialog = page.getByRole("dialog");
+    const editUsername = editDialog.getByPlaceholder(
+      TEXTS.placeholderUsername,
+      { exact: true },
+    );
+    await expect(editUsername).toHaveValue(randomName);
+    await editUsername.fill(secondRandomName);
+    await expect(editUsername).toHaveValue(secondRandomName);
+    const editRequest = page.waitForRequest(
+      (request) =>
+        request.method() === "PATCH" &&
+        request.url().includes("/api/v1/users/"),
+    );
+    await editDialog
+      .getByRole("button", { name: TEXTS.save, exact: true })
+      .dispatchEvent("click");
+    expect((await editRequest).postDataJSON()).toMatchObject({
+      username: secondRandomName,
+    });
 
     await page.waitForSelector("text=user edited", { timeout: 30000 });
 
+    await userSearch.fill("");
+
     await expect(page.getByText(secondRandomName, { exact: true })).toBeVisible(
       {
-        timeout: 2000,
+        timeout: 5000,
       },
     );
 

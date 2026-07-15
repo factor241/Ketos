@@ -39,15 +39,8 @@ GLOB_CHARACTERS = frozenset("*?[]")
 # not currently installed by the workspace lock. These sets are covered by a
 # contract test against the shipped locales' Intl.PluralRules cardinal output.
 INTL_CARDINAL_CATEGORIES: dict[str, frozenset[str]] = {
-    "de": frozenset({"one", "other"}),
     "en": frozenset({"one", "other"}),
-    "es": frozenset({"one", "many", "other"}),
-    "fr": frozenset({"one", "many", "other"}),
-    "ja": frozenset({"other"}),
-    "pt": frozenset({"one", "many", "other"}),
     "ru": frozenset({"one", "few", "many", "other"}),
-    "zh": frozenset({"other"}),
-    "zh-hans": frozenset({"other"}),
 }
 
 

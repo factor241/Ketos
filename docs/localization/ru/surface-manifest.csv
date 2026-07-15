@@ -1,8 +1,8 @@
 kind,route,surface,state,flag,owner,namespace,text_class,test_id,e2e_status,visual_status,reviewer,source
 baseline,n/a,git_head,recorded,always,platform-contracts,governance,protocol,baseline-git-head,verified,n/a,localization-governance,git
 baseline,n/a,git_status_main_origin_main_plus_4_untracked_artifacts,recorded,always,platform-contracts,governance,protocol,baseline-git-status,verified,n/a,localization-governance,git
-baseline,n/a,frontend_locales_7x2068,recorded,always,frontend-localization,translation,system,baseline-frontend-keys,verified,n/a,localization-governance,src/frontend/src/locales
-baseline,n/a,backend_en_6781_targets_6x6761,recorded,always,backend-localization,translation,backend_metadata,baseline-backend-keys,verified,n/a,localization-governance,src/backend/base/ketos/locales
+baseline,n/a,frontend_en_2345_ru_2417,recorded,always,frontend-localization,translation,system,baseline-frontend-keys,verified,n/a,localization-governance,src/frontend/src/locales
+baseline,n/a,backend_en_11507_ru_11507,recorded,always,backend-localization,translation,backend_metadata,baseline-backend-keys,verified,n/a,localization-governance,src/backend/base/ketos/locales
 baseline,n/a,frontend_jest_3_suites_16_tests,pass,always,frontend-localization,translation,system,baseline-frontend-tests,verified,n/a,localization-governance,src/frontend/src/i18n.test.ts
 baseline,n/a,backend_pytest_51_tests,pass,always,backend-localization,translation,backend_metadata,baseline-backend-tests,verified,n/a,localization-governance,scripts/gp/tests
 route,/playground/:id/,standalone_playground,route_entry,always,frontend-localization,playground,system,route-playground,pass_r7_r8_targeted,pass_r7_a11y,ru-linguistic-reviewer,src/frontend/src/routes.tsx
@@ -31,9 +31,6 @@ route,/settings/mcp-client,mcp_client,route_entry,ENABLE_MCP,frontend-localizati
 route,/settings/api-keys,api_keys,route_entry,always,frontend-localization,apiKeys,system,route-settings-api-keys,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/routes.tsx
 route,/settings/shortcuts,shortcuts,route_entry,always,frontend-localization,shortcuts,system,route-settings-shortcuts,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/routes.tsx
 route,/settings/messages,messages,route_entry,always,frontend-localization,messages,system,route-settings-messages,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/routes.tsx
-route,/settings/store,custom_store_settings,route_entry,ENABLE_KETOS_STORE,extension-owner,store,extension,route-settings-store,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/customization/utils/custom-routes-store.tsx
-route,/store,custom_store,route_entry,ENABLE_KETOS_STORE,extension-owner,store,extension,route-store,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/customization/utils/custom-routes-store-pages.tsx
-route,/store/:id/,custom_store_detail,route_entry,ENABLE_KETOS_STORE,extension-owner,store,extension,route-store-detail,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/customization/utils/custom-routes-store-pages.tsx
 route,/account/delete,delete_account,route_entry,always,frontend-localization,account,system,route-account-delete,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/routes.tsx
 route,/admin,admin,route_entry,admin,frontend-localization,admin,system,route-admin,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/routes.tsx
 route,/flow/:id/,flow_editor,route_entry,always,frontend-localization,flow,system,route-flow-editor,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/routes.tsx
@@ -60,7 +57,6 @@ state,*,tooltip_popover,tooltip_popover,interactive_routes,frontend-localization
 state,*,toast_notification,toast_notification,mutating_routes,frontend-localization,alerts,accessibility,state-toast-notification,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,KETOS_RENAME_REMAINING_WORK_PLAN.md
 state,*,mobile_sidebar_collapsed,mobile_sidebar_collapsed,responsive_routes,frontend-localization,navigation,accessibility,state-mobile-sidebar,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,KETOS_RENAME_REMAINING_WORK_PLAN.md
 state,*,maximal_feature_flags,maximal_feature_flags,all_features,frontend-localization,common,system,state-maximal-flags,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,KETOS_RENAME_REMAINING_WORK_PLAN.md
-modal,contextual,EmbedModal,modal_open,ENABLE_WIDGET,frontend-localization,modal.embed,system,modal-embed,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/modals/EmbedModal
 modal,contextual,IOModal,modal_open,always,frontend-localization,modal.io,system,modal-io,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/modals/IOModal
 modal,contextual,addMcpServerModal,modal_open,ENABLE_MCP,frontend-localization,modal.mcp,system,modal-add-mcp-server,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/modals/addMcpServerModal
 modal,contextual,apiModal,modal_open,ENABLE_API,frontend-localization,modal.api,system,modal-api,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/modals/apiModal
@@ -155,7 +151,6 @@ primitive,*,popover,all_states,always,frontend-localization,common,accessibility
 primitive,*,tooltip,all_states,always,frontend-localization,common,accessibility,primitive-tooltip,pending_stage_9,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/components/ui/tooltip.tsx
 feature,*,file_management,enabled_disabled,ENABLE_FILE_MANAGEMENT,frontend-localization,files,system,feature-file-management,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/customization/feature-flags.ts
 feature,*,knowledge_bases,enabled_disabled,ENABLE_KNOWLEDGE_BASES,frontend-localization,knowledge,system,feature-knowledge-bases,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/customization/feature-flags.ts
-feature,*,store,enabled_disabled,ENABLE_KETOS_STORE,extension-owner,store,extension,feature-store,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/customization/feature-flags.ts
 feature,*,custom_parameter,enabled_disabled,ENABLE_CUSTOM_PARAM,frontend-localization,navigation,system,feature-custom-param,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/customization/feature-flags.ts
 feature,*,extension_reload,enabled_disabled,ENABLE_EXTENSION_RELOAD,extension-owner,extensions,extension,feature-extension-reload,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/customization/feature-flags.ts
 feature,*,mcp,enabled_disabled,ENABLE_MCP,frontend-localization,mcp,system,feature-mcp,pending_stage_11,pending_stage_10,ru-linguistic-reviewer,src/frontend/src/customization/feature-flags.ts

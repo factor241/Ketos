@@ -7,7 +7,7 @@ const LanguagePage = () => {
 
   return (
     <div
-      className="flex h-full w-full flex-col gap-6"
+      className="flex h-full min-w-0 w-full flex-col gap-6"
       data-testid="settings-language-page"
     >
       <div className="flex w-full items-start justify-between gap-6">
@@ -28,7 +28,7 @@ const LanguagePage = () => {
         </div>
       </div>
 
-      <div className="grid gap-6 pb-8">
+      <div className="grid min-w-0 gap-6 pb-8">
         <LanguageFormComponent />
       </div>
     </div>

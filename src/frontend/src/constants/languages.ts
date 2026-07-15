@@ -1,6 +1,6 @@
 export const LANGUAGE_STORAGE_KEY = "ketos-language-preference";
 
-export const DEFAULT_LANGUAGE = "en" as const;
+export const DEFAULT_LANGUAGE = "ru" as const;
 
 type TranslationCatalog = Record<string, string>;
 
@@ -28,60 +28,6 @@ const SHIPPED_LANGUAGES = [
     locale: "en-US",
     dir: "ltr",
     loader: makeLocaleLoader("en"),
-    shipped: true,
-    hidden: false,
-  },
-  {
-    code: "fr",
-    label: "Français",
-    locale: "fr-FR",
-    dir: "ltr",
-    loader: makeLocaleLoader("fr"),
-    shipped: true,
-    hidden: false,
-  },
-  {
-    code: "es",
-    label: "Español",
-    locale: "es-ES",
-    dir: "ltr",
-    loader: makeLocaleLoader("es"),
-    shipped: true,
-    hidden: false,
-  },
-  {
-    code: "de",
-    label: "Deutsch",
-    locale: "de-DE",
-    dir: "ltr",
-    loader: makeLocaleLoader("de"),
-    shipped: true,
-    hidden: false,
-  },
-  {
-    code: "pt",
-    label: "Português",
-    locale: "pt-BR",
-    dir: "ltr",
-    loader: makeLocaleLoader("pt"),
-    shipped: true,
-    hidden: false,
-  },
-  {
-    code: "ja",
-    label: "日本語",
-    locale: "ja-JP",
-    dir: "ltr",
-    loader: makeLocaleLoader("ja"),
-    shipped: true,
-    hidden: false,
-  },
-  {
-    code: "zh-Hans",
-    label: "中文",
-    locale: "zh-CN",
-    dir: "ltr",
-    loader: makeLocaleLoader("zh-Hans"),
     shipped: true,
     hidden: false,
   },
@@ -115,29 +61,20 @@ export type SupportedLanguageCode =
   | typeof PSEUDO_LANGUAGE.code;
 
 export type LanguageFeatureFlags = {
-  russianEnabled: boolean;
   pseudoEnabled: boolean;
 };
 
 export function createSupportedLanguages({
-  russianEnabled,
   pseudoEnabled,
 }: LanguageFeatureFlags): readonly SupportedLanguageDefinition[] {
-  const shippedLanguages = russianEnabled
-    ? SHIPPED_LANGUAGES
-    : SHIPPED_LANGUAGES.filter(({ code }) => code !== "ru");
-
   return pseudoEnabled
-    ? [...shippedLanguages, PSEUDO_LANGUAGE]
-    : shippedLanguages;
+    ? [...SHIPPED_LANGUAGES, PSEUDO_LANGUAGE]
+    : SHIPPED_LANGUAGES;
 }
 
-export const RUSSIAN_LOCALE_ENABLED =
-  import.meta.env.VITE_ENABLE_RUSSIAN_LOCALE !== "false";
 export const PSEUDO_LOCALE_ENABLED = import.meta.env.MODE !== "production";
 
 export const SUPPORTED_LANGUAGES = createSupportedLanguages({
-  russianEnabled: RUSSIAN_LOCALE_ENABLED,
   pseudoEnabled: PSEUDO_LOCALE_ENABLED,
 });
 
@@ -158,12 +95,6 @@ function createLanguageAliases(
   for (const language of languages) {
     aliases.set(language.code.toLowerCase(), language.code);
     aliases.set(language.locale.toLowerCase(), language.code);
-  }
-
-  if (languages.some(({ code }) => code === "zh-Hans")) {
-    for (const alias of ["zh-cn", "zh-sg", "zh-hans"]) {
-      aliases.set(alias, "zh-Hans");
-    }
   }
 
   return aliases;

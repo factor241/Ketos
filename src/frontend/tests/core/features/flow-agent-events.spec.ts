@@ -35,9 +35,10 @@ test.describe("Flow Agent Events", () => {
       }, flowId);
 
       // Wait for the agent banner to appear (text updates to latest event summary)
-      await expect(page.getByText("Agent: Added OpenAI Model")).toBeVisible({
-        timeout: 15000,
-      });
+      const agentChangesBanner = page.getByText(
+        "Agent changes: Added OpenAI Model",
+      );
+      await expect(agentChangesBanner).toBeVisible({ timeout: 15000 });
 
       // Post a flow_settled event
       await page.evaluate(async (fid: string) => {
@@ -52,7 +53,7 @@ test.describe("Flow Agent Events", () => {
       }, flowId);
 
       // Wait for the banner to disappear
-      await expect(page.getByText("Agent: Added OpenAI Model")).toBeHidden({
+      await expect(agentChangesBanner).toBeHidden({
         timeout: 15000,
       });
     },

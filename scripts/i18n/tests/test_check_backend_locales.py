@@ -22,7 +22,7 @@ def _valid_baseline() -> dict:
         "reason": "Reviewed test debt.",
         "owner": "backend-localization",
         "review_date": "2026-07-11",
-        "required_locales": ["en", "de"],
+        "required_locales": ["en", "ru"],
         "absent_locales": [],
         "shared_debt": {"locales": [], "missing": [], "extra": []},
         "locale_debt": {},
@@ -65,7 +65,7 @@ def test_exact_reviewed_debt_passes_but_stale_or_new_debt_fails() -> None:
     reviewed = checker.audit_catalog(
         source,
         {"a": "A"},
-        locale="de",
+        locale="ru",
         baseline={"missing": ["b"], "extra": []},
     )
     assert reviewed.ok
@@ -74,7 +74,7 @@ def test_exact_reviewed_debt_passes_but_stale_or_new_debt_fails() -> None:
     stale = checker.audit_catalog(
         source,
         {"a": "A", "b": "B"},
-        locale="de",
+        locale="ru",
         baseline={"missing": ["b"], "extra": []},
     )
     assert stale.stale_baseline_missing == {"b"}
@@ -83,7 +83,7 @@ def test_exact_reviewed_debt_passes_but_stale_or_new_debt_fails() -> None:
     new_debt = checker.audit_catalog(
         {**source, "c": "C"},
         {"a": "A"},
-        locale="de",
+        locale="ru",
         baseline={"missing": ["b"], "extra": []},
     )
     assert new_debt.unapproved_missing == {"c"}
@@ -114,10 +114,10 @@ def test_runtime_source_index_must_match_english_catalog() -> None:
 
 
 def test_absent_required_locale_is_only_allowed_by_exact_baseline() -> None:
-    assert checker.audit_absent_locales({"en", "de"}, {"ru"}, {"ru"}).ok
+    assert checker.audit_absent_locales({"en"}, {"en", "ru"}, {"ru"}).ok
 
-    new_absence = checker.audit_absent_locales({"en"}, {"de", "ru"}, {"ru"})
-    assert new_absence.unapproved_absent == {"de"}
+    new_absence = checker.audit_absent_locales({"en"}, {"en", "ru"}, set())
+    assert new_absence.unapproved_absent == {"ru"}
     assert not new_absence.ok
 
     stale = checker.audit_absent_locales({"en", "ru"}, {"ru"}, {"ru"})
@@ -138,22 +138,12 @@ def test_absent_required_locale_is_only_allowed_by_exact_baseline() -> None:
             },
         ),
         (
-            "es",
-            {
-                "items_one": "{{count}} elemento",
-                "items_many": "{{count}} elementos",
-                "items_other": "{{count}} elementos",
-            },
-        ),
-        (
-            "pt",
+            "en",
             {
                 "items_one": "{{count}} item",
-                "items_many": "{{count}} itens",
-                "items_other": "{{count}} itens",
+                "items_other": "{{count}} items",
             },
         ),
-        ("ja", {"items_other": "{{count}} 件"}),
     ],
 )
 def test_complete_locale_specific_plural_group_passes_combined_audit(locale: str, target: dict[str, str]) -> None:
@@ -172,13 +162,15 @@ def test_complete_locale_specific_plural_group_passes_combined_audit(locale: str
     ("locale", "expected"),
     [
         ("ru", {"one", "few", "many", "other"}),
-        ("es", {"one", "many", "other"}),
-        ("pt", {"one", "many", "other"}),
-        ("ja", {"other"}),
+        ("en", {"one", "other"}),
     ],
 )
 def test_plural_categories_match_shipped_locale_cldr(locale: str, expected: set[str]) -> None:
     assert checker.plural_categories(locale) == expected
+
+
+def test_plural_category_registry_only_contains_shipped_locales() -> None:
+    assert set(checker.INTL_CARDINAL_CATEGORIES) == {"en", "ru"}
 
 
 def test_interpolation_parity_rejects_missing_closing_braces() -> None:
@@ -223,7 +215,7 @@ def test_baseline_rejects_non_exact_top_level_schema(tmp_path: Path, override: d
 def test_baseline_rejects_broad_or_duplicate_debt_identity(tmp_path: Path) -> None:
     baseline = _valid_baseline()
     baseline["shared_debt"] = {
-        "locales": ["de"],
+        "locales": ["ru"],
         "missing": ["components.*", "components.*"],
         "extra": [],
     }
@@ -238,7 +230,7 @@ def test_unvisited_locale_debt_is_reported_as_stale(tmp_path: Path) -> None:
     locales_dir = tmp_path / "locales"
     locales_dir.mkdir()
     (locales_dir / "en.json").write_text('{"key":"English"}', encoding="utf-8")
-    (locales_dir / "de.json").write_text('{"key":"Deutsch"}', encoding="utf-8")
+    (locales_dir / "ru.json").write_text('{"key":"Русский"}', encoding="utf-8")
     baseline = _valid_baseline()
     baseline["locale_debt"] = {"ghost": {"missing": ["old.key"], "extra": []}}
     baseline_path = tmp_path / "baseline.json"
@@ -275,8 +267,15 @@ def test_run_check_rejects_invalid_source_english_plural_contract(
     locales_dir = tmp_path / "locales"
     locales_dir.mkdir()
     (locales_dir / "en.json").write_text(json.dumps(source), encoding="utf-8")
-    (locales_dir / "de.json").write_text(
-        json.dumps({"items_one": "eins", "items_other": "andere"}),
+    (locales_dir / "ru.json").write_text(
+        json.dumps(
+            {
+                "items_one": "один",
+                "items_few": "несколько",
+                "items_many": "много",
+                "items_other": "другое",
+            }
+        ),
         encoding="utf-8",
     )
     baseline_path = tmp_path / "baseline.json"

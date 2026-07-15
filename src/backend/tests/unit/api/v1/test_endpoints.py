@@ -462,7 +462,8 @@ async def test_get_config_returns_500_on_settings_error(client: AsyncClient, mon
     result = response.json()
 
     assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-    assert error_message in result["detail"]
+    assert result["detail"] == "Internal server error."
+    assert error_message not in response.text
 
 
 async def test_get_config_authenticated_returns_full_config(client: AsyncClient, logged_in_headers: dict):

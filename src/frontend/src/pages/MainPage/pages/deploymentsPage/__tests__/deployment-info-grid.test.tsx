@@ -95,8 +95,8 @@ describe("DeploymentInfoGrid", () => {
     it("formats ISO date strings to a localized date", () => {
       const iso = "2025-05-15T12:00:00Z";
       renderGrid(makeDeployment({ created_at: iso }));
-      // formatDate uses toLocaleDateString({ year: "numeric", month: "short", day: "numeric" })
-      const expected = new Date(iso).toLocaleDateString(undefined, {
+      // formatDate uses the active UI locale.
+      const expected = new Date(iso).toLocaleDateString("ru-RU", {
         year: "numeric",
         month: "short",
         day: "numeric",

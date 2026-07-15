@@ -1,6 +1,7 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import ru from "@/locales/ru.json";
 import type {
   Deployment,
   ProviderAccount,
@@ -676,7 +677,7 @@ describe("DeployChoiceDialog — review phase", () => {
 
     await waitFor(() =>
       expect(mockShowError).toHaveBeenCalledWith(
-        "Failed to update deployment",
+        ru["deployments.failedToUpdateDeployment"],
         expect.any(Error),
       ),
     );

@@ -1,11 +1,26 @@
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import SessionView from "../session-view";
 
 const setMessages = jest.fn();
+let mockCachedMessages: unknown[] = [];
+let mockPlaygroundPage = false;
+const mockQueryClient = {
+  getQueriesData: () => [
+    [
+      [
+        "useGetMessagesQuery",
+        { id: "persisted-source-flow", session_id: "session-1" },
+      ],
+      mockCachedMessages,
+    ],
+  ],
+  getQueryCache: () => ({ subscribe: () => jest.fn() }),
+};
 
 jest.mock("@tanstack/react-query", () => ({
   useIsFetching: () => 0,
+  useQueryClient: () => mockQueryClient,
 }));
 
 jest.mock("react-i18next", () => ({
@@ -97,7 +112,7 @@ jest.mock("@/controllers/API/queries/messages", () => ({
 jest.mock("@/stores/flowStore", () => ({
   __esModule: true,
   default: (selector: (state: { playgroundPage: boolean }) => unknown) =>
-    selector({ playgroundPage: false }),
+    selector({ playgroundPage: mockPlaygroundPage }),
 }));
 
 jest.mock("@/stores/alertStore", () => ({
@@ -120,7 +135,18 @@ jest.mock(
   "@/components/core/parameterRenderComponent/components/tableComponent",
   () => ({
     __esModule: true,
-    default: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+    default: ({
+      children,
+      rowData,
+    }: {
+      children?: ReactNode;
+      rowData?: unknown[];
+    }) => (
+      <div data-testid="session-rows">
+        {children}
+        {JSON.stringify(rowData)}
+      </div>
+    ),
   }),
 );
 
@@ -130,7 +156,11 @@ jest.mock("@/utils/utils", () => ({
 }));
 
 describe("SessionView message normalization", () => {
-  beforeEach(() => setMessages.mockClear());
+  beforeEach(() => {
+    setMessages.mockClear();
+    mockCachedMessages = [];
+    mockPlaygroundPage = false;
+  });
 
   it("accepts MessageRead colors nested under properties", async () => {
     render(<SessionView id="flow-1" session="session-1" />);
@@ -181,6 +211,28 @@ describe("SessionView message normalization", () => {
           }),
         ]),
       ),
+    );
+  });
+
+  it("reads playground session logs from the session-specific query cache", () => {
+    mockCachedMessages = [
+      {
+        flow_id: "persisted-source-flow",
+        text: "cached playground message",
+        sender: "Machine",
+        sender_name: "AI",
+        session_id: "session-1",
+        timestamp: "2026-07-12T00:00:00Z",
+        files: [],
+        id: "message-cached",
+        edit: false,
+      },
+    ];
+
+    render(<SessionView id="flow-1" session="session-1" preferSessionCache />);
+
+    expect(screen.getByTestId("session-rows")).toHaveTextContent(
+      "cached playground message",
     );
   });
 });

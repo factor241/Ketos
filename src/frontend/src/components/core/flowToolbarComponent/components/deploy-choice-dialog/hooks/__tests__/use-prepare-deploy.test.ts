@@ -1,4 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
+import ru from "@/locales/ru.json";
 import type {
   DeploymentProvider,
   ProviderAccount,
@@ -297,7 +298,7 @@ describe("usePrepareDeploy — handleDeploy: error handling", () => {
     });
 
     expect(mockShowError).toHaveBeenCalledWith(
-      "Failed to prepare deployment",
+      ru["deployments.failedToPrepareDeployment"],
       expect.any(Error),
     );
   });
@@ -311,7 +312,7 @@ describe("usePrepareDeploy — handleDeploy: error handling", () => {
     });
 
     expect(mockShowError).toHaveBeenCalledWith(
-      "Failed to prepare deployment",
+      ru["deployments.failedToPrepareDeployment"],
       expect.any(Error),
     );
   });
@@ -466,7 +467,7 @@ describe("usePrepareDeploy — handleUpdateComplete", () => {
     });
 
     expect(mockSetSuccessData).toHaveBeenCalledWith({
-      title: '"Sales Bot" has been updated.',
+      title: ru["deployments.updatedDesc"].replace("{{name}}", "Sales Bot"),
     });
   });
 });

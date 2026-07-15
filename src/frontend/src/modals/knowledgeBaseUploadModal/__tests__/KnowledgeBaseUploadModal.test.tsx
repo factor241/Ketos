@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { BrowserRouter } from "react-router-dom";
+import ru from "@/locales/ru.json";
 
 // ── Mocks (must precede component imports) ──────────────────────────────────
 
@@ -189,7 +190,7 @@ describe("KnowledgeBaseUploadModal", () => {
       render(<KnowledgeBaseUploadModal open={true} setOpen={jest.fn()} />, {
         wrapper: createWrapper(),
       });
-      expect(screen.getByText("Create Knowledge Base")).toBeInTheDocument();
+      expect(screen.getByText(ru["knowledge.createTitle"])).toBeInTheDocument();
     });
 
     it("does not render modal content when closed", () => {
@@ -197,7 +198,7 @@ describe("KnowledgeBaseUploadModal", () => {
         wrapper: createWrapper(),
       });
       expect(
-        screen.queryByText("Create Knowledge Base"),
+        screen.queryByText(ru["knowledge.createTitle"]),
       ).not.toBeInTheDocument();
     });
 
@@ -755,7 +756,7 @@ describe("KnowledgeBaseUploadModal", () => {
         wrapper: createWrapper(),
       });
       await navigateToStep2(user);
-      expect(screen.getByText("Review & Build")).toBeInTheDocument();
+      expect(screen.getByText(ru["knowledge.reviewTitle"])).toBeInTheDocument();
     });
 
     it('shows "No files selected" message in review when no files were uploaded', async () => {
@@ -785,8 +786,10 @@ describe("KnowledgeBaseUploadModal", () => {
       });
       await navigateToStep2(user);
       await user.click(screen.getByRole("button", { name: /Back/i }));
-      expect(screen.getByText("Create Knowledge Base")).toBeInTheDocument();
-      expect(screen.queryByText("Review & Build")).not.toBeInTheDocument();
+      expect(screen.getByText(ru["knowledge.createTitle"])).toBeInTheDocument();
+      expect(
+        screen.queryByText(ru["knowledge.reviewTitle"]),
+      ).not.toBeInTheDocument();
     });
 
     it("calls the chunk preview API when entering review step with uploaded files", async () => {

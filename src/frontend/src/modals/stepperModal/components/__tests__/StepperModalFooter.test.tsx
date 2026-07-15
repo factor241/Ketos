@@ -54,9 +54,15 @@ describe("StepperModalFooter", () => {
 
     it("fires onNext when Next Step is clicked", async () => {
       const onNext = jest.fn();
-      const user = userEvent.setup();
-      render(<StepperModalFooter {...baseProps} onNext={onNext} />);
-      await user.click(screen.getByRole("button", { name: /Next Step/i }));
+      const user = userEvent.setup({ delay: null });
+      render(
+        <StepperModalFooter
+          {...baseProps}
+          onNext={onNext}
+          nextLabel="Continue"
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: "Continue" }));
       expect(onNext).toHaveBeenCalledTimes(1);
     });
 

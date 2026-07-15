@@ -3,7 +3,7 @@ import { formatDate, formatTimestamp } from "../helpers";
 
 describe("Memories helpers", () => {
   it("returns fallback values for empty dates", () => {
-    expect(formatDate()).toBe("Never");
+    expect(formatDate()).toBe("Никогда");
     expect(formatTimestamp()).toBe("-");
   });
 

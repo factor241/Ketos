@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { GRADIENT_CLASS } from "@/constants/constants";
 import { customGetHostProtocol } from "@/customization/utils/custom-get-host-protocol";
 import { getCurlWebhookCode } from "@/modals/apiModal/utils/get-curl-code";
@@ -75,6 +76,7 @@ export default function TextAreaComponent({
   nodeInformationMetadata,
   showParameter = true,
 }: InputProps<string, TextAreaComponentType>): JSX.Element | null {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -230,7 +232,7 @@ export default function TextAreaComponent({
           type="button"
           onClick={() => changeWebhookFormat("multiline")}
           className="relative w-full border-0 bg-transparent p-0"
-          aria-label="Use multiline input"
+          aria-label={t("input.useMultiline")}
         >
           {renderIcon()}
         </button>
@@ -242,7 +244,9 @@ export default function TextAreaComponent({
             setPasswordVisible(!passwordVisible);
           }}
           className="border-0 bg-transparent p-0"
-          aria-label={passwordVisible ? "Hide password" : "Show password"}
+          aria-label={
+            passwordVisible ? t("input.hidePassword") : t("input.showPassword")
+          }
         >
           <IconComponent
             name={passwordVisible ? "eye" : "eye-off"}

@@ -175,7 +175,7 @@ async def test_note_translations_returns_translated_text_for_baked_node(
         "_translations",
         {
             "en": {"template_notes.simple_agent.0": "Hello"},
-            "fr": {"template_notes.simple_agent.0": "Bonjour"},
+            "ru": {"template_notes.simple_agent.0": "Привет"},
         },
     )
 
@@ -193,11 +193,11 @@ async def test_note_translations_returns_translated_text_for_baked_node(
 
     resp = await client.get(
         f"api/v1/flows/{flow_id}/note_translations",
-        headers={**logged_in_headers, "Accept-Language": "fr"},
+        headers={**logged_in_headers, "Accept-Language": "ru"},
     )
     assert resp.status_code == status.HTTP_200_OK
     translations = resp.json()
-    assert "Bonjour" in translations.values()
+    assert "Привет" in translations.values()
 
 
 async def test_note_translations_returns_404_for_missing_flow(client: AsyncClient, logged_in_headers):

@@ -1,6 +1,5 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { SUPPORTED_LANGUAGES } from "@/constants/languages";
 
 const mockChangeLanguage = jest.fn<Promise<void>, [string]>();
 
@@ -12,7 +11,7 @@ jest.mock("react-i18next", () => ({
 
 jest.mock("@/hooks/use-language-preference", () => ({
   useLanguagePreference: () => ({
-    language: "en",
+    language: "ru",
     changeLanguage: mockChangeLanguage,
   }),
 }));
@@ -30,8 +29,13 @@ jest.mock("@/components/ui/select", () => ({
     const items = Array.isArray(children) ? children : [children];
     const trigger = items[0] as React.ReactElement<{
       "aria-label"?: string;
+      className?: string;
+      children?: React.ReactNode;
       "data-testid"?: string;
     }>;
+    const valueWrapper = trigger.props.children as
+      | React.ReactElement<{ className?: string }>
+      | undefined;
     const content = items[1] as React.ReactElement<{
       children?: React.ReactNode;
     }>;
@@ -39,6 +43,8 @@ jest.mock("@/components/ui/select", () => ({
       <select
         value={value}
         aria-label={trigger.props["aria-label"]}
+        className={trigger.props.className}
+        data-value-wrapper-class={valueWrapper?.props.className}
         data-testid={trigger.props["data-testid"]}
         onChange={(event) => onValueChange?.(event.target.value)}
       >
@@ -58,8 +64,11 @@ jest.mock("@/components/ui/select", () => ({
 }));
 
 jest.mock("@/components/ui/card", () => ({
-  Card: ({ children }: React.PropsWithChildren) => (
-    <section>{children}</section>
+  Card: ({
+    children,
+    className,
+  }: React.PropsWithChildren<{ className?: string }>) => (
+    <section className={className}>{children}</section>
   ),
   CardContent: ({ children }: React.PropsWithChildren) => <div>{children}</div>,
 }));
@@ -80,36 +89,25 @@ describe("LanguageFormComponent", () => {
     mockChangeLanguage.mockResolvedValue(undefined);
   });
 
-  it("renders native self-names for every visible language, including Russian", () => {
+  it("renders exactly English and Russian interface options", () => {
     render(<LanguageFormComponent />);
 
-    const visibleLanguages = SUPPORTED_LANGUAGES.filter(
-      (language) => language.shipped && !language.hidden,
-    );
     const options = screen.getByRole("combobox").querySelectorAll("option");
-    expect(options).toHaveLength(visibleLanguages.length);
+    expect(options).toHaveLength(2);
 
-    for (const language of visibleLanguages) {
-      expect(
-        screen.getByRole("option", { name: new RegExp(language.label) }),
-      ).toBeInTheDocument();
-    }
+    expect(screen.getByRole("option", { name: /English/ })).toHaveValue("en");
     expect(screen.getByRole("option", { name: /Русский/ })).toHaveValue("ru");
   });
 
-  it("marks only English as recommended", () => {
+  it("marks only Russian as recommended", () => {
     render(<LanguageFormComponent />);
 
-    expect(screen.getByRole("option", { name: /English/ })).toHaveTextContent(
+    expect(screen.getByRole("option", { name: /Русский/ })).toHaveTextContent(
       "settings.languageRecommended",
     );
-    for (const language of SUPPORTED_LANGUAGES.filter(
-      ({ code, hidden, shipped }) => code !== "en" && shipped && !hidden,
-    )) {
-      expect(
-        screen.getByRole("option", { name: new RegExp(language.label) }),
-      ).not.toHaveTextContent("settings.languageRecommended");
-    }
+    expect(
+      screen.getByRole("option", { name: /English/ }),
+    ).not.toHaveTextContent("settings.languageRecommended");
   });
 
   it("exposes a stable selector test id and translated accessible name", () => {
@@ -121,6 +119,27 @@ describe("LanguageFormComponent", () => {
     );
   });
 
+  it("allows the card and selector to shrink and wrap at narrow responsive widths", () => {
+    render(<LanguageFormComponent />);
+
+    const selector = screen.getByTestId("language-preference-select");
+    expect(selector.closest("section")).toHaveClass("min-w-0");
+    expect(selector).toHaveClass(
+      "h-auto",
+      "min-w-0",
+      "w-full",
+      "whitespace-normal",
+    );
+    expect(selector).toHaveAttribute(
+      "data-value-wrapper-class",
+      expect.stringContaining("min-w-0"),
+    );
+    expect(selector).toHaveAttribute(
+      "data-value-wrapper-class",
+      expect.stringContaining("break-words"),
+    );
+  });
+
   it("applies a selection without reloading and announces the saved state", async () => {
     const user = userEvent.setup();
     const transition = deferred<void>();
@@ -128,9 +147,9 @@ describe("LanguageFormComponent", () => {
     const locationBeforeSelection = window.location.href;
     render(<LanguageFormComponent />);
 
-    await user.selectOptions(screen.getByRole("combobox"), "ru");
+    await user.selectOptions(screen.getByRole("combobox"), "en");
 
-    expect(mockChangeLanguage).toHaveBeenCalledWith("ru");
+    expect(mockChangeLanguage).toHaveBeenCalledWith("en");
     expect(screen.getByRole("status")).toHaveTextContent("loading.loading");
     expect(window.location.href).toBe(locationBeforeSelection);
 
@@ -145,7 +164,7 @@ describe("LanguageFormComponent", () => {
     mockChangeLanguage.mockRejectedValueOnce(new Error("load failed"));
     render(<LanguageFormComponent />);
 
-    await user.selectOptions(screen.getByRole("combobox"), "ru");
+    await user.selectOptions(screen.getByRole("combobox"), "en");
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "errors.saveChanges",

@@ -88,6 +88,22 @@ class TestDownloadFrontend:
         assert (output / "ru.json").exists()
         assert not (output / "fr.json").exists()
 
+    def test_default_command_path_downloads_only_production_target(self, tmp_path):
+        source = tmp_path / "en.json"
+        source.write_text(json.dumps({"hello": "Hello", "bye": "Bye"}), encoding="utf-8")
+        output = tmp_path / "locales"
+        called_langs = []
+
+        def _get_strings(lang):
+            called_langs.append(lang)
+            return FRONTEND_SAMPLE_RESPONSE
+
+        with patch.object(dl_mod, "get_strings", side_effect=_get_strings):
+            _run_with_source("frontend", str(output), str(source))
+
+        assert called_langs == ["ru"]
+        assert {path.name for path in output.glob("*.json")} == {"ru.json"}
+
     def test_credentials_are_not_written_to_catalog_or_logs(self, tmp_path, capsys):
         sentinel = "gp-value-sentinel-12345"
         source = tmp_path / "en.json"
@@ -304,9 +320,9 @@ class TestDownloadBackend:
         source = tmp_path / "en.json"
         source.write_text(json.dumps({"components.ChatInput.display_name": "Chat Input"}), encoding="utf-8")
         with patch.object(dl_mod, "get_backend_strings", return_value=flat_response):
-            _run_with_source("backend", str(tmp_path), str(source), lang="de")
+            _run_with_source("backend", str(tmp_path), str(source), lang="ru")
 
-        data = json.loads((tmp_path / "de.json").read_text(encoding="utf-8"))
+        data = json.loads((tmp_path / "ru.json").read_text(encoding="utf-8"))
         assert data == {"components.ChatInput.display_name": "Eingabe"}
 
     def test_attempts_all_target_languages(self, tmp_path):

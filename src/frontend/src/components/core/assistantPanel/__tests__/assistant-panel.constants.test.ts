@@ -4,6 +4,7 @@ import {
   ASSISTANT_SESSION_STORAGE_KEY_PREFIX,
   ASSISTANT_TITLE,
   getAssistantPlaceholder,
+  getAssistantPlaceholders,
 } from "../assistant-panel.constants";
 
 describe("assistant-panel.constants", () => {
@@ -50,10 +51,10 @@ describe("assistant-panel.constants", () => {
       expect(result.length).toBeGreaterThan(0);
     });
 
-    it("should return a value from the ASSISTANT_PLACEHOLDERS array", () => {
+    it("should return a value from the active locale placeholder pool", () => {
       const result = getAssistantPlaceholder();
 
-      expect(ASSISTANT_PLACEHOLDERS).toContain(result);
+      expect(getAssistantPlaceholders()).toContain(result);
     });
 
     it("should be callable multiple times without error", () => {
@@ -62,7 +63,7 @@ describe("assistant-panel.constants", () => {
       );
 
       for (const result of results) {
-        expect(ASSISTANT_PLACEHOLDERS).toContain(result);
+        expect(getAssistantPlaceholders()).toContain(result);
       }
     });
 

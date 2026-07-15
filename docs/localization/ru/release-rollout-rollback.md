@@ -6,7 +6,7 @@
 
 - Release строится только из зафиксированного commit SHA и `package-lock.json` через `npm ci`.
 - Production package identity — `ketos-base`, component SDK identity — `KFX`; runtime paths и команды используют только current Ketos/KFX names.
-- В артефактах обязательны backend-файл `ketos/locales/ru.json` и content-addressed frontend chunk `ketos/frontend/assets/ru-<hash>.js`.
+- В артефактах обязательны backend raw catalog `ketos/locales/ru.json` и compiled frontend chunk `ketos/frontend/assets/ru-<hash>.js`.
 - Формат имени RU chunk: `ru-[A-Za-z0-9_\-]{8,}\.js`.
 - System-owned `missing-key = 0`, `fallback = 0`, `failed-loading = 0` — жёсткие release gates, а не допустимые бюджеты ошибок.
 - Откат не изменяет сохранённые предпочтения и не удаляет каталоги: **не изменять `preferred_locale`**, **не удалять `ru.json`**.
@@ -471,105 +471,52 @@ test -s .artifacts/i18n-release/unified-registry-digest.txt
 
 ## 8. Rollback без потери preference и каталогов
 
-### 8.1 Подготовленный locale kill switch
+### 8.1 Предыдущий совместимый digest
 
-Сборочный флаг отката — `VITE_ENABLE_RUSSIAN_LOCALE=false`. Он должен исключать `ru` из активного frontend registry и заставлять сохранённое `ru` нормализоваться в `en`, при этом:
+Единственный rollback-механизм — переключение deployment на **предыдущий совместимый digest** приложения. Его выбирают из release inventory до canary. Он обязан быть совместим с уже применённой схемой БД, поддерживать обязательные локали `en` и `ru` и ранее пройти те же topology, artifact и runtime gates. Во время инцидента rollback artifact не собирают и не публикуют заново.
 
-- значение `preferred_locale='ru'` остаётся в БД;
-- ключи `languagePreference` и user-scoped localStorage не удаляются и не перезаписываются: сохранённая строка `ru` остаётся на диске, а только эффективный runtime-язык нормализуется в `en`, пока флаг выключен; источниками восстановления остаются профиль с `preferred_locale='ru'` и сохранённые localStorage-значения;
-- оба source-каталога остаются в репозитории; rollback artifact содержит backend raw catalog `ketos/locales/ru.json` и compiled frontend chunk `ketos/frontend/assets/ru-<hash>.js` (в standalone frontend — `/usr/share/nginx/html/assets/ru-<hash>.js`), а не второй raw frontend `ru.json`;
-- после повторного включения флага сохранённый preference снова применяет RU.
+Откат не меняет данные пользователя и не чистит locale assets: не выполнять downgrade миграции, не изменять `preferred_locale`, не удалять `ru.json` или hashed RU chunk и не очищать `ketos-language-preference`.
 
-`shipped: false` **недостаточно** как самостоятельный rollback: в исходной модели это скрывает пункт селектора, но без active-registry gate `normalizeLanguage("ru")` продолжит возвращать `ru`.
-
-Rollback candidate строится заранее теми же Dockerfile и тем же commit, но с выключенным флагом:
+Digest принимается только в immutable registry-форме `repository@sha256:<64 hex>`:
 
 ```bash
-export ROLLBACK_FRONTEND_IMAGE="ketos-frontend:ru-disabled-${RELEASE_ID}"
-export ROLLBACK_UNIFIED_IMAGE="ketos-unified:ru-disabled-${RELEASE_ID}"
+cd /Volumes/Projects/ketos_canvas_mod_main
+set -euo pipefail
 
-docker build --pull --rm \
-  --build-arg VITE_ENABLE_RUSSIAN_LOCALE=false \
-  -f docker/frontend/build_and_push_frontend.Dockerfile \
-  -t "${ROLLBACK_FRONTEND_IMAGE}" .
-docker build --pull --rm \
-  --build-arg VITE_ENABLE_RUSSIAN_LOCALE=false \
-  -f docker/build_and_push.Dockerfile \
-  -t "${ROLLBACK_UNIFIED_IMAGE}" .
+: "${PREVIOUS_COMPATIBLE_DIGEST:?set previous compatible registry digest}"
+export PREVIOUS_COMPATIBLE_DIGEST
+uv run python - <<'PY'
+import os
+import re
 
-docker image inspect "${UNIFIED_IMAGE}" --format '{{.Id}}' \
-  | tee .artifacts/i18n-release/rollback-enabled-local-image-id.txt
-docker image inspect "${ROLLBACK_UNIFIED_IMAGE}" --format '{{.Id}}' \
-  | tee .artifacts/i18n-release/rollback-disabled-local-image-id.txt
-```
+digest = os.environ["PREVIOUS_COMPATIBLE_DIGEST"]
+assert re.fullmatch(r".+@sha256:[0-9a-f]{64}", digest), digest
+PY
 
-Откатной image до canary публикуется отдельно. Digest выбирается не по
-позиции в `RepoDigests`, а по точному registry repository:
+printf '%s\n' "${PREVIOUS_COMPATIBLE_DIGEST}" \
+  | tee .artifacts/i18n-release/previous-compatible-registry-digest.txt
+test -s .artifacts/i18n-release/previous-compatible-registry-digest.txt
+docker pull "${PREVIOUS_COMPATIBLE_DIGEST}"
 
-```bash
-: "${CANARY_REGISTRY_REPOSITORY:?set registry repository without tag}"
-ROLLBACK_REGISTRY_REPOSITORY="${CANARY_REGISTRY_REPOSITORY}"
-ROLLBACK_UNIFIED_PUBLISH_IMAGE="${ROLLBACK_REGISTRY_REPOSITORY}:ru-disabled-${RELEASE_ID}"
-docker tag "${ROLLBACK_UNIFIED_IMAGE}" "${ROLLBACK_UNIFIED_PUBLISH_IMAGE}"
-docker push "${ROLLBACK_UNIFIED_PUBLISH_IMAGE}"
-
-export DIGEST_REPOSITORY="${ROLLBACK_REGISTRY_REPOSITORY}"
-docker image inspect "${ROLLBACK_UNIFIED_PUBLISH_IMAGE}" --format '{{json .RepoDigests}}' \
+export EXPECTED_ROLLBACK_DIGEST="${PREVIOUS_COMPATIBLE_DIGEST}"
+docker image inspect "${PREVIOUS_COMPATIBLE_DIGEST}" --format '{{json .RepoDigests}}' \
   | uv run python -c '
 import json, os, sys
-repository = os.environ["DIGEST_REPOSITORY"]
-matches = [item for item in json.load(sys.stdin) if item.startswith(f"{repository}@")]
-assert len(matches) == 1, matches
-print(matches[0])
-' | tee .artifacts/i18n-release/rollback-disabled-registry-digest.txt
-test -s .artifacts/i18n-release/rollback-disabled-registry-digest.txt
+digests = json.load(sys.stdin)
+expected = os.environ["EXPECTED_ROLLBACK_DIGEST"]
+assert expected in digests, (expected, digests)
+'
 ```
 
-В production rollback используется только значение из
-`rollback-disabled-registry-digest.txt`, а не publish tag.
+Release evidence должно ссылаться на `previous-compatible-registry-digest.txt` и на attestation предыдущего релиза. Локальный tag, `.Id` или digest артефакта из другого repository не принимается.
 
-До runtime-репетиции оба disabled image проходят исполняемую проверку
-артефактов. Backend raw catalog остаётся, compiled RU chunk ровно один:
-
-```bash
-assert_disabled_unified_artifacts() {
-  local image="$1"
-  docker run --rm -i --entrypoint python "${image}" - <<'PY'
-import re
-from importlib.resources import files
-
-root = files("ketos")
-assert root.joinpath("locales", "ru.json").is_file()
-assets = root.joinpath("frontend", "assets")
-chunks = [entry for entry in assets.iterdir() if re.fullmatch(r"ru-[A-Za-z0-9_\-]{8,}\.js", entry.name)]
-assert len(chunks) == 1, [entry.name for entry in chunks]
-PY
-}
-
-assert_disabled_standalone_artifacts() {
-  local backend_image="$1"
-  local frontend_image="$2"
-  docker run --rm -i --entrypoint python "${backend_image}" - <<'PY'
-from importlib.resources import files
-root = files("ketos")
-assert root.joinpath("locales", "ru.json").is_file()
-PY
-  docker run --rm --entrypoint sh "${frontend_image}" -c \
-    'chunks=$(find /usr/share/nginx/html/assets -maxdepth 1 -type f -name "ru-*.js"); test "$(printf "%s\n" "$chunks" | sed "/^$/d" | wc -l | tr -d " ")" -eq 1; basename "$chunks" | grep -Eq "^ru-[A-Za-z0-9_-]{8,}\.js$"'
-}
-
-assert_disabled_unified_artifacts "${ROLLBACK_UNIFIED_IMAGE}"
-assert_disabled_standalone_artifacts "${BACKEND_IMAGE}" "${ROLLBACK_FRONTEND_IMAGE}"
-```
-
-До canary нужно доказать для rollback candidate: профиль по-прежнему содержит `ru`, DOM получает `lang="en"`, RU отсутствует в selector, backend raw catalog и compiled frontend RU chunk остаются в artifacts, а возврат к заранее собранному enabled image снова применяет RU без изменения БД. Без этих доказательств флаг не считается отрепетированным rollback.
-
-### 8.2 Исполняемая репетиция enabled → disabled → enabled
+### 8.2 Исполняемая репетиция current → previous-compatible → current
 
 Репетиция ниже использует один named volume для SQLite DB/config на всех трёх
 фазах и один Playwright `storageState` для browser localStorage. Между фазами
-меняется только image; volume не удаляется. `trap` всегда удаляет контейнер и
-volume, но сохраняет JSON evidence вне volume.
+меняется только digest; volume не удаляется. `trap` всегда удаляет контейнер и
+volume, но сохраняет JSON evidence вне volume. Это доказывает совместимость
+предыдущего релиза с текущими данными без мутации preference.
 
 ```bash
 cd /Volumes/Projects/ketos_canvas_mod_main
@@ -617,7 +564,6 @@ start_rollback_rehearsal() {
 rollback_rehearsal_assert() {
   (
     cd /Volumes/Projects/ketos_canvas_mod_main/src/frontend
-    ROLLBACK_BASE_URL="${ROLLBACK_BASE_URL}" \
     ROLLBACK_STATE_PATH="${ROLLBACK_STATE_PATH}" \
     ROLLBACK_EVIDENCE_DIR="${ROLLBACK_EVIDENCE_DIR}" \
     ROLLBACK_PHASE="${ROLLBACK_PHASE}" \
@@ -661,7 +607,7 @@ try {
   }
 
   const currentLang = await page.locator("html").getAttribute("lang");
-  if (phase === "enabled-before" && currentLang !== "ru") {
+  if (phase === "current-before" && currentLang !== "ru") {
     const preferenceWrite = page.waitForResponse(
       (response) =>
         response.request().method() === "PATCH" &&
@@ -686,15 +632,14 @@ try {
     throw new Error(`${phase}: preferred_locale=${profile.preferred_locale}`);
   }
 
-  const uiState = await page.evaluate((profileId) => ({
+  const uiState = await page.evaluate(() => ({
     lang: document.documentElement.lang,
-    globalPreference: localStorage.getItem("languagePreference"),
-    scopedPreference: localStorage.getItem(`languagePreference:${profileId}`),
-  }), profile.id);
-  if (uiState.globalPreference !== "ru" || uiState.scopedPreference !== "ru") {
+    storedPreference: localStorage.getItem("ketos-language-preference"),
+  }));
+  if (uiState.storedPreference !== "ru") {
     throw new Error(`${phase}: raw localStorage preference changed: ${JSON.stringify(uiState)}`);
   }
-  if (phase !== "enabled-before" && preferencePatchRequests.length !== 0) {
+  if (phase !== "current-before" && preferencePatchRequests.length !== 0) {
     throw new Error(`${phase}: unexpected profile mutation ${JSON.stringify(preferencePatchRequests)}`);
   }
 
@@ -710,178 +655,69 @@ NODE
 }
 
 start_rollback_rehearsal "${UNIFIED_IMAGE}"
-ROLLBACK_PHASE="enabled-before" EXPECTED_LANG="ru" EXPECTED_RU_OPTION_COUNT="1" rollback_rehearsal_assert
+ROLLBACK_PHASE="current-before" EXPECTED_LANG="ru" EXPECTED_RU_OPTION_COUNT="1" rollback_rehearsal_assert
 
-start_rollback_rehearsal "${ROLLBACK_UNIFIED_IMAGE}"
-ROLLBACK_PHASE="disabled" EXPECTED_LANG="en" EXPECTED_RU_OPTION_COUNT="0" rollback_rehearsal_assert
+start_rollback_rehearsal "${PREVIOUS_COMPATIBLE_DIGEST}"
+ROLLBACK_PHASE="previous-compatible" EXPECTED_LANG="ru" EXPECTED_RU_OPTION_COUNT="1" rollback_rehearsal_assert
 
 start_rollback_rehearsal "${UNIFIED_IMAGE}"
-ROLLBACK_PHASE="enabled-after" EXPECTED_LANG="ru" EXPECTED_RU_OPTION_COUNT="1" rollback_rehearsal_assert
+ROLLBACK_PHASE="current-after" EXPECTED_LANG="ru" EXPECTED_RU_OPTION_COUNT="1" rollback_rehearsal_assert
 
 uv run python - <<'PY'
 import json
 from pathlib import Path
 
 root = Path(".artifacts/i18n-release/rollback-rehearsal")
-enabled_before = json.loads((root / "enabled-before.json").read_text())
-disabled = json.loads((root / "disabled.json").read_text())
-enabled_after = json.loads((root / "enabled-after.json").read_text())
+current_before = json.loads((root / "current-before.json").read_text())
+previous = json.loads((root / "previous-compatible.json").read_text())
+current_after = json.loads((root / "current-after.json").read_text())
 
-assert enabled_before["profile"]["id"] == disabled["profile"]["id"] == enabled_after["profile"]["id"]
-assert [phase["profile"]["preferred_locale"] for phase in (enabled_before, disabled, enabled_after)] == ["ru", "ru", "ru"]
-assert disabled["uiState"]["lang"] == "en" and disabled["ruOptionCount"] == 0
-assert enabled_after["uiState"]["lang"] == "ru" and enabled_after["ruOptionCount"] == 1
-assert disabled["preferencePatchRequests"] == []
-assert enabled_after["preferencePatchRequests"] == []
+phases = (current_before, previous, current_after)
+assert len({phase["profile"]["id"] for phase in phases}) == 1
+assert [phase["profile"]["preferred_locale"] for phase in phases] == ["ru", "ru", "ru"]
+assert [phase["uiState"]["lang"] for phase in phases] == ["ru", "ru", "ru"]
+assert [phase["uiState"]["storedPreference"] for phase in phases] == ["ru", "ru", "ru"]
+assert previous["preferencePatchRequests"] == []
+assert current_after["preferencePatchRequests"] == []
 PY
 ```
 
-Фаза `enabled-before` единственная выбирает RU и создаёт исходный preference.
-Фазы `disabled` и `enabled-after` не отправляют PATCH: одинаковый профиль остаётся
-`ru`, raw localStorage остаётся `ru`, disabled UI эффективно использует EN без
-RU option, а re-enable возвращает RU без мутации БД.
+Фаза `current-before` единственная при необходимости выбирает RU и создаёт
+исходный preference. Фазы `previous-compatible` и `current-after` не отправляют
+PATCH: один профиль остаётся `ru`, `ketos-language-preference` остаётся `ru`, а
+обе версии показывают RU без мутации БД.
 
-### 8.3 Wheel rollback: enabled → disabled → enabled из чистых venv
+### 8.3 Граница wheel topology
 
-Wheel не считается rollback-ready по одному ZIP listing. CI собирает
-enabled и disabled wheel из одного commit, ставит каждый в отдельный чистый
-venv и повторяет те же profile/DOM/selector/localStorage assertions. Следующий
-блок выполняется в том же shell сразу после раздела 8.2: он проверяет, что
-`rollback_rehearsal_assert` действительно определена.
-
-```bash
-cd /Volumes/Projects/ketos_canvas_mod_main
-set -euo pipefail
-declare -F rollback_rehearsal_assert >/dev/null
-
-ENABLED_WHEEL_DIST=".artifacts/i18n-release/rollback-wheel-enabled-dist"
-DISABLED_WHEEL_DIST=".artifacts/i18n-release/rollback-wheel-disabled-dist"
-ENABLED_WHEEL_VENV=".artifacts/i18n-release/rollback-wheel-enabled-venv"
-DISABLED_WHEEL_VENV=".artifacts/i18n-release/rollback-wheel-disabled-venv"
-rm -rf "${ENABLED_WHEEL_DIST}" "${DISABLED_WHEEL_DIST}" "${ENABLED_WHEEL_VENV}" "${DISABLED_WHEEL_VENV}"
-
-VITE_ENABLE_RUSSIAN_LOCALE=true make build_frontend
-uv build --package ketos-base --wheel --out-dir "${ENABLED_WHEEL_DIST}" --clear
-
-VITE_ENABLE_RUSSIAN_LOCALE=false make build_frontend
-uv build --package ketos-base --wheel --out-dir "${DISABLED_WHEEL_DIST}" --clear
-
-ENABLED_WHEEL="$(find "${ENABLED_WHEEL_DIST}" -maxdepth 1 -type f -name 'ketos_base-*.whl' -print -quit)"
-DISABLED_WHEEL="$(find "${DISABLED_WHEEL_DIST}" -maxdepth 1 -type f -name 'ketos_base-*.whl' -print -quit)"
-test -n "${ENABLED_WHEEL}" && test -n "${DISABLED_WHEEL}"
-
-uv run python - "${ENABLED_WHEEL}" "${DISABLED_WHEEL}" <<'PY'
-import re
-import sys
-import zipfile
-
-for wheel in sys.argv[1:]:
-    with zipfile.ZipFile(wheel) as archive:
-        names = archive.namelist()
-    assert "ketos/locales/ru.json" in names
-    ru_chunks = [name for name in names if re.fullmatch(r"ketos/frontend/assets/ru-[A-Za-z0-9_\-]{8,}\.js", name)]
-    assert len(ru_chunks) == 1, (wheel, ru_chunks)
-PY
-
-uv venv --python 3.12 "${ENABLED_WHEEL_VENV}"
-uv pip install --python "${ENABLED_WHEEL_VENV}/bin/python" "${ENABLED_WHEEL}"
-uv venv --python 3.12 "${DISABLED_WHEEL_VENV}"
-uv pip install --python "${DISABLED_WHEEL_VENV}/bin/python" "${DISABLED_WHEEL}"
-
-WHEEL_ROLLBACK_ROOT="/Volumes/Projects/ketos_canvas_mod_main/.artifacts/i18n-release/rollback-wheel-runtime"
-WHEEL_ROLLBACK_PID=""
-mkdir -p "${WHEEL_ROLLBACK_ROOT}"
-rm -rf "${WHEEL_ROLLBACK_ROOT:?}"/*
-
-wheel_rollback_cleanup() {
-  local status=$?
-  if [[ -n "${WHEEL_ROLLBACK_PID:-}" ]]; then
-    kill "${WHEEL_ROLLBACK_PID}" >/dev/null 2>&1 || true
-    wait "${WHEEL_ROLLBACK_PID}" >/dev/null 2>&1 || true
-  fi
-  return "${status}"
-}
-trap wheel_rollback_cleanup EXIT
-
-start_wheel_rollback() {
-  local executable="$1"
-  wheel_rollback_cleanup
-  KETOS_AUTO_LOGIN=true \
-  KETOS_SUPERUSER=ketos \
-  KETOS_SUPERUSER_PASSWORD=ru-wheel-rehearsal-only-password \
-  KETOS_DATABASE_URL="sqlite:///${WHEEL_ROLLBACK_ROOT}/rollback.db" \
-  KETOS_CONFIG_DIR="${WHEEL_ROLLBACK_ROOT}/config" \
-    "${executable}" run --host 127.0.0.1 --port 7863 \
-    > "${WHEEL_ROLLBACK_ROOT}/server.log" 2>&1 &
-  WHEEL_ROLLBACK_PID=$!
-  for _ in $(seq 1 120); do
-    curl -fsS http://127.0.0.1:7863/health_check >/dev/null && return 0
-    sleep 1
-  done
-  cat "${WHEEL_ROLLBACK_ROOT}/server.log" >&2
-  return 1
-}
-
-ROLLBACK_BASE_URL="http://127.0.0.1:7863"
-ROLLBACK_EVIDENCE_DIR="${WHEEL_ROLLBACK_ROOT}/evidence"
-ROLLBACK_STATE_PATH="${WHEEL_ROLLBACK_ROOT}/browser-state.json"
-mkdir -p "${ROLLBACK_EVIDENCE_DIR}"
-
-start_wheel_rollback "${ENABLED_WHEEL_VENV}/bin/ketos-base"
-ROLLBACK_PHASE="enabled-before" EXPECTED_LANG="ru" EXPECTED_RU_OPTION_COUNT="1" rollback_rehearsal_assert
-
-start_wheel_rollback "${DISABLED_WHEEL_VENV}/bin/ketos-base"
-ROLLBACK_PHASE="disabled" EXPECTED_LANG="en" EXPECTED_RU_OPTION_COUNT="0" rollback_rehearsal_assert
-
-start_wheel_rollback "${ENABLED_WHEEL_VENV}/bin/ketos-base"
-ROLLBACK_PHASE="enabled-after" EXPECTED_LANG="ru" EXPECTED_RU_OPTION_COUNT="1" rollback_rehearsal_assert
-
-wheel_rollback_cleanup
-trap - EXIT
-
-# Восстановить enabled package tree для последующих release gates.
-VITE_ENABLE_RUSSIAN_LOCALE=true make build_frontend
-```
-
-Disabled wheel PASS требует одновременно ZIP artifact proof, запуск из
-`rollback-wheel-disabled-venv`, отсутствие RU в selector и re-enable из
-`rollback-wheel-enabled-venv` на той же БД.
+Wheel installation smoke из раздела 6 остаётся обязательным release gate, но
+wheel не является production rollback-механизмом. Откат выполняется только на
+зафиксированный `PREVIOUS_COMPATIBLE_DIGEST`; пересборка wheel или image во
+время инцидента запрещена.
 
 ### 8.4 Аварийная последовательность
 
 1. Остановить promotion и зафиксировать время/нарушенный порог.
-2. Переключить frontend/unified deployment на заранее проверенный RU-disabled digest. Не пересобирать образ во время инцидента.
-3. Если locale-specific candidate недоступен или проблема шире локализации, вернуть **предыдущий digest** приложения, совместимый с уже применённой схемой БД.
+2. Сверить `PREVIOUS_COMPATIBLE_DIGEST` с release inventory и attestation.
+3. Переключить deployment на **предыдущий совместимый digest**. Не пересобирать image или wheel во время инцидента.
 4. Инвалидировать только HTML/entry manifest и CDN routing metadata. Hashed RU asset не удалять; он безопасно истечёт по TTL.
-5. Не выполнять downgrade миграции, которая удаляет `preferred_locale`; не запускать массовый `UPDATE ... preferred_locale='en'`.
-6. Повторить `/health_check`, proxy header check, EN route smoke и контроль сохранности RU preferences.
+5. Не выполнять downgrade миграции, которая удаляет `preferred_locale`; не запускать массовый `UPDATE ... preferred_locale='en'` и не очищать `ketos-language-preference`.
+6. Повторить `/health_check`, proxy header check, RU/EN route smoke и контроль сохранности RU preferences.
 7. Держать release остановленным до root-cause и нового digest с полным набором gates.
 
 После rollback сравнить количество RU preferences до/после через approved read-only database telemetry; оно не должно уменьшиться из-за процедуры. Повторное включение RU выполняется как новый canary с первой ступени, а не прямым возвратом на 100%.
 
 ## 9. Release evidence и статус
 
-### 9.1 Локальный pre-cutover snapshot 2026-07-12
+### 9.1 Текущий статус evidence
 
-Машиночитаемая запись локальной проверки находится в
-`.artifacts/i18n-release/r11-local/local-rollback-evidence.json` и привязана к
-HEAD `def832f409c01f0acd3937b9317dde03d0273552`, registry source hash, обоим
-catalog hash и локальным enabled/disabled standalone image IDs. Registry test
-доказывает последовательность effective locale `ru -> en -> ru` при
-неизменном raw preference `ru`; существующие standalone smoke artifacts
-отдельно подтверждают enabled-before и disabled фазы и сохранность compiled RU
-chunk в disabled build.
-
-Этот snapshot имеет статус
-`PARTIAL_LOCAL_GREEN_EXTERNAL_BLOCKED`: fresh same-profile enabled-after runtime
-не выполнен, потому что локальный backend перестал отвечать, а Docker API завис
-при попытке повторного запуска. Unit/registry proof не заменяет эту runtime
-фазу, production canary или 100% rollout.
+Исторические доказательства иной rollback-стратегии не принимаются для этого
+контракта. Нужна свежая репетиция `current → previous-compatible → current` с
+точным registry digest, общей БД/browser state и неизменными preference.
 
 Для итогового PASS приложить:
 
 - [ ] commit SHA и clean CI checkout;
-- [ ] local `.Id` для enabled/disabled rehearsal images и post-push registry digests для canary;
+- [ ] local `.Id` текущего rehearsal image, release registry digest и `PREVIOUS_COMPATIBLE_DIGEST`;
 - [ ] frontend/wheel/image artifact listings с backend raw catalog и compiled frontend RU chunk;
 - [ ] stdout общих gates и трёх runtime smoke;
 - [ ] proxy `Content-Language`/`Vary` headers;

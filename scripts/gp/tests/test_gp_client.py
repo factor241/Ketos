@@ -15,8 +15,8 @@ import pytest
 # ---------------------------------------------------------------------------
 
 
-def test_target_languages_include_russian_for_both_bundles():
-    assert gp_client.TARGET_LANGS == ["fr", "ja", "es", "de", "pt", "zh-Hans", "ru"]
+def test_production_target_languages_are_russian_only():
+    assert gp_client.TARGET_LANGS == ["ru"]
 
 
 def test_default_gp_identity_is_canonical_ketos(monkeypatch):

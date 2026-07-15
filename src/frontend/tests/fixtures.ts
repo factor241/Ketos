@@ -15,7 +15,33 @@ const CPU_THROTTLE_RATE = (() => {
 
 // Extend test to log backend errors
 export const test = base.extend({
-  page: async ({ page }, use) => {
+  page: async ({ page }, use, testInfo) => {
+    const usesApplicationLocale = testInfo.file.includes("localization-");
+    const context = page.context();
+    if (!usesApplicationLocale) {
+      // Most legacy E2E assertions use English as their explicit known state.
+      // Localization specs are intentionally excluded so clean-profile coverage
+      // still exercises the Russian default and real preference persistence.
+      await context.addInitScript(() => {
+        const storageKey = "ketos-language-preference";
+        if (localStorage.getItem(storageKey) === null) {
+          localStorage.setItem(storageKey, "en");
+        }
+      });
+      await context.route("**/api/v1/users/whoami", async (route) => {
+        const response = await route.fetch();
+        if (!response.ok()) {
+          await route.fulfill({ response });
+          return;
+        }
+        const profile = (await response.json()) as Record<string, unknown>;
+        await route.fulfill({
+          response,
+          json: { ...profile, preferred_locale: "en" },
+        });
+      });
+    }
+
     if (CPU_THROTTLE_RATE > 0) {
       try {
         const client = await page.context().newCDPSession(page);
@@ -241,7 +267,16 @@ export const test = base.extend({
       }
     });
 
-    await use(page);
+    try {
+      await use(page);
+    } finally {
+      // The locale route can still be servicing a request while a test closes
+      // its page (especially multi-session and popup scenarios). Remove all
+      // context routes without surfacing teardown-only TargetClosed errors.
+      if (!usesApplicationLocale) {
+        await context.unrouteAll({ behavior: "ignoreErrors" });
+      }
+    }
 
     // Check for errors and fail test if not allowed
     if (errors.length > 0) {

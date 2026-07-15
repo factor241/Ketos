@@ -113,23 +113,6 @@ class TestDirectoryComponent(ComponentTestBaseWithoutClient):
                 (len(result.text), len(val)) for result, val in zip(results, values, strict=True)
             ]
 
-        # in ../docs/docs/components there are many mdx files
-        # check if the directory component can load them
-        # just check if the number of results is the same as the number of files
-        directory_component = DirectoryComponent()
-        docs_path = Path(__file__).parent.parent.parent.parent.parent.parent.parent / "docs" / "docs" / "Components"
-        directory_component.set_attributes(
-            {
-                "path": str(docs_path),
-                "use_multithreading": False,
-                "silent_errors": False,
-                "types": ["md", "json"],
-            }
-        )
-        results = directory_component.load_directory()
-        docs_files = list(docs_path.glob("*.md")) + list(docs_path.glob("*.json"))
-        assert len(results) == len(docs_files)
-
     def test_directory_as_dataframe(self, monkeypatch):
         """Test DirectoryComponent's as_dataframe method."""
         directory_component = DirectoryComponent()

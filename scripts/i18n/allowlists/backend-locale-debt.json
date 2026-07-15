@@ -5,14 +5,8 @@
   "owner": "backend-localization",
   "review_date": "2026-07-11",
   "required_locales": [
-    "de",
     "en",
-    "es",
-    "fr",
-    "ja",
-    "pt",
-    "ru",
-    "zh-Hans"
+    "ru"
   ],
   "absent_locales": [],
   "shared_debt": {

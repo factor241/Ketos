@@ -47,7 +47,7 @@
 ## 4. Текущее состояние кодовой базы (результаты анализа)
 
 ### 4.1 Стек
-React 19.2.1, react-router-dom 6, Zustand 4 + TanStack Query 5, Tailwind CSS 3.4 (darkMode: `class`), Radix UI-примитивы в стиле shadcn (`src/frontend/src/components/ui/*`), Vite 7, Jest 30 (unit) + Playwright (e2e), Biome (lint/format), i18next (8 локалей: en, ru, de, ja, fr, es, pt, zh-Hans).
+React 19.2.1, react-router-dom 6, Zustand 4 + TanStack Query 5, Tailwind CSS 3.4 (darkMode: `class`), Radix UI-примитивы в стиле shadcn (`src/frontend/src/components/ui/*`), Vite 7, Jest 30 (unit) + Playwright (e2e), Biome (lint/format), i18next (2 локали (en, ru)).
 
 ### 4.2 Layout и точки монтирования
 - `src/frontend/src/pages/DashboardWrapperPage/index.tsx:9-13` — `h-screen flex-col`: `<AppHeader />` (фикс. высота `h-[48px]`) + `<Outlet/>`. Высоты считаются flexbox'ом, хардкода `calc()` нет.
@@ -95,7 +95,7 @@ React 19.2.1, react-router-dom 6, Zustand 4 + TanStack Query 5, Tailwind CSS 3.4
 - **Spec-файлы с прямыми ссылками:** `auto-login-off.spec.ts`, `user-flow-state-cleanup.spec.ts`, `localization-russian-manifest.spec.ts`, `general-bugs-remove-session-after-logout.spec.ts`, `userSettings.spec.ts`, `notifications.spec.ts`, `mcp-server.spec.ts` (самый тяжёлый), `generalBugs-shard-1.spec.ts`, `generalBugs-shard-13.spec.ts`; косвенно — `modelProviderModal.spec.ts`, `mcp-server-starter-projects.spec.ts`.
 - **Unit:** `AccountMenu/__tests__/account-menu.test.tsx` (мокает `../../HeaderMenu/index`, `../../ThemeButtons/index` относительными путями — перенос файлов ломает моки), `HeaderMenu/__tests__/HeaderMenu.spec.tsx`, `stores/__tests__/darkStore.test.ts`, `ui/__tests__/sidebar.test.tsx`.
 - **Контрактные тесты:** `src/frontend/src/__tests__/task-9-localization-contract.test.ts` — грепает **по путям файлов** `appHeaderComponent/index.tsx`, `AccountMenu/index.tsx`, `ThemeButtons/index.tsx` и по строкам `aria-label={t(…)}`; `task-13-ketos-visual-contract.test.ts:280-297` — требует `KetosBrandMark` среди visual-consumers, включая `appHeaderComponent/index.tsx` (assert на строке 297). Следствие: **файлы `AccountMenu` и `ThemeButtons` не перемещать физически**, либо синхронно править контрактные тесты.
-- **i18n-гейты:** `npm run test:i18n`, `i18n:check-keys` (рассинхрон ключей между 8 локалями = падение CI), `i18n:check:hardcoded` (детектор захардкоженных строк).
+- **i18n-гейты:** `npm run test:i18n`, `i18n:check-keys` (рассинхрон ключей между 2 локалями (en, ru) = падение CI), `i18n:check:hardcoded` (детектор захардкоженных строк).
 
 ## 5. Затрагиваемые файлы и компоненты
 
@@ -114,7 +114,7 @@ React 19.2.1, react-router-dom 6, Zustand 4 + TanStack Query 5, Tailwind CSS 3.4
 | `src/frontend/src/components/core/folderSidebarComponent/components/sideBarFolderButtons/index.tsx` | Добавить карточку в низ сайдбара **вне** условия `ENABLE_FILE_MANAGEMENT` (строка 508) |
 | `src/frontend/src/components/core/appHeaderComponent/index.tsx` | Убрать `CustomAccountMenu` + `Separator` из правой секции на dashboard-маршрутах; сохранить `useTheme()`-подписку (перенести в `DashboardWrapperPage` или `App`); колокольчик остаётся |
 | `src/frontend/src/components/core/appHeaderComponent/components/AccountMenu/index.tsx` | Остаётся (условный рендер только на `/flow/:id` — см. решение Р-1) либо помечается deprecated |
-| `src/frontend/src/locales/{en,ru,de,ja,fr,es,pt,zh-Hans}.json` | Новые ключи `account.workspace`, `account.signOut` (если отличен от `account.logout`) и пр. — синхронно во всех 8 |
+| `src/frontend/src/locales/{en,ru}.json` | Новые ключи `account.workspace`, `account.signOut` (если отличен от `account.logout`) и пр. — синхронно в 2 локалях (en, ru) |
 | `src/frontend/tests/utils/constants/testIds.ts` | Новые константы testid карточки (старые значения сохраняются) |
 | `src/frontend/tests/utils/add-new-user-and-loggin.ts`, `tests/utils/go-to-settings.ts` | Актуализация локаторов (если DOM-контекст изменился) |
 | `src/frontend/src/__tests__/task-9-localization-contract.test.ts` | Только если меняются проверяемые файлы/aria-label |
@@ -134,7 +134,7 @@ React 19.2.1, react-router-dom 6, Zustand 4 + TanStack Query 5, Tailwind CSS 3.4
 - **Р-7 (состояния):** closed / hover (`hover:bg-muted`, курсор pointer) / active-press (`active:` или `data-[state=open]`) / open (шеврон `ChevronUp`, карточка `data-[state=open]:bg-muted`); пункты меню — стандартные hover/focus стили `DropdownMenuItem` (клавиатурная навигация Radix бесплатно). Направление шеврона — по референсам: закрыто → вниз, открыто → вверх. `CanvasControlsDropdown.tsx:113-117` цитируется **только** как образец техники динамической смены иконки по `open`-состоянию; направление там обратное (`isOpen ? "ChevronDown" : "ChevronUp"`) и копироваться не должно.
 - **Р-8 (условная логика — переносится 1:1):** Admin page: `isAdmin && !autoLogin`; Sign out: `!autoLogin && !hideLogoutButton`; Docs: `ENABLE_DATASTAX_KETOS ? DATASTAX_DOCS_URL : DOCS_URL`; версия: `stripReleaseStageFromVersion`. Карточка размещается **вне** `ENABLE_FILE_MANAGEMENT`.
 - **Р-9 (адаптивность):** сайдбар уже offcanvas при ширине <1024px (`useIsMobile({maxWidth:1024})`), открывается `SidebarTrigger`-ом — карточка едет вместе с сайдбаром и остаётся доступной после его открытия. Это принимаемое изменение UX на узких экранах (меню аккаунта — за один тап по триггеру сайдбара); фиксируется в проверочных сценариях. Дополнительных брейкпоинтов не вводим.
-- **Р-10 (i18n):** все новые строки — через `t()`; новые ключи добавляются синхронно во все 8 локалей; повторно используем существующие `account.*` ключи (`account.settings`, `account.docs`, `account.theme`, `account.logout`, `account.version`, `account.latest`, `account.updateAvailable`, `theme.light/dark/system`).
+- **Р-10 (i18n):** все новые строки — через `t()`; новые ключи добавляются синхронно в 2 локали (en, ru); повторно используем существующие `account.*` ключи (`account.settings`, `account.docs`, `account.theme`, `account.logout`, `account.version`, `account.latest`, `account.updateAvailable`, `theme.light/dark/system`).
 
 ## 7. Подробные этапы реализации
 
@@ -155,9 +155,9 @@ React 19.2.1, react-router-dom 6, Zustand 4 + TanStack Query 5, Tailwind CSS 3.4
   2. `avatar-initials.tsx`: круг `bg-primary text-primary-foreground`; если `userData.profile_image` задан — `<img>` тем же URL-паттерном, что `ProfileIcon`.
   3. `index.tsx` (`SidebarAccountCard`): триггер-карточка (аватар, `username`, `t("account.workspace")`, шеврон `ChevronDown/ChevronUp` по `open`-состоянию — паттерн из `CanvasControlsDropdown.tsx:113-117`); `DropdownMenu` + `DropdownMenuContent side="top" align="start" sideOffset={4}` шириной по триггеру; пункты меню по §2 с постоянными иконками слева (`Settings`, `Palette`, `BookOpen`, `LogOut` через `ForwardedIconComponent`); блок версии с галочкой `Check`; `<ThemeButtons/>` импортируется из текущего пути; вся условная логика Р-8; testid по Р-5.
   4. `custom-sidebar-account.tsx` — обёртка-прокси.
-  5. i18n: добавить недостающие ключи (минимум `account.workspace`) во все 8 локалей.
+  5. i18n: добавить недостающие ключи (минимум `account.workspace`) в 2 локали (en, ru).
   6. Unit-тесты: рендер карточки; скрытие Sign out при `hideLogoutButton`/`autoLogin`; показ Admin page при `isAdmin && !autoLogin`; выбор docs-URL по флагу; отображение `(latest)`/`(update available)`.
-- **Файлы:** новые из §5 + 8 файлов локалей.
+- **Файлы:** новые из §5 + 2 файла локалей (en, ru).
 - **Зависимости:** этап 0. **Параллельность:** задачи 1–2, 5 и 6 независимы; компонент (3) — после 1–2.
 - **Критерий:** `make test_frontend` зелёный по новым тестам; `npm run test:i18n` и `i18n:check-keys` зелёные; `npm run type-check` без ошибок.
 - **Проверка:** вывод jest/i18n-скриптов.
@@ -208,7 +208,7 @@ React 19.2.1, react-router-dom 6, Zustand 4 + TanStack Query 5, Tailwind CSS 3.4
 |---|---|---|---|
 | Координатор | Fable 5 | декомпозиция, ревью диффов, визуальная сверка, итоговые гейты | все |
 | Impl-A | Sonnet 5 | новые компоненты + unit-тесты (этап 1, задачи 1–4, 6) | 1 |
-| Impl-B | Sonnet 5 | i18n-ключи во всех 8 локалях + прогон i18n-гейтов (этап 1, задача 5) | 1 |
+| Impl-B | Sonnet 5 | i18n-ключи в 2 локалях (en, ru) + прогон i18n-гейтов (этап 1, задача 5) | 1 |
 | Impl-C | Sonnet 5 | интеграция в сайдбар (этап 2) | 2 |
 | Impl-D | Sonnet 5 | очистка хедера + перенос `useTheme()` (этап 3) | 3 |
 | Test-E | Sonnet 5 | e2e-хелперы и spec-файлы, новый e2e-сценарий (этап 4) | 4 |
@@ -232,7 +232,7 @@ React 19.2.1, react-router-dom 6, Zustand 4 + TanStack Query 5, Tailwind CSS 3.4
 | Этап | Критерий (все пункты обязательны) |
 |---|---|
 | 0 | Приложение запущено; скриншоты «до» сохранены; базовые `type-check`/jest зелёные |
-| 1 | Новые unit-тесты зелёные; `i18n:check-keys` зелёный по 8 локалям; type-check зелёный |
+| 1 | Новые unit-тесты зелёные; `i18n:check-keys` зелёный по 2 локалям (en, ru); type-check зелёный |
 | 2 | Карточка внизу сайдбара; меню открывается вверх без обрезания; независимость от `ENABLE_FILE_MANAGEMENT`; `folders.spec.ts` зелёный |
 | 3 | Хедер: только логотип+колокольчик на дашборде; аккаунт-доступ на `/flow/:id` сохранён (по Р-1); подписка на системную тему работает |
 | 4 | `make test_frontend` ∧ `npm run lint` ∧ `npm run type-check` ∧ `npm run test:i18n` ∧ Playwright-подмножество (§4.8) — зелёные |
@@ -267,7 +267,7 @@ React 19.2.1, react-router-dom 6, Zustand 4 + TanStack Query 5, Tailwind CSS 3.4
 | 1 | Потеря доступа к настройкам на `/flow/:id` (нет сайдбара) | Высокая | Решение Р-1: условный рендер старого меню по `onFlowPage`; подтвердить у пользователя до этапа 3 |
 | 2 | Каскадное падение e2e (хелперы `add-new-user-and-loggin`, `go-to-settings`) | Высокая | Сохранить значения testid (Р-5); править хелперы первыми, затем точечно spec-файлы |
 | 3 | Контрактные тесты task-9/task-13 грепают исходники по путям | Средняя | Не перемещать `AccountMenu`/`ThemeButtons`/`appHeaderComponent/index.tsx` физически; aria-label не удалять |
-| 4 | Рассинхрон 8 локалей → падение `i18n:check-keys`; захардкоженные строки → `i18n:check:hardcoded` | Средняя | Отдельная задача Impl-B; все строки через `t()` |
+| 4 | Рассинхрон 2 локалей (en, ru) → падение `i18n:check-keys`; захардкоженные строки → `i18n:check:hardcoded` | Средняя | Отдельная задача Impl-B; все строки через `t()` |
 | 5 | Карточка исчезает при `ENABLE_FILE_MANAGEMENT=false` | Средняя | Размещение вне флага (Р-8); явная проверка в критерии этапа 2 |
 | 6 | Потеря подписки `useTheme()` при чистке хедера | Низкая | Подписка уже существует в `DashboardWrapperPage/index.tsx:6` независимо от хедера; при чистке `AppHeader` подтвердить это и прогнать сценарий §11-Темы-3 |
 | 7 | `ThemeButtons` сломается для `playground-modal.tsx` | Средняя | Компонент не перемещать и не менять API; unit-прогон затронутых тестов |
@@ -289,7 +289,7 @@ React 19.2.1, react-router-dom 6, Zustand 4 + TanStack Query 5, Tailwind CSS 3.4
 - [ ] Light/Dark/System работают из нового меню; персистентность после перезагрузки; только семантические токены темы
 - [ ] Состояния closed/hover/active/open проработаны в обеих темах
 - [ ] Клавиатурная доступность (Tab/Enter/стрелки/Esc), aria-label через `t()`
-- [ ] Все новые строки в 8 локалях; `test:i18n` зелёный
+- [ ] Все новые строки в 2 локалях (en, ru); `test:i18n` зелёный
 - [ ] Адаптивность: 1280/1024/375px и низкая высота окна — без обрезаний и потери доступа
 - [ ] Значения data-testid сохранены; e2e-хелперы и spec-файлы зелёные
 - [ ] `make test_frontend`, `npm run lint`, `npm run type-check`, `npm run test:i18n`, Playwright-подмножество — зелёные

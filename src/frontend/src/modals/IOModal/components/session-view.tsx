@@ -1,4 +1,8 @@
-import { useIsFetching } from "@tanstack/react-query";
+import {
+  type QueryClient,
+  useIsFetching,
+  useQueryClient,
+} from "@tanstack/react-query";
 import type { NewValueParams, SelectionChangedEvent } from "ag-grid-community";
 import cloneDeep from "lodash/cloneDeep";
 import { useEffect, useMemo, useState } from "react";
@@ -69,12 +73,45 @@ function normalizeMessage(value: unknown): Message | null {
   };
 }
 
+function getCachedPlaygroundMessages(
+  queryClient: QueryClient,
+  session?: string,
+): Message[] {
+  if (!session) return [];
+
+  const messagesByIdentity = new Map<string, Message>();
+  for (const [queryKey, data] of queryClient.getQueriesData<Message[]>({
+    queryKey: ["useGetMessagesQuery"],
+  })) {
+    const params = queryKey[1];
+    if (
+      typeof params !== "object" ||
+      params === null ||
+      !("session_id" in params) ||
+      params.session_id !== session ||
+      !Array.isArray(data)
+    ) {
+      continue;
+    }
+
+    for (const message of data) {
+      const identity =
+        message.id ??
+        `${message.sender}:${message.timestamp}:${message.text}:${message.session_id}`;
+      messagesByIdentity.set(identity, message);
+    }
+  }
+  return [...messagesByIdentity.values()];
+}
+
 export default function SessionView({
   session,
   id,
+  preferSessionCache = false,
 }: {
   session?: string;
   id?: string;
+  preferSessionCache?: boolean;
 }) {
   const { t } = useTranslation();
   const messages = useMessagesStore((state) => state.messages);
@@ -85,6 +122,29 @@ export default function SessionView({
   const deleteMessagesStore = useMessagesStore((state) => state.removeMessages);
   const playgroundPage = useFlowStore((state) => state.playgroundPage);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const queryClient = useQueryClient();
+  const [playgroundMessages, setPlaygroundMessages] = useState<Message[]>([]);
+
+  useEffect(() => {
+    if (!preferSessionCache) {
+      setPlaygroundMessages([]);
+      return;
+    }
+
+    const syncMessages = () => {
+      const nextMessages = getCachedPlaygroundMessages(queryClient, session);
+      setPlaygroundMessages((currentMessages) =>
+        currentMessages.length === nextMessages.length &&
+        currentMessages.every(
+          (message, index) => message === nextMessages[index],
+        )
+          ? currentMessages
+          : nextMessages,
+      );
+    };
+    syncMessages();
+    return queryClient.getQueryCache().subscribe(syncMessages);
+  }, [preferSessionCache, queryClient, session]);
 
   // Fetch messages for the specific session
   const messageQueryParams = useMemo(() => {
@@ -102,7 +162,7 @@ export default function SessionView({
   const { data: queryData, isFetching: isQueryFetching } = useGetMessagesQuery(
     messageQueryParams,
     {
-      enabled: !playgroundPage, // Only fetch if not in playground page
+      enabled: !preferSessionCache,
     },
   );
 
@@ -128,10 +188,12 @@ export default function SessionView({
     files: t("messages.column.files"),
   };
 
-  const columns = extractColumnsFromRows(messages, "intersection").map((col) =>
-    col.field && columnHeaderMap[col.field]
-      ? { ...col, headerName: columnHeaderMap[col.field] }
-      : col,
+  const sourceMessages = preferSessionCache ? playgroundMessages : messages;
+  const columns = extractColumnsFromRows(sourceMessages, "intersection").map(
+    (col) =>
+      col.field && columnHeaderMap[col.field]
+        ? { ...col, headerName: columnHeaderMap[col.field] }
+        : col,
   );
   const isFetchingCount = useIsFetching({
     queryKey: ["useGetMessagesQuery"],
@@ -195,13 +257,14 @@ export default function SessionView({
 
   const filteredMessages = useMemo(() => {
     let filteredMessages = session
-      ? messages.filter((message) => message.session_id === session)
-      : messages;
-    filteredMessages = id
-      ? filteredMessages.filter((message) => message.flow_id === id)
-      : filteredMessages;
+      ? sourceMessages.filter((message) => message.session_id === session)
+      : sourceMessages;
+    filteredMessages =
+      id && !preferSessionCache
+        ? filteredMessages.filter((message) => message.flow_id === id)
+        : filteredMessages;
     return filteredMessages;
-  }, [session, id, messages]);
+  }, [session, id, preferSessionCache, sourceMessages]);
 
   function handleRemoveMessages() {
     deleteMessages({ ids: selectedRows });

@@ -21,7 +21,6 @@ type RegistryEntry = {
 
 type LanguageRegistry = {
   createSupportedLanguages?: (options: {
-    russianEnabled: boolean;
     pseudoEnabled: boolean;
   }) => readonly Partial<RegistryEntry>[];
   DEFAULT_LANGUAGE?: string;
@@ -33,7 +32,6 @@ type LanguageRegistry = {
     languages: readonly Partial<RegistryEntry>[],
     language?: string | null,
   ) => string;
-  RUSSIAN_LOCALE_ENABLED?: boolean;
   SUPPORTED_LANGUAGES: readonly Partial<RegistryEntry>[];
   SUPPORTED_LANGUAGE_CODES?: readonly string[];
   normalizeLanguage?: (language?: string | null) => string;
@@ -47,7 +45,7 @@ describe("language registry", () => {
   });
 
   it("is the single source for the default, supported codes, and metadata", () => {
-    expect(registry.DEFAULT_LANGUAGE).toBe("en");
+    expect(registry.DEFAULT_LANGUAGE).toBe("ru");
 
     const registryCodes = registry.SUPPORTED_LANGUAGES.map(
       (language) => language.code,
@@ -80,6 +78,14 @@ describe("language registry", () => {
     });
   });
 
+  it("ships exactly English and Russian as visible interface languages", () => {
+    const visibleCodes = registry.SUPPORTED_LANGUAGES.filter(
+      ({ hidden, shipped }) => shipped && !hidden,
+    ).map(({ code }) => code);
+
+    expect(visibleCodes).toEqual(["en", "ru"]);
+  });
+
   it("ships Russian with its canonical metadata", () => {
     expect(registry.SUPPORTED_LANGUAGES).toContainEqual(
       expect.objectContaining({
@@ -94,111 +100,30 @@ describe("language registry", () => {
     );
   });
 
-  it("can remove Russian from the active registry without removing English", () => {
+  it("keeps English and Russian when the pseudo locale is disabled", () => {
     expect(registry.createSupportedLanguages).toEqual(expect.any(Function));
     if (!registry.createSupportedLanguages) return;
 
     const languages = registry.createSupportedLanguages({
-      russianEnabled: false,
       pseudoEnabled: false,
     });
 
-    expect(languages.map(({ code }) => code)).toContain("en");
-    expect(languages.map(({ code }) => code)).not.toContain("ru");
-    expect(languages.map(({ code }) => code)).not.toContain("qps-ploc");
-  });
-
-  it("falls a disabled Russian preference back to English", () => {
-    expect(registry.createSupportedLanguages).toEqual(expect.any(Function));
-    expect(registry.normalizeLanguageAgainst).toEqual(expect.any(Function));
-    if (
-      !registry.createSupportedLanguages ||
-      !registry.normalizeLanguageAgainst
-    ) {
-      return;
-    }
-
-    const languages = registry.createSupportedLanguages({
-      russianEnabled: false,
-      pseudoEnabled: false,
-    });
-
-    expect(registry.normalizeLanguageAgainst(languages, "ru-RU")).toBe("en");
-  });
-
-  it("distinguishes a disabled preference from an enabled alias", () => {
-    expect(registry.createSupportedLanguages).toEqual(expect.any(Function));
-    expect(registry.isLanguageSupportedAgainst).toEqual(expect.any(Function));
-    if (
-      !registry.createSupportedLanguages ||
-      !registry.isLanguageSupportedAgainst
-    ) {
-      return;
-    }
-
-    const languages = registry.createSupportedLanguages({
-      russianEnabled: false,
-      pseudoEnabled: false,
-    });
-
-    expect(registry.isLanguageSupportedAgainst(languages, "ru-RU")).toBe(false);
-    expect(registry.isLanguageSupportedAgainst(languages, "EN-us")).toBe(true);
-  });
-
-  it("keeps Russian available when the rollback flag is enabled", () => {
-    expect(registry.createSupportedLanguages).toEqual(expect.any(Function));
-    if (!registry.createSupportedLanguages) return;
-
-    const languages = registry.createSupportedLanguages({
-      russianEnabled: true,
-      pseudoEnabled: false,
-    });
-
-    expect(languages.map(({ code }) => code)).toContain("ru");
-    expect(languages.map(({ code }) => code)).not.toContain("qps-ploc");
-  });
-
-  it("re-enables a preserved Russian preference after a flag rollback", () => {
-    expect(registry.createSupportedLanguages).toEqual(expect.any(Function));
-    expect(registry.normalizeLanguageAgainst).toEqual(expect.any(Function));
-    if (
-      !registry.createSupportedLanguages ||
-      !registry.normalizeLanguageAgainst
-    ) {
-      return;
-    }
-
-    const persistedProfilePreference = "ru";
-    const effectiveLanguages = [true, false, true].map((russianEnabled) => {
-      const languages = registry.createSupportedLanguages!({
-        russianEnabled,
-        pseudoEnabled: false,
-      });
-      return registry.normalizeLanguageAgainst!(
-        languages,
-        persistedProfilePreference,
-      );
-    });
-
-    expect(effectiveLanguages).toEqual(["ru", "en", "ru"]);
-    expect(persistedProfilePreference).toBe("ru");
+    expect(languages.map(({ code }) => code)).toEqual(["en", "ru"]);
   });
 
   it.each([
-    [undefined, "en"],
-    [null, "en"],
-    ["", "en"],
+    [undefined, "ru"],
+    [null, "ru"],
+    ["", "ru"],
     ["EN-us", "en"],
     ["ru", "ru"],
     ["ru-RU", "ru"],
     ["RU-ru", "ru"],
     ["rU-RU", "ru"],
-    ["fr-FR", "fr"],
-    ["zh-Hans", "zh-Hans"],
-    ["ZH-HANS", "zh-Hans"],
-    ["zh-CN", "zh-Hans"],
-    ["ZH-sg", "zh-Hans"],
-    ["xx-ZZ", "en"],
+    ["fr", "ru"],
+    ["ja-JP", "ru"],
+    ["zh-CN", "ru"],
+    ["xx-ZZ", "ru"],
   ])("normalizes %p to %s", (input, expected) => {
     expect(registry.normalizeLanguage).toEqual(expect.any(Function));
     if (!registry.normalizeLanguage) return;
@@ -222,13 +147,15 @@ describe("language registry", () => {
     expect(source).toMatch(/MODE\s*!==\s*["']production["']/);
   });
 
-  it("defaults the Russian rollback switch to enabled", () => {
+  it("does not expose a Russian rollback switch", () => {
     const source = readFileSync(
       path.resolve(__dirname, "../constants/languages.ts"),
       "utf8",
     );
 
-    expect(source).toMatch(/VITE_ENABLE_RUSSIAN_LOCALE\s*!==\s*["']false["']/);
+    const removedFlag = ["VITE", "ENABLE", "RUSSIAN", "LOCALE"].join("_");
+    expect(source).not.toContain(removedFlag);
+    expect(source).not.toContain("russianEnabled");
   });
 });
 
@@ -247,9 +174,12 @@ describe("loadLanguage", () => {
     expect(i18n.hasResourceBundle("xx", "translation")).toBe(false);
   });
 
-  it("returns early without throwing for 'en'", async () => {
-    await expect(loadLanguage("en")).resolves.toBeUndefined();
-  });
+  it.each(["en", "ru"])(
+    "returns early without throwing for statically loaded '%s'",
+    async (language) => {
+      await expect(loadLanguage(language)).resolves.toBeUndefined();
+    },
+  );
 });
 
 describe("application bootstrap", () => {

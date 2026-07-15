@@ -27,7 +27,7 @@ export const SessionLogsModal = ({
           </div>
         </BaseModal.Header>
         <div className="pt-4 h-full">
-          <SessionView session={sessionId} id={flowId} />
+          <SessionView session={sessionId} id={flowId} preferSessionCache />
         </div>
       </BaseModal.Content>
     </BaseModal>

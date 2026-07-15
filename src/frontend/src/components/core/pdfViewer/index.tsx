@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/esm/Page/AnnotationLayer.css";
 import "react-pdf/dist/esm/Page/TextLayer.css";
@@ -10,6 +11,7 @@ import NoDataPdf from "./noData";
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 export default function PdfViewer({ pdf }: { pdf: string }): JSX.Element {
+  const { t } = useTranslation();
   const [numPages, setNumPages] = useState(-1);
   const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(1);
@@ -81,7 +83,7 @@ export default function PdfViewer({ pdf }: { pdf: string }): JSX.Element {
       onMouseEnter={(_) => setShowControl(true)}
       onMouseLeave={(_) => setShowControl(false)}
       role="application"
-      aria-label="PDF viewer"
+      aria-label={t("output.pdfTitle")}
       className="flex h-full w-full flex-col items-center justify-end overflow-clip rounded-lg border border-border"
     >
       <div className={"h-full min-h-0 w-full overflow-auto custom-scroll"}>

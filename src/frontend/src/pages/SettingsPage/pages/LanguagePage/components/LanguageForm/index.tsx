@@ -45,7 +45,7 @@ const LanguageFormComponent = () => {
           : null;
 
   return (
-    <Card>
+    <Card className="min-w-0">
       <CardContent className="space-y-3 pt-4">
         <Select
           value={language}
@@ -54,15 +54,18 @@ const LanguageFormComponent = () => {
           <SelectTrigger
             aria-busy={saveState === "saving"}
             aria-label={t("settings.languageSelectAriaLabel")}
+            className="h-auto min-w-0 w-full whitespace-normal text-left"
             data-testid="language-preference-select"
           >
-            <SelectValue />
+            <span className="min-w-0 flex-1 break-words whitespace-normal">
+              <SelectValue />
+            </span>
           </SelectTrigger>
           <SelectContent>
             {visibleLanguages.map((languageOption) => (
               <SelectItem key={languageOption.code} value={languageOption.code}>
                 {languageOption.label}
-                {languageOption.code === "en" && (
+                {languageOption.code === "ru" && (
                   <>
                     {"\u00A0("}
                     {t("settings.languageRecommended")}

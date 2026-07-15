@@ -4,18 +4,19 @@
  * Tests randomized message functions used for reasoning/validation UI states.
  */
 
+import i18n from "@/i18n";
 import {
   getRandomPlaceholderMessage,
   getRandomThinkingMessage,
 } from "../messages";
 
 describe("getRandomThinkingMessage", () => {
-  it("should return a non-empty string ending with '...'", () => {
+  it("should return a non-empty string ending with an ellipsis", () => {
     const result = getRandomThinkingMessage();
 
     expect(typeof result).toBe("string");
     expect(result.length).toBeGreaterThan(0);
-    expect(result).toMatch(/\.\.\.$/);
+    expect(result).toMatch(/(?:\.\.\.|…)$/);
   });
 });
 
@@ -36,16 +37,9 @@ describe("getRandomPlaceholderMessage", () => {
     // ("Thinking...", "Processing...") instead of descriptive progress messages.
     // Placeholder messages should describe what the assistant is doing,
     // not generic "Thinking..." headers.
-    const headerMessages = [
-      "Thinking...",
-      "Processing...",
-      "Working on it...",
-      "Analyzing...",
-      "Reasoning...",
-      "Please wait...",
-      "Just a moment...",
-      "Almost there...",
-    ];
+    const headerMessages = Array.from({ length: 8 }, (_, index) =>
+      i18n.t(`assistant.thinking.${index}`),
+    );
 
     // Sample with deterministic Math.random to get the first message
     const spy = jest.spyOn(Math, "random").mockReturnValue(0);
@@ -65,8 +59,8 @@ describe("deterministic Math.random", () => {
     const result = getRandomThinkingMessage();
     spy.mockRestore();
 
-    // Math.floor(0 * 8) = 0 → first element "Thinking..."
-    expect(result).toBe("Thinking...");
+    // Math.floor(0 * 8) = 0 → first localized element
+    expect(result).toBe(i18n.t("assistant.thinking.0"));
   });
 
   it("should return last element when Math.random is 0.999", () => {
@@ -74,7 +68,7 @@ describe("deterministic Math.random", () => {
     const result = getRandomThinkingMessage();
     spy.mockRestore();
 
-    // Math.floor(0.999 * 8) = Math.floor(7.992) = 7 → last element "Almost there..."
-    expect(result).toBe("Almost there...");
+    // Math.floor(0.999 * 8) = Math.floor(7.992) = 7 → last localized element
+    expect(result).toBe(i18n.t("assistant.thinking.7"));
   });
 });

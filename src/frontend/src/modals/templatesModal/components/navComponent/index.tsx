@@ -60,7 +60,7 @@ export function Nav({ categories, currentTab, setCurrentTab }: NavProps) {
                     <SidebarMenuButton
                       onClick={() => setCurrentTab(link.id)}
                       isActive={currentTab === link.id}
-                      data-testid={`side_nav_options_${link.title.toLowerCase().replace(/\s+/g, "-")}`}
+                      data-testid={`side_nav_options_${link.id}`}
                       tooltip={link.title}
                     >
                       <ForwardedIconComponent

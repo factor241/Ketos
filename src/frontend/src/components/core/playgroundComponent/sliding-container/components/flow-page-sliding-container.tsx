@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { StickToBottom, useStickToBottom } from "use-stick-to-bottom";
 import { SafariScrollFix } from "@/components/common/safari-scroll-fix";
 import { ChatHeader } from "@/components/core/playgroundComponent/chat-view/chat-header/components/chat-header";
@@ -25,6 +26,7 @@ export function FlowPageSlidingContainerContent({
   isFullscreen,
   setIsFullscreen,
 }: FlowPageSlidingContainerContentProps) {
+  const { t } = useTranslation();
   const currentFlowId = useGetFlowId();
   const { setOpen, setWidth } = useSimpleSidebar();
   const inputs = useFlowStore((state) => state.inputs);
@@ -130,7 +132,7 @@ export function FlowPageSlidingContainerContent({
   return (
     <div
       role="region"
-      aria-label="Chat panel"
+      aria-label={t("playgroundComponent.chatPanel")}
       className="h-full w-full muted shadow-lg flex flex-col relative z-[50] @container/chat-panel"
       onDragOver={dragOver}
       onDragEnter={dragEnter}

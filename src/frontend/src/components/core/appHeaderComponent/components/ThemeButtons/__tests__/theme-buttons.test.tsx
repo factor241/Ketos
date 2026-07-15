@@ -1,5 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import useTheme from "@/customization/hooks/use-custom-theme";
 import { ThemeButtons } from "../index";
 
@@ -90,5 +95,31 @@ describe("ThemeButtons", () => {
     expect(
       screen.getByRole("button", { name: "Use light theme" }),
     ).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("uses one coordinated sliding background in the menu variant", async () => {
+    const user = userEvent.setup();
+    render(
+      <DropdownMenu defaultOpen>
+        <DropdownMenuTrigger>Open</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <ThemeButtons variant="menu" />
+        </DropdownMenuContent>
+      </DropdownMenu>,
+    );
+
+    const darkButton = screen.getByRole("menuitemradio", {
+      name: "Use dark theme",
+    });
+    await user.click(darkButton);
+
+    expect(screen.getByTestId("theme-selection-indicator")).toHaveClass(
+      "transition-transform",
+      "[transition-duration:180ms]",
+      "ease-out",
+    );
+    expect(darkButton.className).not.toMatch(
+      /\bbg-(?:indigo-foreground|foreground)\b/,
+    );
   });
 });

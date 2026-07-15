@@ -98,7 +98,7 @@ test(
     await page.evaluate(() => {
       sessionStorage.setItem("testMockAutoLogin", "true");
     });
-    await page.getByText(TEXTS.logout, { exact: true }).click();
+    await page.getByTestId("menu_logout_button").click();
 
     // ---- USER A SESSION ----
 
@@ -173,7 +173,7 @@ test(
     await page.evaluate(() => {
       sessionStorage.setItem("testMockAutoLogin", "true");
     });
-    await page.getByText(TEXTS.logout, { exact: true }).click();
+    await page.getByTestId("menu_logout_button").click();
 
     // ---- ADMIN SESSION AGAIN ----
 

@@ -13,6 +13,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { useUpdateUser } from "@/controllers/API/queries/auth";
 import {
@@ -21,6 +22,7 @@ import {
   usePostUploadFolders,
 } from "@/controllers/API/queries/folders";
 import { useGetDownloadFolders } from "@/controllers/API/queries/folders/use-get-download-folders";
+import CustomSidebarAccount from "@/customization/components/custom-sidebar-account";
 import {
   ENABLE_CUSTOM_PARAM,
   ENABLE_FILE_MANAGEMENT,
@@ -87,6 +89,13 @@ const SideBarFoldersButtonsComponent = ({
   const setErrorData = useAlertStore((state) => state.setErrorData);
   const setSuccessData = useAlertStore((state) => state.setSuccessData);
   const isMobile = useIsMobile({ maxWidth: 1024 });
+  const { setOpen } = useSidebar();
+  const setOpenRef = useRef(setOpen);
+  setOpenRef.current = setOpen;
+
+  useEffect(() => {
+    setOpenRef.current(!isMobile);
+  }, [isMobile]);
   const folderIdDragging = useFolderStore((state) => state.folderIdDragging);
   const myCollectionId = useFolderStore((state) => state.myCollectionId);
   const takeSnapshot = useFlowsManagerStore((state) => state.takeSnapshot);
@@ -505,8 +514,8 @@ const SideBarFoldersButtonsComponent = ({
           </div>
         )}
       </SidebarContent>
-      {ENABLE_FILE_MANAGEMENT && (
-        <SidebarFooter className="border-t">
+      <SidebarFooter className="border-t">
+        {ENABLE_FILE_MANAGEMENT && (
           <div className="grid w-full items-center gap-2 p-2">
             {ENABLE_KNOWLEDGE_BASES && (
               <SidebarMenuButton
@@ -527,8 +536,11 @@ const SideBarFoldersButtonsComponent = ({
               {t("sidebar.myFiles")}
             </SidebarMenuButton>
           </div>
-        </SidebarFooter>
-      )}
+        )}
+        <div className={cn("p-2", ENABLE_FILE_MANAGEMENT && "border-t")}>
+          <CustomSidebarAccount />
+        </div>
+      </SidebarFooter>
     </Sidebar>
   );
 };

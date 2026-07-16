@@ -279,9 +279,13 @@ src/frontend/temp
 .dspy_cache/
 *.db*
 *.mcp.json
+!.mcp.json
 
 news-aggregated.json
-.claude
+.claude/*
+!.claude/skills/
+!.claude/skills/**
+references/langflow-upstream/
 member_servers.json
 # Component index cache (user-specific)
 **/.cache/kfx/
@@ -304,3 +308,29 @@ whitesource/
 .superpowers/
 graphify-out/
 MagicMock/
+
+# RAYTSYSTEM:BEGIN
+# Local RaytSystem engine and rebuildable workspace state.
+raytsystem/
+.raytsystem/
+
+# Exact imported bytes and local operational state.
+_raw/blobs/
+_raw/restricted/
+inbox/*
+!inbox/.gitkeep
+ops/locks/
+ops/staging/
+ops/task-ledger/
+ops/document-revisions/
+ops/runs/
+ops/backups/
+ops/encrypted/
+ops/approvals/incoming/
+ops/control.sqlite*
+ops/platform.sqlite*
+
+# Unpublished drafts and external-action outbox.
+artifacts/drafts/
+artifacts/outbox/
+# RAYTSYSTEM:END

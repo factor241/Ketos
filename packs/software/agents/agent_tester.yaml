@@ -1,0 +1,12 @@
+accent: '#5b8def'
+agent_id: agent_tester
+capabilities: []
+description: Disabled catalog definition for evidence-backed Ketos verification.
+enabled: false
+name: Ketos Tester
+pack_id: pack_software
+role: tester
+runtime_adapter_id: adapter_disabled
+skill_ids:
+- skill_tester
+version: 1.0.0

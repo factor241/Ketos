@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.0.0",
+  "purpose": "Document paths excluded from the disposable RaytSystem Documents index by invariant policy.",
+  "roots": [
+    "knowledge/manual",
+    "docs",
+    "src",
+    "references/langflow-upstream",
+    "raytsystem/docs"
+  ],
+  "exclusions": [
+    {
+      "path_pattern": "**/.git/**",
+      "reason": "Git object database and repository metadata are operational state, not source documents."
+    },
+    {
+      "path_pattern": "**/.*/**",
+      "reason": "Hidden directories contain local caches, editor state, or tool metadata."
+    },
+    {
+      "path_pattern": "**/node_modules/**",
+      "reason": "Third-party installed dependencies are reproducible and outside the source corpus."
+    },
+    {
+      "path_pattern": "**/.venv/**",
+      "reason": "Installed Python environments are reproducible dependency state."
+    },
+    {
+      "path_pattern": "**/__pycache__/**",
+      "reason": "Generated Python bytecode cache is not source content."
+    },
+    {
+      "path_pattern": "**/build/**",
+      "reason": "Generated build output is rebuildable and can duplicate source content."
+    },
+    {
+      "path_pattern": "**/dist/**",
+      "reason": "Generated distribution output is rebuildable and can duplicate source content."
+    },
+    {
+      "path_pattern": "**/coverage/**",
+      "reason": "Coverage blobs are generated test telemetry and may exceed the 5 MiB per-file limit."
+    },
+    {
+      "path_pattern": "**/test-results/**",
+      "reason": "Test runner state and reports are operational evidence, not source documents."
+    },
+    {
+      "path_pattern": "**/storybook-static/**",
+      "reason": "Compiled Storybook output is generated and duplicates frontend source."
+    },
+    {
+      "path_pattern": "**/graphify-out/**",
+      "reason": "Graphify output is a generated projection and must never self-index."
+    },
+    {
+      "path_pattern": "**/assets/**",
+      "reason": "Binary and compiled asset trees are not part of the text-first Documents corpus."
+    },
+    {
+      "path_pattern": "**/_assets/**",
+      "reason": "Generated component indexes and binary assets are rebuildable projections."
+    },
+    {
+      "path_pattern": "**/static/**",
+      "reason": "Static binary site assets are excluded from the text-first Documents corpus."
+    },
+    {
+      "path_pattern": "**/*-wal",
+      "reason": "SQLite write-ahead log sidecars are volatile database state."
+    },
+    {
+      "path_pattern": "**/*-shm",
+      "reason": "SQLite shared-memory sidecars are volatile database state."
+    },
+    {
+      "path_pattern": "**/*-journal",
+      "reason": "SQLite rollback journals are volatile database state."
+    },
+    {
+      "path_pattern": "**/.env*",
+      "reason": "Environment files can contain credentials or deployment secrets."
+    },
+    {
+      "path_pattern": "**/credentials.*",
+      "reason": "Credential-named files are excluded by the non-overridable secret filename policy."
+    },
+    {
+      "path_pattern": "**/secrets.*",
+      "reason": "Secret-named files are excluded by the non-overridable secret filename policy."
+    },
+    {
+      "path_pattern": "**/tokens.*",
+      "reason": "Token-named files are excluded by the non-overridable secret filename policy."
+    },
+    {
+      "path_pattern": "**/package-lock.json",
+      "reason": "Dependency lock files are reproducible package-manager state."
+    },
+    {
+      "path_pattern": "**/pnpm-lock.yaml",
+      "reason": "Dependency lock files are reproducible package-manager state."
+    },
+    {
+      "path_pattern": "**/uv.lock",
+      "reason": "Dependency lock files are reproducible package-manager state."
+    }
+  ]
+}

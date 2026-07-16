@@ -1,0 +1,11 @@
+policy_profile_id: policy_software
+name: Ketos engineering policy profile
+version: "1.0.0"
+network_default: none
+workspace_default: staging_only
+external_actions_default: approval_required
+agent_skill_bindings:
+  agent_builder: [skill_builder]
+  agent_reviewer: [skill_reviewer]
+  agent_tester: [skill_tester]
+  agent_security_reviewer: [skill_security_reviewer]

@@ -1,0 +1,14 @@
+nodes:
+- agent_id: agent_builder
+  node_id: step_1
+  type: agent
+- agent_id: agent_reviewer
+  node_id: step_2
+  type: agent
+- agent_id: agent_tester
+  node_id: step_3
+  type: agent
+- agent_id: agent_security_reviewer
+  node_id: step_4
+  type: agent
+workflow_id: workflow_software

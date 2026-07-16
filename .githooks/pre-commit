@@ -1,0 +1,4 @@
+#!/bin/sh
+exec raytsystem guard-checkpoint \
+  --root /Volumes/Projects/ketos_canvas_mod_main \
+  --json

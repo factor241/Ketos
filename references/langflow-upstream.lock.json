@@ -1,0 +1,10 @@
+{
+  "url": "https://github.com/langflow-ai/langflow.git",
+  "tag": "v1.10.2",
+  "sha": "a69a47ff1b5c99ce9c50edc4df45de4397151f17",
+  "base_ketos_tag": "v1.10.2",
+  "current_fork_head": "572fad8ea2223e342508ecf095133091c7714e1b",
+  "merge_base": "a69a47ff1b5c99ce9c50edc4df45de4397151f17",
+  "commits_ahead": 70,
+  "date": "2026-07-16T17:50:51Z"
+}

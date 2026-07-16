@@ -1,0 +1,19 @@
+agent_ids:
+- agent_builder
+- agent_reviewer
+- agent_tester
+- agent_security_reviewer
+context_paths:
+- AGENTS.md
+description: Ketos engineering workflow with scoped build, review, test, and security procedures.
+license_expression: Apache-2.0
+name: Ketos Engineering
+optional: false
+pack_id: pack_software
+skill_ids:
+- skill_builder
+- skill_reviewer
+- skill_tester
+- skill_security_reviewer
+trust_class: user
+version: 1.0.0

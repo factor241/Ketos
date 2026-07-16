@@ -660,7 +660,7 @@ jobs:
           prune-cache: false
       - name: Download SDK artifact
         if: needs.build-sdk.result == 'success'
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-sdk
           path: ./sdk-dist
@@ -769,13 +769,13 @@ jobs:
           python-version: "3.12"
           prune-cache: false
       - name: Download KFX artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-kfx
           path: ./kfx-dist
       - name: Download SDK artifact
         if: needs.build-sdk.result == 'success'
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-sdk
           path: ./sdk-dist
@@ -916,18 +916,18 @@ jobs:
           python-version: "3.12"
           prune-cache: false
       - name: Download KFX artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-kfx
           path: ./kfx-dist
       - name: Download SDK artifact
         if: needs.build-sdk.result == 'success'
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-sdk
           path: ./sdk-dist
       - name: Download base artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-base
           path: ./base-dist
@@ -1155,7 +1155,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
       - name: Download base artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-base
           path: src/backend/base/dist
@@ -1192,7 +1192,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
       - name: Download bundles artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-bundles
           path: bundles-dist
@@ -1253,7 +1253,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
       - name: Download main artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-main
           path: dist
@@ -1288,7 +1288,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
       - name: Download SDK artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-sdk
           path: src/sdk/dist
@@ -1324,7 +1324,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
       - name: Download KFX artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-kfx
           path: src/kfx/dist
@@ -1466,35 +1466,35 @@ jobs:
 
       - name: Download SDK distributions
         if: ${{ needs.build-sdk.result == 'success' }}
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-sdk
           path: release-inputs/distributions/sdk
 
       - name: Download KFX distributions
         if: ${{ needs.build-kfx.result == 'success' }}
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-kfx
           path: release-inputs/distributions/kfx
 
       - name: Download Ketos Base distributions
         if: ${{ needs.build-base.result == 'success' }}
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-base
           path: release-inputs/distributions/base
 
       - name: Download Ketos distributions
         if: ${{ needs.build-main.result == 'success' }}
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-main
           path: release-inputs/distributions/main
 
       - name: Download bundle distributions
         if: ${{ needs.build-bundles.result == 'success' }}
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-bundles
           path: release-inputs/distributions/bundles
@@ -1507,7 +1507,7 @@ jobs:
           needs.call_docker_build_main_frontend.result == 'success' ||
           needs.call_docker_build_main_ep.result == 'success' ||
           needs.call_docker_build_main_all.result == 'success'
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: oci-subject-*
           path: release-inputs/oci-subjects
@@ -1623,15 +1623,15 @@ jobs:
         with:
           enable-cache: false
           python-version: "3.13"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: dist-main
           path: dist
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: supply-chain
           path: supply-chain
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: release-archives
           path: release-archives

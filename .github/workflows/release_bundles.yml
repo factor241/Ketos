@@ -123,12 +123,12 @@ jobs:
           enable-cache: false
           ignore-empty-workdir: true
       - name: Download bundles artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-bundles
           path: ./bundles-dist
       - name: Download kfx artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-kfx-smoketest
           path: ./kfx-dist
@@ -187,7 +187,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
       - name: Download bundles artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-bundles
           path: bundles-dist

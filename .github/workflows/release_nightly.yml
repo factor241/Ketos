@@ -170,7 +170,7 @@ jobs:
 
       - name: Download KFX artifact
         if: inputs.build_kfx
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-nightly-kfx
           path: kfx-dist
@@ -273,13 +273,13 @@ jobs:
 
       - name: Download KFX artifact
         if: inputs.build_kfx
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-nightly-kfx
           path: kfx-dist
 
       - name: Download base artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-nightly-base
           path: base-dist
@@ -410,7 +410,7 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: true
       - name: Download KFX artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-nightly-kfx
           path: src/kfx/dist
@@ -440,7 +440,7 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: true
       - name: Download ketos-sdk artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-nightly-sdk
           path: src/sdk/dist
@@ -470,7 +470,7 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: true
       - name: Download base artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-nightly-base
           path: src/backend/base/dist
@@ -501,7 +501,7 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: true
       - name: Download bundles artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-nightly-bundles
           path: bundles-dist
@@ -730,7 +730,7 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: true
       - name: Download main artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-nightly-main
           path: dist

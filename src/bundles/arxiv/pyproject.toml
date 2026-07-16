@@ -21,9 +21,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://git.ketos.test/ketos/ketos"
-Documentation = "https://docs.ketos.test/extensions"
-Repository = "https://git.ketos.test/ketos/ketos"
+Homepage = "https://github.com/factor241/Ketos"
+Documentation = "https://github.com/factor241/Ketos"
+Repository = "https://github.com/factor241/Ketos"
 
 # Manifest-shipping distributions are discovered via the
 # ``ketos.extensions`` entry-point.  The value is the dotted path to

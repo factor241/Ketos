@@ -108,7 +108,7 @@ const config = {
         items: [
           {
             position: "right",
-            href: "https://git.ketos.test/ketos/ketos",
+            href: "https://github.com/factor241/Ketos",
             label: "Source",
             target: "_blank",
             rel: "noopener noreferrer",

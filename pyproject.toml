@@ -114,8 +114,9 @@ bypass-selection = true
 only-include = ["pyproject.toml", "LICENSE", "NOTICE"]
 
 [project.urls]
-Repository = "https://git.ketos.test/ketos/ketos"
-Documentation = "https://docs.ketos.test"
+Homepage = "https://github.com/factor241/Ketos"
+Repository = "https://github.com/factor241/Ketos"
+Documentation = "https://github.com/factor241/Ketos"
 
 [project.optional-dependencies]
 docling = [

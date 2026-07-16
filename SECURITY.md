@@ -1,7 +1,7 @@
 # Ketos Security Policy and Responsible Disclosure
 
-This policy applies to the Ketos test fork. We prioritize security and work to
-address reported vulnerabilities promptly.
+This policy applies to the public Ketos repository. We prioritize security and
+work to address reported vulnerabilities promptly.
 
 ## Security and bug-fix versions
 
@@ -10,10 +10,13 @@ address reported vulnerabilities promptly.
 
 ## Report a vulnerability
 
-Do not disclose security vulnerabilities in public issues. Report them to
-security@ketos.test (test-only contact for the local test environment; it is not
-a production security service).
+Do not disclose security vulnerabilities in public issues. Use GitHub's
+**Report a vulnerability** form in the
+[Security tab](https://github.com/factor241/Ketos/security) so the report is
+shared privately with the maintainer. If the private reporting form is not
+available, open a non-sensitive issue asking the maintainer to enable a private
+reporting channel; do not include exploit details in that issue.
 
 Include a clear description, reproduction steps, the affected Ketos version,
-impact, and any known or suggested mitigations. The test project aims to
-acknowledge new reports within **7 business days**.
+impact, and any known or suggested mitigations. The project aims to acknowledge
+new reports within **7 business days**.

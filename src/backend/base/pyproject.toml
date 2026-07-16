@@ -171,8 +171,9 @@ requires = ["hatchling==1.31.0"]
 build-backend = "hatchling.build"
 
 [project.urls]
-Repository = "https://git.ketos.test/ketos/ketos"
-Documentation = "https://docs.ketos.test"
+Homepage = "https://github.com/factor241/Ketos"
+Repository = "https://github.com/factor241/Ketos"
+Documentation = "https://github.com/factor241/Ketos"
 # Optional dependencies
 [project.optional-dependencies]
 audio = [

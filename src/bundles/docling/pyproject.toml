@@ -42,9 +42,9 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://git.ketos.test/ketos/ketos"
-Documentation = "https://docs.ketos.test/bundles-docling"
-Repository = "https://git.ketos.test/ketos/ketos"
+Homepage = "https://github.com/factor241/Ketos"
+Documentation = "https://github.com/factor241/Ketos"
+Repository = "https://github.com/factor241/Ketos"
 
 [project.entry-points."ketos.extensions"]
 kfx-docling = "kfx_docling"

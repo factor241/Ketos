@@ -4,13 +4,11 @@ Thank you for your interest in contributing!
 
 ## How to Contribute
 
-1. Fork the Ketos repository. The current repository URL,
-   `https://git.ketos.test/ketos/ketos`, is a test-only placeholder and not a
-   production hosting service.
+1. Fork [factor241/Ketos](https://github.com/factor241/Ketos).
 2. Create a new branch for your changes.
 3. Open a pull request against `main` with a clear title and description.
-Reference any issues fixed, for example `Fixes #1234`, and ensure the title
-follows [semantic commit conventions](https://www.conventionalcommits.org/).
+   Reference any issues fixed, for example `Fixes #1234`, and ensure the title
+   follows [semantic commit conventions](https://www.conventionalcommits.org/).
 4. A maintainer will review your PR and may request changes.
 
 ## Development Environment Setup

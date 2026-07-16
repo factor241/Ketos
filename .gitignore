@@ -10,6 +10,21 @@ lerna-debug.log*
 qdrant_storage
 
 .dspy_cache
+.secrets.baseline
+
+# Local databases and captured browser traffic
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.har
+
+# Browser and end-to-end test artifacts
+test-results/
+playwright-report/
+
 # Mac
 .DS_Store
 

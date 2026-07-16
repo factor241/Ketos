@@ -15,7 +15,7 @@ jobs:
     if: ${{ vars.KETOS_EXTERNAL_RELEASE_ENABLED == 'true' && github.event_name == 'workflow_dispatch' && github.ref_type == 'tag' && vars.KETOS_RELEASE_COMMIT == github.sha && vars.KETOS_EXTERNAL_RELEASE == format('publish:{0}', github.sha) }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
       - uses: astral-sh/setup-uv@v6

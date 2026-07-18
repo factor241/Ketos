@@ -1991,16 +1991,13 @@ class TestWorkflowIDORProtection:
                     await session.delete(db_job)
 
     @pytest.mark.security
-    async def test_get_workflow_status_allowed_for_legacy_job_with_no_user_id(
+    async def test_get_workflow_status_denies_legacy_job_with_no_user_id(
         self,
         client: AsyncClient,
         created_api_key,
         mock_settings_dev_api_enabled,  # noqa: ARG002
     ):
-        """GET /api/v2/workflows does NOT block legacy jobs where user_id is NULL.
-
-        Jobs created before the fix have user_id=None and must not be broken.
-        """
+        """GET /api/v2/workflows fails closed for legacy NULL-owned jobs."""
         job_id = uuid4()
 
         async with session_scope() as session:
@@ -2018,9 +2015,10 @@ class TestWorkflowIDORProtection:
             headers = {"x-api-key": created_api_key.api_key}
             response = await client.get(f"api/v2/workflows?job_id={job_id}", headers=headers)
 
-            assert response.status_code == 200
+            assert response.status_code == 404
             result = response.json()
-            assert result["job_id"] == str(job_id)
+            assert result["detail"]["code"] == "JOB_NOT_FOUND"
+            assert result["detail"]["job_id"] == str(job_id)
         finally:
             async with session_scope() as session:
                 db_job = await session.get(Job, job_id)
@@ -2028,17 +2026,13 @@ class TestWorkflowIDORProtection:
                     await session.delete(db_job)
 
     @pytest.mark.security
-    async def test_stop_workflow_allowed_for_legacy_job_with_no_user_id(
+    async def test_stop_workflow_denies_legacy_job_with_no_user_id_without_mutating_row(
         self,
         client: AsyncClient,
         created_api_key,
         mock_settings_dev_api_enabled,  # noqa: ARG002
     ):
-        """POST /api/v2/workflows/stop does NOT block legacy jobs where user_id is NULL.
-
-        Jobs created before the ownership fix have user_id=None and must not be
-        broken by the ownership check (parity with the equivalent GET test).
-        """
+        """POST /api/v2/workflows/stop denies NULL ownership before mutation."""
         job_id = uuid4()
 
         async with session_scope() as session:
@@ -2060,9 +2054,13 @@ class TestWorkflowIDORProtection:
                 headers=headers,
             )
 
-            assert response.status_code == 200, (
-                "Legacy jobs with user_id=None must not be blocked by the ownership check"
-            )
+            assert response.status_code == 404
+            result = response.json()
+            assert result["detail"]["code"] == "JOB_NOT_FOUND"
+            async with session_scope() as session:
+                persisted_job = await session.get(Job, job_id)
+                assert persisted_job is not None
+                assert persisted_job.status == JobStatus.IN_PROGRESS
         finally:
             async with session_scope() as session:
                 db_job = await session.get(Job, job_id)

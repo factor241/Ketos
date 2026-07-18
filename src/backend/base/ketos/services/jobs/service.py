@@ -52,8 +52,8 @@ class JobService(Service):
             stmt = (
                 select(Job)
                 .where(Job.flow_id == flow_id)
-                .where((Job.user_id == user_id) | (Job.user_id.is_(None)))
-                .order_by(col(Job.created_at).desc())
+                .where(Job.user_id == user_id)
+                .order_by(col(Job.created_timestamp).desc())
                 .offset((page - 1) * page_size)
                 .limit(page_size)
             )
@@ -66,7 +66,7 @@ class JobService(Service):
         Args:
             job_id: The job ID to filter jobs by
             user_id: When provided, restricts the result to jobs owned by this user
-                or legacy jobs with no owner (user_id IS NULL).
+                only. When omitted, this is a system-internal lookup path.
 
         Returns:
             Job object for the specified job ID, or None if not found or not accessible
@@ -76,8 +76,8 @@ class JobService(Service):
 
         async with session_scope() as session:
             stmt = select(Job).where(Job.job_id == job_id)
-            if user_id:
-                stmt = stmt.where((Job.user_id == user_id) | (Job.user_id.is_(None)))
+            if user_id is not None:
+                stmt = stmt.where(Job.user_id == user_id)
             result = await session.exec(stmt)
             return result.first()
 
@@ -242,7 +242,7 @@ class JobService(Service):
                 col(Job.status).in_([JobStatus.QUEUED, JobStatus.IN_PROGRESS]),
             )
             if user_id is not None:
-                stmt = stmt.where((Job.user_id == user_id) | (col(Job.user_id).is_(None)))
+                stmt = stmt.where(Job.user_id == user_id)
             result = await session.exec(stmt)
             jobs = list(result.all())
             if not jobs:
@@ -334,7 +334,7 @@ class JobService(Service):
         if job is None:
             msg = f"Job {job_id} not found"
             raise ValueError(msg)
-        if job.user_id is not None and job.user_id != user_id:
+        if job.user_id != user_id:
             msg = f"Access denied for job {job_id}"
             raise ValueError(msg)
         return job

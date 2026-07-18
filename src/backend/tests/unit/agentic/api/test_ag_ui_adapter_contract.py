@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import inspect
+import json
 import stat
 import subprocess
 import sys
@@ -414,6 +415,7 @@ def test_fork_changed_file_allowlist_includes_only_the_exact_interrupts_concept_
     probe = _load_probe()
 
     assert probe._approved_changed_file("docs/concepts/interrupts.mdx") is True
+    assert probe._approved_changed_file("integrations/langgraph/python/ag_ui_langgraph/__init__.py") is True
     assert probe._approved_changed_file("docs/concepts/other.mdx") is False
 
 
@@ -1215,13 +1217,49 @@ def test_temporary_fork_decision_only_supersedes_dependency_source_and_keeps_gat
     assert "dependency-source" in text
     assert "protocol" in text
     assert "security" in text
-    assert "PENDING" in text
+    assert "ACTIVE" in text
     assert "does not grant PASS" in text
 
 
-def test_admission_handoff_marks_fork_artifacts_pending_without_claiming_pass() -> None:
+def test_admission_handoff_records_exact_admitted_fork_artifacts() -> None:
     text = ADMISSION_PATH.read_text(encoding="utf-8")
 
-    assert "Temporary fork evidence: **PENDING**" in text
+    assert "Temporary fork evidence: **PASS**" in text
     assert "STAGE_01_TEMPORARY_FORK_DECISION.md" in text
-    assert "Verdict: **BLOCKED**" in text
+    assert "Verdict: **PASS**" in text
+    for exact_value in (
+        "85b94807e464c9b38f591938a41559923a712dbb",
+        "5ae33b1bab5a9e0adfb1425c5e279476a7ba35a385019d71be2f3ee79e8913cc",
+        "c853ac2b78cb57481cc2ca58eda4a865908c532b",
+        "64711f7e9e94ab6126fef68fdb92f9ba80f400b88d64d3a72191ee1ed7da61aa",
+        "sha512-ZHIeQdU9Iy+MoFKTfm5orw2Yy0aiG0FM3JIs4c1OtxfCG70TUpmUDqzt3lPx6GJkn3lrYwbSxFnIiSCv1CdVAQ==",
+        'admitted": true',
+    ):
+        assert exact_value in text
+
+
+def test_vendored_manifest_runs_agui_probe_with_declared_fastapi_extra() -> None:
+    manifest = json.loads((REPO_ROOT / "vendor/stage01/manifest.json").read_text())
+
+    agui = manifest["artifacts"]["ag-ui-langgraph"]
+    command = agui["audit"]
+    assert "ag_ui_langgraph-0.0.43+ketos.1-py3-none-any.whl[fastapi]" in command
+    assert agui["toolchain"] == {
+        "uv": "0.11.21",
+        "python": "3.13.14",
+        "source_date_epoch": 1765974360,
+    }
+    assert 'test "$(uv --version | cut -d \' \' -f 2)" = "0.11.21"' in agui["rebuild"]
+    assert "uv build --python 3.13.14" in agui["rebuild"]
+
+    copilot = manifest["artifacts"]["@copilotkit/react-core"]
+    assert "audit_copilotkit_provenance.py" in copilot["source_audit"]
+    assert copilot["toolchain"] == {
+        "node": "22.23.1",
+        "pnpm": "10.33.4",
+        "source_date_epoch": 1784227404,
+    }
+    assert "npx --yes --package=node@22.23.1" in copilot["rebuild"]
+    assert "pnpm@10.33.4 install --frozen-lockfile" in copilot["rebuild"]
+    assert "rm -rf packages/react-core/dist" in copilot["rebuild"]
+    assert "pnpm@10.33.4 --dir packages/react-core run build" in copilot["rebuild"]

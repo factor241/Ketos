@@ -99,6 +99,7 @@ APPROVED_FORK_SOURCE_FILES = frozenset(
     {
         "docs/concepts/interrupts.mdx",
         "integrations/langgraph/python/README.md",
+        "integrations/langgraph/python/ag_ui_langgraph/__init__.py",
         "integrations/langgraph/python/ag_ui_langgraph/agent.py",
         "integrations/langgraph/python/ag_ui_langgraph/endpoint.py",
         "integrations/langgraph/python/ag_ui_langgraph/interrupts.py",
@@ -1241,6 +1242,11 @@ def probe_safe_pre_dispatch_binding(
                 self.ledger = ledger
                 self.label = label
                 self.bound_actor = None
+                # Current strict-resume forks attach template-owned replay
+                # coordination to every request clone. Opaque sentinels are
+                # enough here because this black-box run does not resume.
+                self._thread_lock_registry = object()
+                self._resume_claim_registry = object()
 
             def clone(self):
                 self.ledger.append("clone")

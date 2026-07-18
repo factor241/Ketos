@@ -33,6 +33,7 @@
   "dependencies": {
     "@chakra-ui/number-input": "^2.1.2",
     "@chakra-ui/system": "^2.6.2",
+    "@copilotkit/react-core": "file:../../vendor/stage01/copilotkit-react-core-1.63.1-ketos.1.tgz",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@headlessui/react": "^2.2.9",

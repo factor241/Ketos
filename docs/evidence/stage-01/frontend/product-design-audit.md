@@ -2,11 +2,13 @@
 
 ## Browser verification status
 
-`PENDING_RESOURCE_GATED_LOCAL_SERVER`. Chrome was selected through the user
-extension and the audit session was named. No Ketos server was listening on
-the common local ports when checked; at RSS above 14 GiB the stage explicitly
-forbids starting a heavy server/browser verification lane. Static source is
-therefore not mislabelled as visual or accessibility PASS.
+`BLOCKED_RESOURCE_GATED_LOCAL_SERVER`. Chrome was selected through the user
+extension and the audit session was named. At `2026-07-18T13:50:28Z`, Chrome
+attempted `http://127.0.0.1:7860/` and returned `net::ERR_CONNECTION_REFUSED`.
+Because aggregate RSS was above the 14 GiB throttle, GC-16 prohibited starting
+the backend/frontend server lane. The Product Design workflow stops when the
+reference cannot be opened and captured, so no screenshot was fabricated and
+static source is not mislabelled as visual or accessibility PASS.
 
 ## Grounded IA findings
 

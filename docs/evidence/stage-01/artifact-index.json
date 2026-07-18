@@ -28,6 +28,15 @@
       "task_id": "S01-T01"
     },
     {
+      "evidence_record_link": null,
+      "not_applicable_reason": "not-applicable: bundle source, manifest, test, or human-readable policy artifact",
+      "owner": "stage01-security-implementation",
+      "relative_path": "STAGE_01_REPORT_RU.md",
+      "reviewer_status": "pending",
+      "sha256": "c85ea9b7ece7a7d062e92ecfd2dfd42f3ee2cd54340bce37c830fd721cb51e2e",
+      "task_id": "S01-T03"
+    },
+    {
       "evidence_record_link": "records/asset-baseline-probe.json",
       "not_applicable_reason": null,
       "owner": "stage01-security-implementation",
@@ -609,7 +618,7 @@
       "owner": "stage01-security-implementation",
       "relative_path": "frontend/product-design-audit.md",
       "reviewer_status": "pending",
-      "sha256": "d435201fd31567507bfd0b6b70d3de087983b9d417793ad6afdb51b8160b12af",
+      "sha256": "71ee86bc0a12aa1360fca0ba7eb56366f7ed998bfd073e5fc0270f4de7b04708",
       "task_id": "S01-T08-T13"
     },
     {

@@ -288,6 +288,30 @@ def test_rejects_v2_export_that_redirects_types_away_from_public_declarations(tm
         _audit(artifact)
 
 
+@pytest.mark.parametrize(
+    "decoy_reference",
+    [
+        "// export type { InterruptResolveFn } from './hidden.cjs';",
+        "/* export type { InterruptResolveFn } from './hidden.cjs'; */",
+        "declare const decoy: \"export type { InterruptResolveFn } from './hidden.cjs'\";",
+    ],
+)
+def test_rejects_commonjs_contract_reachable_only_through_non_code_text(tmp_path: Path, decoy_reference: str) -> None:
+    artifact = tmp_path / audit.EXPECTED_FILENAME
+    widened = "export type InterruptResolveFn<TResult = unknown> = (payload?: unknown) => Promise<void>;\n"
+    files = {
+        "package/package.json": _package_json(),
+        "package/LICENSE": b"MIT license\n",
+        "package/dist/v2/index.d.cts": (widened + decoy_reference).encode(),
+        "package/dist/v2/index.d.mts": DECLARATION,
+        "package/dist/v2/hidden.d.cts": DECLARATION,
+    }
+    _write_tgz(artifact, files=files)
+
+    with pytest.raises(audit.AuditError, match="typed InterruptResolveFn"):
+        _audit(artifact)
+
+
 def test_runtime_proof_rejects_a_nested_second_package_copy(tmp_path: Path) -> None:
     artifact = tmp_path / audit.EXPECTED_FILENAME
     _write_tgz(artifact)

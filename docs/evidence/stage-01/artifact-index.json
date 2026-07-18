@@ -6,7 +6,7 @@
       "owner": "stage-01",
       "relative_path": "DELIVERY_REVISION.md",
       "reviewer_status": "pending",
-      "sha256": "2f5ae56a898633866ea99c75de4526e59cefe26230c0f7ce7619ae3ac642e961",
+      "sha256": "e54f012e639a3b30b79058adeda6a7f46234111e5dd4c413435aacc4e807a1f9",
       "task_id": "S01-T01"
     },
     {
@@ -78,7 +78,7 @@
       "owner": "stage-01",
       "relative_path": "artifacts/delivery-attestation.stdout.log",
       "reviewer_status": "pending",
-      "sha256": "510ace6773215cbc4766e3cb147b03ea2532c5cbb129d3dd07881875faecc65c",
+      "sha256": "80b65fc25f4f68675d984d4845f2663070b89ef8c8cb66e46385365365ee8711",
       "task_id": "S01-T01"
     },
     {
@@ -240,7 +240,7 @@
       "owner": "stage-01",
       "relative_path": "preflight-manifest.json",
       "reviewer_status": "pending",
-      "sha256": "9e9db2b7739652dca31bc48a31718bd99268b58ce7094fc465de4a841e18e44d",
+      "sha256": "d250c076ec77f689af0680996cb78b638731963653ed56b7e78199c3b3516179",
       "task_id": "S01-T01"
     },
     {
@@ -267,7 +267,7 @@
       "owner": "stage-01",
       "relative_path": "records/delivery-attestation.json",
       "reviewer_status": "pending",
-      "sha256": "1c204c908148178ddec4ae9320bb2bec1c244e543883bdd97c1cb7f3b5909285",
+      "sha256": "cd546e190a6984e7097954de6f442cdf9c7d8256a811638a5e00f06260db3053",
       "task_id": "S01-T01"
     },
     {
@@ -379,7 +379,7 @@
       "task_id": "S01-T01"
     }
   ],
-  "index_version": 4,
-  "scope": "persistent files in docs/evidence/stage-01 after canonical-log fix except this index; ignored Python bytecode is excluded",
+  "index_version": 5,
+  "scope": "persistent files in docs/evidence/stage-01 after canonical-log fix and delivery attestation except this index; ignored Python bytecode is excluded",
   "self_hash_policy": "artifact-index.json is deliberately excluded to avoid recursive hashing"
 }

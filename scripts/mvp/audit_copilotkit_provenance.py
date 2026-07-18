@@ -12,11 +12,13 @@ import hashlib
 import json
 import os
 import re
+import selectors
 import shutil
 import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 from pathlib import Path, PurePosixPath
 from typing import Any, NoReturn
 from urllib.parse import urlsplit, urlunsplit
@@ -100,43 +102,153 @@ def _canonical_remote(value: str) -> str:
     return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), path, "", ""))
 
 
-def _git_capture(repository: Path, *arguments: str, timeout: int = 60) -> str:
+def _run_bounded(
+    command: list[str],
+    *,
+    timeout: int,
+    max_output_bytes: int,
+    stdout_file: Any | None = None,
+) -> tuple[int, bytes, bytes]:
+    """Continuously drain both pipes under an aggregate byte and time ceiling."""
     try:
-        result = subprocess.run(  # noqa: S603 - fixed executable and argv, never a shell.
-            [GIT, "-C", str(repository), *arguments],
-            check=False,
-            capture_output=True,
-            timeout=timeout,
+        process = subprocess.Popen(  # noqa: S603 - fixed executable/argv, never a shell.
+            command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0
         )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        _fail(f"Git command failed or timed out: {exc}")
-    if len(result.stdout) + len(result.stderr) > MAX_GIT_OUTPUT_BYTES:
-        _fail("Git command exceeded output resource limit")
-    if result.returncode != 0:
-        _fail(f"Git command failed: {' '.join(arguments)}")
+    except OSError as exc:
+        _fail(f"bounded subprocess could not start: {exc}")
+    if process.stdout is None or process.stderr is None:  # pragma: no cover - requested pipes guarantee both.
+        process.kill()
+        _fail("bounded subprocess pipes are unavailable")
+    output = bytearray()
+    error = bytearray()
+    consumed = 0
+    deadline = time.monotonic() + timeout
+    selector = selectors.DefaultSelector()
+    selector.register(process.stdout, selectors.EVENT_READ, "stdout")
+    selector.register(process.stderr, selectors.EVENT_READ, "stderr")
     try:
-        return result.stdout.decode("utf-8").strip()
+        while selector.get_map():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                _fail("subprocess exceeded time resource limit")
+            for key, _ in selector.select(min(remaining, 0.1)):
+                chunk = os.read(key.fileobj.fileno(), 64 * 1024)
+                if not chunk:
+                    selector.unregister(key.fileobj)
+                    continue
+                consumed += len(chunk)
+                if consumed > max_output_bytes:
+                    _fail("subprocess exceeded output resource limit")
+                if key.data == "stdout":
+                    if stdout_file is None:
+                        output.extend(chunk)
+                    else:
+                        stdout_file.write(chunk)
+                else:
+                    error.extend(chunk)
+        process.wait(timeout=max(0.1, deadline - time.monotonic()))
+    except (AuditError, subprocess.TimeoutExpired):
+        process.kill()
+        process.wait()
+        raise
+    finally:
+        selector.close()
+        process.stdout.close()
+        process.stderr.close()
+    return process.returncode, bytes(output), bytes(error)
+
+
+def _git_capture_bytes(repository: Path, *arguments: str, timeout: int = 60) -> bytes:
+    returncode, output, _ = _run_bounded(
+        [GIT, "-C", str(repository), *arguments],
+        timeout=timeout,
+        max_output_bytes=MAX_GIT_OUTPUT_BYTES,
+    )
+    if returncode != 0:
+        _fail(f"Git command failed: {' '.join(arguments)}")
+    return output
+
+
+def _git_capture(repository: Path, *arguments: str, timeout: int = 60) -> str:
+    output = _git_capture_bytes(repository, *arguments, timeout=timeout)
+    try:
+        return output.decode("utf-8").strip()
     except UnicodeDecodeError:
         _fail("Git command returned non-UTF-8 output")
 
 
-def _verify_remote(repository: Path, remote: str, commit_sha: str, *, require_advertised: bool) -> None:
+def _remote_heads(repository: Path, remote: str) -> dict[str, str]:
     listed = _git_capture(repository, "ls-remote", "--heads", remote, timeout=90)
-    advertised = {line.split("\t", 1)[0] for line in listed.splitlines() if "\t" in line}
-    if not advertised:
+    heads = {
+        reference: sha
+        for line in listed.splitlines()
+        if "\t" in line
+        for sha, reference in [line.split("\t", 1)]
+        if re.fullmatch(r"[0-9a-f]{40}", sha) and reference.startswith("refs/heads/")
+    }
+    if not heads:
         _fail("fixed remote has no advertised branch heads")
-    if require_advertised and commit_sha not in advertised:
-        _fail("fork commit is not advertised by the fixed remote")
-    try:
-        subprocess.run(  # noqa: S603 - fixed executable and argv, never a shell.
-            [GIT, "-C", str(repository), "fetch", "--no-tags", "--force", remote, commit_sha],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=120,
+    return heads
+
+
+def _fetch_advertised_branch(remote: str, reference: str, *, expected_tip: str, base_sha: str, label: str) -> None:
+    with tempfile.TemporaryDirectory(prefix="ketos-copilotkit-remote-proof-") as directory:
+        repository = Path(directory)
+        init_status, _, _ = _run_bounded(
+            [GIT, "init", "--bare", str(repository)], timeout=30, max_output_bytes=1024 * 1024
         )
-    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
-        _fail(f"fork commit is not fetch-reachable from the fixed remote: {exc}")
+        fetch_status, _, _ = _run_bounded(
+            [
+                GIT,
+                "-C",
+                str(repository),
+                "fetch",
+                "--filter=blob:none",
+                "--no-tags",
+                remote,
+                f"{reference}:refs/stage01/proof",
+            ],
+            timeout=180,
+            max_output_bytes=8 * 1024 * 1024,
+        )
+        if init_status != 0 or fetch_status != 0:
+            _fail(f"{label} advertised branch is not fetch-reachable")
+        tip = _git_capture(repository, "rev-parse", "refs/stage01/proof")
+        if tip != expected_tip:
+            _fail(f"{label} fetched branch tip does not match ls-remote")
+        ancestry_status, _, _ = _run_bounded(
+            [GIT, "-C", str(repository), "merge-base", "--is-ancestor", base_sha, tip],
+            timeout=30,
+            max_output_bytes=1024 * 1024,
+        )
+        if ancestry_status != 0:
+            _fail(f"base commit is not an ancestor of the advertised {label} branch")
+
+
+def _verify_remotes(repository: Path, fork_remote: str, upstream_remote: str, fork_sha: str, base_sha: str) -> None:
+    fork_heads = _remote_heads(repository, fork_remote)
+    fork_references = [reference for reference, sha in fork_heads.items() if sha == fork_sha]
+    if not fork_references:
+        _fail("fork commit is not advertised by the fixed remote")
+    _fetch_advertised_branch(
+        fork_remote,
+        sorted(fork_references)[0],
+        expected_tip=fork_sha,
+        base_sha=base_sha,
+        label="fork",
+    )
+    upstream_heads = _remote_heads(repository, upstream_remote)
+    upstream_reference = "refs/heads/main"
+    upstream_tip = upstream_heads.get(upstream_reference)
+    if upstream_tip is None:
+        _fail("official upstream does not advertise its fixed main branch")
+    _fetch_advertised_branch(
+        upstream_remote,
+        upstream_reference,
+        expected_tip=upstream_tip,
+        base_sha=base_sha,
+        label="upstream",
+    )
 
 
 def _safe_name(name: str, prefix: str) -> None:
@@ -213,14 +325,10 @@ def _manifest_record(manifest: dict[str, Any]) -> dict[str, Any]:
 
 
 def _package_metadata(repository: Path, fork_sha: str, record: dict[str, Any]) -> None:
-    license_content = subprocess.run(  # noqa: S603 - fixed executable and argv, never a shell.
-        [GIT, "-C", str(repository), "show", f"{fork_sha}:packages/react-core/LICENSE"],
-        check=False,
-        capture_output=True,
-    )
-    if license_content.returncode != 0 or len(license_content.stdout) > MAX_JSON_BYTES:
+    license_content = _git_capture_bytes(repository, "show", f"{fork_sha}:packages/react-core/LICENSE")
+    if len(license_content) > MAX_JSON_BYTES:
         _fail("package source license is missing or oversized")
-    if hashlib.sha256(license_content.stdout).hexdigest() != _digest(record.get("license_sha256"), "license SHA-256"):
+    if hashlib.sha256(license_content).hexdigest() != _digest(record.get("license_sha256"), "license SHA-256"):
         _fail("package source license SHA-256 mismatch")
     package_raw = _git_capture(repository, "show", f"{fork_sha}:packages/react-core/package.json")
     try:
@@ -237,6 +345,16 @@ def _package_metadata(repository: Path, fork_sha: str, record: dict[str, Any]) -
         or _canonical_remote(repository_url) != _canonical_remote(str(record.get("upstream_repository", "")))
     ):
         _fail("package source metadata does not match the manifest")
+
+
+def _canonical_rebuild(fork_sha: str, source_date_epoch: int) -> str:
+    return (
+        f"git checkout {fork_sha} && pnpm install --frozen-lockfile && "
+        "pnpm exec nx run @copilotkit/react-core:check-types --skip-nx-cache --outputStyle=static && "
+        "rm -rf packages/react-core/dist && pnpm --dir packages/react-core run build && "
+        f"SOURCE_DATE_EPOCH={source_date_epoch} "
+        "pnpm --dir packages/react-core run pack:deterministic /tmp/ketos-stage01-copilot-pack"
+    )
 
 
 def audit_provenance(
@@ -278,21 +396,16 @@ def audit_provenance(
     origin = _git_capture(repository_path, "remote", "get-url", "origin")
     if _canonical_remote(origin) != _canonical_remote(expected_fork_repository):
         _fail("repository origin is not the fixed canonical fork")
-    _verify_remote(repository_path, expected_fork_repository, fork_sha, require_advertised=True)
-    _verify_remote(repository_path, expected_fork_repository, base_sha, require_advertised=False)
-    _verify_remote(repository_path, expected_upstream_repository, base_sha, require_advertised=False)
+    _verify_remotes(repository_path, expected_fork_repository, expected_upstream_repository, fork_sha, base_sha)
     resolved = _git_capture(repository_path, "rev-parse", f"{fork_sha}^{{commit}}")
     if resolved != fork_sha:
         _fail("fetched fork commit does not resolve exactly")
-    if (
-        subprocess.run(  # noqa: S603 - fixed executable and argv, never a shell.
-            [GIT, "-C", str(repository_path), "merge-base", "--is-ancestor", base_sha, fork_sha],
-            check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        ).returncode
-        != 0
-    ):
+    ancestry_status, _, _ = _run_bounded(
+        [GIT, "-C", str(repository_path), "merge-base", "--is-ancestor", base_sha, fork_sha],
+        timeout=30,
+        max_output_bytes=1024 * 1024,
+    )
+    if ancestry_status != 0:
         _fail("upstream base is not an ancestor of the fork commit")
 
     if source_archive.name != record.get("source_archive"):
@@ -308,22 +421,7 @@ def audit_provenance(
     if record.get("version") != PACKAGE_VERSION or record.get("license_spdx") != "MIT":
         _fail("manifest package identity is not the admitted package/version/license")
     epoch = record.get("toolchain", {}).get("source_date_epoch") if isinstance(record.get("toolchain"), dict) else None
-    rebuild = record.get("rebuild")
-    required_rebuild = (
-        isinstance(rebuild, str)
-        and f"git checkout {fork_sha}" in rebuild
-        and isinstance(epoch, int)
-        and epoch > 0
-        and f"SOURCE_DATE_EPOCH={epoch}" in rebuild
-        and "rm -rf packages/react-core/dist" in rebuild
-        and "pnpm --dir packages/react-core run build" in rebuild
-        and "pnpm --dir packages/react-core run pack:deterministic" in rebuild
-        and rebuild.index("rm -rf packages/react-core/dist")
-        < rebuild.index("pnpm --dir packages/react-core run build")
-        < rebuild.index("pnpm --dir packages/react-core run pack:deterministic")
-        and "HEAD" not in rebuild
-    )
-    if not required_rebuild:
+    if not isinstance(epoch, int) or epoch <= 0 or record.get("rebuild") != _canonical_rebuild(fork_sha, epoch):
         _fail("manifest rebuild command is not bound to the fork/package/epoch")
 
     changed = _git_capture(repository_path, "diff", "--name-only", base_sha, fork_sha).splitlines()
@@ -341,24 +439,22 @@ def audit_provenance(
         max_uncompressed_bytes=max_uncompressed_bytes,
     )
     with tempfile.NamedTemporaryFile(prefix="ketos-copilotkit-git-archive-", suffix=".tar") as expected_file:
-        try:
-            subprocess.run(  # noqa: S603 - fixed executable and argv, never a shell.
-                [
-                    GIT,
-                    "-C",
-                    str(repository_path),
-                    "archive",
-                    "--format=tar",
-                    f"--prefix={prefix}",
-                    fork_sha,
-                ],
-                check=True,
-                stdout=expected_file,
-                stderr=subprocess.DEVNULL,
-                timeout=120,
-            )
-        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
-            _fail(f"cannot derive expected Git archive: {exc}")
+        archive_status, _, _ = _run_bounded(
+            [
+                GIT,
+                "-C",
+                str(repository_path),
+                "archive",
+                "--format=tar",
+                f"--prefix={prefix}",
+                fork_sha,
+            ],
+            timeout=120,
+            max_output_bytes=max_uncompressed_bytes + (max_members + 1) * 1024,
+            stdout_file=expected_file,
+        )
+        if archive_status != 0:
+            _fail("cannot derive expected Git archive")
         expected_file.flush()
         expected_tree, _, expected_symlinks = _archive_tree(
             Path(expected_file.name),
@@ -406,10 +502,6 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--manifest-path", type=Path, required=True)
     parser.add_argument("--repository-path", type=Path, required=True)
     parser.add_argument("--artifact-path", type=Path, required=True)
-    parser.add_argument("--fork-repository", default=FORK_REPOSITORY)
-    parser.add_argument("--upstream-repository", default=UPSTREAM_REPOSITORY)
-    parser.add_argument("--fork-sha", default=FORK_SHA)
-    parser.add_argument("--upstream-base-sha", default=UPSTREAM_BASE_SHA)
     parser.add_argument("--json", action="store_true")
     return parser
 
@@ -422,10 +514,10 @@ def main(argv: list[str] | None = None) -> int:
             manifest_path=arguments.manifest_path,
             repository_path=arguments.repository_path,
             artifact_path=arguments.artifact_path,
-            expected_fork_repository=arguments.fork_repository,
-            expected_upstream_repository=arguments.upstream_repository,
-            expected_fork_sha=arguments.fork_sha,
-            expected_upstream_base_sha=arguments.upstream_base_sha,
+            expected_fork_repository=FORK_REPOSITORY,
+            expected_upstream_repository=UPSTREAM_REPOSITORY,
+            expected_fork_sha=FORK_SHA,
+            expected_upstream_base_sha=UPSTREAM_BASE_SHA,
         )
     except AuditError as exc:
         if arguments.json:

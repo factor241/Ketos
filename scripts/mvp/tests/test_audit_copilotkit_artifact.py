@@ -7,7 +7,7 @@ import importlib.util
 import io
 import json
 import tarfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import pytest
 
@@ -63,10 +63,10 @@ def _write_tgz(
         "package/package.json": _package_json(),
         "package/LICENSE": b"MIT license\n",
         "package/README.md": b"CopilotKit\n",
-        "package/dist/index.d.cts": b"export type { InterruptResolveFn } from './types.cjs';\n",
-        "package/dist/index.d.mts": b"export type { InterruptResolveFn } from './types.mjs';\n",
-        "package/dist/types.d.cts": DECLARATION,
-        "package/dist/types.d.mts": DECLARATION,
+        "package/dist/v2/index.d.cts": b"export type { InterruptResolveFn } from './types.cjs';\n",
+        "package/dist/v2/index.d.mts": b"export type { InterruptResolveFn } from './types.mjs';\n",
+        "package/dist/v2/types.d.cts": DECLARATION,
+        "package/dist/v2/types.d.mts": DECLARATION,
         "package/dist/index.cjs": b"module.exports = {};\n",
         "package/dist/index.mjs": b"export {};\n",
         "package/skills/react-core/SKILL.md": b"# data only\n",
@@ -91,6 +91,24 @@ def _digests(path: Path) -> tuple[str, str, str]:
     integrity = "sha512-" + base64.b64encode(hashlib.sha512(content).digest()).decode()
     license_sha256 = hashlib.sha256(b"MIT license\n").hexdigest()
     return sha256, integrity, license_sha256
+
+
+def _install_artifact(artifact: Path, package_root: Path) -> None:
+    with tarfile.open(artifact, "r:gz") as archive:
+        for member in archive:
+            assert member.isfile()
+            source = archive.extractfile(member)
+            assert source is not None
+            relative = Path(*PurePosixPath(member.name).parts[1:])
+            destination = package_root / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(source.read())
+
+
+def _install_typescript_stub(runtime_root: Path, *, exit_code: int = 0) -> None:
+    compiler = runtime_root / "node_modules/typescript/bin/tsc"
+    compiler.parent.mkdir(parents=True, exist_ok=True)
+    compiler.write_text(f"process.exit({exit_code});\n", encoding="utf-8")
 
 
 def _audit(path: Path, **kwargs: object) -> dict[str, object]:
@@ -213,15 +231,51 @@ def test_rejects_declaration_that_widens_typed_payload_to_unknown(tmp_path: Path
         _audit(artifact)
 
 
+def test_rejects_exact_signature_hidden_in_an_unreachable_declaration(tmp_path: Path) -> None:
+    artifact = tmp_path / audit.EXPECTED_FILENAME
+    widened = b"export type InterruptResolveFn<TResult = unknown> = (payload?: unknown) => Promise<void>;\n"
+    files = {
+        "package/package.json": _package_json(),
+        "package/LICENSE": b"MIT license\n",
+        "package/dist/index.d.cts": widened,
+        "package/dist/index.d.mts": widened,
+        "package/dist/unreachable.d.cts": DECLARATION,
+        "package/dist/unreachable.d.mts": DECLARATION,
+    }
+    _write_tgz(artifact, files=files)
+
+    with pytest.raises(audit.AuditError, match="typed InterruptResolveFn"):
+        _audit(artifact)
+
+
+def test_rejects_signature_fragments_hidden_in_a_reachable_comment(tmp_path: Path) -> None:
+    artifact = tmp_path / audit.EXPECTED_FILENAME
+    widened = (
+        b"export type InterruptResolveFn<TResult = unknown> = (payload?: unknown) => Promise<void>;\n"
+        b"/*\n" + DECLARATION + b"*/\n"
+    )
+    files = {
+        "package/package.json": _package_json(),
+        "package/LICENSE": b"MIT license\n",
+        "package/dist/index.d.cts": widened,
+        "package/dist/index.d.mts": widened,
+    }
+    _write_tgz(artifact, files=files)
+
+    with pytest.raises(audit.AuditError, match="typed InterruptResolveFn"):
+        _audit(artifact)
+
+
 def test_runtime_proof_rejects_a_nested_second_package_copy(tmp_path: Path) -> None:
     artifact = tmp_path / audit.EXPECTED_FILENAME
     _write_tgz(artifact)
     runtime = tmp_path / "frontend"
     first = runtime / "node_modules/@copilotkit/react-core"
     second = runtime / "node_modules/other/node_modules/@copilotkit/react-core"
-    for package in (first, second):
-        package.mkdir(parents=True)
-        (package / "package.json").write_bytes(_package_json())
+    _install_artifact(artifact, first)
+    _install_typescript_stub(runtime)
+    second.parent.mkdir(parents=True)
+    second.symlink_to(first, target_is_directory=True)
 
     with pytest.raises(audit.AuditError, match="exactly one runtime copy"):
         _audit(artifact, runtime_root=runtime)
@@ -232,8 +286,8 @@ def test_runtime_proof_binds_the_single_installed_version(tmp_path: Path) -> Non
     _write_tgz(artifact)
     runtime = tmp_path / "frontend"
     package = runtime / "node_modules/@copilotkit/react-core"
-    package.mkdir(parents=True)
-    (package / "package.json").write_bytes(_package_json())
+    _install_artifact(artifact, package)
+    _install_typescript_stub(runtime)
 
     evidence = _audit(artifact, runtime_root=runtime)
 
@@ -242,3 +296,30 @@ def test_runtime_proof_binds_the_single_installed_version(tmp_path: Path) -> Non
         "copy_count": 1,
         "version": "1.63.1-ketos.1",
     }
+
+
+def test_runtime_proof_rejects_tampered_installed_declarations(tmp_path: Path) -> None:
+    artifact = tmp_path / audit.EXPECTED_FILENAME
+    _write_tgz(artifact)
+    runtime = tmp_path / "frontend"
+    package = runtime / "node_modules/@copilotkit/react-core"
+    _install_artifact(artifact, package)
+    _install_typescript_stub(runtime)
+    (package / "dist/v2/types.d.cts").write_text(
+        "export type InterruptResolveFn = (payload?: unknown) => Promise<void>;\n"
+    )
+
+    with pytest.raises(audit.AuditError, match="runtime package contents"):
+        _audit(artifact, runtime_root=runtime)
+
+
+def test_runtime_proof_requires_executable_typescript_contract_to_pass(tmp_path: Path) -> None:
+    artifact = tmp_path / audit.EXPECTED_FILENAME
+    _write_tgz(artifact)
+    runtime = tmp_path / "frontend"
+    package = runtime / "node_modules/@copilotkit/react-core"
+    _install_artifact(artifact, package)
+    _install_typescript_stub(runtime, exit_code=1)
+
+    with pytest.raises(audit.AuditError, match="TypeScript positive/negative contract failed"):
+        _audit(artifact, runtime_root=runtime)

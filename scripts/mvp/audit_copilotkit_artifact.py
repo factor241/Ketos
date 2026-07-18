@@ -14,10 +14,14 @@ import binascii
 import hashlib
 import json
 import os
+import posixpath
 import re
+import shutil
 import stat
+import subprocess
 import sys
 import tarfile
+import tempfile
 from pathlib import Path, PurePosixPath
 from typing import Any, NoReturn
 
@@ -133,9 +137,16 @@ def _declaration_has_contract(content: bytes) -> bool:
     if len(content) > DECLARATION_MAX_BYTES:
         return False
     try:
-        compact = re.sub(r"\s+", "", content.decode("utf-8"))
+        source = content.decode("utf-8")
     except UnicodeDecodeError:
         return False
+    source = re.sub(
+        r"/\*.*?\*/|//[^\r\n]*|\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`",
+        " ",
+        source,
+        flags=re.DOTALL,
+    )
+    compact = re.sub(r"\s+", "", source)
     exact_payload = (
         "typeExactInterruptPayload<TResult,TPayloadextendsTResult>="
         "TResultextendsunknown?TPayloadextendsTResult?"
@@ -155,18 +166,137 @@ def _declaration_has_contract(content: bytes) -> bool:
     return all(fragment in compact for fragment in (exact_payload, typed_resolver, public_resolver)) and exported
 
 
-def _runtime_evidence(runtime_root: Path | None) -> dict[str, object]:
+def _declaration_references(name: str, content: bytes) -> tuple[str, ...]:
+    try:
+        source = content.decode("utf-8")
+    except UnicodeDecodeError:
+        return ()
+    parent = PurePosixPath(name).parent
+    resolved: list[str] = []
+    for reference in re.findall(r"(?:from|import)\s*[\"']([^\"']+)[\"']", source):
+        if not reference.startswith(("./", "../")):
+            continue
+        relative = posixpath.normpath(f"{parent.as_posix()}/{reference}")
+        if not relative.startswith("package/dist/"):
+            continue
+        if relative.endswith(".cjs"):
+            resolved.append(relative.removesuffix(".cjs") + ".d.cts")
+        elif relative.endswith(".mjs"):
+            resolved.append(relative.removesuffix(".mjs") + ".d.mts")
+        elif relative.endswith(".js"):
+            resolved.append(relative.removesuffix(".js") + ".d.ts")
+        else:
+            resolved.extend((relative + ".d.cts", relative + ".d.mts", relative + ".d.ts"))
+    return tuple(resolved)
+
+
+def _reachable_declarations(entry: str, declarations: dict[str, bytes]) -> tuple[bytes, ...]:
+    pending = [entry]
+    visited: set[str] = set()
+    reachable: list[bytes] = []
+    while pending:
+        name = pending.pop()
+        if name in visited:
+            continue
+        visited.add(name)
+        content = declarations.get(name)
+        if content is None:
+            continue
+        reachable.append(content)
+        pending.extend(_declaration_references(name, content))
+    return tuple(reachable)
+
+
+def _runtime_inventory(package_root: Path) -> dict[str, str]:
+    inventory: dict[str, str] = {}
+    resolved_root = package_root.resolve(strict=True)
+    for directory, directory_names, file_names in os.walk(resolved_root, followlinks=False):
+        directory_names[:] = [name for name in directory_names if name != "node_modules"]
+        for name in directory_names:
+            if Path(directory, name).is_symlink():
+                _fail("runtime package contents contain a symlink")
+        for name in file_names:
+            path = Path(directory, name)
+            if path.is_symlink() or not path.is_file():
+                _fail("runtime package contents must be regular files")
+            relative = path.relative_to(resolved_root).as_posix()
+            inventory[f"package/{relative}"] = _sha256(path.read_bytes())
+    return inventory
+
+
+def _typescript_contract_source() -> str:
+    return """\
+import type { InterruptResolveFn } from "@copilotkit/react-core/v2";
+type ApprovalDecision = Readonly<{ approved: boolean }>;
+declare const resolve: InterruptResolveFn<ApprovalDecision>;
+resolve({ approved: true }, "approve");
+resolve({ approved: false }, "reject");
+// @ts-expect-error typed payload is mandatory
+resolve();
+// @ts-expect-error approved must be boolean
+resolve({ approved: "yes" }, "wrong");
+// @ts-expect-error fresh literals cannot contain extra fields
+resolve({ approved: true, extra: true }, "extra-literal");
+const extraVariable = { approved: true, extra: true } as const;
+// @ts-expect-error variables cannot contain extra fields
+resolve(extraVariable, "extra-variable");
+"""
+
+
+def _run_typescript_contract(runtime_root: Path, package_root: Path) -> None:
+    node = shutil.which("node")
+    compiler = runtime_root / "node_modules/typescript/bin/tsc"
+    if node is None or not compiler.is_file():
+        _fail("runtime TypeScript compiler is unavailable for executable type-test")
+    with tempfile.TemporaryDirectory(prefix="ketos-copilotkit-type-audit-") as directory:
+        project = Path(directory)
+        (project / "contract.ts").write_text(_typescript_contract_source(), encoding="utf-8")
+        (project / "tsconfig.json").write_text(
+            json.dumps(
+                {
+                    "compilerOptions": {
+                        "baseUrl": ".",
+                        "module": "ESNext",
+                        "moduleResolution": "Bundler",
+                        "noEmit": True,
+                        "skipLibCheck": True,
+                        "strict": True,
+                        "target": "ES2022",
+                        "paths": {f"{EXPECTED_PACKAGE}/v2": [str(package_root / "dist/v2/index.d.mts")]},
+                    },
+                    "files": ["contract.ts"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        try:
+            result = subprocess.run(  # noqa: S603 - exact local node and pinned compiler paths
+                [node, str(compiler), "--project", str(project / "tsconfig.json"), "--pretty", "false"],
+                cwd=runtime_root,
+                capture_output=True,
+                check=False,
+                timeout=30,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            _fail(f"runtime TypeScript contract check could not complete: {exc}")
+        output = (result.stdout + result.stderr)[: 1024 * 1024].decode("utf-8", errors="replace")
+        if result.returncode != 0:
+            _fail(f"runtime TypeScript positive/negative contract failed: {output}")
+
+
+def _runtime_evidence(
+    runtime_root: Path | None,
+    expected_inventory: dict[str, str],
+) -> dict[str, object]:
     if runtime_root is None:
         return {"checked": False, "copy_count": None, "version": None}
     root = runtime_root.resolve(strict=True)
     copies: list[Path] = []
-    for directory, directory_names, file_names in os.walk(root, followlinks=False):
-        directory_names[:] = [name for name in directory_names if not Path(directory, name).is_symlink()]
-        if "package.json" not in file_names:
-            continue
-        candidate = Path(directory, "package.json")
-        if tuple(candidate.parts[-4:]) == ("node_modules", "@copilotkit", "react-core", "package.json"):
+    for directory, directory_names, _file_names in os.walk(root, followlinks=False):
+        candidate = Path(directory) / "node_modules/@copilotkit/react-core/package.json"
+        if candidate.exists():
             copies.append(candidate)
+        directory_names[:] = [name for name in directory_names if not Path(directory, name).is_symlink()]
     if len(copies) != 1:
         _fail(f"expected exactly one runtime copy of {EXPECTED_PACKAGE}, found {len(copies)}")
     package_path = copies[0]
@@ -178,6 +308,10 @@ def _runtime_evidence(runtime_root: Path | None) -> dict[str, object]:
         _fail("runtime package name does not match the admitted artifact")
     if manifest.get("version") != EXPECTED_VERSION:
         _fail("runtime package version does not match the admitted artifact")
+    package_root = package_path.parent
+    if _runtime_inventory(package_root) != expected_inventory:
+        _fail("runtime package contents do not match the admitted artifact inventory")
+    _run_typescript_contract(root, package_root)
     return {"checked": True, "copy_count": 1, "version": EXPECTED_VERSION}
 
 
@@ -218,12 +352,11 @@ def audit_artifact(
 
     try:
         with tarfile.open(path, mode="r:gz") as archive:
-            member_list = archive.getmembers()
-            if len(member_list) > max_members:
-                _fail("archive member count exceeds resource limit")
             members: dict[str, tarfile.TarInfo] = {}
             uncompressed_bytes = 0
-            for member in member_list:
+            for member in archive:
+                if len(members) >= max_members:
+                    _fail("archive member count exceeds resource limit")
                 normalized = _normalized_member_path(member.name)
                 if member.name in members:
                     _fail(f"duplicate archive member: {member.name}")
@@ -238,18 +371,21 @@ def audit_artifact(
                     _fail("archive uncompressed size exceeds resource limit")
                 members[member.name] = member
 
+            archive_inventory = {
+                name: _sha256(_read_member(archive, members, name, limit=max_member_bytes)) for name in members
+            }
+
             package = _strict_json(
                 _read_member(archive, members, "package/package.json", limit=JSON_MAX_BYTES),
                 "package.json",
             )
             license_content = _read_member(archive, members, "package/LICENSE", limit=max_member_bytes)
-            declaration_contracts = {"cts": False, "mts": False}
+            declarations: dict[str, bytes] = {}
             for name, member in members.items():
-                suffix = "cts" if name.endswith(".d.cts") else "mts" if name.endswith(".d.mts") else None
-                if suffix is None or member.size > DECLARATION_MAX_BYTES:
+                is_declaration = name.endswith((".d.cts", ".d.mts", ".d.ts"))
+                if not is_declaration or member.size > DECLARATION_MAX_BYTES:
                     continue
-                declaration = _read_member(archive, members, name, limit=DECLARATION_MAX_BYTES)
-                declaration_contracts[suffix] |= _declaration_has_contract(declaration)
+                declarations[name] = _read_member(archive, members, name, limit=DECLARATION_MAX_BYTES)
     except (tarfile.TarError, OSError, EOFError) as exc:
         _fail(f"artifact is not a valid bounded tgz: {exc}")
 
@@ -261,6 +397,15 @@ def audit_artifact(
         _fail("package license must be MIT")
     if _sha256(license_content) != expected_license_sha256:
         _fail("license SHA-256 does not match")
+    types_entry = package.get("types")
+    if not isinstance(types_entry, str) or not types_entry.startswith("./dist/"):
+        _fail("package types entry must be a relative dist declaration")
+    cts_entry = "package/dist/v2/index.d.cts"
+    mts_entry = "package/dist/v2/index.d.mts"
+    declaration_contracts = {
+        "cts": any(_declaration_has_contract(content) for content in _reachable_declarations(cts_entry, declarations)),
+        "mts": any(_declaration_has_contract(content) for content in _reachable_declarations(mts_entry, declarations)),
+    }
     if not all(declaration_contracts.values()):
         _fail("typed InterruptResolveFn contract is missing or widened")
 
@@ -288,7 +433,7 @@ def audit_artifact(
             "commonjs_declaration": declaration_contracts["cts"],
             "module_declaration": declaration_contracts["mts"],
         },
-        "runtime": _runtime_evidence(runtime_root),
+        "runtime": _runtime_evidence(runtime_root, archive_inventory),
     }
 
 

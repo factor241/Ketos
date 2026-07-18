@@ -28,6 +28,19 @@ def record_for(relative: str) -> tuple[str | None, str | None]:
         record = f"records/{record_id}.json"
         if (BUNDLE / record).is_file():
             return record, record
+    support_record = None
+    if relative.startswith(("architecture/", "provenance/")) or relative in {
+        "compatibility/desktop-status.json",
+        "compatibility/xyflow-dependency.json",
+        "tools/asset_probe.py",
+    }:
+        support_record = "records/asset-baseline-probe.json"
+    elif relative == "compatibility/lfx-baseline.json":
+        support_record = "records/lfx-compatibility-baseline.json"
+    elif relative.startswith(("frontend/", "telemetry/")) or relative == "tests/test_asset_provenance_artifacts.py":
+        support_record = "records/asset-provenance-tests.json"
+    if support_record and (BUNDLE / support_record).is_file():
+        return support_record, support_record
     return None, None
 
 

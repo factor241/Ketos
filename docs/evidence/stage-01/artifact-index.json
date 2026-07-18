@@ -28,6 +28,60 @@
       "task_id": "S01-T01"
     },
     {
+      "evidence_record_link": "records/asset-baseline-probe.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "architecture/current-asset-map.md",
+      "reviewer_status": "pending",
+      "sha256": "76e79f80e69284266f754d5e649eccfd242e8761e713d0b5fb3072059ded30b2",
+      "task_id": "S01-T08-T13"
+    },
+    {
+      "evidence_record_link": "records/asset-baseline-probe.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "architecture/graphify-reconciliation.json",
+      "reviewer_status": "pending",
+      "sha256": "982111957fc8f9715b5394a2ee7292314154abc63ebbd774b7f23d5cd4688d3b",
+      "task_id": "S01-T08-T13"
+    },
+    {
+      "evidence_record_link": "records/asset-baseline-probe.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/asset-baseline-probe.stderr.log",
+      "reviewer_status": "pending",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "task_id": "S01-T08-T13"
+    },
+    {
+      "evidence_record_link": "records/asset-baseline-probe.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/asset-baseline-probe.stdout.log",
+      "reviewer_status": "pending",
+      "sha256": "2cc0baa9a3bbfbc204179a65e74fefea7ba616000f8f3e72ab42f55a82d2a27d",
+      "task_id": "S01-T08-T13"
+    },
+    {
+      "evidence_record_link": "records/asset-provenance-tests.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/asset-provenance-tests.stderr.log",
+      "reviewer_status": "pending",
+      "sha256": "e9186c3f33723b2448b19c4d8c99423e719230067a8cdf19436eeb1ca283be88",
+      "task_id": "S01-T08-T13"
+    },
+    {
+      "evidence_record_link": "records/asset-provenance-tests.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/asset-provenance-tests.stdout.log",
+      "reviewer_status": "pending",
+      "sha256": "e7709ec03ea0270e9934746c413a53a6df94e7c8b09e863cf2526607b40063fd",
+      "task_id": "S01-T08-T13"
+    },
+    {
       "evidence_record_link": "records/branch-sha.json",
       "not_applicable_reason": null,
       "owner": "stage-01",
@@ -190,6 +244,24 @@
       "task_id": "S01-T05"
     },
     {
+      "evidence_record_link": "records/lfx-compatibility-baseline.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/lfx-compatibility-baseline.stderr.log",
+      "reviewer_status": "pending",
+      "sha256": "0a973d5dfb2383f548de096611532121119996241fc1be927e1323f09354f806",
+      "task_id": "S01-T12"
+    },
+    {
+      "evidence_record_link": "records/lfx-compatibility-baseline.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/lfx-compatibility-baseline.stdout.log",
+      "reviewer_status": "pending",
+      "sha256": "e1a3ae541f4c2929ce36c79bc3f3c1192b3af6ac81689d23964b5f375b8b7809",
+      "task_id": "S01-T12"
+    },
+    {
       "evidence_record_link": "records/post-fix-root-dirty-preservation.json",
       "not_applicable_reason": null,
       "owner": "stage-01",
@@ -307,6 +379,51 @@
       "task_id": "S01-T01"
     },
     {
+      "evidence_record_link": "records/asset-baseline-probe.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "compatibility/desktop-status.json",
+      "reviewer_status": "pending",
+      "sha256": "49d5bf02da996b1155b0d960c61ff0b59c3c631ddea0382091641081c21d633c",
+      "task_id": "S01-T08-T13"
+    },
+    {
+      "evidence_record_link": "records/lfx-compatibility-baseline.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "compatibility/lfx-baseline.json",
+      "reviewer_status": "pending",
+      "sha256": "8569d6cb5ed2d83d13f09b86001009a87650ab3199f149dbec0346424838498c",
+      "task_id": "S01-T12"
+    },
+    {
+      "evidence_record_link": "records/asset-baseline-probe.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "compatibility/xyflow-dependency.json",
+      "reviewer_status": "pending",
+      "sha256": "7638e27f8a942fa414370df76e0dbd0d94e317a89e9a8c6deaf68a6ff5488c14",
+      "task_id": "S01-T08-T13"
+    },
+    {
+      "evidence_record_link": "records/asset-provenance-tests.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "frontend/legacy-surface-taxonomy.json",
+      "reviewer_status": "pending",
+      "sha256": "9779c10108c620d442034b10eaae1d177348994a454bcaca1bba4dca70cdd4ad",
+      "task_id": "S01-T08-T13"
+    },
+    {
+      "evidence_record_link": "records/asset-provenance-tests.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "frontend/product-design-audit.md",
+      "reviewer_status": "pending",
+      "sha256": "d435201fd31567507bfd0b6b70d3de087983b9d417793ad6afdb51b8160b12af",
+      "task_id": "S01-T08-T13"
+    },
+    {
       "evidence_record_link": null,
       "not_applicable_reason": "not-applicable: bundle source, manifest, or human-readable policy artifact",
       "owner": "stage-01",
@@ -314,6 +431,33 @@
       "reviewer_status": "pending",
       "sha256": "d250c076ec77f689af0680996cb78b638731963653ed56b7e78199c3b3516179",
       "task_id": "S01-T01"
+    },
+    {
+      "evidence_record_link": "records/asset-baseline-probe.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "provenance/openswarm-ab982af.md",
+      "reviewer_status": "pending",
+      "sha256": "85140a02d87a1ec4f0ae117a79a45c4f640fd3ab0c44f9293e141af6c7812f57",
+      "task_id": "S01-T08-T13"
+    },
+    {
+      "evidence_record_link": "records/asset-baseline-probe.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "records/asset-baseline-probe.json",
+      "reviewer_status": "pending",
+      "sha256": "5f847e25be51cf216f6b13d82dd6ca6a7f031022521ef6a8bc8b973fcccac54b",
+      "task_id": "S01-T08-T13"
+    },
+    {
+      "evidence_record_link": "records/asset-provenance-tests.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "records/asset-provenance-tests.json",
+      "reviewer_status": "pending",
+      "sha256": "cf2b45370b46a4c0b248f107b14a47b36b2ce9a1014fcfe6f94c73002f91d7d4",
+      "task_id": "S01-T08-T13"
     },
     {
       "evidence_record_link": "records/branch-sha.json",
@@ -395,6 +539,15 @@
       "reviewer_status": "pending",
       "sha256": "8c76e1905f9aa17d3b64758139e3a3f4d64ffd4fcf1179449774ea4b1d60701c",
       "task_id": "S01-T05"
+    },
+    {
+      "evidence_record_link": "records/lfx-compatibility-baseline.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "records/lfx-compatibility-baseline.json",
+      "reviewer_status": "pending",
+      "sha256": "4a52b805745851109045b0e529de33ea38decbd220f38994907db9056b1544aa",
+      "task_id": "S01-T12"
     },
     {
       "evidence_record_link": "records/post-fix-root-dirty-preservation.json",
@@ -487,6 +640,24 @@
       "task_id": "S01-T06-T07"
     },
     {
+      "evidence_record_link": "records/asset-provenance-tests.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "telemetry/r34-contract.json",
+      "reviewer_status": "pending",
+      "sha256": "5f3f5e4391d537b5475f5d08b7b2d391e4abdbcd2d25f5f389fbb1679c82b3a5",
+      "task_id": "S01-T08-T13"
+    },
+    {
+      "evidence_record_link": "records/asset-provenance-tests.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "tests/test_asset_provenance_artifacts.py",
+      "reviewer_status": "pending",
+      "sha256": "8cf2d29c30924c350139c9b1912479a589da67d572ca32bd3cff1af93b9b63be",
+      "task_id": "S01-T08-T13"
+    },
+    {
       "evidence_record_link": null,
       "not_applicable_reason": "not-applicable: bundle source, manifest, or human-readable policy artifact",
       "owner": "stage-01",
@@ -503,6 +674,15 @@
       "reviewer_status": "pending",
       "sha256": "002b407d7aa9aa739280ce85bddbc66b83ee09eb6138ac9cde49ee6d89d146f0",
       "task_id": "S01-T03"
+    },
+    {
+      "evidence_record_link": "records/asset-baseline-probe.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "tools/asset_probe.py",
+      "reviewer_status": "pending",
+      "sha256": "005a32839216f268d283847e4ad0c36eb863c29125ad5ddbcd7d802a89c06ccb",
+      "task_id": "S01-T08-T13"
     },
     {
       "evidence_record_link": null,
@@ -537,7 +717,7 @@
       "owner": "stage01-security-implementation",
       "relative_path": "tools/update_artifact_index.py",
       "reviewer_status": "pending",
-      "sha256": "c7c6b8647af57f570c3aac70de1f2566b1f423b19d2d3863c0d8d5c174ea5c80",
+      "sha256": "d3497620228481a314b50ebad8e064f953adc180d54f91284ac036af17d3f29f",
       "task_id": "S01-T03"
     },
     {

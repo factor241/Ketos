@@ -1,0 +1,45 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/asset-baseline-probe.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stdout": {
+      "path": "artifacts/asset-baseline-probe.stdout.log",
+      "sha256": "2cc0baa9a3bbfbc204179a65e74fefea7ba616000f8f3e72ab42f55a82d2a27d"
+    }
+  },
+  "classification": "COMMAND_RESULT",
+  "command": {
+    "argv": [
+      "uv",
+      "run",
+      "python",
+      "docs/evidence/stage-01/tools/asset_probe.py"
+    ],
+    "display": "uv run python docs/evidence/stage-01/tools/asset_probe.py"
+  },
+  "created_at_utc": "2026-07-18T13:37:18Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T13:37:18Z",
+  "execution_revision": "d85449e3fa655899458c0b2dd5d5ec62f659c16e",
+  "exit_code": 0,
+  "notes": "Static current-SHA and pinned provenance probe.",
+  "owner": "stage01-asset-implementation",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {
+      "graphify": "navigation-only",
+      "openswarm": "committed-tree-only"
+    }
+  },
+  "record_id": "asset-baseline-probe",
+  "reviewer": "pending",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T13:37:17Z",
+  "task_id": "S01-T08-T13",
+  "verdict": "PASS"
+}

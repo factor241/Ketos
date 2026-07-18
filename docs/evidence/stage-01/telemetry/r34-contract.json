@@ -1,0 +1,76 @@
+{
+  "current_transport": "NO_OP",
+  "current_transport_source": "src/frontend/src/customization/utils/analytics.ts:1-22",
+  "observation": {
+    "source": "No emitted frontend analytics sink exists at this SHA.",
+    "status": "BLOCKED_NO_EMITTED_EVENTS",
+    "usage_counts": null,
+    "window_days": null
+  },
+  "prohibited_fields": [
+    "message_content",
+    "prompt_content",
+    "file_content",
+    "tool_arguments_or_results",
+    "api_key",
+    "token_or_secret",
+    "raw_path",
+    "raw_query",
+    "raw_error",
+    "flow_folder_session_node_or_user_id",
+    "free_text_name_or_search_term"
+  ],
+  "proposed_events": [
+    {
+      "bounded_dimensions": {
+        "entrypoint": ["direct_route", "dashboard", "editor", "shared_link"],
+        "surface": ["public_playground", "private_flow_chat", "agentic_assistant", "flow_catalog", "settings"]
+      },
+      "name": "legacy_surface_opened"
+    },
+    {
+      "bounded_dimensions": {
+        "generation": ["legacy", "segmented"],
+        "section": ["components", "mcp", "bundles", "versions", "memories", "traces"]
+      },
+      "name": "legacy_nav_activated"
+    },
+    {
+      "bounded_dimensions": {
+        "destination": ["general", "language", "mcp", "variables", "providers", "shortcuts", "messages"],
+        "entrypoint": ["dashboard_account", "header_account", "flow_mcp_empty_state", "direct_route"]
+      },
+      "name": "settings_opened"
+    },
+    {
+      "bounded_dimensions": {
+        "from_family": ["root", "folder", "flow", "unknown"],
+        "reason": ["root_default", "missing_folder", "deleted_folder", "missing_flow"],
+        "to_family": ["flows", "all", "root"]
+      },
+      "name": "legacy_redirect"
+    },
+    {
+      "bounded_dimensions": {
+        "variant": ["catalog", "editor", "editor_folder_context", "read_only_view", "public_playground"]
+      },
+      "name": "workflow_surface_opened"
+    },
+    {
+      "bounded_dimensions": {
+        "mode": ["public_playground", "private_flow_session_chat", "agentic_authoring_assistant"]
+      },
+      "name": "assistant_surface_opened"
+    }
+  ],
+  "retention_contract": {
+    "access": "least-privilege aggregate readers only",
+    "aggregation": "daily bounded-enum counters",
+    "deletion_and_export": "must be approved before transport enablement",
+    "retention_days": null,
+    "status": "REQUIRES_PRODUCT_AND_PRIVACY_APPROVAL"
+  },
+  "schema_version": 1,
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "status": "CONTRACT_READY_OBSERVATION_BLOCKED"
+}

@@ -1,0 +1,24 @@
+{
+  "current_checkout_shell": "ABSENT",
+  "disposition": "EXCLUDED_FROM_V1",
+  "evidence": [
+    "No Tauri/Electron/Desktop manifest or runtime source exists in this checkout.",
+    "GC-14 defines a web MVP and excludes arbitrary desktop embedding from V1.",
+    "Computer Use app census and Spotlight found external local prototypes, not artifacts from this checkout."
+  ],
+  "external_prototypes": [
+    {
+      "bundle_id": "local.ketos.desktop.pilot",
+      "name": "Ketos Pilot Console",
+      "version": "0.0.0-stage8"
+    },
+    {
+      "bundle_id": "local.ketos.desktop.permission-spike",
+      "name": "Ketos Native Ledger",
+      "version": "0.0.0-stage1"
+    }
+  ],
+  "external_prototypes_are_support_proof": false,
+  "schema_version": 1,
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2"
+}

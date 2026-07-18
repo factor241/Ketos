@@ -3,8 +3,11 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import inspect
+import stat
 import subprocess
+import sys
 import tarfile
+import time
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -54,12 +57,13 @@ def _complete_evidence(version: str = "0.0.43") -> dict[str, object]:
             "archive_identity_bound": True,
             "runtime_identity_bound": True,
             "runtime_source_bound": True,
-            "source_class": "registry-release",
+            "source_class": "approved-fork",
         },
-        "registry_provenance": {
+        "fork_provenance": {
             "bound": True,
-            "origin_bound": True,
-            "expected_sha256_bound": True,
+            "source_commit_bound": True,
+            "source_tree_bound": True,
+            "changed_files_derived": True,
         },
         "contracts": {
             "constructor_api": True,
@@ -290,6 +294,8 @@ def test_artifact_path_is_mandatory_and_identity_cannot_be_self_attested() -> No
         "fork_provenance_path",
         "source_archive_path",
         "fork_repository_path",
+        "upstream_provenance_path",
+        "upstream_repository_path",
     ]
     with pytest.raises(ValueError, match="artifact path is required"):
         probe.inspect_artifact(None)
@@ -404,6 +410,13 @@ def test_fork_provenance_rejects_missing_extra_unapproved_floating_or_hash_misma
         )
 
 
+def test_fork_changed_file_allowlist_includes_only_the_exact_interrupts_concept_doc() -> None:
+    probe = _load_probe()
+
+    assert probe._approved_changed_file("docs/concepts/interrupts.mdx") is True
+    assert probe._approved_changed_file("docs/concepts/other.mdx") is False
+
+
 def test_fork_provenance_schema_is_reusable_for_a_source_tgz(tmp_path: Path) -> None:
     probe = _load_probe()
     repo, wheel, source_archive, provenance, approved_remote = _write_git_bound_fork_fixture(tmp_path)
@@ -424,6 +437,37 @@ def test_fork_provenance_schema_is_reusable_for_a_source_tgz(tmp_path: Path) -> 
 
     assert result["bound"] is True
     assert result["artifact_kind"] == "tgz"
+
+
+def test_official_upstream_archive_requires_remote_bound_git_provenance(tmp_path: Path) -> None:
+    probe = _load_probe()
+    repo, _wheel, source_archive, provenance, approved_remote = _write_git_bound_fork_fixture(tmp_path)
+    _git(repo, "remote", "set-url", "origin", "https://github.com/ag-ui-protocol/ag-ui.git")
+    provenance.update(
+        {
+            "artifact_kind": "tgz",
+            "approved_owner": "ag-ui-protocol",
+            "canonical_repo_url": "https://github.com/ag-ui-protocol/ag-ui",
+            "artifact_filename": source_archive.name,
+            "artifact_sha256": hashlib.sha256(source_archive.read_bytes()).hexdigest(),
+        }
+    )
+    artifact = probe.inspect_artifact(source_archive)
+    probe.OFFICIAL_UPSTREAM_GIT_REMOTE = str(approved_remote)
+
+    result = probe.validate_upstream_provenance(
+        provenance,
+        artifact_path=source_archive,
+        repository_path=repo,
+        artifact=artifact,
+    )
+
+    assert all(result[key] is True for key in probe.UPSTREAM_PROVENANCE_BINDINGS)
+    evidence = _complete_evidence(str(artifact["version"]))
+    evidence["artifact"]["source_class"] = "upstream-commit"
+    evidence.pop("fork_provenance")
+    evidence["upstream_provenance"] = result
+    assert probe.evaluate_candidate(evidence) == {"admitted": True, "reasons": []}
 
 
 def test_git_bound_fork_provenance_matches_archive_commit_tree_and_derived_diff(
@@ -477,6 +521,7 @@ def test_fork_candidate_cannot_be_admitted_without_validated_provenance() -> Non
     probe = _load_probe()
     evidence = _complete_evidence("0.0.43+ketos.1")
     evidence["artifact"]["source_class"] = "approved-fork"
+    evidence.pop("fork_provenance")
 
     result = probe.evaluate_candidate(evidence)
 
@@ -505,6 +550,7 @@ def test_relabeled_fork_selection_requires_provenance_without_local_version_suff
         evidence["artifact"],
         fork_selected=True,
     )
+    evidence.pop("fork_provenance")
 
     result = probe.evaluate_candidate(evidence)
 
@@ -517,12 +563,44 @@ def test_registry_release_fails_closed_without_separate_origin_and_hash_evidence
     probe = _load_probe()
     evidence = _complete_evidence("0.0.43")
     evidence["artifact"]["source_class"] = "registry-release"
-    evidence.pop("registry_provenance")
+    evidence.pop("fork_provenance")
 
     result = probe.evaluate_candidate(evidence)
 
     assert result["admitted"] is False
-    assert "registry_provenance" in result["reasons"]
+    assert "registry_unsupported" in result["reasons"]
+
+
+def test_registry_release_rejects_fabricated_positive_binding_flags() -> None:
+    probe = _load_probe()
+    evidence = _complete_evidence("0.0.43")
+    evidence["artifact"]["source_class"] = "registry-release"
+    evidence.pop("fork_provenance")
+    evidence["registry_provenance"] = {
+        "bound": True,
+        "origin_bound": True,
+        "expected_sha256_bound": True,
+    }
+
+    result = probe.evaluate_candidate(evidence)
+
+    assert result["admitted"] is False
+    assert "registry_unsupported" in result["reasons"]
+
+
+@pytest.mark.parametrize("source_class", ["upstream-commit", "unknown"])
+def test_bare_upstream_and_unknown_source_classes_never_admit(source_class: str) -> None:
+    probe = _load_probe()
+    evidence = _complete_evidence("0.0.43")
+    evidence["artifact"]["source_class"] = source_class
+    evidence.pop("fork_provenance", None)
+    evidence.pop("registry_provenance", None)
+
+    result = probe.evaluate_candidate(evidence)
+
+    assert result["admitted"] is False
+    expected = "upstream_provenance" if source_class == "upstream-commit" else "source_class"
+    assert expected in result["reasons"]
 
 
 def test_mutable_local_factor241_origin_does_not_prove_remote_commit_reachability(
@@ -613,20 +691,81 @@ def test_source_archive_member_and_uncompressed_limits_fail_closed(
         probe.inspect_artifact(source_archive)
 
 
-def test_git_stdout_and_timeout_are_bounded(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_git_stdout_is_bounded(tmp_path: Path) -> None:
     probe = _load_probe()
     repo, _wheel, _source, _provenance, _remote = _write_git_bound_fork_fixture(tmp_path)
     probe.GIT_STDOUT_MAX_BYTES = 1
-    with pytest.raises(ValueError, match="git output exceeds"):
+    with pytest.raises(ValueError, match="stdout exceeds"):
         probe._git_output(repo, "rev-parse", "HEAD")
 
-    def timeout(*args, **kwargs):
-        del args, kwargs
-        raise subprocess.TimeoutExpired(cmd="git", timeout=1)
 
-    monkeypatch.setattr(probe.subprocess, "run", timeout)
-    with pytest.raises(ValueError, match="git provenance check failed"):
-        probe._git_output(repo, "status")
+@pytest.mark.parametrize("stream", ["stdout", "stderr"])
+def test_subprocess_output_is_killed_as_soon_as_either_stream_exceeds_limit(stream: str) -> None:
+    probe = _load_probe()
+    script = f"import sys,time; target=sys.{stream}.buffer; target.write(b'x'*65536); target.flush(); time.sleep(5)"
+
+    started = time.monotonic()
+    with pytest.raises(ValueError, match=f"{stream} exceeds"):
+        probe._run_bounded_process(
+            [sys.executable, "-c", script],
+            stdout_limit=1024,
+            stderr_limit=1024,
+            timeout_seconds=2,
+        )
+    assert time.monotonic() - started < 1
+
+
+def test_subprocess_timeout_kills_process() -> None:
+    probe = _load_probe()
+
+    with pytest.raises(ValueError, match="timed out"):
+        probe._run_bounded_process(
+            [sys.executable, "-c", "import time; time.sleep(5)"],
+            stdout_limit=1024,
+            stderr_limit=1024,
+            timeout_seconds=0.01,
+        )
+
+
+@pytest.mark.parametrize(
+    "special_mode",
+    [stat.S_IFIFO, stat.S_IFCHR, stat.S_IFBLK, stat.S_IFSOCK, stat.S_IFLNK],
+)
+def test_wheel_rejects_every_unix_special_member_type(tmp_path: Path, special_mode: int) -> None:
+    probe = _load_probe()
+    wheel = _write_wheel(tmp_path)
+    with zipfile.ZipFile(wheel, "a") as archive:
+        member = zipfile.ZipInfo("ag_ui_langgraph/special")
+        member.create_system = 3
+        member.external_attr = (special_mode | 0o600) << 16
+        archive.writestr(member, b"")
+
+    with pytest.raises(ValueError, match="unsafe archive member type"):
+        probe.inspect_artifact(wheel)
+
+
+def test_wheel_counts_directories_and_rejects_duplicate_or_backslash_names(tmp_path: Path) -> None:
+    probe = _load_probe()
+    directory_flood = _write_wheel(tmp_path, version="0.0.43.dev1")
+    with zipfile.ZipFile(directory_flood, "a") as archive:
+        for index in range(5):
+            archive.writestr(f"extra-{index}/", b"")
+    probe.ARCHIVE_MAX_MEMBERS = 4
+    with pytest.raises(ValueError, match="member limit"):
+        probe.inspect_artifact(directory_flood)
+
+    probe.ARCHIVE_MAX_MEMBERS = 20_000
+    duplicate = _write_wheel(tmp_path, version="0.0.43.dev2")
+    with zipfile.ZipFile(duplicate, "a") as archive:
+        archive.writestr("ag_ui_langgraph/agent.py", "duplicate = True\n")
+    with pytest.raises(ValueError, match="duplicate archive member"):
+        probe.inspect_artifact(duplicate)
+
+    backslash = _write_wheel(tmp_path, version="0.0.43.dev3")
+    with zipfile.ZipFile(backslash, "a") as archive:
+        archive.writestr(r"..\escape.py", "escape = True\n")
+    with pytest.raises(ValueError, match="unsafe archive member"):
+        probe.inspect_artifact(backslash)
 
 
 @pytest.mark.parametrize(
@@ -970,7 +1109,8 @@ def test_admission_handoff_retains_exact_non_placeholder_evidence() -> None:
     assert "+### Retained redacted probe JSON" not in text
     assert "historical final 22 passed" in text
     assert "historical 62 passed" in text
-    assert "current R2 fork-review 75 passed" in text
+    assert "historical 75 passed" in text
+    assert "current R3 fork-review 89 passed" in text
     assert "mcp__context7__query_docs" in text
     assert (
         "At pinned CopilotKit v2, document the exact import path, generic signature, "

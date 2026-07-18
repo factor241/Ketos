@@ -28,7 +28,7 @@ metadata; no cryptographic signature is claimed.
 
 ## Current attestation
 
-- Payload commit: `02d9501d7087a331442b5e3cd826f0b17caed0cc`.
+- Payload commit: `ab4c69da04ef36cb955566bbf68894441012ec61`.
 - Attestation record: `records/delivery-attestation.json`.
 - Carrier verification: at the final review checkout, `git rev-parse HEAD^`
   must equal the payload commit above and the attestation stdout must print the

@@ -6,7 +6,7 @@
     },
     "stdout": {
       "path": "artifacts/final-scope-diff-check.stdout.log",
-      "sha256": "098760dbcba62e8aa91ca393c89d5e8679b30176bfded4d885218648fdbaf007"
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   "classification": "COMMAND_RESULT",
@@ -19,11 +19,11 @@
     ],
     "display": "git diff --check 80878261d07c21ad257de017d98069f211ada2c2..HEAD"
   },
-  "created_at_utc": "2026-07-18T13:54:10Z",
+  "created_at_utc": "2026-07-18T13:56:53Z",
   "cwd": "/Volumes/Projects/ketos-stage01-integration",
-  "ended_at_utc": "2026-07-18T13:54:10Z",
-  "execution_revision": "02d9501d7087a331442b5e3cd826f0b17caed0cc",
-  "exit_code": 2,
+  "ended_at_utc": "2026-07-18T13:56:53Z",
+  "execution_revision": "ab4c69da04ef36cb955566bbf68894441012ec61",
+  "exit_code": 0,
   "notes": "Final payload whitespace and patch-shape gate.",
   "owner": "stage01-coordinator",
   "profile": {
@@ -39,7 +39,7 @@
   "record_id": "final-scope-diff-check",
   "reviewer": "pending-final-compliance",
   "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
-  "started_at_utc": "2026-07-18T13:54:09Z",
+  "started_at_utc": "2026-07-18T13:56:53Z",
   "task_id": "S01-T15",
-  "verdict": "FAIL"
+  "verdict": "PASS"
 }

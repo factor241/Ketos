@@ -31,4 +31,4 @@ docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py::test_baseline_g
 docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py::test_coverage_is_numeric_or_explicitly_blocked_and_rerun_is_within_tolerance PASSED [ 96%]
 docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py::test_diff_coverage_uses_na_instead_of_zero_for_documentation_only_stage PASSED [100%]
 
-============================== 30 passed in 3.08s ==============================
+============================== 30 passed in 3.17s ==============================

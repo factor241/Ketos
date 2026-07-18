@@ -6,7 +6,7 @@
     },
     "stdout": {
       "path": "artifacts/final-owned-scope-check.stdout.log",
-      "sha256": "f5231ef023e9e496c32c7fc11b4d879316ec1770f47420e07151d2ac743f1be0"
+      "sha256": "a0ac62c4c4f07af99903948240b7fa99f073627942da97491aebf10355e5b37c"
     }
   },
   "classification": "COMMAND_RESULT",
@@ -20,10 +20,10 @@
     ],
     "display": "uv run python -c import subprocess; paths=subprocess.check_output([\"git\",\"diff\",\"--name-only\",\"80878261d07c21ad257de017d98069f211ada2c2..HEAD\"], text=True).splitlines(); bad=[p for p in paths if not p.startswith(\"docs/evidence/stage-01/\")]; print(f\"CHANGED_PATHS={len(paths)} ALLOWED_SCOPE=docs/evidence/stage-01/** BAD={len(bad)}\"); assert not bad, bad"
   },
-  "created_at_utc": "2026-07-18T13:54:17Z",
+  "created_at_utc": "2026-07-18T13:56:53Z",
   "cwd": "/Volumes/Projects/ketos-stage01-integration",
-  "ended_at_utc": "2026-07-18T13:54:17Z",
-  "execution_revision": "02d9501d7087a331442b5e3cd826f0b17caed0cc",
+  "ended_at_utc": "2026-07-18T13:56:53Z",
+  "execution_revision": "ab4c69da04ef36cb955566bbf68894441012ec61",
   "exit_code": 0,
   "notes": "Assert every committed Stage 01 change is inside docs/evidence/stage-01.",
   "owner": "stage01-coordinator",
@@ -39,7 +39,7 @@
   "record_id": "final-owned-scope-check",
   "reviewer": "pending-final-compliance",
   "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
-  "started_at_utc": "2026-07-18T13:54:17Z",
+  "started_at_utc": "2026-07-18T13:56:53Z",
   "task_id": "S01-T15",
   "verdict": "PASS"
 }

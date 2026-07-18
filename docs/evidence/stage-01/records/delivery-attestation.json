@@ -6,7 +6,7 @@
     },
     "stdout": {
       "path": "artifacts/delivery-attestation.stdout.log",
-      "sha256": "15b7f355295312eb439eb93b77f90ada82cab2c38f7ef4862d2c8f47a667b456"
+      "sha256": "14f0ce4039a7fc66c176ed218a85c51a5ae1fe3da1eafaaecb53fe938d3e2074"
     }
   },
   "classification": "COMMAND_RESULT",
@@ -18,12 +18,12 @@
     ],
     "display": "git rev-parse HEAD"
   },
-  "created_at_utc": "2026-07-18T13:54:29Z",
+  "created_at_utc": "2026-07-18T13:57:00Z",
   "cwd": "/Volumes/Projects/ketos-stage01-integration",
-  "ended_at_utc": "2026-07-18T13:54:29Z",
-  "execution_revision": "02d9501d7087a331442b5e3cd826f0b17caed0cc",
+  "ended_at_utc": "2026-07-18T13:57:00Z",
+  "execution_revision": "ab4c69da04ef36cb955566bbf68894441012ec61",
   "exit_code": 0,
-  "notes": "Post-payload delivery attestation for the final Stage 01 report payload. Verify the carrier parent equals this execution revision.",
+  "notes": "Post-payload delivery attestation for the final Stage 01 report and provenance payload. Verify the carrier parent equals this execution revision.",
   "owner": "stage01-coordinator",
   "profile": {
     "environment": {
@@ -38,7 +38,7 @@
   "record_id": "delivery-attestation",
   "reviewer": "evidence-contract-pass-security-no-go",
   "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
-  "started_at_utc": "2026-07-18T13:54:29Z",
+  "started_at_utc": "2026-07-18T13:57:00Z",
   "task_id": "S01-T15",
   "verdict": "PASS"
 }

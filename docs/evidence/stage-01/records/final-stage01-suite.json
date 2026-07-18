@@ -6,7 +6,7 @@
     },
     "stdout": {
       "path": "artifacts/final-stage01-suite.stdout.log",
-      "sha256": "46460814ee88629071a04bfa72cc226830d25f2c349d140f68836411b379c8aa"
+      "sha256": "99259f4b3d7224481ebcd3641e598dbd184b0c4492b54f52a55854eb3d29a1c8"
     }
   },
   "classification": "COMMAND_RESULT",
@@ -20,12 +20,12 @@
     ],
     "display": "uv run pytest docs/evidence/stage-01/tests -q"
   },
-  "created_at_utc": "2026-07-18T13:53:57Z",
+  "created_at_utc": "2026-07-18T13:56:53Z",
   "cwd": "/Volumes/Projects/ketos-stage01-integration",
-  "ended_at_utc": "2026-07-18T13:53:57Z",
-  "execution_revision": "02d9501d7087a331442b5e3cd826f0b17caed0cc",
+  "ended_at_utc": "2026-07-18T13:56:53Z",
+  "execution_revision": "ab4c69da04ef36cb955566bbf68894441012ec61",
   "exit_code": 0,
-  "notes": "Final full evidence suite at the immutable report payload commit.",
+  "notes": "Final full evidence suite at the immutable report and provenance payload commit.",
   "owner": "stage01-coordinator",
   "profile": {
     "environment": {
@@ -40,7 +40,7 @@
   "record_id": "final-stage01-suite",
   "reviewer": "evidence-review-pass-security-review-no-go",
   "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
-  "started_at_utc": "2026-07-18T13:53:50Z",
+  "started_at_utc": "2026-07-18T13:56:45Z",
   "task_id": "S01-T15",
   "verdict": "PASS"
 }

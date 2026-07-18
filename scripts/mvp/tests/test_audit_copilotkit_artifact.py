@@ -12,6 +12,7 @@ from pathlib import Path, PurePosixPath
 import pytest
 
 SCRIPT = Path(__file__).parents[1] / "audit_copilotkit_artifact.py"
+ROOT = Path(__file__).parents[3]
 SPEC = importlib.util.spec_from_file_location("audit_copilotkit_artifact", SCRIPT)
 assert SPEC is not None
 assert SPEC.loader is not None
@@ -266,6 +267,27 @@ def test_rejects_signature_fragments_hidden_in_a_reachable_comment(tmp_path: Pat
         _audit(artifact)
 
 
+def test_rejects_v2_export_that_redirects_types_away_from_public_declarations(tmp_path: Path) -> None:
+    artifact = tmp_path / audit.EXPECTED_FILENAME
+    package = json.loads(_package_json())
+    package["exports"]["./v2"] = {
+        "types": "./dist/evil.d.mts",
+        "import": "./dist/v2/index.mjs",
+        "require": "./dist/v2/index.cjs",
+    }
+    files = {
+        "package/package.json": json.dumps(package).encode(),
+        "package/LICENSE": b"MIT license\n",
+        "package/dist/v2/index.d.cts": DECLARATION,
+        "package/dist/v2/index.d.mts": DECLARATION,
+        "package/dist/evil.d.mts": b"export type InterruptResolveFn = (payload?: unknown) => Promise<void>;\n",
+    }
+    _write_tgz(artifact, files=files)
+
+    with pytest.raises(audit.AuditError, match="v2 export"):
+        _audit(artifact)
+
+
 def test_runtime_proof_rejects_a_nested_second_package_copy(tmp_path: Path) -> None:
     artifact = tmp_path / audit.EXPECTED_FILENAME
     _write_tgz(artifact)
@@ -323,3 +345,19 @@ def test_runtime_proof_requires_executable_typescript_contract_to_pass(tmp_path:
 
     with pytest.raises(audit.AuditError, match="TypeScript positive/negative contract failed"):
         _audit(artifact, runtime_root=runtime)
+
+
+def test_checked_in_artifact_passes_real_installed_typescript_contract() -> None:
+    artifact = ROOT / "vendor/stage01" / audit.EXPECTED_FILENAME
+
+    evidence = audit.audit_artifact(
+        artifact,
+        expected_sha256="64711f7e9e94ab6126fef68fdb92f9ba80f400b88d64d3a72191ee1ed7da61aa",
+        expected_integrity=(
+            "sha512-ZHIeQdU9Iy+MoFKTfm5orw2Yy0aiG0FM3JIs4c1OtxfCG70TUpmUDqzt3lPx6GJkn3lrYwbSxFnIiSCv1CdVAQ=="
+        ),
+        expected_license_sha256="15a0e5343aea872c0573ad72feb6044b336f162d724cc1673c608e6b37ea071b",
+        runtime_root=ROOT / "src/frontend",
+    )
+
+    assert evidence["runtime"]["checked"] is True

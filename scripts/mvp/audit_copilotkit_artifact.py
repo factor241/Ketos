@@ -243,26 +243,24 @@ resolve(extraVariable, "extra-variable");
 """
 
 
-def _run_typescript_contract(runtime_root: Path, package_root: Path) -> None:
+def _run_typescript_contract(runtime_root: Path) -> None:
     node = shutil.which("node")
     compiler = runtime_root / "node_modules/typescript/bin/tsc"
     if node is None or not compiler.is_file():
         _fail("runtime TypeScript compiler is unavailable for executable type-test")
-    with tempfile.TemporaryDirectory(prefix="ketos-copilotkit-type-audit-") as directory:
+    with tempfile.TemporaryDirectory(prefix=".ketos-copilotkit-type-audit-", dir=runtime_root) as directory:
         project = Path(directory)
         (project / "contract.ts").write_text(_typescript_contract_source(), encoding="utf-8")
         (project / "tsconfig.json").write_text(
             json.dumps(
                 {
                     "compilerOptions": {
-                        "baseUrl": ".",
                         "module": "ESNext",
                         "moduleResolution": "Bundler",
                         "noEmit": True,
                         "skipLibCheck": True,
                         "strict": True,
                         "target": "ES2022",
-                        "paths": {f"{EXPECTED_PACKAGE}/v2": [str(package_root / "dist/v2/index.d.mts")]},
                     },
                     "files": ["contract.ts"],
                 }
@@ -272,7 +270,7 @@ def _run_typescript_contract(runtime_root: Path, package_root: Path) -> None:
         try:
             result = subprocess.run(  # noqa: S603 - exact local node and pinned compiler paths
                 [node, str(compiler), "--project", str(project / "tsconfig.json"), "--pretty", "false"],
-                cwd=runtime_root,
+                cwd=project,
                 capture_output=True,
                 check=False,
                 timeout=30,
@@ -311,7 +309,7 @@ def _runtime_evidence(
     package_root = package_path.parent
     if _runtime_inventory(package_root) != expected_inventory:
         _fail("runtime package contents do not match the admitted artifact inventory")
-    _run_typescript_contract(root, package_root)
+    _run_typescript_contract(root)
     return {"checked": True, "copy_count": 1, "version": EXPECTED_VERSION}
 
 
@@ -395,6 +393,13 @@ def audit_artifact(
         _fail("package version does not match the pinned fork version")
     if package.get("license") != EXPECTED_LICENSE:
         _fail("package license must be MIT")
+    exports = package.get("exports")
+    v2_export = exports.get("./v2") if isinstance(exports, dict) else None
+    if v2_export != {
+        "import": "./dist/v2/index.mjs",
+        "require": "./dist/v2/index.cjs",
+    }:
+        _fail("package v2 export must resolve only to the audited public entrypoints")
     if _sha256(license_content) != expected_license_sha256:
         _fail("license SHA-256 does not match")
     types_entry = package.get("types")

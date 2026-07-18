@@ -166,6 +166,66 @@ def _declaration_has_contract(content: bytes) -> bool:
     return all(fragment in compact for fragment in (exact_payload, typed_resolver, public_resolver)) and exported
 
 
+def _module_specifiers(source: str) -> tuple[str, ...]:
+    """Return import/from string literals while ignoring comments and strings."""
+    references: list[str] = []
+    index = 0
+    length = len(source)
+    while index < length:
+        if source.startswith("//", index):
+            newline = source.find("\n", index + 2)
+            index = length if newline < 0 else newline + 1
+            continue
+        if source.startswith("/*", index):
+            closing = source.find("*/", index + 2)
+            index = length if closing < 0 else closing + 2
+            continue
+        character = source[index]
+        if character in {'"', "'", "`"}:
+            quote = character
+            index += 1
+            while index < length:
+                if source[index] == "\\":
+                    index += 2
+                elif source[index] == quote:
+                    index += 1
+                    break
+                else:
+                    index += 1
+            continue
+        if character.isalpha() or character in {"_", "$"}:
+            end = index + 1
+            while end < length and (source[end].isalnum() or source[end] in {"_", "$"}):
+                end += 1
+            keyword = source[index:end]
+            index = end
+            if keyword not in {"from", "import"}:
+                continue
+            cursor = index
+            while cursor < length and source[cursor].isspace():
+                cursor += 1
+            if keyword == "import" and cursor < length and source[cursor] == "(":
+                cursor += 1
+                while cursor < length and source[cursor].isspace():
+                    cursor += 1
+            if cursor >= length or source[cursor] not in {'"', "'"}:
+                continue
+            quote = source[cursor]
+            cursor += 1
+            start = cursor
+            while cursor < length and source[cursor] != quote:
+                if source[cursor] == "\\":
+                    cursor += 2
+                else:
+                    cursor += 1
+            if cursor < length:
+                references.append(source[start:cursor])
+                index = cursor + 1
+            continue
+        index += 1
+    return tuple(references)
+
+
 def _declaration_references(name: str, content: bytes) -> tuple[str, ...]:
     try:
         source = content.decode("utf-8")
@@ -173,7 +233,7 @@ def _declaration_references(name: str, content: bytes) -> tuple[str, ...]:
         return ()
     parent = PurePosixPath(name).parent
     resolved: list[str] = []
-    for reference in re.findall(r"(?:from|import)\s*[\"']([^\"']+)[\"']", source):
+    for reference in _module_specifiers(source):
         if not reference.startswith(("./", "../")):
             continue
         relative = posixpath.normpath(f"{parent.as_posix()}/{reference}")
@@ -250,19 +310,20 @@ def _run_typescript_contract(runtime_root: Path) -> None:
         _fail("runtime TypeScript compiler is unavailable for executable type-test")
     with tempfile.TemporaryDirectory(prefix=".ketos-copilotkit-type-audit-", dir=runtime_root) as directory:
         project = Path(directory)
-        (project / "contract.ts").write_text(_typescript_contract_source(), encoding="utf-8")
+        for filename in ("contract.mts", "contract.cts"):
+            (project / filename).write_text(_typescript_contract_source(), encoding="utf-8")
         (project / "tsconfig.json").write_text(
             json.dumps(
                 {
                     "compilerOptions": {
-                        "module": "ESNext",
-                        "moduleResolution": "Bundler",
+                        "module": "NodeNext",
+                        "moduleResolution": "NodeNext",
                         "noEmit": True,
                         "skipLibCheck": True,
                         "strict": True,
                         "target": "ES2022",
                     },
-                    "files": ["contract.ts"],
+                    "files": ["contract.mts", "contract.cts"],
                 }
             ),
             encoding="utf-8",

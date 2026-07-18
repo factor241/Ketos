@@ -55,6 +55,17 @@ The source input must be a Git archive whose embedded commit equals
 canonical `origin`, commit objects, base ancestry, commit-derived changed-file
 set, and archived package tree are checked against the sidecar, source archive,
 and built artifact. Provenance JSON is bounded to 64 KiB before parsing.
+The mutable local `origin` string is not sufficient: the exact base/fork commit
+ancestry must also be fetched from the fixed
+`https://github.com/factor241/ag-ui.git` remote after a bounded `ls-remote`
+check. Fork selection is explicit from fork inputs and never inferred from a
+version suffix. Conversely, a registry wheel fails closed unless separate
+registry-origin and expected-hash evidence has already been validated.
+
+Artifact processing is bounded before trust: 128 MiB compressed/archive bytes,
+20,000 members, 32 MiB per member, and 256 MiB total uncompressed bytes.
+Symlinks, hardlinks, devices, absolute paths, and traversal paths are rejected.
+Git subprocesses have a 60-second timeout and 128 MiB stdout limit.
 
 The integration invocation is:
 

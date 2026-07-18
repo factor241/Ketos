@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import inspect
 import subprocess
+import tarfile
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -53,6 +54,12 @@ def _complete_evidence(version: str = "0.0.43") -> dict[str, object]:
             "archive_identity_bound": True,
             "runtime_identity_bound": True,
             "runtime_source_bound": True,
+            "source_class": "registry-release",
+        },
+        "registry_provenance": {
+            "bound": True,
+            "origin_bound": True,
+            "expected_sha256_bound": True,
         },
         "contracts": {
             "constructor_api": True,
@@ -130,7 +137,9 @@ def _git(repo: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
-def _write_git_bound_fork_fixture(tmp_path: Path) -> tuple[Path, Path, Path, dict[str, object]]:
+def _write_git_bound_fork_fixture(
+    tmp_path: Path,
+) -> tuple[Path, Path, Path, dict[str, object], Path]:
     repo = tmp_path / "fork-repo"
     package_root = repo / "integrations" / "langgraph" / "python"
     source_root = package_root / "ag_ui_langgraph"
@@ -169,6 +178,8 @@ requires-python = ">=3.10,<3.15"
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "strict fork")
     fork_sha = _git(repo, "rev-parse", "HEAD")
+    approved_remote = tmp_path / "approved-remote.git"
+    _git(repo.parent, "clone", "--bare", str(repo), str(approved_remote))
     source_archive = tmp_path / "factor241-ag-ui-source.tar"
     _git(
         repo,
@@ -214,7 +225,7 @@ Requires-Python: >=3.10,<3.15
             "test_command": f"git checkout --detach {fork_sha} && uv run pytest",
         }
     )
-    return repo, wheel, source_archive, provenance
+    return repo, wheel, source_archive, provenance, approved_remote
 
 
 def test_published_0042_is_rejected_even_if_metadata_is_present() -> None:
@@ -322,7 +333,8 @@ def test_fork_provenance_binds_exact_owner_commits_artifact_source_and_license_h
     tmp_path: Path,
 ) -> None:
     probe = _load_probe()
-    repo, wheel, source_archive, provenance = _write_git_bound_fork_fixture(tmp_path)
+    repo, wheel, source_archive, provenance, approved_remote = _write_git_bound_fork_fixture(tmp_path)
+    probe.APPROVED_FORK_GIT_REMOTE = str(approved_remote)
 
     result = probe.validate_fork_provenance(
         provenance,
@@ -378,7 +390,8 @@ def test_fork_provenance_rejects_missing_extra_unapproved_floating_or_hash_misma
     error: str,
 ) -> None:
     probe = _load_probe()
-    repo, wheel, source_archive, provenance = _write_git_bound_fork_fixture(tmp_path)
+    repo, wheel, source_archive, provenance, approved_remote = _write_git_bound_fork_fixture(tmp_path)
+    probe.APPROVED_FORK_GIT_REMOTE = str(approved_remote)
     mutation(provenance)
 
     with pytest.raises(ValueError, match=error):
@@ -393,7 +406,8 @@ def test_fork_provenance_rejects_missing_extra_unapproved_floating_or_hash_misma
 
 def test_fork_provenance_schema_is_reusable_for_a_source_tgz(tmp_path: Path) -> None:
     probe = _load_probe()
-    repo, wheel, source_archive, provenance = _write_git_bound_fork_fixture(tmp_path)
+    repo, wheel, source_archive, provenance, approved_remote = _write_git_bound_fork_fixture(tmp_path)
+    probe.APPROVED_FORK_GIT_REMOTE = str(approved_remote)
     del wheel
     provenance["artifact_kind"] = "tgz"
     provenance["artifact_filename"] = source_archive.name
@@ -416,7 +430,8 @@ def test_git_bound_fork_provenance_matches_archive_commit_tree_and_derived_diff(
     tmp_path: Path,
 ) -> None:
     probe = _load_probe()
-    repo, wheel, source_archive, provenance = _write_git_bound_fork_fixture(tmp_path)
+    repo, wheel, source_archive, provenance, approved_remote = _write_git_bound_fork_fixture(tmp_path)
+    probe.APPROVED_FORK_GIT_REMOTE = str(approved_remote)
 
     result = probe.validate_fork_provenance(
         provenance,
@@ -436,7 +451,8 @@ def test_fork_provenance_rejects_spoofed_fetch_origin_even_with_approved_push_ur
     tmp_path: Path,
 ) -> None:
     probe = _load_probe()
-    repo, wheel, source_archive, provenance = _write_git_bound_fork_fixture(tmp_path)
+    repo, wheel, source_archive, provenance, approved_remote = _write_git_bound_fork_fixture(tmp_path)
+    probe.APPROVED_FORK_GIT_REMOTE = str(approved_remote)
     _git(repo, "remote", "set-url", "origin", "https://github.com/attacker/ag-ui.git")
     _git(
         repo,
@@ -482,6 +498,137 @@ def test_fork_candidate_uses_validated_provenance_in_admission_decision() -> Non
     assert probe.evaluate_candidate(evidence) == {"admitted": True, "reasons": []}
 
 
+def test_relabeled_fork_selection_requires_provenance_without_local_version_suffix() -> None:
+    probe = _load_probe()
+    evidence = _complete_evidence("0.0.43")
+    evidence["artifact"]["source_class"] = probe.classify_candidate_source(
+        evidence["artifact"],
+        fork_selected=True,
+    )
+
+    result = probe.evaluate_candidate(evidence)
+
+    assert evidence["artifact"]["source_class"] == "approved-fork"
+    assert result["admitted"] is False
+    assert "fork_provenance" in result["reasons"]
+
+
+def test_registry_release_fails_closed_without_separate_origin_and_hash_evidence() -> None:
+    probe = _load_probe()
+    evidence = _complete_evidence("0.0.43")
+    evidence["artifact"]["source_class"] = "registry-release"
+    evidence.pop("registry_provenance")
+
+    result = probe.evaluate_candidate(evidence)
+
+    assert result["admitted"] is False
+    assert "registry_provenance" in result["reasons"]
+
+
+def test_mutable_local_factor241_origin_does_not_prove_remote_commit_reachability(
+    tmp_path: Path,
+) -> None:
+    probe = _load_probe()
+    repo, wheel, source_archive, provenance, _fixture_remote = _write_git_bound_fork_fixture(tmp_path)
+    unreachable_remote = tmp_path / "unreachable-approved-remote.git"
+    _git(tmp_path, "init", "--bare", str(unreachable_remote))
+    probe.APPROVED_FORK_GIT_REMOTE = str(unreachable_remote)
+
+    with pytest.raises(ValueError, match=r"remote.*reach|fetch"):
+        probe.validate_fork_provenance(
+            provenance,
+            artifact_path=wheel,
+            source_archive_path=source_archive,
+            repository_path=repo,
+            artifact=probe.inspect_artifact(wheel),
+        )
+
+
+@pytest.mark.parametrize(
+    ("member_type", "member_name", "link_name"),
+    [
+        (tarfile.SYMTYPE, "integrations/langgraph/python/escape-symlink", "../../etc/passwd"),
+        (tarfile.LNKTYPE, "integrations/langgraph/python/escape-hardlink", "/etc/passwd"),
+        (tarfile.CHRTYPE, "integrations/langgraph/python/device", ""),
+        (tarfile.REGTYPE, "../../escape-file", ""),
+        (tarfile.REGTYPE, "/absolute-file", ""),
+    ],
+)
+def test_source_archive_rejects_links_devices_absolute_and_traversal_members(
+    tmp_path: Path,
+    member_type: bytes,
+    member_name: str,
+    link_name: str,
+) -> None:
+    probe = _load_probe()
+    repo, wheel, source_archive, provenance, approved_remote = _write_git_bound_fork_fixture(tmp_path)
+    probe.APPROVED_FORK_GIT_REMOTE = str(approved_remote)
+    with tarfile.open(source_archive, mode="a") as archive:
+        member = tarfile.TarInfo(member_name)
+        member.type = member_type
+        member.linkname = link_name
+        member.size = 0
+        archive.addfile(member)
+    provenance["source_archive_sha256"] = hashlib.sha256(source_archive.read_bytes()).hexdigest()
+
+    with pytest.raises(ValueError, match="unsafe archive member"):
+        probe.validate_fork_provenance(
+            provenance,
+            artifact_path=wheel,
+            source_archive_path=source_archive,
+            repository_path=repo,
+            artifact=probe.inspect_artifact(wheel),
+        )
+
+
+def test_archive_byte_limit_fails_closed_before_format_parsing(tmp_path: Path) -> None:
+    probe = _load_probe()
+    oversized = tmp_path / "oversized.whl"
+    oversized.write_bytes(b"x" * 17)
+    probe.ARCHIVE_MAX_BYTES = 16
+
+    with pytest.raises(ValueError, match=r"archive exceeds.*size limit"):
+        probe.inspect_artifact(oversized)
+
+
+@pytest.mark.parametrize(
+    ("limit_name", "limit", "error"),
+    [
+        ("ARCHIVE_MAX_MEMBERS", 1, "member limit"),
+        ("ARCHIVE_MAX_MEMBER_BYTES", 1, "archive member exceeds"),
+        ("ARCHIVE_MAX_UNCOMPRESSED_BYTES", 1, "uncompressed limit"),
+    ],
+)
+def test_source_archive_member_and_uncompressed_limits_fail_closed(
+    tmp_path: Path,
+    limit_name: str,
+    limit: int,
+    error: str,
+) -> None:
+    probe = _load_probe()
+    _repo, _wheel, source_archive, _provenance, _remote = _write_git_bound_fork_fixture(tmp_path)
+    setattr(probe, limit_name, limit)
+
+    with pytest.raises(ValueError, match=error):
+        probe.inspect_artifact(source_archive)
+
+
+def test_git_stdout_and_timeout_are_bounded(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    probe = _load_probe()
+    repo, _wheel, _source, _provenance, _remote = _write_git_bound_fork_fixture(tmp_path)
+    probe.GIT_STDOUT_MAX_BYTES = 1
+    with pytest.raises(ValueError, match="git output exceeds"):
+        probe._git_output(repo, "rev-parse", "HEAD")
+
+    def timeout(*args, **kwargs):
+        del args, kwargs
+        raise subprocess.TimeoutExpired(cmd="git", timeout=1)
+
+    monkeypatch.setattr(probe.subprocess, "run", timeout)
+    with pytest.raises(ValueError, match="git provenance check failed"):
+        probe._git_output(repo, "status")
+
+
 @pytest.mark.parametrize(
     "mutation",
     [
@@ -497,7 +644,8 @@ def test_fork_provenance_rejects_kind_source_commit_tree_or_diff_spoof(
     mutation: str,
 ) -> None:
     probe = _load_probe()
-    repo, wheel, source_archive, provenance = _write_git_bound_fork_fixture(tmp_path)
+    repo, wheel, source_archive, provenance, approved_remote = _write_git_bound_fork_fixture(tmp_path)
+    probe.APPROVED_FORK_GIT_REMOTE = str(approved_remote)
     if mutation == "wheel_as_tgz":
         provenance["artifact_kind"] = "tgz"
         source_archive_path = None
@@ -821,7 +969,8 @@ def test_admission_handoff_retains_exact_non_placeholder_evidence() -> None:
     assert text.count('"admitted": false') >= 3
     assert "+### Retained redacted probe JSON" not in text
     assert "historical final 22 passed" in text
-    assert "current fork-review 62 passed" in text
+    assert "historical 62 passed" in text
+    assert "current R2 fork-review 75 passed" in text
     assert "mcp__context7__query_docs" in text
     assert (
         "At pinned CopilotKit v2, document the exact import path, generic signature, "

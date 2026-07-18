@@ -1,0 +1,441 @@
+#!/usr/bin/env python3
+"""Fail-closed source provenance audit for the Stage 01 CopilotKit fork.
+
+The source archive is never extracted.  Its logical tar tree is compared with
+``git archive`` from a commit fetched from the fixed fork remote.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+from pathlib import Path, PurePosixPath
+from typing import Any, NoReturn
+from urllib.parse import urlsplit, urlunsplit
+
+PACKAGE_KEY = "@copilotkit/react-core"
+PACKAGE_VERSION = "1.63.1-ketos.1"
+FORK_SHA = "c853ac2b78cb57481cc2ca58eda4a865908c532b"
+UPSTREAM_BASE_SHA = "0c9d639b1348d015f4361d2275db4b15d01c04bc"
+FORK_REPOSITORY = "https://github.com/factor241/CopilotKit"
+UPSTREAM_REPOSITORY = "https://github.com/CopilotKit/CopilotKit"
+DEFAULT_MAX_ARCHIVE_BYTES = 64 * 1024 * 1024
+DEFAULT_MAX_MEMBERS = 50_000
+DEFAULT_MAX_MEMBER_BYTES = 64 * 1024 * 1024
+DEFAULT_MAX_UNCOMPRESSED_BYTES = 512 * 1024 * 1024
+MAX_JSON_BYTES = 2 * 1024 * 1024
+MAX_GIT_OUTPUT_BYTES = 16 * 1024 * 1024
+GIT = shutil.which("git") or "/usr/bin/git"
+
+
+class AuditError(ValueError):
+    """The candidate provenance does not satisfy the Stage 01 contract."""
+
+
+def _fail(message: str) -> NoReturn:
+    raise AuditError(message)
+
+
+def _sha256_path(path: Path, *, limit: int | None = None) -> str:
+    digest = hashlib.sha256()
+    consumed = 0
+    with path.open("rb") as stream:
+        while block := stream.read(1024 * 1024):
+            consumed += len(block)
+            if limit is not None and consumed > limit:
+                _fail(f"file exceeds resource limit: {path.name}")
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _strict_json(path: Path) -> dict[str, Any]:
+    if path.stat().st_size > MAX_JSON_BYTES:
+        _fail("manifest exceeds JSON resource limit")
+
+    def object_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                _fail(f"manifest contains duplicate key {key!r}")
+            result[key] = value
+        return result
+
+    try:
+        value = json.loads(path.read_bytes(), object_pairs_hook=object_pairs)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        _fail(f"manifest is unreadable or invalid JSON: {exc}")
+    if not isinstance(value, dict):
+        _fail("manifest must be a JSON object")
+    return value
+
+
+def _sha(value: object, label: str) -> str:
+    if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{40}", value) is None:
+        _fail(f"{label} must be an exact lowercase Git SHA")
+    return value
+
+
+def _digest(value: object, label: str) -> str:
+    if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None:
+        _fail(f"{label} must be an exact lowercase SHA-256")
+    return value
+
+
+def _canonical_remote(value: str) -> str:
+    parts = urlsplit(value)
+    if parts.scheme not in {"https", "file"} or parts.username or parts.password or parts.query or parts.fragment:
+        _fail(f"remote URL is not fixed and canonical: {value!r}")
+    path = parts.path.rstrip("/")
+    path = path.removesuffix(".git")
+    if not path:
+        _fail("remote URL has no repository path")
+    return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), path, "", ""))
+
+
+def _git_capture(repository: Path, *arguments: str, timeout: int = 60) -> str:
+    try:
+        result = subprocess.run(  # noqa: S603 - fixed executable and argv, never a shell.
+            [GIT, "-C", str(repository), *arguments],
+            check=False,
+            capture_output=True,
+            timeout=timeout,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        _fail(f"Git command failed or timed out: {exc}")
+    if len(result.stdout) + len(result.stderr) > MAX_GIT_OUTPUT_BYTES:
+        _fail("Git command exceeded output resource limit")
+    if result.returncode != 0:
+        _fail(f"Git command failed: {' '.join(arguments)}")
+    try:
+        return result.stdout.decode("utf-8").strip()
+    except UnicodeDecodeError:
+        _fail("Git command returned non-UTF-8 output")
+
+
+def _verify_remote(repository: Path, remote: str, commit_sha: str, *, require_advertised: bool) -> None:
+    listed = _git_capture(repository, "ls-remote", "--heads", remote, timeout=90)
+    advertised = {line.split("\t", 1)[0] for line in listed.splitlines() if "\t" in line}
+    if not advertised:
+        _fail("fixed remote has no advertised branch heads")
+    if require_advertised and commit_sha not in advertised:
+        _fail("fork commit is not advertised by the fixed remote")
+    try:
+        subprocess.run(  # noqa: S603 - fixed executable and argv, never a shell.
+            [GIT, "-C", str(repository), "fetch", "--no-tags", "--force", remote, commit_sha],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=120,
+        )
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        _fail(f"fork commit is not fetch-reachable from the fixed remote: {exc}")
+
+
+def _safe_name(name: str, prefix: str) -> None:
+    if not name or "\\" in name:
+        _fail(f"source archive path is unsafe: {name!r}")
+    path = PurePosixPath(name)
+    if path.is_absolute() or name != path.as_posix() or any(part in {"", ".", ".."} for part in path.parts):
+        _fail(f"source archive path is unsafe: {name!r}")
+    if name != prefix.removesuffix("/") and not name.startswith(prefix):
+        _fail(f"source archive path is outside the commit prefix: {name!r}")
+
+
+def _archive_tree(
+    path: Path,
+    *,
+    prefix: str,
+    expected_commit: str | None,
+    max_members: int,
+    max_member_bytes: int,
+    max_uncompressed_bytes: int,
+) -> tuple[dict[str, tuple[str, int, int, str]], int, int]:
+    records: dict[str, tuple[str, int, int, str]] = {}
+    total = 0
+    symlinks = 0
+    try:
+        with tarfile.open(path, "r:*") as archive:
+            if expected_commit is not None and archive.pax_headers != {"comment": expected_commit}:
+                _fail("source archive commit PAX header is not exact")
+            for count, member in enumerate(archive, start=1):
+                if count > max_members:
+                    _fail("source archive exceeds member count limit")
+                _safe_name(member.name, prefix)
+                if member.name in records:
+                    _fail(f"source archive contains duplicate path: {member.name}")
+                if member.isdir():
+                    kind, content_hash = "directory", ""
+                elif member.isfile():
+                    if member.size > max_member_bytes:
+                        _fail(f"source archive member exceeds size limit: {member.name}")
+                    stream = archive.extractfile(member)
+                    if stream is None:
+                        _fail(f"source archive member is unreadable: {member.name}")
+                    digest = hashlib.sha256()
+                    read = 0
+                    while block := stream.read(1024 * 1024):
+                        read += len(block)
+                        if read > member.size:
+                            _fail(f"source archive member size is inconsistent: {member.name}")
+                        digest.update(block)
+                    if read != member.size:
+                        _fail(f"source archive member size is inconsistent: {member.name}")
+                    kind, content_hash = "file", digest.hexdigest()
+                elif member.issym():
+                    # No extraction: target text is data and must match a mode-120000 Git blob.
+                    kind = "symlink"
+                    content_hash = hashlib.sha256(os.fsencode(member.linkname)).hexdigest()
+                    symlinks += 1
+                else:
+                    _fail(f"source archive member is not a regular file, directory, or Git symlink: {member.name}")
+                total += member.size
+                if total > max_uncompressed_bytes:
+                    _fail("source archive exceeds total uncompressed resource limit")
+                records[member.name] = (kind, member.mode & 0o777, member.size, content_hash)
+    except (OSError, tarfile.TarError) as exc:
+        _fail(f"source archive is unreadable: {exc}")
+    return records, total, symlinks
+
+
+def _manifest_record(manifest: dict[str, Any]) -> dict[str, Any]:
+    artifacts = manifest.get("artifacts")
+    if not isinstance(artifacts, dict) or not isinstance(artifacts.get(PACKAGE_KEY), dict):
+        _fail(f"manifest has no exact {PACKAGE_KEY} record")
+    return artifacts[PACKAGE_KEY]
+
+
+def _package_metadata(repository: Path, fork_sha: str, record: dict[str, Any]) -> None:
+    license_content = subprocess.run(  # noqa: S603 - fixed executable and argv, never a shell.
+        [GIT, "-C", str(repository), "show", f"{fork_sha}:packages/react-core/LICENSE"],
+        check=False,
+        capture_output=True,
+    )
+    if license_content.returncode != 0 or len(license_content.stdout) > MAX_JSON_BYTES:
+        _fail("package source license is missing or oversized")
+    if hashlib.sha256(license_content.stdout).hexdigest() != _digest(record.get("license_sha256"), "license SHA-256"):
+        _fail("package source license SHA-256 mismatch")
+    package_raw = _git_capture(repository, "show", f"{fork_sha}:packages/react-core/package.json")
+    try:
+        package = json.loads(package_raw)
+    except json.JSONDecodeError as exc:
+        _fail(f"package source metadata is invalid JSON: {exc}")
+    repository_value = package.get("repository")
+    repository_url = repository_value.get("url") if isinstance(repository_value, dict) else None
+    if (
+        package.get("name") != PACKAGE_KEY
+        or package.get("version") != record.get("version")
+        or package.get("license") != record.get("license_spdx")
+        or not isinstance(repository_url, str)
+        or _canonical_remote(repository_url) != _canonical_remote(str(record.get("upstream_repository", "")))
+    ):
+        _fail("package source metadata does not match the manifest")
+
+
+def audit_provenance(
+    source_archive: Path,
+    *,
+    manifest_path: Path,
+    repository_path: Path,
+    artifact_path: Path,
+    expected_fork_repository: str = FORK_REPOSITORY,
+    expected_upstream_repository: str = UPSTREAM_REPOSITORY,
+    expected_fork_sha: str | None = None,
+    expected_upstream_base_sha: str | None = None,
+    max_archive_bytes: int = DEFAULT_MAX_ARCHIVE_BYTES,
+    max_members: int = DEFAULT_MAX_MEMBERS,
+    max_member_bytes: int = DEFAULT_MAX_MEMBER_BYTES,
+    max_uncompressed_bytes: int = DEFAULT_MAX_UNCOMPRESSED_BYTES,
+) -> dict[str, object]:
+    """Audit the immutable manifest, live Git provenance, source tree and tgz binding."""
+    if not source_archive.is_file() or source_archive.is_symlink():
+        _fail("source archive must be one regular file")
+    if not artifact_path.is_file() or artifact_path.is_symlink():
+        _fail("package artifact must be one regular file")
+    if source_archive.stat().st_size > max_archive_bytes:
+        _fail("source archive exceeds compressed resource limit")
+    manifest = _strict_json(manifest_path)
+    record = _manifest_record(manifest)
+    fork_sha = _sha(record.get("fork_sha"), "fork SHA")
+    base_sha = _sha(record.get("upstream_base_sha"), "upstream base SHA")
+    if expected_fork_sha is not None and fork_sha != expected_fork_sha:
+        _fail("fork SHA does not match the admitted immutable SHA")
+    if expected_upstream_base_sha is not None and base_sha != expected_upstream_base_sha:
+        _fail("upstream base SHA does not match the admitted immutable SHA")
+    fork_remote = str(record.get("fork_repository", ""))
+    upstream_remote = str(record.get("upstream_repository", ""))
+    if _canonical_remote(fork_remote) != _canonical_remote(expected_fork_repository):
+        _fail("manifest fork repository is not the fixed canonical remote")
+    if _canonical_remote(upstream_remote) != _canonical_remote(expected_upstream_repository):
+        _fail("manifest upstream repository is not canonical")
+    origin = _git_capture(repository_path, "remote", "get-url", "origin")
+    if _canonical_remote(origin) != _canonical_remote(expected_fork_repository):
+        _fail("repository origin is not the fixed canonical fork")
+    _verify_remote(repository_path, expected_fork_repository, fork_sha, require_advertised=True)
+    _verify_remote(repository_path, expected_fork_repository, base_sha, require_advertised=False)
+    _verify_remote(repository_path, expected_upstream_repository, base_sha, require_advertised=False)
+    resolved = _git_capture(repository_path, "rev-parse", f"{fork_sha}^{{commit}}")
+    if resolved != fork_sha:
+        _fail("fetched fork commit does not resolve exactly")
+    if (
+        subprocess.run(  # noqa: S603 - fixed executable and argv, never a shell.
+            [GIT, "-C", str(repository_path), "merge-base", "--is-ancestor", base_sha, fork_sha],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        ).returncode
+        != 0
+    ):
+        _fail("upstream base is not an ancestor of the fork commit")
+
+    if source_archive.name != record.get("source_archive"):
+        _fail("source archive filename does not match manifest")
+    source_hash = _sha256_path(source_archive, limit=max_archive_bytes)
+    if source_hash != _digest(record.get("source_archive_sha256"), "source archive SHA-256"):
+        _fail("source archive SHA-256 mismatch")
+    if artifact_path.name != record.get("artifact"):
+        _fail("artifact filename does not match manifest")
+    artifact_hash = _sha256_path(artifact_path)
+    if artifact_hash != _digest(record.get("artifact_sha256"), "artifact SHA-256"):
+        _fail("artifact SHA-256 mismatch")
+    if record.get("version") != PACKAGE_VERSION or record.get("license_spdx") != "MIT":
+        _fail("manifest package identity is not the admitted package/version/license")
+    epoch = record.get("toolchain", {}).get("source_date_epoch") if isinstance(record.get("toolchain"), dict) else None
+    rebuild = record.get("rebuild")
+    required_rebuild = (
+        isinstance(rebuild, str)
+        and f"git checkout {fork_sha}" in rebuild
+        and isinstance(epoch, int)
+        and epoch > 0
+        and f"SOURCE_DATE_EPOCH={epoch}" in rebuild
+        and "rm -rf packages/react-core/dist" in rebuild
+        and "pnpm --dir packages/react-core run build" in rebuild
+        and "pnpm --dir packages/react-core run pack:deterministic" in rebuild
+        and rebuild.index("rm -rf packages/react-core/dist")
+        < rebuild.index("pnpm --dir packages/react-core run build")
+        < rebuild.index("pnpm --dir packages/react-core run pack:deterministic")
+        and "HEAD" not in rebuild
+    )
+    if not required_rebuild:
+        _fail("manifest rebuild command is not bound to the fork/package/epoch")
+
+    changed = _git_capture(repository_path, "diff", "--name-only", base_sha, fork_sha).splitlines()
+    if record.get("changed_files") != changed:
+        _fail("manifest changed_files is not the exact derived fork delta")
+    _package_metadata(repository_path, fork_sha, record)
+
+    prefix = f"CopilotKit-{fork_sha}/"
+    source_tree, total, symlinks = _archive_tree(
+        source_archive,
+        prefix=prefix,
+        expected_commit=fork_sha,
+        max_members=max_members,
+        max_member_bytes=max_member_bytes,
+        max_uncompressed_bytes=max_uncompressed_bytes,
+    )
+    with tempfile.NamedTemporaryFile(prefix="ketos-copilotkit-git-archive-", suffix=".tar") as expected_file:
+        try:
+            subprocess.run(  # noqa: S603 - fixed executable and argv, never a shell.
+                [
+                    GIT,
+                    "-C",
+                    str(repository_path),
+                    "archive",
+                    "--format=tar",
+                    f"--prefix={prefix}",
+                    fork_sha,
+                ],
+                check=True,
+                stdout=expected_file,
+                stderr=subprocess.DEVNULL,
+                timeout=120,
+            )
+        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+            _fail(f"cannot derive expected Git archive: {exc}")
+        expected_file.flush()
+        expected_tree, _, expected_symlinks = _archive_tree(
+            Path(expected_file.name),
+            prefix=prefix,
+            expected_commit=fork_sha,
+            max_members=max_members,
+            max_member_bytes=max_member_bytes,
+            max_uncompressed_bytes=max_uncompressed_bytes,
+        )
+    if source_tree != expected_tree:
+        _fail("source archive paths/bytes/modes do not match the fetched Git tree")
+    if symlinks != expected_symlinks:
+        _fail("source archive Git symlink set does not match the fetched Git tree")
+
+    return {
+        "status": "PASS",
+        "source": {
+            "archive": source_archive.name,
+            "sha256": source_hash,
+            "commit": fork_sha,
+            "members": len(source_tree),
+            "uncompressed_bytes": total,
+            "symlinks": symlinks,
+            "tree_exact": True,
+        },
+        "git": {
+            "fork_repository": _canonical_remote(expected_fork_repository),
+            "upstream_base": base_sha,
+            "fork_and_upstream_reachable": True,
+            "base_is_ancestor": True,
+        },
+        "manifest": {
+            "changed_files": len(changed),
+            "artifact": artifact_path.name,
+            "artifact_sha256": artifact_hash,
+            "artifact_bound": True,
+            "rebuild_bound": True,
+        },
+    }
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("source_archive", type=Path)
+    parser.add_argument("--manifest-path", type=Path, required=True)
+    parser.add_argument("--repository-path", type=Path, required=True)
+    parser.add_argument("--artifact-path", type=Path, required=True)
+    parser.add_argument("--fork-repository", default=FORK_REPOSITORY)
+    parser.add_argument("--upstream-repository", default=UPSTREAM_REPOSITORY)
+    parser.add_argument("--fork-sha", default=FORK_SHA)
+    parser.add_argument("--upstream-base-sha", default=UPSTREAM_BASE_SHA)
+    parser.add_argument("--json", action="store_true")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    arguments = _parser().parse_args(argv)
+    try:
+        evidence = audit_provenance(
+            arguments.source_archive,
+            manifest_path=arguments.manifest_path,
+            repository_path=arguments.repository_path,
+            artifact_path=arguments.artifact_path,
+            expected_fork_repository=arguments.fork_repository,
+            expected_upstream_repository=arguments.upstream_repository,
+            expected_fork_sha=arguments.fork_sha,
+            expected_upstream_base_sha=arguments.upstream_base_sha,
+        )
+    except AuditError as exc:
+        if arguments.json:
+            print(json.dumps({"status": "FAIL", "error": str(exc)}, sort_keys=True))
+        else:
+            print(f"FAIL: {exc}", file=sys.stderr)
+        return 1
+    print(json.dumps(evidence, indent=None if arguments.json else 2, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

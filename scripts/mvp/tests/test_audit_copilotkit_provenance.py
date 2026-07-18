@@ -283,7 +283,7 @@ def test_rejects_member_and_total_resource_overflow(tmp_path: Path) -> None:
 def test_rejects_extra_global_pax_and_symlink_target_spoofs(tmp_path: Path) -> None:
     fixture = _fixture(tmp_path)
     source = Path(fixture["source"])
-    for mutation in ("pax", "symlink"):
+    for mutation in ("pax", "symlink-target", "symlink-mode"):
         forged = source.with_name(f"{mutation}.tar.gz")
         with tarfile.open(source, "r:gz") as original:
             headers = dict(original.pax_headers)
@@ -293,8 +293,10 @@ def test_rejects_extra_global_pax_and_symlink_target_spoofs(tmp_path: Path) -> N
                 for member in original:
                     stream = original.extractfile(member) if member.isfile() else None
                     content = stream.read() if stream is not None else None
-                    if mutation == "symlink" and member.issym():
+                    if mutation == "symlink-target" and member.issym():
                         member.linkname = "forged-target.ts"
+                    if mutation == "symlink-mode" and member.issym():
+                        member.mode = 0o600
                     output.addfile(member, io.BytesIO(content) if content is not None else None)
         manifest = json.loads(Path(fixture["manifest"]).read_text())
         record = manifest["artifacts"]["@copilotkit/react-core"]
@@ -337,6 +339,14 @@ def test_rejects_license_package_identity_and_symlinked_inputs(tmp_path: Path) -
     artifact.symlink_to(real_artifact)
     with pytest.raises(audit.AuditError, match="regular file"):
         _audit(symlinked)
+
+    source_symlinked = _fixture(tmp_path / "source-symlink")
+    source = Path(source_symlinked["source"])
+    real_source = source.with_suffix(".real")
+    source.rename(real_source)
+    source.symlink_to(real_source)
+    with pytest.raises(audit.AuditError, match="regular file"):
+        _audit(source_symlinked)
 
 
 def test_rejects_fork_sha_not_advertised_by_fixed_remote(tmp_path: Path) -> None:

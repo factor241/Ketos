@@ -1937,16 +1937,24 @@ class TestWorkflowIDORProtection:
 
         try:
             headers = {"x-api-key": created_api_key.api_key}
-            response = await client.post(
-                "api/v2/workflows/stop",
-                json={"job_id": str(job_id)},
-                headers=headers,
-            )
+            task_service = MagicMock()
+            task_service.revoke_task = AsyncMock()
+            with patch("ketos.api.v2.workflow.get_task_service", return_value=task_service):
+                response = await client.post(
+                    "api/v2/workflows/stop",
+                    json={"job_id": str(job_id)},
+                    headers=headers,
+                )
 
             assert response.status_code == 404
             result = response.json()
             assert result["detail"]["code"] == "JOB_NOT_FOUND"
             assert str(job_id) in result["detail"]["job_id"]
+            task_service.revoke_task.assert_not_awaited()
+            async with session_scope() as session:
+                persisted_job = await session.get(Job, job_id)
+                assert persisted_job is not None
+                assert persisted_job.status == JobStatus.IN_PROGRESS
         finally:
             async with session_scope() as session:
                 db_job = await session.get(Job, job_id)

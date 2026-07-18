@@ -1,0 +1,45 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/evidence-bundle-tests-final.stderr.log",
+      "sha256": "e9186c3f33723b2448b19c4d8c99423e719230067a8cdf19436eeb1ca283be88"
+    },
+    "stdout": {
+      "path": "artifacts/evidence-bundle-tests-final.stdout.log",
+      "sha256": "9b53df8b49e896ce4544addc59eea4f8c7cd46d4f10819fca7c4aae6404441c9"
+    }
+  },
+  "classification": "COMMAND_RESULT",
+  "command": {
+    "argv": [
+      "uv",
+      "run",
+      "pytest",
+      "docs/evidence/stage-01/tests",
+      "-q"
+    ],
+    "display": "uv run pytest docs/evidence/stage-01/tests -q"
+  },
+  "created_at_utc": "2026-07-18T13:48:42Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T13:48:42Z",
+  "execution_revision": "d02cc7e7847c92a67bcf5622d010828306cdf2cb",
+  "exit_code": 0,
+  "notes": "Complete Stage 01 artifact contract suite after tooling, coverage, W0 planning, and requirements traceability closure.",
+  "owner": "stage01-integration",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {
+      "suite": "complete-stage01-artifact-contracts"
+    }
+  },
+  "record_id": "evidence-bundle-tests-final",
+  "reviewer": "pending",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T13:48:35Z",
+  "task_id": "S01-T03-T15",
+  "verdict": "PASS"
+}

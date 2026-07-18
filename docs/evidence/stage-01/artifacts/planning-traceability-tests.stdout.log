@@ -1,0 +1,7 @@
+INFO     NumExpr defaulting to 10 threads.
+
+docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py::test_stage02_plan_covers_all_w0_domains_without_implementing_them PASSED [ 33%]
+docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py::test_mcp_direct_name_fixture_spec_is_fail_closed PASSED [ 66%]
+docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py::test_traceability_has_exact_gc_and_requirement_denominators_without_false_pass PASSED [100%]
+
+============================== 3 passed in 0.08s ===============================

@@ -1,0 +1,54 @@
+{
+  "analytics_call_counts": {
+    "track": 23,
+    "trackDataLoaded": 1,
+    "trackFlowBuild": 2
+  },
+  "analytics_transport": "NO_OP",
+  "assistant_journeys": [
+    {
+      "id": "public-playground",
+      "route_or_entry": "/playground/:id/",
+      "state_boundary": "public Flow plus client cookie/session storage"
+    },
+    {
+      "id": "private-flow-session-chat",
+      "route_or_entry": "/flow/:id right panel",
+      "state_boundary": "authenticated Flow sessions/messages/logs"
+    },
+    {
+      "id": "agentic-authoring-assistant",
+      "route_or_entry": "/flow/:id assistant panel",
+      "state_boundary": "streaming plan/edit proposals and local assistant history"
+    }
+  ],
+  "editor_sidebar": {
+    "active_generation": "segmented",
+    "feature_constant": "ENABLE_NEW_SIDEBAR=true",
+    "legacy_branch_still_present": true,
+    "sections": ["components", "mcp", "bundles", "versions", "memories", "traces"]
+  },
+  "folder_redirects": [
+    "root -> /flows",
+    "unknown/deleted folder -> /all",
+    "missing Flow -> /all",
+    "folder selection -> /all/folder/:folderId"
+  ],
+  "route_families": [
+    "/playground/:id/",
+    "/flows/",
+    "/components[/folder/:folderId]",
+    "/all[/folder/:folderId]",
+    "/mcp[/folder/:folderId]",
+    "/settings/*",
+    "/flow/:id[/folder/:folderId|/view]"
+  ],
+  "schema_version": 1,
+  "settings_entrypoints": [
+    "dashboard SidebarAccountCard",
+    "legacy header AccountMenu",
+    "Flow MCP empty-state direct link",
+    "direct route"
+  ],
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2"
+}

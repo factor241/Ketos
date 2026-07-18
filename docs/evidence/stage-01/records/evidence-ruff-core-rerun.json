@@ -1,0 +1,49 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/evidence-ruff-core-rerun.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stdout": {
+      "path": "artifacts/evidence-ruff-core-rerun.stdout.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    }
+  },
+  "classification": "COMMAND_RESULT",
+  "command": {
+    "argv": [
+      "uv",
+      "run",
+      "ruff",
+      "check",
+      "docs/evidence/stage-01/tools",
+      "docs/evidence/stage-01/tests",
+      "--select",
+      "E4,E7,E9,F,I"
+    ],
+    "display": "uv run ruff check docs/evidence/stage-01/tools docs/evidence/stage-01/tests --select E4,E7,E9,F,I"
+  },
+  "created_at_utc": "2026-07-18T13:46:32Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T13:46:32Z",
+  "execution_revision": "d02cc7e7847c92a67bcf5622d010828306cdf2cb",
+  "exit_code": 0,
+  "notes": "Focused syntax, Pyflakes and import-order gate; repository-wide policy rules are not claimed.",
+  "owner": "stage01-tooling",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {
+      "rules": "E4,E7,E9,F,I",
+      "suite": "owned-evidence-static"
+    }
+  },
+  "record_id": "evidence-ruff-core-rerun",
+  "reviewer": "pending",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T13:46:32Z",
+  "task_id": "S01-T09",
+  "verdict": "PASS"
+}

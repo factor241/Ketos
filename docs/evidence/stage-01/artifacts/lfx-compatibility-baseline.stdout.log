@@ -1,0 +1,22 @@
+INFO     NumExpr defaulting to 10 threads.
+.........                                                                [100%]
+=============================== warnings summary ===============================
+tests/test_lfx_compatibility.py::test_lazy_alias_loader_returns_canonical_module_objects
+  /Volumes/Projects/ketos-stage01-integration/.venv/lib/python3.13/site-packages/langchain_classic/chains/api/base.py:57: DeprecationWarning: `langchain-community` is being sunset and is no longer actively maintained. See https://github.com/langchain-ai/langchain-community/issues/674 for details and migration guidance toward standalone integration packages.
+    from langchain_community.utilities.requests import TextRequestsWrapper
+
+tests/test_lfx_compatibility.py::test_lazy_alias_loader_returns_canonical_module_objects
+tests/test_lfx_compatibility.py::test_lazy_alias_loader_returns_canonical_module_objects
+tests/test_lfx_compatibility.py::test_lazy_alias_loader_returns_canonical_module_objects
+  /Volumes/Projects/ketos-stage01-integration/.venv/lib/python3.13/site-packages/pydantic/_internal/_generate_schema.py:325: PydanticDeprecatedSince20: `json_encoders` is deprecated. See https://docs.pydantic.dev/2.13/concepts/serialization/#custom-serializers for alternatives. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    warnings.warn(
+
+tests/test_lfx_compatibility.py::test_lazy_alias_loader_returns_canonical_module_objects
+  /Volumes/Projects/ketos-stage01-integration/.venv/lib/python3.13/site-packages/sqlmodel/main.py:582: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    "SQLModel", super().__new__(cls, name, bases, dict_used, **config_kwargs)
+
+tests/test_lfx_compatibility.py::test_lazy_alias_loader_returns_canonical_module_objects
+  /Volumes/Projects/ketos-stage01-integration/src/kfx/src/kfx/inputs/inputs.py:893: PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.13/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.
+    @model_validator(mode="after")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html

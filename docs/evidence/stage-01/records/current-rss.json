@@ -1,0 +1,41 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/current-rss.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stdout": {
+      "path": "artifacts/current-rss.stdout.log",
+      "sha256": "4f093c14e4da7d1fd78a8a64947468c84a6d800e4d42dd932336c9ff98ded3a9"
+    }
+  },
+  "classification": "COMMAND_RESULT",
+  "command": {
+    "argv": [
+      "/bin/zsh",
+      "-lc",
+      "ps -axo rss= | awk '{sum += $1} END {printf \"%.0f KiB\\n\", sum}'"
+    ],
+    "display": "/bin/zsh -lc ps -axo rss= | awk '{sum += $1} END {printf \"%.0f KiB\\n\", sum}'"
+  },
+  "created_at_utc": "2026-07-18T12:49:44Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T12:49:44Z",
+  "execution_revision": "4df0e1dc55382734e51d7921c43c9aeb32bca999",
+  "exit_code": 0,
+  "notes": "Fresh aggregate RSS in KiB; command runs through argv with shell=False.",
+  "owner": "stage-01",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {}
+  },
+  "record_id": "current-rss",
+  "reviewer": "pending",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T12:49:44Z",
+  "task_id": "S01-T01",
+  "verdict": "PASS"
+}

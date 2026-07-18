@@ -1,0 +1,45 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/final-owned-scope-check.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stdout": {
+      "path": "artifacts/final-owned-scope-check.stdout.log",
+      "sha256": "a0ac62c4c4f07af99903948240b7fa99f073627942da97491aebf10355e5b37c"
+    }
+  },
+  "classification": "COMMAND_RESULT",
+  "command": {
+    "argv": [
+      "uv",
+      "run",
+      "python",
+      "-c",
+      "import subprocess; paths=subprocess.check_output([\"git\",\"diff\",\"--name-only\",\"80878261d07c21ad257de017d98069f211ada2c2..HEAD\"], text=True).splitlines(); bad=[p for p in paths if not p.startswith(\"docs/evidence/stage-01/\")]; print(f\"CHANGED_PATHS={len(paths)} ALLOWED_SCOPE=docs/evidence/stage-01/** BAD={len(bad)}\"); assert not bad, bad"
+    ],
+    "display": "uv run python -c import subprocess; paths=subprocess.check_output([\"git\",\"diff\",\"--name-only\",\"80878261d07c21ad257de017d98069f211ada2c2..HEAD\"], text=True).splitlines(); bad=[p for p in paths if not p.startswith(\"docs/evidence/stage-01/\")]; print(f\"CHANGED_PATHS={len(paths)} ALLOWED_SCOPE=docs/evidence/stage-01/** BAD={len(bad)}\"); assert not bad, bad"
+  },
+  "created_at_utc": "2026-07-18T13:56:53Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T13:56:53Z",
+  "execution_revision": "ab4c69da04ef36cb955566bbf68894441012ec61",
+  "exit_code": 0,
+  "notes": "Assert every committed Stage 01 change is inside docs/evidence/stage-01.",
+  "owner": "stage01-coordinator",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {
+      "gate": "owned-path-boundary"
+    }
+  },
+  "record_id": "final-owned-scope-check",
+  "reviewer": "pending-final-compliance",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T13:56:53Z",
+  "task_id": "S01-T15",
+  "verdict": "PASS"
+}

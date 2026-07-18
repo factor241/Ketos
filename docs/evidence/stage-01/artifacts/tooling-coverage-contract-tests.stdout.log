@@ -1,0 +1,8 @@
+INFO     NumExpr defaulting to 10 threads.
+
+docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py::test_tooling_truth_does_not_treat_make_lint_as_a_lint_gate PASSED [ 25%]
+docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py::test_baseline_gates_have_commands_results_and_record_links PASSED [ 50%]
+docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py::test_coverage_is_numeric_or_explicitly_blocked_and_rerun_is_within_tolerance PASSED [ 75%]
+docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py::test_diff_coverage_uses_na_instead_of_zero_for_documentation_only_stage PASSED [100%]
+
+============================== 4 passed in 0.08s ===============================

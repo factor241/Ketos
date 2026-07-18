@@ -1,0 +1,46 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/lfx-compatibility-baseline.stderr.log",
+      "sha256": "0a973d5dfb2383f548de096611532121119996241fc1be927e1323f09354f806"
+    },
+    "stdout": {
+      "path": "artifacts/lfx-compatibility-baseline.stdout.log",
+      "sha256": "e1a3ae541f4c2929ce36c79bc3f3c1192b3af6ac81689d23964b5f375b8b7809"
+    }
+  },
+  "classification": "COMMAND_RESULT",
+  "command": {
+    "argv": [
+      "uv",
+      "run",
+      "pytest",
+      "src/compat/lfx/tests/test_lfx_compatibility.py",
+      "-q"
+    ],
+    "display": "uv run pytest src/compat/lfx/tests/test_lfx_compatibility.py -q"
+  },
+  "created_at_utc": "2026-07-18T13:37:30Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T13:37:30Z",
+  "execution_revision": "d85449e3fa655899458c0b2dd5d5ec62f659c16e",
+  "exit_code": 0,
+  "notes": "Frozen LFX 1.10.2 alias/import/manifest focused suite.",
+  "owner": "stage01-asset-implementation",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {
+      "historical_regeneration": false,
+      "package": "lfx-compat"
+    }
+  },
+  "record_id": "lfx-compatibility-baseline",
+  "reviewer": "pending",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T13:37:23Z",
+  "task_id": "S01-T12",
+  "verdict": "PASS"
+}

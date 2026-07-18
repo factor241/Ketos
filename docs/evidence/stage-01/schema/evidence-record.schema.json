@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ketos Stage 01 evidence record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_id", "task_id", "command", "cwd", "source_baseline_sha",
+    "execution_revision", "profile",
+    "started_at_utc", "ended_at_utc", "exit_code", "verdict", "artifacts",
+    "created_at_utc", "owner", "reviewer", "notes", "classification"
+  ],
+  "properties": {
+    "record_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+    "task_id": {"type": "string", "minLength": 1},
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["argv", "display"],
+      "properties": {"argv": {"type": "array", "items": {"type": "string"}}, "display": {"type": "string"}}
+    },
+    "cwd": {"type": "string", "minLength": 1},
+    "source_baseline_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "execution_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["environment", "provided"],
+      "properties": {
+        "environment": {"type": "object"},
+        "provided": {"type": "object"}
+      }
+    },
+    "started_at_utc": {"type": "string", "format": "date-time"},
+    "ended_at_utc": {"type": "string", "format": "date-time"},
+    "exit_code": {"type": "integer"},
+    "verdict": {"enum": ["PASS", "FAIL", "BLOCKED", "BASELINE_DEFECT", "INCONCLUSIVE"]},
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stdout", "stderr"],
+      "properties": {
+        "stdout": {"$ref": "#/$defs/artifact"},
+        "stderr": {"$ref": "#/$defs/artifact"}
+      }
+    },
+    "created_at_utc": {"type": "string", "format": "date-time"},
+    "owner": {"type": "string", "minLength": 1},
+    "reviewer": {"type": "string", "minLength": 1},
+    "notes": {"type": "string"},
+    "classification": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^(?!.*\\.\\.)artifacts/[A-Za-z0-9][A-Za-z0-9._-]{0,127}\\.(stdout|stderr)\\.log$"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"verdict": {"const": "PASS"}}, "required": ["verdict"]},
+      "then": {"properties": {"exit_code": {"const": 0}}}
+    }
+  ]
+}

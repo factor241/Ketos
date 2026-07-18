@@ -1,0 +1,74 @@
+{
+  "environment_observation": {
+    "lane_local_env_files": [
+      ".env.example",
+      "deploy/.env.example"
+    ],
+    "relevant_shell_override_names_present": [],
+    "runtime_or_deployment_profile": "UNKNOWN",
+    "values_from_env_files_read": false
+  },
+  "profile": "local-source-defaults-plus-sanitized-environment-presence",
+  "schema_version": 1,
+  "secret_values_captured": false,
+  "settings": {
+    "agentic_experience": {
+      "live_deployment_value": "UNKNOWN",
+      "source_default": false,
+      "source": "src/kfx/src/kfx/services/settings/groups/variables.py:22-29"
+    },
+    "allow_components_paths_override": {
+      "live_deployment_value": "UNKNOWN",
+      "safe_emergency_value": false,
+      "source_default": true,
+      "source": "src/kfx/src/kfx/services/settings/groups/security.py:40-83"
+    },
+    "allow_custom_components": {
+      "live_deployment_value": "UNKNOWN",
+      "safe_emergency_value": false,
+      "source_default": true,
+      "source": "src/kfx/src/kfx/services/settings/groups/security.py:40-83"
+    },
+    "allow_public_custom_components": {
+      "live_deployment_value": "UNKNOWN",
+      "safe_required_value": false,
+      "source_default": false,
+      "source": "src/kfx/src/kfx/services/settings/groups/security.py:40-83"
+    },
+    "auto_login": {
+      "live_deployment_value": "UNKNOWN",
+      "safe_required_value": false,
+      "source_default": true,
+      "source": "src/kfx/src/kfx/services/settings/auth.py:73-84"
+    },
+    "mcp_server_enabled": {
+      "live_deployment_value": "UNKNOWN",
+      "source_default": true,
+      "source": "src/kfx/src/kfx/services/settings/groups/mcp.py:52"
+    },
+    "skip_auth_auto_login": {
+      "live_deployment_value": "UNKNOWN",
+      "safe_required_value": false,
+      "source_default": false,
+      "source": "src/kfx/src/kfx/services/settings/auth.py:82-84"
+    },
+    "ssrf_protection_enabled": {
+      "live_deployment_value": "UNKNOWN",
+      "safe_required_value": true,
+      "source_default": true,
+      "source": "src/kfx/src/kfx/services/settings/groups/security.py:19-34"
+    },
+    "task_backend": {
+      "live_deployment_value": "UNKNOWN",
+      "source_default": "AnyIOBackend because celery_enabled=false",
+      "source": "src/kfx/src/kfx/services/settings/groups/runtime.py:86; src/backend/base/ketos/services/task/service.py:20-35"
+    },
+    "webhook_auth_enable": {
+      "live_deployment_value": "UNKNOWN",
+      "safe_required_value": true,
+      "source_default": true,
+      "source": "src/kfx/src/kfx/services/settings/auth.py:86-90"
+    }
+  },
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2"
+}

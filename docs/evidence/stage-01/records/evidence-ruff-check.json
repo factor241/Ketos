@@ -1,0 +1,46 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/evidence-ruff-check.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stdout": {
+      "path": "artifacts/evidence-ruff-check.stdout.log",
+      "sha256": "1ab5db5700e743310391441185d611320be3738f0162010968d1fd469adc81ea"
+    }
+  },
+  "classification": "COMMAND_RESULT",
+  "command": {
+    "argv": [
+      "uv",
+      "run",
+      "ruff",
+      "check",
+      "docs/evidence/stage-01/tools",
+      "docs/evidence/stage-01/tests"
+    ],
+    "display": "uv run ruff check docs/evidence/stage-01/tools docs/evidence/stage-01/tests"
+  },
+  "created_at_utc": "2026-07-18T13:46:03Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T13:46:03Z",
+  "execution_revision": "d02cc7e7847c92a67bcf5622d010828306cdf2cb",
+  "exit_code": 1,
+  "notes": "Direct supported Ruff gate on Stage 01 owned Python files.",
+  "owner": "stage01-tooling",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {
+      "suite": "owned-evidence-static"
+    }
+  },
+  "record_id": "evidence-ruff-check",
+  "reviewer": "pending",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T13:46:01Z",
+  "task_id": "S01-T09",
+  "verdict": "FAIL"
+}

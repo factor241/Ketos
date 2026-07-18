@@ -16,14 +16,14 @@
       "run",
       "python",
       "-c",
-      "from pathlib import Path; import json; p=Path('graphify-out/graph.json'); print(json.dumps({'path':str(p),'exists':p.exists(), 'metadata':json.loads(p.read_text()) if p.exists() else None}, sort_keys=[REDACTED]))"
+      "from pathlib import Path; import json; p=Path('graphify-out/graph.json'); print(json.dumps({'path':str(p),'exists':p.exists(), 'metadata':json.loads(p.read_text()) if p.exists() else None}, sort_keys=True))"
     ],
-    "display": "uv run python -c from pathlib import Path; import json; p=Path('graphify-out/graph.json'); print(json.dumps({'path':str(p),'exists':p.exists(), 'metadata':json.loads(p.read_text()) if p.exists() else None}, sort_keys=[REDACTED]))"
+    "display": "uv run python -c from pathlib import Path; import json; p=Path('graphify-out/graph.json'); print(json.dumps({'path':str(p),'exists':p.exists(), 'metadata':json.loads(p.read_text()) if p.exists() else None}, sort_keys=True))"
   },
-  "created_at_utc": "2026-07-18T12:29:19Z",
+  "created_at_utc": "2026-07-18T12:42:24Z",
   "cwd": "/Volumes/Projects/ketos-stage01-integration",
-  "ended_at_utc": "2026-07-18T12:29:19Z",
-  "exact_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "ended_at_utc": "2026-07-18T12:42:24Z",
+  "execution_revision": "59d7110849da1dec02b929b90148c203e02a1ee7",
   "exit_code": 0,
   "notes": "Fresh approved-checkout Graphify metadata availability check; do not rebuild.",
   "owner": "stage-01",
@@ -36,7 +36,8 @@
   },
   "record_id": "graphify-metadata",
   "reviewer": "pending",
-  "started_at_utc": "2026-07-18T12:29:18Z",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T12:42:24Z",
   "task_id": "S01-T01",
   "verdict": "PASS"
 }

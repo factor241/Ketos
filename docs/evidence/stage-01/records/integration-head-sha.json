@@ -6,7 +6,7 @@
     },
     "stdout": {
       "path": "artifacts/integration-head-sha.stdout.log",
-      "sha256": "8888c0560f5ec599ce7f499a0de3f4e7af59521b0c1766b7bce4f3e22243ac90"
+      "sha256": "977566587ab33e31a68c276a405f4a5f7eef4f6e2bd409fa7ca221fb1bad94d2"
     }
   },
   "classification": "COMMAND_RESULT",
@@ -18,10 +18,10 @@
     ],
     "display": "git rev-parse HEAD"
   },
-  "created_at_utc": "2026-07-18T12:32:34Z",
+  "created_at_utc": "2026-07-18T12:42:24Z",
   "cwd": "/Volumes/Projects/ketos-stage01-integration",
-  "ended_at_utc": "2026-07-18T12:32:34Z",
-  "exact_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "ended_at_utc": "2026-07-18T12:42:24Z",
+  "execution_revision": "59d7110849da1dec02b929b90148c203e02a1ee7",
   "exit_code": 0,
   "notes": "Fresh exact integration HEAD SHA.",
   "owner": "stage-01",
@@ -34,7 +34,8 @@
   },
   "record_id": "integration-head-sha",
   "reviewer": "pending",
-  "started_at_utc": "2026-07-18T12:32:34Z",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T12:42:24Z",
   "task_id": "S01-T01",
   "verdict": "PASS"
 }

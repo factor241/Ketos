@@ -4,7 +4,8 @@
   "integration": {
     "path": "/Volumes/Projects/ketos-stage01-integration",
     "branch": "codex/stage01-baseline-evidence",
-    "head": "80878261d07c21ad257de017d98069f211ada2c2",
+    "admission_head": "80878261d07c21ad257de017d98069f211ada2c2",
+    "evidence_execution_revision": "59d7110849da1dec02b929b90148c203e02a1ee7",
     "upstream": null,
     "admission_status": "clean before this task created its owned evidence bundle",
     "current_scope_status": "only docs/evidence/stage-01/** differs from the approved SHA",
@@ -58,11 +59,25 @@
   "resource_measurements": {
     "approved_historical_values_gib": [13.744, 13.907, 12.961],
     "historical_timestamps": "not supplied in the approved baseline; values are preserved without invented timestamps",
-    "remeasured_at_utc": "2026-07-18T12:30:12Z",
-    "remeasurement_command": "du -sk /Volumes/Projects/ketos-stage01-integration",
-    "remeasured_kib": 3415332,
-    "remeasured_gib": 3.2571144104003906,
-    "current_rss_record": "records/current-rss.json"
+    "disk_usage_remeasurement": {
+      "captured_at_utc": "2026-07-18T12:30:12Z",
+      "command": "du -sk /Volumes/Projects/ketos-stage01-integration",
+      "kib": 3415332,
+      "gib": 3.2571144104003906
+    }
+  },
+  "rss_measurement": {
+    "record": "records/current-rss.json",
+    "captured_at_utc": "2026-07-18T12:42:24Z",
+    "command": "ps -axo rss= | awk '{sum += $1} END {printf \"%.0f KiB\\n\", sum}'",
+    "aggregate_rss_kib": 15073840
+  },
+  "post_fix_root_dirty_preservation_record": "records/post-fix-root-dirty-preservation.json",
+  "evidence_revision_contract": {
+    "source_baseline_field": "source_baseline_sha",
+    "execution_revision_field": "execution_revision",
+    "delivery_pointer": "DELIVERY_REVISION.md",
+    "rule": "The delivery pointer is attested after the payload commit; it never claims a commit contains its own SHA."
   },
   "no_previous_stage_admission": "Предыдущих этапов нет"
 }

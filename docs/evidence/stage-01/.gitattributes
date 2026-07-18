@@ -1,2 +1,0 @@
-# Command logs preserve captured bytes; trailing output whitespace is evidence, not a source-format defect.
-artifacts/*.log -whitespace

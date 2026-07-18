@@ -6,26 +6,24 @@
     },
     "stdout": {
       "path": "artifacts/current-rss.stdout.log",
-      "sha256": "465aa8a6abd3ca777701c4aa23b791844aa8ee5859e22ecd2925885afb955b12"
+      "sha256": "9f3eb0d9c1b334a4240adf129a1acffa6fef87377cf13ab0880d6488b416fde8"
     }
   },
   "classification": "COMMAND_RESULT",
   "command": {
     "argv": [
-      "uv",
-      "run",
-      "python",
-      "-c",
-      "import resource; print({'ru_maxrss_kib': resource.getrusage(resource.RUSAGE_SELF).ru_maxrss})"
+      "/bin/zsh",
+      "-lc",
+      "ps -axo rss= | awk '{sum += $1} END {printf \"%.0f KiB\\n\", sum}'"
     ],
-    "display": "uv run python -c import resource; print({'ru_maxrss_kib': resource.getrusage(resource.RUSAGE_SELF).ru_maxrss})"
+    "display": "/bin/zsh -lc ps -axo rss= | awk '{sum += $1} END {printf \"%.0f KiB\\n\", sum}'"
   },
-  "created_at_utc": "2026-07-18T12:29:14Z",
+  "created_at_utc": "2026-07-18T12:42:24Z",
   "cwd": "/Volumes/Projects/ketos-stage01-integration",
-  "ended_at_utc": "2026-07-18T12:29:14Z",
-  "exact_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "ended_at_utc": "2026-07-18T12:42:24Z",
+  "execution_revision": "59d7110849da1dec02b929b90148c203e02a1ee7",
   "exit_code": 0,
-  "notes": "Current process maximum RSS reported in KiB by the evidence command.",
+  "notes": "Fresh aggregate RSS in KiB; command runs through argv with shell=False.",
   "owner": "stage-01",
   "profile": {
     "environment": {
@@ -36,7 +34,8 @@
   },
   "record_id": "current-rss",
   "reviewer": "pending",
-  "started_at_utc": "2026-07-18T12:29:14Z",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T12:42:24Z",
   "task_id": "S01-T01",
   "verdict": "PASS"
 }

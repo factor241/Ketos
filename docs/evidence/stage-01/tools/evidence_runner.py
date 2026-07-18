@@ -12,7 +12,6 @@ import argparse
 import datetime as dt
 import hashlib
 import json
-import os
 import platform
 import re
 import subprocess
@@ -23,11 +22,36 @@ from typing import Any
 
 ALLOWED_VERDICTS = {"PASS", "FAIL", "BLOCKED", "BASELINE_DEFECT", "INCONCLUSIVE"}
 SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+SHA40 = re.compile(r"^[0-9a-f]{40}$")
+SHA256 = re.compile(r"^[0-9a-f]{64}$")
+UTC_TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+SECRET_NAME = r"(?:[A-Za-z0-9]+_)*(?:key|token|password|secret)(?:_[A-Za-z0-9]+)*"
 SECRET_ASSIGNMENT = re.compile(
-    r"(?i)(\b[A-Za-z0-9_-]*(?:key|token|password|secret)[A-Za-z0-9_-]*\b\s*[:=]\s*)([^\s,;'\"()]+)"
+    rf"(?i)(\b{SECRET_NAME}\b\s*[:=]\s*)([^\s,;'\"()]+)"
 )
-SECRET_OPTION = re.compile(r"(?i)(--?[A-Za-z0-9_-]*(?:key|token|password|secret)[A-Za-z0-9_-]*=)([^\s]+)")
-SECRET_KEY = re.compile(r"(?i)(key|token|password|secret)")
+SECRET_OPTION = re.compile(
+    rf"(?i)(--?{SECRET_NAME.replace('_', '[-_]')}=)([^\s]+)"
+)
+SECRET_KEY = re.compile(rf"(?i)^{SECRET_NAME}$")
+RECORD_KEYS = {
+    "record_id",
+    "task_id",
+    "command",
+    "cwd",
+    "source_baseline_sha",
+    "execution_revision",
+    "profile",
+    "started_at_utc",
+    "ended_at_utc",
+    "exit_code",
+    "verdict",
+    "artifacts",
+    "created_at_utc",
+    "owner",
+    "reviewer",
+    "notes",
+    "classification",
+}
 
 
 def utc_now() -> str:
@@ -66,13 +90,6 @@ def safe_artifact_id(value: str) -> str:
     return value
 
 
-def safe_relative_path(value: str) -> Path:
-    candidate = Path(value)
-    if candidate.is_absolute() or ".." in candidate.parts or candidate.name != value.split("/")[-1]:
-        raise ValueError(f"unsafe artifact path: {value!r}")
-    return candidate
-
-
 def derive_verdict(exit_code: int, classification: str) -> str:
     if classification == "BLOCKED":
         return "BLOCKED"
@@ -87,6 +104,9 @@ def write_record(args: argparse.Namespace) -> Path:
     artifact_id = safe_artifact_id(args.artifact_id)
     if not args.command:
         raise ValueError("a command argv is required after --")
+    for field in ("source_baseline_sha", "execution_revision"):
+        if not SHA40.fullmatch(getattr(args, field)):
+            raise ValueError(f"{field} must be a lowercase 40-hex Git SHA")
     output = Path(args.output).resolve()
     cwd = Path(args.cwd).resolve()
     if not cwd.is_dir():
@@ -129,7 +149,8 @@ def write_record(args: argparse.Namespace) -> Path:
         "task_id": args.task_id,
         "command": {"argv": sanitized_argv, "display": " ".join(sanitized_argv)},
         "cwd": str(cwd),
-        "exact_sha": args.sha,
+        "source_baseline_sha": args.source_baseline_sha,
+        "execution_revision": args.execution_revision,
         "profile": {
             "environment": {"platform": platform.platform(), "python": platform.python_version()},
             "provided": redact_metadata(profile),
@@ -153,20 +174,72 @@ def write_record(args: argparse.Namespace) -> Path:
     return record_path
 
 
+def is_nonempty_string(value: Any) -> bool:
+    return isinstance(value, str) and bool(value)
+
+
+def is_utc_timestamp(value: Any) -> bool:
+    if not isinstance(value, str) or not UTC_TIMESTAMP.fullmatch(value):
+        return False
+    try:
+        dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return True
+
+
+def expected_artifact_path(record_id: str, stream: str) -> str:
+    return f"artifacts/{record_id}.{stream}.log"
+
+
 def validate_record(record_path: Path) -> list[str]:
     errors: list[str] = []
     try:
         record = json.loads(record_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         return [f"cannot read record: {error}"]
-    required = {
-        "record_id", "task_id", "command", "cwd", "exact_sha", "profile", "started_at_utc", "ended_at_utc",
-        "exit_code", "verdict", "artifacts", "created_at_utc", "owner", "reviewer", "notes", "classification",
-    }
-    missing = sorted(required - set(record)) if isinstance(record, dict) else sorted(required)
-    if missing:
-        errors.append(f"missing required fields: {', '.join(missing)}")
+    if not isinstance(record, dict):
+        return ["record must be an object"]
+    missing = sorted(RECORD_KEYS - set(record))
+    unexpected = sorted(set(record) - RECORD_KEYS)
+    if missing or unexpected:
+        if missing:
+            errors.append(f"missing required fields: {', '.join(missing)}")
+        if unexpected:
+            errors.append(f"unexpected top-level fields: {', '.join(unexpected)}")
         return errors
+
+    if not isinstance(record["record_id"], str) or not SAFE_ID.fullmatch(record["record_id"]):
+        errors.append("invalid record_id")
+    for field in ("task_id", "cwd", "owner", "reviewer", "classification"):
+        if not is_nonempty_string(record[field]):
+            errors.append(f"invalid {field}")
+    if not isinstance(record["notes"], str):
+        errors.append("invalid notes")
+    for field in ("source_baseline_sha", "execution_revision"):
+        if not isinstance(record[field], str) or not SHA40.fullmatch(record[field]):
+            errors.append(f"invalid {field}")
+    for field in ("started_at_utc", "ended_at_utc", "created_at_utc"):
+        if not is_utc_timestamp(record[field]):
+            errors.append(f"invalid {field}")
+
+    command = record["command"]
+    if not isinstance(command, dict) or set(command) != {"argv", "display"}:
+        errors.append("invalid command")
+    elif (
+        not isinstance(command["argv"], list)
+        or not command["argv"]
+        or not all(is_nonempty_string(argument) for argument in command["argv"])
+        or not isinstance(command["display"], str)
+        or command["display"] != " ".join(command["argv"])
+    ):
+        errors.append("invalid command")
+
+    profile = record["profile"]
+    if not isinstance(profile, dict) or set(profile) != {"environment", "provided"}:
+        errors.append("invalid profile")
+    elif not all(isinstance(profile[field], dict) for field in ("environment", "provided")):
+        errors.append("invalid profile")
     if record["verdict"] not in ALLOWED_VERDICTS:
         errors.append(f"invalid verdict: {record['verdict']!r}")
     if not isinstance(record["exit_code"], int) or isinstance(record["exit_code"], bool):
@@ -176,19 +249,21 @@ def validate_record(record_path: Path) -> list[str]:
 
     bundle_root = record_path.resolve().parent.parent
     artifacts = record["artifacts"]
-    if not isinstance(artifacts, dict):
-        return errors + ["artifacts must be an object"]
+    if not isinstance(artifacts, dict) or set(artifacts) != {"stdout", "stderr"}:
+        return errors + ["invalid artifacts"]
     for stream in ("stdout", "stderr"):
         artifact = artifacts.get(stream)
-        if not isinstance(artifact, dict) or not isinstance(artifact.get("path"), str) or not isinstance(artifact.get("sha256"), str):
+        if not isinstance(artifact, dict) or set(artifact) != {"path", "sha256"}:
             errors.append(f"invalid {stream} artifact metadata")
             continue
-        try:
-            relative = safe_relative_path(artifact["path"])
-        except ValueError as error:
-            errors.append(str(error))
+        expected_path = expected_artifact_path(record["record_id"], stream)
+        if artifact["path"] != expected_path:
+            errors.append(f"invalid {stream} artifact path")
             continue
-        path = bundle_root / relative
+        if not isinstance(artifact["sha256"], str) or not SHA256.fullmatch(artifact["sha256"]):
+            errors.append(f"invalid {stream} artifact sha256")
+            continue
+        path = bundle_root / expected_path
         if not path.is_file():
             errors.append(f"missing artifact: {artifact['path']}")
         elif sha256_file(path) != artifact["sha256"]:
@@ -203,7 +278,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--id", dest="artifact_id")
     parser.add_argument("--task-id")
     parser.add_argument("--cwd")
-    parser.add_argument("--sha")
+    parser.add_argument("--source-baseline-sha")
+    parser.add_argument("--execution-revision")
+    parser.add_argument("--sha", dest="legacy_sha")
     parser.add_argument("--owner")
     parser.add_argument("--reviewer")
     parser.add_argument("--profile-json", default="{}")
@@ -213,7 +290,24 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     if args.validate:
         return args
-    missing = [name for name in ("output", "artifact_id", "task_id", "cwd", "sha", "owner", "reviewer") if getattr(args, name) is None]
+    if args.source_baseline_sha is None:
+        args.source_baseline_sha = args.legacy_sha
+    if args.execution_revision is None:
+        args.execution_revision = args.source_baseline_sha
+    missing = [
+        name
+        for name in (
+            "output",
+            "artifact_id",
+            "task_id",
+            "cwd",
+            "source_baseline_sha",
+            "execution_revision",
+            "owner",
+            "reviewer",
+        )
+        if getattr(args, name) is None
+    ]
     if missing:
         parser.error(f"missing required arguments: {', '.join(missing)}")
     if args.command[:1] == ["--"]:

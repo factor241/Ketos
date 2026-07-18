@@ -1,0 +1,43 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/post-fix-root-dirty-preservation.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stdout": {
+      "path": "artifacts/post-fix-root-dirty-preservation.stdout.log",
+      "sha256": "0866524584d8db8109d2244840530f5e84322464ee68dd0da03553bbe7b0a0c6"
+    }
+  },
+  "classification": "COMMAND_RESULT",
+  "command": {
+    "argv": [
+      "uv",
+      "run",
+      "python",
+      "-c",
+      "import hashlib, subprocess; initial=subprocess.check_output(['git','show','59d7110849da1dec02b929b90148c203e02a1ee7:docs/evidence/stage-01/artifacts/root-dirty-status.stdout.log']); current=subprocess.check_output(['git','-C','/Volumes/Projects/ketos_canvas_mod_main','status','--porcelain=v2']); print({'equal': initial == current, 'initial_sha256': hashlib.sha256(initial).hexdigest(), 'current_sha256': hashlib.sha256(current).hexdigest()}); raise SystemExit(0 if initial == current else 1)"
+    ],
+    "display": "uv run python -c import hashlib, subprocess; initial=subprocess.check_output(['git','show','59d7110849da1dec02b929b90148c203e02a1ee7:docs/evidence/stage-01/artifacts/root-dirty-status.stdout.log']); current=subprocess.check_output(['git','-C','/Volumes/Projects/ketos_canvas_mod_main','status','--porcelain=v2']); print({'equal': initial == current, 'initial_sha256': hashlib.sha256(initial).hexdigest(), 'current_sha256': hashlib.sha256(current).hexdigest()}); raise SystemExit(0 if initial == current else 1)"
+  },
+  "created_at_utc": "2026-07-18T12:42:59Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T12:42:59Z",
+  "execution_revision": "59d7110849da1dec02b929b90148c203e02a1ee7",
+  "exit_code": 0,
+  "notes": "Byte-for-byte comparison of current root porcelain-v2 output to the initial canonical committed record.",
+  "owner": "stage-01",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {}
+  },
+  "record_id": "post-fix-root-dirty-preservation",
+  "reviewer": "pending",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T12:42:59Z",
+  "task_id": "S01-T01",
+  "verdict": "PASS"
+}

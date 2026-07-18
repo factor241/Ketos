@@ -11,12 +11,17 @@ those redacted bytes with SHA-256, and writes schema-shaped records in
 - Verdicts are `PASS`, `FAIL`, `BLOCKED`, `BASELINE_DEFECT`, or `INCONCLUSIVE`.
   `PASS` is valid only when `exit_code` is exactly `0`; a negative exit code
   can never validate as PASS.
+- Every record distinguishes `source_baseline_sha` (the product baseline being
+  assessed) from `execution_revision` (the checked-out revision when the
+  command ran). `DELIVERY_REVISION.md` describes the non-recursive post-commit
+  attestation that ties a final review commit to its payload.
 - Conventional `KEY`, `TOKEN`, `PASSWORD`, and `SECRET` assignments/options
   are redacted in logs, command metadata, and supplied profile metadata before
   persistence and hashing. This is a defensive redaction layer, not a claim
   that arbitrary secret formats can always be detected.
 - Hash verification resolves only safe relative artifact paths and rejects
-  traversal and modified log bytes.
+  traversal, non-artifact paths, modified log bytes, extra object fields, and
+  malformed record values.
 - Historical documents 01–14 stay frozen; corrections go to
   `ERRATA_REGISTER.md` or a new append-only decision record.
 
@@ -30,6 +35,8 @@ those redacted bytes with SHA-256, and writes schema-shaped records in
 - `preflight-manifest.json`, `worktree-registry.json`: baseline admission.
 - `artifact-index.json`: SHA-256 inventory (it intentionally does not hash
   itself).
+- `DELIVERY_REVISION.md`: source/execution revision and delivery-attestation
+  contract.
 
 ## Validation
 

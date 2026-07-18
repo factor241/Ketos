@@ -3,7 +3,7 @@ HEAD 80878261d07c21ad257de017d98069f211ada2c2
 branch refs/heads/redesign/sidebar-account
 
 worktree /Volumes/Projects/ketos-stage01-integration
-HEAD 80878261d07c21ad257de017d98069f211ada2c2
+HEAD 59d7110849da1dec02b929b90148c203e02a1ee7
 branch refs/heads/codex/stage01-baseline-evidence
 
 worktree /Volumes/Projects/ketos-stage01-lane-architecture

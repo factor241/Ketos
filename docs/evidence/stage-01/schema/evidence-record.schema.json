@@ -4,7 +4,8 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "record_id", "task_id", "command", "cwd", "exact_sha", "profile",
+    "record_id", "task_id", "command", "cwd", "source_baseline_sha",
+    "execution_revision", "profile",
     "started_at_utc", "ended_at_utc", "exit_code", "verdict", "artifacts",
     "created_at_utc", "owner", "reviewer", "notes", "classification"
   ],
@@ -18,8 +19,17 @@
       "properties": {"argv": {"type": "array", "items": {"type": "string"}}, "display": {"type": "string"}}
     },
     "cwd": {"type": "string", "minLength": 1},
-    "exact_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-    "profile": {"type": "object"},
+    "source_baseline_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "execution_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["environment", "provided"],
+      "properties": {
+        "environment": {"type": "object"},
+        "provided": {"type": "object"}
+      }
+    },
     "started_at_utc": {"type": "string", "format": "date-time"},
     "ended_at_utc": {"type": "string", "format": "date-time"},
     "exit_code": {"type": "integer"},

@@ -19,8 +19,10 @@ import inspect
 import io
 import json
 import re
+import stat
 import subprocess
 import tarfile
+import tempfile
 import textwrap
 import zipfile
 from email.parser import BytesParser
@@ -57,6 +59,7 @@ ARTIFACT_STRING_FIELDS = (
     "license_sha256",
     "license_source",
     "requires_python",
+    "source_class",
 )
 ARTIFACT_BINDINGS = (
     "archive_identity_bound",
@@ -107,6 +110,14 @@ FORK_PROVENANCE_BINDINGS = (
     "source_tree_bound",
     "changed_files_derived",
 )
+REGISTRY_PROVENANCE_BINDINGS = ("bound", "origin_bound", "expected_sha256_bound")
+APPROVED_FORK_GIT_REMOTE = "https://github.com/factor241/ag-ui.git"
+ARCHIVE_MAX_BYTES = 128 * 1024 * 1024
+ARCHIVE_MAX_MEMBERS = 20_000
+ARCHIVE_MAX_MEMBER_BYTES = 32 * 1024 * 1024
+ARCHIVE_MAX_UNCOMPRESSED_BYTES = 256 * 1024 * 1024
+GIT_STDOUT_MAX_BYTES = 128 * 1024 * 1024
+GIT_TIMEOUT_SECONDS = 60
 
 
 def _invalid(message: str) -> NoReturn:
@@ -141,6 +152,10 @@ def evaluate_candidate(evidence: dict[str, Any]) -> dict[str, Any]:
         provenance = evidence.get("fork_provenance") or {}
         if any(provenance.get(key) is not True for key in FORK_PROVENANCE_BINDINGS):
             reasons.append("fork_provenance")
+    if artifact.get("source_class") == "registry-release":
+        provenance = evidence.get("registry_provenance") or {}
+        if any(provenance.get(key) is not True for key in REGISTRY_PROVENANCE_BINDINGS):
+            reasons.append("registry_provenance")
 
     return {"admitted": not reasons, "reasons": list(dict.fromkeys(reasons))}
 
@@ -195,11 +210,14 @@ def _approved_changed_file(value: Any) -> bool:
     )
 
 
-def classify_candidate_source(artifact: dict[str, Any]) -> str:
+def classify_candidate_source(
+    artifact: dict[str, Any],
+    *,
+    fork_selected: bool = False,
+) -> str:
     """Derive the only supported source class from inspected artifact metadata."""
-    version = str(artifact.get("version") or "")
     archive_kind = artifact.get("archive_kind")
-    if re.search(r"\+ketos(?:\.|$)", version):
+    if fork_selected:
         return "approved-fork"
     if archive_kind == "git-archive":
         return "upstream-commit"
@@ -208,17 +226,52 @@ def classify_candidate_source(artifact: dict[str, Any]) -> str:
     return "unknown"
 
 
-def _git_output(repository: Path, *args: str, binary: bool = False) -> bytes | str:
+def _run_git(*args: str, binary: bool = False) -> bytes | str:
     try:
-        result = subprocess.run(  # noqa: S603 - fixed binary; no shell; refs are exact validated SHAs
-            [GIT_EXECUTABLE, "-C", str(repository), *args],
-            check=True,
-            capture_output=True,
-            text=not binary,
-        )
-    except (OSError, subprocess.CalledProcessError) as exc:
+        with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
+            subprocess.run(  # noqa: S603 - fixed binary; no shell; refs are exact validated SHAs
+                [GIT_EXECUTABLE, *args],
+                check=True,
+                stdout=stdout,
+                stderr=stderr,
+                timeout=GIT_TIMEOUT_SECONDS,
+            )
+            stdout_size = stdout.tell()
+            if stdout_size > GIT_STDOUT_MAX_BYTES:
+                _invalid(f"git output exceeds {GIT_STDOUT_MAX_BYTES}-byte limit")
+            stdout.seek(0)
+            output = stdout.read(GIT_STDOUT_MAX_BYTES + 1)
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
         _invalid(f"git provenance check failed for {args!r}: {exc}")
-    return result.stdout
+    return output if binary else output.decode("utf-8")
+
+
+def _git_output(repository: Path, *args: str, binary: bool = False) -> bytes | str:
+    return _run_git("-C", str(repository), *args, binary=binary)
+
+
+def _verify_remote_commit_reachability(upstream_sha: str, fork_sha: str) -> None:
+    advertised = _run_git("ls-remote", "--heads", APPROVED_FORK_GIT_REMOTE)
+    if not isinstance(advertised, str) or not advertised.strip():
+        _invalid("approved remote did not advertise any reachable branch heads")
+    with tempfile.TemporaryDirectory(prefix="ketos-agui-remote-proof-") as temporary:
+        repository = Path(temporary)
+        _git_output(repository, "init", "--bare")
+        _git_output(
+            repository,
+            "fetch",
+            "--no-tags",
+            APPROVED_FORK_GIT_REMOTE,
+            fork_sha,
+        )
+        for commit, description in (
+            (fork_sha, "fork commit"),
+            (upstream_sha, "upstream base"),
+        ):
+            resolved = _git_output(repository, "rev-parse", f"{commit}^{{commit}}")
+            if not isinstance(resolved, str) or resolved.strip() != commit:
+                _invalid(f"{description} is not reachable from the approved remote")
+        _git_output(repository, "merge-base", "--is-ancestor", upstream_sha, fork_sha)
 
 
 def _canonical_git_remote(value: str) -> str:
@@ -228,11 +281,44 @@ def _canonical_git_remote(value: str) -> str:
     return normalized.removesuffix(".git")
 
 
+def _validate_archive_path_size(path: Path) -> None:
+    size = path.stat().st_size
+    if size > ARCHIVE_MAX_BYTES:
+        _invalid(f"archive exceeds {ARCHIVE_MAX_BYTES}-byte size limit")
+
+
+def _validate_member_sizes(sizes: list[int]) -> None:
+    if len(sizes) > ARCHIVE_MAX_MEMBERS:
+        _invalid(f"archive exceeds {ARCHIVE_MAX_MEMBERS}-member limit")
+    if any(size < 0 or size > ARCHIVE_MAX_MEMBER_BYTES for size in sizes):
+        _invalid(f"archive member exceeds {ARCHIVE_MAX_MEMBER_BYTES}-byte limit")
+    if sum(sizes) > ARCHIVE_MAX_UNCOMPRESSED_BYTES:
+        _invalid(f"archive exceeds {ARCHIVE_MAX_UNCOMPRESSED_BYTES}-byte uncompressed limit")
+
+
+def _validate_tar_members(members: list[tarfile.TarInfo]) -> None:
+    _safe_archive_names([member.name for member in members])
+    _validate_member_sizes([member.size for member in members if member.isfile()])
+    for member in members:
+        if not (member.isfile() or member.isdir()):
+            _invalid(f"unsafe archive member type: {member.name}")
+
+
+def _bounded_tar_members(archive: tarfile.TarFile) -> list[tarfile.TarInfo]:
+    members: list[tarfile.TarInfo] = []
+    for member in archive:
+        members.append(member)
+        if len(members) > ARCHIVE_MAX_MEMBERS:
+            _invalid(f"archive exceeds {ARCHIVE_MAX_MEMBERS}-member limit")
+    return members
+
+
 def _tar_file_digests(fileobj: Any, *, mode: str) -> dict[str, tuple[str, int]]:
     try:
         with tarfile.open(fileobj=fileobj, mode=mode) as archive:
-            members = [member for member in archive.getmembers() if member.isfile()]
-            _safe_archive_names([member.name for member in members])
+            all_members = _bounded_tar_members(archive)
+            _validate_tar_members(all_members)
+            members = [member for member in all_members if member.isfile()]
             result: dict[str, tuple[str, int]] = {}
             for member in members:
                 extracted = archive.extractfile(member)
@@ -327,6 +413,7 @@ def validate_fork_provenance(
         _invalid("source archive path is required for a wheel fork artifact")
     if kind == "wheel" and resolved_source == resolved_artifact:
         _invalid("wheel fork artifact requires a distinct source archive")
+    _validate_archive_path_size(resolved_source)
     source_sha = _exact_sha256(provenance["source_archive_sha256"], "source archive SHA-256")
     if source_sha != _sha256(resolved_source):
         _invalid("source archive SHA-256 mismatch")
@@ -391,6 +478,7 @@ def validate_fork_provenance(
         if not isinstance(resolved, str) or resolved.strip() != commit:
             _invalid(f"{description} does not resolve to the declared commit")
     _git_output(repository, "merge-base", "--is-ancestor", upstream_sha, fork_sha)
+    _verify_remote_commit_reachability(upstream_sha, fork_sha)
     derived_output = _git_output(repository, "diff", "--name-only", upstream_sha, fork_sha)
     if not isinstance(derived_output, str):
         _invalid("repository diff could not be read as text")
@@ -460,8 +548,14 @@ def _license_member(names: list[str], root: str, declared: list[str]) -> str:
 
 def _wheel_artifact(path: Path) -> dict[str, Any]:
     with zipfile.ZipFile(path) as archive:
-        names = archive.namelist()
+        entries = archive.infolist()
+        names = [entry.filename for entry in entries]
         _safe_archive_names(names)
+        _validate_member_sizes([entry.file_size for entry in entries if not entry.is_dir()])
+        for entry in entries:
+            mode = (entry.external_attr >> 16) & 0xFFFF
+            if stat.S_ISLNK(mode):
+                _invalid(f"unsafe archive member type: {entry.filename}")
         metadata_path = _one(
             [name for name in names if name.endswith(".dist-info/METADATA")],
             "wheel METADATA",
@@ -503,9 +597,10 @@ def _wheel_artifact(path: Path) -> dict[str, Any]:
 
 def _source_artifact(path: Path) -> dict[str, Any]:
     with tarfile.open(path) as archive:
-        members = [member for member in archive.getmembers() if member.isfile()]
+        all_members = _bounded_tar_members(archive)
+        _validate_tar_members(all_members)
+        members = [member for member in all_members if member.isfile()]
         names = [member.name for member in members]
-        _safe_archive_names(names)
         commit = str(archive.pax_headers.get("comment") or "")
         if not re.fullmatch(r"[0-9a-f]{40}", commit):
             _invalid("source archive lacks a bound 40-character git commit")
@@ -581,6 +676,7 @@ def inspect_artifact(artifact_path: Path | None) -> dict[str, Any]:
     path = artifact_path.resolve(strict=True)
     if not path.is_file():
         _invalid(f"artifact path is not a file: {path}")
+    _validate_archive_path_size(path)
     if zipfile.is_zipfile(path):
         artifact = _wheel_artifact(path)
     elif tarfile.is_tarfile(path):
@@ -1238,6 +1334,18 @@ def collect_evidence(
     fork_repository_path: Path | None = None,
 ) -> dict[str, Any]:
     artifact = inspect_artifact(artifact_path)
+    fork_selected = any(
+        path is not None
+        for path in (
+            fork_provenance_path,
+            source_archive_path,
+            fork_repository_path,
+        )
+    )
+    artifact["source_class"] = classify_candidate_source(
+        artifact,
+        fork_selected=fork_selected,
+    )
     fork_provenance = None
     if fork_provenance_path is not None:
         if fork_repository_path is None:

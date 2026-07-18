@@ -1,0 +1,40 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/integration-head-sha.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stdout": {
+      "path": "artifacts/integration-head-sha.stdout.log",
+      "sha256": "8888c0560f5ec599ce7f499a0de3f4e7af59521b0c1766b7bce4f3e22243ac90"
+    }
+  },
+  "classification": "COMMAND_RESULT",
+  "command": {
+    "argv": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "display": "git rev-parse HEAD"
+  },
+  "created_at_utc": "2026-07-18T12:32:34Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T12:32:34Z",
+  "exact_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "exit_code": 0,
+  "notes": "Fresh exact integration HEAD SHA.",
+  "owner": "stage-01",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {}
+  },
+  "record_id": "integration-head-sha",
+  "reviewer": "pending",
+  "started_at_utc": "2026-07-18T12:32:34Z",
+  "task_id": "S01-T01",
+  "verdict": "PASS"
+}

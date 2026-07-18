@@ -1,0 +1,42 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/graphify-metadata.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stdout": {
+      "path": "artifacts/graphify-metadata.stdout.log",
+      "sha256": "bbe161ab8a2cfa5dbfff0892253f026fd79dd1452d352b704a26c35b47124d39"
+    }
+  },
+  "classification": "COMMAND_RESULT",
+  "command": {
+    "argv": [
+      "uv",
+      "run",
+      "python",
+      "-c",
+      "from pathlib import Path; import json; p=Path('graphify-out/graph.json'); print(json.dumps({'path':str(p),'exists':p.exists(), 'metadata':json.loads(p.read_text()) if p.exists() else None}, sort_keys=[REDACTED]))"
+    ],
+    "display": "uv run python -c from pathlib import Path; import json; p=Path('graphify-out/graph.json'); print(json.dumps({'path':str(p),'exists':p.exists(), 'metadata':json.loads(p.read_text()) if p.exists() else None}, sort_keys=[REDACTED]))"
+  },
+  "created_at_utc": "2026-07-18T12:29:19Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T12:29:19Z",
+  "exact_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "exit_code": 0,
+  "notes": "Fresh approved-checkout Graphify metadata availability check; do not rebuild.",
+  "owner": "stage-01",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {}
+  },
+  "record_id": "graphify-metadata",
+  "reviewer": "pending",
+  "started_at_utc": "2026-07-18T12:29:18Z",
+  "task_id": "S01-T01",
+  "verdict": "PASS"
+}

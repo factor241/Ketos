@@ -16,7 +16,10 @@ if TYPE_CHECKING:
 REPO_ROOT = Path(__file__).resolve().parents[6]
 PROBE_PATH = REPO_ROOT / "scripts" / "mvp" / "probe_ag_ui_adapter.py"
 ADMISSION_PATH = REPO_ROOT / "docs" / "dev" / "handoff" / "STAGE_01_AG_UI_ADMISSION.md"
+FORK_DECISION_PATH = REPO_ROOT / "docs" / "dev" / "handoff" / "STAGE_01_TEMPORARY_FORK_DECISION.md"
 LICENSE_BYTES = b"MIT License\n\nCopyright (c) AG-UI contributors\n"
+FORK_COMMIT = "1" * 40
+UPSTREAM_BASE = "2" * 40
 
 
 def _load_probe() -> ModuleType:
@@ -89,6 +92,31 @@ def _write_wheel(
     return wheel
 
 
+def _fork_provenance(artifact: Path, source_archive: Path) -> dict[str, object]:
+    return {
+        "artifact_kind": "wheel",
+        "package_name": "ag-ui-langgraph",
+        "package_version": "0.0.43",
+        "approved_owner": "factor241",
+        "canonical_repo_url": "https://github.com/factor241/ag-ui",
+        "upstream_base_sha": UPSTREAM_BASE,
+        "fork_commit_sha": FORK_COMMIT,
+        "artifact_filename": artifact.name,
+        "artifact_sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+        "source_archive_sha256": hashlib.sha256(source_archive.read_bytes()).hexdigest(),
+        "license_spdx": "MIT",
+        "license_sha256": hashlib.sha256(LICENSE_BYTES).hexdigest(),
+        "changed_files": [
+            "integrations/langgraph/python/ag_ui_langgraph/agent.py",
+            "integrations/langgraph/python/ag_ui_langgraph/endpoint.py",
+            "integrations/langgraph/python/tests/test_agent.py",
+            "integrations/langgraph/python/tests/test_endpoint.py",
+        ],
+        "build_command": f"git checkout --detach {FORK_COMMIT} && uv build",
+        "test_command": f"git checkout --detach {FORK_COMMIT} && uv run pytest",
+    }
+
+
 def test_published_0042_is_rejected_even_if_metadata_is_present() -> None:
     probe = _load_probe()
 
@@ -146,7 +174,11 @@ def test_only_complete_immutable_standard_contract_is_admitted() -> None:
 def test_artifact_path_is_mandatory_and_identity_cannot_be_self_attested() -> None:
     probe = _load_probe()
 
-    assert list(inspect.signature(probe.collect_evidence).parameters) == ["artifact_path"]
+    assert list(inspect.signature(probe.collect_evidence).parameters) == [
+        "artifact_path",
+        "fork_provenance_path",
+        "source_archive_path",
+    ]
     with pytest.raises(ValueError, match="artifact path is required"):
         probe.inspect_artifact(None)
 
@@ -183,6 +215,109 @@ def test_artifact_inspection_fails_closed_without_license_or_required_source(tmp
         probe.inspect_artifact(missing_license)
     with pytest.raises(ValueError, match="required source"):
         probe.inspect_artifact(missing_source)
+
+
+def test_fork_provenance_binds_exact_owner_commits_artifact_source_and_license_hashes(
+    tmp_path: Path,
+) -> None:
+    probe = _load_probe()
+    wheel = _write_wheel(tmp_path)
+    source_archive = tmp_path / "factor241-ag-ui-source.tgz"
+    source_archive.write_bytes(b"immutable fork source archive")
+    provenance = _fork_provenance(wheel, source_archive)
+
+    result = probe.validate_fork_provenance(
+        provenance,
+        artifact_path=wheel,
+        source_archive_path=source_archive,
+        artifact=probe.inspect_artifact(wheel),
+    )
+
+    assert result["bound"] is True
+    assert result["approved_owner"] == "factor241"
+    assert result["fork_commit_sha"] == FORK_COMMIT
+    assert result["upstream_base_sha"] == UPSTREAM_BASE
+    assert result["artifact_sha256"] == hashlib.sha256(wheel.read_bytes()).hexdigest()
+    assert result["source_archive_sha256"] == hashlib.sha256(source_archive.read_bytes()).hexdigest()
+
+
+@pytest.mark.parametrize(
+    ("mutation", "error"),
+    [
+        (lambda item: item.pop("fork_commit_sha"), "exact fields"),
+        (lambda item: item.__setitem__("unexpected", "extra"), "exact fields"),
+        (lambda item: item.__setitem__("approved_owner", "attacker"), "approved owner"),
+        (
+            lambda item: item.__setitem__("canonical_repo_url", "https://github.com/factor241/ag-ui/tree/main"),
+            "canonical repository",
+        ),
+        (lambda item: item.__setitem__("fork_commit_sha", "main"), "fork commit"),
+        (lambda item: item.__setitem__("package_version", "latest"), "package_version"),
+        (lambda item: item.__setitem__("artifact_sha256", "0" * 64), "artifact SHA-256"),
+        (
+            lambda item: item.__setitem__("source_archive_sha256", "0" * 64),
+            "source archive SHA-256",
+        ),
+        (lambda item: item.__setitem__("license_sha256", "0" * 64), "license SHA-256"),
+        (
+            lambda item: item.__setitem__("changed_files", ["../../outside.py"]),
+            "changed_files",
+        ),
+        (
+            lambda item: item.__setitem__("changed_files", [{"path": "agent.py"}]),
+            "changed_files",
+        ),
+        (
+            lambda item: item.__setitem__("build_command", "git checkout main && uv build"),
+            "fork commit",
+        ),
+    ],
+)
+def test_fork_provenance_rejects_missing_extra_unapproved_floating_or_hash_mismatch(
+    tmp_path: Path,
+    mutation,
+    error: str,
+) -> None:
+    probe = _load_probe()
+    wheel = _write_wheel(tmp_path)
+    source_archive = tmp_path / "factor241-ag-ui-source.tgz"
+    source_archive.write_bytes(b"immutable fork source archive")
+    provenance = _fork_provenance(wheel, source_archive)
+    mutation(provenance)
+
+    with pytest.raises(ValueError, match=error):
+        probe.validate_fork_provenance(
+            provenance,
+            artifact_path=wheel,
+            source_archive_path=source_archive,
+            artifact=probe.inspect_artifact(wheel),
+        )
+
+
+def test_fork_provenance_schema_is_reusable_for_a_source_tgz(tmp_path: Path) -> None:
+    probe = _load_probe()
+    source_archive = tmp_path / "ag-ui-langgraph-source.tgz"
+    source_archive.write_bytes(b"immutable source artifact")
+    provenance = _fork_provenance(source_archive, source_archive)
+    provenance["artifact_kind"] = "tgz"
+    provenance["artifact_filename"] = source_archive.name
+    provenance["artifact_sha256"] = hashlib.sha256(source_archive.read_bytes()).hexdigest()
+    artifact = {
+        "name": "ag-ui-langgraph",
+        "version": provenance["package_version"],
+        "license": "MIT",
+        "license_sha256": provenance["license_sha256"],
+    }
+
+    result = probe.validate_fork_provenance(
+        provenance,
+        artifact_path=source_archive,
+        source_archive_path=None,
+        artifact=artifact,
+    )
+
+    assert result["bound"] is True
+    assert result["artifact_kind"] == "tgz"
 
 
 def test_runtime_binding_requires_exact_archive_metadata_and_source_hashes() -> None:
@@ -236,7 +371,8 @@ class _ExceptionResumeAgent:
         entry_ids = [entry.interrupt_id for entry in entries]
         open_ids = [interrupt.id for interrupt in open_interrupts]
         if (
-            entry_ids == open_ids
+            set(entry_ids) == set(open_ids)
+            and len(entry_ids) == len(open_ids)
             and len(entry_ids) == len(set(entry_ids))
             and all(entry.status in {"resolved", "cancelled"} for entry in entries)
         ):
@@ -253,7 +389,8 @@ class _StandardResumeAgent:
         open_ids = [interrupt.id for interrupt in open_interrupts]
         valid_statuses = {"resolved", "cancelled"}
         full_valid = (
-            entry_ids == open_ids
+            set(entry_ids) == set(open_ids)
+            and len(entry_ids) == len(open_ids)
             and len(entry_ids) == len(set(entry_ids))
             and all(entry.status in valid_statuses for entry in entries)
         )
@@ -274,6 +411,7 @@ def test_resume_matrix_rejects_acceptance_or_exception_as_standard_denial(agent_
     assert result["all_invalid_standard_run_error"] is False
     assert set(result["cases"]) == {
         "full_all_open",
+        "full_all_open_reordered",
         "partial",
         "stale",
         "duplicate",
@@ -293,6 +431,30 @@ def test_resume_matrix_requires_full_success_and_standard_denial_for_every_inval
     assert all(
         result["cases"][case]["outcome"] == "standard_run_error"
         for case in ("partial", "stale", "duplicate", "unknown", "invalid")
+    )
+    assert result["cases"]["full_all_open_reordered"]["outcome"] == "accepted"
+
+
+def test_standard_outcome_helpers_require_run_error_or_terminal_interrupt_shape() -> None:
+    probe = _load_probe()
+    interrupt = SimpleNamespace(
+        type="RUN_FINISHED",
+        outcome=SimpleNamespace(
+            type="interrupt",
+            interrupts=[SimpleNamespace(id="interrupt-a"), SimpleNamespace(id="interrupt-b")],
+        ),
+    )
+    error = SimpleNamespace(type="RUN_ERROR", message="invalid resume")
+
+    assert probe.standard_run_error([error]) is True
+    assert probe.standard_interrupt_outcome([interrupt], {"interrupt-a", "interrupt-b"}) is True
+    assert probe.standard_run_error(ValueError("not an event")) is False
+    assert (
+        probe.standard_interrupt_outcome(
+            [SimpleNamespace(type="RUN_FINISHED", outcome=None)],
+            {"interrupt-a", "interrupt-b"},
+        )
+        is False
     )
 
 
@@ -322,13 +484,18 @@ def test_binding_gate_requires_documented_executable_dependency_semantics() -> N
 def test_binding_gate_proves_dependency_runs_before_agent_dispatch() -> None:
     probe = _load_probe()
 
-    def documented_endpoint(app, agent, path="/", dependencies=()):
-        """Register FastAPI dependencies before agent dispatch."""
+    def documented_endpoint(app, agent, path="/", dependencies=(), before_dispatch=None):
+        """Register FastAPI dependencies and before_dispatch before agent dispatch."""
+        from fastapi import Request
 
-        @app.post(path, dependencies=list(dependencies))
-        async def route(input_data: dict):
+        async def route(input_data: dict, request):
+            if before_dispatch is not None:
+                await before_dispatch(input_data, request)
             agent.dispatched = True
             return input_data
+
+        route.__annotations__["request"] = Request
+        app.post(path, dependencies=list(dependencies))(route)
 
     passed, details = probe.probe_safe_pre_dispatch_binding(
         documented_endpoint,
@@ -338,23 +505,30 @@ def test_binding_gate_proves_dependency_runs_before_agent_dispatch() -> None:
 
     assert passed is True
     assert details["dependency_called"] is True
+    assert details["before_dispatch_called"] is True
+    assert details["call_order"] == ["dependency", "before_dispatch"]
     assert details["agent_dispatched"] is False
     assert details["observed_thread_id"] == "binding-thread"
     assert details["observed_run_id"] == "binding-run"
     assert details["response_status"] == 403
 
 
-def test_binding_gate_rejects_documented_but_unwired_dependency() -> None:
+@pytest.mark.parametrize("wired_hook", ["before_dispatch", "dependency"])
+def test_binding_gate_rejects_when_dependency_or_before_dispatch_is_unwired(
+    wired_hook: str,
+) -> None:
     probe = _load_probe()
 
-    def unwired_endpoint(app, agent, path="/", dependencies=()):
-        """Claim FastAPI dependencies but do not register them."""
-        del dependencies
+    def unwired_endpoint(app, agent, path="/", dependencies=(), before_dispatch=None):
+        """Claim dependencies and before_dispatch while leaving one unwired."""
 
-        @app.post(path)
         async def route(input_data: dict):
+            if wired_hook == "before_dispatch" and before_dispatch is not None:
+                await before_dispatch(input_data, None)
             agent.dispatched = True
             return input_data
+
+        app.post(path, dependencies=list(dependencies) if wired_hook == "dependency" else [])(route)
 
     passed, details = probe.probe_safe_pre_dispatch_binding(
         unwired_endpoint,
@@ -363,8 +537,37 @@ def test_binding_gate_rejects_documented_but_unwired_dependency() -> None:
     )
 
     assert passed is False
-    assert details["dependency_called"] is False
-    assert details["agent_dispatched"] is True
+    if wired_hook == "dependency":
+        assert details["dependency_called"] is True
+        assert details["before_dispatch_called"] is False
+    else:
+        assert details["dependency_called"] is False
+
+
+def test_binding_gate_is_black_box_and_does_not_require_endpoint_source() -> None:
+    probe = _load_probe()
+
+    def opaque_endpoint(app, agent, path="/", dependencies=(), before_dispatch=None):
+        from fastapi import Request
+
+        async def route(input_data: dict, request):
+            if before_dispatch is not None:
+                await before_dispatch(input_data, request)
+            agent.dispatched = True
+            return input_data
+
+        route.__annotations__["request"] = Request
+        app.post(path, dependencies=list(dependencies))(route)
+
+    passed, details = probe.probe_safe_pre_dispatch_binding(
+        opaque_endpoint,
+        None,
+        SimpleNamespace,
+    )
+
+    assert passed is True
+    assert details["source_available"] is False
+    assert details["black_box_http"] is True
 
 
 def test_admission_handoff_retains_exact_non_placeholder_evidence() -> None:
@@ -397,13 +600,8 @@ def test_admission_handoff_retains_exact_non_placeholder_evidence() -> None:
         "render arguments, and resolver payload type for useInterrupt"
     ) in text
     assert "Monthly quota exceeded" in text
-    assert (
-        "node_modules/@copilotkit/react-core/dist/v2/headless.d.cts" in text
-    )
-    assert (
-        "rg -n 'type InterruptResolveFn|interface InterruptRenderProps|declare function useInterrupt'"
-        in text
-    )
+    assert "node_modules/@copilotkit/react-core/dist/v2/headless.d.cts" in text
+    assert "rg -n 'type InterruptResolveFn|interface InterruptRenderProps|declare function useInterrupt'" in text
     assert text.count('"documented_dependencies": false') >= 3
 
 
@@ -417,3 +615,53 @@ def test_deprecated_forwarded_props_resume_is_detected_without_a_deprecation_lab
 
     assert probe.uses_deprecated_forwarded_props_resume(published_0042_shape) is True
     assert probe.uses_deprecated_forwarded_props_resume("input.resume") is False
+
+
+def test_deprecated_resume_detector_tracks_dot_bracket_and_alias_data_flow() -> None:
+    probe = _load_probe()
+    dot_access = "return input.forwardedProps.command.resume"
+    aliased_access = """
+    props = input.forwarded_props
+    command = props.get("command", {})
+    resume = command["resume"]
+    return resume
+    """
+
+    assert probe.uses_deprecated_forwarded_props_resume(dot_access) is True
+    assert probe.uses_deprecated_forwarded_props_resume(aliased_access) is True
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "# forwarded_props command resume",
+        'message = "forwardedProps.command.resume"',
+        "forwarded_props = {}; command = {}; resume = input.resume",
+        'return forwarded_props["command"]["resume"]',
+        'return input.forwarded_props.get("resume")',
+        'return input.command.get("resume")',
+    ],
+)
+def test_deprecated_resume_detector_rejects_string_search_false_positives(source: str) -> None:
+    probe = _load_probe()
+
+    assert probe.uses_deprecated_forwarded_props_resume(source) is False
+
+
+def test_temporary_fork_decision_only_supersedes_dependency_source_and_keeps_gates() -> None:
+    text = FORK_DECISION_PATH.read_text(encoding="utf-8")
+
+    assert "factor241" in text
+    assert "dependency-source" in text
+    assert "protocol" in text
+    assert "security" in text
+    assert "PENDING" in text
+    assert "does not grant PASS" in text
+
+
+def test_admission_handoff_marks_fork_artifacts_pending_without_claiming_pass() -> None:
+    text = ADMISSION_PATH.read_text(encoding="utf-8")
+
+    assert "Temporary fork evidence: **PENDING**" in text
+    assert "STAGE_01_TEMPORARY_FORK_DECISION.md" in text
+    assert "Verdict: **BLOCKED**" in text

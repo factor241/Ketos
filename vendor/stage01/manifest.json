@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "decision": "temporary-forks-for-stage-01-mvp",
+  "artifacts": {
+    "ag-ui-langgraph": {
+      "upstream_repository": "https://github.com/ag-ui-protocol/ag-ui",
+      "fork_repository": "https://github.com/factor241/ag-ui",
+      "upstream_base_sha": "3a7433ef055aab96ee7c9ece97417d721b21dc76",
+      "fork_sha": "85b94807e464c9b38f591938a41559923a712dbb",
+      "version": "0.0.43+ketos.1",
+      "artifact": "ag_ui_langgraph-0.0.43+ketos.1-py3-none-any.whl",
+      "artifact_sha256": "5ae33b1bab5a9e0adfb1425c5e279476a7ba35a385019d71be2f3ee79e8913cc",
+      "source_archive": "ag-ui-langgraph-0.0.43+ketos.1-source.tar",
+      "source_archive_sha256": "afff88bf8ee2d9ffc515052b3c9924610b78cfe1d6b6df9f093845c8c5604cdb",
+      "license_spdx": "MIT",
+      "license_sha256": "06dcddbb6908a0c6dd4a9e8ec822eea41d5a460a53089fecccc8a68049e99241",
+      "changed_files": {"exact_list": "ag-ui-langgraph.provenance.json", "derived_from": "git diff --name-only 3a7433ef055aab96ee7c9ece97417d721b21dc76 85b94807e464c9b38f591938a41559923a712dbb"},
+      "toolchain": {"uv": "0.11.21", "python": "3.13.14", "source_date_epoch": 1765974360},
+      "rebuild": "test \"$(uv --version | cut -d ' ' -f 2)\" = \"0.11.21\" && git checkout 85b94807e464c9b38f591938a41559923a712dbb && SOURCE_DATE_EPOCH=1765974360 uv build --python 3.13.14 --wheel integrations/langgraph/python",
+      "test": "test \"$(uv --version | cut -d ' ' -f 2)\" = \"0.11.21\" && git checkout 85b94807e464c9b38f591938a41559923a712dbb && uv run --python 3.13.14 --project integrations/langgraph/python pytest -q integrations/langgraph/python/tests",
+      "audit": "uv run --isolated --no-project --with './vendor/stage01/ag_ui_langgraph-0.0.43+ketos.1-py3-none-any.whl[fastapi]' python scripts/mvp/probe_ag_ui_adapter.py --artifact-path vendor/stage01/ag_ui_langgraph-0.0.43+ketos.1-py3-none-any.whl --fork-provenance-path vendor/stage01/ag-ui-langgraph.provenance.json --source-archive-path vendor/stage01/ag-ui-langgraph-0.0.43+ketos.1-source.tar --fork-repository-path /Volumes/Projects/ketos-stage01-agui-fork --json",
+      "install": "UV_PROJECT_ENVIRONMENT=/tmp/ketos-stage01-uv-proof uv sync --frozen --offline --package ketos-base --no-install-workspace"
+    },
+    "@copilotkit/react-core": {
+      "upstream_repository": "https://github.com/CopilotKit/CopilotKit",
+      "fork_repository": "https://github.com/factor241/CopilotKit",
+      "upstream_base_sha": "0c9d639b1348d015f4361d2275db4b15d01c04bc",
+      "fork_sha": "c853ac2b78cb57481cc2ca58eda4a865908c532b",
+      "version": "1.63.1-ketos.1",
+      "artifact": "copilotkit-react-core-1.63.1-ketos.1.tgz",
+      "artifact_sha256": "64711f7e9e94ab6126fef68fdb92f9ba80f400b88d64d3a72191ee1ed7da61aa",
+      "artifact_integrity": "sha512-ZHIeQdU9Iy+MoFKTfm5orw2Yy0aiG0FM3JIs4c1OtxfCG70TUpmUDqzt3lPx6GJkn3lrYwbSxFnIiSCv1CdVAQ==",
+      "source_archive": "CopilotKit-c853ac2b78cb57481cc2ca58eda4a865908c532b-source.tar.gz",
+      "source_archive_sha256": "2278d8c81e8816bc92705afd856916f2ead44cc96e605661cb7b95d7ba5415a1",
+      "license_spdx": "MIT",
+      "license_sha256": "15a0e5343aea872c0573ad72feb6044b336f162d724cc1673c608e6b37ea071b",
+      "changed_files": [
+        "packages/react-core/LICENSE",
+        "packages/react-core/package.json",
+        "packages/react-core/scripts/__tests__/deterministic-tar.test.mjs",
+        "packages/react-core/scripts/deterministic-tar.mjs",
+        "packages/react-core/scripts/pack-deterministic.mjs",
+        "packages/react-core/src/v2/headless.ts",
+        "packages/react-core/src/v2/hooks/__tests__/use-interrupt.test.tsx",
+        "packages/react-core/src/v2/hooks/__tests__/use-interrupt.transaction.test.tsx",
+        "packages/react-core/src/v2/hooks/__tests__/use-interrupt.types.test.tsx",
+        "packages/react-core/src/v2/hooks/index.ts",
+        "packages/react-core/src/v2/hooks/use-interrupt.tsx",
+        "packages/react-core/src/v2/types/interrupt.ts",
+        "showcase/shell-docs/src/content/reference/hooks/useInterrupt.mdx"
+      ],
+      "toolchain": {"node": "22.23.1", "pnpm": "10.33.4", "source_date_epoch": 1784227404},
+      "rebuild": "git checkout c853ac2b78cb57481cc2ca58eda4a865908c532b && npx --yes --package=node@22.23.1 -- node \"$(command -v corepack)\" pnpm@10.33.4 install --frozen-lockfile && npx --yes --package=node@22.23.1 -- node \"$(command -v corepack)\" pnpm@10.33.4 exec nx run @copilotkit/react-core:check-types --skip-nx-cache --outputStyle=static && rm -rf packages/react-core/dist && npx --yes --package=node@22.23.1 -- node \"$(command -v corepack)\" pnpm@10.33.4 --dir packages/react-core run build && SOURCE_DATE_EPOCH=1784227404 npx --yes --package=node@22.23.1 -- node \"$(command -v corepack)\" pnpm@10.33.4 --dir packages/react-core run pack:deterministic /tmp/ketos-stage01-copilot-pack",
+      "test": "git checkout c853ac2b78cb57481cc2ca58eda4a865908c532b && npx --yes --package=node@22.23.1 -- node \"$(command -v corepack)\" pnpm@10.33.4 exec nx run @copilotkit/react-core:test --skip-nx-cache --outputStyle=static && npx --yes --package=node@22.23.1 -- node \"$(command -v corepack)\" pnpm@10.33.4 exec nx run @copilotkit/react-core:check-types --skip-nx-cache --outputStyle=static",
+      "audit": "uv run python scripts/mvp/audit_copilotkit_artifact.py vendor/stage01/copilotkit-react-core-1.63.1-ketos.1.tgz --sha256 64711f7e9e94ab6126fef68fdb92f9ba80f400b88d64d3a72191ee1ed7da61aa --integrity sha512-ZHIeQdU9Iy+MoFKTfm5orw2Yy0aiG0FM3JIs4c1OtxfCG70TUpmUDqzt3lPx6GJkn3lrYwbSxFnIiSCv1CdVAQ== --license-sha256 15a0e5343aea872c0573ad72feb6044b336f162d724cc1673c608e6b37ea071b --runtime-root src/frontend",
+      "source_audit": "uv run python scripts/mvp/audit_copilotkit_provenance.py vendor/stage01/CopilotKit-c853ac2b78cb57481cc2ca58eda4a865908c532b-source.tar.gz --manifest-path vendor/stage01/manifest.json --repository-path /Volumes/Projects/ketos-stage01-copilotkit-fork --artifact-path vendor/stage01/copilotkit-react-core-1.63.1-ketos.1.tgz --json",
+      "install": "cd src/frontend && npm ci --offline --ignore-scripts"
+    }
+  },
+  "notes": [
+    "CopilotKit SHA-256 c3f93fb5eab13bd9eb4d2165a0866ede4da5e831f0a3379acd02722dbd5d8509 used SOURCE_DATE_EPOCH=1784431200 and is noncanonical; the admitted epoch is 1784227404.",
+    "Only the immutable hashes recorded here are admitted; branches, tags, HEAD, and latest are forbidden.",
+    "Replace both forks with official releases through the same probes within 30 days of suitable upstream releases."
+  ]
+}

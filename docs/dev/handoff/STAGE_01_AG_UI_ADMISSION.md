@@ -2,11 +2,12 @@
 
 - Task: `S01-A01`
 - Baseline: `5fe1cb74fe8b2db8b48f66859cfbf72e56cf3782`
-- Evaluated at: `2026-07-18T19:05:41Z`
-- Verdict: **BLOCKED**
-- Selected Python adapter: **none**
-- Manifest/lock decision: **no manifest, lock, or ownership edit is permitted**
-- Temporary fork evidence: **PENDING**
+- Evaluated at: `2026-07-19T05:45:00+07:00`
+- Verdict: **PASS**
+- Selected Python adapter: `ag-ui-langgraph==0.0.43+ketos.1`
+- Selected frontend package: `@copilotkit/react-core@1.63.1-ketos.1`
+- Manifest/lock decision: **exact vendored artifacts admitted and locked**
+- Temporary fork evidence: **PASS**
 
 ## Temporary fork evidence
 
@@ -15,21 +16,69 @@
 any protocol, all-open resume, standard outcome, pre-dispatch, security,
 license, type, or frozen dependency gate and does not grant PASS.
 
-The required fork artifact, source archive, exact provenance JSON, recomputed
-hashes, and executable black-box output have not yet been supplied. Until that
-evidence is present and passes every existing gate, this document remains
-**BLOCKED**, selects no adapter, and authorizes no manifest or lock edit.
+The admitted AG-UI wheel is pinned to fork commit
+`85b94807e464c9b38f591938a41559923a712dbb` with SHA-256
+`5ae33b1bab5a9e0adfb1425c5e279476a7ba35a385019d71be2f3ee79e8913cc`.
+Its separately retained source archive has SHA-256
+`afff88bf8ee2d9ffc515052b3c9924610b78cfe1d6b6df9f093845c8c5604cdb`.
+The executable probe returned:
 
-## Blocking decision
+```json
+{"admitted": true, "reasons": []}
+```
 
-No inspected immutable Python artifact satisfies the complete standard
-interrupt/resume and pre-dispatch binding contract. Independently, the pinned
-CopilotKit v2 package does not type its resolver as
-`resolve({ approved: boolean })`; its installed declaration accepts `unknown`.
-Both are mandatory admission conditions, so this lane fails closed before any
-dependency freeze.
+All six normative contracts passed, including the real FastAPI dependency,
+clone, three-argument hook, actor binding, and dispatch order. Provenance was
+bound to the live approved remote, exact commits and ancestry, exact Git diff,
+source tree, wheel bytes, runtime metadata, installed source bytes, and MIT
+license. The negative `0.0.42` control remained rejected with the deprecated
+resume path and missing standard gates detected.
 
-Minimum external unblock:
+The admitted CopilotKit archive is pinned to fork commit
+`c853ac2b78cb57481cc2ca58eda4a865908c532b` with SHA-256
+`64711f7e9e94ab6126fef68fdb92f9ba80f400b88d64d3a72191ee1ed7da61aa`
+and npm integrity
+`sha512-ZHIeQdU9Iy+MoFKTfm5orw2Yy0aiG0FM3JIs4c1OtxfCG70TUpmUDqzt3lPx6GJkn3lrYwbSxFnIiSCv1CdVAQ==`.
+The archive audit admitted all 60 regular allowlisted members, both CJS and ESM
+typed resolver declarations, exact package/license identity, and exactly one
+installed runtime copy.
+
+The separate CopilotKit source-provenance audit processed the retained Git
+archive without extraction under compressed/member/member-size/total resource
+ceilings. It bound all 22,732 entries (including 50 exact Git symlink records)
+byte-for-byte and mode-for-mode to the fork commit, verified the live fixed
+`factor241/CopilotKit` fork and official upstream base, proved ancestry and the
+exact 13-file delta, and bound the package hash plus clean build/check/pack
+command to the same manifest record.
+
+The alternate CopilotKit SHA-256
+`c3f93fb5eab13bd9eb4d2165a0866ede4da5e831f0a3379acd02722dbd5d8509`
+used `SOURCE_DATE_EPOCH=1784431200`; because the deterministic tar metadata
+includes that epoch, it is a different, noncanonical artifact. Stage 01 admits
+only epoch `1784227404` and SHA-256 `64711f7e...` recorded above.
+
+Two AG-UI builds from a clean exact-commit clone under uv `0.11.21` and Python
+`3.13.14` reproduced the wheel hash. A fresh remote CopilotKit clone was
+installed, type-checked, built and packed under the manifest-selected Node
+`22.23.1`, Corepack pnpm `10.33.4`, and epoch `1784227404`; it reproduced SHA-256
+`64711f7e...` byte-for-byte. `uv sync --frozen
+--offline` installed the exact local wheel; `npm ci --offline` installed the
+exact local tgz and integrity. `uv.lock` and `package-lock.json` contain the
+same artifact hashes.
+
+## Historical blocking decision (superseded by the PASS above)
+
+At that historical checkpoint, no inspected unmodified upstream Python
+artifact satisfied the complete standard interrupt/resume and pre-dispatch
+binding contract. Independently, the then-pinned unmodified upstream
+CopilotKit v2 package did not type its resolver as
+`resolve({ approved: boolean })`; its then-installed declaration accepted
+`unknown`. Both were mandatory admission conditions, so the upstream-only lane
+failed closed before dependency freeze at that time. The temporary-fork PASS
+at the top of this document supersedes this decision and supplies both missing
+contracts.
+
+The minimum external unblock recorded at that time was:
 
 1. an upstream `ag-ui-langgraph` release, immutable upstream commit, or
    provenance-bound `factor241` fork admitted under the temporary decision that:
@@ -44,9 +93,9 @@ Minimum external unblock:
    `{ approved: boolean }` (not `unknown`).
 
 No Ketos shim, custom encoder/parser/event, subclassed resume translator, or
-guessed TypeScript narrowing is an acceptable unblock.
+guessed TypeScript narrowing was or is an acceptable unblock.
 
-## TDD evidence
+## Historical upstream TDD evidence (superseded)
 
 The negative-first test was written before the probe.
 
@@ -72,7 +121,7 @@ The negative-first test was written before the probe.
 The package environment emits one pre-existing Starlette/httpx deprecation
 warning; it does not change the focused result.
 
-## Context7
+## Historical upstream Context7 evidence (superseded)
 
 Current re-review used the exact callable `mcp__context7__query_docs` three
 times with these literal inputs:
@@ -116,16 +165,17 @@ all three direct ID queries succeeded after the resolver error.
 
 | Exact ID | Query subject | Relevant result |
 | --- | --- | --- |
-| `/copilotkit/copilotkit` | pinned-v2 `useInterrupt` import, generics, render args, resolver | import is `@copilotkit/react-core/v2`; examples call objects such as `{ approved: true }`, but the result contains no exact `{ approved: boolean }` resolver declaration; installed types below are authoritative for `unknown` |
+| `/copilotkit/copilotkit` | upstream pinned-v2 `useInterrupt` import, generics, render args, resolver | import is `@copilotkit/react-core/v2`; examples call objects such as `{ approved: true }`, but the upstream result contained no exact `{ approved: boolean }` resolver declaration; the then-installed upstream types below were authoritative for that historical candidate |
 | `/ag-ui-protocol/ag-ui` | standard interrupt terminal event and resume | `RunFinishedOutcome` includes `{type:"interrupt", interrupts: Interrupt[]}`; `RunAgentInput.resume` is an array of `{interruptId,status,payload?}`; parallel example addresses all open interrupts |
 | `/langchain-ai/langgraph` | `interrupt`, `Command(resume=...)`, persistence | a resumed graph re-executes the node from its beginning; `Command` supplies the resume value; checkpoint config uses stable `thread_id`; `AsyncSqliteSaver` is the async SQLite saver |
 
-Context7 provides object examples but no exact narrower resolver declaration.
-The installed CopilotKit declaration below explicitly uses `unknown`. Therefore
-the required narrower decision signature is absent, and no example-based
-assumption or local shim is allowed.
+Context7 provided object examples but no exact narrower resolver declaration.
+The then-installed unmodified upstream CopilotKit declaration used `unknown`,
+so that historical candidate lacked the required narrower decision signature.
+The admitted fork replaces that declaration and passes executable type tests;
+no example-based assumption or local Ketos shim is used.
 
-## Official documentation
+## Historical upstream official-documentation evidence (superseded)
 
 All six required official URLs were opened successfully on `2026-07-18Z` and
 treated as untrusted reference data:
@@ -144,7 +194,7 @@ making them idempotent. CopilotKit documents the server runtime as the trusted
 place for authentication and middleware, but that does not create a missing
 hook in the Python adapter.
 
-## Python registry and artifact evidence
+## Historical upstream Python registry and artifact evidence (superseded)
 
 PyPI reports `0.0.42` as the latest stable `ag-ui-langgraph`. One newer dev
 artifact and the current immutable upstream commit were also exhausted.
@@ -152,7 +202,7 @@ artifact and the current immutable upstream commit were also exhausted.
 | Candidate | Immutable identity / hash | License / Python | Executable result |
 | --- | --- | --- | --- |
 | published wheel | archive-derived `ag-ui-langgraph==0.0.42`; wheel SHA-256 `4fd19f0da6d0e16d727ec89e99b692916cbba2b0302f96aba2497043cbfec5db`; sdist SHA-256 `5384647b9b7b098189530c59b26741581dd009c8dfda907fbfaa9bafa8d21249` | `ag_ui_langgraph-0.0.42.dist-info/licenses/LICENSE`, SHA-256 `06dcddbb6908a0c6dd4a9e8ec822eea41d5a460a53089fecccc8a68049e99241`; METADATA `License-Expression: MIT`; `<3.15,>=3.10` | rejected: no standard interrupt outcome; no resume-matrix hook; no executable binding hook; deprecated resume source present |
-| newer dev wheel | archive-derived `ag-ui-langgraph==0.0.43.dev1784331543`; wheel SHA-256 `8673aefcac4da28a3238031cba44350cf209ecabae87755efd57d9c00bfa832a`; sdist SHA-256 `15408cd253c13c602fa20042d3de3113d69822f58857e8dfa2487659f38cd8a7` | `ag_ui_langgraph-0.0.43.dev1784331543.dist-info/licenses/LICENSE`, SHA-256 `06dcddbb6908a0c6dd4a9e8ec822eea41d5a460a53089fecccc8a68049e99241`; METADATA `License-Expression: MIT`; `<3.15,>=3.10` | standard outcome and full two-interrupt success pass; partial/stale/duplicate/unknown/invalid are accepted instead of standard `RUN_ERROR`; deprecated resume remains; no executable binding hook |
+| newer dev wheel | archive-derived `ag-ui-langgraph==0.0.43.dev1784331543`; wheel SHA-256 `8673aefcac4da28a3238031cba44350cf209ecabae87755efd57d9c00bfa832a`; sdist SHA-256 `15408cd253c13c602fa20042d3de3113d69822f58857e8dfa2487659f38cd8a7` | `ag_ui_langgraph-0.0.43.dev1784331543.dist-info/licenses/LICENSE`, SHA-256 `06dcddbb6908a0c6dd4a9e8ec822eea41d5a460a53089fecccc8a68049e99241`; METADATA `License-Expression: MIT`; `<3.15,>=3.10` | standard outcome and full two-interrupt success passed; partial/stale/duplicate/unknown/invalid were accepted instead of standard `RUN_ERROR`; deprecated resume remained; no executable binding hook existed |
 | immutable upstream | archive-derived `git:3a7433ef055aab96ee7c9ece97417d721b21dc76#subdirectory=integrations/langgraph/python`; git-archive SHA-256 `03bb89a6c73228c4a3d0a196ed106fce701655428b866387a3f45d986ae3dc76` | `integrations/langgraph/python/LICENSE`, SHA-256 `06dcddbb6908a0c6dd4a9e8ec822eea41d5a460a53089fecccc8a68049e99241`; `pyproject.toml` license `MIT`; `>=3.10,<3.15` | same protocol blockers as dev; git pax `comment` binds the full commit, and installed source hashes match archive source hashes |
 
 The live constructor for the newer source is:
@@ -164,19 +214,19 @@ The live constructor for the newer source is:
  emit_interrupt_outcome: bool = False)
 ```
 
-Its endpoint is only:
+Its endpoint at that historical commit was only:
 
 ```text
 (app: FastAPI, agent: LangGraphAgent, path: str = "/")
 ```
 
-There is no dependency/auth/actor callback parameter. The dev/commit probes
-emitted a real `RUN_FINISHED` with outcome `interrupt` and both IDs
-`interrupt-a`, `interrupt-b`. Their full two-entry resume succeeds, but the same
-method also accepts partial, stale, duplicate, unknown-ID, and invalid-status
-cases. None returns a standard `RUN_ERROR`. Source inspection also proves the
-deprecated `forwarded_props.command.resume` path. Source unavailability is a
-failed contract; it can never prove absence.
+That historical upstream endpoint had no dependency/auth/actor callback
+parameter. The dev/commit probes emitted a real `RUN_FINISHED` with outcome
+`interrupt` and both IDs `interrupt-a`, `interrupt-b`. Their full two-entry
+resume succeeded, but the same method also accepted partial, stale, duplicate,
+unknown-ID, and invalid-status cases. None returned a standard `RUN_ERROR`.
+Source inspection also proved the deprecated `forwarded_props.command.resume`
+path in those candidates. The admitted fork no longer has these failures.
 
 ### Exact probe commands
 
@@ -479,7 +529,7 @@ jq '{artifact,contracts,resume_matrix:.details.resume_matrix,source_inspection:.
 }
 ```
 
-## Pinned JS admission
+## Historical upstream pinned-JS admission (superseded)
 
 An isolated npm install was performed for:
 
@@ -511,7 +561,7 @@ for archive in /tmp/ketos-s01-a01-pinned.lRxvfO/*.tgz; do
 done
 ```
 
-The installed package does not ship a literal top-level `.d.ts`; its declaration
+The then-installed upstream package did not ship a literal top-level `.d.ts`; its declaration
 bundle is `.d.cts`/`.d.mts` and contains the source region
 `src/v2/lib/react-core.d.ts`. Exact inspected paths:
 
@@ -533,7 +583,7 @@ sed -n '550,558p' \
   /tmp/ketos-s01-a01-js.GlAscE/node_modules/@copilotkit/react-core/dist/v2/headless.d.cts
 ```
 
-Installed `@copilotkit/react-core@1.63.1` proves:
+The historical upstream `@copilotkit/react-core@1.63.1` inspection proved:
 
 ```ts
 import { useInterrupt } from "@copilotkit/react-core/v2";
@@ -559,9 +609,10 @@ type InterruptResolveFn = (
 ) => Promise<RunAgentResult | void>;
 ```
 
-The hook exposes the full open set and supports targeting an interrupt ID, but
-the resolver payload is `unknown`. Therefore TypeScript does not prove
-`resolve({ approved: boolean })`; an object example is not an exact signature.
+That upstream hook exposed the full open set and supported targeting an
+interrupt ID, but its resolver payload was `unknown`. It therefore did not
+prove `resolve({ approved: boolean })`. The admitted fork now supplies the
+narrower generic resolver and passes positive and negative compile-time tests.
 
 Safe registry alternatives were bounded to the current canary and published
 next archive:
@@ -573,12 +624,15 @@ next archive:
   `c72d0bea984dafb2146c765ed38e35e3cbefd40475a4d460212e714adeb80640`,
   does not expose the required v2 `useInterrupt` surface.
 
-`langgraph-checkpoint-sqlite==3.1.0` registry metadata was also verified:
+At that historical blocked snapshot, `langgraph-checkpoint-sqlite==3.1.0`
+registry metadata was also verified:
 wheel SHA-256 `cc9b40df0076feae8a9ad42ae713621b148b00ac23adc09dc1dc66090a46e5ad`,
 sdist SHA-256 `f926916ebc1b985d802cc9c820026036e84db9d910d62c97b57e4ba64f67d5ae`,
-MIT, Python `>=3.10`. It remains unpinned because the adapter/JS gates fail.
+MIT, Python `>=3.10`. It was not pinned at that time because the upstream
+adapter/JS gates failed; that statement is not the current temporary-fork
+decision.
 
-## Tool ledger
+## Historical investigation tool ledger (superseded)
 
 | Tool | Requested operation | Result / exact error | Safe alternative | Acceptance impact |
 | --- | --- | --- | --- | --- |
@@ -594,13 +648,17 @@ MIT, Python `>=3.10`. It remains unpinned because the adapter/JS gates fail.
 
 ## Repository scope check
 
-The only intended repository deliverables are:
+The admitted A01 repository deliverables are:
 
 - `scripts/mvp/probe_ag_ui_adapter.py`
+- `scripts/mvp/audit_copilotkit_artifact.py`
 - `src/backend/tests/unit/agentic/api/test_ag_ui_adapter_contract.py`
+- focused artifact audit tests;
 - `docs/dev/handoff/STAGE_01_TEMPORARY_FORK_DECISION.md`
-- this admission document
+- this admission document;
+- `vendor/stage01/` immutable artifacts, sources, provenance, and manifest;
+- the owned Python/frontend manifests and `uv.lock`/`package-lock.json`.
 
-No manifest, lock, lock-ownership, deployment, generated, `LICENSE`, or
-`NOTICE` file was changed. Frozen install/package gates are intentionally not
-run because there is no admitted dependency set to freeze.
+No deployment, generated, Ketos `LICENSE`, Ketos `NOTICE`, or unrelated dirty
+file was changed. The manifest/lock edits are limited to the two exact local
+fork artifacts. Frozen and offline install gates were run after admission.

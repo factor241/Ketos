@@ -1,0 +1,4 @@
+*.gz -text
+*.tar -text
+*.tgz -text
+*.whl -text

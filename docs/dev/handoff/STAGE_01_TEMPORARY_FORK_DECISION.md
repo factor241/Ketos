@@ -1,6 +1,6 @@
 # Stage 01 temporary fork decision
 
-- Status: **PENDING**
+- Status: **ACTIVE**
 - Approved owner: `factor241`
 - Scope: dependency-source admission only
 - Effect: this decision does not grant PASS
@@ -93,10 +93,17 @@ uv run --isolated --no-project --with '<exact fork artifact requirement>' \
 the artifact itself is the source archive. `--fork-repository-path` is required
 whenever fork provenance is supplied.
 
-## Pending evidence
+## Activated evidence
 
-No fork artifact, source archive, provenance JSON, or executable probe output
-is attached to this decision yet. The existing A01 verdict therefore remains
-**BLOCKED**, package manifests and locks remain unchanged, and integration must
-replace every placeholder with independently verified exact values before any
-admission decision can change.
+The narrow exception is active for exactly these immutable fork commits:
+
+- AG-UI `factor241/ag-ui@85b94807e464c9b38f591938a41559923a712dbb`,
+  based on `3a7433ef055aab96ee7c9ece97417d721b21dc76`;
+- CopilotKit `factor241/CopilotKit@c853ac2b78cb57481cc2ca58eda4a865908c532b`,
+  based on `0c9d639b1348d015f4361d2275db4b15d01c04bc`.
+
+`vendor/stage01/manifest.json` and the AG-UI provenance sidecar bind the
+artifacts, sources, licenses, toolchains, epochs, changed files, and executable
+audit commands. This source decision does not grant PASS by itself; A01 PASS
+comes only from the separate admission record after all probes and frozen
+install gates succeed.

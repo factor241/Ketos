@@ -68,6 +68,7 @@ url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
 [tool.uv.sources]
+ag-ui-langgraph = { path = "vendor/stage01/ag_ui_langgraph-0.0.43+ketos.1-py3-none-any.whl" }
 ketos-base = { workspace = true }
 ketos = { workspace = true }
 kfx = { workspace = true }

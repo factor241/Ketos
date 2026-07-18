@@ -6,7 +6,7 @@
     },
     "stdout": {
       "path": "artifacts/current-rss.stdout.log",
-      "sha256": "9f3eb0d9c1b334a4240adf129a1acffa6fef87377cf13ab0880d6488b416fde8"
+      "sha256": "4f093c14e4da7d1fd78a8a64947468c84a6d800e4d42dd932336c9ff98ded3a9"
     }
   },
   "classification": "COMMAND_RESULT",
@@ -18,10 +18,10 @@
     ],
     "display": "/bin/zsh -lc ps -axo rss= | awk '{sum += $1} END {printf \"%.0f KiB\\n\", sum}'"
   },
-  "created_at_utc": "2026-07-18T12:42:24Z",
+  "created_at_utc": "2026-07-18T12:49:44Z",
   "cwd": "/Volumes/Projects/ketos-stage01-integration",
-  "ended_at_utc": "2026-07-18T12:42:24Z",
-  "execution_revision": "59d7110849da1dec02b929b90148c203e02a1ee7",
+  "ended_at_utc": "2026-07-18T12:49:44Z",
+  "execution_revision": "4df0e1dc55382734e51d7921c43c9aeb32bca999",
   "exit_code": 0,
   "notes": "Fresh aggregate RSS in KiB; command runs through argv with shell=False.",
   "owner": "stage-01",
@@ -35,7 +35,7 @@
   "record_id": "current-rss",
   "reviewer": "pending",
   "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
-  "started_at_utc": "2026-07-18T12:42:24Z",
+  "started_at_utc": "2026-07-18T12:49:44Z",
   "task_id": "S01-T01",
   "verdict": "PASS"
 }

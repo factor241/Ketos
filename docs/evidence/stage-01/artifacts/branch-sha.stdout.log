@@ -1,4 +1,3 @@
 ## codex/stage01-baseline-evidence
- M docs/evidence/stage-01/schema/evidence-record.schema.json
  M docs/evidence/stage-01/tests/test_evidence_runner.py
  M docs/evidence/stage-01/tools/evidence_runner.py

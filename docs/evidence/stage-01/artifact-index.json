@@ -42,7 +42,7 @@
       "owner": "stage-01",
       "relative_path": "artifacts/branch-sha.stdout.log",
       "reviewer_status": "pending",
-      "sha256": "20e8b626a2cd3a021a507002acc72bf2070d8a7b801e26f284d0f56e5331b600",
+      "sha256": "8ddb8ce67bf6dc243450a7c1228d96a89a342ddf3a59a1fbef6fb3cdab648d27",
       "task_id": "S01-T01"
     },
     {
@@ -60,7 +60,7 @@
       "owner": "stage-01",
       "relative_path": "artifacts/current-rss.stdout.log",
       "reviewer_status": "pending",
-      "sha256": "9f3eb0d9c1b334a4240adf129a1acffa6fef87377cf13ab0880d6488b416fde8",
+      "sha256": "4f093c14e4da7d1fd78a8a64947468c84a6d800e4d42dd932336c9ff98ded3a9",
       "task_id": "S01-T01"
     },
     {
@@ -87,7 +87,7 @@
       "owner": "stage-01",
       "relative_path": "artifacts/focused-backend-baseline.stderr.log",
       "reviewer_status": "pending",
-      "sha256": "ce17f4457454af31ce80a9c3e6515dcbfef2a65c4a25aa7bda47f54df0360a6e",
+      "sha256": "e9186c3f33723b2448b19c4d8c99423e719230067a8cdf19436eeb1ca283be88",
       "task_id": "S01-T01"
     },
     {
@@ -96,7 +96,7 @@
       "owner": "stage-01",
       "relative_path": "artifacts/focused-backend-baseline.stdout.log",
       "reviewer_status": "pending",
-      "sha256": "d6278f2ce9f30ec0f1bbbb668693fe48a199656c9ad31262428f4786b4638961",
+      "sha256": "5dc122eddb2e143c35482c7829ae87cf5a6ad80c1f11baeddaf385cc186f698b",
       "task_id": "S01-T01"
     },
     {
@@ -168,7 +168,7 @@
       "owner": "stage-01",
       "relative_path": "artifacts/integration-head-sha.stdout.log",
       "reviewer_status": "pending",
-      "sha256": "977566587ab33e31a68c276a405f4a5f7eef4f6e2bd409fa7ca221fb1bad94d2",
+      "sha256": "062f06d78e24509a4f174b1e5ff4273a4703bbf34e3a60e44967dbf97cb0129b",
       "task_id": "S01-T01"
     },
     {
@@ -222,7 +222,7 @@
       "owner": "stage-01",
       "relative_path": "artifacts/worktree-list.stdout.log",
       "reviewer_status": "pending",
-      "sha256": "284294cc1fce59e31452e2a3435c3b39fa0f1e194e75a0883a69acb5bb819271",
+      "sha256": "9947f6ee4c9f3cb044ec9497e699d62ce6784bb6ca2d66201a4c3c4490ba36ee",
       "task_id": "S01-T01"
     },
     {
@@ -240,7 +240,7 @@
       "owner": "stage-01",
       "relative_path": "preflight-manifest.json",
       "reviewer_status": "pending",
-      "sha256": "59ce67b0de1de7245e93c523ab8698098396f49f78c87c644bd9a1b042537637",
+      "sha256": "9e9db2b7739652dca31bc48a31718bd99268b58ce7094fc465de4a841e18e44d",
       "task_id": "S01-T01"
     },
     {
@@ -249,7 +249,7 @@
       "owner": "stage-01",
       "relative_path": "records/branch-sha.json",
       "reviewer_status": "pending",
-      "sha256": "5677e42fdf1a561cdc3f8b1f537ec16c095d1f69c31989aadb9cab093ce4a9f2",
+      "sha256": "bd8641905669cbac0290e92bd9bb529c71146d257e7c190c3c1cb44d47321cf7",
       "task_id": "S01-T01"
     },
     {
@@ -258,7 +258,7 @@
       "owner": "stage-01",
       "relative_path": "records/current-rss.json",
       "reviewer_status": "pending",
-      "sha256": "8275b297278bda7ca221cb89dfcbecfad19b87d3b0bd263752c3e63325d82ae3",
+      "sha256": "930603458d585f8323b173182312e2b3bd0e11a381bb30cf1bc403ef8ea98b51",
       "task_id": "S01-T01"
     },
     {
@@ -276,7 +276,7 @@
       "owner": "stage-01",
       "relative_path": "records/focused-backend-baseline.json",
       "reviewer_status": "pending",
-      "sha256": "8b6ee06f1aca0c0bb413ab5af8e49ae9399dcbae18f1ea71138ec7c014f4da6f",
+      "sha256": "04f2cb465462d684e2b0b5972992a9109377f96dcf0983d7773ab62cd7ace755",
       "task_id": "S01-T01"
     },
     {
@@ -285,7 +285,7 @@
       "owner": "stage-01",
       "relative_path": "records/graphify-metadata.json",
       "reviewer_status": "pending",
-      "sha256": "fa35981a824c40385d8782a8779137fb6598892e9bb6af0ccdd13e4e825bec4e",
+      "sha256": "4902fe26c2e73016c0ec18b6a37b2d35fe04b7d72358c334e4bef5afccbb5d5e",
       "task_id": "S01-T01"
     },
     {
@@ -294,7 +294,7 @@
       "owner": "stage-01",
       "relative_path": "records/integration-branch.json",
       "reviewer_status": "pending",
-      "sha256": "36db79847f75d2fb1a48c772f4bd99d69c1f149a1e0267e0c4472ba4c5ca63e1",
+      "sha256": "c1baf813c4da0f1ca552f5b654f56862d1ea032f51a058477df1979597435044",
       "task_id": "S01-T01"
     },
     {
@@ -303,7 +303,7 @@
       "owner": "stage-01",
       "relative_path": "records/integration-clean-outside-owned-scope.json",
       "reviewer_status": "pending",
-      "sha256": "46fd14b692a95e3a2dc1041b76028ddb52b728fab832a094405ad58fd7421f50",
+      "sha256": "25dbba54ae2c2e0f6d8d6aec5ebe60a022a9bdfc38863f76a73acea4c3a3d0b2",
       "task_id": "S01-T01"
     },
     {
@@ -312,7 +312,7 @@
       "owner": "stage-01",
       "relative_path": "records/integration-head-sha.json",
       "reviewer_status": "pending",
-      "sha256": "26ba2b662912fcd33307e1b2a11c23cd398298d62c9de92ffdb233c2577653eb",
+      "sha256": "0024ac7f9a6f835add37e85a8a7c324dbaaf6134947221ceba10828029ecd267",
       "task_id": "S01-T01"
     },
     {
@@ -321,7 +321,7 @@
       "owner": "stage-01",
       "relative_path": "records/post-fix-root-dirty-preservation.json",
       "reviewer_status": "pending",
-      "sha256": "8f8531591d0307bb452194852e5101d77bd6aabb67200ff4b19b8f32c2e28fdd",
+      "sha256": "f615bc9e26b78ded2350f85fb389f4bfdf2e2501f88ab132e0514401ee0dd226",
       "task_id": "S01-T01"
     },
     {
@@ -330,7 +330,7 @@
       "owner": "stage-01",
       "relative_path": "records/root-dirty-status.json",
       "reviewer_status": "pending",
-      "sha256": "732ebb92f93421ba05e53ae628369bf4f3698d1c4a4eb0be18256f461995d184",
+      "sha256": "6cef40d8516c0753aad3fc5bf1f56207e13d4360c783e10afcc205a03a021e6e",
       "task_id": "S01-T01"
     },
     {
@@ -339,7 +339,7 @@
       "owner": "stage-01",
       "relative_path": "records/worktree-list.json",
       "reviewer_status": "pending",
-      "sha256": "575fdeacc33816b31571892d5da363df275c85a7b2c1fa776f5d28c5f9c3d37a",
+      "sha256": "6f2242024f36bb2bb22986593b7fd30233b2bc22fc2ba5ea7e90479bf47f5a06",
       "task_id": "S01-T01"
     },
     {
@@ -357,7 +357,7 @@
       "owner": "stage-01",
       "relative_path": "tests/test_evidence_runner.py",
       "reviewer_status": "pending",
-      "sha256": "29b5b12f6c5da7b272bbf019d22735c2068fe056840b4291adc41becb5b45769",
+      "sha256": "12cbd30ae7c797732d3552b8ee316e6977d6e053682ec6b8f3a7b610761676bd",
       "task_id": "S01-T03"
     },
     {
@@ -366,7 +366,7 @@
       "owner": "stage-01",
       "relative_path": "tools/evidence_runner.py",
       "reviewer_status": "pending",
-      "sha256": "af613ecd54a8ee5a3fa3849df3c147ab7368da5a8c6703c77f46d8b99c8048ad",
+      "sha256": "9a7226e688a57d3856cc910e71398fd2839c73d88fd582f569b5b501c4fbed4d",
       "task_id": "S01-T03"
     },
     {
@@ -379,7 +379,7 @@
       "task_id": "S01-T01"
     }
   ],
-  "index_version": 3,
-  "scope": "persistent files in docs/evidence/stage-01 after review fixes and delivery attestation except this index; ignored Python bytecode is excluded",
+  "index_version": 4,
+  "scope": "persistent files in docs/evidence/stage-01 after canonical-log fix except this index; ignored Python bytecode is excluded",
   "self_hash_policy": "artifact-index.json is deliberately excluded to avoid recursive hashing"
 }

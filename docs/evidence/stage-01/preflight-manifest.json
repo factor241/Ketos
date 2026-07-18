@@ -5,7 +5,7 @@
     "path": "/Volumes/Projects/ketos-stage01-integration",
     "branch": "codex/stage01-baseline-evidence",
     "admission_head": "80878261d07c21ad257de017d98069f211ada2c2",
-    "evidence_execution_revision": "59d7110849da1dec02b929b90148c203e02a1ee7",
+    "evidence_execution_revision": "4df0e1dc55382734e51d7921c43c9aeb32bca999",
     "upstream": null,
     "admission_status": "clean before this task created its owned evidence bundle",
     "current_scope_status": "only docs/evidence/stage-01/** differs from the approved SHA",
@@ -68,9 +68,9 @@
   },
   "rss_measurement": {
     "record": "records/current-rss.json",
-    "captured_at_utc": "2026-07-18T12:42:24Z",
+    "captured_at_utc": "2026-07-18T12:49:44Z",
     "command": "ps -axo rss= | awk '{sum += $1} END {printf \"%.0f KiB\\n\", sum}'",
-    "aggregate_rss_kib": 15073840
+    "aggregate_rss_kib": 14123632
   },
   "post_fix_root_dirty_preservation_record": "records/post-fix-root-dirty-preservation.json",
   "evidence_revision_contract": {

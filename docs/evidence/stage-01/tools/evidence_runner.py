@@ -72,6 +72,11 @@ def redact_text(value: str) -> str:
     return SECRET_OPTION.sub(r"\1[REDACTED]", value)
 
 
+def canonicalize_log(value: str) -> str:
+    """Remove only terminal spaces/tabs from each persisted log line."""
+    return re.sub(r"[ \t]+(?=\n|$)", "", value)
+
+
 def redact_metadata(value: Any, key: str | None = None) -> Any:
     if key and SECRET_KEY.search(key):
         return "[REDACTED]"
@@ -140,8 +145,8 @@ def write_record(args: argparse.Namespace) -> Path:
     stdout_relative = f"artifacts/{artifact_id}.stdout.log"
     stderr_relative = f"artifacts/{artifact_id}.stderr.log"
     stdout_path, stderr_path = output / stdout_relative, output / stderr_relative
-    stdout_path.write_text(redact_text(stdout), encoding="utf-8")
-    stderr_path.write_text(redact_text(stderr), encoding="utf-8")
+    stdout_path.write_text(canonicalize_log(redact_text(stdout)), encoding="utf-8")
+    stderr_path.write_text(canonicalize_log(redact_text(stderr)), encoding="utf-8")
 
     sanitized_argv = [redact_text(argument) for argument in args.command]
     record = {

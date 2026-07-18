@@ -3,7 +3,7 @@ HEAD 80878261d07c21ad257de017d98069f211ada2c2
 branch refs/heads/redesign/sidebar-account
 
 worktree /Volumes/Projects/ketos-stage01-integration
-HEAD 59d7110849da1dec02b929b90148c203e02a1ee7
+HEAD 4df0e1dc55382734e51d7921c43c9aeb32bca999
 branch refs/heads/codex/stage01-baseline-evidence
 
 worktree /Volumes/Projects/ketos-stage01-lane-architecture
@@ -33,4 +33,3 @@ detached
 worktree /Volumes/Projects/langflow-codex-cleanup
 HEAD b40fcb87b4e334e3cdf75830e5ba214275caaa53
 detached
-

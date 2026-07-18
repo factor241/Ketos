@@ -22,10 +22,10 @@
     ],
     "display": "git diff --quiet 80878261d07c21ad257de017d98069f211ada2c2 -- . :(exclude)docs/evidence/stage-01/**"
   },
-  "created_at_utc": "2026-07-18T12:42:24Z",
+  "created_at_utc": "2026-07-18T12:49:45Z",
   "cwd": "/Volumes/Projects/ketos-stage01-integration",
-  "ended_at_utc": "2026-07-18T12:42:24Z",
-  "execution_revision": "59d7110849da1dec02b929b90148c203e02a1ee7",
+  "ended_at_utc": "2026-07-18T12:49:45Z",
+  "execution_revision": "4df0e1dc55382734e51d7921c43c9aeb32bca999",
   "exit_code": 0,
   "notes": "Clean integration proof excluding the evidence bundle being created by this task.",
   "owner": "stage-01",
@@ -39,7 +39,7 @@
   "record_id": "integration-clean-outside-owned-scope",
   "reviewer": "pending",
   "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
-  "started_at_utc": "2026-07-18T12:42:24Z",
+  "started_at_utc": "2026-07-18T12:49:45Z",
   "task_id": "S01-T01",
   "verdict": "PASS"
 }

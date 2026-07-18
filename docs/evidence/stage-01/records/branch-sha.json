@@ -6,7 +6,7 @@
     },
     "stdout": {
       "path": "artifacts/branch-sha.stdout.log",
-      "sha256": "20e8b626a2cd3a021a507002acc72bf2070d8a7b801e26f284d0f56e5331b600"
+      "sha256": "8ddb8ce67bf6dc243450a7c1228d96a89a342ddf3a59a1fbef6fb3cdab648d27"
     }
   },
   "classification": "COMMAND_RESULT",
@@ -19,12 +19,12 @@
     ],
     "display": "git status --short --branch"
   },
-  "created_at_utc": "2026-07-18T12:42:23Z",
+  "created_at_utc": "2026-07-18T12:49:44Z",
   "cwd": "/Volumes/Projects/ketos-stage01-integration",
-  "ended_at_utc": "2026-07-18T12:42:23Z",
-  "execution_revision": "59d7110849da1dec02b929b90148c203e02a1ee7",
+  "ended_at_utc": "2026-07-18T12:49:44Z",
+  "execution_revision": "4df0e1dc55382734e51d7921c43c9aeb32bca999",
   "exit_code": 0,
-  "notes": "Fresh integration branch status under evidence-contract v2.",
+  "notes": "Fresh integration branch status under canonical-log evidence contract.",
   "owner": "stage-01",
   "profile": {
     "environment": {
@@ -36,7 +36,7 @@
   "record_id": "branch-sha",
   "reviewer": "pending",
   "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
-  "started_at_utc": "2026-07-18T12:42:23Z",
+  "started_at_utc": "2026-07-18T12:49:44Z",
   "task_id": "S01-T01",
   "verdict": "PASS"
 }

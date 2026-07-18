@@ -6,25 +6,26 @@
     },
     "stdout": {
       "path": "artifacts/worktree-list.stdout.log",
-      "sha256": "284294cc1fce59e31452e2a3435c3b39fa0f1e194e75a0883a69acb5bb819271"
+      "sha256": "9947f6ee4c9f3cb044ec9497e699d62ce6784bb6ca2d66201a4c3c4490ba36ee"
     }
   },
   "classification": "COMMAND_RESULT",
   "command": {
     "argv": [
-      "git",
-      "worktree",
-      "list",
-      "--porcelain"
+      "uv",
+      "run",
+      "python",
+      "-c",
+      "import subprocess, sys; output=subprocess.check_output(['git','worktree','list','--porcelain'], text=True); sys.stdout.write(output.rstrip('\\n') + '\\n')"
     ],
-    "display": "git worktree list --porcelain"
+    "display": "uv run python -c import subprocess, sys; output=subprocess.check_output(['git','worktree','list','--porcelain'], text=True); sys.stdout.write(output.rstrip('\\n') + '\\n')"
   },
-  "created_at_utc": "2026-07-18T12:42:24Z",
+  "created_at_utc": "2026-07-18T12:50:59Z",
   "cwd": "/Volumes/Projects/ketos-stage01-integration",
-  "ended_at_utc": "2026-07-18T12:42:24Z",
-  "execution_revision": "59d7110849da1dec02b929b90148c203e02a1ee7",
+  "ended_at_utc": "2026-07-18T12:50:59Z",
+  "execution_revision": "4df0e1dc55382734e51d7921c43c9aeb32bca999",
   "exit_code": 0,
-  "notes": "Approved integration and lane worktrees.",
+  "notes": "Approved integration and lane worktrees; final porcelain delimiter normalized by the argv command.",
   "owner": "stage-01",
   "profile": {
     "environment": {
@@ -36,7 +37,7 @@
   "record_id": "worktree-list",
   "reviewer": "pending",
   "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
-  "started_at_utc": "2026-07-18T12:42:24Z",
+  "started_at_utc": "2026-07-18T12:50:59Z",
   "task_id": "S01-T01",
   "verdict": "PASS"
 }

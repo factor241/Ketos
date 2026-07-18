@@ -73,6 +73,27 @@ def test_runner_writes_hashes_that_validate(tmp_path: Path) -> None:
     assert validate(record_path).returncode == 0
 
 
+def test_runner_canonicalizes_only_end_of_line_whitespace(tmp_path: Path) -> None:
+    _, record_path = invoke_runner(
+        tmp_path,
+        "canonical-log",
+        [
+            sys.executable,
+            "-c",
+            "import sys; sys.stdout.write('alpha  \\t\\n\\nbeta\\t \\n'); "
+            "sys.stderr.write('gamma \\t\\n')",
+        ],
+    )
+
+    bundle_root = record_path.parent.parent
+    record = json.loads(record_path.read_text())
+    stdout = (bundle_root / record["artifacts"]["stdout"]["path"]).read_text()
+    stderr = (bundle_root / record["artifacts"]["stderr"]["path"]).read_text()
+    assert stdout == "alpha\n\nbeta\n"
+    assert stderr == "gamma\n"
+    assert validate(record_path).returncode == 0
+
+
 def test_negative_exit_code_cannot_validate_as_pass(tmp_path: Path) -> None:
     _, record_path = invoke_runner(tmp_path, "negative-exit", [sys.executable, "-c", "print('ok')"])
     invalid = tmp_path / "negative-pass.json"

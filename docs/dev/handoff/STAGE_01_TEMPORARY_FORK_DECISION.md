@@ -59,13 +59,23 @@ The mutable local `origin` string is not sufficient: the exact base/fork commit
 ancestry must also be fetched from the fixed
 `https://github.com/factor241/ag-ui.git` remote after a bounded `ls-remote`
 check. Fork selection is explicit from fork inputs and never inferred from a
-version suffix. Conversely, a registry wheel fails closed unless separate
-registry-origin and expected-hash evidence has already been validated.
+version suffix. Registry-wheel admission is unsupported and fails closed
+unconditionally until a real registry-origin/digest validator is integrated;
+pre-asserted binding booleans are ignored.
+
+An `upstream-commit` source is never admitted from its self-declared archive
+metadata alone. It requires the same artifact/source/tree/diff/base-ancestry
+bindings through `--upstream-provenance-path` and
+`--upstream-repository-path`, with commits fetched from the fixed official
+`https://github.com/ag-ui-protocol/ag-ui.git` remote. Unknown source classes
+always fail closed.
 
 Artifact processing is bounded before trust: 128 MiB compressed/archive bytes,
 20,000 members, 32 MiB per member, and 256 MiB total uncompressed bytes.
-Symlinks, hardlinks, devices, absolute paths, and traversal paths are rejected.
-Git subprocesses have a 60-second timeout and 128 MiB stdout limit.
+Symlinks, hardlinks, FIFOs, sockets, devices, absolute/traversal/backslash
+paths, duplicate normalized names, and directory-count floods are rejected.
+Git subprocesses have a 60-second timeout, streaming 128 MiB stdout limit, and
+streaming 8 MiB stderr limit; the child is killed as soon as any bound trips.
 
 The integration invocation is:
 

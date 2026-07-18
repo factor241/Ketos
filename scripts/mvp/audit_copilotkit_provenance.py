@@ -27,6 +27,7 @@ PACKAGE_KEY = "@copilotkit/react-core"
 PACKAGE_VERSION = "1.63.1-ketos.1"
 NODE_VERSION = "22.23.1"
 PNPM_VERSION = "10.33.4"
+SOURCE_DATE_EPOCH = 1_784_227_404
 FORK_SHA = "c853ac2b78cb57481cc2ca58eda4a865908c532b"
 UPSTREAM_BASE_SHA = "0c9d639b1348d015f4361d2275db4b15d01c04bc"
 FORK_REPOSITORY = "https://github.com/factor241/CopilotKit"
@@ -428,10 +429,13 @@ def audit_provenance(
     if record.get("version") != PACKAGE_VERSION or record.get("license_spdx") != "MIT":
         _fail("manifest package identity is not the admitted package/version/license")
     toolchain = record.get("toolchain")
-    epoch = toolchain.get("source_date_epoch") if isinstance(toolchain, dict) else None
-    if toolchain != {"node": NODE_VERSION, "pnpm": PNPM_VERSION, "source_date_epoch": epoch}:
+    if toolchain != {
+        "node": NODE_VERSION,
+        "pnpm": PNPM_VERSION,
+        "source_date_epoch": SOURCE_DATE_EPOCH,
+    }:
         _fail("manifest toolchain is not exactly pinned")
-    if not isinstance(epoch, int) or epoch <= 0 or record.get("rebuild") != _canonical_rebuild(fork_sha, epoch):
+    if record.get("rebuild") != _canonical_rebuild(fork_sha, SOURCE_DATE_EPOCH):
         _fail("manifest rebuild command is not bound to the fork/package/epoch")
 
     changed = _git_capture(repository_path, "diff", "--name-only", base_sha, fork_sha).splitlines()

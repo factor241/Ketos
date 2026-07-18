@@ -1,0 +1,45 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/job-null-census.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stdout": {
+      "path": "artifacts/job-null-census.stdout.log",
+      "sha256": "2e42fb215351e6c7d05ff040bf1c78fbed7c7fd9b4460f1bc5a4180c4bc1c7bc"
+    }
+  },
+  "classification": "COMMAND_RESULT",
+  "command": {
+    "argv": [
+      "uv",
+      "run",
+      "python",
+      "docs/evidence/stage-01/tools/job_census.py"
+    ],
+    "display": "uv run python docs/evidence/stage-01/tools/job_census.py"
+  },
+  "created_at_utc": "2026-07-18T13:29:48Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T13:29:48Z",
+  "execution_revision": "8d11215adb8d64a7d8d56ec83ef63445eede06be",
+  "exit_code": 0,
+  "notes": "Aggregate-only local mechanical census; not production-representative.",
+  "owner": "stage01-security-implementation",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {
+      "database": "local-sqlite-read-only",
+      "row_content": false
+    }
+  },
+  "record_id": "job-null-census",
+  "reviewer": "pending",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T13:29:48Z",
+  "task_id": "S01-T05",
+  "verdict": "PASS"
+}

@@ -1,0 +1,112 @@
+{
+  "fail_open_or_unscoped_paths": [
+    {
+      "behavior": "includes Job.user_id IS NULL for an authenticated owner and orders by the non-model name created_at",
+      "kind": "reader",
+      "source": "src/backend/base/ketos/services/jobs/service.py:34-61",
+      "symbol": "JobService.get_jobs_by_flow_id"
+    },
+    {
+      "behavior": "includes ownerless rows when an owner is supplied and becomes global when user_id is omitted",
+      "kind": "reader",
+      "source": "src/backend/base/ketos/services/jobs/service.py:63-82",
+      "symbol": "JobService.get_job_by_job_id"
+    },
+    {
+      "behavior": "includes ownerless rows for an owner and cancels all matching owners when user_id is omitted",
+      "kind": "mutator",
+      "source": "src/backend/base/ketos/services/jobs/service.py:219-256",
+      "symbol": "JobService.cancel_in_flight_jobs_by_asset"
+    },
+    {
+      "behavior": "accepts NULL owner because only a non-NULL different owner is rejected",
+      "kind": "authorization",
+      "source": "src/backend/base/ketos/services/jobs/service.py:327-340",
+      "symbol": "JobService._validate_ownership"
+    },
+    {
+      "behavior": "low-level single reader repeats the ownerless predicate and is global when user_id is omitted",
+      "kind": "reader",
+      "source": "src/backend/base/ketos/services/database/models/jobs/crud.py:42-58",
+      "symbol": "jobs.crud.get_job_by_job_id"
+    },
+    {
+      "behavior": "flow and latest-asset readers have no owner predicate",
+      "kind": "reader",
+      "source": "src/backend/base/ketos/services/database/models/jobs/crud.py:18-39,91-117",
+      "symbol": "jobs.crud.get_jobs_by_flow_id/get_latest_jobs_by_asset_ids"
+    },
+    {
+      "behavior": "status and metadata mutation is by job id only and depends entirely on caller authorization",
+      "kind": "mutator",
+      "source": "src/backend/base/ketos/services/jobs/service.py:142-202",
+      "symbol": "JobService.update_job_status/update_job_metadata"
+    },
+    {
+      "behavior": "authenticated build event/cancel permits a NULL owner",
+      "kind": "protected-route",
+      "source": "src/backend/base/ketos/api/v1/chat.py:71-84,317-380",
+      "symbol": "validate_job_registered_owner"
+    }
+  ],
+  "model": {
+    "owner_field": "user_id",
+    "owner_nullable": true,
+    "source": "src/backend/base/ketos/services/database/models/jobs/model.py:17-89",
+    "table": "job"
+  },
+  "nullable_owner_contract": true,
+  "schema_version": 1,
+  "service_contract": {
+    "signature": "JobService.create_job(..., user_id: UUID | None = None, ...)",
+    "source": "src/backend/base/ketos/services/jobs/service.py:84-140"
+  },
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "writers": [
+    {
+      "owner_argument": "mb.user_id",
+      "source": "src/backend/base/ketos/services/memory_base/ingestion.py:77-112",
+      "writer": "memory-base-manual-ingestion"
+    },
+    {
+      "owner_argument": "mb.user_id",
+      "source": "src/backend/base/ketos/services/memory_base/ingestion.py:184-201",
+      "writer": "memory-base-auto-capture"
+    },
+    {
+      "owner_argument": "api-key-subject.id",
+      "source": "src/backend/base/ketos/api/v2/workflow.py:408-434",
+      "writer": "v2-workflow-synchronous"
+    },
+    {
+      "owner_argument": "api-key-subject.id",
+      "source": "src/backend/base/ketos/api/v2/workflow.py:526-536",
+      "writer": "v2-workflow-background"
+    },
+    {
+      "owner_argument": "CurrentActiveUser.id",
+      "source": "src/backend/base/ketos/api/build.py:645-665",
+      "writer": "build-workflow-tracking"
+    },
+    {
+      "owner_argument": "CurrentActiveUser.id",
+      "source": "src/backend/base/ketos/api/v1/knowledge_bases.py:1144-1156",
+      "writer": "knowledge-base-file-ingestion"
+    },
+    {
+      "owner_argument": "CurrentActiveUser.id",
+      "source": "src/backend/base/ketos/api/v1/knowledge_bases.py:1329-1339",
+      "writer": "knowledge-base-folder-ingestion"
+    },
+    {
+      "owner_argument": "CurrentActiveUser.id",
+      "source": "src/backend/base/ketos/api/v1/knowledge_bases.py:1964-1975",
+      "writer": "knowledge-base-connector-ingestion"
+    },
+    {
+      "owner_argument": "api_key_user.id; missing actor rejected with HTTP 401",
+      "source": "src/backend/base/ketos/api/v1/endpoints.py:241-316",
+      "writer": "legacy-simple-flow-run"
+    }
+  ]
+}

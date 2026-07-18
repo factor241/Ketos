@@ -1,0 +1,18 @@
+{
+  "access_mode": "sqlite-mode-ro-query-only",
+  "aggregate_only": true,
+  "all_jobs": 0,
+  "all_null_owner": 0,
+  "ambiguous": 0,
+  "attributable": 0,
+  "database_path_emitted": false,
+  "equations": {
+    "classified_null_equals_all_null": true,
+    "owned_plus_null_equals_all": true
+  },
+  "null_owner_type_status_groups": [],
+  "orphan": 0,
+  "owned": 0,
+  "quick_check": "ok",
+  "row_content_emitted": false
+}

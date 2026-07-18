@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import inspect
+import subprocess
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -20,6 +21,8 @@ FORK_DECISION_PATH = REPO_ROOT / "docs" / "dev" / "handoff" / "STAGE_01_TEMPORAR
 LICENSE_BYTES = b"MIT License\n\nCopyright (c) AG-UI contributors\n"
 FORK_COMMIT = "1" * 40
 UPSTREAM_BASE = "2" * 40
+PROVENANCE_MAX_BYTES = 64 * 1024
+GIT_EXECUTABLE = "/usr/bin/git"
 
 
 def _load_probe() -> ModuleType:
@@ -117,6 +120,103 @@ def _fork_provenance(artifact: Path, source_archive: Path) -> dict[str, object]:
     }
 
 
+def _git(repo: Path, *args: str) -> str:
+    result = subprocess.run(  # noqa: S603 - hermetic fixture uses fixed git binary and no shell
+        [GIT_EXECUTABLE, "-C", str(repo), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
+def _write_git_bound_fork_fixture(tmp_path: Path) -> tuple[Path, Path, Path, dict[str, object]]:
+    repo = tmp_path / "fork-repo"
+    package_root = repo / "integrations" / "langgraph" / "python"
+    source_root = package_root / "ag_ui_langgraph"
+    tests_root = package_root / "tests"
+    source_root.mkdir(parents=True)
+    tests_root.mkdir()
+    (package_root / "pyproject.toml").write_text(
+        """[project]
+name = "ag-ui-langgraph"
+version = "0.0.43+ketos.1"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10,<3.15"
+""",
+        encoding="utf-8",
+    )
+    (package_root / "LICENSE").write_bytes(LICENSE_BYTES)
+    (source_root / "agent.py").write_text("class LangGraphAgent: pass\n", encoding="utf-8")
+    (source_root / "endpoint.py").write_text("def endpoint(): pass\n", encoding="utf-8")
+    (tests_root / "test_agent.py").write_text("def test_base(): pass\n", encoding="utf-8")
+    _git(repo.parent, "init", str(repo))
+    _git(repo, "config", "user.email", "fork@example.test")
+    _git(repo, "config", "user.name", "Fork Fixture")
+    _git(repo, "remote", "add", "origin", "https://github.com/factor241/ag-ui.git")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "upstream base")
+    upstream_sha = _git(repo, "rev-parse", "HEAD")
+    (source_root / "agent.py").write_text(
+        "class LangGraphAgent:\n    strict_resume = True\n",
+        encoding="utf-8",
+    )
+    (tests_root / "test_agent.py").write_text(
+        "def test_strict_resume(): assert True\n",
+        encoding="utf-8",
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "strict fork")
+    fork_sha = _git(repo, "rev-parse", "HEAD")
+    source_archive = tmp_path / "factor241-ag-ui-source.tar"
+    _git(
+        repo,
+        "archive",
+        "--format=tar",
+        f"--output={source_archive}",
+        fork_sha,
+        "integrations/langgraph/python",
+    )
+
+    wheel = tmp_path / "ag_ui_langgraph-0.0.43+ketos.1-py3-none-any.whl"
+    dist_info = "ag_ui_langgraph-0.0.43+ketos.1.dist-info"
+    metadata = """Metadata-Version: 2.4
+Name: ag-ui-langgraph
+Version: 0.0.43+ketos.1
+License-Expression: MIT
+License-File: LICENSE
+Requires-Python: >=3.10,<3.15
+"""
+    with zipfile.ZipFile(wheel, "w") as archive:
+        archive.writestr(f"{dist_info}/METADATA", metadata)
+        archive.writestr(
+            "ag_ui_langgraph/agent.py",
+            (source_root / "agent.py").read_bytes(),
+        )
+        archive.writestr(
+            "ag_ui_langgraph/endpoint.py",
+            (source_root / "endpoint.py").read_bytes(),
+        )
+        archive.writestr(f"{dist_info}/licenses/LICENSE", LICENSE_BYTES)
+
+    provenance = _fork_provenance(wheel, source_archive)
+    provenance.update(
+        {
+            "package_version": "0.0.43+ketos.1",
+            "upstream_base_sha": upstream_sha,
+            "fork_commit_sha": fork_sha,
+            "changed_files": [
+                "integrations/langgraph/python/ag_ui_langgraph/agent.py",
+                "integrations/langgraph/python/tests/test_agent.py",
+            ],
+            "build_command": f"git checkout --detach {fork_sha} && uv build",
+            "test_command": f"git checkout --detach {fork_sha} && uv run pytest",
+        }
+    )
+    return repo, wheel, source_archive, provenance
+
+
 def test_published_0042_is_rejected_even_if_metadata_is_present() -> None:
     probe = _load_probe()
 
@@ -178,6 +278,7 @@ def test_artifact_path_is_mandatory_and_identity_cannot_be_self_attested() -> No
         "artifact_path",
         "fork_provenance_path",
         "source_archive_path",
+        "fork_repository_path",
     ]
     with pytest.raises(ValueError, match="artifact path is required"):
         probe.inspect_artifact(None)
@@ -221,22 +322,20 @@ def test_fork_provenance_binds_exact_owner_commits_artifact_source_and_license_h
     tmp_path: Path,
 ) -> None:
     probe = _load_probe()
-    wheel = _write_wheel(tmp_path)
-    source_archive = tmp_path / "factor241-ag-ui-source.tgz"
-    source_archive.write_bytes(b"immutable fork source archive")
-    provenance = _fork_provenance(wheel, source_archive)
+    repo, wheel, source_archive, provenance = _write_git_bound_fork_fixture(tmp_path)
 
     result = probe.validate_fork_provenance(
         provenance,
         artifact_path=wheel,
         source_archive_path=source_archive,
+        repository_path=repo,
         artifact=probe.inspect_artifact(wheel),
     )
 
     assert result["bound"] is True
     assert result["approved_owner"] == "factor241"
-    assert result["fork_commit_sha"] == FORK_COMMIT
-    assert result["upstream_base_sha"] == UPSTREAM_BASE
+    assert result["fork_commit_sha"] == provenance["fork_commit_sha"]
+    assert result["upstream_base_sha"] == provenance["upstream_base_sha"]
     assert result["artifact_sha256"] == hashlib.sha256(wheel.read_bytes()).hexdigest()
     assert result["source_archive_sha256"] == hashlib.sha256(source_archive.read_bytes()).hexdigest()
 
@@ -279,10 +378,7 @@ def test_fork_provenance_rejects_missing_extra_unapproved_floating_or_hash_misma
     error: str,
 ) -> None:
     probe = _load_probe()
-    wheel = _write_wheel(tmp_path)
-    source_archive = tmp_path / "factor241-ag-ui-source.tgz"
-    source_archive.write_bytes(b"immutable fork source archive")
-    provenance = _fork_provenance(wheel, source_archive)
+    repo, wheel, source_archive, provenance = _write_git_bound_fork_fixture(tmp_path)
     mutation(provenance)
 
     with pytest.raises(ValueError, match=error):
@@ -290,34 +386,154 @@ def test_fork_provenance_rejects_missing_extra_unapproved_floating_or_hash_misma
             provenance,
             artifact_path=wheel,
             source_archive_path=source_archive,
+            repository_path=repo,
             artifact=probe.inspect_artifact(wheel),
         )
 
 
 def test_fork_provenance_schema_is_reusable_for_a_source_tgz(tmp_path: Path) -> None:
     probe = _load_probe()
-    source_archive = tmp_path / "ag-ui-langgraph-source.tgz"
-    source_archive.write_bytes(b"immutable source artifact")
-    provenance = _fork_provenance(source_archive, source_archive)
+    repo, wheel, source_archive, provenance = _write_git_bound_fork_fixture(tmp_path)
+    del wheel
     provenance["artifact_kind"] = "tgz"
     provenance["artifact_filename"] = source_archive.name
     provenance["artifact_sha256"] = hashlib.sha256(source_archive.read_bytes()).hexdigest()
-    artifact = {
-        "name": "ag-ui-langgraph",
-        "version": provenance["package_version"],
-        "license": "MIT",
-        "license_sha256": provenance["license_sha256"],
-    }
+    artifact = probe.inspect_artifact(source_archive)
 
     result = probe.validate_fork_provenance(
         provenance,
         artifact_path=source_archive,
         source_archive_path=None,
+        repository_path=repo,
         artifact=artifact,
     )
 
     assert result["bound"] is True
     assert result["artifact_kind"] == "tgz"
+
+
+def test_git_bound_fork_provenance_matches_archive_commit_tree_and_derived_diff(
+    tmp_path: Path,
+) -> None:
+    probe = _load_probe()
+    repo, wheel, source_archive, provenance = _write_git_bound_fork_fixture(tmp_path)
+
+    result = probe.validate_fork_provenance(
+        provenance,
+        artifact_path=wheel,
+        source_archive_path=source_archive,
+        repository_path=repo,
+        artifact=probe.inspect_artifact(wheel),
+    )
+
+    assert result["bound"] is True
+    assert result["source_commit_bound"] is True
+    assert result["source_tree_bound"] is True
+    assert result["changed_files_derived"] is True
+
+
+def test_fork_provenance_rejects_spoofed_fetch_origin_even_with_approved_push_url(
+    tmp_path: Path,
+) -> None:
+    probe = _load_probe()
+    repo, wheel, source_archive, provenance = _write_git_bound_fork_fixture(tmp_path)
+    _git(repo, "remote", "set-url", "origin", "https://github.com/attacker/ag-ui.git")
+    _git(
+        repo,
+        "remote",
+        "set-url",
+        "--push",
+        "origin",
+        "https://github.com/factor241/ag-ui.git",
+    )
+
+    with pytest.raises(ValueError, match="fetch origin"):
+        probe.validate_fork_provenance(
+            provenance,
+            artifact_path=wheel,
+            source_archive_path=source_archive,
+            repository_path=repo,
+            artifact=probe.inspect_artifact(wheel),
+        )
+
+
+def test_fork_candidate_cannot_be_admitted_without_validated_provenance() -> None:
+    probe = _load_probe()
+    evidence = _complete_evidence("0.0.43+ketos.1")
+    evidence["artifact"]["source_class"] = "approved-fork"
+
+    result = probe.evaluate_candidate(evidence)
+
+    assert result["admitted"] is False
+    assert "fork_provenance" in result["reasons"]
+
+
+def test_fork_candidate_uses_validated_provenance_in_admission_decision() -> None:
+    probe = _load_probe()
+    evidence = _complete_evidence("0.0.43+ketos.1")
+    evidence["artifact"]["source_class"] = "approved-fork"
+    evidence["fork_provenance"] = {
+        "bound": True,
+        "source_commit_bound": True,
+        "source_tree_bound": True,
+        "changed_files_derived": True,
+    }
+
+    assert probe.evaluate_candidate(evidence) == {"admitted": True, "reasons": []}
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "wheel_as_tgz",
+        "non_tar_source",
+        "wrong_archive_commit",
+        "source_wheel_mismatch",
+        "false_changed_files",
+    ],
+)
+def test_fork_provenance_rejects_kind_source_commit_tree_or_diff_spoof(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    probe = _load_probe()
+    repo, wheel, source_archive, provenance = _write_git_bound_fork_fixture(tmp_path)
+    if mutation == "wheel_as_tgz":
+        provenance["artifact_kind"] = "tgz"
+        source_archive_path = None
+    elif mutation == "non_tar_source":
+        source_archive.write_bytes(b"not a tar archive")
+        provenance["source_archive_sha256"] = hashlib.sha256(source_archive.read_bytes()).hexdigest()
+        source_archive_path = source_archive
+    elif mutation == "wrong_archive_commit":
+        provenance["fork_commit_sha"] = provenance["upstream_base_sha"]
+        source_archive_path = source_archive
+    elif mutation == "source_wheel_mismatch":
+        with zipfile.ZipFile(wheel, "a") as archive:
+            archive.writestr("ag_ui_langgraph/agent.py", "tampered = True\n")
+        provenance["artifact_sha256"] = hashlib.sha256(wheel.read_bytes()).hexdigest()
+        source_archive_path = source_archive
+    else:
+        provenance["changed_files"] = ["integrations/langgraph/python/ag_ui_langgraph/endpoint.py"]
+        source_archive_path = source_archive
+
+    with pytest.raises(ValueError, match=r".+"):
+        probe.validate_fork_provenance(
+            provenance,
+            artifact_path=wheel,
+            source_archive_path=source_archive_path,
+            repository_path=repo,
+            artifact=probe.inspect_artifact(wheel),
+        )
+
+
+def test_provenance_json_loader_rejects_oversized_untrusted_input(tmp_path: Path) -> None:
+    probe = _load_probe()
+    path = tmp_path / "oversized-provenance.json"
+    path.write_bytes(b" " * (PROVENANCE_MAX_BYTES + 1))
+
+    with pytest.raises(ValueError, match="size limit"):
+        probe.load_fork_provenance(path)
 
 
 def test_runtime_binding_requires_exact_archive_metadata_and_source_hashes() -> None:
@@ -358,85 +574,51 @@ def test_resume_annotation_must_be_an_array_of_resume_entries() -> None:
     assert probe.is_resume_array(list[str] | None, entry_type) is False
 
 
-class _AcceptingResumeAgent:
-    def _build_command_from_agui_resume(self, entries, *, open_interrupts):
-        del open_interrupts
-        return SimpleNamespace(
-            resume={entry.interrupt_id: entry.payload for entry in entries},
-        )
+class _PublicStrictResumeAgent:
+    def __init__(self) -> None:
+        self.graph_dispatches = 0
 
-
-class _ExceptionResumeAgent:
-    def _build_command_from_agui_resume(self, entries, *, open_interrupts):
-        entry_ids = [entry.interrupt_id for entry in entries]
-        open_ids = [interrupt.id for interrupt in open_interrupts]
+    async def prepare_stream(self, input_data, state, config):
+        del config
+        open_ids = [interrupt.id for task in state.tasks for interrupt in task.interrupts]
+        forwarded = input_data.forwarded_props or {}
+        if "resume" in forwarded.get("command", {}):
+            return {"events_to_dispatch": [SimpleNamespace(type="RUN_ERROR")], "stream": None}
+        if input_data.resume is None:
+            interrupts = [SimpleNamespace(id=item) for item in open_ids]
+            return {
+                "events_to_dispatch": [
+                    SimpleNamespace(type="RUN_STARTED"),
+                    SimpleNamespace(
+                        type="RUN_FINISHED",
+                        outcome=SimpleNamespace(type="interrupt", interrupts=interrupts),
+                    ),
+                ],
+                "stream": None,
+            }
+        resume_ids = [entry.interrupt_id for entry in input_data.resume]
         if (
-            set(entry_ids) == set(open_ids)
-            and len(entry_ids) == len(open_ids)
-            and len(entry_ids) == len(set(entry_ids))
-            and all(entry.status in {"resolved", "cancelled"} for entry in entries)
+            len(resume_ids) != len(set(resume_ids))
+            or set(resume_ids) != set(open_ids)
+            or any(entry.status not in {"resolved", "cancelled"} for entry in input_data.resume)
         ):
-            return SimpleNamespace(
-                resume={entry.interrupt_id: entry.payload for entry in entries},
-            )
-        message = "not a standard protocol denial"
-        raise ValueError(message)
+            return {"events_to_dispatch": [SimpleNamespace(type="RUN_ERROR")], "stream": None}
+        self.graph_dispatches += 1
+        return {"events_to_dispatch": [], "stream": SimpleNamespace()}
 
 
-class _StandardResumeAgent:
-    def _build_command_from_agui_resume(self, entries, *, open_interrupts):
-        entry_ids = [entry.interrupt_id for entry in entries]
-        open_ids = [interrupt.id for interrupt in open_interrupts]
-        valid_statuses = {"resolved", "cancelled"}
-        full_valid = (
-            set(entry_ids) == set(open_ids)
-            and len(entry_ids) == len(open_ids)
-            and len(entry_ids) == len(set(entry_ids))
-            and all(entry.status in valid_statuses for entry in entries)
-        )
-        if not full_valid:
-            return SimpleNamespace(type="RUN_ERROR", message="invalid resume")
-        return SimpleNamespace(
-            resume={entry.interrupt_id: entry.payload for entry in entries},
-        )
-
-
-@pytest.mark.parametrize("agent_type", [_AcceptingResumeAgent, _ExceptionResumeAgent])
-def test_resume_matrix_rejects_acceptance_or_exception_as_standard_denial(agent_type) -> None:
+def test_public_resume_probe_makes_legacy_denial_and_all_open_behavior_authoritative() -> None:
     probe = _load_probe()
+    agent = _PublicStrictResumeAgent()
 
-    result = probe.probe_resume_matrix(agent_type(), SimpleNamespace)
+    result = probe.probe_public_resume_contract(agent, SimpleNamespace, SimpleNamespace)
 
-    assert result["full_all_open_success"] is True
-    assert result["all_invalid_standard_run_error"] is False
-    assert set(result["cases"]) == {
-        "full_all_open",
-        "full_all_open_reordered",
-        "partial",
-        "stale",
-        "duplicate",
-        "unknown",
-        "invalid",
-    }
-    assert result["cases"]["partial"]["outcome"] in {"accepted", "exception"}
-
-
-def test_resume_matrix_requires_full_success_and_standard_denial_for_every_invalid_variant() -> None:
-    probe = _load_probe()
-
-    result = probe.probe_resume_matrix(_StandardResumeAgent(), SimpleNamespace)
-
+    assert result["standard_interrupt_outcome"] is True
+    assert result["legacy_resume_standard_run_error"] is True
     assert result["full_all_open_success"] is True
     assert result["all_invalid_standard_run_error"] is True
-    assert all(
-        result["cases"][case]["outcome"] == "standard_run_error"
-        for case in ("partial", "stale", "duplicate", "unknown", "invalid")
-    )
-    assert result["cases"]["full_all_open_reordered"]["outcome"] == "accepted"
-
-
-def test_standard_outcome_helpers_require_run_error_or_terminal_interrupt_shape() -> None:
-    probe = _load_probe()
+    assert result["graph_dispatches"] == 1
+    error = SimpleNamespace(type="RUN_ERROR", message="invalid resume")
     interrupt = SimpleNamespace(
         type="RUN_FINISHED",
         outcome=SimpleNamespace(
@@ -444,7 +626,6 @@ def test_standard_outcome_helpers_require_run_error_or_terminal_interrupt_shape(
             interrupts=[SimpleNamespace(id="interrupt-a"), SimpleNamespace(id="interrupt-b")],
         ),
     )
-    error = SimpleNamespace(type="RUN_ERROR", message="invalid resume")
 
     assert probe.standard_run_error([error]) is True
     assert probe.standard_interrupt_outcome([interrupt], {"interrupt-a", "interrupt-b"}) is True
@@ -481,7 +662,63 @@ def test_binding_gate_requires_documented_executable_dependency_semantics() -> N
     )
 
 
-def test_binding_gate_proves_dependency_runs_before_agent_dispatch() -> None:
+def _approved_fork_endpoint_fixture(
+    app,
+    agent,
+    path="/",
+    *,
+    dependencies=None,
+    before_dispatch=None,
+):
+    """Install dependencies and before_dispatch, clone, bind, then dispatch run."""
+    from fastapi import Request
+    from fastapi.responses import StreamingResponse
+
+    async def route(input_data: dict, request):
+        request_agent = agent.clone()
+        if before_dispatch is not None:
+            hook_result = before_dispatch(input_data, request, request_agent)
+            if inspect.isawaitable(hook_result):
+                await hook_result
+
+        async def events():
+            async for event in request_agent.run(input_data):
+                yield event
+
+        return StreamingResponse(events(), media_type="text/event-stream")
+
+    route.__annotations__["request"] = Request
+    app.post(path, dependencies=list(dependencies or ()))(route)
+
+
+def test_binding_gate_matches_three_argument_hook_clone_run_and_actor_contract() -> None:
+    probe = _load_probe()
+
+    passed, details = probe.probe_safe_pre_dispatch_binding(
+        _approved_fork_endpoint_fixture,
+        inspect.getsource(_approved_fork_endpoint_fixture),
+        SimpleNamespace,
+    )
+
+    assert passed is True
+    assert details["deny_call_order"] == [
+        "dependency",
+        "clone",
+        "before_dispatch",
+        "deny",
+    ]
+    assert "run" not in details["deny_call_order"]
+    assert details["success_call_order"] == [
+        "dependency",
+        "clone",
+        "before_dispatch",
+        "run",
+    ]
+    assert details["run_actor"] == "server-actor"
+    assert details["run_agent_label"] == "request"
+
+
+def test_binding_gate_rejects_obsolete_two_argument_hook_contract() -> None:
     probe = _load_probe()
 
     def documented_endpoint(app, agent, path="/", dependencies=(), before_dispatch=None):
@@ -503,14 +740,8 @@ def test_binding_gate_proves_dependency_runs_before_agent_dispatch() -> None:
         SimpleNamespace,
     )
 
-    assert passed is True
-    assert details["dependency_called"] is True
-    assert details["before_dispatch_called"] is True
-    assert details["call_order"] == ["dependency", "before_dispatch"]
-    assert details["agent_dispatched"] is False
-    assert details["observed_thread_id"] == "binding-thread"
-    assert details["observed_run_id"] == "binding-run"
-    assert details["response_status"] == 403
+    assert passed is False
+    assert "three-argument" in details["reason"]
 
 
 @pytest.mark.parametrize("wired_hook", ["before_dispatch", "dependency"])
@@ -537,14 +768,10 @@ def test_binding_gate_rejects_when_dependency_or_before_dispatch_is_unwired(
     )
 
     assert passed is False
-    if wired_hook == "dependency":
-        assert details["dependency_called"] is True
-        assert details["before_dispatch_called"] is False
-    else:
-        assert details["dependency_called"] is False
+    assert "three-argument" in details["reason"]
 
 
-def test_binding_gate_is_black_box_and_does_not_require_endpoint_source() -> None:
+def test_binding_gate_requires_source_and_documentation_evidence() -> None:
     probe = _load_probe()
 
     def opaque_endpoint(app, agent, path="/", dependencies=(), before_dispatch=None):
@@ -565,9 +792,9 @@ def test_binding_gate_is_black_box_and_does_not_require_endpoint_source() -> Non
         SimpleNamespace,
     )
 
-    assert passed is True
+    assert passed is False
     assert details["source_available"] is False
-    assert details["black_box_http"] is True
+    assert details["black_box_http"] is False
 
 
 def test_admission_handoff_retains_exact_non_placeholder_evidence() -> None:
@@ -593,7 +820,8 @@ def test_admission_handoff_retains_exact_non_placeholder_evidence() -> None:
     assert "### Retained redacted probe JSON" in text
     assert text.count('"admitted": false') >= 3
     assert "+### Retained redacted probe JSON" not in text
-    assert "final 22 passed" in text
+    assert "historical final 22 passed" in text
+    assert "current fork-review 62 passed" in text
     assert "mcp__context7__query_docs" in text
     assert (
         "At pinned CopilotKit v2, document the exact import path, generic signature, "
@@ -629,6 +857,49 @@ def test_deprecated_resume_detector_tracks_dot_bracket_and_alias_data_flow() -> 
 
     assert probe.uses_deprecated_forwarded_props_resume(dot_access) is True
     assert probe.uses_deprecated_forwarded_props_resume(aliased_access) is True
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        """
+        def extract(run_input):
+            return run_input.forwarded_props["command"]["resume"]
+        """,
+        """
+        def extract(props):
+            return props["command"]["resume"]
+        def run(input):
+            return extract(input.forwarded_props)
+        """,
+        """
+        props, other = input.forwarded_props, {}
+        return props["command"]["resume"]
+        """,
+        """
+        props = getattr(input, "forwarded_props")
+        return props["command"]["resume"]
+        """,
+        """
+        def outer(run_input):
+            packed = {"wire": run_input.forwarded_props}
+            props = packed["wire"]
+            command = next(item for item in [props["command"]])
+            return "resume" in command
+        """,
+        """
+        def outer(run_input):
+            def nested(props):
+                command = props.get("command", {})
+                return command.get("resume")
+            return nested(run_input.forwarded_props)
+        """,
+    ],
+)
+def test_deprecated_resume_detector_fails_closed_for_adversarial_data_flows(source: str) -> None:
+    probe = _load_probe()
+
+    assert probe.uses_deprecated_forwarded_props_resume(source) is True
 
 
 @pytest.mark.parametrize(

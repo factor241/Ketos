@@ -61,7 +61,9 @@ The negative-first test was written before the probe.
 | A10 audit RED | before archive/resume/source evidence hardening | same focused file | 1 | 11 expected failures |
 | A10 audit GREEN | after first audit correction | same focused file | 0 | 20 passed |
 | A10 re-review binding RED | before executable dependency proof | `uv run pytest ... -q -k 'binding_gate_proves or binding_gate_rejects_documented'` | 1 | 2 expected failures |
-| current final GREEN | after executable binding and regenerated evidence | `PYTHONDONTWRITEBYTECODE=1 uv run pytest src/backend/tests/unit/agentic/api/test_ag_ui_adapter_contract.py -q` | 0 | final 22 passed |
+| historical pre-fork GREEN | after the earlier executable binding correction | `PYTHONDONTWRITEBYTECODE=1 uv run pytest src/backend/tests/unit/agentic/api/test_ag_ui_adapter_contract.py -q` | 0 | historical final 22 passed |
+| fork-review RED | before exact public API, Git-tree provenance, and adversarial-flow corrections | selected reviewer regression set | 1 | 16 expected failures, 1 passed |
+| current fork-review GREEN | after reviewer corrections | `PYTHONDONTWRITEBYTECODE=1 uv run pytest src/backend/tests/unit/agentic/api/test_ag_ui_adapter_contract.py -q` | 0 | 62 passed |
 
 The package environment emits one pre-existing Starlette/httpx deprecation
 warning; it does not change the focused result.
@@ -583,7 +585,7 @@ MIT, Python `>=3.10`. It remains unpinned because the adapter/JS gates fail.
 | official docs/web | open six required URLs | available; all opened | none | blocking evidence obtained |
 | PyPI/npm/Git | releases, hashes, installed types, immutable commit | available; first GitHub releases URL returned HTTP 403 and two unquoted `?` URLs produced zsh `no matches found` | quoted URL, `git ls-remote`, sparse clone, PyPI/npm registries | recovered, non-blocking |
 | isolated uv install | exact wheel/VCS probes | local renamed wheel first failed `wheel filename ... is invalid: Must have a Python tag`; plain adapter install then failed `ModuleNotFoundError: No module named 'fastapi'` | exact wheel URL plus declared `[fastapi]` extra | recovered; final probes authoritative |
-| pytest | negative-first and final focused contract | RED cycles captured; final 22 passed | none | pass |
+| pytest | negative-first and focused contract history | historical 22 passed; current fork-review 62 passed | none | pass |
 | browser/Chrome | visual product flow | not relevant to dependency-only A01; no product route exists | not invoked | no A01 impact |
 
 ## Repository scope check

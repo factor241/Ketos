@@ -1,0 +1,66 @@
+{
+  "record_id": "stage-01c-admission-snapshot",
+  "captured_at_utc": "2026-07-18T14:32:22Z",
+  "classification": "internal-stage-01c-admission-evidence",
+  "admission": {
+    "worktree": "/Volumes/Projects/ketos-stage01-blocker-closure",
+    "branch": "codex/stage01-blocker-closure",
+    "head": "db6ec4a2465a4f1bb00579732ea1c1d902ae33d5",
+    "upstream": null,
+    "upstream_status": "no upstream configured for this local closure branch"
+  },
+  "root_checkout": {
+    "path": "/Volumes/Projects/ketos_canvas_mod_main",
+    "branch": "redesign/sidebar-account",
+    "head": "80878261d07c21ad257de017d98069f211ada2c2",
+    "dirty": true,
+    "porcelain_v1": [
+      " M KETOS_CODEX_AUDIT_VERIFICATION_CLAUDE.md",
+      "?? .playwright-mcp/",
+      "?? 08_KETOS_AUDIT_CRITIQUE_ASSESSMENT.md",
+      "?? 09_KETOS_MASTER_IMPLEMENTATION_PLAN.md",
+      "?? 10_KETOS_MASTER_PLAN_AUDIT_REPORT.md",
+      "?? 11_KETOS_REVISED_MASTER_IMPLEMENTATION_PLAN.md",
+      "?? 12_KETOS_MASTER_PLAN_VERIFICATION_REPORT.md",
+      "?? 13_KETOS_VERIFICATION_REPORT_ASSESSMENT.md",
+      "?? 14_KETOS_FINAL_MASTER_IMPLEMENTATION_PLAN.md",
+      "?? 15_KETOS_STAGE_01_BASELINE_EVIDENCE.md",
+      "?? 16_KETOS_STAGE_02_SECURITY_CONTAINMENT.md",
+      "?? 17_KETOS_STAGE_03_RISK_EXPERIMENTS.md",
+      "?? 18_KETOS_STAGE_04_CONTRACT_ADR_FREEZE.md",
+      "?? 19_KETOS_STAGE_05_BACKWARD_COMPATIBLE_FOUNDATIONS.md",
+      "?? 20_KETOS_STAGE_06_DUAL_WRITE_MIGRATION_CUTOVER.md",
+      "?? 21_KETOS_STAGE_07_BOARD_CHAT_PROJECT.md",
+      "?? 22_KETOS_STAGE_08_EDITOR_EXECUTION_AI.md",
+      "?? 23_KETOS_STAGE_09_ADAPTERS_RESTORE_HARDENING.md",
+      "?? 24_KETOS_STAGE_10_ROLLOUT_OBSERVATION_COMPLETION.md",
+      "?? 25_KETOS_UNIVERSAL_STAGE_EXECUTION_PROMPT.md"
+    ],
+    "preservation_rule": "Stage 01C does not modify this root checkout."
+  },
+  "worktree_registry": [
+    {"path": "/Volumes/Projects/ketos_canvas_mod_main", "head": "80878261d07c21ad257de017d98069f211ada2c2", "branch": "redesign/sidebar-account"},
+    {"path": "/Volumes/Projects/ketos-stage01-blocker-closure", "head": "db6ec4a2465a4f1bb00579732ea1c1d902ae33d5", "branch": "codex/stage01-blocker-closure"},
+    {"path": "/Volumes/Projects/ketos-stage01-integration", "head": "db6ec4a2465a4f1bb00579732ea1c1d902ae33d5", "branch": "codex/stage01-baseline-evidence"},
+    {"path": "/Volumes/Projects/ketos-stage01-lane-architecture", "head": "80878261d07c21ad257de017d98069f211ada2c2", "branch": null},
+    {"path": "/Volumes/Projects/ketos-stage01-lane-backend", "head": "80878261d07c21ad257de017d98069f211ada2c2", "branch": null},
+    {"path": "/Volumes/Projects/ketos-stage01-lane-docs", "head": "80878261d07c21ad257de017d98069f211ada2c2", "branch": null},
+    {"path": "/Volumes/Projects/ketos-stage01-lane-frontend", "head": "80878261d07c21ad257de017d98069f211ada2c2", "branch": null},
+    {"path": "/Volumes/Projects/ketos-stage01-lane-testing", "head": "80878261d07c21ad257de017d98069f211ada2c2", "branch": null},
+    {"path": "/Volumes/Projects/ketos-visible-rebrand-only", "head": "e76b6273f68fa160038b830c39f48bcf84f1bef2", "branch": null},
+    {"path": "/Volumes/Projects/langflow-codex-cleanup", "head": "b40fcb87b4e334e3cdf75830e5ba214275caaa53", "branch": null}
+  ],
+  "aggregate_rss": {
+    "command": "ps -A -o rss= | awk '{sum += $1} END {print sum}'",
+    "unit": "KiB",
+    "value": 8982992,
+    "interpretation": "aggregate resident memory of all visible processes at admission; below the 14 GiB no-heavy-job threshold"
+  },
+  "runtime_versions": {
+    "python": {"status": "available", "command": "uv run python --version", "version": "Python 3.13.14"},
+    "node": {"status": "available", "command": "node --version", "version": "v26.3.1"},
+    "npm": {"status": "available", "command": "npm --version", "version": "11.16.0"},
+    "postgresql": {"status": "available", "command": "psql --version", "version": "psql (PostgreSQL) 18.4", "server_binary": "postgres not found on PATH"},
+    "sqlite": {"status": "available", "command": "uv run python -c 'import sqlite3; print(sqlite3.sqlite_version)'", "version": "3.53.1"}
+  }
+}

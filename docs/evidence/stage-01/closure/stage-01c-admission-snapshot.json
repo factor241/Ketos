@@ -2,6 +2,10 @@
   "record_id": "stage-01c-admission-snapshot",
   "captured_at_utc": "2026-07-18T14:32:22Z",
   "classification": "internal-stage-01c-admission-evidence",
+  "historical_report": {
+    "path": "docs/evidence/stage-01/STAGE_01_REPORT_RU.md",
+    "sha256": "0ebd32b18a54ca91c76751ebccb84ddf5ce146936c3d46b40f135e6ecb22bbed"
+  },
   "admission": {
     "worktree": "/Volumes/Projects/ketos-stage01-blocker-closure",
     "branch": "codex/stage01-blocker-closure",

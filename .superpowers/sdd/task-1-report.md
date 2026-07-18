@@ -55,6 +55,50 @@ Results:
 - Relevant Stage 01 evidence suite: `33 passed in 3.23s`.
 - JSON syntax: `PASS`; `git diff --check`: exit 0.
 
+## Review-fix evidence
+
+The review found that the initial validator accepted incomplete or altered
+evidence because it checked only basic truthiness. The validator now compares
+immutable capture metadata, exact branch/HEAD/upstream facts, the full dirty
+root snapshot, required worktree registry, RSS value/threshold interpretation,
+and exact runtime availability/version records. It also verifies the historical
+Stage 01 report SHA-256, governance-decision SHA-256 and boundary text, and the
+fixed `db6ec4a..349d6042` Task 1 changed-path set. The diff check is anchored
+to the original admission commit, so it does not depend on later Stage 01C
+commits.
+
+### Review-fix RED
+
+Command:
+
+```bash
+uv run pytest docs/evidence/stage-01/tests/test_closure_admission_artifacts.py -q
+```
+
+Result: `8 failed, 3 passed in 0.13s`. The added mutation tests proved that the
+previous validator accepted missing capture metadata, forged root/worktree/RSS
+facts, unavailable runtimes, altered governance text, a forged historical
+report, and an insufficient append-only path allowlist.
+
+### Review-fix GREEN
+
+Commands:
+
+```bash
+uv run pytest docs/evidence/stage-01/tests/test_closure_admission_artifacts.py -q
+uv run python docs/evidence/stage-01/closure/validate_admission.py
+uv run pytest docs/evidence/stage-01/tests -q
+uv run python -c "import json; from pathlib import Path; [json.loads(path.read_text(encoding='utf-8')) for path in Path('docs/evidence/stage-01').rglob('*.json')]; print('JSON syntax: PASS')"
+git diff --check
+```
+
+Results:
+
+- Focused admission suite: `11 passed in 0.25s`.
+- Admission validator: `Stage 01C admission evidence: PASS`.
+- Relevant Stage 01 evidence suite: `41 passed in 3.31s`.
+- JSON syntax: `PASS`; `git diff --check`: exit 0.
+
 ## Residual concerns
 
 - This is a timestamped admission snapshot, not a final Stage 01 closure

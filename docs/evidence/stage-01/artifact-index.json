@@ -33,7 +33,7 @@
       "owner": "stage01-security-implementation",
       "relative_path": "STAGE_01_REPORT_RU.md",
       "reviewer_status": "pending",
-      "sha256": "c85ea9b7ece7a7d062e92ecfd2dfd42f3ee2cd54340bce37c830fd721cb51e2e",
+      "sha256": "0ebd32b18a54ca91c76751ebccb84ddf5ce146936c3d46b40f135e6ecb22bbed",
       "task_id": "S01-T03"
     },
     {
@@ -726,7 +726,7 @@
       "owner": "stage01-security-implementation",
       "relative_path": "provenance/openswarm-ab982af.md",
       "reviewer_status": "pending",
-      "sha256": "85140a02d87a1ec4f0ae117a79a45c4f640fd3ab0c44f9293e141af6c7812f57",
+      "sha256": "92087bbc72c657432bb7c2d703d45d57ec90830fadeb5c9340e071a37d8afb80",
       "task_id": "S01-T08-T13"
     },
     {

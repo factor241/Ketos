@@ -1,8 +1,10 @@
 # OpenSwarm pinned provenance
 
-Repository: `https://github.com/openswarm-ai/openswarm.git`  
-Commit: `ab982afcea63dbc775f8a40b74a1b1339a28097f`  
-Committed tree: `d45d05a6c6b60d74ea3d5f6b5ac7e5b7f4d6ad5c`  
+Repository: `https://github.com/openswarm-ai/openswarm.git`
+
+Commit: `ab982afcea63dbc775f8a40b74a1b1339a28097f`
+
+Committed tree: `d45d05a6c6b60d74ea3d5f6b5ac7e5b7f4d6ad5c`
 License: MIT; committed `LICENSE` SHA-256
 `e9e2b30fcdb2bd90189d0d91819a0cfb79e7912a883fd4aad5f17cce6d0ee905`.
 

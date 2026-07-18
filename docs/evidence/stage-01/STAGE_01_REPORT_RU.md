@@ -191,14 +191,14 @@ GC-16, но не замена отсутствующей полной compliance
 
 ## Контрольные hashes
 
-| Artifact | SHA-256 до добавления этого отчёта |
+| Artifact | SHA-256 в финальном payload |
 | --- | --- |
 | `preflight-manifest.json` | `d250c076ec77f689af0680996cb78b638731963653ed56b7e78199c3b3516179` |
 | `route-capability-matrix.json` | `511f49dc2e7f28253dc91c4c01da7420685a92c34fd1364d8c50118d57c3117b` |
 | `job-null-census.json` | `44a1660df5c2c712614f119778b0bb69e56d08dcec949fe7cee3a05a04bd23dc` |
 | `r34-contract.json` | `5f3f5e4391d537b5475f5d08b7b2d391e4abdbcd2d25f5f389fbb1679c82b3a5` |
 | `lfx-baseline.json` | `8569d6cb5ed2d83d13f09b86001009a87650ab3199f149dbec0346424838498c` |
-| `openswarm-ab982af.md` | `85140a02d87a1ec4f0ae117a79a45c4f640fd3ab0c44f9293e141af6c7812f57` |
+| `openswarm-ab982af.md` | `92087bbc72c657432bb7c2d703d45d57ec90830fadeb5c9340e071a37d8afb80` |
 | `traceability.json` | `99e30d0e5dd0a5797da4e09ce68467853f40cc3a899f5e6e86d240640a3f874f` |
 | `baseline-gates.json` | `4af42045a1cb951d4e778f68ea396382a1c5d7540aac5a2ee50023a9311f1651` |
 | `evidence-bundle-tests-final.json` | `bb46de8a7c66d919465ca2f6439584e8ca75ffe0d87b5aa4ca74946fa362fad9` |

@@ -43,25 +43,67 @@ The negative-first test was written before the probe.
 | regression RED | after first live probe | `uv run pytest src/backend/tests/unit/agentic/api/test_ag_ui_adapter_contract.py::test_deprecated_forwarded_props_resume_is_detected_without_a_deprecation_label -q` | 1 | detector helper absent |
 | regression GREEN | `2026-07-18T18:41:48Z` | `uv run pytest src/backend/tests/unit/agentic/api/test_ag_ui_adapter_contract.py -q` | 0 | 8 passed |
 | identity RED | after immutable-commit probe | `uv run pytest src/backend/tests/unit/agentic/api/test_ag_ui_adapter_contract.py::test_immutable_commit_is_not_misidentified_as_the_published_0042_wheel -q` | 1 | VCS artifact misidentified as release wheel |
-| final GREEN | after identity fix | `uv run pytest src/backend/tests/unit/agentic/api/test_ag_ui_adapter_contract.py -q` | 0 | 9 passed |
+| initial identity GREEN | after immutable identity fix | `uv run pytest src/backend/tests/unit/agentic/api/test_ag_ui_adapter_contract.py -q` | 0 | 9 passed |
+| A10 audit RED | before archive/resume/source evidence hardening | same focused file | 1 | 11 expected failures |
+| A10 audit GREEN | after first audit correction | same focused file | 0 | 20 passed |
+| A10 re-review binding RED | before executable dependency proof | `uv run pytest ... -q -k 'binding_gate_proves or binding_gate_rejects_documented'` | 1 | 2 expected failures |
+| current final GREEN | after executable binding and regenerated evidence | `PYTHONDONTWRITEBYTECODE=1 uv run pytest src/backend/tests/unit/agentic/api/test_ag_ui_adapter_contract.py -q` | 0 | final 22 passed |
 
 The package environment emits one pre-existing Starlette/httpx deprecation
 warning; it does not change the focused result.
 
 ## Context7
 
-Each library was resolved and queried separately, using the exact IDs required
-by the plan:
+Current re-review used the exact callable `mcp__context7__query_docs` three
+times with these literal inputs:
+
+```text
+libraryId=/copilotkit/copilotkit
+query=At pinned CopilotKit v2, document the exact import path, generic signature, render arguments, and resolver payload type for useInterrupt, especially whether resolve is typed as { approved: boolean } or unknown.
+
+libraryId=/ag-ui-protocol/ag-ui
+query=Document standard interrupt termination and resume contracts: RUN_FINISHED outcome type interrupt, RunAgentInput.resume array shape, and requirement to answer every open interrupt.
+
+libraryId=/langchain-ai/langgraph
+query=Document interrupt and Command(resume=...) semantics, node re-execution, stable thread_id persistence, and AsyncSqliteSaver checkpoint usage.
+```
+
+All three `mcp__context7__query_docs` calls succeeded. Relevant retained result
+excerpts:
+
+```text
+/copilotkit/copilotkit:
+  import { useInterrupt } from "@copilotkit/react-core/v2";
+  render receives event/resolve in the example; examples pass object payloads,
+  but the result contains no exact { approved: boolean } resolver declaration.
+
+/ag-ui-protocol/ag-ui:
+  RUN_FINISHED outcome.type is "interrupt" with interrupts[].
+  RunAgentInput.resume is Array<{interruptId,status,payload?}>.
+  "A single resume array must address all open interrupts."
+
+/langchain-ai/langgraph:
+  interrupt resumes through Command; the node starts again and re-executes.
+  AsyncSqliteSaver imports from langgraph.checkpoint.sqlite.aio.
+```
+
+For completeness, `mcp__context7__resolve_library_id` was called with literal
+`libraryName` values `CopilotKit`, `AG-UI Protocol`, and `LangGraph` and the
+same scoped subjects. All three resolver calls returned the exact error
+`Monthly quota exceeded. Create a free API key at https://context7.com/dashboard for more requests`.
+This does not erase the evidence: the plan already supplies the exact IDs, and
+all three direct ID queries succeeded after the resolver error.
 
 | Exact ID | Query subject | Relevant result |
 | --- | --- | --- |
-| `/copilotkit/copilotkit` | pinned-v2 `useInterrupt` import, generics, render args, resolver | import is `@copilotkit/react-core/v2`; current API record shows `resolve(response: unknown): void`; examples call objects such as `{ approved: true }`, but no `{ approved: boolean }` resolver type is declared |
+| `/copilotkit/copilotkit` | pinned-v2 `useInterrupt` import, generics, render args, resolver | import is `@copilotkit/react-core/v2`; examples call objects such as `{ approved: true }`, but the result contains no exact `{ approved: boolean }` resolver declaration; installed types below are authoritative for `unknown` |
 | `/ag-ui-protocol/ag-ui` | standard interrupt terminal event and resume | `RunFinishedOutcome` includes `{type:"interrupt", interrupts: Interrupt[]}`; `RunAgentInput.resume` is an array of `{interruptId,status,payload?}`; parallel example addresses all open interrupts |
 | `/langchain-ai/langgraph` | `interrupt`, `Command(resume=...)`, persistence | a resumed graph re-executes the node from its beginning; `Command` supplies the resume value; checkpoint config uses stable `thread_id`; `AsyncSqliteSaver` is the async SQLite saver |
 
-Context7 and the installed CopilotKit package agree that the resolver payload is
-untyped/`unknown`. The required narrower decision signature is absent, so no
-shim or example-based assumption is allowed.
+Context7 provides object examples but no exact narrower resolver declaration.
+The installed CopilotKit declaration below explicitly uses `unknown`. Therefore
+the required narrower decision signature is absent, and no example-based
+assumption or local shim is allowed.
 
 ## Official documentation
 
@@ -149,19 +191,19 @@ PYTHONDONTWRITEBYTECODE=1 uv run --isolated --no-project \
   --with 'ag-ui-langgraph[fastapi] @ https://files.pythonhosted.org/packages/62/c0/32fea8de7ac50a90ea150f999318f4d121cd22d58e446c8fdb420fc2a11e/ag_ui_langgraph-0.0.42-py3-none-any.whl' \
   python scripts/mvp/probe_ag_ui_adapter.py \
   --artifact-path /tmp/ketos-s01-a01-artifacts/ag_ui_langgraph-0.0.42.whl \
-  --json > /tmp/ketos-s01-a01-v0042-probe-a10.json
+  --json > /tmp/ketos-s01-a01-v0042-probe-rereview.json
 
 PYTHONDONTWRITEBYTECODE=1 uv run --isolated --no-project \
   --with 'ag-ui-langgraph[fastapi] @ https://files.pythonhosted.org/packages/0b/1a/dc28490d7a20b338089a1da8b6c29505aeddcadad94baf29dc5c29ae554d/ag_ui_langgraph-0.0.43.dev1784331543-py3-none-any.whl' \
   python scripts/mvp/probe_ag_ui_adapter.py \
   --artifact-path /tmp/ketos-s01-a01-artifacts/ag_ui_langgraph-0.0.43.dev1784331543.whl \
-  --json > /tmp/ketos-s01-a01-v0043dev-probe-a10.json
+  --json > /tmp/ketos-s01-a01-v0043dev-probe-rereview.json
 
 PYTHONDONTWRITEBYTECODE=1 uv run --isolated --no-project \
   --with 'ag-ui-langgraph[fastapi] @ git+https://github.com/ag-ui-protocol/ag-ui.git@3a7433ef055aab96ee7c9ece97417d721b21dc76#subdirectory=integrations/langgraph/python' \
   python scripts/mvp/probe_ag_ui_adapter.py \
   --artifact-path /tmp/ketos-s01-a01-artifacts/ag-ui-3a7433ef-langgraph-python.tar \
-  --json > /tmp/ketos-s01-a01-commit-probe-a10.json
+  --json > /tmp/ketos-s01-a01-commit-probe-rereview.json
 ```
 
 All three commands exited `1` as a fail-closed rejection. The two wheel hashes
@@ -169,15 +211,16 @@ equal their PyPI JSON digests. `git get-tar-commit-id` returned the exact
 40-character commit, and the archive SHA-256 was
 `03bb89a6c73228c4a3d0a196ed106fce701655428b866387a3f45d986ae3dc76`.
 
-+### Retained redacted probe JSON
+### Retained redacted probe JSON
 
-The following blocks are exact retained projections of the three probe outputs.
-Only verbose emitted events and absolute installed-runtime paths are omitted;
-archive identity/integrity, the complete resume matrix, source availability,
-binding result, contracts, and decision are retained. Projection command:
+These are direct projections regenerated after the executable binding change.
+All three exact probe commands above exited 1. Only verbose emitted events and
+absolute installed-runtime paths are omitted. Exact projection commands:
 
 ```bash
-jq '{artifact,contracts,resume_matrix:.details.resume_matrix,source_inspection:.details.source_inspection,pre_dispatch_binding:.details.pre_dispatch_binding,decision}' PROBE.json
+jq '{artifact,contracts,resume_matrix:.details.resume_matrix,source_inspection:.details.source_inspection,pre_dispatch_binding:.details.pre_dispatch_binding,decision}' /tmp/ketos-s01-a01-v0042-probe-rereview.json
+jq '{artifact,contracts,resume_matrix:.details.resume_matrix,source_inspection:.details.source_inspection,pre_dispatch_binding:.details.pre_dispatch_binding,decision}' /tmp/ketos-s01-a01-v0043dev-probe-rereview.json
+jq '{artifact,contracts,resume_matrix:.details.resume_matrix,source_inspection:.details.source_inspection,pre_dispatch_binding:.details.pre_dispatch_binding,decision}' /tmp/ketos-s01-a01-commit-probe-rereview.json
 ```
 
 #### Published wheel 0.0.42
@@ -225,7 +268,9 @@ jq '{artifact,contracts,resume_matrix:.details.resume_matrix,source_inspection:.
   "pre_dispatch_binding": {
     "agent_dispatched": false,
     "dependency_called": false,
+    "documented_dependencies": false,
     "reason": "no documented FastAPI dependencies parameter",
+    "signature": "(app: fastapi.applications.FastAPI, agent: ag_ui_langgraph.agent.LangGraphAgent, path: str = '/')",
     "source_available": true
   },
   "decision": {
@@ -311,7 +356,9 @@ jq '{artifact,contracts,resume_matrix:.details.resume_matrix,source_inspection:.
   "pre_dispatch_binding": {
     "agent_dispatched": false,
     "dependency_called": false,
+    "documented_dependencies": false,
     "reason": "no documented FastAPI dependencies parameter",
+    "signature": "(app: fastapi.applications.FastAPI, agent: ag_ui_langgraph.agent.LangGraphAgent, path: str = '/')",
     "source_available": true
   },
   "decision": {
@@ -396,7 +443,9 @@ jq '{artifact,contracts,resume_matrix:.details.resume_matrix,source_inspection:.
   "pre_dispatch_binding": {
     "agent_dispatched": false,
     "dependency_called": false,
+    "documented_dependencies": false,
     "reason": "no documented FastAPI dependencies parameter",
+    "signature": "(app: fastapi.applications.FastAPI, agent: ag_ui_langgraph.agent.LangGraphAgent, path: str = '/')",
     "source_available": true
   },
   "decision": {
@@ -440,6 +489,28 @@ for archive in /tmp/ketos-s01-a01-pinned.lRxvfO/*.tgz; do
   tar -xOf "$archive" package/package.json | jq -r '.name + "@" + .version + " license=" + (.license // "<absent>")'
   tar -xOf "$archive" package/LICENSE | shasum -a 256
 done
+```
+
+The installed package does not ship a literal top-level `.d.ts`; its declaration
+bundle is `.d.cts`/`.d.mts` and contains the source region
+`src/v2/lib/react-core.d.ts`. Exact inspected paths:
+
+- absolute: `/tmp/ketos-s01-a01-js.GlAscE/node_modules/@copilotkit/react-core/dist/v2/headless.d.cts`;
+- package-relative: `node_modules/@copilotkit/react-core/dist/v2/headless.d.cts`.
+
+Exact inspection command and line results:
+
+```bash
+rg -n 'type InterruptResolveFn|interface InterruptRenderProps|declare function useInterrupt' \
+  /tmp/ketos-s01-a01-js.GlAscE/node_modules/@copilotkit/react-core/dist/v2/headless.d.cts
+# 188:type InterruptResolveFn = (payload?: unknown, interruptId?: string) => Promise<RunAgentResult | void>;
+# 211:interface InterruptRenderProps<TValue = unknown, TResult = unknown> {
+# 556:declare function useInterrupt<TResult = never, TRenderInChat extends InterruptRenderInChat = undefined>(config: UseInterruptConfig<any, TResult, TRenderInChat>): UseInterruptReturn<TRenderInChat>;
+
+sed -n '188,220p' \
+  /tmp/ketos-s01-a01-js.GlAscE/node_modules/@copilotkit/react-core/dist/v2/headless.d.cts
+sed -n '550,558p' \
+  /tmp/ketos-s01-a01-js.GlAscE/node_modules/@copilotkit/react-core/dist/v2/headless.d.cts
 ```
 
 Installed `@copilotkit/react-core@1.63.1` proves:
@@ -494,11 +565,11 @@ MIT, Python `>=3.10`. It remains unpinned because the adapter/JS gates fail.
 | direct source/git | baseline, status, exact source and registry artifact inspection | available; clean baseline on required branch | none | authoritative |
 | RaytSystem | doctor/status/graph status/lint/query, explicit root | lint `ok:true`; graph `state:"stale", reason:"checkout_changed"`; query returned `No supported claim in the active generation matches this query.` | direct source + existing Graphify | non-blocking navigation gap |
 | Graphify | read-only query with budget 2500 | exit 0; existing graph traversed, no rebuild | direct source for exact evidence | non-blocking stale-map limitation |
-| Context7 | resolve/query all three exact IDs | available; all calls succeeded | none | blocking evidence obtained |
+| Context7 | `mcp__context7__query_docs` on all three exact IDs; then `mcp__context7__resolve_library_id` audit calls | all three exact-ID queries succeeded; all three later resolver calls returned `Monthly quota exceeded...` | direct exact IDs supplied by the authoritative plan | query evidence obtained; resolver limitation recorded, non-blocking |
 | official docs/web | open six required URLs | available; all opened | none | blocking evidence obtained |
 | PyPI/npm/Git | releases, hashes, installed types, immutable commit | available; first GitHub releases URL returned HTTP 403 and two unquoted `?` URLs produced zsh `no matches found` | quoted URL, `git ls-remote`, sparse clone, PyPI/npm registries | recovered, non-blocking |
 | isolated uv install | exact wheel/VCS probes | local renamed wheel first failed `wheel filename ... is invalid: Must have a Python tag`; plain adapter install then failed `ModuleNotFoundError: No module named 'fastapi'` | exact wheel URL plus declared `[fastapi]` extra | recovered; final probes authoritative |
-| pytest | negative-first and final focused contract | RED captured; final 9 passed | none | pass |
+| pytest | negative-first and final focused contract | RED cycles captured; final 22 passed | none | pass |
 | browser/Chrome | visual product flow | not relevant to dependency-only A01; no product route exists | not invoked | no A01 impact |
 
 ## Repository scope check

@@ -407,9 +407,13 @@ def probe_safe_pre_dispatch_binding(
     endpoint_source: str | None,
     core_module: Any,
 ) -> tuple[bool, dict[str, Any]]:
-    """Fail closed until a candidate documents an executable binding contract."""
+    """Prove a documented dependency executes before candidate dispatch."""
     del core_module
-    details: dict[str, Any] = {"source_available": endpoint_source is not None}
+    details: dict[str, Any] = {
+        "source_available": endpoint_source is not None,
+        "dependency_called": False,
+        "agent_dispatched": False,
+    }
     if endpoint_source is None:
         details["reason"] = "endpoint source inspection unavailable"
         return False, details
@@ -419,12 +423,63 @@ def probe_safe_pre_dispatch_binding(
     details["documented_dependencies"] = (
         "dependencies" in signature.parameters and "dependenc" in documentation.lower()
     )
-    details["reason"] = (
-        "no documented FastAPI dependencies parameter"
-        if not details["documented_dependencies"]
-        else "no candidate-specific executable actor/thread/run binding semantics proven"
+    if not details["documented_dependencies"]:
+        details["reason"] = "no documented FastAPI dependencies parameter"
+        return False, details
+
+    try:
+        from fastapi import Depends, FastAPI, HTTPException, Request, status
+        from fastapi.testclient import TestClient
+
+        class ProbeAgent:
+            name = "binding-probe"
+            dispatched = False
+
+        async def dependency(request) -> None:
+            payload = await request.json()
+            details["dependency_called"] = True
+            details["observed_thread_id"] = payload.get("threadId")
+            details["observed_run_id"] = payload.get("runId")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="binding probe deny",
+            )
+
+        dependency.__annotations__["request"] = Request
+        app = FastAPI()
+        agent = ProbeAgent()
+        endpoint(
+            app,
+            agent,
+            path="/binding-probe",
+            dependencies=[Depends(dependency)],
+        )
+        body = {
+            "threadId": "binding-thread",
+            "runId": "binding-run",
+            "state": {},
+            "messages": [],
+            "tools": [],
+            "context": [],
+            "forwardedProps": {},
+        }
+        with TestClient(app) as client:
+            response = client.post("/binding-probe", json=body)
+        details["response_status"] = response.status_code
+        details["agent_dispatched"] = agent.dispatched
+    except Exception as exc:  # noqa: BLE001 - candidate hook is fail-closed
+        details["reason"] = f"binding execution failed: {type(exc).__name__}: {exc}"
+        return False, details
+    passed = (
+        details["dependency_called"] is True
+        and details["agent_dispatched"] is False
+        and details.get("observed_thread_id") == "binding-thread"
+        and details.get("observed_run_id") == "binding-run"
+        and details.get("response_status") == status.HTTP_403_FORBIDDEN
     )
-    return False, details
+    if not passed:
+        details["reason"] = "dependency did not deny before agent dispatch with bound IDs"
+    return passed, details
 
 
 def _runtime_contracts() -> tuple[dict[str, bool], dict[str, Any]]:

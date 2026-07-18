@@ -84,7 +84,7 @@ def _fixture(tmp_path: Path, *, package_name: str = "@copilotkit/react-core") ->
     artifact.write_bytes(b"deterministic npm artifact\n")
     changed = _git(repo, "diff", "--name-only", base, fork).splitlines()
     license_hash = hashlib.sha256((package / "LICENSE").read_bytes()).hexdigest()
-    epoch = 1_784_227_404
+    epoch = audit.SOURCE_DATE_EPOCH
     manifest = tmp_path / "manifest.json"
     manifest.write_text(
         json.dumps(
@@ -293,6 +293,15 @@ def test_rejects_unpinned_toolchain_metadata(tmp_path: Path) -> None:
     manifest["artifacts"]["@copilotkit/react-core"]["toolchain"]["node"] = "26.3.1"
     manifest_path.write_text(json.dumps(manifest))
 
+    with pytest.raises(audit.AuditError, match="toolchain"):
+        _audit(fixture)
+
+    manifest = json.loads(manifest_path.read_text())
+    record = manifest["artifacts"]["@copilotkit/react-core"]
+    record["toolchain"]["node"] = audit.NODE_VERSION
+    record["toolchain"]["source_date_epoch"] = 1
+    record["rebuild"] = audit._canonical_rebuild(str(fixture["fork"]), 1)
+    manifest_path.write_text(json.dumps(manifest))
     with pytest.raises(audit.AuditError, match="toolchain"):
         _audit(fixture)
 

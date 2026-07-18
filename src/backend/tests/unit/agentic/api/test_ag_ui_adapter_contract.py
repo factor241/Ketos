@@ -319,6 +319,54 @@ def test_binding_gate_requires_documented_executable_dependency_semantics() -> N
     )
 
 
+def test_binding_gate_proves_dependency_runs_before_agent_dispatch() -> None:
+    probe = _load_probe()
+
+    def documented_endpoint(app, agent, path="/", dependencies=()):
+        """Register FastAPI dependencies before agent dispatch."""
+
+        @app.post(path, dependencies=list(dependencies))
+        async def route(input_data: dict):
+            agent.dispatched = True
+            return input_data
+
+    passed, details = probe.probe_safe_pre_dispatch_binding(
+        documented_endpoint,
+        inspect.getsource(documented_endpoint),
+        SimpleNamespace,
+    )
+
+    assert passed is True
+    assert details["dependency_called"] is True
+    assert details["agent_dispatched"] is False
+    assert details["observed_thread_id"] == "binding-thread"
+    assert details["observed_run_id"] == "binding-run"
+    assert details["response_status"] == 403
+
+
+def test_binding_gate_rejects_documented_but_unwired_dependency() -> None:
+    probe = _load_probe()
+
+    def unwired_endpoint(app, agent, path="/", dependencies=()):
+        """Claim FastAPI dependencies but do not register them."""
+        del dependencies
+
+        @app.post(path)
+        async def route(input_data: dict):
+            agent.dispatched = True
+            return input_data
+
+    passed, details = probe.probe_safe_pre_dispatch_binding(
+        unwired_endpoint,
+        inspect.getsource(unwired_endpoint),
+        SimpleNamespace,
+    )
+
+    assert passed is False
+    assert details["dependency_called"] is False
+    assert details["agent_dispatched"] is True
+
+
 def test_admission_handoff_retains_exact_non_placeholder_evidence() -> None:
     text = ADMISSION_PATH.read_text()
 
@@ -341,6 +389,22 @@ def test_admission_handoff_retains_exact_non_placeholder_evidence() -> None:
         assert exact_value in text
     assert "### Retained redacted probe JSON" in text
     assert text.count('"admitted": false') >= 3
+    assert "+### Retained redacted probe JSON" not in text
+    assert "final 22 passed" in text
+    assert "mcp__context7__query_docs" in text
+    assert (
+        "At pinned CopilotKit v2, document the exact import path, generic signature, "
+        "render arguments, and resolver payload type for useInterrupt"
+    ) in text
+    assert "Monthly quota exceeded" in text
+    assert (
+        "node_modules/@copilotkit/react-core/dist/v2/headless.d.cts" in text
+    )
+    assert (
+        "rg -n 'type InterruptResolveFn|interface InterruptRenderProps|declare function useInterrupt'"
+        in text
+    )
+    assert text.count('"documented_dependencies": false') >= 3
 
 
 def test_deprecated_forwarded_props_resume_is_detected_without_a_deprecation_label() -> None:

@@ -356,7 +356,7 @@ jobs:
         run: uv run python "$GITHUB_WORKSPACE/scripts/ci/require_external_release.py"
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: kfx-v${{ github.event.inputs.version }}
           # Pin the minted tag to the commit this release was built from;

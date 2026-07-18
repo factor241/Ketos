@@ -58,10 +58,12 @@ def auth_contract(dependencies: list[str]) -> str:
         return "conditional-webhook-auth"
     if "current_active_user_mcp" in joined:
         return "mcp-resolver-config-sensitive"
-    if "api_key_security" in joined or "api_key" in joined:
+    if ".api_key_security" in joined:
         return "api-key"
     if "current_active_user" in joined or "current_user" in joined:
         return "cookie-jwt-or-api-key"
+    if "api_key" in joined:
+        return "api-key-dependency; actor binding review required"
     return "none-or-handler-internal"
 
 

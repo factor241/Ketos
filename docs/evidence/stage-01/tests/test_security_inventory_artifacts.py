@@ -55,6 +55,9 @@ def test_route_matrix_covers_every_runtime_registration_with_required_fields() -
     assert len({(route["path"], route["method"], route["endpoint"]) for route in routes}) == len(routes)
     assert any(route["path"].startswith("/api/mcp/") for route in routes)
     assert any(route["path"].startswith("/api/v1/mcp/") for route in routes)
+    by_path_method = {(route["path"], route["method"]): route for route in routes}
+    assert by_path_method[("/api/v1/responses", "POST")]["auth"] == "api-key"
+    assert by_path_method[("/api/v1/agentic/assist", "POST")]["auth"] == "cookie-jwt-or-api-key"
 
     captured = json.loads((BUNDLE / "artifacts/runtime-route-inventory.stdout.log").read_text(encoding="utf-8"))
     assert captured == matrix

@@ -230,7 +230,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -253,7 +253,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -276,7 +276,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -299,7 +299,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -322,7 +322,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -345,7 +345,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -368,7 +368,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -391,7 +391,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -414,7 +414,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -437,7 +437,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -460,7 +460,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -483,7 +483,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -506,7 +506,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -529,7 +529,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -552,7 +552,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -575,7 +575,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -598,7 +598,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -621,7 +621,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -644,7 +644,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -667,7 +667,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -690,7 +690,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -713,7 +713,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -736,7 +736,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -759,7 +759,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -782,7 +782,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -805,7 +805,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -828,7 +828,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -851,7 +851,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -874,7 +874,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -897,7 +897,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -920,7 +920,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -943,7 +943,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -966,7 +966,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -989,7 +989,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1012,7 +1012,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1035,7 +1035,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1058,7 +1058,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1081,7 +1081,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1104,7 +1104,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1127,7 +1127,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1150,7 +1150,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1173,7 +1173,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1196,7 +1196,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1237,7 +1237,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1261,7 +1261,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1284,7 +1284,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1307,7 +1307,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1330,7 +1330,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1354,7 +1354,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1434,7 +1434,7 @@
     },
     {
       "actor_source": "anonymous, transport-bound, or resolved inside handler; review required",
-      "auth": "api-key",
+      "auth": "api-key-dependency; actor binding review required",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1456,7 +1456,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1479,7 +1479,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1502,7 +1502,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1525,7 +1525,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1549,7 +1549,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1575,7 +1575,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1601,7 +1601,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1627,7 +1627,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1690,7 +1690,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1716,7 +1716,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1739,7 +1739,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1763,7 +1763,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1806,7 +1806,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1829,7 +1829,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1852,7 +1852,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1893,7 +1893,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1917,7 +1917,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1941,7 +1941,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1965,7 +1965,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -1990,7 +1990,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2014,7 +2014,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2038,7 +2038,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2062,7 +2062,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2086,7 +2086,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2109,7 +2109,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2132,7 +2132,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2155,7 +2155,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2178,7 +2178,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2315,7 +2315,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2339,7 +2339,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2363,7 +2363,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2386,7 +2386,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2410,7 +2410,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2434,7 +2434,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2457,7 +2457,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2480,7 +2480,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2503,7 +2503,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2526,7 +2526,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2551,7 +2551,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2575,7 +2575,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2601,7 +2601,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2625,7 +2625,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2649,7 +2649,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2673,7 +2673,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2697,7 +2697,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2721,7 +2721,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -2744,7 +2744,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3330,7 +3330,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3356,7 +3356,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3379,7 +3379,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3405,7 +3405,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3428,7 +3428,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3451,7 +3451,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3474,7 +3474,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3497,7 +3497,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3520,7 +3520,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3546,7 +3546,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3569,7 +3569,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3592,7 +3592,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3618,7 +3618,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3641,7 +3641,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3664,7 +3664,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3687,7 +3687,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3710,7 +3710,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3733,7 +3733,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3756,7 +3756,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3779,7 +3779,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3802,7 +3802,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3841,7 +3841,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3864,7 +3864,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3887,7 +3887,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3910,7 +3910,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3933,7 +3933,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3956,7 +3956,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -3979,7 +3979,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4002,7 +4002,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4025,7 +4025,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4048,7 +4048,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4071,7 +4071,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4094,7 +4094,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4117,7 +4117,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4140,7 +4140,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4163,7 +4163,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4186,7 +4186,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4209,7 +4209,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4232,7 +4232,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4255,7 +4255,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4278,7 +4278,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4301,7 +4301,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4324,7 +4324,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4390,7 +4390,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4413,7 +4413,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4436,7 +4436,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4459,7 +4459,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4482,7 +4482,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4505,7 +4505,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4529,7 +4529,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4613,7 +4613,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4676,7 +4676,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4715,7 +4715,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4739,7 +4739,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4763,7 +4763,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4787,7 +4787,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4811,7 +4811,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4851,7 +4851,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4875,7 +4875,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4915,7 +4915,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4940,7 +4940,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -4982,7 +4982,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5005,7 +5005,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5028,7 +5028,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5051,7 +5051,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5074,7 +5074,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5097,7 +5097,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5120,7 +5120,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5143,7 +5143,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5166,7 +5166,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5189,7 +5189,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5212,7 +5212,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5251,7 +5251,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5312,7 +5312,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5336,7 +5336,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5359,7 +5359,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5384,7 +5384,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5408,7 +5408,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5431,7 +5431,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5456,7 +5456,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5480,7 +5480,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5504,7 +5504,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5528,7 +5528,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5552,7 +5552,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5575,7 +5575,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5600,7 +5600,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5625,7 +5625,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5650,7 +5650,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5675,7 +5675,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5700,7 +5700,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5723,7 +5723,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5844,7 +5844,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",
@@ -5867,7 +5867,7 @@
     },
     {
       "actor_source": "current authenticated subject",
-      "auth": "api-key",
+      "auth": "cookie-jwt-or-api-key",
       "dependencies": [
         "fastapi.security.api_key.APIKeyHeader",
         "fastapi.security.api_key.APIKeyQuery",

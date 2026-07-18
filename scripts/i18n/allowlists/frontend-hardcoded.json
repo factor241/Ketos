@@ -6,18 +6,18 @@
     "scope": [
       "src/frontend/src/**/*.{ts,tsx,js,jsx}"
     ],
-    "raw_candidate_count": 105,
+    "raw_candidate_count": 97,
     "ast_jsx_text_candidate_count": 66,
     "ast_visible_attribute_candidate_count": 22,
     "policy": "Committed AST baselines are evidence only. Every current candidate must be localized, classified as active debt, or present in the exact reviewed allowlist.",
-    "reproduced_raw_candidate_count": 105,
-    "reproduced_candidate_file_count": 48,
+    "reproduced_raw_candidate_count": 97,
+    "reproduced_candidate_file_count": 44,
     "ast_production_file_count": 1598,
     "triage_counts": {
-      "allowlist_exact": 18,
+      "allowlist_exact": 14,
       "already_semantic_key": 17,
       "false_positive_scanner": 55,
-      "machine_contract": 15,
+      "machine_contract": 11,
       "semantic_key_required": 0
     },
     "static_html_scope": [
@@ -27,6 +27,48 @@
     "ast_contract_captured_on": "2026-07-12"
   },
   "entries": [
+    {
+      "path": "src/frontend/src/components/common/ketos-mcp-composition.tsx",
+      "value": "MCP",
+      "reason": "Exact protocol mark; the surrounding system-owned prose remains translatable.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-15"
+    },
+    {
+      "path": "src/frontend/src/constants/languages.ts",
+      "value": "ru",
+      "reason": "Exact supported locale code returned by locale normalization; it is a machine-facing identifier.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-15"
+    },
+    {
+      "path": "src/frontend/src/modals/apiModal/utils/get-js-api-code.tsx",
+      "value": "${authSection}const crypto = require('crypto'); const fs = require('fs'); const path = require('path'); const BASE_URL = \"${baseUrl}\"; const FLOW_ID = \"${flowId}\"; const protocol = new URL(BASE_URL).protocol; const httpModule = protocol === 'https:' ? require('https') : require('http'); // Helper function to create multipart form data function createFormData(filePath) { const boundary = '----FormBoundary' + Date.now(); const filename = path.basename(filePath); if (!fs.existsSync(filePath)) { throw new Error(\\`File not found: \\${filePath}\\`); } const fileData = fs.readFileSync(filePath); let data = ''; data += \\`--\\${boundary}\\\\r\\\\n\\`; data += \\`Content-Disposition: form-data; name=\"file\"; filename=\"\\${filename}\"\\\\r\\\\n\\`; data += \\`Content-Type: application/octet-stream\\\\r\\\\n\\\\r\\\\n\\`; const payload = Buffer.concat([ Buffer.from(data, 'utf8'), fileData, Buffer.from(\\`\\\\r\\\\n--\\${boundary}--\\\\r\\\\n\\`, 'utf8') ]); return { payload, boundary }; } // Helper function to make HTTP requests function makeRequest(options, data) { return new Promise((resolve, reject) => { const req = httpModule.request(options, (res) => { let responseData = ''; res.on('data', (chunk) => { responseData += chunk; }); res.on('end', () => { if (res.statusCode >= 200 && res.statusCode < 300) { try { resolve(JSON.parse(responseData)); } catch (e) { resolve(responseData); } } else { reject(new Error(\\`Request failed with status \\${res.statusCode}: \\${responseData}\\`)); } }); }); req.on('error', reject); if (data) req.write(data); req.end(); }); } async function uploadAndExecuteFlow() { try {${ shouldDisplayApiKey ? ` const apiKey = 'YOUR_API_KEY_HERE'; const authHeaders = { 'x-api-key': apiKey };` : ` const authHeaders = {};` } ${uploadSteps.join(\"\\n\\n\")} // Step ${uploadSteps.length + 1}: Execute flow with all file paths const executePayload = JSON.stringify({ \"output_type\": \"${typeof payload.output_type === \"string\" ? payload.output_type : \"chat\"}\", \"input_type\": \"${typeof payload.input_type === \"string\" ? payload.input_type : \"chat\"}\", \"input_value\": \"${ typeof payload.input_value === \"string\" ? payload.input_value : \"Your message here\" }\", \"session_id\": crypto.randomUUID(), \"tweaks\": { ${allTweaks} } }); const executeOptions = { hostname: '${hostname}', port: ${port}, path: \\`/api/v1/run/${endpointName || flowId}\\`, method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(executePayload),${formatJsHeadersForInline()} ...authHeaders } }; const result = await makeRequest(executeOptions, executePayload); console.log('Flow execution successful!'); console.log(result); } catch (error) { console.error('Error:', error.message); } } uploadAndExecuteFlow();",
+      "reason": "Exact generated API client source code; translating it would corrupt the executable sample.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-15"
+    },
+    {
+      "path": "src/frontend/src/modals/apiModal/utils/get-python-api-code.tsx",
+      "value": "import requests import os import uuid ${authSection}base_url = \"${baseUrl}\" flow_id = \"${flowId}\" ${headersSection} ${uploadSteps.join(\"\\n\\n\")} # Step ${uploadSteps.length + 1}: Execute flow with all file paths payload = { \"output_type\": \"${typeof payload.output_type === \"string\" ? payload.output_type : \"chat\"}\", \"input_type\": \"${typeof payload.input_type === \"string\" ? payload.input_type : \"chat\"}\", \"input_value\": \"${typeof payload.input_value === \"string\" ? payload.input_value : \"Your message here\"}\", \"session_id\": str(uuid.uuid4()), \"tweaks\": { ${allTweaks} } } response = requests.post( f\"{base_url}/api/v1/run/{endpointName or flowId}\", headers={\"Content-Type\": \"application/json\", **headers}, json=payload ) response.raise_for_status() print(response.json())",
+      "reason": "Exact generated API client source code; translating it would corrupt the executable sample.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-15"
+    },
+    {
+      "path": "src/frontend/src/utils/ketos-storage-keys.ts",
+      "value": "ketos-flow-session-${flowId ?? \"unknown\"}",
+      "reason": "Exact browser storage key format; translating it would break persisted application state.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-15"
+    },
+    {
+      "path": "src/frontend/src/utils/ketos-storage-keys.ts",
+      "value": "ketos-table-state-${tableReference}",
+      "reason": "Exact browser storage key format; translating it would break persisted application state.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-15"
+    },
     {
       "path": "src/frontend/index.html",
       "value": "Ketos",
@@ -107,13 +149,6 @@
     {
       "path": "src/frontend/src/components/core/assistantPanel/components/assistant-flow-edit-card.tsx",
       "value": "-&gt;",
-      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
-      "owner": "localization-governance",
-      "review_date": "2026-07-12"
-    },
-    {
-      "path": "src/frontend/src/components/core/assistantPanel/components/assistant-loading-state.tsx",
-      "value": "@keyframes ${animationName} { 0% { stroke-dashoffset: ${length}; opacity: 0; } ${KEYFRAME_FADE_IN_PERCENT}% { opacity: 1; } ${KEYFRAME_FILLED_PERCENT}% { stroke-dashoffset: 0; opacity: 1; } ${KEYFRAME_HOLD_END_PERCENT}% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }",
       "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
       "owner": "localization-governance",
       "review_date": "2026-07-12"
@@ -743,13 +778,6 @@
     },
     {
       "path": "src/frontend/src/constants/languages.ts",
-      "value": "Deutsch",
-      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
-      "owner": "localization-governance",
-      "review_date": "2026-07-11"
-    },
-    {
-      "path": "src/frontend/src/constants/languages.ts",
       "value": "en",
       "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
       "owner": "localization-governance",
@@ -758,27 +786,6 @@
     {
       "path": "src/frontend/src/constants/languages.ts",
       "value": "English",
-      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
-      "owner": "localization-governance",
-      "review_date": "2026-07-11"
-    },
-    {
-      "path": "src/frontend/src/constants/languages.ts",
-      "value": "Español",
-      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
-      "owner": "localization-governance",
-      "review_date": "2026-07-11"
-    },
-    {
-      "path": "src/frontend/src/constants/languages.ts",
-      "value": "Français",
-      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
-      "owner": "localization-governance",
-      "review_date": "2026-07-11"
-    },
-    {
-      "path": "src/frontend/src/constants/languages.ts",
-      "value": "Português",
       "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
       "owner": "localization-governance",
       "review_date": "2026-07-11"
@@ -1331,13 +1338,6 @@
     },
     {
       "path": "src/frontend/src/modals/apiModal/utils/get-js-api-code.tsx",
-      "value": "${authSection}const crypto = require('crypto'); const fs = require('fs'); const path = require('path'); const BASE_URL = \"${baseUrl}\"; const FLOW_ID = \"${flowId}\"; const protocol = new URL(BASE_URL).protocol; const httpModule = protocol === 'https:' ? require('https') : require('http'); // Helper function to create multipart form data function createFormData(filePath) { const boundary = '----FormBoundary' + Date.now(); const filename = path.basename(filePath); if (!fs.existsSync(filePath)) { throw new Error(\\`File not found: \\${filePath}\\`); } const fileData = fs.readFileSync(filePath); let data = ''; data += \\`--\\${boundary}\\\\r\\\\n\\`; data += \\`Content-Disposition: form-data; name=\"file\"; filename=\"\\${filename}\"\\\\r\\\\n\\`; data += \\`Content-Type: application/octet-stream\\\\r\\\\n\\\\r\\\\n\\`; const payload = Buffer.concat([ Buffer.from(data, 'utf8'), fileData, Buffer.from(\\`\\\\r\\\\n--\\${boundary}--\\\\r\\\\n\\`, 'utf8') ]); return { payload, boundary }; } // Helper function to make HTTP requests function makeRequest(options, data) { return new Promise((resolve, reject) => { const req = httpModule.request(options, (res) => { let responseData = ''; res.on('data', (chunk) => { responseData += chunk; }); res.on('end', () => { if (res.statusCode >= 200 && res.statusCode < 300) { try { resolve(JSON.parse(responseData)); } catch (e) { resolve(responseData); } } else { reject(new Error(\\`Request failed with status \\${res.statusCode}: \\${responseData}\\`)); } }); }); req.on('error', reject); if (data) req.write(data); req.end(); }); } async function uploadAndExecuteFlow() { try {${ shouldDisplayApiKey ? ` const apiKey = 'YOUR_API_KEY_HERE'; const authHeaders = { 'x-api-key': apiKey };` : ` const authHeaders = {};` } ${uploadSteps.join(\"\\n\\n\")} // Step ${uploadSteps.length + 1}: Execute flow with all file paths const executePayload = JSON.stringify({ \"output_type\": \"${processedPayload.output_type || \"chat\"}\", \"input_type\": \"${processedPayload.input_type || \"chat\"}\", \"input_value\": \"${ processedPayload.input_value || \"Your message here\" }\", \"session_id\": crypto.randomUUID(), \"tweaks\": { ${allTweaks} } }); const executeOptions = { hostname: '${hostname}', port: ${port}, path: \\`/api/v1/run/${endpointName || flowId}\\`, method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(executePayload),${formatJsHeadersForInline()} ...authHeaders } }; const result = await makeRequest(executeOptions, executePayload); console.log('Flow execution successful!'); console.log(result); } catch (error) { console.error('Error:', error.message); } } uploadAndExecuteFlow();",
-      "reason": "Exact generated code or CLI sample syntax; translated surrounding UI remains outside the sample contract.",
-      "owner": "localization-governance",
-      "review_date": "2026-07-12"
-    },
-    {
-      "path": "src/frontend/src/modals/apiModal/utils/get-js-api-code.tsx",
       "value": "${authSection}const payload = ${payloadString}; payload.session_id = crypto.randomUUID(); const options = { method: 'POST', ${headersSection} body: JSON.stringify(payload) }; fetch('${apiUrl}', options) .then(response => response.json()) .then(response => console.warn(response)) .catch(err => console.error(err));",
       "reason": "Exact generated code or CLI sample syntax; translated surrounding UI remains outside the sample contract.",
       "owner": "localization-governance",
@@ -1346,13 +1346,6 @@
     {
       "path": "src/frontend/src/modals/apiModal/utils/get-python-api-code.tsx",
       "value": "import requests import os import uuid ${authSection} url = \"${apiUrl}\" # The complete API endpoint URL for this flow # Request payload configuration payload = ${payloadString} payload[\"session_id\"] = str(uuid.uuid4()) ${headersSection} try: # Send API request response = requests.request(\"POST\", url, json=payload, headers=headers) response.raise_for_status() # Raise exception for bad status codes # Print response print(response.text) except requests.exceptions.RequestException as e: print(f\"Error making API request: {e}\") except ValueError as e: print(f\"Error parsing response: {e}\")",
-      "reason": "Exact generated code or CLI sample syntax; translated surrounding UI remains outside the sample contract.",
-      "owner": "localization-governance",
-      "review_date": "2026-07-12"
-    },
-    {
-      "path": "src/frontend/src/modals/apiModal/utils/get-python-api-code.tsx",
-      "value": "import requests import os import uuid ${authSection}base_url = \"${baseUrl}\" flow_id = \"${flowId}\" ${headersSection} ${uploadSteps.join(\"\\n\\n\")} # Step ${uploadSteps.length + 1}: Execute flow with all file paths payload = { \"output_type\": \"${processedPayload.output_type || \"chat\"}\", \"input_type\": \"${processedPayload.input_type || \"chat\"}\", \"input_value\": \"${processedPayload.input_value || \"Your message here\"}\", \"session_id\": str(uuid.uuid4()), \"tweaks\": { ${allTweaks} } } response = requests.post( f\"{base_url}/api/v1/run/{endpointName or flowId}\", headers={\"Content-Type\": \"application/json\", **headers}, json=payload ) response.raise_for_status() print(response.json())",
       "reason": "Exact generated code or CLI sample syntax; translated surrounding UI remains outside the sample contract.",
       "owner": "localization-governance",
       "review_date": "2026-07-12"
@@ -1853,20 +1846,6 @@
       "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
       "owner": "localization-governance",
       "review_date": "2026-07-12"
-    },
-    {
-      "path": "src/frontend/src/pages/MainPage/pages/empty-page.tsx",
-      "value": "Discord",
-      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
-      "owner": "localization-governance",
-      "review_date": "2026-07-11"
-    },
-    {
-      "path": "src/frontend/src/pages/MainPage/pages/empty-page.tsx",
-      "value": "GitHub",
-      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
-      "owner": "localization-governance",
-      "review_date": "2026-07-11"
     },
     {
       "path": "src/frontend/src/pages/MainPage/pages/homePage/components/McpJsonContent.tsx",
@@ -2562,38 +2541,6 @@
       "ast_evidence": []
     },
     {
-      "candidate_id": "2d6932535d95",
-      "path": "src/frontend/src/constants/dbProviderConstants.ts",
-      "line": 136,
-      "source_excerpt": "placeholder: \"https://search.example.com:9200\",",
-      "disposition": "machine_contract",
-      "owner": "platform-contracts",
-      "reason": "Source evidence identifies an icon or key name, command, URL, credential prefix, scope, or machine-format example; translating it would alter or misrepresent a machine-facing value.",
-      "ast_evidence": [
-        {
-          "kind": "visible_object_property",
-          "value": "https://search.example.com:9200",
-          "property": "placeholder"
-        }
-      ]
-    },
-    {
-      "candidate_id": "6f250fb8a1d6",
-      "path": "src/frontend/src/constants/dbProviderConstants.ts",
-      "line": 151,
-      "source_excerpt": "placeholder: \"admin\",",
-      "disposition": "machine_contract",
-      "owner": "platform-contracts",
-      "reason": "Source evidence identifies an icon or key name, command, URL, credential prefix, scope, or machine-format example; translating it would alter or misrepresent a machine-facing value.",
-      "ast_evidence": [
-        {
-          "kind": "visible_object_property",
-          "value": "admin",
-          "property": "placeholder"
-        }
-      ]
-    },
-    {
       "candidate_id": "42f5d321845d",
       "path": "src/frontend/src/controllers/API/api.tsx",
       "line": 294,
@@ -2879,21 +2826,6 @@
       "owner": "localization-tooling",
       "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
       "ast_evidence": []
-    },
-    {
-      "candidate_id": "360a20b41c71",
-      "path": "src/frontend/src/modals/modelProviderModal/components/ProviderConfigurationForm.tsx",
-      "line": 74,
-      "source_excerpt": "if (providerLower.includes(\"google\")) return \"AIza...\";",
-      "disposition": "machine_contract",
-      "owner": "platform-contracts",
-      "reason": "Source evidence identifies an icon or key name, command, URL, credential prefix, scope, or machine-format example; translating it would alter or misrepresent a machine-facing value.",
-      "ast_evidence": [
-        {
-          "kind": "returned_display_string",
-          "value": "AIza..."
-        }
-      ]
     },
     {
       "candidate_id": "a5a4b48bce35",
@@ -3218,38 +3150,6 @@
       "ast_evidence": []
     },
     {
-      "candidate_id": "7d3eb3c8806c",
-      "path": "src/frontend/src/pages/MainPage/pages/empty-page.tsx",
-      "line": 111,
-      "source_excerpt": "<span className=\"font-semibold\">GitHub</span>",
-      "disposition": "allowlist_exact",
-      "owner": "localization-governance",
-      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
-      "ast_evidence": [
-        {
-          "kind": "jsx_text",
-          "value": "GitHub"
-        }
-      ],
-      "allowlist_value": "GitHub"
-    },
-    {
-      "candidate_id": "0124321da325",
-      "path": "src/frontend/src/pages/MainPage/pages/empty-page.tsx",
-      "line": 141,
-      "source_excerpt": "<span className=\"font-semibold\">Discord</span>",
-      "disposition": "allowlist_exact",
-      "owner": "localization-governance",
-      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
-      "ast_evidence": [
-        {
-          "kind": "jsx_text",
-          "value": "Discord"
-        }
-      ],
-      "allowlist_value": "Discord"
-    },
-    {
       "candidate_id": "0e65578337de",
       "path": "src/frontend/src/pages/MainPage/pages/homePage/components/McpJsonContent.tsx",
       "line": 165,
@@ -3489,55 +3389,6 @@
       "owner": "localization-tooling",
       "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
       "ast_evidence": []
-    },
-    {
-      "candidate_id": "b16110d3af01",
-      "path": "src/frontend/src/pages/SettingsPage/pages/McpClientPage/index.tsx",
-      "line": 12,
-      "source_excerpt": "{ id: \"bob\", title: \"Bob (IBM)\", icon: \"Bot\" },",
-      "disposition": "allowlist_exact",
-      "owner": "localization-governance",
-      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
-      "ast_evidence": [
-        {
-          "kind": "visible_object_property",
-          "value": "Bob (IBM)",
-          "property": "title"
-        }
-      ],
-      "allowlist_value": "Bob (IBM)"
-    },
-    {
-      "candidate_id": "f3fe9770d6a4",
-      "path": "src/frontend/src/pages/SettingsPage/pages/McpClientPage/index.tsx",
-      "line": 13,
-      "source_excerpt": "{ id: \"claude-code\", title: \"Claude Code\", icon: \"Terminal\" },",
-      "disposition": "allowlist_exact",
-      "owner": "localization-governance",
-      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
-      "ast_evidence": [
-        {
-          "kind": "visible_object_property",
-          "value": "Claude Code",
-          "property": "title"
-        }
-      ],
-      "allowlist_value": "Claude Code"
-    },
-    {
-      "candidate_id": "49364cb7f6dd",
-      "path": "src/frontend/src/pages/SettingsPage/pages/McpClientPage/index.tsx",
-      "line": 201,
-      "source_excerpt": "<code className=\"font-semibold\">login</code>{\" \"}",
-      "disposition": "machine_contract",
-      "owner": "platform-contracts",
-      "reason": "Source evidence identifies an icon or key name, command, URL, credential prefix, scope, or machine-format example; translating it would alter or misrepresent a machine-facing value.",
-      "ast_evidence": [
-        {
-          "kind": "jsx_text",
-          "value": "login"
-        }
-      ]
     },
     {
       "candidate_id": "8720c42208f1",

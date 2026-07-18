@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "raytsystem-toolhub": {
+      "command": "/Volumes/Projects/ketos_canvas_mod_main/scripts/claude/ketos-claude-mcp",
+      "args": [
+        "raytsystem-toolhub"
+      ]
+    }
+  }
+}

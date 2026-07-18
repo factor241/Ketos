@@ -13,6 +13,7 @@ import {
   shouldRecordFallback,
 } from "./i18n-diagnostics";
 import en from "./locales/en.json";
+import ru from "./locales/ru.json";
 
 export const detectedLang = normalizeLanguage(
   typeof localStorage === "undefined"
@@ -65,8 +66,10 @@ i18n
     showSupportNotice: false,
     resources: {
       en: { translation: en },
+      ru: { translation: ru },
     },
     lng: DEFAULT_LANGUAGE,
+    // English intentionally remains the technical fallback for missing Russian keys.
     fallbackLng: strictRuI18nTestMode ? false : "en",
     saveMissing: strictRuI18nTestMode,
     missingKeyHandler: (languages, _namespace, key) => {
@@ -99,7 +102,6 @@ function canonicalI18nextLanguageCode(language: string): string {
 export async function loadLanguage(lang: string): Promise<void> {
   const definition = getLanguageDefinition(lang);
   const { code } = definition;
-  if (code === DEFAULT_LANGUAGE) return;
   const resourceLanguage = canonicalI18nextLanguageCode(code);
   if (i18n.hasResourceBundle(resourceLanguage, "translation")) return;
   try {

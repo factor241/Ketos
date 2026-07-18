@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type KetosPage, test } from "../../fixtures";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
+import { RUSSIAN_OPTION_NAME } from "../../utils/localization-option-names";
 
 type Theme = "light" | "dark";
 type UiLocale = "ru" | "qps-ploc";
@@ -95,7 +96,7 @@ async function expectSuccessfulLocaleProfileUpdate(
 async function ensureRussian(page: KetosPage): Promise<void> {
   await openLanguageSettings(page, "ru");
   if ((await page.locator("html").getAttribute("lang")) !== "ru") {
-    await selectOption(page, /^Русский$/, "ru");
+    await selectOption(page, RUSSIAN_OPTION_NAME, "ru");
   }
   await expect(page.locator("html")).toHaveAttribute("lang", "ru");
   await expect(page.getByTestId("settings-language-heading")).toHaveText(
@@ -120,9 +121,7 @@ async function ensurePseudo(page: KetosPage): Promise<void> {
   );
 }
 
-async function focusLanguageSelectWithKeyboard(
-  page: KetosPage,
-): Promise<void> {
+async function focusLanguageSelectWithKeyboard(page: KetosPage): Promise<void> {
   await page.getByTestId("settings-language-heading").click();
   const select = page.getByTestId("language-preference-select");
 
@@ -143,8 +142,7 @@ async function focusLanguageSelectWithKeyboard(
 
 async function setTheme(page: KetosPage, theme: Theme): Promise<void> {
   await page.evaluate((nextTheme) => {
-    localStorage.setItem("themePreference", nextTheme);
-    localStorage.setItem("isDark", String(nextTheme === "dark"));
+    localStorage.setItem("ketos-theme-preference", nextTheme);
   }, theme);
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByTestId("settings-language-page")).toBeVisible({
@@ -384,7 +382,9 @@ test.describe("Russian localization visual and accessibility gates", () => {
       await expect(page.locator("html")).toHaveAttribute("lang", "en");
       await focusLanguageSelectWithKeyboard(page);
       await page.keyboard.press("Space");
-      const russianOption = page.getByRole("option", { name: "Русский" });
+      const russianOption = page.getByRole("option", {
+        name: RUSSIAN_OPTION_NAME,
+      });
       await expect(russianOption).toBeVisible();
       const profileUpdate = waitForLocaleProfileUpdate(page);
       await russianOption.press("Enter");

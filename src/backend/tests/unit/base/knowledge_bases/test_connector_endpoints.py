@@ -82,7 +82,9 @@ class TestConnectorIngest:
             json={"source_type": "nonsense", "source_config": {}},
         )
         assert response.status_code == 400
-        assert "nonsense" in response.json()["detail"].lower()
+        assert response.json()["code"] == "request.bad_request"
+        assert response.json()["detail"] == "Bad request."
+        assert "nonsense" not in response.text
 
     @pytest.mark.parametrize("source_type", _STUBBED_SOURCE_TYPES)
     @patch("ketos.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
@@ -239,7 +241,9 @@ class TestFolderIngest:
         )
 
         assert response.status_code == 400
-        assert "outside the configured allow-list" in response.json()["detail"]
+        assert response.json()["code"] == "request.bad_request"
+        assert response.json()["detail"] == "Bad request."
+        assert "allow-list" not in response.text
         mock_job_service.assert_not_called()
 
     @patch("ketos.api.v1.knowledge_bases.KBAnalysisHelper.get_metadata")
@@ -288,10 +292,9 @@ class TestFolderIngest:
         )
 
         assert response.status_code == 400, response.text
-        # Assert the *specific* empty-allow-list message so the test pins the
-        # regression path (real Settings → empty default → actionable 400) rather
-        # than the generic substring shared with the "outside the allow-list" branch.
-        assert "Configure KETOS_KB_ALLOWED_FOLDER_ROOTS" in response.json()["detail"]
+        assert response.json()["code"] == "request.bad_request"
+        assert response.json()["detail"] == "Bad request."
+        assert "KETOS_KB_ALLOWED_FOLDER_ROOTS" not in response.text
 
     async def test_folder_ingest_rejects_unbounded_chunk_parameters(self, client: AsyncClient, logged_in_headers):
         response = await client.post(

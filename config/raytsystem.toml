@@ -1,0 +1,214 @@
+schema_version = "1.4.0"
+environment = "development"
+default_promotion_mode = "manual"
+control_db = "ops/control.sqlite"
+index_db = ".raytsystem/index.sqlite"
+
+[documents]
+index_db = ".raytsystem/documents.sqlite"
+max_files = 100000
+max_file_bytes = 5242880
+max_total_bytes = 2147483648
+search_page_size = 50
+allow_maintainer_docs_write = false
+
+[[documents.roots]]
+id = "manual"
+path = "knowledge/manual"
+mode = "read_write"
+kind = "notes"
+
+[[documents.roots]]
+id = "ketos-docs"
+path = "docs"
+mode = "read_only"
+kind = "documentation"
+
+[[documents.roots]]
+id = "ketos-source"
+path = "src"
+mode = "read_only"
+kind = "software"
+
+[[documents.roots]]
+id = "langflow-reference"
+path = "references/langflow-upstream"
+mode = "read_only"
+kind = "upstream-reference"
+
+[[documents.roots]]
+id = "raytsystem-docs"
+path = "raytsystem/docs"
+mode = "read_only"
+kind = "documentation"
+
+[code_graph]
+path = ".raytsystem/graph"
+roots = [
+  "src/backend/base/ketos/agentic",
+  "src/backend/base/ketos/alembic",
+  "src/backend/base/ketos/api",
+  "src/backend/base/ketos/base",
+  "src/backend/base/ketos/brand_state",
+  "src/backend/base/ketos/cli",
+  "src/backend/base/ketos/core",
+  "src/backend/base/ketos/custom",
+  "src/backend/base/ketos/events",
+  "src/backend/base/ketos/exceptions",
+  "src/backend/base/ketos/field_typing",
+  "src/backend/base/ketos/graph",
+  "src/backend/base/ketos/helpers",
+  "src/backend/base/ketos/initial_setup",
+  "src/backend/base/ketos/inputs",
+  "src/backend/base/ketos/interface",
+  "src/backend/base/ketos/io",
+  "src/backend/base/ketos/load",
+  "src/backend/base/ketos/locales",
+  "src/backend/base/ketos/logging",
+  "src/backend/base/ketos/processing",
+  "src/backend/base/ketos/schema",
+  "src/backend/base/ketos/serialization",
+  "src/backend/base/ketos/services",
+  "src/backend/base/ketos/template",
+  "src/backend/base/ketos/tests",
+  "src/backend/base/ketos/type_extraction",
+  "src/backend/base/ketos/utils",
+  "src/frontend/src",
+  "src/kfx/src/kfx/base",
+  "src/kfx/src/kfx/cli",
+  "src/kfx/src/kfx/components",
+  "src/kfx/src/kfx/config",
+  "src/kfx/src/kfx/custom",
+  "src/kfx/src/kfx/events",
+  "src/kfx/src/kfx/exceptions",
+  "src/kfx/src/kfx/extension",
+  "src/kfx/src/kfx/field_typing",
+  "src/kfx/src/kfx/graph",
+  "src/kfx/src/kfx/helpers",
+  "src/kfx/src/kfx/inputs",
+  "src/kfx/src/kfx/interface",
+  "src/kfx/src/kfx/io",
+  "src/kfx/src/kfx/load",
+  "src/kfx/src/kfx/log",
+  "src/kfx/src/kfx/logging",
+  "src/kfx/src/kfx/mcp",
+  "src/kfx/src/kfx/memory",
+  "src/kfx/src/kfx/processing",
+  "src/kfx/src/kfx/run",
+  "src/kfx/src/kfx/schema",
+  "src/kfx/src/kfx/serialization",
+  "src/kfx/src/kfx/services",
+  "src/kfx/src/kfx/template",
+  "src/kfx/src/kfx/templates",
+  "src/kfx/src/kfx/testing",
+  "src/kfx/src/kfx/tests",
+  "src/kfx/src/kfx/type_extraction",
+  "src/kfx/src/kfx/upgrade",
+  "src/kfx/src/kfx/utils",
+  "src/bundles",
+  "scripts",
+  "docs/localization/ru",
+  "docs/superpowers/specs",
+  "docs/superpowers/plans",
+]
+files = [
+  "AGENTS.md",
+  "README.md",
+  "DEVELOPMENT.md",
+  "DESIGN.md",
+  "SECURITY.md",
+  "BUNDLE_API.md",
+  "pyproject.toml",
+  "package.json",
+  ".pre-commit-config.yaml",
+  "01_KETOS_REQUIREMENTS.md",
+  "02_KETOS_CURRENT_ARCHITECTURE_AUDIT.md",
+  "03_OPENSWARM_REUSE_ASSESSMENT.md",
+  "04_KETOS_CRITICAL_ARCHITECTURE_REPORT.md",
+  "05_KETOS_IMPLEMENTATION_PLAN.md",
+  "06_SUBAGENT_RESEARCH_LOG.md",
+  "07_TOOL_USAGE_AND_EVIDENCE.md",
+  "RAYTSYSTEM_KETOS_INTEGRATION_REPORT.md",
+  "RAYTSYSTEM_KETOS_CONFIGURATION_REPORT.md",
+  "docs/RAYTSYSTEM.md",
+  "src/backend/base/ketos/__init__.py",
+  "src/backend/base/ketos/__main__.py",
+  "src/backend/base/ketos/alembic.ini",
+  "src/backend/base/ketos/ketos_launcher.py",
+  "src/backend/base/ketos/main.py",
+  "src/backend/base/ketos/memory.py",
+  "src/backend/base/ketos/middleware.py",
+  "src/backend/base/ketos/plugin_routes.py",
+  "src/backend/base/ketos/preload.py",
+  "src/backend/base/ketos/server.py",
+  "src/backend/base/ketos/settings.py",
+  "src/backend/base/ketos/worker.py",
+  "src/kfx/src/kfx/__init__.py",
+  "src/kfx/src/kfx/__main__.py",
+  "src/kfx/src/kfx/brand_env.py",
+  "src/kfx/src/kfx/constants.py",
+  "src/kfx/src/kfx/settings.py",
+  "src/kfx/src/kfx/type_extraction.py",
+]
+max_files = 7000
+max_file_bytes = 2097152
+max_total_bytes = 268435456
+max_nodes = 150000
+max_edges = 500000
+universe_max_nodes = 2500
+universe_max_edges = 12000
+query_max_nodes = 120
+query_max_edges = 360
+query_max_bytes = 96000
+parser_timeout_seconds = 20
+
+[features]
+code_graph_enabled = true
+graph_first_query_enabled = true
+digital_employees_enabled = true
+task_workspaces_enabled = true
+runtime_execution_enabled = false
+codex_local_enabled = false
+claude_local_enabled = false
+heartbeats_enabled = true
+scheduled_heartbeats_enabled = false
+
+[execution]
+workspaces_root = ".raytsystem/workspaces"
+lease_ttl_seconds = 60
+lease_renewal_seconds = 20
+max_run_seconds = 3600
+cancel_grace_seconds = 5
+max_output_bytes = 4194304
+max_transcript_events = 10000
+max_context_bytes = 96000
+max_concurrent_runs = 2
+
+[paths]
+raw = "_raw"
+normalized = "normalized"
+ledger = "ledger"
+knowledge = "knowledge"
+runs = "ops/runs"
+staging = "ops/staging"
+locks = "ops/locks"
+
+[fixtures]
+root = "tests/fixtures"
+manifest = "tests/fixtures/manifest.json"
+require_manifest = true
+
+[git]
+checkpoint_on_promotion = true
+
+[limits]
+max_input_bytes = 26214400
+max_url_chars = 4096
+max_header_bytes = 65536
+max_redirects = 5
+fetch_timeout_seconds = 30
+connect_timeout_seconds = 5
+read_timeout_seconds = 15
+max_dns_answers = 16
+lease_ttl_seconds = 60
+hot_page_max_items = 50

@@ -1,7 +1,7 @@
 import { formatSeconds } from "../format";
 
 const seconds = (value: number) =>
-  new Intl.NumberFormat("en-US", {
+  new Intl.NumberFormat("ru-RU", {
     style: "unit",
     unit: "second",
     unitDisplay: "short",

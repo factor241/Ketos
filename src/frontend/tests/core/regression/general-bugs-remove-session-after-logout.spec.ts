@@ -59,7 +59,7 @@ test(
       sessionStorage.setItem("testMockAutoLogin", "true");
     });
 
-    await page.getByText(TEXTS.logout, { exact: true }).click();
+    await page.getByTestId("menu_logout_button").click();
 
     await page.waitForTimeout(1000);
 

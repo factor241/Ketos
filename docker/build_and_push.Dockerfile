@@ -12,8 +12,6 @@
 FROM ghcr.io/astral-sh/uv:python3.14-trixie-slim AS builder
 ARG NODE_VERSION=22.14.0
 ARG NPM_VERSION=10.9.2
-ARG VITE_ENABLE_RUSSIAN_LOCALE=true
-ENV VITE_ENABLE_RUSSIAN_LOCALE=${VITE_ENABLE_RUSSIAN_LOCALE}
 
 # Install the project into `/app`
 WORKDIR /app

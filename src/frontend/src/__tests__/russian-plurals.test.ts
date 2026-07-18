@@ -48,8 +48,8 @@ describe("Russian cardinal plurals", () => {
     });
   });
 
-  it("covers all 37 source plural groups with one/few/many/other", () => {
-    expect(groups).toHaveLength(37);
+  it("covers all 36 source plural groups with one/few/many/other", () => {
+    expect(groups).toHaveLength(36);
     for (const base of groups) {
       for (const category of REQUIRED_CATEGORIES) {
         expect(target[`${base}_${category}`]).toEqual(expect.any(String));

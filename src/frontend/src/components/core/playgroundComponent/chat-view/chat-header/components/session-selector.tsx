@@ -141,7 +141,11 @@ export function SessionSelector({
               }}
               className="cursor-pointer flex items-center justify-center w-4 h-8 flex-shrink-0"
               data-testid={`session-${session}-checkbox`}
-              aria-label={isSelected ? "Deselect session" : "Select session"}
+              aria-label={
+                isSelected
+                  ? t("playgroundComponent.deselectSession")
+                  : t("playgroundComponent.selectSession")
+              }
             >
               {/* The 16x16 column is always reserved so the row layout
                   does not jump. The icon itself is hidden by default and

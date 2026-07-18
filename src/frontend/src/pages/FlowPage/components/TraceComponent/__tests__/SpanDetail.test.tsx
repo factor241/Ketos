@@ -54,7 +54,15 @@ describe("SpanDetail", () => {
     expect(screen.getByText("Completion")).toBeInTheDocument();
     expect(screen.getByText("20")).toBeInTheDocument();
     expect(screen.getByText("Estimated Cost")).toBeInTheDocument();
-    expect(screen.getByText("$0.5000")).toBeInTheDocument();
+    const expectedCost = new Intl.NumberFormat("ru-RU", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 4,
+    }).format(0.5);
+    expect(
+      screen.getByText("Estimated Cost").nextElementSibling?.textContent,
+    ).toBe(expectedCost);
 
     const codeBlocks = screen.getAllByTestId("code-tab");
     expect(codeBlocks[0]).toHaveTextContent('"foo": "bar"');
@@ -193,7 +201,7 @@ describe("SpanDetail", () => {
     expect(screen.getAllByText("Error").length).toBeGreaterThan(0);
     expect(screen.getByTestId("flow-log-status-error")).toHaveAttribute(
       "aria-label",
-      "Error",
+      "Ошибка",
     );
   });
 });

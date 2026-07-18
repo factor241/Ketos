@@ -14,24 +14,24 @@ if TYPE_CHECKING:
 @pytest.mark.parametrize(
     ("accept_language", "expected"),
     [
-        (None, "en"),
-        ("", "en"),
+        (None, "ru"),
+        ("", "ru"),
         ("ru", "ru"),
         ("ru-RU", "ru"),
         ("RU-ru", "ru"),
-        ("fr-FR,ru;q=0.9,en;q=0.8", "fr"),
+        ("fr-FR,ru;q=0.9,en;q=0.8", "ru"),
         ("ru;q=1,en;q=0.5", "ru"),
         ("fr;q=0.2,ru;q=0.9", "ru"),
         ("unsupported;q=1,ru;q=0.9", "ru"),
         ("ru;q=0,en;q=0.5", "en"),
         ("ru;q=invalid,en;q=0.5", "en"),
-        ("zh", "zh-Hans"),
-        ("zh-CN", "zh-Hans"),
-        ("zh-hans", "zh-Hans"),
-        ("zh-TW", "en"),
-        ("zh-Hant", "en"),
-        ("*", "en"),
-        ("unsupported", "en"),
+        ("zh", "ru"),
+        ("zh-CN", "ru"),
+        ("zh-hans", "ru"),
+        ("zh-TW", "ru"),
+        ("zh-Hant", "ru"),
+        ("*", "ru"),
+        ("unsupported", "ru"),
     ],
 )
 def test_resolve_accept_language_uses_weights_aliases_and_safe_fallback(
@@ -49,10 +49,10 @@ async def test_locale_middleware_sets_content_language_for_accept_language_matri
         ({"Accept-Language": "ru"}, "ru"),
         ({"Accept-Language": "ru-RU"}, "ru"),
         ({"Accept-Language": "RU-ru"}, "ru"),
-        ({"Accept-Language": "fr-FR,ru;q=0.9,en;q=0.8"}, "fr"),
+        ({"Accept-Language": "fr-FR,ru;q=0.9,en;q=0.8"}, "ru"),
         ({"Accept-Language": "ru;q=1,en;q=0.5"}, "ru"),
-        ({"Accept-Language": "unsupported"}, "en"),
-        ({}, "en"),
+        ({"Accept-Language": "unsupported"}, "ru"),
+        ({}, "ru"),
     ]
 
     for headers, expected in matrix:

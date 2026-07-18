@@ -1,4 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
+import ru from "@/locales/ru.json";
 import type { APITemplateType } from "@/types/api";
 import type { AllNodeType } from "@/types/flow";
 
@@ -325,7 +326,7 @@ describe("refreshAllModelInputs", () => {
     await refreshAllModelInputs(mockQueryClient as any);
 
     expect(mockSetSuccessData).toHaveBeenCalledWith({
-      title: "No model components to refresh",
+      title: ru["errors.noModelsToRefresh"],
     });
   });
 
@@ -386,7 +387,7 @@ describe("refreshAllModelInputs", () => {
     expect(api.post).toHaveBeenCalled();
     expect(mockSetNode).toHaveBeenCalled();
     expect(mockSetSuccessData).toHaveBeenCalledWith({
-      title: "Refreshed 1 model component",
+      title: ru["alerts.modelsRefreshed_one"].replace("{{count}}", "1"),
     });
   });
 
@@ -413,7 +414,7 @@ describe("refreshAllModelInputs", () => {
     await refreshAllModelInputs(mockQueryClient as any);
 
     expect(mockSetSuccessData).toHaveBeenCalledWith({
-      title: "Refreshed 2 model components",
+      title: ru["alerts.modelsRefreshed_other"].replace("{{count}}", "2"),
     });
   });
 
@@ -777,7 +778,7 @@ describe("useRefreshModelInputs", () => {
     });
 
     expect(mockSetSuccessData).toHaveBeenCalledWith({
-      title: "No model components to refresh",
+      title: ru["errors.noModelsToRefresh"],
     });
   });
 

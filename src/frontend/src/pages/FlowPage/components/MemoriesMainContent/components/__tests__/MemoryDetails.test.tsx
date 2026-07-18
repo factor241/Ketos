@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import type { MemoryInfo } from "@/controllers/API/queries/memories/types";
+import ru from "@/locales/ru.json";
 import type { MemoryDetailsProps } from "../../types";
 import { MemoryDetails } from "../MemoryDetails";
 
@@ -355,6 +356,6 @@ describe("MemoryDetails — stat cards session filtering", () => {
         selectedSession="session-abc"
       />,
     );
-    expect(getValueByLabel("Last Generated")).toBe("Never");
+    expect(getValueByLabel("Last Generated")).toBe(ru["memory.never"]);
   });
 });

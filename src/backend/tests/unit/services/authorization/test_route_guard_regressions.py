@@ -85,7 +85,9 @@ def test_upsert_flow_wraps_ensure_in_deny_to_404(flows_routes):
     """upsert_flow must convert ensure_flow_permission 403 to 404 for UUID privacy."""
     func = flows_routes["upsert_flow"]
     src = ast.unparse(func)
-    assert "deny_to_404" in src, "upsert_flow must wrap ensure_flow_permission with deny_to_404"
+    assert "_deny_to_flow_not_found" in src, (
+        "upsert_flow must wrap ensure_flow_permission with the coded flow-not-found helper"
+    )
 
 
 def test_delete_multiple_flows_does_not_unconditionally_prescope(flows_routes):
@@ -109,8 +111,8 @@ def test_download_multiple_file_does_not_unconditionally_prescope(flows_routes):
     assert "supports_cross_user_fetch" in src, (
         "download_multiple_file must gate the owner pre-scope on cross-user-fetch capability"
     )
-    assert "deny_to_404" in src, (
-        "download_multiple_file must convert ensure_flow_permission 403 to 404 for UUID privacy"
+    assert "_deny_to_flow_not_found" in src, (
+        "download_multiple_file must convert ensure_flow_permission 403 to coded 404 for UUID privacy"
     )
 
 

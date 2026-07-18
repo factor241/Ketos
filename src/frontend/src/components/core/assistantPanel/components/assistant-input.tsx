@@ -249,7 +249,7 @@ export function AssistantInput({
         onClick={() => textareaRef.current?.focus()}
         role="button"
         tabIndex={0}
-        aria-label="Focus assistant message input"
+        aria-label={t("playgroundComponent.focusChatInput")}
         onKeyDown={(event) => {
           if (
             event.target === event.currentTarget &&

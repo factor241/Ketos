@@ -1,4 +1,4 @@
-import i18n, { loadLanguage } from "@/i18n";
+import i18n from "@/i18n";
 import {
   downloadJson,
   endOfDay,
@@ -22,25 +22,8 @@ jest.mock("@/utils/dateTime", () => ({
 }));
 
 describe("traceViewHelpers", () => {
-  beforeAll(async () => {
-    await loadLanguage("ru");
-    const additions = JSON.parse(
-      readFileSync(
-        resolve(
-          __dirname,
-          "../../../../../../../../.superpowers/sdd/task-12-locale-additions.json",
-        ),
-        "utf8",
-      ),
-    ) as Record<string, { en: string; ru: string }>;
-    for (const [key, value] of Object.entries(additions)) {
-      i18n.addResource("en", "translation", key, value.en);
-      i18n.addResource("ru", "translation", key, value.ru);
-    }
-  });
-
-  afterEach(async () => {
-    await i18n.changeLanguage("en");
+  beforeEach(async () => {
+    await i18n.changeLanguage("ru");
   });
   describe("downloadJson", () => {
     const originalCreateObjectURL = (
@@ -200,9 +183,9 @@ describe("traceViewHelpers", () => {
 
   describe("getSpanStatusLabel", () => {
     it("maps span statuses to user-facing labels", () => {
-      expect(getSpanStatusLabel("ok")).toBe("Success");
-      expect(getSpanStatusLabel("error")).toBe("Error");
-      expect(getSpanStatusLabel("unset")).toBe("Running...");
+      expect(getSpanStatusLabel("ok")).toBe("Успех");
+      expect(getSpanStatusLabel("error")).toBe("Ошибка");
+      expect(getSpanStatusLabel("unset")).toBe("Выполнение…");
     });
 
     it("localizes presentation labels without changing the raw status", async () => {
@@ -218,7 +201,7 @@ describe("traceViewHelpers", () => {
     it("formats token counts", () => {
       expect(formatTokens(12)).toBe("12");
       expect(formatTokens(1250)).toBe(
-        new Intl.NumberFormat("en-US", {
+        new Intl.NumberFormat("ru-RU", {
           notation: "compact",
           maximumFractionDigits: 1,
         }).format(1250),
@@ -237,17 +220,25 @@ describe("traceViewHelpers", () => {
   describe("getSpanTypeLabel", () => {
     it("returns display labels", () => {
       expect(getSpanTypeLabel("llm")).toBe("LLM");
-      expect(getSpanTypeLabel("tool")).toBe("Tool");
+      expect(getSpanTypeLabel("tool")).toBe("Инструмент");
       expect(getSpanTypeLabel("none")).toBe("");
     });
   });
 
   describe("formatCost", () => {
     it("formats costs with thresholds", () => {
-      expect(formatCost(undefined)).toBe("$0.00");
-      expect(formatCost(0)).toBe("$0.00");
-      expect(formatCost(0.005)).toBe("$0.005000");
-      expect(formatCost(0.12)).toBe("$0.1200");
+      const dollars = (value: number, fractionDigits: number) =>
+        new Intl.NumberFormat("ru-RU", {
+          style: "currency",
+          currency: "USD",
+          minimumFractionDigits: fractionDigits,
+          maximumFractionDigits: fractionDigits,
+        }).format(value);
+
+      expect(formatCost(undefined)).toBe(dollars(0, 2));
+      expect(formatCost(0)).toBe(dollars(0, 2));
+      expect(formatCost(0.005)).toBe(dollars(0.005, 6));
+      expect(formatCost(0.12)).toBe(dollars(0.12, 4));
     });
   });
 
@@ -266,14 +257,14 @@ describe("traceViewHelpers", () => {
   describe("formatTotalLatency", () => {
     it("formats total latency", () => {
       expect(formatTotalLatency(800)).toBe(
-        new Intl.NumberFormat("en-US", {
+        new Intl.NumberFormat("ru-RU", {
           style: "unit",
           unit: "millisecond",
           unitDisplay: "short",
         }).format(800),
       );
       expect(formatTotalLatency(1200)).toBe(
-        new Intl.NumberFormat("en-US", {
+        new Intl.NumberFormat("ru-RU", {
           style: "unit",
           unit: "second",
           unitDisplay: "short",
@@ -299,8 +290,8 @@ describe("traceViewHelpers", () => {
   });
 
   describe("formatIOPreview", () => {
-    it("returns N/A for null", () => {
-      expect(formatIOPreview(null)).toBe("N/A");
+    it("returns the localized unavailable label for null", () => {
+      expect(formatIOPreview(null)).toBe("Нет данных");
     });
 
     it("truncates string input", () => {
@@ -318,14 +309,14 @@ describe("traceViewHelpers", () => {
       expect(formatIOPreview({ nested: { text: "nested" } })).toBe("nested");
     });
 
-    it("returns Empty for empty object", () => {
-      expect(formatIOPreview({})).toBe("Empty");
+    it("returns the localized empty label for an empty object", () => {
+      expect(formatIOPreview({})).toBe("Пусто");
     });
 
-    it("returns fallback on circular data", () => {
+    it("returns the localized fallback on circular data", () => {
       const obj: { self?: unknown } = {};
       obj.self = obj;
-      expect(formatIOPreview(obj)).toBe("[Complex Object]");
+      expect(formatIOPreview(obj)).toBe("[Сложный объект]");
     });
 
     it("localizes only empty-state labels and preserves raw payload text", async () => {
@@ -341,7 +332,7 @@ describe("traceViewHelpers", () => {
 
   describe("formatDateLabel", () => {
     it("formats YYYY-MM-DD as a local date label", () => {
-      const formatter = new Intl.DateTimeFormat("en-US", {
+      const formatter = new Intl.DateTimeFormat("ru-RU", {
         month: "short",
         day: "numeric",
         year: "numeric",
@@ -408,6 +399,3 @@ describe("traceViewHelpers", () => {
     });
   });
 });
-
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";

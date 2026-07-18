@@ -212,7 +212,8 @@ def test_complete_alembic_revision_history_remains_vendored() -> None:
     versions = Path(database_service_module.__file__).resolve().parents[2] / "alembic" / "versions"
     revision_files = sorted(path for path in versions.glob("*.py") if path.name != "__init__.py")
 
-    assert len(revision_files) == 79
+    assert len(revision_files) == 80
+    assert any(path.name == "9a6e34f1c2d8_restrict_preferred_locale_to_ru_en.py" for path in revision_files)
 
 
 @pytest.mark.parametrize(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 
 import tomllib
@@ -8,6 +9,8 @@ import tomllib
 ROOT = Path(__file__).parents[3]
 DOCKERIGNORE = ROOT / ".dockerignore"
 KETOS_BASE_PYPROJECT = ROOT / "src/backend/base/pyproject.toml"
+BACKEND_LOCALE_BASELINE = ROOT / "scripts/i18n/allowlists/backend-locale-debt.json"
+FRONTEND_CONTRACT_BASELINE = ROOT / "scripts/i18n/allowlists/frontend-contract-baseline.json"
 STANDALONE_FRONTEND_DOCKERFILE = ROOT / "docker/frontend/build_and_push_frontend.Dockerfile"
 UNIFIED_DOCKERFILE = ROOT / "docker/build_and_push.Dockerfile"
 HATCHLING_BUILD_REQUIREMENT = "hatchling==1.31.0"
@@ -67,9 +70,19 @@ def test_standalone_frontend_image_uses_reproducible_memory_safe_build() -> None
     assert 'NODE_OPTIONS="--max-old-space-size=4096"' in dockerfile  # noqa: S101
 
 
-def test_frontend_docker_builds_forward_the_russian_locale_rollback_flag() -> None:
+def test_frontend_docker_builds_forbid_removed_russian_locale_rollback_flag() -> None:
+    removed_flag = "_".join(("VITE", "ENABLE", "RUSSIAN", "LOCALE"))  # noqa: FLY002
     for dockerfile_path in (STANDALONE_FRONTEND_DOCKERFILE, UNIFIED_DOCKERFILE):
         dockerfile = dockerfile_path.read_text(encoding="utf-8")
 
-        assert "ARG VITE_ENABLE_RUSSIAN_LOCALE=true" in dockerfile  # noqa: S101
-        assert "ENV VITE_ENABLE_RUSSIAN_LOCALE=${VITE_ENABLE_RUSSIAN_LOCALE}" in dockerfile  # noqa: S101
+        assert removed_flag not in dockerfile  # noqa: S101
+
+
+def test_locale_contract_baselines_only_reference_english_and_russian() -> None:
+    backend = json.loads(BACKEND_LOCALE_BASELINE.read_text(encoding="utf-8"))
+    frontend = json.loads(FRONTEND_CONTRACT_BASELINE.read_text(encoding="utf-8"))
+
+    assert backend["required_locales"] == ["en", "ru"]  # noqa: S101
+    assert set(backend.get("absent_locales", [])) <= {"en", "ru"}  # noqa: S101
+    assert set(backend.get("locale_debt", {})) <= {"en", "ru"}  # noqa: S101
+    assert {entry["locale"] for entry in frontend["issues"]["locales"]} <= {"en", "ru"}  # noqa: S101

@@ -1,0 +1,40 @@
+{
+  "agent_ids": [
+    "agent_builder",
+    "agent_reviewer",
+    "agent_tester",
+    "agent_security_reviewer"
+  ],
+  "description": "raytsystem Software Factory starter workspace.",
+  "eval_suite_ids": [
+    "eval_software_smoke"
+  ],
+  "extensions": {},
+  "id_scheme_version": "1",
+  "manifest_sha256": "4945d422a7172b69d7b2a88af90439d15a4b1b9af65e6a1ae377d4ac8845c388",
+  "name": "Software Factory",
+  "pack_ids": [
+    "pack_software"
+  ],
+  "policy_profile_id": "policy_software",
+  "schema_name": "WorkspaceTemplateV1",
+  "schema_version": "1.4.0",
+  "skill_ids": [
+    "skill_builder",
+    "skill_reviewer",
+    "skill_tester",
+    "skill_security_reviewer"
+  ],
+  "task_template_ids": [
+    "task_software_sample"
+  ],
+  "template_id": "software",
+  "ui_defaults": {
+    "home": "command-center",
+    "systems_section": "workflows"
+  },
+  "version": "1.0.0",
+  "workflow_ids": [
+    "workflow_software"
+  ]
+}

@@ -61,15 +61,11 @@ from ketos.utils.i18n_keys import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_LOCALE = "en"
-SUPPORTED_LOCALES = ("en", "de", "es", "fr", "ja", "pt", "zh-Hans", "ru")
+DEFAULT_LOCALE = "ru"
+SUPPORTED_LOCALES = ("en", "ru")
+_ENGLISH_FALLBACK_LOCALE = "en"
 
 _SUPPORTED_LOCALE_LOOKUP = {locale.casefold(): locale for locale in SUPPORTED_LOCALES}
-_LOCALE_ALIASES = {
-    "zh": "zh-Hans",
-    "zh-cn": "zh-Hans",
-    "zh-sg": "zh-Hans",
-}
 
 _LOCALES_DIR = Path(__file__).parent.parent / "locales"
 
@@ -138,7 +134,7 @@ def _load_translations() -> None:
         if not _LOCALES_DIR.exists():
             return
         for path in _LOCALES_DIR.glob("*.json"):
-            locale_code = path.stem  # "en", "fr", "zh-Hans", etc.
+            locale_code = path.stem  # "en" or "ru"
             try:
                 with path.open(encoding="utf-8") as f:
                     _translations[locale_code] = json.load(f)
@@ -167,7 +163,7 @@ def translate(key: str, locale: str, default: str) -> str:
         requested_base = locale.lower().split("-")[0]
         strict_base = strict_locale.lower().split("-")[0]
         if system_owned and requested_base == strict_base:
-            fallback = "en" if key in _translations.get("en", {}) else "default"
+            fallback = _ENGLISH_FALLBACK_LOCALE if key in _translations.get(_ENGLISH_FALLBACK_LOCALE, {}) else "default"
             diagnostic = {"locale": locale, "key": key, "fallback": fallback}
             diagnostics = _strict_translation_diagnostics.get()
             if diagnostic not in diagnostics:
@@ -175,7 +171,7 @@ def translate(key: str, locale: str, default: str) -> str:
             msg = f"Strict {strict_locale} translation is missing system-owned key {key!r}; fallback={fallback}"
             raise MissingSystemTranslationError(msg)
 
-    result = _translations.get("en", {}).get(key)
+    result = _translations.get(_ENGLISH_FALLBACK_LOCALE, {}).get(key)
     if result is not None:
         return result
 
@@ -199,7 +195,7 @@ def _component_translation_key(
     if not _translations:
         _load_translations()
     specific_key = component_field_key(norm, f"inputs.{field_name}.{field_path}", value)
-    if specific_key in _translations.get("en", {}):
+    if specific_key in _translations.get(_ENGLISH_FALLBACK_LOCALE, {}):
         return specific_key
     return component_field_key(norm, component_dynamic_field_path(field_path), value)
 
@@ -234,7 +230,7 @@ def _translate_dynamic_template(norm: str, dynamic_path: str, locale: str, defau
     if not _translations:
         _load_translations()
     prefix = f"components.{norm}.{dynamic_path}."
-    for key, source_template in _translations.get(DEFAULT_LOCALE, {}).items():
+    for key, source_template in _translations.get(_ENGLISH_FALLBACK_LOCALE, {}).items():
         if not key.startswith(prefix):
             continue
         parameters = _dynamic_template_parameters(source_template, default)
@@ -280,7 +276,7 @@ def _translate_component_field(
         if not isinstance(locales, dict):
             return default
         requested = locales.get(locale)
-        english = locales.get(DEFAULT_LOCALE)
+        english = locales.get(_ENGLISH_FALLBACK_LOCALE)
         requested_catalog = requested if isinstance(requested, dict) else {}
         english_catalog = english if isinstance(english, dict) else {}
         hashed_key = component_field_key(norm, field_path, default)
@@ -296,9 +292,9 @@ def _translate_component_field(
     if dynamic_path is not None:
         if not _translations:
             _load_translations()
-        if key not in _translations.get(DEFAULT_LOCALE, {}):
+        if key not in _translations.get(_ENGLISH_FALLBACK_LOCALE, {}):
             key = component_field_key(norm, dynamic_path, default)
-            if key not in _translations.get(DEFAULT_LOCALE, {}):
+            if key not in _translations.get(_ENGLISH_FALLBACK_LOCALE, {}):
                 templated = _translate_dynamic_template(norm, dynamic_path, locale, default)
                 if templated is not None:
                     return templated
@@ -327,9 +323,9 @@ def _translate_nested_input_presentation(
 def normalize_supported_locale(locale: str | None) -> str | None:
     """Return the canonical supported locale for a language tag, or ``None``.
 
-    User preferences and request headers share this normalizer so their aliases,
-    region handling, and case handling cannot drift. Chinese maps to the shipped
-    ``zh-Hans`` catalog; other supported region tags map to their base language.
+    User preferences and request headers share this normalizer so their region
+    and case handling cannot drift. Supported region tags map to their base
+    language.
     """
     if not isinstance(locale, str):
         return None
@@ -338,10 +334,6 @@ def normalize_supported_locale(locale: str | None) -> str | None:
     if not normalized or normalized == "*":
         return None
 
-    if normalized in _LOCALE_ALIASES:
-        return _LOCALE_ALIASES[normalized]
-    if normalized.startswith("zh-hans-"):
-        return "zh-Hans"
     if normalized in _SUPPORTED_LOCALE_LOOKUP:
         return _SUPPORTED_LOCALE_LOOKUP[normalized]
 
@@ -833,7 +825,7 @@ def translate_component_dict(all_types: dict[str, Any], locale: str) -> dict[str
 
     Args:
         all_types: The cached component dict from get_and_cache_all_types_dict()
-        locale: Normalised locale code e.g. "fr", "zh-Hans"
+        locale: Normalised locale code, either "en" or "ru"
 
     Returns:
         New dict with translated strings; untranslated keys fall back to English.

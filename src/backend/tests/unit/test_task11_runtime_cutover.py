@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import shutil
 import subprocess
-import sys
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -85,7 +85,7 @@ def test_old_http_headers_are_rejected_during_extraction(headers: dict[str, str]
     [
         ("POST", "/api/v1/run/not-a-flow", {}),
         ("POST", "/api/v2/workflows", {}),
-        ("POST", f"/api/v1/mcp/project/{uuid4()}", {}),
+        ("POST", "/api/v1/mcp/project/00000000-0000-4000-8000-000000000011", {}),
     ],
 )
 async def test_old_headers_are_rejected_by_runtime_routes_before_execution(
@@ -230,10 +230,7 @@ async def test_live_redis_key_channel_and_hmac_contract() -> None:
         cancel_message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=2)
         assert cancel_message is not None
 
-        emitted_keys = {
-            key.decode() if isinstance(key, bytes) else key
-            for key in await client.keys(f"*{job_id}*")
-        }
+        emitted_keys = {key.decode() if isinstance(key, bytes) else key for key in await client.keys(f"*{job_id}*")}
         emitted_channels = {channel}
         assert emitted_keys
         assert all(key.startswith("ketos:") for key in emitted_keys)
@@ -287,8 +284,10 @@ print(json.dumps({
 """
     env = os.environ.copy()
     env.pop("STEPFLOW_SERVICE_NAME", None)
+    uv_executable = shutil.which("uv")
+    assert uv_executable is not None, "uv is required to run the ketos-stepflow workspace gate"
     result = subprocess.run(  # noqa: S603
-        [sys.executable, "-c", script],
+        [uv_executable, "run", "--frozen", "--package", "ketos-stepflow", "python", "-c", script],
         cwd=REPO_ROOT,
         env=env,
         check=True,

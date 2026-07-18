@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 import { useSidebar } from "@/components/ui/sidebar";
 import type { AgenticStepType } from "@/controllers/API/queries/agentic";
@@ -84,6 +85,7 @@ function AssistantInputWithScroll({
 }
 
 export function AssistantPanel({ isOpen, onClose }: AssistantPanelProps) {
+  const { t } = useTranslation();
   const { hasEnabledModels } = useEnabledModels();
   const panelRef = useRef<HTMLDivElement>(null);
   // Mirror the FlowPage sidebar's open state. When the sidebar is expanded
@@ -481,7 +483,7 @@ export function AssistantPanel({ isOpen, onClose }: AssistantPanelProps) {
         <div
           data-resize-handle
           role="separator"
-          aria-label="Resize assistant panel from the left"
+          aria-label={t("assistant.resizePanelFromLeft")}
           aria-orientation="vertical"
           className="absolute top-3 bottom-3 -left-[5px] z-30 w-[10px] cursor-ew-resize rounded-full transition-colors hover:bg-primary/20"
           onMouseDown={(e) => handleEdgeResize(e, { x: "left" })}
@@ -490,7 +492,7 @@ export function AssistantPanel({ isOpen, onClose }: AssistantPanelProps) {
         <div
           data-resize-handle
           role="separator"
-          aria-label="Resize assistant panel from the right"
+          aria-label={t("assistant.resizePanelFromRight")}
           aria-orientation="vertical"
           className="absolute top-3 bottom-3 -right-[5px] z-30 w-[10px] cursor-ew-resize rounded-full transition-colors hover:bg-primary/20"
           onMouseDown={(e) => handleEdgeResize(e, { x: "right" })}
@@ -499,7 +501,7 @@ export function AssistantPanel({ isOpen, onClose }: AssistantPanelProps) {
         <div
           data-resize-handle
           role="separator"
-          aria-label="Resize assistant panel from the top"
+          aria-label={t("assistant.resizePanelFromTop")}
           aria-orientation="horizontal"
           className="absolute -top-[5px] right-3 left-3 z-30 h-[10px] cursor-ns-resize rounded-full transition-colors hover:bg-primary/20"
           onMouseDown={(e) => handleEdgeResize(e, { y: "top" })}
@@ -508,7 +510,7 @@ export function AssistantPanel({ isOpen, onClose }: AssistantPanelProps) {
         <div
           data-resize-handle
           role="separator"
-          aria-label="Resize assistant panel from the top left"
+          aria-label={t("assistant.resizePanelFromTopLeft")}
           className="absolute -top-[5px] -left-[5px] z-30 h-[14px] w-[14px] cursor-nw-resize rounded-full transition-colors hover:bg-primary/30"
           onMouseDown={(e) => handleEdgeResize(e, { x: "left", y: "top" })}
         />
@@ -516,7 +518,7 @@ export function AssistantPanel({ isOpen, onClose }: AssistantPanelProps) {
         <div
           data-resize-handle
           role="separator"
-          aria-label="Resize assistant panel from the top right"
+          aria-label={t("assistant.resizePanelFromTopRight")}
           className="absolute -top-[5px] -right-[5px] z-30 h-[14px] w-[14px] cursor-ne-resize rounded-full transition-colors hover:bg-primary/30"
           onMouseDown={(e) => handleEdgeResize(e, { x: "right", y: "top" })}
         />

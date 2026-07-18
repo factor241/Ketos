@@ -132,18 +132,18 @@ describe("No versions found", () => {
 describe("Rendering version items", () => {
   it("renders version items with dates", () => {
     renderPanel();
-    // The component uses toLocaleDateString("en-US", { year, month: "long", day }) format
+    // The component uses the active UI locale for date presentation.
     const dateOpts: Intl.DateTimeFormatOptions = {
       year: "numeric",
       month: "long",
       day: "numeric",
     };
     const v1Date = new Date("2025-01-10T08:00:00Z").toLocaleDateString(
-      "en-US",
+      "ru-RU",
       dateOpts,
     );
     const v2Date = new Date("2025-03-15T12:00:00Z").toLocaleDateString(
-      "en-US",
+      "ru-RU",
       dateOpts,
     );
     expect(screen.getByTestId("version-item-v1").textContent).toContain(v1Date);

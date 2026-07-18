@@ -10,6 +10,7 @@ import { TEXTS } from "../../utils/constants/texts";
 import { ANIMATIONS, TIMEOUTS } from "../../utils/constants/timeouts";
 import { addComponentFromSidebar } from "../../utils/flow/add-component-from-sidebar";
 import { openTemplatesModal } from "../../utils/flow/new-project-flow";
+import { RUSSIAN_OPTION_NAME } from "../../utils/localization-option-names";
 
 type SurfaceKind =
   | "baseline"
@@ -79,6 +80,7 @@ const EN_CATALOG_PATH = resolve(
 );
 const THIS_SPEC =
   "src/frontend/tests/core/features/localization-russian-manifest.spec.ts";
+const LANGUAGE_STORAGE_KEY = "ketos-language-preference";
 const TASK_17_A11Y_SPEC =
   "src/frontend/tests/core/features/localization-russian-a11y.spec.ts";
 const TASK_17_ERROR_SPEC =
@@ -102,12 +104,12 @@ const MANIFEST_COLUMNS = [
 
 const EXPECTED_KIND_COUNTS: Record<SurfaceKind, number> = {
   baseline: 6,
-  route: 39,
+  route: 36,
   state: 16,
-  modal: 31,
+  modal: 30,
   overlay: 57,
   primitive: 5,
-  feature: 9,
+  feature: 8,
   boundary: 7,
 };
 
@@ -166,7 +168,6 @@ const REPRESENTATIVE_OVERLAY_IDS = new Set([
 ]);
 
 const DISABLED_FEATURE_TOKENS = new Set([
-  "ENABLE_KETOS_STORE",
   "ENABLE_CUSTOM_PARAM",
   "ENABLE_EXTENSION_RELOAD",
   "BASENAME",
@@ -177,7 +178,7 @@ const EVIDENCE_GROUPS = {
   "governance-contract": {
     spec: THIS_SPEC,
     testTitle:
-      "surface manifest has 170 unique rows and a deterministic evidence mapping",
+      "surface manifest has 165 unique rows and a deterministic evidence mapping",
     mode: "static-contract",
   },
   "core-routes": {
@@ -234,7 +235,7 @@ const EVIDENCE_GROUPS = {
     testTitle: "BLOCKED feature-configured Task 18 surfaces",
     mode: "blocked-feature",
     reason:
-      "Requires separate builds with Store, custom parameter, extension reload, BASENAME, and wxo deployment flags enabled.",
+      "Requires separate builds with custom parameter, extension reload, BASENAME, and wxo deployment flags enabled.",
   },
   "data-fixture-blocked": {
     spec: THIS_SPEC,
@@ -551,8 +552,8 @@ function evidenceGroupFor(row: SurfaceRow): EvidenceGroupId {
 
 function validateManifestAtDiscovery(rows: SurfaceRow[]): void {
   const errors: string[] = [];
-  if (rows.length !== 170)
-    errors.push(`expected 170 rows, received ${rows.length}`);
+  if (rows.length !== 165)
+    errors.push(`expected 165 rows, received ${rows.length}`);
 
   const uniqueIds = new Set(rows.map((row) => row.testId));
   if (uniqueIds.size !== rows.length) {
@@ -634,7 +635,7 @@ function validateManifestAtDiscovery(rows: SurfaceRow[]): void {
 const MANIFEST_ROWS = parseManifest();
 
 // Playwright evaluates the module during `--list`; keep the deterministic
-// 170-row contract at discovery time so it cannot be mistaken for a live UI
+// 165-row contract at discovery time so it cannot be mistaken for a live UI
 // PASS when the servers were never started.
 validateManifestAtDiscovery(MANIFEST_ROWS);
 
@@ -670,7 +671,7 @@ async function selectRussian(page: Page): Promise<void> {
         response.request().method() === "PATCH" &&
         new URL(response.url()).pathname.includes("/api/v1/users/"),
     );
-    await page.getByRole("option", { name: "Русский", exact: true }).click();
+    await page.getByRole("option", { name: RUSSIAN_OPTION_NAME }).click();
     expect((await savedPreference).ok()).toBe(true);
   }
 
@@ -740,16 +741,16 @@ async function expectStrictRussianSurface(
 }
 
 test(
-  "surface manifest has 170 unique rows and a deterministic evidence mapping",
+  "surface manifest has 165 unique rows and a deterministic evidence mapping",
   { tag: ["@release", "@regression"] },
   async ({ page }) => {
     await bootstrapToMainPage(page);
 
-    expect(MANIFEST_ROWS).toHaveLength(170);
-    expect(new Set(MANIFEST_ROWS.map((row) => row.testId)).size).toBe(170);
+    expect(MANIFEST_ROWS).toHaveLength(165);
+    expect(new Set(MANIFEST_ROWS.map((row) => row.testId)).size).toBe(165);
 
     const groups = MANIFEST_ROWS.map(evidenceGroupFor);
-    expect(groups).toHaveLength(170);
+    expect(groups).toHaveLength(165);
     expect(groups.every((group) => group in EVIDENCE_GROUPS)).toBe(true);
   },
 );
@@ -991,7 +992,10 @@ test(
       timeout: 30_000,
     });
     expect(
-      await page.evaluate(() => localStorage.getItem("languagePreference")),
+      await page.evaluate(
+        (storageKey) => localStorage.getItem(storageKey),
+        LANGUAGE_STORAGE_KEY,
+      ),
     ).toBe("ru");
 
     const secondPage = await context.newPage();
@@ -1009,13 +1013,16 @@ test(
     await page.getByRole("option", { name: /^English/ }).click();
 
     await page.getByTestId("language-preference-select").click();
-    await page.getByRole("option", { name: "Русский", exact: true }).click();
+    await page.getByRole("option", { name: RUSSIAN_OPTION_NAME }).click();
 
     await expect(page.locator("html")).toHaveAttribute("lang", "ru", {
       timeout: 30_000,
     });
     expect(
-      await page.evaluate(() => localStorage.getItem("languagePreference")),
+      await page.evaluate(
+        (storageKey) => localStorage.getItem(storageKey),
+        LANGUAGE_STORAGE_KEY,
+      ),
     ).toBe("ru");
     await expect
       .poll(
@@ -1221,7 +1228,7 @@ test(
   async ({ page }) => {
     test.skip(
       true,
-      "Requires separate feature builds: ENABLE_KETOS_STORE, ENABLE_CUSTOM_PARAM, ENABLE_EXTENSION_RELOAD, BASENAME, and wxo_deployments.",
+      "Requires separate feature builds: ENABLE_CUSTOM_PARAM, ENABLE_EXTENSION_RELOAD, BASENAME, and wxo_deployments.",
     );
     await awaitBootstrapTest(page, { skipModal: true });
   },

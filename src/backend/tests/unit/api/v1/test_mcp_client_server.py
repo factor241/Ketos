@@ -108,7 +108,7 @@ class TestAddComponent:
         created = await mcp_server_module.create_flow("CompTest")
         result = await mcp_server_module.add_component(created["id"], "ChatInput")
         assert result["id"].startswith("ChatInput-")
-        assert result["display_name"] == "Chat Input"
+        assert result["display_name"] == "Вход чата"
 
     async def test_add_unknown_component_raises(self):
         created = await mcp_server_module.create_flow("CompTest2")

@@ -1,3 +1,4 @@
+import ru from "@/locales/ru.json";
 import {
   getAllChatInputNodeIds,
   getAllFileNodeIds,
@@ -361,7 +362,7 @@ describe("API Snippet Generation Utilities", () => {
 
         // Check step 1 (upload files)
         expect(result.steps[0]).toHaveProperty("title");
-        expect(result.steps[0].title).toContain("Upload files");
+        expect(result.steps[0].title).toBe(ru["apiModal.uploadFilesStep"]);
         expect(result.steps[0]).toHaveProperty("code");
         expect(result.steps[0].code).toContain("/api/v1/files/upload/");
         expect(result.steps[0].code).toContain("/api/v2/files");
@@ -370,7 +371,7 @@ describe("API Snippet Generation Utilities", () => {
 
         // Check step 2 (execute flow)
         expect(result.steps[1]).toHaveProperty("title");
-        expect(result.steps[1].title).toContain("Execute");
+        expect(result.steps[1].title).toBe(ru["apiModal.executeFlowStep"]);
         expect(result.steps[1]).toHaveProperty("code");
         expect(result.steps[1].code).toContain("/api/v1/run/test-endpoint");
         expect(result.steps[1].code).toContain("x-api-key: YOUR_API_KEY_HERE");
@@ -400,7 +401,7 @@ describe("API Snippet Generation Utilities", () => {
 
         // Check step 1 (upload files) - should not contain API key
         expect(result.steps[0]).toHaveProperty("title");
-        expect(result.steps[0].title).toContain("Upload files");
+        expect(result.steps[0].title).toBe(ru["apiModal.uploadFilesStep"]);
         expect(result.steps[0]).toHaveProperty("code");
         expect(result.steps[0].code).toContain("/api/v1/files/upload/");
         expect(result.steps[0].code).toContain("/api/v2/files");
@@ -411,7 +412,7 @@ describe("API Snippet Generation Utilities", () => {
 
         // Check step 2 (execute flow) - should not contain API key
         expect(result.steps[1]).toHaveProperty("title");
-        expect(result.steps[1].title).toContain("Execute");
+        expect(result.steps[1].title).toBe(ru["apiModal.executeFlowStep"]);
         expect(result.steps[1]).toHaveProperty("code");
         expect(result.steps[1].code).toContain("/api/v1/run/test-endpoint");
         expect(result.steps[1].code).not.toContain(

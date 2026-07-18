@@ -54,28 +54,25 @@ describe("SpanNode", () => {
     expect(node).not.toHaveAttribute("aria-expanded");
 
     expect(screen.getByText("Test Span")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        new Intl.NumberFormat("en-US", {
-          notation: "compact",
-          maximumFractionDigits: 1,
-        }).format(1200),
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        new Intl.NumberFormat("en-US", {
-          style: "unit",
-          unit: "second",
-          unitDisplay: "short",
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }).format(1.2),
-      ),
-    ).toBeInTheDocument();
+    const tokenContainer = screen.getByTestId("icon-Coins").parentElement;
+    expect(tokenContainer?.textContent).toBe(
+      new Intl.NumberFormat("ru-RU", {
+        notation: "compact",
+        maximumFractionDigits: 1,
+      }).format(1200),
+    );
+    expect(tokenContainer?.nextElementSibling?.textContent).toBe(
+      new Intl.NumberFormat("ru-RU", {
+        style: "unit",
+        unit: "second",
+        unitDisplay: "short",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(1.2),
+    );
 
     const statusIcon = screen.getByTestId("flow-log-status-ok");
-    expect(statusIcon).toHaveAttribute("aria-label", "Success");
+    expect(statusIcon).toHaveAttribute("aria-label", "Успех");
   });
 
   it("calls onSelect when the row is clicked", async () => {

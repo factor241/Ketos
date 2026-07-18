@@ -16,7 +16,7 @@ import { convertUTCToLocalTimezone } from "../utils";
 
 describe("locale-format", () => {
   afterEach(async () => {
-    await i18n.changeLanguage("en");
+    await i18n.changeLanguage("ru");
   });
 
   it("maps the active UI language to its deterministic Intl locale", async () => {
@@ -24,7 +24,7 @@ describe("locale-format", () => {
     expect(getIntlLocale()).toBe("ru-RU");
 
     await i18n.changeLanguage("unknown-locale");
-    expect(getIntlLocale()).toBe("en-US");
+    expect(getIntlLocale()).toBe("ru-RU");
   });
 
   it("formats Russian dates and date-times with explicit locale data", async () => {

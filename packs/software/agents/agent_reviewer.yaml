@@ -1,0 +1,12 @@
+accent: '#5b8def'
+agent_id: agent_reviewer
+capabilities: []
+description: Disabled catalog definition for independent Ketos code and contract review.
+enabled: false
+name: Ketos Reviewer
+pack_id: pack_software
+role: reviewer
+runtime_adapter_id: adapter_disabled
+skill_ids:
+- skill_reviewer
+version: 1.0.0

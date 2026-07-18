@@ -1,0 +1,26 @@
+#!/bin/sh
+set -eu
+
+readonly KETOS_ROOT="/Volumes/Projects/ketos_canvas_mod_main"
+readonly RAYTSYSTEM_BIN="/Users/kirillustuzanin/.local/bin/raytsystem"
+readonly CLAUDE_BIN="/Users/kirillustuzanin/.local/bin/claude"
+
+if [ "$#" -ne 1 ]; then
+  echo "usage: ketos-claude-mcp <raytsystem-toolhub|ketos-claude-code>" >&2
+  exit 64
+fi
+
+cd "$KETOS_ROOT"
+
+case "$1" in
+  raytsystem-toolhub)
+    exec "$RAYTSYSTEM_BIN" tool serve-mcp --root "$KETOS_ROOT"
+    ;;
+  ketos-claude-code)
+    exec "$CLAUDE_BIN" mcp serve
+    ;;
+  *)
+    echo "unknown MCP server mode: $1" >&2
+    exit 64
+    ;;
+esac

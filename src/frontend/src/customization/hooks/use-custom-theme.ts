@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useDarkStore } from "@/stores/darkStore";
 
+export type ThemePreference = "light" | "dark" | "system";
+
 const useTheme = () => {
   const [systemTheme, setSystemTheme] = useState(false);
   const { setDark, dark } = useDarkStore((state) => ({
@@ -35,19 +37,22 @@ const useTheme = () => {
   }, []);
 
   useEffect(() => {
-    if (systemTheme && typeof window !== "undefined") {
+    if (typeof window !== "undefined") {
       const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
       const handleChange = (e) => {
-        setDark(e.matches);
+        const themePreference = localStorage.getItem("ketos-theme-preference");
+        if (themePreference !== "light" && themePreference !== "dark") {
+          setDark(e.matches);
+        }
       };
       mediaQuery.addEventListener("change", handleChange);
       return () => {
         mediaQuery.removeEventListener("change", handleChange);
       };
     }
-  }, [systemTheme]);
+  }, []);
 
-  const setThemePreference = (theme) => {
+  const setThemePreference = (theme: ThemePreference) => {
     if (theme === "light") {
       setDark(false);
       setSystemTheme(false);

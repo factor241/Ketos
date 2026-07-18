@@ -999,7 +999,7 @@ async def test_install_mcp_config_defaults_to_sse_transport(
 
     assert response.status_code == status.HTTP_200_OK
     installed_config = json.loads(config_path.read_text())
-    server_name = "lf-user_test_project"
+    server_name = "ketos-user_test_project"
     args = installed_config["mcpServers"][server_name]["args"]
     assert "--transport" not in args
     assert args[-1].endswith("/sse")
@@ -1022,7 +1022,7 @@ async def test_install_mcp_config_streamable_transport(
 
     assert response.status_code == status.HTTP_200_OK
     installed_config = json.loads(config_path.read_text())
-    server_name = "lf-user_test_project"
+    server_name = "ketos-user_test_project"
     args = installed_config["mcpServers"][server_name]["args"]
     assert "--transport" in args
     assert "streamablehttp" in args

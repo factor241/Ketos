@@ -1,8 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { type ReactNode, StrictMode } from "react";
-
-const STORAGE_KEY = "ketos-language-preference";
+import { LANGUAGE_STORAGE_KEY } from "@/constants/languages";
 
 let mockEvents: string[] = [];
 
@@ -21,8 +20,8 @@ let mockUserData: {
 } | null = null;
 
 const mockI18n = {
-  language: "en",
-  resolvedLanguage: "en",
+  language: "ru",
+  resolvedLanguage: "ru",
   changeLanguage: (language: string) => mockChangeLanguage(language),
   dir: jest.fn(() => "ltr"),
 };
@@ -152,7 +151,7 @@ const dispatchStorage = (key: string | null, newValue: string | null) => {
   window.dispatchEvent(new StorageEvent("storage", { key, newValue }));
 };
 
-let htmlLanguage = "en";
+let htmlLanguage = "ru";
 let htmlDirection = "ltr";
 let originalLanguageDescriptor: PropertyDescriptor | undefined;
 let originalDirectionDescriptor: PropertyDescriptor | undefined;
@@ -162,8 +161,8 @@ beforeEach(() => {
   mockEvents = [];
   window.history.replaceState({}, "", "/");
 
-  mockI18n.language = "en";
-  mockI18n.resolvedLanguage = "en";
+  mockI18n.language = "ru";
+  mockI18n.resolvedLanguage = "ru";
   mockUserData = null;
   mockSetUserData.mockImplementation((user) => {
     mockUserData = user;
@@ -200,7 +199,7 @@ beforeEach(() => {
   const html = document.documentElement;
   originalLanguageDescriptor = Object.getOwnPropertyDescriptor(html, "lang");
   originalDirectionDescriptor = Object.getOwnPropertyDescriptor(html, "dir");
-  htmlLanguage = "en";
+  htmlLanguage = "ru";
   htmlDirection = "ltr";
   Object.defineProperty(html, "lang", {
     configurable: true,
@@ -246,7 +245,8 @@ describe("useLanguagePreference", () => {
 
     const { result } = renderPreference();
 
-    expect(result.current.language).toBe("en");
+    expect(result.current.language).toBe("ru");
+    expect(document.documentElement.lang).toBe("ru");
     expect(mockNormalizeLanguage).toHaveBeenCalledWith(
       "unknown-locale",
       expect.any(Function),
@@ -276,19 +276,19 @@ describe("useLanguagePreference", () => {
       "changeLanguage",
       "language",
     ]);
-    expect(result.current.language).toBe("en");
+    expect(result.current.language).toBe("ru");
 
     let transition!: Promise<void>;
     act(() => {
-      transition = result.current.changeLanguage("FR-fr");
+      transition = result.current.changeLanguage("EN-us");
     });
 
     await waitFor(() =>
       expect(mockEvents).toEqual([
-        "normalize:en",
-        "normalize:FR-fr",
-        "load:fr",
-        "change:start:fr",
+        "normalize:ru",
+        "normalize:EN-us",
+        "load:en",
+        "change:start:en",
       ]),
     );
 
@@ -298,19 +298,19 @@ describe("useLanguagePreference", () => {
     });
 
     expect(mockEvents).toEqual([
-      "normalize:en",
-      "normalize:FR-fr",
-      "load:fr",
-      "change:start:fr",
-      "change:end:fr",
-      "html.lang:fr",
+      "normalize:ru",
+      "normalize:EN-us",
+      "load:en",
+      "change:start:en",
+      "change:end:en",
+      "html.lang:en",
       "html.dir:ltr",
-      `storage:${STORAGE_KEY}=fr`,
+      `storage:${LANGUAGE_STORAGE_KEY}=en`,
       "resetTypes",
       'invalidate:["useGetTypes"]',
     ]);
-    expect(result.current.language).toBe("fr");
-    expect(document.documentElement.lang).toBe("fr");
+    expect(result.current.language).toBe("en");
+    expect(document.documentElement.lang).toBe("en");
     expect(document.documentElement.dir).toBe("ltr");
     expect(mockResetTypes).toHaveBeenCalledTimes(1);
     expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(1);
@@ -324,10 +324,10 @@ describe("useLanguagePreference", () => {
     const invalidate = jest.spyOn(queryClient, "invalidateQueries");
 
     await act(async () => {
-      await result.current.changeLanguage("EN-us");
+      await result.current.changeLanguage("RU-ru");
     });
 
-    expect(mockEvents).toEqual(["normalize:en", "normalize:EN-us"]);
+    expect(mockEvents).toEqual(["normalize:ru", "normalize:RU-ru"]);
     expect(mockLoadLanguage).not.toHaveBeenCalled();
     expect(mockChangeLanguage).not.toHaveBeenCalled();
     expect(window.localStorage.setItem).not.toHaveBeenCalled();
@@ -341,13 +341,13 @@ describe("useLanguagePreference", () => {
       .spyOn(queryClient, "invalidateQueries")
       .mockResolvedValue();
 
-    act(() => dispatchStorage(STORAGE_KEY, "fr-FR"));
+    act(() => dispatchStorage(LANGUAGE_STORAGE_KEY, "en-US"));
 
-    await waitFor(() => expect(result.current.language).toBe("fr"));
+    await waitFor(() => expect(result.current.language).toBe("en"));
 
-    expect(mockLoadLanguage).toHaveBeenCalledWith("fr");
-    expect(mockChangeLanguage).toHaveBeenCalledWith("fr");
-    expect(document.documentElement.lang).toBe("fr");
+    expect(mockLoadLanguage).toHaveBeenCalledWith("en");
+    expect(mockChangeLanguage).toHaveBeenCalledWith("en");
+    expect(document.documentElement.lang).toBe("en");
     expect(window.localStorage.setItem).not.toHaveBeenCalled();
     expect(mockResetTypes).toHaveBeenCalledTimes(1);
     expect(invalidate).toHaveBeenCalledTimes(1);
@@ -359,8 +359,8 @@ describe("useLanguagePreference", () => {
 
     act(() => {
       dispatchStorage("another-key", "fr");
-      dispatchStorage(STORAGE_KEY, null);
-      dispatchStorage(STORAGE_KEY, "en-US");
+      dispatchStorage(LANGUAGE_STORAGE_KEY, null);
+      dispatchStorage(LANGUAGE_STORAGE_KEY, "ru-RU");
     });
     await act(async () => Promise.resolve());
 
@@ -370,6 +370,21 @@ describe("useLanguagePreference", () => {
     expect(mockResetTypes).not.toHaveBeenCalled();
     expect(invalidate).not.toHaveBeenCalled();
   });
+
+  it.each(["fr", "ja-JP", "zh-CN"])(
+    "keeps Russian when the current preference key receives legacy locale '%s'",
+    async (legacyLocale) => {
+      const { result } = renderPreference();
+
+      act(() => dispatchStorage(LANGUAGE_STORAGE_KEY, legacyLocale));
+      await act(async () => Promise.resolve());
+
+      expect(result.current.language).toBe("ru");
+      expect(document.documentElement.lang).toBe("ru");
+      expect(mockLoadLanguage).not.toHaveBeenCalled();
+      expect(mockChangeLanguage).not.toHaveBeenCalled();
+    },
+  );
 
   it("keeps exactly one active storage listener in StrictMode and cleans it up", async () => {
     const activeStorageListeners =
@@ -406,11 +421,13 @@ describe("useLanguagePreference", () => {
     ).toBe(0);
   });
 
-  it("lets a rapid fr to ja selection commit only the latest transition", async () => {
-    const frenchLoad = deferred<void>();
+  it("lets a rapid English to Russian selection commit only the latest transition", async () => {
+    mockI18n.language = "qps-ploc";
+    mockI18n.resolvedLanguage = "qps-ploc";
+    const englishLoad = deferred<void>();
     mockLoadLanguage.mockImplementation(async (language: string) => {
       mockEvents.push(`load:${language}`);
-      if (language === "fr") await frenchLoad.promise;
+      if (language === "en") await englishLoad.promise;
     });
 
     const { queryClient, result } = renderPreference();
@@ -418,39 +435,44 @@ describe("useLanguagePreference", () => {
       .spyOn(queryClient, "invalidateQueries")
       .mockResolvedValue();
 
-    let frenchTransition!: Promise<void>;
+    let englishTransition!: Promise<void>;
     act(() => {
-      frenchTransition = result.current.changeLanguage("fr");
+      englishTransition = result.current.changeLanguage("en");
     });
-    await waitFor(() => expect(mockLoadLanguage).toHaveBeenCalledWith("fr"));
+    await waitFor(() => expect(mockLoadLanguage).toHaveBeenCalledWith("en"));
 
     await act(async () => {
-      await result.current.changeLanguage("ja");
+      await result.current.changeLanguage("ru");
     });
 
-    expect(result.current.language).toBe("ja");
-    expect(document.documentElement.lang).toBe("ja");
+    expect(result.current.language).toBe("ru");
+    expect(document.documentElement.lang).toBe("ru");
 
     await act(async () => {
-      frenchLoad.resolve();
-      await frenchTransition;
+      englishLoad.resolve();
+      await englishTransition;
     });
 
-    expect(result.current.language).toBe("ja");
-    expect(document.documentElement.lang).toBe("ja");
+    expect(result.current.language).toBe("ru");
+    expect(document.documentElement.lang).toBe("ru");
     expect(mockChangeLanguage).toHaveBeenCalledTimes(1);
-    expect(mockChangeLanguage).toHaveBeenCalledWith("ja");
+    expect(mockChangeLanguage).toHaveBeenCalledWith("ru");
     expect(window.localStorage.setItem).toHaveBeenCalledTimes(1);
-    expect(window.localStorage.setItem).toHaveBeenCalledWith(STORAGE_KEY, "ja");
+    expect(window.localStorage.setItem).toHaveBeenCalledWith(
+      LANGUAGE_STORAGE_KEY,
+      "ru",
+    );
     expect(mockResetTypes).toHaveBeenCalledTimes(1);
     expect(invalidate).toHaveBeenCalledTimes(1);
   });
 
   it("serializes the i18next commit phase so a late older change cannot win", async () => {
-    const frenchChange = deferred<void>();
+    mockI18n.language = "qps-ploc";
+    mockI18n.resolvedLanguage = "qps-ploc";
+    const englishChange = deferred<void>();
     mockChangeLanguage.mockImplementation(async (language: string) => {
       mockEvents.push(`change:start:${language}`);
-      if (language === "fr") await frenchChange.promise;
+      if (language === "en") await englishChange.promise;
       mockI18n.language = language;
       mockI18n.resolvedLanguage = language;
       mockEvents.push(`change:end:${language}`);
@@ -461,30 +483,33 @@ describe("useLanguagePreference", () => {
       .spyOn(queryClient, "invalidateQueries")
       .mockResolvedValue();
 
-    let frenchTransition!: Promise<void>;
+    let englishTransition!: Promise<void>;
     act(() => {
-      frenchTransition = result.current.changeLanguage("fr");
+      englishTransition = result.current.changeLanguage("en");
     });
-    await waitFor(() => expect(mockEvents).toContain("change:start:fr"));
+    await waitFor(() => expect(mockEvents).toContain("change:start:en"));
 
-    let japaneseTransition!: Promise<void>;
+    let russianTransition!: Promise<void>;
     act(() => {
-      japaneseTransition = result.current.changeLanguage("ja");
+      russianTransition = result.current.changeLanguage("ru");
     });
-    await waitFor(() => expect(mockLoadLanguage).toHaveBeenCalledWith("ja"));
-    expect(mockEvents).not.toContain("change:start:ja");
+    await waitFor(() => expect(mockLoadLanguage).toHaveBeenCalledWith("ru"));
+    expect(mockEvents).not.toContain("change:start:ru");
 
     await act(async () => {
-      frenchChange.resolve();
-      await frenchTransition;
-      await japaneseTransition;
+      englishChange.resolve();
+      await englishTransition;
+      await russianTransition;
     });
 
-    expect(mockI18n.language).toBe("ja");
-    expect(result.current.language).toBe("ja");
-    expect(document.documentElement.lang).toBe("ja");
+    expect(mockI18n.language).toBe("ru");
+    expect(result.current.language).toBe("ru");
+    expect(document.documentElement.lang).toBe("ru");
     expect(window.localStorage.setItem).toHaveBeenCalledTimes(1);
-    expect(window.localStorage.setItem).toHaveBeenCalledWith(STORAGE_KEY, "ja");
+    expect(window.localStorage.setItem).toHaveBeenCalledWith(
+      LANGUAGE_STORAGE_KEY,
+      "ru",
+    );
     expect(mockResetTypes).toHaveBeenCalledTimes(1);
     expect(invalidate).toHaveBeenCalledTimes(1);
   });
@@ -497,23 +522,23 @@ describe("useLanguagePreference", () => {
     });
 
     const { queryClient, result } = renderPreference();
-    const cachedTypes = { language: "en", componentCount: 3 };
+    const cachedTypes = { language: "ru", componentCount: 3 };
     queryClient.setQueryData(["useGetTypes"], cachedTypes);
     const invalidate = jest.spyOn(queryClient, "invalidateQueries");
 
     let rejection: unknown;
     await act(async () => {
       try {
-        await result.current.changeLanguage("fr");
+        await result.current.changeLanguage("en");
       } catch (error) {
         rejection = error;
       }
     });
 
     expect(rejection).toBe(failure);
-    expect(result.current.language).toBe("en");
-    expect(mockI18n.language).toBe("en");
-    expect(document.documentElement.lang).toBe("en");
+    expect(result.current.language).toBe("ru");
+    expect(mockI18n.language).toBe("ru");
+    expect(document.documentElement.lang).toBe("ru");
     expect(document.documentElement.dir).toBe("ltr");
     expect(mockChangeLanguage).not.toHaveBeenCalled();
     expect(window.localStorage.setItem).not.toHaveBeenCalled();
@@ -532,41 +557,34 @@ describe("useLanguagePreference", () => {
 
     await waitFor(() => expect(result.current.language).toBe("ru"));
 
-    expect(window.localStorage.setItem).toHaveBeenCalledWith(STORAGE_KEY, "ru");
     expect(window.localStorage.setItem).toHaveBeenCalledWith(
-      `${STORAGE_KEY}:user-1`,
+      LANGUAGE_STORAGE_KEY,
+      "ru",
+    );
+    expect(window.localStorage.setItem).toHaveBeenCalledWith(
+      `${LANGUAGE_STORAGE_KEY}:user-1`,
       "ru",
     );
     expect(mockApiPatch).not.toHaveBeenCalled();
   });
 
-  it("does not overwrite a disabled locale preference while applying its fallback", async () => {
-    mockUserData = { id: "user-1", preferred_locale: "ru-RU" };
-    mockNormalizeLanguage.mockImplementation(
-      (
-        language: string | null | undefined,
-        normalize: (value?: string | null) => string,
-      ) =>
-        language?.toLowerCase().startsWith("ru") ? "en" : normalize(language),
-    );
-    mockIsLanguageSupported.mockImplementation(
-      (language: string | null | undefined) =>
-        !language?.toLowerCase().startsWith("ru"),
-    );
+  it("does not overwrite a legacy profile locale while applying the Russian fallback", async () => {
+    mockUserData = { id: "user-1", preferred_locale: "fr" };
 
     const { result } = renderPreference();
 
     await waitFor(() =>
       expect(mockNormalizeLanguage).toHaveBeenCalledWith(
-        "ru-RU",
+        "fr",
         expect.any(Function),
       ),
     );
 
-    expect(result.current.language).toBe("en");
+    expect(result.current.language).toBe("ru");
+    expect(document.documentElement.lang).toBe("ru");
     expect(window.localStorage.setItem).not.toHaveBeenCalled();
     expect(mockApiPatch).not.toHaveBeenCalled();
-    expect(mockUserData?.preferred_locale).toBe("ru-RU");
+    expect(mockUserData?.preferred_locale).toBe("fr");
   });
 
   it("honors the test-only pseudo locale query without persisting it to the profile", async () => {
@@ -580,14 +598,14 @@ describe("useLanguagePreference", () => {
     expect(mockChangeLanguage).toHaveBeenCalledWith("qps-ploc");
     expect(mockApiPatch).not.toHaveBeenCalled();
     expect(localStorageSetItem).not.toHaveBeenCalledWith(
-      `${STORAGE_KEY}:user-1`,
+      `${LANGUAGE_STORAGE_KEY}:user-1`,
       "qps-ploc",
     );
   });
 
   it("persists an explicit authenticated choice locally before syncing the profile", async () => {
-    mockUserData = { id: "user-1", preferred_locale: "en" };
-    const updatedUser = { id: "user-1", preferred_locale: "fr" };
+    mockUserData = { id: "user-1", preferred_locale: "ru" };
+    const updatedUser = { id: "user-1", preferred_locale: "en" };
     mockApiPatch.mockImplementation(async () => {
       mockEvents.push("profile:patch");
       return { data: updatedUser };
@@ -595,27 +613,31 @@ describe("useLanguagePreference", () => {
     const { result } = renderPreference();
     await waitFor(() =>
       expect(window.localStorage.setItem).toHaveBeenCalledWith(
-        `${STORAGE_KEY}:user-1`,
-        "en",
+        `${LANGUAGE_STORAGE_KEY}:user-1`,
+        "ru",
       ),
     );
     mockEvents = [];
     localStorageSetItem.mockClear();
 
-    await act(async () => result.current.changeLanguage("fr-FR"));
+    await act(async () => result.current.changeLanguage("en-US"));
 
-    expect(result.current.language).toBe("fr");
-    expect(localStorageSetItem).toHaveBeenNthCalledWith(1, STORAGE_KEY, "fr");
+    expect(result.current.language).toBe("en");
+    expect(localStorageSetItem).toHaveBeenNthCalledWith(
+      1,
+      LANGUAGE_STORAGE_KEY,
+      "en",
+    );
     expect(localStorageSetItem).toHaveBeenNthCalledWith(
       2,
-      `${STORAGE_KEY}:user-1`,
-      "fr",
+      `${LANGUAGE_STORAGE_KEY}:user-1`,
+      "en",
     );
     expect(mockEvents.indexOf("profile:patch")).toBeGreaterThan(
-      mockEvents.indexOf(`storage:${STORAGE_KEY}:user-1=fr`),
+      mockEvents.indexOf(`storage:${LANGUAGE_STORAGE_KEY}:user-1=en`),
     );
     expect(mockApiPatch).toHaveBeenCalledWith("/api/v1/users/user-1", {
-      preferred_locale: "fr",
+      preferred_locale: "en",
     });
     expect(mockSetUserData).toHaveBeenCalledWith(updatedUser);
   });
@@ -642,7 +664,7 @@ describe("useLanguagePreference", () => {
     const { result } = renderPreference();
     await waitFor(() =>
       expect(window.localStorage.setItem).toHaveBeenCalledWith(
-        `${STORAGE_KEY}:user-1`,
+        `${LANGUAGE_STORAGE_KEY}:user-1`,
         "en",
       ),
     );
@@ -691,59 +713,62 @@ describe("useLanguagePreference", () => {
   });
 
   it("keeps the local authenticated choice when profile synchronization fails", async () => {
-    mockUserData = { id: "user-1", preferred_locale: "en" };
+    mockUserData = { id: "user-1", preferred_locale: "ru" };
     const profileFailure = new Error("profile locale save failed");
     mockApiPatch.mockRejectedValue(profileFailure);
     const { result } = renderPreference();
     await waitFor(() =>
       expect(window.localStorage.setItem).toHaveBeenCalledWith(
-        `${STORAGE_KEY}:user-1`,
-        "en",
+        `${LANGUAGE_STORAGE_KEY}:user-1`,
+        "ru",
       ),
     );
 
     let rejection: unknown;
     await act(async () => {
       try {
-        await result.current.changeLanguage("ja");
+        await result.current.changeLanguage("en");
       } catch (error) {
         rejection = error;
       }
     });
 
     expect(rejection).toBe(profileFailure);
-    expect(result.current.language).toBe("ja");
-    expect(document.documentElement.lang).toBe("ja");
-    expect(window.localStorage.setItem).toHaveBeenCalledWith(STORAGE_KEY, "ja");
+    expect(result.current.language).toBe("en");
+    expect(document.documentElement.lang).toBe("en");
     expect(window.localStorage.setItem).toHaveBeenCalledWith(
-      `${STORAGE_KEY}:user-1`,
-      "ja",
+      LANGUAGE_STORAGE_KEY,
+      "en",
+    );
+    expect(window.localStorage.setItem).toHaveBeenCalledWith(
+      `${LANGUAGE_STORAGE_KEY}:user-1`,
+      "en",
     );
     expect(mockResetTypes).toHaveBeenCalledTimes(1);
   });
 
   it("isolates cross-tab events by authenticated user", async () => {
-    mockUserData = { id: "user-2", preferred_locale: "en" };
+    mockUserData = { id: "user-2", preferred_locale: "ru" };
     const { result } = renderPreference();
     await waitFor(() =>
       expect(window.localStorage.setItem).toHaveBeenCalledWith(
-        `${STORAGE_KEY}:user-2`,
-        "en",
+        `${LANGUAGE_STORAGE_KEY}:user-2`,
+        "ru",
       ),
     );
     mockChangeLanguage.mockClear();
 
     act(() => {
-      dispatchStorage(STORAGE_KEY, "ru");
-      dispatchStorage(`${STORAGE_KEY}:user-1`, "ja");
+      dispatchStorage(LANGUAGE_STORAGE_KEY, "ru");
+      dispatchStorage(`${LANGUAGE_STORAGE_KEY}:user-1`, "ja");
     });
     await act(async () => Promise.resolve());
 
-    expect(result.current.language).toBe("en");
+    expect(result.current.language).toBe("ru");
     expect(mockChangeLanguage).not.toHaveBeenCalled();
 
-    act(() => dispatchStorage(`${STORAGE_KEY}:user-2`, "fr"));
-    await waitFor(() => expect(result.current.language).toBe("fr"));
-    expect(mockChangeLanguage).toHaveBeenCalledWith("fr");
+    act(() => dispatchStorage(`${LANGUAGE_STORAGE_KEY}:user-2`, "en"));
+    await waitFor(() => expect(result.current.language).toBe("en"));
+    expect(mockChangeLanguage).toHaveBeenCalledWith("en");
   });
 });

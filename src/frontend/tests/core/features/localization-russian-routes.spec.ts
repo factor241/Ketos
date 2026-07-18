@@ -3,6 +3,7 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 import { expect, test } from "../../fixtures";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
+import { RUSSIAN_OPTION_NAME } from "../../utils/localization-option-names";
 
 type RouteSmokeCase = {
   manifestId: string;
@@ -106,7 +107,7 @@ async function selectRussian(page: Page): Promise<void> {
         response.request().method() === "PATCH" &&
         new URL(response.url()).pathname.includes("/api/v1/users/"),
     );
-    await page.getByRole("option", { name: "Русский", exact: true }).click();
+    await page.getByRole("option", { name: RUSSIAN_OPTION_NAME }).click();
     expect((await savedPreference).ok()).toBe(true);
     await expect(page.getByTestId("language-preference-select")).toContainText(
       "Русский",

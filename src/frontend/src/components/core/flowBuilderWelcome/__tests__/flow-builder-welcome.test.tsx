@@ -235,6 +235,39 @@ describe("FlowBuilderWelcome", () => {
   });
 
   describe("quick templates", () => {
+    it("should_keep_localized_template_labels_centered_inside_equal_buttons", () => {
+      render(<FlowBuilderWelcome {...makeProps()} />);
+
+      const buttons = [
+        screen.getByTestId("flow-builder-welcome-template-simple-agent"),
+        screen.getByTestId("flow-builder-welcome-template-vector-store-rag"),
+        screen.getByTestId("flow-builder-welcome-browse-more"),
+      ];
+
+      for (const button of buttons) {
+        expect(button).toHaveClass(
+          "grid",
+          "h-16",
+          "w-[13.75rem]",
+          "max-w-full",
+        );
+        expect(button).not.toHaveClass("whitespace-nowrap");
+      }
+
+      for (const testId of [
+        "flow-builder-welcome-simple-agent-label",
+        "flow-builder-welcome-vector-store-rag-label",
+        "flow-builder-welcome-browse-more-label",
+      ]) {
+        expect(screen.getByTestId(testId)).toHaveClass(
+          "min-w-0",
+          "whitespace-normal",
+          "text-center",
+          "leading-snug",
+        );
+      }
+    });
+
     it("should_call_onSelectTemplate_with_simple_agent_name_key_when_button_is_clicked", async () => {
       const props = makeProps();
       render(<FlowBuilderWelcome {...props} />);

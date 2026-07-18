@@ -1,3 +1,4 @@
+import ru from "@/locales/ru.json";
 import {
   extractApiErrorDiagnosticMessages,
   extractApiErrorMessages,
@@ -44,22 +45,18 @@ describe("extractApiErrorMessages", () => {
       extractApiErrorMessages({
         response: { data: { code: "files.storage_error" } },
       }),
-    ).toEqual(["The file could not be saved. Try again."]);
+    ).toEqual([ru["apiErrors.files.storageError"]]);
   });
 
   it("returns a localized safe fallback for non-object errors", () => {
-    expect(extractApiErrorMessages(null)).toEqual([
-      "The request could not be completed. Please try again.",
-    ]);
+    expect(extractApiErrorMessages(null)).toEqual([ru["errors.requestFailed"]]);
     expect(extractApiErrorMessages(undefined)).toEqual([
-      "The request could not be completed. Please try again.",
+      ru["errors.requestFailed"],
     ]);
     expect(extractApiErrorMessages("boom")).toEqual([
-      "The request could not be completed. Please try again.",
+      ru["errors.requestFailed"],
     ]);
-    expect(extractApiErrorMessages(123)).toEqual([
-      "The request could not be completed. Please try again.",
-    ]);
+    expect(extractApiErrorMessages(123)).toEqual([ru["errors.requestFailed"]]);
   });
 
   it("does not expose response.data.detail from the safe UI helper", () => {
@@ -69,7 +66,7 @@ describe("extractApiErrorMessages", () => {
     };
 
     expect(extractApiErrorMessages(error)).toEqual([
-      "The request could not be completed. Please try again.",
+      ru["errors.requestFailed"],
     ]);
   });
 

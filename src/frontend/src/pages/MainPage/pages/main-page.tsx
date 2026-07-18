@@ -8,6 +8,7 @@ import { useDeleteFolders } from "@/controllers/API/queries/folders";
 import CustomEmptyPageCommunity from "@/customization/components/custom-empty-page";
 import CustomLoader from "@/customization/components/custom-loader";
 import { useCustomNavigate } from "@/customization/hooks/use-custom-navigate";
+import { useIsMobile } from "@/hooks/use-mobile";
 import useAlertStore from "@/stores/alertStore";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
 import { useFolderStore } from "@/stores/foldersStore";
@@ -15,6 +16,7 @@ import ModalsComponent from "../components/modalsComponent";
 import { shouldShowMainContent } from "./main-page-utils";
 
 export default function CollectionPage(): JSX.Element {
+  const isMobile = useIsMobile({ maxWidth: 1024 });
   const [openModal, setOpenModal] = useState(false);
   const [openDeleteFolderModal, setOpenDeleteFolderModal] = useState(false);
   const setFolderToEdit = useFolderStore((state) => state.setFolderToEdit);
@@ -59,8 +61,8 @@ export default function CollectionPage(): JSX.Element {
   const showMainContent = shouldShowMainContent(flows, examples, folders);
 
   return (
-    <SidebarProvider width="280px">
-      {flows && examples && folders && showMainContent && (
+    <SidebarProvider width="280px" defaultOpen={!isMobile}>
+      {flows && examples && folders && (
         <SideBarFoldersButtonsComponent
           handleChangeFolder={(id: string) => {
             navigate(`all/folder/${id}`);

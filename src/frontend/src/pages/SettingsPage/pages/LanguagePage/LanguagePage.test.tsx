@@ -20,7 +20,7 @@ describe("LanguagePage", () => {
   it("exposes a dedicated translated heading, description, and language form", () => {
     render(<LanguagePage />);
 
-    expect(screen.getByTestId("settings-language-page")).toBeInTheDocument();
+    expect(screen.getByTestId("settings-language-page")).toHaveClass("min-w-0");
     expect(
       screen.getByRole("heading", {
         name: "translated:settings.languageTitle",

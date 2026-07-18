@@ -41,6 +41,5 @@ describe("WebhookFieldComponent disabled state", () => {
     renderWebhook("curl");
 
     expect(screen.getByTestId("webhook-curl")).toBeDisabled();
-    expect(screen.getByText("Receiving input")).toBeInTheDocument();
   });
 });

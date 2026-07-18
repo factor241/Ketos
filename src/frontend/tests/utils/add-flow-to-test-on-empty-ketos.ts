@@ -29,7 +29,16 @@ export const addFlowToTestOnEmptyKetos = async (page: Page) => {
 
   await page.getByTestId("side_nav_options_all-templates").click();
   await page
-    .getByRole("heading", { name: TEXTS.templateBasicPrompting })
+    .getByRole("heading", {
+      name: new RegExp(
+        `^(?:${TEXTS.templateBasicPrompting}|Основы работы с промптами)$`,
+      ),
+    })
     .click();
-  await page.getByTestId("icon-ChevronLeft").click();
+
+  // Template selection navigates into the new flow. Return explicitly to the
+  // projects route so bootstrap callers do not depend on whichever Chevron
+  // icon happens to be first after sidebar/header redesigns.
+  await page.goto("/flows/");
+  await page.getByTestId("mainpage_title").waitFor({ state: "visible" });
 };

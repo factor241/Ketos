@@ -1,14 +1,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import de from "../locales/de.json";
 import en from "../locales/en.json";
-import es from "../locales/es.json";
-import fr from "../locales/fr.json";
-import ja from "../locales/ja.json";
-import pt from "../locales/pt.json";
 import ru from "../locales/ru.json";
-import zhHans from "../locales/zh-Hans.json";
 
 const frontendRoot = resolve(__dirname, "../..");
 
@@ -22,7 +16,6 @@ describe("residual modal, page, and shared UI localization", () => {
       "src/modals/baseModal/index.tsx",
       ">\n            Close\n          </Button>",
     ],
-    ["src/modals/EmbedModal/embed-modal.tsx", "Embed into site"],
     ["src/modals/stepperModal/components/ProgressIndicator.tsx", " completed"],
     [
       "src/pages/FlowPage/components/InspectionPanel/components/InspectionPanelHeader.tsx",
@@ -46,9 +39,7 @@ describe("residual modal, page, and shared UI localization", () => {
   });
 
   it("keeps new semantic keys synchronized across every locale catalog", () => {
-    const catalogs = [de, en, es, fr, ja, pt, ru, zhHans] as Array<
-      Record<string, string>
-    >;
+    const catalogs = [en, ru] as Array<Record<string, string>>;
     const keys = [
       "stepper.progressCompleted",
       "deleteModal.environmentNamed",

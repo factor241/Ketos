@@ -6,6 +6,19 @@
 - Verdict: **BLOCKED**
 - Selected Python adapter: **none**
 - Manifest/lock decision: **no manifest, lock, or ownership edit is permitted**
+- Temporary fork evidence: **PENDING**
+
+## Temporary fork evidence
+
+`STAGE_01_TEMPORARY_FORK_DECISION.md` narrowly permits an immutable
+`factor241`-owned fork to enter the existing admission probe. It does not relax
+any protocol, all-open resume, standard outcome, pre-dispatch, security,
+license, type, or frozen dependency gate and does not grant PASS.
+
+The required fork artifact, source archive, exact provenance JSON, recomputed
+hashes, and executable black-box output have not yet been supplied. Until that
+evidence is present and passes every existing gate, this document remains
+**BLOCKED**, selects no adapter, and authorizes no manifest or lock edit.
 
 ## Blocking decision
 
@@ -18,7 +31,8 @@ dependency freeze.
 
 Minimum external unblock:
 
-1. an upstream `ag-ui-langgraph` release or immutable commit that:
+1. an upstream `ag-ui-langgraph` release, immutable upstream commit, or
+   provenance-bound `factor241` fork admitted under the temporary decision that:
    - emits standard `RUN_FINISHED.outcome.type="interrupt"` without a custom event;
    - accepts only `RunAgentInput.resume[]` and rejects deprecated
      `forwardedProps.command.resume`;
@@ -578,6 +592,7 @@ The only intended repository deliverables are:
 
 - `scripts/mvp/probe_ag_ui_adapter.py`
 - `src/backend/tests/unit/agentic/api/test_ag_ui_adapter_contract.py`
+- `docs/dev/handoff/STAGE_01_TEMPORARY_FORK_DECISION.md`
 - this admission document
 
 No manifest, lock, lock-ownership, deployment, generated, `LICENSE`, or

@@ -6,7 +6,7 @@
     },
     "stdout": {
       "path": "artifacts/delivery-attestation.stdout.log",
-      "sha256": "80b65fc25f4f68675d984d4845f2663070b89ef8c8cb66e46385365365ee8711"
+      "sha256": "15b7f355295312eb439eb93b77f90ada82cab2c38f7ef4862d2c8f47a667b456"
     }
   },
   "classification": "COMMAND_RESULT",
@@ -18,24 +18,27 @@
     ],
     "display": "git rev-parse HEAD"
   },
-  "created_at_utc": "2026-07-18T12:51:33Z",
+  "created_at_utc": "2026-07-18T13:54:29Z",
   "cwd": "/Volumes/Projects/ketos-stage01-integration",
-  "ended_at_utc": "2026-07-18T12:51:33Z",
-  "execution_revision": "0167b047baf496cc29ce2e6d650b17fa03ef1ba7",
+  "ended_at_utc": "2026-07-18T13:54:29Z",
+  "execution_revision": "02d9501d7087a331442b5e3cd826f0b17caed0cc",
   "exit_code": 0,
-  "notes": "Post-payload delivery attestation for the canonical-log payload. The following carrier commit stores this record; verify its parent equals this execution revision.",
-  "owner": "stage-01",
+  "notes": "Post-payload delivery attestation for the final Stage 01 report payload. Verify the carrier parent equals this execution revision.",
+  "owner": "stage01-coordinator",
   "profile": {
     "environment": {
       "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
       "python": "3.13.14"
     },
-    "provided": {}
+    "provided": {
+      "delivery_status": "partial",
+      "transition": "NO-GO"
+    }
   },
   "record_id": "delivery-attestation",
-  "reviewer": "pending",
+  "reviewer": "evidence-contract-pass-security-no-go",
   "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
-  "started_at_utc": "2026-07-18T12:51:33Z",
-  "task_id": "S01-T04",
+  "started_at_utc": "2026-07-18T13:54:29Z",
+  "task_id": "S01-T15",
   "verdict": "PASS"
 }

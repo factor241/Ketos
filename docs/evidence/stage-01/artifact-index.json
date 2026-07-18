@@ -6,7 +6,7 @@
       "owner": "stage-01",
       "relative_path": "DELIVERY_REVISION.md",
       "reviewer_status": "pending",
-      "sha256": "e54f012e639a3b30b79058adeda6a7f46234111e5dd4c413435aacc4e807a1f9",
+      "sha256": "0945d58dffaa44ce8fa7d1247b54ce4476bac926c2283e73f52b45d8ce3b6fd7",
       "task_id": "S01-T01"
     },
     {
@@ -177,7 +177,7 @@
       "owner": "stage-01",
       "relative_path": "artifacts/delivery-attestation.stdout.log",
       "reviewer_status": "pending",
-      "sha256": "80b65fc25f4f68675d984d4845f2663070b89ef8c8cb66e46385365365ee8711",
+      "sha256": "15b7f355295312eb439eb93b77f90ada82cab2c38f7ef4862d2c8f47a667b456",
       "task_id": "S01-T01"
     },
     {
@@ -269,6 +269,78 @@
       "reviewer_status": "pending",
       "sha256": "e4b88b7c519a132ae4ae349fff90861b7f9ab4d5cd5ad0c6ea5d108a77b8b9bd",
       "task_id": "S01-T09"
+    },
+    {
+      "evidence_record_link": "records/final-owned-scope-check.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/final-owned-scope-check.stderr.log",
+      "reviewer_status": "pending",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "task_id": "S01-T15"
+    },
+    {
+      "evidence_record_link": "records/final-owned-scope-check.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/final-owned-scope-check.stdout.log",
+      "reviewer_status": "pending",
+      "sha256": "f5231ef023e9e496c32c7fc11b4d879316ec1770f47420e07151d2ac743f1be0",
+      "task_id": "S01-T15"
+    },
+    {
+      "evidence_record_link": "records/final-root-dirty-preservation.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/final-root-dirty-preservation.stderr.log",
+      "reviewer_status": "pending",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "task_id": "S01-T01-T15"
+    },
+    {
+      "evidence_record_link": "records/final-root-dirty-preservation.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/final-root-dirty-preservation.stdout.log",
+      "reviewer_status": "pending",
+      "sha256": "4a0b997b8a828fce3ac3ee817340ab9f0358a0400be1b6698fa0683338d82452",
+      "task_id": "S01-T01-T15"
+    },
+    {
+      "evidence_record_link": "records/final-scope-diff-check.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/final-scope-diff-check.stderr.log",
+      "reviewer_status": "pending",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "task_id": "S01-T15"
+    },
+    {
+      "evidence_record_link": "records/final-scope-diff-check.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/final-scope-diff-check.stdout.log",
+      "reviewer_status": "pending",
+      "sha256": "098760dbcba62e8aa91ca393c89d5e8679b30176bfded4d885218648fdbaf007",
+      "task_id": "S01-T15"
+    },
+    {
+      "evidence_record_link": "records/final-stage01-suite.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/final-stage01-suite.stderr.log",
+      "reviewer_status": "pending",
+      "sha256": "e9186c3f33723b2448b19c4d8c99423e719230067a8cdf19436eeb1ca283be88",
+      "task_id": "S01-T15"
+    },
+    {
+      "evidence_record_link": "records/final-stage01-suite.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/final-stage01-suite.stdout.log",
+      "reviewer_status": "pending",
+      "sha256": "46460814ee88629071a04bfa72cc226830d25f2c349d140f68836411b379c8aa",
+      "task_id": "S01-T15"
     },
     {
       "evidence_record_link": "records/focused-backend-baseline.json",
@@ -717,7 +789,7 @@
       "owner": "stage-01",
       "relative_path": "records/delivery-attestation.json",
       "reviewer_status": "pending",
-      "sha256": "cd546e190a6984e7097954de6f442cdf9c7d8256a811638a5e00f06260db3053",
+      "sha256": "10aa7dff2590a41fd275fcad5d3e3cb7fb267becbe102afe48848f4db88481ce",
       "task_id": "S01-T01"
     },
     {
@@ -764,6 +836,42 @@
       "reviewer_status": "pending",
       "sha256": "d610c0255b8bbb6aad12cbf7ec20a7264175dfe029008d0eac8915dda8447b86",
       "task_id": "S01-T09"
+    },
+    {
+      "evidence_record_link": "records/final-owned-scope-check.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "records/final-owned-scope-check.json",
+      "reviewer_status": "pending",
+      "sha256": "0d0feb61223632c8251c33ecef2df783e949c9dd344a213ef57a1062fe88d9df",
+      "task_id": "S01-T15"
+    },
+    {
+      "evidence_record_link": "records/final-root-dirty-preservation.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "records/final-root-dirty-preservation.json",
+      "reviewer_status": "pending",
+      "sha256": "9cdb7860ceff3f2721f399e37778911b15447afbc8407417c3ef500ec1ac202e",
+      "task_id": "S01-T01-T15"
+    },
+    {
+      "evidence_record_link": "records/final-scope-diff-check.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "records/final-scope-diff-check.json",
+      "reviewer_status": "pending",
+      "sha256": "cc983e776ef247f5a6dfb2e22f4c62f18645ae40b145a4d95a294ca5e5134aff",
+      "task_id": "S01-T15"
+    },
+    {
+      "evidence_record_link": "records/final-stage01-suite.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "records/final-stage01-suite.json",
+      "reviewer_status": "pending",
+      "sha256": "fec8dc45e2fe6c5b066adec1352fbf7d335978e8d4598996d1ab7616a5416a31",
+      "task_id": "S01-T15"
     },
     {
       "evidence_record_link": "records/focused-backend-baseline.json",

@@ -1,0 +1,46 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/final-root-dirty-preservation.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stdout": {
+      "path": "artifacts/final-root-dirty-preservation.stdout.log",
+      "sha256": "4a0b997b8a828fce3ac3ee817340ab9f0358a0400be1b6698fa0683338d82452"
+    }
+  },
+  "classification": "COMMAND_RESULT",
+  "command": {
+    "argv": [
+      "uv",
+      "run",
+      "python",
+      "-c",
+      "import hashlib,subprocess; expected=\"f4627038e5f52dbc80119b5dcd2c5d7c2504eb2742e6adb9b6f177e617fe7a88\"; data=subprocess.check_output([\"git\",\"-C\",\"/Volumes/Projects/ketos_canvas_mod_main\",\"status\",\"--short\"]); actual=hashlib.sha256(data).hexdigest(); print(f\"ROOT_DIRTY_SHA256={actual}; EXPECTED={expected}; PRESERVED={actual==expected}\"); assert actual==expected"
+    ],
+    "display": "uv run python -c import hashlib,subprocess; expected=\"f4627038e5f52dbc80119b5dcd2c5d7c2504eb2742e6adb9b6f177e617fe7a88\"; data=subprocess.check_output([\"git\",\"-C\",\"/Volumes/Projects/ketos_canvas_mod_main\",\"status\",\"--short\"]); actual=hashlib.sha256(data).hexdigest(); print(f\"ROOT_DIRTY_SHA256={actual}; EXPECTED={expected}; PRESERVED={actual==expected}\"); assert actual==expected"
+  },
+  "created_at_utc": "2026-07-18T13:54:24Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T13:54:24Z",
+  "execution_revision": "02d9501d7087a331442b5e3cd826f0b17caed0cc",
+  "exit_code": 0,
+  "notes": "Byte-hash current user-owned root short status and assert it matches the Stage 01 pre-action hash.",
+  "owner": "stage01-coordinator",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {
+      "gate": "user-dirty-preservation",
+      "root": "category:source-checkout"
+    }
+  },
+  "record_id": "final-root-dirty-preservation",
+  "reviewer": "pending-final-compliance",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T13:54:23Z",
+  "task_id": "S01-T01-T15",
+  "verdict": "PASS"
+}

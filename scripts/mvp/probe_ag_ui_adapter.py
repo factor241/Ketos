@@ -18,13 +18,18 @@ import importlib.metadata
 import inspect
 import io
 import json
+import os
 import re
+import selectors
+import signal
 import stat
 import subprocess
 import tarfile
 import tempfile
 import textwrap
+import time
 import zipfile
+from contextlib import suppress
 from email.parser import BytesParser
 from email.policy import default as email_policy
 from pathlib import Path, PurePosixPath
@@ -88,8 +93,11 @@ FORK_PROVENANCE_FIELDS = frozenset(
 APPROVED_FORK_OWNER = "factor241"
 APPROVED_FORK_REPOSITORY = "https://github.com/factor241/ag-ui"
 APPROVED_FORK_PACKAGE = "ag-ui-langgraph"
+OFFICIAL_UPSTREAM_OWNER = "ag-ui-protocol"
+OFFICIAL_UPSTREAM_REPOSITORY = "https://github.com/ag-ui-protocol/ag-ui"
 APPROVED_FORK_SOURCE_FILES = frozenset(
     {
+        "docs/concepts/interrupts.mdx",
         "integrations/langgraph/python/README.md",
         "integrations/langgraph/python/ag_ui_langgraph/agent.py",
         "integrations/langgraph/python/ag_ui_langgraph/endpoint.py",
@@ -110,13 +118,15 @@ FORK_PROVENANCE_BINDINGS = (
     "source_tree_bound",
     "changed_files_derived",
 )
-REGISTRY_PROVENANCE_BINDINGS = ("bound", "origin_bound", "expected_sha256_bound")
+UPSTREAM_PROVENANCE_BINDINGS = FORK_PROVENANCE_BINDINGS
 APPROVED_FORK_GIT_REMOTE = "https://github.com/factor241/ag-ui.git"
+OFFICIAL_UPSTREAM_GIT_REMOTE = "https://github.com/ag-ui-protocol/ag-ui.git"
 ARCHIVE_MAX_BYTES = 128 * 1024 * 1024
 ARCHIVE_MAX_MEMBERS = 20_000
 ARCHIVE_MAX_MEMBER_BYTES = 32 * 1024 * 1024
 ARCHIVE_MAX_UNCOMPRESSED_BYTES = 256 * 1024 * 1024
 GIT_STDOUT_MAX_BYTES = 128 * 1024 * 1024
+GIT_STDERR_MAX_BYTES = 8 * 1024 * 1024
 GIT_TIMEOUT_SECONDS = 60
 
 
@@ -148,14 +158,19 @@ def evaluate_candidate(evidence: dict[str, Any]) -> dict[str, Any]:
 
     reasons.extend(contract for contract in REQUIRED_CONTRACTS if contracts.get(contract) is not True)
 
-    if artifact.get("source_class") == "approved-fork":
+    source_class = artifact.get("source_class")
+    if source_class == "approved-fork":
         provenance = evidence.get("fork_provenance") or {}
         if any(provenance.get(key) is not True for key in FORK_PROVENANCE_BINDINGS):
             reasons.append("fork_provenance")
-    if artifact.get("source_class") == "registry-release":
-        provenance = evidence.get("registry_provenance") or {}
-        if any(provenance.get(key) is not True for key in REGISTRY_PROVENANCE_BINDINGS):
-            reasons.append("registry_provenance")
+    elif source_class == "upstream-commit":
+        provenance = evidence.get("upstream_provenance") or {}
+        if any(provenance.get(key) is not True for key in UPSTREAM_PROVENANCE_BINDINGS):
+            reasons.append("upstream_provenance")
+    elif source_class == "registry-release":
+        reasons.append("registry_unsupported")
+    else:
+        reasons.append("source_class")
 
     return {"admitted": not reasons, "reasons": list(dict.fromkeys(reasons))}
 
@@ -226,22 +241,83 @@ def classify_candidate_source(
     return "unknown"
 
 
+def _run_bounded_process(
+    command: list[str],
+    *,
+    stdout_limit: int,
+    stderr_limit: int,
+    timeout_seconds: float,
+) -> tuple[bytes, bytes]:
+    try:
+        process = subprocess.Popen(  # noqa: S603 - callers provide fixed executables and no shell
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            start_new_session=True,
+        )
+    except OSError as exc:
+        _invalid(f"process could not start: {exc}")
+    if process.stdout is None or process.stderr is None:
+        process.kill()
+        process.wait()
+        _invalid("process output pipes were not created")
+
+    streams = {
+        process.stdout: ("stdout", stdout_limit, bytearray()),
+        process.stderr: ("stderr", stderr_limit, bytearray()),
+    }
+    selector = selectors.DefaultSelector()
+    for stream in streams:
+        os.set_blocking(stream.fileno(), False)
+        selector.register(stream, selectors.EVENT_READ)
+    deadline = time.monotonic() + timeout_seconds
+    completed = False
+    try:
+        while selector.get_map():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                _invalid(f"process timed out after {timeout_seconds} seconds")
+            for key, _mask in selector.select(timeout=min(remaining, 0.1)):
+                stream = key.fileobj
+                try:
+                    chunk = os.read(stream.fileno(), 64 * 1024)
+                except BlockingIOError:
+                    continue
+                if not chunk:
+                    selector.unregister(stream)
+                    continue
+                name, limit, output = streams[stream]
+                output.extend(chunk)
+                if len(output) > limit:
+                    _invalid(f"process {name} exceeds {limit}-byte limit")
+        try:
+            return_code = process.wait(timeout=max(0.0, deadline - time.monotonic()))
+        except subprocess.TimeoutExpired:
+            _invalid(f"process timed out after {timeout_seconds} seconds")
+        stdout = bytes(streams[process.stdout][2])
+        stderr = bytes(streams[process.stderr][2])
+        if return_code != 0:
+            message = stderr.decode("utf-8", errors="replace")
+            _invalid(f"process exited with status {return_code}: {message}")
+        completed = True
+        return stdout, stderr
+    finally:
+        selector.close()
+        if not completed:
+            with suppress(ProcessLookupError, PermissionError):
+                os.killpg(process.pid, signal.SIGKILL)
+            process.wait()
+
+
 def _run_git(*args: str, binary: bool = False) -> bytes | str:
     try:
-        with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
-            subprocess.run(  # noqa: S603 - fixed binary; no shell; refs are exact validated SHAs
-                [GIT_EXECUTABLE, *args],
-                check=True,
-                stdout=stdout,
-                stderr=stderr,
-                timeout=GIT_TIMEOUT_SECONDS,
-            )
-            stdout_size = stdout.tell()
-            if stdout_size > GIT_STDOUT_MAX_BYTES:
-                _invalid(f"git output exceeds {GIT_STDOUT_MAX_BYTES}-byte limit")
-            stdout.seek(0)
-            output = stdout.read(GIT_STDOUT_MAX_BYTES + 1)
-    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        output, _stderr = _run_bounded_process(
+            [GIT_EXECUTABLE, *args],
+            stdout_limit=GIT_STDOUT_MAX_BYTES,
+            stderr_limit=GIT_STDERR_MAX_BYTES,
+            timeout_seconds=GIT_TIMEOUT_SECONDS,
+        )
+    except ValueError as exc:
         _invalid(f"git provenance check failed for {args!r}: {exc}")
     return output if binary else output.decode("utf-8")
 
@@ -250,8 +326,12 @@ def _git_output(repository: Path, *args: str, binary: bool = False) -> bytes | s
     return _run_git("-C", str(repository), *args, binary=binary)
 
 
-def _verify_remote_commit_reachability(upstream_sha: str, fork_sha: str) -> None:
-    advertised = _run_git("ls-remote", "--heads", APPROVED_FORK_GIT_REMOTE)
+def _verify_remote_commit_reachability(
+    remote_url: str,
+    upstream_sha: str,
+    candidate_sha: str,
+) -> None:
+    advertised = _run_git("ls-remote", "--heads", remote_url)
     if not isinstance(advertised, str) or not advertised.strip():
         _invalid("approved remote did not advertise any reachable branch heads")
     with tempfile.TemporaryDirectory(prefix="ketos-agui-remote-proof-") as temporary:
@@ -261,17 +341,17 @@ def _verify_remote_commit_reachability(upstream_sha: str, fork_sha: str) -> None
             repository,
             "fetch",
             "--no-tags",
-            APPROVED_FORK_GIT_REMOTE,
-            fork_sha,
+            remote_url,
+            candidate_sha,
         )
         for commit, description in (
-            (fork_sha, "fork commit"),
+            (candidate_sha, "candidate commit"),
             (upstream_sha, "upstream base"),
         ):
             resolved = _git_output(repository, "rev-parse", f"{commit}^{{commit}}")
             if not isinstance(resolved, str) or resolved.strip() != commit:
                 _invalid(f"{description} is not reachable from the approved remote")
-        _git_output(repository, "merge-base", "--is-ancestor", upstream_sha, fork_sha)
+        _git_output(repository, "merge-base", "--is-ancestor", upstream_sha, candidate_sha)
 
 
 def _canonical_git_remote(value: str) -> str:
@@ -353,15 +433,18 @@ def _bind_source_tree_to_repository(
     return supplied == expected
 
 
-def validate_fork_provenance(
+def _validate_git_provenance(
     provenance: dict[str, Any],
     *,
     artifact_path: Path,
     source_archive_path: Path | None,
     repository_path: Path,
     artifact: dict[str, Any],
+    expected_owner: str,
+    expected_repository: str,
+    expected_remote: str,
 ) -> dict[str, Any]:
-    """Bind an approved fork declaration to immutable local artifact bytes."""
+    """Bind a Git candidate declaration to local bytes and an authoritative remote."""
     if set(provenance) != FORK_PROVENANCE_FIELDS:
         missing = sorted(FORK_PROVENANCE_FIELDS - set(provenance))
         extra = sorted(set(provenance) - FORK_PROVENANCE_FIELDS)
@@ -382,10 +465,10 @@ def validate_fork_provenance(
         is None
     ):
         _invalid("package_version must be an exact non-floating version")
-    if provenance["approved_owner"] != APPROVED_FORK_OWNER:
-        _invalid(f"approved owner must be {APPROVED_FORK_OWNER}")
-    if provenance["canonical_repo_url"] != APPROVED_FORK_REPOSITORY:
-        _invalid(f"canonical repository must be {APPROVED_FORK_REPOSITORY}")
+    if provenance["approved_owner"] != expected_owner:
+        _invalid(f"approved owner must be {expected_owner}")
+    if provenance["canonical_repo_url"] != expected_repository:
+        _invalid(f"canonical repository must be {expected_repository}")
 
     detected_kind = {
         "wheel": "wheel",
@@ -468,8 +551,8 @@ def validate_fork_provenance(
         remote = _git_output(repository, *remote_args)
         if not isinstance(remote, str):
             _invalid(f"repository {description} origin could not be read as text")
-        if _canonical_git_remote(remote) != APPROVED_FORK_REPOSITORY:
-            _invalid(f"repository {description} origin is not the approved canonical fork")
+        if _canonical_git_remote(remote) != expected_repository:
+            _invalid(f"repository {description} origin is not the approved canonical repository")
     for commit, description in (
         (upstream_sha, "upstream base"),
         (fork_sha, "fork commit"),
@@ -478,7 +561,7 @@ def validate_fork_provenance(
         if not isinstance(resolved, str) or resolved.strip() != commit:
             _invalid(f"{description} does not resolve to the declared commit")
     _git_output(repository, "merge-base", "--is-ancestor", upstream_sha, fork_sha)
-    _verify_remote_commit_reachability(upstream_sha, fork_sha)
+    _verify_remote_commit_reachability(expected_remote, upstream_sha, fork_sha)
     derived_output = _git_output(repository, "diff", "--name-only", upstream_sha, fork_sha)
     if not isinstance(derived_output, str):
         _invalid("repository diff could not be read as text")
@@ -500,6 +583,47 @@ def validate_fork_provenance(
     }
 
 
+def validate_fork_provenance(
+    provenance: dict[str, Any],
+    *,
+    artifact_path: Path,
+    source_archive_path: Path | None,
+    repository_path: Path,
+    artifact: dict[str, Any],
+) -> dict[str, Any]:
+    """Bind an approved factor241 fork declaration to immutable evidence."""
+    return _validate_git_provenance(
+        provenance,
+        artifact_path=artifact_path,
+        source_archive_path=source_archive_path,
+        repository_path=repository_path,
+        artifact=artifact,
+        expected_owner=APPROVED_FORK_OWNER,
+        expected_repository=APPROVED_FORK_REPOSITORY,
+        expected_remote=APPROVED_FORK_GIT_REMOTE,
+    )
+
+
+def validate_upstream_provenance(
+    provenance: dict[str, Any],
+    *,
+    artifact_path: Path,
+    repository_path: Path,
+    artifact: dict[str, Any],
+) -> dict[str, Any]:
+    """Bind an official upstream source archive to the official remote."""
+    return _validate_git_provenance(
+        provenance,
+        artifact_path=artifact_path,
+        source_archive_path=None,
+        repository_path=repository_path,
+        artifact=artifact,
+        expected_owner=OFFICIAL_UPSTREAM_OWNER,
+        expected_repository=OFFICIAL_UPSTREAM_REPOSITORY,
+        expected_remote=OFFICIAL_UPSTREAM_GIT_REMOTE,
+    )
+
+
 def load_fork_provenance(path: Path) -> dict[str, Any]:
     """Load a provenance sidecar as untrusted JSON data."""
     resolved = path.resolve(strict=True)
@@ -516,10 +640,17 @@ def load_fork_provenance(path: Path) -> dict[str, Any]:
 
 
 def _safe_archive_names(names: list[str]) -> None:
+    normalized_names: set[str] = set()
     for name in names:
+        if not name or "\\" in name:
+            _invalid(f"unsafe archive member: {name}")
         path = PurePosixPath(name)
         if path.is_absolute() or ".." in path.parts:
             _invalid(f"unsafe archive member: {name}")
+        normalized = str(path)
+        if normalized in normalized_names:
+            _invalid(f"duplicate archive member: {name}")
+        normalized_names.add(normalized)
 
 
 def _one(items: list[str], description: str) -> str:
@@ -551,10 +682,12 @@ def _wheel_artifact(path: Path) -> dict[str, Any]:
         entries = archive.infolist()
         names = [entry.filename for entry in entries]
         _safe_archive_names(names)
-        _validate_member_sizes([entry.file_size for entry in entries if not entry.is_dir()])
+        _validate_member_sizes([entry.file_size for entry in entries])
         for entry in entries:
             mode = (entry.external_attr >> 16) & 0xFFFF
-            if stat.S_ISLNK(mode):
+            file_type = stat.S_IFMT(mode)
+            allowed_types = {0, stat.S_IFDIR} if entry.is_dir() else {0, stat.S_IFREG}
+            if file_type not in allowed_types:
                 _invalid(f"unsafe archive member type: {entry.filename}")
         metadata_path = _one(
             [name for name in names if name.endswith(".dist-info/METADATA")],
@@ -1332,6 +1465,8 @@ def collect_evidence(
     fork_provenance_path: Path | None = None,
     source_archive_path: Path | None = None,
     fork_repository_path: Path | None = None,
+    upstream_provenance_path: Path | None = None,
+    upstream_repository_path: Path | None = None,
 ) -> dict[str, Any]:
     artifact = inspect_artifact(artifact_path)
     fork_selected = any(
@@ -1342,11 +1477,15 @@ def collect_evidence(
             fork_repository_path,
         )
     )
+    upstream_selected = upstream_provenance_path is not None or upstream_repository_path is not None
+    if fork_selected and upstream_selected:
+        _invalid("fork and upstream provenance inputs are mutually exclusive")
     artifact["source_class"] = classify_candidate_source(
         artifact,
         fork_selected=fork_selected,
     )
     fork_provenance = None
+    upstream_provenance = None
     if fork_provenance_path is not None:
         if fork_repository_path is None:
             _invalid("fork repository path is required with fork provenance")
@@ -1355,6 +1494,15 @@ def collect_evidence(
             artifact_path=artifact_path,
             source_archive_path=source_archive_path,
             repository_path=fork_repository_path,
+            artifact=artifact,
+        )
+    if upstream_provenance_path is not None:
+        if upstream_repository_path is None:
+            _invalid("upstream repository path is required with upstream provenance")
+        upstream_provenance = validate_upstream_provenance(
+            load_fork_provenance(upstream_provenance_path),
+            artifact_path=artifact_path,
+            repository_path=upstream_repository_path,
             artifact=artifact,
         )
     runtime = _runtime_snapshot(str(artifact["name"]))
@@ -1375,6 +1523,8 @@ def collect_evidence(
     }
     if fork_provenance is not None:
         evidence["fork_provenance"] = fork_provenance
+    if upstream_provenance is not None:
+        evidence["upstream_provenance"] = upstream_provenance
     evidence["decision"] = evaluate_candidate(evidence)
     return evidence
 
@@ -1385,6 +1535,8 @@ def main() -> int:
     parser.add_argument("--fork-provenance-path", type=Path)
     parser.add_argument("--source-archive-path", type=Path)
     parser.add_argument("--fork-repository-path", type=Path)
+    parser.add_argument("--upstream-provenance-path", type=Path)
+    parser.add_argument("--upstream-repository-path", type=Path)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
@@ -1394,6 +1546,8 @@ def main() -> int:
             args.fork_provenance_path,
             args.source_archive_path,
             args.fork_repository_path,
+            args.upstream_provenance_path,
+            args.upstream_repository_path,
         )
     except Exception as exc:  # noqa: BLE001 - candidate metadata is intentionally fail-closed
         evidence = {

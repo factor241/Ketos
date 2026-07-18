@@ -65,7 +65,9 @@ The negative-first test was written before the probe.
 | fork-review RED | before exact public API, Git-tree provenance, and adversarial-flow corrections | selected reviewer regression set | 1 | 16 expected failures, 1 passed |
 | R1 fork-review GREEN | after exact public API and Git-tree corrections | `PYTHONDONTWRITEBYTECODE=1 uv run pytest src/backend/tests/unit/agentic/api/test_ag_ui_adapter_contract.py -q` | 0 | historical 62 passed |
 | R2 fork-review RED | before source-origin and resource-bound corrections | selected R2 regression set | 1 | 6 expected failures, 2 passed |
-| current R2 fork-review GREEN | after source-origin and resource-bound corrections | `PYTHONDONTWRITEBYTECODE=1 uv run pytest src/backend/tests/unit/agentic/api/test_ag_ui_adapter_contract.py -q` | 0 | 75 passed |
+| R2 fork-review GREEN | after source-origin and resource-bound corrections | `PYTHONDONTWRITEBYTECODE=1 uv run pytest src/backend/tests/unit/agentic/api/test_ag_ui_adapter_contract.py -q` | 0 | historical 75 passed |
+| R3 fork-review RED | before upstream, registry, ZIP, and streaming-process corrections | selected R3 regression set | 1 | 11 expected failures, 1 passed |
+| current R3 fork-review GREEN | after R3 corrections and exact interrupts-doc allowlist | `PYTHONDONTWRITEBYTECODE=1 uv run pytest src/backend/tests/unit/agentic/api/test_ag_ui_adapter_contract.py -q` | 0 | 89 passed |
 
 The package environment emits one pre-existing Starlette/httpx deprecation
 warning; it does not change the focused result.
@@ -587,7 +589,7 @@ MIT, Python `>=3.10`. It remains unpinned because the adapter/JS gates fail.
 | official docs/web | open six required URLs | available; all opened | none | blocking evidence obtained |
 | PyPI/npm/Git | releases, hashes, installed types, immutable commit | available; first GitHub releases URL returned HTTP 403 and two unquoted `?` URLs produced zsh `no matches found` | quoted URL, `git ls-remote`, sparse clone, PyPI/npm registries | recovered, non-blocking |
 | isolated uv install | exact wheel/VCS probes | local renamed wheel first failed `wheel filename ... is invalid: Must have a Python tag`; plain adapter install then failed `ModuleNotFoundError: No module named 'fastapi'` | exact wheel URL plus declared `[fastapi]` extra | recovered; final probes authoritative |
-| pytest | negative-first and focused contract history | historical 22/62 passed; current R2 fork-review 75 passed | none | pass |
+| pytest | negative-first and focused contract history | historical 22/62/75 passed; current R3 fork-review 89 passed | none | pass |
 | browser/Chrome | visual product flow | not relevant to dependency-only A01; no product route exists | not invoked | no A01 impact |
 
 ## Repository scope check

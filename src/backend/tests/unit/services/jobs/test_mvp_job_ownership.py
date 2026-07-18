@@ -7,8 +7,10 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
+from httpx import AsyncClient
 from ketos.services.database.models.jobs.model import Job, JobStatus, JobType
 from ketos.services.jobs.service import JobService
+from kfx.services.deps import session_scope
 
 
 @asynccontextmanager
@@ -138,3 +140,65 @@ async def test_cancel_in_flight_jobs_limits_user_authorized_cancellation_to_exac
     statement = _where_clause(session)
     assert "job.user_id IS NULL" not in statement
     assert "job.user_id =" in statement
+
+
+@pytest.mark.asyncio
+async def test_cancel_in_flight_jobs_mutates_only_exact_owner_for_shared_asset(client: AsyncClient):  # noqa: ARG001
+    """A user cancellation leaves foreign and NULL-owned rows untouched in storage."""
+    owner_id, foreign_id, asset_id = uuid4(), uuid4(), uuid4()
+    owner_job = Job(
+        job_id=uuid4(),
+        flow_id=uuid4(),
+        asset_id=asset_id,
+        asset_type="knowledge_base",
+        user_id=owner_id,
+        status=JobStatus.QUEUED,
+        type=JobType.INGESTION,
+    )
+    foreign_job = Job(
+        job_id=uuid4(),
+        flow_id=uuid4(),
+        asset_id=asset_id,
+        asset_type="knowledge_base",
+        user_id=foreign_id,
+        status=JobStatus.IN_PROGRESS,
+        type=JobType.INGESTION,
+    )
+    null_owner_job = Job(
+        job_id=uuid4(),
+        flow_id=uuid4(),
+        asset_id=asset_id,
+        asset_type="knowledge_base",
+        user_id=None,
+        status=JobStatus.QUEUED,
+        type=JobType.INGESTION,
+    )
+    job_ids = [owner_job.job_id, foreign_job.job_id, null_owner_job.job_id]
+
+    async with session_scope() as session:
+        session.add_all([owner_job, foreign_job, null_owner_job])
+        await session.flush()
+
+    try:
+        cancelled = await JobService().cancel_in_flight_jobs_by_asset(
+            asset_id, "knowledge_base", user_id=owner_id
+        )
+
+        assert cancelled == [owner_job.job_id]
+        async with session_scope() as session:
+            persisted_owner = await session.get(Job, owner_job.job_id)
+            persisted_foreign = await session.get(Job, foreign_job.job_id)
+            persisted_null_owner = await session.get(Job, null_owner_job.job_id)
+
+            assert persisted_owner is not None
+            assert persisted_owner.status == JobStatus.CANCELLED
+            assert persisted_foreign is not None
+            assert persisted_foreign.status == JobStatus.IN_PROGRESS
+            assert persisted_null_owner is not None
+            assert persisted_null_owner.status == JobStatus.QUEUED
+    finally:
+        async with session_scope() as session:
+            for job_id in job_ids:
+                job = await session.get(Job, job_id)
+                if job:
+                    await session.delete(job)

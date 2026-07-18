@@ -25,11 +25,14 @@ from urllib.parse import urlsplit, urlunsplit
 
 PACKAGE_KEY = "@copilotkit/react-core"
 PACKAGE_VERSION = "1.63.1-ketos.1"
+NODE_VERSION = "22.23.1"
+PNPM_VERSION = "10.33.4"
 FORK_SHA = "c853ac2b78cb57481cc2ca58eda4a865908c532b"
 UPSTREAM_BASE_SHA = "0c9d639b1348d015f4361d2275db4b15d01c04bc"
 FORK_REPOSITORY = "https://github.com/factor241/CopilotKit"
 UPSTREAM_REPOSITORY = "https://github.com/CopilotKit/CopilotKit"
 DEFAULT_MAX_ARCHIVE_BYTES = 64 * 1024 * 1024
+DEFAULT_MAX_ARTIFACT_BYTES = 64 * 1024 * 1024
 DEFAULT_MAX_MEMBERS = 50_000
 DEFAULT_MAX_MEMBER_BYTES = 64 * 1024 * 1024
 DEFAULT_MAX_UNCOMPRESSED_BYTES = 512 * 1024 * 1024
@@ -348,12 +351,13 @@ def _package_metadata(repository: Path, fork_sha: str, record: dict[str, Any]) -
 
 
 def _canonical_rebuild(fork_sha: str, source_date_epoch: int) -> str:
+    pnpm = f'npx --yes --package=node@{NODE_VERSION} -- node "$(command -v corepack)" pnpm@{PNPM_VERSION}'
     return (
-        f"git checkout {fork_sha} && pnpm install --frozen-lockfile && "
-        "pnpm exec nx run @copilotkit/react-core:check-types --skip-nx-cache --outputStyle=static && "
-        "rm -rf packages/react-core/dist && pnpm --dir packages/react-core run build && "
-        f"SOURCE_DATE_EPOCH={source_date_epoch} "
-        "pnpm --dir packages/react-core run pack:deterministic /tmp/ketos-stage01-copilot-pack"
+        f"git checkout {fork_sha} && {pnpm} install --frozen-lockfile && "
+        f"{pnpm} exec nx run @copilotkit/react-core:check-types --skip-nx-cache --outputStyle=static && "
+        f"rm -rf packages/react-core/dist && {pnpm} --dir packages/react-core run build && "
+        f"SOURCE_DATE_EPOCH={source_date_epoch} {pnpm} --dir packages/react-core run pack:deterministic "
+        "/tmp/ketos-stage01-copilot-pack"  # noqa: S108 - exact manifest-owned isolated build path.
     )
 
 
@@ -368,6 +372,7 @@ def audit_provenance(
     expected_fork_sha: str | None = None,
     expected_upstream_base_sha: str | None = None,
     max_archive_bytes: int = DEFAULT_MAX_ARCHIVE_BYTES,
+    max_artifact_bytes: int = DEFAULT_MAX_ARTIFACT_BYTES,
     max_members: int = DEFAULT_MAX_MEMBERS,
     max_member_bytes: int = DEFAULT_MAX_MEMBER_BYTES,
     max_uncompressed_bytes: int = DEFAULT_MAX_UNCOMPRESSED_BYTES,
@@ -379,6 +384,8 @@ def audit_provenance(
         _fail("package artifact must be one regular file")
     if source_archive.stat().st_size > max_archive_bytes:
         _fail("source archive exceeds compressed resource limit")
+    if artifact_path.stat().st_size > max_artifact_bytes:
+        _fail("package artifact exceeds resource limit")
     manifest = _strict_json(manifest_path)
     record = _manifest_record(manifest)
     fork_sha = _sha(record.get("fork_sha"), "fork SHA")
@@ -415,12 +422,15 @@ def audit_provenance(
         _fail("source archive SHA-256 mismatch")
     if artifact_path.name != record.get("artifact"):
         _fail("artifact filename does not match manifest")
-    artifact_hash = _sha256_path(artifact_path)
+    artifact_hash = _sha256_path(artifact_path, limit=max_artifact_bytes)
     if artifact_hash != _digest(record.get("artifact_sha256"), "artifact SHA-256"):
         _fail("artifact SHA-256 mismatch")
     if record.get("version") != PACKAGE_VERSION or record.get("license_spdx") != "MIT":
         _fail("manifest package identity is not the admitted package/version/license")
-    epoch = record.get("toolchain", {}).get("source_date_epoch") if isinstance(record.get("toolchain"), dict) else None
+    toolchain = record.get("toolchain")
+    epoch = toolchain.get("source_date_epoch") if isinstance(toolchain, dict) else None
+    if toolchain != {"node": NODE_VERSION, "pnpm": PNPM_VERSION, "source_date_epoch": epoch}:
+        _fail("manifest toolchain is not exactly pinned")
     if not isinstance(epoch, int) or epoch <= 0 or record.get("rebuild") != _canonical_rebuild(fork_sha, epoch):
         _fail("manifest rebuild command is not bound to the fork/package/epoch")
 

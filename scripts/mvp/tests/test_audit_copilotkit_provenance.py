@@ -104,15 +104,12 @@ def _fixture(tmp_path: Path, *, package_name: str = "@copilotkit/react-core") ->
                         "license_spdx": "MIT",
                         "license_sha256": license_hash,
                         "changed_files": changed,
-                        "toolchain": {"source_date_epoch": epoch},
-                        "rebuild": (
-                            f"git checkout {fork} && pnpm install --frozen-lockfile && "
-                            "pnpm exec nx run @copilotkit/react-core:check-types --skip-nx-cache "
-                            "--outputStyle=static && rm -rf packages/react-core/dist && "
-                            "pnpm --dir packages/react-core run build && "
-                            f"SOURCE_DATE_EPOCH={epoch} pnpm --dir packages/react-core run "
-                            "pack:deterministic /tmp/ketos-stage01-copilot-pack"
-                        ),
+                        "toolchain": {
+                            "node": audit.NODE_VERSION,
+                            "pnpm": audit.PNPM_VERSION,
+                            "source_date_epoch": epoch,
+                        },
+                        "rebuild": audit._canonical_rebuild(fork, epoch),
                     }
                 },
             }
@@ -272,12 +269,32 @@ def test_rejects_member_and_total_resource_overflow(tmp_path: Path) -> None:
     fixture = _fixture(tmp_path)
     with pytest.raises(audit.AuditError, match="compressed"):
         _audit(fixture, max_archive_bytes=1)
+    with pytest.raises(audit.AuditError, match="artifact exceeds"):
+        _audit(fixture, max_artifact_bytes=1)
     with pytest.raises(audit.AuditError, match="member count"):
         _audit(fixture, max_members=1)
     with pytest.raises(audit.AuditError, match="member exceeds size"):
         _audit(fixture, max_member_bytes=1)
     with pytest.raises(audit.AuditError, match="total uncompressed"):
         _audit(fixture, max_uncompressed_bytes=1)
+
+
+def test_rejects_package_artifact_over_resource_limit(tmp_path: Path) -> None:
+    fixture = _fixture(tmp_path)
+
+    with pytest.raises(audit.AuditError, match="package artifact exceeds"):
+        _audit(fixture, max_artifact_bytes=1)
+
+
+def test_rejects_unpinned_toolchain_metadata(tmp_path: Path) -> None:
+    fixture = _fixture(tmp_path)
+    manifest_path = Path(fixture["manifest"])
+    manifest = json.loads(manifest_path.read_text())
+    manifest["artifacts"]["@copilotkit/react-core"]["toolchain"]["node"] = "26.3.1"
+    manifest_path.write_text(json.dumps(manifest))
+
+    with pytest.raises(audit.AuditError, match="toolchain"):
+        _audit(fixture)
 
 
 def test_rejects_extra_global_pax_and_symlink_target_spoofs(tmp_path: Path) -> None:

@@ -80,13 +80,13 @@ jobs:
           ls -la kfx-dist/
       - name: Upload bundles artifact
         if: steps.build.outputs.bundles-found == '1'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: dist-bundles
           path: bundles-dist
       - name: Upload kfx artifact (smoke-test only; not published)
         if: steps.build.outputs.bundles-found == '1'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: dist-kfx-smoketest
           path: kfx-dist

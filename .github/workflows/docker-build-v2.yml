@@ -244,7 +244,7 @@ jobs:
             > "oci-subject-${RELEASE_TYPE}-${ARCH}.json"
 
       - name: Upload immutable OCI subject
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}
           path: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}.json
@@ -336,7 +336,7 @@ jobs:
             > "oci-subject-${RELEASE_TYPE}-${ARCH}.json"
 
       - name: Upload immutable OCI subject
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}
           path: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}.json
@@ -423,7 +423,7 @@ jobs:
             > "oci-subject-${RELEASE_TYPE}-${ARCH}.json"
 
       - name: Upload immutable OCI subject
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}
           path: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}.json
@@ -517,7 +517,7 @@ jobs:
             > "oci-subject-${RELEASE_TYPE}-${ARCH}.json"
 
       - name: Upload immutable OCI subject
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}
           path: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}.json
@@ -616,7 +616,7 @@ jobs:
             > "oci-subject-${RELEASE_TYPE}-${ARCH}.json"
 
       - name: Upload immutable OCI subject
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}
           path: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}.json
@@ -708,7 +708,7 @@ jobs:
             > "oci-subject-${RELEASE_TYPE}-${ARCH}.json"
 
       - name: Upload immutable OCI subject
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}
           path: oci-subject-${{ inputs.release_type }}-${{ matrix.arch }}.json

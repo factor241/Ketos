@@ -632,7 +632,7 @@ jobs:
           NORMALIZED_VERSION=$(echo "$EXPECTED_VERSION" | sed 's/\.rc/rc/g; s/\.a/a/g; s/\.b/b/g; s/\.dev/dev/g')
           ./test-env/bin/python -c "from importlib.metadata import version; import ketos_sdk; installed_version = version('ketos-sdk'); print(f'ketos-sdk {installed_version} imported successfully'); assert installed_version == '$NORMALIZED_VERSION', f'Installed version {installed_version} does not match expected version $NORMALIZED_VERSION'"
       - name: Upload Artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: dist-sdk
           path: src/sdk/dist
@@ -740,7 +740,7 @@ jobs:
           fi
           ./test-env/bin/kfx --help
       - name: Upload Artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: dist-kfx
           path: src/kfx/dist
@@ -878,7 +878,7 @@ jobs:
       # PyPI publishing moved to after cross-platform testing
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: dist-base
           path: src/backend/base/dist
@@ -1025,7 +1025,7 @@ jobs:
       # PyPI publishing moved to after cross-platform testing
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: dist-main
           path: dist
@@ -1116,7 +1116,7 @@ jobs:
           ls -la bundles-dist/
       - name: Upload bundles artifact
         if: steps.build.outputs.bundles-found == '1'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: dist-bundles
           path: bundles-dist
@@ -1588,13 +1588,13 @@ jobs:
             --version "$VERSION"
 
       - name: Upload supply-chain documents
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: supply-chain
           path: supply-chain/
 
       - name: Upload deterministic release archive
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-archives
           path: release-inputs/release-archives/

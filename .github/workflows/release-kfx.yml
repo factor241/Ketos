@@ -189,7 +189,7 @@ jobs:
           echo "KFX CLI test completed successfully"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: kfx-dist
           path: src/kfx/dist/

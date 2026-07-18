@@ -77,6 +77,8 @@
     "source_baseline_field": "source_baseline_sha",
     "execution_revision_field": "execution_revision",
     "delivery_pointer": "DELIVERY_REVISION.md",
+    "payload_commit": "9d8f62c9824c95c4bbb1a5bb21c7fde6a7c3657e",
+    "attestation_record": "records/delivery-attestation.json",
     "rule": "The delivery pointer is attested after the payload commit; it never claims a commit contains its own SHA."
   },
   "no_previous_stage_admission": "Предыдущих этапов нет"

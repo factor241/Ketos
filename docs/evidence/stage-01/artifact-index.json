@@ -6,7 +6,7 @@
       "owner": "stage-01",
       "relative_path": "DELIVERY_REVISION.md",
       "reviewer_status": "pending",
-      "sha256": "a71b830df10ff6e5f97e699ba0eefe9873dad0205a62a586dc54f0f14379a463",
+      "sha256": "2f5ae56a898633866ea99c75de4526e59cefe26230c0f7ce7619ae3ac642e961",
       "task_id": "S01-T01"
     },
     {
@@ -61,6 +61,24 @@
       "relative_path": "artifacts/current-rss.stdout.log",
       "reviewer_status": "pending",
       "sha256": "9f3eb0d9c1b334a4240adf129a1acffa6fef87377cf13ab0880d6488b416fde8",
+      "task_id": "S01-T01"
+    },
+    {
+      "evidence_record_link": "records/delivery-attestation.json",
+      "not_applicable_reason": null,
+      "owner": "stage-01",
+      "relative_path": "artifacts/delivery-attestation.stderr.log",
+      "reviewer_status": "pending",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "task_id": "S01-T01"
+    },
+    {
+      "evidence_record_link": "records/delivery-attestation.json",
+      "not_applicable_reason": null,
+      "owner": "stage-01",
+      "relative_path": "artifacts/delivery-attestation.stdout.log",
+      "reviewer_status": "pending",
+      "sha256": "510ace6773215cbc4766e3cb147b03ea2532c5cbb129d3dd07881875faecc65c",
       "task_id": "S01-T01"
     },
     {
@@ -222,7 +240,7 @@
       "owner": "stage-01",
       "relative_path": "preflight-manifest.json",
       "reviewer_status": "pending",
-      "sha256": "0b7edb1814697d978781a04903d65d20e19017feeda6151eda180caf0e3dcc17",
+      "sha256": "59ce67b0de1de7245e93c523ab8698098396f49f78c87c644bd9a1b042537637",
       "task_id": "S01-T01"
     },
     {
@@ -241,6 +259,15 @@
       "relative_path": "records/current-rss.json",
       "reviewer_status": "pending",
       "sha256": "8275b297278bda7ca221cb89dfcbecfad19b87d3b0bd263752c3e63325d82ae3",
+      "task_id": "S01-T01"
+    },
+    {
+      "evidence_record_link": "records/delivery-attestation.json",
+      "not_applicable_reason": null,
+      "owner": "stage-01",
+      "relative_path": "records/delivery-attestation.json",
+      "reviewer_status": "pending",
+      "sha256": "1c204c908148178ddec4ae9320bb2bec1c244e543883bdd97c1cb7f3b5909285",
       "task_id": "S01-T01"
     },
     {
@@ -352,7 +379,7 @@
       "task_id": "S01-T01"
     }
   ],
-  "index_version": 2,
-  "scope": "persistent files in docs/evidence/stage-01 after review fixes except this index; ignored Python bytecode is excluded",
+  "index_version": 3,
+  "scope": "persistent files in docs/evidence/stage-01 after review fixes and delivery attestation except this index; ignored Python bytecode is excluded",
   "self_hash_policy": "artifact-index.json is deliberately excluded to avoid recursive hashing"
 }

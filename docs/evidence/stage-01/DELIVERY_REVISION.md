@@ -25,3 +25,11 @@ the attestation artifact. This binds the attestation carrier (the delivered
 review commit) to a concrete, immutable payload without a recursive self-SHA
 claim. The owner/reviewer fields of the attestation record are the sign-off
 metadata; no cryptographic signature is claimed.
+
+## Current attestation
+
+- Payload commit: `9d8f62c9824c95c4bbb1a5bb21c7fde6a7c3657e`.
+- Attestation record: `records/delivery-attestation.json`.
+- Carrier verification: at the final review checkout, `git rev-parse HEAD^`
+  must equal the payload commit above and the attestation stdout must print the
+  same SHA.

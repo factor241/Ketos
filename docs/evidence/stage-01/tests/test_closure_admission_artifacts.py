@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import importlib.util
 import json
-from pathlib import Path
 import shutil
+from pathlib import Path
 
 import pytest
-
 
 BUNDLE = Path(__file__).resolve().parents[1]
 CLOSURE = BUNDLE / "closure"

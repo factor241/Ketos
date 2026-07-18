@@ -5,9 +5,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from pathlib import Path
 import subprocess
-
+from pathlib import Path
 
 SNAPSHOT = "stage-01c-admission-snapshot.json"
 DECISION = "stage-01c-governance-decision.md"
@@ -73,16 +72,56 @@ EXPECTED_ROOT_CHECKOUT = {
     "preservation_rule": "Stage 01C does not modify this root checkout.",
 }
 EXPECTED_WORKTREE_REGISTRY = [
-    {"path": "/Volumes/Projects/ketos_canvas_mod_main", "head": "80878261d07c21ad257de017d98069f211ada2c2", "branch": "redesign/sidebar-account"},
-    {"path": "/Volumes/Projects/ketos-stage01-blocker-closure", "head": BASELINE_SHA, "branch": "codex/stage01-blocker-closure"},
-    {"path": "/Volumes/Projects/ketos-stage01-integration", "head": BASELINE_SHA, "branch": "codex/stage01-baseline-evidence"},
-    {"path": "/Volumes/Projects/ketos-stage01-lane-architecture", "head": "80878261d07c21ad257de017d98069f211ada2c2", "branch": None},
-    {"path": "/Volumes/Projects/ketos-stage01-lane-backend", "head": "80878261d07c21ad257de017d98069f211ada2c2", "branch": None},
-    {"path": "/Volumes/Projects/ketos-stage01-lane-docs", "head": "80878261d07c21ad257de017d98069f211ada2c2", "branch": None},
-    {"path": "/Volumes/Projects/ketos-stage01-lane-frontend", "head": "80878261d07c21ad257de017d98069f211ada2c2", "branch": None},
-    {"path": "/Volumes/Projects/ketos-stage01-lane-testing", "head": "80878261d07c21ad257de017d98069f211ada2c2", "branch": None},
-    {"path": "/Volumes/Projects/ketos-visible-rebrand-only", "head": "e76b6273f68fa160038b830c39f48bcf84f1bef2", "branch": None},
-    {"path": "/Volumes/Projects/langflow-codex-cleanup", "head": "b40fcb87b4e334e3cdf75830e5ba214275caaa53", "branch": None},
+    {
+        "path": "/Volumes/Projects/ketos_canvas_mod_main",
+        "head": "80878261d07c21ad257de017d98069f211ada2c2",
+        "branch": "redesign/sidebar-account",
+    },
+    {
+        "path": "/Volumes/Projects/ketos-stage01-blocker-closure",
+        "head": BASELINE_SHA,
+        "branch": "codex/stage01-blocker-closure",
+    },
+    {
+        "path": "/Volumes/Projects/ketos-stage01-integration",
+        "head": BASELINE_SHA,
+        "branch": "codex/stage01-baseline-evidence",
+    },
+    {
+        "path": "/Volumes/Projects/ketos-stage01-lane-architecture",
+        "head": "80878261d07c21ad257de017d98069f211ada2c2",
+        "branch": None,
+    },
+    {
+        "path": "/Volumes/Projects/ketos-stage01-lane-backend",
+        "head": "80878261d07c21ad257de017d98069f211ada2c2",
+        "branch": None,
+    },
+    {
+        "path": "/Volumes/Projects/ketos-stage01-lane-docs",
+        "head": "80878261d07c21ad257de017d98069f211ada2c2",
+        "branch": None,
+    },
+    {
+        "path": "/Volumes/Projects/ketos-stage01-lane-frontend",
+        "head": "80878261d07c21ad257de017d98069f211ada2c2",
+        "branch": None,
+    },
+    {
+        "path": "/Volumes/Projects/ketos-stage01-lane-testing",
+        "head": "80878261d07c21ad257de017d98069f211ada2c2",
+        "branch": None,
+    },
+    {
+        "path": "/Volumes/Projects/ketos-visible-rebrand-only",
+        "head": "e76b6273f68fa160038b830c39f48bcf84f1bef2",
+        "branch": None,
+    },
+    {
+        "path": "/Volumes/Projects/langflow-codex-cleanup",
+        "head": "b40fcb87b4e334e3cdf75830e5ba214275caaa53",
+        "branch": None,
+    },
 ]
 EXPECTED_RSS = {
     "command": "ps -A -o rss= | awk '{sum += $1} END {print sum}'",
@@ -94,8 +133,17 @@ EXPECTED_RUNTIME_VERSIONS = {
     "python": {"status": "available", "command": "uv run python --version", "version": "Python 3.13.14"},
     "node": {"status": "available", "command": "node --version", "version": "v26.3.1"},
     "npm": {"status": "available", "command": "npm --version", "version": "11.16.0"},
-    "postgresql": {"status": "available", "command": "psql --version", "version": "psql (PostgreSQL) 18.4", "server_binary": "postgres not found on PATH"},
-    "sqlite": {"status": "available", "command": "uv run python -c 'import sqlite3; print(sqlite3.sqlite_version)'", "version": "3.53.1"},
+    "postgresql": {
+        "status": "available",
+        "command": "psql --version",
+        "version": "psql (PostgreSQL) 18.4",
+        "server_binary": "postgres not found on PATH",
+    },
+    "sqlite": {
+        "status": "available",
+        "command": "uv run python -c 'import sqlite3; print(sqlite3.sqlite_version)'",
+        "version": "3.53.1",
+    },
 }
 EXPECTED_HISTORICAL_REPORT = {
     "path": "docs/evidence/stage-01/STAGE_01_REPORT_RU.md",

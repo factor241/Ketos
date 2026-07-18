@@ -99,6 +99,26 @@ Results:
 - Relevant Stage 01 evidence suite: `41 passed in 3.31s`.
 - JSON syntax: `PASS`; `git diff --check`: exit 0.
 
+## Quality follow-up
+
+Applied only mechanical Ruff formatting and import sorting to
+`validate_admission.py` and `test_closure_admission_artifacts.py`; no validator
+logic, evidence values, product source, or Task 2 files changed.
+
+Commands:
+
+```bash
+uv run pytest docs/evidence/stage-01/tests/test_closure_admission_artifacts.py -q
+uv run python docs/evidence/stage-01/closure/validate_admission.py
+uv run ruff format --check docs/evidence/stage-01/closure/validate_admission.py docs/evidence/stage-01/tests/test_closure_admission_artifacts.py
+uv run ruff check --select I docs/evidence/stage-01/closure/validate_admission.py docs/evidence/stage-01/tests/test_closure_admission_artifacts.py
+git diff --check
+```
+
+Results: focused admission suite `11 passed in 0.25s`, validator `PASS`, Ruff
+format reported `2 files already formatted`, import sorting reported `All
+checks passed!`, and `git diff --check` exited 0.
+
 ## Residual concerns
 
 - This is a timestamped admission snapshot, not a final Stage 01 closure

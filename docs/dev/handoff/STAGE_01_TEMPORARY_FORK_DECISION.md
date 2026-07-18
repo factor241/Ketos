@@ -50,6 +50,12 @@ fields, unapproved owners/repositories/paths, floating refs, unsafe paths,
 duplicate changed files, metadata mismatch, and any artifact, source, or
 license hash mismatch.
 
+The source input must be a Git archive whose embedded commit equals
+`fork_commit_sha`. The approved local repository is also mandatory: its
+canonical `origin`, commit objects, base ancestry, commit-derived changed-file
+set, and archived package tree are checked against the sidecar, source archive,
+and built artifact. Provenance JSON is bounded to 64 KiB before parsing.
+
 The integration invocation is:
 
 ```bash
@@ -58,11 +64,13 @@ uv run --isolated --no-project --with '<exact fork artifact requirement>' \
   --artifact-path '<exact wheel-or-tgz path>' \
   --fork-provenance-path '<exact provenance.json path>' \
   --source-archive-path '<exact source tgz path>' \
+  --fork-repository-path '<exact factor241/ag-ui checkout path>' \
   --json
 ```
 
 `--source-archive-path` may be omitted only when `artifact_kind` is `tgz` and
-the artifact itself is the source archive.
+the artifact itself is the source archive. `--fork-repository-path` is required
+whenever fork provenance is supplied.
 
 ## Pending evidence
 

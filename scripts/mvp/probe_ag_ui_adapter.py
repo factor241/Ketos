@@ -11,12 +11,15 @@ from __future__ import annotations
 
 import argparse
 import ast
+import asyncio
 import hashlib
 import importlib
 import importlib.metadata
 import inspect
+import io
 import json
 import re
+import subprocess
 import tarfile
 import textwrap
 import zipfile
@@ -84,11 +87,26 @@ APPROVED_FORK_REPOSITORY = "https://github.com/factor241/ag-ui"
 APPROVED_FORK_PACKAGE = "ag-ui-langgraph"
 APPROVED_FORK_SOURCE_FILES = frozenset(
     {
+        "integrations/langgraph/python/README.md",
         "integrations/langgraph/python/ag_ui_langgraph/agent.py",
         "integrations/langgraph/python/ag_ui_langgraph/endpoint.py",
+        "integrations/langgraph/python/ag_ui_langgraph/interrupts.py",
+        "integrations/langgraph/python/ag_ui_langgraph/types.py",
+        "integrations/langgraph/python/examples/agents/human_in_the_loop/agent.py",
+        "integrations/langgraph/python/pyproject.toml",
+        "integrations/langgraph/python/uv.lock",
     }
 )
 APPROVED_FORK_TEST_PREFIX = "integrations/langgraph/python/tests/"
+PROVENANCE_MAX_BYTES = 64 * 1024
+GETATTR_MIN_ARGS = 2
+GIT_EXECUTABLE = "/usr/bin/git"
+FORK_PROVENANCE_BINDINGS = (
+    "bound",
+    "source_commit_bound",
+    "source_tree_bound",
+    "changed_files_derived",
+)
 
 
 def _invalid(message: str) -> NoReturn:
@@ -118,6 +136,11 @@ def evaluate_candidate(evidence: dict[str, Any]) -> dict[str, Any]:
         reasons.append("artifact.sha256")
 
     reasons.extend(contract for contract in REQUIRED_CONTRACTS if contracts.get(contract) is not True)
+
+    if artifact.get("source_class") == "approved-fork":
+        provenance = evidence.get("fork_provenance") or {}
+        if any(provenance.get(key) is not True for key in FORK_PROVENANCE_BINDINGS):
+            reasons.append("fork_provenance")
 
     return {"admitted": not reasons, "reasons": list(dict.fromkeys(reasons))}
 
@@ -172,11 +195,84 @@ def _approved_changed_file(value: Any) -> bool:
     )
 
 
+def classify_candidate_source(artifact: dict[str, Any]) -> str:
+    """Derive the only supported source class from inspected artifact metadata."""
+    version = str(artifact.get("version") or "")
+    archive_kind = artifact.get("archive_kind")
+    if re.search(r"\+ketos(?:\.|$)", version):
+        return "approved-fork"
+    if archive_kind == "git-archive":
+        return "upstream-commit"
+    if archive_kind == "wheel":
+        return "registry-release"
+    return "unknown"
+
+
+def _git_output(repository: Path, *args: str, binary: bool = False) -> bytes | str:
+    try:
+        result = subprocess.run(  # noqa: S603 - fixed binary; no shell; refs are exact validated SHAs
+            [GIT_EXECUTABLE, "-C", str(repository), *args],
+            check=True,
+            capture_output=True,
+            text=not binary,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        _invalid(f"git provenance check failed for {args!r}: {exc}")
+    return result.stdout
+
+
+def _canonical_git_remote(value: str) -> str:
+    normalized = value.strip()
+    if normalized.startswith("git@github.com:"):
+        normalized = "https://github.com/" + normalized.removeprefix("git@github.com:")
+    return normalized.removesuffix(".git")
+
+
+def _tar_file_digests(fileobj: Any, *, mode: str) -> dict[str, tuple[str, int]]:
+    try:
+        with tarfile.open(fileobj=fileobj, mode=mode) as archive:
+            members = [member for member in archive.getmembers() if member.isfile()]
+            _safe_archive_names([member.name for member in members])
+            result: dict[str, tuple[str, int]] = {}
+            for member in members:
+                extracted = archive.extractfile(member)
+                if extracted is None:
+                    _invalid(f"source archive member cannot be read: {member.name}")
+                result[member.name] = (_bytes_sha256(extracted.read()), member.mode)
+            return result
+    except tarfile.TarError as exc:
+        _invalid(f"source archive is not a valid tar archive: {exc}")
+
+
+def _bind_source_tree_to_repository(
+    source_path: Path,
+    source_artifact: dict[str, Any],
+    repository: Path,
+    fork_sha: str,
+) -> bool:
+    package_root = str(PurePosixPath(str(source_artifact["metadata_path"])).parent)
+    with source_path.open("rb") as stream:
+        supplied = _tar_file_digests(stream, mode="r:*")
+    expected_bytes = _git_output(
+        repository,
+        "archive",
+        "--format=tar",
+        fork_sha,
+        package_root,
+        binary=True,
+    )
+    if not isinstance(expected_bytes, bytes):
+        _invalid("git archive returned text instead of bytes")
+    expected = _tar_file_digests(io.BytesIO(expected_bytes), mode="r:")
+    return supplied == expected
+
+
 def validate_fork_provenance(
     provenance: dict[str, Any],
     *,
     artifact_path: Path,
     source_archive_path: Path | None,
+    repository_path: Path,
     artifact: dict[str, Any],
 ) -> dict[str, Any]:
     """Bind an approved fork declaration to immutable local artifact bytes."""
@@ -205,6 +301,13 @@ def validate_fork_provenance(
     if provenance["canonical_repo_url"] != APPROVED_FORK_REPOSITORY:
         _invalid(f"canonical repository must be {APPROVED_FORK_REPOSITORY}")
 
+    detected_kind = {
+        "wheel": "wheel",
+        "git-archive": "tgz",
+    }.get(str(artifact.get("archive_kind") or ""))
+    if kind != detected_kind:
+        _invalid(f"artifact_kind {kind!r} does not match detected artifact kind {detected_kind!r}")
+
     upstream_sha = _exact_git_sha(provenance["upstream_base_sha"], "upstream base commit")
     fork_sha = _exact_git_sha(provenance["fork_commit_sha"], "fork commit")
     if upstream_sha == fork_sha:
@@ -217,18 +320,22 @@ def validate_fork_provenance(
     if artifact_sha != _sha256(resolved_artifact):
         _invalid("artifact SHA-256 mismatch")
 
-    resolved_source = (
-        resolved_artifact
-        if kind == "tgz" and source_archive_path is None
-        else source_archive_path.resolve(strict=True)
-        if source_archive_path is not None
-        else None
-    )
+    resolved_source = resolved_artifact if kind == "tgz" else None
+    if kind == "wheel" and source_archive_path is not None:
+        resolved_source = source_archive_path.resolve(strict=True)
     if resolved_source is None:
         _invalid("source archive path is required for a wheel fork artifact")
+    if kind == "wheel" and resolved_source == resolved_artifact:
+        _invalid("wheel fork artifact requires a distinct source archive")
     source_sha = _exact_sha256(provenance["source_archive_sha256"], "source archive SHA-256")
     if source_sha != _sha256(resolved_source):
         _invalid("source archive SHA-256 mismatch")
+
+    if not tarfile.is_tarfile(resolved_source):
+        _invalid("source archive is not a valid tar archive")
+    source_artifact = _source_artifact(resolved_source)
+    if source_artifact.get("git_commit") != fork_sha:
+        _invalid("source archive commit does not match fork_commit_sha")
 
     if provenance["license_spdx"] != "MIT" or artifact.get("license") != "MIT":
         _invalid("license SPDX must match the artifact MIT declaration")
@@ -239,6 +346,9 @@ def validate_fork_provenance(
         _invalid("fork package name does not match the artifact")
     if artifact.get("version") != package_version:
         _invalid("fork package version does not match the artifact")
+    for field in ("name", "version", "license", "license_sha256", "source_sha256"):
+        if source_artifact.get(field) != artifact.get(field):
+            _invalid(f"source archive {field} does not match the built artifact")
 
     changed_files = provenance["changed_files"]
     if (
@@ -261,18 +371,57 @@ def validate_fork_provenance(
         ):
             _invalid(f"{field} contains a floating ref instead of the fork commit")
 
+    repository = repository_path.resolve(strict=True)
+    if not repository.is_dir():
+        _invalid("fork repository path must be a directory")
+    for remote_args, description in (
+        (("remote", "get-url", "origin"), "fetch"),
+        (("remote", "get-url", "--push", "origin"), "push"),
+    ):
+        remote = _git_output(repository, *remote_args)
+        if not isinstance(remote, str):
+            _invalid(f"repository {description} origin could not be read as text")
+        if _canonical_git_remote(remote) != APPROVED_FORK_REPOSITORY:
+            _invalid(f"repository {description} origin is not the approved canonical fork")
+    for commit, description in (
+        (upstream_sha, "upstream base"),
+        (fork_sha, "fork commit"),
+    ):
+        resolved = _git_output(repository, "rev-parse", f"{commit}^{{commit}}")
+        if not isinstance(resolved, str) or resolved.strip() != commit:
+            _invalid(f"{description} does not resolve to the declared commit")
+    _git_output(repository, "merge-base", "--is-ancestor", upstream_sha, fork_sha)
+    derived_output = _git_output(repository, "diff", "--name-only", upstream_sha, fork_sha)
+    if not isinstance(derived_output, str):
+        _invalid("repository diff could not be read as text")
+    derived_changed_files = [line for line in derived_output.splitlines() if line]
+    if derived_changed_files != changed_files:
+        _invalid("changed_files does not match the repository-derived commit diff")
+    if not _bind_source_tree_to_repository(resolved_source, source_artifact, repository, fork_sha):
+        _invalid("source archive tree does not match the fork commit tree")
+
     return {
         **provenance,
         "bound": True,
         "artifact_path": str(resolved_artifact),
         "source_archive_path": str(resolved_source),
+        "repository_path": str(repository),
+        "source_commit_bound": True,
+        "source_tree_bound": True,
+        "changed_files_derived": True,
     }
 
 
 def load_fork_provenance(path: Path) -> dict[str, Any]:
     """Load a provenance sidecar as untrusted JSON data."""
     resolved = path.resolve(strict=True)
-    parsed = json.loads(resolved.read_text(encoding="utf-8"))
+    if resolved.stat().st_size > PROVENANCE_MAX_BYTES:
+        _invalid(f"fork provenance exceeds {PROVENANCE_MAX_BYTES}-byte size limit")
+    with resolved.open("rb") as stream:
+        raw = stream.read(PROVENANCE_MAX_BYTES + 1)
+    if len(raw) > PROVENANCE_MAX_BYTES:
+        _invalid(f"fork provenance exceeds {PROVENANCE_MAX_BYTES}-byte size limit")
+    parsed = json.loads(raw.decode("utf-8"))
     if not isinstance(parsed, dict):
         _invalid("fork provenance JSON must contain one object")
     return parsed
@@ -433,10 +582,13 @@ def inspect_artifact(artifact_path: Path | None) -> dict[str, Any]:
     if not path.is_file():
         _invalid(f"artifact path is not a file: {path}")
     if zipfile.is_zipfile(path):
-        return _wheel_artifact(path)
-    if tarfile.is_tarfile(path):
-        return _source_artifact(path)
-    _invalid(f"unsupported candidate artifact format: {path.name}")
+        artifact = _wheel_artifact(path)
+    elif tarfile.is_tarfile(path):
+        artifact = _source_artifact(path)
+    else:
+        _invalid(f"unsupported candidate artifact format: {path.name}")
+    artifact["source_class"] = classify_candidate_source(artifact)
+    return artifact
 
 
 def bind_runtime_to_artifact(artifact: dict[str, Any], runtime: dict[str, Any]) -> dict[str, bool]:
@@ -457,10 +609,15 @@ def _normalized_access_name(value: str) -> str:
 
 
 class _DeprecatedResumeAccessVisitor(ast.NodeVisitor):
-    """Track aliases that flow from input.forwardedProps to command.resume."""
+    """Conservatively track data flow from any run input to command.resume."""
 
-    def __init__(self) -> None:
-        self._environments: list[dict[str, tuple[str, ...]]] = [{}]
+    def __init__(self, tree: ast.AST) -> None:
+        self._environments: list[dict[str, tuple[str, ...]]] = [{"input": ("input",), "input_data": ("input_data",)}]
+        self._returns: list[list[tuple[str, ...]]] = []
+        self._active_functions: set[int] = set()
+        self._functions = {
+            node.name: node for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        }
         self.found = False
 
     @property
@@ -485,8 +642,6 @@ class _DeprecatedResumeAccessVisitor(ast.NodeVisitor):
             return None
         if isinstance(node, ast.Name):
             path = self.environment.get(node.id)
-            if path is None and node.id in {"input", "input_data"}:
-                path = (node.id,)
             return self._record(path)
         if isinstance(node, ast.Attribute):
             base = self._path(node.value)
@@ -494,23 +649,62 @@ class _DeprecatedResumeAccessVisitor(ast.NodeVisitor):
         if isinstance(node, ast.Subscript):
             base = self._path(node.value)
             key = node.slice.value if isinstance(node.slice, ast.Constant) else None
-            return self._record((*base, str(key)) if base is not None and isinstance(key, str) else None)
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-            base = self._path(node.func.value)
-            if node.func.attr == "get" and node.args and isinstance(node.args[0], ast.Constant):
-                key = node.args[0].value
-                return self._record((*base, str(key)) if base is not None and isinstance(key, str) else None)
-            if node.func.attr in {"items", "keys", "values", "copy"}:
+            if base is None or not isinstance(key, str):
+                return None
+            if "forwarded_props" in tuple(_normalized_access_name(item) for item in base) and key not in {
+                "command",
+                "resume",
+            }:
                 return self._record(base)
+            return self._record((*base, str(key)))
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name) and node.func.id == "getattr" and len(node.args) >= GETATTR_MIN_ARGS:
+                base = self._path(node.args[0])
+                key = node.args[1].value if isinstance(node.args[1], ast.Constant) else None
+                return self._record((*base, str(key)) if base is not None and isinstance(key, str) else None)
+            if isinstance(node.func, ast.Name) and node.func.id == "next" and node.args:
+                return self._path(node.args[0])
+            if isinstance(node.func, ast.Name) and node.func.id in self._functions:
+                function = self._functions[node.func.id]
+                bindings = {
+                    argument.arg: path
+                    for argument, value in zip(function.args.args, node.args, strict=False)
+                    if (path := self._path(value)) is not None
+                }
+                return self._analyze_function(function, bindings)
+            if isinstance(node.func, ast.Attribute):
+                base = self._path(node.func.value)
+                if node.func.attr == "get" and node.args and isinstance(node.args[0], ast.Constant):
+                    key = node.args[0].value
+                    return self._record((*base, str(key)) if base is not None and isinstance(key, str) else None)
+                if node.func.attr in {"items", "keys", "values", "copy"}:
+                    return self._record(base)
             return None
         if isinstance(node, (ast.BoolOp, ast.IfExp)):
             values = node.values if isinstance(node, ast.BoolOp) else [node.body, node.orelse]
             return next((path for value in values if (path := self._path(value)) is not None), None)
+        if isinstance(node, ast.Dict):
+            return next((path for value in node.values if (path := self._path(value)) is not None), None)
+        if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+            return next((path for value in node.elts if (path := self._path(value)) is not None), None)
         if isinstance(node, (ast.DictComp, ast.ListComp, ast.SetComp, ast.GeneratorExp)):
-            return next(
+            element = node.value if isinstance(node, ast.DictComp) else node.elt
+            return self._path(element) or next(
                 (path for generator in node.generators if (path := self._path(generator.iter)) is not None),
                 None,
             )
+        if isinstance(node, ast.Compare):
+            left = self._path(node.left)
+            for operator, comparator in zip(node.ops, node.comparators, strict=False):
+                right = self._path(comparator)
+                if isinstance(operator, (ast.In, ast.NotIn)):
+                    literal = node.left.value if isinstance(node.left, ast.Constant) else None
+                    if literal == "resume" and right is not None:
+                        self._record((*right, "resume"))
+                if left is not None:
+                    return left
+                if right is not None:
+                    return right
         return None
 
     def _bind(self, target: ast.AST, path: tuple[str, ...] | None) -> None:
@@ -519,6 +713,32 @@ class _DeprecatedResumeAccessVisitor(ast.NodeVisitor):
                 self.environment.pop(target.id, None)
             else:
                 self.environment[target.id] = path
+        elif isinstance(target, (ast.Tuple, ast.List)):
+            for element in target.elts:
+                self._bind(element, path)
+
+    def _analyze_function(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        bindings: dict[str, tuple[str, ...]] | None = None,
+    ) -> tuple[str, ...] | None:
+        identity = id(node)
+        if identity in self._active_functions:
+            return None
+        self._active_functions.add(identity)
+        environment = {
+            argument.arg: (argument.arg,)
+            for argument in (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)
+        }
+        environment.update(bindings or {})
+        self._environments.append(environment)
+        self._returns.append([])
+        for statement in node.body:
+            self.visit(statement)
+        returned = self._returns.pop()
+        self._environments.pop()
+        self._active_functions.remove(identity)
+        return returned[0] if returned else None
 
     def visit_Assign(self, node: ast.Assign) -> None:
         path = self._path(node.value)
@@ -532,13 +752,17 @@ class _DeprecatedResumeAccessVisitor(ast.NodeVisitor):
             self.generic_visit(node.value)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        self._environments.append({})
-        for statement in node.body:
-            self.visit(statement)
-        self._environments.pop()
+        self._analyze_function(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-        self.visit_FunctionDef(node)
+        self._analyze_function(node)
+
+    def visit_Return(self, node: ast.Return) -> None:
+        path = self._path(node.value)
+        if path is not None and self._returns:
+            self._returns[-1].append(path)
+        if node.value is not None:
+            self.generic_visit(node.value)
 
     def generic_visit(self, node: ast.AST) -> None:
         if isinstance(node, ast.expr):
@@ -552,7 +776,7 @@ def uses_deprecated_forwarded_props_resume(source: str) -> bool:
         tree = ast.parse(textwrap.dedent(source))
     except SyntaxError:
         return False
-    visitor = _DeprecatedResumeAccessVisitor()
+    visitor = _DeprecatedResumeAccessVisitor(tree)
     visitor.visit(tree)
     return visitor.found
 
@@ -599,72 +823,131 @@ def standard_interrupt_outcome(result: Any, expected_ids: set[str]) -> bool:
     )
 
 
-def _serialized_resume(result: Any) -> str:
-    resume = getattr(result, "resume", result)
-    try:
-        return json.dumps(resume, sort_keys=True, default=lambda item: vars(item))
-    except (TypeError, ValueError):
-        return repr(resume)
-
-
-def _resume_case(agent: Any, entries: list[Any], open_interrupts: list[Any]) -> dict[str, Any]:
-    try:
-        result = agent._build_command_from_agui_resume(  # noqa: SLF001 - upstream hook probe
-            entries,
-            open_interrupts=open_interrupts,
-        )
-    except Exception as exc:  # noqa: BLE001 - exceptions are recorded but never accepted as denial
-        return {
-            "outcome": "exception",
-            "error": f"{type(exc).__name__}: {exc}",
-        }
-    if standard_run_error(result):
-        return {"outcome": "standard_run_error"}
-    return {
-        "outcome": "accepted",
-        "resume": _serialized_resume(result),
+def _public_run_input(
+    input_type: type[Any],
+    *,
+    resume: list[Any] | None = None,
+    forwarded_props: dict[str, Any] | None = None,
+) -> Any:
+    values = {
+        "threadId": "thread-probe",
+        "runId": "run-probe",
+        "state": {},
+        "messages": [],
+        "tools": [],
+        "context": [],
+        "forwardedProps": forwarded_props or {},
+        "resume": resume,
     }
+    try:
+        result = input_type(**values)
+    except (TypeError, ValueError):
+        result = SimpleNamespace(**values)
+    for alias, attribute in (
+        ("threadId", "thread_id"),
+        ("runId", "run_id"),
+        ("forwardedProps", "forwarded_props"),
+    ):
+        if not hasattr(result, attribute):
+            setattr(result, attribute, getattr(result, alias))
+    return result
 
 
-def probe_resume_matrix(agent: Any, entry_type: type[Any]) -> dict[str, Any]:
-    """Prove full success and standard RUN_ERROR denial for every invalid shape."""
-    open_ab = [SimpleNamespace(id="interrupt-a"), SimpleNamespace(id="interrupt-b")]
-    open_cd = [SimpleNamespace(id="interrupt-c"), SimpleNamespace(id="interrupt-d")]
+def probe_public_resume_contract(
+    agent: Any,
+    input_type: type[Any],
+    entry_type: type[Any],
+) -> dict[str, Any]:
+    """Exercise strict resume exclusively through the public prepare_stream API."""
+    open_ab = [
+        SimpleNamespace(
+            id=interrupt_id,
+            value={"reason": "confirmation", "message": interrupt_id},
+        )
+        for interrupt_id in ("interrupt-a", "interrupt-b")
+    ]
+    state_ab = SimpleNamespace(
+        values={"messages": []},
+        tasks=[SimpleNamespace(interrupts=open_ab)],
+        next=[],
+        metadata={"writes": {}},
+    )
+    state_cd = SimpleNamespace(
+        values={"messages": []},
+        tasks=[
+            SimpleNamespace(
+                interrupts=[
+                    SimpleNamespace(
+                        id="interrupt-c",
+                        value={"reason": "confirmation", "message": "interrupt-c"},
+                    )
+                ]
+            )
+        ],
+        next=[],
+        metadata={"writes": {}},
+    )
     entry_a = _resume_entry(entry_type, "interrupt-a", "resolved", {"approved": True})
     entry_b = _resume_entry(entry_type, "interrupt-b", "resolved", {"approved": False})
     unknown = _resume_entry(entry_type, "interrupt-unknown", "resolved", {"approved": True})
-    invalid = SimpleNamespace(
-        interrupt_id="interrupt-b",
-        status="invalid",
-        payload={"approved": True},
-    )
+    invalid = SimpleNamespace(interrupt_id="interrupt-b", status="invalid", payload=True)
+    config = {"configurable": {"thread_id": "thread-probe"}}
+
+    async def prepare(input_data: Any, state: Any) -> Any:
+        agent.active_run = {"id": "run-probe", "mode": "start"}
+        return await agent.prepare_stream(input_data, state, config.copy())
+
+    def run(input_data: Any, state: Any = state_ab) -> dict[str, Any]:
+        try:
+            result = asyncio.run(prepare(input_data, state))
+        except Exception as exc:  # noqa: BLE001 - candidate behavior is fail-closed
+            return {"outcome": "exception", "error": f"{type(exc).__name__}: {exc}"}
+        events = list(result.get("events_to_dispatch", []) or [])
+        if standard_run_error(events):
+            return {"outcome": "standard_run_error", "result": result}
+        return {"outcome": "accepted", "result": result, "events": events}
+
     cases = {
-        "full_all_open": _resume_case(agent, [entry_a, entry_b], open_ab),
-        "full_all_open_reordered": _resume_case(agent, [entry_b, entry_a], open_ab),
-        "partial": _resume_case(agent, [entry_a], open_ab),
-        "stale": _resume_case(agent, [entry_a, entry_b], open_cd),
-        "duplicate": _resume_case(agent, [entry_a, entry_a, entry_b], open_ab),
-        "unknown": _resume_case(agent, [entry_a, unknown], open_ab),
-        "invalid": _resume_case(agent, [entry_a, invalid], open_ab),
+        "interrupt": run(_public_run_input(input_type)),
+        "legacy": run(
+            _public_run_input(
+                input_type,
+                forwarded_props={"command": {"resume": True}},
+            )
+        ),
+        "partial": run(_public_run_input(input_type, resume=[entry_a])),
+        "stale": run(_public_run_input(input_type, resume=[entry_a]), state_cd),
+        "duplicate": run(_public_run_input(input_type, resume=[entry_a, entry_a, entry_b])),
+        "unknown": run(_public_run_input(input_type, resume=[entry_a, unknown])),
+        "invalid": run(_public_run_input(input_type, resume=[entry_a, invalid])),
+        "full_all_open_reordered": run(_public_run_input(input_type, resume=[entry_b, entry_a])),
     }
-    full = cases["full_all_open"]
-    reordered = cases["full_all_open_reordered"]
-    full_resume = str(full.get("resume") or "")
-    reordered_resume = str(reordered.get("resume") or "")
-    full_success = (
-        full.get("outcome") == "accepted"
-        and "interrupt-a" in full_resume
-        and "interrupt-b" in full_resume
-        and reordered.get("outcome") == "accepted"
-        and "interrupt-a" in reordered_resume
-        and "interrupt-b" in reordered_resume
-    )
+    interrupt_events = cases["interrupt"].get("events", [])
+    full_result = cases["full_all_open_reordered"].get("result", {})
+    graph_dispatches = getattr(agent, "graph_dispatches", None)
+    if graph_dispatches is None:
+        graph_dispatches = getattr(
+            getattr(agent, "graph", None), "astream_events", SimpleNamespace(call_count=-1)
+        ).call_count
     invalid_cases = ("partial", "stale", "duplicate", "unknown", "invalid")
-    standard_denial = all(cases[case].get("outcome") == "standard_run_error" for case in invalid_cases)
     return {
-        "full_all_open_success": full_success,
-        "all_invalid_standard_run_error": standard_denial,
-        "cases": cases,
+        "standard_interrupt_outcome": standard_interrupt_outcome(
+            interrupt_events,
+            {"interrupt-a", "interrupt-b"},
+        ),
+        "legacy_resume_standard_run_error": cases["legacy"]["outcome"] == "standard_run_error",
+        "full_all_open_success": (
+            cases["full_all_open_reordered"]["outcome"] == "accepted" and full_result.get("stream") is not None
+        ),
+        "all_invalid_standard_run_error": all(cases[name]["outcome"] == "standard_run_error" for name in invalid_cases),
+        "graph_dispatches": graph_dispatches,
+        "cases": {
+            name: {
+                "outcome": value["outcome"],
+                **({"error": value["error"]} if "error" in value else {}),
+            }
+            for name, value in cases.items()
+        },
     }
 
 
@@ -673,26 +956,49 @@ def probe_safe_pre_dispatch_binding(
     endpoint_source: str | None,
     core_module: Any,
 ) -> tuple[bool, dict[str, Any]]:
-    """Black-box prove dependencies and before_dispatch execute before dispatch."""
+    """Prove the fork's dependency, clone, hook, actor, and dispatch order."""
     del core_module
     details: dict[str, Any] = {
         "source_available": endpoint_source is not None,
-        "dependency_called": False,
-        "before_dispatch_called": False,
-        "agent_dispatched": False,
         "black_box_http": False,
-        "call_order": [],
+        "deny_call_order": [],
+        "success_call_order": [],
     }
     signature = inspect.signature(endpoint)
     documentation = inspect.getdoc(endpoint) or ""
     details["signature"] = str(signature)
-    details["documented_dependencies"] = "dependencies" in signature.parameters and "dependenc" in documentation.lower()
+    details["documented_dependencies"] = (
+        "dependencies" in signature.parameters
+        and "dependenc" in documentation.lower()
+        and "before_dispatch" in documentation
+    )
     details["declared_hooks"] = {
         "dependencies": "dependencies" in signature.parameters,
         "before_dispatch": "before_dispatch" in signature.parameters,
     }
-    if not all(details["declared_hooks"].values()):
-        details["reason"] = "endpoint lacks dependencies and before_dispatch parameters"
+    hook_parameter = signature.parameters.get("before_dispatch")
+    dependency_parameter = signature.parameters.get("dependencies")
+    details["keyword_only_hooks"] = (
+        hook_parameter is not None
+        and dependency_parameter is not None
+        and hook_parameter.kind is inspect.Parameter.KEYWORD_ONLY
+        and dependency_parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    )
+    details["source_declares_three_argument_hook"] = bool(
+        endpoint_source
+        and re.search(
+            r"before_dispatch\s*\(\s*input_data\s*,\s*request\s*,\s*request_agent\s*\)",
+            endpoint_source,
+        )
+    )
+    if not (
+        endpoint_source is not None
+        and all(details["declared_hooks"].values())
+        and details["documented_dependencies"]
+        and details["keyword_only_hooks"]
+        and details["source_declares_three_argument_hook"]
+    ):
+        details["reason"] = "endpoint lacks documented exact three-argument fork hooks"
         return False, details
 
     try:
@@ -701,39 +1007,34 @@ def probe_safe_pre_dispatch_binding(
 
         class ProbeAgent:
             name = "binding-probe"
-            dispatched = False
 
-        async def dependency(request) -> None:
-            payload = await request.json()
-            details["dependency_called"] = True
-            details["call_order"].append("dependency")
-            details["observed_thread_id"] = payload.get("threadId")
-            details["observed_run_id"] = payload.get("runId")
+            def __init__(self, ledger: list[str], label: str = "template") -> None:
+                self.ledger = ledger
+                self.label = label
+                self.bound_actor = None
 
-        async def before_dispatch(input_data, request) -> None:
-            del request
-            details["before_dispatch_called"] = True
-            details["call_order"].append("before_dispatch")
-            payload = (
-                input_data.model_dump(mode="json", by_alias=True) if hasattr(input_data, "model_dump") else input_data
-            )
-            details["observed_thread_id"] = payload.get("threadId")
-            details["observed_run_id"] = payload.get("runId")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="binding probe deny",
-            )
+            def clone(self):
+                self.ledger.append("clone")
+                return ProbeAgent(self.ledger, "request")
 
-        dependency.__annotations__["request"] = Request
-        app = FastAPI()
-        agent = ProbeAgent()
-        endpoint(
-            app,
-            agent,
-            path="/binding-probe",
-            dependencies=[Depends(dependency)],
-            before_dispatch=before_dispatch,
-        )
+            async def run(self, input_data):
+                self.ledger.append("run")
+                details["run_actor"] = self.bound_actor
+                details["run_agent_label"] = self.label
+                payload = input_data if isinstance(input_data, dict) else {}
+                details["observed_thread_id"] = getattr(
+                    input_data,
+                    "thread_id",
+                    payload.get("threadId"),
+                )
+                details["observed_run_id"] = getattr(
+                    input_data,
+                    "run_id",
+                    payload.get("runId"),
+                )
+                if False:
+                    yield b""
+
         body = {
             "threadId": "binding-thread",
             "runId": "binding-run",
@@ -743,25 +1044,62 @@ def probe_safe_pre_dispatch_binding(
             "context": [],
             "forwardedProps": {},
         }
-        with TestClient(app) as client:
-            response = client.post("/binding-probe", json=body)
+
+        def install(*, deny: bool) -> tuple[Any, list[str]]:
+            ledger: list[str] = []
+            app = FastAPI()
+
+            async def dependency(request) -> None:
+                ledger.append("dependency")
+                request.state.actor_id = "server-actor"
+
+            async def before_dispatch(input_data, request, request_agent) -> None:
+                del input_data
+                ledger.append("before_dispatch")
+                request_agent.bound_actor = request.state.actor_id
+                if deny:
+                    ledger.append("deny")
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="binding probe deny",
+                    )
+
+            dependency.__annotations__["request"] = Request
+            endpoint(
+                app,
+                ProbeAgent(ledger),
+                path="/binding-probe",
+                dependencies=[Depends(dependency)],
+                before_dispatch=before_dispatch,
+            )
+            return app, ledger
+
+        deny_app, deny_ledger = install(deny=True)
+        with TestClient(deny_app) as client:
+            deny_response = client.post("/binding-probe", json=body)
+        success_app, success_ledger = install(deny=False)
+        with TestClient(success_app) as client:
+            success_response = client.post("/binding-probe", json=body)
         details["black_box_http"] = True
-        details["response_status"] = response.status_code
-        details["agent_dispatched"] = agent.dispatched
+        details["deny_response_status"] = deny_response.status_code
+        details["success_response_status"] = success_response.status_code
+        details["deny_call_order"] = deny_ledger
+        details["success_call_order"] = success_ledger
     except Exception as exc:  # noqa: BLE001 - candidate hook is fail-closed
         details["reason"] = f"binding execution failed: {type(exc).__name__}: {exc}"
         return False, details
     passed = (
-        details["dependency_called"] is True
-        and details["before_dispatch_called"] is True
-        and details["call_order"] == ["dependency", "before_dispatch"]
-        and details["agent_dispatched"] is False
+        details["deny_call_order"] == ["dependency", "clone", "before_dispatch", "deny"]
+        and details["success_call_order"] == ["dependency", "clone", "before_dispatch", "run"]
         and details.get("observed_thread_id") == "binding-thread"
         and details.get("observed_run_id") == "binding-run"
-        and details.get("response_status") == status.HTTP_403_FORBIDDEN
+        and details.get("run_actor") == "server-actor"
+        and details.get("run_agent_label") == "request"
+        and details.get("deny_response_status") == status.HTTP_403_FORBIDDEN
+        and details.get("success_response_status") == status.HTTP_200_OK
     )
     if not passed:
-        details["reason"] = "dependency did not deny before agent dispatch with bound IDs"
+        details["reason"] = "fork endpoint did not preserve dependency/clone/hook/actor/run order"
     return passed, details
 
 
@@ -796,78 +1134,35 @@ def _runtime_contracts() -> tuple[dict[str, bool], dict[str, Any]]:
     )
     details["run_agent_input_resume_annotation"] = str(resume_annotation)
 
-    standard_output = False
-    output_all_open = False
-    emitted: list[dict[str, Any]] = []
-    if hasattr(agent_type, "_emit_interrupt_finish"):
-        try:
-            agent = object.__new__(agent_type)
-            agent.enable_legacy_on_interrupt_event = False
-            agent.emit_interrupt_outcome = True
-            interrupts = [
-                SimpleNamespace(
-                    id="interrupt-a",
-                    value={"reason": "confirmation", "message": "Approve A?"},
-                    ns=["approval:a"],
-                    resumable=True,
-                    when="during",
-                ),
-                SimpleNamespace(
-                    id="interrupt-b",
-                    value={"reason": "confirmation", "message": "Approve B?"},
-                    ns=["approval:b"],
-                    resumable=True,
-                    when="during",
-                ),
-            ]
-            events = agent._emit_interrupt_finish(  # noqa: SLF001 - executable upstream contract
-                thread_id="thread-probe",
-                run_id="run-probe",
-                lg_interrupts=interrupts,
-            )
-            emitted.extend(
-                (
-                    event.model_dump(mode="json", by_alias=True)
-                    if hasattr(event, "model_dump")
-                    else {"type": str(getattr(event, "type", None))}
-                )
-                for event in events
-            )
-            terminal = events[-1]
-            outcome = getattr(terminal, "outcome", None)
-            mapped = list(getattr(outcome, "interrupts", []) or [])
-            expected_interrupt_ids = {"interrupt-a", "interrupt-b"}
-            standard_output = standard_interrupt_outcome(
-                events,
-                expected_interrupt_ids,
-            )
-            output_all_open = (
-                len(mapped) == len(expected_interrupt_ids) and {item.id for item in mapped} == expected_interrupt_ids
-            )
-        except Exception as exc:  # noqa: BLE001 - candidate behavior is fail-closed
-            details["interrupt_output_error"] = f"{type(exc).__name__}: {exc}"
-    details["emitted_events"] = emitted
-
-    resume_matrix: dict[str, Any] = {
+    public_resume: dict[str, Any] = {
+        "standard_interrupt_outcome": False,
+        "legacy_resume_standard_run_error": False,
         "full_all_open_success": False,
         "all_invalid_standard_run_error": False,
+        "graph_dispatches": -1,
         "cases": {},
     }
-    if (
-        hasattr(agent_type, "_build_command_from_agui_resume")
-        and run_agent_input_resume_array
-        and resume_entry_type is not None
-    ):
+    if hasattr(agent_type, "prepare_stream") and resume_entry_type is not None:
         try:
-            agent = object.__new__(agent_type)
-            resume_matrix = probe_resume_matrix(agent, resume_entry_type)
+            from unittest.mock import MagicMock
+
+            graph = MagicMock()
+            graph.nodes = {}
+            graph.config_specs = []
+            public_agent = agent_type(name="admission-probe", graph=graph)
+            public_resume = probe_public_resume_contract(
+                public_agent,
+                input_type,
+                resume_entry_type,
+            )
         except Exception as exc:  # noqa: BLE001 - candidate behavior is fail-closed
-            details["resume_validation_error"] = f"{type(exc).__name__}: {exc}"
-    details["resume_matrix"] = resume_matrix
+            details["public_resume_error"] = f"{type(exc).__name__}: {exc}"
+    details["public_resume"] = public_resume
+    standard_output = public_resume["standard_interrupt_outcome"] is True
 
     agent_source = _source(agent_module)
     endpoint_source = _source(endpoint_module)
-    deprecated_absent = deprecated_resume_absent(agent_source)
+    deprecated_channel_denied = public_resume["legacy_resume_standard_run_error"] is True
     details["source_inspection"] = {
         "agent": agent_source is not None,
         "endpoint": endpoint_source is not None,
@@ -893,12 +1188,15 @@ def _runtime_contracts() -> tuple[dict[str, bool], dict[str, Any]]:
         "standard_run_finished_interrupt": standard_output,
         "run_agent_input_resume_array": run_agent_input_resume_array,
         "all_open_interrupts": (
-            output_all_open
-            and resume_matrix["full_all_open_success"] is True
-            and resume_matrix["all_invalid_standard_run_error"] is True
+            standard_output
+            and public_resume["full_all_open_success"] is True
+            and public_resume["all_invalid_standard_run_error"] is True
+            and public_resume["graph_dispatches"] == 1
         ),
         "safe_pre_dispatch_binding": safe_pre_dispatch_binding,
-        "deprecated_forwarded_props_resume_absent": deprecated_absent,
+        # Historical key retained for report compatibility. Its normative
+        # meaning is now executable denial of the deprecated wire channel.
+        "deprecated_forwarded_props_resume_absent": deprecated_channel_denied,
     }
     return contracts, details
 
@@ -937,14 +1235,18 @@ def collect_evidence(
     artifact_path: Path,
     fork_provenance_path: Path | None = None,
     source_archive_path: Path | None = None,
+    fork_repository_path: Path | None = None,
 ) -> dict[str, Any]:
     artifact = inspect_artifact(artifact_path)
     fork_provenance = None
     if fork_provenance_path is not None:
+        if fork_repository_path is None:
+            _invalid("fork repository path is required with fork provenance")
         fork_provenance = validate_fork_provenance(
             load_fork_provenance(fork_provenance_path),
             artifact_path=artifact_path,
             source_archive_path=source_archive_path,
+            repository_path=fork_repository_path,
             artifact=artifact,
         )
     runtime = _runtime_snapshot(str(artifact["name"]))
@@ -974,6 +1276,7 @@ def main() -> int:
     parser.add_argument("--artifact-path", type=Path, required=True)
     parser.add_argument("--fork-provenance-path", type=Path)
     parser.add_argument("--source-archive-path", type=Path)
+    parser.add_argument("--fork-repository-path", type=Path)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
@@ -982,6 +1285,7 @@ def main() -> int:
             args.artifact_path,
             args.fork_provenance_path,
             args.source_archive_path,
+            args.fork_repository_path,
         )
     except Exception as exc:  # noqa: BLE001 - candidate metadata is intentionally fail-closed
         evidence = {

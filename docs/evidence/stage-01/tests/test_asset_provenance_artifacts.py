@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-
 BUNDLE = Path(__file__).resolve().parents[1]
 BASELINE_SHA = "80878261d07c21ad257de017d98069f211ada2c2"
 

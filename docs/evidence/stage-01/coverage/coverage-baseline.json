@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "measurement": "baseline",
+  "resource_evidence": "records/coverage-resource-blocker-baseline.json",
+  "packages": {
+    "backend": {
+      "status": "BLOCKED",
+      "line": {"percent": null},
+      "branch": {"percent": null},
+      "blocker": "Aggregate RSS was >=14 GiB, so GC-16 prohibited the heavy package coverage job. Minimal unblock: reduce aggregate RSS below 14 GiB and run the approved backend coverage command in the clean integration worktree."
+    },
+    "frontend": {
+      "status": "BLOCKED",
+      "line": {"percent": null},
+      "branch": {"percent": null},
+      "blocker": "Aggregate RSS was >=14 GiB, so GC-16 prohibited npm dependency installation and the heavy Jest coverage job. Minimal unblock: reduce RSS below 14 GiB, install from the existing lockfile without changing it, then run the serial coverage gate."
+    },
+    "kfx": {
+      "status": "BLOCKED",
+      "line": {"percent": null},
+      "branch": {"percent": null},
+      "blocker": "Aggregate RSS was >=14 GiB, so GC-16 prohibited the heavy KFX package coverage job. Minimal unblock: reduce aggregate RSS below 14 GiB and run the KFX coverage suite serially."
+    }
+  },
+  "invented_threshold": false
+}

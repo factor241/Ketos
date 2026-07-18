@@ -1,0 +1,9 @@
+/Volumes/Projects/ketos-stage01-integration/.venv/lib/python3.13/site-packages/sentry_sdk/utils.py:1353: EventletDeprecationWarning:
+Eventlet is deprecated. It is currently being maintained in bugfix mode, and
+we strongly recommend against using it for new projects.
+
+If you are already using Eventlet, we recommend migrating to a different
+framework.  For more detail see
+https://eventlet.readthedocs.io/en/latest/asyncio/migration.html
+
+  from eventlet.patcher import is_monkey_patched  # type: ignore

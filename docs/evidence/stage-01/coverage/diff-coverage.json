@@ -1,0 +1,12 @@
+{
+  "base": "80878261d07c21ad257de017d98069f211ada2c2",
+  "branch_percent": null,
+  "changed_executable_lines": 0,
+  "changed_product_paths": [],
+  "diff_scope": "Stage 01 changes versus the approved source baseline",
+  "line_percent": null,
+  "reason": "Stage 01 owns documentation/evidence only; N/A is not represented as zero.",
+  "schema_version": 1,
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "status": "N/A_NO_PRODUCT_SOURCE_DIFF"
+}

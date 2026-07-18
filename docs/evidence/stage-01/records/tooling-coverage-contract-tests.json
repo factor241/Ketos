@@ -1,0 +1,45 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/tooling-coverage-contract-tests.stderr.log",
+      "sha256": "e9186c3f33723b2448b19c4d8c99423e719230067a8cdf19436eeb1ca283be88"
+    },
+    "stdout": {
+      "path": "artifacts/tooling-coverage-contract-tests.stdout.log",
+      "sha256": "0b472c2c291aecd0255858b65d0cdad535bdad0a819811c16ba7ff8b5c1485dd"
+    }
+  },
+  "classification": "COMMAND_RESULT",
+  "command": {
+    "argv": [
+      "uv",
+      "run",
+      "pytest",
+      "docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py",
+      "-q"
+    ],
+    "display": "uv run pytest docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py -q"
+  },
+  "created_at_utc": "2026-07-18T13:48:29Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T13:48:29Z",
+  "execution_revision": "d02cc7e7847c92a67bcf5622d010828306cdf2cb",
+  "exit_code": 0,
+  "notes": "Focused tooling truth, baseline gate links, blocked-or-numeric coverage, and documentation-only diff coverage tests.",
+  "owner": "stage01-testing",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {
+      "suite": "tooling-and-coverage-contracts"
+    }
+  },
+  "record_id": "tooling-coverage-contract-tests",
+  "reviewer": "pending",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T13:48:25Z",
+  "task_id": "S01-T09-T10",
+  "verdict": "PASS"
+}

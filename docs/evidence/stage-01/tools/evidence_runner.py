@@ -19,19 +19,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 ALLOWED_VERDICTS = {"PASS", "FAIL", "BLOCKED", "BASELINE_DEFECT", "INCONCLUSIVE"}
 SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 UTC_TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 SECRET_NAME = r"(?:[A-Za-z0-9]+_)*(?:key|token|password|secret)(?:_[A-Za-z0-9]+)*"
-SECRET_ASSIGNMENT = re.compile(
-    rf"(?i)(\b{SECRET_NAME}\b\s*[:=]\s*)([^\s,;'\"()]+)"
-)
-SECRET_OPTION = re.compile(
-    rf"(?i)(--?{SECRET_NAME.replace('_', '[-_]')}=)([^\s]+)"
-)
+SECRET_ASSIGNMENT = re.compile(rf"(?i)(\b{SECRET_NAME}\b\s*[:=]\s*)([^\s,;'\"()]+)")
+SECRET_OPTION = re.compile(rf"(?i)(--?{SECRET_NAME.replace('_', '[-_]')}=)([^\s]+)")
 SECRET_KEY = re.compile(rf"(?i)^{SECRET_NAME}$")
 RECORD_KEYS = {
     "record_id",
@@ -229,9 +224,7 @@ def validate_record(record_path: Path) -> list[str]:
             errors.append(f"invalid {field}")
 
     command = record["command"]
-    if not isinstance(command, dict) or set(command) != {"argv", "display"}:
-        errors.append("invalid command")
-    elif (
+    if not isinstance(command, dict) or set(command) != {"argv", "display"} or (
         not isinstance(command["argv"], list)
         or not command["argv"]
         or not all(is_nonempty_string(argument) for argument in command["argv"])
@@ -241,9 +234,7 @@ def validate_record(record_path: Path) -> list[str]:
         errors.append("invalid command")
 
     profile = record["profile"]
-    if not isinstance(profile, dict) or set(profile) != {"environment", "provided"}:
-        errors.append("invalid profile")
-    elif not all(isinstance(profile[field], dict) for field in ("environment", "provided")):
+    if not isinstance(profile, dict) or set(profile) != {"environment", "provided"} or not all(isinstance(profile[field], dict) for field in ("environment", "provided")):
         errors.append("invalid profile")
     if record["verdict"] not in ALLOWED_VERDICTS:
         errors.append(f"invalid verdict: {record['verdict']!r}")

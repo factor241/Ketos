@@ -10,9 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi.routing import APIRoute
-
 from ketos.main import create_app
-
 
 BASELINE_SHA = "80878261d07c21ad257de017d98069f211ada2c2"
 REVIEWED_PREFIXES = (

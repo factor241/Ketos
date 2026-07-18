@@ -100,6 +100,42 @@
       "task_id": "S01-T01"
     },
     {
+      "evidence_record_link": "records/coverage-resource-blocker-baseline.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/coverage-resource-blocker-baseline.stderr.log",
+      "reviewer_status": "pending",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "task_id": "S01-T10"
+    },
+    {
+      "evidence_record_link": "records/coverage-resource-blocker-baseline.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/coverage-resource-blocker-baseline.stdout.log",
+      "reviewer_status": "pending",
+      "sha256": "c92c77fc1d352a2b91f8b29e73381f206c8424e7ca50c2cab36a068984fb8412",
+      "task_id": "S01-T10"
+    },
+    {
+      "evidence_record_link": "records/coverage-resource-blocker-rerun.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/coverage-resource-blocker-rerun.stderr.log",
+      "reviewer_status": "pending",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "task_id": "S01-T10"
+    },
+    {
+      "evidence_record_link": "records/coverage-resource-blocker-rerun.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/coverage-resource-blocker-rerun.stdout.log",
+      "reviewer_status": "pending",
+      "sha256": "bfa73b06d5a993a2ced2cb93d1249703d2a9a3143ae9719ee258064ae1c813ea",
+      "task_id": "S01-T10"
+    },
+    {
       "evidence_record_link": "records/current-rss.json",
       "not_applicable_reason": null,
       "owner": "stage-01",
@@ -134,6 +170,96 @@
       "reviewer_status": "pending",
       "sha256": "80b65fc25f4f68675d984d4845f2663070b89ef8c8cb66e46385365365ee8711",
       "task_id": "S01-T01"
+    },
+    {
+      "evidence_record_link": "records/evidence-bundle-tests-final.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/evidence-bundle-tests-final.stderr.log",
+      "reviewer_status": "pending",
+      "sha256": "e9186c3f33723b2448b19c4d8c99423e719230067a8cdf19436eeb1ca283be88",
+      "task_id": "S01-T03-T15"
+    },
+    {
+      "evidence_record_link": "records/evidence-bundle-tests-final.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/evidence-bundle-tests-final.stdout.log",
+      "reviewer_status": "pending",
+      "sha256": "9b53df8b49e896ce4544addc59eea4f8c7cd46d4f10819fca7c4aae6404441c9",
+      "task_id": "S01-T03-T15"
+    },
+    {
+      "evidence_record_link": "records/evidence-bundle-tests-rerun.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/evidence-bundle-tests-rerun.stderr.log",
+      "reviewer_status": "pending",
+      "sha256": "e9186c3f33723b2448b19c4d8c99423e719230067a8cdf19436eeb1ca283be88",
+      "task_id": "S01-T03-T15"
+    },
+    {
+      "evidence_record_link": "records/evidence-bundle-tests-rerun.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/evidence-bundle-tests-rerun.stdout.log",
+      "reviewer_status": "pending",
+      "sha256": "64ceca6fae3604f4050d794833ada138f3b46d91bbfb039d6e24c99771b8d5bc",
+      "task_id": "S01-T03-T15"
+    },
+    {
+      "evidence_record_link": "records/evidence-ruff-check.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/evidence-ruff-check.stderr.log",
+      "reviewer_status": "pending",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "task_id": "S01-T09"
+    },
+    {
+      "evidence_record_link": "records/evidence-ruff-check.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/evidence-ruff-check.stdout.log",
+      "reviewer_status": "pending",
+      "sha256": "1ab5db5700e743310391441185d611320be3738f0162010968d1fd469adc81ea",
+      "task_id": "S01-T09"
+    },
+    {
+      "evidence_record_link": "records/evidence-ruff-core-rerun.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/evidence-ruff-core-rerun.stderr.log",
+      "reviewer_status": "pending",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "task_id": "S01-T09"
+    },
+    {
+      "evidence_record_link": "records/evidence-ruff-core-rerun.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/evidence-ruff-core-rerun.stdout.log",
+      "reviewer_status": "pending",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "task_id": "S01-T09"
+    },
+    {
+      "evidence_record_link": "records/evidence-ruff-format.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/evidence-ruff-format.stderr.log",
+      "reviewer_status": "pending",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "task_id": "S01-T09"
+    },
+    {
+      "evidence_record_link": "records/evidence-ruff-format.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/evidence-ruff-format.stdout.log",
+      "reviewer_status": "pending",
+      "sha256": "e4b88b7c519a132ae4ae349fff90861b7f9ab4d5cd5ad0c6ea5d108a77b8b9bd",
+      "task_id": "S01-T09"
     },
     {
       "evidence_record_link": "records/focused-backend-baseline.json",
@@ -262,6 +388,24 @@
       "task_id": "S01-T12"
     },
     {
+      "evidence_record_link": "records/planning-traceability-tests.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/planning-traceability-tests.stderr.log",
+      "reviewer_status": "pending",
+      "sha256": "e9186c3f33723b2448b19c4d8c99423e719230067a8cdf19436eeb1ca283be88",
+      "task_id": "S01-T14-T15"
+    },
+    {
+      "evidence_record_link": "records/planning-traceability-tests.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/planning-traceability-tests.stdout.log",
+      "reviewer_status": "pending",
+      "sha256": "a7bc4d6e2f24839d018a2bf0799551777adffeafaba77bf511f53a160c95ea41",
+      "task_id": "S01-T14-T15"
+    },
+    {
       "evidence_record_link": "records/post-fix-root-dirty-preservation.json",
       "not_applicable_reason": null,
       "owner": "stage-01",
@@ -332,6 +476,24 @@
       "reviewer_status": "pending",
       "sha256": "20df5c1531ed475a38180e2ac33afe34a1552efd74d6fe49cca6debddcd349d4",
       "task_id": "S01-T05-T07"
+    },
+    {
+      "evidence_record_link": "records/tooling-coverage-contract-tests.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/tooling-coverage-contract-tests.stderr.log",
+      "reviewer_status": "pending",
+      "sha256": "e9186c3f33723b2448b19c4d8c99423e719230067a8cdf19436eeb1ca283be88",
+      "task_id": "S01-T09-T10"
+    },
+    {
+      "evidence_record_link": "records/tooling-coverage-contract-tests.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "artifacts/tooling-coverage-contract-tests.stdout.log",
+      "reviewer_status": "pending",
+      "sha256": "0b472c2c291aecd0255858b65d0cdad535bdad0a819811c16ba7ff8b5c1485dd",
+      "task_id": "S01-T09-T10"
     },
     {
       "evidence_record_link": "records/worktree-list.json",
@@ -406,6 +568,33 @@
       "task_id": "S01-T08-T13"
     },
     {
+      "evidence_record_link": null,
+      "not_applicable_reason": "not-applicable: bundle source, manifest, test, or human-readable policy artifact",
+      "owner": "stage01-security-implementation",
+      "relative_path": "coverage/coverage-baseline.json",
+      "reviewer_status": "pending",
+      "sha256": "fe06279a6bba2b3340bd98e6ed60b3396fa8581b34e33e6e642f37b94b2b7791",
+      "task_id": "S01-T03"
+    },
+    {
+      "evidence_record_link": null,
+      "not_applicable_reason": "not-applicable: bundle source, manifest, test, or human-readable policy artifact",
+      "owner": "stage01-security-implementation",
+      "relative_path": "coverage/coverage-rerun.json",
+      "reviewer_status": "pending",
+      "sha256": "dffe930c496f27f132cb3a2d05642d957104ef732a04cbf88411cc11f9a568f7",
+      "task_id": "S01-T03"
+    },
+    {
+      "evidence_record_link": null,
+      "not_applicable_reason": "not-applicable: bundle source, manifest, test, or human-readable policy artifact",
+      "owner": "stage01-security-implementation",
+      "relative_path": "coverage/diff-coverage.json",
+      "reviewer_status": "pending",
+      "sha256": "c0f708413e737784968b49a7aab42d86cf6897baf5ba4ab9fbe9eefadc55c56c",
+      "task_id": "S01-T03"
+    },
+    {
       "evidence_record_link": "records/asset-provenance-tests.json",
       "not_applicable_reason": null,
       "owner": "stage01-security-implementation",
@@ -422,6 +611,24 @@
       "reviewer_status": "pending",
       "sha256": "d435201fd31567507bfd0b6b70d3de087983b9d417793ad6afdb51b8160b12af",
       "task_id": "S01-T08-T13"
+    },
+    {
+      "evidence_record_link": null,
+      "not_applicable_reason": "not-applicable: bundle source, manifest, test, or human-readable policy artifact",
+      "owner": "stage01-security-implementation",
+      "relative_path": "planning/mcp-direct-name-fixture.md",
+      "reviewer_status": "pending",
+      "sha256": "58004b790cf70f2a2eaf114476d99aec1a6a5c238a044500563cf3985ec4bcc6",
+      "task_id": "S01-T03"
+    },
+    {
+      "evidence_record_link": null,
+      "not_applicable_reason": "not-applicable: bundle source, manifest, test, or human-readable policy artifact",
+      "owner": "stage01-security-implementation",
+      "relative_path": "planning/stage-02-w0-plan.md",
+      "reviewer_status": "pending",
+      "sha256": "b2097cee04b8c0b32575b1a31b997b9beca579ae34202bc2aa821ecba9162e5f",
+      "task_id": "S01-T03"
     },
     {
       "evidence_record_link": null,
@@ -469,6 +676,24 @@
       "task_id": "S01-T01"
     },
     {
+      "evidence_record_link": "records/coverage-resource-blocker-baseline.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "records/coverage-resource-blocker-baseline.json",
+      "reviewer_status": "pending",
+      "sha256": "8fc731ea07b7b7484272d453d0e825c6673647cc4181d38f14898f8c17ef34f6",
+      "task_id": "S01-T10"
+    },
+    {
+      "evidence_record_link": "records/coverage-resource-blocker-rerun.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "records/coverage-resource-blocker-rerun.json",
+      "reviewer_status": "pending",
+      "sha256": "5b35393f3346e4cdbc80c8512c0f549aa04c6bc4bab6f3bbcf575b1c95cb5f6b",
+      "task_id": "S01-T10"
+    },
+    {
       "evidence_record_link": "records/current-rss.json",
       "not_applicable_reason": null,
       "owner": "stage-01",
@@ -485,6 +710,51 @@
       "reviewer_status": "pending",
       "sha256": "cd546e190a6984e7097954de6f442cdf9c7d8256a811638a5e00f06260db3053",
       "task_id": "S01-T01"
+    },
+    {
+      "evidence_record_link": "records/evidence-bundle-tests-final.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "records/evidence-bundle-tests-final.json",
+      "reviewer_status": "pending",
+      "sha256": "bb46de8a7c66d919465ca2f6439584e8ca75ffe0d87b5aa4ca74946fa362fad9",
+      "task_id": "S01-T03-T15"
+    },
+    {
+      "evidence_record_link": "records/evidence-bundle-tests-rerun.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "records/evidence-bundle-tests-rerun.json",
+      "reviewer_status": "pending",
+      "sha256": "ac483115d7662436fb19ca8a02c549fdc80a7719bd927d80e92bdcc172071722",
+      "task_id": "S01-T03-T15"
+    },
+    {
+      "evidence_record_link": "records/evidence-ruff-check.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "records/evidence-ruff-check.json",
+      "reviewer_status": "pending",
+      "sha256": "ebf77750a6710f7aa67ec730439727b8736ddfd208ae1842edd8b11a8233b7f5",
+      "task_id": "S01-T09"
+    },
+    {
+      "evidence_record_link": "records/evidence-ruff-core-rerun.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "records/evidence-ruff-core-rerun.json",
+      "reviewer_status": "pending",
+      "sha256": "3c7c1b1b32de84e32a66b800b01b9c4b17086ebe10db3de5f333ddf208e5e055",
+      "task_id": "S01-T09"
+    },
+    {
+      "evidence_record_link": "records/evidence-ruff-format.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "records/evidence-ruff-format.json",
+      "reviewer_status": "pending",
+      "sha256": "d610c0255b8bbb6aad12cbf7ec20a7264175dfe029008d0eac8915dda8447b86",
+      "task_id": "S01-T09"
     },
     {
       "evidence_record_link": "records/focused-backend-baseline.json",
@@ -550,6 +820,15 @@
       "task_id": "S01-T12"
     },
     {
+      "evidence_record_link": "records/planning-traceability-tests.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "records/planning-traceability-tests.json",
+      "reviewer_status": "pending",
+      "sha256": "a9ca73340d70e2cdaf925612b370738c5543a850080fc17050f73035bc7292e9",
+      "task_id": "S01-T14-T15"
+    },
+    {
       "evidence_record_link": "records/post-fix-root-dirty-preservation.json",
       "not_applicable_reason": null,
       "owner": "stage-01",
@@ -586,6 +865,15 @@
       "task_id": "S01-T05-T07"
     },
     {
+      "evidence_record_link": "records/tooling-coverage-contract-tests.json",
+      "not_applicable_reason": null,
+      "owner": "stage01-security-implementation",
+      "relative_path": "records/tooling-coverage-contract-tests.json",
+      "reviewer_status": "pending",
+      "sha256": "2a097cf11d211e202a6c399e7cd3c92680fa5092220732f3b9def60e97312788",
+      "task_id": "S01-T09-T10"
+    },
+    {
       "evidence_record_link": "records/worktree-list.json",
       "not_applicable_reason": null,
       "owner": "stage-01",
@@ -593,6 +881,15 @@
       "reviewer_status": "pending",
       "sha256": "6f2242024f36bb2bb22986593b7fd30233b2bc22fc2ba5ea7e90479bf47f5a06",
       "task_id": "S01-T01"
+    },
+    {
+      "evidence_record_link": null,
+      "not_applicable_reason": "not-applicable: bundle source, manifest, test, or human-readable policy artifact",
+      "owner": "stage01-security-implementation",
+      "relative_path": "requirements/traceability.json",
+      "reviewer_status": "pending",
+      "sha256": "99e30d0e5dd0a5797da4e09ce68467853f40cc3a899f5e6e86d240640a3f874f",
+      "task_id": "S01-T03"
     },
     {
       "evidence_record_link": null,
@@ -649,12 +946,30 @@
       "task_id": "S01-T08-T13"
     },
     {
+      "evidence_record_link": null,
+      "not_applicable_reason": "not-applicable: bundle source, manifest, test, or human-readable policy artifact",
+      "owner": "stage01-security-implementation",
+      "relative_path": "testing/baseline-gates.json",
+      "reviewer_status": "pending",
+      "sha256": "4af42045a1cb951d4e778f68ea396382a1c5d7540aac5a2ee50023a9311f1651",
+      "task_id": "S01-T03"
+    },
+    {
+      "evidence_record_link": null,
+      "not_applicable_reason": "not-applicable: bundle source, manifest, test, or human-readable policy artifact",
+      "owner": "stage01-security-implementation",
+      "relative_path": "testing/tooling-truth.json",
+      "reviewer_status": "pending",
+      "sha256": "92f05d7f56c8c0073941f3b5d410965bca870e600ead3149ed0b11aa340ef475",
+      "task_id": "S01-T03"
+    },
+    {
       "evidence_record_link": "records/asset-provenance-tests.json",
       "not_applicable_reason": null,
       "owner": "stage01-security-implementation",
       "relative_path": "tests/test_asset_provenance_artifacts.py",
       "reviewer_status": "pending",
-      "sha256": "8cf2d29c30924c350139c9b1912479a589da67d572ca32bd3cff1af93b9b63be",
+      "sha256": "fdea3891d7b9060c681d0394a2f2e13a87af298bc405768f9ed88a670899fb6f",
       "task_id": "S01-T08-T13"
     },
     {
@@ -663,7 +978,16 @@
       "owner": "stage-01",
       "relative_path": "tests/test_evidence_runner.py",
       "reviewer_status": "pending",
-      "sha256": "12cbd30ae7c797732d3552b8ee316e6977d6e053682ec6b8f3a7b610761676bd",
+      "sha256": "a358e32f17dbabb13fddcf856d715d9dd421c063be773e7ea57f96cf88e088d6",
+      "task_id": "S01-T03"
+    },
+    {
+      "evidence_record_link": null,
+      "not_applicable_reason": "not-applicable: bundle source, manifest, test, or human-readable policy artifact",
+      "owner": "stage01-security-implementation",
+      "relative_path": "tests/test_planning_traceability_artifacts.py",
+      "reviewer_status": "pending",
+      "sha256": "873837cc6438699aecfb8c285614333651ccf7e47204cbda5ba19d9225ea9e55",
       "task_id": "S01-T03"
     },
     {
@@ -672,7 +996,16 @@
       "owner": "stage01-security-implementation",
       "relative_path": "tests/test_security_inventory_artifacts.py",
       "reviewer_status": "pending",
-      "sha256": "002b407d7aa9aa739280ce85bddbc66b83ee09eb6138ac9cde49ee6d89d146f0",
+      "sha256": "58d13ff5e28d7f41929382c04b560ad49a1bcc1ffa7d6b2c8c6c767721524bef",
+      "task_id": "S01-T03"
+    },
+    {
+      "evidence_record_link": null,
+      "not_applicable_reason": "not-applicable: bundle source, manifest, test, or human-readable policy artifact",
+      "owner": "stage01-security-implementation",
+      "relative_path": "tests/test_tooling_coverage_artifacts.py",
+      "reviewer_status": "pending",
+      "sha256": "257db67169728affc56996d6580982f6885629f039318fc0d3f3a1e04da1ca77",
       "task_id": "S01-T03"
     },
     {
@@ -681,7 +1014,7 @@
       "owner": "stage01-security-implementation",
       "relative_path": "tools/asset_probe.py",
       "reviewer_status": "pending",
-      "sha256": "005a32839216f268d283847e4ad0c36eb863c29125ad5ddbcd7d802a89c06ccb",
+      "sha256": "2c48d1557bdd5cac42ec7aced5130b2dc6cc45f7ca0e2358e1448ae1e58e97c9",
       "task_id": "S01-T08-T13"
     },
     {
@@ -690,7 +1023,7 @@
       "owner": "stage-01",
       "relative_path": "tools/evidence_runner.py",
       "reviewer_status": "pending",
-      "sha256": "9a7226e688a57d3856cc910e71398fd2839c73d88fd582f569b5b501c4fbed4d",
+      "sha256": "f838071ef75d6ec2b9ecbe57dc4962ad7a4e5e5ef71376051fa98c9e4f1f8004",
       "task_id": "S01-T03"
     },
     {
@@ -699,7 +1032,7 @@
       "owner": "stage01-security-implementation",
       "relative_path": "tools/job_census.py",
       "reviewer_status": "pending",
-      "sha256": "96bbd25801cb16bf380aa7409d6a3ad769e0c33160f5d442fd25f91799a202c8",
+      "sha256": "5b7fe3778c06e7608e3dd42fbb545a0afb3dbb95561b65750245d9d143fc8300",
       "task_id": "S01-T03"
     },
     {
@@ -708,7 +1041,7 @@
       "owner": "stage01-security-implementation",
       "relative_path": "tools/route_inventory.py",
       "reviewer_status": "pending",
-      "sha256": "69c91691026e585f1bc59c83ee92dd4828dfaa7c9f2385bd867b8b8d8636dfb3",
+      "sha256": "9f28b3522edab40cd22735e5ea82c8375f630a17a51fd08a2cab73c5c7a9c6b2",
       "task_id": "S01-T03"
     },
     {
@@ -717,7 +1050,7 @@
       "owner": "stage01-security-implementation",
       "relative_path": "tools/update_artifact_index.py",
       "reviewer_status": "pending",
-      "sha256": "d3497620228481a314b50ebad8e064f953adc180d54f91284ac036af17d3f29f",
+      "sha256": "fe790fb509e483000b9a519d6f389b34779847344c1a217cf78863d0fd9787ce",
       "task_id": "S01-T03"
     },
     {

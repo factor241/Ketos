@@ -7,7 +7,6 @@ import hashlib
 import json
 from pathlib import Path
 
-
 BUNDLE = Path(__file__).resolve().parents[1]
 INDEX = BUNDLE / "artifact-index.json"
 

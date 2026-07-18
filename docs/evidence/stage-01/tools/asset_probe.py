@@ -9,7 +9,6 @@ import re
 import subprocess
 from pathlib import Path
 
-
 REPO = Path(__file__).resolve().parents[4]
 ROOT_CHECKOUT = Path("/Volumes/Projects/ketos_canvas_mod_main")
 OPENSWARM = Path("/Volumes/Projects/OpenSwarm")
@@ -30,17 +29,12 @@ def git(*args: str) -> str:
 
 graph = json.loads((ROOT_CHECKOUT / "graphify-out/graph.json").read_text(encoding="utf-8"))
 node_ids = {node["id"] for node in graph["nodes"]}
-missing_endpoints = sum(
-    link["source"] not in node_ids or link["target"] not in node_ids
-    for link in graph["links"]
-)
+missing_endpoints = sum(link["source"] not in node_ids or link["target"] not in node_ids for link in graph["links"])
 self_loops = sum(link["source"] == link["target"] for link in graph["links"])
 
 frontend_source = REPO / "src/frontend/src"
 source_files = [
-    path
-    for path in frontend_source.rglob("*")
-    if path.suffix in {".ts", ".tsx", ".js", ".jsx"} and path.is_file()
+    path for path in frontend_source.rglob("*") if path.suffix in {".ts", ".tsx", ".js", ".jsx"} and path.is_file()
 ]
 xyflow = re.compile(r"(?:from\s+|require\()[\"']@xyflow/react")
 reactflow = re.compile(r"(?:from\s+|require\()[\"']reactflow")

@@ -1,0 +1,45 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/evidence-bundle-tests-rerun.stderr.log",
+      "sha256": "e9186c3f33723b2448b19c4d8c99423e719230067a8cdf19436eeb1ca283be88"
+    },
+    "stdout": {
+      "path": "artifacts/evidence-bundle-tests-rerun.stdout.log",
+      "sha256": "64ceca6fae3604f4050d794833ada138f3b46d91bbfb039d6e24c99771b8d5bc"
+    }
+  },
+  "classification": "COMMAND_RESULT",
+  "command": {
+    "argv": [
+      "uv",
+      "run",
+      "pytest",
+      "docs/evidence/stage-01/tests",
+      "-q"
+    ],
+    "display": "uv run pytest docs/evidence/stage-01/tests -q"
+  },
+  "created_at_utc": "2026-07-18T13:46:48Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T13:46:48Z",
+  "execution_revision": "d02cc7e7847c92a67bcf5622d010828306cdf2cb",
+  "exit_code": 1,
+  "notes": "Full Stage 01 artifact contract suite after formatting and planning additions.",
+  "owner": "stage01-integration",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {
+      "suite": "complete-stage01-artifact-contracts"
+    }
+  },
+  "record_id": "evidence-bundle-tests-rerun",
+  "reviewer": "pending",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T13:46:41Z",
+  "task_id": "S01-T03-T15",
+  "verdict": "FAIL"
+}

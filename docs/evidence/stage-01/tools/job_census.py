@@ -7,7 +7,6 @@ import json
 import sqlite3
 from pathlib import Path
 
-
 DATABASE = Path.home() / "Library" / "Application Support" / "Ketos" / "data" / "ketos.db"
 
 
@@ -23,10 +22,7 @@ connection.execute("PRAGMA busy_timeout=3000")
 quick_check = connection.execute("PRAGMA quick_check").fetchone()[0]
 
 required_tables = {"job", "flow", "memory_base", "knowledge_base", "ingestion_run"}
-available_tables = {
-    row[0]
-    for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
-}
+available_tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
 missing_tables = sorted(required_tables - available_tables)
 if missing_tables:
     raise SystemExit(f"required census tables missing: {', '.join(missing_tables)}")

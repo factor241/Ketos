@@ -1,0 +1,108 @@
+INFO     NumExpr defaulting to 10 threads.
+
+docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py::test_graphify_and_asset_map_record_current_source_truth PASSED [  3%]
+docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py::test_telemetry_contract_is_bounded_and_never_fakes_an_observation_window PASSED [  6%]
+docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py::test_lfx_desktop_xyflow_and_openswarm_pins_are_exact PASSED [ 10%]
+docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py::test_product_taxonomy_keeps_three_assistant_journeys_distinct PASSED [ 13%]
+docs/evidence/stage-01/tests/test_evidence_runner.py::test_runner_writes_hashes_that_validate PASSED [ 16%]
+docs/evidence/stage-01/tests/test_evidence_runner.py::test_runner_canonicalizes_only_end_of_line_whitespace PASSED [ 20%]
+docs/evidence/stage-01/tests/test_evidence_runner.py::test_negative_exit_code_cannot_validate_as_pass PASSED [ 23%]
+docs/evidence/stage-01/tests/test_evidence_runner.py::test_runner_redacts_secrets_from_logs_command_and_profile PASSED [ 26%]
+docs/evidence/stage-01/tests/test_evidence_runner.py::test_hash_verifier_rejects_tampered_artifact_copy PASSED [ 30%]
+docs/evidence/stage-01/tests/test_evidence_runner.py::test_runner_rejects_artifact_path_traversal PASSED [ 33%]
+docs/evidence/stage-01/tests/test_evidence_runner.py::test_redaction_preserves_sort_keys_and_redacts_credentials PASSED [ 36%]
+docs/evidence/stage-01/tests/test_evidence_runner.py::test_validator_enforces_complete_schema_shape[<lambda>-unexpected top-level fields] PASSED [ 40%]
+docs/evidence/stage-01/tests/test_evidence_runner.py::test_validator_enforces_complete_schema_shape[<lambda>-invalid command] PASSED [ 43%]
+docs/evidence/stage-01/tests/test_evidence_runner.py::test_validator_enforces_complete_schema_shape[<lambda>-source_baseline_sha] PASSED [ 46%]
+docs/evidence/stage-01/tests/test_evidence_runner.py::test_validator_enforces_complete_schema_shape[<lambda>-started_at_utc] PASSED [ 50%]
+docs/evidence/stage-01/tests/test_evidence_runner.py::test_validator_enforces_complete_schema_shape[<lambda>-owner] PASSED [ 53%]
+docs/evidence/stage-01/tests/test_evidence_runner.py::test_validator_enforces_complete_schema_shape[<lambda>-artifact] PASSED [ 56%]
+docs/evidence/stage-01/tests/test_evidence_runner.py::test_validator_rejects_noncanonical_artifact_paths[../escape] PASSED [ 60%]
+docs/evidence/stage-01/tests/test_evidence_runner.py::test_validator_rejects_noncanonical_artifact_paths[records/other.json] PASSED [ 63%]
+docs/evidence/stage-01/tests/test_evidence_runner.py::test_preflight_manifest_uses_a_real_rss_measurement PASSED [ 66%]
+docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py::test_stage02_plan_covers_all_w0_domains_without_implementing_them PASSED [ 70%]
+docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py::test_mcp_direct_name_fixture_spec_is_fail_closed PASSED [ 73%]
+docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py::test_traceability_has_exact_gc_and_requirement_denominators_without_false_pass PASSED [ 76%]
+docs/evidence/stage-01/tests/test_security_inventory_artifacts.py::test_job_inventory_and_census_are_complete_and_balanced PASSED [ 80%]
+docs/evidence/stage-01/tests/test_security_inventory_artifacts.py::test_route_matrix_covers_every_runtime_registration_with_required_fields PASSED [ 83%]
+docs/evidence/stage-01/tests/test_security_inventory_artifacts.py::test_security_profile_is_sanitized_and_blocks_unsafe_rollback PASSED [ 86%]
+docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py::test_tooling_truth_does_not_treat_make_lint_as_a_lint_gate PASSED [ 90%]
+docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py::test_baseline_gates_have_commands_results_and_record_links FAILED [ 93%]
+docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py::test_coverage_is_numeric_or_explicitly_blocked_and_rerun_is_within_tolerance FAILED [ 96%]
+docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py::test_diff_coverage_uses_na_instead_of_zero_for_documentation_only_stage PASSED [100%]
+
+=================================== FAILURES ===================================
+__________ test_baseline_gates_have_commands_results_and_record_links __________
+
+    def test_baseline_gates_have_commands_results_and_record_links() -> None:
+>       gates = load_json("testing/baseline-gates.json")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:23:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:11: in load_json
+    return json.loads((BUNDLE / relative).read_text(encoding="utf-8"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/kirillustuzanin/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python3.13/pathlib/_local.py:546: in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/kirillustuzanin/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python3.13/pathlib/_abc.py:632: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = PosixPath('/Volumes/Projects/ketos-stage01-integration/docs/evidence/stage-01/testing/baseline-gates.json')
+mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/Volumes/Projects/ketos-stage01-integration/docs/evidence/stage-01/testing/baseline-gates.json'
+
+/Users/kirillustuzanin/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python3.13/pathlib/_local.py:537: FileNotFoundError
+_ test_coverage_is_numeric_or_explicitly_blocked_and_rerun_is_within_tolerance _
+
+    def test_coverage_is_numeric_or_explicitly_blocked_and_rerun_is_within_tolerance() -> None:
+>       baseline = load_json("coverage/coverage-baseline.json")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:36:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:11: in load_json
+    return json.loads((BUNDLE / relative).read_text(encoding="utf-8"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/kirillustuzanin/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python3.13/pathlib/_local.py:546: in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/kirillustuzanin/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python3.13/pathlib/_abc.py:632: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = PosixPath('/Volumes/Projects/ketos-stage01-integration/docs/evidence/stage-01/coverage/coverage-baseline.json')
+mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/Volumes/Projects/ketos-stage01-integration/docs/evidence/stage-01/coverage/coverage-baseline.json'
+
+/Users/kirillustuzanin/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python3.13/pathlib/_local.py:537: FileNotFoundError
+=========================== short test summary info ============================
+FAILED docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py::test_baseline_gates_have_commands_results_and_record_links
+FAILED docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py::test_coverage_is_numeric_or_explicitly_blocked_and_rerun_is_within_tolerance
+========================= 2 failed, 28 passed in 3.23s =========================

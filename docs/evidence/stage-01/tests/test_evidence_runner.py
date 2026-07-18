@@ -10,7 +10,6 @@ from pathlib import Path
 
 import pytest
 
-
 STAGE_ROOT = Path(__file__).resolve().parents[1]
 RUNNER = STAGE_ROOT / "tools" / "evidence_runner.py"
 
@@ -80,8 +79,7 @@ def test_runner_canonicalizes_only_end_of_line_whitespace(tmp_path: Path) -> Non
         [
             sys.executable,
             "-c",
-            "import sys; sys.stdout.write('alpha  \\t\\n\\nbeta\\t \\n'); "
-            "sys.stderr.write('gamma \\t\\n')",
+            "import sys; sys.stdout.write('alpha  \\t\\n\\nbeta\\t \\n'); sys.stderr.write('gamma \\t\\n')",
         ],
     )
 
@@ -114,8 +112,7 @@ def test_runner_redacts_secrets_from_logs_command_and_profile(tmp_path: Path) ->
         [
             sys.executable,
             "-c",
-            "import sys; print('API_KEY=visible-secret'); "
-            "print('TOKEN: stderr-secret', file=sys.stderr)",
+            "import sys; print('API_KEY=visible-secret'); print('TOKEN: stderr-secret', file=sys.stderr)",
             "--api-token=command-secret",
         ],
         profile={"PASSWORD": "profile-secret", "safe": "value"},
@@ -123,12 +120,8 @@ def test_runner_redacts_secrets_from_logs_command_and_profile(tmp_path: Path) ->
 
     record = json.loads(record_path.read_text())
     serialized = json.dumps(record)
-    stdout = (
-        record_path.parent.parent / record["artifacts"]["stdout"]["path"]
-    ).read_text()
-    stderr = (
-        record_path.parent.parent / record["artifacts"]["stderr"]["path"]
-    ).read_text()
+    stdout = (record_path.parent.parent / record["artifacts"]["stdout"]["path"]).read_text()
+    stderr = (record_path.parent.parent / record["artifacts"]["stderr"]["path"]).read_text()
     for secret in ("visible-secret", "stderr-secret", "command-secret", "profile-secret"):
         assert secret not in serialized + stdout + stderr
     assert "[REDACTED]" in serialized + stdout + stderr
@@ -197,9 +190,7 @@ def test_redaction_preserves_sort_keys_and_redacts_credentials(tmp_path: Path) -
     )
 
     record = json.loads(record_path.read_text())
-    stdout = (
-        record_path.parent.parent / record["artifacts"]["stdout"]["path"]
-    ).read_text()
+    stdout = (record_path.parent.parent / record["artifacts"]["stdout"]["path"]).read_text()
     serialized = json.dumps(record) + stdout
     assert "sort_keys=True" in serialized
     assert "visible-secret" not in serialized

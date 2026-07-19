@@ -27,11 +27,12 @@ React Flow canvas и server-authoritative viewport hydration/persistence. Stage
 
 Полный PASS запрещён одним обязательным красным gate:
 `npm run i18n:check:hardcoded` завершился с exit `1`. Scanner подтвердил
-`Blocking active-wave debt: 0`, но обнаружил 16 ранее существовавших строк в
-Stage-01 Copilot-файлах вне разрешённой карты Stage 03:
+`Blocking active-wave debt: 0`, но обнаружил 17 ранее существовавших строк в
+файлах вне разрешённой карты Stage 03:
 
 - `src/frontend/src/components/core/assistantPanel/copilotkit-interrupt-probe.tsx`;
-- `src/frontend/src/pages/CopilotKitProbePage/index.tsx`.
+- `src/frontend/src/pages/CopilotKitProbePage/index.tsx`;
+- `src/frontend/src/components/core/folderSidebarComponent/helpers/project-shell-route.ts`.
 
 Stage-03 owned paths не добавили hardcoded English. Исправление этих 16 строк
 потребовало бы отдельного разрешения на unrelated paths и нарушило бы exact
@@ -69,7 +70,7 @@ diff; main agent применял изменения и выполнял все 
 | Flow/Note/Assistant compatibility | exact compatibility Jest selection | 0 | 3 suites, 76 passed |
 | Locale parity | `npm run i18n:check` | 0 | 0 blocking issues |
 | Locale keys | `npm run i18n:check-keys` | 0 | 396 reviewed, 0 new, PASS |
-| Hardcoded copy | `npm run i18n:check:hardcoded` | 1 | FAIL: 16 pre-existing untracked strings, active-wave debt 0 |
+| Hardcoded copy | `npm run i18n:check:hardcoded` | 1 | FAIL: 17 pre-existing untracked strings, active-wave debt 0 |
 | Production TS | `npm run type-check:production` | 0 | PASS |
 | Ruff | exact Stage-03 backend paths | 0 | PASS |
 | Biome | exact Stage-03 frontend paths | 0 | 19 files PASS |
@@ -163,5 +164,5 @@ read-only against the existing graph.
 - Активный внешний blocker: нет; это `FAIL`, не `BLOCKED`.
 - Следующий этап: запрещён. Stage 04 не начат.
 - Минимальное действие для повторного закрытия: отдельным разрешённым scope
-  локализовать 16 строк в двух Copilot-файлах, затем повторить весь §12 на новом
-  frozen SHA.
+  локализовать 17 строк в трёх baseline-файлах, затем повторить весь §12 на
+  новом frozen SHA.

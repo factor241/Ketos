@@ -12,9 +12,13 @@ from __future__ import annotations
 import argparse
 import ast
 import asyncio
+import base64
+import csv
 import hashlib
 import importlib
+import importlib.machinery
 import importlib.metadata
+import importlib.util
 import inspect
 import io
 import json
@@ -24,6 +28,7 @@ import selectors
 import signal
 import stat
 import subprocess
+import sys
 import tarfile
 import tempfile
 import textwrap
@@ -71,6 +76,7 @@ ARTIFACT_BINDINGS = (
     "archive_identity_bound",
     "runtime_identity_bound",
     "runtime_source_bound",
+    "runtime_single_root_bound",
 )
 FORK_PROVENANCE_FIELDS = frozenset(
     {
@@ -113,6 +119,7 @@ APPROVED_FORK_SOURCE_FILES = frozenset(
 APPROVED_FORK_TEST_PREFIX = "integrations/langgraph/python/tests/"
 PROVENANCE_MAX_BYTES = 64 * 1024
 GETATTR_MIN_ARGS = 2
+WHEEL_RECORD_FIELD_COUNT = 3
 GIT_EXECUTABLE = "/usr/bin/git"
 FORK_PROVENANCE_BINDINGS = (
     "bound",
@@ -751,6 +758,44 @@ def _wheel_artifact(path: Path) -> dict[str, Any]:
             [name for name in names if name.endswith(".dist-info/METADATA")],
             "wheel METADATA",
         )
+        dist_info_root = str(PurePosixPath(metadata_path).parent)
+        record_path = f"{dist_info_root}/RECORD"
+        if record_path not in names:
+            _invalid("wheel RECORD is missing")
+        file_names = {entry.filename for entry in entries if not entry.is_dir()}
+        try:
+            record_rows = list(csv.reader(io.StringIO(archive.read(record_path).decode("utf-8")), strict=True))
+        except (csv.Error, UnicodeError) as exc:
+            _invalid(f"wheel RECORD is not valid UTF-8 CSV: {exc}")
+        if any(len(row) != WHEEL_RECORD_FIELD_COUNT for row in record_rows):
+            _invalid("wheel RECORD rows must contain exactly path, hash, and size")
+        record_names = [row[0] for row in record_rows]
+        if len(record_names) != len(set(record_names)):
+            _invalid("wheel RECORD contains a duplicate path")
+        if set(record_names) != file_names:
+            _invalid("wheel RECORD paths do not exactly match wheel file members")
+        self_rows = [row for row in record_rows if row[0] == record_path]
+        if self_rows != [[record_path, "", ""]]:
+            _invalid("wheel RECORD must contain one empty hash/size self-row")
+        for member_name, encoded_hash, encoded_size in record_rows:
+            if member_name == record_path:
+                continue
+            if not encoded_hash.startswith("sha256=") or not encoded_size.isascii() or not encoded_size.isdecimal():
+                _invalid(f"wheel RECORD row is malformed: {member_name}")
+            digest_text = encoded_hash.removeprefix("sha256=")
+            try:
+                digest = base64.b64decode(
+                    digest_text + "=" * (-len(digest_text) % 4),
+                    altchars=b"-_",
+                    validate=True,
+                )
+            except (ValueError, base64.binascii.Error) as exc:
+                _invalid(f"wheel RECORD SHA-256 is malformed for {member_name}: {exc}")
+            content = archive.read(member_name)
+            if digest != hashlib.sha256(content).digest():
+                _invalid(f"wheel RECORD SHA-256 mismatch for {member_name}")
+            if encoded_size != str(len(content)):
+                _invalid(f"wheel RECORD size mismatch for {member_name}")
         metadata = BytesParser(policy=email_policy).parsebytes(archive.read(metadata_path))
         name = str(metadata.get("Name") or "").strip()
         version = str(metadata.get("Version") or "").strip()
@@ -761,7 +806,6 @@ def _wheel_artifact(path: Path) -> dict[str, Any]:
         declared_licenses = [str(item) for item in metadata.get_all("License-File", [])]
         if not declared_licenses:
             _invalid("wheel METADATA does not declare a license file")
-        dist_info_root = str(PurePosixPath(metadata_path).parent)
         license_path = _license_member(names, dist_info_root, declared_licenses)
         missing_sources = [source for source in REQUIRED_ARCHIVE_SOURCES if source not in names]
         if missing_sources:
@@ -786,6 +830,7 @@ def _wheel_artifact(path: Path) -> dict[str, Any]:
         "requires_python": requires_python,
         "source_sha256": source_sha256,
         "wheel_inventory_sha256": wheel_inventory_sha256,
+        "wheel_record_bound": True,
         "archive_identity_bound": True,
     }
 
@@ -840,6 +885,16 @@ def _source_artifact(path: Path) -> dict[str, Any]:
             if file_object is None:
                 _invalid(f"artifact missing required source: {source}")
             source_sha256[source] = _bytes_sha256(file_object.read())
+        package_prefix = f"{root}/ag_ui_langgraph/" if root else "ag_ui_langgraph/"
+        package_inventory_sha256: dict[str, str] = {}
+        for member in members:
+            if not member.name.startswith(package_prefix):
+                continue
+            relative = member.name[len(root) + 1 :] if root else member.name
+            file_object = archive.extractfile(member)
+            if file_object is None:
+                _invalid(f"artifact package member cannot be read: {member.name}")
+            package_inventory_sha256[relative] = _bytes_sha256(file_object.read())
         license_file = archive.extractfile(license_path)
         if license_file is None:
             _invalid("artifact license file cannot be read")
@@ -860,6 +915,7 @@ def _source_artifact(path: Path) -> dict[str, Any]:
         "license_source": "artifact",
         "requires_python": requires_python,
         "source_sha256": source_sha256,
+        "package_inventory_sha256": package_inventory_sha256,
         "archive_identity_bound": True,
     }
 
@@ -891,8 +947,17 @@ def bind_runtime_to_artifact(artifact: dict[str, Any], runtime: dict[str, Any]) 
         and _normalized_specifier(str(artifact.get("requires_python") or ""))
         == _normalized_specifier(str(runtime.get("requires_python") or ""))
     )
-    source = artifact.get("source_sha256") == runtime.get("source_sha256")
-    return {"identity": identity, "source": source}
+    inventory = artifact.get("wheel_inventory_sha256")
+    expected_source = None
+    if isinstance(inventory, dict):
+        expected_source = {name: digest for name, digest in inventory.items() if name.startswith("ag_ui_langgraph/")}
+    elif isinstance(artifact.get("package_inventory_sha256"), dict):
+        expected_source = artifact["package_inventory_sha256"]
+    source = expected_source is not None and expected_source == runtime.get("source_sha256")
+    single_root = (
+        runtime.get("single_distribution_root") is True and runtime.get("single_importable_copy") is True
+    )
+    return {"identity": identity, "source": source, "single_root": single_root}
 
 
 def _normalized_access_name(value: str) -> str:
@@ -1498,25 +1563,48 @@ def _runtime_contracts() -> tuple[dict[str, bool], dict[str, Any]]:
 
 
 def _runtime_snapshot(distribution_name: str) -> dict[str, Any]:
-    distribution = importlib.metadata.distribution(distribution_name)
+    distributions = list(importlib.metadata.distributions(name=distribution_name))
+    if len(distributions) != 1:
+        _invalid(f"runtime must contain exactly one {distribution_name} distribution, found {len(distributions)}")
+    distribution = distributions[0]
     metadata = distribution.metadata
     name = metadata.get("Name", distribution_name)
     version = distribution.version
     license_name = metadata.get("License-Expression") or metadata.get("License") or ""
     requires_python = metadata.get("Requires-Python") or ""
+    distribution_root = Path(distribution.locate_file("")).resolve(strict=True)
+    distribution_roots = {Path(item.locate_file("")).resolve(strict=True) for item in distributions}
     source_sha256: dict[str, str] = {}
     source_paths: dict[str, str] = {}
-    for module_name, relative_path in (
-        ("ag_ui_langgraph.agent", "ag_ui_langgraph/agent.py"),
-        ("ag_ui_langgraph.endpoint", "ag_ui_langgraph/endpoint.py"),
-    ):
-        module = importlib.import_module(module_name)
-        module_path_value = getattr(module, "__file__", None)
-        if not module_path_value:
-            _invalid(f"runtime source path unavailable: {module_name}")
-        module_path = Path(module_path_value).resolve(strict=True)
-        source_sha256[relative_path] = _sha256(module_path)
-        source_paths[relative_path] = str(module_path)
+    for file_path in distribution.files or ():
+        relative = PurePosixPath(str(file_path))
+        if not relative.parts or relative.parts[0] != "ag_ui_langgraph" or relative.suffix != ".py":
+            continue
+        module_path = Path(distribution.locate_file(file_path)).resolve(strict=True)
+        try:
+            module_path.relative_to(distribution_root)
+        except ValueError:
+            _invalid(f"runtime package file escapes the distribution root: {relative}")
+        source_sha256[str(relative)] = _sha256(module_path)
+        source_paths[str(relative)] = str(module_path)
+    if not source_sha256:
+        _invalid("runtime distribution contains no import-package Python files")
+    import_roots: set[str] = set()
+    for entry in sys.path:
+        search_entry = entry or str(Path.cwd().resolve(strict=False))
+        candidate_spec = importlib.machinery.PathFinder.find_spec("ag_ui_langgraph", [search_entry])
+        if candidate_spec is not None and candidate_spec.origin is not None:
+            origin = Path(candidate_spec.origin)
+            root = str(origin.resolve(strict=True).parent) if origin.is_file() else str(origin.parent)
+            import_roots.add(root)
+    specification = importlib.util.find_spec("ag_ui_langgraph")
+    if specification is None or specification.origin is None:
+        _invalid("runtime ag_ui_langgraph import specification is unavailable")
+    spec_root = Path(specification.origin).resolve(strict=True).parent
+    import_roots.add(str(spec_root))
+    expected_import_root = (distribution_root / "ag_ui_langgraph").resolve(strict=True)
+    single_distribution_root = len(distribution_roots) == 1
+    single_importable_copy = import_roots == {str(expected_import_root)}
     return {
         "name": name,
         "version": version,
@@ -1524,6 +1612,11 @@ def _runtime_snapshot(distribution_name: str) -> dict[str, Any]:
         "requires_python": str(requires_python),
         "source_sha256": source_sha256,
         "source_paths": source_paths,
+        "distribution_root": str(distribution_root),
+        "distribution_roots": [str(path) for path in sorted(distribution_roots)],
+        "import_roots": sorted(import_roots),
+        "single_distribution_root": single_distribution_root,
+        "single_importable_copy": single_importable_copy,
     }
 
 
@@ -1576,6 +1669,7 @@ def collect_evidence(
     bindings = bind_runtime_to_artifact(artifact, runtime)
     artifact["runtime_identity_bound"] = bindings["identity"]
     artifact["runtime_source_bound"] = bindings["source"]
+    artifact["runtime_single_root_bound"] = bindings["single_root"]
 
     contracts, details = _runtime_contracts()
     details["artifact_binding"] = bindings

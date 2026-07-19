@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { mkdirSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
@@ -7,7 +7,7 @@ const repositoryRoot = path.resolve(__dirname, "../..");
 const runtimeRoot = path.resolve(__dirname, "../copilot-runtime");
 const runRoot =
   process.env.KETOS_MVP_RUN_DIR ??
-  path.join(tmpdir(), `ketos-stage01-playwright-${process.pid}`);
+  path.join(realpathSync(tmpdir()), `ketos-stage01-playwright-${process.pid}`);
 const backendDataRoot = path.join(runRoot, "backend");
 const bindingRoot = path.join(runRoot, "binding");
 const checkpointRoot = path.join(runRoot, "checkpoint");

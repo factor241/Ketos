@@ -268,9 +268,7 @@ def test_binding_path_uses_injectable_local_env_or_configured_data_dir(
     )
     monkeypatch.delenv("KETOS_AG_UI_BINDING_DB", raising=False)
 
-    assert run_binding.resolve_run_binding_path() == (
-        configured_data_dir / "agentic" / "ag_ui" / "run-bindings.sqlite3"
-    )
+    assert run_binding.resolve_run_binding_path() == (configured_data_dir / "agentic" / "ag_ui" / "run-bindings.ledger")
 
     injected = tmp_path / "harness" / "bindings.sqlite3"
     monkeypatch.setenv("KETOS_AG_UI_BINDING_DB", str(injected))
@@ -607,19 +605,19 @@ async def test_binding_store_creates_every_controlled_directory_private(tmp_path
 
 
 @pytest.mark.asyncio
-async def test_binding_store_creates_database_private_before_sqlite_open(
+async def test_binding_store_creates_ledger_private_before_first_append(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
 ) -> None:
-    path = tmp_path / "bindings" / "run-bindings.sqlite3"
-    real_connect = run_binding.sqlite3.connect
+    path = tmp_path / "bindings" / "run-bindings.ledger"
+    real_write = run_binding.os.write
     observed_modes: list[int] = []
 
-    def inspecting_connect(*args, **kwargs):
+    def inspecting_write(descriptor: int, data: bytes) -> int:
         observed_modes.append(stat.S_IMODE(path.stat().st_mode))
-        return real_connect(*args, **kwargs)
+        return real_write(descriptor, data)
 
-    monkeypatch.setattr(run_binding.sqlite3, "connect", inspecting_connect)
+    monkeypatch.setattr(run_binding.os, "write", inspecting_write)
 
     await run_binding.RunBindingStore(path).claim(
         thread_id="thread-preopen-mode",
@@ -627,51 +625,49 @@ async def test_binding_store_creates_database_private_before_sqlite_open(
         actor_id=str(ACTOR_A),
     )
 
-    assert observed_modes == [0o600]
+    assert observed_modes
+    assert set(observed_modes) == {0o600}
 
 
 @pytest.mark.asyncio
-async def test_binding_store_rejects_database_inode_substitution_during_sqlite_open(
+async def test_binding_store_rejects_ledger_inode_substitution_during_append(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
 ) -> None:
-    parent = tmp_path / "bindings"
-    parent.mkdir(mode=0o700)
-    parent.chmod(0o700)
-    path = parent / "run-bindings.sqlite3"
-    real_connect = run_binding.sqlite3.connect
-    with real_connect(path) as connection:
-        connection.execute("CREATE TABLE seed (value TEXT NOT NULL)")
-    path.chmod(0o600)
+    path = tmp_path / "bindings" / "run-bindings.ledger"
+    store = run_binding.RunBindingStore(path)
+    await store.claim(thread_id="thread-existing", run_id="run-existing", actor_id=str(ACTOR_A))
+    real_write = run_binding.os.write
     swapped = False
 
-    def substituting_connect(*args, **kwargs):
+    def substituting_write(descriptor: int, data: bytes) -> int:
         nonlocal swapped
         if not swapped:
             swapped = True
             path.unlink()
-            descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o600)
-            os.close(descriptor)
-        return real_connect(*args, **kwargs)
+            path.write_bytes(b"decoy")
+            path.chmod(0o600)
+        return real_write(descriptor, data)
 
-    monkeypatch.setattr(run_binding.sqlite3, "connect", substituting_connect)
+    monkeypatch.setattr(run_binding.os, "write", substituting_write)
 
     with pytest.raises(ValueError, match="inode changed"):
-        await run_binding.RunBindingStore(path).claim(
+        await store.claim(
             thread_id="thread-substitution",
             run_id="run-substitution",
             actor_id=str(ACTOR_A),
         )
+    assert path.read_bytes() == b"decoy"
 
 
 @pytest.mark.parametrize("replacement_mode", [0o777, 0o700])
-def test_whole_parent_substitution_during_sqlite_open_fails_before_graph_dispatch(
+def test_whole_parent_substitution_during_ledger_append_fails_before_graph_dispatch(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
     replacement_mode: int,
 ) -> None:
     parent = tmp_path / "bindings"
-    path = parent / "run-bindings.sqlite3"
+    path = parent / "run-bindings.ledger"
     store = run_binding.RunBindingStore(path)
     asyncio.run(
         store.claim(
@@ -681,10 +677,10 @@ def test_whole_parent_substitution_during_sqlite_open_fails_before_graph_dispatc
         )
     )
     original_parent = tmp_path / "bindings-original"
-    real_connect = run_binding.sqlite3.connect
+    real_write = run_binding.os.write
     swapped = False
 
-    def substituting_connect(*args, **kwargs):
+    def substituting_write(descriptor: int, data: bytes) -> int:
         nonlocal swapped
         if not swapped:
             swapped = True
@@ -692,12 +688,11 @@ def test_whole_parent_substitution_during_sqlite_open_fails_before_graph_dispatc
             parent.mkdir(mode=0o700)
             parent.chmod(replacement_mode)
             replacement_path = parent / path.name
-            with real_connect(replacement_path) as replacement:
-                replacement.execute("CREATE TABLE decoy (value TEXT NOT NULL)")
+            replacement_path.write_bytes(b"decoy")
             replacement_path.chmod(0o600)
-        return real_connect(*args, **kwargs)
+        return real_write(descriptor, data)
 
-    monkeypatch.setattr(run_binding.sqlite3, "connect", substituting_connect)
+    monkeypatch.setattr(run_binding.os, "write", substituting_write)
     service = _AuthServiceStub(users_by_token={"token-a": SimpleNamespace(id=ACTOR_A, is_active=True)})
     app, agent = _registered_app(monkeypatch, service=service, store=store)
 
@@ -709,82 +704,46 @@ def test_whole_parent_substitution_during_sqlite_open_fails_before_graph_dispatc
         )
 
     assert agent.run_inputs == []
-    with real_connect(path) as replacement:
-        tables = {
-            row[0] for row in replacement.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()
-        }
-    assert tables == {"decoy"}
+    assert path.read_bytes() == b"decoy"
 
 
 @pytest.mark.asyncio
-async def test_whole_parent_substitution_before_commit_rolls_back_claim(
+async def test_binding_ledger_fsync_failure_rolls_back_append(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
 ) -> None:
-    parent = tmp_path / "bindings"
-    path = parent / "run-bindings.sqlite3"
+    path = tmp_path / "bindings" / "run-bindings.ledger"
     store = run_binding.RunBindingStore(path)
     await store.claim(
         thread_id="thread-existing",
         run_id="run-existing",
         actor_id=str(ACTOR_A),
     )
-    original_parent = tmp_path / "bindings-original"
-    real_connect = run_binding.sqlite3.connect
-    swapped = False
+    real_fsync = run_binding.os.fsync
+    failed = False
 
-    def substitute_parent() -> None:
-        nonlocal swapped
-        if swapped:
-            return
-        swapped = True
-        parent.rename(original_parent)
-        parent.mkdir(mode=0o700)
-        replacement_path = parent / path.name
-        with real_connect(replacement_path) as replacement:
-            replacement.execute("CREATE TABLE decoy (value TEXT NOT NULL)")
-        replacement_path.chmod(0o600)
+    def failing_fsync(descriptor: int) -> None:
+        nonlocal failed
+        if not failed:
+            failed = True
+            message = "injected fsync failure"
+            raise OSError(message)
+        real_fsync(descriptor)
 
-    class SubstitutingConnection:
-        def __init__(self, connection) -> None:
-            self.connection = connection
+    monkeypatch.setattr(run_binding.os, "fsync", failing_fsync)
 
-        def execute(self, statement, *args, **kwargs):
-            result = self.connection.execute(statement, *args, **kwargs)
-            if statement.startswith("INSERT INTO run_binding"):
-                substitute_parent()
-            return result
-
-        def __getattr__(self, name):
-            return getattr(self.connection, name)
-
-    def substituting_connect(*args, **kwargs):
-        return SubstitutingConnection(real_connect(*args, **kwargs))
-
-    monkeypatch.setattr(run_binding.sqlite3, "connect", substituting_connect)
-
-    with pytest.raises(ValueError, match="parent inode changed"):
+    with pytest.raises(OSError, match="injected fsync failure"):
         await store.claim(
-            thread_id="thread-before-commit",
-            run_id="run-before-commit",
+            thread_id="thread-failed-fsync",
+            run_id="run-failed-fsync",
             actor_id=str(ACTOR_A),
         )
 
-    with real_connect(original_parent / path.name) as original:
-        assert (
-            original.execute(
-                "SELECT 1 FROM thread_binding WHERE thread_id = ?",
-                ("thread-before-commit",),
-            ).fetchone()
-            is None
-        )
-        assert (
-            original.execute(
-                "SELECT 1 FROM run_binding WHERE run_id = ?",
-                ("run-before-commit",),
-            ).fetchone()
-            is None
-        )
+    await run_binding.RunBindingStore(path).claim(
+        thread_id="thread-failed-fsync",
+        run_id="run-failed-fsync",
+        actor_id=str(ACTOR_A),
+    )
 
 
 @pytest.mark.asyncio
@@ -823,6 +782,211 @@ async def test_binding_store_allows_sticky_ancestor_with_private_owned_controlle
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
 
+@pytest.mark.asyncio
+async def test_binding_store_rejects_foreign_owned_sticky_ancestor(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    sticky_ancestor = tmp_path / "foreign-sticky-ancestor"
+    sticky_ancestor.mkdir(mode=0o700)
+    sticky_ancestor.chmod(0o1777)
+    secure_root = sticky_ancestor / "controlled"
+    path = secure_root / "run-bindings.ledger"
+    real_lstat = run_binding.os.lstat
+
+    def foreign_owner_lstat(candidate):
+        result = real_lstat(candidate)
+        if Path(candidate) == sticky_ancestor:
+            values = list(result)
+            values[4] = os.geteuid() + 1
+            return os.stat_result(values)
+        return result
+
+    monkeypatch.setattr(run_binding.os, "lstat", foreign_owner_lstat)
+
+    with pytest.raises(ValueError, match="sticky ancestor must be owned"):
+        await run_binding.RunBindingStore(path, secure_root=secure_root).claim(
+            thread_id="thread-foreign-sticky",
+            run_id="run-foreign-sticky",
+            actor_id=str(ACTOR_A),
+        )
+
+    assert not secure_root.exists()
+
+
+@pytest.mark.asyncio
+async def test_descriptor_bound_claim_survives_transient_parent_swap_during_write(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    parent = tmp_path / "bindings"
+    path = parent / "run-bindings.ledger"
+    store = run_binding.RunBindingStore(path)
+    await store.claim(
+        thread_id="thread-existing",
+        run_id="run-existing",
+        actor_id=str(ACTOR_A),
+    )
+    original_parent = tmp_path / "bindings-original"
+    decoy_parent = tmp_path / "bindings-decoy"
+    real_write = run_binding.os.write
+    attacked = False
+
+    def swapping_write(descriptor: int, data: bytes) -> int:
+        nonlocal attacked
+        if attacked:
+            return real_write(descriptor, data)
+        attacked = True
+        parent.rename(original_parent)
+        parent.mkdir(mode=0o700)
+        decoy_path = parent / path.name
+        decoy_path.write_bytes(b"decoy")
+        decoy_path.chmod(0o600)
+        try:
+            return real_write(descriptor, data)
+        finally:
+            parent.rename(decoy_parent)
+            original_parent.rename(parent)
+
+    monkeypatch.setattr(run_binding.os, "write", swapping_write)
+
+    await store.claim(
+        thread_id="thread-transient-write",
+        run_id="run-transient-write",
+        actor_id=str(ACTOR_A),
+    )
+
+    assert attacked
+    with pytest.raises(run_binding.RunBindingDeniedError):
+        await run_binding.RunBindingStore(path).claim(
+            thread_id="thread-other",
+            run_id="run-transient-write",
+            actor_id=str(ACTOR_A),
+        )
+    assert (decoy_parent / path.name).read_bytes() == b"decoy"
+
+
+@pytest.mark.asyncio
+async def test_descriptor_bound_claim_survives_transient_parent_swap_during_fsync(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    parent = tmp_path / "bindings"
+    path = parent / "run-bindings.ledger"
+    store = run_binding.RunBindingStore(path)
+    await store.claim(
+        thread_id="thread-existing",
+        run_id="run-existing",
+        actor_id=str(ACTOR_A),
+    )
+    original_parent = tmp_path / "bindings-original"
+    decoy_parent = tmp_path / "bindings-decoy"
+    real_fsync = run_binding.os.fsync
+    attacked = False
+
+    def swapping_fsync(descriptor: int) -> None:
+        nonlocal attacked
+        if attacked:
+            real_fsync(descriptor)
+            return
+        attacked = True
+        parent.rename(original_parent)
+        parent.mkdir(mode=0o700)
+        decoy_path = parent / path.name
+        decoy_path.write_bytes(b"decoy")
+        decoy_path.chmod(0o600)
+        try:
+            real_fsync(descriptor)
+        finally:
+            parent.rename(decoy_parent)
+            original_parent.rename(parent)
+
+    monkeypatch.setattr(run_binding.os, "fsync", swapping_fsync)
+
+    await store.claim(
+        thread_id="thread-transient-fsync",
+        run_id="run-transient-fsync",
+        actor_id=str(ACTOR_A),
+    )
+
+    assert attacked
+    with pytest.raises(run_binding.RunBindingDeniedError):
+        await run_binding.RunBindingStore(path).claim(
+            thread_id="thread-other",
+            run_id="run-transient-fsync",
+            actor_id=str(ACTOR_A),
+        )
+    assert (decoy_parent / path.name).read_bytes() == b"decoy"
+
+
+@pytest.mark.asyncio
+async def test_binding_ledger_rejects_partial_tail(tmp_path) -> None:
+    path = tmp_path / "bindings" / "run-bindings.ledger"
+    store = run_binding.RunBindingStore(path)
+    await store.claim(thread_id="thread-a", run_id="run-a", actor_id=str(ACTOR_A))
+    with path.open("ab") as ledger:
+        ledger.write(b"\x00")
+
+    with pytest.raises(ValueError, match="partial ledger record"):
+        await run_binding.RunBindingStore(path).claim(
+            thread_id="thread-b",
+            run_id="run-b",
+            actor_id=str(ACTOR_A),
+        )
+
+
+@pytest.mark.asyncio
+async def test_binding_ledger_rejects_magic_only_torn_first_claim(tmp_path) -> None:
+    parent = tmp_path / "bindings"
+    parent.mkdir(mode=0o700)
+    parent.chmod(0o700)
+    path = parent / "run-bindings.ledger"
+    path.write_bytes(b"KETOS-AG-UI-BINDING-LEDGER\x00v1\n")
+    path.chmod(0o600)
+
+    with pytest.raises(ValueError, match="partial ledger record"):
+        await run_binding.RunBindingStore(path).claim(
+            thread_id="thread-b",
+            run_id="run-b",
+            actor_id=str(ACTOR_A),
+        )
+
+
+@pytest.mark.asyncio
+async def test_binding_ledger_rejects_oversized_record_length(tmp_path) -> None:
+    path = tmp_path / "bindings" / "run-bindings.ledger"
+    store = run_binding.RunBindingStore(path)
+    await store.claim(thread_id="thread-a", run_id="run-a", actor_id=str(ACTOR_A))
+    with path.open("ab") as ledger:
+        ledger.write(b"\xff\xff\xff\xff")
+
+    with pytest.raises(ValueError, match="ledger record length"):
+        await run_binding.RunBindingStore(path).claim(
+            thread_id="thread-b",
+            run_id="run-b",
+            actor_id=str(ACTOR_A),
+        )
+
+
+@pytest.mark.asyncio
+async def test_binding_ledger_rejects_checksum_corruption(tmp_path) -> None:
+    path = tmp_path / "bindings" / "run-bindings.ledger"
+    store = run_binding.RunBindingStore(path)
+    await store.claim(thread_id="thread-a", run_id="run-a", actor_id=str(ACTOR_A))
+    with path.open("r+b") as ledger:
+        ledger.seek(-1, os.SEEK_END)
+        final_byte = ledger.read(1)
+        ledger.seek(-1, os.SEEK_END)
+        ledger.write(bytes([final_byte[0] ^ 0xFF]))
+
+    with pytest.raises(ValueError, match="ledger checksum"):
+        await run_binding.RunBindingStore(path).claim(
+            thread_id="thread-b",
+            run_id="run-b",
+            actor_id=str(ACTOR_A),
+        )
+
+
 @pytest.mark.parametrize(("thread_id", "run_id"), [("", "run"), ("thread", ""), ("t" * 257, "run")])
 @pytest.mark.asyncio
 async def test_hook_fails_closed_on_invalid_resource_identifiers(tmp_path, thread_id: str, run_id: str) -> None:
@@ -854,5 +1018,8 @@ def test_production_sources_do_not_implement_an_ag_ui_protocol() -> None:
         "Command(resume=",
         "forwarded_props.command.resume",
         "jwt.decode",
+        "sqlite3",
+        "CREATE TABLE",
+        "PRAGMA",
     )
     assert all(token not in sources for token in forbidden)

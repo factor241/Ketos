@@ -60,11 +60,20 @@ only epoch `1784227404` and SHA-256 `64711f7e...` recorded above.
 Two AG-UI builds from a clean exact-commit clone under uv `0.11.21` and Python
 `3.13.14` reproduced the wheel hash. A fresh remote CopilotKit clone was
 installed, type-checked, built and packed under the manifest-selected Node
-`22.23.1`, Corepack pnpm `10.33.4`, and epoch `1784227404`; it reproduced SHA-256
+`22.23.1`, verified pnpm `10.33.4`, and epoch `1784227404`; it reproduced SHA-256
 `64711f7e...` byte-for-byte. `uv sync --frozen
 --offline` installed the exact local wheel; `npm ci --offline` installed the
 exact local tgz and integrity. `uv.lock` and `package-lock.json` contain the
 same artifact hashes.
+
+The final canonical CopilotKit executor no longer relies on host `npx`,
+Corepack, `command -v`, a caller checkout, or user Git configuration. It
+downloads the platform-specific official Node `22.23.1` distribution and pnpm
+`10.33.4` archive under bounded limits, verifies their manifest-pinned SHA-256
+and pnpm SHA-512 integrity before safe extraction, invokes their absolute
+paths, clones both Git authorities with an isolated fixed executable and
+configuration, rejects dirty/ignored/gitlink inputs, runs the fork test and
+type gates, builds, packs, and verifies the admitted artifact hash.
 
 ## Historical blocking decision (superseded by the PASS above)
 

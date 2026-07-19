@@ -53,10 +53,7 @@ export default defineConfig({
         KETOS_CONFIG_DIR: backendDataRoot,
         KETOS_DATA_DIR: backendDataRoot,
         KETOS_TEMP_DIR: backendDataRoot,
-        KETOS_AG_UI_BINDING_DB: path.join(
-          bindingRoot,
-          "actor-run-binding.sqlite3",
-        ),
+        KETOS_AG_UI_BINDING_DB: path.join(bindingRoot, "run-bindings.ledger"),
         KETOS_AG_UI_CHECKPOINT_DB: path.join(
           checkpointRoot,
           "langgraph-checkpoints.sqlite3",

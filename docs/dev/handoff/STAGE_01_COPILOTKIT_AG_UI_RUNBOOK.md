@@ -94,22 +94,24 @@ under a process-specific directory in the system temporary directory.
 
 The harness passes two separate, explicit file paths:
 
-- `KETOS_AG_UI_BINDING_DB`: `binding/actor-run-binding.sqlite3`;
+- `KETOS_AG_UI_BINDING_DB`: `binding/run-bindings.ledger`;
 - `KETOS_AG_UI_CHECKPOINT_DB`: `checkpoint/langgraph-checkpoints.sqlite3`.
 
-They are not interchangeable. The binding database is durable authorization
+They are not interchangeable. KETOS_AG_UI_BINDING_DB points to this ledger;
+the environment-variable name is retained as a compatibility surface. The
+descriptor-bound append-only binding authority ledger is durable authorization
 authority for actor/thread/run ownership. Automatic harness cleanup never
-deletes it and never recursively deletes its parent. The checkpoint database is
-runtime replay state; after the backend has stopped, successful smoke cleanup
-may delete only this exact temporary checkpoint file. The backend owners must
-create database files as regular files with mode `0600` and keep their parent
-directories at mode `0700`.
+deletes it and never recursively deletes its parent. The checkpoint remains a
+SQLite database containing runtime replay state; after the backend has stopped,
+successful smoke cleanup may delete only this exact temporary checkpoint file.
+The owners must create both files as regular files with mode `0600` and keep
+their parent directories at mode `0700`.
 
 For a deliberately disposable local run, stop all three known PIDs first. Then
 inspect and remove the exact checkpoint file and other named runtime artifacts.
-Delete the exact binding file only after an explicit authorization-retention
+Delete the exact binding ledger only after an explicit authorization-retention
 decision; never use a recursive command against a config/data root. The harness
-prints the retained binding path when it exists. Ketos may create additional
+prints the retained ledger path when it exists. Ketos may create additional
 named backend runtime files under the temporary backend directory; the harness
 does not guess or recursively erase them and prints the retained root. On any
 failed run it retains the full temporary root and prints its location for

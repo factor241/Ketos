@@ -56,12 +56,13 @@ cleanup() {
 
   if [[ -n "$RUN_ROOT" ]]; then
     if ((status == 0)) && [[ "${KETOS_MVP_KEEP_TEMP:-0}" != "1" ]]; then
-      # The actor/run binding DB is durable authorization authority. This
-      # harness never deletes it or recursively deletes its parent directory.
+      # The descriptor-bound append-only binding authority ledger is durable
+      # authorization authority. This harness never deletes it or recursively
+      # deletes its parent directory.
       rm -f -- "$CHECKPOINT_DB" "$BACKEND_DB" "$BACKEND_LOG" "$RUNTIME_LOG" "$FRONTEND_LOG"
       rmdir -- "${RUN_ROOT}/checkpoint" "${RUN_ROOT}/backend" "${RUN_ROOT}/logs" 2>/dev/null || true
       if [[ -e "$BINDING_DB" ]]; then
-        echo "Binding authority retained at ${BINDING_DB}"
+        echo "Binding authority ledger retained at ${BINDING_DB}"
       else
         rmdir -- "${RUN_ROOT}/binding" "$RUN_ROOT" 2>/dev/null || true
       fi
@@ -164,7 +165,7 @@ done
 RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/ketos-stage01-chat.XXXXXX")"
 install -d -m 0700 "${RUN_ROOT}/backend" "${RUN_ROOT}/binding" "${RUN_ROOT}/checkpoint" "${RUN_ROOT}/logs"
 BACKEND_DB="${RUN_ROOT}/backend/ketos.sqlite3"
-BINDING_DB="${RUN_ROOT}/binding/actor-run-binding.sqlite3"
+BINDING_DB="${RUN_ROOT}/binding/run-bindings.ledger"
 CHECKPOINT_DB="${RUN_ROOT}/checkpoint/langgraph-checkpoints.sqlite3"
 BACKEND_LOG="${RUN_ROOT}/logs/backend.log"
 RUNTIME_LOG="${RUN_ROOT}/logs/runtime.log"

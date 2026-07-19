@@ -85,6 +85,10 @@ def test_stage01_mvp_proxy_and_three_process_orchestration_contract():
     playwright_source = playwright_path.read_text(encoding="utf-8")
     assert playwright_source.count("reuseExistingServer: false") == 3
     assert "workers: 1" in playwright_source
+    assert "KETOS_AG_UI_BINDING_DB" in playwright_source
+    assert '"run-bindings.ledger"' in playwright_source
+    assert "actor-run-binding.sqlite3" not in playwright_source
+    assert "run-bindings.sqlite3" not in playwright_source
     for endpoint in (
         "http://127.0.0.1:7860/health",
         "http://127.0.0.1:8788/api/copilotkit/info",
@@ -106,6 +110,12 @@ def test_stage01_mvp_proxy_and_three_process_orchestration_contract():
         'wait "$pid"',
     ):
         assert required in harness_source
+    assert 'BINDING_DB="${RUN_ROOT}/binding/run-bindings.ledger"' in harness_source
+    assert "descriptor-bound append-only binding authority ledger" in harness_source
+    assert 'if [[ -e "$BINDING_DB" ]]' in harness_source
+    assert 'rm -f -- "$BINDING_DB"' not in harness_source
+    assert "actor-run-binding.sqlite3" not in harness_source
+    assert "run-bindings.sqlite3" not in harness_source
     for forbidden in ("pkill", "killall"):
         assert forbidden not in harness_source
 
@@ -125,10 +135,16 @@ def test_stage01_mvp_runbook_documents_safe_reproduction_and_handoff_boundary():
         "LANGGRAPH_STRICT_MSGPACK",
         "binding",
         "checkpoint",
+        "run-bindings.ledger",
+        "descriptor-bound append-only binding authority ledger",
+        "KETOS_AG_UI_BINDING_DB points to this ledger",
         "known PID",
         "S01-A10",
     ):
         assert required in runbook
+    assert "actor-run-binding.sqlite3" not in runbook
+    assert "run-bindings.sqlite3" not in runbook
+    assert "binding database" not in runbook.lower()
     for secret_assignment in ("SUPERUSER_PASSWORD=", "API_KEY=", "SECRET_KEY=", "TOKEN="):
         assert secret_assignment not in runbook
 

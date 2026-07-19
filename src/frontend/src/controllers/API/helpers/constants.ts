@@ -3,6 +3,8 @@ import { BASE_URL_API_V2 } from "../../../constants/constants";
 
 export const URLs = {
   BOARDS: `boards`,
+  PLACEMENTS: `placements`,
+  BOARD_NOTES: `board-notes`,
   TRANSACTIONS: `monitor/transactions`,
   TRACES: `monitor/traces`,
   API_KEY: `api_key`,

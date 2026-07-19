@@ -9,7 +9,7 @@
 - Base/Stage 02 PASS SHA: `745abd81b678a653654cd304d4d896652a22066a`.
 - Sync-A SHA: `2b2c5a4e30a`.
 - Sync-B SHA: `29c83996f89`.
-- Frozen implementation SHA: `ff8627ed96c8bbde84e0ec341b392bf4654452e4`.
+- Frozen implementation SHA: `f3d72c5d3b35a0aa2a6dcfad455b80ddf4f162d0`.
 - Root checkout: `/Volumes/Projects/ketos_canvas_mod_main`.
 - Integration branch/worktree: `codex/mvp-s03-integration`,
   `/tmp/ketos-mvp-s03-integration`.

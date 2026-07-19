@@ -10,6 +10,8 @@ export type FolderType = {
   components: string[];
 };
 
+export type ProjectType = FolderType;
+
 export type PaginatedFolderType = {
   folder: {
     name: string;

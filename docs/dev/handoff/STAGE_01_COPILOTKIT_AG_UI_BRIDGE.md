@@ -144,7 +144,7 @@ focused reruns.
 | S01-A07 | `ae4f7eab77b94f1e70a574e12d8c8693143851a6` | `reviewed_sha_from: coordinator ledger` |
 | S01-A08 | `701ffb4693368c489177a3126b63f38379b8dd82` | `reviewed_sha_from: coordinator ledger` |
 | S01-A09 | `96a06cd23580a05488c0d9fe6f2681c40109700a` | `reviewed_sha_from: coordinator ledger` |
-| S01-A10 | runtime lifecycle `83fb2827a994361794e0e2be643ef63ef8df722c`; vertical proof and guard `a59b87a72362ab88fd90ea43a9628867c45fdb6f` | independent coordinator review pending |
+| S01-A10 | runtime lifecycle `83fb2827a994361794e0e2be643ef63ef8df722c`; vertical proof and guard `a59b87a72360dfa71401196535afc71392407e71` | independent coordinator review pending |
 
 ## Final gate template
 

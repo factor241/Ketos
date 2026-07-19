@@ -24,13 +24,17 @@ jest.mock("@/controllers/API/services/request-processor", () => ({
         fn: (payload: unknown) => Promise<unknown>,
         options?: {
           onSuccess?: (result: unknown) => void;
-          onSettled?: (result: unknown) => void;
+          onSettled?: (
+            result: unknown,
+            error: unknown,
+            variables: unknown,
+          ) => void;
         },
       ) => ({
         mutate: async (payload: unknown) => {
           const result = await fn(payload);
           options?.onSuccess?.(result);
-          options?.onSettled?.(result);
+          options?.onSettled?.(result, null, payload);
           return result;
         },
       }),
@@ -103,9 +107,12 @@ describe("project folder client contract", () => {
       flows_list: [],
       components_list: [],
     });
-    expect(mockQueryClient.refetchQueries).toHaveBeenCalledTimes(1);
+    expect(mockQueryClient.refetchQueries).toHaveBeenCalledTimes(2);
     expect(mockQueryClient.refetchQueries).toHaveBeenCalledWith({
       queryKey: ["useGetFolders"],
+    });
+    expect(mockQueryClient.refetchQueries).toHaveBeenCalledWith({
+      queryKey: ["useGetFolder", "project-1"],
     });
     expect(result).toEqual(response);
   });
@@ -124,6 +131,16 @@ describe("project folder client contract", () => {
     expect(detailSource).toMatch(/"useGetFolder",\s*params\.id/);
     expect(foldersSource).not.toContain('["projects"]');
     expect(detailSource).not.toContain('["projects"]');
+  });
+
+  it("loads direct Project URLs from the owner-scoped API without requiring list cache membership", () => {
+    const detailSource = readFileSync(
+      resolve(__dirname, "..", "use-get-folder.ts"),
+      "utf8",
+    );
+
+    expect(detailSource).not.toContain("const existingFolder = folders.find");
+    expect(detailSource).not.toContain("if (!existingFolder)");
   });
 
   it("does not introduce a parallel projects query or store namespace", () => {

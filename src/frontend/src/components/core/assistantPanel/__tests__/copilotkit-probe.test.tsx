@@ -60,4 +60,15 @@ describe("CopilotKitProbe", () => {
       /renderToolCalls|renderActivityMessages|renderCustomMessages|frontendTools|humanInTheLoop|chatView\s*=/,
     );
   });
+
+  it("imports the admitted stock CopilotKit stylesheet exactly once", () => {
+    const source = readFileSync(
+      join(__dirname, "..", "copilotkit-probe.tsx"),
+      "utf8",
+    );
+
+    expect(
+      source.match(/@copilotkit\/react-core\/v2\/styles\.css/g),
+    ).toHaveLength(1);
+  });
 });

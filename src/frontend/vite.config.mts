@@ -91,7 +91,10 @@ export default defineConfig(({ mode }) => {
       proxy: {
         "/api/copilotkit": {
           target: COPILOT_RUNTIME_TARGET,
-          changeOrigin: true,
+          // Preserve the browser-facing Host so the runtime can verify that
+          // it matches the browser Origin. The fixed loopback target remains
+          // the only proxy destination.
+          changeOrigin: false,
           secure: false,
           ws: false,
         },

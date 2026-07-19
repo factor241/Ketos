@@ -24,6 +24,7 @@ import { AppInitPage } from "./pages/AppInitPage";
 import { AppWrapperPage } from "./pages/AppWrapperPage";
 import FlowPage from "./pages/FlowPage";
 import LoginPage from "./pages/LoginPage";
+import CopilotKitProbePage from "./pages/CopilotKitProbePage";
 import FilesPage from "./pages/MainPage/pages/filesPage";
 import HomePage from "./pages/MainPage/pages/homePage";
 import KnowledgePage from "./pages/MainPage/pages/knowledgePage";
@@ -83,6 +84,10 @@ const router = createBrowserRouter(
             }
           >
             <Route path="" element={<AppAuthenticatedPage />}>
+              <Route
+                path="mvp/copilotkit-probe"
+                element={<CopilotKitProbePage />}
+              />
               <Route path="" element={<CustomDashboardWrapperPage />}>
                 <Route path="" element={<CollectionPage />}>
                   <Route

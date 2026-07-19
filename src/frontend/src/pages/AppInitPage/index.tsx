@@ -72,7 +72,11 @@ export function AppInitPage() {
   // - We're already authenticated (so we skipped auto-login intentionally)
   const isAutoLoginComplete = isFetched || isAuthenticated;
 
-  const isReady = isAutoLoginComplete && isExamplesFetched && isSessionReady;
+  const isReady =
+    isAutoLoginComplete &&
+    isConfigFetched &&
+    isExamplesFetched &&
+    isSessionReady;
 
   return (
     <>

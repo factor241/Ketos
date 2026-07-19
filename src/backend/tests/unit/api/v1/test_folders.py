@@ -1,6 +1,60 @@
+from uuid import uuid4
+
 import pytest
 from fastapi import status
 from httpx import AsyncClient
+
+
+@pytest.mark.parametrize("method", ["GET", "POST"])
+async def test_folder_root_routes_redirect_to_projects_without_following(
+    client: AsyncClient,
+    logged_in_headers: dict,
+    method: str,
+):
+    response = await client.request(
+        method,
+        "/api/v1/folders/",
+        headers=logged_in_headers,
+        follow_redirects=False,
+    )
+
+    assert response.status_code == status.HTTP_307_TEMPORARY_REDIRECT
+    assert response.headers["location"] == "/api/v1/projects/"
+
+
+async def test_folder_detail_routes_preserve_project_redirect_contract(
+    client: AsyncClient,
+    logged_in_headers: dict,
+):
+    folder_id = uuid4()
+
+    get_response = await client.get(
+        f"/api/v1/folders/{folder_id}",
+        params=[
+            ("is_component", "true"),
+            ("is_flow", "true"),
+            ("search", "needle"),
+            ("page", "2"),
+            ("size", "25"),
+        ],
+        headers=logged_in_headers,
+        follow_redirects=False,
+    )
+
+    assert get_response.status_code == status.HTTP_307_TEMPORARY_REDIRECT
+    assert get_response.headers["location"] == (
+        f"/api/v1/projects/{folder_id}?is_component=True&is_flow=True&search=needle&page=2&size=25"
+    )
+
+    patch_response = await client.patch(
+        f"/api/v1/folders/{folder_id}",
+        json={"name": f"renamed-{folder_id}"},
+        headers=logged_in_headers,
+        follow_redirects=False,
+    )
+
+    assert patch_response.status_code == status.HTTP_307_TEMPORARY_REDIRECT
+    assert patch_response.headers["location"] == f"/api/v1/projects/{folder_id}"
 
 
 @pytest.fixture

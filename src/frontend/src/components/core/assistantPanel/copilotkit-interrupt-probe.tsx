@@ -3,7 +3,7 @@ import {
   type InterruptResolveFn,
   useInterrupt,
 } from "@copilotkit/react-core/v2";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,6 +20,35 @@ type InterruptCardsProps = Readonly<{
   interrupts: Interrupt[];
   resolve: InterruptResolveFn<ApprovalDecision>;
 }>;
+
+type DismissedInterruptContentProps = Readonly<{
+  interruptId: string;
+  onReopen: (interruptId: string) => void;
+}>;
+
+function DismissedInterruptContent({
+  interruptId,
+  onReopen,
+}: DismissedInterruptContentProps) {
+  const reopenButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    reopenButtonRef.current?.focus();
+  }, []);
+
+  return (
+    <CardContent className="p-4">
+      <Button
+        ref={reopenButtonRef}
+        variant="outline"
+        onClick={() => onReopen(interruptId)}
+        aria-label={`Reopen approval request ${interruptId}`}
+      >
+        Reopen approval request
+      </Button>
+    </CardContent>
+  );
+}
 
 function InterruptCards({ interrupts, resolve }: InterruptCardsProps) {
   const pendingIdsRef = useRef(new Set<string>());
@@ -87,6 +116,8 @@ function InterruptCards({ interrupts, resolve }: InterruptCardsProps) {
         const isDismissed = dismissedIds.has(interrupt.id);
         const isPending = pendingIds.has(interrupt.id);
         const hasFailed = failedIds.has(interrupt.id);
+        const trimmedMessage = interrupt.message?.trim();
+        const summary = trimmedMessage ? trimmedMessage : interrupt.reason;
 
         return (
           <Card
@@ -103,15 +134,10 @@ function InterruptCards({ interrupts, resolve }: InterruptCardsProps) {
             className="bg-background"
           >
             {isDismissed ? (
-              <CardContent className="p-4">
-                <Button
-                  variant="outline"
-                  onClick={() => reopen(interrupt.id)}
-                  aria-label={`Reopen approval request ${interrupt.id}`}
-                >
-                  Reopen approval request
-                </Button>
-              </CardContent>
+              <DismissedInterruptContent
+                interruptId={interrupt.id}
+                onReopen={reopen}
+              />
             ) : (
               <>
                 <CardHeader>
@@ -133,7 +159,7 @@ function InterruptCards({ interrupts, resolve }: InterruptCardsProps) {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p>{interrupt.message ?? interrupt.reason}</p>
+                  <p>{summary}</p>
                   {hasFailed ? (
                     <p role="alert" className="mt-2 text-sm text-destructive">
                       Decision could not be submitted. Try again.

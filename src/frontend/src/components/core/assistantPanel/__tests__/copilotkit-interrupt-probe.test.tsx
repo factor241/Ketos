@@ -127,6 +127,24 @@ describe("CopilotKitInterruptProbe", () => {
     expect(screen.getByText("confirmation")).toBeInTheDocument();
   });
 
+  it.each(["", "  \n\t  "])(
+    "should fall back to the official reason when the message is blank",
+    (message) => {
+      const interruptWithBlankMessage: Interrupt = {
+        id: "approval-blank-message",
+        reason: "confirmation",
+        message,
+      };
+      renderInterrupts(
+        [interruptWithBlankMessage],
+        createResolveMock(),
+        createCancelMock(),
+      );
+
+      expect(screen.getByText("confirmation")).toBeInTheDocument();
+    },
+  );
+
   it("should resolve approval for only the selected interrupt", async () => {
     const user = userEvent.setup();
     const resolve = createResolveMock();
@@ -295,6 +313,27 @@ describe("CopilotKitInterruptProbe", () => {
         name: "Approval request approval-alpha",
       }),
     ).toHaveTextContent("Approve alpha change?");
+  });
+
+  it("should move focus to reopen when close is activated by keyboard", async () => {
+    const user = userEvent.setup();
+    const resolve = createResolveMock();
+    const cancel = createCancelMock();
+    renderInterrupts([firstInterrupt], resolve, cancel);
+    const closeButton = screen.getByRole("button", {
+      name: "Close approval request approval-alpha",
+    });
+    closeButton.focus();
+
+    await user.keyboard("{Enter}");
+
+    expect(
+      screen.getByRole("button", {
+        name: "Reopen approval request approval-alpha",
+      }),
+    ).toHaveFocus();
+    expect(resolve).not.toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
   });
 
   it("should locally dismiss on Escape without resolving or cancelling", async () => {

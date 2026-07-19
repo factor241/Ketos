@@ -9,13 +9,16 @@ neither file owns the other's lifecycle or deletion.
 from __future__ import annotations
 
 import asyncio
+import errno
 import fcntl
 import hashlib
 import hmac
 import json
+import math
 import os
 import stat
 import struct
+import time
 from collections.abc import Awaitable, Callable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass
@@ -39,6 +42,7 @@ _LEDGER_LENGTH = struct.Struct(">I")
 _LEDGER_CHECKSUM_BYTES = hashlib.sha256().digest_size
 _MAX_LEDGER_RECORD_BYTES = 2_048
 _MAX_LEDGER_BYTES = 16 * 1_024 * 1_024
+_LOCK_RETRY_SLEEP_SECONDS = 0.01
 _RESERVED_INPUT_KEYS = frozenset(
     {
         "actor",
@@ -54,6 +58,10 @@ _RESERVED_INPUT_KEYS = frozenset(
 
 class RunBindingDeniedError(Exception):
     """Raised when an existing durable ownership record conflicts."""
+
+
+class RunBindingTimeoutError(Exception):
+    """Raised when the binding authority lock cannot be acquired in time."""
 
 
 def resolve_run_binding_path() -> Path:
@@ -105,9 +113,17 @@ class RunBindingStore:
         if not relative_path.parts or checked_path == checked_root:
             msg = "AG-UI binding authority ledger must be inside its secure root"
             raise ValueError(msg)
+        try:
+            checked_timeout = float(timeout_seconds)
+        except (TypeError, ValueError) as exc:
+            msg = "AG-UI binding authority timeout must be positive and finite"
+            raise ValueError(msg) from exc
+        if isinstance(timeout_seconds, bool) or not math.isfinite(checked_timeout) or checked_timeout <= 0:
+            msg = "AG-UI binding authority timeout must be positive and finite"
+            raise ValueError(msg)
         object.__setattr__(self, "path", checked_path)
         object.__setattr__(self, "secure_root", checked_root)
-        object.__setattr__(self, "timeout_seconds", timeout_seconds)
+        object.__setattr__(self, "timeout_seconds", checked_timeout)
 
     @staticmethod
     def _absolute_path(path: str | Path) -> Path:
@@ -455,11 +471,27 @@ class RunBindingStore:
                 pass
             raise
 
+    def _acquire_lock(self, ledger_fd: int) -> None:
+        deadline = time.monotonic() + self.timeout_seconds
+        while True:
+            try:
+                fcntl.flock(ledger_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError as exc:
+                if exc.errno not in {errno.EACCES, errno.EAGAIN}:
+                    raise
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    msg = "AG-UI binding authority lock acquisition timed out"
+                    raise RunBindingTimeoutError(msg) from exc
+                time.sleep(min(_LOCK_RETRY_SLEEP_SECONDS, remaining))
+            else:
+                return
+
     def _claim_sync(self, *, thread_id: str, run_id: str, actor_id: str) -> None:
         parent_fd, ledger_fd = self._secure_open()
         try:
             self._verify_live_path(parent_fd, ledger_fd)
-            fcntl.flock(ledger_fd, fcntl.LOCK_EX)
+            self._acquire_lock(ledger_fd)
             try:
                 self._verify_live_path(parent_fd, ledger_fd)
                 self._claim_locked(
@@ -523,6 +555,11 @@ def create_ag_ui_before_dispatch(store: RunBindingStore | None = None) -> Before
 
         try:
             await binding_store.claim(thread_id=thread_id, run_id=run_id, actor_id=checked_actor_id)
+        except RunBindingTimeoutError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="AG-UI binding authority is busy",
+            ) from exc
         except RunBindingDeniedError as exc:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -546,6 +583,7 @@ __all__ = [
     "BeforeDispatchHook",
     "RunBindingDeniedError",
     "RunBindingStore",
+    "RunBindingTimeoutError",
     "create_ag_ui_before_dispatch",
     "resolve_run_binding_path",
 ]

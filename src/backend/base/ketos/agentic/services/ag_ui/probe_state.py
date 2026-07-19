@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Literal
 
-from langchain_core.messages import AIMessage
+from kfx.schema import Data
+from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, ConfigDict, Field
@@ -60,6 +63,63 @@ def completed_probe_state(*, result_count: int) -> dict[str, object]:
     return ProbeSharedState(tool_status="completed", tool_result_count=result_count).model_dump(mode="json")
 
 
+def error_probe_state() -> dict[str, object]:
+    return ProbeSharedState(tool_status="error").model_dump(mode="json")
+
+
+def _validated_tool_result_count(
+    state: ProbeGraphState,
+    *,
+    expected_tool_name: str,
+) -> int:
+    messages = state.get("messages")
+    if not isinstance(messages, list) or not messages:
+        message = "probe tool result message is missing"
+        raise ValueError(message)
+
+    tool_result = messages[-1]
+    if (
+        not isinstance(tool_result, ToolMessage)
+        or tool_result.name != expected_tool_name
+        or tool_result.status != "success"
+    ):
+        message = "probe tool result message is invalid"
+        raise ValueError(message)
+
+    artifact = tool_result.artifact
+    if isinstance(artifact, Data):
+        payload = artifact.data
+    elif isinstance(artifact, Mapping):
+        payload = artifact
+    else:
+        if not isinstance(tool_result.content, str):
+            message = "probe tool result content must be JSON text"
+            raise TypeError(message)
+        try:
+            payload = json.loads(tool_result.content)
+        except (TypeError, json.JSONDecodeError) as exc:
+            message = "probe tool result content is malformed"
+            raise ValueError(message) from exc
+
+    if not isinstance(payload, Mapping):
+        message = "probe tool result payload must be an object"
+        raise TypeError(message)
+    count = payload.get("count")
+    results = payload.get("results")
+    truncated = payload.get("truncated")
+    if (
+        isinstance(count, bool)
+        or not isinstance(count, int)
+        or not 0 <= count <= MAX_RESULTS
+        or not isinstance(results, list)
+        or len(results) != count
+        or not isinstance(truncated, bool)
+    ):
+        message = "probe tool result payload violates the bounded contract"
+        raise ValueError(message)
+    return count
+
+
 async def prepare_probe_graph_builder(
     *,
     ketos_actor_id: str,
@@ -87,9 +147,19 @@ async def prepare_probe_graph_builder(
             }
 
         async def finish_probe(_state: ProbeGraphState) -> dict[str, object]:
+            try:
+                result_count = _validated_tool_result_count(
+                    _state,
+                    expected_tool_name=tool.name,
+                )
+            except (TypeError, ValueError):
+                return {
+                    "messages": [AIMessage(content="Read-only KFX probe result rejected.")],
+                    **error_probe_state(),
+                }
             return {
                 "messages": [AIMessage(content="Read-only KFX probe complete.")],
-                **completed_probe_state(result_count=1),
+                **completed_probe_state(result_count=result_count),
             }
 
         builder = StateGraph(ProbeGraphState, output_schema=ProbeSharedState)

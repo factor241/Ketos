@@ -14,12 +14,13 @@ scope:
   - namespace: KETOS_<provider-variable> convenience aliases
     reason: bounded provider credential aliasing is not a LANGFLOW_* compatibility setting
 source:
-  tree_sha256: 1da7bb3a9d16fd2e38abc2c7a155d8cbb4e5e9be806f6fcc4718a867ceaf40c6
+  tree_sha256: ca640ff44b1a8cf1974f585133ff237930d5d6b0995869e0e8be3930ec8e5e92
   files:
   - src/kfx/src/kfx/brand_env.py
   - src/kfx/src/kfx/services/settings/auth.py
   - src/kfx/src/kfx/services/settings/base.py
   - src/kfx/src/kfx/services/settings/brand_env.py
+  - src/kfx/src/kfx/services/settings/feature_flags.py
   - src/kfx/src/kfx/services/settings/groups/__init__.py
   - src/kfx/src/kfx/services/settings/groups/cache.py
   - src/kfx/src/kfx/services/settings/groups/components.py
@@ -57,7 +58,7 @@ inventory:
   settings_model_fields: 149
   auth_model_fields: 32
   unique_model_suffixes: 180
-  reviewed_direct_only_suffixes: 26
+  reviewed_direct_only_suffixes: 31
   registry_suffixes: 211
   policy_groups:
     public_warn: 48
@@ -86,6 +87,10 @@ direct_reads:
   - ENV
   - ENVIRONMENT
   - ENVIRONMENTS_FILE
+  - FEATURE_MVP_COMPONENTS
+  - FEATURE_MVP_CHAT
+  - FEATURE_MVP_WORKSPACE
+  - FEATURE_WXO_DEPLOYMENTS
   - FS_TOOL_BASE_DIR
   - GUNICORN_PRELOAD
   - LOG_ENV
@@ -102,6 +107,7 @@ direct_reads:
   - SEED_DIR
   - SERVER_URL
   - SERVICE_NAME
+  - SUPERUSER_TOKEN
   - URL
   - VERSION
   exception_rule: A fixed branded suffix outside Settings/AuthSettings is allowed only when it has an exact BRAND_ENV_POLICIES

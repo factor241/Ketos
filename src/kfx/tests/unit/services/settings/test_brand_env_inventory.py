@@ -103,14 +103,20 @@ def test_versioned_env_contract_exactly_matches_frozen_registry():
         )
     }
     registry = _module().BRAND_ENV_POLICIES
+    reviewed_direct_only_suffixes = frozenset(contract["direct_reads"]["reviewed_direct_only_suffixes"])
+    feature_flags_path = "src/kfx/src/kfx/services/settings/feature_flags.py"
 
     assert contract["schema"] == "ketos.brand-environment-contract"
     assert contract["version"] == 1
     assert contract["status"] in {"candidate", "frozen-local"}
     assert len(grouped) == sum(len(suffixes) for suffixes in groups.values()) == 211
     assert grouped == {suffix: (policy.sensitivity, policy.conflict_policy) for suffix, policy in registry.items()}
+    assert reviewed_direct_only_suffixes == EXPECTED_DIRECT_ONLY_SUFFIXES
+    assert contract["inventory"]["reviewed_direct_only_suffixes"] == len(EXPECTED_DIRECT_ONLY_SUFFIXES) == 31
+    assert {"FEATURE_MVP_WORKSPACE", "FEATURE_MVP_CHAT"} <= reviewed_direct_only_suffixes
     assert contract["inventory"]["unresolved_direct_read_exceptions"] in {0, 34}
     assert contract["inventory"]["unresolved_ambiguities"] == 0
+    assert feature_flags_path in contract["source"]["files"]
 
     source_digest = hashlib.sha256()
     for relative_path in contract["source"]["files"]:

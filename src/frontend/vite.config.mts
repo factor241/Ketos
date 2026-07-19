@@ -12,6 +12,8 @@ import {
   PROXY_TARGET,
 } from "./src/customization/config-constants";
 
+const COPILOT_RUNTIME_TARGET = "http://127.0.0.1:8788";
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
@@ -87,6 +89,12 @@ export default defineConfig(({ mode }) => {
     server: {
       port: port,
       proxy: {
+        "/api/copilotkit": {
+          target: COPILOT_RUNTIME_TARGET,
+          changeOrigin: true,
+          secure: false,
+          ws: false,
+        },
         ...proxyTargets,
       },
     },

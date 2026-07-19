@@ -14,7 +14,7 @@ scope:
   - namespace: KETOS_<provider-variable> convenience aliases
     reason: bounded provider credential aliasing is not a LANGFLOW_* compatibility setting
 source:
-  tree_sha256: ccf68a24e0d875ac73559f135437a751e71841727e9c046edec4cdfe51d5e307
+  tree_sha256: 1da7bb3a9d16fd2e38abc2c7a155d8cbb4e5e9be806f6fcc4718a867ceaf40c6
   files:
   - src/kfx/src/kfx/brand_env.py
   - src/kfx/src/kfx/services/settings/auth.py
@@ -58,17 +58,17 @@ inventory:
   auth_model_fields: 32
   unique_model_suffixes: 180
   reviewed_direct_only_suffixes: 26
-  registry_suffixes: 209
+  registry_suffixes: 211
   policy_groups:
     public_warn: 48
-    public_error: 148
+    public_error: 150
     secret_error: 13
   sensitivity:
-    public: 196
+    public: 198
     secret: 13
   conflict_policy:
     warn: 48
-    error: 161
+    error: 163
   validation_aliases: 0
   duplicate_suffixes: 0
   model_suffixes_missing_policy: 0
@@ -216,6 +216,8 @@ policy_groups:
   - EVENT_DELIVERY
   - FALLBACK_TO_ENV_VAR
   - FEATURE_MVP_COMPONENTS
+  - FEATURE_MVP_CHAT
+  - FEATURE_MVP_WORKSPACE
   - FEATURE_WXO_DEPLOYMENTS
   - FRONTEND_PATH
   - FS_TOOL_BASE_DIR

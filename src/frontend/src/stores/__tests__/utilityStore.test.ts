@@ -411,6 +411,40 @@ describe("useUtilityStore", () => {
   });
 
   describe("setFeatureFlags", () => {
+    const isMvpCopilotKitEnabled = () =>
+      useUtilityStore.getState().featureFlags.mvp_workspace === true &&
+      useUtilityStore.getState().featureFlags.mvp_chat === true;
+
+    it.each([
+      ["missing", {}],
+      ["undefined", { mvp_workspace: undefined, mvp_chat: undefined }],
+      ["string", { mvp_workspace: "true", mvp_chat: "true" }],
+      ["number", { mvp_workspace: 1, mvp_chat: 1 }],
+      ["object", { mvp_workspace: {}, mvp_chat: {} }],
+      ["workspace only", { mvp_workspace: true, mvp_chat: false }],
+      ["chat only", { mvp_workspace: false, mvp_chat: true }],
+    ])(
+      "keeps the MVP CopilotKit contract off for %s values",
+      (_label, featureFlags) => {
+        act(() => {
+          useUtilityStore.getState().setFeatureFlags(featureFlags);
+        });
+
+        expect(isMvpCopilotKitEnabled()).toBe(false);
+      },
+    );
+
+    it("enables the MVP CopilotKit contract only when both flags are literal true", () => {
+      act(() => {
+        useUtilityStore.getState().setFeatureFlags({
+          mvp_workspace: true,
+          mvp_chat: true,
+        });
+      });
+
+      expect(isMvpCopilotKitEnabled()).toBe(true);
+    });
+
     it("should set feature flags", () => {
       const { result } = renderHook(() => useUtilityStore());
       const featureFlags = {

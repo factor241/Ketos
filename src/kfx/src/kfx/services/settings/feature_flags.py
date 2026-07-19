@@ -10,6 +10,8 @@ class FeatureFlags(BaseSettings):
     Enable Watsonx Orchestrate deployments.
     """
     mvp_components: bool = False
+    mvp_workspace: bool = False
+    mvp_chat: bool = False
 
     model_config = SettingsConfigDict(extra="ignore")
 

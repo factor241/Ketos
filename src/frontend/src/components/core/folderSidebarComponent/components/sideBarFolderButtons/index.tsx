@@ -151,7 +151,7 @@ const SideBarFoldersButtonsComponent = ({
         data: {
           ...project,
           name: newName,
-          flows: project.flows?.length > 0 ? project.flows : [],
+          flows: project.flows.map((flow) => flow.id),
           components: project.components?.length > 0 ? project.components : [],
         },
         folderId: projectIdToRename,

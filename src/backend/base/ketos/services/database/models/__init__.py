@@ -12,6 +12,7 @@ from .auth import (
     SSOUserProfile,
 )
 from .board import Board
+from .board_note import BoardNote
 from .deployment import Deployment
 from .deployment_provider_account import DeploymentProviderAccount
 from .file import File
@@ -24,6 +25,7 @@ from .jobs import Job
 from .knowledge_base import KnowledgeBaseRecord, KnowledgeBaseStatus
 from .memory_base import MemoryBase, MemoryBaseSession, MemoryBaseWorkflowRun, MessageIngestionRecord
 from .message import MessageTable
+from .placement import Placement, PlacementDisplayState, PlacementTargetKind
 from .traces.model import SpanTable, TraceTable
 from .transactions import TransactionTable
 from .user import User
@@ -39,6 +41,7 @@ __all__ = [
     "AuthzTeam",
     "AuthzTeamMember",
     "Board",
+    "BoardNote",
     "CasbinRule",
     "Deployment",
     "DeploymentProviderAccount",
@@ -57,6 +60,9 @@ __all__ = [
     "MemoryBaseWorkflowRun",
     "MessageIngestionRecord",
     "MessageTable",
+    "Placement",
+    "PlacementDisplayState",
+    "PlacementTargetKind",
     "SSOConfig",
     "SSOUserProfile",
     "SpanTable",

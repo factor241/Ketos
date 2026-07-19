@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
+from contextvars import copy_context
 from typing import TYPE_CHECKING, Any
 
 from kfx.mcp.flow_builder_tools.read_tools import SearchComponentTypes
 from kfx.mcp.tool_cache import reset_tool_cache
 from kfx.schema import Data
 
-from ketos.agentic.services.user_components_context import current_user_id, set_current_user_id
+from ketos.agentic.services.user_components_context import set_current_user_id
 
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
@@ -80,8 +81,8 @@ def _bounded_result(result: object) -> Data:
 
 
 async def build_probe_tools(*, ketos_actor_id: str) -> list[BaseTool]:
-    """Convert exactly one approved KFX component and bind it to one actor context."""
-    actor_id = _validated_actor_id(ketos_actor_id)
+    """Convert exactly one approved KFX component into an official-only probe tool."""
+    _validated_actor_id(ketos_actor_id)
     tools = await APPROVED_COMPONENT().to_toolkit()
     if len(tools) != 1:
         message = "approved KFX component must expose exactly one tool"
@@ -95,14 +96,20 @@ async def build_probe_tools(*, ketos_actor_id: str) -> list[BaseTool]:
 
     def bounded_search(*, query: str) -> Data:
         query = _validated_query(query)
-        previous_actor = current_user_id()
-        reset_tool_cache()
-        set_current_user_id(actor_id)
-        try:
-            return _bounded_result(original_func(query=query))
-        finally:
+        probe_context = copy_context()
+
+        def invoke_official_only() -> Data:
+            # SearchComponentTypes is user-aware by default. The isolated
+            # context keeps the caller's actor/cache intact while making
+            # persisted custom component code unreachable to the real tool.
             reset_tool_cache()
-            set_current_user_id(previous_actor)
+            set_current_user_id(None)
+            try:
+                return _bounded_result(original_func(query=query))
+            finally:
+                reset_tool_cache()
+
+        return probe_context.run(invoke_official_only)
 
     tool.func = bounded_search
     return [tool]

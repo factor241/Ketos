@@ -49,9 +49,26 @@
         "packages/react-core/src/v2/types/interrupt.ts",
         "showcase/shell-docs/src/content/reference/hooks/useInterrupt.mdx"
       ],
-      "toolchain": {"node": "22.23.1", "pnpm": "10.33.4", "source_date_epoch": 1784227404},
-      "rebuild": "git checkout c853ac2b78cb57481cc2ca58eda4a865908c532b && npx --yes --package=node@22.23.1 -- node \"$(command -v corepack)\" pnpm@10.33.4 install --frozen-lockfile && npx --yes --package=node@22.23.1 -- node \"$(command -v corepack)\" pnpm@10.33.4 exec nx run @copilotkit/react-core:check-types --skip-nx-cache --outputStyle=static && rm -rf packages/react-core/dist && npx --yes --package=node@22.23.1 -- node \"$(command -v corepack)\" pnpm@10.33.4 --dir packages/react-core run build && SOURCE_DATE_EPOCH=1784227404 npx --yes --package=node@22.23.1 -- node \"$(command -v corepack)\" pnpm@10.33.4 --dir packages/react-core run pack:deterministic /tmp/ketos-stage01-copilot-pack",
-      "test": "git checkout c853ac2b78cb57481cc2ca58eda4a865908c532b && npx --yes --package=node@22.23.1 -- node \"$(command -v corepack)\" pnpm@10.33.4 exec nx run @copilotkit/react-core:test --skip-nx-cache --outputStyle=static && npx --yes --package=node@22.23.1 -- node \"$(command -v corepack)\" pnpm@10.33.4 exec nx run @copilotkit/react-core:check-types --skip-nx-cache --outputStyle=static",
+      "toolchain": {
+        "node": {
+          "version": "22.23.1",
+          "distributions": [
+            {"system": "darwin", "architecture": "arm64", "url": "https://nodejs.org/dist/v22.23.1/node-v22.23.1-darwin-arm64.tar.gz", "sha256": "ef28d8fab2c0e4314522d4bb1b7173270aa3937e93b92cb7de79c112ac1fa953"},
+            {"system": "darwin", "architecture": "x64", "url": "https://nodejs.org/dist/v22.23.1/node-v22.23.1-darwin-x64.tar.gz", "sha256": "b8da981b8a0b1241b70249204916da76c63573ddf5814dbd2d1e41069105cb81"},
+            {"system": "linux", "architecture": "arm64", "url": "https://nodejs.org/dist/v22.23.1/node-v22.23.1-linux-arm64.tar.xz", "sha256": "0294e8b915ab75f92c7513d2fcb830ae06e10684e6c603e99a87dbf8835389c1"},
+            {"system": "linux", "architecture": "x64", "url": "https://nodejs.org/dist/v22.23.1/node-v22.23.1-linux-x64.tar.xz", "sha256": "9749e988f437343b7fa832c69ded82a312e41a03116d766797ac14f6f9eee578"}
+          ]
+        },
+        "pnpm": {
+          "version": "10.33.4",
+          "url": "https://registry.npmjs.org/pnpm/-/pnpm-10.33.4.tgz",
+          "sha256": "8e70ddc6649b18bc3d895cf3a908c0291ea4c38039ad8722c47e018daf1e9cfc",
+          "integrity": "sha512-HGezs1my1AgRm6HtKJ80uPw8aHNBK+xv0mT73IJInlEPy+y5zp0i2ufzt2Jp2EQQRgFL3KU7mXnNelYa1jG4AA=="
+        },
+        "source_date_epoch": 1784227404
+      },
+      "rebuild": "uv run --no-sync python scripts/mvp/rebuild_copilotkit_artifact.py --output-dir /tmp/ketos-stage01-copilot-pack --run-tests --json",
+      "test": "uv run --no-sync python scripts/mvp/rebuild_copilotkit_artifact.py --output-dir /tmp/ketos-stage01-copilot-pack --run-tests --json",
       "audit": "uv run python scripts/mvp/audit_copilotkit_artifact.py vendor/stage01/copilotkit-react-core-1.63.1-ketos.1.tgz --sha256 64711f7e9e94ab6126fef68fdb92f9ba80f400b88d64d3a72191ee1ed7da61aa --integrity sha512-ZHIeQdU9Iy+MoFKTfm5orw2Yy0aiG0FM3JIs4c1OtxfCG70TUpmUDqzt3lPx6GJkn3lrYwbSxFnIiSCv1CdVAQ== --license-sha256 15a0e5343aea872c0573ad72feb6044b336f162d724cc1673c608e6b37ea071b --runtime-root src/frontend",
       "source_audit": "uv run python scripts/mvp/audit_copilotkit_provenance.py vendor/stage01/CopilotKit-c853ac2b78cb57481cc2ca58eda4a865908c532b-source.tar.gz --manifest-path vendor/stage01/manifest.json --repository-path /Volumes/Projects/ketos-stage01-copilotkit-fork --artifact-path vendor/stage01/copilotkit-react-core-1.63.1-ketos.1.tgz --json",
       "install": "cd src/frontend && npm ci --offline --ignore-scripts"

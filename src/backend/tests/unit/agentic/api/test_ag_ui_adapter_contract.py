@@ -1254,12 +1254,19 @@ def test_vendored_manifest_runs_agui_probe_with_declared_fastapi_extra() -> None
 
     copilot = manifest["artifacts"]["@copilotkit/react-core"]
     assert "audit_copilotkit_provenance.py" in copilot["source_audit"]
-    assert copilot["toolchain"] == {
-        "node": "22.23.1",
-        "pnpm": "10.33.4",
-        "source_date_epoch": 1784227404,
-    }
-    assert "npx --yes --package=node@22.23.1" in copilot["rebuild"]
-    assert "pnpm@10.33.4 install --frozen-lockfile" in copilot["rebuild"]
-    assert "rm -rf packages/react-core/dist" in copilot["rebuild"]
-    assert "pnpm@10.33.4 --dir packages/react-core run build" in copilot["rebuild"]
+    assert copilot["toolchain"]["node"]["version"] == "22.23.1"
+    assert len(copilot["toolchain"]["node"]["distributions"]) == 4
+    assert copilot["toolchain"]["pnpm"]["version"] == "10.33.4"
+    assert copilot["toolchain"]["pnpm"]["sha256"] == (
+        "8e70ddc6649b18bc3d895cf3a908c0291ea4c38039ad8722c47e018daf1e9cfc"
+    )
+    assert copilot["toolchain"]["source_date_epoch"] == 1784227404
+    hermetic_command = (
+        "uv run --no-sync python scripts/mvp/rebuild_copilotkit_artifact.py "
+        "--output-dir /tmp/ketos-stage01-copilot-pack --run-tests --json"
+    )
+    assert copilot["rebuild"] == hermetic_command
+    assert copilot["test"] == hermetic_command
+    for forbidden in ("npx", "corepack", "command -v", "rm -rf"):
+        assert forbidden not in copilot["rebuild"]
+        assert forbidden not in copilot["test"]

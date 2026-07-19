@@ -15,7 +15,6 @@ import json
 import os
 import re
 import selectors
-import shutil
 import signal
 import subprocess
 import sys
@@ -43,7 +42,7 @@ DEFAULT_MAX_MEMBER_BYTES = 64 * 1024 * 1024
 DEFAULT_MAX_UNCOMPRESSED_BYTES = 512 * 1024 * 1024
 MAX_JSON_BYTES = 2 * 1024 * 1024
 MAX_GIT_OUTPUT_BYTES = 16 * 1024 * 1024
-GIT = "/usr/bin/git" if Path("/usr/bin/git").is_file() else (shutil.which("git") or "/usr/bin/git")
+GIT = "/usr/bin/git"
 CANONICAL_REBUILD = (
     "uv run --no-sync python scripts/mvp/rebuild_copilotkit_artifact.py "
     "--output-dir /tmp/ketos-stage01-copilot-pack --run-tests --json"

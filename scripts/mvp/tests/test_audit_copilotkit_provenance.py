@@ -438,8 +438,8 @@ def test_git_authority_ignores_environment_url_rewrite(tmp_path: Path, monkeypat
     evidence = _audit(fixture)
 
     assert evidence["status"] == "PASS"
-    if Path("/usr/bin/git").is_file():
-        assert audit.GIT == "/usr/bin/git"
+    assert audit.GIT == "/usr/bin/git"
+    assert "shutil.which" not in SCRIPT.read_text(encoding="utf-8")
 
 
 def test_git_environment_is_from_scratch_and_local_rewrite_is_rejected(tmp_path: Path) -> None:

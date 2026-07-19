@@ -46,7 +46,7 @@ MAX_GIT_OUTPUT_BYTES = 16 * 1024 * 1024
 GIT = "/usr/bin/git" if Path("/usr/bin/git").is_file() else (shutil.which("git") or "/usr/bin/git")
 CANONICAL_REBUILD = (
     "uv run --no-sync python scripts/mvp/rebuild_copilotkit_artifact.py "
-    "--output-dir /tmp/ketos-stage01-copilot-pack --json"
+    "--output-dir /tmp/ketos-stage01-copilot-pack --run-tests --json"
 )
 EXPECTED_NODE_DISTRIBUTIONS = [
     {

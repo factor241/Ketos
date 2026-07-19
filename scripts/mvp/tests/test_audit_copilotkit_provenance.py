@@ -267,7 +267,7 @@ def test_rejects_rebuild_tokens_hidden_in_echo_commands(tmp_path: Path) -> None:
 def test_canonical_rebuild_invokes_only_the_hermetic_executor() -> None:
     assert audit.CANONICAL_REBUILD == (
         "uv run --no-sync python scripts/mvp/rebuild_copilotkit_artifact.py "
-        "--output-dir /tmp/ketos-stage01-copilot-pack --json"
+        "--output-dir /tmp/ketos-stage01-copilot-pack --run-tests --json"
     )
     assert "npx" not in audit.CANONICAL_REBUILD
     assert "corepack" not in audit.CANONICAL_REBUILD

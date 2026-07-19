@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import stat
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -314,6 +315,54 @@ def test_actor_swap_on_existing_thread_is_denied_before_second_graph_dispatch(
     assert len(agent.run_inputs) == 1
 
 
+@pytest.mark.parametrize("container_name", ["state", "forwardedProps"])
+@pytest.mark.parametrize("reserved_key", ["actor_id", "user_id", "role", "model"])
+def test_reserved_authority_or_model_input_is_denied_before_claim_and_graph_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+    container_name: str,
+    reserved_key: str,
+) -> None:
+    service = _AuthServiceStub(users_by_token={"token-a": SimpleNamespace(id=ACTOR_A, is_active=True)})
+    path = tmp_path / "bindings" / "run-bindings.sqlite3"
+    app, agent = _registered_app(monkeypatch, service=service, store=run_binding.RunBindingStore(path))
+    payload = _run_input()
+    payload[container_name] = {reserved_key: "forged-browser-value"}
+
+    response = TestClient(app).post(
+        "/ag-ui",
+        headers={"Authorization": "Bearer token-a"},
+        json=payload,
+    )
+
+    assert response.status_code == 403
+    assert agent.run_inputs == []
+    assert not path.exists()
+
+
+def test_non_authority_state_and_forwarded_props_reach_request_agent_run(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    service = _AuthServiceStub(users_by_token={"token-a": SimpleNamespace(id=ACTOR_A, is_active=True)})
+    path = tmp_path / "bindings" / "run-bindings.sqlite3"
+    app, agent = _registered_app(monkeypatch, service=service, store=run_binding.RunBindingStore(path))
+    payload = _run_input()
+    payload["state"] = {"stage_marker": "stage-01", "tool_result_count": 1}
+    payload["forwardedProps"] = {"streamSubgraphs": True}
+
+    response = TestClient(app).post(
+        "/ag-ui",
+        headers={"Authorization": "Bearer token-a"},
+        json=payload,
+    )
+
+    assert response.status_code == 200
+    assert len(agent.run_inputs) == 1
+    assert agent.run_inputs[0].state == {"stage_marker": "stage-01", "tool_result_count": 1}
+    assert agent.run_inputs[0].forwarded_props == {"streamSubgraphs": True}
+
+
 @pytest.mark.asyncio
 async def test_competing_first_requests_dispatch_at_most_one_graph_run(
     monkeypatch: pytest.MonkeyPatch,
@@ -363,7 +412,7 @@ def test_before_dispatch_binds_only_server_actor_and_preserves_template_config(t
     setattr(request.state, auth.AG_UI_ACTOR_STATE_KEY, str(ACTOR_A))
     agent = _TemplateAgent().clone()
     callbacks = agent.config["callbacks"]
-    input_data = RunAgentInput.model_validate(_run_input(forged=True))
+    input_data = RunAgentInput.model_validate(_run_input())
 
     asyncio.run(hook(input_data, request, agent))
 
@@ -445,6 +494,174 @@ async def test_bindings_survive_new_store_object_and_use_private_file_permission
 
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
     assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
+
+
+@pytest.mark.asyncio
+async def test_binding_store_rejects_permissive_preexisting_controlled_parent(tmp_path) -> None:
+    parent = tmp_path / "bindings"
+    parent.mkdir(mode=0o700)
+    parent.chmod(0o777)
+    path = parent / "run-bindings.sqlite3"
+
+    with pytest.raises(ValueError, match="private mode 0700"):
+        await run_binding.RunBindingStore(path).claim(
+            thread_id="thread-parent-mode",
+            run_id="run-parent-mode",
+            actor_id=str(ACTOR_A),
+        )
+
+    assert not path.exists()
+
+
+@pytest.mark.asyncio
+async def test_binding_store_rejects_controlled_parent_owner_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    parent = tmp_path / "bindings"
+    parent.mkdir(mode=0o700)
+    parent.chmod(0o700)
+    path = parent / "run-bindings.sqlite3"
+    monkeypatch.setattr(run_binding.os, "geteuid", lambda: os.getuid() + 1)
+
+    with pytest.raises(ValueError, match="effective user"):
+        await run_binding.RunBindingStore(path).claim(
+            thread_id="thread-owner",
+            run_id="run-owner",
+            actor_id=str(ACTOR_A),
+        )
+
+    assert not path.exists()
+
+
+@pytest.mark.asyncio
+async def test_binding_store_rejects_symlink_in_ancestor_chain(tmp_path) -> None:
+    real_root = tmp_path / "real-root"
+    real_root.mkdir(mode=0o700)
+    real_root.chmod(0o700)
+    linked_root = tmp_path / "linked-root"
+    linked_root.symlink_to(real_root, target_is_directory=True)
+    path = linked_root / "bindings" / "run-bindings.sqlite3"
+
+    with pytest.raises(ValueError, match="symlink"):
+        await run_binding.RunBindingStore(path).claim(
+            thread_id="thread-symlink",
+            run_id="run-symlink",
+            actor_id=str(ACTOR_A),
+        )
+
+    assert not path.exists()
+
+
+@pytest.mark.asyncio
+async def test_binding_store_rejects_hardlinked_database(tmp_path) -> None:
+    parent = tmp_path / "bindings"
+    parent.mkdir(mode=0o700)
+    parent.chmod(0o700)
+    source = parent / "source.sqlite3"
+    source.write_bytes(b"")
+    source.chmod(0o600)
+    path = parent / "run-bindings.sqlite3"
+    os.link(source, path)
+
+    with pytest.raises(ValueError, match="exactly one hard link"):
+        await run_binding.RunBindingStore(path).claim(
+            thread_id="thread-hardlink",
+            run_id="run-hardlink",
+            actor_id=str(ACTOR_A),
+        )
+
+
+@pytest.mark.asyncio
+async def test_binding_store_rejects_permissive_preexisting_database(tmp_path) -> None:
+    parent = tmp_path / "bindings"
+    parent.mkdir(mode=0o700)
+    parent.chmod(0o700)
+    path = parent / "run-bindings.sqlite3"
+    path.write_bytes(b"")
+    path.chmod(0o666)
+
+    with pytest.raises(ValueError, match="private mode 0600"):
+        await run_binding.RunBindingStore(path).claim(
+            thread_id="thread-database-mode",
+            run_id="run-database-mode",
+            actor_id=str(ACTOR_A),
+        )
+
+
+@pytest.mark.asyncio
+async def test_binding_store_creates_every_controlled_directory_private(tmp_path) -> None:
+    secure_root = tmp_path / "agentic"
+    parent = secure_root / "ag_ui"
+    path = parent / "run-bindings.sqlite3"
+
+    await run_binding.RunBindingStore(path, secure_root=secure_root).claim(
+        thread_id="thread-private-tree",
+        run_id="run-private-tree",
+        actor_id=str(ACTOR_A),
+    )
+
+    assert stat.S_IMODE(secure_root.stat().st_mode) == 0o700
+    assert stat.S_IMODE(parent.stat().st_mode) == 0o700
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+
+@pytest.mark.asyncio
+async def test_binding_store_creates_database_private_before_sqlite_open(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    path = tmp_path / "bindings" / "run-bindings.sqlite3"
+    real_connect = run_binding.sqlite3.connect
+    observed_modes: list[int] = []
+
+    def inspecting_connect(*args, **kwargs):
+        observed_modes.append(stat.S_IMODE(path.stat().st_mode))
+        return real_connect(*args, **kwargs)
+
+    monkeypatch.setattr(run_binding.sqlite3, "connect", inspecting_connect)
+
+    await run_binding.RunBindingStore(path).claim(
+        thread_id="thread-preopen-mode",
+        run_id="run-preopen-mode",
+        actor_id=str(ACTOR_A),
+    )
+
+    assert observed_modes == [0o600]
+
+
+@pytest.mark.asyncio
+async def test_binding_store_rejects_database_inode_substitution_during_sqlite_open(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    parent = tmp_path / "bindings"
+    parent.mkdir(mode=0o700)
+    parent.chmod(0o700)
+    path = parent / "run-bindings.sqlite3"
+    real_connect = run_binding.sqlite3.connect
+    with real_connect(path) as connection:
+        connection.execute("CREATE TABLE seed (value TEXT NOT NULL)")
+    path.chmod(0o600)
+    swapped = False
+
+    def substituting_connect(*args, **kwargs):
+        nonlocal swapped
+        if not swapped:
+            swapped = True
+            path.unlink()
+            descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o600)
+            os.close(descriptor)
+        return real_connect(*args, **kwargs)
+
+    monkeypatch.setattr(run_binding.sqlite3, "connect", substituting_connect)
+
+    with pytest.raises(ValueError, match="inode changed"):
+        await run_binding.RunBindingStore(path).claim(
+            thread_id="thread-substitution",
+            run_id="run-substitution",
+            actor_id=str(ACTOR_A),
+        )
 
 
 @pytest.mark.parametrize(("thread_id", "run_id"), [("", "run"), ("thread", ""), ("t" * 257, "run")])

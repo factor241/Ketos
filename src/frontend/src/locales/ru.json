@@ -613,6 +613,7 @@
   "projectShell.boards": "Доски",
   "projectShell.flows": "Сценарии",
   "projectShell.loading": "Загрузка проекта",
+  "projectShell.emptyBoards": "Досок пока нет",
   "projectShell.error": "Проект недоступен",
   "projectShell.renameError": "Не удалось переименовать проект",
   "boards.title": "Доски",

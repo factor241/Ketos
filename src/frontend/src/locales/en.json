@@ -613,6 +613,7 @@
   "projectShell.boards": "Boards",
   "projectShell.flows": "Flows",
   "projectShell.loading": "Loading project",
+  "projectShell.emptyBoards": "No boards yet",
   "projectShell.error": "Project is unavailable",
   "projectShell.renameError": "Project could not be renamed",
   "boards.title": "Boards",

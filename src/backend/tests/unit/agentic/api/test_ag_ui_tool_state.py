@@ -19,15 +19,20 @@ from ag_ui_langgraph import LangGraphAgent
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 from ketos.agentic.api.ag_ui_router import create_ag_ui_router
+from ketos.agentic.services import user_components_overlay
 from ketos.agentic.services.ag_ui import probe_state, probe_tools
+from ketos.agentic.services.user_components_context import (
+    current_user_id,
+    reset_current_user_id,
+    set_current_user_id,
+)
 from ketos.services.auth.utils import get_current_active_user
+from kfx.components.models_and_agents.agent import AgentComponent
 from kfx.mcp.flow_builder_tools import read_tools
 from kfx.mcp.flow_builder_tools.read_tools import SearchComponentTypes
+from kfx.mcp.tool_cache import cached_tool_call, reset_tool_cache
 from kfx.schema import Data
-from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.graph import END, START, StateGraph
-from langgraph.prebuilt import ToolNode
 from pydantic import ValidationError
 
 from .ag_ui_contract_fixtures import decode_ag_ui_sse
@@ -123,46 +128,118 @@ async def test_tool_result_count_and_serialized_payload_are_bounded(monkeypatch)
 
 @pytest.mark.asyncio
 async def test_actor_context_and_request_cache_are_isolated_concurrently(monkeypatch) -> None:
-    from ketos.agentic.services.user_components_context import current_user_id
+    def admission_fixed_registry():
+        assert current_user_id() is None
+        return {"OfficialComponent": {}}
 
-    monkeypatch.setattr(read_tools, "_load_registry_user_aware", lambda: {current_user_id(): {}})
-    monkeypatch.setattr(
-        read_tools,
-        "search_registry",
-        lambda registry, **_kwargs: [{"type": next(iter(registry))}],
-    )
+    monkeypatch.setattr(read_tools, "_load_registry_user_aware", admission_fixed_registry)
     alice_tool = (await probe_tools.build_probe_tools(ketos_actor_id="alice"))[0]
     bob_tool = (await probe_tools.build_probe_tools(ketos_actor_id="bob"))[0]
 
-    alice_result, bob_result = await asyncio.gather(
-        alice_tool.ainvoke({"query": "component"}),
-        bob_tool.ainvoke({"query": "component"}),
-    )
+    async def invoke_as(actor_id: str, tool):
+        set_current_user_id(actor_id)
+        result = await tool.ainvoke({"query": "official"})
+        assert current_user_id() == actor_id
+        return result
 
-    assert _result_data(alice_result)["results"] == [{"type": "alice"}]
-    assert _result_data(bob_result)["results"] == [{"type": "bob"}]
+    try:
+        alice_result, bob_result = await asyncio.gather(
+            invoke_as("alice", alice_tool),
+            invoke_as("bob", bob_tool),
+        )
+    finally:
+        reset_current_user_id()
+
+    assert _result_data(alice_result)["results"][0]["type"] == "OfficialComponent"
+    assert _result_data(bob_result)["results"][0]["type"] == "OfficialComponent"
     assert current_user_id() is None
 
 
 @pytest.mark.asyncio
 async def test_sequential_actor_a_then_b_on_same_event_loop_does_not_leak(monkeypatch) -> None:
-    from ketos.agentic.services.user_components_context import current_user_id
+    def admission_fixed_registry():
+        assert current_user_id() is None
+        return {"OfficialComponent": {}}
 
-    monkeypatch.setattr(read_tools, "_load_registry_user_aware", lambda: {current_user_id(): {}})
-    monkeypatch.setattr(
-        read_tools,
-        "search_registry",
-        lambda registry, **_kwargs: [{"type": next(iter(registry))}],
-    )
+    monkeypatch.setattr(read_tools, "_load_registry_user_aware", admission_fixed_registry)
     actor_a_tool = (await probe_tools.build_probe_tools(ketos_actor_id="actor-a"))[0]
     actor_b_tool = (await probe_tools.build_probe_tools(ketos_actor_id="actor-b"))[0]
 
-    actor_a_result = await actor_a_tool.ainvoke({"query": "component"})
-    actor_b_result = await actor_b_tool.ainvoke({"query": "component"})
+    try:
+        set_current_user_id("actor-a")
+        actor_a_result = await actor_a_tool.ainvoke({"query": "official"})
+        assert current_user_id() == "actor-a"
 
-    assert _result_data(actor_a_result)["results"] == [{"type": "actor-a"}]
-    assert _result_data(actor_b_result)["results"] == [{"type": "actor-b"}]
+        set_current_user_id("actor-b")
+        actor_b_result = await actor_b_tool.ainvoke({"query": "official"})
+        assert current_user_id() == "actor-b"
+    finally:
+        reset_current_user_id()
+
+    assert _result_data(actor_a_result)["results"][0]["type"] == "OfficialComponent"
+    assert _result_data(actor_b_result)["results"][0]["type"] == "OfficialComponent"
     assert current_user_id() is None
+
+
+@pytest.mark.asyncio
+async def test_probe_restores_callers_existing_request_cache(monkeypatch) -> None:
+    monkeypatch.setattr(read_tools, "_load_registry_user_aware", lambda: {"OfficialComponent": {}})
+    tool = (await probe_tools.build_probe_tools(ketos_actor_id="actor-a"))[0]
+    replacement_calls = 0
+
+    def replacement_value() -> str:
+        nonlocal replacement_calls
+        replacement_calls += 1
+        return "replacement"
+
+    reset_tool_cache()
+    try:
+        assert cached_tool_call("caller", {"key": "stable"}, lambda: "preserved") == "preserved"
+        await tool.ainvoke({"query": "official"})
+        assert cached_tool_call("caller", {"key": "stable"}, replacement_value) == "preserved"
+    finally:
+        reset_tool_cache()
+
+    assert replacement_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_actor_with_planted_custom_component_never_reaches_overlay_code_loader(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    custom_code_loads = 0
+
+    (tmp_path / "PlantedComponent.py").write_text("raise RuntimeError('must never execute')\n")
+    monkeypatch.setattr(
+        user_components_overlay,
+        "load_local_registry",
+        lambda: {"CustomComponent": {}, "OfficialComponent": {}},
+    )
+    monkeypatch.setattr(
+        user_components_overlay,
+        "get_user_components_dir",
+        lambda **_kwargs: tmp_path,
+    )
+
+    def forbidden_overlay_entry(*_args, **_kwargs):
+        nonlocal custom_code_loads
+        custom_code_loads += 1
+        message = "persisted custom component Python must not be loaded or executed"
+        raise AssertionError(message)
+
+    monkeypatch.setattr(user_components_overlay, "_build_overlay_entry", forbidden_overlay_entry)
+    tool = (await probe_tools.build_probe_tools(ketos_actor_id="actor-with-custom-component"))[0]
+
+    try:
+        set_current_user_id("actor-with-custom-component")
+        result = await tool.ainvoke({"query": "official"})
+        assert current_user_id() == "actor-with-custom-component"
+    finally:
+        reset_current_user_id()
+
+    assert custom_code_loads == 0
+    assert _result_data(result)["results"][0]["type"] == "OfficialComponent"
 
 
 def test_shared_state_is_strict_and_bounded() -> None:
@@ -194,40 +271,15 @@ async def test_official_stream_has_standard_tool_lifecycle_and_bounded_state(mon
         "search_registry",
         lambda *_args, **_kwargs: [{"type": "ChatInput"}, {"type": "ChatOutput"}],
     )
-    tool = (await probe_tools.build_probe_tools(ketos_actor_id="actor-a07"))[0]
-
-    async def request_tool(_state: probe_state.ProbeGraphState) -> dict[str, object]:
-        return {
-            "messages": [
-                AIMessage(
-                    content="",
-                    tool_calls=[{"name": tool.name, "args": {"query": "chat"}, "id": "call-a07"}],
-                )
-            ],
-            **probe_state.running_probe_state(),
-        }
-
-    async def finish_probe(_state: probe_state.ProbeGraphState) -> dict[str, object]:
-        return {
-            "messages": [AIMessage(content="probe complete")],
-            **probe_state.completed_probe_state(result_count=2),
-        }
-
-    builder = StateGraph(
-        probe_state.ProbeGraphState,
-        output_schema=probe_state.ProbeSharedState,
+    graph_builder = await probe_state.prepare_probe_graph_builder(
+        ketos_actor_id="actor-a07",
+        checkpointer=InMemorySaver(),
     )
-    builder.add_node("request_tool", request_tool)
-    builder.add_node("tools", ToolNode([tool]))
-    builder.add_node("finish_probe", finish_probe)
-    builder.add_edge(START, "request_tool")
-    builder.add_edge("request_tool", "tools")
-    builder.add_edge("tools", "finish_probe")
-    builder.add_edge("finish_probe", END)
+    assert not inspect.iscoroutinefunction(graph_builder)
+    component = AgentComponent()
+    graph = graph_builder(component)
 
-    response = TestClient(
-        _build_app(LangGraphAgent(name="ketos-mvp-probe", graph=builder.compile(checkpointer=InMemorySaver())))
-    ).post(
+    response = TestClient(_build_app(LangGraphAgent(name="ketos-mvp-probe", graph=graph))).post(
         "/api/v1/agentic/ag-ui",
         json=_run_input(),
     )
@@ -248,8 +300,9 @@ async def test_official_stream_has_standard_tool_lifecycle_and_bounded_state(mon
     result = next(event for event in events if isinstance(event, ToolCallResultEvent))
     end = next(event for event in events if isinstance(event, ToolCallEndEvent))
     assert start.tool_call_id == args.tool_call_id == result.tool_call_id == end.tool_call_id == "call-a07"
-    assert start.tool_call_name == tool.name
+    assert start.tool_call_name == "search_components"
     assert len(result.content.encode()) <= probe_tools.MAX_RESULT_BYTES
+    assert AgentComponent.name == "Agent"
 
     snapshots = [event for event in events if isinstance(event, StateSnapshotEvent)]
     assert snapshots
@@ -277,6 +330,12 @@ def test_production_sources_have_no_custom_protocol_or_forbidden_tool_imports() 
         "forwardedProps",
         "EventEncoder",
         "text/event-stream",
+        "json.loads",
+        "ChatModel",
+        "create_agent_runnable",
+        "httpx",
+        "requests.",
+        "aiohttp",
     )
     assert all(token not in sources for token in forbidden)
     assert "SearchComponentTypes" in inspect.getsource(probe_tools)

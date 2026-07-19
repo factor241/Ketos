@@ -1,5 +1,6 @@
 import asyncio
 import inspect
+from pathlib import Path as SyncPath
 from typing import Any
 
 from anyio import Path
@@ -32,6 +33,104 @@ async def test_get_config_basic(client: AsyncClient, logged_in_headers: dict):
     assert "auto_saving" in result, "The dictionary must contain a key called 'auto_saving'"
     assert "health_check_max_retries" in result, "The dictionary must contain a 'health_check_max_retries' key"
     assert "max_file_size_upload" in result, "The dictionary must contain a key called 'max_file_size_upload'"
+
+
+async def test_get_config_exposes_default_off_mvp_flags(client: AsyncClient, monkeypatch):
+    import ketos.api.v1.schemas as config_schemas
+    from kfx.services.settings.feature_flags import FeatureFlags
+
+    for suffix in ("MVP_WORKSPACE", "MVP_CHAT"):
+        monkeypatch.delenv(f"KETOS_FEATURE_{suffix}", raising=False)
+        monkeypatch.delenv(f"LANGFLOW_FEATURE_{suffix}", raising=False)
+    monkeypatch.setattr(config_schemas, "FEATURE_FLAGS", FeatureFlags())
+
+    response = await client.get("api/v1/config")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["feature_flags"]["mvp_workspace"] is False
+    assert response.json()["feature_flags"]["mvp_chat"] is False
+
+
+async def test_get_config_exposes_canonical_mvp_flags_from_fresh_settings(client: AsyncClient, monkeypatch):
+    import ketos.api.v1.schemas as config_schemas
+    from kfx.services.settings.feature_flags import FeatureFlags
+
+    monkeypatch.setenv("KETOS_FEATURE_MVP_WORKSPACE", "true")
+    monkeypatch.setenv("KETOS_FEATURE_MVP_CHAT", "true")
+    monkeypatch.delenv("LANGFLOW_FEATURE_MVP_WORKSPACE", raising=False)
+    monkeypatch.delenv("LANGFLOW_FEATURE_MVP_CHAT", raising=False)
+    monkeypatch.setattr(config_schemas, "FEATURE_FLAGS", FeatureFlags())
+
+    response = await client.get("api/v1/config")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["feature_flags"]["mvp_workspace"] is True
+    assert response.json()["feature_flags"]["mvp_chat"] is True
+
+
+def test_stage01_mvp_proxy_and_three_process_orchestration_contract():
+    repository = SyncPath(__file__).parents[6]
+    vite_path = repository / "src/frontend/vite.config.mts"
+    playwright_path = repository / "src/frontend/playwright.mvp.config.ts"
+    harness_path = repository / "scripts/mvp/chat_stack_smoke.sh"
+
+    assert playwright_path.is_file(), "A09 must provide an isolated MVP Playwright config"
+    assert harness_path.is_file(), "A09 must provide the three-process smoke harness"
+
+    vite_source = vite_path.read_text(encoding="utf-8")
+    assert '"/api/copilotkit"' in vite_source
+    assert '"http://127.0.0.1:8788"' in vite_source
+    assert vite_source.index('"/api/copilotkit"') < vite_source.index("...proxyTargets")
+
+    playwright_source = playwright_path.read_text(encoding="utf-8")
+    assert playwright_source.count("reuseExistingServer: false") == 3
+    assert "workers: 1" in playwright_source
+    for endpoint in (
+        "http://127.0.0.1:7860/health",
+        "http://127.0.0.1:8788/api/copilotkit/info",
+        "http://127.0.0.1:3000",
+    ):
+        assert endpoint in playwright_source
+
+    harness_source = harness_path.read_text(encoding="utf-8")
+    for required in (
+        "set -Eeuo pipefail",
+        "mktemp -d",
+        "LANGGRAPH_STRICT_MSGPACK=true",
+        "npm run build",
+        "/api/copilotkit/info",
+        "curl --fail --max-time",
+        "lsof",
+        "kill -TERM",
+        "kill -KILL",
+        'wait "$pid"',
+    ):
+        assert required in harness_source
+    for forbidden in ("pkill", "killall"):
+        assert forbidden not in harness_source
+
+
+def test_stage01_mvp_runbook_documents_safe_reproduction_and_handoff_boundary():
+    repository = SyncPath(__file__).parents[6]
+    runbook_path = repository / "docs/dev/handoff/STAGE_01_COPILOTKIT_AG_UI_RUNBOOK.md"
+
+    assert runbook_path.is_file(), "A09 must document its exact three-process reproduction contract"
+    runbook = runbook_path.read_text(encoding="utf-8")
+    for required in (
+        "KETOS_FEATURE_MVP_WORKSPACE",
+        "KETOS_FEATURE_MVP_CHAT",
+        "127.0.0.1:7860",
+        "127.0.0.1:8788",
+        "127.0.0.1:3000",
+        "LANGGRAPH_STRICT_MSGPACK",
+        "binding",
+        "checkpoint",
+        "known PID",
+        "S01-A10",
+    ):
+        assert required in runbook
+    for secret_assignment in ("SUPERUSER_PASSWORD=", "API_KEY=", "SECRET_KEY=", "TOKEN="):
+        assert secret_assignment not in runbook
 
 
 async def test_update_component_outputs(client: AsyncClient, logged_in_headers: dict):

@@ -24,6 +24,8 @@ EXPECTED_DIRECT_ONLY_SUFFIXES = frozenset(
         "ENVIRONMENT",
         "ENVIRONMENTS_FILE",
         "FEATURE_MVP_COMPONENTS",
+        "FEATURE_MVP_CHAT",
+        "FEATURE_MVP_WORKSPACE",
         "FEATURE_WXO_DEPLOYMENTS",
         "FS_TOOL_BASE_DIR",
         "GUNICORN_PRELOAD",
@@ -73,16 +75,16 @@ def test_registry_exactly_covers_models_and_reviewed_direct_suffixes():
     assert len(AuthSettings.model_fields) == 32
     assert len(model_suffixes) == 180
     assert set(registry) == model_suffixes | EXPECTED_DIRECT_ONLY_SUFFIXES
-    assert len(registry) == 209
+    assert len(registry) == 211
 
 
 def test_registry_has_reviewed_policy_counts_and_is_immutable():
     registry = _module().BRAND_ENV_POLICIES
     assert isinstance(registry, MappingProxyType)
-    assert sum(policy.conflict_policy == "error" for policy in registry.values()) == 161
+    assert sum(policy.conflict_policy == "error" for policy in registry.values()) == 163
     assert sum(policy.conflict_policy == "warn" for policy in registry.values()) == 48
     assert sum(policy.sensitivity == "secret" for policy in registry.values()) == 13
-    assert sum(policy.sensitivity == "public" for policy in registry.values()) == 196
+    assert sum(policy.sensitivity == "public" for policy in registry.values()) == 198
 
     with pytest.raises(TypeError):
         registry["NEW_SUFFIX"] = next(iter(registry.values()))
@@ -105,7 +107,7 @@ def test_versioned_env_contract_exactly_matches_frozen_registry():
     assert contract["schema"] == "ketos.brand-environment-contract"
     assert contract["version"] == 1
     assert contract["status"] in {"candidate", "frozen-local"}
-    assert len(grouped) == sum(len(suffixes) for suffixes in groups.values()) == 209
+    assert len(grouped) == sum(len(suffixes) for suffixes in groups.values()) == 211
     assert grouped == {suffix: (policy.sensitivity, policy.conflict_policy) for suffix, policy in registry.items()}
     assert contract["inventory"]["unresolved_direct_read_exceptions"] in {0, 34}
     assert contract["inventory"]["unresolved_ambiguities"] == 0

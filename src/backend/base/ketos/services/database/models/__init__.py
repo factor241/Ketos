@@ -11,6 +11,7 @@ from .auth import (
     SSOConfig,
     SSOUserProfile,
 )
+from .board import Board
 from .deployment import Deployment
 from .deployment_provider_account import DeploymentProviderAccount
 from .file import File
@@ -37,6 +38,7 @@ __all__ = [
     "AuthzShare",
     "AuthzTeam",
     "AuthzTeamMember",
+    "Board",
     "CasbinRule",
     "Deployment",
     "DeploymentProviderAccount",

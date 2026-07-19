@@ -78,11 +78,7 @@ export default function ProjectPage() {
         </CustomLink>
       </nav>
 
-      <section
-        className="flex flex-col gap-4"
-        data-testid="project-boards-empty"
-      >
-        <p className="text-muted-foreground">{t("projectShell.emptyBoards")}</p>
+      <section className="flex flex-col gap-4">
         <Outlet />
       </section>
     </main>

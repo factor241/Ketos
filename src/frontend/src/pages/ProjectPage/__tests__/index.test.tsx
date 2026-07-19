@@ -100,7 +100,7 @@ describe("ProjectPage", () => {
     expect(document.body).not.toHaveTextContent("Confidential name");
   });
 
-  it("renders metadata, canonical navigation, and the empty Boards state", () => {
+  it("renders metadata and canonical navigation without a stale Boards empty state", () => {
     mockFolderQuery.mockReturnValue({
       data: {
         folder: {
@@ -130,9 +130,9 @@ describe("ProjectPage", () => {
       "href",
       "/all/folder/alpha-id",
     );
-    expect(screen.getByTestId("project-boards-empty")).toHaveTextContent(
-      "projectShell.emptyBoards",
-    );
+    expect(
+      screen.queryByText("projectShell.emptyBoards"),
+    ).not.toBeInTheDocument();
     expect(mockFolderQuery).toHaveBeenCalledWith(
       { id: "alpha-id", page: 1, size: 1 },
       { enabled: true },

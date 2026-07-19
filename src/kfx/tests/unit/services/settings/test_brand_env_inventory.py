@@ -232,6 +232,28 @@ def test_runtime_sources_have_no_literal_or_constant_branded_os_reads():
                     elif alias.name == "environ":
                         environ_aliases.add(alias.asname or alias.name)
 
+        def is_os_environ(
+            node: ast.AST,
+            os_names: frozenset[str] = frozenset(os_aliases),
+            environ_names: frozenset[str] = frozenset(environ_aliases),
+        ) -> bool:
+            return (
+                isinstance(node, ast.Attribute)
+                and node.attr == "environ"
+                and isinstance(node.value, ast.Name)
+                and node.value.id in os_names
+            ) or (isinstance(node, ast.Name) and node.id in environ_names)
+
+        environ_mapping_aliases = set(environ_aliases)
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.Assign, ast.AnnAssign)) or node.value is None:
+                continue
+            sources = (node.value.body, node.value.orelse) if isinstance(node.value, ast.IfExp) else (node.value,)
+            if not any(is_os_environ(source) for source in sources):
+                continue
+            targets = node.targets if isinstance(node, ast.Assign) else (node.target,)
+            environ_mapping_aliases.update(target.id for target in targets if isinstance(target, ast.Name))
+
         for node in ast.walk(tree):
             candidate: str | None = None
             if isinstance(node, ast.Call) and node.args:
@@ -255,7 +277,7 @@ def test_runtime_sources_have_no_literal_or_constant_branded_os_reads():
                         isinstance(node.func, ast.Attribute)
                         and node.func.attr == "get"
                         and isinstance(node.func.value, ast.Name)
-                        and node.func.value.id in environ_aliases
+                        and node.func.value.id in environ_mapping_aliases
                     )
                 )
                 if is_env_reader:
@@ -281,4 +303,4 @@ def test_runtime_sources_have_no_literal_or_constant_branded_os_reads():
                     bypasses.append(f"{path.relative_to(repository)}:{node.lineno}:{candidate}")
 
     assert bypasses == []
-    assert "AG_UI_BINDING_DB" in observed_direct_suffixes
+    assert {"AG_UI_BINDING_DB", "AG_UI_CHECKPOINT_DB"} <= observed_direct_suffixes

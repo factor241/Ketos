@@ -4,7 +4,7 @@ import asyncio
 import inspect
 import json
 from pathlib import Path
-from typing import get_args
+from typing import Literal, get_args
 
 import pytest
 from ag_ui.core import (
@@ -264,12 +264,25 @@ def test_shared_state_is_strict_and_bounded() -> None:
 
 
 @pytest.mark.asyncio
-async def test_official_stream_has_standard_tool_lifecycle_and_bounded_state(monkeypatch) -> None:
+@pytest.mark.parametrize(
+    ("registry_results", "expected_count", "expected_truncated"),
+    [
+        ([], 0, False),
+        ([{"type": "ChatInput"}, {"type": "ChatOutput"}], 2, False),
+        ([{"type": f"Component{index}"} for index in range(20)], probe_tools.MAX_RESULTS, True),
+    ],
+)
+async def test_official_stream_has_standard_tool_lifecycle_and_truthful_bounded_state(
+    monkeypatch,
+    registry_results: list[dict[str, str]],
+    expected_count: int,
+    expected_truncated: Literal[False, True],
+) -> None:
     monkeypatch.setattr(read_tools, "_load_registry_user_aware", dict)
     monkeypatch.setattr(
         read_tools,
         "search_registry",
-        lambda *_args, **_kwargs: [{"type": "ChatInput"}, {"type": "ChatOutput"}],
+        lambda *_args, **_kwargs: registry_results,
     )
     graph_builder = await probe_state.prepare_probe_graph_builder(
         ketos_actor_id="actor-a07",
@@ -303,6 +316,10 @@ async def test_official_stream_has_standard_tool_lifecycle_and_bounded_state(mon
     assert start.tool_call_name == "search_components"
     assert len(result.content.encode()) <= probe_tools.MAX_RESULT_BYTES
     assert AgentComponent.name == "Agent"
+    result_payload = json.loads(result.content)
+    assert result_payload["count"] == expected_count
+    assert len(result_payload["results"]) == expected_count
+    assert result_payload["truncated"] is expected_truncated
 
     snapshots = [event for event in events if isinstance(event, StateSnapshotEvent)]
     assert snapshots
@@ -314,6 +331,41 @@ async def test_official_stream_has_standard_tool_lifecycle_and_bounded_state(mon
         probe_state.validate_probe_state({key: snapshot.snapshot[key] for key in shared_fields})
         serialized = json.dumps(snapshot.snapshot)
         assert all(token not in serialized for token in ("flow", "nodes", "api_key", "cookie", "secret"))
+    completed = [snapshot.snapshot for snapshot in snapshots if snapshot.snapshot["tool_status"] == "completed"]
+    assert completed[-1]["tool_result_count"] == result_payload["count"] == expected_count
+
+
+@pytest.mark.asyncio
+async def test_malformed_tool_result_fails_closed_in_shared_state(monkeypatch) -> None:
+    monkeypatch.setattr(read_tools, "_load_registry_user_aware", dict)
+    monkeypatch.setattr(read_tools, "search_registry", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(
+        probe_tools,
+        "_bounded_result",
+        lambda _result: Data(
+            data={
+                "results": [],
+                "count": probe_tools.MAX_RESULTS + 1,
+                "truncated": False,
+            }
+        ),
+    )
+    graph_builder = await probe_state.prepare_probe_graph_builder(
+        ketos_actor_id="actor-a07",
+        checkpointer=InMemorySaver(),
+    )
+    graph = graph_builder(AgentComponent())
+
+    response = TestClient(_build_app(LangGraphAgent(name="ketos-mvp-probe", graph=graph))).post(
+        "/api/v1/agentic/ag-ui",
+        json=_run_input(),
+    )
+    events = decode_ag_ui_sse(response.text)
+    snapshots = [event.snapshot for event in events if isinstance(event, StateSnapshotEvent)]
+
+    assert response.status_code == 200
+    assert snapshots[-1]["tool_status"] == "error"
+    assert snapshots[-1]["tool_result_count"] == 0
 
 
 def test_production_sources_have_no_custom_protocol_or_forbidden_tool_imports() -> None:
@@ -330,7 +382,6 @@ def test_production_sources_have_no_custom_protocol_or_forbidden_tool_imports() 
         "forwardedProps",
         "EventEncoder",
         "text/event-stream",
-        "json.loads",
         "ChatModel",
         "create_agent_runnable",
         "httpx",

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const source = readFileSync(resolve(__dirname, "../routes.tsx"), "utf8");
+const source = readFileSync(resolve(__dirname, "../../../routes.tsx"), "utf8");
 
 describe("project route contract", () => {
   it("registers the lazy Project Boards route exactly once", () => {

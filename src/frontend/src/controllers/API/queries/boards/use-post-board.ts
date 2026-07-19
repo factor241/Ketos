@@ -14,13 +14,19 @@ export const usePostBoard: useMutationFunctionType<
   return mutate(
     boardKeys.list(projectId),
     async (payload: BoardCreate) =>
-      (await api.post<BoardRead>(`${getURL("PROJECTS")}/${projectId}/boards`, payload))
-        .data,
+      (
+        await api.post<BoardRead>(
+          `${getURL("PROJECTS")}/${projectId}/boards`,
+          payload,
+        )
+      ).data,
     {
       ...options,
       retry: false,
       onSuccess: async (...args) => {
-        await queryClient.invalidateQueries({ queryKey: boardKeys.list(projectId) });
+        await queryClient.invalidateQueries({
+          queryKey: boardKeys.list(projectId),
+        });
         await options?.onSuccess?.(...args);
       },
     },

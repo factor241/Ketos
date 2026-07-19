@@ -1,14 +1,29 @@
 import math
 from datetime import datetime, timezone
+from typing import Protocol
 from uuid import UUID
 
 from sqlalchemy import delete, update
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from ketos.api.v1.schemas.board import BoardViewportUpdate
 from ketos.services.database.models.board.model import Board
 from ketos.services.database.models.folder.model import Folder
+
+TITLE_MAX_LENGTH = 255
+MIN_ZOOM = 0.5
+MAX_ZOOM = 2.0
+_TITLE_TYPE_ERROR = "title must be a string"
+_TITLE_LENGTH_ERROR = "title must contain between 1 and 255 characters"
+_REVISION_ERROR = "expected_revision must be a non-negative integer"
+_ZOOM_RANGE_ERROR = "zoom must be between 0.5 and 2"
+
+
+class _BoardViewportInput(Protocol):
+    x: float
+    y: float
+    zoom: float
+    expected_revision: int
 
 
 class BoardNotFoundError(Exception):
@@ -27,37 +42,36 @@ class BoardRevisionConflictError(Exception):
 
 def _validate_title(title: str) -> str:
     if not isinstance(title, str):
-        raise ValueError("title must be a string")
+        raise TypeError(_TITLE_TYPE_ERROR)
     clean_title = title.strip()
-    if not 1 <= len(clean_title) <= 255:
-        raise ValueError("title must contain between 1 and 255 characters")
+    if not 1 <= len(clean_title) <= TITLE_MAX_LENGTH:
+        raise ValueError(_TITLE_LENGTH_ERROR)
     return clean_title
 
 
 def _validate_expected_revision(expected_revision: int) -> int:
     if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:
-        raise ValueError("expected_revision must be a non-negative integer")
+        raise ValueError(_REVISION_ERROR)
     return expected_revision
 
 
 def _validate_finite_number(value: float, field_name: str) -> float:
+    error_message = f"{field_name} must be a finite number"
     if isinstance(value, bool):
-        raise ValueError(f"{field_name} must be a finite number")
+        raise TypeError(error_message)
     try:
         validated = float(value)
     except (TypeError, ValueError) as exc:
-        raise ValueError(f"{field_name} must be a finite number") from exc
+        raise ValueError(error_message) from exc
     if not math.isfinite(validated):
-        raise ValueError(f"{field_name} must be a finite number")
+        raise ValueError(error_message)
     return validated
 
 
 async def require_owned_project(session: AsyncSession, project_id: UUID, actor_id: UUID) -> Folder:
-    project = (
-        await session.exec(select(Folder).where(Folder.id == project_id, Folder.user_id == actor_id))
-    ).first()
+    project = (await session.exec(select(Folder).where(Folder.id == project_id, Folder.user_id == actor_id))).first()
     if project is None:
-        raise BoardNotFoundError(f"Project {project_id} was not found")
+        raise BoardNotFoundError
     return project
 
 
@@ -87,7 +101,7 @@ async def get_owned_board(session: AsyncSession, board_id: UUID, actor_id: UUID)
     )
     board = result.first()
     if board is None:
-        raise BoardNotFoundError(f"Board {board_id} was not found")
+        raise BoardNotFoundError
     return board
 
 
@@ -110,14 +124,14 @@ async def rename_board(
 
 
 async def update_board_viewport(
-    session: AsyncSession, board_id: UUID, actor_id: UUID, viewport: BoardViewportUpdate
+    session: AsyncSession, board_id: UUID, actor_id: UUID, viewport: _BoardViewportInput
 ) -> Board:
     x = _validate_finite_number(viewport.x, "x")
     y = _validate_finite_number(viewport.y, "y")
     zoom = _validate_finite_number(viewport.zoom, "zoom")
     revision = _validate_expected_revision(viewport.expected_revision)
-    if not 0.5 <= zoom <= 2.0:
-        raise ValueError("zoom must be between 0.5 and 2")
+    if not MIN_ZOOM <= zoom <= MAX_ZOOM:
+        raise ValueError(_ZOOM_RANGE_ERROR)
     await get_owned_board(session, board_id=board_id, actor_id=actor_id)
     result = await session.exec(
         update(Board)
@@ -137,9 +151,7 @@ async def update_board_viewport(
     return await get_owned_board(session, board_id=board_id, actor_id=actor_id)
 
 
-async def delete_board(
-    session: AsyncSession, board_id: UUID, actor_id: UUID, expected_revision: int
-) -> None:
+async def delete_board(session: AsyncSession, board_id: UUID, actor_id: UUID, expected_revision: int) -> None:
     revision = _validate_expected_revision(expected_revision)
     await get_owned_board(session, board_id=board_id, actor_id=actor_id)
     result = await session.exec(delete(Board).where(Board.id == board_id, Board.revision == revision))

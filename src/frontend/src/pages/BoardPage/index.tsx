@@ -20,18 +20,20 @@ function NotFoundAlert() {
 function LoadedBoard({
   board,
   projectId,
-  refetch,
+  refresh,
 }: {
   board: BoardRead;
   projectId: string;
-  refetch: BoardRefetch;
+  refresh: BoardRefetch;
 }) {
   const { t } = useTranslation();
-  const viewport = useBoardViewport({ projectId, board, refetch });
+  const viewport = useBoardViewport({ projectId, board, refresh });
   return (
     <main className="flex h-full flex-col bg-background text-foreground">
       <header className="flex items-center gap-4 border-b border-border p-4">
-        <Link to={`/project/${projectId}/boards`}>{t("board.backToBoards")}</Link>
+        <Link to={`/project/${projectId}/boards`}>
+          {t("board.backToBoards")}
+        </Link>
         <h1 className="text-xl font-semibold">{board.title}</h1>
       </header>
       {viewport.conflict ? (
@@ -60,11 +62,13 @@ export default function BoardPage() {
   const workspaceEnabled = useUtilityStore(
     (state) => state.featureFlags.mvp_workspace === true,
   );
-  const validParams = UUID_PATTERN.test(projectId) && UUID_PATTERN.test(boardId);
+  const validParams =
+    UUID_PATTERN.test(projectId) && UUID_PATTERN.test(boardId);
   const query = useGetBoard(
     { projectId, boardId },
     { enabled: workspaceEnabled && validParams },
   );
+  const reloadBoard = query.refetch;
 
   if (!workspaceEnabled) return <Navigate to="/flows" replace />;
   if (!validParams) return <NotFoundAlert />;
@@ -73,12 +77,19 @@ export default function BoardPage() {
     return (
       <main>
         <div role="alert">{t("board.error")}</div>
-        <button type="button" onClick={() => void query.refetch()}>
+        <button type="button" onClick={() => void reloadBoard()}>
           {t("board.retry")}
         </button>
       </main>
     );
   }
-  if (!query.data || query.data.project_id !== projectId) return <NotFoundAlert />;
-  return <LoadedBoard board={query.data} projectId={projectId} refetch={query.refetch} />;
+  if (!query.data || query.data.project_id !== projectId)
+    return <NotFoundAlert />;
+  return (
+    <LoadedBoard
+      board={query.data}
+      projectId={projectId}
+      refresh={reloadBoard}
+    />
+  );
 }

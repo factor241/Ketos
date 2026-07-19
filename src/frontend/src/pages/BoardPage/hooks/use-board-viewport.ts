@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactFlowInstance, Viewport } from "@xyflow/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { usePutBoardViewport } from "@/controllers/API/queries/boards";
 import useBoardStore from "@/stores/boardStore";
@@ -11,7 +11,7 @@ type RefetchResult = { data?: BoardRead };
 type UseBoardViewportArgs = {
   projectId: string;
   board: BoardRead;
-  refetch: () => Promise<RefetchResult>;
+  refresh: () => Promise<RefetchResult>;
 };
 
 type ViewportSession = {
@@ -22,9 +22,10 @@ type ViewportSession = {
   instance: ReactFlowInstance | null;
   mounted: boolean;
   hydrated: boolean;
+  ignoredProgrammaticViewport: Viewport | null;
   disposed: boolean;
   mutate: ReturnType<typeof usePutBoardViewport>["mutate"];
-  refetch: () => Promise<RefetchResult>;
+  refresh: () => Promise<RefetchResult>;
 };
 
 const boardViewport = (board: BoardRead): Viewport => ({
@@ -42,7 +43,11 @@ const isConflict = (error: unknown) =>
 const sameViewport = (left: Viewport | null, right: Viewport) =>
   left?.x === right.x && left.y === right.y && left.zoom === right.zoom;
 
-export function useBoardViewport({ projectId, board, refetch }: UseBoardViewportArgs) {
+export function useBoardViewport({
+  projectId,
+  board,
+  refresh,
+}: UseBoardViewportArgs) {
   const initialViewport = useMemo(
     () => boardViewport(board),
     [board.viewport_x, board.viewport_y, board.viewport_zoom],
@@ -54,7 +59,9 @@ export function useBoardViewport({ projectId, board, refetch }: UseBoardViewport
     (state) => state.setViewportGestureActive,
   );
   const setPendingViewport = useBoardStore((state) => state.setPendingViewport);
-  const clearPendingViewport = useBoardStore((state) => state.clearPendingViewport);
+  const clearPendingViewport = useBoardStore(
+    (state) => state.clearPendingViewport,
+  );
   const unmountBoard = useBoardStore((state) => state.unmountBoard);
   const [conflict, setConflict] = useState(false);
 
@@ -67,16 +74,17 @@ export function useBoardViewport({ projectId, board, refetch }: UseBoardViewport
       instance: null,
       mounted: false,
       hydrated: false,
+      ignoredProgrammaticViewport: null,
       disposed: false,
       mutate: mutation.mutate,
-      refetch,
+      refresh,
     }),
     [board.id, projectId],
   );
   const activeSessionRef = useRef(session);
   activeSessionRef.current = session;
   session.mutate = mutation.mutate;
-  session.refetch = refetch;
+  session.refresh = refresh;
 
   const applyServerViewport = useCallback(
     (target: ViewportSession, serverBoard: BoardRead) => {
@@ -88,7 +96,10 @@ export function useBoardViewport({ projectId, board, refetch }: UseBoardViewport
         return;
       }
       target.revision = serverBoard.revision;
-      void target.instance.setViewport(boardViewport(serverBoard), { duration: 0 });
+      target.ignoredProgrammaticViewport = boardViewport(serverBoard);
+      void target.instance.setViewport(boardViewport(serverBoard), {
+        duration: 0,
+      });
     },
     [],
   );
@@ -126,7 +137,7 @@ export function useBoardViewport({ projectId, board, refetch }: UseBoardViewport
               clearPendingViewport();
               setConflict(true);
             }
-            void target.refetch().then(({ data }) => {
+            void target.refresh().then(({ data }) => {
               if (data) applyServerViewport(target, data);
             });
           },
@@ -146,6 +157,7 @@ export function useBoardViewport({ projectId, board, refetch }: UseBoardViewport
       ) {
         return;
       }
+      target.ignoredProgrammaticViewport = initialViewport;
       void target.instance.setViewport(initialViewport, { duration: 0 });
       target.hydrated = true;
       setHydrationPhase("ready");
@@ -170,7 +182,14 @@ export function useBoardViewport({ projectId, board, refetch }: UseBoardViewport
       session.instance = null;
       unmountBoard();
     };
-  }, [dispatchSave, hydrate, mountBoard, session, setHydrationPhase, unmountBoard]);
+  }, [
+    dispatchSave,
+    hydrate,
+    mountBoard,
+    session,
+    setHydrationPhase,
+    unmountBoard,
+  ]);
 
   const onMoveStart = useCallback(() => {
     setViewportGestureActive(true);
@@ -178,6 +197,10 @@ export function useBoardViewport({ projectId, board, refetch }: UseBoardViewport
 
   const onMoveEnd = useCallback(
     (_event: MouseEvent | TouchEvent | null, viewport: Viewport) => {
+      if (sameViewport(session.ignoredProgrammaticViewport, viewport)) {
+        session.ignoredProgrammaticViewport = null;
+        return;
+      }
       session.pending = viewport;
       setPendingViewport(viewport);
       setViewportGestureActive(false);

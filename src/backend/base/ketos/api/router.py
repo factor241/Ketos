@@ -10,6 +10,7 @@ from ketos.api.v1 import (
     authz_roles_router,
     authz_shares_router,
     authz_teams_router,
+    boards_router,
     chat_router,
     endpoints_router,
     extensions_router,
@@ -74,6 +75,7 @@ router_v1.include_router(monitor_router)
 router_v1.include_router(traces_router)
 router_v1.include_router(folders_router)
 router_v1.include_router(projects_router)
+router_v1.include_router(boards_router)
 router_v1.include_router(starter_projects_router)
 router_v1.include_router(knowledge_bases_router)
 router_v1.include_router(memories_router)

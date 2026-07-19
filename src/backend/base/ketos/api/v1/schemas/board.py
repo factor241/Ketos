@@ -5,6 +5,8 @@ from uuid import UUID
 from pydantic import ConfigDict, field_validator
 from sqlmodel import Field, SQLModel
 
+_NONFINITE_VIEWPORT_ERROR = "viewport values must be finite"
+
 
 class _BoardSchema(SQLModel):
     model_config = ConfigDict(extra="forbid")
@@ -37,7 +39,7 @@ class BoardViewportUpdate(_BoardSchema):
     @classmethod
     def validate_finite(cls, value: float) -> float:
         if not math.isfinite(value):
-            raise ValueError("viewport values must be finite")
+            raise ValueError(_NONFINITE_VIEWPORT_ERROR)
         return value
 
 

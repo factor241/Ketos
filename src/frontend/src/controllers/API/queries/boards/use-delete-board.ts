@@ -28,7 +28,9 @@ export const useDeleteBoard: useMutationFunctionType<
           queryKey: boardKeys.detail(projectId, variables.boardId),
           exact: true,
         });
-        await queryClient.invalidateQueries({ queryKey: boardKeys.list(projectId) });
+        await queryClient.invalidateQueries({
+          queryKey: boardKeys.list(projectId),
+        });
         await options?.onSuccess?.(data, variables, ...args);
       },
       onError: async (error, variables, ...args) => {

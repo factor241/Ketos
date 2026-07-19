@@ -5,6 +5,9 @@ from pydantic import field_validator
 from sqlalchemy import CheckConstraint, Column, DateTime, Double, ForeignKey, Integer, String, Uuid, func, text
 from sqlmodel import Field, SQLModel
 
+TITLE_MAX_LENGTH = 255
+_TITLE_LENGTH_ERROR = "title length must be between 1 and 255 characters"
+
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -61,6 +64,6 @@ class Board(SQLModel, table=True):  # type: ignore[call-arg]
     @field_validator("title")
     @classmethod
     def validate_title_length(cls, value: str) -> str:
-        if not 1 <= len(value) <= 255:
-            raise ValueError("title length must be between 1 and 255 characters")
+        if not 1 <= len(value) <= TITLE_MAX_LENGTH:
+            raise ValueError(_TITLE_LENGTH_ERROR)
         return value

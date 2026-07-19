@@ -12,7 +12,8 @@ export const useGetBoard: useQueryFunctionType<
   const { query } = UseRequestProcessor();
   return query(
     boardKeys.detail(projectId, boardId),
-    async () => (await api.get<BoardRead>(`${getURL("BOARDS")}/${boardId}`)).data,
+    async () =>
+      (await api.get<BoardRead>(`${getURL("BOARDS")}/${boardId}`)).data,
     {
       ...options,
       enabled:

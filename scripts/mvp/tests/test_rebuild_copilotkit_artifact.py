@@ -84,6 +84,50 @@ def test_recipe_manifest_is_stable_json_safe_and_complete() -> None:
     assert recipe["toolchain"]["source_date_epoch"] == 1784227404
 
 
+def test_run_tests_flag_is_explicit_and_quality_gate_runs_fork_tests(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    parsed = rebuild._parse_args(["--output-dir", str(tmp_path), "--run-tests", "--json"])
+    assert parsed.run_tests is True
+
+    commands: list[list[str]] = []
+
+    def fake_run(argv: list[str], **kwargs: object) -> rebuild.CommandResult:
+        commands.append(argv)
+        return rebuild.CommandResult(tuple(argv), 0, b"", b"")
+
+    monkeypatch.setattr(rebuild, "_run_bounded", fake_run)
+    rebuild._run_quality_gates(
+        tmp_path,
+        ["/pinned/node", "/pinned/pnpm.cjs"],
+        {"PATH": "/pinned"},
+        run_tests=True,
+    )
+
+    assert commands == [
+        [
+            "/pinned/node",
+            "/pinned/pnpm.cjs",
+            "exec",
+            "nx",
+            "run",
+            "@copilotkit/react-core:test",
+            "--skip-nx-cache",
+            "--outputStyle=static",
+        ],
+        [
+            "/pinned/node",
+            "/pinned/pnpm.cjs",
+            "exec",
+            "nx",
+            "run",
+            "@copilotkit/react-core:check-types",
+            "--skip-nx-cache",
+            "--outputStyle=static",
+        ],
+    ]
+
+
 @pytest.mark.parametrize(
     ("system", "machine", "expected"),
     [

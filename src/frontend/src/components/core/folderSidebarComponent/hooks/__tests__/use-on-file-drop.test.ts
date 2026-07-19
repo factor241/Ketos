@@ -122,4 +122,51 @@ describe("useFileDrop.onDrop (drag-and-drop flow between projects)", () => {
     expect(mockSetFolderDragging).toHaveBeenCalledWith(false);
     expect(mockSetFolderIdDragging).toHaveBeenCalledWith("");
   });
+
+  it("uses the project scope instead of a requested drop target", () => {
+    const { result } = renderHook(() =>
+      useFileDrop("legacy-fallback", {
+        isProjectRoute: true,
+        projectId: "project-P",
+      }),
+    );
+    const event = {
+      preventDefault: jest.fn(),
+      dataTransfer: {
+        files: [],
+        getData: jest.fn(() => JSON.stringify({ id: "flow-1" })),
+      },
+    } as unknown as React.DragEvent<HTMLDivElement>;
+
+    result.current.onDrop(event, "wrong-project");
+
+    expect(mockSaveFlow).toHaveBeenCalledTimes(1);
+    expect(mockSaveFlow.mock.calls[0][0].folder_id).toBe("project-P");
+    expect(mockUploadFlowToFolder).not.toHaveBeenCalled();
+  });
+
+  it("blocks project drops when the project id is missing", () => {
+    const { result } = renderHook(() =>
+      useFileDrop("legacy-fallback", {
+        isProjectRoute: true,
+        projectId: null,
+      }),
+    );
+    const event = {
+      preventDefault: jest.fn(),
+      dataTransfer: {
+        files: [],
+        getData: jest.fn(() => JSON.stringify({ id: "flow-1" })),
+      },
+    } as unknown as React.DragEvent<HTMLDivElement>;
+
+    result.current.onDrop(event, "wrong-project");
+
+    expect(event.preventDefault).toHaveBeenCalledTimes(1);
+    expect(mockSaveFlow).not.toHaveBeenCalled();
+    expect(mockUploadFlowToFolder).not.toHaveBeenCalled();
+    expect(mockSetErrorData).toHaveBeenCalledWith({
+      title: "projectShell.error",
+    });
+  });
 });

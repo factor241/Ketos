@@ -6,7 +6,12 @@ import useFlowsManagerStore from "../../../../stores/flowsManagerStore";
 import { useFolderStore } from "../../../../stores/foldersStore";
 import { addVersionToDuplicates } from "../../../../utils/reactflowUtils";
 
-const useFileDrop = (folderId: string) => {
+export type FileDropScope = {
+  isProjectRoute: boolean;
+  projectId: string | null;
+};
+
+const useFileDrop = (folderId: string, scope?: FileDropScope) => {
   const { t } = useTranslation();
   const setFolderDragging = useFolderStore((state) => state.setFolderDragging);
   const setFolderIdDragging = useFolderStore(
@@ -19,6 +24,17 @@ const useFileDrop = (folderId: string) => {
   const flows = useFlowsManagerStore((state) => state.flows);
 
   const { mutate: uploadFlowToFolder } = usePostUploadFlowToFolder();
+  const resolveDropTargetId = (requested?: string | null): string | null =>
+    scope?.isProjectRoute
+      ? scope.projectId?.trim() || null
+      : requested?.trim() || folderId?.trim() || myCollectionId?.trim() || null;
+
+  const blockMissingProjectTarget = () => {
+    setFolderDragging(false);
+    setFolderIdDragging("");
+    setErrorData({ title: t("projectShell.error") });
+  };
+
   const handleFileDrop = async (e, folderId) => {
     if (e.dataTransfer.types.some((type) => type === "Files")) {
       if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
@@ -47,7 +63,7 @@ const useFileDrop = (folderId: string) => {
     if (e.dataTransfer.types.some((types) => types === "Files")) {
       setFolderDragging(true);
     }
-    setFolderIdDragging(folderId);
+    setFolderIdDragging(resolveDropTargetId(folderId) ?? "");
   };
 
   const dragEnter = (
@@ -60,7 +76,7 @@ const useFileDrop = (folderId: string) => {
     if (e.dataTransfer.types.some((types) => types === "Files")) {
       setFolderDragging(true);
     }
-    setFolderIdDragging(folderId);
+    setFolderIdDragging(resolveDropTargetId(folderId) ?? "");
     e.preventDefault();
   };
 
@@ -84,17 +100,23 @@ const useFileDrop = (folderId: string) => {
       | React.DragEvent<HTMLAnchorElement>,
     folderId: string,
   ) => {
+    e.preventDefault();
+    const targetFolderId = resolveDropTargetId(folderId);
+    if (targetFolderId === null) {
+      blockMissingProjectTarget();
+      return;
+    }
+
     if (e?.dataTransfer?.getData("flow")) {
       const data = JSON.parse(e?.dataTransfer?.getData("flow"));
 
       if (data) {
-        uploadFromDragCard(data.id, folderId);
+        uploadFromDragCard(data.id, targetFolderId);
         return;
       }
     }
 
-    e.preventDefault();
-    handleFileDrop(e, folderId);
+    handleFileDrop(e, targetFolderId);
   };
 
   const uploadFromDragCard = (flowId, folderId) => {

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import fcntl
 import os
 import stat
+import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import SimpleNamespace
@@ -273,6 +276,76 @@ def test_binding_path_uses_injectable_local_env_or_configured_data_dir(
     injected = tmp_path / "harness" / "bindings.sqlite3"
     monkeypatch.setenv("KETOS_AG_UI_BINDING_DB", str(injected))
     assert run_binding.resolve_run_binding_path() == injected
+
+
+@pytest.mark.parametrize("timeout_seconds", [0, -1, float("nan"), float("inf"), float("-inf")])
+def test_binding_store_rejects_non_positive_or_non_finite_timeout(tmp_path, timeout_seconds: float) -> None:
+    with pytest.raises(ValueError, match="timeout must be positive and finite"):
+        run_binding.RunBindingStore(
+            tmp_path / "bindings" / "run-bindings.ledger",
+            timeout_seconds=timeout_seconds,
+        )
+
+
+def test_before_dispatch_lock_timeout_is_bounded_and_recoverable(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    path = tmp_path / "bindings" / "run-bindings.ledger"
+    store = run_binding.RunBindingStore(path, timeout_seconds=0.05)
+    asyncio.run(
+        store.claim(
+            thread_id="thread-existing",
+            run_id="run-existing",
+            actor_id=str(ACTOR_A),
+        )
+    )
+
+    lock_fd = os.open(path, os.O_RDWR)
+    real_flock = fcntl.flock
+    real_flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    lock_attempts = 0
+
+    def counting_flock(descriptor: int, operation: int) -> None:
+        nonlocal lock_attempts
+        if descriptor != lock_fd and operation & fcntl.LOCK_NB:
+            lock_attempts += 1
+        real_flock(descriptor, operation)
+
+    monkeypatch.setattr(run_binding.fcntl, "flock", counting_flock)
+    service = _AuthServiceStub(users_by_token={"token-a": SimpleNamespace(id=ACTOR_A, is_active=True)})
+    app, agent = _registered_app(monkeypatch, service=service, store=store)
+    release_timer = threading.Timer(0.25, real_flock, args=(lock_fd, fcntl.LOCK_UN))
+    release_timer.start()
+    started_at = time.monotonic()
+    try:
+        response = TestClient(app).post(
+            "/ag-ui",
+            headers={"Authorization": "Bearer token-a"},
+            json=_run_input(thread_id="thread-timeout", run_id="run-timeout"),
+        )
+        elapsed = time.monotonic() - started_at
+        release_timer.join(timeout=1)
+
+        assert response.status_code == 503
+        assert response.json() == {"detail": "AG-UI binding authority is busy"}
+        assert elapsed < 0.2
+        assert 2 <= lock_attempts <= 20
+        assert agent.run_inputs == []
+
+        asyncio.run(
+            store.claim(
+                thread_id="thread-after-timeout",
+                run_id="run-after-timeout",
+                actor_id=str(ACTOR_A),
+            )
+        )
+    finally:
+        if release_timer.is_alive():
+            real_flock(lock_fd, fcntl.LOCK_UN)
+            release_timer.cancel()
+        release_timer.join(timeout=1)
+        os.close(lock_fd)
 
 
 @pytest.mark.parametrize("unsafe_path", [":memory:", "sqlite:///tmp/bindings.sqlite3", "relative.sqlite3"])

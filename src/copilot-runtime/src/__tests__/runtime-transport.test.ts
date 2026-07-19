@@ -5,7 +5,7 @@ import {
 	request as nodeRequest,
 	type Server,
 } from "node:http";
-import type { AddressInfo } from "node:net";
+import { type AddressInfo, connect } from "node:net";
 import { inspect } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -96,6 +96,47 @@ async function rawRuntimeRequest(
 		request.once("error", reject);
 		request.end(JSON.stringify(runInput()));
 	});
+}
+
+async function rawSocketRuntimeRequest(
+	runtimeOrigin: string,
+	headerLines: readonly string[],
+): Promise<{ status: number; body: string }> {
+	const target = new URL(runtimeOrigin);
+	const requestBody = JSON.stringify(runInput());
+	const response = await new Promise<string>((resolve, reject) => {
+		const socket = connect({
+			host: target.hostname,
+			port: Number.parseInt(target.port, 10),
+		});
+		const chunks: Buffer[] = [];
+		socket.once("error", reject);
+		socket.on("data", (chunk: Buffer) => {
+			chunks.push(chunk);
+			const received = Buffer.concat(chunks).toString("utf8");
+			if (received.includes("\r\n\r\n")) {
+				resolve(received);
+				socket.destroy();
+			}
+		});
+		socket.once("connect", () => {
+			socket.write(
+				[
+					`POST /api/copilotkit/agent/${AGENT_ID}/run HTTP/1.1`,
+					`Host: ${target.host}`,
+					"Content-Type: application/json",
+					`Content-Length: ${Buffer.byteLength(requestBody)}`,
+					"Connection: close",
+					...headerLines,
+					"",
+					requestBody,
+				].join("\r\n"),
+			);
+		});
+	});
+	const [head = "", responseBody = ""] = response.split("\r\n\r\n", 2);
+	const status = Number.parseInt(head.split(" ")[1] ?? "0", 10);
+	return { status, body: responseBody };
 }
 
 describe("Ketos Copilot Runtime transport", () => {
@@ -309,6 +350,38 @@ describe("Ketos Copilot Runtime transport", () => {
 		);
 		await response.text();
 
+		expect(capturedAuthorization).toBeUndefined();
+		expect(capturedCookie).toBeUndefined();
+	});
+
+	it("fails closed when a raw request contains duplicate Authorization fields", async () => {
+		let capturedAuthorization: string | undefined;
+		let capturedCookie: string | undefined;
+		const upstream = createServer((request, response) => {
+			capturedAuthorization = request.headers.authorization;
+			capturedCookie = request.headers.cookie;
+			response.writeHead(200, { "content-type": "text/event-stream" });
+			response.end(
+				[
+					`data: ${JSON.stringify({ type: "RUN_STARTED", threadId: "thread-fixed-target", runId: "run-fixed-target" })}`,
+					"",
+					`data: ${JSON.stringify({ type: "RUN_FINISHED", threadId: "thread-fixed-target", runId: "run-fixed-target" })}`,
+					"",
+				].join("\n"),
+			);
+		});
+		const upstreamOrigin = await listen(upstream);
+		const runtimeOrigin = await listen(
+			createTestRuntime(`${upstreamOrigin}/api/v1/agentic/ag-ui`),
+		);
+
+		const response = await rawSocketRuntimeRequest(runtimeOrigin, [
+			"Authorization: Bearer duplicate-first-secret",
+			"Authorization: Bearer duplicate-second-secret",
+			"Cookie: access_token_lf=must-not-fallback",
+		]);
+
+		expect(response.status).toBe(200);
 		expect(capturedAuthorization).toBeUndefined();
 		expect(capturedCookie).toBeUndefined();
 	});
@@ -530,6 +603,116 @@ describe("Ketos Copilot Runtime transport", () => {
 		]);
 	});
 
+	it("returns 400 without logging secrets from malformed standard run input", async () => {
+		const runtimeLogs: unknown[][] = [];
+		const consoleError = vi.mocked(console.error);
+		const secret = "malformed-resume-status-secret";
+		const runtimeOrigin = await listen(
+			createKetosCopilotServer({
+				upstreamUrl: "http://127.0.0.1:1/api/v1/agentic/ag-ui",
+				allowedHosts: ["127.0.0.1"],
+				logger: {
+					info: (...fields: unknown[]) => runtimeLogs.push(fields),
+					error: (...fields: unknown[]) => runtimeLogs.push(fields),
+				},
+			}),
+		);
+
+		const response = await fetch(
+			`${runtimeOrigin}/api/copilotkit/agent/${AGENT_ID}/run`,
+			{
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify(
+					runInput({
+						resume: [
+							{
+								interruptId: "interrupt-malformed",
+								status: secret,
+								payload: { secret },
+							},
+						],
+					}),
+				),
+			},
+		);
+		await response.text();
+		const renderedLogs = [
+			...runtimeLogs.map((entry) => inspect(entry)),
+			...consoleError.mock.calls.map((entry) => inspect(entry)),
+		].join("\n");
+
+		expect(response.status).toBe(400);
+		expect(renderedLogs).not.toContain(secret);
+	});
+
+	it("isolates sanitized SDK error logs across concurrent requests", async () => {
+		const logsA: unknown[][] = [];
+		const logsB: unknown[][] = [];
+		const createRuntime = async (logs: unknown[][]) =>
+			await listen(
+				createKetosCopilotServer({
+					upstreamUrl: "http://127.0.0.1:1/api/v1/agentic/ag-ui",
+					allowedHosts: ["127.0.0.1"],
+					logger: {
+						info: (...fields: unknown[]) => logs.push(fields),
+						error: (...fields: unknown[]) => logs.push(fields),
+					},
+				}),
+			);
+		const [runtimeA, runtimeB] = await Promise.all([
+			createRuntime(logsA),
+			createRuntime(logsB),
+		]);
+		const sendMalformed = async (origin: string, secret: string) => {
+			const response = await fetch(
+				`${origin}/api/copilotkit/agent/${AGENT_ID}/run`,
+				{
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify(
+						runInput({
+							resume: [
+								{
+									interruptId: "interrupt-malformed",
+									status: secret,
+								},
+							],
+						}),
+					),
+				},
+			);
+			await response.text();
+			return response.status;
+		};
+
+		const statuses = await Promise.all([
+			sendMalformed(runtimeA, "concurrent-malformed-secret-a"),
+			sendMalformed(runtimeB, "concurrent-malformed-secret-b"),
+		]);
+
+		expect(statuses).toEqual([400, 400]);
+		expect(logsA).toContainEqual([
+			"copilotkit_runtime_error",
+			{
+				method: "POST",
+				path: `/api/copilotkit/agent/${AGENT_ID}/run`,
+				code: "sdk_error_redacted",
+			},
+		]);
+		expect(logsB).toContainEqual([
+			"copilotkit_runtime_error",
+			{
+				method: "POST",
+				path: `/api/copilotkit/agent/${AGENT_ID}/run`,
+				code: "sdk_error_redacted",
+			},
+		]);
+		const allLogs = inspect([logsA, logsB]);
+		expect(allLogs).not.toContain("concurrent-malformed-secret-a");
+		expect(allLogs).not.toContain("concurrent-malformed-secret-b");
+	});
+
 	it("keeps simultaneous request credentials isolated", async () => {
 		const credentialsByThread = new Map<string, string | undefined>();
 		const upstream = createServer((request, response) => {
@@ -599,6 +782,7 @@ describe("Ketos Copilot Runtime transport", () => {
 					"../server.ts",
 					"../credential-forwarding.ts",
 					"../origin-guard.ts",
+					"../runtime-log-boundary.ts",
 				].map(
 					async (path) =>
 						await readFile(new URL(path, import.meta.url), "utf8"),

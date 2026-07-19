@@ -16,6 +16,11 @@ import {
 	DEFAULT_ALLOWED_HOSTS,
 	validateRuntimeRequest,
 } from "./origin-guard.js";
+import {
+	installRuntimeLogBoundary,
+	logOutsideRuntimeBoundary,
+	runWithRuntimeLogBoundary,
+} from "./runtime-log-boundary.js";
 
 export const AGENT_ID = "ketos-mvp-probe";
 export const COPILOT_PATH = "/api/copilotkit";
@@ -34,7 +39,7 @@ export interface RuntimeLogger {
 
 const DEFAULT_LOGGER: RuntimeLogger = {
 	info: (...fields) => console.info(...fields),
-	error: (...fields) => console.error(...fields),
+	error: logOutsideRuntimeBoundary,
 };
 
 const noRedirectFetch: HttpAgentFetchFn = async (url, requestInit) => {
@@ -80,6 +85,7 @@ export function createKetosCopilotServer(
 	options: KetosCopilotServerOptions = {},
 ): Server {
 	process.env.COPILOTKIT_TELEMETRY_DISABLED = "true";
+	installRuntimeLogBoundary();
 	const upstreamUrl = options.upstreamUrl ?? UPSTREAM_URL;
 	const allowedHosts = options.allowedHosts ?? DEFAULT_ALLOWED_HOSTS;
 	const logger = options.logger ?? DEFAULT_LOGGER;
@@ -125,7 +131,9 @@ export function createKetosCopilotServer(
 				status: response.statusCode,
 			});
 		});
-		void nodeHandler(request, response).catch(() => {
+		void runWithRuntimeLogBoundary({ logger, method, path }, () =>
+			nodeHandler(request, response),
+		).catch(() => {
 			logger.error("runtime_request_failed", {
 				method,
 				path,

@@ -41,13 +41,19 @@ def test_python_ast_guard_detects_aliases_brackets_custom_protocol_and_local_res
         """
 from langgraph.types import Command as ResumeCommand
 from ag_ui.core import CustomEvent as CE
+import importlib as loader
 
 Alias = ResumeCommand
 g = getattr
-DynamicCommand = g(__import__("langgraph.types", fromlist=["Command"]), "Command")
+module_name = "langgraph." + "types"
+command_name = "Com" + "mand"
+DynamicCommand = g(loader.import_module(module_name), command_name)
 
 def parse_ag_ui_payload(value):
-    legacy = value["forwardedProps"]["command"].resume
+    forwarded_key = "forwarded" + "Props"
+    command_key = "com" + "mand"
+    resume_key = "res" + "ume"
+    legacy = value[forwarded_key][command_key][resume_key]
     forwarded = value.forwarded_props
     command = forwarded["command"]
     dynamic = getattr(getattr(getattr(value, "forwarded_props"), "command"), "resume")
@@ -120,6 +126,43 @@ def test_registrar_chain_detects_an_aliased_call_from_an_unowned_file(tmp_path: 
     assert guard._unexpected_callers([allowed, bypass], "register_stage01_ag_ui", allowed) == [bypass]
 
 
+def test_registrar_reference_guard_rejects_parameter_and_default_relays(tmp_path: Path) -> None:
+    guard = _load_guard()
+    owner = tmp_path / "owner.py"
+    owner.write_text(
+        "from source import register_stage01_ag_ui\nregister_stage01_ag_ui(app, runtime)\n",
+        encoding="utf-8",
+    )
+    relay = tmp_path / "relay.py"
+    relay.write_text(
+        "from source import register_stage01_ag_ui\n"
+        "def forward(callback=register_stage01_ag_ui):\n    callback(app, runtime)\n",
+        encoding="utf-8",
+    )
+
+    violations = guard._registrar_reference_violations([owner, relay], "register_stage01_ag_ui", None, owner)
+
+    assert any("relayed registrar reference" in item for item in violations)
+
+
+def test_registrar_reference_guard_rejects_computed_getattr_default(tmp_path: Path) -> None:
+    guard = _load_guard()
+    owner = tmp_path / "owner.py"
+    owner.write_text("register_stage01_ag_ui(app, runtime)\n", encoding="utf-8")
+    bypass = tmp_path / "bypass.py"
+    bypass.write_text(
+        'def relay(cb=getattr(module, "register_stage01_" + "ag_ui")):\n'
+        "    cb(app, runtime)\n",
+        encoding="utf-8",
+    )
+
+    violations = guard._registrar_reference_violations(
+        [owner, bypass], "register_stage01_ag_ui", None, owner
+    )
+
+    assert any("relayed registrar reference" in item for item in violations)
+
+
 def test_route_guard_rejects_alternate_registration(tmp_path: Path, monkeypatch) -> None:
     guard = _load_guard()
     backend = tmp_path / "ketos"
@@ -139,7 +182,7 @@ def test_route_guard_rejects_alternate_registration(tmp_path: Path, monkeypatch)
 
     violations = guard._route_boundary_violations([admitted, registrar, bypass])
 
-    assert any("alternate route" in item for item in violations)
+    assert any("route mutation" in item for item in violations)
 
 
 def test_production_scan_covers_all_changed_runtime_and_backend_sources() -> None:
@@ -152,6 +195,7 @@ def test_production_scan_covers_all_changed_runtime_and_backend_sources() -> Non
     assert guard.ROOT / "src/kfx/src/kfx/services/settings/feature_flags.py" in sources
     assert guard.FRONTEND_ROOT / "vite.config.mts" in sources
     assert guard.FRONTEND_ROOT / "postcss.config.js" in sources
+    assert guard.ROOT / "scripts/mvp/probe_ag_ui_adapter.py" in sources
 
 
 @pytest.mark.parametrize(
@@ -195,6 +239,54 @@ def test_typescript_custom_transport_patterns_are_detected(source: str) -> None:
 def test_manual_e2e_transport_patterns_are_detected(source: str) -> None:
     guard = _load_guard()
     assert any(pattern.search(source) for pattern in guard.MANUAL_E2E_PATTERNS)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "const { request: client } = page; client.post(url)",
+        "page['re' + 'quest'].post(url)",
+        "window['fe' + 'tch'](url)",
+    ],
+)
+def test_conservative_e2e_guard_detects_destructured_and_computed_roots(source: str) -> None:
+    guard = _load_guard()
+    assert guard._e2e_transport_violations(source)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        'const key = `fe${"tch"}`;\nwindow[key](url)',
+        'const key = ["fe", "tch"].join("");\nglobalThis[key](url)',
+    ],
+)
+def test_conservative_e2e_guard_rejects_multiline_computed_global_transport(source: str) -> None:
+    guard = _load_guard()
+    assert guard._e2e_transport_violations(source)
+
+
+def test_conservative_e2e_guard_allows_only_passive_request_observation() -> None:
+    guard = _load_guard()
+    source = 'page.on("request", (eventCandidate) => observe(eventCandidate))\nresponse.request()'
+    assert guard._e2e_transport_violations(source) == []
+
+
+def test_shell_guard_rejects_custom_protocol_tokens() -> None:
+    guard = _load_guard()
+    assert guard._shell_bypass_violations("dispatchEvent resume") == ["dispatchEvent"]
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        'curl -X POST -d "forwardedProps.command.resume" "$url"',
+        'python -c "Command(resume={})"',
+    ],
+)
+def test_shell_guard_rejects_manual_resume_commands(source: str) -> None:
+    guard = _load_guard()
+    assert guard._shell_bypass_violations(source)
 
 
 def test_ancestry_guard_requires_both_exact_commits_to_be_head_ancestors(monkeypatch) -> None:

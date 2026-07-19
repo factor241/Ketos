@@ -164,18 +164,35 @@ class RunBindingStore:
             msg = f"AG-UI binding database directory must have private mode 0700: {path}"
             raise ValueError(msg)
 
-    def _prepare_directories(self) -> None:
-        for ancestor in self._path_chain(self.secure_root.parent):
-            self._lstat_directory(ancestor)
+    @staticmethod
+    def _validate_uncontrolled_ancestor(path: Path, result: os.stat_result) -> None:
+        writable_by_other_principals = stat.S_IMODE(result.st_mode) & 0o022
+        if writable_by_other_principals and not result.st_mode & stat.S_ISVTX:
+            msg = f"AG-UI binding database ancestor cannot be writable non-sticky: {path}"
+            raise ValueError(msg)
 
+    def _controlled_directories(self) -> list[Path]:
         controlled = [self.secure_root]
         relative_parent = self.path.parent.relative_to(self.secure_root)
         current = self.secure_root
         for part in relative_parent.parts:
             current /= part
             controlled.append(current)
+        return controlled
 
-        for directory in controlled:
+    def _verify_uncontrolled_ancestors(self) -> None:
+        for ancestor in self._path_chain(self.secure_root.parent):
+            result = self._lstat_directory(ancestor)
+            self._validate_uncontrolled_ancestor(ancestor, result)
+
+    def _verify_controlled_directories(self) -> None:
+        for directory in self._controlled_directories():
+            result = self._lstat_directory(directory)
+            self._validate_controlled_directory(directory, result)
+
+    def _prepare_directories(self) -> None:
+        self._verify_uncontrolled_ancestors()
+        for directory in self._controlled_directories():
             with suppress(FileExistsError):
                 directory.mkdir(mode=_DIRECTORY_MODE)
             result = self._lstat_directory(directory)
@@ -211,6 +228,35 @@ class RunBindingStore:
             raise ValueError(msg)
         self._validate_database_file(descriptor_result)
         self._validate_database_file(path_result)
+
+    def _verify_live_path(self, parent_fd: int, database_fd: int) -> None:
+        self._verify_uncontrolled_ancestors()
+        self._verify_controlled_directories()
+
+        descriptor_parent = os.fstat(parent_fd)
+        self._validate_controlled_directory(self.path.parent, descriptor_parent)
+        live_parent = self._lstat_directory(self.path.parent)
+        if (descriptor_parent.st_dev, descriptor_parent.st_ino) != (
+            live_parent.st_dev,
+            live_parent.st_ino,
+        ):
+            msg = "AG-UI binding database parent inode changed during open"
+            raise ValueError(msg)
+
+        self._verify_database_identity(parent_fd, database_fd)
+        descriptor_database = os.fstat(database_fd)
+        try:
+            live_database = os.lstat(self.path)
+        except FileNotFoundError as exc:
+            msg = "AG-UI binding database inode changed during open"
+            raise ValueError(msg) from exc
+        if (descriptor_database.st_dev, descriptor_database.st_ino) != (
+            live_database.st_dev,
+            live_database.st_ino,
+        ):
+            msg = "AG-UI binding database inode changed during open"
+            raise ValueError(msg)
+        self._validate_database_file(live_database)
 
     def _secure_open(self) -> tuple[int, int]:
         self._prepare_directories()
@@ -262,7 +308,7 @@ class RunBindingStore:
                 msg = "AG-UI binding database could not be opened securely"
                 raise ValueError(msg)
             try:
-                self._verify_database_identity(parent_fd, database_fd)
+                self._verify_live_path(parent_fd, database_fd)
             except Exception:
                 os.close(database_fd)
                 raise
@@ -275,16 +321,18 @@ class RunBindingStore:
         parent_fd, database_fd = self._secure_open()
         connection: sqlite3.Connection | None = None
         try:
+            self._verify_live_path(parent_fd, database_fd)
             connection = sqlite3.connect(
                 self.path,
                 isolation_level=None,
                 timeout=self.timeout_seconds,
             )
-            self._verify_database_identity(parent_fd, database_fd)
+            self._verify_live_path(parent_fd, database_fd)
             connection.execute("PRAGMA foreign_keys=ON")
             connection.execute(f"PRAGMA busy_timeout={int(self.timeout_seconds * 1000)}")
             connection.executescript(_SCHEMA)
             connection.execute("BEGIN IMMEDIATE")
+            transaction_active = True
             try:
                 thread_owner = connection.execute(
                     "SELECT actor_id FROM thread_binding WHERE thread_id = ?",
@@ -311,11 +359,14 @@ class RunBindingStore:
                     "INSERT INTO run_binding (run_id, thread_id, actor_id) VALUES (?, ?, ?)",
                     (run_id, thread_id, actor_id),
                 )
+                self._verify_live_path(parent_fd, database_fd)
                 connection.execute("COMMIT")
+                transaction_active = False
+                self._verify_live_path(parent_fd, database_fd)
             except Exception:
-                connection.execute("ROLLBACK")
+                if transaction_active:
+                    connection.execute("ROLLBACK")
                 raise
-            self._verify_database_identity(parent_fd, database_fd)
         except sqlite3.IntegrityError as exc:
             raise RunBindingDeniedError from exc
         finally:

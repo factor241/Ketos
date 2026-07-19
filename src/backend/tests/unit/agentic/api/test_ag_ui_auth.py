@@ -664,6 +664,165 @@ async def test_binding_store_rejects_database_inode_substitution_during_sqlite_o
         )
 
 
+@pytest.mark.parametrize("replacement_mode", [0o777, 0o700])
+def test_whole_parent_substitution_during_sqlite_open_fails_before_graph_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+    replacement_mode: int,
+) -> None:
+    parent = tmp_path / "bindings"
+    path = parent / "run-bindings.sqlite3"
+    store = run_binding.RunBindingStore(path)
+    asyncio.run(
+        store.claim(
+            thread_id="thread-existing",
+            run_id="run-existing",
+            actor_id=str(ACTOR_A),
+        )
+    )
+    original_parent = tmp_path / "bindings-original"
+    real_connect = run_binding.sqlite3.connect
+    swapped = False
+
+    def substituting_connect(*args, **kwargs):
+        nonlocal swapped
+        if not swapped:
+            swapped = True
+            parent.rename(original_parent)
+            parent.mkdir(mode=0o700)
+            parent.chmod(replacement_mode)
+            replacement_path = parent / path.name
+            with real_connect(replacement_path) as replacement:
+                replacement.execute("CREATE TABLE decoy (value TEXT NOT NULL)")
+            replacement_path.chmod(0o600)
+        return real_connect(*args, **kwargs)
+
+    monkeypatch.setattr(run_binding.sqlite3, "connect", substituting_connect)
+    service = _AuthServiceStub(users_by_token={"token-a": SimpleNamespace(id=ACTOR_A, is_active=True)})
+    app, agent = _registered_app(monkeypatch, service=service, store=store)
+
+    with pytest.raises(ValueError, match=r"private mode 0700|parent inode changed"):
+        TestClient(app).post(
+            "/ag-ui",
+            headers={"Authorization": "Bearer token-a"},
+            json=_run_input(thread_id="thread-substituted-parent", run_id="run-substituted-parent"),
+        )
+
+    assert agent.run_inputs == []
+    with real_connect(path) as replacement:
+        tables = {
+            row[0] for row in replacement.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()
+        }
+    assert tables == {"decoy"}
+
+
+@pytest.mark.asyncio
+async def test_whole_parent_substitution_before_commit_rolls_back_claim(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    parent = tmp_path / "bindings"
+    path = parent / "run-bindings.sqlite3"
+    store = run_binding.RunBindingStore(path)
+    await store.claim(
+        thread_id="thread-existing",
+        run_id="run-existing",
+        actor_id=str(ACTOR_A),
+    )
+    original_parent = tmp_path / "bindings-original"
+    real_connect = run_binding.sqlite3.connect
+    swapped = False
+
+    def substitute_parent() -> None:
+        nonlocal swapped
+        if swapped:
+            return
+        swapped = True
+        parent.rename(original_parent)
+        parent.mkdir(mode=0o700)
+        replacement_path = parent / path.name
+        with real_connect(replacement_path) as replacement:
+            replacement.execute("CREATE TABLE decoy (value TEXT NOT NULL)")
+        replacement_path.chmod(0o600)
+
+    class SubstitutingConnection:
+        def __init__(self, connection) -> None:
+            self.connection = connection
+
+        def execute(self, statement, *args, **kwargs):
+            result = self.connection.execute(statement, *args, **kwargs)
+            if statement.startswith("INSERT INTO run_binding"):
+                substitute_parent()
+            return result
+
+        def __getattr__(self, name):
+            return getattr(self.connection, name)
+
+    def substituting_connect(*args, **kwargs):
+        return SubstitutingConnection(real_connect(*args, **kwargs))
+
+    monkeypatch.setattr(run_binding.sqlite3, "connect", substituting_connect)
+
+    with pytest.raises(ValueError, match="parent inode changed"):
+        await store.claim(
+            thread_id="thread-before-commit",
+            run_id="run-before-commit",
+            actor_id=str(ACTOR_A),
+        )
+
+    with real_connect(original_parent / path.name) as original:
+        assert (
+            original.execute(
+                "SELECT 1 FROM thread_binding WHERE thread_id = ?",
+                ("thread-before-commit",),
+            ).fetchone()
+            is None
+        )
+        assert (
+            original.execute(
+                "SELECT 1 FROM run_binding WHERE run_id = ?",
+                ("run-before-commit",),
+            ).fetchone()
+            is None
+        )
+
+
+@pytest.mark.asyncio
+async def test_binding_store_rejects_group_or_world_writable_non_sticky_ancestor(tmp_path) -> None:
+    unsafe_ancestor = tmp_path / "unsafe-ancestor"
+    unsafe_ancestor.mkdir(mode=0o700)
+    unsafe_ancestor.chmod(0o777)
+    secure_root = unsafe_ancestor / "controlled"
+    path = secure_root / "run-bindings.sqlite3"
+
+    with pytest.raises(ValueError, match="writable non-sticky"):
+        await run_binding.RunBindingStore(path, secure_root=secure_root).claim(
+            thread_id="thread-unsafe-ancestor",
+            run_id="run-unsafe-ancestor",
+            actor_id=str(ACTOR_A),
+        )
+
+    assert not secure_root.exists()
+
+
+@pytest.mark.asyncio
+async def test_binding_store_allows_sticky_ancestor_with_private_owned_controlled_root(tmp_path) -> None:
+    sticky_ancestor = tmp_path / "sticky-ancestor"
+    sticky_ancestor.mkdir(mode=0o700)
+    sticky_ancestor.chmod(0o1777)
+    secure_root = sticky_ancestor / "controlled"
+    path = secure_root / "run-bindings.sqlite3"
+
+    await run_binding.RunBindingStore(path, secure_root=secure_root).claim(
+        thread_id="thread-sticky-ancestor",
+        run_id="run-sticky-ancestor",
+        actor_id=str(ACTOR_A),
+    )
+
+    assert stat.S_IMODE(secure_root.stat().st_mode) == 0o700
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+
 @pytest.mark.parametrize(("thread_id", "run_id"), [("", "run"), ("thread", ""), ("t" * 257, "run")])
 @pytest.mark.asyncio
 async def test_hook_fails_closed_on_invalid_resource_identifiers(tmp_path, thread_id: str, run_id: str) -> None:

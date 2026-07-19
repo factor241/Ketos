@@ -50,6 +50,13 @@ fields, unapproved owners/repositories/paths, floating refs, unsafe paths,
 duplicate changed files, metadata mismatch, and any artifact, source, or
 license hash mismatch.
 
+For an AG-UI wheel, a matching self-declared artifact hash is not sufficient.
+The probe derives the complete `ag_ui_langgraph/` file-and-SHA inventory from
+the Git-bound source archive, requires the wheel package inventory to match it
+exactly, and permits only the exact build metadata members `METADATA`, `WHEEL`,
+`licenses/LICENSE`, and `RECORD`. Any additional member, including a member
+added together with a recomputed sidecar hash, fails closed.
+
 The source input must be a Git archive whose embedded commit equals
 `fork_commit_sha`. The approved local repository is also mandatory: its
 canonical `origin`, commit objects, base ancestry, commit-derived changed-file
@@ -92,6 +99,15 @@ uv run --isolated --no-project --with '<exact fork artifact requirement>' \
 `--source-archive-path` may be omitted only when `artifact_kind` is `tgz` and
 the artifact itself is the source archive. `--fork-repository-path` is required
 whenever fork provenance is supplied.
+
+The checked-in hermetic AG-UI rebuild entry point is
+`scripts/mvp/rebuild_ag_ui_artifact.py`. It creates a fresh temporary Git
+checkout of the fixed remote and SHA, rejects a non-pristine checkout, ignores
+caller checkout/tool paths and proxy/credential/Python environments, downloads
+a platform-specific uv `0.11.21` archive with a manifest-pinned SHA-256,
+installs managed Python `3.13.14`, fixes `SOURCE_DATE_EPOCH=1765974360`, bounds
+downloads, archive extraction, subprocess output and time, and accepts output
+only when its SHA-256 is the admitted wheel hash.
 
 ## Activated evidence
 

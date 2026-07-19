@@ -15,9 +15,27 @@
       "license_spdx": "MIT",
       "license_sha256": "06dcddbb6908a0c6dd4a9e8ec822eea41d5a460a53089fecccc8a68049e99241",
       "changed_files": {"exact_list": "ag-ui-langgraph.provenance.json", "derived_from": "git diff --name-only 3a7433ef055aab96ee7c9ece97417d721b21dc76 85b94807e464c9b38f591938a41559923a712dbb"},
-      "toolchain": {"uv": "0.11.21", "python": "3.13.14", "source_date_epoch": 1765974360},
-      "rebuild": "test \"$(uv --version | cut -d ' ' -f 2)\" = \"0.11.21\" && git checkout 85b94807e464c9b38f591938a41559923a712dbb && SOURCE_DATE_EPOCH=1765974360 uv build --python 3.13.14 --wheel integrations/langgraph/python",
-      "test": "test \"$(uv --version | cut -d ' ' -f 2)\" = \"0.11.21\" && git checkout 85b94807e464c9b38f591938a41559923a712dbb && uv run --python 3.13.14 --project integrations/langgraph/python pytest -q integrations/langgraph/python/tests",
+      "toolchain": {
+        "uv": {
+          "version": "0.11.21",
+          "distributions": [
+            {"system": "darwin", "architecture": "arm64", "url": "https://github.com/astral-sh/uv/releases/download/0.11.21/uv-aarch64-apple-darwin.tar.gz", "sha256": "1f921d491ba5ffeea774eb04d6681ecee379101341cbb1500394993b541bf3f4"},
+            {"system": "darwin", "architecture": "x64", "url": "https://github.com/astral-sh/uv/releases/download/0.11.21/uv-x86_64-apple-darwin.tar.gz", "sha256": "f3c8e5708a84b920c18b691214d54d2b0da6b984789caae95d47c95120cb7765"},
+            {"system": "linux", "architecture": "arm64", "url": "https://github.com/astral-sh/uv/releases/download/0.11.21/uv-aarch64-unknown-linux-gnu.tar.gz", "sha256": "88e800834007cc5efd4675f166eb2a51e7e3ad19876d85fa8805a6fb5c922397"},
+            {"system": "linux", "architecture": "x64", "url": "https://github.com/astral-sh/uv/releases/download/0.11.21/uv-x86_64-unknown-linux-gnu.tar.gz", "sha256": "8c88519b0ef0af9801fcdee419bbb12116bd9e6b18e162ae093c932d8b264050"}
+          ]
+        },
+        "python": "3.13.14",
+        "source_date_epoch": 1765974360
+      },
+      "wheel_inventory": {
+        "policy": "exact-git-bound-source-package-plus-wheel-build-metadata",
+        "source_package": "integrations/langgraph/python/ag_ui_langgraph/",
+        "build_metadata": ["METADATA", "WHEEL", "licenses/LICENSE", "RECORD"],
+        "enforced_by": "scripts/mvp/probe_ag_ui_adapter.py"
+      },
+      "rebuild": "FORK_SHA=85b94807e464c9b38f591938a41559923a712dbb uv run --no-sync python scripts/mvp/rebuild_ag_ui_artifact.py --output-dir /tmp/ketos-stage01-agui-rebuild --json",
+      "test": "FORK_SHA=85b94807e464c9b38f591938a41559923a712dbb uv run --no-sync python scripts/mvp/rebuild_ag_ui_artifact.py --output-dir /tmp/ketos-stage01-agui-rebuild-tested --run-tests --json",
       "audit": "uv run --isolated --no-project --with './vendor/stage01/ag_ui_langgraph-0.0.43+ketos.1-py3-none-any.whl[fastapi]' python scripts/mvp/probe_ag_ui_adapter.py --artifact-path vendor/stage01/ag_ui_langgraph-0.0.43+ketos.1-py3-none-any.whl --fork-provenance-path vendor/stage01/ag-ui-langgraph.provenance.json --source-archive-path vendor/stage01/ag-ui-langgraph-0.0.43+ketos.1-source.tar --fork-repository-path /Volumes/Projects/ketos-stage01-agui-fork --json",
       "install": "UV_PROJECT_ENVIRONMENT=/tmp/ketos-stage01-uv-proof uv sync --frozen --offline --package ketos-base --no-install-workspace"
     },

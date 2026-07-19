@@ -1,6 +1,7 @@
 const SIDEBAR_ROUTE_ROOTS = new Set([
   "flows",
   "all",
+  "project",
   "components",
   "mcp",
   "assets",

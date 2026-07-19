@@ -6,9 +6,10 @@ All business logic is delegated to service modules.
 
 import uuid
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from kfx.base.models.unified_models import (
     get_all_variables_for_provider,
@@ -17,8 +18,10 @@ from kfx.base.models.unified_models import (
     get_unified_models_detailed,
 )
 from kfx.log.logger import logger
+from kfx.services.settings.feature_flags import FEATURE_FLAGS
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ketos.agentic.api.ag_ui_router import create_ag_ui_router
 from ketos.agentic.api.schemas import AssistantRequest
 from ketos.agentic.services.assistant_service import (
     execute_flow_with_validation,
@@ -37,7 +40,52 @@ from ketos.agentic.services.provider_service import (
 )
 from ketos.api.utils.core import CurrentActiveUser, DbSession
 
+if TYPE_CHECKING:
+    from ketos.agentic.services.ag_ui.stage01_runtime import Stage01AgUiRuntime
+
 router = APIRouter(prefix="/agentic", tags=["Agentic"])
+
+_STAGE01_REGISTERED_STATE_KEY = "_ketos_stage01_ag_ui_registered"
+_STAGE01_ROUTES_STATE_KEY = "_ketos_stage01_ag_ui_routes"
+
+
+def register_stage01_ag_ui(app: FastAPI, runtime: "Stage01AgUiRuntime") -> bool:
+    """Mount the sole Stage 01 AG-UI route once, only when both flags are on."""
+    if not (FEATURE_FLAGS.mvp_workspace is True and FEATURE_FLAGS.mvp_chat is True):
+        return False
+    if getattr(app.state, _STAGE01_REGISTERED_STATE_KEY, False):
+        return False
+    if runtime.agent is None:
+        message = "Stage 01 AG-UI runtime must be open before registration"
+        raise RuntimeError(message)
+
+    from ketos.agentic.services.ag_ui.auth import get_current_ag_ui_user
+
+    stage01_router = create_ag_ui_router(
+        runtime.agent,
+        before_dispatch=runtime.before_dispatch,
+        auth_dependency=get_current_ag_ui_user,
+    )
+    existing_route_ids = {id(route) for route in app.router.routes}
+    app.include_router(stage01_router, prefix="/api/v1/agentic", tags=["Agentic"])
+    added_routes = tuple(route for route in app.router.routes if id(route) not in existing_route_ids)
+    if not added_routes:
+        message = "Stage 01 AG-UI registrar added no routes"
+        raise RuntimeError(message)
+    setattr(app.state, _STAGE01_ROUTES_STATE_KEY, added_routes)
+    setattr(app.state, _STAGE01_REGISTERED_STATE_KEY, True)
+    return True
+
+
+def unregister_stage01_ag_ui(app: FastAPI) -> None:
+    """Remove only routes added by the Stage 01 lifespan registrar."""
+    added_routes = tuple(getattr(app.state, _STAGE01_ROUTES_STATE_KEY, ()))
+    if added_routes:
+        app.router.routes[:] = [
+            route for route in app.router.routes if all(route is not added_route for added_route in added_routes)
+        ]
+    setattr(app.state, _STAGE01_ROUTES_STATE_KEY, ())
+    setattr(app.state, _STAGE01_REGISTERED_STATE_KEY, False)
 
 
 @dataclass(frozen=True)

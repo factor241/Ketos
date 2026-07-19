@@ -1,4 +1,5 @@
-import { readFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import {
 	createServer,
 	type IncomingMessage,
@@ -6,15 +7,26 @@ import {
 	type Server,
 } from "node:http";
 import { type AddressInfo, connect } from "node:net";
-import { inspect } from "node:util";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { inspect, promisify } from "node:util";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
 
 import { AGENT_ID, createKetosCopilotServer } from "../server.js";
 
 const servers = new Set<Server>();
+const execFileAsync = promisify(execFile);
+const initialConsoleError = console.error;
+const initialConsoleInfo = console.info;
+const instrumentedConsoleErrors: unknown[][] = [];
+const instrumentedConsoleInfos: unknown[][] = [];
+console.error = (...fields: unknown[]) =>
+	instrumentedConsoleErrors.push(fields);
+console.info = (...fields: unknown[]) => instrumentedConsoleInfos.push(fields);
 
-beforeEach(() => {
-	vi.spyOn(console, "error").mockImplementation(() => undefined);
+afterAll(() => {
+	console.error = initialConsoleError;
+	console.info = initialConsoleInfo;
 });
 
 afterEach(async () => {
@@ -28,7 +40,6 @@ afterEach(async () => {
 		),
 	);
 	servers.clear();
-	vi.restoreAllMocks();
 });
 
 async function listen(server: Server): Promise<string> {
@@ -114,7 +125,11 @@ async function rawSocketRuntimeRequest(
 		socket.on("data", (chunk: Buffer) => {
 			chunks.push(chunk);
 			const received = Buffer.concat(chunks).toString("utf8");
-			if (received.includes("\r\n\r\n")) {
+			const headerEnd = received.indexOf("\r\n\r\n");
+			if (
+				headerEnd !== -1 &&
+				received.slice(headerEnd + 4).endsWith("\r\n0\r\n\r\n")
+			) {
 				resolve(received);
 				socket.destroy();
 			}
@@ -357,7 +372,13 @@ describe("Ketos Copilot Runtime transport", () => {
 	it("fails closed when a raw request contains duplicate Authorization fields", async () => {
 		let capturedAuthorization: string | undefined;
 		let capturedCookie: string | undefined;
+		let upstreamCalls = 0;
+		let resolveUpstream: (() => void) | undefined;
+		const upstreamObserved = new Promise<void>((resolve) => {
+			resolveUpstream = resolve;
+		});
 		const upstream = createServer((request, response) => {
+			upstreamCalls += 1;
 			capturedAuthorization = request.headers.authorization;
 			capturedCookie = request.headers.cookie;
 			response.writeHead(200, { "content-type": "text/event-stream" });
@@ -369,19 +390,24 @@ describe("Ketos Copilot Runtime transport", () => {
 					"",
 				].join("\n"),
 			);
+			resolveUpstream?.();
 		});
 		const upstreamOrigin = await listen(upstream);
 		const runtimeOrigin = await listen(
 			createTestRuntime(`${upstreamOrigin}/api/v1/agentic/ag-ui`),
 		);
 
-		const response = await rawSocketRuntimeRequest(runtimeOrigin, [
-			"Authorization: Bearer duplicate-first-secret",
-			"Authorization: Bearer duplicate-second-secret",
-			"Cookie: access_token_lf=must-not-fallback",
+		const [response] = await Promise.all([
+			rawSocketRuntimeRequest(runtimeOrigin, [
+				"Authorization: Bearer duplicate-first-secret",
+				"Authorization: Bearer duplicate-second-secret",
+				"Cookie: access_token_lf=must-not-fallback",
+			]),
+			upstreamObserved,
 		]);
 
 		expect(response.status).toBe(200);
+		expect(upstreamCalls).toBe(1);
 		expect(capturedAuthorization).toBeUndefined();
 		expect(capturedCookie).toBeUndefined();
 	});
@@ -533,7 +559,7 @@ describe("Ketos Copilot Runtime transport", () => {
 
 	it("redacts credentials and query secrets from access and upstream error logs", async () => {
 		const accessLogs: unknown[][] = [];
-		const consoleError = vi.mocked(console.error);
+		instrumentedConsoleErrors.length = 0;
 		const upstream = createServer((_request, response) => {
 			response.writeHead(401, { "content-type": "application/json" });
 			response.end(
@@ -582,7 +608,7 @@ describe("Ketos Copilot Runtime transport", () => {
 
 		const renderedLogs = [
 			...accessLogs.map((entry) => inspect(entry)),
-			...consoleError.mock.calls.map((entry) => inspect(entry)),
+			...instrumentedConsoleErrors.map((entry) => inspect(entry)),
 		].join("\n");
 		for (const secret of [
 			"bearer-log-secret",
@@ -605,7 +631,6 @@ describe("Ketos Copilot Runtime transport", () => {
 
 	it("returns 400 without logging secrets from malformed standard run input", async () => {
 		const runtimeLogs: unknown[][] = [];
-		const consoleError = vi.mocked(console.error);
 		const secret = "malformed-resume-status-secret";
 		const runtimeOrigin = await listen(
 			createKetosCopilotServer({
@@ -637,13 +662,107 @@ describe("Ketos Copilot Runtime transport", () => {
 			},
 		);
 		await response.text();
-		const renderedLogs = [
-			...runtimeLogs.map((entry) => inspect(entry)),
-			...consoleError.mock.calls.map((entry) => inspect(entry)),
-		].join("\n");
+		const renderedLogs = runtimeLogs.map((entry) => inspect(entry)).join("\n");
 
 		expect(response.status).toBe(400);
 		expect(renderedLogs).not.toContain(secret);
+	});
+
+	it("preserves instrumentation installed before server creation for out-of-context logs", async () => {
+		const buildRoot = await mkdtemp(join(process.cwd(), ".runtime-log-child-"));
+		try {
+			await execFileAsync(process.execPath, [
+				resolve("node_modules/typescript/bin/tsc"),
+				"-p",
+				"tsconfig.build.json",
+				"--outDir",
+				buildRoot,
+			]);
+			const moduleUrl = pathToFileURL(join(buildRoot, "server.js")).href;
+			const childScript = `
+				const runtime = await import(${JSON.stringify(moduleUrl)});
+				const instrumented = [];
+				console.error = (...fields) => instrumented.push(fields);
+				runtime.createKetosCopilotServer({
+					logger: { info() {}, error() {} },
+				});
+				console.error("out-of-context-instrumentation-marker");
+				process.stdout.write(JSON.stringify(instrumented));
+			`;
+			const child = await execFileAsync(
+				process.execPath,
+				["--input-type=module", "--eval", childScript],
+				{ cwd: process.cwd() },
+			);
+
+			expect(child.stderr).toBe("");
+			expect(JSON.parse(child.stdout)).toEqual([
+				["out-of-context-instrumentation-marker"],
+			]);
+		} finally {
+			await rm(buildRoot, { recursive: true, force: true });
+		}
+	});
+
+	it("keeps malformed concurrent requests at 400 for console and delegating loggers", async () => {
+		instrumentedConsoleErrors.length = 0;
+		const delegatedLogs: unknown[][] = [];
+		const consoleRuntime = await listen(
+			createKetosCopilotServer({
+				upstreamUrl: "http://127.0.0.1:1/api/v1/agentic/ag-ui",
+				allowedHosts: ["127.0.0.1"],
+				logger: console,
+			}),
+		);
+		const delegatingRuntime = await listen(
+			createKetosCopilotServer({
+				upstreamUrl: "http://127.0.0.1:1/api/v1/agentic/ag-ui",
+				allowedHosts: ["127.0.0.1"],
+				logger: {
+					info: () => undefined,
+					error: (...fields: unknown[]) => {
+						delegatedLogs.push(fields);
+						console.error(...fields);
+					},
+				},
+			}),
+		);
+		const sendMalformed = async (origin: string, secret: string) => {
+			const response = await fetch(
+				`${origin}/api/copilotkit/agent/${AGENT_ID}/run`,
+				{
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify(
+						runInput({
+							resume: [
+								{
+									interruptId: "interrupt-recursive-logger",
+									status: secret,
+								},
+							],
+						}),
+					),
+				},
+			);
+			await response.text();
+			return response.status;
+		};
+
+		const statuses = await Promise.all([
+			sendMalformed(consoleRuntime, "console-logger-secret"),
+			sendMalformed(delegatingRuntime, "delegating-logger-secret"),
+		]);
+
+		expect(statuses).toEqual([400, 400]);
+		const rendered = inspect(delegatedLogs);
+		expect(rendered).toContain("sdk_error_redacted");
+		expect(rendered).not.toContain("console-logger-secret");
+		expect(rendered).not.toContain("delegating-logger-secret");
+		const consoleLogs = inspect(instrumentedConsoleErrors);
+		expect(consoleLogs).toContain("sdk_error_redacted");
+		expect(consoleLogs).not.toContain("console-logger-secret");
+		expect(consoleLogs).not.toContain("delegating-logger-secret");
 	});
 
 	it("isolates sanitized SDK error logs across concurrent requests", async () => {

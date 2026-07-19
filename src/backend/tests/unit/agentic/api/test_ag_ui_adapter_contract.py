@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
+import importlib.metadata
 import importlib.util
 import inspect
 import json
@@ -20,6 +22,7 @@ if TYPE_CHECKING:
     from types import ModuleType
 
 REPO_ROOT = Path(__file__).resolve().parents[6]
+BACKEND_MANIFEST_PATH = REPO_ROOT / "src" / "backend" / "base" / "pyproject.toml"
 PROBE_PATH = REPO_ROOT / "scripts" / "mvp" / "probe_ag_ui_adapter.py"
 ADMISSION_PATH = REPO_ROOT / "docs" / "dev" / "handoff" / "STAGE_01_AG_UI_ADMISSION.md"
 FORK_DECISION_PATH = REPO_ROOT / "docs" / "dev" / "handoff" / "STAGE_01_TEMPORARY_FORK_DECISION.md"
@@ -28,6 +31,18 @@ FORK_COMMIT = "1" * 40
 UPSTREAM_BASE = "2" * 40
 PROVENANCE_MAX_BYTES = 64 * 1024
 GIT_EXECUTABLE = "/usr/bin/git"
+
+
+def test_sqlite_checkpoint_dependency_is_exact_and_import_compatible() -> None:
+    manifest = BACKEND_MANIFEST_PATH.read_text(encoding="utf-8")
+
+    assert '"langgraph-checkpoint-sqlite==3.1.0",' in manifest
+    assert importlib.metadata.version("langgraph-checkpoint-sqlite") == "3.1.0"
+
+    sqlite_module = importlib.import_module("langgraph.checkpoint.sqlite")
+    sqlite_aio_module = importlib.import_module("langgraph.checkpoint.sqlite.aio")
+    assert sqlite_module.SqliteSaver.__module__ == "langgraph.checkpoint.sqlite"
+    assert sqlite_aio_module.AsyncSqliteSaver.__module__ == "langgraph.checkpoint.sqlite.aio"
 
 
 def _load_probe() -> ModuleType:

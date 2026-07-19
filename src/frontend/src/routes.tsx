@@ -22,9 +22,9 @@ import {
 import { AppAuthenticatedPage } from "./pages/AppAuthenticatedPage";
 import { AppInitPage } from "./pages/AppInitPage";
 import { AppWrapperPage } from "./pages/AppWrapperPage";
+import CopilotKitProbePage from "./pages/CopilotKitProbePage";
 import FlowPage from "./pages/FlowPage";
 import LoginPage from "./pages/LoginPage";
-import CopilotKitProbePage from "./pages/CopilotKitProbePage";
 import FilesPage from "./pages/MainPage/pages/filesPage";
 import HomePage from "./pages/MainPage/pages/homePage";
 import KnowledgePage from "./pages/MainPage/pages/knowledgePage";
@@ -46,6 +46,7 @@ import ViewPage from "./pages/ViewPage";
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const LoginAdminPage = lazy(() => import("./pages/AdminPage/LoginPage"));
 const DeleteAccountPage = lazy(() => import("./pages/DeleteAccountPage"));
+const ProjectPage = lazy(() => import("./pages/ProjectPage"));
 
 const PlaygroundPage = lazy(() => import("./pages/Playground"));
 
@@ -93,6 +94,10 @@ const router = createBrowserRouter(
                   <Route
                     index
                     element={<CustomNavigate replace to={"flows"} />}
+                  />
+                  <Route
+                    path="project/:projectId/boards"
+                    element={<ProjectPage />}
                   />
                   {ENABLE_FILE_MANAGEMENT && (
                     <Route path="assets">

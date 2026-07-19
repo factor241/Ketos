@@ -131,9 +131,12 @@ def test_auth_denial_happens_before_agent_clone_or_run() -> None:
 
 def test_assembly_hands_existing_agent_component_graph_to_upstream_agent(monkeypatch) -> None:
     graph = object()
+    build_calls = 0
 
     class ComponentDouble:
         def create_agent_runnable(self):
+            nonlocal build_calls
+            build_calls += 1
             return graph
 
     captured: dict[str, object] = {}
@@ -147,8 +150,41 @@ def test_assembly_hands_existing_agent_component_graph_to_upstream_agent(monkeyp
     assembled = assembly.assemble_langgraph_agent(ComponentDouble())
 
     assert assembled is not None
+    assert build_calls == 1
     assert captured == {"name": "ketos-mvp-probe", "graph": graph}
     assert AgentComponent.__name__ == "AgentComponent"
+
+
+def test_assembly_uses_injected_graph_builder_once_and_forwards_config(monkeypatch) -> None:
+    graph = object()
+    component = object()
+    config = {"configurable": {"thread_id": "thread-a02"}}
+    builder_calls: list[object] = []
+    captured: dict[str, object] = {}
+
+    def graph_builder(component_arg):
+        builder_calls.append(component_arg)
+        return graph
+
+    def build_agent(**kwargs):
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(assembly, "LangGraphAgent", build_agent)
+
+    assembled = assembly.assemble_langgraph_agent(
+        component,
+        graph_builder=graph_builder,
+        config=config,
+    )
+
+    assert assembled is not None
+    assert builder_calls == [component]
+    assert captured == {
+        "name": "ketos-mvp-probe",
+        "graph": graph,
+        "config": config,
+    }
 
 
 def test_router_exposes_one_prefix_free_endpoint_without_redirect() -> None:
@@ -193,6 +229,25 @@ def test_router_forwards_a06_pre_dispatch_hook_to_upstream(monkeypatch) -> None:
     create_ag_ui_router(_TrackingTemplateAgent(), before_dispatch=before_dispatch)
 
     assert captured["before_dispatch"] is before_dispatch
+
+
+def test_injected_auth_denial_happens_before_agent_clone_or_run() -> None:
+    agent = _TrackingTemplateAgent()
+
+    async def deny_request() -> None:
+        raise HTTPException(status_code=403, detail="injected deny")
+
+    app = FastAPI()
+    app.include_router(
+        create_ag_ui_router(agent, auth_dependency=deny_request),
+        prefix="/api/v1/agentic",
+    )
+
+    response = TestClient(app).post("/api/v1/agentic/ag-ui", json=_run_input())
+
+    assert response.status_code == 403
+    assert agent.clone_calls == 0
+    assert agent.run_calls == 0
 
 
 def test_real_endpoint_streams_standard_text_lifecycle() -> None:

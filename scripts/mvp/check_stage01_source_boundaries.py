@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 
 BASELINE_SHA = "5fe1cb74fe8b2db8b48f66859cfbf72e56cf3782"
@@ -28,6 +29,9 @@ FORBIDDEN_PRODUCTION_TOKENS = (
     "_thread_lock_registry",
     "Electron",
     "OpenSwarm",
+    "dispatchEvent",
+    "TextDecoder",
+    "EventSource",
 )
 FORBIDDEN_E2E_TOKENS = ("Command(resume",)
 MANUAL_E2E_PATTERNS = (
@@ -121,6 +125,7 @@ ALLOWED_STAGE01_FILES = {
     "src/frontend/src/components/core/assistantPanel/copilotkit-probe.tsx",
     "src/frontend/src/controllers/API/queries/config/use-get-config.ts",
     "src/frontend/src/pages/AppInitPage/index.tsx",
+    "src/frontend/src/pages/AppInitPage/__tests__/app-init-page-config-ready.test.tsx",
     "src/frontend/src/pages/CopilotKitProbePage/__tests__/CopilotKitProbePage.test.tsx",
     "src/frontend/src/pages/CopilotKitProbePage/index.tsx",
     "src/frontend/src/routes.tsx",
@@ -146,6 +151,13 @@ ALLOWED_STAGE01_FILES = {
 
 class BoundaryError(RuntimeError):
     """One Stage 01 source-boundary contract failed."""
+
+
+def _display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
 
 
 def _git(*args: str) -> subprocess.CompletedProcess[str]:
@@ -198,6 +210,46 @@ def _parse_python(path: Path) -> ast.Module:
         raise BoundaryError(f"cannot parse Stage 01 source: {path}") from exc
 
 
+def _constant_string(node: ast.AST, constants: dict[str, str] | None = None) -> str | None:
+    constants = constants or {}
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.Name):
+        return constants.get(node.id)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left = _constant_string(node.left, constants)
+        right = _constant_string(node.right, constants)
+        return None if left is None or right is None else left + right
+    if isinstance(node, ast.JoinedStr):
+        pieces: list[str] = []
+        for value in node.values:
+            if not isinstance(value, ast.Constant) or not isinstance(value.value, str):
+                return None
+            pieces.append(value.value)
+        return "".join(pieces)
+    return None
+
+
+def _string_constants(tree: ast.Module) -> dict[str, str]:
+    constants: dict[str, str] = {}
+    assignments = [node for node in ast.walk(tree) if isinstance(node, (ast.Assign, ast.AnnAssign))]
+    for _ in range(len(assignments) + 1):
+        changed = False
+        for node in assignments:
+            value = node.value
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            folded = _constant_string(value, constants)
+            if folded is None:
+                continue
+            for target in targets:
+                if isinstance(target, ast.Name) and constants.get(target.id) != folded:
+                    constants[target.id] = folded
+                    changed = True
+        if not changed:
+            break
+    return constants
+
+
 def _call_count(path: Path, function_name: str) -> int:
     tree = _parse_python(path)
     aliases = {function_name}
@@ -215,6 +267,55 @@ def _call_count(path: Path, function_name: str) -> int:
 
 def _unexpected_callers(paths: list[Path], function_name: str, allowed_path: Path) -> list[Path]:
     return [path for path in paths if path != allowed_path and _call_count(path, function_name) > 0]
+
+
+def _registrar_reference_violations(
+    paths: list[Path],
+    function_name: str,
+    provider_path: Path | None,
+    owner_path: Path,
+) -> list[str]:
+    violations: list[str] = []
+    owner_direct_calls = 0
+    for path in paths:
+        tree = _parse_python(path)
+        string_constants = _string_constants(tree)
+        imported_aliases = {function_name}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                for alias in node.names:
+                    if alias.name == function_name:
+                        imported_aliases.add(alias.asname or alias.name)
+                        if path not in {owner_path, provider_path}:
+                            violations.append(f"{_display_path(path)}: imported registrar {function_name}")
+
+        allowed_nodes: set[ast.AST] = set()
+        if path == owner_path:
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call) and (
+                    (isinstance(node.func, ast.Name) and node.func.id in imported_aliases)
+                    or (isinstance(node.func, ast.Attribute) and node.func.attr == function_name)
+                ):
+                    allowed_nodes.add(node.func)
+                    owner_direct_calls += 1
+
+        for node in ast.walk(tree):
+            is_name_reference = isinstance(node, ast.Name) and node.id in imported_aliases
+            is_attr_reference = isinstance(node, ast.Attribute) and node.attr == function_name
+            is_string_reference = _constant_string(node, string_constants) == function_name
+            provider_export = path == provider_path and is_string_reference
+            if (
+                (is_name_reference or is_attr_reference or is_string_reference)
+                and node not in allowed_nodes
+                and not provider_export
+            ):
+                violations.append(f"{_display_path(path)}: relayed registrar reference {function_name}")
+
+    if owner_direct_calls != 1:
+        violations.append(
+            f"{_display_path(owner_path)} must directly call {function_name} exactly once; found {owner_direct_calls}"
+        )
+    return violations
 
 
 def _access_chain(node: ast.AST) -> tuple[str, ...] | None:
@@ -239,6 +340,32 @@ def _access_chain(node: ast.AST) -> tuple[str, ...] | None:
     return None
 
 
+def _resolved_chain(
+    node: ast.AST,
+    aliases: dict[str, tuple[str, ...]],
+    constants: dict[str, str],
+) -> tuple[str, ...] | None:
+    if isinstance(node, ast.Name):
+        return aliases.get(node.id, (node.id,))
+    if isinstance(node, ast.Attribute):
+        parent = _resolved_chain(node.value, aliases, constants)
+        return None if parent is None else (*parent, node.attr)
+    if isinstance(node, ast.Subscript):
+        key = _constant_string(node.slice, constants)
+        parent = _resolved_chain(node.value, aliases, constants)
+        return None if parent is None or key is None else (*parent, key)
+    if isinstance(node, ast.Call):
+        function = _resolved_chain(node.func, aliases, constants)
+        if function and function[-1] == "getattr" and len(node.args) >= 2:
+            key = _constant_string(node.args[1], constants)
+            parent = _resolved_chain(node.args[0], aliases, constants)
+            return None if parent is None or key is None else (*parent, key)
+        if function and function[-1] in {"__import__", "import_module"} and node.args:
+            module = _constant_string(node.args[0], constants)
+            return None if module is None else tuple(module.split("."))
+    return None
+
+
 def _expanded_access_chain(node: ast.AST, aliases: dict[str, tuple[str, ...]]) -> tuple[str, ...] | None:
     chain = _access_chain(node)
     if chain and chain[0] in aliases:
@@ -254,12 +381,20 @@ def _dataflow_aliases(tree: ast.Module) -> dict[str, tuple[str, ...]]:
         elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.value is not None:
             assignments.append((node.target.id, node.value))
 
-    aliases: dict[str, tuple[str, ...]] = {}
+    aliases: dict[str, tuple[str, ...]] = {"getattr": ("getattr",), "__import__": ("__import__",)}
+    constants = _string_constants(tree)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            for alias in node.names:
+                aliases[alias.asname or alias.name] = (*node.module.split("."), alias.name)
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                aliases[alias.asname or alias.name.split(".")[0]] = tuple(alias.name.split("."))
     # A bounded fixed point resolves chained aliases without risking cycles.
     for _ in range(len(assignments) + 1):
         changed = False
         for name, value in assignments:
-            chain = _expanded_access_chain(value, aliases)
+            chain = _resolved_chain(value, aliases, constants)
             if chain is not None and aliases.get(name) != chain:
                 aliases[name] = chain
                 changed = True
@@ -271,12 +406,15 @@ def _dataflow_aliases(tree: ast.Module) -> dict[str, tuple[str, ...]]:
 def _python_bypass_violations(path: Path) -> list[str]:
     tree = _parse_python(path)
     dataflow_aliases = _dataflow_aliases(tree)
+    constants = _string_constants(tree)
     command_names = {"Command"}
     command_modules: set[str] = set()
     violations: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module == "langgraph.types":
             command_names.update(alias.asname or alias.name for alias in node.names if alias.name == "Command")
+            if any(alias.name == "Command" for alias in node.names):
+                violations.append("production langgraph Command reference")
         elif isinstance(node, ast.Import):
             command_modules.update(
                 alias.asname or alias.name for alias in node.names if alias.name == "langgraph.types"
@@ -298,7 +436,7 @@ def _python_bypass_violations(path: Path) -> list[str]:
                 command_names.update(target.id for target in targets if isinstance(target, ast.Name))
 
     for node in ast.walk(tree):
-        chain = _expanded_access_chain(node, dataflow_aliases)
+        chain = _resolved_chain(node, dataflow_aliases, constants)
         if (
             chain
             and len(chain) >= 3
@@ -310,7 +448,7 @@ def _python_bypass_violations(path: Path) -> list[str]:
         ):
             violations.append("deprecated forwardedProps command resume access")
         if isinstance(node, ast.Call) and any(keyword.arg == "resume" for keyword in node.keywords):
-            called = _expanded_access_chain(node.func, dataflow_aliases)
+            called = _resolved_chain(node.func, dataflow_aliases, constants)
             is_command_module_call = (
                 called is not None and len(called) > 1 and called[0] in command_modules and called[-1] == "Command"
             )
@@ -324,6 +462,12 @@ def _python_bypass_violations(path: Path) -> list[str]:
             )
             if (called and (called[-1] in command_names or is_command_module_call)) or dynamic_command:
                 violations.append("local Command(resume=...) construction")
+        if isinstance(node, ast.Call):
+            called = _resolved_chain(node.func, dataflow_aliases, constants)
+            if called and called[-1] in {"__import__", "import_module"} and node.args:
+                module = _constant_string(node.args[0], constants)
+                if module == "langgraph.types":
+                    violations.append("dynamic langgraph.types import")
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             imported = " ".join(alias.name for alias in node.names)
             if "CustomEvent" in imported or "EventEncoder" in imported:
@@ -337,21 +481,34 @@ def _python_bypass_violations(path: Path) -> list[str]:
 
 def _require_exact_registrar_chain() -> None:
     expected = (
-        (STAGE01_BACKEND / "adapter.py", "add_langgraph_fastapi_endpoint"),
-        (BACKEND_ROOT / "agentic/api/ag_ui_router.py", "register_langgraph_endpoint"),
-        (BACKEND_ROOT / "agentic/api/router.py", "create_ag_ui_router"),
-        (STAGE01_BACKEND / "stage01_runtime.py", "register_stage01_ag_ui"),
-        (BACKEND_ROOT / "main.py", "compose_stage01_lifespan"),
+        (None, STAGE01_BACKEND / "adapter.py", "add_langgraph_fastapi_endpoint"),
+        (
+            STAGE01_BACKEND / "adapter.py",
+            BACKEND_ROOT / "agentic/api/ag_ui_router.py",
+            "register_langgraph_endpoint",
+        ),
+        (
+            BACKEND_ROOT / "agentic/api/ag_ui_router.py",
+            BACKEND_ROOT / "agentic/api/router.py",
+            "create_ag_ui_router",
+        ),
+        (
+            BACKEND_ROOT / "agentic/api/router.py",
+            STAGE01_BACKEND / "stage01_runtime.py",
+            "register_stage01_ag_ui",
+        ),
+        (
+            STAGE01_BACKEND / "stage01_runtime.py",
+            BACKEND_ROOT / "main.py",
+            "compose_stage01_lifespan",
+        ),
     )
     all_python = [path for path in BACKEND_ROOT.rglob("*.py") if "tests" not in path.parts]
-    for path, function_name in expected:
-        count = _call_count(path, function_name)
-        if count != 1:
-            raise BoundaryError(f"{path.relative_to(ROOT)} must call {function_name} exactly once; found {count}")
-        unexpected = _unexpected_callers(all_python, function_name, path)
-        if unexpected:
-            rendered = ", ".join(str(item.relative_to(ROOT)) for item in sorted(unexpected))
-            raise BoundaryError(f"only {path.relative_to(ROOT)} may call {function_name}; found {rendered}")
+    violations: list[str] = []
+    for provider_path, owner_path, function_name in expected:
+        violations.extend(_registrar_reference_violations(all_python, function_name, provider_path, owner_path))
+    if violations:
+        raise BoundaryError("registrar chain violations:\n" + "\n".join(sorted(set(violations))))
 
 
 def _production_sources(changed_paths: set[str]) -> list[Path]:
@@ -366,58 +523,134 @@ def _production_sources(changed_paths: set[str]) -> list[Path]:
     return sources
 
 
-def _route_boundary_violations(paths: list[Path]) -> list[str]:
+ROUTE_MUTATORS = {
+    "include_router",
+    "add_api_route",
+    "add_route",
+    "mount",
+    "api_route",
+    "get",
+    "post",
+    "put",
+    "patch",
+    "delete",
+}
+
+
+def _route_fingerprints(tree: ast.Module) -> Counter[str]:
+    aliases = _dataflow_aliases(tree)
+    constants = _string_constants(tree)
+    decorators = {
+        decorator
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+        for decorator in node.decorator_list
+    }
+    fingerprints: Counter[str] = Counter()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        called = _resolved_chain(node.func, aliases, constants)
+        if not called or called[-1] not in ROUTE_MUTATORS:
+            continue
+        if called[-1] in {"get", "post", "put", "patch", "delete"} and node not in decorators:
+            continue
+        fingerprints[ast.dump(node, include_attributes=False)] += 1
+    return fingerprints
+
+
+def _baseline_python(relative: str) -> str:
+    result = _git("show", f"{INTEGRATION_START_SHA}:{relative}")
+    return result.stdout if result.returncode == 0 else ""
+
+
+def _allowed_stage01_route_fingerprints() -> dict[str, Counter[str]]:
+    snippets = {
+        "src/backend/base/ketos/agentic/api/ag_ui_router.py": "router.include_router(private_app.router)",
+        "src/backend/base/ketos/agentic/api/router.py": (
+            'app.include_router(stage01_router, prefix="/api/v1/agentic", tags=["Agentic"])'
+        ),
+    }
+    return {relative: _route_fingerprints(ast.parse(source)) for relative, source in snippets.items()}
+
+
+def _route_boundary_violations(paths: list[Path], baseline_sources: dict[str, str] | None = None) -> list[str]:
     route_sources = [path for path in paths if path.suffix == ".py" and path.is_relative_to(BACKEND_ROOT)]
-    include_counts: dict[Path, int] = {}
-    ag_ui_literals: list[Path] = []
+    allowed = _allowed_stage01_route_fingerprints()
+    ag_ui_paths: list[tuple[str, str]] = []
     violations: list[str] = []
     for path in route_sources:
-        source = path.read_text(encoding="utf-8")
-        if re.search(r"\b(?:add_api_route|add_route|mount)\b", source) and "ag-ui" in source:
-            violations.append(f"{path.relative_to(ROOT)}: alternate route mutation API")
+        relative = str(path.relative_to(ROOT))
         tree = _parse_python(path)
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Constant) and node.value == "/ag-ui":
-                ag_ui_literals.append(path)
-            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
-                continue
-            owner = _access_chain(node.func.value)
-            is_route_owner = owner is not None and owner[-1] in {"app", "router", "private_app"}
-            if node.func.attr == "include_router" and (
-                path.is_relative_to(STAGE01_BACKEND) or path.is_relative_to(BACKEND_ROOT / "agentic/api")
-            ):
-                include_counts[path] = include_counts.get(path, 0) + 1
-            route_literals = [
-                arg.value for arg in node.args if isinstance(arg, ast.Constant) and isinstance(arg.value, str)
-            ]
-            stage01_route_call = any("ag-ui" in value for value in route_literals)
-            if is_route_owner and node.func.attr in {"add_api_route", "api_route"} and stage01_route_call:
-                violations.append(f"{path.relative_to(ROOT)}: alternate route registration {node.func.attr}")
-            if (
-                is_route_owner
-                and path != BACKEND_ROOT / "agentic/api/router.py"
-                and node.func.attr
-                in {
-                    "get",
-                    "post",
-                    "put",
-                    "patch",
-                    "delete",
-                }
-            ):
-                violations.append(f"{path.relative_to(ROOT)}: alternate decorated route {node.func.attr}")
+        current = _route_fingerprints(tree)
+        baseline_source = (
+            baseline_sources.get(relative, "") if baseline_sources is not None else _baseline_python(relative)
+        )
+        baseline = _route_fingerprints(ast.parse(baseline_source)) if baseline_source else Counter()
+        extras = current - baseline - allowed.get(relative, Counter())
+        if extras:
+            violations.append(f"{relative}: unapproved route mutation {list(extras.elements())}")
 
-    expected_includes = {
-        BACKEND_ROOT / "agentic/api/ag_ui_router.py": 1,
-        BACKEND_ROOT / "agentic/api/router.py": 1,
-    }
-    if include_counts != expected_includes:
-        rendered = {str(path.relative_to(ROOT)): count for path, count in include_counts.items()}
-        violations.append(f"include_router ownership mismatch: {rendered}")
-    expected_literal_owner = BACKEND_ROOT / "agentic/api/ag_ui_router.py"
-    if ag_ui_literals != [expected_literal_owner]:
-        rendered = [str(path.relative_to(ROOT)) for path in ag_ui_literals]
-        violations.append(f"AG-UI route literal ownership mismatch: {rendered}")
+        constants = _string_constants(tree)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            for value_node in [*node.args, *(keyword.value for keyword in node.keywords)]:
+                value = _constant_string(value_node, constants)
+                if value and value.startswith("/") and "ag-ui" in value:
+                    ag_ui_paths.append((relative, value))
+
+    expected_path = [("src/backend/base/ketos/agentic/api/ag_ui_router.py", "/ag-ui")]
+    if ag_ui_paths != expected_path:
+        violations.append(f"AG-UI route path ownership mismatch: {ag_ui_paths}")
+    return violations
+
+
+def _e2e_transport_violations(source: str) -> list[str]:
+    violations: list[str] = []
+    if re.search(r"\b(?:window|globalThis)\s*\[", source):
+        violations.append("computed browser global access")
+    forbidden_symbols = re.compile(
+        r"(?<![A-Za-z0-9_])(?:fetch|axios|XMLHttpRequest|sendBeacon|WebSocket|evaluate|evaluateHandle|"
+        r"dispatchEvent|\$eval|\$\$eval)(?![A-Za-z0-9_])"
+    )
+    for line_number, line in enumerate(source.splitlines(), start=1):
+        if forbidden_symbols.search(line):
+            violations.append(f"line {line_number}: forbidden browser transport symbol")
+        if re.search(r"(?<![A-Za-z0-9_])request(?![A-Za-z0-9_])", line):
+            passive = (
+                "response.request()" in line
+                or 'page.on("request"' in line
+                or "Approval request" in line
+                or "approval request" in line
+            )
+            if not passive:
+                violations.append(f"line {line_number}: non-passive request identifier")
+        collapsed = re.sub(r"[\s'\"`+]", "", line)
+        has_string_concatenation = bool(
+            re.search(r"['\"][^'\"]*['\"]\s*\+\s*['\"][^'\"]*['\"]", line)
+        )
+        if has_string_concatenation and any(
+            symbol in collapsed
+            for symbol in ("fetch", "request", "evaluate", "sendBeacon", "WebSocket", "axios", "XMLHttpRequest")
+        ):
+            violations.append(f"line {line_number}: computed browser transport symbol")
+    for pattern in MANUAL_E2E_PATTERNS:
+        if pattern.search(source):
+            violations.append(f"manual browser transport {pattern.pattern}")
+    return violations
+
+
+def _shell_bypass_violations(source: str) -> list[str]:
+    violations = [token for token in FORBIDDEN_PRODUCTION_TOKENS if token in source]
+    if re.search(r"\bpython(?:3(?:\.\d+)?)?\s+-c\b", source):
+        violations.append("python -c")
+    if "curl" in source and re.search(
+        r"forwarded_?Props?|Command\s*\(\s*resume|command[^\n]{0,120}resume",
+        source,
+        re.IGNORECASE,
+    ):
+        violations.append("curl manual resume")
     return violations
 
 
@@ -427,12 +660,17 @@ def _require_no_bypass_tokens() -> None:
     violations: list[str] = []
     for path in production_sources:
         source = path.read_text(encoding="utf-8")
-        if path.suffix == ".py" and path.is_relative_to(BACKEND_ROOT):
+        if path.suffix == ".py":
             violations.extend(f"{path.relative_to(ROOT)}: {item}" for item in _python_bypass_violations(path))
             if path.is_relative_to(STAGE01_BACKEND) or path.name == "ag_ui_router.py":
                 for token in FORBIDDEN_PRODUCTION_TOKENS:
                     if token in source:
                         violations.append(f"{path.relative_to(ROOT)}: {token}")
+        elif path.suffix == ".sh":
+            violations.extend(
+                f"{path.relative_to(ROOT)}: shell custom protocol token {token}"
+                for token in _shell_bypass_violations(source)
+            )
         elif path.suffix in {".js", ".mjs", ".cjs", ".ts", ".tsx", ".mts"}:
             for pattern in FORBIDDEN_TS_PRODUCTION_PATTERNS:
                 if pattern.search(source):
@@ -449,9 +687,7 @@ def _require_no_bypass_tokens() -> None:
     for token in FORBIDDEN_E2E_TOKENS:
         if token in e2e_source:
             violations.append(f"{e2e_path.relative_to(ROOT)}: {token}")
-    for pattern in MANUAL_E2E_PATTERNS:
-        if pattern.search(e2e_source):
-            violations.append(f"{e2e_path.relative_to(ROOT)}: manual browser transport {pattern.pattern}")
+    violations.extend(f"{e2e_path.relative_to(ROOT)}: {item}" for item in _e2e_transport_violations(e2e_source))
     if violations:
         raise BoundaryError("forbidden Stage 01 bypasses:\n" + "\n".join(sorted(violations)))
 

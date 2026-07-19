@@ -1,4 +1,4 @@
-import type { Page, Request } from "@playwright/test";
+import type { Page, Request as BrowserRequest } from "@playwright/test";
 import { expect, test } from "../../fixtures";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
 
@@ -14,9 +14,9 @@ type RunBody = Readonly<{
   resume?: ResumeDecision[];
 }>;
 
-const isProbeRun = (request: Request) =>
-  request.method() === "POST" &&
-  request.url().includes("/api/copilotkit/agent/ketos-mvp-probe/run");
+const isProbeRun = (candidate: BrowserRequest) =>
+  candidate.method() === "POST" &&
+  candidate.url().includes("/api/copilotkit/agent/ketos-mvp-probe/run");
 
 async function openProbe(page: Page) {
   await awaitBootstrapTest(page, { skipModal: true });
@@ -33,14 +33,14 @@ async function startProbe(page: Page, prompt: string) {
     isProbeRun(response.request()),
   );
   await page.getByTestId("copilot-send-button").click();
-  const request = await initialRequest;
+  const runRequest = await initialRequest;
   const response = await initialResponse;
   const responseText = await response.text();
   expect(response.status()).toBe(200);
   expect(responseText).toMatch(/"type"\s*:\s*"interrupt"/);
   const cards = page.getByRole("region", { name: /^Approval request / });
   await expect(cards).toHaveCount(2);
-  return { cards, request, body: request.postDataJSON() as RunBody };
+  return { cards, runRequest, body: runRequest.postDataJSON() as RunBody };
 }
 
 function interruptIdFromLabel(label: string | null): string {
@@ -115,7 +115,7 @@ test.describe("Stage 01 CopilotKit AG-UI probe", () => {
         page,
         "Run after reload with access cookie",
       );
-      const postReloadHeaders = await postReload.request.allHeaders();
+      const postReloadHeaders = await postReload.runRequest.allHeaders();
       expect(postReloadHeaders.authorization).toBeUndefined();
       expect(postReloadHeaders.cookie).toContain("access_token_lf=");
       expect(postReload.body.threadId).not.toBe(initial.body.threadId);
@@ -142,8 +142,8 @@ test.describe("Stage 01 CopilotKit AG-UI probe", () => {
     async ({ page }) => {
       await openProbe(page);
       let runRequests = 0;
-      page.on("request", (request) => {
-        if (isProbeRun(request)) runRequests += 1;
+      page.on("request", (eventCandidate) => {
+        if (isProbeRun(eventCandidate)) runRequests += 1;
       });
       const { cards } = await startProbe(page, "Run cancel-only story");
       await expect.poll(() => runRequests).toBe(1);

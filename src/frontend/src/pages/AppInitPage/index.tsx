@@ -71,10 +71,11 @@ export function AppInitPage() {
   // - The query actually ran (isFetched), OR
   // - We're already authenticated (so we skipped auto-login intentionally)
   const isAutoLoginComplete = isFetched || isAuthenticated;
+  const isConfigReady = !isAuthReady || isConfigFetched;
 
   const isReady =
     isAutoLoginComplete &&
-    isConfigFetched &&
+    isConfigReady &&
     isExamplesFetched &&
     isSessionReady;
 

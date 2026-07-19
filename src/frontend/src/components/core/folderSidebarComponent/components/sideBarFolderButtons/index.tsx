@@ -1,8 +1,9 @@
 import { useIsFetching, useIsMutating } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useParams } from "react-router-dom";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
+import { Input } from "@/components/ui/input";
 import {
   Sidebar,
   SidebarContent,
@@ -43,14 +44,17 @@ import type { FolderType } from "../../../../../pages/MainPage/entities";
 import useAlertStore from "../../../../../stores/alertStore";
 import useFlowsManagerStore from "../../../../../stores/flowsManagerStore";
 import { useFolderStore } from "../../../../../stores/foldersStore";
-import { handleKeyDown } from "../../../../../utils/reactflowUtils";
 import { cn } from "../../../../../utils/utils";
+import {
+  isProjectScopedPath,
+  resolveCurrentProjectId,
+} from "../../helpers/resolve-current-project-id";
 import useFileDrop from "../../hooks/use-on-file-drop";
 import { SidebarFolderSkeleton } from "../sidebarFolderSkeleton";
 import { HeaderButtons } from "./components/header-buttons";
-import { InputEditFolderName } from "./components/input-edit-folder-name";
 import { MCPServerNotice } from "./components/mcp-server-notice";
 import { SelectOptions } from "./components/select-options";
+import { useInlineProjectRename } from "./hooks/use-inline-project-rename";
 
 type SideBarFoldersButtonsComponentProps = {
   handleChangeFolder?: (id: string) => void;
@@ -69,7 +73,6 @@ const SideBarFoldersButtonsComponent = ({
   const pathname = location.pathname;
   const folders = useFolderStore((state) => state.folders);
   const loading = !folders;
-  const refInput = useRef<HTMLInputElement>(null);
 
   const _navigate = useCustomNavigate();
 
@@ -100,14 +103,25 @@ const SideBarFoldersButtonsComponent = ({
   const myCollectionId = useFolderStore((state) => state.myCollectionId);
   const takeSnapshot = useFlowsManagerStore((state) => state.takeSnapshot);
 
-  const folderId = useParams().folderId ?? myCollectionId ?? "";
+  const { folderId, projectId } = useParams<{
+    folderId?: string;
+    projectId?: string;
+  }>();
+  const resolvedProjectId = resolveCurrentProjectId({
+    pathname,
+    projectId,
+    folderId,
+    myCollectionId,
+  });
 
-  const { dragOver, dragEnter, dragLeave, onDrop } = useFileDrop(folderId);
-  const uploadFlow = useUploadFlow();
-  const [foldersNames, setFoldersNames] = useState({});
-  const [editFolders, setEditFolderName] = useState(
-    folders.map((obj) => ({ name: obj.name, edit: false })) ?? [],
+  const { dragOver, dragEnter, dragLeave, onDrop } = useFileDrop(
+    resolvedProjectId ?? "",
+    {
+      isProjectRoute: isProjectScopedPath(pathname),
+      projectId: resolvedProjectId,
+    },
   );
+  const uploadFlow = useUploadFlow();
 
   const isFetchingFolders = !!useIsFetching({
     queryKey: ["useGetFolders"],
@@ -116,8 +130,45 @@ const SideBarFoldersButtonsComponent = ({
 
   const { mutate: mutateDownloadFolder } = useGetDownloadFolders({});
   const { mutate: mutateAddFolder, isPending } = usePostFolders();
-  const { mutate: mutateUpdateFolder } = usePatchFolders();
+  const { mutateAsync: mutateUpdateFolder } = usePatchFolders();
   const { mutate } = usePostUploadFolders();
+  const {
+    editingProjectId,
+    draftName,
+    inputRef,
+    beginRename,
+    setDraftName,
+    commitRename,
+    handleKeyDown,
+  } = useInlineProjectRename({
+    renameProject: async (projectIdToRename, newName) => {
+      const project = folders.find((item) => item.id === projectIdToRename);
+      if (!project) {
+        throw new Error(`Project ${projectIdToRename} was not found`);
+      }
+
+      const updated = await mutateUpdateFolder({
+        data: {
+          ...project,
+          name: newName,
+          flows: project.flows?.length > 0 ? project.flows : [],
+          components: project.components?.length > 0 ? project.components : [],
+        },
+        folderId: projectIdToRename,
+      });
+
+      return {
+        id: updated.id ?? projectIdToRename,
+        name: updated.name,
+      };
+    },
+    onError: (error) => {
+      setErrorData({
+        title: t("projectShell.renameError"),
+        list: [error instanceof Error ? error.message : String(error)],
+      });
+    },
+  });
 
   const checkHoveringFolder = (folderId: string) => {
     if (folderId === folderIdDragging) {
@@ -236,128 +287,22 @@ const SideBarFoldersButtonsComponent = ({
     );
   }
 
-  function handleEditFolderName(e, name): void {
-    const {
-      target: { value },
-    } = e;
-    setFoldersNames((old) => ({
-      ...old,
-      [name]: value,
-    }));
-  }
-
-  useEffect(() => {
-    if (folders && folders.length > 0) {
-      setEditFolderName(
-        folders.map((obj) => ({ name: obj.name, edit: false })),
-      );
-    }
-  }, [folders]);
-
-  const handleEditNameFolder = async (item) => {
-    const newEditFolders = editFolders.map((obj) => {
-      if (obj.name === item.name) {
-        return { name: item.name, edit: false };
-      }
-      return { name: obj.name, edit: false };
-    });
-    setEditFolderName(newEditFolders);
-    if (foldersNames[item.name].trim() !== "") {
-      setFoldersNames((old) => ({
-        ...old,
-        [item.name]: foldersNames[item.name],
-      }));
-      const body = {
-        ...item,
-        name: foldersNames[item.name],
-        flows: item.flows?.length > 0 ? item.flows : [],
-        components: item.components?.length > 0 ? item.components : [],
-      };
-
-      mutateUpdateFolder(
-        {
-          data: body,
-          folderId: item.id!,
-        },
-        {
-          onSuccess: (updatedFolder) => {
-            const updatedFolderIndex = folders.findIndex(
-              (f) => f.id === updatedFolder.id,
-            );
-
-            const updateFolders = [...folders];
-            updateFolders[updatedFolderIndex] = updatedFolder;
-
-            setFoldersNames({});
-            setEditFolderName(
-              folders.map((obj) => ({
-                name: obj.name,
-                edit: false,
-              })),
-            );
-          },
-        },
-      );
-    } else {
-      setFoldersNames((old) => ({
-        ...old,
-        [item.name]: item.name,
-      }));
-    }
+  const handleSelectFolderToRename = (
+    item: FolderType,
+    triggerElement?: HTMLElement | null,
+  ) => {
+    if (!item.id) return;
+    takeSnapshot();
+    beginRename({ id: item.id, name: item.name }, triggerElement);
   };
 
-  const handleDoubleClick = (event, item) => {
+  const handleDoubleClick = (
+    event: MouseEvent<HTMLElement>,
+    item: FolderType,
+  ) => {
     event.stopPropagation();
     event.preventDefault();
-
-    handleSelectFolderToRename(item);
-  };
-
-  const handleSelectFolderToRename = (item) => {
-    if (!foldersNames[item.name]) {
-      setFoldersNames({ [item.name]: item.name });
-    }
-
-    if (editFolders.find((obj) => obj.name === item.name)?.name) {
-      const newEditFolders = editFolders.map((obj) => {
-        if (obj.name === item.name) {
-          return { name: item.name, edit: true };
-        }
-        return { name: obj.name, edit: false };
-      });
-      setEditFolderName(newEditFolders);
-      takeSnapshot();
-      return;
-    }
-
-    setEditFolderName((old) => [...old, { name: item.name, edit: true }]);
-    setFoldersNames((oldFolder) => ({
-      ...oldFolder,
-      [item.name]: item.name,
-    }));
-    takeSnapshot();
-  };
-
-  const handleKeyDownFn = (e, item) => {
-    if (e.key === "Escape") {
-      const newEditFolders = editFolders.map((obj) => {
-        if (obj.name === item.name) {
-          return { name: item.name, edit: false };
-        }
-        return { name: obj.name, edit: false };
-      });
-      setEditFolderName(newEditFolders);
-      setFoldersNames({});
-      setEditFolderName(
-        folders.map((obj) => ({
-          name: obj.name,
-          edit: false,
-        })),
-      );
-    }
-    if (e.key === "Enter") {
-      refInput.current?.blur();
-    }
+    handleSelectFolderToRename(item, event.currentTarget);
   };
 
   const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);
@@ -415,12 +360,9 @@ const SideBarFoldersButtonsComponent = ({
                   </div>
                 ) : (
                   folders.map((item, index) => {
-                    const editFolderName = editFolders?.filter(
-                      (folder) => folder.name === item.name,
-                    )[0];
                     return (
                       <SidebarMenuItem
-                        key={index}
+                        key={item.id ?? index}
                         className="group/menu-button"
                         onMouseEnter={() => setHoveredFolderId(item.id!)}
                         onMouseLeave={() => setHoveredFolderId(null)}
@@ -457,16 +399,23 @@ const SideBarFoldersButtonsComponent = ({
                           >
                             <div className="flex w-full items-center justify-between gap-2">
                               <div className="flex flex-1 items-center gap-2">
-                                {editFolderName?.edit && !isUpdatingFolder ? (
-                                  <InputEditFolderName
-                                    handleEditFolderName={handleEditFolderName}
-                                    item={item}
-                                    refInput={refInput}
-                                    handleKeyDownFn={handleKeyDownFn}
-                                    handleEditNameFolder={handleEditNameFolder}
-                                    editFolderName={editFolderName}
-                                    foldersNames={foldersNames}
-                                    handleKeyDown={handleKeyDown}
+                                {editingProjectId === item.id &&
+                                !isUpdatingFolder ? (
+                                  <Input
+                                    className="h-6 flex-1 text-xs focus:border-0"
+                                    onChange={(event) =>
+                                      setDraftName(event.target.value)
+                                    }
+                                    maxLength={38}
+                                    ref={inputRef}
+                                    onKeyDown={handleKeyDown}
+                                    autoFocus
+                                    onBlur={() => {
+                                      void commitRename();
+                                    }}
+                                    value={draftName}
+                                    id={`input-project-${item.name}`}
+                                    data-testid="input-project"
                                   />
                                 ) : (
                                   <span className="block w-0 grow truncate text-sm opacity-100">
@@ -486,9 +435,19 @@ const SideBarFoldersButtonsComponent = ({
                               handleDownloadFolder={() =>
                                 handleDownloadFolder(item.id!, item.name)
                               }
-                              handleSelectFolderToRename={
-                                handleSelectFolderToRename
-                              }
+                              handleSelectFolderToRename={(folder) => {
+                                const triggerElement = document.getElementById(
+                                  `options-trigger-${folder.name}`,
+                                );
+                                window.setTimeout(
+                                  () =>
+                                    handleSelectFolderToRename(
+                                      folder,
+                                      triggerElement,
+                                    ),
+                                  0,
+                                );
+                              }}
                               checkPathName={checkPathName}
                             />
                           </div>

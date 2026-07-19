@@ -1,4 +1,4 @@
-import type { AddFolderType } from "@/pages/MainPage/entities";
+import type { AddFolderType, FolderType } from "@/pages/MainPage/entities";
 import type { useMutationFunctionType } from "@/types/api";
 import { api } from "../../api";
 import { getURL } from "../../helpers/constants";
@@ -11,13 +11,14 @@ interface IPatchPatchFolders {
 
 export const usePatchFolders: useMutationFunctionType<
   undefined,
-  IPatchPatchFolders
+  IPatchPatchFolders,
+  FolderType
 > = (options?) => {
   const { mutate, queryClient } = UseRequestProcessor();
 
   const patchFoldersFn = async (
     newFolder: IPatchPatchFolders,
-  ): Promise<void> => {
+  ): Promise<FolderType> => {
     const payload = {
       name: newFolder.data.name,
       description: newFolder.data.description,
@@ -34,8 +35,11 @@ export const usePatchFolders: useMutationFunctionType<
 
   const mutation = mutate(["usePatchFolders"], patchFoldersFn, {
     ...options,
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
       queryClient.refetchQueries({ queryKey: ["useGetFolders"] });
+      queryClient.refetchQueries({
+        queryKey: ["useGetFolder", variables.folderId],
+      });
     },
   });
 

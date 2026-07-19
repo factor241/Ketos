@@ -2,7 +2,6 @@ import { cloneDeep } from "lodash";
 import { useRef } from "react";
 import buildQueryStringUrl from "@/controllers/utils/create-query-param-string";
 import type { PaginatedFolderType } from "@/pages/MainPage/entities";
-import { useFolderStore } from "@/stores/foldersStore";
 import type { useQueryFunctionType } from "@/types/api";
 import { processFlows } from "@/utils/reactflowUtils";
 import { api } from "../../api";
@@ -28,7 +27,6 @@ export const useGetFolderQuery: useQueryFunctionType<
 > = (params, options) => {
   const { query } = UseRequestProcessor();
 
-  const folders = useFolderStore((state) => state.folders);
   const latestIdRef = useRef("");
 
   const getFolderFn = async (
@@ -39,11 +37,6 @@ export const useGetFolderQuery: useQueryFunctionType<
         params.page = 1;
       }
       latestIdRef.current = params.id;
-
-      const existingFolder = folders.find((f) => f.id === params.id);
-      if (!existingFolder) {
-        return;
-      }
     }
 
     const url = addQueryParams(`${getURL("PROJECTS")}/${params.id}`, params);

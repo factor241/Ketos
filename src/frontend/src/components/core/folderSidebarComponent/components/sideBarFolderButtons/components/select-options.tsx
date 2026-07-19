@@ -30,15 +30,16 @@ export const SelectOptions = ({
   return (
     <div>
       <Select
-        onValueChange={(value) =>
+        onValueChange={(value) => {
+          if (value === "rename") return;
           handleSelectChange(
             value,
             item,
             handleDeleteFolder,
             handleDownloadFolder,
             handleSelectFolderToRename,
-          )
-        }
+          );
+        }}
         value=""
       >
         <ShadTooltip
@@ -68,6 +69,12 @@ export const SelectOptions = ({
             value="rename"
             data-testid="btn-rename-project"
             className="text-xs"
+            onPointerDown={() => handleSelectFolderToRename(item)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                handleSelectFolderToRename(item);
+              }
+            }}
           >
             <FolderSelectItem name={t("folder.rename")} iconName="SquarePen" />
           </SelectItem>

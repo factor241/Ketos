@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Outlet } from "react-router-dom";
 import SideBarFoldersButtonsComponent from "@/components/core/folderSidebarComponent/components/sideBarFolderButtons";
+import { getProjectShellRoute } from "@/components/core/folderSidebarComponent/helpers/project-shell-route";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useDeleteFolders } from "@/controllers/API/queries/folders";
 import CustomEmptyPageCommunity from "@/customization/components/custom-empty-page";
@@ -12,6 +13,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import useAlertStore from "@/stores/alertStore";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
 import { useFolderStore } from "@/stores/foldersStore";
+import { useUtilityStore } from "@/stores/utilityStore";
 import ModalsComponent from "../components/modalsComponent";
 import { shouldShowMainContent } from "./main-page-utils";
 
@@ -21,6 +23,9 @@ export default function CollectionPage(): JSX.Element {
   const [openDeleteFolderModal, setOpenDeleteFolderModal] = useState(false);
   const setFolderToEdit = useFolderStore((state) => state.setFolderToEdit);
   const navigate = useCustomNavigate();
+  const mvpWorkspaceEnabled = useUtilityStore(
+    (state) => state.featureFlags.mvp_workspace === true,
+  );
   const flows = useFlowsManagerStore((state) => state.flows);
   const examples = useFlowsManagerStore((state) => state.examples);
   const setSuccessData = useAlertStore((state) => state.setSuccessData);
@@ -65,7 +70,10 @@ export default function CollectionPage(): JSX.Element {
       {flows && examples && folders && (
         <SideBarFoldersButtonsComponent
           handleChangeFolder={(id: string) => {
-            navigate(`all/folder/${id}`);
+            const projectShellRoute = mvpWorkspaceEnabled
+              ? getProjectShellRoute(id)
+              : null;
+            navigate(projectShellRoute ?? `all/folder/${id}`);
           }}
           handleDeleteFolder={(item) => {
             setFolderToEdit(item);

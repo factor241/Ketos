@@ -39,3 +39,11 @@ class StaleRevisionError(Exception):
     def __init__(self, resource_id: UUID):
         super().__init__(f"Resource {resource_id} revision is stale")
         self.resource_id = resource_id
+
+
+class UnsafeMarkdownError(ValueError):
+    code = "unsafe_markdown"
+
+    def __init__(self, reason: str = "unsafe source"):
+        super().__init__(f"Board note Markdown is unsafe: {reason}")
+        self.reason = reason

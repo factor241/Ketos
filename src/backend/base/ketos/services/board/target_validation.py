@@ -33,6 +33,7 @@ async def validate_placement_target(
         select(BoardNote)
         .join(Folder, BoardNote.project_id == Folder.id)
         .where(BoardNote.id == target_id, Folder.user_id == actor_id)
+        .with_for_update()
     )
     note = result.first()
     if note is None:

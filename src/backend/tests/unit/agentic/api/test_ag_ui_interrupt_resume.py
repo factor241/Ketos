@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+import multiprocessing
 import os
 import stat
 from pathlib import Path
@@ -20,6 +21,7 @@ from ketos.agentic.services.ag_ui.assembly import assemble_langgraph_agent
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from multiprocessing.connection import Connection
 
     from ag_ui_langgraph import LangGraphAgent
 
@@ -27,6 +29,38 @@ CHECKPOINT_MODULE = "ketos.agentic.services.ag_ui.checkpoint"
 CHECKPOINT_SOURCE = Path(__file__).parents[4] / "base" / "ketos" / "agentic" / "services" / "ag_ui" / "checkpoint.py"
 HITL_MODULE = "ketos.agentic.services.ag_ui.hitl_probe"
 HITL_SOURCE = CHECKPOINT_SOURCE.with_name("hitl_probe.py")
+
+
+def _fifo_checkpoint_worker(
+    checkpoint_path_text: str,
+    operation: str,
+    connection: Connection,
+) -> None:
+    os.environ["LANGGRAPH_STRICT_MSGPACK"] = "true"
+    checkpoint_module = importlib.import_module(CHECKPOINT_MODULE)
+    checkpoint_path = Path(checkpoint_path_text)
+
+    async def exercise() -> None:
+        lifecycle = checkpoint_module.AsyncSqliteCheckpoint(checkpoint_path)
+        if operation == "close":
+            await lifecycle.open()
+            os.mkfifo(Path(f"{checkpoint_path}-wal"), mode=0o600)
+        connection.send(("ready",))
+        if operation == "open":
+            await lifecycle.open()
+        elif operation == "close":
+            await lifecycle.close()
+        else:
+            await lifecycle.delete_files()
+
+    try:
+        asyncio.run(exercise())
+    except Exception as exc:  # subprocess reports the real fail-closed result to the parent test
+        connection.send(("error", type(exc).__name__, str(exc)))
+    else:
+        connection.send(("success",))
+    finally:
+        connection.close()
 
 
 def _run_input(
@@ -428,6 +462,50 @@ async def test_checkpoint_cleanup_rejects_unsafe_sidecar_before_deleting_anythin
 
     assert checkpoint_path.is_file()
     assert wal_path.is_file()
+
+
+@pytest.mark.parametrize("operation", ["open", "close", "delete"])
+def test_checkpoint_fifo_sidecar_fails_closed_without_blocking(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+) -> None:
+    monkeypatch.setenv("LANGGRAPH_STRICT_MSGPACK", "true")
+    checkpoint_path = tmp_path / operation / "hitl.sqlite3"
+    checkpoint_path.parent.mkdir(mode=0o700)
+    checkpoint_path.parent.chmod(0o700)
+    if operation == "delete":
+        checkpoint_path.write_bytes(b"")
+        checkpoint_path.chmod(0o600)
+    if operation != "close":
+        os.mkfifo(Path(f"{checkpoint_path}-wal"), mode=0o600)
+
+    context = multiprocessing.get_context("fork")
+    parent_connection, child_connection = context.Pipe(duplex=False)
+    process = context.Process(
+        target=_fifo_checkpoint_worker,
+        args=(str(checkpoint_path), operation, child_connection),
+    )
+    process.start()
+    child_connection.close()
+    try:
+        assert parent_connection.poll(5), "FIFO worker did not reach the checkpoint operation"
+        assert parent_connection.recv() == ("ready",)
+        process.join(timeout=1)
+        if process.is_alive():
+            process.terminate()
+            process.join(timeout=5)
+            pytest.fail(f"checkpoint {operation} blocked while opening a FIFO sidecar")
+        assert parent_connection.poll(1), "FIFO worker did not report a fail-closed result"
+        result = parent_connection.recv()
+    finally:
+        if process.is_alive():
+            process.terminate()
+            process.join(timeout=5)
+        parent_connection.close()
+
+    assert result[0:2] == ("error", "ValueError")
+    assert "regular file" in result[2]
 
 
 @pytest.mark.asyncio

@@ -325,7 +325,7 @@ class AsyncSqliteCheckpoint:
         try:
             return os.open(
                 name,
-                os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0),
+                os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0),
                 dir_fd=parent_fd,
             )
         except FileNotFoundError:

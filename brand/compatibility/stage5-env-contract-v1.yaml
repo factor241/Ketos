@@ -14,7 +14,7 @@ scope:
   - namespace: KETOS_<provider-variable> convenience aliases
     reason: bounded provider credential aliasing is not a LANGFLOW_* compatibility setting
 source:
-  tree_sha256: ca640ff44b1a8cf1974f585133ff237930d5d6b0995869e0e8be3930ec8e5e92
+  tree_sha256: 79dfdefbf7ac06eb10b0145667fef2686a6f0570e45c761a329129a0dcb47caa
   files:
   - src/kfx/src/kfx/brand_env.py
   - src/kfx/src/kfx/services/settings/auth.py
@@ -58,18 +58,18 @@ inventory:
   settings_model_fields: 149
   auth_model_fields: 32
   unique_model_suffixes: 180
-  reviewed_direct_only_suffixes: 31
-  registry_suffixes: 211
+  reviewed_direct_only_suffixes: 33
+  registry_suffixes: 213
   policy_groups:
     public_warn: 48
-    public_error: 150
+    public_error: 152
     secret_error: 13
   sensitivity:
-    public: 198
+    public: 200
     secret: 13
   conflict_policy:
     warn: 48
-    error: 163
+    error: 165
   validation_aliases: 0
   duplicate_suffixes: 0
   model_suffixes_missing_policy: 0
@@ -79,6 +79,8 @@ inventory:
   unresolved_ambiguities: 0
 direct_reads:
   reviewed_direct_only_suffixes:
+  - AG_UI_BINDING_DB
+  - AG_UI_CHECKPOINT_DB
   - API_KEY
   - ASSISTANT_VERIFY_FLOWS
   - DEBUG_FORK_GHOSTS
@@ -171,6 +173,8 @@ policy_groups:
   - ACCESS_TOKEN_EXPIRE_SECONDS
   - ADD_PROJECTS_TO_MCP_SERVERS
   - AGENTIC_EXPERIENCE
+  - AG_UI_BINDING_DB
+  - AG_UI_CHECKPOINT_DB
   - ALGORITHM
   - ALLOW_COMPONENTS_PATHS_OVERRIDE
   - ALLOW_CUSTOM_COMPONENTS

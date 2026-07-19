@@ -15,6 +15,8 @@ from kfx.services.settings.base import Settings
 
 EXPECTED_DIRECT_ONLY_SUFFIXES = frozenset(
     {
+        "AG_UI_BINDING_DB",
+        "AG_UI_CHECKPOINT_DB",
         "API_KEY",
         "ASSISTANT_VERIFY_FLOWS",
         "DEBUG_FORK_GHOSTS",
@@ -75,16 +77,19 @@ def test_registry_exactly_covers_models_and_reviewed_direct_suffixes():
     assert len(AuthSettings.model_fields) == 32
     assert len(model_suffixes) == 180
     assert set(registry) == model_suffixes | EXPECTED_DIRECT_ONLY_SUFFIXES
-    assert len(registry) == 211
+    assert len(registry) == 213
 
 
 def test_registry_has_reviewed_policy_counts_and_is_immutable():
     registry = _module().BRAND_ENV_POLICIES
     assert isinstance(registry, MappingProxyType)
-    assert sum(policy.conflict_policy == "error" for policy in registry.values()) == 163
+    assert sum(policy.conflict_policy == "error" for policy in registry.values()) == 165
     assert sum(policy.conflict_policy == "warn" for policy in registry.values()) == 48
     assert sum(policy.sensitivity == "secret" for policy in registry.values()) == 13
-    assert sum(policy.sensitivity == "public" for policy in registry.values()) == 198
+    assert sum(policy.sensitivity == "public" for policy in registry.values()) == 200
+    for suffix in ("AG_UI_BINDING_DB", "AG_UI_CHECKPOINT_DB"):
+        assert registry[suffix].sensitivity == "public"
+        assert registry[suffix].conflict_policy == "error"
 
     with pytest.raises(TypeError):
         registry["NEW_SUFFIX"] = next(iter(registry.values()))
@@ -109,11 +114,16 @@ def test_versioned_env_contract_exactly_matches_frozen_registry():
     assert contract["schema"] == "ketos.brand-environment-contract"
     assert contract["version"] == 1
     assert contract["status"] in {"candidate", "frozen-local"}
-    assert len(grouped) == sum(len(suffixes) for suffixes in groups.values()) == 211
+    assert len(grouped) == sum(len(suffixes) for suffixes in groups.values()) == 213
     assert grouped == {suffix: (policy.sensitivity, policy.conflict_policy) for suffix, policy in registry.items()}
     assert reviewed_direct_only_suffixes == EXPECTED_DIRECT_ONLY_SUFFIXES
-    assert contract["inventory"]["reviewed_direct_only_suffixes"] == len(EXPECTED_DIRECT_ONLY_SUFFIXES) == 31
-    assert {"FEATURE_MVP_WORKSPACE", "FEATURE_MVP_CHAT"} <= reviewed_direct_only_suffixes
+    assert contract["inventory"]["reviewed_direct_only_suffixes"] == len(EXPECTED_DIRECT_ONLY_SUFFIXES) == 33
+    assert {
+        "AG_UI_BINDING_DB",
+        "AG_UI_CHECKPOINT_DB",
+        "FEATURE_MVP_WORKSPACE",
+        "FEATURE_MVP_CHAT",
+    } <= reviewed_direct_only_suffixes
     assert contract["inventory"]["unresolved_direct_read_exceptions"] in {0, 34}
     assert contract["inventory"]["unresolved_ambiguities"] == 0
     assert feature_flags_path in contract["source"]["files"]
@@ -178,7 +188,7 @@ def test_only_components_uses_silent_origin_lookup():
 
 
 def test_runtime_sources_have_no_literal_or_constant_branded_os_reads():
-    """Prevent fixed branded variables from bypassing the frozen resolver."""
+    """Prevent unreviewed fixed branded variables from bypassing the frozen resolver."""
     repository = Path(__file__).parents[6]
     roots = (
         repository / "src" / "kfx" / "src" / "kfx",
@@ -189,6 +199,7 @@ def test_runtime_sources_have_no_literal_or_constant_branded_os_reads():
         repository / "src" / "backend" / "base" / "ketos" / "brand_state" / "discovery.py",
     }
     bypasses: list[str] = []
+    observed_direct_suffixes: set[str] = set()
 
     def fixed_name(node: ast.AST, constants: dict[str, str]) -> str | None:
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
@@ -264,6 +275,10 @@ def test_runtime_sources_have_no_literal_or_constant_branded_os_reads():
             ):
                 candidate = fixed_name(node.slice, constants)
             if candidate is not None and candidate.startswith(("KETOS_", "LANGFLOW_")):
-                bypasses.append(f"{path.relative_to(repository)}:{node.lineno}:{candidate}")
+                suffix = candidate.split("_", maxsplit=1)[1]
+                observed_direct_suffixes.add(suffix)
+                if suffix not in EXPECTED_DIRECT_ONLY_SUFFIXES:
+                    bypasses.append(f"{path.relative_to(repository)}:{node.lineno}:{candidate}")
 
     assert bypasses == []
+    assert "AG_UI_BINDING_DB" in observed_direct_suffixes

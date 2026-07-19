@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 SCRIPT = Path(__file__).parents[1] / "rebuild_ag_ui_artifact.py"
+BUILD_LOCK = Path(__file__).parents[1] / "ag_ui_build_requirements.lock"
 SPEC = importlib.util.spec_from_file_location("rebuild_ag_ui_artifact", SCRIPT)
 assert SPEC is not None
 assert SPEC.loader is not None
@@ -150,6 +151,8 @@ def test_quality_gate_and_build_use_only_pinned_uv_and_python(
     uv = tmp_path / "toolchain" / "uv"
     output = tmp_path / "dist"
     output.mkdir()
+    pristine_calls: list[Path] = []
+    monkeypatch.setattr(rebuild, "_assert_pristine", lambda path, _env: pristine_calls.append(path))
     rebuild._run_build(tmp_path, uv, output, {"PATH": str(uv.parent)}, run_tests=True)
 
     assert commands[0][:4] == [str(uv), "python", "install", "3.13.14"]
@@ -158,22 +161,52 @@ def test_quality_gate_and_build_use_only_pinned_uv_and_python(
         "run",
         "--python",
         "3.13.14",
+        "--frozen",
         "--project",
         "integrations/langgraph/python",
         "pytest",
         "-q",
+        "-p",
+        "no:cacheprovider",
         "integrations/langgraph/python/tests",
     ] in commands
+    assert any("--require-hashes" in command and str(BUILD_LOCK) in command for command in commands)
     assert commands[-1] == [
         str(uv),
         "build",
         "--python",
-        "3.13.14",
+        str(tmp_path / "build-env" / "bin" / "python"),
         "--wheel",
+        "--no-build-isolation",
+        "--offline",
         "integrations/langgraph/python",
         "--out-dir",
         str(output),
     ]
+    assert pristine_calls == [tmp_path, tmp_path]
+
+
+def test_build_backend_lock_is_complete_hash_pinned_and_checked_in() -> None:
+    lock = BUILD_LOCK.read_text(encoding="utf-8")
+    assert lock.count("==") == 5
+    for package in (
+        "hatchling==1.31.0",
+        "packaging==26.2",
+        "pathspec==1.1.1",
+        "pluggy==1.6.0",
+        "trove-classifiers==2026.6.1.19",
+    ):
+        assert package in lock
+    assert lock.count("--hash=sha256:") == 10
+
+
+def test_rebuild_source_requires_frozen_tests_and_offline_isolated_build() -> None:
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert '"--frozen"' in source
+    assert '"--require-hashes"' in source
+    assert '"--no-build-isolation"' in source
+    assert '"--offline"' in source
+    assert source.count("_assert_pristine(repository, env)") >= 3
 
 
 def test_no_shell_or_ambient_python_subprocess_execution_in_rebuild_source() -> None:

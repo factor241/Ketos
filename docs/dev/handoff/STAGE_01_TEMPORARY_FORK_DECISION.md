@@ -56,6 +56,10 @@ the Git-bound source archive, requires the wheel package inventory to match it
 exactly, and permits only the exact build metadata members `METADATA`, `WHEEL`,
 `licenses/LICENSE`, and `RECORD`. Any additional member, including a member
 added together with a recomputed sidecar hash, fails closed.
+The wheel `RECORD` is parsed as bounded UTF-8 CSV and must contain every wheel
+file exactly once. Every non-self row must carry the exact SHA-256 and decimal
+byte size; `RECORD` itself must be the sole row with empty hash and size.
+Missing, extra, duplicate, malformed, stale-hash, and stale-size rows fail.
 
 The source input must be a Git archive whose embedded commit equals
 `fork_commit_sha`. The approved local repository is also mandatory: its
@@ -108,6 +112,17 @@ a platform-specific uv `0.11.21` archive with a manifest-pinned SHA-256,
 installs managed Python `3.13.14`, fixes `SOURCE_DATE_EPOCH=1765974360`, bounds
 downloads, archive extraction, subprocess output and time, and accepts output
 only when its SHA-256 is the admitted wheel hash.
+Before invoking the build backend, the executor verifies the checked-in
+`ag_ui_build_requirements.lock` digest, installs all five exact build packages
+with `--require-hashes`, and runs `uv build --no-build-isolation --offline`.
+Fork tests use its committed `uv.lock` through `uv run --frozen`. The exact Git
+checkout is rechecked as pristine after tests and again after build.
+
+Runtime binding covers every import-package Python member recorded by the
+wheel (nine files for the admitted artifact), not two sampled modules. All
+files must hash-match under one installed distribution root, metadata discovery
+must find one distribution, and `sys.path`/import resolution must expose no
+second importable `ag_ui_langgraph` copy.
 
 ## Activated evidence
 

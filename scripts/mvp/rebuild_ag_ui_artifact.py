@@ -25,6 +25,8 @@ FORK_SHA = "85b94807e464c9b38f591938a41559923a712dbb"
 PACKAGE_ROOT = "integrations/langgraph/python"
 ARTIFACT_FILENAME = "ag_ui_langgraph-0.0.43+ketos.1-py3-none-any.whl"
 EXPECTED_ARTIFACT_SHA256 = "5ae33b1bab5a9e0adfb1425c5e279476a7ba35a385019d71be2f3ee79e8913cc"
+BUILD_REQUIREMENTS_LOCK = Path(__file__).with_name("ag_ui_build_requirements.lock")
+BUILD_REQUIREMENTS_LOCK_SHA256 = "533650ec5ab9442d46a98f5d1f6cf5ff5a259026c83952f34566ab7f877e5526"
 UV_VERSION = "0.11.21"
 PYTHON_VERSION = "3.13.14"
 SOURCE_DATE_EPOCH = 1765974360
@@ -104,6 +106,11 @@ def recipe_manifest() -> dict[str, object]:
                 ],
             },
             "python": PYTHON_VERSION,
+            "build_requirements": {
+                "path": BUILD_REQUIREMENTS_LOCK.name,
+                "sha256": BUILD_REQUIREMENTS_LOCK_SHA256,
+                "mode": "require-hashes/no-build-isolation/offline-build",
+            },
             "source_date_epoch": SOURCE_DATE_EPOCH,
         },
     }
@@ -267,10 +274,12 @@ def _sanitized_environment(root: Path, uv: Path) -> dict[str, str]:
         "LC_ALL": "C.UTF-8",
         "TZ": "UTC",
         "PYTHONHASHSEED": "0",
+        "PYTHONDONTWRITEBYTECODE": "1",
         "SOURCE_DATE_EPOCH": str(SOURCE_DATE_EPOCH),
         "UV_CACHE_DIR": str(cache),
         "UV_PYTHON_INSTALL_DIR": str(python_dir),
         "UV_PYTHON_PREFERENCE": "only-managed",
+        "UV_PROJECT_ENVIRONMENT": str(root / "test-env"),
         "UV_NO_PROGRESS": "1",
         "GIT_CONFIG_NOSYSTEM": "1",
         "GIT_CONFIG_GLOBAL": "/dev/null",
@@ -315,11 +324,35 @@ def _run_build(
     *,
     run_tests: bool,
 ) -> None:
+    if _sha256(BUILD_REQUIREMENTS_LOCK) != BUILD_REQUIREMENTS_LOCK_SHA256:
+        _fail("checked-in build requirements lock SHA-256 mismatch")
     _run_bounded([str(uv), "python", "install", PYTHON_VERSION], cwd=repository, env=env)
     version = _run_bounded([str(uv), "--version"], cwd=repository, env=env)
     reported_version = version.stdout.decode("ascii", errors="replace").strip()
     if not (reported_version == f"uv {UV_VERSION}" or reported_version.startswith(f"uv {UV_VERSION} ")):
         _fail("extracted uv executable version does not match the pinned recipe")
+    build_environment = output_dir.parent / "build-env"
+    build_python = build_environment / "bin" / "python"
+    _run_bounded(
+        [str(uv), "venv", "--python", PYTHON_VERSION, str(build_environment)],
+        cwd=repository,
+        env=env,
+    )
+    _run_bounded(
+        [
+            str(uv),
+            "pip",
+            "install",
+            "--python",
+            str(build_python),
+            "--require-hashes",
+            "--no-deps",
+            "--requirement",
+            str(BUILD_REQUIREMENTS_LOCK),
+        ],
+        cwd=repository,
+        env=env,
+    )
     if run_tests:
         _run_bounded(
             [
@@ -327,20 +360,36 @@ def _run_build(
                 "run",
                 "--python",
                 PYTHON_VERSION,
+                "--frozen",
                 "--project",
                 PACKAGE_ROOT,
                 "pytest",
                 "-q",
+                "-p",
+                "no:cacheprovider",
                 f"{PACKAGE_ROOT}/tests",
             ],
             cwd=repository,
             env=env,
         )
+        _assert_pristine(repository, env)
     _run_bounded(
-        [str(uv), "build", "--python", PYTHON_VERSION, "--wheel", PACKAGE_ROOT, "--out-dir", str(output_dir)],
+        [
+            str(uv),
+            "build",
+            "--python",
+            str(build_python),
+            "--wheel",
+            "--no-build-isolation",
+            "--offline",
+            PACKAGE_ROOT,
+            "--out-dir",
+            str(output_dir),
+        ],
         cwd=repository,
         env=env,
     )
+    _assert_pristine(repository, env)
 
 
 def rebuild(output_dir: Path, *, run_tests: bool) -> dict[str, object]:

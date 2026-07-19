@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import base64
+import csv
 import hashlib
 import importlib
 import importlib.metadata
 import importlib.util
 import inspect
+import io
 import json
 import stat
 import subprocess
@@ -12,7 +15,7 @@ import sys
 import tarfile
 import time
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
@@ -31,6 +34,32 @@ FORK_COMMIT = "1" * 40
 UPSTREAM_BASE = "2" * 40
 PROVENANCE_MAX_BYTES = 64 * 1024
 GIT_EXECUTABLE = "/usr/bin/git"
+
+
+def _wheel_record(members: dict[str, bytes], record_path: str) -> bytes:
+    output = io.StringIO(newline="")
+    writer = csv.writer(output, lineterminator="\n")
+    for name, content in members.items():
+        digest = base64.urlsafe_b64encode(hashlib.sha256(content).digest()).decode("ascii").rstrip("=")
+        writer.writerow((name, f"sha256={digest}", len(content)))
+    writer.writerow((record_path, "", ""))
+    return output.getvalue().encode("utf-8")
+
+
+def _write_wheel_members(wheel: Path, members: dict[str, bytes], record_path: str) -> None:
+    complete = {**members, record_path: _wheel_record(members, record_path)}
+    with zipfile.ZipFile(wheel, "w") as archive:
+        for name, content in complete.items():
+            archive.writestr(name, content)
+
+
+def _replace_wheel_member(wheel: Path, member_name: str, content: bytes) -> None:
+    with zipfile.ZipFile(wheel) as archive:
+        members = {name: archive.read(name) for name in archive.namelist()}
+    members[member_name] = content
+    with zipfile.ZipFile(wheel, "w") as archive:
+        for name, member_content in members.items():
+            archive.writestr(name, member_content)
 
 
 def test_sqlite_checkpoint_dependency_is_exact_and_import_compatible() -> None:
@@ -73,6 +102,7 @@ def _complete_evidence(version: str = "0.0.43") -> dict[str, object]:
             "archive_identity_bound": True,
             "runtime_identity_bound": True,
             "runtime_source_bound": True,
+            "runtime_single_root_bound": True,
             "source_class": "approved-fork",
         },
         "fork_provenance": {
@@ -112,13 +142,16 @@ def _write_wheel(
             "",
         )
     )
-    with zipfile.ZipFile(wheel, "w") as archive:
-        archive.writestr(f"{dist_info}/METADATA", metadata)
-        archive.writestr("ag_ui_langgraph/agent.py", "class LangGraphAgent: pass\n")
-        if include_endpoint_source:
-            archive.writestr("ag_ui_langgraph/endpoint.py", "def endpoint(): pass\n")
-        if include_license:
-            archive.writestr(f"{dist_info}/licenses/LICENSE", LICENSE_BYTES)
+    members = {
+        f"{dist_info}/METADATA": metadata.encode(),
+        f"{dist_info}/WHEEL": b"Wheel-Version: 1.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n",
+        "ag_ui_langgraph/agent.py": b"class LangGraphAgent: pass\n",
+    }
+    if include_endpoint_source:
+        members["ag_ui_langgraph/endpoint.py"] = b"def endpoint(): pass\n"
+    if include_license:
+        members[f"{dist_info}/licenses/LICENSE"] = LICENSE_BYTES
+    _write_wheel_members(wheel, members, f"{dist_info}/RECORD")
     return wheel
 
 
@@ -219,22 +252,16 @@ License-Expression: MIT
 License-File: LICENSE
 Requires-Python: >=3.10,<3.15
 """
-    with zipfile.ZipFile(wheel, "w") as archive:
-        archive.writestr(f"{dist_info}/METADATA", metadata)
-        archive.writestr(
-            "ag_ui_langgraph/agent.py",
-            (source_root / "agent.py").read_bytes(),
-        )
-        archive.writestr(
-            "ag_ui_langgraph/endpoint.py",
-            (source_root / "endpoint.py").read_bytes(),
-        )
-        archive.writestr(
-            f"{dist_info}/WHEEL",
-            "Wheel-Version: 1.0\nGenerator: fixture\nRoot-Is-Purelib: true\nTag: py3-none-any\n",
-        )
-        archive.writestr(f"{dist_info}/licenses/LICENSE", LICENSE_BYTES)
-        archive.writestr(f"{dist_info}/RECORD", "")
+    members = {
+        f"{dist_info}/METADATA": metadata.encode(),
+        "ag_ui_langgraph/agent.py": (source_root / "agent.py").read_bytes(),
+        "ag_ui_langgraph/endpoint.py": (source_root / "endpoint.py").read_bytes(),
+        f"{dist_info}/WHEEL": (
+            b"Wheel-Version: 1.0\nGenerator: fixture\nRoot-Is-Purelib: true\nTag: py3-none-any\n"
+        ),
+        f"{dist_info}/licenses/LICENSE": LICENSE_BYTES,
+    }
+    _write_wheel_members(wheel, members, f"{dist_info}/RECORD")
 
     provenance = _fork_provenance(wheel, source_archive)
     provenance.update(
@@ -356,6 +383,40 @@ def test_artifact_inspection_fails_closed_without_license_or_required_source(tmp
         probe.inspect_artifact(missing_source)
 
 
+@pytest.mark.parametrize(
+    "mutation",
+    ["missing", "extra", "duplicate", "bad_hash", "bad_size", "hashed_self"],
+)
+def test_wheel_record_is_an_exact_hash_and_size_inventory(tmp_path: Path, mutation: str) -> None:
+    probe = _load_probe()
+    wheel = _write_wheel(tmp_path)
+    artifact = probe.inspect_artifact(wheel)
+    record_path = str(PurePosixPath(artifact["metadata_path"]).parent / "RECORD")
+    with zipfile.ZipFile(wheel) as archive:
+        rows = archive.read(record_path).decode("utf-8").splitlines()
+
+    if mutation == "missing":
+        rows.pop(0)
+    elif mutation == "extra":
+        rows.insert(-1, "unapproved.py,sha256=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,0")
+    elif mutation == "duplicate":
+        rows.insert(1, rows[0])
+    elif mutation == "bad_hash":
+        fields = rows[0].split(",")
+        fields[1] = "sha256=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        rows[0] = ",".join(fields)
+    elif mutation == "bad_size":
+        fields = rows[0].split(",")
+        fields[2] = str(int(fields[2]) + 1)
+        rows[0] = ",".join(fields)
+    else:
+        rows[-1] = f"{record_path},sha256=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,0"
+    _replace_wheel_member(wheel, record_path, ("\n".join(rows) + "\n").encode())
+
+    with pytest.raises(ValueError, match="wheel RECORD"):
+        probe.inspect_artifact(wheel)
+
+
 def test_fork_provenance_binds_exact_owner_commits_artifact_source_and_license_hashes(
     tmp_path: Path,
 ) -> None:
@@ -390,7 +451,7 @@ def test_fork_provenance_rejects_extra_wheel_payload_even_with_recomputed_self_a
         archive.writestr("unapproved_payload.txt", b"not present in the bound fork source or build inventory")
     provenance["artifact_sha256"] = hashlib.sha256(wheel.read_bytes()).hexdigest()
 
-    with pytest.raises(ValueError, match="wheel inventory"):
+    with pytest.raises(ValueError, match=r"wheel (?:RECORD|inventory)"):
         probe.validate_fork_provenance(
             provenance,
             artifact_path=wheel,
@@ -873,26 +934,72 @@ def test_runtime_binding_requires_exact_archive_metadata_and_source_hashes() -> 
         "version": "0.0.43",
         "license": "MIT",
         "requires_python": ">=3.10,<3.15",
-        "source_sha256": {"agent.py": "a" * 64, "endpoint.py": "b" * 64},
+        "wheel_inventory_sha256": {
+            f"ag_ui_langgraph/module_{index}.py": str(index) * 64 for index in range(1, 10)
+        },
     }
     runtime = {
         "name": "ag-ui-langgraph",
         "version": "0.0.43",
         "license": "MIT",
         "requires_python": ">=3.10,<3.15",
-        "source_sha256": {"agent.py": "a" * 64, "endpoint.py": "b" * 64},
+        "source_sha256": {f"ag_ui_langgraph/module_{index}.py": str(index) * 64 for index in range(1, 10)},
+        "single_distribution_root": True,
+        "single_importable_copy": True,
     }
 
     assert probe.bind_runtime_to_artifact(artifact, runtime) == {
         "identity": True,
         "source": True,
+        "single_root": True,
     }
     runtime["version"] = "0.0.42"
-    runtime["source_sha256"]["agent.py"] = "c" * 64
+    runtime["source_sha256"]["ag_ui_langgraph/module_1.py"] = "c" * 64
+    runtime["single_importable_copy"] = False
     assert probe.bind_runtime_to_artifact(artifact, runtime) == {
         "identity": False,
         "source": False,
+        "single_root": False,
     }
+
+
+def test_runtime_snapshot_hashes_all_nine_package_files_under_one_distribution_root() -> None:
+    probe = _load_probe()
+
+    runtime = probe._runtime_snapshot("ag-ui-langgraph")
+
+    assert len(runtime["source_sha256"]) == 9
+    assert set(runtime["source_sha256"]) == {
+        "ag_ui_langgraph/__init__.py",
+        "ag_ui_langgraph/a2ui_tool.py",
+        "ag_ui_langgraph/agent.py",
+        "ag_ui_langgraph/endpoint.py",
+        "ag_ui_langgraph/interrupts.py",
+        "ag_ui_langgraph/middlewares/__init__.py",
+        "ag_ui_langgraph/middlewares/state_streaming.py",
+        "ag_ui_langgraph/types.py",
+        "ag_ui_langgraph/utils.py",
+    }
+    root = Path(runtime["distribution_root"])
+    assert runtime["single_distribution_root"] is True
+    assert runtime["single_importable_copy"] is True
+    assert all(Path(path).is_relative_to(root) for path in runtime["source_paths"].values())
+
+
+def test_runtime_snapshot_detects_a_second_zip_importable_copy(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    probe = _load_probe()
+    shadow = tmp_path / "shadow.zip"
+    with zipfile.ZipFile(shadow, "w") as archive:
+        archive.writestr("ag_ui_langgraph/__init__.py", b"shadow = True\n")
+    monkeypatch.setattr(sys, "path", [*sys.path, str(shadow)])
+
+    runtime = probe._runtime_snapshot("ag-ui-langgraph")
+
+    assert runtime["single_importable_copy"] is False
+    assert len(runtime["import_roots"]) == 2
 
 
 def test_resume_annotation_must_be_an_array_of_resume_entries() -> None:
@@ -1289,6 +1396,11 @@ def test_vendored_manifest_runs_agui_probe_with_declared_fastapi_extra() -> None
     assert len(agui["toolchain"]["uv"]["distributions"]) == 4
     assert agui["toolchain"]["python"] == "3.13.14"
     assert agui["toolchain"]["source_date_epoch"] == 1765974360
+    assert agui["toolchain"]["build_requirements"] == {
+        "path": "scripts/mvp/ag_ui_build_requirements.lock",
+        "sha256": "533650ec5ab9442d46a98f5d1f6cf5ff5a259026c83952f34566ab7f877e5526",
+        "mode": "require-hashes/no-build-isolation/offline-build",
+    }
     assert "rebuild_ag_ui_artifact.py" in agui["rebuild"]
     assert "85b94807e464c9b38f591938a41559923a712dbb" in agui["rebuild"]
     assert "--run-tests" in agui["test"]

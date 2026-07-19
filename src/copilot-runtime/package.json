@@ -1,0 +1,27 @@
+{
+	"name": "@ketos/copilot-runtime",
+	"version": "0.0.0-private",
+	"private": true,
+	"type": "module",
+	"engines": {
+		"node": ">=20.19.0"
+	},
+	"scripts": {
+		"start": "node --enable-source-maps dist/server.js",
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit",
+		"build": "tsc -p tsconfig.build.json"
+	},
+	"dependencies": {
+		"@ag-ui/client": "0.0.57",
+		"@copilotkit/runtime": "1.63.1"
+	},
+	"devDependencies": {
+		"@types/node": "24.0.0",
+		"typescript": "5.9.3",
+		"vitest": "3.2.4"
+	},
+	"overrides": {
+		"@ag-ui/client": "0.0.57"
+	}
+}

@@ -52,6 +52,7 @@ function DismissedInterruptContent({
 
 function InterruptCards({ interrupts, resolve }: InterruptCardsProps) {
   const pendingIdsRef = useRef(new Set<string>());
+  const closeButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -61,6 +62,16 @@ function InterruptCards({ interrupts, resolve }: InterruptCardsProps) {
   const [dismissedIds, setDismissedIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
+  const [focusAfterReopenId, setFocusAfterReopenId] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (focusAfterReopenId !== null && !dismissedIds.has(focusAfterReopenId)) {
+      closeButtonRefs.current.get(focusAfterReopenId)?.focus();
+      setFocusAfterReopenId(null);
+    }
+  }, [dismissedIds, focusAfterReopenId]);
 
   const dismiss = (interruptId: string) => {
     setDismissedIds((currentIds) => {
@@ -71,6 +82,7 @@ function InterruptCards({ interrupts, resolve }: InterruptCardsProps) {
   };
 
   const reopen = (interruptId: string) => {
+    setFocusAfterReopenId(interruptId);
     setDismissedIds((currentIds) => {
       const nextIds = new Set(currentIds);
       nextIds.delete(interruptId);
@@ -124,6 +136,7 @@ function InterruptCards({ interrupts, resolve }: InterruptCardsProps) {
             key={interrupt.id}
             role="region"
             aria-label={`Approval request ${interrupt.id}`}
+            aria-busy={isPending}
             tabIndex={0}
             onKeyDown={(keyboardEvent) => {
               if (keyboardEvent.key === "Escape") {
@@ -149,6 +162,13 @@ function InterruptCards({ interrupts, resolve }: InterruptCardsProps) {
                       </CardDescription>
                     </div>
                     <Button
+                      ref={(element) => {
+                        if (element) {
+                          closeButtonRefs.current.set(interrupt.id, element);
+                        } else {
+                          closeButtonRefs.current.delete(interrupt.id);
+                        }
+                      }}
                       variant="ghost"
                       size="sm"
                       onClick={() => dismiss(interrupt.id)}
@@ -167,6 +187,11 @@ function InterruptCards({ interrupts, resolve }: InterruptCardsProps) {
                   ) : null}
                 </CardContent>
                 <CardFooter className="gap-2">
+                  {isPending ? (
+                    <span role="status" className="sr-only">
+                      Submitting decision
+                    </span>
+                  ) : null}
                   <Button
                     onClick={() => {
                       void submitDecision(interrupt.id, true);

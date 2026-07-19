@@ -162,7 +162,8 @@ for executable in "${RUNTIME_ROOT}/node_modules/.bin/tsc" "${FRONTEND_ROOT}/node
   fi
 done
 
-RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/ketos-stage01-chat.XXXXXX")"
+TEMP_PARENT="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+RUN_ROOT="$(mktemp -d "${TEMP_PARENT%/}/ketos-stage01-chat.XXXXXX")"
 install -d -m 0700 "${RUN_ROOT}/backend" "${RUN_ROOT}/binding" "${RUN_ROOT}/checkpoint" "${RUN_ROOT}/logs"
 BACKEND_DB="${RUN_ROOT}/backend/ketos.sqlite3"
 BINDING_DB="${RUN_ROOT}/binding/run-bindings.ledger"

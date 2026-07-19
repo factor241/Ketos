@@ -336,6 +336,30 @@ describe("CopilotKitInterruptProbe", () => {
     expect(cancel).not.toHaveBeenCalled();
   });
 
+  it("should restore focus to the reopened card's close control", async () => {
+    const user = userEvent.setup();
+    renderInterrupts([firstInterrupt], createResolveMock(), createCancelMock());
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Close approval request approval-alpha",
+      }),
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "Reopen approval request approval-alpha",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", {
+          name: "Close approval request approval-alpha",
+        }),
+      ).toHaveFocus();
+    });
+  });
+
   it("should locally dismiss on Escape without resolving or cancelling", async () => {
     const user = userEvent.setup();
     const resolve = createResolveMock();

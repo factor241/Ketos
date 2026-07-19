@@ -4,11 +4,16 @@ import { resolve } from "node:path";
 const source = readFileSync(resolve(__dirname, "../../../routes.tsx"), "utf8");
 
 describe("project route contract", () => {
-  it("registers the lazy Project Boards route exactly once", () => {
+  it("registers the nested lazy Project Boards route and board detail route exactly once", () => {
+    expect(source.match(/path="project\/:projectId"/g) ?? []).toHaveLength(1);
+    expect(source.match(/path="boards"/g) ?? []).toHaveLength(1);
     expect(
-      source.match(/path="project\/:projectId\/boards"/g) ?? [],
+      source.match(/path="project\/:projectId\/board\/:boardId"/g) ?? [],
     ).toHaveLength(1);
+
     expect(source).toContain('lazy(() => import("./pages/ProjectPage"))');
+    expect(source).toContain('lazy(() => import("./pages/BoardsPage"))');
+    expect(source).toContain('lazy(() => import("./pages/BoardPage"))');
   });
 
   it("preserves legacy routes", () => {

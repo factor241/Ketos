@@ -3,6 +3,17 @@ name: e2e-testing
 description: Write and review Playwright E2E tests for Ketos. Trigger when the user asks to write, fix, or review E2E tests, spec files, Playwright tests, or integration tests that exercise the full UI. Also trigger when modifying data-testid attributes, test helpers in tests/utils/, or fixture configuration.
 ---
 
+## Mandatory execution boundary
+
+**REQUIRED PRE-SKILL:** Read and follow `main-agent-tool-orchestration` before using this skill.
+
+Only the main agent may use tools or execute this skill. Subagents must not call
+any tool, invoke another skill, inspect or edit files, run commands or tests, or
+perform review, research, or planning. A subagent receives a self-contained
+implementation packet and may return only requested code or unified diff text.
+If context is insufficient, it returns `BLOCKED: missing context`; the main agent
+supplies context, applies changes, and verifies them.
+
 # Ketos E2E Testing (Playwright)
 
 ## When to Apply

@@ -5,6 +5,28 @@
 Ketos is a visual AI workflow builder with a Python/FastAPI backend,
 React/TypeScript frontend, and KFX component/executor SDK.
 
+## Agent and tool execution policy
+
+At the start of every session, the main agent MUST read and follow
+`.agents/skills/main-agent-tool-orchestration/SKILL.md` before selecting any
+other skill, plugin, or task tool.
+
+Only the main agent may call or use tools. This includes shell, search,
+filesystem and patch tools, Git, Graphify, RaytSystem, web, MCP, connectors,
+plugin or app tools, browser or Computer Use, skill-owned scripts, and test
+runners. Subagents must not call any tool, invoke skills, inspect or edit the
+workspace, run commands or tests, browse, research, review, or plan.
+
+The main agent inventories the available tools, plugins, and installed skills,
+selects the minimal task-relevant set, analyzes the project, and defines the
+logic, constraints, interfaces, and acceptance checks. For code delegation it
+then gives a subagent a self-contained implementation packet containing every
+required source slice and instruction. The subagent may return only requested
+code or unified diff text in its response; it never applies the change. If the
+packet is insufficient, it returns `BLOCKED: missing context` without using a
+tool or guessing. The main agent supplies missing context, applies the code,
+runs verification, fixes integration issues, and reports the final result.
+
 ## Commands
 
 ```bash

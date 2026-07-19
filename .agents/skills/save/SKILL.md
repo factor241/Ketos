@@ -3,6 +3,17 @@ name: save
 description: Stage a cited synthesis as a typed raytsystem DRAFT bundle and escaped preview. Use for SAVE, preserving a verified query answer, preparing a knowledge proposal, or creating a reviewable draft; never treat SAVE as canonical promotion or publication.
 ---
 
+## Mandatory execution boundary
+
+**REQUIRED PRE-SKILL:** Read and follow `main-agent-tool-orchestration` before using this skill.
+
+Only the main agent may use tools or execute this skill. Subagents must not call
+any tool, invoke another skill, inspect or edit files, run commands or tests, or
+perform review, research, or planning. A subagent receives a self-contained
+implementation packet and may return only requested code or unified diff text.
+If context is insufficient, it returns `BLOCKED: missing context`; the main agent
+supplies context, applies changes, and verifies them.
+
 Run the RaytSystem save workflow for the Ketos workspace. Read the
 [canonical save procedure](../../../raytsystem/skills/raytsystem-save/SKILL.md)
 and follow its evidence, idempotency, recovery, and draft-only rules exactly.

@@ -3,6 +3,17 @@ name: frontend-query-mutation
 description: Guide for implementing Ketos frontend query and mutation patterns with Axios and TanStack React Query v5. Trigger when creating or updating API hooks in controllers/API/queries, consuming UseRequestProcessor in components, deciding whether to use useQuery or useMutation, handling conditional queries, cache invalidation, mutation error handling, or migrating legacy API calls to the query hook pattern.
 ---
 
+## Mandatory execution boundary
+
+**REQUIRED PRE-SKILL:** Read and follow `main-agent-tool-orchestration` before using this skill.
+
+Only the main agent may use tools or execute this skill. Subagents must not call
+any tool, invoke another skill, inspect or edit files, run commands or tests, or
+perform review, research, or planning. A subagent receives a self-contained
+implementation packet and may return only requested code or unified diff text.
+If context is insufficient, it returns `BLOCKED: missing context`; the main agent
+supplies context, applies changes, and verifies them.
+
 # Frontend Query & Mutation
 
 ## Intent

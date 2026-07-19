@@ -6,6 +6,9 @@ import test from "node:test";
 const root = path.resolve(import.meta.dirname, "..");
 const skillsRoot = path.join(root, ".agents", "skills");
 const projectRoot = "/Volumes/Projects/ketos_canvas_mod_main";
+const orchestrationSkill = "main-agent-tool-orchestration";
+const requiredPreSkill =
+  "**REQUIRED PRE-SKILL:** Read and follow `main-agent-tool-orchestration` before using this skill.";
 const ketosSkills = [
   "backend-code-review",
   "component-refactoring",
@@ -40,7 +43,7 @@ const watchRequiredReferences = [
   "output-schema.md",
   "compatibility-report.md",
 ];
-const expectedSkills = [...ketosSkills, ...raytAdapters].sort();
+const expectedSkills = [orchestrationSkill, ...ketosSkills, ...raytAdapters].sort();
 const canonicalSkillTargets = new Map(
   raytAdapters.map((skill) => [
     skill,
@@ -81,6 +84,45 @@ test("every skill has valid minimal YAML frontmatter without duplicate names", a
 
   assert.equal(new Set(declaredNames).size, expectedSkills.length);
   assert.deepEqual(declaredNames.sort(), expectedSkills);
+});
+
+test("AGENTS requires the orchestration skill at the start of every session", async () => {
+  const source = await readFile(path.join(root, "AGENTS.md"), "utf8");
+
+  assert.match(source, /at the start of every session/i);
+  assert.ok(
+    source.includes(".agents/skills/main-agent-tool-orchestration/SKILL.md"),
+    "AGENTS must point to the canonical session-start skill",
+  );
+  assert.match(source, /only the main agent may (?:call|use).*tools/i);
+  assert.match(source, /subagents? must not call any tool/i);
+});
+
+test("the orchestration skill selects capabilities and keeps every tool in the main agent", async () => {
+  const source = await readFile(
+    path.join(skillsRoot, orchestrationSkill, "SKILL.md"),
+    "utf8",
+  );
+
+  assert.match(source, /beginning of every Codex session/i);
+  assert.match(source, /available tools/i);
+  assert.match(source, /available plugins/i);
+  assert.match(source, /installed skills/i);
+  assert.match(source, /only the main agent may call tools/i);
+  assert.match(source, /subagents? must not call any tool/i);
+  assert.match(source, /code or unified diff text/i);
+  assert.ok(source.includes("`BLOCKED: missing context`"));
+});
+
+test("every other skill inherits the main-agent-only execution boundary", async () => {
+  for (const skill of expectedSkills.filter((name) => name !== orchestrationSkill)) {
+    const source = await readFile(path.join(skillsRoot, skill, "SKILL.md"), "utf8");
+
+    assert.ok(source.includes(requiredPreSkill), `${skill} must require the pre-skill`);
+    assert.match(source, /only the main agent may use tools or execute this skill/i);
+    assert.match(source, /subagents? must not call\s+any tool/i);
+    assert.match(source, /code or unified diff text/i);
+  }
 });
 
 test("every RaytSystem adapter links to its canonical skill", async () => {

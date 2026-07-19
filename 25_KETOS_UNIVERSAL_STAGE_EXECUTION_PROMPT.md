@@ -3,7 +3,7 @@
 ## Как использовать
 
 1. Создай новый чат Codex в репозитории `/Volumes/Projects/ketos_canvas_mod_main`.
-2. Приложи **ровно один** файл этапа — от `15_KETOS_STAGE_01_BASELINE_EVIDENCE.md` до `24_KETOS_STAGE_10_ROLLOUT_OBSERVATION_COMPLETION.md`.
+2. Приложи **ровно один** файл этапа — от `15_KETOS_STAGE_01_ADMISSION_COPILOTKIT_AG_UI_BRIDGE.md` до `24_KETOS_STAGE_10_VERTICAL_SLICE_STABILIZATION_HANDOFF.md`.
 3. Вставь в чат весь текст из блока ниже.
 4. Для следующего этапа создай новый чат, приложи следующий файл и снова используй тот же промпт.
 
@@ -267,4 +267,3 @@ Historical PASS, слова субагента, успешный build без н
 - можно ли начинать следующий этап.
 
 Не заявляй completion до fresh verification. Не останавливайся на формальном отчёте, пока остаётся безопасная работа внутри обязательного scope текущего этапа.
-

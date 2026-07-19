@@ -3,6 +3,17 @@ name: backend-code-review
 description: Review backend code for quality, security, maintainability, and best practices based on established checklist rules. Use when the user requests a review, analysis, or improvement of backend files (e.g., `.py`) under the `src/backend/` directory. Do NOT use for frontend files (e.g., `.tsx`, `.ts`, `.js`). Supports pending-change review, code snippets review, and file-focused review.
 ---
 
+## Mandatory execution boundary
+
+**REQUIRED PRE-SKILL:** Read and follow `main-agent-tool-orchestration` before using this skill.
+
+Only the main agent may use tools or execute this skill. Subagents must not call
+any tool, invoke another skill, inspect or edit files, run commands or tests, or
+perform review, research, or planning. A subagent receives a self-contained
+implementation packet and may return only requested code or unified diff text.
+If context is insufficient, it returns `BLOCKED: missing context`; the main agent
+supplies context, applies changes, and verifies them.
+
 # Backend Code Review
 
 ## When to use this skill

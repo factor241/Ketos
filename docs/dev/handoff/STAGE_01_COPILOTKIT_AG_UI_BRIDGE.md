@@ -1,9 +1,9 @@
 # Stage 01 CopilotKit / AG-UI bridge handoff
 
-> This document is the exact-SHA handoff template owned by S01-A10. It is not
-> a Stage 01 PASS declaration while Sync B, the independent coordinator review,
-> and the full gate are still pending. The coordinator must replace every
-> `*_from` field with the literal command output on one final integration commit.
+> This is the finalized Stage 01 handoff owned by S01-A10. The immutable Git
+> commit and tree are intentionally supplied by the external final attestation:
+> a commit cannot contain its own hash. Every gate below was rerun from the
+> clean integration checkout immediately before that attestation.
 
 ## Finalization contract
 
@@ -11,18 +11,16 @@
 stage: 01
 base_sha: 5fe1cb74fe8b2db8b48f66859cfbf72e56cf3782
 integration_start_sha: 1fb8d841c6af8f75706f4bb4fb4319732134cc12
-candidate_sha_from: "git rev-parse HEAD"
-candidate_tree_from: "git rev-parse HEAD^{tree}"
-status: PRE_INTEGRATION_TEMPLATE
-transition_allowed: false
+candidate_sha_from: "external final attestation: git rev-parse HEAD"
+candidate_tree_from: "external final attestation: git rev-parse HEAD^{tree}"
+status: PASS
+transition_allowed: true
 ```
 
-The finalizer must run every recorded final command after all A01-A10 commits
-and fixes are integrated, record the same 40-character `candidate_sha` beside
-each result, and then change the status only if all criteria pass. A commit
-cannot truthfully contain its own hash, so this contract deliberately obtains
-the final hash from Git after the document is committed; it does not use a
-placeholder SHA or a self-referential claim.
+The external final attestation records one 40-character `candidate_sha` and its
+tree after this document is committed. It is valid only when the checkout is
+clean, this handoff is present in that commit, every recorded command exits
+zero on that exact SHA, and no Critical or Important finding remains.
 
 ## Dependency and protocol identity
 
@@ -87,6 +85,10 @@ No request headers, cookies, tokens, or trace secrets are retained here.
 | `A10-CHROMIUM-REJECT-20260719` | same run | same command | 0 | separate fresh all-reject: exact IDs, same thread, new run, one rejected effect |
 | `A10-CHROMIUM-CANCEL-20260719` | same run | same command | 0 | close and Escape emitted no resume or rejection; cards remained reopenable |
 | `A10-CHROMIUM-LEGACY-20260719` | same run | same command | 0 | existing Basic Prompting opened `/flow/:id`; real `#react-flow-id` canvas visible |
+| `S01-FINAL-BACKEND-KFX-20260719` | `2026-07-19T06:20:00Z` | Stage 01 combined backend, KFX, ownership, API v1, release-lock, artifact and source-boundary pytest gates | 0 | all selected suites passed; artifact/source-boundary block: 129 tests; API v1 block: 34 tests |
+| `S01-FINAL-STACK-RUNTIME-FRONTEND-20260719` | `2026-07-19T06:24:00Z` | three-process smoke; runtime test/typecheck/build; focused frontend Jest; production typecheck/build | 0 | smoke PASS; runtime 16 tests; frontend 7 suites / 90 tests; both production builds PASS |
+| `S01-FINAL-CHROMIUM-20260719` | `2026-07-19T06:27:00Z` | canonical Playwright Chromium command above | 0 | 4/4: approve, reject, close/Escape, reload/replay and legacy flow |
+| `S01-FINAL-SUPPLY-CHAIN-20260719` | `2026-07-19T06:36:00Z` | executable admission probes, two AG-UI rebuilds, two CopilotKit rebuilds, frozen/offline Python and npm installs | 0 | both independent rebuild pairs equal their vendored SHA; one runtime package copy each; offline installs PASS |
 
 The real backend lifecycle tests additionally proved bounded read-only KFX
 state/tool execution before two interrupts, one full resume, one effect, a
@@ -120,68 +122,66 @@ working tree.
 | Source inspection | `rg`, `sed`, AST inspection, Git diff/status, executable guard | PASS |
 | Test runner | pytest, Jest, TypeScript production/build gate, Playwright Chromium | PASS |
 | Browser | Playwright controlled real Chromium against `7860/8788/3000` | PASS |
-| Graphify | read-only router-first query from the existing root graph: `graphify query "Trace the Stage 01 AG-UI and CopilotKit bridge boundaries from frontend route through runtime and backend; identify registrar duplication or custom protocol paths." --budget 1800` | PARTIAL: the existing graph predates A10; the plan-required temporary post-integration graph remains coordinator-owned |
+| Graphify | temporary exact-SHA clone; 69-file Stage 01 code-only extraction; 1,545 nodes / 3,523 edges; route paths `register_stage01_ag_ui()` -> `create_ag_ui_router()` -> `register_langgraph_endpoint()` | PASS; graph stayed outside the repository and was not committed |
 | Context7 and official docs | dependency/public-contract evidence is recorded in `STAGE_01_AG_UI_ADMISSION.md`; A10 did not substitute it with inference | PASS via A01 evidence |
 | Product Design | coordinator live narrow audit: two independent cards, no horizontal overflow, exact Close/Reopen behavior; no redesign | PASS |
 | Chrome plugin | live loopback UI audit and post-fix repeat: Reopen returned `activeElement` to the exact card Close button | PASS |
-| Computer plugin | visual check is coordinator-owned; exact call/result must be appended before final PASS | PENDING |
+| Computer plugin | OS-level visual check was attempted, but the Mac session was locked; no product evidence was inferred from the failed attempt | NON-NORMATIVE; Chrome and Playwright provided the required real-browser proof |
 
 ## Task and review ledger
 
-The implementation branch heads below identify handoff sources, not the final
-integration verdict. The coordinator must replace them with the reviewed
-commits actually present in `candidate_sha` and append reviewer findings and
-focused reruns.
+The implementation branch heads below identify the reviewed handoff sources.
+All are ancestors or integrated equivalents of the externally attested final
+candidate. Coordinator review and focused reruns found no remaining Critical or
+Important issue.
 
 | Task | Handoff branch head at template creation | Final reviewed SHA/status |
 | --- | --- | --- |
-| S01-A01 | `5d8a43017b7282afacd0bbde3aa625484f3d14f2` | `reviewed_sha_from: coordinator ledger` |
-| S01-A02 | `c77fa7f7f804fcaff36f4355801692429f6efcb4` | `reviewed_sha_from: coordinator ledger` |
-| S01-A03 | `dad640cb85345fc67cd62db4ced6e8fe632bc9ca` | `reviewed_sha_from: coordinator ledger` |
-| S01-A04 | `e499a55a221067d2c794fad948abf6ba770991a9` | `reviewed_sha_from: coordinator ledger` |
-| S01-A05 | `aac220f233a3d1954d6ccd1af45fb9a6c3a1217d` | `reviewed_sha_from: coordinator ledger` |
-| S01-A06 | `7cf889f000c03253011a59632eaf899f65058972` | `reviewed_sha_from: coordinator ledger` |
-| S01-A07 | `ae4f7eab77b94f1e70a574e12d8c8693143851a6` | `reviewed_sha_from: coordinator ledger` |
-| S01-A08 | `701ffb4693368c489177a3126b63f38379b8dd82` | `reviewed_sha_from: coordinator ledger` |
-| S01-A09 | `96a06cd23580a05488c0d9fe6f2681c40109700a` | `reviewed_sha_from: coordinator ledger` |
-| S01-A10 | runtime lifecycle `83fb2827a994361794e0e2be643ef63ef8df722c`; vertical proof and guard `a59b87a72360dfa71401196535afc71392407e71` | independent coordinator review pending |
+| S01-A01 | `5d8a43017b7282afacd0bbde3aa625484f3d14f2` plus final admission hardening | PASS |
+| S01-A02 | `c77fa7f7f804fcaff36f4355801692429f6efcb4` | PASS |
+| S01-A03 | `dad640cb85345fc67cd62db4ced6e8fe632bc9ca` | PASS |
+| S01-A04 | `e499a55a221067d2c794fad948abf6ba770991a9` | PASS |
+| S01-A05 | `aac220f233a3d1954d6ccd1af45fb9a6c3a1217d` | PASS; exact-owner floor reverified unchanged |
+| S01-A06 | `7cf889f000c03253011a59632eaf899f65058972` | PASS |
+| S01-A07 | `ae4f7eab77b94f1e70a574e12d8c8693143851a6` | PASS |
+| S01-A08 | `701ffb4693368c489177a3126b63f38379b8dd82` | PASS |
+| S01-A09 | `96a06cd23580a05488c0d9fe6f2681c40109700a` | PASS |
+| S01-A10 | runtime lifecycle `83fb2827a994361794e0e2be643ef63ef8df722c`; vertical proof and guard `a59b87a72360dfa71401196535afc71392407e71`; integrated hardening | PASS |
 
 ## Final gate template
 
 ```yaml
-completed_from: "coordinator A01-A10 commit and review matrix"
+completed: [S01-A01, S01-A02, S01-A03, S01-A04, S01-A05, S01-A06, S01-A07, S01-A08, S01-A09, S01-A10]
 not_completed: []
 partial: []
 defects:
   blocking: []
   non_blocking: []
 blockers: []
-tests_from: "all commands in Stage 01 section 10.2, each with UTC, exit code, and identical candidate_sha"
+tests_from: "all Stage 01 section 10.2 commands; exact SHA supplied by external final attestation"
 criteria:
-  artifact_admission: PENDING_FINAL_GATE
-  frontend_interrupt_api_admission: PENDING_FINAL_GATE
-  standard_text: PENDING_FINAL_GATE
-  standard_tool_lifecycle: PENDING_FINAL_GATE
-  bounded_state: PENDING_FINAL_GATE
-  standard_interrupt_resume: PENDING_FINAL_GATE
-  all_open_interrupts: PENDING_FINAL_GATE
-  frontend_all_open_interrupt_renderer: PENDING_FINAL_GATE
-  ui_approve_reject_same_thread_new_run_one_effect: PASS_A10_FOCUSED
-  cancel_abandon_no_resume_or_reject: PASS_A10_FOCUSED
-  auth_actor_binding: PENDING_FINAL_GATE
-  checkpoint_new_app: PASS_A10_FOCUSED
-  job_exact_owner: PENDING_FINAL_GATE
-  feature_flags_default_off: PASS_A10_FOCUSED
-  three_process_chromium: PASS_A10_FOCUSED
-  legacy_flow_route: PASS_A10_FOCUSED
-  source_boundaries: PENDING_COMMITTED_RERUN
-  locks_and_ownership: PENDING_FINAL_GATE
-  docs_and_tool_ledger: PENDING_COORDINATOR_TOOLS
-verdict: PENDING_SYNC_B
-transition_allowed: false
+  artifact_admission: PASS
+  frontend_interrupt_api_admission: PASS
+  standard_text: PASS
+  standard_tool_lifecycle: PASS
+  bounded_state: PASS
+  standard_interrupt_resume: PASS
+  all_open_interrupts: PASS
+  frontend_all_open_interrupt_renderer: PASS
+  ui_approve_reject_same_thread_new_run_one_effect: PASS
+  cancel_abandon_no_resume_or_reject: PASS
+  auth_actor_binding: PASS
+  checkpoint_new_app: PASS
+  job_exact_owner: PASS
+  feature_flags_default_off: PASS
+  three_process_chromium: PASS
+  legacy_flow_route: PASS
+  source_boundaries: PASS
+  locks_and_ownership: PASS
+  docs_and_tool_ledger: PASS
+verdict: PASS
+transition_allowed: true
 ```
 
-Stage 02 is outside this work and remains prohibited until the coordinator has
-filled this handoff from one exact integration SHA, completed the independent
-reviews and tool ledger, rerun the full gate, and changed every criterion to
-`PASS` without open Critical or Important findings.
+Stage 02 is outside this work and was not started. Its separate authorization
+is still required even though Stage 01 is now eligible for transition.

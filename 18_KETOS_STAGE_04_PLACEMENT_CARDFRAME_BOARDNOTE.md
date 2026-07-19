@@ -336,7 +336,7 @@ Create center algorithm вызывает Stage-03 `screenToFlowPosition` для 
 
 - `src/backend/base/ketos/api/v1/__init__.py`;
 - `src/backend/base/ketos/api/router.py`;
-- `src/frontend/src/components/core/board/BoardCanvas/index.tsx`;
+- `src/frontend/src/components/core/board/BoardCanvas.tsx`;
 - `src/frontend/src/locales/en.json`;
 - `src/frontend/src/locales/ru.json`.
 
@@ -471,7 +471,14 @@ raytsystem lint --root /Volumes/Projects/ketos_canvas_mod_main --json
 graphify query "Stage 04 Placement BoardCardFrame BoardNote Board Flow NoteNode ownership CAS Markdown"
 ```
 
-Coordinator читает `docs/dev/handoff/KETOS_MVP_STAGE_03.md` и проверяет, что его итог `PASS`, report SHA совпадает с `git rev-parse HEAD`, Board model/API/page/canvas/viewport реально существуют, а `cd src/backend/base/ketos && uv run alembic heads` возвращает одно значение. Затем:
+Coordinator читает `docs/dev/handoff/KETOS_MVP_STAGE_03.md` и проверяет статус
+`PASS`, наличие handoff в текущем `HEAD`, clean checkout и external final
+attestation candidate SHA/tree после handoff commit. Fresh Stage-03 gates должны
+быть выполнены на точном `git rev-parse HEAD`; Board
+model/API/page/canvas/viewport реально существуют, а
+`cd src/backend/base/ketos && uv run alembic heads` возвращает одно значение.
+Literal self-SHA внутри committed report математически невозможен, поэтому
+нормативным источником exact SHA/tree служит external attestation. Затем:
 
 ```bash
 export S04_ROOT=/Volumes/Projects/ketos_canvas_mod_main

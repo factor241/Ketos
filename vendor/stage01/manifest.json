@@ -26,12 +26,18 @@
           ]
         },
         "python": "3.13.14",
+        "build_requirements": {
+          "path": "scripts/mvp/ag_ui_build_requirements.lock",
+          "sha256": "533650ec5ab9442d46a98f5d1f6cf5ff5a259026c83952f34566ab7f877e5526",
+          "mode": "require-hashes/no-build-isolation/offline-build"
+        },
         "source_date_epoch": 1765974360
       },
       "wheel_inventory": {
         "policy": "exact-git-bound-source-package-plus-wheel-build-metadata",
         "source_package": "integrations/langgraph/python/ag_ui_langgraph/",
         "build_metadata": ["METADATA", "WHEEL", "licenses/LICENSE", "RECORD"],
+        "record_policy": "exact paths, SHA-256 and byte sizes; sole empty self-row",
         "enforced_by": "scripts/mvp/probe_ag_ui_adapter.py"
       },
       "rebuild": "FORK_SHA=85b94807e464c9b38f591938a41559923a712dbb uv run --no-sync python scripts/mvp/rebuild_ag_ui_artifact.py --output-dir /tmp/ketos-stage01-agui-rebuild --json",

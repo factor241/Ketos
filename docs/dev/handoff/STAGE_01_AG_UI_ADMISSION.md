@@ -40,6 +40,10 @@ the Git-bound source/build inventory. The adversarial regression appended
 passed (RED) and now fails closed because every `ag_ui_langgraph/` member must
 match the exact source file SHA and only four exact dist-info build members are
 allowed.
+The same probe parses every `RECORD` row and requires an exact one-to-one
+path/hash/size match with a single empty self-row. Runtime admission hashes all
+nine installed Python files, proves their common distribution root, and rejects
+a second installed or importable package copy.
 
 The admitted CopilotKit archive is pinned to fork commit
 `c853ac2b78cb57481cc2ca58eda4a865908c532b` with SHA-256
@@ -75,6 +79,14 @@ installed, type-checked, built and packed under the manifest-selected Node
 --offline` installed the exact local wheel; `npm ci --offline` installed the
 exact local tgz and integrity. `uv.lock` and `package-lock.json` contain the
 same artifact hashes.
+
+The AG-UI build backend is independently locked in
+`scripts/mvp/ag_ui_build_requirements.lock` (SHA-256
+`533650ec5ab9442d46a98f5d1f6cf5ff5a259026c83952f34566ab7f877e5526`):
+`hatchling==1.31.0` plus four exact transitive dependencies, with two approved
+archive hashes per package. Installation requires hashes; the build runs with
+no build isolation and offline, while fork tests resolve frozen from the
+fork-owned `uv.lock`. Pristine checks run after tests and after build.
 
 The final canonical CopilotKit executor no longer relies on host `npx`,
 Corepack, `command -v`, a caller checkout, or user Git configuration. It

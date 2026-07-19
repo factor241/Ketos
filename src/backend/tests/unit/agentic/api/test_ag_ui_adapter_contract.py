@@ -229,7 +229,12 @@ Requires-Python: >=3.10,<3.15
             "ag_ui_langgraph/endpoint.py",
             (source_root / "endpoint.py").read_bytes(),
         )
+        archive.writestr(
+            f"{dist_info}/WHEEL",
+            "Wheel-Version: 1.0\nGenerator: fixture\nRoot-Is-Purelib: true\nTag: py3-none-any\n",
+        )
         archive.writestr(f"{dist_info}/licenses/LICENSE", LICENSE_BYTES)
+        archive.writestr(f"{dist_info}/RECORD", "")
 
     provenance = _fork_provenance(wheel, source_archive)
     provenance.update(
@@ -372,6 +377,27 @@ def test_fork_provenance_binds_exact_owner_commits_artifact_source_and_license_h
     assert result["upstream_base_sha"] == provenance["upstream_base_sha"]
     assert result["artifact_sha256"] == hashlib.sha256(wheel.read_bytes()).hexdigest()
     assert result["source_archive_sha256"] == hashlib.sha256(source_archive.read_bytes()).hexdigest()
+
+
+def test_fork_provenance_rejects_extra_wheel_payload_even_with_recomputed_self_attested_hash(
+    tmp_path: Path,
+) -> None:
+    probe = _load_probe()
+    repo, wheel, source_archive, provenance, approved_remote = _write_git_bound_fork_fixture(tmp_path)
+    probe.APPROVED_FORK_GIT_REMOTE = str(approved_remote)
+
+    with zipfile.ZipFile(wheel, "a") as archive:
+        archive.writestr("unapproved_payload.txt", b"not present in the bound fork source or build inventory")
+    provenance["artifact_sha256"] = hashlib.sha256(wheel.read_bytes()).hexdigest()
+
+    with pytest.raises(ValueError, match="wheel inventory"):
+        probe.validate_fork_provenance(
+            provenance,
+            artifact_path=wheel,
+            source_archive_path=source_archive,
+            repository_path=repo,
+            artifact=probe.inspect_artifact(wheel),
+        )
 
 
 @pytest.mark.parametrize(
@@ -1259,13 +1285,19 @@ def test_vendored_manifest_runs_agui_probe_with_declared_fastapi_extra() -> None
     agui = manifest["artifacts"]["ag-ui-langgraph"]
     command = agui["audit"]
     assert "ag_ui_langgraph-0.0.43+ketos.1-py3-none-any.whl[fastapi]" in command
-    assert agui["toolchain"] == {
-        "uv": "0.11.21",
-        "python": "3.13.14",
-        "source_date_epoch": 1765974360,
-    }
-    assert 'test "$(uv --version | cut -d \' \' -f 2)" = "0.11.21"' in agui["rebuild"]
-    assert "uv build --python 3.13.14" in agui["rebuild"]
+    assert agui["toolchain"]["uv"]["version"] == "0.11.21"
+    assert len(agui["toolchain"]["uv"]["distributions"]) == 4
+    assert agui["toolchain"]["python"] == "3.13.14"
+    assert agui["toolchain"]["source_date_epoch"] == 1765974360
+    assert "rebuild_ag_ui_artifact.py" in agui["rebuild"]
+    assert "85b94807e464c9b38f591938a41559923a712dbb" in agui["rebuild"]
+    assert "--run-tests" in agui["test"]
+    assert agui["wheel_inventory"]["build_metadata"] == [
+        "METADATA",
+        "WHEEL",
+        "licenses/LICENSE",
+        "RECORD",
+    ]
 
     copilot = manifest["artifacts"]["@copilotkit/react-core"]
     assert "audit_copilotkit_provenance.py" in copilot["source_audit"]

@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactFlowInstance, Viewport } from "@xyflow/react";
+import type { ReactNode } from "react";
 
 import BoardCanvas, { BoardCanvas as NamedBoardCanvas } from "../index";
 
@@ -20,6 +20,23 @@ const instance = {
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
+jest.mock("@/components/ui/button", () => {
+  const React = jest.requireActual<typeof import("react")>("react");
+  return {
+    Button: React.forwardRef<
+      HTMLButtonElement,
+      React.ButtonHTMLAttributes<HTMLButtonElement> & {
+        ignoreTitleCase?: boolean;
+      }
+    >(({ ignoreTitleCase: _ignoreTitleCase, ...props }, ref) =>
+      React.createElement("button", {
+        ...props,
+        ref,
+        "data-ui-button": "true",
+      }),
+    ),
+  };
+});
 jest.mock("@xyflow/react", () => {
   const React = jest.requireActual<typeof import("react")>("react");
   return {
@@ -29,20 +46,35 @@ jest.mock("@xyflow/react", () => {
     ReactFlow: (props: Record<string, unknown> & { children?: ReactNode }) => {
       flowProps = props;
       React.useEffect(() => {
-        (props.onInit as ((value: ReactFlowInstance) => void) | undefined)?.(instance);
+        (props.onInit as ((value: ReactFlowInstance) => void) | undefined)?.(
+          instance,
+        );
       }, [props.onInit]);
-      return React.createElement("div", { "data-testid": "react-flow" }, props.children);
+      return React.createElement(
+        "div",
+        { "data-testid": "react-flow" },
+        props.children,
+      );
     },
     Background: ({ variant }: { variant?: string }) =>
-      React.createElement("div", { "data-testid": "background", "data-variant": variant }),
+      React.createElement("div", {
+        "data-testid": "background",
+        "data-variant": variant,
+      }),
     MiniMap: () => React.createElement("div", { "data-testid": "minimap" }),
     Controls: (props: Record<string, unknown> & { children?: ReactNode }) => {
       controlsProps = props;
       return React.createElement(
         "div",
         { "data-testid": "controls" },
-        React.createElement("button", { type: "button", "aria-label": "zoom in" }),
-        React.createElement("button", { type: "button", "aria-label": "zoom out" }),
+        React.createElement("button", {
+          type: "button",
+          "aria-label": "zoom in",
+        }),
+        React.createElement("button", {
+          type: "button",
+          "aria-label": "zoom out",
+        }),
         props.children,
       );
     },
@@ -95,12 +127,17 @@ it("renders the exact empty non-interactive React Flow contract", () => {
       onMoveEnd,
     }),
   );
-  expect(screen.getByTestId("background")).toHaveAttribute("data-variant", "dots");
+  expect(screen.getByTestId("background")).toHaveAttribute(
+    "data-variant",
+    "dots",
+  );
   expect(screen.getByTestId("minimap")).toBeInTheDocument();
   expect(controlsProps.showFitView).toBe(false);
   expect(screen.getByRole("button", { name: "zoom in" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "zoom out" })).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: /fit/i })).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: /fit/i }),
+  ).not.toBeInTheDocument();
 });
 
 it("moves focus into and back out of the labelled canvas", async () => {
@@ -108,6 +145,7 @@ it("moves focus into and back out of the labelled canvas", async () => {
   renderCanvas();
   const entry = screen.getByRole("button", { name: "board.canvas.open" });
   const region = screen.getByRole("region", { name: "board.canvas.label" });
+  expect(entry).toHaveAttribute("data-ui-button", "true");
   entry.focus();
   await user.keyboard("{Enter}");
   expect(region).toHaveFocus();
@@ -115,6 +153,18 @@ it("moves focus into and back out of the labelled canvas", async () => {
   expect(entry).toHaveFocus();
   await user.click(entry);
   expect(region).toHaveFocus();
+});
+
+it("keeps the canvas inside the available column height", () => {
+  renderCanvas();
+  const region = screen.getByRole("region", { name: "board.canvas.label" });
+  expect(region).toHaveClass("min-h-0", "flex-1", "w-full");
+  expect(region.parentElement).toHaveClass(
+    "flex",
+    "h-full",
+    "min-h-0",
+    "flex-col",
+  );
 });
 
 it("pans 40 pixels and 160 pixels with Shift through persistence", async () => {
@@ -145,12 +195,25 @@ it("clamps zoom and resets from keyboard and control", async () => {
   viewport = { x: 5, y: 6, zoom: 1.9 };
   fireEvent.keyDown(region, { key: "+" });
   fireEvent.keyDown(region, { key: "+" });
-  expect(setViewport).toHaveBeenNthCalledWith(2, { x: 5, y: 6, zoom: 2 }, { duration: 0 });
+  expect(setViewport).toHaveBeenNthCalledWith(
+    2,
+    { x: 5, y: 6, zoom: 2 },
+    { duration: 0 },
+  );
   viewport = { x: 5, y: 6, zoom: 0.6 };
   fireEvent.keyDown(region, { key: "-" });
-  expect(setViewport).toHaveBeenNthCalledWith(3, { x: 5, y: 6, zoom: 0.5 }, { duration: 0 });
+  expect(setViewport).toHaveBeenNthCalledWith(
+    3,
+    { x: 5, y: 6, zoom: 0.5 },
+    { duration: 0 },
+  );
   await user.keyboard("0");
-  await user.click(screen.getByRole("button", { name: "board.viewport.reset" }));
-  expect(setViewport).toHaveBeenLastCalledWith({ x: 0, y: 0, zoom: 1 }, { duration: 0 });
+  await user.click(
+    screen.getByRole("button", { name: "board.viewport.reset" }),
+  );
+  expect(setViewport).toHaveBeenLastCalledWith(
+    { x: 0, y: 0, zoom: 1 },
+    { duration: 0 },
+  );
   expect(onMoveEnd).toHaveBeenCalledTimes(5);
 });

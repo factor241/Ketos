@@ -8,11 +8,16 @@ import { useBoardViewport } from "../hooks/use-board-viewport";
 
 let mockFeatureEnabled = true;
 jest.mock("@/stores/utilityStore", () => ({
-  useUtilityStore: (selector: (state: { featureFlags: { mvp_workspace: boolean } }) => unknown) =>
-    selector({ featureFlags: { mvp_workspace: mockFeatureEnabled } }),
+  useUtilityStore: (
+    selector: (state: { featureFlags: { mvp_workspace: boolean } }) => unknown,
+  ) => selector({ featureFlags: { mvp_workspace: mockFeatureEnabled } }),
 }));
-jest.mock("@/controllers/API/queries/boards", () => ({ useGetBoard: jest.fn() }));
-jest.mock("../hooks/use-board-viewport", () => ({ useBoardViewport: jest.fn() }));
+jest.mock("@/controllers/API/queries/boards", () => ({
+  useGetBoard: jest.fn(),
+}));
+jest.mock("../hooks/use-board-viewport", () => ({
+  useBoardViewport: jest.fn(),
+}));
 jest.mock("@/components/core/board", () => ({
   __esModule: true,
   default: jest.fn(() => <div data-testid="board-canvas" />),
@@ -33,7 +38,10 @@ function renderBoard(path = `/project/${PROJECT_ID}/board/${BOARD_ID}`) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/project/:projectId/board/:boardId" element={<BoardPage />} />
+        <Route
+          path="/project/:projectId/board/:boardId"
+          element={<BoardPage />}
+        />
         <Route path="/flows" element={<div data-testid="flows-page" />} />
       </Routes>
     </MemoryRouter>,
@@ -69,12 +77,15 @@ it("composes a valid direct URL and bridges exact viewport props", () => {
     { projectId: PROJECT_ID, boardId: BOARD_ID },
     { enabled: true },
   );
-  expect(screen.getByRole("heading", { name: "Incident response" })).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "board.backToBoards" })).toHaveAttribute(
-    "href",
-    `/project/${PROJECT_ID}/boards`,
+  expect(
+    screen.getByRole("heading", { name: "Incident response" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("link", { name: "board.backToBoards" }),
+  ).toHaveAttribute("href", `/project/${PROJECT_ID}/boards`);
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "board.conflict.serverWins",
   );
-  expect(screen.getByRole("alert")).toHaveTextContent("board.conflict.serverWins");
   expect(mockBoardCanvas).toHaveBeenCalledWith(
     expect.objectContaining({ initialViewport: { x: 12, y: 24, zoom: 1.25 } }),
     undefined,
@@ -84,13 +95,23 @@ it("composes a valid direct URL and bridges exact viewport props", () => {
 it.each([
   [`/project/not-a-uuid/board/${BOARD_ID}`, "not-a-uuid", BOARD_ID],
   [`/project/${PROJECT_ID}/board/not-a-uuid`, PROJECT_ID, "not-a-uuid"],
-  [`/project/${PROJECT_ID}/board/550e8400-e29b-01d4-a716-446655440000`, PROJECT_ID, "550e8400-e29b-01d4-a716-446655440000"],
-])("rejects invalid ids before enabling the query", (path, projectId, boardId) => {
-  renderBoard(path);
-  expect(mockUseGetBoard).toHaveBeenCalledWith({ projectId, boardId }, { enabled: false });
-  expect(screen.getByRole("alert")).toHaveTextContent(/^board\.notFound$/);
-  expect(mockUseBoardViewport).not.toHaveBeenCalled();
-});
+  [
+    `/project/${PROJECT_ID}/board/550e8400-e29b-01d4-a716-446655440000`,
+    PROJECT_ID,
+    "550e8400-e29b-01d4-a716-446655440000",
+  ],
+])(
+  "rejects invalid ids before enabling the query",
+  (path, projectId, boardId) => {
+    renderBoard(path);
+    expect(mockUseGetBoard).toHaveBeenCalledWith(
+      { projectId, boardId },
+      { enabled: false },
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent(/^board\.notFound$/);
+    expect(mockUseBoardViewport).not.toHaveBeenCalled();
+  },
+);
 
 it("denies a board belonging to another project without metadata", () => {
   successfulQuery(FOREIGN_PROJECT_ID);
@@ -112,14 +133,24 @@ it("hides board UI when the feature flag is off", () => {
 });
 
 it("renders loading without hydrating the canvas", () => {
-  mockUseGetBoard.mockReturnValue({ data: undefined, isLoading: true, isError: false, refetch: mockRefetch });
+  mockUseGetBoard.mockReturnValue({
+    data: undefined,
+    isLoading: true,
+    isError: false,
+    refetch: mockRefetch,
+  });
   renderBoard();
   expect(screen.getByRole("status")).toHaveTextContent("board.loading");
   expect(mockUseBoardViewport).not.toHaveBeenCalled();
 });
 
 it("renders a query error and retries", () => {
-  mockUseGetBoard.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch: mockRefetch });
+  mockUseGetBoard.mockReturnValue({
+    data: undefined,
+    isLoading: false,
+    isError: true,
+    refetch: mockRefetch,
+  });
   renderBoard();
   expect(screen.getByRole("alert")).toHaveTextContent("board.error");
   fireEvent.click(screen.getByRole("button", { name: "board.retry" }));

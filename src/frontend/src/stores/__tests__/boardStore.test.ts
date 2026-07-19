@@ -1,5 +1,5 @@
-import type { Viewport } from "@xyflow/react";
 import { act } from "@testing-library/react";
+import type { Viewport } from "@xyflow/react";
 
 import useBoardStore, { type BoardStore } from "../boardStore";
 

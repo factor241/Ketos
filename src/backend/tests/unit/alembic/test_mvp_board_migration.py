@@ -9,13 +9,11 @@ from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from alembic.script import ScriptDirectory
-from pydantic import ValidationError
-from sqlalchemy import inspect
-
 from ketos.services.database.models import Board as RegisteredBoard
 from ketos.services.database.models.board.model import Board
 from ketos.services.database.service import SQLModel
-
+from pydantic import ValidationError
+from sqlalchemy import inspect
 
 WORKSPACE = Path(__file__).resolve().parents[5]
 ALEMBIC_ROOT = WORKSPACE / "src/backend/base/ketos/alembic"
@@ -59,8 +57,16 @@ def test_board_is_registered_and_declares_the_exact_model_contract() -> None:
     table = Board.__table__
     assert table.name == "board"
     assert set(table.columns.keys()) == {
-        "id", "project_id", "created_by_id", "title", "viewport_x", "viewport_y",
-        "viewport_zoom", "revision", "created_at", "updated_at",
+        "id",
+        "project_id",
+        "created_by_id",
+        "title",
+        "viewport_x",
+        "viewport_y",
+        "viewport_zoom",
+        "revision",
+        "created_at",
+        "updated_at",
     }
     assert isinstance(table.c.id.type, sa.Uuid)
     assert table.c.id.primary_key
@@ -145,8 +151,16 @@ def test_upgrade_and_downgrade_execute_on_sqlite_without_touching_other_tables(
         assert set(inspector.get_table_names()) == {"board", "folder", "migration_sentinel", "user"}
         columns = {column["name"]: column for column in inspector.get_columns("board")}
         assert set(columns) == {
-            "id", "project_id", "created_by_id", "title", "viewport_x", "viewport_y",
-            "viewport_zoom", "revision", "created_at", "updated_at",
+            "id",
+            "project_id",
+            "created_by_id",
+            "title",
+            "viewport_x",
+            "viewport_y",
+            "viewport_zoom",
+            "revision",
+            "created_at",
+            "updated_at",
         }
         assert columns["id"]["primary_key"] == 1
         assert columns["title"]["nullable"] is False
@@ -170,11 +184,12 @@ def test_upgrade_and_downgrade_execute_on_sqlite_without_touching_other_tables(
         assert ("project_id",) in indexed_columns
         assert ("created_by_id",) in indexed_columns
         checks = {
-            check["name"]: _normalized_sql(check["sqltext"])
-            for check in inspector.get_check_constraints("board")
+            check["name"]: _normalized_sql(check["sqltext"]) for check in inspector.get_check_constraints("board")
         }
         assert set(checks) == {
-            "ck_board_title_length", "ck_board_viewport_zoom_range", "ck_board_revision_nonnegative",
+            "ck_board_title_length",
+            "ck_board_viewport_zoom_range",
+            "ck_board_revision_nonnegative",
         }
         migration.downgrade()
         assert set(inspect(connection).get_table_names()) == {"folder", "migration_sentinel", "user"}

@@ -16,13 +16,16 @@ export const usePatchBoard: useMutationFunctionType<
   return mutate(
     boardKeys.all,
     async ({ boardId, ...payload }: PatchBoardVariables) =>
-      (await api.patch<BoardRead>(`${getURL("BOARDS")}/${boardId}`, payload)).data,
+      (await api.patch<BoardRead>(`${getURL("BOARDS")}/${boardId}`, payload))
+        .data,
     {
       ...options,
       retry: false,
       onSuccess: async (board, ...args) => {
         queryClient.setQueryData(boardKeys.detail(projectId, board.id), board);
-        await queryClient.invalidateQueries({ queryKey: boardKeys.list(projectId) });
+        await queryClient.invalidateQueries({
+          queryKey: boardKeys.list(projectId),
+        });
         await options?.onSuccess?.(board, ...args);
       },
     },

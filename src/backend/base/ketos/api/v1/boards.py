@@ -1,4 +1,5 @@
-from typing import Annotated, Awaitable, Callable, TypeVar
+from collections.abc import Awaitable, Callable
+from typing import Annotated, TypeVar
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
@@ -27,13 +28,12 @@ async def _run_service(call: Callable[[], Awaitable[T]]) -> T:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"code": "board_not_found"}) from exc
     except BoardRevisionConflictError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"code": exc.code}) from exc
-    except ValueError as exc:
+    except (TypeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail={"code": "board_validation_error"}) from exc
 
 
 @router.post(
     "/projects/{project_id}/boards",
-    response_model=BoardRead,
     status_code=status.HTTP_201_CREATED,
 )
 async def create_project_board(
@@ -45,23 +45,19 @@ async def create_project_board(
     return BoardRead.model_validate(board, from_attributes=True)
 
 
-@router.get("/projects/{project_id}/boards", response_model=list[BoardRead])
-async def read_project_boards(
-    project_id: UUID, session: DbSession, current_user: CurrentActiveUser
-) -> list[BoardRead]:
-    boards = await _run_service(
-        lambda: list_boards(session, project_id=project_id, actor_id=current_user.id)
-    )
+@router.get("/projects/{project_id}/boards")
+async def read_project_boards(project_id: UUID, session: DbSession, current_user: CurrentActiveUser) -> list[BoardRead]:
+    boards = await _run_service(lambda: list_boards(session, project_id=project_id, actor_id=current_user.id))
     return [BoardRead.model_validate(board, from_attributes=True) for board in boards]
 
 
-@router.get("/boards/{board_id}", response_model=BoardRead)
+@router.get("/boards/{board_id}")
 async def read_board(board_id: UUID, session: DbSession, current_user: CurrentActiveUser) -> BoardRead:
     board = await _run_service(lambda: get_owned_board(session, board_id=board_id, actor_id=current_user.id))
     return BoardRead.model_validate(board, from_attributes=True)
 
 
-@router.patch("/boards/{board_id}", response_model=BoardRead)
+@router.patch("/boards/{board_id}")
 async def patch_board(
     board_id: UUID, payload: BoardPatch, session: DbSession, current_user: CurrentActiveUser
 ) -> BoardRead:
@@ -77,14 +73,12 @@ async def patch_board(
     return BoardRead.model_validate(board, from_attributes=True)
 
 
-@router.put("/boards/{board_id}/viewport", response_model=BoardRead)
+@router.put("/boards/{board_id}/viewport")
 async def put_board_viewport(
     board_id: UUID, payload: BoardViewportUpdate, session: DbSession, current_user: CurrentActiveUser
 ) -> BoardRead:
     board = await _run_service(
-        lambda: update_board_viewport(
-            session, board_id=board_id, actor_id=current_user.id, viewport=payload
-        )
+        lambda: update_board_viewport(session, board_id=board_id, actor_id=current_user.id, viewport=payload)
     )
     return BoardRead.model_validate(board, from_attributes=True)
 

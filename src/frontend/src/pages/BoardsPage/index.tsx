@@ -1,8 +1,18 @@
-import { useState } from "react";
 import type { FormEvent } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   useDeleteBoard,
   useGetBoards,
@@ -13,12 +23,15 @@ import type { BoardRead } from "@/types/board";
 
 type BoardsPageProps = { projectId?: string };
 
-export default function BoardsPage({ projectId: projectIdProp }: BoardsPageProps) {
+export default function BoardsPage({
+  projectId: projectIdProp,
+}: BoardsPageProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const params = useParams<{ projectId: string }>();
   const projectId = projectIdProp ?? params.projectId ?? "";
   const boardsQuery = useGetBoards({ projectId });
+  const reloadBoards = boardsQuery.refetch;
   const createBoard = usePostBoard({ projectId });
   const patchBoard = usePatchBoard({ projectId });
   const deleteBoard = useDeleteBoard({ projectId });
@@ -89,10 +102,11 @@ export default function BoardsPage({ projectId: projectIdProp }: BoardsPageProps
             typeof error === "object" &&
             error !== null &&
             "response" in error &&
-            (error as { response?: { status?: number } }).response?.status === 409
+            (error as { response?: { status?: number } }).response?.status ===
+              409
           ) {
             setMutationError(t("boards.conflict"));
-            void boardsQuery.refetch();
+            void reloadBoards();
             return;
           }
           setMutationError(t("boards.mutationError"));
@@ -110,9 +124,13 @@ export default function BoardsPage({ projectId: projectIdProp }: BoardsPageProps
       <section aria-labelledby="boards-title">
         <h1 id="boards-title">{t("boards.title")}</h1>
         <p role="alert">{t("boards.loadError")}</p>
-        <button type="button" onClick={() => void boardsQuery.refetch()}>
+        <Button
+          type="button"
+          ignoreTitleCase
+          onClick={() => void reloadBoards()}
+        >
           {t("boards.retry")}
-        </button>
+        </Button>
       </section>
     );
   }
@@ -124,22 +142,24 @@ export default function BoardsPage({ projectId: projectIdProp }: BoardsPageProps
       </header>
 
       <form className="flex max-w-xl gap-2" onSubmit={submitCreate}>
-        <label className="sr-only" htmlFor="new-board-title">
+        <Label className="sr-only" htmlFor="new-board-title">
           {t("boards.create.title")}
-        </label>
-        <input
-          className="min-w-0 flex-1 rounded-md border px-3 py-2"
+        </Label>
+        <Input
+          className="min-w-0 flex-1"
           id="new-board-title"
           value={newTitle}
           onChange={(event) => setNewTitle(event.target.value)}
         />
-        <button
-          className="rounded-md border px-4 py-2"
+        <Button
+          variant="outline"
           type="submit"
+          ignoreTitleCase
           disabled={createBoard.isPending || !newTitle.trim()}
+          loading={createBoard.isPending}
         >
           {t("boards.create.submit")}
-        </button>
+        </Button>
       </form>
 
       {mutationError ? <p role="alert">{mutationError}</p> : null}
@@ -164,67 +184,108 @@ export default function BoardsPage({ projectId: projectIdProp }: BoardsPageProps
                 {board.title}
               </a>
               <div className="mt-3 flex gap-2">
-                <button
+                <Button
+                  size="sm"
+                  variant="ghost"
                   type="button"
-                  aria-label={`${t("boards.rename")} ${board.title}`}
+                  ignoreTitleCase
+                  aria-label={t("boards.renameLabel", { title: board.title })}
                   onClick={() => beginRename(board)}
                 >
                   {t("boards.rename")}
-                </button>
-                <button
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
                   type="button"
-                  aria-label={`${t("boards.delete")} ${board.title}`}
+                  ignoreTitleCase
+                  aria-label={t("boards.deleteLabel", { title: board.title })}
                   onClick={() => {
                     setMutationError(null);
                     setDeletingBoard(board);
                   }}
                 >
                   {t("boards.delete")}
-                </button>
+                </Button>
               </div>
             </li>
           ))}
         </ul>
       )}
 
-      {renamingBoard ? (
-        <div role="dialog" aria-modal="true" aria-label={t("boards.rename")}>
+      <Dialog
+        open={renamingBoard !== null}
+        onOpenChange={(open) => {
+          if (!open && !patchBoard.isPending) setRenamingBoard(null);
+        }}
+      >
+        <DialogContent hideCloseButton>
+          <DialogTitle>{t("boards.rename")}</DialogTitle>
+          <DialogDescription>{t("boards.rename.title")}</DialogDescription>
           <form onSubmit={submitRename}>
-            <label htmlFor="rename-board-title">{t("boards.rename.title")}</label>
-            <input
+            <Label htmlFor="rename-board-title">
+              {t("boards.rename.title")}
+            </Label>
+            <Input
               id="rename-board-title"
               value={renameTitle}
               onChange={(event) => setRenameTitle(event.target.value)}
             />
-            <button type="submit" disabled={patchBoard.isPending || !renameTitle.trim()}>
-              {t("boards.rename.submit")}
-            </button>
-            <button
-              type="button"
-              disabled={patchBoard.isPending}
-              onClick={() => setRenamingBoard(null)}
-            >
-              {t("boards.rename.cancel")}
-            </button>
+            <DialogFooter className="mt-4">
+              <Button
+                type="submit"
+                ignoreTitleCase
+                disabled={patchBoard.isPending || !renameTitle.trim()}
+                loading={patchBoard.isPending}
+              >
+                {t("boards.rename.submit")}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                ignoreTitleCase
+                disabled={patchBoard.isPending}
+                onClick={() => setRenamingBoard(null)}
+              >
+                {t("boards.rename.cancel")}
+              </Button>
+            </DialogFooter>
           </form>
-        </div>
-      ) : null}
+        </DialogContent>
+      </Dialog>
 
-      {deletingBoard ? (
-        <div role="dialog" aria-modal="true" aria-label={t("boards.delete.confirm")}>
-          <p>{t("boards.delete.confirm")}</p>
-          <button type="button" disabled={deleteBoard.isPending} onClick={submitDelete}>
-            {t("boards.delete.confirmAction")}
-          </button>
-          <button
-            type="button"
-            disabled={deleteBoard.isPending}
-            onClick={() => setDeletingBoard(null)}
-          >
-            {t("boards.delete.cancel")}
-          </button>
-        </div>
-      ) : null}
+      <Dialog
+        open={deletingBoard !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleteBoard.isPending) setDeletingBoard(null);
+        }}
+      >
+        <DialogContent hideCloseButton>
+          <DialogTitle>{t("boards.delete.confirm")}</DialogTitle>
+          <DialogDescription>{deletingBoard?.title ?? ""}</DialogDescription>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="destructive"
+              ignoreTitleCase
+              disabled={deleteBoard.isPending}
+              loading={deleteBoard.isPending}
+              onClick={submitDelete}
+            >
+              {t("boards.delete.confirmAction")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              ignoreTitleCase
+              disabled={deleteBoard.isPending}
+              onClick={() => setDeletingBoard(null)}
+            >
+              {t("boards.delete.cancel")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

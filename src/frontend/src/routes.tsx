@@ -46,6 +46,8 @@ import ViewPage from "./pages/ViewPage";
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const LoginAdminPage = lazy(() => import("./pages/AdminPage/LoginPage"));
 const DeleteAccountPage = lazy(() => import("./pages/DeleteAccountPage"));
+const BoardPage = lazy(() => import("./pages/BoardPage"));
+const BoardsPage = lazy(() => import("./pages/BoardsPage"));
 const ProjectPage = lazy(() => import("./pages/ProjectPage"));
 
 const PlaygroundPage = lazy(() => import("./pages/Playground"));
@@ -95,9 +97,12 @@ const router = createBrowserRouter(
                     index
                     element={<CustomNavigate replace to={"flows"} />}
                   />
+                  <Route path="project/:projectId" element={<ProjectPage />}>
+                    <Route path="boards" element={<BoardsPage />} />
+                  </Route>
                   <Route
-                    path="project/:projectId/boards"
-                    element={<ProjectPage />}
+                    path="project/:projectId/board/:boardId"
+                    element={<BoardPage />}
                   />
                   {ENABLE_FILE_MANAGEMENT && (
                     <Route path="assets">

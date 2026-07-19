@@ -14,13 +14,20 @@ export const usePutBoardViewport: useMutationFunctionType<
   return mutate(
     boardKeys.detail(projectId, boardId),
     async (payload: BoardViewportUpdate) =>
-      (await api.put<BoardRead>(`${getURL("BOARDS")}/${boardId}/viewport`, payload)).data,
+      (
+        await api.put<BoardRead>(
+          `${getURL("BOARDS")}/${boardId}/viewport`,
+          payload,
+        )
+      ).data,
     {
       ...options,
       retry: false,
       onSuccess: async (board, ...args) => {
         queryClient.setQueryData(boardKeys.detail(projectId, boardId), board);
-        await queryClient.invalidateQueries({ queryKey: boardKeys.list(projectId) });
+        await queryClient.invalidateQueries({
+          queryKey: boardKeys.list(projectId),
+        });
         await options?.onSuccess?.(board, ...args);
       },
     },

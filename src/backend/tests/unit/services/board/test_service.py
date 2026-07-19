@@ -1,7 +1,6 @@
 from uuid import uuid4
 
 import pytest
-
 from ketos.api.v1.schemas.board import BoardViewportUpdate
 from ketos.services.board.service import (
     BoardNotFoundError,
@@ -35,7 +34,7 @@ async def _create_folder(*, user_id, name: str = "Owned"):
 
 async def _create_foreign_user():
     async with session_scope() as session:
-        user = User(username=f"foreign-{uuid4()}", password="x", is_active=True)
+        user = User(username=f"foreign-{uuid4()}", password="x", is_active=True)  # noqa: S106
         session.add(user)
         await session.flush()
         await session.refresh(user)
@@ -143,12 +142,20 @@ async def test_stale_rename_and_viewport_write_zero_columns(active_user):
     stale_revision = board.revision
     async with session_scope() as winner_session:
         winner = await rename_board(
-            winner_session, board_id=board.id, actor_id=active_user.id, title="  Winner  ", expected_revision=stale_revision
+            winner_session,
+            board_id=board.id,
+            actor_id=active_user.id,
+            title="  Winner  ",
+            expected_revision=stale_revision,
         )
     async with session_scope() as stale_session:
         with pytest.raises(BoardRevisionConflictError):
             await rename_board(
-                stale_session, board_id=board.id, actor_id=active_user.id, title="Stale", expected_revision=stale_revision
+                stale_session,
+                board_id=board.id,
+                actor_id=active_user.id,
+                title="Stale",
+                expected_revision=stale_revision,
             )
         with pytest.raises(BoardRevisionConflictError):
             await update_board_viewport(
@@ -170,7 +177,11 @@ async def test_stale_delete_preserves_board(active_user):
     stale_revision = board.revision
     async with session_scope() as winner_session:
         winner = await rename_board(
-            winner_session, board_id=board.id, actor_id=active_user.id, title="Still here", expected_revision=stale_revision
+            winner_session,
+            board_id=board.id,
+            actor_id=active_user.id,
+            title="Still here",
+            expected_revision=stale_revision,
         )
     async with session_scope() as stale_session:
         with pytest.raises(BoardRevisionConflictError) as conflict:

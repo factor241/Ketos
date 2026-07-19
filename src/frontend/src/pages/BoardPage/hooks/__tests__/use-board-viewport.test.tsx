@@ -32,7 +32,11 @@ jest.mock("@/stores/boardStore", () => ({
     selector(mockStoreState),
 }));
 
-function makeBoard(id: string, revision: number, viewport: Viewport): BoardRead {
+function makeBoard(
+  id: string,
+  revision: number,
+  viewport: Viewport,
+): BoardRead {
   return {
     id,
     project_id: "11111111-1111-4111-8111-111111111111",
@@ -76,23 +80,41 @@ describe("useBoardViewport", () => {
     const board = makeBoard("board-1", 4, { x: 18.25, y: -9.5, zoom: 1.375 });
     const instance = makeInstance();
     const { result } = renderHook(() =>
-      useBoardViewport({ projectId: board.project_id, board, refetch: jest.fn() }),
+      useBoardViewport({
+        projectId: board.project_id,
+        board,
+        refresh: jest.fn(),
+      }),
     );
 
-    expect(result.current.initialViewport).toEqual({ x: 18.25, y: -9.5, zoom: 1.375 });
-    expect(mockStoreState.setHydrationPhase).toHaveBeenLastCalledWith("hydrating");
+    expect(result.current.initialViewport).toEqual({
+      x: 18.25,
+      y: -9.5,
+      zoom: 1.375,
+    });
+    expect(mockStoreState.setHydrationPhase).toHaveBeenLastCalledWith(
+      "hydrating",
+    );
     act(() => result.current.onInstanceReady(instance));
     expect(instance.setViewport).toHaveBeenCalledWith(
       { x: 18.25, y: -9.5, zoom: 1.375 },
       { duration: 0 },
     );
     expect(mockStoreState.setHydrationPhase).toHaveBeenLastCalledWith("ready");
+
+    act(() => result.current.onMoveEnd(null, result.current.initialViewport));
+    act(() => jest.advanceTimersByTime(300));
+    expect(mutate).not.toHaveBeenCalled();
   });
 
   it("coalesces move-end events and saves x/y/zoom after 300 ms", () => {
     const board = makeBoard("board-1", 5, { x: 0, y: 0, zoom: 1 });
     const { result } = renderHook(() =>
-      useBoardViewport({ projectId: board.project_id, board, refetch: jest.fn() }),
+      useBoardViewport({
+        projectId: board.project_id,
+        board,
+        refresh: jest.fn(),
+      }),
     );
     act(() => {
       result.current.onMoveStart();
@@ -105,14 +127,21 @@ describe("useBoardViewport", () => {
     act(() => jest.advanceTimersByTime(1));
     expect(mutate).toHaveBeenCalledWith(
       { x: 30, y: 40, zoom: 1.2, expected_revision: 5 },
-      expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
+      expect.objectContaining({
+        onSuccess: expect.any(Function),
+        onError: expect.any(Function),
+      }),
     );
   });
 
   it("uses the revision returned by the previous save", () => {
     const board = makeBoard("board-1", 7, { x: 0, y: 0, zoom: 1 });
     const { result } = renderHook(() =>
-      useBoardViewport({ projectId: board.project_id, board, refetch: jest.fn() }),
+      useBoardViewport({
+        projectId: board.project_id,
+        board,
+        refresh: jest.fn(),
+      }),
     );
     act(() => {
       result.current.onMoveEnd(null, { x: 1, y: 2, zoom: 1.1 });
@@ -135,7 +164,11 @@ describe("useBoardViewport", () => {
   it("flushes one last pending save during unmount", () => {
     const board = makeBoard("board-1", 3, { x: 0, y: 0, zoom: 1 });
     const { result, unmount } = renderHook(() =>
-      useBoardViewport({ projectId: board.project_id, board, refetch: jest.fn() }),
+      useBoardViewport({
+        projectId: board.project_id,
+        board,
+        refresh: jest.fn(),
+      }),
     );
     act(() => result.current.onMoveEnd(null, { x: 12, y: 24, zoom: 0.8 }));
     act(() => unmount());
@@ -156,7 +189,12 @@ describe("useBoardViewport", () => {
     const oldBoard = makeBoard("old-board", 2, { x: 0, y: 0, zoom: 1 });
     const newBoard = makeBoard("new-board", 11, { x: 100, y: 200, zoom: 0.5 });
     const { result, rerender } = renderHook(
-      ({ board }) => useBoardViewport({ projectId: board.project_id, board, refetch: jest.fn() }),
+      ({ board }) =>
+        useBoardViewport({
+          projectId: board.project_id,
+          board,
+          refresh: jest.fn(),
+        }),
       { initialProps: { board: oldBoard } },
     );
     act(() => {
@@ -175,7 +213,11 @@ describe("useBoardViewport", () => {
     const refetch = jest.fn().mockResolvedValue({ data: server });
     const instance = makeInstance();
     const { result } = renderHook(() =>
-      useBoardViewport({ projectId: board.project_id, board, refetch }),
+      useBoardViewport({
+        projectId: board.project_id,
+        board,
+        refresh: refetch,
+      }),
     );
     act(() => {
       result.current.onInstanceReady(instance);

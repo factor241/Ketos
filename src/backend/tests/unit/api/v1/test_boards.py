@@ -1,9 +1,8 @@
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-
 from ketos.api.v1.boards import router
 from ketos.api.v1.projects import router as projects_router
 from ketos.services.database.models.board.model import Board
@@ -17,6 +16,7 @@ async def board_client(client: AsyncClient) -> AsyncClient:
     # Keep the repository client fixture alive so its isolated database and
     # service lifecycle remain active, but mount the A03 router locally.  Live
     # application registration is owned by A10.
+    _ = client
     app = FastAPI()
     app.include_router(projects_router, prefix="/api/v1")
     app.include_router(router, prefix="/api/v1")
@@ -38,9 +38,7 @@ async def _create_project(client: AsyncClient, headers: dict[str, str], name: st
 
 
 async def _create_board(client: AsyncClient, headers: dict[str, str], project_id: str, title: str = "Board") -> dict:
-    response = await client.post(
-        f"/api/v1/projects/{project_id}/boards", json={"title": title}, headers=headers
-    )
+    response = await client.post(f"/api/v1/projects/{project_id}/boards", json={"title": title}, headers=headers)
     assert response.status_code == 201
     return response.json()
 
@@ -76,7 +74,9 @@ async def test_board_six_endpoint_contract(board_client: AsyncClient, logged_in_
     assert viewport.status_code == 200
     assert viewport.json()["revision"] == 2
     assert (viewport.json()["viewport_x"], viewport.json()["viewport_y"], viewport.json()["viewport_zoom"]) == (
-        42.5, -17.25, 1.75
+        42.5,
+        -17.25,
+        1.75,
     )
 
     deleted = await board_client.delete(
@@ -86,11 +86,9 @@ async def test_board_six_endpoint_contract(board_client: AsyncClient, logged_in_
     assert deleted.content == b""
 
 
-async def test_board_get_patch_delete_deny_foreign_owner(
-    board_client: AsyncClient, logged_in_headers, active_user
-):
+async def test_board_get_patch_delete_deny_foreign_owner(board_client: AsyncClient, logged_in_headers, active_user):
     async with session_scope() as session:
-        foreign = User(username=f"foreign-{uuid4()}", password="x", is_active=True)
+        foreign = User(username=f"foreign-{uuid4()}", password="x", is_active=True)  # noqa: S106
         session.add(foreign)
         await session.flush()
         foreign_folder = Folder(name="Foreign", user_id=foreign.id)
@@ -158,7 +156,11 @@ async def test_stale_rename_and_viewport_write_zero_columns(board_client: AsyncC
     _assert_conflict(stale_viewport)
     persisted = await board_client.get(f"/api/v1/boards/{board['id']}", headers=logged_in_headers)
     assert persisted.json()["title"] == "Winner"
-    assert (persisted.json()["viewport_x"], persisted.json()["viewport_y"], persisted.json()["viewport_zoom"]) == (0, 0, 1)
+    assert (persisted.json()["viewport_x"], persisted.json()["viewport_y"], persisted.json()["viewport_zoom"]) == (
+        0,
+        0,
+        1,
+    )
     assert persisted.json()["revision"] == 1
 
 

@@ -1,20 +1,22 @@
 import {
-  useCallback,
-  useRef,
-  type KeyboardEvent as ReactKeyboardEvent,
-} from "react";
-import { useTranslation } from "react-i18next";
-import {
   Background,
   BackgroundVariant,
   ControlButton,
   Controls,
   MiniMap,
   ReactFlow,
-  ReactFlowProvider,
   type ReactFlowInstance,
+  ReactFlowProvider,
   type Viewport,
 } from "@xyflow/react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  useCallback,
+  useRef,
+} from "react";
+import { useTranslation } from "react-i18next";
+
+import { Button } from "@/components/ui/button";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2;
@@ -97,11 +99,17 @@ export function BoardCanvas({
         break;
       case "+":
       case "=":
-        next = { ...current, zoom: Math.min(MAX_ZOOM, current.zoom + ZOOM_STEP) };
+        next = {
+          ...current,
+          zoom: Math.min(MAX_ZOOM, current.zoom + ZOOM_STEP),
+        };
         break;
       case "-":
       case "_":
-        next = { ...current, zoom: Math.max(MIN_ZOOM, current.zoom - ZOOM_STEP) };
+        next = {
+          ...current,
+          zoom: Math.max(MIN_ZOOM, current.zoom - ZOOM_STEP),
+        };
         break;
       case "0":
         next = { ...RESET_VIEWPORT };
@@ -116,47 +124,53 @@ export function BoardCanvas({
 
   return (
     <ReactFlowProvider>
-      <button
-        ref={entryButtonRef}
-        type="button"
-        onClick={focusCanvas}
-        onKeyDown={handleEntryKeyDown}
-      >
-        {t("board.canvas.open")}
-      </button>
-      <div
-        ref={canvasRegionRef}
-        className="h-full w-full"
-        role="region"
-        tabIndex={0}
-        aria-label={t("board.canvas.label")}
-        onKeyDown={handleCanvasKeyDown}
-      >
-        <ReactFlow
-          nodes={[]}
-          edges={[]}
-          fitView={false}
-          defaultViewport={initialViewport}
-          minZoom={MIN_ZOOM}
-          maxZoom={MAX_ZOOM}
-          nodesDraggable={false}
-          nodesConnectable={false}
-          elementsSelectable={false}
-          onInit={handleInstanceReady}
-          onMoveStart={onMoveStart}
-          onMoveEnd={onMoveEnd}
+      <div className="flex h-full min-h-0 flex-col">
+        <Button
+          ref={entryButtonRef}
+          className="m-2 shrink-0 self-start"
+          type="button"
+          size="sm"
+          variant="outline"
+          ignoreTitleCase
+          onClick={focusCanvas}
+          onKeyDown={handleEntryKeyDown}
         >
-          <Background variant={BackgroundVariant.Dots} />
-          <MiniMap />
-          <Controls showFitView={false}>
-            <ControlButton
-              aria-label={t("board.viewport.reset")}
-              onClick={() => commitViewport({ ...RESET_VIEWPORT })}
-            >
-              0
-            </ControlButton>
-          </Controls>
-        </ReactFlow>
+          {t("board.canvas.open")}
+        </Button>
+        <div
+          ref={canvasRegionRef}
+          className="min-h-0 w-full flex-1"
+          role="region"
+          tabIndex={0}
+          aria-label={t("board.canvas.label")}
+          onKeyDown={handleCanvasKeyDown}
+        >
+          <ReactFlow
+            nodes={[]}
+            edges={[]}
+            fitView={false}
+            defaultViewport={initialViewport}
+            minZoom={MIN_ZOOM}
+            maxZoom={MAX_ZOOM}
+            nodesDraggable={false}
+            nodesConnectable={false}
+            elementsSelectable={false}
+            onInit={handleInstanceReady}
+            onMoveStart={onMoveStart}
+            onMoveEnd={onMoveEnd}
+          >
+            <Background variant={BackgroundVariant.Dots} />
+            <MiniMap />
+            <Controls showFitView={false}>
+              <ControlButton
+                aria-label={t("board.viewport.reset")}
+                onClick={() => commitViewport({ ...RESET_VIEWPORT })}
+              >
+                0
+              </ControlButton>
+            </Controls>
+          </ReactFlow>
+        </div>
       </div>
     </ReactFlowProvider>
   );

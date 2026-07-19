@@ -69,6 +69,7 @@ ALLOWED_STAGE01_FILES = {
     "pyproject.toml",
     "scripts/ci/release-lock-ownership.json",
     "scripts/ci/test_release_lock_ownership.py",
+    "scripts/mvp/ag_ui_build_requirements.lock",
     "scripts/mvp/audit_copilotkit_artifact.py",
     "scripts/mvp/audit_copilotkit_provenance.py",
     "scripts/mvp/chat_stack_smoke.sh",

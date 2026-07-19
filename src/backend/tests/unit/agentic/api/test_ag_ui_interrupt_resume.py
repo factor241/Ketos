@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+import os
 import stat
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -135,6 +136,8 @@ def test_a08_sources_do_not_own_resume_parsing_or_event_encoding() -> None:
         "pickle.loads",
         "pickle_fallback=True",
         "text/event-stream",
+        "_resume_claim_registry",
+        "_thread_lock_registry",
     }
 
     for source_path in (CHECKPOINT_SOURCE, HITL_SOURCE):
@@ -227,6 +230,120 @@ async def test_checkpoint_refuses_insecure_existing_directory_without_changing_i
 
 
 @pytest.mark.asyncio
+async def test_checkpoint_rejects_symlink_in_ancestor_chain(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    checkpoint_module = importlib.import_module(CHECKPOINT_MODULE)
+    monkeypatch.setenv("LANGGRAPH_STRICT_MSGPACK", "true")
+    real_root = tmp_path / "real-root"
+    real_root.mkdir(mode=0o700)
+    real_root.chmod(0o700)
+    linked_root = tmp_path / "linked-root"
+    linked_root.symlink_to(real_root, target_is_directory=True)
+    checkpoint_path = linked_root / "nested" / "hitl.sqlite3"
+
+    with pytest.raises(ValueError, match="symlink"):
+        await checkpoint_module.AsyncSqliteCheckpoint(checkpoint_path).open()
+
+    assert not (real_root / "nested").exists()
+
+
+@pytest.mark.asyncio
+async def test_checkpoint_rejects_controlled_directory_owner_mismatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    checkpoint_module = importlib.import_module(CHECKPOINT_MODULE)
+    monkeypatch.setenv("LANGGRAPH_STRICT_MSGPACK", "true")
+    parent = tmp_path / "checkpoint"
+    parent.mkdir(mode=0o700)
+    parent.chmod(0o700)
+    monkeypatch.setattr(checkpoint_module.os, "geteuid", lambda: os.getuid() + 1)
+
+    with pytest.raises(ValueError, match="effective user"):
+        await checkpoint_module.AsyncSqliteCheckpoint(parent / "hitl.sqlite3").open()
+
+    assert not (parent / "hitl.sqlite3").exists()
+
+
+@pytest.mark.asyncio
+async def test_checkpoint_rejects_permissive_preexisting_database_without_chmod(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    checkpoint_module = importlib.import_module(CHECKPOINT_MODULE)
+    monkeypatch.setenv("LANGGRAPH_STRICT_MSGPACK", "true")
+    parent = tmp_path / "checkpoint"
+    parent.mkdir(mode=0o700)
+    parent.chmod(0o700)
+    checkpoint_path = parent / "hitl.sqlite3"
+    checkpoint_path.write_bytes(b"")
+    checkpoint_path.chmod(0o644)
+
+    with pytest.raises(ValueError, match="0600"):
+        await checkpoint_module.AsyncSqliteCheckpoint(checkpoint_path).open()
+
+    assert stat.S_IMODE(checkpoint_path.stat().st_mode) == 0o644
+
+
+@pytest.mark.asyncio
+async def test_checkpoint_rejects_hardlink_alias_to_binding_database(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    checkpoint_module = importlib.import_module(CHECKPOINT_MODULE)
+    monkeypatch.setenv("LANGGRAPH_STRICT_MSGPACK", "true")
+    parent = tmp_path / "checkpoint"
+    parent.mkdir(mode=0o700)
+    parent.chmod(0o700)
+    binding_path = parent / "binding.sqlite3"
+    binding_path.write_bytes(b"")
+    binding_path.chmod(0o600)
+    checkpoint_path = parent / "hitl.sqlite3"
+    os.link(binding_path, checkpoint_path)
+    monkeypatch.setenv(checkpoint_module.BINDING_DB_ENV, str(binding_path))
+
+    with pytest.raises(ValueError, match=r"binding|hard link"):
+        await checkpoint_module.AsyncSqliteCheckpoint(checkpoint_path).open()
+
+    assert binding_path.stat().st_ino == checkpoint_path.stat().st_ino
+
+
+@pytest.mark.asyncio
+async def test_checkpoint_rejects_inode_substitution_during_saver_open(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    checkpoint_module = importlib.import_module(CHECKPOINT_MODULE)
+    monkeypatch.setenv("LANGGRAPH_STRICT_MSGPACK", "true")
+    checkpoint_path = tmp_path / "checkpoint" / "hitl.sqlite3"
+    real_from_conn_string = checkpoint_module.AsyncSqliteSaver.from_conn_string
+    substituted = False
+
+    def substituting_from_conn_string(_cls, connection_string: str):
+        nonlocal substituted
+        if not substituted:
+            substituted = True
+            checkpoint_path.unlink()
+            descriptor = os.open(checkpoint_path, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o600)
+            os.close(descriptor)
+        return real_from_conn_string(connection_string)
+
+    monkeypatch.setattr(
+        checkpoint_module.AsyncSqliteSaver,
+        "from_conn_string",
+        classmethod(substituting_from_conn_string),
+    )
+    lifecycle = checkpoint_module.AsyncSqliteCheckpoint(checkpoint_path)
+
+    with pytest.raises(ValueError, match="inode changed"):
+        await lifecycle.open()
+
+    assert substituted is True
+
+
+@pytest.mark.asyncio
 async def test_checkpoint_cleanup_is_exact_and_preserves_binding_database(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -281,6 +398,36 @@ async def test_checkpoint_cleanup_rejects_sidecar_symlink_before_deleting_anythi
     assert checkpoint_path.is_file()
     assert wal_path.is_symlink()
     assert target.read_text(encoding="utf-8") == "outside"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("sidecar_case", ["hardlink", "permissive"])
+async def test_checkpoint_cleanup_rejects_unsafe_sidecar_before_deleting_anything(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    sidecar_case: str,
+) -> None:
+    checkpoint_module = importlib.import_module(CHECKPOINT_MODULE)
+    monkeypatch.setenv("LANGGRAPH_STRICT_MSGPACK", "true")
+    checkpoint_path = tmp_path / "checkpoint" / "hitl.sqlite3"
+    lifecycle = checkpoint_module.AsyncSqliteCheckpoint(checkpoint_path)
+    await lifecycle.open()
+    await lifecycle.close()
+    wal_path = Path(f"{checkpoint_path}-wal")
+    if sidecar_case == "hardlink":
+        target = tmp_path / "target"
+        target.write_bytes(b"outside")
+        target.chmod(0o600)
+        os.link(target, wal_path)
+    else:
+        wal_path.write_bytes(b"unsafe")
+        wal_path.chmod(0o644)
+
+    with pytest.raises(ValueError, match=r"hard link|0600"):
+        await lifecycle.delete_files()
+
+    assert checkpoint_path.is_file()
+    assert wal_path.is_file()
 
 
 @pytest.mark.asyncio
@@ -606,6 +753,11 @@ async def test_concurrent_duplicate_resumes_allow_one_winner_and_one_effect(
     terminal_events = (first_events[-1], second_events[-1])
     assert sum(isinstance(event, RunFinishedEvent) for event in terminal_events) == 1
     assert sum(isinstance(event, RunErrorEvent) for event in terminal_events) == 1
+    winner_events = first_events if isinstance(first_events[-1], RunFinishedEvent) else second_events
+    loser_events = first_events if isinstance(first_events[-1], RunErrorEvent) else second_events
+    assert sum(getattr(event, "type", None) == EventType.RUN_STARTED for event in winner_events) == 1
+    assert len(loser_events) == 1
+    assert loser_events[0].type == EventType.RUN_ERROR
     assert durable_state.values["effect_count"] == 1
 
 

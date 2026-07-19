@@ -481,7 +481,13 @@ def _verify_tool(command: list[str], expected: str, cwd: Path, env: dict[str, st
         _fail(f"tool version mismatch: expected {expected}")
 
 
-def _success_evidence(artifact: Path, sha256: str, platform_key: tuple[str, str]) -> dict[str, object]:
+def _success_evidence(
+    artifact: Path,
+    sha256: str,
+    platform_key: tuple[str, str],
+    *,
+    tests_run: bool = False,
+) -> dict[str, object]:
     return {
         "status": "PASS",
         "artifact": str(artifact.resolve()),
@@ -493,6 +499,7 @@ def _success_evidence(artifact: Path, sha256: str, platform_key: tuple[str, str]
         "node": NODE_VERSION,
         "pnpm": PNPM_VERSION,
         "source_date_epoch": SOURCE_DATE_EPOCH,
+        "fork_tests_run": tests_run,
         "platform": {"system": platform_key[0], "architecture": platform_key[1]},
     }
 
@@ -501,7 +508,32 @@ def _print_json(evidence: dict[str, object]) -> None:
     print(json.dumps(evidence, sort_keys=True))
 
 
-def rebuild_artifact(output_dir: Path) -> dict[str, object]:
+def _run_quality_gates(
+    repository: Path,
+    pnpm_command: list[str],
+    env: dict[str, str],
+    *,
+    run_tests: bool,
+) -> None:
+    targets = ["@copilotkit/react-core:test"] if run_tests else []
+    targets.append("@copilotkit/react-core:check-types")
+    for target in targets:
+        _run_bounded(
+            [
+                *pnpm_command,
+                "exec",
+                "nx",
+                "run",
+                target,
+                "--skip-nx-cache",
+                "--outputStyle=static",
+            ],
+            cwd=repository,
+            env=env,
+        )
+
+
+def rebuild_artifact(output_dir: Path, *, run_tests: bool = False) -> dict[str, object]:
     platform_key = _platform_key(platform.system(), platform.machine())
     node_url, node_sha256 = NODE_DISTRIBUTIONS[platform_key]
     output_dir = output_dir.resolve()
@@ -567,19 +599,7 @@ def rebuild_artifact(output_dir: Path) -> dict[str, object]:
             cwd=repository,
             env=tool_env,
         )
-        _run_bounded(
-            [
-                *pnpm_command,
-                "exec",
-                "nx",
-                "run",
-                "@copilotkit/react-core:check-types",
-                "--skip-nx-cache",
-                "--outputStyle=static",
-            ],
-            cwd=repository,
-            env=tool_env,
-        )
+        _run_quality_gates(repository, pnpm_command, tool_env, run_tests=run_tests)
         package_root = repository / "packages/react-core"
         dist = package_root / "dist"
         if dist.exists():
@@ -614,12 +634,18 @@ def rebuild_artifact(output_dir: Path) -> dict[str, object]:
         temporary_destination = output_dir / f".{ARTIFACT_FILENAME}.partial"
         shutil.copyfile(candidate, temporary_destination)
         temporary_destination.replace(destination)
-    return _success_evidence(destination, EXPECTED_ARTIFACT_SHA256, platform_key)
+    return _success_evidence(
+        destination,
+        EXPECTED_ARTIFACT_SHA256,
+        platform_key,
+        tests_run=run_tests,
+    )
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--run-tests", action="store_true")
     parser.add_argument("--json", action="store_true")
     return parser.parse_args(argv)
 
@@ -627,7 +653,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     arguments = _parse_args(sys.argv[1:] if argv is None else argv)
     try:
-        evidence = rebuild_artifact(arguments.output_dir)
+        evidence = rebuild_artifact(arguments.output_dir, run_tests=arguments.run_tests)
     except RebuildError as exc:
         if arguments.json:
             _print_json({"status": "FAIL", "error": str(exc)})

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
+import pytest
 from ag_ui.core import (
     RunFinishedEvent,
     RunStartedEvent,
@@ -12,6 +14,7 @@ from ag_ui.core import (
     TextMessageStartEvent,
 )
 from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from ketos.agentic.api import ag_ui_router
 from ketos.agentic.api.ag_ui_router import create_ag_ui_router
@@ -64,6 +67,37 @@ def _build_app(agent: object) -> FastAPI:
 
 def _standard_events(response_text: str) -> list[dict[str, object]]:
     return [json.loads(line.removeprefix("data: ")) for line in response_text.splitlines() if line.startswith("data: ")]
+
+
+def _resolved_api_operations(app: FastAPI) -> Counter[tuple[str, str]]:
+    """Inventory concrete operations through FastAPI's lazy included routers."""
+    operations: Counter[tuple[str, str]] = Counter()
+    for route in app.router.routes:
+        if isinstance(route, APIRoute):
+            resolved_routes = ((route.path, route.methods),)
+        else:
+            effective_route_contexts = getattr(route, "effective_route_contexts", None)
+            if not callable(effective_route_contexts):
+                continue
+            resolved_routes = (
+                (context.path, context.methods)
+                for context in effective_route_contexts()
+                if isinstance(context.original_route, APIRoute)
+            )
+
+        for path, methods in resolved_routes:
+            for method in methods or ():
+                operations[(method, path)] += 1
+    return operations
+
+
+def _assert_single_ag_ui_registration(app: FastAPI) -> None:
+    operations = _resolved_api_operations(app)
+    post_count = operations[("POST", "/api/v1/agentic/ag-ui")]
+    health_count = operations[("GET", "/api/v1/agentic/ag-ui/health")]
+
+    assert post_count == 1, f"duplicate AG-UI route or missing POST registration: count={post_count}"
+    assert health_count == 1, f"duplicate AG-UI route or missing health registration: count={health_count}"
 
 
 def _deterministic_graph():
@@ -124,11 +158,25 @@ def test_router_exposes_one_prefix_free_endpoint_without_redirect() -> None:
 
     paths = app.openapi()["paths"]
 
-    assert list(paths).count("/api/v1/agentic/ag-ui") == 1
+    _assert_single_ag_ui_registration(app)
+    assert "/api/v1/agentic/ag-ui" in paths
     assert list(paths["/api/v1/agentic/ag-ui"]) == ["post"]
     assert "/api/v1/agentic/ag-ui/health" in paths
     assert "/api/v1/agentic/agentic/ag-ui" not in paths
     assert TestClient(app).post("/api/v1/agentic/agentic/ag-ui", json=_run_input()).status_code == 404
+
+
+def test_resolved_route_inventory_rejects_double_ag_ui_include() -> None:
+    app = FastAPI()
+    v1_router = APIRouter(prefix="/api/v1")
+    agentic_router = APIRouter(prefix="/agentic")
+    agentic_router.include_router(create_ag_ui_router(_TrackingTemplateAgent()))
+    agentic_router.include_router(create_ag_ui_router(_TrackingTemplateAgent()))
+    v1_router.include_router(agentic_router)
+    app.include_router(v1_router)
+
+    with pytest.raises(AssertionError, match="duplicate AG-UI route"):
+        _assert_single_ag_ui_registration(app)
 
 
 def test_router_forwards_a06_pre_dispatch_hook_to_upstream(monkeypatch) -> None:

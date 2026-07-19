@@ -102,6 +102,7 @@ dependencies = [
     "dynaconf>=3.2.13,<4.0.0",
     "pyasn1>=0.6.3,<0.7.0",
     "langgraph-checkpoint>4.0.0,<5.0.0",
+    "langgraph-checkpoint-sqlite==3.1.0",
     "transformers>=5.6.0,<6.0.0",
 ]
 

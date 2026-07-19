@@ -18,6 +18,7 @@ from ketos.services.database.models.flow_version.model import FlowVersion
 from ketos.services.database.models.flow_version_deployment_attachment.model import (
     FlowVersionDeploymentAttachment,
 )
+from ketos.services.database.models.folder.model import Folder
 from ketos.services.deps import session_scope
 from kfx.services.adapters.deployment.schema import DeploymentType
 
@@ -1831,6 +1832,49 @@ async def _create_other_user(client: AsyncClient) -> tuple[str, dict]:
     assert response.status_code == 200
     token = response.json()["access_token"]
     return created_id, {"Authorization": f"Bearer {token}"}
+
+
+@pytest.mark.parametrize("ownership", ["foreign", "unowned"])
+async def test_project_routes_do_not_disclose_projects_not_owned_by_active_user(
+    client: AsyncClient,
+    logged_in_headers: dict,
+    ownership: str,
+):
+    project_name = f"{ownership}-project-{uuid4()}"
+
+    if ownership == "foreign":
+        _, other_user_headers = await _create_other_user(client)
+        create_response = await client.post(
+            "/api/v1/projects/",
+            json={"name": project_name, "flows_list": [], "components_list": []},
+            headers=other_user_headers,
+        )
+        assert create_response.status_code == status.HTTP_201_CREATED
+        project_id = create_response.json()["id"]
+    else:
+        async with session_scope() as session:
+            project = Folder(name=project_name, user_id=None)
+            session.add(project)
+            await session.commit()
+            await session.refresh(project)
+            project_id = str(project.id)
+
+    list_response = await client.get("/api/v1/projects/", headers=logged_in_headers)
+    assert list_response.status_code == status.HTTP_200_OK
+    assert isinstance(list_response.json(), list)
+    assert project_id not in {item["id"] for item in list_response.json()}
+
+    get_response = await client.get(f"/api/v1/projects/{project_id}", headers=logged_in_headers)
+    assert get_response.status_code == status.HTTP_404_NOT_FOUND
+    assert get_response.json() == {"detail": "Project not found"}
+
+    rename_response = await client.patch(
+        f"/api/v1/projects/{project_id}",
+        json={"name": f"renamed-{project_name}"},
+        headers=logged_in_headers,
+    )
+    assert rename_response.status_code == status.HTTP_404_NOT_FOUND
+    assert rename_response.json() == {"detail": "Project not found"}
 
 
 async def _attach_deployment_to_flow(*, user_id: UUID, flow_id: UUID, project_id: UUID) -> None:

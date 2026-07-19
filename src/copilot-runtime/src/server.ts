@@ -18,7 +18,6 @@ import {
 } from "./origin-guard.js";
 import {
 	installRuntimeLogBoundary,
-	logOutsideRuntimeBoundary,
 	runWithRuntimeLogBoundary,
 } from "./runtime-log-boundary.js";
 
@@ -36,11 +35,6 @@ export interface RuntimeLogger {
 	readonly info: (...fields: unknown[]) => void;
 	readonly error: (...fields: unknown[]) => void;
 }
-
-const DEFAULT_LOGGER: RuntimeLogger = {
-	info: (...fields) => console.info(...fields),
-	error: logOutsideRuntimeBoundary,
-};
 
 const noRedirectFetch: HttpAgentFetchFn = async (url, requestInit) => {
 	let response: Response;
@@ -85,10 +79,14 @@ export function createKetosCopilotServer(
 	options: KetosCopilotServerOptions = {},
 ): Server {
 	process.env.COPILOTKIT_TELEMETRY_DISABLED = "true";
-	installRuntimeLogBoundary();
 	const upstreamUrl = options.upstreamUrl ?? UPSTREAM_URL;
 	const allowedHosts = options.allowedHosts ?? DEFAULT_ALLOWED_HOSTS;
-	const logger = options.logger ?? DEFAULT_LOGGER;
+	const configuredLogger = options.logger ?? console;
+	const logger: RuntimeLogger = {
+		info: configuredLogger.info.bind(configuredLogger),
+		error: configuredLogger.error.bind(configuredLogger),
+	};
+	installRuntimeLogBoundary();
 	const runtime = new CopilotRuntime({
 		agents: ({ request }) => ({
 			[AGENT_ID]: new HttpAgent({
@@ -131,8 +129,9 @@ export function createKetosCopilotServer(
 				status: response.statusCode,
 			});
 		});
-		void runWithRuntimeLogBoundary({ logger, method, path }, () =>
-			nodeHandler(request, response),
+		void runWithRuntimeLogBoundary(
+			{ errorSink: logger.error, method, path },
+			() => nodeHandler(request, response),
 		).catch(() => {
 			logger.error("runtime_request_failed", {
 				method,

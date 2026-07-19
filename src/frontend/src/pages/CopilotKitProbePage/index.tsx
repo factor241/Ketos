@@ -1,8 +1,10 @@
+import { useTranslation } from "react-i18next";
 import { Navigate } from "react-router-dom";
 import CopilotKitProbe from "@/components/core/assistantPanel/copilotkit-probe";
 import { useUtilityStore } from "@/stores/utilityStore";
 
 export function CopilotKitProbePage() {
+  const { t } = useTranslation();
   const isEnabled = useUtilityStore(
     (state) =>
       state.featureFlags.mvp_workspace === true &&
@@ -19,14 +21,13 @@ export function CopilotKitProbePage() {
       data-testid="mvp-copilotkit-probe-page"
     >
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">Stage 01 approval probe</h1>
+        <h1 className="text-2xl font-semibold">{t("mvpApproval.pageTitle")}</h1>
         <p className="text-sm text-muted-foreground">
-          Send one message, then review each open approval request
-          independently.
+          {t("mvpApproval.pageDescription")}
         </p>
       </header>
       <section
-        aria-label="CopilotKit approval probe"
+        aria-label={t("mvpApproval.pageRegionLabel")}
         className="min-h-0 flex-1"
       >
         <CopilotKitProbe />

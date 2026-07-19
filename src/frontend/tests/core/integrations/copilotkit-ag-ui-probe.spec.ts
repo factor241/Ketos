@@ -1,4 +1,4 @@
-import type { Page, Request as BrowserRequest } from "@playwright/test";
+import type { Request as BrowserRequest, Page } from "@playwright/test";
 import { expect, test } from "../../fixtures";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
 

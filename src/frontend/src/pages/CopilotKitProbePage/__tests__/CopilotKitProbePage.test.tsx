@@ -1,5 +1,8 @@
+jest.unmock("react-i18next");
+
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import i18n from "@/i18n";
 import { useUtilityStore } from "@/stores/utilityStore";
 import CopilotKitProbePage from "..";
 
@@ -24,6 +27,10 @@ function renderPage() {
 }
 
 describe("CopilotKitProbePage", () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("ru");
+  });
+
   afterEach(() => {
     act(() => {
       useUtilityStore.setState({ featureFlags: {} });
@@ -40,7 +47,7 @@ describe("CopilotKitProbePage", () => {
     renderPage();
 
     expect(
-      screen.getByRole("heading", { name: "Stage 01 approval probe" }),
+      screen.getByRole("heading", { name: "Проверка подтверждений этапа 01" }),
     ).toBeInTheDocument();
     expect(screen.getByTestId("stock-copilotkit-probe")).toBeInTheDocument();
   });

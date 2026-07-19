@@ -70,6 +70,13 @@
       "review_date": "2026-07-15"
     },
     {
+      "path": "src/frontend/src/components/core/folderSidebarComponent/helpers/project-shell-route.ts",
+      "value": "/project/${encodeURIComponent(normalizedProjectId)}/boards",
+      "reason": "Exact canonical application route template; translating it would break routing.",
+      "owner": "frontend-routing",
+      "review_date": "2026-07-19"
+    },
+    {
       "path": "src/frontend/index.html",
       "value": "Ketos",
       "reason": "Exact product brand in the static document title; surrounding system text is not exempt.",

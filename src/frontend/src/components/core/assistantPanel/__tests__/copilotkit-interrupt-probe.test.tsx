@@ -1,3 +1,5 @@
+jest.unmock("react-i18next");
+
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type {
@@ -9,6 +11,7 @@ import type {
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
+import i18n from "@/i18n";
 import CopilotKitInterruptProbe from "../copilotkit-interrupt-probe";
 
 type ApprovalDecision = Readonly<{ approved: boolean }>;
@@ -76,7 +79,8 @@ function createCancelMock() {
 }
 
 describe("CopilotKitInterruptProbe", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("ru");
     jest.clearAllMocks();
     mockInterruptConfig = undefined;
     render(<CopilotKitInterruptProbe />);
@@ -101,12 +105,12 @@ describe("CopilotKitInterruptProbe", () => {
 
     expect(
       screen.getByRole("region", {
-        name: "Approval request approval-alpha",
+        name: "Запрос на подтверждение approval-alpha",
       }),
     ).toHaveTextContent("Approve alpha change?");
     expect(
       screen.getByRole("region", {
-        name: "Approval request approval-beta",
+        name: "Запрос на подтверждение approval-beta",
       }),
     ).toHaveTextContent("Approve beta change?");
     expect(screen.getByText("approval-alpha")).toBeInTheDocument();
@@ -155,7 +159,7 @@ describe("CopilotKitInterruptProbe", () => {
     );
 
     await user.click(
-      screen.getByRole("button", { name: "Approve approval-alpha" }),
+      screen.getByRole("button", { name: "Подтвердить approval-alpha" }),
     );
 
     expect(resolve).toHaveBeenCalledTimes(1);
@@ -172,7 +176,7 @@ describe("CopilotKitInterruptProbe", () => {
     );
 
     await user.click(
-      screen.getByRole("button", { name: "Reject approval-beta" }),
+      screen.getByRole("button", { name: "Отклонить approval-beta" }),
     );
 
     expect(resolve).toHaveBeenCalledTimes(1);
@@ -189,10 +193,10 @@ describe("CopilotKitInterruptProbe", () => {
     );
 
     await user.click(
-      screen.getByRole("button", { name: "Approve approval-alpha" }),
+      screen.getByRole("button", { name: "Подтвердить approval-alpha" }),
     );
     await user.click(
-      screen.getByRole("button", { name: "Reject approval-beta" }),
+      screen.getByRole("button", { name: "Отклонить approval-beta" }),
     );
 
     expect(resolve.mock.calls).toEqual([
@@ -219,17 +223,17 @@ describe("CopilotKitInterruptProbe", () => {
     );
 
     await user.click(
-      screen.getByRole("button", { name: "Approve approval-alpha" }),
+      screen.getByRole("button", { name: "Подтвердить approval-alpha" }),
     );
 
     expect(
-      screen.getByRole("button", { name: "Approve approval-alpha" }),
+      screen.getByRole("button", { name: "Подтвердить approval-alpha" }),
     ).toBeDisabled();
     expect(
-      screen.getByRole("button", { name: "Reject approval-alpha" }),
+      screen.getByRole("button", { name: "Отклонить approval-alpha" }),
     ).toBeDisabled();
     expect(
-      screen.getByRole("button", { name: "Approve approval-beta" }),
+      screen.getByRole("button", { name: "Подтвердить approval-beta" }),
     ).toBeEnabled();
     releaseFirstDecision?.();
   });
@@ -240,7 +244,7 @@ describe("CopilotKitInterruptProbe", () => {
     renderInterrupts([firstInterrupt], resolve, createCancelMock());
 
     await user.dblClick(
-      screen.getByRole("button", { name: "Approve approval-alpha" }),
+      screen.getByRole("button", { name: "Подтвердить approval-alpha" }),
     );
 
     expect(resolve).toHaveBeenCalledTimes(1);
@@ -259,26 +263,26 @@ describe("CopilotKitInterruptProbe", () => {
     );
 
     await user.click(
-      screen.getByRole("button", { name: "Reject approval-alpha" }),
+      screen.getByRole("button", { name: "Отклонить approval-alpha" }),
     );
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: "Reject approval-alpha" }),
+        screen.getByRole("button", { name: "Отклонить approval-alpha" }),
       ).toBeEnabled();
     });
 
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Decision could not be submitted. Try again.",
+      "Не удалось отправить решение. Повторите попытку.",
     );
     expect(
       screen.queryByText("secret upstream detail"),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Approve approval-beta" }),
+      screen.getByRole("button", { name: "Подтвердить approval-beta" }),
     ).toBeEnabled();
 
     await user.click(
-      screen.getByRole("button", { name: "Reject approval-alpha" }),
+      screen.getByRole("button", { name: "Отклонить approval-alpha" }),
     );
     expect(resolve).toHaveBeenCalledTimes(2);
   });
@@ -291,7 +295,7 @@ describe("CopilotKitInterruptProbe", () => {
 
     await user.click(
       screen.getByRole("button", {
-        name: "Close approval request approval-alpha",
+        name: "Закрыть запрос на подтверждение approval-alpha",
       }),
     );
 
@@ -299,18 +303,18 @@ describe("CopilotKitInterruptProbe", () => {
     expect(cancel).not.toHaveBeenCalled();
     expect(
       screen.getByRole("button", {
-        name: "Reopen approval request approval-alpha",
+        name: "Открыть запрос на подтверждение approval-alpha",
       }),
     ).toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", {
-        name: "Reopen approval request approval-alpha",
+        name: "Открыть запрос на подтверждение approval-alpha",
       }),
     );
     expect(
       screen.getByRole("region", {
-        name: "Approval request approval-alpha",
+        name: "Запрос на подтверждение approval-alpha",
       }),
     ).toHaveTextContent("Approve alpha change?");
   });
@@ -321,7 +325,7 @@ describe("CopilotKitInterruptProbe", () => {
     const cancel = createCancelMock();
     renderInterrupts([firstInterrupt], resolve, cancel);
     const closeButton = screen.getByRole("button", {
-      name: "Close approval request approval-alpha",
+      name: "Закрыть запрос на подтверждение approval-alpha",
     });
     closeButton.focus();
 
@@ -329,7 +333,7 @@ describe("CopilotKitInterruptProbe", () => {
 
     expect(
       screen.getByRole("button", {
-        name: "Reopen approval request approval-alpha",
+        name: "Открыть запрос на подтверждение approval-alpha",
       }),
     ).toHaveFocus();
     expect(resolve).not.toHaveBeenCalled();
@@ -342,19 +346,19 @@ describe("CopilotKitInterruptProbe", () => {
 
     await user.click(
       screen.getByRole("button", {
-        name: "Close approval request approval-alpha",
+        name: "Закрыть запрос на подтверждение approval-alpha",
       }),
     );
     await user.click(
       screen.getByRole("button", {
-        name: "Reopen approval request approval-alpha",
+        name: "Открыть запрос на подтверждение approval-alpha",
       }),
     );
 
     await waitFor(() => {
       expect(
         screen.getByRole("button", {
-          name: "Close approval request approval-alpha",
+          name: "Закрыть запрос на подтверждение approval-alpha",
         }),
       ).toHaveFocus();
     });
@@ -366,7 +370,7 @@ describe("CopilotKitInterruptProbe", () => {
     const cancel = createCancelMock();
     renderInterrupts([firstInterrupt], resolve, cancel);
     const card = screen.getByRole("region", {
-      name: "Approval request approval-alpha",
+      name: "Запрос на подтверждение approval-alpha",
     });
     card.focus();
 
@@ -376,7 +380,7 @@ describe("CopilotKitInterruptProbe", () => {
     expect(cancel).not.toHaveBeenCalled();
     expect(
       screen.getByRole("button", {
-        name: "Reopen approval request approval-alpha",
+        name: "Открыть запрос на подтверждение approval-alpha",
       }),
     ).toBeInTheDocument();
   });

@@ -41,13 +41,29 @@ export function selectUpstreamCredentialHeaders(
 
 export function sanitizeIncomingCredentials(request: IncomingMessage): void {
 	const headers = new Headers();
-	for (const [name, value] of Object.entries(request.headers)) {
-		if (Array.isArray(value)) {
-			for (const entry of value) {
-				headers.append(name, entry);
+	const rawHeaderValues = (name: string): string[] => {
+		const values: string[] = [];
+		for (let index = 0; index < request.rawHeaders.length; index += 2) {
+			if (request.rawHeaders[index]?.toLowerCase() === name) {
+				const value = request.rawHeaders[index + 1];
+				if (value !== undefined) {
+					values.push(value);
+				}
 			}
-		} else if (value !== undefined) {
-			headers.set(name, value);
+		}
+		return values;
+	};
+	const authorizationValues = rawHeaderValues("authorization");
+	if (authorizationValues.length === 1) {
+		headers.set("authorization", authorizationValues[0] ?? "");
+	} else if (authorizationValues.length > 1) {
+		headers.set("authorization", "duplicate-authorization-denied");
+	} else {
+		const cookieValues = rawHeaderValues("cookie");
+		if (cookieValues.length === 1) {
+			headers.set("cookie", cookieValues[0] ?? "");
+		} else if (cookieValues.length > 1) {
+			headers.set("cookie", "duplicate-cookie-denied");
 		}
 	}
 	const selected = selectUpstreamCredentialHeaders(headers);

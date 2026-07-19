@@ -37,6 +37,6 @@
     "integrations/langgraph/python/tests/test_subclass_hooks.py",
     "integrations/langgraph/python/uv.lock"
   ],
-  "build_command": "test \"$(uv --version | cut -d ' ' -f 2)\" = \"0.11.21\" && git checkout 85b94807e464c9b38f591938a41559923a712dbb && SOURCE_DATE_EPOCH=1765974360 uv build --python 3.13.14 --wheel integrations/langgraph/python",
-  "test_command": "test \"$(uv --version | cut -d ' ' -f 2)\" = \"0.11.21\" && git checkout 85b94807e464c9b38f591938a41559923a712dbb && uv run --python 3.13.14 --project integrations/langgraph/python pytest -q integrations/langgraph/python/tests"
+  "build_command": "FORK_SHA=85b94807e464c9b38f591938a41559923a712dbb uv run --no-sync python scripts/mvp/rebuild_ag_ui_artifact.py --output-dir /tmp/ketos-stage01-agui-rebuild --json",
+  "test_command": "FORK_SHA=85b94807e464c9b38f591938a41559923a712dbb uv run --no-sync python scripts/mvp/rebuild_ag_ui_artifact.py --output-dir /tmp/ketos-stage01-agui-rebuild-tested --run-tests --json"
 }

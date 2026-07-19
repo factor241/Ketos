@@ -34,6 +34,13 @@ source tree, wheel bytes, runtime metadata, installed source bytes, and MIT
 license. The negative `0.0.42` control remained rejected with the deprecated
 resume path and missing standard gates detected.
 
+The final supply-chain re-review also binds the complete wheel inventory to
+the Git-bound source/build inventory. The adversarial regression appended
+`unapproved_payload.txt` and recomputed the sidecar `artifact_sha256`; it first
+passed (RED) and now fails closed because every `ag_ui_langgraph/` member must
+match the exact source file SHA and only four exact dist-info build members are
+allowed.
+
 The admitted CopilotKit archive is pinned to fork commit
 `c853ac2b78cb57481cc2ca58eda4a865908c532b` with SHA-256
 `64711f7e9e94ab6126fef68fdb92f9ba80f400b88d64d3a72191ee1ed7da61aa`
@@ -57,8 +64,11 @@ used `SOURCE_DATE_EPOCH=1784431200`; because the deterministic tar metadata
 includes that epoch, it is a different, noncanonical artifact. Stage 01 admits
 only epoch `1784227404` and SHA-256 `64711f7e...` recorded above.
 
-Two AG-UI builds from a clean exact-commit clone under uv `0.11.21` and Python
-`3.13.14` reproduced the wheel hash. A fresh remote CopilotKit clone was
+Two AG-UI builds from separate fresh exact-commit clones under the checked-in
+hermetic executor, manifest-hashed uv `0.11.21`, managed Python `3.13.14`, and
+epoch `1765974360` reproduced
+`5ae33b1bab5a9e0adfb1425c5e279476a7ba35a385019d71be2f3ee79e8913cc`;
+the second rebuild also ran the fork test gate. A fresh remote CopilotKit clone was
 installed, type-checked, built and packed under the manifest-selected Node
 `22.23.1`, verified pnpm `10.33.4`, and epoch `1784227404`; it reproduced SHA-256
 `64711f7e...` byte-for-byte. `uv sync --frozen

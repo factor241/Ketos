@@ -51,6 +51,7 @@ REQUIRED_ARCHIVE_SOURCES = (
     "ag_ui_langgraph/agent.py",
     "ag_ui_langgraph/endpoint.py",
 )
+WHEEL_BUILD_METADATA_FILES = frozenset({"METADATA", "WHEEL", "RECORD", "licenses/LICENSE"})
 ARTIFACT_STRING_FIELDS = (
     "name",
     "version",
@@ -434,6 +435,56 @@ def _bind_source_tree_to_repository(
     return supplied == expected
 
 
+def _source_package_inventory(source_path: Path, source_artifact: dict[str, Any]) -> dict[str, str]:
+    """Derive the exact import-package payload from the Git-bound source archive."""
+    package_root = PurePosixPath(str(source_artifact["metadata_path"])).parent / "ag_ui_langgraph"
+    prefix = f"{package_root}/"
+    with tarfile.open(source_path) as archive:
+        all_members = _bounded_tar_members(archive)
+        _validate_tar_members(all_members)
+        inventory: dict[str, str] = {}
+        for member in all_members:
+            if not member.isfile() or not member.name.startswith(prefix):
+                continue
+            relative = member.name[len(prefix) :]
+            if not relative or PurePosixPath(relative).name.startswith("."):
+                _invalid(f"source package contains unsupported hidden member: {member.name}")
+            extracted = archive.extractfile(member)
+            if extracted is None:
+                _invalid(f"source package member cannot be read: {member.name}")
+            inventory[f"ag_ui_langgraph/{relative}"] = _bytes_sha256(extracted.read())
+    if not inventory:
+        _invalid("source package inventory is empty")
+    return inventory
+
+
+def _bind_wheel_inventory_to_source(
+    artifact: dict[str, Any],
+    source_path: Path,
+    source_artifact: dict[str, Any],
+) -> bool:
+    """Reject every wheel member not derived from source or the exact wheel metadata set."""
+    wheel_inventory = artifact.get("wheel_inventory_sha256")
+    if not isinstance(wheel_inventory, dict) or not wheel_inventory:
+        _invalid("wheel inventory is missing")
+    expected_package = _source_package_inventory(source_path, source_artifact)
+    actual_package = {
+        name: digest for name, digest in wheel_inventory.items() if name.startswith("ag_ui_langgraph/")
+    }
+    if actual_package != expected_package:
+        _invalid("wheel inventory does not match the Git-bound source package inventory")
+    metadata_path = PurePosixPath(str(artifact["metadata_path"]))
+    dist_info = str(metadata_path.parent)
+    expected_metadata = {f"{dist_info}/{name}" for name in WHEEL_BUILD_METADATA_FILES}
+    actual_metadata = {name for name in wheel_inventory if name.startswith(f"{dist_info}/")}
+    if actual_metadata != expected_metadata:
+        _invalid("wheel inventory does not match the exact build metadata inventory")
+    expected_all = set(expected_package) | expected_metadata
+    if set(wheel_inventory) != expected_all:
+        _invalid("wheel inventory contains content outside the source/build inventory")
+    return True
+
+
 def _validate_git_provenance(
     provenance: dict[str, Any],
     *,
@@ -520,6 +571,12 @@ def _validate_git_provenance(
     for field in ("name", "version", "license", "license_sha256", "source_sha256"):
         if source_artifact.get(field) != artifact.get(field):
             _invalid(f"source archive {field} does not match the built artifact")
+    if kind == "wheel" and not _bind_wheel_inventory_to_source(
+        artifact,
+        resolved_source,
+        source_artifact,
+    ):
+        _invalid("wheel inventory is not bound to the source/build inventory")
 
     changed_files = provenance["changed_files"]
     if (
@@ -709,7 +766,10 @@ def _wheel_artifact(path: Path) -> dict[str, Any]:
         missing_sources = [source for source in REQUIRED_ARCHIVE_SOURCES if source not in names]
         if missing_sources:
             _invalid(f"artifact missing required source: {', '.join(missing_sources)}")
-        source_sha256 = {source: _bytes_sha256(archive.read(source)) for source in REQUIRED_ARCHIVE_SOURCES}
+        wheel_inventory_sha256 = {
+            entry.filename: _bytes_sha256(archive.read(entry.filename)) for entry in entries if not entry.is_dir()
+        }
+        source_sha256 = {source: wheel_inventory_sha256[source] for source in REQUIRED_ARCHIVE_SOURCES}
         license_bytes = archive.read(license_path)
     return {
         "name": name,
@@ -725,6 +785,7 @@ def _wheel_artifact(path: Path) -> dict[str, Any]:
         "license_source": "artifact",
         "requires_python": requires_python,
         "source_sha256": source_sha256,
+        "wheel_inventory_sha256": wheel_inventory_sha256,
         "archive_identity_bound": True,
     }
 

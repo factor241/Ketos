@@ -18,7 +18,7 @@ from fastapi_pagination import Params
 from fastapi_pagination.ext.sqlmodel import apaginate
 from kfx.log.logger import logger
 from kfx.services.mcp_composer.service import MCPComposerService
-from sqlalchemy import or_, update
+from sqlalchemy import update
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
@@ -48,12 +48,7 @@ from ketos.initial_setup.constants import (
     STARTER_FOLDER_NAME_I18N_KEY,
 )
 from ketos.services.auth.mcp_encryption import encrypt_auth_settings
-from ketos.services.authorization import (
-    FlowAction,
-    ProjectAction,
-    ensure_project_permission,
-    filter_visible_resources,
-)
+from ketos.services.authorization import ProjectAction, ensure_project_permission, filter_visible_resources
 from ketos.services.authorization.fetch import authorized_or_owner_scoped, deny_to_404
 from ketos.services.authorization.utils import _resolve_authz_domain
 from ketos.services.database.models.deployment.exceptions import (
@@ -251,13 +246,7 @@ async def read_projects(
     current_user: CurrentActiveUser,
 ):
     try:
-        projects = (
-            await session.exec(
-                select(Folder).where(
-                    or_(Folder.user_id == current_user.id, Folder.user_id == None)  # noqa: E711
-                )
-            )
-        ).all()
+        projects = (await session.exec(select(Folder).where(Folder.user_id == current_user.id))).all()
         projects = [project for project in projects if project.name != STARTER_FOLDER_NAME]
         # When AUTHZ_ENABLED=true, drop projects the user can't read. OSS
         # default is pass-through; the authorization plugin honors role + share grants.
@@ -297,22 +286,11 @@ async def read_project(
 ):
     locale = getattr(request.state, "locale", "en")
     try:
-        # Share-aware fetch: when an authorization plugin is
-        # registered (``SUPPORTS_CROSS_USER_FETCH=True``) the project is
-        # loaded by id alone and ``ensure_project_permission`` below decides
-        # access. The OSS pass-through keeps the owner-scoped query so the
-        # strict-pass-through stub cannot widen visibility.
-        from ketos.services.deps import get_authorization_service
-
-        authz = get_authorization_service()
-        # Cross-user fetch only when both the plugin capability and the
-        # ``AUTHZ_ENABLED`` flag are on — otherwise route guards are no-ops
-        # and widening the lookup would expose foreign projects without any
-        # policy check.
-        share_aware = await authz.supports_cross_user_fetch() and await authz.is_enabled()
-        stmt = select(Folder).options(selectinload(Folder.flows)).where(Folder.id == project_id)
-        if not share_aware:
-            stmt = stmt.where(Folder.user_id == current_user.id)
+        stmt = (
+            select(Folder)
+            .options(selectinload(Folder.flows))
+            .where(Folder.id == project_id, Folder.user_id == current_user.id)
+        )
         project = (await session.exec(stmt)).first()
     except Exception as e:
         if "No result found" in str(e):
@@ -334,17 +312,12 @@ async def read_project(
         raise deny_to_404(exc, detail="Project not found") from exc
 
     try:
-        # When share-aware fetch is on and the project is not owned by the
-        # caller (i.e. reached via a share grant), show all flows in the
-        # project — the share grant on the project implies access to its
-        # contents. Otherwise keep the existing owner-scoped flow filter.
-        treat_as_shared = share_aware and project.user_id != current_user.id
-
         # Check if pagination is explicitly requested by the user (both page and size provided)
         if page is not None and size is not None:
-            stmt = select(Flow).where(Flow.folder_id == project_id)
-            if not treat_as_shared:
-                stmt = stmt.where(Flow.user_id == current_user.id)
+            stmt = select(Flow).where(
+                Flow.folder_id == project_id,
+                Flow.user_id == current_user.id,
+            )
 
             if Flow.updated_at is not None:
                 stmt = stmt.order_by(Flow.updated_at.desc())  # type: ignore[attr-defined]
@@ -362,48 +335,12 @@ async def read_project(
                 )
                 paginated_flows = await apaginate(session, stmt, params=params)
 
-            # Apply the same per-flow authz filter the non-paginated branch
-            # uses so shared-project reads behave identically regardless of
-            # page/size. Without this, a project READ grant would expose
-            # every flow in the page even when finer-grained per-flow
-            # policy (deny rules, lower-permission shares) should narrow
-            # the result. OSS pass-through returns the input unchanged.
-            # ``page.total`` may overcount when items are dropped — same
-            # caveat as the paginated branch of ``read_flows``; SQL-level
-            # prefiltering via authz_share lands in Phase 3.
-            if treat_as_shared:
-                paginated_flows.items = await filter_visible_resources(
-                    current_user,
-                    resource_type="flow",
-                    candidates=list(paginated_flows.items),
-                    domain_extractor=lambda flow: _resolve_authz_domain(flow.workspace_id, flow.folder_id),
-                    owner_extractor=lambda flow: flow.user_id,
-                    act=FlowAction.READ,
-                )
-
             return FolderWithPaginatedFlows(
                 folder=_folder_read_for_locale(project, locale),
                 flows=paginated_flows,
             )
 
-        # If no pagination requested, return flows visible to the caller.
-        if treat_as_shared:
-            # A project share grant implies access to the project itself, but
-            # per-flow policy (deny rules, lower scopes) still applies. Without
-            # this call, ``list(project.flows)`` would leak every flow in the
-            # project regardless of finer-grained policy engine rules the plugin may
-            # have. OSS pass-through returns the input list unchanged, so this
-            # has no effect on default OSS installs.
-            visible_flows = await filter_visible_resources(
-                current_user,
-                resource_type="flow",
-                candidates=list(project.flows),
-                domain_extractor=lambda flow: _resolve_authz_domain(flow.workspace_id, flow.folder_id),
-                owner_extractor=lambda flow: flow.user_id,
-                act=FlowAction.READ,
-            )
-        else:
-            visible_flows = [flow for flow in project.flows if flow.user_id == current_user.id]
+        visible_flows = [flow for flow in project.flows if flow.user_id == current_user.id]
         project.flows = visible_flows
 
         # Convert to FolderReadWithFlows while session is still active to avoid detached instance errors
@@ -423,14 +360,14 @@ async def update_project(
     background_tasks: BackgroundTasks,
 ):
     try:
-        existing_project = await authorized_or_owner_scoped(
-            session,
-            Folder,
-            id_column=Folder.id,
-            resource_id=project_id,
-            owner_column=Folder.user_id,
-            owner_id=current_user.id,
-        )
+        existing_project = (
+            await session.exec(
+                select(Folder).where(
+                    Folder.id == project_id,
+                    Folder.user_id == current_user.id,
+                )
+            )
+        ).first()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -545,7 +482,14 @@ async def update_project(
 
         excluded_flows = list(set(flows_ids) - set(project.flows))
 
-        my_collection_project = (await session.exec(select(Folder).where(Folder.name == DEFAULT_FOLDER_NAME))).first()
+        my_collection_project = (
+            await session.exec(
+                select(Folder).where(
+                    Folder.name == DEFAULT_FOLDER_NAME,
+                    Folder.user_id == project_owner_id,
+                )
+            )
+        ).first()
         flow_ids_for_sync = list(dict.fromkeys(excluded_flows + concat_project_components))
 
         async def _move_flows_for_project_update() -> None:

@@ -34,7 +34,9 @@ def _git(repo: Path, *arguments: str, input_bytes: bytes | None = None) -> str:
     return result.stdout.decode().strip()
 
 
-def _fixture(tmp_path: Path, *, package_name: str = "@copilotkit/react-core") -> dict[str, object]:
+def _fixture(
+    tmp_path: Path, *, package_name: str = "@copilotkit/react-core", gitlink: bool = False
+) -> dict[str, object]:
     remote = tmp_path / "fork.git"
     upstream = tmp_path / "upstream.git"
     subprocess.run([GIT, "init", "--bare", str(remote)], check=True, capture_output=True)
@@ -67,6 +69,8 @@ def _fixture(tmp_path: Path, *, package_name: str = "@copilotkit/react-core") ->
     (package / "src/interrupt.ts").write_text("export type Decision = boolean;\n", encoding="utf-8")
     (package / "src/current.ts").symlink_to("interrupt.ts")
     _git(repo, "add", ".")
+    if gitlink:
+        _git(repo, "update-index", "--add", "--cacheinfo", f"160000,{base},external/submodule")
     _git(repo, "commit", "-m", "fork delta")
     fork = _git(repo, "rev-parse", "HEAD")
     origin = remote.resolve().as_uri()
@@ -84,7 +88,6 @@ def _fixture(tmp_path: Path, *, package_name: str = "@copilotkit/react-core") ->
     artifact.write_bytes(b"deterministic npm artifact\n")
     changed = _git(repo, "diff", "--name-only", base, fork).splitlines()
     license_hash = hashlib.sha256((package / "LICENSE").read_bytes()).hexdigest()
-    epoch = audit.SOURCE_DATE_EPOCH
     manifest = tmp_path / "manifest.json"
     manifest.write_text(
         json.dumps(
@@ -104,12 +107,8 @@ def _fixture(tmp_path: Path, *, package_name: str = "@copilotkit/react-core") ->
                         "license_spdx": "MIT",
                         "license_sha256": license_hash,
                         "changed_files": changed,
-                        "toolchain": {
-                            "node": audit.NODE_VERSION,
-                            "pnpm": audit.PNPM_VERSION,
-                            "source_date_epoch": epoch,
-                        },
-                        "rebuild": audit._canonical_rebuild(fork, epoch),
+                        "toolchain": audit._expected_toolchain(),
+                        "rebuild": audit.CANONICAL_REBUILD,
                     }
                 },
             }
@@ -265,6 +264,30 @@ def test_rejects_rebuild_tokens_hidden_in_echo_commands(tmp_path: Path) -> None:
         _audit(fixture)
 
 
+def test_canonical_rebuild_invokes_only_the_hermetic_executor() -> None:
+    assert audit.CANONICAL_REBUILD == (
+        "uv run --no-sync python scripts/mvp/rebuild_copilotkit_artifact.py "
+        "--output-dir /tmp/ketos-stage01-copilot-pack --json"
+    )
+    assert "npx" not in audit.CANONICAL_REBUILD
+    assert "corepack" not in audit.CANONICAL_REBUILD
+    assert "git checkout" not in audit.CANONICAL_REBUILD
+
+
+def test_rejects_alternate_or_spoofed_rebuild_executor(tmp_path: Path) -> None:
+    fixture = _fixture(tmp_path)
+    manifest_path = Path(fixture["manifest"])
+    original = json.loads(manifest_path.read_text())
+    canonical = audit.CANONICAL_REBUILD
+
+    for spoof in (canonical.replace("uv run", "echo uv run", 1), canonical.replace("--no-sync", "", 1)):
+        manifest = json.loads(json.dumps(original))
+        manifest["artifacts"]["@copilotkit/react-core"]["rebuild"] = spoof
+        manifest_path.write_text(json.dumps(manifest))
+        with pytest.raises(audit.AuditError, match="rebuild"):
+            _audit(fixture)
+
+
 def test_rejects_member_and_total_resource_overflow(tmp_path: Path) -> None:
     fixture = _fixture(tmp_path)
     with pytest.raises(audit.AuditError, match="compressed"):
@@ -290,7 +313,7 @@ def test_rejects_unpinned_toolchain_metadata(tmp_path: Path) -> None:
     fixture = _fixture(tmp_path)
     manifest_path = Path(fixture["manifest"])
     manifest = json.loads(manifest_path.read_text())
-    manifest["artifacts"]["@copilotkit/react-core"]["toolchain"]["node"] = "26.3.1"
+    manifest["artifacts"]["@copilotkit/react-core"]["toolchain"]["node"]["version"] = "26.3.1"
     manifest_path.write_text(json.dumps(manifest))
 
     with pytest.raises(audit.AuditError, match="toolchain"):
@@ -298,7 +321,7 @@ def test_rejects_unpinned_toolchain_metadata(tmp_path: Path) -> None:
 
     manifest = json.loads(manifest_path.read_text())
     record = manifest["artifacts"]["@copilotkit/react-core"]
-    record["toolchain"]["node"] = audit.NODE_VERSION
+    record["toolchain"]["node"]["version"] = audit.NODE_VERSION
     record["toolchain"]["source_date_epoch"] = 1
     record["rebuild"] = audit._canonical_rebuild(str(fixture["fork"]), 1)
     manifest_path.write_text(json.dumps(manifest))
@@ -403,6 +426,54 @@ def test_bounded_runner_stops_output_and_time_overflow() -> None:
         )
 
 
+def test_git_authority_ignores_environment_url_rewrite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    fixture = _fixture(tmp_path)
+    malicious = (tmp_path / "missing-redirect.git").resolve().as_uri()
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", f"url.{malicious}.insteadOf")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", str(fixture["upstream"]))
+    monkeypatch.setenv("GIT_DIR", str(tmp_path / "spoof-git-dir"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(tmp_path / "spoof-work-tree"))
+
+    evidence = _audit(fixture)
+
+    assert evidence["status"] == "PASS"
+    if Path("/usr/bin/git").is_file():
+        assert audit.GIT == "/usr/bin/git"
+
+
+def test_git_environment_is_from_scratch_and_local_rewrite_is_rejected(tmp_path: Path) -> None:
+    home = tmp_path / "empty-home"
+    home.mkdir()
+    environment = audit._git_environment(home)
+
+    assert environment["HOME"] == str(home)
+    assert environment["GIT_CONFIG_GLOBAL"] == "/dev/null"
+    assert environment["GIT_CONFIG_NOSYSTEM"] == "1"
+    assert environment["GIT_ATTR_NOSYSTEM"] == "1"
+    assert environment["GIT_OPTIONAL_LOCKS"] == "0"
+    assert not any("PROXY" in key.upper() or key.startswith("SSH_") for key in environment)
+
+    fixture = _fixture(tmp_path / "fixture")
+    redirect = (tmp_path / "redirect.git").resolve().as_uri()
+    _git(Path(fixture["repo"]), "config", f"url.{redirect}.insteadOf", str(fixture["upstream"]))
+    with pytest.raises(audit.AuditError, match="forbidden URL rewrite"):
+        _audit(fixture)
+
+
+def test_verified_authority_isolated_from_caller_dirt_and_rejects_gitlinks(tmp_path: Path) -> None:
+    fixture = _fixture(tmp_path / "dirty")
+    repository = Path(fixture["repo"])
+    (repository / "caller-untracked").write_text("must not enter proof\n", encoding="utf-8")
+    (repository / "packages/react-core/LICENSE").write_text("caller modification\n", encoding="utf-8")
+
+    assert _audit(fixture)["status"] == "PASS"
+
+    gitlink = _fixture(tmp_path / "gitlink", gitlink=True)
+    with pytest.raises(audit.AuditError, match="gitlink"):
+        _audit(gitlink)
+
+
 def test_rejects_base_only_dangling_on_official_remote(tmp_path: Path) -> None:
     fixture = _fixture(tmp_path)
     attacker = tmp_path / "unrelated"
@@ -427,6 +498,12 @@ def test_cli_emits_machine_readable_pass_only_for_compiled_authority(
     monkeypatch.setattr(audit, "UPSTREAM_REPOSITORY", str(fixture["upstream"]))
     monkeypatch.setattr(audit, "FORK_SHA", str(fixture["fork"]))
     monkeypatch.setattr(audit, "UPSTREAM_BASE_SHA", str(fixture["base"]))
+    monkeypatch.setattr(
+        audit,
+        "EXPECTED_ARTIFACT_SHA256",
+        hashlib.sha256(Path(fixture["artifact"]).read_bytes()).hexdigest(),
+    )
+    monkeypatch.setattr(audit, "_validate_rebuild_recipe", lambda: None)
     exit_code = audit.main(
         [
             str(fixture["source"]),

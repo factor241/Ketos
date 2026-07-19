@@ -12,7 +12,6 @@ const keys = [
   "projectShell.boards",
   "projectShell.flows",
   "projectShell.loading",
-  "projectShell.emptyBoards",
   "projectShell.error",
   "projectShell.renameError",
 ] as const;
@@ -31,6 +30,17 @@ describe("project shell translations", () => {
       Array.from(value.matchAll(/{{\s*([^{}]+?)\s*}}/g), (match) => match[1]);
     expect(tokens(en["projectShell.heading"])).toEqual(["name"]);
     expect(tokens(ru["projectShell.heading"])).toEqual(["name"]);
+  });
+
+  it("leaves the board-list empty state to BoardsPage", () => {
+    const source = readFileSync(
+      path.resolve(__dirname, "../pages/ProjectPage/index.tsx"),
+      "utf8",
+    );
+
+    expect(en["projectShell.emptyBoards"]).toBeUndefined();
+    expect(ru["projectShell.emptyBoards"]).toBeUndefined();
+    expect(source).not.toContain("projectShell.emptyBoards");
   });
 
   it("uses every shell-state key from ProjectPage", () => {

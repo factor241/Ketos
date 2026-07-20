@@ -577,6 +577,16 @@ test.describe("Stage 05 durable CopilotKit chat", () => {
       await expect(
         replacedCard.getByText(ids.answers[0], { exact: true }),
       ).toBeVisible();
+      const replacementBox = await replacedCard.boundingBox();
+      const secondBox = await secondCard.boundingBox();
+      expect(replacementBox).not.toBeNull();
+      expect(secondBox).not.toBeNull();
+      expect(
+        replacementBox!.x + replacementBox!.width <= secondBox!.x ||
+          secondBox!.x + secondBox!.width <= replacementBox!.x ||
+          replacementBox!.y + replacementBox!.height <= secondBox!.y ||
+          secondBox!.y + secondBox!.height <= replacementBox!.y,
+      ).toBe(true);
       await page.screenshot({
         path: path.join(evidenceRoot, "05-close-replace-focus.png"),
         fullPage: true,

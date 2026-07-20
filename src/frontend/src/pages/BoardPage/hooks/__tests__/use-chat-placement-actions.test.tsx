@@ -39,6 +39,13 @@ const placement = {
   createdAt: "",
   updatedAt: "",
 } satisfies Placement;
+const siblingPlacement = {
+  ...placement,
+  id: "placement-2",
+  targetId: "chat-2",
+  x: 560,
+  y: 40,
+} satisfies Placement;
 
 describe("useChatPlacementActions", () => {
   it("reuses an existing placement and creates only an unplaced durable chat", async () => {
@@ -90,6 +97,32 @@ describe("useChatPlacementActions", () => {
       chatId: chat.id,
       expectedRevision: 4,
       archived: true,
+    });
+  });
+
+  it("re-places a closed chat in a collision-free adjacent slot", async () => {
+    const mutateAsync = jest.fn().mockResolvedValue(placement);
+    mockPostPlacement.mockReturnValue({
+      mutateAsync,
+      isPending: false,
+    } as never);
+    mockPatchChat.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+    } as never);
+    const { result } = renderHook(() =>
+      useChatPlacementActions({ boardId: "board-1" }),
+    );
+
+    await result.current.open(chat, [siblingPlacement], { x: 600, y: 400 });
+
+    expect(mutateAsync).toHaveBeenCalledWith({
+      targetKind: "chat",
+      targetId: chat.id,
+      x: 40,
+      y: 40,
+      width: 480,
+      height: 360,
     });
   });
 });

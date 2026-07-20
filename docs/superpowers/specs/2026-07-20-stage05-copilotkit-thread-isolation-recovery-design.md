@@ -112,10 +112,14 @@ Create a focused hook at:
 It owns only browser-local registration lifecycle. Its public contract is:
 
 ```ts
-type ThreadScopedAgentBinding =
-  | { status: "registering"; localAgentId: string; error: null }
-  | { status: "ready"; localAgentId: string; error: null }
-  | { status: "error"; localAgentId: string; error: Error };
+type ThreadScopedAgentBinding = {
+  localAgentId: string;
+  retry: () => void;
+} & (
+  | { status: "registering"; error: null }
+  | { status: "ready"; error: null }
+  | { status: "error"; error: Error }
+);
 
 function useThreadScopedCopilotAgent(
   chatId: string,
@@ -202,11 +206,12 @@ CopilotKit's standard connection lifecycle remains authoritative inside the
 stock surface. Ketos may show the already-designed external reconnect status,
 but must not synthesize messages or custom events.
 
-### Stale async completion
+### Stale binding state
 
-An effect-generation guard prevents an older registration attempt from setting
-the binding to ready after `chatId`, provider instance, or retry generation has
-changed.
+`registerProxiedAgent` is synchronous in the pinned CopilotKit core. The hook
+still keys its binding state by local ID and retry generation so a render after
+`chatId`, provider instance, or retry generation changes cannot expose the
+previous ready binding before the replacement effect has registered.
 
 ### Duplicate local ID
 

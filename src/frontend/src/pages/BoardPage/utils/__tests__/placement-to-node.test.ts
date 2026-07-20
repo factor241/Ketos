@@ -1,3 +1,4 @@
+import type { BoardExecution } from "@/controllers/API/queries/executions";
 import type { BoardNote, Placement } from "@/types/board";
 import type { ChatThread } from "@/types/chat";
 import type { AutomationSummary } from "@/types/flow/automation";
@@ -141,5 +142,49 @@ describe("placementsToNodes", () => {
         }),
       }),
     ]);
+  });
+
+  it("maps an exact terminal execution result without changing existing node kinds", () => {
+    const resultPlacement: Placement = {
+      ...placement,
+      id: "placement-result",
+      boardId: "board-1",
+      targetKind: "job_result",
+      targetId: "job-1",
+    };
+    const terminal = {
+      job_id: "job-1",
+      board_id: "board-1",
+      flow_id: "flow-1",
+      status: "succeeded",
+      reason: null,
+      created_timestamp: "2026-07-21T00:00:00Z",
+      finished_timestamp: "2026-07-21T00:00:01Z",
+      result: { kind: "text", value: "done", truncated: false },
+    } satisfies BoardExecution;
+
+    expect(
+      placementsToNodes([resultPlacement], [], [], [], [terminal]),
+    ).toEqual([
+      expect.objectContaining({
+        id: "placement-result",
+        type: "jobResult",
+        data: expect.objectContaining({
+          placementId: "placement-result",
+          targetKind: "job_result",
+          execution: terminal,
+          placement: resultPlacement,
+        }),
+      }),
+    ]);
+    expect(
+      placementsToNodes(
+        [resultPlacement],
+        [],
+        [],
+        [],
+        [{ ...terminal, status: "running", result: null }],
+      ),
+    ).toEqual([]);
   });
 });

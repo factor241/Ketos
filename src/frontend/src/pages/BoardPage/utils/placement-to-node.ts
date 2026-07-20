@@ -1,8 +1,15 @@
 import type { Node } from "@xyflow/react";
 
+import type { BoardExecution } from "@/controllers/API/queries/executions";
 import type { BoardNote, BoardNoteNodeData, Placement } from "@/types/board";
 import type { ChatThread } from "@/types/chat";
 import type { AutomationSummary } from "@/types/flow/automation";
+
+const TERMINAL_EXECUTION_STATUSES = new Set([
+  "succeeded",
+  "failed",
+  "cancelled",
+]);
 
 export type BoardNoteSceneNodeData = BoardNoteNodeData & {
   placement: Placement;
@@ -24,16 +31,26 @@ export type AutomationSceneNodeData = {
 export type BoardNoteSceneNode = Node<BoardNoteSceneNodeData, "boardNote">;
 export type ChatSceneNode = Node<ChatSceneNodeData, "chat">;
 export type AutomationSceneNode = Node<AutomationSceneNodeData, "automation">;
+export type ResultSceneNodeData = {
+  placementId: string;
+  targetId: string;
+  targetKind: "job_result";
+  execution: BoardExecution;
+  placement: Placement;
+} & Record<string, unknown>;
+export type ResultSceneNode = Node<ResultSceneNodeData, "jobResult">;
 export type BoardSceneNode =
   | BoardNoteSceneNode
   | ChatSceneNode
-  | AutomationSceneNode;
+  | AutomationSceneNode
+  | ResultSceneNode;
 
 export function placementToNode(
   placement: Placement,
   notesById: ReadonlyMap<string, BoardNote>,
   chatsById: ReadonlyMap<string, ChatThread>,
   automationsById: ReadonlyMap<string, AutomationSummary>,
+  executionsById: ReadonlyMap<string, BoardExecution> = new Map(),
 ): BoardSceneNode | null {
   if (placement.targetKind === "note") {
     const note = notesById.get(placement.targetId);
@@ -98,6 +115,32 @@ export function placementToNode(
     };
   }
 
+  if (placement.targetKind === "job_result") {
+    const execution = executionsById.get(placement.targetId);
+    if (
+      !execution ||
+      execution.board_id !== placement.boardId ||
+      !TERMINAL_EXECUTION_STATUSES.has(execution.status)
+    )
+      return null;
+    return {
+      id: placement.id,
+      type: "jobResult",
+      position: { x: placement.x, y: placement.y },
+      style: { width: placement.width, height: placement.height },
+      zIndex: placement.zIndex,
+      draggable: placement.displayState === "normal",
+      dragHandle: ".board-card-drag-handle",
+      data: {
+        placementId: placement.id,
+        targetId: placement.targetId,
+        targetKind: "job_result",
+        execution,
+        placement,
+      },
+    };
+  }
+
   return null;
 }
 
@@ -106,11 +149,15 @@ export function placementsToNodes(
   notes: readonly BoardNote[],
   chats: readonly ChatThread[],
   automations: readonly AutomationSummary[],
+  executions: readonly BoardExecution[] = [],
 ): BoardSceneNode[] {
   const notesById = new Map(notes.map((note) => [note.id, note]));
   const chatsById = new Map(chats.map((chat) => [chat.id, chat]));
   const automationsById = new Map(
     automations.map((automation) => [automation.id, automation]),
+  );
+  const executionsById = new Map(
+    executions.map((execution) => [execution.job_id, execution]),
   );
   return placements.flatMap((placement) => {
     const node = placementToNode(
@@ -118,6 +165,7 @@ export function placementsToNodes(
       notesById,
       chatsById,
       automationsById,
+      executionsById,
     );
     return node ? [node] : [];
   });

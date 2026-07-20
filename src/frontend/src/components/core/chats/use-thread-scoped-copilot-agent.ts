@@ -2,7 +2,16 @@ import { useCopilotKit } from "@copilotkit/react-core/v2";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { validate as isUuid } from "uuid";
 
+import { api } from "@/controllers/API/api";
+
 export const CHAT_RUNTIME_AGENT_ID = "ketos-chat";
+
+type ChatMessageWire = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  sequence: number;
+};
 
 export type ThreadScopedAgentBinding = {
   localAgentId: string;
@@ -84,28 +93,66 @@ export function useThreadScopedCopilotAgent(
       error: null,
     });
 
-    try {
-      const { unregister } = copilotkit.registerProxiedAgent({
-        agentId: localAgentId,
-        runtimeAgentId: CHAT_RUNTIME_AGENT_ID,
-      });
-      setRegistration({
-        key: requestedKey,
-        owner: copilotkit,
-        status: "ready",
-        error: null,
-      });
-      return unregister;
-    } catch (error) {
-      setRegistration({
-        key: requestedKey,
-        owner: copilotkit,
-        status: "error",
-        error: asError(error),
-      });
-      return;
-    }
-  }, [copilotkit, localAgentId, requestedKey, validationError]);
+    let cancelled = false;
+    let unregister: (() => void) | undefined;
+    void (async () => {
+      try {
+        const response = await api.get<ChatMessageWire[]>(
+          `/api/v1/chats/${chatId}/messages`,
+        );
+        if (cancelled) return;
+        const registered = copilotkit.registerProxiedAgent({
+          agentId: localAgentId,
+          runtimeAgentId: CHAT_RUNTIME_AGENT_ID,
+        });
+        const durableMessages = [...response.data]
+          .sort((left, right) => left.sequence - right.sequence)
+          .map(({ id, role, content }) => ({ id, role, content }));
+        let connectionSettled = false;
+        const connectionSubscription = registered.agent.subscribe({
+          onRunFinalized: () => {
+            if (connectionSettled || cancelled) return;
+            connectionSettled = true;
+            if (
+              durableMessages.length > 0 &&
+              registered.agent.messages.length === 0
+            ) {
+              registered.agent.setMessages(durableMessages);
+            }
+          },
+        });
+        unregister = () => {
+          connectionSubscription.unsubscribe();
+          registered.unregister();
+        };
+        registered.agent.setMessages(durableMessages);
+        if (cancelled) {
+          unregister();
+          unregister = undefined;
+          return;
+        }
+        setRegistration({
+          key: requestedKey,
+          owner: copilotkit,
+          status: "ready",
+          error: null,
+        });
+      } catch (error) {
+        if (cancelled) return;
+        setRegistration({
+          key: requestedKey,
+          owner: copilotkit,
+          status: "error",
+          error: asError(error),
+        });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      unregister?.();
+    };
+  }, [chatId, copilotkit, localAgentId, requestedKey, validationError]);
 
   const visible: RegistrationState =
     registration.key === requestedKey && registration.owner === copilotkit

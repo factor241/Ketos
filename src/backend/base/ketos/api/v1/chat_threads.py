@@ -7,7 +7,8 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, status
 
 from ketos.api.utils import CurrentActiveUser, DbSession
-from ketos.api.v1.schemas.chat_threads import ChatCreate, ChatPatch, ChatRead
+from ketos.api.v1.schemas.chat_threads import ChatCreate, ChatMessageRead, ChatPatch, ChatRead
+from ketos.services.chat_threads.message_adapter import load_committed_messages
 from ketos.services.chat_threads.repository import (
     ChatNotFoundError,
     ChatRevisionConflictError,
@@ -88,6 +89,24 @@ async def read_chat(chat_id: UUID, session: DbSession, current_user: CurrentActi
     return ChatRead.model_validate(
         await _run_service(lambda: get_chat(session, chat_id=chat_id, actor_id=current_user.id))
     )
+
+
+@router.get("/chats/{chat_id}/messages")
+async def read_chat_messages(
+    chat_id: UUID,
+    session: DbSession,
+    current_user: CurrentActiveUser,
+) -> list[ChatMessageRead]:
+    messages = await _run_service(lambda: load_committed_messages(session, chat_id=chat_id, actor_id=current_user.id))
+    return [
+        ChatMessageRead(
+            id=message.id,
+            role="assistant" if message.is_output else "user",
+            content=message.text,
+            sequence=message.chat_sequence,
+        )
+        for message in messages
+    ]
 
 
 @router.patch("/chats/{chat_id}")

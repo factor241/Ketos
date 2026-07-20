@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import ConfigDict, model_validator
@@ -53,3 +54,12 @@ class ChatRead(SQLModel):
     revision: int
     created_at: datetime
     updated_at: datetime
+
+
+class ChatMessageRead(SQLModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    role: Literal["user", "assistant"]
+    content: str
+    sequence: int

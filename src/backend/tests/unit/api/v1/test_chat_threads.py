@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from uuid import uuid4
+from types import SimpleNamespace
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi import FastAPI
@@ -116,3 +117,40 @@ async def test_chat_api_denies_foreign_null_and_forged_overrides(
     forged.update({"actor_id": str(uuid4()), "tool": "unsafe", "url": "https://invalid.test"})
     response = await chat_client.post(f"/api/v1/projects/{owned.id}/chats", json=forged, headers=logged_in_headers)
     assert response.status_code == 422
+
+
+async def test_chat_messages_api_returns_owner_scoped_ag_ui_transcript(
+    chat_client: AsyncClient,
+    logged_in_headers,
+    active_user,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project = await _folder(active_user.id, "Transcript")
+    created = await chat_client.post(
+        f"/api/v1/projects/{project.id}/chats",
+        json=_create_payload("Durable transcript"),
+        headers=logged_in_headers,
+    )
+    chat_id = created.json()["id"]
+    captured: dict[str, object] = {}
+
+    async def fake_load_committed_messages(_session, *, chat_id, actor_id):
+        captured.update({"chat_id": chat_id, "actor_id": actor_id})
+        return [
+            SimpleNamespace(id=uuid4(), is_output=False, text="release prompt", chat_sequence=1),
+            SimpleNamespace(id=uuid4(), is_output=True, text="release answer", chat_sequence=2),
+        ]
+
+    monkeypatch.setattr(
+        "ketos.api.v1.chat_threads.load_committed_messages",
+        fake_load_committed_messages,
+        raising=False,
+    )
+    response = await chat_client.get(f"/api/v1/chats/{chat_id}/messages", headers=logged_in_headers)
+
+    assert response.status_code == 200
+    assert [(item["role"], item["content"], item["sequence"]) for item in response.json()] == [
+        ("user", "release prompt", 1),
+        ("assistant", "release answer", 2),
+    ]
+    assert captured == {"chat_id": UUID(chat_id), "actor_id": active_user.id}

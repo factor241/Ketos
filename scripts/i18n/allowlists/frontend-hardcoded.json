@@ -77,6 +77,55 @@
       "review_date": "2026-07-19"
     },
     {
+      "path": "src/frontend/src/components/core/chats/use-thread-scoped-copilot-agent.ts",
+      "value": "${CHAT_RUNTIME_AGENT_ID}--${chatId}",
+      "reason": "Exact scoped CopilotKit runtime agent instance identifier; translating it would break thread isolation.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/board-notes/keys.ts",
+      "value": "project",
+      "reason": "Exact TanStack Query cache-key namespace segment; it is a machine-facing contract, not system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/board-notes/keys.ts",
+      "value": "detail",
+      "reason": "Exact TanStack Query cache-key namespace segment; it is a machine-facing contract, not system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/chat-threads/keys.ts",
+      "value": "list",
+      "reason": "Exact TanStack Query cache-key namespace segment; it is a machine-facing contract, not system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/chat-threads/keys.ts",
+      "value": "detail",
+      "reason": "Exact TanStack Query cache-key namespace segment; it is a machine-facing contract, not system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/placements/keys.ts",
+      "value": "scene",
+      "reason": "Exact TanStack Query cache-key namespace segment; it is a machine-facing contract, not system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/placements/keys.ts",
+      "value": "detail",
+      "reason": "Exact TanStack Query cache-key namespace segment; it is a machine-facing contract, not system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
+    },
+    {
       "path": "src/frontend/index.html",
       "value": "Ketos",
       "reason": "Exact product brand in the static document title; surrounding system text is not exempt.",

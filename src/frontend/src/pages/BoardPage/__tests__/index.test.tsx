@@ -184,6 +184,7 @@ beforeEach(() => {
     save: jest.fn(),
     replace: jest.fn(),
     deleteEntity: jest.fn(),
+    unsafeContentError: false,
     isPending: false,
   });
   mockUseGetModelProviders.mockReturnValue({ data: [] });
@@ -227,6 +228,7 @@ it("creates at the center of the board canvas bounds", () => {
     save: jest.fn(),
     replace: jest.fn(),
     deleteEntity: jest.fn(),
+    unsafeContentError: false,
     isPending: false,
   });
   renderBoard();
@@ -250,6 +252,30 @@ it("creates at the center of the board canvas bounds", () => {
   fireEvent.click(screen.getByRole("button", { name: "Board.note.add" }));
   expect(screenToFlowPosition).toHaveBeenCalledWith({ x: 400, y: 400 });
   expect(createAt).toHaveBeenCalledWith({ x: 250, y: 300 });
+});
+
+it("renders the localized unsafe note content error", () => {
+  mockUseBoardViewport.mockReturnValue({
+    initialViewport: { x: 12, y: 24, zoom: 1.25 },
+    onMoveStart: jest.fn(),
+    onMoveEnd: jest.fn(),
+    onInstanceReady: jest.fn(),
+    conflict: false,
+  });
+  mockUseBoardNoteActions.mockReturnValue({
+    createAt: jest.fn(),
+    save: jest.fn(),
+    replace: jest.fn(),
+    deleteEntity: jest.fn(),
+    unsafeContentError: true,
+    isPending: false,
+  });
+
+  renderBoard();
+
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "board.note.unsafeContent",
+  );
 });
 
 it("wires Automation add/re-place to the current Board scene and return focus", async () => {

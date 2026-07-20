@@ -79,4 +79,79 @@ describe("useNotePlacementActions", () => {
       height: 240,
     });
   });
+
+  it("exposes unsafe markdown validation errors from note saves", () => {
+    mockCreate.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+    } as never);
+    mockPatch.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+      isError: true,
+      error: {
+        isAxiosError: true,
+        response: {
+          status: 422,
+          data: { detail: { code: "unsafe_markdown" } },
+        },
+      },
+    } as never);
+    mockDelete.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+    } as never);
+    mockPlacement.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+    } as never);
+
+    const { result } = renderHook(() =>
+      useNotePlacementActions({
+        projectId: "project-1",
+        boardId: "board-1",
+      }),
+    );
+
+    expect(result.current.unsafeContentError).toBe(true);
+  });
+
+  it.each([
+    [409, "unsafe_markdown"],
+    [422, "board_entity_validation_error"],
+  ])(
+    "does not classify status %s with code %s as unsafe markdown",
+    (status, code) => {
+      mockCreate.mockReturnValue({
+        mutate: jest.fn(),
+        isPending: false,
+      } as never);
+      mockPatch.mockReturnValue({
+        mutate: jest.fn(),
+        isPending: false,
+        isError: true,
+        error: {
+          isAxiosError: true,
+          response: { status, data: { detail: { code } } },
+        },
+      } as never);
+      mockDelete.mockReturnValue({
+        mutate: jest.fn(),
+        isPending: false,
+      } as never);
+      mockPlacement.mockReturnValue({
+        mutate: jest.fn(),
+        isPending: false,
+      } as never);
+
+      const { result } = renderHook(() =>
+        useNotePlacementActions({
+          projectId: "project-1",
+          boardId: "board-1",
+        }),
+      );
+
+      expect(result.current.unsafeContentError).toBe(false);
+    },
+  );
 });

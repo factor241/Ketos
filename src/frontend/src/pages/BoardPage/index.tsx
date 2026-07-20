@@ -572,6 +572,11 @@ function LoadedBoard({
                   {t("board.note.conflictDraftPreserved")}
                 </p>
               ) : null}
+              {actions.unsafeContentError ? (
+                <p role="alert" className="p-3 text-sm text-destructive">
+                  {t("board.note.unsafeContent")}
+                </p>
+              ) : null}
               {scene.isError ? (
                 <p role="alert" className="p-3 text-sm text-destructive">
                   {t("board.scene.error")}

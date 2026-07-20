@@ -139,7 +139,7 @@ export function ChatList({
         </div>
       ) : rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          {t(search.trim() ? "chat.states.noResults" : "chat.states.empty")}
+          {search.trim() ? t("chat.states.noResults") : t("chat.states.empty")}
         </p>
       ) : (
         <ul className="flex min-h-0 flex-col gap-2 overflow-auto">

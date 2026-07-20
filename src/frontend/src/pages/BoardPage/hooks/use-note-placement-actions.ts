@@ -1,3 +1,5 @@
+import axios from "axios";
+
 import {
   useDeleteBoardNote,
   usePatchBoardNote,
@@ -5,6 +7,20 @@ import {
 } from "@/controllers/API/queries/board-notes";
 import { usePostPlacement } from "@/controllers/API/queries/placements";
 import type { BoardNote, BoardNoteConflict } from "@/types/board";
+
+type BoardNoteErrorResponse = {
+  detail?: {
+    code?: string;
+  };
+};
+
+function isUnsafeMarkdownError(error: unknown): boolean {
+  return (
+    axios.isAxiosError<BoardNoteErrorResponse>(error) &&
+    error.response?.status === 422 &&
+    error.response.data?.detail?.code === "unsafe_markdown"
+  );
+}
 
 export function useNotePlacementActions({
   projectId,
@@ -53,6 +69,8 @@ export function useNotePlacementActions({
         noteId: note.id,
         expectedRevision: note.revision,
       }),
+    unsafeContentError:
+      saveMutation.isError && isUnsafeMarkdownError(saveMutation.error),
     isPending:
       createMutation.isPending ||
       saveMutation.isPending ||

@@ -13,6 +13,7 @@ from langgraph.graph import END, START, MessagesState, StateGraph
 from ketos.agentic.api.router import register_stage01_ag_ui, unregister_stage01_ag_ui
 from ketos.agentic.services.ag_ui.assembly import assemble_langgraph_agent
 from ketos.agentic.services.ag_ui.checkpoint import AsyncSqliteCheckpoint
+from ketos.agentic.services.ag_ui.durable_chat import create_durable_chat_before_dispatch
 from ketos.agentic.services.ag_ui.hitl_probe import build_hitl_probe_graph, initial_hitl_probe_state
 from ketos.agentic.services.ag_ui.probe_state import (
     ConfirmationStatus,
@@ -97,9 +98,17 @@ class Stage01AgUiRuntime:
         await self.checkpoint.close()
 
 
+class Stage05AgUiRuntime(Stage01AgUiRuntime):
+    """Production durable-Chat binding over the admitted Stage-01 adapter."""
+
+    def __init__(self, *, checkpoint: AsyncSqliteCheckpoint | None = None) -> None:
+        super().__init__(checkpoint=checkpoint)
+        self.before_dispatch = create_durable_chat_before_dispatch()
+
+
 def compose_stage01_lifespan(
     base_lifespan: Callable[[FastAPI], AbstractAsyncContextManager[None]],
-    runtime_factory: Callable[[], Stage01AgUiRuntime] = Stage01AgUiRuntime,
+    runtime_factory: Callable[[], Stage01AgUiRuntime] = Stage05AgUiRuntime,
 ) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
     """Open and register the Stage 01 runtime inside the normal app lifespan."""
 
@@ -123,6 +132,7 @@ def compose_stage01_lifespan(
 __all__ = [
     "Stage01AgUiRuntime",
     "Stage01GraphState",
+    "Stage05AgUiRuntime",
     "build_stage01_graph",
     "compose_stage01_lifespan",
 ]

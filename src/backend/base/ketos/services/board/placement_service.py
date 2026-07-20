@@ -13,15 +13,19 @@ from ketos.services.board.exceptions import (
     PlacementAlreadyExistsError,
     StaleRevisionError,
     TargetKindNotAvailableError,
+    TargetProjectMismatchError,
 )
 from ketos.services.board.target_validation import validate_placement_target
 from ketos.services.database.models.board.model import Board
+from ketos.services.database.models.flow.model import Flow
 from ketos.services.database.models.folder.model import Folder
+from ketos.services.database.models.jobs.model import Job, JobStatus, JobType
 from ketos.services.database.models.placement.model import (
     Placement,
     PlacementDisplayState,
     PlacementTargetKind,
 )
+from ketos.services.jobs.board_results import BoardResultMetadataError, require_board_mvp
 
 MIN_COORDINATE = -1_000_000
 MAX_COORDINATE = 1_000_000
@@ -33,6 +37,9 @@ MAX_Z_INDEX = 1_000_000
 _REVISION_ERROR = "expected_revision must be a non-negative integer"
 _EMPTY_PATCH_ERROR = "placement patch must change at least one field"
 _PLACEMENT_UNIQUE_CONSTRAINT = "uq_placement_board_target"
+_JOB_RESULT_TERMINAL_STATUSES = frozenset(
+    {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.TIMED_OUT, JobStatus.CANCELLED}
+)
 
 
 class PlacementGeometryInput(Protocol):
@@ -156,6 +163,38 @@ async def list_placements(session: AsyncSession, *, board_id: UUID, actor_id: UU
     return list(result.all())
 
 
+async def _validate_job_result_target(
+    session: AsyncSession,
+    *,
+    board: Board,
+    job_id: UUID,
+    actor_id: UUID,
+) -> Job:
+    result = await session.exec(
+        select(Job).where(Job.job_id == job_id, Job.user_id == actor_id, Job.type == JobType.WORKFLOW).with_for_update()
+    )
+    job = result.first()
+    if job is None:
+        raise BoardResourceNotFoundError(job_id)
+    try:
+        mvp = require_board_mvp(job)
+    except BoardResultMetadataError as exc:
+        raise BoardResourceNotFoundError(job_id) from exc
+    if mvp["board_id"] != str(board.id) or mvp["flow_id"] != str(job.flow_id):
+        raise TargetProjectMismatchError(job_id)
+    flow_result = await session.exec(
+        select(Flow).where(Flow.id == job.flow_id, Flow.user_id == actor_id).with_for_update()
+    )
+    flow = flow_result.first()
+    if flow is None:
+        raise BoardResourceNotFoundError(job_id)
+    if flow.folder_id != board.project_id:
+        raise TargetProjectMismatchError(job_id)
+    if job.status not in _JOB_RESULT_TERMINAL_STATUSES:
+        raise TargetKindNotAvailableError(PlacementTargetKind.JOB_RESULT)
+    return job
+
+
 async def create_placement(
     session: AsyncSession,
     *,
@@ -170,13 +209,21 @@ async def create_placement(
         normalized_kind = PlacementTargetKind(target_kind)
     except (TypeError, ValueError) as exc:
         raise TargetKindNotAvailableError(target_kind) from exc
-    await validate_placement_target(
-        session,
-        board=board,
-        target_kind=normalized_kind,
-        target_id=target_id,
-        actor_id=actor_id,
-    )
+    if normalized_kind is PlacementTargetKind.JOB_RESULT:
+        await _validate_job_result_target(
+            session,
+            board=board,
+            job_id=target_id,
+            actor_id=actor_id,
+        )
+    else:
+        await validate_placement_target(
+            session,
+            board=board,
+            target_kind=normalized_kind,
+            target_id=target_id,
+            actor_id=actor_id,
+        )
     placement = Placement.model_validate(
         {
             "board_id": board_id,

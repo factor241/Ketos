@@ -13,6 +13,7 @@ from .auth import (
 )
 from .board import Board
 from .board_note import BoardNote
+from .chat_thread import ChatContextPolicy, ChatRun, ChatRunStatus, ChatThread
 from .deployment import Deployment
 from .deployment_provider_account import DeploymentProviderAccount
 from .file import File
@@ -42,6 +43,10 @@ __all__ = [
     "AuthzTeamMember",
     "Board",
     "BoardNote",
+    "ChatContextPolicy",
+    "ChatRun",
+    "ChatRunStatus",
+    "ChatThread",
     "CasbinRule",
     "Deployment",
     "DeploymentProviderAccount",

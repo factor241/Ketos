@@ -8,7 +8,8 @@ import numpy as np
 import pandas as pd
 from fastapi.encoders import jsonable_encoder
 from pydantic import ConfigDict, field_serializer, field_validator
-from sqlalchemy import Index, Text, text
+from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, Text, Uuid, text
+from sqlalchemy.sql.elements import conv
 from sqlmodel import JSON, Column, Field, SQLModel
 
 from ketos.schema.content_block import ContentBlock
@@ -154,6 +155,19 @@ class MessageTable(MessageBase, table=True):  # type: ignore[call-arg]
 
     __tablename__ = "message"
     __table_args__ = (
+        CheckConstraint(
+            "(chat_id IS NULL AND chat_run_id IS NULL AND chat_sequence IS NULL) OR "
+            "(chat_id IS NOT NULL AND chat_run_id IS NOT NULL AND chat_sequence > 0)",
+            name=conv("ck_message_chat_fields_consistent"),
+        ),
+        Index(
+            "uq_message_chat_sequence",
+            "chat_id",
+            "chat_sequence",
+            unique=True,
+            postgresql_where=text("chat_id IS NOT NULL"),
+            sqlite_where=text("chat_id IS NOT NULL"),
+        ),
         Index(
             "ix_message_session_metadata_tenant",
             text("(session_metadata->>'tenant_id')"),
@@ -169,6 +183,15 @@ class MessageTable(MessageBase, table=True):  # type: ignore[call-arg]
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     flow_id: UUID | None = Field(default=None)
     run_id: UUID | None = Field(default=None, index=True)
+    chat_id: UUID | None = Field(
+        default=None,
+        sa_column=Column(Uuid, ForeignKey("chat_thread.id", ondelete="CASCADE"), nullable=True, index=True),
+    )
+    chat_run_id: UUID | None = Field(
+        default=None,
+        sa_column=Column(Uuid, ForeignKey("chat_run.id"), nullable=True, index=True),
+    )
+    chat_sequence: int | None = Field(default=None, sa_column=Column(Integer, nullable=True))
     is_output: bool = Field(default=False)
 
     files: list[str] = Field(sa_column=Column(JSON))

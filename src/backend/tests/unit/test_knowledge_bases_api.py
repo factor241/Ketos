@@ -976,7 +976,7 @@ class TestKnowledgeBaseAPI:
 
         assert response.status_code == 200
 
-        cancelled_job = await job_service.get_job_by_job_id(job_id)
+        cancelled_job = await job_service.get_job_by_job_id_internal(job_id)
         assert cancelled_job is not None
         assert cancelled_job.status == JobStatus.CANCELLED
         assert cancelled_job.finished_timestamp is not None
@@ -1047,8 +1047,8 @@ class TestKnowledgeBaseAPI:
         )
         assert response.status_code == 200
 
-        target_job = await job_service.get_job_by_job_id(target_job_id)
-        other_job = await job_service.get_job_by_job_id(other_job_id)
+        target_job = await job_service.get_job_by_job_id_internal(target_job_id)
+        other_job = await job_service.get_job_by_job_id_internal(other_job_id)
         assert target_job is not None
         assert target_job.status == JobStatus.CANCELLED
         assert other_job is not None

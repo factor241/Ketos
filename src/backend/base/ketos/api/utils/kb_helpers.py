@@ -1091,7 +1091,7 @@ class KBIngestionHelper:
     @staticmethod
     async def is_job_cancelled(job_service: JobService, job_id: uuid.UUID) -> bool:
         """Internal helper to check if a job has been cancelled."""
-        job = await job_service.get_job_by_job_id(job_id)
+        job = await job_service.get_job_by_job_id_internal(job_id)
         return job is not None and job.status == JobStatus.CANCELLED
 
     @staticmethod

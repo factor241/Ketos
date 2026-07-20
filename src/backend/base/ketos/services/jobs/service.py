@@ -60,25 +60,50 @@ class JobService(Service):
             result = await session.exec(stmt)
             return list(result.all())
 
-    async def get_job_by_job_id(self, job_id: UUID | str, user_id: UUID | None = None) -> Job | None:
-        """Get job for a specific job ID.
+    async def get_job_by_job_id(self, job_id: UUID | str, *, user_id: UUID) -> Job | None:
+        """Get an exact-owner job for a specific job ID.
 
         Args:
             job_id: The job ID to filter jobs by
-            user_id: When provided, restricts the result to jobs owned by this user
-                only. When omitted, this is a system-internal lookup path.
+            user_id: Authenticated owner ID.
 
         Returns:
             Job object for the specified job ID, or None if not found or not accessible
+        """
+        return await self.get_owned_job(job_id, user_id=user_id)
+
+    async def get_owned_job(self, job_id: UUID | str, user_id: UUID) -> Job | None:
+        """Get a job only when it belongs to the authenticated user.
+
+        Args:
+            job_id: The job ID to fetch.
+            user_id: The authenticated owner ID.
+
+        Returns:
+            Exact-owner Job, or None when missing or inaccessible.
         """
         if isinstance(job_id, str):
             job_id = UUID(job_id)
 
         async with session_scope() as session:
-            stmt = select(Job).where(Job.job_id == job_id)
-            if user_id is not None:
-                stmt = stmt.where(Job.user_id == user_id)
+            stmt = select(Job).where(Job.job_id == job_id, Job.user_id == user_id)
             result = await session.exec(stmt)
+            return result.first()
+
+    async def get_job_by_job_id_internal(self, job_id: UUID | str) -> Job | None:
+        """Get a job without owner filtering for trusted internal workflows.
+
+        Args:
+            job_id: The job ID to fetch.
+
+        Returns:
+            Job object for the specified ID, or None when missing.
+        """
+        if isinstance(job_id, str):
+            job_id = UUID(job_id)
+
+        async with session_scope() as session:
+            result = await session.exec(select(Job).where(Job.job_id == job_id))
             return result.first()
 
     async def create_job(
@@ -221,7 +246,7 @@ class JobService(Service):
         asset_id: UUID | str,
         asset_type: str,
         *,
-        user_id: UUID | None = None,
+        user_id: UUID,
     ) -> list[UUID]:
         """Mark every queued / in-progress job for ``asset_id`` CANCELLED.
 
@@ -241,8 +266,7 @@ class JobService(Service):
                 Job.asset_type == asset_type,
                 col(Job.status).in_([JobStatus.QUEUED, JobStatus.IN_PROGRESS]),
             )
-            if user_id is not None:
-                stmt = stmt.where(Job.user_id == user_id)
+            stmt = stmt.where(Job.user_id == user_id)
             result = await session.exec(stmt)
             jobs = list(result.all())
             if not jobs:
@@ -330,11 +354,8 @@ class JobService(Service):
         Raises:
             ValueError: If the job is not found or is NOT owned by the user.
         """
-        job = await self.get_job_by_job_id(job_id)
+        job = await self.get_owned_job(job_id, user_id=user_id)
         if job is None:
             msg = f"Job {job_id} not found"
-            raise ValueError(msg)
-        if job.user_id != user_id:
-            msg = f"Access denied for job {job_id}"
             raise ValueError(msg)
         return job

@@ -10,26 +10,33 @@ if TYPE_CHECKING:
     from sqlmodel.ext.asyncio.session import AsyncSession
 
 from sqlalchemy import update
-from sqlmodel import col, or_, select
+from sqlmodel import col, select
 
 from ketos.services.database.models.jobs.model import Job, JobStatus
 
 
-async def get_jobs_by_flow_id(db: AsyncSession, flow_id: UUID, page: int = 1, size: int = 10) -> list[Job]:
-    """Get jobs by flow ID with pagination.
+async def get_jobs_by_flow_id(
+    db: AsyncSession,
+    flow_id: UUID,
+    user_id: UUID,
+    page: int = 1,
+    size: int = 10,
+) -> list[Job]:
+    """Get exact-owner jobs by flow ID with pagination.
 
     Args:
         db: Async database session
         flow_id: The flow ID to filter jobs by
+        user_id: Authenticated owner ID
         page: Page number (1-indexed)
         size: Number of jobs per page
 
     Returns:
-        List of Job objects for the specified flow
+        Exact-owner Job objects for the specified flow
     """
     statement = (
         select(Job)
-        .where(Job.flow_id == flow_id)
+        .where(Job.flow_id == flow_id, Job.user_id == user_id)
         .order_by(col(Job.created_timestamp).desc())
         .offset((page - 1) * size)
         .limit(size)
@@ -39,21 +46,47 @@ async def get_jobs_by_flow_id(db: AsyncSession, flow_id: UUID, page: int = 1, si
     return list(result.all())
 
 
-async def get_job_by_job_id(db: AsyncSession, job_id: UUID, user_id: UUID | None = None) -> Job | None:
-    """Get a single job by its UUID.
+async def get_job_by_job_id(db: AsyncSession, job_id: UUID, user_id: UUID) -> Job | None:
+    """Get an exact-owner job by its UUID.
 
     Args:
         db: Async database session
         job_id: The job ID to fetch
-        user_id: When provided, restricts the result to jobs owned by this user
-            or legacy jobs with no owner (user_id IS NULL).
+        user_id: Authenticated owner ID.
 
     Returns:
         Job object or None if not found (or not accessible by the given user)
     """
+    return await get_owned_job_by_job_id(db, job_id, user_id)
+
+
+async def get_owned_job_by_job_id(db: AsyncSession, job_id: UUID, user_id: UUID) -> Job | None:
+    """Get one exact-owner job for a protected caller.
+
+    Args:
+        db: Active database session.
+        job_id: Job identifier to fetch.
+        user_id: Authenticated owner identifier.
+
+    Returns:
+        The exact-owner Job, or None when it is missing or inaccessible.
+    """
+    statement = select(Job).where(Job.job_id == job_id, Job.user_id == user_id)
+    result = await db.exec(statement)
+    return result.first()
+
+
+async def get_job_by_job_id_internal(db: AsyncSession, job_id: UUID) -> Job | None:
+    """Get one job without an ownership filter for trusted internal workflows.
+
+    Args:
+        db: Active database session.
+        job_id: Job identifier to fetch.
+
+    Returns:
+        The matching Job, or None when it does not exist.
+    """
     statement = select(Job).where(Job.job_id == job_id)
-    if user_id is not None:
-        statement = statement.where(or_(Job.user_id == user_id, col(Job.user_id).is_(None)))
     result = await db.exec(statement)
     return result.first()
 
@@ -85,7 +118,7 @@ async def update_job_status(
     )
     if result.rowcount == 0:
         return None
-    return await get_job_by_job_id(db, job_id)
+    return await get_job_by_job_id_internal(db, job_id)
 
 
 async def get_latest_jobs_by_asset_ids(db: AsyncSession, asset_ids: Sequence[UUID]) -> dict[UUID, Job]:

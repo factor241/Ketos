@@ -96,6 +96,10 @@ test("AGENTS requires the orchestration skill at the start of every session", as
   );
   assert.match(source, /only the main agent may (?:call|use).*tools/i);
   assert.match(source, /subagents? must not call any tool/i);
+  assert.match(
+    source,
+    /subagents? may\s+independently[\s\S]*?(?:analyze|read)[\s\S]*?review[\s\S]*?plan[\s\S]*?write code/i,
+  );
 });
 
 test("the orchestration skill selects capabilities and keeps every tool in the main agent", async () => {
@@ -110,6 +114,10 @@ test("the orchestration skill selects capabilities and keeps every tool in the m
   assert.match(source, /installed skills/i);
   assert.match(source, /only the main agent may call tools/i);
   assert.match(source, /subagents? must not call any tool/i);
+  assert.match(
+    source,
+    /subagents? may\s+independently[\s\S]*?(?:analyze|read)[\s\S]*?review[\s\S]*?plan[\s\S]*?write code/i,
+  );
   assert.match(source, /code or unified diff text/i);
   assert.ok(source.includes("`BLOCKED: missing context`"));
 });
@@ -121,6 +129,10 @@ test("every other skill inherits the main-agent-only execution boundary", async 
     assert.ok(source.includes(requiredPreSkill), `${skill} must require the pre-skill`);
     assert.match(source, /only the main agent may use tools or execute this skill/i);
     assert.match(source, /subagents? must not call\s+any tool/i);
+    assert.match(
+      source,
+      /subagents? may\s+independently[\s\S]*?(?:analyze|read)[\s\S]*?review[\s\S]*?plan[\s\S]*?write code/i,
+    );
     assert.match(source, /code or unified diff text/i);
   }
 });

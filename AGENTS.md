@@ -14,18 +14,23 @@ other skill, plugin, or task tool.
 Only the main agent may call or use tools. This includes shell, search,
 filesystem and patch tools, Git, Graphify, RaytSystem, web, MCP, connectors,
 plugin or app tools, browser or Computer Use, skill-owned scripts, and test
-runners. Subagents must not call any tool, invoke skills, inspect or edit the
-workspace, run commands or tests, browse, research, review, or plan.
+runners. Subagents must not call any tool or invoke skills. Subagents may
+independently read and analyze the source slices, diffs, specifications, test
+output, and other context supplied in their assignment; review that material;
+plan changes; and write code or unified diff text. They must not inspect or
+edit the workspace directly, run commands or tests, browse, or apply changes,
+because those actions require tools.
 
 The main agent inventories the available tools, plugins, and installed skills,
 selects the minimal task-relevant set, analyzes the project, and defines the
 logic, constraints, interfaces, and acceptance checks. For code delegation it
 then gives a subagent a self-contained implementation packet containing every
-required source slice and instruction. The subagent may return only requested
-code or unified diff text in its response; it never applies the change. If the
-packet is insufficient, it returns `BLOCKED: missing context` without using a
-tool or guessing. The main agent supplies missing context, applies the code,
-runs verification, fixes integration issues, and reports the final result.
+required source slice and instruction. The subagent independently implements,
+reviews, or plans from that supplied context and returns the requested analysis,
+code, or unified diff text; it never applies the change. If the packet is
+insufficient, it returns `BLOCKED: missing context` without using a tool or
+guessing. The main agent supplies missing context, applies the code, runs
+verification, fixes integration issues, and reports the final result.
 
 ## Commands
 

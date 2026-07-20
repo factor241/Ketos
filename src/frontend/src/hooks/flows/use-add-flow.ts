@@ -56,6 +56,7 @@ const useAddFlow = () => {
     flow?: FlowType;
     override?: boolean;
     new_blank?: boolean;
+    targetProjectId?: string;
   }): Promise<string> => {
     const flow = cloneDeep(params?.flow) ?? undefined;
     const flowData = flow
@@ -78,10 +79,18 @@ const useAddFlow = () => {
     }
 
     // Determine folder_id, creating a new folder if needed
-    let folder_id = folderId ?? myCollectionId ?? "";
+    const explicitProjectId = params?.targetProjectId?.trim() ?? "";
+    const hasExplicitTarget = explicitProjectId.length > 0;
+    let folder_id = hasExplicitTarget
+      ? explicitProjectId
+      : (folderId ?? myCollectionId ?? "");
 
     // If no folder exists, create one with the appropriate name based on onboarding state
-    if (!folder_id && (!folders || folders.length === 0)) {
+    if (
+      !hasExplicitTarget &&
+      !folder_id &&
+      (!folders || folders.length === 0)
+    ) {
       try {
         const projectName = isOnboarding ? "Starter Project" : "New Project";
         const newFolder = await postAddFolder({
@@ -102,7 +111,7 @@ const useAddFlow = () => {
     const newName = getFolderScopedDuplicateName(
       newFlow,
       flows ?? [],
-      myCollectionId,
+      hasExplicitTarget ? folder_id : myCollectionId,
     );
     newFlow.name = newName;
     newFlow.folder_id = folder_id;

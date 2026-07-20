@@ -283,4 +283,26 @@ describe("useAddFlow — success path", () => {
 
     expect(mockSetFlows).toHaveBeenCalledTimes(1);
   });
+
+  it("uses an explicit Board project without creating a fallback folder", async () => {
+    resolveAddFlow({ ...FLOW_STUB, id: "created-flow" });
+    const { result } = renderHook(() => useAddFlow());
+
+    await result.current({
+      new_blank: true,
+      targetProjectId: "board-project",
+    });
+
+    expect(mockPostAddFlow.mock.calls[0][0].folder_id).toBe("board-project");
+    expect(mockPostAddFolder).not.toHaveBeenCalled();
+  });
+
+  it("preserves legacy folder selection for a blank explicit target", async () => {
+    resolveAddFlow({ ...FLOW_STUB, id: "created-flow" });
+    const { result } = renderHook(() => useAddFlow());
+
+    await result.current({ new_blank: true, targetProjectId: "   " });
+
+    expect(mockPostAddFlow.mock.calls[0][0].folder_id).toBe("folder-1");
+  });
 });

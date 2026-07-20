@@ -113,9 +113,7 @@ test(
     const card = page.locator(`[data-id="${placement.id}"] > section`);
     await expect(card).toBeVisible();
     await expect(card).toContainText(flow.name);
-    const run = card.getByRole("button", { name: "Run" });
-    await expect(run).toBeDisabled();
-    await expect(card).toContainText("Run will be available in the next stage");
+    await expect(card.getByRole("button", { name: "Run" })).toHaveCount(0);
     const edit = card.getByRole("link", { name: "Edit automation" });
     const editorHref = await edit.getAttribute("href");
     expect(editorHref).toBe(

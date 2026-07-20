@@ -22,6 +22,7 @@ export type AutomationPlacementState =
 type BoardCardFrameProps = ComponentProps<typeof BoardCardFrame>;
 
 export interface AutomationExecutionControls {
+  actionsEnabled: boolean;
   presentation: RunAutomationPresentation | undefined;
   isSubmitting: boolean;
   actionPending: boolean;
@@ -117,7 +118,7 @@ export function AutomationPlacement({
               <Button asChild variant="outline" ignoreTitleCase>
                 <a href={editHref}>{t("board.automation.edit")}</a>
               </Button>
-              {execution && !execution.presentation ? (
+              {execution?.actionsEnabled && !execution.presentation ? (
                 <Button
                   type="button"
                   disabled={execution.actionPending}
@@ -138,6 +139,7 @@ export function AutomationPlacement({
               <ExecutionStatus
                 execution={execution.presentation}
                 actionPending={execution.actionPending}
+                actionsEnabled={execution.actionsEnabled}
                 onCancel={execution.cancel}
                 onCheckStatus={execution.checkStatus}
                 onRunAgain={execution.runAgain}

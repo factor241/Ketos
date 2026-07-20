@@ -3,6 +3,7 @@ import type { RunAutomationPresentation } from "@/components/core/board/executio
 import type { BoardExecution } from "@/controllers/API/queries/executions";
 import {
   useGetAutomationRun,
+  useGetAutomationRuns,
   usePostAutomationRun,
   usePostCancelAutomationRun,
 } from "@/controllers/API/queries/executions";
@@ -38,14 +39,17 @@ export function useRunAutomation({ boardId, flowId }: UseRunAutomationParams) {
   const [requestRejected, setRequestRejected] = useState(false);
 
   const runMutation = usePostAutomationRun({ boardId, flowId });
+  const history = useGetAutomationRuns({ boardId, flowId, limit: 20 });
+  const latestHistoryExecution = history.data?.[0];
+  const effectiveJobId = jobId ?? latestHistoryExecution?.job_id ?? null;
   const detail = useGetAutomationRun(
-    { boardId, flowId, jobId: jobId ?? "" },
-    { enabled: Boolean(jobId) },
+    { boardId, flowId, jobId: effectiveJobId ?? "" },
+    { enabled: Boolean(effectiveJobId) },
   );
   const cancelMutation = usePostCancelAutomationRun({
     boardId,
     flowId,
-    jobId: jobId ?? "",
+    jobId: effectiveJobId ?? "",
   });
 
   const submitIntent = useCallback(
@@ -78,42 +82,104 @@ export function useRunAutomation({ boardId, flowId }: UseRunAutomationParams) {
   );
 
   const run = useCallback(async () => {
-    if (activeIntentRef.current || jobId || inFlightRef.current) return;
+    if (activeIntentRef.current || effectiveJobId || inFlightRef.current)
+      return;
     const intentKey = crypto.randomUUID();
     intentGenerationRef.current += 1;
     activeIntentRef.current = intentKey;
     await submitIntent(intentKey);
-  }, [jobId, submitIntent]);
+  }, [effectiveJobId, submitIntent]);
 
   const presentation = useMemo<RunAutomationPresentation | undefined>(() => {
     if (requestUnknown)
       return { status: "unknown", lastKnown: acceptedExecution };
+    if (
+      effectiveJobId &&
+      detail.presentation === undefined &&
+      detail.failureCount > 0
+    ) {
+      const lastKnown =
+        acceptedExecution?.job_id === effectiveJobId
+          ? acceptedExecution
+          : latestHistoryExecution?.job_id === effectiveJobId
+            ? latestHistoryExecution
+            : null;
+      if (lastKnown) return { status: "unknown", lastKnown };
+    }
     return (
       cancelledExecution ??
       detail.presentation ??
       acceptedExecution ??
+      history.data?.[0] ??
       undefined
     );
   }, [
     acceptedExecution,
     cancelledExecution,
     detail.presentation,
+    detail.failureCount,
+    effectiveJobId,
+    history.data,
+    latestHistoryExecution,
     requestUnknown,
+  ]);
+
+  const authoritativeExecution = useMemo<BoardExecution | null>(() => {
+    const candidates = [
+      cancelledExecution,
+      detail.data,
+      acceptedExecution,
+      ...(history.data ?? []),
+    ];
+    return (
+      candidates.find((execution) => execution?.job_id === effectiveJobId) ??
+      null
+    );
+  }, [
+    acceptedExecution,
+    cancelledExecution,
+    detail.data,
+    effectiveJobId,
+    history.data,
+  ]);
+
+  const executions = useMemo(() => {
+    const byId = new Map<string, BoardExecution>();
+    for (const execution of [
+      authoritativeExecution,
+      acceptedExecution,
+      cancelledExecution,
+      detail.data,
+      ...(history.data ?? []),
+    ]) {
+      if (execution && !byId.has(execution.job_id))
+        byId.set(execution.job_id, execution);
+    }
+    return [...byId.values()];
+  }, [
+    acceptedExecution,
+    authoritativeExecution,
+    cancelledExecution,
+    detail.data,
+    history.data,
   ]);
 
   const checkStatus = useCallback(async () => {
     if (inFlightRef.current) return;
-    if (jobId) {
+    const intentKey = activeIntentRef.current;
+    if (requestUnknown && intentKey) {
+      await submitIntent(intentKey);
+      return;
+    }
+    if (effectiveJobId) {
       await detail.refetch();
       return;
     }
-    const intentKey = activeIntentRef.current;
-    if (requestUnknown && intentKey) await submitIntent(intentKey);
-  }, [detail, jobId, requestUnknown, submitIntent]);
+  }, [detail, effectiveJobId, requestUnknown, submitIntent]);
 
   const cancel = useCallback(async () => {
     if (
-      !jobId ||
+      !effectiveJobId ||
       !presentation ||
       presentation.status === "unknown" ||
       !["queued", "running"].includes(presentation.status) ||
@@ -122,7 +188,7 @@ export function useRunAutomation({ boardId, flowId }: UseRunAutomationParams) {
       return;
     cancelInFlightRef.current = true;
     const cancelGeneration = intentGenerationRef.current;
-    const cancelJobId = jobId;
+    const cancelJobId = effectiveJobId;
     setIsCancelling(true);
     try {
       const execution = await cancelMutation.mutateAsync();
@@ -137,7 +203,7 @@ export function useRunAutomation({ boardId, flowId }: UseRunAutomationParams) {
       cancelInFlightRef.current = false;
       setIsCancelling(false);
     }
-  }, [cancelMutation, jobId, presentation]);
+  }, [cancelMutation, effectiveJobId, presentation]);
 
   const runAgain = useCallback(async () => {
     if (
@@ -159,7 +225,9 @@ export function useRunAutomation({ boardId, flowId }: UseRunAutomationParams) {
   }, [presentation, submitIntent]);
 
   return {
-    jobId,
+    jobId: effectiveJobId,
+    authoritativeExecution,
+    executions,
     presentation,
     isSubmitting,
     actionPending: isSubmitting || isCancelling || cancelMutation.isPending,

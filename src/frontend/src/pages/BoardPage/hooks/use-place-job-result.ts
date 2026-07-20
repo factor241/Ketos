@@ -12,7 +12,7 @@ import { computeResultPlacementGeometry } from "../utils/compute-result-placemen
 interface UsePlaceJobResultParams {
   boardId: string;
   automationPlacement: Placement;
-  execution: BoardExecution;
+  execution: BoardExecution | null;
   onOpen: (placementId: string) => void;
 }
 
@@ -53,7 +53,7 @@ export function usePlaceJobResult({
 }: UsePlaceJobResultParams) {
   const placementsQuery = useGetBoardPlacements({ boardId });
   const createPlacement = usePostPlacement({ boardId });
-  const key = `${boardId}:${automationPlacement.id}:${execution.job_id}`;
+  const key = `${boardId}:${automationPlacement.id}:${execution?.job_id ?? "none"}`;
   const attemptedKeysRef = useRef(new Set<string>());
   const inFlightByKeyRef = useRef(new Map<string, Promise<Placement | null>>());
   const [resolvedByKey, setResolvedByKey] = useState(
@@ -62,14 +62,18 @@ export function usePlaceJobResult({
   const eligible =
     automationPlacement.boardId === boardId &&
     automationPlacement.targetKind === "automation" &&
+    execution !== null &&
     automationPlacement.targetId === execution.flow_id &&
     execution.board_id === boardId &&
     TERMINAL_STATUSES.has(execution.status);
-  const existing = findResult(placementsQuery.data, boardId, execution.job_id);
+  const existing = execution
+    ? findResult(placementsQuery.data, boardId, execution.job_id)
+    : undefined;
   const placement = existing ?? resolvedByKey.get(key);
 
   const ensurePlaced = useCallback(async (): Promise<Placement | null> => {
     if (!eligible) return null;
+    if (!execution) return null;
     const found = findResult(placementsQuery.data, boardId, execution.job_id);
     if (found) return found;
     const existingPromise = inFlightByKeyRef.current.get(key);
@@ -109,7 +113,7 @@ export function usePlaceJobResult({
     boardId,
     createPlacement,
     eligible,
-    execution.job_id,
+    execution,
     key,
     placementsQuery,
   ]);

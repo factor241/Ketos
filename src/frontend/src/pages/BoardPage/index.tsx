@@ -8,6 +8,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -21,6 +22,7 @@ import { createBoardNodeTypes } from "@/components/core/board/board-node-types";
 import { AutomationPlacement } from "@/components/core/board/placements/AutomationPlacement";
 import { BoardNotePlacement } from "@/components/core/board/placements/BoardNotePlacement";
 import { ChatPlacement } from "@/components/core/board/placements/ChatPlacement";
+import { ResultPlacement } from "@/components/core/board/placements/ResultPlacement";
 import { ChatList } from "@/components/core/chats/ChatList";
 import { CopilotKitBoardProvider } from "@/components/core/chats/CopilotKitBoardProvider";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useGetBoard } from "@/controllers/API/queries/boards";
+import type { BoardExecution } from "@/controllers/API/queries/executions";
 import { useGetModelProviders } from "@/controllers/API/queries/models/use-get-model-providers";
 import { useUtilityStore } from "@/stores/utilityStore";
 import type {
@@ -45,12 +48,15 @@ import { useBoardViewport } from "./hooks/use-board-viewport";
 import { useChatPlacementActions } from "./hooks/use-chat-placement-actions";
 import { useNotePlacementActions } from "./hooks/use-note-placement-actions";
 import { useOpenAutomationEditor } from "./hooks/use-open-automation-editor";
+import { usePlaceJobResult } from "./hooks/use-place-job-result";
 import { usePlacementPersistence } from "./hooks/use-placement-persistence";
+import { useRunAutomation } from "./hooks/use-run-automation";
 import type {
   AutomationSceneNode,
   BoardNoteSceneNode,
   BoardSceneNode,
   ChatSceneNode,
+  ResultSceneNode,
 } from "./utils/placement-to-node";
 
 const UUID_PATTERN =
@@ -100,6 +106,12 @@ const BoardChatRuntimeContext = createContext<BoardChatRuntime | null>(null);
 
 type BoardAutomationRuntime = {
   state: "loading" | "ready" | "error";
+  actionsEnabled: boolean;
+  focusPlacement: (placementId: string) => void;
+  reportExecutions: (
+    flowId: string,
+    executions: readonly BoardExecution[],
+  ) => void;
   retry: () => void;
   close: (node: AutomationSceneNode) => void;
   setDisplayState: (
@@ -119,6 +131,27 @@ type BoardAutomationRuntime = {
 
 const BoardAutomationRuntimeContext =
   createContext<BoardAutomationRuntime | null>(null);
+
+type BoardResultRuntime = {
+  close: (node: ResultSceneNode) => void;
+  setDisplayState: (
+    node: ResultSceneNode,
+    state: PlacementDisplayState,
+  ) => void;
+  resize: (
+    node: ResultSceneNode,
+    size: { width: number; height: number },
+  ) => void;
+  moveBy: (node: ResultSceneNode, delta: { x: number; y: number }) => void;
+  resizeBy: (
+    node: ResultSceneNode,
+    delta: { width: number; height: number },
+  ) => void;
+};
+
+const BoardResultRuntimeContext = createContext<BoardResultRuntime | null>(
+  null,
+);
 
 function BoardNoteNode({ data, selected }: NodeProps<BoardNoteSceneNode>) {
   const runtime = useContext(BoardNoteRuntimeContext);
@@ -177,6 +210,19 @@ function BoardAutomationNode({
   selected,
 }: NodeProps<AutomationSceneNode>) {
   const runtime = useContext(BoardAutomationRuntimeContext);
+  const execution = useRunAutomation({
+    boardId: data.placement.boardId,
+    flowId: data.targetId,
+  });
+  const resultPlacement = usePlaceJobResult({
+    boardId: data.placement.boardId,
+    automationPlacement: data.placement,
+    execution: execution.authoritativeExecution,
+    onOpen: runtime?.focusPlacement ?? (() => undefined),
+  });
+  useEffect(() => {
+    runtime?.reportExecutions(data.targetId, execution.executions);
+  }, [data.targetId, execution.executions, runtime]);
   const { href } = useOpenAutomationEditor({
     flowId: data.targetId,
     boardId: data.placement.boardId,
@@ -211,6 +257,41 @@ function BoardAutomationNode({
       onResizeEnd={(size) => runtime.resize(node, size)}
       onKeyboardMove={(delta) => runtime.moveBy(node, delta)}
       onKeyboardResize={(delta) => runtime.resizeBy(node, delta)}
+      execution={{
+        actionsEnabled: runtime.actionsEnabled,
+        presentation: execution.presentation,
+        isSubmitting: execution.isSubmitting,
+        actionPending: execution.actionPending || resultPlacement.isPending,
+        requestRejected: execution.requestRejected,
+        run: execution.run,
+        cancel: execution.cancel,
+        checkStatus: execution.checkStatus,
+        runAgain: execution.runAgain,
+        openResult: resultPlacement.openResult,
+      }}
+    />
+  );
+}
+
+function BoardResultNode({ data, selected }: NodeProps<ResultSceneNode>) {
+  const runtime = useContext(BoardResultRuntimeContext);
+  if (!runtime) return null;
+  const node = {
+    id: data.placementId,
+    type: "jobResult" as const,
+    position: { x: data.placement.x, y: data.placement.y },
+    data,
+  } as ResultSceneNode;
+  return (
+    <ResultPlacement
+      placement={data.placement}
+      execution={data.execution}
+      selected={selected}
+      onDisplayStateChange={(state) => runtime.setDisplayState(node, state)}
+      onClose={() => runtime.close(node)}
+      onResizeEnd={(size) => runtime.resize(node, size)}
+      onKeyboardMove={(delta) => runtime.moveBy(node, delta)}
+      onKeyboardResize={(delta) => runtime.resizeBy(node, delta)}
     />
   );
 }
@@ -219,6 +300,7 @@ const BOARD_NODE_TYPES: NodeTypes = createBoardNodeTypes({
   boardNote: BoardNoteNode,
   chat: BoardChatNode,
   automation: BoardAutomationNode,
+  jobResult: BoardResultNode,
 });
 
 function NotFoundAlert() {
@@ -231,15 +313,29 @@ function LoadedBoard({
   projectId,
   refresh,
   chatEnabled,
+  executionEnabled,
 }: {
   board: BoardRead;
   projectId: string;
   refresh: BoardRefetch;
   chatEnabled: boolean;
+  executionEnabled: boolean;
 }) {
   const { t } = useTranslation();
   const viewport = useBoardViewport({ projectId, board, refresh });
-  const scene = useBoardScene({ projectId, boardId: board.id, chatEnabled });
+  const [executionsByFlow, setExecutionsByFlow] = useState<
+    Record<string, readonly BoardExecution[]>
+  >({});
+  const executions = useMemo(
+    () => Object.values(executionsByFlow).flat(),
+    [executionsByFlow],
+  );
+  const scene = useBoardScene({
+    projectId,
+    boardId: board.id,
+    chatEnabled,
+    executions,
+  });
   const modelProviders = useGetModelProviders(
     {},
     {
@@ -362,6 +458,30 @@ function LoadedBoard({
         ?.focus({ preventScroll: true });
     requestAnimationFrame(() => requestAnimationFrame(focus));
   }, []);
+  const reportExecutions = useCallback(
+    (flowId: string, next: readonly BoardExecution[]) => {
+      setExecutionsByFlow((current) => {
+        const previous = current[flowId] ?? [];
+        if (
+          previous.length === next.length &&
+          previous.every((execution, index) => {
+            const candidate = next[index];
+            return (
+              candidate !== undefined &&
+              execution.job_id === candidate.job_id &&
+              execution.status === candidate.status &&
+              execution.reason === candidate.reason &&
+              execution.finished_timestamp === candidate.finished_timestamp &&
+              execution.result === candidate.result
+            );
+          })
+        )
+          return current;
+        return { ...current, [flowId]: next };
+      });
+    },
+    [],
+  );
   const chatRuntime = useMemo<BoardChatRuntime>(
     () => ({
       close: (node) => {
@@ -415,6 +535,9 @@ function LoadedBoard({
   const automationRuntime = useMemo<BoardAutomationRuntime>(
     () => ({
       state: scene.automationState,
+      actionsEnabled: executionEnabled,
+      focusPlacement,
+      reportExecutions,
       retry: () => void scene.refetch(),
       close: (node) => {
         persistence.close(node.data.placement);
@@ -457,7 +580,68 @@ function LoadedBoard({
         persistence.queueResize(node.data.placement, size);
       },
     }),
-    [persistence, scene.automationState, scene.refetch],
+    [
+      executionEnabled,
+      focusPlacement,
+      persistence,
+      reportExecutions,
+      scene.automationState,
+      scene.refetch,
+    ],
+  );
+  const resultRuntime = useMemo<BoardResultRuntime>(
+    () => ({
+      close: async (node) => {
+        const origin = scene.placements.find(
+          (placement) =>
+            placement.targetKind === "automation" &&
+            placement.targetId === node.data.execution.flow_id,
+        );
+        try {
+          await persistence.closeAndWait(node.data.placement);
+        } catch {
+          return;
+        }
+        if (origin) requestAnimationFrame(() => focusPlacement(origin.id));
+      },
+      setDisplayState: (node, state) =>
+        persistence.setDisplayState(node.data.placement, state),
+      resize: (node, size) => persistence.resize(node.data.placement, size),
+      moveBy: (node, delta) => {
+        const current = instanceRef.current?.getNode(node.id);
+        const position = {
+          x: (current?.position.x ?? node.data.placement.x) + delta.x,
+          y: (current?.position.y ?? node.data.placement.y) + delta.y,
+        };
+        instanceRef.current?.updateNode(node.id, { position });
+        persistence.queueMove(node.data.placement, position);
+      },
+      resizeBy: (node, delta) => {
+        const current = instanceRef.current?.getNode(node.id);
+        const currentPlacement =
+          (current?.data as ResultSceneNode["data"] | undefined)?.placement ??
+          node.data.placement;
+        const size = {
+          width: Math.min(
+            Math.max(currentPlacement.width + delta.width, 240),
+            1600,
+          ),
+          height: Math.min(
+            Math.max(currentPlacement.height + delta.height, 160),
+            1200,
+          ),
+        };
+        instanceRef.current?.updateNode(node.id, {
+          style: { ...current?.style, ...size },
+          data: {
+            ...node.data,
+            placement: { ...currentPlacement, ...size },
+          },
+        });
+        persistence.queueResize(node.data.placement, size);
+      },
+    }),
+    [focusPlacement, persistence, scene.placements],
   );
   const onNodeDragStop: OnNodeDrag<BoardSceneNode> = useCallback(
     (_event, node) => persistence.move(node.data.placement, node.position),
@@ -518,137 +702,139 @@ function LoadedBoard({
       <BoardNoteRuntimeContext.Provider value={runtime}>
         <BoardChatRuntimeContext.Provider value={chatRuntime}>
           <BoardAutomationRuntimeContext.Provider value={automationRuntime}>
-            <main className="flex h-full flex-col bg-background text-foreground">
-              <header className="flex items-center gap-4 border-b border-border p-4">
-                <Link to={`/project/${projectId}/boards`}>
-                  {t("board.backToBoards")}
-                </Link>
-                <h1 className="text-xl font-semibold">{board.title}</h1>
-                <Button
-                  ref={addNoteRef}
-                  type="button"
-                  size="sm"
-                  className="ml-auto"
-                  disabled={actions.isPending}
-                  onClick={() => actions.createAt(center())}
-                >
-                  {t("board.note.add")}
-                </Button>
-                <Popover
-                  open={automationSelectorOpen}
-                  onOpenChange={setAutomationSelectorOpen}
-                >
-                  <PopoverTrigger asChild>
-                    <Button
-                      ref={automationActionRef}
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={automationActions.isPending}
-                      ignoreTitleCase
-                    >
-                      {t("board.automation.add")}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="end" className="w-80">
-                    <AutomationSelector
-                      projectId={projectId}
-                      disabled={automationActions.isPending}
-                      onSelect={(summary) =>
-                        void placeExistingAutomation(summary)
-                      }
-                      onCreate={() => void createAutomation()}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </header>
-              {viewport.conflict || placementConflict ? (
-                <p role="alert" className="p-3 text-sm text-muted-foreground">
-                  {t("board.conflict.serverWins")}
-                </p>
-              ) : null}
-              {noteConflict ? (
-                <p role="alert" className="p-3 text-sm text-destructive">
-                  {t("board.note.conflictDraftPreserved")}
-                </p>
-              ) : null}
-              {actions.unsafeContentError ? (
-                <p role="alert" className="p-3 text-sm text-destructive">
-                  {t("board.note.unsafeContent")}
-                </p>
-              ) : null}
-              {scene.isError ? (
-                <p role="alert" className="p-3 text-sm text-destructive">
-                  {t("board.scene.error")}
-                </p>
-              ) : null}
-              {unplacedNotes.length ? (
-                <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2">
-                  <span className="text-sm text-muted-foreground">
-                    {t("board.note.unplaced")}
-                  </span>
-                  {unplacedNotes.map((note) => (
-                    <Button
-                      key={note.id}
-                      type="button"
-                      size="xs"
-                      variant="outline"
-                      onClick={() => actions.replace(note, center())}
-                    >
-                      {t("board.note.replace")}
-                    </Button>
-                  ))}
-                </div>
-              ) : null}
-              <div className="flex min-h-0 flex-1">
-                {chatEnabled ? (
-                  <aside className="w-80 shrink-0 overflow-auto border-r border-border bg-background">
-                    <ChatList
-                      projectId={projectId}
-                      createDefaults={createDefaults}
-                      actionRef={chatActionRef}
-                      onOpen={async (chat) => {
-                        const placement = await chatActions.open(
-                          chat,
-                          scene.placements,
-                          center(),
-                        );
-                        focusPlacement(placement.id);
-                      }}
-                    />
-                  </aside>
+            <BoardResultRuntimeContext.Provider value={resultRuntime}>
+              <main className="flex h-full flex-col bg-background text-foreground">
+                <header className="flex items-center gap-4 border-b border-border p-4">
+                  <Link to={`/project/${projectId}/boards`}>
+                    {t("board.backToBoards")}
+                  </Link>
+                  <h1 className="text-xl font-semibold">{board.title}</h1>
+                  <Button
+                    ref={addNoteRef}
+                    type="button"
+                    size="sm"
+                    className="ml-auto"
+                    disabled={actions.isPending}
+                    onClick={() => actions.createAt(center())}
+                  >
+                    {t("board.note.add")}
+                  </Button>
+                  <Popover
+                    open={automationSelectorOpen}
+                    onOpenChange={setAutomationSelectorOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <Button
+                        ref={automationActionRef}
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={automationActions.isPending}
+                        ignoreTitleCase
+                      >
+                        {t("board.automation.add")}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-80">
+                      <AutomationSelector
+                        projectId={projectId}
+                        disabled={automationActions.isPending}
+                        onSelect={(summary) =>
+                          void placeExistingAutomation(summary)
+                        }
+                        onCreate={() => void createAutomation()}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </header>
+                {viewport.conflict || placementConflict ? (
+                  <p role="alert" className="p-3 text-sm text-muted-foreground">
+                    {t("board.conflict.serverWins")}
+                  </p>
                 ) : null}
-                <div className="min-w-0 flex-1">
-                  <BoardCanvas
-                    initialViewport={viewport.initialViewport}
-                    nodes={scene.nodes}
-                    nodeTypes={BOARD_NODE_TYPES}
-                    onNodeDragStop={onNodeDragStop}
-                    onMoveStart={viewport.onMoveStart}
-                    onMoveEnd={viewport.onMoveEnd}
-                    onInstanceReady={onInstanceReady}
-                  />
+                {noteConflict ? (
+                  <p role="alert" className="p-3 text-sm text-destructive">
+                    {t("board.note.conflictDraftPreserved")}
+                  </p>
+                ) : null}
+                {actions.unsafeContentError ? (
+                  <p role="alert" className="p-3 text-sm text-destructive">
+                    {t("board.note.unsafeContent")}
+                  </p>
+                ) : null}
+                {scene.isError ? (
+                  <p role="alert" className="p-3 text-sm text-destructive">
+                    {t("board.scene.error")}
+                  </p>
+                ) : null}
+                {unplacedNotes.length ? (
+                  <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2">
+                    <span className="text-sm text-muted-foreground">
+                      {t("board.note.unplaced")}
+                    </span>
+                    {unplacedNotes.map((note) => (
+                      <Button
+                        key={note.id}
+                        type="button"
+                        size="xs"
+                        variant="outline"
+                        onClick={() => actions.replace(note, center())}
+                      >
+                        {t("board.note.replace")}
+                      </Button>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="flex min-h-0 flex-1">
+                  {chatEnabled ? (
+                    <aside className="w-80 shrink-0 overflow-auto border-r border-border bg-background">
+                      <ChatList
+                        projectId={projectId}
+                        createDefaults={createDefaults}
+                        actionRef={chatActionRef}
+                        onOpen={async (chat) => {
+                          const placement = await chatActions.open(
+                            chat,
+                            scene.placements,
+                            center(),
+                          );
+                          focusPlacement(placement.id);
+                        }}
+                      />
+                    </aside>
+                  ) : null}
+                  <div className="min-w-0 flex-1">
+                    <BoardCanvas
+                      initialViewport={viewport.initialViewport}
+                      nodes={scene.nodes}
+                      nodeTypes={BOARD_NODE_TYPES}
+                      onNodeDragStop={onNodeDragStop}
+                      onMoveStart={viewport.onMoveStart}
+                      onMoveEnd={viewport.onMoveEnd}
+                      onInstanceReady={onInstanceReady}
+                    />
+                  </div>
                 </div>
-              </div>
-              <BoardNoteDeleteDialog
-                open={deletingNote !== null}
-                title={t("board.note.deleteConfirmTitle")}
-                description={t("board.note.deleteConfirmDescription")}
-                cancelLabel={t("board.note.deleteCancel")}
-                confirmLabel={t("board.note.deleteConfirm")}
-                onCancel={() => {
-                  setDeletingNote(null);
-                  requestAnimationFrame(() =>
-                    deleteTriggerRef.current?.focus(),
-                  );
-                }}
-                onConfirm={() => {
-                  if (deletingNote) actions.deleteEntity(deletingNote);
-                  setDeletingNote(null);
-                  requestAnimationFrame(() => addNoteRef.current?.focus());
-                }}
-              />
-            </main>
+                <BoardNoteDeleteDialog
+                  open={deletingNote !== null}
+                  title={t("board.note.deleteConfirmTitle")}
+                  description={t("board.note.deleteConfirmDescription")}
+                  cancelLabel={t("board.note.deleteCancel")}
+                  confirmLabel={t("board.note.deleteConfirm")}
+                  onCancel={() => {
+                    setDeletingNote(null);
+                    requestAnimationFrame(() =>
+                      deleteTriggerRef.current?.focus(),
+                    );
+                  }}
+                  onConfirm={() => {
+                    if (deletingNote) actions.deleteEntity(deletingNote);
+                    setDeletingNote(null);
+                    requestAnimationFrame(() => addNoteRef.current?.focus());
+                  }}
+                />
+              </main>
+            </BoardResultRuntimeContext.Provider>
           </BoardAutomationRuntimeContext.Provider>
         </BoardChatRuntimeContext.Provider>
       </BoardNoteRuntimeContext.Provider>
@@ -669,6 +855,9 @@ export default function BoardPage() {
     (state) =>
       state.featureFlags.mvp_workspace === true &&
       state.featureFlags.mvp_chat === true,
+  );
+  const executionEnabled = useUtilityStore(
+    (state) => state.featureFlags.agentic_experience === true,
   );
   const validParams =
     UUID_PATTERN.test(projectId) && UUID_PATTERN.test(boardId);
@@ -699,6 +888,7 @@ export default function BoardPage() {
       projectId={projectId}
       refresh={reloadBoard}
       chatEnabled={chatEnabled}
+      executionEnabled={executionEnabled}
     />
   );
 }

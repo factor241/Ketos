@@ -3,6 +3,7 @@ import { AxiosError } from "axios";
 import type { BoardExecution } from "@/controllers/API/queries/executions";
 import {
   useGetAutomationRun,
+  useGetAutomationRuns,
   usePostAutomationRun,
   usePostCancelAutomationRun,
 } from "@/controllers/API/queries/executions";
@@ -11,11 +12,13 @@ import { useRunAutomation } from "../use-run-automation";
 
 jest.mock("@/controllers/API/queries/executions", () => ({
   useGetAutomationRun: jest.fn(),
+  useGetAutomationRuns: jest.fn(),
   usePostAutomationRun: jest.fn(),
   usePostCancelAutomationRun: jest.fn(),
 }));
 
 const mockGetRun = useGetAutomationRun as jest.Mock;
+const mockGetRuns = useGetAutomationRuns as jest.Mock;
 const mockPostRun = usePostAutomationRun as jest.Mock;
 const mockCancelRun = usePostCancelAutomationRun as jest.Mock;
 
@@ -45,6 +48,7 @@ describe("useRunAutomation", () => {
   let cancel: jest.Mock;
   let refetch: jest.Mock;
   let detailPresentation: unknown;
+  let detailFailureCount: number;
   let postData: BoardExecution | undefined;
   let cancelData: BoardExecution | undefined;
 
@@ -54,6 +58,7 @@ describe("useRunAutomation", () => {
     cancel = jest.fn();
     refetch = jest.fn();
     detailPresentation = undefined;
+    detailFailureCount = 0;
     postData = undefined;
     cancelData = undefined;
     mockPostRun.mockImplementation(() => ({
@@ -66,9 +71,51 @@ describe("useRunAutomation", () => {
       isPending: false,
     }));
     mockGetRun.mockImplementation(() => ({
+      data:
+        detailPresentation && detailPresentation.status !== "unknown"
+          ? detailPresentation
+          : undefined,
       presentation: detailPresentation,
+      failureCount: detailFailureCount,
       refetch,
     }));
+    mockGetRuns.mockReturnValue({ data: [], isLoading: false });
+  });
+
+  it("restores bounded Job history and the latest authoritative execution after reload", () => {
+    const succeeded: BoardExecution = {
+      ...queued,
+      status: "succeeded",
+      finished_timestamp: "2026-07-21T00:00:10Z",
+      result: { kind: "text", value: "done", truncated: false },
+    };
+    const older: BoardExecution = {
+      ...succeeded,
+      job_id: "job-older",
+      created_timestamp: "2026-07-20T00:00:00Z",
+    };
+    mockGetRuns.mockReturnValue({ data: [succeeded, older], isLoading: false });
+    detailPresentation = succeeded;
+
+    const { result } = renderHook(() =>
+      useRunAutomation({ boardId: "board-1", flowId: "flow-1" }),
+    );
+
+    expect(mockGetRuns).toHaveBeenCalledWith({
+      boardId: "board-1",
+      flowId: "flow-1",
+      limit: 20,
+    });
+    expect(mockGetRun).toHaveBeenCalledWith(
+      { boardId: "board-1", flowId: "flow-1", jobId: "job-1" },
+      { enabled: true },
+    );
+    expect(result.current.jobId).toBe("job-1");
+    expect(result.current.authoritativeExecution).toEqual(succeeded);
+    expect(result.current.executions).toEqual([succeeded, older]);
+    expect(result.current.presentation).toEqual(succeeded);
+    void result.current.run();
+    expect(post).not.toHaveBeenCalled();
   });
 
   it("atomically reserves one intent for double activation before POST resolves", async () => {
@@ -127,6 +174,39 @@ describe("useRunAutomation", () => {
     uuid.mockRestore();
   });
 
+  it("retries the new same-key intent before consulting older history", async () => {
+    const failed = {
+      ...queued,
+      job_id: "job-old",
+      status: "failed",
+      reason: "execution_failed",
+      finished_timestamp: "2026-07-21T00:00:10Z",
+    } satisfies BoardExecution;
+    const intent = "00000000-0000-4000-8000-000000000020";
+    const uuid = jest.spyOn(crypto, "randomUUID").mockReturnValue(intent);
+    mockGetRuns.mockReturnValue({ data: [failed], isLoading: false });
+    detailPresentation = failed;
+    post
+      .mockRejectedValueOnce(new AxiosError("offline"))
+      .mockResolvedValueOnce(queued);
+    const { result } = renderHook(() =>
+      useRunAutomation({ boardId: "board-1", flowId: "flow-1" }),
+    );
+
+    await act(async () => result.current.runAgain());
+    expect(result.current.presentation).toEqual({
+      status: "unknown",
+      lastKnown: null,
+    });
+
+    await act(async () => result.current.checkStatus());
+    expect(post).toHaveBeenNthCalledWith(1, { idempotencyKey: intent });
+    expect(post).toHaveBeenNthCalledWith(2, { idempotencyKey: intent });
+    expect(refetch).not.toHaveBeenCalled();
+    expect(uuid).toHaveBeenCalledTimes(1);
+    uuid.mockRestore();
+  });
+
   it("checks known unknown status by refetching instead of posting", async () => {
     post.mockResolvedValue(queued);
     const uuid = jest
@@ -144,6 +224,43 @@ describe("useRunAutomation", () => {
     expect(post).toHaveBeenCalledTimes(1);
     expect(uuid).toHaveBeenCalledTimes(1);
     uuid.mockRestore();
+  });
+
+  it("shows unknown when polling disconnects immediately after Job identity", async () => {
+    post.mockResolvedValue(queued);
+    const uuid = jest
+      .spyOn(crypto, "randomUUID")
+      .mockReturnValue("00000000-0000-4000-8000-000000000019");
+    const { result, rerender } = renderHook(() =>
+      useRunAutomation({ boardId: "board-1", flowId: "flow-1" }),
+    );
+
+    await act(async () => result.current.run());
+    detailFailureCount = 1;
+    rerender();
+
+    expect(result.current.presentation).toEqual({
+      status: "unknown",
+      lastKnown: queued,
+    });
+    await act(async () => result.current.checkStatus());
+    expect(refetch).toHaveBeenCalledTimes(1);
+    expect(post).toHaveBeenCalledTimes(1);
+    uuid.mockRestore();
+  });
+
+  it("shows unknown when restored active history loses the first detail request", () => {
+    mockGetRuns.mockReturnValue({ data: [queued], isLoading: false });
+    detailFailureCount = 1;
+
+    const { result } = renderHook(() =>
+      useRunAutomation({ boardId: "board-1", flowId: "flow-1" }),
+    );
+
+    expect(result.current.presentation).toEqual({
+      status: "unknown",
+      lastKnown: queued,
+    });
   });
 
   it("creates a new intent only for deliberate rerun after failure", async () => {

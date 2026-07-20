@@ -16,16 +16,22 @@ import { usePlacementPersistence } from "../hooks/use-placement-persistence";
 
 let mockFeatureEnabled = true;
 let mockChatEnabled = false;
+let mockExecutionEnabled = true;
 jest.mock("@/stores/utilityStore", () => ({
   useUtilityStore: (
     selector: (state: {
-      featureFlags: { mvp_workspace: boolean; mvp_chat: boolean };
+      featureFlags: {
+        mvp_workspace: boolean;
+        mvp_chat: boolean;
+        agentic_experience: boolean;
+      };
     }) => unknown,
   ) =>
     selector({
       featureFlags: {
         mvp_workspace: mockFeatureEnabled,
         mvp_chat: mockChatEnabled,
+        agentic_experience: mockExecutionEnabled,
       },
     }),
 }));
@@ -151,6 +157,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockFeatureEnabled = true;
   mockChatEnabled = false;
+  mockExecutionEnabled = true;
   mockRefetch = jest.fn().mockResolvedValue({});
   successfulQuery();
   mockUseBoardViewport.mockReturnValue({
@@ -177,6 +184,7 @@ beforeEach(() => {
     queueResize: jest.fn(),
     setDisplayState: jest.fn(),
     close: jest.fn(),
+    closeAndWait: jest.fn().mockResolvedValue(undefined),
     isPending: false,
   });
   mockUseBoardNoteActions.mockReturnValue({
@@ -316,6 +324,9 @@ it("wires Automation add/re-place to the current Board scene and return focus", 
   expect(
     (mockBoardCanvas.mock.calls.at(-1)?.[0] as { nodeTypes: object }).nodeTypes,
   ).toHaveProperty("automation");
+  expect(
+    (mockBoardCanvas.mock.calls.at(-1)?.[0] as { nodeTypes: object }).nodeTypes,
+  ).toHaveProperty("jobResult");
 });
 
 it.each([
@@ -366,6 +377,7 @@ it("enables the durable Chat surface only when both MVP flags are strict boolean
     projectId: PROJECT_ID,
     boardId: BOARD_ID,
     chatEnabled: true,
+    executions: [],
   });
   expect(mockUseGetModelProviders).toHaveBeenCalledWith(
     {},

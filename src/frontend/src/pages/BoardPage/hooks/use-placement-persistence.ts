@@ -93,6 +93,11 @@ export function usePlacementPersistence({
         placementId: placement.id,
         expectedRevision: placement.revision,
       }),
+    closeAndWait: (placement: Placement) =>
+      close.mutateAsync({
+        placementId: placement.id,
+        expectedRevision: placement.revision,
+      }),
     isPending: patch.isPending || close.isPending,
   };
 }

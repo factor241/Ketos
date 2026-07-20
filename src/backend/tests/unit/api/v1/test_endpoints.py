@@ -51,6 +51,18 @@ async def test_get_config_exposes_default_off_mvp_flags(client: AsyncClient, mon
     assert response.json()["feature_flags"]["mvp_chat"] is False
 
 
+async def test_get_config_exposes_the_runtime_agentic_gate(client: AsyncClient, monkeypatch):
+    from ketos.services.deps import get_settings_service
+
+    settings = get_settings_service().settings
+    monkeypatch.setattr(settings, "agentic_experience", True)
+
+    response = await client.get("api/v1/config")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["feature_flags"]["agentic_experience"] is True
+
+
 async def test_get_config_exposes_canonical_mvp_flags_from_fresh_settings(client: AsyncClient, monkeypatch):
     import ketos.api.v1.schemas as config_schemas
     from kfx.services.settings.feature_flags import FeatureFlags

@@ -30,11 +30,14 @@ const placement = {
 describe("usePlacementPersistence", () => {
   afterEach(() => jest.useRealTimers());
 
-  it("persists geometry/display with CAS and closes only the placement", () => {
+  it("persists geometry/display with CAS and closes only the placement", async () => {
     const patch = jest.fn();
-    const remove = jest.fn();
+    const remove = jest.fn().mockResolvedValue(undefined);
     mockPatch.mockReturnValue({ mutate: patch, isPending: false } as never);
-    mockDelete.mockReturnValue({ mutate: remove, isPending: false } as never);
+    mockDelete.mockReturnValue({
+      mutateAsync: remove,
+      isPending: false,
+    } as never);
     const { result } = renderHook(() =>
       usePlacementPersistence({ boardId: "board-1" }),
     );
@@ -58,7 +61,7 @@ describe("usePlacementPersistence", () => {
       expectedRevision: 4,
       displayState: "collapsed",
     });
-    result.current.close(placement);
+    await result.current.closeAndWait(placement);
     expect(remove).toHaveBeenCalledWith({
       placementId: "placement-1",
       expectedRevision: 4,

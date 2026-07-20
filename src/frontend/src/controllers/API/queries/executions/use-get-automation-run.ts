@@ -68,7 +68,7 @@ export function useGetAutomationRun(
       retry: (failureCount, error) =>
         failureCount < 3 && isTransportFailure(error),
       retryDelay: executionRetryDelay,
-    },
+    } as Omit<UseQueryOptions, "queryFn" | "queryKey">,
   ) as UseQueryResult<BoardExecution, Error>;
 
   return {

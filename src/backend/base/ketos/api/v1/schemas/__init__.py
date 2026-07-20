@@ -5,7 +5,7 @@ from uuid import UUID
 
 from kfx.graph.schema import RunOutputs
 from kfx.services.settings.base import Settings
-from kfx.services.settings.feature_flags import FEATURE_FLAGS, FeatureFlags
+from kfx.services.settings.feature_flags import FEATURE_FLAGS
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -376,6 +376,23 @@ class FlowDataRequest(BaseModel):
     viewport: dict | None = None
 
 
+class FrontendFeatureFlags(BaseModel):
+    """Runtime flags exposed to the browser without splitting backend gates."""
+
+    wxo_deployments: bool = False
+    mvp_components: bool = False
+    mvp_workspace: bool = False
+    mvp_chat: bool = False
+    agentic_experience: bool = False
+
+
+def _frontend_feature_flags(settings: Settings) -> FrontendFeatureFlags:
+    return FrontendFeatureFlags(
+        **FEATURE_FLAGS.model_dump(),
+        agentic_experience=settings.agentic_experience,
+    )
+
+
 class BaseConfigResponse(BaseModel):
     """Base configuration shared by both public and authenticated responses.
 
@@ -383,7 +400,7 @@ class BaseConfigResponse(BaseModel):
     for basic functionality (file uploads, event delivery, voice mode, timeouts).
     """
 
-    feature_flags: FeatureFlags
+    feature_flags: FrontendFeatureFlags
     max_file_size_upload: int
     event_delivery: Literal["polling", "streaming", "direct"]
     voice_mode_available: bool
@@ -425,7 +442,7 @@ class PublicConfigResponse(BaseConfigResponse):
             PublicConfigResponse: An instance populated with public-safe configuration values.
         """
         return cls(
-            feature_flags=FEATURE_FLAGS,
+            feature_flags=_frontend_feature_flags(settings),
             max_file_size_upload=settings.max_file_size_upload,
             event_delivery=settings.event_delivery,
             voice_mode_available=settings.voice_mode_available,
@@ -481,7 +498,7 @@ class ConfigResponse(BaseConfigResponse):
         from ketos.services.database.models.folder.constants import DEFAULT_FOLDER_NAME
 
         return cls(
-            feature_flags=FEATURE_FLAGS,
+            feature_flags=_frontend_feature_flags(settings),
             serialization_max_items_length=settings.max_items_length,
             serialization_max_text_length=settings.max_text_length,
             frontend_timeout=settings.frontend_timeout,

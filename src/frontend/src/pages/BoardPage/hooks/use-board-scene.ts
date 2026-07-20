@@ -1,7 +1,7 @@
 import { useMemo } from "react";
-
 import { useGetProjectBoardNotes } from "@/controllers/API/queries/board-notes";
 import { useGetProjectChats } from "@/controllers/API/queries/chat-threads";
+import type { BoardExecution } from "@/controllers/API/queries/executions";
 import { useGetAutomationSummaries } from "@/controllers/API/queries/flows/use-get-automation-summaries";
 import { useGetBoardPlacements } from "@/controllers/API/queries/placements";
 import { placementsToNodes } from "../utils/placement-to-node";
@@ -10,10 +10,12 @@ export function useBoardScene({
   projectId,
   boardId,
   chatEnabled,
+  executions = [],
 }: {
   projectId: string;
   boardId: string;
   chatEnabled: boolean;
+  executions?: readonly BoardExecution[];
 }) {
   const placements = useGetBoardPlacements({ boardId });
   const notes = useGetProjectBoardNotes({ projectId });
@@ -29,8 +31,16 @@ export function useBoardScene({
         notes.data ?? [],
         chatEnabled ? (chats.data ?? []) : [],
         automations.data ?? [],
+        executions,
       ),
-    [automations.data, chatEnabled, chats.data, notes.data, placements.data],
+    [
+      automations.data,
+      chatEnabled,
+      chats.data,
+      executions,
+      notes.data,
+      placements.data,
+    ],
   );
 
   return {

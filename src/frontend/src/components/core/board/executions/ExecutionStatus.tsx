@@ -22,13 +22,35 @@ export type RunAutomationPresentation =
 export interface ExecutionStatusProps {
   execution: RunAutomationPresentation;
   actionPending?: boolean;
+  actionsEnabled?: boolean;
   onCancel: () => void;
   onCheckStatus: () => void;
   onRunAgain: () => void;
   onOpenResult: () => void;
 }
 
-function failedReasonKey(reason: BoardExecutionReason): string {
+type ExecutionStatusKey =
+  | "board.execution.status.queued"
+  | "board.execution.status.running"
+  | "board.execution.status.succeeded"
+  | "board.execution.status.failed"
+  | "board.execution.status.cancelled"
+  | "board.execution.status.unknown";
+
+type ExecutionReasonKey =
+  | "board.execution.reason.waitingToStart"
+  | "board.execution.reason.flowRunning"
+  | "board.execution.reason.resultReady"
+  | "board.execution.reason.enqueueFailed"
+  | "board.execution.reason.timedOut"
+  | "board.execution.reason.backendRestarted"
+  | "board.execution.reason.executionFailed"
+  | "board.execution.reason.cancelledByUser"
+  | "board.execution.reason.cancelledBySystem"
+  | "board.execution.reason.cancelled"
+  | "board.execution.reason.noAuthoritativeResponse";
+
+function failedReasonKey(reason: BoardExecutionReason): ExecutionReasonKey {
   switch (reason) {
     case "enqueue_failed":
       return "board.execution.reason.enqueueFailed";
@@ -41,7 +63,7 @@ function failedReasonKey(reason: BoardExecutionReason): string {
   }
 }
 
-function cancelledReasonKey(reason: BoardExecutionReason): string {
+function cancelledReasonKey(reason: BoardExecutionReason): ExecutionReasonKey {
   if (reason === "user_cancelled")
     return "board.execution.reason.cancelledByUser";
   if (reason === "system_cancelled")
@@ -51,7 +73,9 @@ function cancelledReasonKey(reason: BoardExecutionReason): string {
   return "board.execution.reason.cancelled";
 }
 
-function statusLabelKey(status: RunAutomationPresentation["status"]): string {
+function statusLabelKey(
+  status: RunAutomationPresentation["status"],
+): ExecutionStatusKey {
   switch (status) {
     case "queued":
       return "board.execution.status.queued";
@@ -71,6 +95,7 @@ function statusLabelKey(status: RunAutomationPresentation["status"]): string {
 export function ExecutionStatus({
   execution,
   actionPending = false,
+  actionsEnabled = true,
   onCancel,
   onCheckStatus,
   onRunAgain,
@@ -78,7 +103,7 @@ export function ExecutionStatus({
 }: ExecutionStatusProps) {
   const { t } = useTranslation();
   const status = execution.status;
-  const reason =
+  const reason: ExecutionReasonKey =
     status === "queued"
       ? "board.execution.reason.waitingToStart"
       : status === "running"
@@ -125,56 +150,58 @@ export function ExecutionStatus({
           </span>
         </span>
       </div>
-      <div className="flex flex-wrap gap-2">
-        {status === "queued" || status === "running" ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={actionPending}
-            onClick={onCancel}
-            ignoreTitleCase
-          >
-            {t("board.execution.action.cancel")}
-          </Button>
-        ) : null}
-        {status === "succeeded" ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={actionPending}
-            onClick={onOpenResult}
-            ignoreTitleCase
-          >
-            {t("board.execution.action.openResult")}
-          </Button>
-        ) : null}
-        {status === "failed" || status === "cancelled" ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={actionPending}
-            onClick={onRunAgain}
-            ignoreTitleCase
-          >
-            {t("board.execution.action.runAgain")}
-          </Button>
-        ) : null}
-        {status === "unknown" ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={actionPending}
-            onClick={onCheckStatus}
-            ignoreTitleCase
-          >
-            {t("board.execution.action.checkStatus")}
-          </Button>
-        ) : null}
-      </div>
+      {actionsEnabled ? (
+        <div className="flex flex-wrap gap-2">
+          {status === "queued" || status === "running" ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={actionPending}
+              onClick={onCancel}
+              ignoreTitleCase
+            >
+              {t("board.execution.action.cancel")}
+            </Button>
+          ) : null}
+          {status === "succeeded" ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={actionPending}
+              onClick={onOpenResult}
+              ignoreTitleCase
+            >
+              {t("board.execution.action.openResult")}
+            </Button>
+          ) : null}
+          {status === "failed" || status === "cancelled" ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={actionPending}
+              onClick={onRunAgain}
+              ignoreTitleCase
+            >
+              {t("board.execution.action.runAgain")}
+            </Button>
+          ) : null}
+          {status === "unknown" ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={actionPending}
+              onClick={onCheckStatus}
+              ignoreTitleCase
+            >
+              {t("board.execution.action.checkStatus")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

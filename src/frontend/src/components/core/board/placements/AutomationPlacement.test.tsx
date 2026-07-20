@@ -143,6 +143,7 @@ describe("AutomationPlacement", () => {
             },
           },
           execution: {
+            actionsEnabled: true,
             presentation: undefined,
             isSubmitting: false,
             actionPending: false,
@@ -178,6 +179,7 @@ describe("AutomationPlacement", () => {
             },
           },
           execution: {
+            actionsEnabled: true,
             presentation: { status: "unknown", lastKnown: null },
             isSubmitting: false,
             actionPending: false,
@@ -197,6 +199,54 @@ describe("AutomationPlacement", () => {
         name: "board.execution.action.checkStatus",
       }),
     ).toBeVisible();
+    expect(
+      screen.queryByRole("button", {
+        name: "board.execution.action.runAgain",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "board.automation.run" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps authoritative status visible but hides execution actions when the flag is off", () => {
+    render(
+      <AutomationPlacement
+        {...createProps({
+          state: {
+            status: "ready",
+            summary: {
+              id: "flow-1",
+              name: "Feature-gated automation",
+              description: null,
+            },
+          },
+          execution: {
+            actionsEnabled: false,
+            presentation: {
+              job_id: "job-1",
+              board_id: "board-1",
+              flow_id: "flow-1",
+              status: "failed",
+              reason: "execution_failed",
+              created_timestamp: "2026-07-21T00:00:00Z",
+              finished_timestamp: "2026-07-21T00:00:01Z",
+              result: null,
+            },
+            isSubmitting: false,
+            actionPending: false,
+            requestRejected: false,
+            run: jest.fn(),
+            cancel: jest.fn(),
+            checkStatus: jest.fn(),
+            runAgain: jest.fn(),
+            openResult: jest.fn(),
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByText("board.execution.status.failed")).toBeVisible();
     expect(
       screen.queryByRole("button", {
         name: "board.execution.action.runAgain",

@@ -41,7 +41,19 @@ function serializeJson(value: JsonValue): [string, boolean] {
   }
 }
 
-function reasonKey(reason: BoardExecutionReason): string {
+type TerminalStatusKey =
+  | "board.execution.status.failed"
+  | "board.execution.status.cancelled";
+
+type ResultReasonKey =
+  | "board.execution.reason.enqueueFailed"
+  | "board.execution.reason.timedOut"
+  | "board.execution.reason.cancelledByUser"
+  | "board.execution.reason.cancelledBySystem"
+  | "board.execution.reason.backendRestarted"
+  | "board.execution.reason.executionFailed";
+
+function reasonKey(reason: BoardExecutionReason): ResultReasonKey {
   switch (reason) {
     case "enqueue_failed":
       return "board.execution.reason.enqueueFailed";
@@ -58,7 +70,7 @@ function reasonKey(reason: BoardExecutionReason): string {
   }
 }
 
-function terminalStatusKey(status: "failed" | "cancelled"): string {
+function terminalStatusKey(status: "failed" | "cancelled"): TerminalStatusKey {
   return status === "failed"
     ? "board.execution.status.failed"
     : "board.execution.status.cancelled";
@@ -140,7 +152,7 @@ export function ResultPlacement({
             </p>
           ) : null}
         </div>
-      ) : (
+      ) : execution.status === "failed" || execution.status === "cancelled" ? (
         <div role="status" className="space-y-1">
           <p className="text-sm font-medium text-foreground">
             {t(terminalStatusKey(execution.status))}
@@ -149,7 +161,7 @@ export function ResultPlacement({
             {t(reasonKey(execution.reason))}
           </p>
         </div>
-      )}
+      ) : null}
     </BoardCardFrame>
   );
 }

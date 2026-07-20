@@ -96,7 +96,7 @@ describe("AutomationPlacement", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders a matching summary, real Edit href, and explained disabled Run", () => {
+  it("renders a matching summary and Edit while feature-disabled Run stays hidden", () => {
     const editHref =
       "/flow/flow-1?returnBoardId=board-1&returnPlacementId=placement-1";
     render(
@@ -123,17 +123,88 @@ describe("AutomationPlacement", () => {
     expect(
       screen.getByRole("link", { name: "board.automation.edit" }),
     ).toHaveAttribute("href", editHref);
+    expect(
+      screen.queryByRole("button", { name: "board.automation.run" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("runs from keyboard activation when execution is enabled and idle", async () => {
+    const user = userEvent.setup();
+    const run = jest.fn();
+    render(
+      <AutomationPlacement
+        {...createProps({
+          state: {
+            status: "ready",
+            summary: {
+              id: "flow-1",
+              name: "Runnable automation",
+              description: null,
+            },
+          },
+          execution: {
+            presentation: undefined,
+            isSubmitting: false,
+            actionPending: false,
+            requestRejected: false,
+            run,
+            cancel: jest.fn(),
+            checkStatus: jest.fn(),
+            runAgain: jest.fn(),
+            openResult: jest.fn(),
+          },
+        })}
+      />,
+    );
+
     const runButton = screen.getByRole("button", {
       name: "board.automation.run",
     });
-    expect(runButton).toBeDisabled();
-    expect(runButton).toHaveAttribute(
-      "aria-describedby",
-      "automation-run-explanation-placement-1",
+    runButton.focus();
+    await user.keyboard("{Enter}");
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders unknown with only same-intent status check", () => {
+    render(
+      <AutomationPlacement
+        {...createProps({
+          state: {
+            status: "ready",
+            summary: {
+              id: "flow-1",
+              name: "Unknown automation",
+              description: null,
+            },
+          },
+          execution: {
+            presentation: { status: "unknown", lastKnown: null },
+            isSubmitting: false,
+            actionPending: false,
+            requestRejected: false,
+            run: jest.fn(),
+            cancel: jest.fn(),
+            checkStatus: jest.fn(),
+            runAgain: jest.fn(),
+            openResult: jest.fn(),
+          },
+        })}
+      />,
     );
+
     expect(
-      screen.getByText("board.automation.runAvailableInNextStage"),
-    ).toHaveAttribute("id", "automation-run-explanation-placement-1");
+      screen.getByRole("button", {
+        name: "board.execution.action.checkStatus",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", {
+        name: "board.execution.action.runAgain",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "board.automation.run" }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders the empty-description message", () => {

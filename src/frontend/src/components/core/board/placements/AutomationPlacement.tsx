@@ -7,6 +7,10 @@ import type { Placement } from "@/types/board";
 import type { AutomationSummary } from "@/types/flow/automation";
 
 import { BoardCardFrame } from "../BoardCardFrame";
+import {
+  ExecutionStatus,
+  type RunAutomationPresentation,
+} from "../executions/ExecutionStatus";
 import { AutomationPreview } from "./AutomationPreview";
 
 export type AutomationPlacementState =
@@ -16,6 +20,18 @@ export type AutomationPlacementState =
   | { status: "error" };
 
 type BoardCardFrameProps = ComponentProps<typeof BoardCardFrame>;
+
+export interface AutomationExecutionControls {
+  presentation: RunAutomationPresentation | undefined;
+  isSubmitting: boolean;
+  actionPending: boolean;
+  requestRejected: boolean;
+  run: () => void;
+  cancel: () => void;
+  checkStatus: () => void;
+  runAgain: () => void;
+  openResult: () => void;
+}
 
 export interface AutomationPlacementProps {
   placement: Placement;
@@ -29,6 +45,7 @@ export interface AutomationPlacementProps {
   onResizeEnd: BoardCardFrameProps["onResizeEnd"];
   onKeyboardMove?: BoardCardFrameProps["onKeyboardMove"];
   onKeyboardResize?: BoardCardFrameProps["onKeyboardResize"];
+  execution?: AutomationExecutionControls;
 }
 
 export function AutomationPlacement({
@@ -43,6 +60,7 @@ export function AutomationPlacement({
   onResizeEnd,
   onKeyboardMove,
   onKeyboardResize,
+  execution,
 }: AutomationPlacementProps) {
   const { t } = useTranslation();
   const validSummary =
@@ -53,7 +71,6 @@ export function AutomationPlacement({
     state.status === "ready" && validSummary === null
       ? "missing"
       : state.status;
-  const runExplanationId = `automation-run-explanation-${placement.id}`;
 
   return (
     <BoardCardFrame
@@ -100,18 +117,33 @@ export function AutomationPlacement({
               <Button asChild variant="outline" ignoreTitleCase>
                 <a href={editHref}>{t("board.automation.edit")}</a>
               </Button>
-              <Button
-                type="button"
-                disabled
-                ignoreTitleCase
-                aria-describedby={runExplanationId}
-              >
-                {t("board.automation.run")}
-              </Button>
+              {execution && !execution.presentation ? (
+                <Button
+                  type="button"
+                  disabled={execution.actionPending}
+                  loading={execution.isSubmitting}
+                  ignoreTitleCase
+                  onClick={execution.run}
+                >
+                  {t("board.automation.run")}
+                </Button>
+              ) : null}
             </div>
-            <p id={runExplanationId} className="text-xs text-muted-foreground">
-              {t("board.automation.runAvailableInNextStage")}
-            </p>
+            {execution?.requestRejected ? (
+              <p role="alert" className="text-xs text-destructive">
+                {t("board.execution.requestRejected")}
+              </p>
+            ) : null}
+            {execution?.presentation ? (
+              <ExecutionStatus
+                execution={execution.presentation}
+                actionPending={execution.actionPending}
+                onCancel={execution.cancel}
+                onCheckStatus={execution.checkStatus}
+                onRunAgain={execution.runAgain}
+                onOpenResult={execution.openResult}
+              />
+            ) : null}
           </>
         ) : null}
 

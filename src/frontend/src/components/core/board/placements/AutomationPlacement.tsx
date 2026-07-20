@@ -7,6 +7,7 @@ import type { Placement } from "@/types/board";
 import type { AutomationSummary } from "@/types/flow/automation";
 
 import { BoardCardFrame } from "../BoardCardFrame";
+import { AutomationPreview } from "./AutomationPreview";
 
 export type AutomationPlacementState =
   | { status: "loading" }
@@ -24,7 +25,7 @@ export interface AutomationPlacementProps {
   onRetry: () => void;
   onDisplayStateChange: BoardCardFrameProps["onDisplayStateChange"];
   onClosePlacement: BoardCardFrameProps["onClosePlacement"];
-  onDeleteEntity: BoardCardFrameProps["onRequestDeleteEntity"];
+  onDeleteEntity?: BoardCardFrameProps["onRequestDeleteEntity"];
   onResizeEnd: BoardCardFrameProps["onResizeEnd"];
   onKeyboardMove?: BoardCardFrameProps["onKeyboardMove"];
   onKeyboardResize?: BoardCardFrameProps["onKeyboardResize"];
@@ -77,7 +78,7 @@ export function AutomationPlacement({
       onKeyboardMove={onKeyboardMove}
       onKeyboardResize={onKeyboardResize}
     >
-      <div className="flex h-full min-h-0 flex-col gap-4">
+      <div className="flex h-full min-h-0 flex-col gap-2">
         {effectiveStatus === "loading" ? (
           <div
             role="status"
@@ -92,11 +93,10 @@ export function AutomationPlacement({
 
         {effectiveStatus === "ready" && validSummary !== null ? (
           <>
-            <p className="min-h-0 flex-1 overflow-auto text-sm text-muted-foreground">
-              {validSummary.description ||
-                t("board.automation.descriptionEmpty")}
-            </p>
-            <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+            <div className="[&>section>h3]:hidden">
+              <AutomationPreview summary={validSummary} />
+            </div>
+            <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
               <Button asChild variant="outline" ignoreTitleCase>
                 <a href={editHref}>{t("board.automation.edit")}</a>
               </Button>

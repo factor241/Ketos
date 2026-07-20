@@ -6,6 +6,8 @@ import BoardCanvas from "@/components/core/board";
 import { useGetBoard } from "@/controllers/API/queries/boards";
 import { useGetModelProviders } from "@/controllers/API/queries/models/use-get-model-providers";
 import BoardPage from "..";
+import { useAutomationPlacementActions } from "../hooks/use-automation-placement-actions";
+import { useBoardReturnFocus } from "../hooks/use-board-return-focus";
 import { useBoardScene } from "../hooks/use-board-scene";
 import { useBoardViewport } from "../hooks/use-board-viewport";
 import { useChatPlacementActions } from "../hooks/use-chat-placement-actions";
@@ -39,6 +41,12 @@ jest.mock("@/controllers/API/queries/models/use-get-model-providers", () => ({
 jest.mock("../hooks/use-chat-placement-actions", () => ({
   useChatPlacementActions: jest.fn(),
 }));
+jest.mock("../hooks/use-automation-placement-actions", () => ({
+  useAutomationPlacementActions: jest.fn(),
+}));
+jest.mock("../hooks/use-board-return-focus", () => ({
+  useBoardReturnFocus: jest.fn(),
+}));
 jest.mock("../hooks/use-board-scene", () => ({ useBoardScene: jest.fn() }));
 jest.mock("../hooks/use-placement-persistence", () => ({
   usePlacementPersistence: jest.fn(),
@@ -55,6 +63,36 @@ jest.mock("@/components/core/board/placements/BoardNotePlacement", () => ({
 }));
 jest.mock("@/components/core/board/placements/ChatPlacement", () => ({
   ChatPlacement: () => <div data-testid="chat-placement" />,
+}));
+jest.mock("@/components/core/board/placements/AutomationPlacement", () => ({
+  AutomationPlacement: () => <div data-testid="automation-placement" />,
+}));
+jest.mock("@/components/core/automations/AutomationSelector", () => ({
+  AutomationSelector: ({
+    onSelect,
+    onCreate,
+  }: {
+    onSelect: (summary: {
+      id: string;
+      name: string;
+      description: null;
+    }) => void;
+    onCreate: () => void;
+  }) => (
+    <div>
+      <button
+        type="button"
+        onClick={() =>
+          onSelect({ id: "flow-1", name: "Automation 1", description: null })
+        }
+      >
+        select-existing-automation
+      </button>
+      <button type="button" onClick={onCreate}>
+        create-automation
+      </button>
+    </div>
+  ),
 }));
 jest.mock("@/components/core/chats/ChatList", () => ({
   ChatList: () => <div data-testid="chat-list" />,
@@ -77,6 +115,9 @@ const mockUseGetBoard = useGetBoard as jest.Mock;
 const mockUseBoardViewport = useBoardViewport as jest.Mock;
 const mockUseGetModelProviders = useGetModelProviders as jest.Mock;
 const mockUseChatPlacementActions = useChatPlacementActions as jest.Mock;
+const mockUseAutomationPlacementActions =
+  useAutomationPlacementActions as jest.Mock;
+const mockUseBoardReturnFocus = useBoardReturnFocus as jest.Mock;
 const mockUseBoardScene = useBoardScene as jest.Mock;
 const mockUsePlacementPersistence = usePlacementPersistence as jest.Mock;
 const mockUseBoardNoteActions = useNotePlacementActions as jest.Mock;
@@ -123,6 +164,8 @@ beforeEach(() => {
     nodes: [],
     notes: [],
     chats: [],
+    automations: [],
+    automationState: "ready",
     placements: [],
     isLoading: false,
     isError: false,
@@ -147,6 +190,11 @@ beforeEach(() => {
   mockUseChatPlacementActions.mockReturnValue({
     open: jest.fn(),
     archive: jest.fn(),
+    isPending: false,
+  });
+  mockUseAutomationPlacementActions.mockReturnValue({
+    placeExisting: jest.fn(),
+    createAndPlace: jest.fn(),
     isPending: false,
   });
 });
@@ -202,6 +250,46 @@ it("creates at the center of the board canvas bounds", () => {
   fireEvent.click(screen.getByRole("button", { name: "Board.note.add" }));
   expect(screenToFlowPosition).toHaveBeenCalledWith({ x: 400, y: 400 });
   expect(createAt).toHaveBeenCalledWith({ x: 250, y: 300 });
+});
+
+it("wires Automation add/re-place to the current Board scene and return focus", async () => {
+  const placement = {
+    id: "placement-automation",
+    boardId: BOARD_ID,
+    targetKind: "automation",
+    targetId: "flow-1",
+  };
+  const placeExisting = jest.fn().mockResolvedValue(placement);
+  const createAndPlace = jest.fn().mockResolvedValue(placement);
+  mockUseAutomationPlacementActions.mockReturnValue({
+    placeExisting,
+    createAndPlace,
+    isPending: false,
+  });
+  renderBoard();
+
+  fireEvent.click(screen.getByRole("button", { name: "board.automation.add" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "select-existing-automation" }),
+  );
+  await act(async () => undefined);
+  expect(placeExisting).toHaveBeenCalledWith(
+    expect.objectContaining({ id: "flow-1" }),
+    [],
+    { x: 0, y: 0 },
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "board.automation.add" }));
+  fireEvent.click(screen.getByRole("button", { name: "create-automation" }));
+  await act(async () => undefined);
+  expect(createAndPlace).toHaveBeenCalledWith({ x: 0, y: 0 });
+  expect(mockUseBoardReturnFocus).toHaveBeenCalledWith({
+    placements: [],
+    isLoading: false,
+  });
+  expect(
+    (mockBoardCanvas.mock.calls.at(-1)?.[0] as { nodeTypes: object }).nodeTypes,
+  ).toHaveProperty("automation");
 });
 
 it.each([

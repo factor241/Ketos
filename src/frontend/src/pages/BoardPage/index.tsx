@@ -14,14 +14,21 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, useParams } from "react-router-dom";
-
+import { AutomationSelector } from "@/components/core/automations/AutomationSelector";
 import BoardCanvas from "@/components/core/board";
 import { BoardNoteDeleteDialog } from "@/components/core/board/BoardNoteDeleteDialog";
+import { createBoardNodeTypes } from "@/components/core/board/board-node-types";
+import { AutomationPlacement } from "@/components/core/board/placements/AutomationPlacement";
 import { BoardNotePlacement } from "@/components/core/board/placements/BoardNotePlacement";
 import { ChatPlacement } from "@/components/core/board/placements/ChatPlacement";
 import { ChatList } from "@/components/core/chats/ChatList";
 import { CopilotKitBoardProvider } from "@/components/core/chats/CopilotKitBoardProvider";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useGetBoard } from "@/controllers/API/queries/boards";
 import { useGetModelProviders } from "@/controllers/API/queries/models/use-get-model-providers";
 import { useUtilityStore } from "@/stores/utilityStore";
@@ -31,12 +38,16 @@ import type {
   PlacementDisplayState,
 } from "@/types/board";
 import type { ChatThread } from "@/types/chat";
+import { useAutomationPlacementActions } from "./hooks/use-automation-placement-actions";
+import { useBoardReturnFocus } from "./hooks/use-board-return-focus";
 import { useBoardScene } from "./hooks/use-board-scene";
 import { useBoardViewport } from "./hooks/use-board-viewport";
 import { useChatPlacementActions } from "./hooks/use-chat-placement-actions";
 import { useNotePlacementActions } from "./hooks/use-note-placement-actions";
+import { useOpenAutomationEditor } from "./hooks/use-open-automation-editor";
 import { usePlacementPersistence } from "./hooks/use-placement-persistence";
 import type {
+  AutomationSceneNode,
   BoardNoteSceneNode,
   BoardSceneNode,
   ChatSceneNode,
@@ -86,6 +97,28 @@ type BoardChatRuntime = {
 };
 
 const BoardChatRuntimeContext = createContext<BoardChatRuntime | null>(null);
+
+type BoardAutomationRuntime = {
+  state: "loading" | "ready" | "error";
+  retry: () => void;
+  close: (node: AutomationSceneNode) => void;
+  setDisplayState: (
+    node: AutomationSceneNode,
+    state: PlacementDisplayState,
+  ) => void;
+  resize: (
+    node: AutomationSceneNode,
+    size: { width: number; height: number },
+  ) => void;
+  moveBy: (node: AutomationSceneNode, delta: { x: number; y: number }) => void;
+  resizeBy: (
+    node: AutomationSceneNode,
+    delta: { width: number; height: number },
+  ) => void;
+};
+
+const BoardAutomationRuntimeContext =
+  createContext<BoardAutomationRuntime | null>(null);
 
 function BoardNoteNode({ data, selected }: NodeProps<BoardNoteSceneNode>) {
   const runtime = useContext(BoardNoteRuntimeContext);
@@ -139,10 +172,54 @@ function BoardChatNode({ data, selected }: NodeProps<ChatSceneNode>) {
   );
 }
 
-const BOARD_NODE_TYPES: NodeTypes = {
+function BoardAutomationNode({
+  data,
+  selected,
+}: NodeProps<AutomationSceneNode>) {
+  const runtime = useContext(BoardAutomationRuntimeContext);
+  const { href } = useOpenAutomationEditor({
+    flowId: data.targetId,
+    boardId: data.placement.boardId,
+    placementId: data.placementId,
+  });
+  if (!runtime) return null;
+  const node = {
+    id: data.placementId,
+    type: "automation" as const,
+    position: { x: data.placement.x, y: data.placement.y },
+    data,
+  } as AutomationSceneNode;
+  const state =
+    runtime.state === "loading"
+      ? ({ status: "loading" } as const)
+      : runtime.state === "error"
+        ? ({ status: "error" } as const)
+        : data.summary
+          ? ({ status: "ready", summary: data.summary } as const)
+          : ({ status: "missing" } as const);
+  return (
+    <AutomationPlacement
+      placement={data.placement}
+      selected={selected}
+      state={state}
+      editHref={href}
+      onRetry={runtime.retry}
+      onDisplayStateChange={(displayState) =>
+        runtime.setDisplayState(node, displayState)
+      }
+      onClosePlacement={() => runtime.close(node)}
+      onResizeEnd={(size) => runtime.resize(node, size)}
+      onKeyboardMove={(delta) => runtime.moveBy(node, delta)}
+      onKeyboardResize={(delta) => runtime.resizeBy(node, delta)}
+    />
+  );
+}
+
+const BOARD_NODE_TYPES: NodeTypes = createBoardNodeTypes({
   boardNote: BoardNoteNode,
   chat: BoardChatNode,
-};
+  automation: BoardAutomationNode,
+});
 
 function NotFoundAlert() {
   const { t } = useTranslation();
@@ -179,6 +256,7 @@ function LoadedBoard({
   const [noteConflict, setNoteConflict] = useState(false);
   const addNoteRef = useRef<HTMLButtonElement>(null);
   const chatActionRef = useRef<HTMLButtonElement>(null);
+  const automationActionRef = useRef<HTMLButtonElement>(null);
   const canvasElementRef = useRef<HTMLDivElement>(null);
   const deleteTriggerRef = useRef<HTMLElement>(null);
   const instanceRef = useRef<ReactFlowInstance | null>(null);
@@ -194,6 +272,15 @@ function LoadedBoard({
     },
   });
   const chatActions = useChatPlacementActions({ boardId: board.id });
+  const automationActions = useAutomationPlacementActions({
+    projectId,
+    boardId: board.id,
+  });
+  const [automationSelectorOpen, setAutomationSelectorOpen] = useState(false);
+  useBoardReturnFocus({
+    placements: scene.placements,
+    isLoading: scene.isLoading,
+  });
   const center = useCallback(() => {
     const bounds = canvasElementRef.current?.getBoundingClientRect();
     const point = bounds
@@ -325,6 +412,53 @@ function LoadedBoard({
     }),
     [chatActions, persistence],
   );
+  const automationRuntime = useMemo<BoardAutomationRuntime>(
+    () => ({
+      state: scene.automationState,
+      retry: () => void scene.refetch(),
+      close: (node) => {
+        persistence.close(node.data.placement);
+        requestAnimationFrame(() => automationActionRef.current?.focus());
+      },
+      setDisplayState: (node, state) =>
+        persistence.setDisplayState(node.data.placement, state),
+      resize: (node, size) => persistence.resize(node.data.placement, size),
+      moveBy: (node, delta) => {
+        const current = instanceRef.current?.getNode(node.id);
+        const position = {
+          x: (current?.position.x ?? node.data.placement.x) + delta.x,
+          y: (current?.position.y ?? node.data.placement.y) + delta.y,
+        };
+        instanceRef.current?.updateNode(node.id, { position });
+        persistence.queueMove(node.data.placement, position);
+      },
+      resizeBy: (node, delta) => {
+        const current = instanceRef.current?.getNode(node.id);
+        const currentPlacement =
+          (current?.data as AutomationSceneNode["data"] | undefined)
+            ?.placement ?? node.data.placement;
+        const size = {
+          width: Math.min(
+            Math.max(currentPlacement.width + delta.width, 240),
+            1600,
+          ),
+          height: Math.min(
+            Math.max(currentPlacement.height + delta.height, 160),
+            1200,
+          ),
+        };
+        instanceRef.current?.updateNode(node.id, {
+          style: { ...current?.style, ...size },
+          data: {
+            ...node.data,
+            placement: { ...currentPlacement, ...size },
+          },
+        });
+        persistence.queueResize(node.data.placement, size);
+      },
+    }),
+    [persistence, scene.automationState, scene.refetch],
+  );
   const onNodeDragStop: OnNodeDrag<BoardSceneNode> = useCallback(
     (_event, node) => persistence.move(node.data.placement, node.position),
     [persistence],
@@ -347,107 +481,170 @@ function LoadedBoard({
         contextPolicy: "board" as const,
       }
     : null;
+  const placeExistingAutomation = useCallback(
+    async (summary: (typeof scene.automations)[number]) => {
+      try {
+        const placement = await automationActions.placeExisting(
+          summary,
+          scene.placements,
+          center(),
+        );
+        setAutomationSelectorOpen(false);
+        focusPlacement(placement.id);
+      } catch {
+        // The bounded alert is owned by useAutomationPlacementActions.
+      }
+    },
+    [
+      automationActions,
+      center,
+      focusPlacement,
+      scene.automations,
+      scene.placements,
+    ],
+  );
+  const createAutomation = useCallback(async () => {
+    try {
+      const placement = await automationActions.createAndPlace(center());
+      await scene.refetch();
+      setAutomationSelectorOpen(false);
+      focusPlacement(placement.id);
+    } catch {
+      // Creation and placement hooks publish their bounded user-facing errors.
+    }
+  }, [automationActions, center, focusPlacement, scene]);
   return (
     <CopilotKitBoardProvider enabled={chatEnabled}>
       <BoardNoteRuntimeContext.Provider value={runtime}>
         <BoardChatRuntimeContext.Provider value={chatRuntime}>
-          <main className="flex h-full flex-col bg-background text-foreground">
-            <header className="flex items-center gap-4 border-b border-border p-4">
-              <Link to={`/project/${projectId}/boards`}>
-                {t("board.backToBoards")}
-              </Link>
-              <h1 className="text-xl font-semibold">{board.title}</h1>
-              <Button
-                ref={addNoteRef}
-                type="button"
-                size="sm"
-                className="ml-auto"
-                disabled={actions.isPending}
-                onClick={() => actions.createAt(center())}
-              >
-                {t("board.note.add")}
-              </Button>
-            </header>
-            {viewport.conflict || placementConflict ? (
-              <p role="alert" className="p-3 text-sm text-muted-foreground">
-                {t("board.conflict.serverWins")}
-              </p>
-            ) : null}
-            {noteConflict ? (
-              <p role="alert" className="p-3 text-sm text-destructive">
-                {t("board.note.conflictDraftPreserved")}
-              </p>
-            ) : null}
-            {scene.isError ? (
-              <p role="alert" className="p-3 text-sm text-destructive">
-                {t("board.scene.error")}
-              </p>
-            ) : null}
-            {unplacedNotes.length ? (
-              <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2">
-                <span className="text-sm text-muted-foreground">
-                  {t("board.note.unplaced")}
-                </span>
-                {unplacedNotes.map((note) => (
-                  <Button
-                    key={note.id}
-                    type="button"
-                    size="xs"
-                    variant="outline"
-                    onClick={() => actions.replace(note, center())}
-                  >
-                    {t("board.note.replace")}
-                  </Button>
-                ))}
-              </div>
-            ) : null}
-            <div className="flex min-h-0 flex-1">
-              {chatEnabled ? (
-                <aside className="w-80 shrink-0 overflow-auto border-r border-border bg-background">
-                  <ChatList
-                    projectId={projectId}
-                    createDefaults={createDefaults}
-                    actionRef={chatActionRef}
-                    onOpen={async (chat) => {
-                      const placement = await chatActions.open(
-                        chat,
-                        scene.placements,
-                        center(),
-                      );
-                      focusPlacement(placement.id);
-                    }}
-                  />
-                </aside>
+          <BoardAutomationRuntimeContext.Provider value={automationRuntime}>
+            <main className="flex h-full flex-col bg-background text-foreground">
+              <header className="flex items-center gap-4 border-b border-border p-4">
+                <Link to={`/project/${projectId}/boards`}>
+                  {t("board.backToBoards")}
+                </Link>
+                <h1 className="text-xl font-semibold">{board.title}</h1>
+                <Button
+                  ref={addNoteRef}
+                  type="button"
+                  size="sm"
+                  className="ml-auto"
+                  disabled={actions.isPending}
+                  onClick={() => actions.createAt(center())}
+                >
+                  {t("board.note.add")}
+                </Button>
+                <Popover
+                  open={automationSelectorOpen}
+                  onOpenChange={setAutomationSelectorOpen}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      ref={automationActionRef}
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={automationActions.isPending}
+                      ignoreTitleCase
+                    >
+                      {t("board.automation.add")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-80">
+                    <AutomationSelector
+                      projectId={projectId}
+                      disabled={automationActions.isPending}
+                      onSelect={(summary) =>
+                        void placeExistingAutomation(summary)
+                      }
+                      onCreate={() => void createAutomation()}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </header>
+              {viewport.conflict || placementConflict ? (
+                <p role="alert" className="p-3 text-sm text-muted-foreground">
+                  {t("board.conflict.serverWins")}
+                </p>
               ) : null}
-              <div className="min-w-0 flex-1">
-                <BoardCanvas
-                  initialViewport={viewport.initialViewport}
-                  nodes={scene.nodes}
-                  nodeTypes={BOARD_NODE_TYPES}
-                  onNodeDragStop={onNodeDragStop}
-                  onMoveStart={viewport.onMoveStart}
-                  onMoveEnd={viewport.onMoveEnd}
-                  onInstanceReady={onInstanceReady}
-                />
+              {noteConflict ? (
+                <p role="alert" className="p-3 text-sm text-destructive">
+                  {t("board.note.conflictDraftPreserved")}
+                </p>
+              ) : null}
+              {scene.isError ? (
+                <p role="alert" className="p-3 text-sm text-destructive">
+                  {t("board.scene.error")}
+                </p>
+              ) : null}
+              {unplacedNotes.length ? (
+                <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2">
+                  <span className="text-sm text-muted-foreground">
+                    {t("board.note.unplaced")}
+                  </span>
+                  {unplacedNotes.map((note) => (
+                    <Button
+                      key={note.id}
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      onClick={() => actions.replace(note, center())}
+                    >
+                      {t("board.note.replace")}
+                    </Button>
+                  ))}
+                </div>
+              ) : null}
+              <div className="flex min-h-0 flex-1">
+                {chatEnabled ? (
+                  <aside className="w-80 shrink-0 overflow-auto border-r border-border bg-background">
+                    <ChatList
+                      projectId={projectId}
+                      createDefaults={createDefaults}
+                      actionRef={chatActionRef}
+                      onOpen={async (chat) => {
+                        const placement = await chatActions.open(
+                          chat,
+                          scene.placements,
+                          center(),
+                        );
+                        focusPlacement(placement.id);
+                      }}
+                    />
+                  </aside>
+                ) : null}
+                <div className="min-w-0 flex-1">
+                  <BoardCanvas
+                    initialViewport={viewport.initialViewport}
+                    nodes={scene.nodes}
+                    nodeTypes={BOARD_NODE_TYPES}
+                    onNodeDragStop={onNodeDragStop}
+                    onMoveStart={viewport.onMoveStart}
+                    onMoveEnd={viewport.onMoveEnd}
+                    onInstanceReady={onInstanceReady}
+                  />
+                </div>
               </div>
-            </div>
-            <BoardNoteDeleteDialog
-              open={deletingNote !== null}
-              title={t("board.note.deleteConfirmTitle")}
-              description={t("board.note.deleteConfirmDescription")}
-              cancelLabel={t("board.note.deleteCancel")}
-              confirmLabel={t("board.note.deleteConfirm")}
-              onCancel={() => {
-                setDeletingNote(null);
-                requestAnimationFrame(() => deleteTriggerRef.current?.focus());
-              }}
-              onConfirm={() => {
-                if (deletingNote) actions.deleteEntity(deletingNote);
-                setDeletingNote(null);
-                requestAnimationFrame(() => addNoteRef.current?.focus());
-              }}
-            />
-          </main>
+              <BoardNoteDeleteDialog
+                open={deletingNote !== null}
+                title={t("board.note.deleteConfirmTitle")}
+                description={t("board.note.deleteConfirmDescription")}
+                cancelLabel={t("board.note.deleteCancel")}
+                confirmLabel={t("board.note.deleteConfirm")}
+                onCancel={() => {
+                  setDeletingNote(null);
+                  requestAnimationFrame(() =>
+                    deleteTriggerRef.current?.focus(),
+                  );
+                }}
+                onConfirm={() => {
+                  if (deletingNote) actions.deleteEntity(deletingNote);
+                  setDeletingNote(null);
+                  requestAnimationFrame(() => addNoteRef.current?.focus());
+                }}
+              />
+            </main>
+          </BoardAutomationRuntimeContext.Provider>
         </BoardChatRuntimeContext.Provider>
       </BoardNoteRuntimeContext.Provider>
     </CopilotKitBoardProvider>

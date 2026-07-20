@@ -1,5 +1,6 @@
 import type { BoardNote, Placement } from "@/types/board";
 import type { ChatThread } from "@/types/chat";
+import type { AutomationSummary } from "@/types/flow/automation";
 import { placementsToNodes } from "../placement-to-node";
 
 const note: BoardNote = {
@@ -42,9 +43,15 @@ const chat: ChatThread = {
   updatedAt: "2026-01-01",
 };
 
+const automation: AutomationSummary = {
+  id: "flow-1",
+  name: "Incident automation",
+  description: null,
+};
+
 describe("placementsToNodes", () => {
   it("uses placement identity and geometry while keeping target identity separate", () => {
-    expect(placementsToNodes([placement], [note], [])).toEqual([
+    expect(placementsToNodes([placement], [note], [], [])).toEqual([
       expect.objectContaining({
         id: "placement-1",
         type: "boardNote",
@@ -69,7 +76,7 @@ describe("placementsToNodes", () => {
       targetKind: "chat" as const,
       targetId: chat.id,
     };
-    expect(placementsToNodes([chatPlacement], [], [chat])).toEqual([
+    expect(placementsToNodes([chatPlacement], [], [chat], [])).toEqual([
       expect.objectContaining({
         id: "placement-2",
         type: "chat",
@@ -79,12 +86,60 @@ describe("placementsToNodes", () => {
     ]);
   });
 
-  it("quarantines missing targets and unsupported future kinds", () => {
-    const future = {
+  it("creates an automation node from Placement identity while keeping Flow identity separate", () => {
+    const automationPlacement: Placement = {
       ...placement,
-      id: "placement-2",
-      targetKind: "automation" as const,
+      id: "placement-automation",
+      targetKind: "automation",
+      targetId: automation.id,
     };
-    expect(placementsToNodes([placement, future], [], [])).toEqual([]);
+
+    expect(
+      placementsToNodes([automationPlacement], [], [], [automation]),
+    ).toEqual([
+      expect.objectContaining({
+        id: "placement-automation",
+        type: "automation",
+        data: expect.objectContaining({
+          placementId: "placement-automation",
+          targetId: "flow-1",
+          summary: automation,
+          placement: automationPlacement,
+        }),
+      }),
+    ]);
+  });
+
+  it("keeps a missing-summary automation and quarantines unsupported future kinds", () => {
+    const missingSummaryAutomation: Placement = {
+      ...placement,
+      id: "placement-automation",
+      targetKind: "automation",
+      targetId: "flow-missing",
+    };
+    const future: Placement = {
+      ...placement,
+      id: "placement-future",
+      targetKind: "job_result",
+    };
+
+    expect(
+      placementsToNodes(
+        [placement, missingSummaryAutomation, future],
+        [],
+        [],
+        [],
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        id: "placement-automation",
+        type: "automation",
+        data: expect.objectContaining({
+          placementId: "placement-automation",
+          targetId: "flow-missing",
+          summary: null,
+        }),
+      }),
+    ]);
   });
 });

@@ -20,7 +20,7 @@ export interface BoardCardFrameProps {
   };
   onDisplayStateChange: (state: PlacementDisplayState) => void;
   onClosePlacement: () => void;
-  onRequestDeleteEntity: () => void;
+  onRequestDeleteEntity?: () => void;
   onResizeEnd: (size: { width: number; height: number }) => void;
   onKeyboardMove?: (delta: { x: number; y: number }) => void;
   onKeyboardResize?: (delta: { width: number; height: number }) => void;

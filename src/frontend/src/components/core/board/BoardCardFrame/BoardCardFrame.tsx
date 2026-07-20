@@ -177,15 +177,17 @@ export function BoardCardFrame(props: BoardCardFrameProps) {
           >
             <X aria-hidden="true" />
           </Button>
-          <Button
-            type="button"
-            size="iconMd"
-            variant="outline"
-            aria-label={props.labels.deleteEntity}
-            onClick={props.onRequestDeleteEntity}
-          >
-            <Trash2 aria-hidden="true" />
-          </Button>
+          {props.onRequestDeleteEntity ? (
+            <Button
+              type="button"
+              size="iconMd"
+              variant="outline"
+              aria-label={props.labels.deleteEntity}
+              onClick={props.onRequestDeleteEntity}
+            >
+              <Trash2 aria-hidden="true" />
+            </Button>
+          ) : null}
         </div>
       </header>
       {!collapsed ? (

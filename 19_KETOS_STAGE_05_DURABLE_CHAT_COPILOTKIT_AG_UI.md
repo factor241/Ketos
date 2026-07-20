@@ -329,7 +329,7 @@ uv run pytest src/backend/tests/unit/agentic/api/test_ag_ui_adapter_contract.py 
 **Focused verification:**
 
 ```bash
-(cd src/copilot-runtime && npm test -- --runInBand src/__tests__/ketos-chat.test.ts)
+(cd src/copilot-runtime && npm test -- src/__tests__/ketos-chat.test.ts)
 (cd src/copilot-runtime && npm run typecheck && npm run build)
 ```
 
@@ -649,7 +649,7 @@ uv run pytest \
   src/backend/tests/unit/agentic/api/test_ag_ui_adapter_contract.py \
   scripts/mvp/test_chat_stack_boundaries.py -q
 
-(cd src/copilot-runtime && npm test -- --runInBand src/__tests__/ketos-chat.test.ts)
+(cd src/copilot-runtime && npm test -- src/__tests__/ketos-chat.test.ts)
 (cd src/copilot-runtime && npm run typecheck)
 (cd src/copilot-runtime && npm run build)
 

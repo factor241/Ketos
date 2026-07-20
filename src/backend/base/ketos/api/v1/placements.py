@@ -3,6 +3,7 @@ from typing import Annotated, TypeVar
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
+from pydantic import BaseModel, ConfigDict
 
 from ketos.api.utils import CurrentActiveUser, DbSession
 from ketos.api.v1.schemas.board_entities import PlacementCreate, PlacementPatch, PlacementRead
@@ -20,9 +21,19 @@ from ketos.services.board.placement_service import (
     list_placements,
     update_placement_cas,
 )
+from ketos.services.board.service import resolve_automation_return_context
 
 router = APIRouter(tags=["Board placements"])
 T = TypeVar("T")
+
+
+class AutomationEditorContextRead(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    project_id: UUID
+    board_id: UUID
+    placement_id: UUID
+    flow_id: UUID
 
 
 async def _run_service(call: Callable[[], Awaitable[T]]) -> T:
@@ -44,6 +55,31 @@ async def read_board_placements(
 ) -> list[PlacementRead]:
     placements = await _run_service(lambda: list_placements(session, board_id=board_id, actor_id=current_user.id))
     return [PlacementRead.model_validate(placement, from_attributes=True) for placement in placements]
+
+
+@router.get("/boards/{board_id}/placements/{placement_id}/automation-editor-context")
+async def read_automation_editor_context(
+    board_id: UUID,
+    placement_id: UUID,
+    flow_id: Annotated[UUID, Query()],
+    session: DbSession,
+    current_user: CurrentActiveUser,
+) -> AutomationEditorContextRead:
+    context = await _run_service(
+        lambda: resolve_automation_return_context(
+            session,
+            board_id=board_id,
+            placement_id=placement_id,
+            flow_id=flow_id,
+            actor_id=current_user.id,
+        )
+    )
+    return AutomationEditorContextRead(
+        project_id=context.project_id,
+        board_id=context.board_id,
+        placement_id=context.placement_id,
+        flow_id=context.flow_id,
+    )
 
 
 @router.post("/boards/{board_id}/placements", status_code=status.HTTP_201_CREATED)

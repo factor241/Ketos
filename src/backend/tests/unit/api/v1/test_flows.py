@@ -4,6 +4,119 @@ from uuid import UUID
 
 from fastapi import status
 from httpx import AsyncClient
+from ketos.services.database.models.flow.model import Flow
+from ketos.services.database.models.folder.model import Folder
+from ketos.services.database.models.user.model import User
+from ketos.services.deps import session_scope
+
+
+async def test_automation_header_project_is_bounded_owner_only_and_project_scoped(
+    client: AsyncClient, logged_in_headers, active_user
+) -> None:
+    suffix = uuid.uuid4().hex
+    async with session_scope() as session:
+        project = Folder(name=f"Automation project {suffix}", user_id=active_user.id)
+        other_project = Folder(name=f"Automation other {suffix}", user_id=active_user.id)
+        foreign_user = User(
+            username=f"automation-foreign-{suffix}",
+            password="x",  # noqa: S106
+            is_active=True,
+        )
+        session.add_all([project, other_project, foreign_user])
+        await session.flush()
+        owned = Flow(
+            name=f"Owned {suffix}",
+            description="Safe description",
+            user_id=active_user.id,
+            folder_id=project.id,
+            is_component=False,
+            data={"nodes": [], "edges": [], "secret": "must-not-leak"},
+        )
+        excluded = [
+            Flow(
+                name=f"Other project {suffix}",
+                user_id=active_user.id,
+                folder_id=other_project.id,
+                is_component=False,
+                data={"nodes": [], "edges": []},
+            ),
+            Flow(
+                name=f"Component {suffix}",
+                user_id=active_user.id,
+                folder_id=project.id,
+                is_component=True,
+                data={"nodes": [], "edges": []},
+            ),
+            Flow(
+                name=f"Foreign {suffix}",
+                user_id=foreign_user.id,
+                folder_id=project.id,
+                is_component=False,
+                data={"nodes": [], "edges": []},
+            ),
+            Flow(
+                name=f"Null owner {suffix}",
+                user_id=None,
+                folder_id=project.id,
+                is_component=False,
+                data={"nodes": [], "edges": []},
+            ),
+        ]
+        session.add_all([owned, *excluded])
+        await session.commit()
+        await session.refresh(owned)
+        project_id = project.id
+        owned_id = owned.id
+
+    response = await client.get(
+        "api/v1/flows/",
+        params={
+            "get_all": "true",
+            "header_flows": "true",
+            "automation_summaries": "true",
+            "folder_id": str(project_id),
+        },
+        headers=logged_in_headers,
+    )
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == [
+        {
+            "id": str(owned_id),
+            "name": f"Owned {suffix}",
+            "description": "Safe description",
+        }
+    ]
+    assert set(response.json()[0]) == {"id", "name", "description"}
+    assert "must-not-leak" not in response.text
+
+
+async def test_legacy_header_project_query_keeps_existing_header_shape(
+    client: AsyncClient, logged_in_headers, active_user
+) -> None:
+    suffix = uuid.uuid4().hex
+    async with session_scope() as session:
+        project = Folder(name=f"Legacy header {suffix}", user_id=active_user.id)
+        session.add(project)
+        await session.flush()
+        flow = Flow(
+            name=f"Legacy {suffix}",
+            user_id=active_user.id,
+            folder_id=project.id,
+            is_component=False,
+            data={"nodes": [], "edges": []},
+        )
+        session.add(flow)
+        await session.commit()
+        await session.refresh(flow)
+        project_id = project.id
+    response = await client.get(
+        "api/v1/flows/",
+        params={"get_all": "true", "header_flows": "true", "folder_id": str(project_id)},
+        headers=logged_in_headers,
+    )
+    assert response.status_code == status.HTTP_200_OK
+    item = next(row for row in response.json() if row["name"] == f"Legacy {suffix}")
+    assert {"id", "name", "folder_id", "is_component", "data"}.issubset(item)
 
 
 async def _attach_deployment_to_flow(*, user_id: UUID, flow_id: UUID, project_id: UUID) -> None:

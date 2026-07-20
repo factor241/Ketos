@@ -202,19 +202,15 @@ async def test_target_validation_is_explicit_and_project_scoped(active_user) -> 
                     target_id=chat_id,
                     actor_id=active_user.id,
                 )
-        for kind in (
-            PlacementTargetKind.AUTOMATION,
-            PlacementTargetKind.JOB_RESULT,
-        ):
-            with pytest.raises(TargetKindNotAvailableError) as error:
-                await validate_placement_target(
-                    session,
-                    board=persisted_board,
-                    target_kind=kind,
-                    target_id=note.id,
-                    actor_id=active_user.id,
-                )
-            assert error.value.code == "target_kind_not_available"
+        with pytest.raises(TargetKindNotAvailableError) as error:
+            await validate_placement_target(
+                session,
+                board=persisted_board,
+                target_kind=PlacementTargetKind.JOB_RESULT,
+                target_id=note.id,
+                actor_id=active_user.id,
+            )
+        assert error.value.code == "target_kind_not_available"
 
 
 async def test_create_lists_stably_and_rejects_duplicate(active_user) -> None:

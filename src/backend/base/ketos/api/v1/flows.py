@@ -54,6 +54,7 @@ from ketos.services.database.models.deployment.exceptions import (
 )
 from ketos.services.database.models.flow.model import (
     AccessTypeEnum,
+    AutomationSummary,
     Flow,
     FlowCreate,
     FlowHeader,
@@ -143,7 +144,11 @@ async def create_flow(
         raise _handle_unique_constraint_error(e) from e
 
 
-@router.get("/", response_model=list[FlowRead] | Page[FlowRead] | list[FlowHeader], status_code=200)
+@router.get(
+    "/",
+    response_model=list[FlowRead] | Page[FlowRead] | list[FlowHeader] | list[AutomationSummary],
+    status_code=200,
+)
 async def read_flows(
     *,
     current_user: CurrentActiveUser,
@@ -154,6 +159,7 @@ async def read_flows(
     folder_id: UUID | None = None,
     params: Annotated[Params, Depends()],
     header_flows: bool = False,
+    automation_summaries: bool = False,
 ):
     """Retrieve a list of flows with optional pagination, filtering, and header-only mode."""
     try:
@@ -171,6 +177,23 @@ async def read_flows(
                 status_code=404,
                 detail="Starter project and default project not found. Please create a project and add flows to it.",
             )
+
+        if automation_summaries:
+            if folder_id is None:
+                return compress_response([])
+            automation_flows = (
+                await session.exec(
+                    select(Flow)
+                    .where(
+                        Flow.user_id == current_user.id,
+                        Flow.folder_id == folder_id,
+                        col(Flow.is_component).is_(False),
+                    )
+                    .order_by(Flow.name, Flow.id)
+                )
+            ).all()
+            summaries = [AutomationSummary.model_validate(flow, from_attributes=True) for flow in automation_flows]
+            return compress_response(summaries)
 
         if not folder_id:
             folder_id = default_folder_id

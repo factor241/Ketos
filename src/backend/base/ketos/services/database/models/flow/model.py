@@ -240,6 +240,12 @@ class FlowRead(FlowBase):
     name_key: str | None = Field(None, description="Stable i18n key derived from the original English name")
 
 
+class AutomationSummary(BaseModel):
+    id: UUID
+    name: str
+    description: str | None
+
+
 class FlowHeader(BaseModel):
     """Model representing a header for a flow - Without the data."""
 

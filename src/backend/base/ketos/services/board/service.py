@@ -1,4 +1,5 @@
 import math
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Protocol
 from uuid import UUID
@@ -7,8 +8,11 @@ from sqlalchemy import delete, update
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from ketos.services.board.exceptions import BoardResourceNotFoundError
 from ketos.services.database.models.board.model import Board
+from ketos.services.database.models.flow.model import Flow
 from ketos.services.database.models.folder.model import Folder
+from ketos.services.database.models.placement.model import Placement, PlacementTargetKind
 
 TITLE_MAX_LENGTH = 255
 MIN_ZOOM = 0.5
@@ -38,6 +42,81 @@ class BoardRevisionConflictError(Exception):
     def __init__(self, board_id: UUID):
         super().__init__(f"Board {board_id} revision conflict")
         self.board_id = board_id
+
+
+@dataclass(frozen=True, slots=True)
+class AutomationReturnContext:
+    project_id: UUID
+    board_id: UUID
+    placement_id: UUID
+    flow_id: UUID
+
+
+async def validate_automation_target(
+    session: AsyncSession,
+    *,
+    board: Board,
+    flow_id: UUID,
+    actor_id: UUID,
+) -> Flow:
+    flow = (
+        await session.exec(
+            select(Flow).where(
+                Flow.id == flow_id,
+                Flow.user_id == actor_id,
+                Flow.folder_id == board.project_id,
+                Flow.is_component == False,  # noqa: E712
+            )
+        )
+    ).first()
+    if flow is None:
+        raise BoardResourceNotFoundError(flow_id)
+    return flow
+
+
+async def resolve_automation_return_context(
+    session: AsyncSession,
+    *,
+    board_id: UUID,
+    placement_id: UUID,
+    flow_id: UUID,
+    actor_id: UUID,
+) -> AutomationReturnContext:
+    board = (
+        await session.exec(
+            select(Board)
+            .join(Folder, Board.project_id == Folder.id)
+            .where(Board.id == board_id, Folder.user_id == actor_id)
+        )
+    ).first()
+    if board is None:
+        raise BoardResourceNotFoundError(board_id)
+
+    placement = (
+        await session.exec(
+            select(Placement).where(
+                Placement.id == placement_id,
+                Placement.board_id == board_id,
+                Placement.target_kind == PlacementTargetKind.AUTOMATION,
+                Placement.target_id == flow_id,
+            )
+        )
+    ).first()
+    if placement is None:
+        raise BoardResourceNotFoundError(placement_id)
+
+    flow = await validate_automation_target(
+        session,
+        board=board,
+        flow_id=flow_id,
+        actor_id=actor_id,
+    )
+    return AutomationReturnContext(
+        project_id=board.project_id,
+        board_id=board.id,
+        placement_id=placement.id,
+        flow_id=flow.id,
+    )
 
 
 def _validate_title(title: str) -> str:

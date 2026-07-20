@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Annotated, Literal, TypeAlias
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, JsonValue, StringConstraints
+from pydantic import BaseModel, ConfigDict, JsonValue, StringConstraints, model_validator
 
 BoardExecutionStatus: TypeAlias = Literal["queued", "running", "succeeded", "failed", "cancelled"]
 BoardExecutionReason: TypeAlias = (
@@ -43,6 +43,14 @@ class BoardExecutionResult(BaseModel):
     kind: Literal["text", "json"]
     value: str | JsonValue
     truncated: bool = False
+
+    @model_validator(mode="after")
+    def validate_kind_value_coherence(self) -> BoardExecutionResult:
+        """Keep the narrow text renderer limited to inert string values."""
+        if self.kind == "text" and not isinstance(self.value, str):
+            msg = "text Board execution results require a string value"
+            raise ValueError(msg)
+        return self
 
 
 class BoardExecutionRead(BaseModel):

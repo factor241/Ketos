@@ -18,19 +18,29 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import BoardCanvas from "@/components/core/board";
 import { BoardNoteDeleteDialog } from "@/components/core/board/BoardNoteDeleteDialog";
 import { BoardNotePlacement } from "@/components/core/board/placements/BoardNotePlacement";
+import { ChatPlacement } from "@/components/core/board/placements/ChatPlacement";
+import { ChatList } from "@/components/core/chats/ChatList";
+import { CopilotKitBoardProvider } from "@/components/core/chats/CopilotKitBoardProvider";
 import { Button } from "@/components/ui/button";
 import { useGetBoard } from "@/controllers/API/queries/boards";
+import { useGetModelProviders } from "@/controllers/API/queries/models/use-get-model-providers";
 import { useUtilityStore } from "@/stores/utilityStore";
 import type {
   BoardNote,
   BoardRead,
   PlacementDisplayState,
 } from "@/types/board";
+import type { ChatThread } from "@/types/chat";
 import { useBoardScene } from "./hooks/use-board-scene";
 import { useBoardViewport } from "./hooks/use-board-viewport";
+import { useChatPlacementActions } from "./hooks/use-chat-placement-actions";
 import { useNotePlacementActions } from "./hooks/use-note-placement-actions";
 import { usePlacementPersistence } from "./hooks/use-placement-persistence";
-import type { BoardSceneNode } from "./utils/placement-to-node";
+import type {
+  BoardNoteSceneNode,
+  BoardSceneNode,
+  ChatSceneNode,
+} from "./utils/placement-to-node";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -41,23 +51,43 @@ type BoardNoteRuntime = {
   drafts: Record<string, string>;
   setDraft: (noteId: string, draft: string) => void;
   save: (note: BoardNote, draft: string) => void;
-  close: (node: BoardSceneNode) => void;
+  close: (node: BoardNoteSceneNode) => void;
   requestDelete: (note: BoardNote) => void;
-  setDisplayState: (node: BoardSceneNode, state: PlacementDisplayState) => void;
+  setDisplayState: (
+    node: BoardNoteSceneNode,
+    state: PlacementDisplayState,
+  ) => void;
   resize: (
-    node: BoardSceneNode,
+    node: BoardNoteSceneNode,
     size: { width: number; height: number },
   ) => void;
-  moveBy: (node: BoardSceneNode, delta: { x: number; y: number }) => void;
+  moveBy: (node: BoardNoteSceneNode, delta: { x: number; y: number }) => void;
   resizeBy: (
-    node: BoardSceneNode,
+    node: BoardNoteSceneNode,
     delta: { width: number; height: number },
   ) => void;
 };
 
 const BoardNoteRuntimeContext = createContext<BoardNoteRuntime | null>(null);
 
-function BoardNoteNode({ data, selected }: NodeProps<BoardSceneNode>) {
+type BoardChatRuntime = {
+  close: (node: ChatSceneNode) => void;
+  archive: (chat: ChatThread, node: ChatSceneNode) => void;
+  setDisplayState: (node: ChatSceneNode, state: PlacementDisplayState) => void;
+  resize: (
+    node: ChatSceneNode,
+    size: { width: number; height: number },
+  ) => void;
+  moveBy: (node: ChatSceneNode, delta: { x: number; y: number }) => void;
+  resizeBy: (
+    node: ChatSceneNode,
+    delta: { width: number; height: number },
+  ) => void;
+};
+
+const BoardChatRuntimeContext = createContext<BoardChatRuntime | null>(null);
+
+function BoardNoteNode({ data, selected }: NodeProps<BoardNoteSceneNode>) {
   const runtime = useContext(BoardNoteRuntimeContext);
   if (!runtime) return null;
   const node = {
@@ -65,7 +95,7 @@ function BoardNoteNode({ data, selected }: NodeProps<BoardSceneNode>) {
     type: "boardNote" as const,
     position: { x: data.placement.x, y: data.placement.y },
     data,
-  } as BoardSceneNode;
+  } as BoardNoteSceneNode;
   const draft = runtime.drafts[data.note.id] ?? data.note.content;
   return (
     <BoardNotePlacement
@@ -85,7 +115,34 @@ function BoardNoteNode({ data, selected }: NodeProps<BoardSceneNode>) {
   );
 }
 
-const BOARD_NODE_TYPES: NodeTypes = { boardNote: BoardNoteNode };
+function BoardChatNode({ data, selected }: NodeProps<ChatSceneNode>) {
+  const runtime = useContext(BoardChatRuntimeContext);
+  if (!runtime) return null;
+  const node = {
+    id: data.placementId,
+    type: "chat" as const,
+    position: { x: data.placement.x, y: data.placement.y },
+    data,
+  } as ChatSceneNode;
+  return (
+    <ChatPlacement
+      chat={data.chat}
+      placement={data.placement}
+      selected={selected}
+      onDisplayStateChange={(state) => runtime.setDisplayState(node, state)}
+      onClose={() => runtime.close(node)}
+      onArchive={() => runtime.archive(data.chat, node)}
+      onResizeEnd={(size) => runtime.resize(node, size)}
+      onKeyboardMove={(delta) => runtime.moveBy(node, delta)}
+      onKeyboardResize={(delta) => runtime.resizeBy(node, delta)}
+    />
+  );
+}
+
+const BOARD_NODE_TYPES: NodeTypes = {
+  boardNote: BoardNoteNode,
+  chat: BoardChatNode,
+};
 
 function NotFoundAlert() {
   const { t } = useTranslation();
@@ -96,14 +153,22 @@ function LoadedBoard({
   board,
   projectId,
   refresh,
+  chatEnabled,
 }: {
   board: BoardRead;
   projectId: string;
   refresh: BoardRefetch;
+  chatEnabled: boolean;
 }) {
   const { t } = useTranslation();
   const viewport = useBoardViewport({ projectId, board, refresh });
-  const scene = useBoardScene({ projectId, boardId: board.id });
+  const scene = useBoardScene({ projectId, boardId: board.id, chatEnabled });
+  const modelProviders = useGetModelProviders(
+    {},
+    {
+      enabled: chatEnabled,
+    },
+  );
   const [placementConflict, setPlacementConflict] = useState(false);
   const persistence = usePlacementPersistence({
     boardId: board.id,
@@ -113,6 +178,7 @@ function LoadedBoard({
   const [deletingNote, setDeletingNote] = useState<BoardNote | null>(null);
   const [noteConflict, setNoteConflict] = useState(false);
   const addNoteRef = useRef<HTMLButtonElement>(null);
+  const chatActionRef = useRef<HTMLButtonElement>(null);
   const canvasElementRef = useRef<HTMLDivElement>(null);
   const deleteTriggerRef = useRef<HTMLElement>(null);
   const instanceRef = useRef<ReactFlowInstance | null>(null);
@@ -127,6 +193,7 @@ function LoadedBoard({
       setNoteConflict(true);
     },
   });
+  const chatActions = useChatPlacementActions({ boardId: board.id });
   const center = useCallback(() => {
     const bounds = canvasElementRef.current?.getBoundingClientRect();
     const point = bounds
@@ -177,8 +244,8 @@ function LoadedBoard({
       resizeBy: (node, delta) => {
         const current = instanceRef.current?.getNode(node.id);
         const currentPlacement =
-          (current?.data as BoardSceneNode["data"] | undefined)?.placement ??
-          node.data.placement;
+          (current?.data as BoardNoteSceneNode["data"] | undefined)
+            ?.placement ?? node.data.placement;
         const size = {
           width: Math.min(
             Math.max(currentPlacement.width + delta.width, 240),
@@ -201,6 +268,63 @@ function LoadedBoard({
     }),
     [actions, drafts, persistence],
   );
+  const focusPlacement = useCallback((placementId: string) => {
+    const focus = () =>
+      document
+        .querySelector<HTMLElement>(`[data-id="${placementId}"] section`)
+        ?.focus({ preventScroll: true });
+    requestAnimationFrame(() => requestAnimationFrame(focus));
+  }, []);
+  const chatRuntime = useMemo<BoardChatRuntime>(
+    () => ({
+      close: (node) => {
+        persistence.close(node.data.placement);
+        requestAnimationFrame(() => chatActionRef.current?.focus());
+      },
+      archive: (chat, node) => {
+        chatActions.archive(chat);
+        persistence.close(node.data.placement);
+        requestAnimationFrame(() => chatActionRef.current?.focus());
+      },
+      setDisplayState: (node, state) =>
+        persistence.setDisplayState(node.data.placement, state),
+      resize: (node, size) => persistence.resize(node.data.placement, size),
+      moveBy: (node, delta) => {
+        const current = instanceRef.current?.getNode(node.id);
+        const position = {
+          x: (current?.position.x ?? node.data.placement.x) + delta.x,
+          y: (current?.position.y ?? node.data.placement.y) + delta.y,
+        };
+        instanceRef.current?.updateNode(node.id, { position });
+        persistence.queueMove(node.data.placement, position);
+      },
+      resizeBy: (node, delta) => {
+        const current = instanceRef.current?.getNode(node.id);
+        const currentPlacement =
+          (current?.data as ChatSceneNode["data"] | undefined)?.placement ??
+          node.data.placement;
+        const size = {
+          width: Math.min(
+            Math.max(currentPlacement.width + delta.width, 240),
+            1600,
+          ),
+          height: Math.min(
+            Math.max(currentPlacement.height + delta.height, 160),
+            1200,
+          ),
+        };
+        instanceRef.current?.updateNode(node.id, {
+          style: { ...current?.style, ...size },
+          data: {
+            ...node.data,
+            placement: { ...currentPlacement, ...size },
+          },
+        });
+        persistence.queueResize(node.data.placement, size);
+      },
+    }),
+    [chatActions, persistence],
+  );
   const onNodeDragStop: OnNodeDrag<BoardSceneNode> = useCallback(
     (_event, node) => persistence.move(node.data.placement, node.position),
     [persistence],
@@ -213,87 +337,120 @@ function LoadedBoard({
   const unplacedNotes = scene.notes.filter(
     (note) => !placedNoteIds.has(note.id),
   );
+  const defaultProvider = modelProviders.data?.find(
+    (provider) => provider.is_enabled && provider.models.length > 0,
+  );
+  const createDefaults = defaultProvider
+    ? {
+        provider: defaultProvider.provider,
+        modelName: defaultProvider.models[0].model_name,
+        contextPolicy: "board" as const,
+      }
+    : null;
   return (
-    <BoardNoteRuntimeContext.Provider value={runtime}>
-      <main className="flex h-full flex-col bg-background text-foreground">
-        <header className="flex items-center gap-4 border-b border-border p-4">
-          <Link to={`/project/${projectId}/boards`}>
-            {t("board.backToBoards")}
-          </Link>
-          <h1 className="text-xl font-semibold">{board.title}</h1>
-          <Button
-            ref={addNoteRef}
-            type="button"
-            size="sm"
-            className="ml-auto"
-            disabled={actions.isPending}
-            onClick={() => actions.createAt(center())}
-          >
-            {t("board.note.add")}
-          </Button>
-        </header>
-        {viewport.conflict || placementConflict ? (
-          <p role="alert" className="p-3 text-sm text-muted-foreground">
-            {t("board.conflict.serverWins")}
-          </p>
-        ) : null}
-        {noteConflict ? (
-          <p role="alert" className="p-3 text-sm text-destructive">
-            {t("board.note.conflictDraftPreserved")}
-          </p>
-        ) : null}
-        {scene.isError ? (
-          <p role="alert" className="p-3 text-sm text-destructive">
-            {t("board.scene.error")}
-          </p>
-        ) : null}
-        {unplacedNotes.length ? (
-          <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2">
-            <span className="text-sm text-muted-foreground">
-              {t("board.note.unplaced")}
-            </span>
-            {unplacedNotes.map((note) => (
+    <CopilotKitBoardProvider enabled={chatEnabled}>
+      <BoardNoteRuntimeContext.Provider value={runtime}>
+        <BoardChatRuntimeContext.Provider value={chatRuntime}>
+          <main className="flex h-full flex-col bg-background text-foreground">
+            <header className="flex items-center gap-4 border-b border-border p-4">
+              <Link to={`/project/${projectId}/boards`}>
+                {t("board.backToBoards")}
+              </Link>
+              <h1 className="text-xl font-semibold">{board.title}</h1>
               <Button
-                key={note.id}
+                ref={addNoteRef}
                 type="button"
-                size="xs"
-                variant="outline"
-                onClick={() => actions.replace(note, center())}
+                size="sm"
+                className="ml-auto"
+                disabled={actions.isPending}
+                onClick={() => actions.createAt(center())}
               >
-                {t("board.note.replace")}
+                {t("board.note.add")}
               </Button>
-            ))}
-          </div>
-        ) : null}
-        <div className="min-h-0 flex-1">
-          <BoardCanvas
-            initialViewport={viewport.initialViewport}
-            nodes={scene.nodes}
-            nodeTypes={BOARD_NODE_TYPES}
-            onNodeDragStop={onNodeDragStop}
-            onMoveStart={viewport.onMoveStart}
-            onMoveEnd={viewport.onMoveEnd}
-            onInstanceReady={onInstanceReady}
-          />
-        </div>
-        <BoardNoteDeleteDialog
-          open={deletingNote !== null}
-          title={t("board.note.deleteConfirmTitle")}
-          description={t("board.note.deleteConfirmDescription")}
-          cancelLabel={t("board.note.deleteCancel")}
-          confirmLabel={t("board.note.deleteConfirm")}
-          onCancel={() => {
-            setDeletingNote(null);
-            requestAnimationFrame(() => deleteTriggerRef.current?.focus());
-          }}
-          onConfirm={() => {
-            if (deletingNote) actions.deleteEntity(deletingNote);
-            setDeletingNote(null);
-            requestAnimationFrame(() => addNoteRef.current?.focus());
-          }}
-        />
-      </main>
-    </BoardNoteRuntimeContext.Provider>
+            </header>
+            {viewport.conflict || placementConflict ? (
+              <p role="alert" className="p-3 text-sm text-muted-foreground">
+                {t("board.conflict.serverWins")}
+              </p>
+            ) : null}
+            {noteConflict ? (
+              <p role="alert" className="p-3 text-sm text-destructive">
+                {t("board.note.conflictDraftPreserved")}
+              </p>
+            ) : null}
+            {scene.isError ? (
+              <p role="alert" className="p-3 text-sm text-destructive">
+                {t("board.scene.error")}
+              </p>
+            ) : null}
+            {unplacedNotes.length ? (
+              <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2">
+                <span className="text-sm text-muted-foreground">
+                  {t("board.note.unplaced")}
+                </span>
+                {unplacedNotes.map((note) => (
+                  <Button
+                    key={note.id}
+                    type="button"
+                    size="xs"
+                    variant="outline"
+                    onClick={() => actions.replace(note, center())}
+                  >
+                    {t("board.note.replace")}
+                  </Button>
+                ))}
+              </div>
+            ) : null}
+            <div className="flex min-h-0 flex-1">
+              {chatEnabled ? (
+                <aside className="w-80 shrink-0 overflow-auto border-r border-border bg-background">
+                  <ChatList
+                    projectId={projectId}
+                    createDefaults={createDefaults}
+                    actionRef={chatActionRef}
+                    onOpen={async (chat) => {
+                      const placement = await chatActions.open(
+                        chat,
+                        scene.placements,
+                        center(),
+                      );
+                      focusPlacement(placement.id);
+                    }}
+                  />
+                </aside>
+              ) : null}
+              <div className="min-w-0 flex-1">
+                <BoardCanvas
+                  initialViewport={viewport.initialViewport}
+                  nodes={scene.nodes}
+                  nodeTypes={BOARD_NODE_TYPES}
+                  onNodeDragStop={onNodeDragStop}
+                  onMoveStart={viewport.onMoveStart}
+                  onMoveEnd={viewport.onMoveEnd}
+                  onInstanceReady={onInstanceReady}
+                />
+              </div>
+            </div>
+            <BoardNoteDeleteDialog
+              open={deletingNote !== null}
+              title={t("board.note.deleteConfirmTitle")}
+              description={t("board.note.deleteConfirmDescription")}
+              cancelLabel={t("board.note.deleteCancel")}
+              confirmLabel={t("board.note.deleteConfirm")}
+              onCancel={() => {
+                setDeletingNote(null);
+                requestAnimationFrame(() => deleteTriggerRef.current?.focus());
+              }}
+              onConfirm={() => {
+                if (deletingNote) actions.deleteEntity(deletingNote);
+                setDeletingNote(null);
+                requestAnimationFrame(() => addNoteRef.current?.focus());
+              }}
+            />
+          </main>
+        </BoardChatRuntimeContext.Provider>
+      </BoardNoteRuntimeContext.Provider>
+    </CopilotKitBoardProvider>
   );
 }
 
@@ -305,6 +462,11 @@ export default function BoardPage() {
   }>();
   const workspaceEnabled = useUtilityStore(
     (state) => state.featureFlags.mvp_workspace === true,
+  );
+  const chatEnabled = useUtilityStore(
+    (state) =>
+      state.featureFlags.mvp_workspace === true &&
+      state.featureFlags.mvp_chat === true,
   );
   const validParams =
     UUID_PATTERN.test(projectId) && UUID_PATTERN.test(boardId);
@@ -334,6 +496,7 @@ export default function BoardPage() {
       board={query.data}
       projectId={projectId}
       refresh={reloadBoard}
+      chatEnabled={chatEnabled}
     />
   );
 }

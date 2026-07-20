@@ -1,4 +1,5 @@
 import type { BoardNote, Placement } from "@/types/board";
+import type { ChatThread } from "@/types/chat";
 import { placementsToNodes } from "../placement-to-node";
 
 const note: BoardNote = {
@@ -27,9 +28,23 @@ const placement: Placement = {
   updatedAt: "2026-01-01",
 };
 
+const chat: ChatThread = {
+  id: "chat-1",
+  projectId: "project-1",
+  createdById: "user-1",
+  title: "Incident copilot",
+  provider: "OpenAI",
+  modelName: "gpt-4o",
+  contextPolicy: "board",
+  archived: false,
+  revision: 0,
+  createdAt: "2026-01-01",
+  updatedAt: "2026-01-01",
+};
+
 describe("placementsToNodes", () => {
   it("uses placement identity and geometry while keeping target identity separate", () => {
-    expect(placementsToNodes([placement], [note])).toEqual([
+    expect(placementsToNodes([placement], [note], [])).toEqual([
       expect.objectContaining({
         id: "placement-1",
         type: "boardNote",
@@ -47,12 +62,29 @@ describe("placementsToNodes", () => {
     ]);
   });
 
+  it("creates a distinct chat node from placement geometry and durable chat identity", () => {
+    const chatPlacement = {
+      ...placement,
+      id: "placement-2",
+      targetKind: "chat" as const,
+      targetId: chat.id,
+    };
+    expect(placementsToNodes([chatPlacement], [], [chat])).toEqual([
+      expect.objectContaining({
+        id: "placement-2",
+        type: "chat",
+        position: { x: 12, y: 34 },
+        data: expect.objectContaining({ chat, placement: chatPlacement }),
+      }),
+    ]);
+  });
+
   it("quarantines missing targets and unsupported future kinds", () => {
     const future = {
       ...placement,
       id: "placement-2",
-      targetKind: "chat" as const,
+      targetKind: "automation" as const,
     };
-    expect(placementsToNodes([placement, future], [])).toEqual([]);
+    expect(placementsToNodes([placement, future], [], [])).toEqual([]);
   });
 });

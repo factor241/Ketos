@@ -13,6 +13,7 @@ from ketos.api.v1 import (
     board_notes_router,
     boards_router,
     chat_router,
+    chat_threads_router,
     endpoints_router,
     extensions_router,
     files_router,
@@ -62,6 +63,7 @@ def include_deployment_router(target_router: APIRouter) -> None:
 
 
 router_v1.include_router(chat_router)
+router_v1.include_router(chat_threads_router)
 router_v1.include_router(endpoints_router)
 router_v1.include_router(validate_router)
 router_v1.include_router(store_router)

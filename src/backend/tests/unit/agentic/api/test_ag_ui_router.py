@@ -20,6 +20,7 @@ from fastapi import HTTPException
 from ketos.agentic.services.ag_ui import durable_chat
 from ketos.agentic.services.ag_ui.auth import AG_UI_ACTOR_STATE_KEY
 from ketos.agentic.services.ag_ui.durable_chat import (
+    _server_component,
     canonical_run_request,
     create_durable_chat_before_dispatch,
     derive_idempotency_key,
@@ -33,6 +34,19 @@ from starlette.requests import Request
 ACTOR_ID = UUID("20000000-0000-0000-0000-000000000001")
 CHAT_ID = UUID("10000000-0000-0000-0000-000000000001")
 RUN_ROW_ID = UUID("30000000-0000-0000-0000-000000000001")
+
+
+@pytest.mark.asyncio
+async def test_s05_server_component_exposes_only_read_only_current_date_kfx_tool() -> None:
+    component = await _server_component(
+        actor_id=ACTOR_ID,
+        provider="OpenAI",
+        model_name="gpt-4o-mini",
+    )
+
+    assert [tool.name for tool in component.tools] == ["get_current_date"]
+    assert component.add_current_date_tool is False
+    assert component.add_calculator_tool is False
 
 
 def _input(
@@ -110,7 +124,7 @@ class _Agent:
         self.events = events
         self.disconnect = disconnect
         self.invocations = 0
-        self.graph = object()
+        self.graph = SimpleNamespace(checkpointer="durable-checkpointer")
         self.name = "template"
         self.config: dict[str, object] = {}
 
@@ -160,9 +174,9 @@ async def _configure_hook(
 
     class _Component:
         def create_agent_runnable(self):
-            return "owned-kfx-graph"
+            return SimpleNamespace(name="owned-kfx-graph", checkpointer=None)
 
-    def component(*, actor_id, provider, model_name):
+    async def component(*, actor_id, provider, model_name):
         configured.append((actor_id, provider, model_name))
         return _Component()
 
@@ -181,8 +195,13 @@ async def _configure_hook(
         )
     agent = _Agent(events, disconnect=disconnect)
     await create_durable_chat_before_dispatch()(_input(), _request(), agent)  # type: ignore[arg-type]
-    assert configured == [(ACTOR_ID, "OpenAI", "gpt-4o")]
-    assert agent.graph == "owned-kfx-graph"
+    if replayed:
+        assert configured == []
+        assert agent.graph.checkpointer == "durable-checkpointer"
+    else:
+        assert configured == [(ACTOR_ID, "OpenAI", "gpt-4o")]
+        assert agent.graph.name == "owned-kfx-graph"
+        assert agent.graph.checkpointer == "durable-checkpointer"
     return agent, committed, states
 
 

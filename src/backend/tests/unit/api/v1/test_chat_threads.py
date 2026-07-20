@@ -35,6 +35,18 @@ async def _folder(user_id, name: str) -> Folder:
         return folder
 
 
+def test_chat_thread_router_is_registered_once_in_v1_chain() -> None:
+    from ketos.api.router import router_v1
+
+    route_paths = [
+        candidate.path
+        for included_router in router_v1.routes
+        for candidate in included_router.effective_route_contexts()
+    ]
+    assert route_paths.count("/v1/projects/{project_id}/chats") == 2
+    assert route_paths.count("/v1/chats/{chat_id}") == 2
+
+
 def _create_payload(title: str = "API chat") -> dict[str, str]:
     return {
         "title": title,

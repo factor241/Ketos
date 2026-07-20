@@ -8,6 +8,7 @@ from ketos.api.v1.authz_teams import router as authz_teams_router
 from ketos.api.v1.board_notes import router as board_notes_router
 from ketos.api.v1.boards import router as boards_router
 from ketos.api.v1.chat import router as chat_router
+from ketos.api.v1.chat_threads import router as chat_threads_router
 from ketos.api.v1.endpoints import router as endpoints_router
 from ketos.api.v1.extensions import router as extensions_router
 from ketos.api.v1.files import router as files_router
@@ -45,6 +46,7 @@ __all__ = [
     "board_notes_router",
     "boards_router",
     "chat_router",
+    "chat_threads_router",
     "endpoints_router",
     "extensions_router",
     "files_router",

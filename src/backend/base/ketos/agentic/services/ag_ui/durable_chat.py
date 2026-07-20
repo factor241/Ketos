@@ -20,6 +20,7 @@ from ag_ui.core.events import (
 )
 from ag_ui.core.types import AssistantMessage, RunAgentInput, UserMessage
 from fastapi import HTTPException, Request, status
+from kfx.components.helpers import CurrentDateComponent
 from kfx.components.models_and_agents.agent import AgentComponent
 from sqlalchemy import update
 
@@ -42,6 +43,7 @@ if TYPE_CHECKING:
     from ag_ui_langgraph import LangGraphAgent
 
 _ALLOWED_STATE_KEYS = frozenset({"projectId", "boardId"})
+_MISSING_CHECKPOINTER_MESSAGE = "Stage-05 durable Chat requires the admitted LangGraph checkpointer"
 _FORBIDDEN_AUTHORITY_KEYS = frozenset(
     {
         "actor",
@@ -155,13 +157,14 @@ def _latest_user_text(input_data: RunAgentInput) -> str | None:
     return None
 
 
-def _server_component(*, actor_id: UUID, provider: str, model_name: str) -> AgentComponent:
-    component = AgentComponent()
-    component.user_id = actor_id
+async def _server_component(*, actor_id: UUID, provider: str, model_name: str) -> AgentComponent:
+    component = AgentComponent(_user_id=actor_id)
     component.model = [{"provider": provider, "name": model_name, "metadata": {}}]
     component.agent_llm = provider
     component.model_name = model_name
-    component.tools = []
+    current_date = CurrentDateComponent(_user_id=actor_id)
+    current_date.timezone = "UTC"
+    component.tools = await current_date.to_toolkit()
     component.add_current_date_tool = False
     component.add_calculator_tool = False
     return component
@@ -240,18 +243,6 @@ def create_durable_chat_before_dispatch():
         except ChatIdempotencyConflictError as exc:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=exc.code) from exc
 
-        original_run = request_agent.run
-        component = _server_component(actor_id=actor_id, provider=chat.provider, model_name=chat.model_name)
-        request_agent.graph = component.create_agent_runnable()
-        request_agent.name = "ketos-chat"
-        config = dict(request_agent.config or {})
-        configurable = dict(config.get("configurable") or {})
-        metadata = dict(config.get("metadata") or {})
-        configurable.update({"thread_id": str(chat_id), "ketos_actor_id": str(actor_id)})
-        metadata.update({"chat_id": str(chat_id), "run_id": input_data.run_id, "actor_id": str(actor_id)})
-        config.update({"configurable": configurable, "metadata": metadata})
-        request_agent.config = config
-
         if claim.replayed:
 
             async def replay(_input: RunAgentInput):
@@ -265,6 +256,23 @@ def create_durable_chat_before_dispatch():
 
             request_agent.run = replay  # type: ignore[method-assign]
             return
+
+        original_run = request_agent.run
+        durable_checkpointer = getattr(request_agent.graph, "checkpointer", None)
+        if durable_checkpointer is None:
+            raise RuntimeError(_MISSING_CHECKPOINTER_MESSAGE)
+        component = await _server_component(actor_id=actor_id, provider=chat.provider, model_name=chat.model_name)
+        owned_graph = component.create_agent_runnable()
+        owned_graph.checkpointer = durable_checkpointer
+        request_agent.graph = owned_graph
+        request_agent.name = "ketos-chat"
+        config = dict(request_agent.config or {})
+        configurable = dict(config.get("configurable") or {})
+        metadata = dict(config.get("metadata") or {})
+        configurable.update({"thread_id": str(chat_id), "ketos_actor_id": str(actor_id)})
+        metadata.update({"chat_id": str(chat_id), "run_id": input_data.run_id, "actor_id": str(actor_id)})
+        config.update({"configurable": configurable, "metadata": metadata})
+        request_agent.config = config
 
         await _set_run_state(claim.run.id, ChatRunStatus.RUNNING)
         user_text = None if input_data.resume else _latest_user_text(input_data)

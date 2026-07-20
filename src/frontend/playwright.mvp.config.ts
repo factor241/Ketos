@@ -61,7 +61,7 @@ export default defineConfig({
         KETOS_AUTO_LOGIN: "true",
         KETOS_DEACTIVATE_TRACING: "true",
         KETOS_FEATURE_MVP_WORKSPACE: "true",
-        KETOS_FEATURE_MVP_CHAT: "true",
+        KETOS_FEATURE_MVP_CHAT: process.env.KETOS_FEATURE_MVP_CHAT ?? "true",
         KETOS_LOG_LEVEL: "ERROR",
         LANGGRAPH_STRICT_MSGPACK: "true",
         DO_NOT_TRACK: "true",

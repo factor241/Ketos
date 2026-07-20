@@ -21,6 +21,7 @@ from ketos.services.board.service import create_board
 from ketos.services.board.target_validation import validate_placement_target
 from ketos.services.database.models.board.model import Board
 from ketos.services.database.models.board_note.model import BoardNote
+from ketos.services.database.models.chat_thread.model import ChatContextPolicy, ChatThread
 from ketos.services.database.models.folder.model import Folder
 from ketos.services.database.models.placement.model import (
     Placement,
@@ -86,6 +87,22 @@ async def _create_note(*, project_id, actor_id, content: str = "Note") -> BoardN
         return note
 
 
+async def _create_chat(*, project_id, actor_id, title: str = "Chat") -> ChatThread:
+    async with session_scope() as session:
+        chat = ChatThread(
+            project_id=project_id,
+            created_by_id=actor_id,
+            title=title,
+            provider="OpenAI",
+            model_name="gpt-4o",
+            context_policy=ChatContextPolicy.BOARD,
+        )
+        session.add(chat)
+        await session.commit()
+        await session.refresh(chat)
+        return chat
+
+
 async def _place(*, board_id, actor_id, note_id, geometry=None) -> Placement:
     async with session_scope() as session:
         return await create_placement(
@@ -128,6 +145,9 @@ async def test_target_validation_is_explicit_and_project_scoped(active_user) -> 
     note = await _create_note(project_id=owned_project.id, actor_id=foreign.id)
     other_note = await _create_note(project_id=other_owned_project.id, actor_id=active_user.id)
     foreign_note = await _create_note(project_id=foreign_project.id, actor_id=foreign.id)
+    chat = await _create_chat(project_id=owned_project.id, actor_id=foreign.id)
+    other_chat = await _create_chat(project_id=other_owned_project.id, actor_id=active_user.id)
+    foreign_chat = await _create_chat(project_id=foreign_project.id, actor_id=foreign.id)
     async with session_scope() as session:
         persisted_board = await require_owned_board(session, board_id=board.id, actor_id=active_user.id)
         assert (
@@ -139,12 +159,29 @@ async def test_target_validation_is_explicit_and_project_scoped(active_user) -> 
                 actor_id=active_user.id,
             )
         ).id == note.id
+        assert (
+            await validate_placement_target(
+                session,
+                board=persisted_board,
+                target_kind=PlacementTargetKind.CHAT,
+                target_id=chat.id,
+                actor_id=active_user.id,
+            )
+        ).id == chat.id
         with pytest.raises(TargetProjectMismatchError):
             await validate_placement_target(
                 session,
                 board=persisted_board,
                 target_kind=PlacementTargetKind.NOTE,
                 target_id=other_note.id,
+                actor_id=active_user.id,
+            )
+        with pytest.raises(TargetProjectMismatchError):
+            await validate_placement_target(
+                session,
+                board=persisted_board,
+                target_kind=PlacementTargetKind.CHAT,
+                target_id=other_chat.id,
                 actor_id=active_user.id,
             )
         for note_id in (foreign_note.id, uuid4()):
@@ -156,8 +193,16 @@ async def test_target_validation_is_explicit_and_project_scoped(active_user) -> 
                     target_id=note_id,
                     actor_id=active_user.id,
                 )
+        for chat_id in (foreign_chat.id, uuid4()):
+            with pytest.raises(BoardResourceNotFoundError):
+                await validate_placement_target(
+                    session,
+                    board=persisted_board,
+                    target_kind=PlacementTargetKind.CHAT,
+                    target_id=chat_id,
+                    actor_id=active_user.id,
+                )
         for kind in (
-            PlacementTargetKind.CHAT,
             PlacementTargetKind.AUTOMATION,
             PlacementTargetKind.JOB_RESULT,
         ):

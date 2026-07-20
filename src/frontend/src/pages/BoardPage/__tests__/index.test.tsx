@@ -1,25 +1,43 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import BoardCanvas from "@/components/core/board";
 import { useGetBoard } from "@/controllers/API/queries/boards";
+import { useGetModelProviders } from "@/controllers/API/queries/models/use-get-model-providers";
 import BoardPage from "..";
 import { useBoardScene } from "../hooks/use-board-scene";
 import { useBoardViewport } from "../hooks/use-board-viewport";
+import { useChatPlacementActions } from "../hooks/use-chat-placement-actions";
 import { useNotePlacementActions } from "../hooks/use-note-placement-actions";
 import { usePlacementPersistence } from "../hooks/use-placement-persistence";
 
 let mockFeatureEnabled = true;
+let mockChatEnabled = false;
 jest.mock("@/stores/utilityStore", () => ({
   useUtilityStore: (
-    selector: (state: { featureFlags: { mvp_workspace: boolean } }) => unknown,
-  ) => selector({ featureFlags: { mvp_workspace: mockFeatureEnabled } }),
+    selector: (state: {
+      featureFlags: { mvp_workspace: boolean; mvp_chat: boolean };
+    }) => unknown,
+  ) =>
+    selector({
+      featureFlags: {
+        mvp_workspace: mockFeatureEnabled,
+        mvp_chat: mockChatEnabled,
+      },
+    }),
 }));
 jest.mock("@/controllers/API/queries/boards", () => ({
   useGetBoard: jest.fn(),
 }));
 jest.mock("../hooks/use-board-viewport", () => ({
   useBoardViewport: jest.fn(),
+}));
+jest.mock("@/controllers/API/queries/models/use-get-model-providers", () => ({
+  useGetModelProviders: jest.fn(),
+}));
+jest.mock("../hooks/use-chat-placement-actions", () => ({
+  useChatPlacementActions: jest.fn(),
 }));
 jest.mock("../hooks/use-board-scene", () => ({ useBoardScene: jest.fn() }));
 jest.mock("../hooks/use-placement-persistence", () => ({
@@ -35,6 +53,15 @@ jest.mock("@/components/core/board", () => ({
 jest.mock("@/components/core/board/placements/BoardNotePlacement", () => ({
   BoardNotePlacement: () => <div data-testid="board-note-placement" />,
 }));
+jest.mock("@/components/core/board/placements/ChatPlacement", () => ({
+  ChatPlacement: () => <div data-testid="chat-placement" />,
+}));
+jest.mock("@/components/core/chats/ChatList", () => ({
+  ChatList: () => <div data-testid="chat-list" />,
+}));
+jest.mock("@/components/core/chats/CopilotKitBoardProvider", () => ({
+  CopilotKitBoardProvider: ({ children }: { children: ReactNode }) => children,
+}));
 jest.mock("@/components/core/board/BoardNoteDeleteDialog", () => ({
   BoardNoteDeleteDialog: () => null,
 }));
@@ -48,6 +75,8 @@ const BOARD_ID = "550e8400-e29b-41d4-a716-446655440000";
 const FOREIGN_PROJECT_ID = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
 const mockUseGetBoard = useGetBoard as jest.Mock;
 const mockUseBoardViewport = useBoardViewport as jest.Mock;
+const mockUseGetModelProviders = useGetModelProviders as jest.Mock;
+const mockUseChatPlacementActions = useChatPlacementActions as jest.Mock;
 const mockUseBoardScene = useBoardScene as jest.Mock;
 const mockUsePlacementPersistence = usePlacementPersistence as jest.Mock;
 const mockUseBoardNoteActions = useNotePlacementActions as jest.Mock;
@@ -80,6 +109,7 @@ function successfulQuery(projectId = PROJECT_ID) {
 beforeEach(() => {
   jest.clearAllMocks();
   mockFeatureEnabled = true;
+  mockChatEnabled = false;
   mockRefetch = jest.fn().mockResolvedValue({});
   successfulQuery();
   mockUseBoardViewport.mockReturnValue({
@@ -92,6 +122,7 @@ beforeEach(() => {
   mockUseBoardScene.mockReturnValue({
     nodes: [],
     notes: [],
+    chats: [],
     placements: [],
     isLoading: false,
     isError: false,
@@ -110,6 +141,12 @@ beforeEach(() => {
     save: jest.fn(),
     replace: jest.fn(),
     deleteEntity: jest.fn(),
+    isPending: false,
+  });
+  mockUseGetModelProviders.mockReturnValue({ data: [] });
+  mockUseChatPlacementActions.mockReturnValue({
+    open: jest.fn(),
+    archive: jest.fn(),
     isPending: false,
   });
 });
@@ -205,6 +242,23 @@ it("hides board UI when the feature flag is off", () => {
   );
   expect(screen.getByTestId("flows-page")).toBeInTheDocument();
   expect(screen.queryByTestId("board-canvas")).not.toBeInTheDocument();
+});
+
+it("enables the durable Chat surface only when both MVP flags are strict booleans", () => {
+  mockChatEnabled = true;
+  renderBoard();
+  expect(screen.getByTestId("chat-list")).toBeInTheDocument();
+  expect(mockUseBoardScene).toHaveBeenCalledWith({
+    projectId: PROJECT_ID,
+    boardId: BOARD_ID,
+    chatEnabled: true,
+  });
+  expect(mockUseGetModelProviders).toHaveBeenCalledWith(
+    {},
+    {
+      enabled: true,
+    },
+  );
 });
 
 it("renders loading without hydrating the canvas", () => {

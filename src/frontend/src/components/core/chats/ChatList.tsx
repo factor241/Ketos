@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type Ref, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
@@ -32,9 +32,10 @@ export interface ChatListProps {
     provider: string;
     modelName: string;
     contextPolicy: ChatContextPolicy;
-  };
-  onOpen: (chat: ChatThread) => void;
+  } | null;
+  onOpen: (chat: ChatThread) => void | Promise<void>;
   onCreate?: (chat: ChatThread) => void;
+  actionRef?: Ref<HTMLButtonElement>;
 }
 
 export function ChatList({
@@ -42,6 +43,7 @@ export function ChatList({
   createDefaults,
   onOpen,
   onCreate,
+  actionRef,
 }: ChatListProps) {
   const { t } = useTranslation();
   const [search, setSearch] = useState("");
@@ -56,7 +58,7 @@ export function ChatList({
   const patch = usePatchChat();
 
   const createChat = async () => {
-    if (creating.current || create.isPending) return;
+    if (creating.current || create.isPending || !createDefaults) return;
     creating.current = true;
     try {
       const chat = await create.mutateAsync({
@@ -64,16 +66,19 @@ export function ChatList({
         ...createDefaults,
       });
       onCreate?.(chat);
-      onOpen(chat);
+      await onOpen(chat);
     } finally {
       creating.current = false;
     }
   };
-  const openChat = (chat: ChatThread) => {
+  const openChat = async (chat: ChatThread) => {
     if (opening.current.has(chat.id)) return;
     opening.current.add(chat.id);
-    onOpen(chat);
-    queueMicrotask(() => opening.current.delete(chat.id));
+    try {
+      await onOpen(chat);
+    } finally {
+      opening.current.delete(chat.id);
+    }
   };
   const renameChat = (chat: ChatThread) => {
     const title = window
@@ -104,8 +109,9 @@ export function ChatList({
           />
         </label>
         <Button
+          ref={actionRef}
           type="button"
-          disabled={create.isPending}
+          disabled={create.isPending || !createDefaults}
           onClick={() => void createChat()}
         >
           {t("chat.actions.create")}
@@ -146,7 +152,7 @@ export function ChatList({
                 type="button"
                 variant="ghost"
                 className="min-w-0 flex-1 justify-start truncate"
-                onClick={() => openChat(chat)}
+                onClick={() => void openChat(chat)}
               >
                 {chat.title}
               </Button>

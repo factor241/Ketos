@@ -79,6 +79,7 @@ from ketos.services.deps import (
 )
 from ketos.services.event_manager import create_webhook_event_manager, webhook_event_manager
 from ketos.services.telemetry.schema import RunPayload
+from ketos.services.workflow_execution.service import WorkflowExecutionService
 from ketos.utils.compression import compress_response
 from ketos.utils.version import get_version_info
 
@@ -265,17 +266,16 @@ async def simple_run_flow(
         # See: https://github.com/ketos-ai/ketos/issues/11781
         if user_id is not None:
             graph_data = await apply_global_variable_defaults(graph_data, user_id)
-        graph = Graph.from_payload(
+        preview_graph = Graph.from_payload(
             graph_data, flow_id=flow_id_str, user_id=str(user_id), flow_name=flow.name, context=context
         )
         # Forward the caller-supplied identifier to tracing providers without
         # affecting authn/authz. The API-key owner remains the effective user
         # for permissions, global variables, and job ownership.
         if input_request.user_id:
-            graph.tracing_user_id = input_request.user_id
+            preview_graph.tracing_user_id = input_request.user_id
         run_id_uuid = uuid4() if run_id is None else UUID(run_id)
         run_id = str(run_id_uuid)
-        graph.set_run_id(run_id)
         inputs = None
         if input_request.input_value is not None:
             inputs = [
@@ -290,7 +290,7 @@ async def simple_run_flow(
         else:
             outputs = [
                 vertex.id
-                for vertex in graph.vertices
+                for vertex in preview_graph.vertices
                 if input_request.output_type == "debug"
                 or (
                     vertex.is_output
@@ -307,6 +307,21 @@ async def simple_run_flow(
             )
 
         try:
+            flow_snapshot = flow.model_copy(deep=True, update={"data": graph_data})
+            request_variables = context.get("request_variables") if isinstance(context, dict) else None
+            execution_service = WorkflowExecutionService(runner=run_graph_internal)
+            prepared = await execution_service.prepare(
+                flow=flow_snapshot,
+                actor_id=user_id,
+                job_id=run_id_uuid,
+                mode="v1_session",
+                inputs=inputs,
+                outputs=outputs,
+                stream=stream,
+                session_id=input_request.session_id,
+                request_variables=request_variables,
+                tracing_user_id=input_request.user_id,
+            )
             _job_svc = get_job_service()
             await _job_svc.create_job(
                 job_id=run_id_uuid,
@@ -316,13 +331,8 @@ async def simple_run_flow(
             )
             task_result, session_id = await _job_svc.execute_with_status(
                 run_id_uuid,
-                run_graph_internal,
-                graph=graph,
-                flow_id=flow_id_str,
-                session_id=input_request.session_id,
-                inputs=inputs,
-                outputs=outputs,
-                stream=stream,
+                execution_service.execute_prepared,
+                prepared,
                 event_manager=event_manager,
             )
         except Exception as exc:
@@ -340,12 +350,11 @@ async def simple_run_flow(
 
         # Fire memory-base auto-capture hook — non-blocking background effect.
         try:
-            _run_id_uuid = UUID(graph.run_id) if graph.run_id else None  # type-cast only
             await get_task_service().fire_and_forget_task(
                 get_memory_base_service().on_flow_output,
                 flow_id=flow.id,
                 session_id=session_id,
-                job_id=_run_id_uuid,
+                job_id=run_id_uuid,
             )
         except (RuntimeError, ValueError, OSError):
             await logger.awarning("Memory base hook scheduling failed for flow %s", flow.id, exc_info=True)
@@ -661,9 +670,7 @@ async def _run_flow_internal(
 
     if flow is None:
         flow_id = str(
-            http_request.path_params.get("flow_id_or_name")
-            or http_request.path_params.get("flow_id")
-            or "unknown"
+            http_request.path_params.get("flow_id_or_name") or http_request.path_params.get("flow_id") or "unknown"
         )
         raise coded_http_error(
             ApiErrorCode.FLOW_NOT_FOUND,

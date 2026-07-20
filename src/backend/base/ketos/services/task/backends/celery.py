@@ -24,8 +24,13 @@ class CeleryBackend(TaskBackend):
         if not hasattr(task_func, "delay"):
             msg = f"Task function {task_func} does not have a delay method"
             raise ValueError(msg)
+        explicit_task_id = kwargs.pop("_ketos_task_id", None)
         try:
-            task: Task = task_func.delay(*args, **kwargs)
+            task: Task = (
+                task_func.apply_async(args=args, kwargs=kwargs, task_id=explicit_task_id)
+                if explicit_task_id is not None
+                else task_func.delay(*args, **kwargs)
+            )
         except Exception as e:
             # Handle common celery/broker errors
             # OperationalError usually means the broker is down or unreachable

@@ -34,7 +34,13 @@ class TaskService(Service):
             return CeleryBackend()
         return AnyIOBackend()
 
-    async def fire_and_forget_task(self, task_func: Callable[..., Any], *args: Any, **kwargs: Any) -> str:
+    async def fire_and_forget_task(
+        self,
+        task_func: Callable[..., Any],
+        *args: Any,
+        task_id: UUID | str | None = None,
+        **kwargs: Any,
+    ) -> str:
         """Launch a task in the background and forget about it.
 
         Note: This is required since the local AnyIOBackend does not support background tasks
@@ -47,17 +53,26 @@ class TaskService(Service):
         Args:
             task_func: The task function to launch.
             *args: Positional arguments for the task function.
+            task_id: Optional stable identifier supplied by durable callers.
             **kwargs: Keyword arguments for the task function.
 
         Returns:
             str: A task_id that can be used to track or cancel the task via JobQueueService.
         """
         if self.use_celery:
+            if task_id is not None:
+                kwargs["_ketos_task_id"] = str(task_id)
             task_id, _ = self.backend.launch_task(task_func, *args, **kwargs)
             return task_id
 
         graph = kwargs.get("graph")
-        task_id = graph.run_id if graph and hasattr(graph, "run_id") else str(uuid4())
+        task_id = (
+            str(task_id)
+            if task_id is not None
+            else graph.run_id
+            if graph and hasattr(graph, "run_id")
+            else str(uuid4())
+        )
         # Create a job queue for the task and track the job execution using the
         # JobQueueService
         job_queue_service = get_queue_service()

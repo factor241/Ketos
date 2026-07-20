@@ -116,21 +116,19 @@ def test_download_multiple_file_does_not_unconditionally_prescope(flows_routes):
     )
 
 
-def test_read_project_paginated_branch_filters_via_filter_visible_resources(projects_routes):
-    """The paginated branch of ``read_project`` must apply per-flow authz too.
+def test_read_project_keeps_strict_owner_scope_in_both_branches(projects_routes):
+    """Stage 02 keeps project and flow reads strictly owner-scoped.
 
-    A project READ grant must not bypass finer-grained per-flow policy just
-    because the caller asked for pagination. Both the non-paginated and
-    paginated branches must call ``filter_visible_resources`` when the
-    project is reached via a share grant (``treat_as_shared``); otherwise
-    shared-project reads behave differently depending on page/size.
+    The project lookup, paginated flow query, and non-paginated flow list must
+    all require the current user. ``read_project`` must not reintroduce the
+    older share-aware filtering path, which widened foreign project reads.
     """
     func = projects_routes["read_project"]
-    fvr_calls = _calls(func, "filter_visible_resources")
-    assert len(fvr_calls) >= 2, (
-        "read_project must call filter_visible_resources on both the paginated "
-        "and non-paginated shared-project branches"
-    )
+    src = ast.unparse(func)
+    assert "Folder.user_id == current_user.id" in src
+    assert "Flow.user_id == current_user.id" in src
+    assert "flow.user_id == current_user.id" in src
+    assert not _calls(func, "filter_visible_resources")
 
 
 def test_load_flow_calls_ensure_flow_permission(helpers_funcs):

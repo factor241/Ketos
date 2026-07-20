@@ -297,8 +297,10 @@ def test_verify_checks_checksum_integrity_and_revision(tmp_path: Path) -> None:
 def test_default_vendored_revision_inventory_is_complete() -> None:
     revisions = database_module.load_vendored_alembic_revisions()
 
-    assert len(revisions) == 80
+    assert len(revisions) == 83
     assert "9a6e34f1c2d8" in revisions
+    assert "c04d5e6f7a8b" in revisions
+    assert "505c0a700001" in revisions
     assert all(revision and not revision.isspace() for revision in revisions)
 
 

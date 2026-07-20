@@ -1,21 +1,24 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 
 import type { BoardNote, Placement } from "@/types/board";
-import { BoardNotePlacement } from "../BoardNotePlacement";
+import {
+  BoardNotePlacement,
+  normalizeBoardNoteColor,
+} from "../BoardNotePlacement";
 
 jest.mock("../../BoardCardFrame", () => ({
   BoardCardFrame: ({
     children,
-    onClose,
-    onDeleteEntity,
+    onClosePlacement,
+    onRequestDeleteEntity,
   }: {
     children: React.ReactNode;
-    onClose: () => void;
-    onDeleteEntity: () => void;
+    onClosePlacement: () => void;
+    onRequestDeleteEntity: () => void;
   }) => (
     <div>
-      <button onClick={onClose}>close placement</button>
-      <button onClick={onDeleteEntity}>delete note</button>
+      <button onClick={onClosePlacement}>close placement</button>
+      <button onClick={onRequestDeleteEntity}>delete note</button>
       {children}
     </div>
   ),
@@ -78,5 +81,23 @@ describe("BoardNotePlacement", () => {
       target: { value: "changed" },
     });
     expect(onDraftChange).toHaveBeenCalledWith("changed");
+    fireEvent.click(screen.getByRole("button", { name: /note preview/i }));
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.getByText("draft")).toBeInTheDocument();
+  });
+
+  it("maps only supported tokens or anchored hex into presentation", () => {
+    expect(normalizeBoardNoteColor("green")).toEqual({
+      className: "bg-note-lime",
+      backgroundColor: undefined,
+    });
+    expect(normalizeBoardNoteColor("#12aBcD")).toEqual({
+      className: undefined,
+      backgroundColor: "#12aBcD",
+    });
+    expect(normalizeBoardNoteColor("red;position:fixed")).toEqual({
+      className: "bg-note-neutral",
+      backgroundColor: undefined,
+    });
   });
 });

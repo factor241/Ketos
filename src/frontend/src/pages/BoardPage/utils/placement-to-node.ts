@@ -5,7 +5,7 @@ import type { BoardNote, BoardNoteNodeData, Placement } from "@/types/board";
 export type BoardSceneNodeData = BoardNoteNodeData & {
   placement: Placement;
 } & Record<string, unknown>;
-export type BoardSceneNode = Node<BoardSceneNodeData, "board-note">;
+export type BoardSceneNode = Node<BoardSceneNodeData, "boardNote">;
 
 export function placementToNode(
   placement: Placement,
@@ -17,11 +17,12 @@ export function placementToNode(
 
   return {
     id: placement.id,
-    type: "board-note",
+    type: "boardNote",
     position: { x: placement.x, y: placement.y },
     style: { width: placement.width, height: placement.height },
     zIndex: placement.zIndex,
     draggable: placement.displayState === "normal",
+    dragHandle: ".board-card-drag-handle",
     data: {
       placementId: placement.id,
       targetId: placement.targetId,

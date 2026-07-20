@@ -28,8 +28,8 @@ const makeProps = (
   height: 240,
   labels,
   onDisplayStateChange: jest.fn(),
-  onClose: jest.fn(),
-  onDeleteEntity: jest.fn(),
+  onClosePlacement: jest.fn(),
+  onRequestDeleteEntity: jest.fn(),
   onResizeEnd: jest.fn(),
   onKeyboardMove: jest.fn(),
   onKeyboardResize: jest.fn(),
@@ -40,10 +40,10 @@ it("keeps close and entity delete distinct", async () => {
   const p = makeProps();
   render(<BoardCardFrame {...p} />);
   await user.click(screen.getByRole("button", { name: labels.close }));
-  expect(p.onClose).toHaveBeenCalled();
-  expect(p.onDeleteEntity).not.toHaveBeenCalled();
+  expect(p.onClosePlacement).toHaveBeenCalled();
+  expect(p.onRequestDeleteEntity).not.toHaveBeenCalled();
   await user.click(screen.getByRole("button", { name: labels.deleteEntity }));
-  expect(p.onDeleteEntity).toHaveBeenCalled();
+  expect(p.onRequestDeleteEntity).toHaveBeenCalled();
 });
 it("persists only bounded resize end", () => {
   const p = makeProps();
@@ -61,8 +61,15 @@ it("changes display without geometry and handles keyboard", () => {
   const p = makeProps();
   render(<BoardCardFrame {...p} />);
   const frame = screen.getByRole("region");
-  fireEvent.keyDown(frame, { key: "ArrowRight", shiftKey: true });
-  expect(p.onKeyboardMove).toHaveBeenCalledWith({ x: 40, y: 0 });
-  fireEvent.keyDown(frame, { key: "ArrowDown", altKey: true });
+  fireEvent.keyDown(frame, { key: "ArrowRight", altKey: true, shiftKey: true });
+  expect(p.onKeyboardMove).toHaveBeenCalledWith({ x: 1, y: 0 });
+  fireEvent.keyDown(frame, { key: "ArrowDown", altKey: true, ctrlKey: true });
   expect(p.onKeyboardResize).toHaveBeenCalledWith({ width: 0, height: 10 });
+});
+
+it("returns focus to maximize after restoring from the overlay", () => {
+  const p = makeProps({ displayState: "maximized" });
+  const { rerender } = render(<BoardCardFrame {...p} />);
+  rerender(<BoardCardFrame {...p} displayState="normal" />);
+  expect(screen.getByRole("button", { name: labels.maximize })).toHaveFocus();
 });

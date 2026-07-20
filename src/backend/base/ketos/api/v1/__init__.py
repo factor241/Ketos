@@ -5,6 +5,7 @@ from ketos.api.v1.authz_role_assignments import router as authz_role_assignments
 from ketos.api.v1.authz_roles import router as authz_roles_router
 from ketos.api.v1.authz_shares import router as authz_shares_router
 from ketos.api.v1.authz_teams import router as authz_teams_router
+from ketos.api.v1.board_notes import router as board_notes_router
 from ketos.api.v1.boards import router as boards_router
 from ketos.api.v1.chat import router as chat_router
 from ketos.api.v1.endpoints import router as endpoints_router
@@ -23,6 +24,7 @@ from ketos.api.v1.model_options import router as model_options_router
 from ketos.api.v1.models import router as models_router
 from ketos.api.v1.monitor import router as monitor_router
 from ketos.api.v1.openai_responses import router as openai_responses_router
+from ketos.api.v1.placements import router as placements_router
 from ketos.api.v1.projects import router as projects_router
 from ketos.api.v1.starter_projects import router as starter_projects_router
 from ketos.api.v1.store import router as store_router
@@ -40,6 +42,7 @@ __all__ = [
     "authz_roles_router",
     "authz_shares_router",
     "authz_teams_router",
+    "board_notes_router",
     "boards_router",
     "chat_router",
     "endpoints_router",
@@ -58,6 +61,7 @@ __all__ = [
     "models_router",
     "monitor_router",
     "openai_responses_router",
+    "placements_router",
     "projects_router",
     "starter_projects_router",
     "store_router",

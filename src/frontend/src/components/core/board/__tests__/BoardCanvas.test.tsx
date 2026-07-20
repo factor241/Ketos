@@ -43,6 +43,10 @@ jest.mock("@xyflow/react", () => {
     BackgroundVariant: { Dots: "dots" },
     ReactFlowProvider: ({ children }: { children?: ReactNode }) =>
       React.createElement("div", { "data-testid": "provider" }, children),
+    useNodesState: (initial: unknown[]) => {
+      const [nodes, setNodes] = React.useState(initial);
+      return [nodes, setNodes, jest.fn()];
+    },
     ReactFlow: (props: Record<string, unknown> & { children?: ReactNode }) => {
       flowProps = props;
       React.useEffect(() => {
@@ -92,6 +96,8 @@ function renderCanvas(onMoveEnd = jest.fn(), onMoveStart = jest.fn()) {
     ...render(
       <BoardCanvas
         initialViewport={initialViewport}
+        nodes={[]}
+        nodeTypes={{}}
         onMoveStart={onMoveStart}
         onMoveEnd={onMoveEnd}
       />,
@@ -110,7 +116,7 @@ it("exports one BoardCanvas implementation", () => {
   expect(BoardCanvas).toBe(NamedBoardCanvas);
 });
 
-it("renders the exact empty non-interactive React Flow contract", () => {
+it("renders the exact node-enabled, edge-free React Flow contract", () => {
   const { onMoveEnd, onMoveStart } = renderCanvas();
   expect(flowProps).toEqual(
     expect.objectContaining({
@@ -120,9 +126,10 @@ it("renders the exact empty non-interactive React Flow contract", () => {
       defaultViewport: initialViewport,
       minZoom: 0.5,
       maxZoom: 2,
-      nodesDraggable: false,
+      nodesDraggable: true,
       nodesConnectable: false,
-      elementsSelectable: false,
+      elementsSelectable: true,
+      nodeTypes: {},
       onMoveStart,
       onMoveEnd,
     }),

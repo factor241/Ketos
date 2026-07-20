@@ -1,4 +1,5 @@
 import { renderHook } from "@testing-library/react";
+import { AxiosError } from "axios";
 
 import {
   useDeletePlacement,
@@ -27,6 +28,8 @@ const placement = {
 } satisfies Placement;
 
 describe("usePlacementPersistence", () => {
+  afterEach(() => jest.useRealTimers());
+
   it("persists geometry/display with CAS and closes only the placement", () => {
     const patch = jest.fn();
     const remove = jest.fn();
@@ -60,5 +63,56 @@ describe("usePlacementPersistence", () => {
       placementId: "placement-1",
       expectedRevision: 4,
     });
+  });
+
+  it("debounces keyboard auto-repeat into one final geometry PATCH", () => {
+    jest.useFakeTimers();
+    const patch = jest.fn();
+    mockPatch.mockReturnValue({ mutate: patch, isPending: false } as never);
+    mockDelete.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+    } as never);
+    const { result } = renderHook(() =>
+      usePlacementPersistence({ boardId: "board-1" }),
+    );
+
+    result.current.queueMove(placement, { x: 11, y: 12 });
+    result.current.queueMove(placement, { x: 21, y: 22 });
+    result.current.queueMove(placement, { x: 31, y: 32 });
+    expect(patch).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(150);
+    expect(patch).toHaveBeenCalledTimes(1);
+    expect(patch).toHaveBeenCalledWith({
+      placementId: placement.id,
+      expectedRevision: placement.revision,
+      x: 31,
+      y: 32,
+    });
+  });
+
+  it("announces a stale geometry conflict after server-truth refetch", () => {
+    mockPatch.mockReturnValue({ mutate: jest.fn(), isPending: false } as never);
+    mockDelete.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+    } as never);
+    const onConflict = jest.fn();
+    renderHook(() =>
+      usePlacementPersistence({ boardId: "board-1", onConflict }),
+    );
+    const options = mockPatch.mock.calls.at(-1)?.[1] as {
+      onError: (error: unknown) => void;
+    };
+    options.onError(
+      new AxiosError("Conflict", "ERR_BAD_REQUEST", undefined, undefined, {
+        data: {},
+        status: 409,
+        statusText: "Conflict",
+        headers: {},
+        config: { headers: {} },
+      }),
+    );
+    expect(onConflict).toHaveBeenCalledTimes(1);
   });
 });

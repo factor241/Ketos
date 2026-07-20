@@ -1,14 +1,9 @@
 import { NodeResizer } from "@xyflow/react";
-import {
-  type KeyboardEvent,
-  type ReactNode,
-  useEffect,
-  useId,
-  useRef,
-} from "react";
+import { Maximize2, Minimize2, PanelTopOpen, Trash2, X } from "lucide-react";
+import { type KeyboardEvent, useId, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
-import type { PlacementDisplayState } from "@/types/board";
+import type { BoardCardFrameProps } from "./types";
 
 const LIMITS = {
   minWidth: 240,
@@ -19,29 +14,6 @@ const LIMITS = {
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.min(Math.max(value, minimum), maximum);
 
-export interface BoardCardFrameProps {
-  title: string;
-  children: ReactNode;
-  selected: boolean;
-  displayState: PlacementDisplayState;
-  width: number;
-  height: number;
-  labels: {
-    collapse: string;
-    expand: string;
-    maximize: string;
-    restore: string;
-    close: string;
-    deleteEntity: string;
-  };
-  onDisplayStateChange: (state: PlacementDisplayState) => void;
-  onClose: () => void;
-  onDeleteEntity: () => void;
-  onResizeEnd: (size: { width: number; height: number }) => void;
-  onKeyboardMove?: (delta: { x: number; y: number }) => void;
-  onKeyboardResize?: (delta: { width: number; height: number }) => void;
-}
-
 export function BoardCardFrame(props: BoardCardFrameProps) {
   const titleId = useId();
   const maximizeRef = useRef<HTMLButtonElement>(null);
@@ -49,12 +21,23 @@ export function BoardCardFrame(props: BoardCardFrameProps) {
   const normal = props.displayState === "normal";
   const collapsed = props.displayState === "collapsed";
   const maximized = props.displayState === "maximized";
-  useEffect(() => {
+  useLayoutEffect(() => {
     const restore = previousState.current === "maximized" && normal;
     previousState.current = props.displayState;
     if (!restore) return;
-    const frame = requestAnimationFrame(() => maximizeRef.current?.focus());
-    return () => cancelAnimationFrame(frame);
+    const focusMaximize = () =>
+      maximizeRef.current?.focus({ preventScroll: true });
+    focusMaximize();
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(focusMaximize);
+    });
+    const fallback = window.setTimeout(focusMaximize, 100);
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+      window.clearTimeout(fallback);
+    };
   }, [normal, props.displayState]);
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key === "Escape" && maximized) {
@@ -65,13 +48,14 @@ export function BoardCardFrame(props: BoardCardFrameProps) {
     if (
       event.target !== event.currentTarget ||
       !normal ||
+      !event.altKey ||
       !event.key.startsWith("Arrow")
     )
       return;
-    const step = event.shiftKey ? 40 : 10;
+    const step = event.shiftKey ? 1 : 10;
     event.preventDefault();
     event.stopPropagation();
-    if (event.altKey && props.onKeyboardResize) {
+    if (event.ctrlKey && props.onKeyboardResize) {
       const width =
         event.key === "ArrowLeft"
           ? -step
@@ -110,6 +94,7 @@ export function BoardCardFrame(props: BoardCardFrameProps) {
       aria-labelledby={titleId}
       aria-expanded={!collapsed}
       data-display-state={props.displayState}
+      data-placement-revision={props.placementRevision}
       tabIndex={0}
       onKeyDown={onKeyDown}
       className={
@@ -152,19 +137,23 @@ export function BoardCardFrame(props: BoardCardFrameProps) {
         <div className="nodrag flex shrink-0 flex-wrap items-center justify-end gap-1">
           <Button
             type="button"
-            size="sm"
+            size="iconMd"
             variant="ghost"
             aria-label={collapsed ? props.labels.expand : props.labels.collapse}
             onClick={() =>
               props.onDisplayStateChange(collapsed ? "normal" : "collapsed")
             }
           >
-            {collapsed ? props.labels.expand : props.labels.collapse}
+            {collapsed ? (
+              <PanelTopOpen aria-hidden="true" />
+            ) : (
+              <Minimize2 aria-hidden="true" />
+            )}
           </Button>
           <Button
             ref={maximizeRef}
             type="button"
-            size="sm"
+            size="iconMd"
             variant="ghost"
             aria-label={
               maximized ? props.labels.restore : props.labels.maximize
@@ -173,25 +162,29 @@ export function BoardCardFrame(props: BoardCardFrameProps) {
               props.onDisplayStateChange(maximized ? "normal" : "maximized")
             }
           >
-            {maximized ? props.labels.restore : props.labels.maximize}
+            {maximized ? (
+              <Minimize2 aria-hidden="true" />
+            ) : (
+              <Maximize2 aria-hidden="true" />
+            )}
           </Button>
           <Button
             type="button"
-            size="sm"
+            size="iconMd"
             variant="ghost"
             aria-label={props.labels.close}
-            onClick={props.onClose}
+            onClick={props.onClosePlacement}
           >
-            {props.labels.close}
+            <X aria-hidden="true" />
           </Button>
           <Button
             type="button"
-            size="sm"
+            size="iconMd"
             variant="outline"
             aria-label={props.labels.deleteEntity}
-            onClick={props.onDeleteEntity}
+            onClick={props.onRequestDeleteEntity}
           >
-            {props.labels.deleteEntity}
+            <Trash2 aria-hidden="true" />
           </Button>
         </div>
       </header>

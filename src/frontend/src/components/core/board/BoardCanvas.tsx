@@ -4,19 +4,24 @@ import {
   ControlButton,
   Controls,
   MiniMap,
+  type NodeTypes,
+  type OnNodeDrag,
   ReactFlow,
   type ReactFlowInstance,
   ReactFlowProvider,
+  useNodesState,
   type Viewport,
 } from "@xyflow/react";
 import {
   type KeyboardEvent as ReactKeyboardEvent,
   useCallback,
+  useEffect,
   useRef,
 } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
+import type { BoardSceneNode } from "@/pages/BoardPage/utils/placement-to-node";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2;
@@ -32,13 +37,22 @@ type MoveHandler = (
 
 export interface BoardCanvasProps {
   initialViewport: Viewport;
+  nodes: BoardSceneNode[];
+  nodeTypes: NodeTypes;
+  onNodeDragStop?: OnNodeDrag<BoardSceneNode>;
   onMoveStart?: MoveHandler;
   onMoveEnd: MoveHandler;
-  onInstanceReady?: (instance: ReactFlowInstance) => void;
+  onInstanceReady?: (
+    instance: ReactFlowInstance,
+    canvasElement: HTMLDivElement,
+  ) => void;
 }
 
 export function BoardCanvas({
   initialViewport,
+  nodes: sourceNodes,
+  nodeTypes,
+  onNodeDragStop,
   onMoveStart,
   onMoveEnd,
   onInstanceReady,
@@ -47,12 +61,17 @@ export function BoardCanvas({
   const entryButtonRef = useRef<HTMLButtonElement>(null);
   const canvasRegionRef = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<ReactFlowInstance | null>(null);
+  const [nodes, setNodes, onNodesChange] = useNodesState(sourceNodes);
+
+  useEffect(() => setNodes(sourceNodes), [setNodes, sourceNodes]);
 
   const focusCanvas = useCallback(() => canvasRegionRef.current?.focus(), []);
   const handleInstanceReady = useCallback(
     (instance: ReactFlowInstance) => {
       instanceRef.current = instance;
-      onInstanceReady?.(instance);
+      if (canvasRegionRef.current) {
+        onInstanceReady?.(instance, canvasRegionRef.current);
+      }
     },
     [onInstanceReady],
   );
@@ -146,16 +165,21 @@ export function BoardCanvas({
           onKeyDown={handleCanvasKeyDown}
         >
           <ReactFlow
-            nodes={[]}
+            nodes={nodes}
             edges={[]}
+            nodeTypes={nodeTypes}
             fitView={false}
             defaultViewport={initialViewport}
             minZoom={MIN_ZOOM}
             maxZoom={MAX_ZOOM}
-            nodesDraggable={false}
+            nodesDraggable
             nodesConnectable={false}
-            elementsSelectable={false}
-            onInit={handleInstanceReady}
+            elementsSelectable
+            onNodesChange={onNodesChange}
+            onNodeDragStop={onNodeDragStop}
+            onInit={(instance) =>
+              handleInstanceReady(instance as unknown as ReactFlowInstance)
+            }
             onMoveStart={onMoveStart}
             onMoveEnd={onMoveEnd}
           >

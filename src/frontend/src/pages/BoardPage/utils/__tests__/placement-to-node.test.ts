@@ -32,7 +32,8 @@ describe("placementsToNodes", () => {
     expect(placementsToNodes([placement], [note])).toEqual([
       expect.objectContaining({
         id: "placement-1",
-        type: "board-note",
+        type: "boardNote",
+        dragHandle: ".board-card-drag-handle",
         position: { x: 12, y: 34 },
         style: { width: 320, height: 240 },
         zIndex: 7,

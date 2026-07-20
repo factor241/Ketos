@@ -20,6 +20,8 @@ export function useBoardScene({
 
   return {
     nodes,
+    notes: notes.data ?? [],
+    placements: placements.data ?? [],
     edges: [],
     isLoading: placements.isLoading || notes.isLoading,
     isError: placements.isError || notes.isError,

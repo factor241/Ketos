@@ -17,6 +17,9 @@ describe("BoardNoteDeleteDialog", () => {
         onConfirm={onConfirm}
       />,
     );
+    expect(
+      screen.getByRole("dialog", { name: "Delete note?" }),
+    ).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /cancel/i })).toHaveFocus(),
     );

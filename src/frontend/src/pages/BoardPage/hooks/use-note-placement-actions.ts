@@ -3,9 +3,10 @@ import {
   usePatchBoardNote,
   usePostBoardNote,
 } from "@/controllers/API/queries/board-notes";
+import { usePostPlacement } from "@/controllers/API/queries/placements";
 import type { BoardNote, BoardNoteConflict } from "@/types/board";
 
-export function useBoardNoteActions({
+export function useNotePlacementActions({
   projectId,
   boardId,
   onConflict,
@@ -17,6 +18,7 @@ export function useBoardNoteActions({
   const createMutation = usePostBoardNote({ projectId, boardId });
   const saveMutation = usePatchBoardNote({ projectId, onConflict });
   const deleteMutation = useDeleteBoardNote({ projectId });
+  const placementMutation = usePostPlacement({ boardId });
 
   return {
     createAt: (center: { x: number; y: number }) =>
@@ -37,6 +39,15 @@ export function useBoardNoteActions({
         content: draft,
         unsavedDraft: draft,
       }),
+    replace: (note: BoardNote, center: { x: number; y: number }) =>
+      placementMutation.mutate({
+        targetKind: "note",
+        targetId: note.id,
+        x: center.x - 160,
+        y: center.y - 120,
+        width: 320,
+        height: 240,
+      }),
     deleteEntity: (note: BoardNote) =>
       deleteMutation.mutate({
         noteId: note.id,
@@ -45,6 +56,7 @@ export function useBoardNoteActions({
     isPending:
       createMutation.isPending ||
       saveMutation.isPending ||
-      deleteMutation.isPending,
+      deleteMutation.isPending ||
+      placementMutation.isPending,
   };
 }

@@ -103,6 +103,7 @@ export const SanitizedMarkdown = ({
       )}
       {!showWarning && (
         <Markdown
+          skipHtml={profile === "board-note"}
           remarkPlugins={[remarkGfm]}
           rehypePlugins={
             profile === "board-note"

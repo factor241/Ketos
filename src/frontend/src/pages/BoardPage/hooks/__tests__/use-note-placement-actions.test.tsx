@@ -5,13 +5,16 @@ import {
   usePatchBoardNote,
   usePostBoardNote,
 } from "@/controllers/API/queries/board-notes";
+import { usePostPlacement } from "@/controllers/API/queries/placements";
 import type { BoardNote } from "@/types/board";
-import { useBoardNoteActions } from "../use-board-note-actions";
+import { useNotePlacementActions } from "../use-note-placement-actions";
 
 jest.mock("@/controllers/API/queries/board-notes");
+jest.mock("@/controllers/API/queries/placements");
 const mockCreate = jest.mocked(usePostBoardNote);
 const mockPatch = jest.mocked(usePatchBoardNote);
 const mockDelete = jest.mocked(useDeleteBoardNote);
+const mockPlacement = jest.mocked(usePostPlacement);
 const note = {
   id: "note-1",
   projectId: "project-1",
@@ -23,17 +26,22 @@ const note = {
   updatedAt: "",
 } satisfies BoardNote;
 
-describe("useBoardNoteActions", () => {
+describe("useNotePlacementActions", () => {
   it("creates centered notes and keeps unsaved drafts in CAS saves", () => {
     const create = jest.fn();
     const patch = jest.fn();
     const remove = jest.fn();
+    const replace = jest.fn();
     mockCreate.mockReturnValue({ mutate: create, isPending: false } as never);
     mockPatch.mockReturnValue({ mutate: patch, isPending: false } as never);
     mockDelete.mockReturnValue({ mutate: remove, isPending: false } as never);
+    mockPlacement.mockReturnValue({
+      mutate: replace,
+      isPending: false,
+    } as never);
     const onConflict = jest.fn();
     const { result } = renderHook(() =>
-      useBoardNoteActions({
+      useNotePlacementActions({
         projectId: "project-1",
         boardId: "board-1",
         onConflict,
@@ -60,6 +68,15 @@ describe("useBoardNoteActions", () => {
     expect(remove).toHaveBeenCalledWith({
       noteId: "note-1",
       expectedRevision: 3,
+    });
+    result.current.replace(note, { x: 500, y: 400 });
+    expect(replace).toHaveBeenCalledWith({
+      targetKind: "note",
+      targetId: "note-1",
+      x: 340,
+      y: 280,
+      width: 320,
+      height: 240,
     });
   });
 });

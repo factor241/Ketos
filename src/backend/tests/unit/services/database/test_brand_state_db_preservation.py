@@ -87,6 +87,32 @@ async def test_initialize_database_fails_closed_without_dropping_revision_histor
     session.exec.assert_not_awaited()
 
 
+@pytest.mark.asyncio
+async def test_initialize_database_migrates_before_metadata_creation() -> None:
+    calls: list[str] = []
+
+    async def record_migrations(*, fix: bool = False) -> None:
+        assert not fix
+        calls.append("migrate")
+
+    async def record_create() -> None:
+        calls.append("create")
+
+    database = SimpleNamespace(
+        database_url="sqlite://",
+        settings_service=SimpleNamespace(settings=SimpleNamespace(database_connection_retry=False)),
+        ensure_postgresql_version=AsyncMock(),
+        run_migrations=record_migrations,
+        create_db_and_tables=record_create,
+        check_schema_health=AsyncMock(),
+    )
+
+    with patch("ketos.services.deps.get_db_service", return_value=database):
+        await initialize_database()
+
+    assert calls == ["migrate", "create"]
+
+
 def test_unknown_current_revision_never_attempts_upgrade() -> None:
     database = DatabaseService.__new__(DatabaseService)
     database.database_url = "sqlite://"
@@ -212,8 +238,9 @@ def test_complete_alembic_revision_history_remains_vendored() -> None:
     versions = Path(database_service_module.__file__).resolve().parents[2] / "alembic" / "versions"
     revision_files = sorted(path for path in versions.glob("*.py") if path.name != "__init__.py")
 
-    assert len(revision_files) == 80
+    assert len(revision_files) == 83
     assert any(path.name == "9a6e34f1c2d8_restrict_preferred_locale_to_ru_en.py" for path in revision_files)
+    assert any(path.name == "505c0a700001_add_durable_chat_tables.py" for path in revision_files)
 
 
 @pytest.mark.parametrize(

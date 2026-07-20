@@ -36,6 +36,21 @@ async def initialize_database(*, fix_migration: bool = False) -> None:
 
     check_sqlite_database_path(database_service.database_url)
     try:
+        await database_service.run_migrations(fix=fix_migration)
+    except CommandError:
+        # Unknown, overlapping, or otherwise invalid persisted revisions must
+        # never be repaired by deleting Alembic history. Operators need the
+        # original error so they can supply the matching versioned artifact.
+        raise
+    except Exception as exc:
+        error_message = str(exc)
+        # if the exception involves tables already existing
+        # we can ignore it
+        if "already exists" not in error_message:
+            logger.exception(exc)
+            raise
+        await logger.adebug("Migration attempted to create existing table, skipping.")
+    try:
         if database_service.settings_service.settings.database_connection_retry:
             await database_service.create_db_and_tables_with_retry()
         else:
@@ -53,21 +68,6 @@ async def initialize_database(*, fix_migration: bool = False) -> None:
         msg = "Error checking schema health"
         logger.exception(msg)
         raise RuntimeError(msg) from exc
-    try:
-        await database_service.run_migrations(fix=fix_migration)
-    except CommandError:
-        # Unknown, overlapping, or otherwise invalid persisted revisions must
-        # never be repaired by deleting Alembic history. Operators need the
-        # original error so they can supply the matching versioned artifact.
-        raise
-    except Exception as exc:
-        error_message = str(exc)
-        # if the exception involves tables already existing
-        # we can ignore it
-        if "already exists" not in error_message:
-            logger.exception(exc)
-            raise
-        await logger.adebug("Migration attempted to create existing table, skipping.")
     await logger.adebug("Database initialized")
 
 

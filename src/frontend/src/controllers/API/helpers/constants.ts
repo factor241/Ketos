@@ -5,6 +5,7 @@ export const URLs = {
   BOARDS: `boards`,
   PLACEMENTS: `placements`,
   BOARD_NOTES: `board-notes`,
+  CHAT_THREADS: `chats`,
   TRANSACTIONS: `monitor/transactions`,
   TRACES: `monitor/traces`,
   API_KEY: `api_key`,

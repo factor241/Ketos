@@ -1,42 +1,46 @@
 # Stage 05 Product Design audit
 
-**Verdict:** `BLOCKED`
+**Verdict:** `PASS`
 
-**Candidate:** `9ce671d064016148e739287630710002e55c95be`
+**Tested candidate:** `a7ad29ba736`
 
-## Reviewed current-run evidence
+**Current-run durable root:** `/Volumes/Projects/.ketos-stage05-final.yKdZoH`
 
-| State | Artifact | Visual review |
+## Interaction and isolation evidence
+
+The prior shared-agent finding is resolved. Each stock `CopilotChat` surface now registers a distinct local `ProxiedCopilotRuntimeAgent` identity while both proxy requests continue to use the required runtime route `/api/copilotkit/agent/ketos-chat/run`. The browser proof intercepted exactly two primary run requests and asserted that each body carried its own durable Chat UUID:
+
+- `Release evidence`: `7cf77fa3-6c50-4f5a-bd96-c6eb38800417`;
+- `Operations notes`: `a5b1034e-e6cc-4668-9331-e76267814598`.
+
+The executable story also proved:
+
+- each answer appeared in only its originating accessible Chat region;
+- each Chat persisted exactly one `ChatRun` and two ordered message rows with `chat_sequence` `1, 2` in the durable SQLite database;
+- replay created no additional provider calls;
+- collapse/remount, close/re-place, controlled reconnect, `mvp_chat=false`, and subsequent re-enable preserved the independent IDs and transcripts;
+- the replacement card received focus and its bounding box did not intersect the sibling card.
+
+All three controlled launches passed serially on the same current-run root: main two-chat story, feature-flag-off survival, and restore-only re-enable.
+
+## Current-run visual evidence
+
+| State | Artifact | Product Design review |
 | --- | --- | --- |
-| Empty | [01-empty.png](./01-empty.png) | Board hierarchy remains recognizable; chat search/create controls are grouped; empty copy is visible; no overlap or clipping at 1800×1000. |
-| Search no results | [02-search-no-results.png](./02-search-no-results.png) | Query, clear control, create action and no-results feedback are readable and aligned. |
-| Two placed chats | [03-two-chats.png](./03-two-chats.png) | Both stock CopilotKit surfaces are fully visible, independently framed, titled and operable; CardFrame actions do not overlap the composer. |
+| Empty | [01-empty.png](./01-empty.png) | Chat-list hierarchy is clear; search and create actions are grouped; empty copy is readable; no clipping or overlap at 1800×1000. |
+| Search no results | [02-search-no-results.png](./02-search-no-results.png) | The query, clear control, create action, and no-results feedback remain distinguishable and aligned. |
+| Two placed chats | [03-two-chats.png](./03-two-chats.png) | Two titled stock CopilotKit surfaces are visible side by side; CardFrame actions and composers do not collide. |
+| Error and reconnect | [04-error-reconnect.png](./04-error-reconnect.png) | Semantic error and reconnect status are readable without losing either durable Chat surface or the board layout. |
+| Close, replace, focus | [05-close-replace-focus.png](./05-close-replace-focus.png) | The replaced first Chat shows its restored transcript in a focused, fully visible adjacent slot; the second Chat remains separate and readable. |
 
-The implementation reuses the existing Board, CardFrame, React Flow canvas, Ketos buttons, semantic color tokens and stock `CopilotChat`. It does not introduce a replacement message body, composer, tool renderer, raw-color palette or new visual language.
+The implementation stays inside the existing Ketos visual system: Board canvas, BoardCardFrame, React Flow placement behavior, Ketos buttons and semantic tokens, plus the stock CopilotKit message body and composer. No alternate chat surface, raw-color palette, or replacement tool renderer was introduced.
 
-## Blocking finding
+## Tool and evidence limits
 
-Two stock `CopilotChat` instances using the required fixed agent ID `ketos-chat` do not retain independent `threadId` values in the installed `@copilotkit/react-core@1.63.1-ketos.1`. The real-browser assertion for a message sent from **Release evidence** received the ID of **Operations notes**:
+- Product Design review and local image inspection were performed for all five PNGs at original resolution after the browser assertions passed.
+- Computer Use was available and inspected `03-two-chats.png` in macOS Preview.
+- The Chrome controller was available and initialized, but its URL security policy rejected the local `file://` PNG URL. The Chrome session was finalized; this audit does not claim Chrome inspected the local images.
+- Playwright interaction, request-body, focus, geometry, API, and direct-database assertions are authoritative; screenshots supplement those assertions.
+- No claim of full WCAG conformance is made from screenshots or the focused accessibility checks alone.
 
-- expected: `27f7ebf9-c455-46ac-806d-a1a9b111389b`
-- received: `6d11fbf5-45d9-4462-bd30-d61940c2e686`
-- evidence: `src/frontend/test-results/core-integrations-board-co-87cd0-acement-lifecycle-and-focus-chromium/error-context.md`
-
-The installed build resolves one shared agent by `agentId` and each mounted chat mutates that same object's `threadId`. This makes the result mount/effect-order dependent and violates the two-chat isolation requirement.
-
-The official component contract documents `agentId` and `threadId` as chat properties and the official architecture expects thread-scoped conversations:
-
-- [CopilotChat reference](https://docs.copilotkit.ai/reference/v2/components/CopilotChat)
-- [CopilotKit runtime backend](https://docs.copilotkit.ai/a2a/backend/copilot-runtime)
-- [AG-UI messages](https://docs.ag-ui.com/concepts/messages)
-
-## Evidence limits
-
-- `04-error-reconnect.png` and `05-close-replace-focus.png` are intentionally absent: the executable story stops at the critical thread-isolation assertion before those states.
-- The three screenshots above were inspected visually, but screenshots do not replace interaction assertions.
-- No claim of full WCAG conformance is made. Focus, semantic regions and keyboard actions have focused Jest coverage; the complete browser focus roundtrip remains blocked downstream of thread isolation.
-- Chrome and Computer Use skill instructions were available, but their controlling MCP tools were not exposed in this session. Local image inspection and Playwright evidence were used and this limitation is not represented as a successful connector run.
-
-## Minimal unblock
-
-Admit an approved pinned CopilotKit artifact whose stock `CopilotChat` creates or resolves distinct agent state per `(agentId, threadId)`, without adding a second provider, alternate agent IDs, a wrapper chat surface or a package-lock change inside Stage 05. Then rerun the entire browser story and capture states 04 and 05.
+There are no active historical UUID or shared-agent blockers for this candidate.

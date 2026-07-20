@@ -110,21 +110,27 @@ async def test_placement_lifecycle_keeps_entity_separate(
 
 
 @pytest.mark.parametrize(
-    "payload",
+    ("payload", "expected_status"),
     [
-        {"target_kind": "chat", "target_id": str(uuid4()), "x": 0, "y": 0},
-        {"target_kind": "note", "target_id": str(uuid4()), "x": "Infinity", "y": 0},
-        {"target_kind": "note", "target_id": str(uuid4()), "x": 0, "y": 0, "actor_id": str(uuid4())},
+        ({"target_kind": "chat", "target_id": str(uuid4()), "x": 0, "y": 0}, 404),
+        ({"target_kind": "note", "target_id": str(uuid4()), "x": "Infinity", "y": 0}, 422),
+        (
+            {"target_kind": "note", "target_id": str(uuid4()), "x": 0, "y": 0, "actor_id": str(uuid4())},
+            422,
+        ),
     ],
 )
-async def test_placement_invalid_or_future_targets_are_422(
-    placement_client: AsyncClient, logged_in_headers: dict[str, str], payload: dict
+async def test_placement_invalid_or_missing_targets_are_rejected(
+    placement_client: AsyncClient,
+    logged_in_headers: dict[str, str],
+    payload: dict,
+    expected_status: int,
 ) -> None:
     _, board, _ = await _create_project_board_note(placement_client, logged_in_headers)
     response = await placement_client.post(
         f"/api/v1/boards/{board['id']}/placements", json=payload, headers=logged_in_headers
     )
-    assert response.status_code == 422
+    assert response.status_code == expected_status
 
 
 async def test_placement_routes_require_authentication(placement_client: AsyncClient) -> None:

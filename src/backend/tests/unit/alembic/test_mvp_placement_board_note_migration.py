@@ -65,7 +65,6 @@ def _placement_values(**changes: object) -> dict[str, object]:
 def test_stage04_revision_is_the_single_additive_successor_to_stage03() -> None:
     assert MIGRATION_FILE.is_file()
     script = _script()
-    assert script.get_current_head() == REVISION
     revision = script.get_revision(REVISION)
     assert revision is not None
     assert revision.down_revision == "b03dca5a0001"

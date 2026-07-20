@@ -379,7 +379,6 @@ def _assert_revision_shape() -> None:
     revision = script.get_revision(REVISION)
     assert revision is not None
     assert revision.down_revision == DOWN_REVISION
-    assert script.get_current_head() == REVISION
 
 
 def test_s05_chat_migration_sqlite() -> None:

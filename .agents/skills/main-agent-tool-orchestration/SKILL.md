@@ -7,11 +7,13 @@ description: Use at the beginning of every Codex session and before selecting an
 
 ## Non-negotiable role gate
 
-Only the main agent may call tools. Subagents must not call any tool, invoke
-skills, inspect or edit files, run commands or tests, browse, research, review,
-or plan. They use only context supplied in the main agent's prompt and return
-only requested code or unified diff text. If required context is absent, return
-`BLOCKED: missing context` without guessing.
+Only the main agent may call tools. Subagents must not call any tool or invoke
+skills. Subagents may independently read and analyze supplied source slices,
+diffs, specifications, test output, and other assignment context; review that
+material; plan changes; and write code or unified diff text. They must not
+inspect or edit the workspace directly, run commands or tests, browse, or apply
+changes, because those actions require tools. If required context is absent,
+return `BLOCKED: missing context` without guessing.
 
 This ban includes shell, search, filesystem and patch tools, Git, Graphify,
 RaytSystem, web, MCP, connectors, plugin or app tools, browser or Computer Use,
@@ -40,11 +42,13 @@ the implementation logic. Before code delegation, it prepares a self-contained
 packet with the goal, exact source slices, required interfaces, invariants,
 scope boundaries, expected files, and acceptance checks.
 
-The subagent implements from that packet without tools and returns code or a
-unified diff as response text. It performs no independent discovery. The main
-agent reviews the response, applies it with main-agent tools, runs focused then
-package-level verification, fixes integration defects, and owns all evidence
-and user-facing claims.
+The subagent independently analyzes, plans, implements, or reviews from that
+packet without tools and returns requested analysis, code, or a unified diff as
+response text. It performs no tool-based discovery. The main agent reviews the
+response, applies it with main-agent tools, runs focused then package-level
+verification, fixes integration defects, and owns all evidence and user-facing
+claims.
 
-Non-code analysis, review, research, planning, tool selection, application,
-testing, and final synthesis always remain with the main agent.
+Tool selection, workspace inspection, application, testing, and final synthesis
+always remain with the main agent. Analysis, review, research, planning, and
+code writing may be delegated when the main agent supplies sufficient context.

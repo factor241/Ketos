@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import Markdown from "react-markdown";
 import rehypeMathjax from "rehype-mathjax/browser";
@@ -7,7 +14,10 @@ import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import CodeTabsComponent from "@/components/core/codeTabsComponent";
 import { preprocessChatMessage } from "@/utils/markdownUtils";
-import { markdownSanitizeSchema } from "@/utils/sanitizeSchema";
+import {
+  boardNoteSanitizeSchema,
+  markdownSanitizeSchema,
+} from "@/utils/sanitizeSchema";
 import { cn } from "@/utils/utils";
 
 type SanitizedMarkdownProps = {
@@ -15,7 +25,32 @@ type SanitizedMarkdownProps = {
   isEmpty: boolean;
   emptyMessage?: string;
   className?: string;
+  profile?: "default" | "board-note";
 };
+
+export function BoardNoteLink({
+  href,
+  children,
+  ...props
+}: ComponentPropsWithoutRef<"a"> & { children?: ReactNode }) {
+  const safe =
+    href?.startsWith("#") ||
+    href?.startsWith("mailto:") ||
+    href?.startsWith("http://") ||
+    href?.startsWith("https://");
+  if (!href || !safe) return <>{children}</>;
+  const external = href.startsWith("http://") || href.startsWith("https://");
+  return (
+    <a
+      {...props}
+      href={href}
+      target={external ? "_blank" : undefined}
+      rel={external ? "noopener noreferrer" : undefined}
+    >
+      {children}
+    </a>
+  );
+}
 
 /**
  * Shared component for rendering sanitized markdown content
@@ -26,6 +61,7 @@ export const SanitizedMarkdown = ({
   isEmpty,
   emptyMessage,
   className,
+  profile = "default",
 }: SanitizedMarkdownProps) => {
   const { t } = useTranslation();
   const markdownRef = useRef<HTMLDivElement>(null);
@@ -39,8 +75,10 @@ export const SanitizedMarkdown = ({
     }
 
     // Process the chat message to handle <think> tags and clean up tables
-    return preprocessChatMessage(chatMessage);
-  }, [chatMessage]);
+    return profile === "board-note"
+      ? chatMessage
+      : preprocessChatMessage(chatMessage);
+  }, [chatMessage, profile]);
 
   // Check if rendered content is empty after sanitization
   useEffect(() => {
@@ -66,11 +104,15 @@ export const SanitizedMarkdown = ({
       {!showWarning && (
         <Markdown
           remarkPlugins={[remarkGfm]}
-          rehypePlugins={[
-            rehypeMathjax,
-            rehypeRaw,
-            [rehypeSanitize, markdownSanitizeSchema],
-          ]}
+          rehypePlugins={
+            profile === "board-note"
+              ? [[rehypeSanitize, boardNoteSanitizeSchema]]
+              : [
+                  rehypeMathjax,
+                  rehypeRaw,
+                  [rehypeSanitize, markdownSanitizeSchema],
+                ]
+          }
           className={cn(
             "markdown prose flex w-full max-w-full flex-col items-baseline text-sm font-normal word-break-break-word dark:prose-invert",
             isEmpty ? "text-muted-foreground" : "text-primary",
@@ -145,6 +187,15 @@ export const SanitizedMarkdown = ({
                 );
               }
             },
+            ...(profile === "board-note"
+              ? {
+                  a: BoardNoteLink,
+                  img: () => null,
+                  code: ({ children }: { children?: ReactNode }) => (
+                    <>{children}</>
+                  ),
+                }
+              : {}),
           }}
         >
           {isEmpty ? emptyMessage || "" : processedChatMessage}

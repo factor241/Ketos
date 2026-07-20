@@ -75,3 +75,11 @@ export const markdownSanitizeSchema: Schema = {
     "sub",
   ],
 };
+
+/** Minimal allowlist for user-authored board notes. */
+export const boardNoteSanitizeSchema: Schema = {
+  tagNames: ["p", "strong", "ul", "ol", "li", "a"],
+  attributes: { a: ["href", "title", "target", "rel"] },
+  protocols: { href: ["http", "https", "mailto"] },
+  strip: ["script", "style"],
+};

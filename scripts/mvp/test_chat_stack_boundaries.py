@@ -73,6 +73,24 @@ FORBIDDEN_SEMANTIC_CATEGORIES = {
         ),
     ),
 }
+FRONTEND_FORBIDDEN_PATTERNS = (
+    (
+        "legacy Assistant import",
+        re.compile(
+            r"(?:from|import\s*\()[^\n]*(?:assistantPanel|use-post-assist-stream)",
+            re.IGNORECASE,
+        ),
+    ),
+    ("raw fetch", re.compile(r"\bfetch\s*\(")),
+    (
+        "custom CopilotKit renderer",
+        re.compile(r"\b(?:CopilotChatView|renderToolCalls|renderActivityMessages|renderCustomMessages|chatView)\b"),
+    ),
+    (
+        "raw color literal",
+        re.compile(r"[\"']#[0-9a-f]{3,8}[\"']", re.IGNORECASE),
+    ),
+)
 
 
 def _is_ignored(path: Path) -> bool:
@@ -104,9 +122,15 @@ def _relative(path: Path) -> str:
 def _scan_stage05_sources() -> list[str]:
     failures: list[str] = []
     for source in _iter_existing_stage05_sources():
+        if "__tests__" in source.parts or ".test." in source.name:
+            continue
         contents = source.read_text(encoding="utf-8", errors="replace")
         for patterns in FORBIDDEN_SEMANTIC_CATEGORIES.values():
             for label, pattern in patterns:
+                if pattern.search(contents):
+                    failures.append(f"{_relative(source)}: matched forbidden {label}")
+        if "src/frontend" in source.as_posix():
+            for label, pattern in FRONTEND_FORBIDDEN_PATTERNS:
                 if pattern.search(contents):
                     failures.append(f"{_relative(source)}: matched forbidden {label}")
     return failures
@@ -149,6 +173,10 @@ def test_stage05_guard_has_explicit_prohibitions() -> None:
         "local_storage_transcript_truth",
         "arbitrary_chat_runtime_routing",
         "replacement_chat_components",
+        "frontend_legacy_raw_custom_style_boundaries",
     }
-    assert required <= FORBIDDEN_SEMANTIC_CATEGORIES.keys()
-    assert all(FORBIDDEN_SEMANTIC_CATEGORIES[category] for category in required)
+    implemented = {*FORBIDDEN_SEMANTIC_CATEGORIES, "frontend_legacy_raw_custom_style_boundaries"}
+    assert required <= implemented
+    semantic_categories = required - {"frontend_legacy_raw_custom_style_boundaries"}
+    assert all(FORBIDDEN_SEMANTIC_CATEGORIES[category] for category in semantic_categories)
+    assert FRONTEND_FORBIDDEN_PATTERNS

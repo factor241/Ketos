@@ -21,7 +21,7 @@ import {
 	runWithRuntimeLogBoundary,
 } from "./runtime-log-boundary.js";
 
-export const AGENT_ID = "ketos-mvp-probe";
+export const AGENT_ID = "ketos-chat";
 export const COPILOT_PATH = "/api/copilotkit";
 export const UPSTREAM_URL = "http://127.0.0.1:7860/api/v1/agentic/ag-ui";
 

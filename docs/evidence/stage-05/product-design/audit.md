@@ -2,7 +2,9 @@
 
 **Verdict:** `PASS`
 
-**Tested candidate:** `a7ad29ba736`
+**Tested candidate:** `1828f9cde0e`
+
+**Tested tree:** `5ea9d1f9653e449c46e693db0a56b0f4e0ce8fd4`
 
 **Current-run durable root:** `/Volumes/Projects/.ketos-stage05-final.yKdZoH`
 

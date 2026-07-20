@@ -29,24 +29,40 @@ type Stage05Ids = {
   boardId: string;
   chatIds: [string, string];
   titles: [string, string];
-  prompt: string;
-  answer: string;
+  prompts: [string, string];
+  answers: [string, string];
+};
+
+type ProviderMessage = {
+  role?: string;
+  content?: string | Array<{ text?: string }>;
 };
 
 const repositoryRoot = path.resolve(process.cwd(), "../..");
-const evidenceRoot = path.join(
-  repositoryRoot,
-  "docs/evidence/stage-05/product-design",
-);
+const evidenceRoot =
+  process.env.STAGE05_EVIDENCE_ROOT ??
+  path.join(repositoryRoot, "docs/evidence/stage-05/product-design");
 const runRoot = process.env.KETOS_MVP_RUN_DIR;
 const idsPath = runRoot ? path.join(runRoot, "stage05-ids.json") : "";
 const providerPort = Number(process.env.STAGE05_OPENAI_PORT ?? "18765");
-const prompt =
-  "Use the current date tool for UTC, then answer: durable chat ready.";
-const answer = "Durable chat ready after the read-only UTC date check.";
+const prompts: [string, string] = [
+  "Use the current date tool for UTC, then answer for stage05-release.",
+  "Use the current date tool for UTC, then answer for stage05-operations.",
+];
+const answers: [string, string] = [
+  "Release evidence is durable after the read-only UTC date check.",
+  "Operations notes are durable after the read-only UTC date check.",
+];
 let providerServer: Server;
 const providerSockets = new Set<Socket>();
 let providerCalls = 0;
+const pendingProviderAnswers: Array<() => void> = [];
+
+function providerText(content: ProviderMessage["content"]): string {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content.map((item) => item.text ?? "").join(" ");
+}
 
 function completionChunk(
   id: string,
@@ -98,9 +114,7 @@ test.beforeAll(async () => {
     });
     request.on("end", () => {
       providerCalls += 1;
-      const payload = JSON.parse(body) as {
-        messages?: Array<{ role?: string }>;
-      };
+      const payload = JSON.parse(body) as { messages?: ProviderMessage[] };
       const hasToolResult = payload.messages?.some(
         (message) => message.role === "tool",
       );
@@ -128,14 +142,22 @@ test.beforeAll(async () => {
         ]);
         return;
       }
-      sendSse(response, [
-        completionChunk(
-          "chatcmpl-stage05-answer",
-          { role: "assistant", content: answer },
-          null,
-        ),
-        completionChunk("chatcmpl-stage05-answer", {}, "stop"),
-      ]);
+      const userText = (payload.messages ?? [])
+        .filter((message) => message.role === "user")
+        .map((message) => providerText(message.content))
+        .join(" ");
+      const answerIndex = userText.includes("stage05-operations") ? 1 : 0;
+      const selectedAnswer = answers[answerIndex];
+      pendingProviderAnswers.push(() => {
+        sendSse(response, [
+          completionChunk(
+            `chatcmpl-stage05-answer-${answerIndex}`,
+            { role: "assistant", content: selectedAnswer },
+            null,
+          ),
+          completionChunk(`chatcmpl-stage05-answer-${answerIndex}`, {}, "stop"),
+        ]);
+      });
     });
   });
   providerServer.on("connection", (socket) => {
@@ -294,8 +316,8 @@ test.describe("Stage 05 durable CopilotKit chat", () => {
         boardId: board.id,
         chatIds: ["", ""],
         titles: ["Release evidence", "Operations notes"],
-        prompt,
-        answer,
+        prompts,
+        answers,
       };
       await openBoard(page, ids);
 
@@ -374,52 +396,88 @@ test.describe("Stage 05 durable CopilotKit chat", () => {
       page.on("request", (request) => {
         if (isChatRun(request)) runRequests.push(request);
       });
-      const textarea = firstCard.getByTestId("copilot-chat-textarea");
-      await textarea.fill(prompt);
-      const runRequestPromise = page.waitForRequest(isChatRun);
-      const runResponsePromise = page.waitForResponse((response) =>
-        isChatRun(response.request()),
-      );
-      await firstCard.getByTestId("copilot-send-button").click();
-      const runRequest = await runRequestPromise;
-      const runBody = runRequest.postDataJSON() as {
+      const runBodies: Array<{
         threadId: string;
         state?: Record<string, unknown>;
-      };
-      expect(runBody.threadId).toBe(first.id);
-      const runResponse = await runResponsePromise;
-      const runText = await runResponse.text();
-      expect(runResponse.status()).toBe(200);
-      expect(runText).toContain("get_current_date");
-      expect(runText).toMatch(/TOOL_CALL_START|tool_call_start/i);
-      expect(runText).toContain(answer);
-      await expect(firstCard.getByText(answer, { exact: true })).toBeVisible({
-        timeout: 10_000,
-      });
-      expect(runRequests).toHaveLength(1);
-      expect(Object.keys(runBody.state ?? {}).sort()).toEqual(
-        Object.keys(runBody.state ?? {})
-          .filter((key) => ["boardId", "projectId"].includes(key))
-          .sort(),
-      );
-      expect(providerCalls).toBe(2);
+      }> = [];
+      const cards = [firstCard, secondCard] as const;
+      const chats = [first, second] as const;
+      for (const [index, card] of cards.entries()) {
+        const textarea = card.getByTestId("copilot-chat-textarea");
+        await textarea.fill(ids.prompts[index]);
+        const runRequestPromise = page.waitForRequest(isChatRun);
+        const runResponsePromise = page.waitForResponse((response) =>
+          isChatRun(response.request()),
+        );
+        await card.getByTestId("copilot-send-button").click();
+        const runRequest = await runRequestPromise;
+        expect(new URL(runRequest.url()).pathname).toBe(
+          "/api/copilotkit/agent/ketos-chat/run",
+        );
+        const runBody = runRequest.postDataJSON() as {
+          threadId: string;
+          state?: Record<string, unknown>;
+        };
+        runBodies.push(runBody);
+        expect(runBody.threadId).toBe(chats[index].id);
+        expect(Object.keys(runBody.state ?? {}).sort()).toEqual(
+          Object.keys(runBody.state ?? {})
+            .filter((key) => ["boardId", "projectId"].includes(key))
+            .sort(),
+        );
+        await expect.poll(() => pendingProviderAnswers.length).toBe(1);
+        const releaseProviderAnswer = pendingProviderAnswers.shift();
+        expect(releaseProviderAnswer).toBeDefined();
+        try {
+          // CopilotKit keeps this control enabled as the in-flight Stop action.
+          await expect(card.getByTestId("copilot-send-button")).toBeEnabled();
+          await expect(textarea).toHaveValue("");
+          expect(runRequests).toHaveLength(index + 1);
+        } finally {
+          releaseProviderAnswer?.();
+        }
+        const runResponse = await runResponsePromise;
+        const runText = await runResponse.text();
+        expect(runResponse.status()).toBe(200);
+        expect(runText).toContain("get_current_date");
+        expect(runText).toMatch(/TOOL_CALL_START|tool_call_start/i);
+        expect(runText).toContain(ids.answers[index]);
+        await expect(
+          card.getByText(ids.answers[index], { exact: true }),
+        ).toBeVisible({ timeout: 10_000 });
+        await expect(
+          cards[index === 0 ? 1 : 0].getByText(ids.answers[index], {
+            exact: true,
+          }),
+        ).toHaveCount(0);
+      }
+      expect(runRequests).toHaveLength(2);
+      expect(pendingProviderAnswers).toHaveLength(0);
+      expect(providerCalls).toBe(4);
       const replayResponse = await page.request.post(
         "/api/copilotkit/agent/ketos-chat/run",
-        { data: runBody },
+        { data: runBodies[0] },
       );
       expect(replayResponse.ok()).toBeTruthy();
       expect(await replayResponse.text()).toMatch(/replayed.*true/i);
-      expect(providerCalls).toBe(2);
+      expect(providerCalls).toBe(4);
 
-      const durable = readDurableRows(first.id);
-      expect(durable.chat).toMatchObject({
+      for (const [index, chat] of chats.entries()) {
+        const durable = readDurableRows(chat.id);
+        expect(durable.runs.count).toBe(1);
+        expect(durable.messages.map((row) => row.text)).toEqual([
+          ids.prompts[index],
+          ids.answers[index],
+        ]);
+        expect(durable.messages.map((row) => row.chat_sequence)).toEqual([
+          1, 2,
+        ]);
+      }
+      expect(readDurableRows(first.id).chat).toMatchObject({
         provider: "OpenAI",
         model_name: "gpt-4o-mini",
         context_policy: "board",
       });
-      expect(durable.runs.count).toBe(1);
-      expect(durable.messages.map((row) => row.text)).toEqual([prompt, answer]);
-      expect(durable.messages.map((row) => row.chat_sequence)).toEqual([1, 2]);
 
       const initialPlacement = (await readPlacements(page, board.id)).find(
         (item) => item.target_id === first.id,
@@ -463,14 +521,25 @@ test.describe("Stage 05 durable CopilotKit chat", () => {
       expect(moved.x).toBe(initialPlacement.x + 10);
       expect(moved.height).toBe(initialPlacement.height + 10);
 
-      await page.route(
-        new RegExp(`/api/v1/projects/${project.id}/chats`),
-        (route) => route.abort("connectionfailed"),
-      );
+      const chatListRoute = `**/api/v1/projects/${project.id}/chats**`;
+      let failedListRequests = 0;
+      await page.route(chatListRoute, (route) => {
+        failedListRequests += 1;
+        return route.abort("connectionfailed");
+      });
+      const failedListRequest = page.waitForRequest((request) => {
+        const url = new URL(request.url());
+        return (
+          url.pathname === `/api/v1/projects/${project.id}/chats` &&
+          url.searchParams.get("q") === "transport failure"
+        );
+      });
       await search.fill("transport failure");
+      await failedListRequest;
+      await expect.poll(() => failedListRequests).toBeGreaterThan(0);
       await expect(page.getByRole("alert")).toContainText(
         "Chats could not be loaded",
-        { timeout: 30_000 },
+        { timeout: 45_000 },
       );
       await context.setOffline(true);
       await expect(page.getByRole("status")).toContainText(
@@ -480,12 +549,13 @@ test.describe("Stage 05 durable CopilotKit chat", () => {
         path: path.join(evidenceRoot, "04-error-reconnect.png"),
         fullPage: true,
       });
-      await context.setOffline(false);
-      await page.unroute(new RegExp(`/api/v1/projects/${project.id}/chats`));
+      await page.unroute(chatListRoute);
       await page.getByRole("button", { name: "Retry" }).click();
+      await context.setOffline(false);
+      await search.fill("");
       await expect(
         page.getByRole("button", { name: ids.titles[0] }),
-      ).toBeVisible();
+      ).toBeVisible({ timeout: 30_000 });
 
       const closeResponse = placementWrite(page, initialPlacement.id, "DELETE");
       await firstCard
@@ -505,7 +575,7 @@ test.describe("Stage 05 durable CopilotKit chat", () => {
       )!;
       expect(replacement.id).not.toBe(initialPlacement.id);
       await expect(
-        replacedCard.getByText(answer, { exact: true }),
+        replacedCard.getByText(ids.answers[0], { exact: true }),
       ).toBeVisible();
       await page.screenshot({
         path: path.join(evidenceRoot, "05-close-replace-focus.png"),
@@ -548,9 +618,15 @@ test.describe("Stage 05 durable CopilotKit chat", () => {
     await expect(
       page.getByRole("button", { name: ids.titles[0] }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("region", { name: ids.titles[0] }),
-    ).toBeVisible();
-    await expect(page.getByText(ids.answer, { exact: true })).toBeVisible();
+    for (const [index, title] of ids.titles.entries()) {
+      const card = page.getByRole("region", { name: title });
+      await expect(card).toBeVisible();
+      await expect(
+        card.getByText(ids.answers[index], { exact: true }),
+      ).toBeVisible();
+      await expect(
+        card.getByText(ids.answers[index === 0 ? 1 : 0], { exact: true }),
+      ).toHaveCount(0);
+    }
   });
 });

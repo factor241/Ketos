@@ -85,6 +85,7 @@ describe("AutomationSelector", () => {
 
   it("selects by click and honors disabled input", () => {
     const onSelect = jest.fn();
+    const onCreate = jest.fn();
     mockQuery.mockReturnValue({
       data: summaries,
       isLoading: false,
@@ -92,8 +93,16 @@ describe("AutomationSelector", () => {
       refetch: jest.fn(),
     });
     const { rerender } = render(
-      <AutomationSelector projectId="project-1" onSelect={onSelect} />,
+      <AutomationSelector
+        projectId="project-1"
+        onSelect={onSelect}
+        onCreate={onCreate}
+      />,
     );
+    fireEvent.click(
+      screen.getByRole("button", { name: "board.automation.add" }),
+    );
+    expect(onCreate).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Daily report" }));
     expect(onSelect).toHaveBeenCalledWith(summaries[0]);
 

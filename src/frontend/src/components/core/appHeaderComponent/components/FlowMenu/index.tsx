@@ -17,6 +17,7 @@ import { useGetFoldersQuery } from "@/controllers/API/queries/folders/use-get-fo
 import { useCustomNavigate } from "@/customization/hooks/use-custom-navigate";
 import useSaveFlow from "@/hooks/flows/use-save-flow";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import { useBoardReturnContext } from "@/pages/FlowPage/hooks/use-board-return-context";
 import useAlertStore from "@/stores/alertStore";
 import useFlowStore from "@/stores/flowStore";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
@@ -57,6 +58,9 @@ export const MenuBar = memo((): JSX.Element => {
   const onFlowPage = useFlowStore((state) => state.onFlowPage);
   const measureRef = useRef<HTMLSpanElement>(null);
   const changesNotSaved = useUnsavedChanges();
+  const { returnUrl } = useBoardReturnContext({
+    flowId: currentFlowId ?? "",
+  });
 
   const { data: folders, isFetched: isFoldersFetched } = useGetFoldersQuery();
 
@@ -155,6 +159,28 @@ export const MenuBar = memo((): JSX.Element => {
             </div>
           </PopoverTrigger>
           <div className={"ml-5 hidden shrink-0 items-center sm:flex"}>
+            {returnUrl ? (
+              <Button asChild variant="outline" size="sm" ignoreTitleCase>
+                <a
+                  data-testid="return-to-board"
+                  href={returnUrl}
+                  onClick={(event) => {
+                    if (
+                      event.button !== 0 ||
+                      event.metaKey ||
+                      event.ctrlKey ||
+                      event.shiftKey ||
+                      event.altKey
+                    )
+                      return;
+                    event.preventDefault();
+                    navigate(returnUrl);
+                  }}
+                >
+                  {t("board.automation.returnToBoard")}
+                </a>
+              </Button>
+            ) : null}
             {!autoSaving && (
               <ShadTooltip
                 content={

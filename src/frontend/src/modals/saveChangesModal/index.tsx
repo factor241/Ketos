@@ -12,6 +12,7 @@ export function SaveChangesModal({
   flowName,
   lastSaved,
   autoSave,
+  saveText,
 }: {
   onSave: () => void;
   onProceed: () => void;
@@ -19,6 +20,7 @@ export function SaveChangesModal({
   flowName: string;
   lastSaved: string | undefined;
   autoSave: boolean;
+  saveText?: string;
 }): JSX.Element {
   const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
@@ -39,7 +41,9 @@ export function SaveChangesModal({
         name: autoSave ? "Flow" : truncate(flowName, { length: 32 }),
       })}
       cancelText={autoSave ? undefined : t("flow.exitAnyway")}
-      confirmationText={autoSave ? undefined : t("flow.saveAndExit")}
+      confirmationText={
+        autoSave ? undefined : (saveText ?? t("flow.saveAndExit"))
+      }
       onConfirm={
         autoSave
           ? undefined

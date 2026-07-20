@@ -2,7 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import MenuBar from "../index";
 
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, ...rest }) => <button {...rest}>{children}</button>,
+  Button: ({ children, asChild, ...rest }) =>
+    asChild ? children : <button {...rest}>{children}</button>,
 }));
 jest.mock("@/components/common/genericIconComponent", () => ({
   __esModule: true,
@@ -28,6 +29,8 @@ jest.mock("@/controllers/API/queries/folders/use-get-folders", () => ({
   }),
 }));
 const mockSave = jest.fn(() => Promise.resolve());
+const mockNavigate = jest.fn();
+let mockReturnUrl: string | null = null;
 jest.mock("@/hooks/flows/use-save-flow", () => ({
   __esModule: true,
   default: () => mockSave,
@@ -38,7 +41,15 @@ jest.mock("@/hooks/use-unsaved-changes", () => ({
 }));
 jest.mock("@/customization/hooks/use-custom-navigate", () => ({
   __esModule: true,
-  useCustomNavigate: () => jest.fn(),
+  useCustomNavigate: () => mockNavigate,
+}));
+jest.mock("@/pages/FlowPage/hooks/use-board-return-context", () => ({
+  useBoardReturnContext: () => ({
+    returnUrl: mockReturnUrl,
+    isLoading: false,
+    isError: false,
+    refetch: jest.fn(),
+  }),
 }));
 jest.mock("@/stores/flowsManagerStore", () => ({
   __esModule: true,
@@ -85,6 +96,10 @@ jest.mock("@/utils/utils", () => ({
 jest.mock("lucide-react/dynamicIconImports", () => ({}), { virtual: true });
 
 describe("FlowMenu MenuBar", () => {
+  beforeEach(() => {
+    mockReturnUrl = null;
+    mockNavigate.mockClear();
+  });
   it("renders current folder and flow name, enables save", async () => {
     render(<MenuBar />);
     expect(screen.getByTestId("menu_bar_wrapper")).toBeInTheDocument();
@@ -100,5 +115,21 @@ describe("FlowMenu MenuBar", () => {
     render(<MenuBar />);
     fireEvent.click(screen.getByTestId("save-flow-button"));
     expect(mockSave).toHaveBeenCalled();
+  });
+
+  it("shows a real validated Return href and navigates once in the same tab", () => {
+    mockReturnUrl =
+      "/project/project-id/board/board-id?focusPlacementId=placement-id";
+    render(<MenuBar />);
+    const link = screen.getByTestId("return-to-board");
+    expect(link).toHaveAttribute("href", mockReturnUrl);
+    fireEvent.click(link);
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith(mockReturnUrl);
+  });
+
+  it("hides Return on a direct Flow route without validated context", () => {
+    render(<MenuBar />);
+    expect(screen.queryByTestId("return-to-board")).not.toBeInTheDocument();
   });
 });

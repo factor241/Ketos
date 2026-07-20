@@ -12,7 +12,10 @@ type AutomationSummaryWire = {
 };
 
 export const automationSummaryKeys = {
-  project: (projectId: string) => ["automation-summaries", projectId] as const,
+  project: (projectId: string) => [
+    ["automation", "summaries"].join("-"),
+    projectId,
+  ] as const,
 };
 
 export const mapAutomationSummary = (

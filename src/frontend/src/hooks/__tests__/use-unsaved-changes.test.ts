@@ -148,6 +148,53 @@ describe("useUnsavedChanges", () => {
     expect(result.current).toBe(true);
   });
 
+  it("returns true when the last node was deleted", () => {
+    const currentFlow = {
+      id: "flow-1",
+      name: "Test Flow",
+      data: { nodes: [], edges: [] },
+    };
+    const savedFlow = {
+      id: "flow-1",
+      name: "Test Flow",
+      data: { nodes: [{ id: "last-node" }], edges: [] },
+    };
+    (useFlowStore as unknown as jest.Mock).mockImplementation((selector) =>
+      selector({ currentFlow }),
+    );
+    (useFlowsManagerStore as unknown as jest.Mock).mockImplementation(
+      (selector) => selector({ currentFlow: savedFlow }),
+    );
+    (customStringify as jest.Mock)
+      .mockReturnValueOnce(JSON.stringify(currentFlow))
+      .mockReturnValueOnce(JSON.stringify(savedFlow));
+    expect(renderHook(() => useUnsavedChanges()).result.current).toBe(true);
+  });
+
+  it("returns true for metadata-only edits on an empty flow", () => {
+    const currentFlow = {
+      id: "flow-1",
+      name: "Renamed Flow",
+      description: "changed",
+      data: { nodes: [], edges: [] },
+    };
+    const savedFlow = {
+      ...currentFlow,
+      name: "Original Flow",
+      description: "",
+    };
+    (useFlowStore as unknown as jest.Mock).mockImplementation((selector) =>
+      selector({ currentFlow }),
+    );
+    (useFlowsManagerStore as unknown as jest.Mock).mockImplementation(
+      (selector) => selector({ currentFlow: savedFlow }),
+    );
+    (customStringify as jest.Mock)
+      .mockReturnValueOnce(JSON.stringify(currentFlow))
+      .mockReturnValueOnce(JSON.stringify(savedFlow));
+    expect(renderHook(() => useUnsavedChanges()).result.current).toBe(true);
+  });
+
   it("should return true when edges have changed", () => {
     const currentFlow = {
       id: "flow-1",

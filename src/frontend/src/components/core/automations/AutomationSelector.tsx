@@ -8,12 +8,14 @@ import type { AutomationSummary } from "@/types/flow/automation";
 export interface AutomationSelectorProps {
   projectId: string;
   onSelect: (summary: AutomationSummary) => void;
+  onCreate?: () => void;
   disabled?: boolean;
 }
 
 export function AutomationSelector({
   projectId,
   onSelect,
+  onCreate,
   disabled = false,
 }: AutomationSelectorProps) {
   const { t } = useTranslation();
@@ -69,6 +71,17 @@ export function AutomationSelector({
 
   return (
     <div className="flex flex-col gap-2">
+      {onCreate ? (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={disabled}
+          ignoreTitleCase
+          onClick={onCreate}
+        >
+          {t("board.automation.add")}
+        </Button>
+      ) : null}
       <label htmlFor="automation-selector-search">
         {t("board.automation.selector.search")}
       </label>

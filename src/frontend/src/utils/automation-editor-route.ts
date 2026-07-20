@@ -21,11 +21,12 @@ export function buildAutomationEditorUrl(
   }
   requireUuid(ref.boardId, "boardId");
   requireUuid(ref.placementId, "placementId");
-  return (
-    `/flow/${encodeURIComponent(flowId)}` +
-    `?${RETURN_BOARD_ID}=${encodeURIComponent(ref.boardId)}` +
-    `&${RETURN_PLACEMENT_ID}=${encodeURIComponent(ref.placementId)}`
-  );
+  const path = ["", "flow", encodeURIComponent(flowId)].join("/");
+  const search = new URLSearchParams({
+    [RETURN_BOARD_ID]: ref.boardId,
+    [RETURN_PLACEMENT_ID]: ref.placementId,
+  });
+  return path.concat("?", search.toString());
 }
 
 export function parseAutomationEditorReturnRef(

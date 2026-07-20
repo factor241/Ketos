@@ -81,7 +81,7 @@ export function AutomationPlacement({
         {effectiveStatus === "loading" ? (
           <div
             role="status"
-            aria-label={t("board.automation.title")}
+            aria-label={t("board.automation.loading")}
             className="space-y-3"
           >
             <Skeleton className="h-5 w-2/3" />

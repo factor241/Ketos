@@ -89,7 +89,7 @@ describe("AutomationPlacement", () => {
   it("renders an accessible loading skeleton without editor actions", () => {
     render(<AutomationPlacement {...createProps()} />);
     expect(
-      screen.getByRole("status", { name: "board.automation.title" }),
+      screen.getByRole("status", { name: "board.automation.loading" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "board.automation.edit" }),

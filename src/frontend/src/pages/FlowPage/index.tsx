@@ -16,6 +16,7 @@ import { useCustomNavigate } from "@/customization/hooks/use-custom-navigate";
 import useApplyFlowToCanvas from "@/hooks/flows/use-apply-flow-to-canvas";
 import useSaveFlow from "@/hooks/flows/use-save-flow";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useWebhookEvents } from "@/hooks/use-webhook-events";
 import { SaveChangesModal } from "@/modals/saveChangesModal";
 import useAlertStore from "@/stores/alertStore";
@@ -25,7 +26,6 @@ import { usePlaygroundStore } from "@/stores/playgroundStore";
 import { useShortcutsStore } from "@/stores/shortcuts";
 import { useTypesStore } from "@/stores/typesStore";
 import { formatDateTime } from "@/utils/locale-format";
-import { customStringify } from "@/utils/reactflowUtils";
 import { cn } from "@/utils/utils";
 import useFlowStore from "../../stores/flowStore";
 import useFlowsManagerStore from "../../stores/flowsManagerStore";
@@ -84,9 +84,7 @@ export default function FlowPage({ view }: { view?: boolean }): JSX.Element {
   const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
 
-  const changesNotSaved =
-    customStringify(currentFlow) !== customStringify(currentSavedFlow) &&
-    (currentFlow?.data?.nodes?.length ?? 0) > 0;
+  const changesNotSaved = useUnsavedChanges();
 
   const isBuilding = useFlowStore((state) => state.isBuilding);
   const blocker = useBlocker(changesNotSaved || isBuilding);
@@ -109,37 +107,29 @@ export default function FlowPage({ view }: { view?: boolean }): JSX.Element {
   // Connect to webhook events SSE for real-time feedback
   useWebhookEvents();
 
-  const handleSave = () => {
-    let saving = true;
-    let proceed = false;
-    setTimeout(() => {
-      saving = false;
-      if (proceed) {
-        blocker.proceed && blocker.proceed();
-        setSuccessData({
-          title: t("flow.savedSuccessfully"),
-        });
-      }
-    }, 1200);
-    saveFlow().then(() => {
-      if (!autoSaving || saving === false) {
-        blocker.proceed && blocker.proceed();
-        setSuccessData({
-          title: t("flow.savedSuccessfully"),
-        });
-      }
-      proceed = true;
-    });
+  const handleSave = async () => {
+    try {
+      await saveFlow();
+      blocker.proceed?.();
+      setSuccessData({ title: t("flow.savedSuccessfully") });
+    } catch {
+      // useSaveFlow owns the bounded error; keep the pending Board location.
+    }
   };
 
   const handleExit = () => {
-    if (isBuilding) {
-      // Do nothing, let the blocker handle it
-    } else if (changesNotSaved) {
-      if (blocker.proceed) blocker.proceed();
-    } else {
-      navigate("/all");
-    }
+    blocker.proceed?.();
+  };
+
+  const handleCancelBlockedNavigation = () => {
+    blocker.reset?.();
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() =>
+        document
+          .querySelector<HTMLElement>('[data-testid="return-to-board"]')
+          ?.focus({ preventScroll: true }),
+      ),
+    );
   };
 
   useEffect(() => {
@@ -195,19 +185,13 @@ export default function FlowPage({ view }: { view?: boolean }): JSX.Element {
       changesNotSaved &&
       !isBuilding
     ) {
-      handleSave();
+      void handleSave();
     }
   }, [blocker.state, isBuilding]);
 
   useEffect(() => {
-    if (blocker.state === "blocked") {
-      if (isBuilding) {
-        stopBuilding();
-      } else if (!changesNotSaved) {
-        blocker.proceed && blocker.proceed();
-      }
-    }
-  }, [blocker.state, isBuilding]);
+    if (blocker.state === "blocked" && isBuilding) stopBuilding();
+  }, [blocker.state, isBuilding, stopBuilding]);
 
   const getFlowToAddToCanvas = async (id: string) => {
     const flow = await getFlow({ id });
@@ -364,9 +348,14 @@ export default function FlowPage({ view }: { view?: boolean }): JSX.Element {
         <>
           {!isBuilding && currentSavedFlow && (
             <SaveChangesModal
-              onSave={handleSave}
-              onCancel={() => blocker.reset?.()}
+              onSave={() => void handleSave()}
+              onCancel={handleCancelBlockedNavigation}
               onProceed={handleExit}
+              saveText={
+                blocker.location.pathname.includes("/board/")
+                  ? t("board.automation.saveAndReturn")
+                  : undefined
+              }
               flowName={currentSavedFlow.name}
               lastSaved={
                 updatedAt

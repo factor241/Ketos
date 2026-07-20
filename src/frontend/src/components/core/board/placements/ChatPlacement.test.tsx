@@ -1,12 +1,23 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import type { Placement } from "@/types/board";
 import type { ChatThread } from "@/types/chat";
 import { ChatPlacement } from "./ChatPlacement";
 
 const chats: Array<{ agentId?: string; threadId?: string }> = [];
+const mockUseThreadScopedCopilotAgent = jest.fn((chatId: string) => ({
+  status: "ready" as const,
+  localAgentId: `ketos-chat--${chatId}`,
+  error: null,
+  retry: jest.fn(),
+}));
+jest.mock("../../chats/use-thread-scoped-copilot-agent", () => ({
+  useThreadScopedCopilotAgent: (chatId: string) =>
+    mockUseThreadScopedCopilotAgent(chatId),
+}));
 jest.mock("@copilotkit/react-core/v2", () => ({
   CopilotChat: (props: { agentId?: string; threadId?: string }) => {
     chats.push(props);
@@ -55,13 +66,17 @@ jest.mock("../BoardCardFrame", () => ({
 }));
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
+  initReactI18next: { type: "3rdParty", init: jest.fn() },
 }));
+
+const CHAT_ONE = "11111111-1111-4111-8111-111111111111";
+const CHAT_TWO = "22222222-2222-4222-8222-222222222222";
 
 const placement = {
   id: "placement-1",
   boardId: "board-1",
   targetKind: "chat",
-  targetId: "chat-1",
+  targetId: CHAT_ONE,
   x: 1,
   y: 2,
   width: 480,
@@ -74,7 +89,7 @@ const placement = {
 } satisfies Placement;
 
 const chat = {
-  id: "chat-1",
+  id: CHAT_ONE,
   projectId: "project-1",
   createdById: "actor-1",
   title: "Incident copilot",
@@ -101,6 +116,13 @@ function callbacks() {
 describe("ChatPlacement", () => {
   beforeEach(() => {
     chats.length = 0;
+    mockUseThreadScopedCopilotAgent.mockReset();
+    mockUseThreadScopedCopilotAgent.mockImplementation((chatId: string) => ({
+      status: "ready" as const,
+      localAgentId: `ketos-chat--${chatId}`,
+      error: null,
+      retry: jest.fn(),
+    }));
   });
 
   it("binds stock CopilotChat to stable distinct thread identities", () => {
@@ -109,8 +131,8 @@ describe("ChatPlacement", () => {
       <>
         <ChatPlacement chat={chat} placement={placement} selected {...cb} />
         <ChatPlacement
-          chat={{ ...chat, id: "chat-2", title: "Review copilot" }}
-          placement={{ ...placement, id: "placement-2", targetId: "chat-2" }}
+          chat={{ ...chat, id: CHAT_TWO, title: "Review copilot" }}
+          placement={{ ...placement, id: "placement-2", targetId: CHAT_TWO }}
           selected={false}
           {...callbacks()}
         />
@@ -118,8 +140,14 @@ describe("ChatPlacement", () => {
     );
 
     expect(chats).toEqual([
-      expect.objectContaining({ agentId: "ketos-chat", threadId: "chat-1" }),
-      expect.objectContaining({ agentId: "ketos-chat", threadId: "chat-2" }),
+      expect.objectContaining({
+        agentId: `ketos-chat--${CHAT_ONE}`,
+        threadId: CHAT_ONE,
+      }),
+      expect.objectContaining({
+        agentId: `ketos-chat--${CHAT_TWO}`,
+        threadId: CHAT_TWO,
+      }),
     ]);
     expect(
       screen.getByRole("region", { name: "Incident copilot" }),
@@ -127,6 +155,76 @@ describe("ChatPlacement", () => {
     expect(
       screen.getByRole("region", { name: "Review copilot" }),
     ).toBeInTheDocument();
+  });
+
+  it("shows a connecting state without mounting stock CopilotChat", () => {
+    mockUseThreadScopedCopilotAgent.mockReturnValue({
+      status: "registering",
+      localAgentId: `ketos-chat--${CHAT_ONE}`,
+      error: null,
+      retry: jest.fn(),
+    });
+
+    render(
+      <ChatPlacement
+        chat={chat}
+        placement={placement}
+        selected
+        {...callbacks()}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "chat.states.connecting",
+    );
+    expect(chats).toHaveLength(0);
+  });
+
+  it("shows a retryable agent error without mounting stock CopilotChat", async () => {
+    const retry = jest.fn();
+    const user = userEvent.setup();
+    mockUseThreadScopedCopilotAgent.mockReturnValue({
+      status: "error",
+      localAgentId: `ketos-chat--${CHAT_ONE}`,
+      error: new Error("collision"),
+      retry,
+    });
+
+    render(
+      <ChatPlacement
+        chat={chat}
+        placement={placement}
+        selected
+        {...callbacks()}
+      />,
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "chat.states.agentError",
+    );
+    await user.click(
+      screen.getByRole("button", { name: /chat\.actions\.retry/i }),
+    );
+    expect(retry).toHaveBeenCalledTimes(1);
+    expect(chats).toHaveLength(0);
+  });
+
+  it("mounts stock CopilotChat only for a ready binding", () => {
+    render(
+      <ChatPlacement
+        chat={chat}
+        placement={placement}
+        selected
+        {...callbacks()}
+      />,
+    );
+
+    expect(chats).toEqual([
+      expect.objectContaining({
+        agentId: `ketos-chat--${CHAT_ONE}`,
+        threadId: CHAT_ONE,
+      }),
+    ]);
   });
 
   it("delegates frame lifecycle and keeps close separate from archive", () => {

@@ -23,6 +23,16 @@ LEGACY_PATHS = (
     WORKSPACE / "src/frontend/src/CustomNodes/NoteNode",
 )
 KFX_AGENT_COMPONENT = WORKSPACE / "src/backend/base/ketos/components/agents/agent.py"
+CHAT_PLACEMENT = (
+    WORKSPACE / "src/frontend/src/components/core/board/placements/ChatPlacement.tsx"
+)
+CHAT_PROVIDER = (
+    WORKSPACE / "src/frontend/src/components/core/chats/CopilotKitBoardProvider.tsx"
+)
+THREAD_SCOPED_AGENT_HOOK = (
+    WORKSPACE
+    / "src/frontend/src/components/core/chats/use-thread-scoped-copilot-agent.ts"
+)
 IGNORED_PARTS = frozenset({"node_modules", "build", "dist", "generated", "graphify-out", ".venv"})
 SOURCE_SUFFIXES = frozenset({".py", ".ts", ".tsx", ".js", ".jsx"})
 
@@ -148,6 +158,22 @@ def _legacy_hashes() -> dict[str, str]:
 def test_stage05_chat_stack_boundaries() -> None:
     failures = _scan_stage05_sources()
     assert not failures, "\n".join(failures)
+
+
+def test_stage05_frontend_uses_one_provider_and_official_thread_proxies() -> None:
+    placement = CHAT_PLACEMENT.read_text(encoding="utf-8")
+    provider = CHAT_PROVIDER.read_text(encoding="utf-8")
+    hook = THREAD_SCOPED_AGENT_HOOK.read_text(encoding="utf-8")
+
+    assert provider.count("<CopilotKitProvider") == 1
+    assert "CopilotKitProvider" not in placement
+    assert "CopilotKitProvider" not in hook
+    assert "registerProxiedAgent" in hook
+    assert 'CHAT_RUNTIME_AGENT_ID = "ketos-chat"' in hook
+    assert "runtimeAgentId: CHAT_RUNTIME_AGENT_ID" in hook
+    assert "useThreadScopedCopilotAgent(props.chat.id)" in placement
+    assert "agentId={binding.localAgentId}" in placement
+    assert "threadId={props.chat.id}" in placement
 
 
 def test_stage05_kfx_agent_component_identifier_is_preserved() -> None:

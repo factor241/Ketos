@@ -88,6 +88,8 @@
   "chat.states.loading": "Чаты загружаются…",
   "chat.states.empty": "Чатов пока нет",
   "chat.states.noResults": "По вашему запросу чаты не найдены",
+  "chat.states.connecting": "Подключаем чат…",
+  "chat.states.agentError": "Не удалось подключить чат",
   "chat.states.error": "Не удалось загрузить чаты",
   "chat.states.reconnect": "Соединение потеряно. Переподключаемся…",
   "chat.placement.collapse": "Свернуть чат",

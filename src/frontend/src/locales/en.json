@@ -88,6 +88,8 @@
   "chat.states.loading": "Loading chats…",
   "chat.states.empty": "No chats yet",
   "chat.states.noResults": "No chats match your search",
+  "chat.states.connecting": "Connecting chat…",
+  "chat.states.agentError": "Chat could not be connected",
   "chat.states.error": "Chats could not be loaded",
   "chat.states.reconnect": "Connection lost. Reconnecting…",
   "chat.placement.collapse": "Collapse chat",

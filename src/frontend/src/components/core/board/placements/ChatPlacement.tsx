@@ -1,8 +1,10 @@
 import { CopilotChat } from "@copilotkit/react-core/v2";
 import { useTranslation } from "react-i18next";
 
+import { Button } from "@/components/ui/button";
 import type { Placement, PlacementDisplayState } from "@/types/board";
 import type { ChatThread } from "@/types/chat";
+import { useThreadScopedCopilotAgent } from "../../chats/use-thread-scoped-copilot-agent";
 import { BoardCardFrame } from "../BoardCardFrame";
 
 export interface ChatPlacementProps {
@@ -19,6 +21,7 @@ export interface ChatPlacementProps {
 
 export function ChatPlacement(props: ChatPlacementProps) {
   const { t } = useTranslation();
+  const binding = useThreadScopedCopilotAgent(props.chat.id);
   return (
     <BoardCardFrame
       title={props.chat.title}
@@ -43,11 +46,35 @@ export function ChatPlacement(props: ChatPlacementProps) {
       onKeyboardResize={props.onKeyboardResize}
     >
       <div className="h-full min-h-0 bg-background text-foreground">
-        <CopilotChat
-          key={props.chat.id}
-          agentId="ketos-chat"
-          threadId={props.chat.id}
-        />
+        {binding.status === "registering" ? (
+          <div className="flex h-full items-center justify-center p-4">
+            <p role="status" className="text-sm text-muted-foreground">
+              {t("chat.states.connecting")}
+            </p>
+          </div>
+        ) : null}
+        {binding.status === "error" ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
+            <p role="alert" className="text-sm text-destructive">
+              {t("chat.states.agentError")}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={binding.retry}
+            >
+              {t("chat.actions.retry")}
+            </Button>
+          </div>
+        ) : null}
+        {binding.status === "ready" ? (
+          <CopilotChat
+            key={props.chat.id}
+            agentId={binding.localAgentId}
+            threadId={props.chat.id}
+          />
+        ) : null}
       </div>
     </BoardCardFrame>
   );

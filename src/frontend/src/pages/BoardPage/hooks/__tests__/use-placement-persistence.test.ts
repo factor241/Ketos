@@ -1,5 +1,5 @@
 import { renderHook } from "@testing-library/react";
-import { AxiosError } from "axios";
+import { AxiosError, AxiosHeaders } from "axios";
 
 import {
   useDeletePlacement,
@@ -113,7 +113,7 @@ describe("usePlacementPersistence", () => {
         status: 409,
         statusText: "Conflict",
         headers: {},
-        config: { headers: {} },
+        config: { headers: new AxiosHeaders() },
       }),
     );
     expect(onConflict).toHaveBeenCalledTimes(1);

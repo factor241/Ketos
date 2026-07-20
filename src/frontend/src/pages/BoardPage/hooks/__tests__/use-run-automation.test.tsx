@@ -47,7 +47,10 @@ describe("useRunAutomation", () => {
   let post: jest.Mock;
   let cancel: jest.Mock;
   let refetch: jest.Mock;
-  let detailPresentation: unknown;
+  let detailPresentation:
+    | BoardExecution
+    | { status: "unknown"; lastKnown: BoardExecution | null }
+    | undefined;
   let detailFailureCount: number;
   let postData: BoardExecution | undefined;
   let cancelData: BoardExecution | undefined;

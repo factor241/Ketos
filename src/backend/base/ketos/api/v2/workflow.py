@@ -68,6 +68,7 @@ from ketos.services.database.models.flow.model import FlowRead
 from ketos.services.database.models.jobs.model import JobType
 from ketos.services.database.models.user.model import UserRead
 from ketos.services.deps import get_job_service, get_memory_base_service, get_task_service
+from ketos.services.workflow_execution.service import WorkflowExecutionService
 
 # Configuration constants
 EXECUTION_TIMEOUT = 300  # 5 minutes default timeout for sync execution
@@ -426,6 +427,19 @@ async def execute_sync_workflow(
 
     # Get terminal nodes - these are the outputs we want
     terminal_node_ids = graph.get_terminal_nodes()
+    flow_snapshot = flow.model_copy(deep=True, update={"data": graph_data})
+    execution_service = WorkflowExecutionService(runner=run_graph_internal)
+    prepared = await execution_service.prepare(
+        flow=flow_snapshot,
+        actor_id=api_key_user.id,
+        job_id=job_id,
+        mode="v2_developer",
+        inputs=None,
+        outputs=terminal_node_ids,
+        stream=False,
+        session_id=session_id,
+        request_variables=request_variables,
+    )
 
     # Execute graph - component errors are caught and returned in response body
     job_service = get_job_service()
@@ -433,23 +447,17 @@ async def execute_sync_workflow(
     try:
         task_result, execution_session_id = await job_service.execute_with_status(
             job_id=job_id,
-            run_coro_func=run_graph_internal,
-            graph=graph,
-            flow_id=flow_id_str,
-            session_id=session_id,
-            inputs=None,
-            outputs=terminal_node_ids,
-            stream=False,
+            run_coro_func=execution_service.execute_prepared,
+            prepared=prepared,
         )
 
         # Fire memory-base auto-capture hook — non-blocking background effect.
         try:
-            _run_id_uuid = UUID(graph.run_id) if graph.run_id else None  # type-cast only; same run_id set on graph
             await get_task_service().fire_and_forget_task(
                 get_memory_base_service().on_flow_output,
                 flow_id=flow.id,
                 session_id=execution_session_id,
-                job_id=_run_id_uuid,
+                job_id=job_id,
             )
         except (RuntimeError, ValueError, OSError):
             await logger.awarning("Memory base hook scheduling failed for flow %s", flow.id, exc_info=True)
@@ -522,6 +530,19 @@ async def execute_workflow_background(
 
         # Get terminal nodes
         terminal_node_ids = graph.get_terminal_nodes()
+        flow_snapshot = flow.model_copy(deep=True, update={"data": graph_data})
+        execution_service = WorkflowExecutionService(runner=run_graph_internal)
+        prepared = await execution_service.prepare(
+            flow=flow_snapshot,
+            actor_id=api_key_user.id,
+            job_id=UUID(str(job_id)),
+            mode="v2_developer",
+            inputs=None,
+            outputs=terminal_node_ids,
+            stream=False,
+            session_id=session_id,
+            request_variables=request_variables,
+        )
 
         # Launch background task
         task_service = get_task_service()
@@ -540,13 +561,13 @@ async def execute_workflow_background(
         _hook_flow_id = flow.id
         _hook_run_id = job_id
 
-        async def _run_and_notify(**kwargs):
+        async def _run_and_notify():
             """Thin wrapper: execute graph then fire memory-base hook as a background effect.
 
             The hook is dispatched non-blocking after graph completion.  Any failure in
             the hook is swallowed so it never affects the job status of the graph run.
             """
-            result = await run_graph_internal(**kwargs)
+            result = await execution_service.execute_prepared(prepared)
             _, _effective_session_id = result
             try:
                 # Direct await — we are already inside a background task; awaiting here
@@ -566,14 +587,9 @@ async def execute_workflow_background(
 
         await task_service.fire_and_forget_task(
             job_service.execute_with_status,
+            task_id=job_id,
             job_id=job_id,
             run_coro_func=_run_and_notify,
-            graph=graph,
-            flow_id=flow_id_str,
-            session_id=session_id,
-            inputs=None,
-            outputs=terminal_node_ids,
-            stream=False,
         )
         status = JobStatus.QUEUED
         return WorkflowJobResponse(

@@ -35,3 +35,11 @@ def build_vertex(self, vertex: Vertex) -> Vertex:
 def process_graph_cached_task() -> dict[str, Any]:
     msg = "This task is not implemented yet"
     raise NotImplementedError(msg)
+
+
+@celery_app.task(name="ketos.worker.tasks.execute_board_workflow", acks_late=True, max_retries=0)
+def execute_board_workflow_task(payload: dict[str, object]) -> None:
+    """Run a Stage 07 Board workflow from a strict primitive snapshot."""
+    from ketos.services.workflow_execution.service import execute_board_workflow_payload
+
+    async_to_sync(execute_board_workflow_payload)(payload)

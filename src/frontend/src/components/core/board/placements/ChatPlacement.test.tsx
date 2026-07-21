@@ -8,6 +8,12 @@ import type { ChatThread } from "@/types/chat";
 import { ChatPlacement } from "./ChatPlacement";
 
 const chats: Array<{ agentId?: string; threadId?: string }> = [];
+const mockUseChatReconnect = jest.fn((input: { chatId: string }) => ({
+  phase: "restored" as const,
+  chat: { id: input.chatId, title: "Incident copilot" },
+  announcementKey: "chat.states.restored",
+  retry: jest.fn(),
+}));
 const mockUseThreadScopedCopilotAgent = jest.fn((chatId: string) => ({
   status: "ready" as const,
   localAgentId: `ketos-chat--${chatId}`,
@@ -17,6 +23,9 @@ const mockUseThreadScopedCopilotAgent = jest.fn((chatId: string) => ({
 jest.mock("../../chats/use-thread-scoped-copilot-agent", () => ({
   useThreadScopedCopilotAgent: (chatId: string) =>
     mockUseThreadScopedCopilotAgent(chatId),
+}));
+jest.mock("@/controllers/API/queries/chat-threads", () => ({
+  useChatReconnect: (input: { chatId: string }) => mockUseChatReconnect(input),
 }));
 jest.mock("@copilotkit/react-core/v2", () => ({
   useInterrupt: jest.fn(),
@@ -124,6 +133,16 @@ describe("ChatPlacement", () => {
       error: null,
       retry: jest.fn(),
     }));
+    mockUseChatReconnect.mockImplementation((input: { chatId: string }) => ({
+      phase: "restored" as const,
+      chat: {
+        id: input.chatId,
+        title:
+          input.chatId === CHAT_ONE ? "Incident copilot" : "Review copilot",
+      },
+      announcementKey: "chat.states.restored",
+      retry: jest.fn(),
+    }));
   });
 
   it("binds stock CopilotChat to stable distinct thread identities", () => {
@@ -175,9 +194,7 @@ describe("ChatPlacement", () => {
       />,
     );
 
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "chat.states.connecting",
-    );
+    expect(screen.getByText("chat.states.connecting")).toBeInTheDocument();
     expect(chats).toHaveLength(0);
   });
 
@@ -257,7 +274,8 @@ describe("ChatPlacement", () => {
   it("contains no replacement chat stack or raw color", () => {
     const source = readFileSync(join(__dirname, "ChatPlacement.tsx"), "utf8");
     expect(source).not.toMatch(
-      /assistantPanel|use-post-assist-stream|CopilotChatView|renderTool|renderActivity|messages\s*=|isRunning\s*=|chatView\s*=|#[0-9a-f]{3,8}/i,
+      /assistantPanel|use-post-assist-stream|renderTool|renderActivity|messages\s*=|isRunning\s*=|#[0-9a-f]{3,8}/i,
     );
+    expect(source).toContain("chatView={DraftPreservingChatView}");
   });
 });

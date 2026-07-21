@@ -39,7 +39,9 @@ uv run python scripts/mvp/check_stage09_scope.py snapshot \
 # Preserve the pre-existing ignored directories intact, then route gate writes
 # to separate external live directories. The EXIT trap restores the originals
 # even when a gate fails; the post-gate manifest comparison uses the snapshot
-# captured above, before any redirect was installed.
+# captured above, before any redirect was installed. Restoration is resumable:
+# if it fails, preserve staging and rerun restore-artifacts; never delete its
+# manifest or repo-artifact-originals recovery payload by hand.
 uv run python scripts/mvp/check_stage09_scope.py prepare-artifacts \
   --run-dir "$S09_RUN_DIR"
 trap 'uv run python scripts/mvp/check_stage09_scope.py restore-artifacts --run-dir "$S09_RUN_DIR"' EXIT

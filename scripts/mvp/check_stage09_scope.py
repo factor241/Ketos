@@ -80,6 +80,7 @@ REDIRECTED_ARTIFACT_DIRS = (
 )
 ARTIFACT_REDIRECT_SCHEMA = 1
 ARTIFACT_REDIRECT_MANIFEST = "repo-artifact-redirects.json"
+SHA256_HEX_LENGTH = 64
 
 
 class ScopeError(RuntimeError):
@@ -173,6 +174,57 @@ def _artifact_redirect_paths(run_root: Path) -> tuple[Path, Path, Path]:
     )
 
 
+def _directory_fingerprint(path: Path) -> str:
+    if not path.is_dir() or path.is_symlink():
+        raise ScopeError(f"cannot fingerprint non-directory artifact payload: {path}")
+    digest = hashlib.sha256()
+    for root, directories, names in os.walk(path, topdown=True, followlinks=False):
+        root_path = Path(root)
+        directories.sort()
+        names.sort()
+        symlink_directories = [name for name in directories if (root_path / name).is_symlink()]
+        paths = [root_path, *(root_path / name for name in symlink_directories)]
+        paths.extend(root_path / name for name in names)
+        for candidate in paths:
+            relative = "." if candidate == path else candidate.relative_to(path).as_posix()
+            record = json.dumps(_file_record(candidate), sort_keys=True, separators=(",", ":"))
+            digest.update(relative.encode("utf-8"))
+            digest.update(b"\0")
+            digest.update(record.encode("utf-8"))
+            digest.update(b"\0")
+        directories[:] = [name for name in directories if name not in symlink_directories]
+    return digest.hexdigest()
+
+
+def _is_exact_symlink(source: Path, target: Path) -> bool:
+    return source.is_symlink() and source.resolve(strict=False) == target.resolve(strict=False)
+
+
+def _manifest_entries(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    entries = payload.get("entries")
+    if (
+        payload.get("schema_version") != ARTIFACT_REDIRECT_SCHEMA
+        or payload.get("repo_root") != str(REPO_ROOT)
+        or not isinstance(entries, list)
+        or [entry.get("path") for entry in entries if isinstance(entry, dict)] != list(REDIRECTED_ARTIFACT_DIRS)
+    ):
+        raise ScopeError("invalid artifact redirect restoration manifest")
+    for entry in entries:
+        if not isinstance(entry, dict) or not isinstance(entry.get("original_present"), bool):
+            raise ScopeError("invalid artifact redirect restoration manifest")
+        fingerprint = entry.get("original_fingerprint")
+        if bool(entry["original_present"]):
+            if not isinstance(fingerprint, str) or len(fingerprint) != SHA256_HEX_LENGTH:
+                raise ScopeError("invalid artifact redirect restoration fingerprint")
+            try:
+                int(fingerprint, 16)
+            except ValueError as exc:
+                raise ScopeError("invalid artifact redirect restoration fingerprint") from exc
+        elif fingerprint is not None:
+            raise ScopeError("absent artifact entry must not have a fingerprint")
+    return entries
+
+
 def _prepare_artifact_redirects(run_dir: Path) -> None:
     run_root = _external_run_dir(run_dir)
     originals_root, live_root, manifest_path = _artifact_redirect_paths(run_root)
@@ -189,22 +241,18 @@ def _prepare_artifact_redirects(run_dir: Path) -> None:
             raise ScopeError(f"refusing to replace existing artifact symlink: {relative}")
         if source.exists() and not source.is_dir():
             raise ScopeError(f"artifact path is not a directory: {relative}")
-        entries.append({"path": relative, "original_present": source.exists()})
+        present = source.exists()
+        entries.append(
+            {
+                "path": relative,
+                "original_present": present,
+                "original_fingerprint": _directory_fingerprint(source) if present else None,
+            }
+        )
 
-    processed: list[dict[str, Any]] = []
+    originals_root.mkdir(mode=0o700, parents=True)
+    live_root.mkdir(mode=0o700, parents=True)
     try:
-        originals_root.mkdir(mode=0o700, parents=True)
-        live_root.mkdir(mode=0o700, parents=True)
-        for entry in entries:
-            processed.append(entry)
-            relative = str(entry["path"])
-            source = REPO_ROOT / relative
-            original = originals_root / relative
-            live = live_root / relative
-            if bool(entry["original_present"]):
-                _move_directory(source, original)
-            live.mkdir(mode=0o700, parents=True)
-            source.symlink_to(live, target_is_directory=True)
         _write_json(
             manifest_path,
             {
@@ -214,62 +262,136 @@ def _prepare_artifact_redirects(run_dir: Path) -> None:
             },
         )
     except Exception:
-        for entry in reversed(processed):
+        live_root.rmdir()
+        originals_root.rmdir()
+        raise
+
+    try:
+        for entry in entries:
             relative = str(entry["path"])
             source = REPO_ROOT / relative
             original = originals_root / relative
             live = live_root / relative
-            if source.is_symlink() and source.resolve(strict=False) == live.resolve(strict=False):
-                source.unlink()
-            if live.is_dir():
-                shutil.rmtree(live)
-            if bool(entry["original_present"]) and original.is_dir() and not source.exists():
-                _move_directory(original, source)
-        shutil.rmtree(live_root, ignore_errors=True)
-        shutil.rmtree(originals_root, ignore_errors=True)
-        manifest_path.unlink(missing_ok=True)
+            if bool(entry["original_present"]):
+                _move_directory(source, original)
+            live.mkdir(mode=0o700, parents=True)
+            source.symlink_to(live, target_is_directory=True)
+    except Exception:
+        try:
+            _restore_artifact_redirects(run_root)
+        except Exception as restore_error:
+            raise ScopeError(
+                "artifact redirect preparation failed and automatic recovery was incomplete; "
+                f"preserved recovery manifest: {manifest_path}; originals: {originals_root}"
+            ) from restore_error
         raise
 
 
-def _restore_artifact_redirects(run_dir: Path) -> None:
+def _real_directory_matches(path: Path, fingerprint: str) -> bool:
+    return path.is_dir() and not path.is_symlink() and _directory_fingerprint(path) == fingerprint
+
+
+def _validate_empty_scaffolding(root: Path) -> None:
+    if not root.exists():
+        return
+    if not root.is_dir() or root.is_symlink():
+        raise ScopeError(f"artifact recovery root is not a real directory: {root}")
+    allowed = {root}
+    for relative in REDIRECTED_ARTIFACT_DIRS:
+        candidate = root
+        for part in Path(relative).parts:
+            candidate /= part
+            allowed.add(candidate)
+    for candidate in root.rglob("*"):
+        if candidate not in allowed or candidate.is_symlink() or not candidate.is_dir():
+            raise ScopeError(f"unexpected payload remains in artifact recovery root: {candidate}")
+
+
+def _restore_artifact_entry(entry: dict[str, Any], *, originals_root: Path, live_root: Path) -> None:
+    relative = str(entry["path"])
+    source = REPO_ROOT / relative
+    original = originals_root / relative
+    live = live_root / relative
+    present = bool(entry["original_present"])
+
+    if live.exists() and (not live.is_dir() or live.is_symlink()):
+        raise ScopeError(f"artifact live payload is not a real directory: {live}")
+    if original.exists() and (not original.is_dir() or original.is_symlink()):
+        raise ScopeError(f"artifact original payload is not a real directory: {original}")
+
+    if not present:
+        if original.exists() or original.is_symlink():
+            raise ScopeError(f"unexpected original payload for absent artifact: {original}")
+        if source.exists() or source.is_symlink():
+            if not _is_exact_symlink(source, live):
+                raise ScopeError(f"artifact path was replaced during recovery: {relative}")
+            source.unlink()
+        if live.exists():
+            shutil.rmtree(live)
+        return
+
+    fingerprint = str(entry["original_fingerprint"])
+    source_matches = _real_directory_matches(source, fingerprint) if not source.is_symlink() else False
+    original_matches = _real_directory_matches(original, fingerprint) if not original.is_symlink() else False
+    if original.exists() and not original_matches:
+        raise ScopeError(f"preserved artifact original failed its fingerprint: {original}")
+    if (source.exists() or source.is_symlink()) and not source_matches:
+        if not _is_exact_symlink(source, live):
+            raise ScopeError(f"artifact path was replaced during recovery: {relative}")
+        if not original_matches:
+            raise ScopeError(f"artifact original is unavailable for recovery: {original}")
+        source.unlink()
+        _move_directory(original, source)
+        source_matches = _real_directory_matches(source, fingerprint)
+    elif not source_matches:
+        if not original_matches:
+            raise ScopeError(f"artifact original is unavailable for recovery: {original}")
+        _move_directory(original, source)
+        source_matches = _real_directory_matches(source, fingerprint)
+    if not source_matches:
+        raise ScopeError(f"restored artifact failed its fingerprint: {relative}")
+    if live.exists():
+        shutil.rmtree(live)
+
+
+def _restore_artifact_redirects(run_dir: Path, *, fail_after_entries: int | None = None) -> None:
     run_root = _external_run_dir(run_dir)
     originals_root, live_root, manifest_path = _artifact_redirect_paths(run_root)
     payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-    entries = payload.get("entries")
-    if (
-        payload.get("schema_version") != ARTIFACT_REDIRECT_SCHEMA
-        or payload.get("repo_root") != str(REPO_ROOT)
-        or not isinstance(entries, list)
-        or [entry.get("path") for entry in entries if isinstance(entry, dict)] != list(REDIRECTED_ARTIFACT_DIRS)
-        or not all(isinstance(entry, dict) and isinstance(entry.get("original_present"), bool) for entry in entries)
-    ):
+    if not isinstance(payload, dict):
         raise ScopeError("invalid artifact redirect restoration manifest")
+    entries = _manifest_entries(payload)
+
+    for index, entry in enumerate(entries, start=1):
+        _restore_artifact_entry(entry, originals_root=originals_root, live_root=live_root)
+        if fail_after_entries == index:
+            raise ScopeError(f"injected artifact restore failure after entry {index}")
 
     for entry in entries:
         relative = str(entry["path"])
         source = REPO_ROOT / relative
         original = originals_root / relative
         live = live_root / relative
-        if not source.is_symlink() or source.resolve(strict=False) != live.resolve(strict=False):
-            raise ScopeError(f"artifact redirect was replaced or retargeted: {relative}")
-        if not live.is_dir() or live.is_symlink():
-            raise ScopeError(f"artifact live directory is invalid: {live}")
-        if bool(entry["original_present"]) != (original.is_dir() and not original.is_symlink()):
-            raise ScopeError(f"artifact original state is invalid: {original}")
-
-    for entry in entries:
-        relative = str(entry["path"])
-        source = REPO_ROOT / relative
-        original = originals_root / relative
-        live = live_root / relative
-        source.unlink()
         if bool(entry["original_present"]):
-            _move_directory(original, source)
-        shutil.rmtree(live)
+            fingerprint = str(entry["original_fingerprint"])
+            if not _real_directory_matches(source, fingerprint):
+                raise ScopeError(f"artifact restore is not complete: {relative}")
+            if original.exists():
+                if not _real_directory_matches(original, fingerprint):
+                    raise ScopeError(f"artifact recovery copy failed its fingerprint: {original}")
+                shutil.rmtree(original)
+        elif source.exists() or source.is_symlink() or original.exists() or original.is_symlink():
+            raise ScopeError(f"absent artifact was not restored to absence: {relative}")
+        if live.exists() or live.is_symlink():
+            raise ScopeError(f"artifact live payload remains after recovery: {live}")
 
+    _validate_empty_scaffolding(live_root)
+    _validate_empty_scaffolding(originals_root)
+    if live_root.exists():
+        shutil.rmtree(live_root)
+    if originals_root.exists():
+        shutil.rmtree(originals_root)
     manifest_path.unlink()
-    shutil.rmtree(live_root)
-    shutil.rmtree(originals_root)
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:

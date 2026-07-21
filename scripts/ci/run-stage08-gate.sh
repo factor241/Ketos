@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 usage() {
-  echo "usage: $0 init|run-all --code-sha <40-hex> --evidence-root <absolute-path>" >&2
+  echo "usage: $0 init|run-all --code-sha <40-hex> --evidence-root <absolute-path> [--transition-input <absolute-json-path>]" >&2
   exit 64
 }
 
@@ -18,6 +18,7 @@ test -n "$ACTION" || usage
 shift
 CODE_SHA=""
 EVIDENCE_ROOT=""
+TRANSITION_INPUT=""
 while test "$#" -gt 0; do
   case "$1" in
     --code-sha)
@@ -28,6 +29,11 @@ while test "$#" -gt 0; do
     --evidence-root)
       test "$#" -ge 2 || usage
       EVIDENCE_ROOT="$2"
+      shift 2
+      ;;
+    --transition-input)
+      test "$#" -ge 2 || usage
+      TRANSITION_INPUT="$2"
       shift 2
       ;;
     *) usage ;;
@@ -51,6 +57,22 @@ case "$EVIDENCE_ROOT/" in
   "$REPO_ROOT/"*) echo "BLOCKED: evidence root must be outside the repository" >&2; exit 42 ;;
 esac
 
+if test "$ACTION" = "init"; then
+  case "$TRANSITION_INPUT" in
+    /*) ;;
+    *) echo "BLOCKED: init requires an absolute --transition-input path" >&2; exit 42 ;;
+  esac
+  test ! -L "$TRANSITION_INPUT" || { echo "BLOCKED: transition input must not be a symlink" >&2; exit 42; }
+  TRANSITION_INPUT="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$TRANSITION_INPUT")" || {
+    echo "BLOCKED: transition input could not be canonicalized" >&2
+    exit 42
+  }
+  test -f "$TRANSITION_INPUT" || { echo "BLOCKED: transition input is missing" >&2; exit 42; }
+  case "$TRANSITION_INPUT" in
+    "$REPO_ROOT"/*) echo "BLOCKED: actual transition input must remain outside the tested repository" >&2; exit 42 ;;
+  esac
+fi
+
 assert_frozen() {
   test "$(git -C "$REPO_ROOT" rev-parse HEAD)" = "$CODE_SHA" || {
     echo "BLOCKED: HEAD no longer equals S08_CODE_SHA" >&2
@@ -62,11 +84,67 @@ assert_frozen() {
   }
 }
 
+validate_transition_file() {
+  local transition_file="$1"
+  S08_TRANSITION_INPUT="$transition_file" S08_CODE_SHA="$CODE_SHA" S08_BASE_SHA="$BASE_SHA" \
+    uv run --directory "$REPO_ROOT" python - <<'PY'
+import json
+import os
+import subprocess
+from pathlib import Path
+
+import jsonschema
+
+from scripts.ci.stage08_evidence_report import validate_transition_input
+
+source = Path(os.environ["S08_TRANSITION_INPUT"])
+payload = json.loads(source.read_text(encoding="utf-8"))
+schema = json.loads(
+    Path("docs/evidence/stage-08/schemas/transition-input.schema.json").read_text(
+        encoding="utf-8"
+    )
+)
+jsonschema.Draft202012Validator(
+    schema, format_checker=jsonschema.FormatChecker()
+).validate(payload)
+validate_transition_input(
+    payload,
+    code_sha=os.environ["S08_CODE_SHA"],
+    base_sha=os.environ["S08_BASE_SHA"],
+)
+for label, ancestor, descendant in [
+    ("Sync A", payload["syncASha"], os.environ["S08_CODE_SHA"]),
+    *[
+        (item["taskId"], item["baseSha"], item["commitSha"])
+        for item in payload["taskHandoffs"]
+    ],
+    *[
+        (f"{item['taskId']} frozen ancestry", item["commitSha"], os.environ["S08_CODE_SHA"])
+        for item in payload["taskHandoffs"]
+    ],
+]:
+    completed = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    if completed.returncode != 0:
+        raise ValueError(f"{label} ancestry is invalid: {ancestor} !<= {descendant}")
+PY
+}
+
 STAGE_ROOT="$EVIDENCE_ROOT/stage-08/$CODE_SHA"
 ACTIVE_FILE="$STAGE_ROOT/.active-run"
 
 if test "$ACTION" = "init"; then
   assert_frozen || exit $?
+  validate_transition_file "$TRANSITION_INPUT"
+  TRANSITION_VALIDATION_EXIT=$?
+  if test "$TRANSITION_VALIDATION_EXIT" -ne 0; then
+    echo "BLOCKED: transition input failed schema or semantic validation" >&2
+    exit 42
+  fi
   mkdir -p "$EVIDENCE_ROOT"
   test ! -L "$EVIDENCE_ROOT/stage-08" || { echo "BLOCKED: stage evidence directory is a symlink" >&2; exit 42; }
   mkdir -p "$EVIDENCE_ROOT/stage-08"
@@ -82,6 +160,40 @@ if test "$ACTION" = "init"; then
   mkdir "$BUNDLE"
   mkdir "$BUNDLE/logs" "$BUNDLE/nodes" "$BUNDLE/artifacts"
   chmod 700 "$BUNDLE" "$BUNDLE/logs" "$BUNDLE/nodes" "$BUNDLE/artifacts"
+  S08_TRANSITION_INPUT="$TRANSITION_INPUT" S08_BUNDLE="$BUNDLE" \
+    uv run --directory "$REPO_ROOT" python - <<'PY'
+import os
+from pathlib import Path
+
+source = Path(os.environ["S08_TRANSITION_INPUT"])
+destination = Path(os.environ["S08_BUNDLE"], "transition-input.json")
+destination.write_bytes(source.read_bytes())
+PY
+  S08_TRANSITION_INPUT="$BUNDLE/transition-input.json"
+  if ! validate_transition_file "$S08_TRANSITION_INPUT"; then
+    S08_BUNDLE="$BUNDLE" uv run --directory "$REPO_ROOT" python - <<'PY'
+import json
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+
+Path(os.environ["S08_BUNDLE"], "ABORTED.json").write_text(
+    json.dumps(
+        {
+            "status": "BLOCKED",
+            "reason": "Copied transition input failed validation; no active run was created.",
+            "at": datetime.now(timezone.utc).isoformat(),
+        },
+        indent=2,
+        sort_keys=True,
+    )
+    + "\n",
+    encoding="utf-8",
+)
+PY
+    echo "BLOCKED: copied transition input failed schema, semantic, or ancestry validation" >&2
+    exit 42
+  fi
   printf '%s\n' "$RUN_ID" > "$ACTIVE_FILE"
   S08_RUN_ID="$RUN_ID" S08_BUNDLE="$BUNDLE" S08_CODE_SHA="$CODE_SHA" S08_BASE_SHA="$BASE_SHA" \
     uv run --directory "$REPO_ROOT" python - <<'PY'
@@ -121,6 +233,44 @@ test ! -L "$BUNDLE" || { echo "BLOCKED: active evidence bundle is a symlink" >&2
 test -d "$BUNDLE" || { echo "BLOCKED: active bundle is missing" >&2; exit 42; }
 test ! -e "$BUNDLE/SEAL.json" || { echo "BLOCKED: bundle is already sealed" >&2; exit 42; }
 assert_frozen || exit $?
+
+abort_active_run() {
+  local reason="$1"
+  S08_BUNDLE="$BUNDLE" S08_REASON="$reason" uv run --directory "$REPO_ROOT" python - <<'PY'
+import json
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+
+bundle = Path(os.environ["S08_BUNDLE"])
+now = datetime.now(timezone.utc).isoformat()
+run_path = bundle / "RUN.json"
+if run_path.is_file():
+    run = json.loads(run_path.read_text(encoding="utf-8"))
+    run["status"] = "BLOCKED"
+    run["completedAt"] = now
+    run["note"] = os.environ["S08_REASON"]
+    run_path.write_text(json.dumps(run, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+(bundle / "ABORTED.json").write_text(
+    json.dumps(
+        {"status": "BLOCKED", "reason": os.environ["S08_REASON"], "at": now},
+        indent=2,
+        sort_keys=True,
+    )
+    + "\n",
+    encoding="utf-8",
+)
+PY
+  if test -f "$ACTIVE_FILE" && test "$(tr -d '\r\n' < "$ACTIVE_FILE")" = "$RUN_ID"; then
+    rm -f "$ACTIVE_FILE"
+  fi
+}
+
+if ! validate_transition_file "$BUNDLE/transition-input.json"; then
+  echo "BLOCKED: bundled transition input failed revalidation before run" >&2
+  abort_active_run "Bundled transition input failed revalidation before run; bundle intentionally left unsealed."
+  exit 42
+fi
 
 NODES_NDJSON="$BUNDLE/nodes.ndjson"
 : > "$NODES_NDJSON"
@@ -341,7 +491,7 @@ run_node "browser" "Chromium acceptance story" \
   'cd src/frontend && KETOS_MVP_RUN_DIR="$S08_BUNDLE/artifacts/browser-run" STAGE08_EVIDENCE_ROOT="$S08_BUNDLE/artifacts/browser" STAGE08_OPENAI_PORT=18766 STAGE08_TRACE=on OPENAI_API_BASE="http://127.0.0.1:18766/v1" OPENAI_BASE_URL="http://127.0.0.1:18766/v1" OPENAI_API_KEY="stage08-test-key" npx playwright test -c playwright.mvp.config.ts tests/core/integrations/ai-flow-preview-confirm.spec.ts --project=chromium --output="$S08_BUNDLE/artifacts/playwright"'
 
 run_node "repository" "Repository lint and diff gate" \
-  'make lint && git diff --check "$S08_BASE_SHA"..."$S08_CODE_SHA" && test -z "$(git status --short)"'
+  'uv run pytest scripts/ci/test_stage08_evidence_report.py -q && make lint && git diff --check "$S08_BASE_SHA"..."$S08_CODE_SHA" && test -z "$(git status --short)"'
 
 S08_OVERALL="$OVERALL" S08_BUNDLE="$BUNDLE" S08_RUN_ID="$RUN_ID" S08_CODE_SHA="$CODE_SHA" S08_BASE_SHA="$BASE_SHA" \
   uv run --directory "$REPO_ROOT" python - <<'PY'
@@ -351,6 +501,11 @@ import mimetypes
 import os
 from datetime import datetime, timezone
 from pathlib import Path
+
+from scripts.ci.stage08_evidence_report import (
+    render_stage08_report,
+    validate_stage08_report,
+)
 
 bundle = Path(os.environ["S08_BUNDLE"])
 nodes = [json.loads(line) for line in (bundle / "nodes.ndjson").read_text(encoding="utf-8").splitlines()]
@@ -381,29 +536,21 @@ run["status"] = status
 run["completedAt"] = now
 run["note"] = f"All mandatory Stage 08 nodes completed with aggregate status {status}."
 (bundle / "RUN.json").write_text(json.dumps(run, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-status_phrase = {"PASS": "этап выполнен", "FAIL": "этап выполнен частично", "BLOCKED": "этап заблокирован"}[status]
-(bundle / "STAGE_08_REPORT.md").write_text(
-    "# Отчёт по Этапу 08 — AI create/edit Flow\n\n"
-    f"Статус этапа: {status_phrase}\n"
-    f"Внутренний gate: {status}\n"
-    f"Baseline SHA: {os.environ['S08_BASE_SHA']}\n"
-    f"S08_CODE_SHA (tested): {os.environ['S08_CODE_SHA']}\n"
-    f"External evidence bundle key: stage-08/{os.environ['S08_CODE_SHA']}/{os.environ['S08_RUN_ID']}\n"
-    "S08_EVIDENCE_SHA: отсутствует\n"
-    "Migration revision: s08c0mmand01\n"
-    f"Дата/время: {now}\n\n"
-    "## Узлы\n\n"
-    + "\n".join(
-        f"- {n['id']}: {n['status']} — {n['logPath']}"
-        + (f"; artifacts: {', '.join(n['artifactPaths'])}" if n["artifactPaths"] else "")
-        for n in nodes
-    )
-    + "\n\n## Acceptance semantics\n\n"
-    "- Все AI create/edit mutations проходят proposal → interrupt → boolean resume → server-side one-use apply.\n"
-    "- PostgreSQL artifact содержит пять race/zero-write verdicts, два phase verdicts и 0 skipped.\n"
-    "- Browser artifact содержит EN/RU screenshots, explicit trace, console/network accounting и authoritative outcome checks.\n",
-    encoding="utf-8",
+transition_input = json.loads(
+    (bundle / "transition-input.json").read_text(encoding="utf-8")
 )
+markdown = render_stage08_report(
+    bundle=bundle,
+    nodes=nodes,
+    status=status,
+    code_sha=os.environ["S08_CODE_SHA"],
+    base_sha=os.environ["S08_BASE_SHA"],
+    run_id=os.environ["S08_RUN_ID"],
+    generated_at=now,
+    transition_input=transition_input,
+)
+validate_stage08_report(markdown, status=status)
+(bundle / "STAGE_08_REPORT.md").write_text(markdown, encoding="utf-8")
 
 def inventory():
     rows = []
@@ -427,20 +574,47 @@ manifest = {
 }
 (bundle / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 PY
+REPORT_BUILD_EXIT=$?
+if test "$REPORT_BUILD_EXIT" -ne 0; then
+  echo "FAIL: Stage 08 report contract validation failed before manifest/seal" >&2
+  abort_active_run "Report contract validation failed before manifest/seal; bundle intentionally left unsealed."
+  exit 1
+fi
 
-S08_BUNDLE="$BUNDLE" uv run --directory "$REPO_ROOT" python - <<'PY'
+validate_bundle() {
+  S08_BUNDLE="$BUNDLE" uv run --directory "$REPO_ROOT" python - <<'PY'
 import json
 import os
 from pathlib import Path
 
 import jsonschema
 
+from scripts.ci.stage08_evidence_report import (
+    validate_stage08_report,
+    validate_transition_input,
+)
+
 bundle = Path(os.environ["S08_BUNDLE"])
 root = Path.cwd()
-for data_name, schema_name in (("report.json", "report.schema.json"), ("manifest.json", "manifest.schema.json")):
+for data_name, schema_name in (
+    ("report.json", "report.schema.json"),
+    ("manifest.json", "manifest.schema.json"),
+    ("transition-input.json", "transition-input.schema.json"),
+):
     data = json.loads((bundle / data_name).read_text(encoding="utf-8"))
     schema = json.loads((root / "docs/evidence/stage-08/schemas" / schema_name).read_text(encoding="utf-8"))
     jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker()).validate(data)
+transition_input = json.loads((bundle / "transition-input.json").read_text(encoding="utf-8"))
+report = json.loads((bundle / "report.json").read_text(encoding="utf-8"))
+validate_transition_input(
+    transition_input,
+    code_sha=report["frozenSha"],
+    base_sha=report["baseSha"],
+)
+validate_stage08_report(
+    (bundle / "STAGE_08_REPORT.md").read_text(encoding="utf-8"),
+    status=report["status"],
+)
 node_schema = json.loads((root / "docs/evidence/stage-08/schemas/test-evidence.schema.json").read_text(encoding="utf-8"))
 for node_path in sorted((bundle / "nodes").glob("*.json")):
     jsonschema.Draft202012Validator(node_schema, format_checker=jsonschema.FormatChecker()).validate(
@@ -454,6 +628,9 @@ for data_path, schema_name in (
     schema = json.loads((root / "docs/evidence/stage-08/schemas" / schema_name).read_text(encoding="utf-8"))
     jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker()).validate(data)
 PY
+}
+
+validate_bundle
 VALIDATION_EXIT=$?
 if test "$VALIDATION_EXIT" -ne 0; then
   echo "Evidence schema validation failed; bundle is sealed as FAIL." >> "$BUNDLE/logs/evidence-validation.log"
@@ -464,6 +641,11 @@ import json
 import mimetypes
 import os
 from pathlib import Path
+
+from scripts.ci.stage08_evidence_report import (
+    render_stage08_report,
+    validate_stage08_report,
+)
 
 bundle = Path(os.environ["S08_BUNDLE"])
 report = json.loads((bundle / "report.json").read_text(encoding="utf-8"))
@@ -482,9 +664,24 @@ run = json.loads((bundle / "RUN.json").read_text(encoding="utf-8"))
 run["status"] = "FAIL"
 run["note"] = "Mandatory evidence schema validation failed."
 (bundle / "RUN.json").write_text(json.dumps(run, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-markdown = (bundle / "STAGE_08_REPORT.md").read_text(encoding="utf-8")
-markdown = markdown.replace("Статус этапа: этап выполнен\n", "Статус этапа: этап выполнен частично\n")
-markdown = markdown.replace("Внутренний gate: PASS\n", "Внутренний gate: FAIL\n")
+nodes = [
+    json.loads(line)
+    for line in (bundle / "nodes.ndjson").read_text(encoding="utf-8").splitlines()
+]
+transition_input = json.loads(
+    (bundle / "transition-input.json").read_text(encoding="utf-8")
+)
+markdown = render_stage08_report(
+    bundle=bundle,
+    nodes=nodes,
+    status="FAIL",
+    code_sha=report["frozenSha"],
+    base_sha=report["baseSha"],
+    run_id=report["runId"],
+    generated_at=report["generatedAt"],
+    transition_input=transition_input,
+)
+validate_stage08_report(markdown, status="FAIL")
 (bundle / "STAGE_08_REPORT.md").write_text(markdown, encoding="utf-8")
 manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
 manifest["status"] = "FAIL"
@@ -504,6 +701,19 @@ for path in sorted(bundle.rglob("*")):
 manifest["files"] = files
 (bundle / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 PY
+fi
+
+validate_bundle
+FINAL_VALIDATION_EXIT=$?
+if test "$FINAL_VALIDATION_EXIT" -ne 0; then
+  echo "FAIL: finalized Stage 08 evidence failed validation; bundle is not sealed" >&2
+  abort_active_run "Final evidence validation failed after failure normalization; bundle intentionally left unsealed."
+  exit 1
+fi
+if ! validate_transition_file "$BUNDLE/transition-input.json"; then
+  echo "FAIL: bundled transition ancestry changed before seal" >&2
+  abort_active_run "Bundled transition input failed final ancestry validation; bundle intentionally left unsealed."
+  exit 1
 fi
 
 S08_BUNDLE="$BUNDLE" S08_RUN_ID="$RUN_ID" S08_CODE_SHA="$CODE_SHA" S08_STATUS="$OVERALL" \

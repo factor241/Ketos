@@ -1,9 +1,16 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { Socket } from "node:net";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { Page, Request } from "@playwright/test";
+import JSZip from "jszip";
 
 import { expect, test } from "../../fixtures";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
@@ -49,6 +56,10 @@ const evidenceRoot =
   path.join(repositoryRoot, "docs/evidence/stage-08-local");
 const providerPort = Number(process.env.STAGE08_OPENAI_PORT ?? "18766");
 const tracePath = path.join(evidenceRoot, "stage08-playwright-trace.zip");
+const rawTracePath = path.join(
+  evidenceRoot,
+  ".stage08-playwright-trace.raw.zip",
+);
 const startedAt = new Date().toISOString();
 const providerSockets = new Set<Socket>();
 const consoleErrors: string[] = [];
@@ -60,6 +71,80 @@ const resumeBodies: RunBody[] = [];
 const stories: StoryEvidence[] = [];
 let browserVersion = "unknown";
 let providerServer: Server;
+
+const SENSITIVE_TRACE_KEYS = new Set([
+  "body",
+  "content",
+  "edges",
+  "headers",
+  "html",
+  "jsonData",
+  "messages",
+  "nodes",
+  "operations",
+  "parameter",
+  "parameters",
+  "payload",
+  "postData",
+  "snapshot",
+  "state",
+  "text",
+  "value",
+]);
+
+function sanitizeTraceValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sanitizeTraceValue);
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      SENSITIVE_TRACE_KEYS.has(key) ? "[REDACTED]" : sanitizeTraceValue(item),
+    ]),
+  );
+}
+
+async function sanitizePlaywrightTrace(sourcePath: string, targetPath: string) {
+  const zip = await JSZip.loadAsync(readFileSync(sourcePath));
+  zip.remove("trace.network");
+  for (const fileName of Object.keys(zip.files)) {
+    if (
+      fileName.startsWith("resources/") &&
+      !/\.(?:jpe?g|png)$/i.test(fileName)
+    ) {
+      zip.remove(fileName);
+    }
+  }
+  const traceFile = zip.file("trace.trace");
+  if (!traceFile) throw new Error("Playwright trace has no trace.trace entry");
+  const sanitizedLines = (await traceFile.async("string"))
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as Record<string, unknown>)
+    .filter((entry) => entry.type !== "frame-snapshot")
+    .map((entry) => JSON.stringify(sanitizeTraceValue(entry)));
+  zip.file("trace.trace", `${sanitizedLines.join("\n")}\n`);
+  const sanitized = await zip.generateAsync({
+    type: "nodebuffer",
+    compression: "DEFLATE",
+  });
+  writeFileSync(targetPath, sanitized);
+  unlinkSync(sourcePath);
+
+  const verificationZip = await JSZip.loadAsync(sanitized);
+  const verificationTrace = await verificationZip
+    .file("trace.trace")
+    ?.async("string");
+  if (
+    !verificationTrace ||
+    /S08 (?:CREATE|EDIT|RU)|"(?:jsonData|postData|messages|operations|nodes|edges|parameter|state)"/.test(
+      verificationTrace,
+    )
+  ) {
+    throw new Error(
+      "Sanitized Playwright trace still contains governed payload data",
+    );
+  }
+}
 
 function isKnownBaselineConsoleError(message: string) {
   return (
@@ -261,7 +346,12 @@ test.beforeEach(async ({ context }) => {
 
 test.afterEach(async ({ page }, testInfo) => {
   if (process.env.STAGE08_TRACE === "on") {
-    await page.context().tracing.stop({ path: tracePath });
+    await page.context().tracing.stop({ path: rawTracePath });
+    try {
+      await sanitizePlaywrightTrace(rawTracePath, tracePath);
+    } finally {
+      if (existsSync(rawTracePath)) unlinkSync(rawTracePath);
+    }
   }
   const now = new Date().toISOString();
   const screenshotPaths = [
@@ -450,6 +540,18 @@ function forbiddenResumeKey(value: unknown): string | null {
   return null;
 }
 
+function redactResumeBody(body: RunBody): RunBody {
+  return {
+    threadId: body.threadId,
+    runId: body.runId,
+    resume: body.resume?.map((entry) => ({
+      interruptId: entry.interruptId,
+      status: entry.status,
+      payload: { approved: entry.payload.approved },
+    })),
+  };
+}
+
 const isChatRun = (request: Request) =>
   request.method() === "POST" &&
   request.url().includes("/api/copilotkit/agent/ketos-chat/run");
@@ -625,7 +727,7 @@ test.describe("Stage 08 AI flow preview and confirmation", () => {
       page.on("request", (request) => {
         if (!isChatRun(request)) return;
         const body = request.postDataJSON() as RunBody;
-        if (body.resume) resumeBodies.push(body);
+        if (body.resume) resumeBodies.push(redactResumeBody(body));
       });
       await page.addInitScript(() => {
         if (localStorage.getItem("ketos-language-preference") === null) {
@@ -844,6 +946,16 @@ test.describe("Stage 08 AI flow preview and confirmation", () => {
 
       expect(consoleErrors).toEqual([]);
       expect(failedRequests).toEqual([]);
+      expect(
+        resumeBodies.every((body) => forbiddenResumeKey(body) === null),
+      ).toBe(true);
+      expect(
+        resumeBodies.every((body) =>
+          Object.keys(body).every((key) =>
+            ["threadId", "runId", "resume"].includes(key),
+          ),
+        ),
+      ).toBe(true);
     },
   );
 });

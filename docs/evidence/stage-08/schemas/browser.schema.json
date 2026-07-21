@@ -80,7 +80,18 @@
       "properties": {
         "failedRequestCount": {"type": "integer", "minimum": 0},
         "unexpectedMutationCount": {"type": "integer", "minimum": 0},
-        "resumeBodyKeys": {"type": "array", "items": {"type": "string"}},
+        "resumeBodyKeys": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {"enum": ["threadId", "runId", "resume"]},
+          "allOf": [
+            {"contains": {"const": "threadId"}},
+            {"contains": {"const": "runId"}},
+            {"contains": {"const": "resume"}}
+          ]
+        },
         "logPath": {"type": "string"}
       }
     }

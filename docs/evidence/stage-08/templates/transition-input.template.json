@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1",
+  "stage": "08",
+  "baseSha": "0000000000000000000000000000000000000000",
+  "syncASha": "0000000000000000000000000000000000000000",
+  "frozenSha": "0000000000000000000000000000000000000000",
+  "stagePassReferences": [
+    {"stage": "01", "status": "PASS", "evidence": "replace with immutable evidence path"},
+    {"stage": "05", "status": "PASS", "evidence": "replace with immutable evidence path"},
+    {"stage": "06", "status": "PASS", "evidence": "replace with immutable evidence path"},
+    {"stage": "07", "status": "PASS", "evidence": "replace with immutable evidence path"}
+  ],
+  "officialDocumentation": [
+    {"name": "replace with official dependency documentation", "url": "https://example.invalid/replace"}
+  ],
+  "taskHandoffs": [],
+  "reviews": [],
+  "deviations": [],
+  "closedDefects": []
+}

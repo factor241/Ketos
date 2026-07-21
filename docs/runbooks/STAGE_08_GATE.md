@@ -11,11 +11,13 @@ The external key is `stage-08/<S08_CODE_SHA>/<RUN_ID>`. A run leaf is create-if-
 ```bash
 export S08_CODE_SHA="$(git rev-parse HEAD)"
 export S08_EVIDENCE_ROOT=/absolute/path/outside/the/repository
+export S08_TRANSITION_INPUT=/absolute/path/outside/the-repository/transition-input.json
 source /absolute/path/to/postgres/connection.env
 
 scripts/ci/run-stage08-gate.sh init \
   --code-sha "$S08_CODE_SHA" \
-  --evidence-root "$S08_EVIDENCE_ROOT"
+  --evidence-root "$S08_EVIDENCE_ROOT" \
+  --transition-input "$S08_TRANSITION_INPUT"
 
 scripts/ci/run-stage08-gate.sh run-all \
   --code-sha "$S08_CODE_SHA" \
@@ -24,9 +26,13 @@ scripts/ci/run-stage08-gate.sh run-all \
 
 The runner never prints `MVP_POSTGRES_URI`. PostgreSQL absence or connection preflight failure is `BLOCKED`; an available PostgreSQL with a behavioral failure is `FAIL`.
 
+The coordinator creates `S08_TRANSITION_INPUT` only after the code SHA is frozen and the practical A01-A10 handoffs plus independent reviews are complete. Start from `docs/evidence/stage-08/templates/transition-input.template.json`, fill every field, and validate it against `docs/evidence/stage-08/schemas/transition-input.schema.json`. The actual input is external evidence and must not be committed. `init` rejects a missing, repository-local, malformed, SHA-mismatched, incomplete, or non-PASS transition input before it creates a run leaf.
+
 ## Safety rules
 
 Before every node, the runner proves `HEAD == S08_CODE_SHA` and an empty `git status --short`. The evidence root must be absolute and outside the repository. The runner refuses an existing sealed leaf, never writes results under the worktree, preserves the tested command exit through log capture, and creates the seal last.
+
+The report renderer computes the verdict from the transition input and node results. It requires all §15.2–§15.12 sections, all A01-A10 handoffs, every §9/§10 criterion, runtime correlation IDs, command ledger, defects/blockers, subagent reviews and the explicit Stage-09 verdict. An abbreviated report, placeholder, missing correlation evidence, failed review, or incomplete task makes report generation fail before manifest/seal.
 
 If a test or build creates repository dirt, the next assertion blocks the run. Fix the product/tool configuration, commit a new code SHA, and start a new evidence run; do not edit or append to a sealed run.
 
@@ -44,7 +50,7 @@ If a test or build creates repository dirt, the next assertion blocks the run. F
 10. `negative-guards`: backend/frontend no-bypass runtime tests and zero-match source scans.
 11. `browser`: Chromium acceptance story with screenshots and redacted request trace written outside the repository.
 12. `repository`: `make lint`, `git diff --check`, forbidden/unrelated diff scan, final SHA/clean proof.
-13. `evidence`: validate committed JSON schemas, write report/manifest, hash inventory, and seal.
+13. `evidence`: validate transition input and committed schemas, render and revalidate the complete §15 report, write manifest/hash inventory, and seal.
 
 Nodes run sequentially after focused development checks. A general package gate does not replace a focused or browser node.
 
@@ -62,6 +68,6 @@ The runner may continue safe diagnostic nodes after a failure, but the aggregate
 
 ## Sealing and reruns
 
-The report and manifest are written only after nodes finish. File hashes exclude the detached seal and avoid a self-referential manifest digest. The detached `SEAL.json` stores the manifest SHA-256, frozen SHA, run ID, status and seal timestamp. Files are made read-only after the seal where supported.
+The report and manifest are written only after nodes finish. `transition-input.json` is copied into the bundle and included in the manifest. File hashes exclude the detached seal and avoid a self-referential manifest digest. The detached `SEAL.json` stores the manifest SHA-256, frozen SHA, run ID, status and seal timestamp. Files are made read-only after the seal where supported.
 
 Any fix changes `S08_CODE_SHA`. Create a new run leaf and execute the whole gate again. Repository pointer commits, if ever created, are metadata-only and explicitly `NOT TESTED`; they do not replace the code SHA or external bundle.

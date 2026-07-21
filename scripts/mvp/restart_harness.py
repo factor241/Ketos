@@ -23,6 +23,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -195,6 +196,7 @@ class ApiClient:
         self.base_url = f"http://127.0.0.1:{port}"
         self.cookies = http.cookiejar.CookieJar()
         self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.cookies))
+        self.access_token: str | None = None
 
     def request(
         self,
@@ -229,10 +231,66 @@ class ApiClient:
         payload = self.request("GET", "/api/v1/auto_login")
         if not isinstance(payload, dict) or not payload.get("access_token"):
             raise HarnessError("auto-login did not return an access token")
+        self.access_token = str(payload["access_token"])
         user = self.request("GET", "/api/v1/users/whoami")
         if not isinstance(user, dict) or not user.get("id"):
             raise HarnessError("whoami did not return an actor id")
         return str(user["id"])
+
+    def resume_recovered_interrupt(
+        self,
+        *,
+        chat_id: str,
+        project_id: str,
+        interrupt_id: str,
+        run_id: str,
+        expected: tuple[int, ...] = (200,),
+    ) -> list[dict[str, Any]]:
+        if self.access_token is None:
+            raise HarnessError("AG-UI resume requires an authenticated access token")
+        payload = {
+            "threadId": chat_id,
+            "runId": run_id,
+            "state": {"projectId": project_id},
+            "messages": [],
+            "tools": [],
+            "context": [],
+            "forwardedProps": {},
+            "resume": [
+                {
+                    "interruptId": interrupt_id,
+                    "status": "resolved",
+                    "payload": {"approved": False},
+                }
+            ],
+        }
+        request = urllib.request.Request(  # noqa: S310 - fixed loopback origin
+            self.base_url + "/api/v1/agentic/ag-ui",
+            data=json.dumps(payload).encode("utf-8"),
+            method="POST",
+            headers={
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json",
+                "Accept": "text/event-stream",
+            },
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - loopback URL
+                status = response.status
+                raw = response.read()
+        except urllib.error.HTTPError as exc:
+            status = exc.code
+            raw = exc.read()
+        if status not in expected:
+            detail = raw.decode("utf-8", errors="replace")[:2000]
+            raise HarnessError(f"AG-UI resume expected {expected}, got {status}: {detail}")
+        if status != HTTP_OK:
+            return []
+        return [
+            json.loads(line.removeprefix("data: "))
+            for line in raw.decode("utf-8").splitlines()
+            if line.startswith("data: ")
+        ]
 
 
 def _seed_real_api(client: ApiClient, *, actor_id: str) -> dict[str, str]:
@@ -261,6 +319,31 @@ def _seed_real_api(client: ApiClient, *, actor_id: str) -> dict[str, str]:
         },
         expected=(201,),
     )
+    flow = client.request(
+        "POST",
+        "/api/v1/flows/",
+        {
+            "name": f"Stage 09 recovery flow {suffix}",
+            "description": "Restart recovery fixture",
+            "folder_id": project_id,
+            "data": {"nodes": [], "edges": [], "viewport": {"x": 0, "y": 0, "zoom": 1}},
+        },
+        expected=(201,),
+    )
+    automation_placement = client.request(
+        "POST",
+        f"/api/v1/boards/{board['id']}/placements",
+        {
+            "target_kind": "automation",
+            "target_id": str(flow["id"]),
+            "x": 560,
+            "y": 180,
+            "width": 420,
+            "height": 320,
+            "z_index": 4,
+        },
+        expected=(201,),
+    )
     note_response = client.request(
         "POST",
         f"/api/v1/boards/{board['id']}/board-notes",
@@ -279,6 +362,8 @@ def _seed_real_api(client: ApiClient, *, actor_id: str) -> dict[str, str]:
         "project_id": project_id,
         "board_id": str(board["id"]),
         "chat_id": str(chat["id"]),
+        "flow_id": str(flow["id"]),
+        "automation_placement_id": str(automation_placement["id"]),
         "note_id": str(note_response["note"]["id"]),
         "placement_id": str(note_response["placement"]["id"]),
     }
@@ -309,6 +394,7 @@ async def _seed_durable_recovery_fixture(*, data_dir: Path, ids: dict[str, str])
         CommandProposalSourceKind,
     )
     from ketos.services.deps import get_db_service
+    from ketos.services.jobs.board_claim import claim_board_job
     from langgraph.graph import END, START, StateGraph
     from langgraph.types import Interrupt, interrupt
     from sqlalchemy import update
@@ -318,6 +404,15 @@ async def _seed_durable_recovery_fixture(*, data_dir: Path, ids: dict[str, str])
     chat_id = UUID(ids["chat_id"])
     fingerprint = hashlib.sha256(b"stage09-completed-run").hexdigest()
     database_service = get_db_service()
+    job_claim = await claim_board_job(
+        actor_id=actor_id,
+        board_id=UUID(ids["board_id"]),
+        flow_id=UUID(ids["flow_id"]),
+        idempotency_key="stage09-restart-job",
+        flow_hash="a" * 64,
+        policy_version=1,
+        worker_instance_id_provider=uuid4,
+    )
     async with database_service.async_session_maker() as session:
         completed_claim = await claim_chat_run(
             session,
@@ -402,7 +497,33 @@ async def _seed_durable_recovery_fixture(*, data_dir: Path, ids: dict[str, str])
             "type": "ketos.flow-command-confirmation.v1",
             "proposalId": str(proposal.id),
             "proposalHash": proposal.proposal_hash,
-            "preview": proposal.preview,
+            "preview": {
+                "before": {
+                    "revision": None,
+                    "hash": None,
+                    "node_count": 0,
+                    "edge_count": 0,
+                },
+                "after": {
+                    "revision": 1,
+                    "hash": result_hash,
+                    "node_count": 0,
+                    "edge_count": 0,
+                },
+                "operationSummaries": [
+                    {
+                        "index": 0,
+                        "op": "create_flow",
+                        "status": "applied",
+                        "summary": "Create Stage 09 recovered flow",
+                        "affectedNodeIds": [],
+                        "affectedEdges": [],
+                    }
+                ],
+                "warnings": [],
+                "risk": "low",
+                "canRestore": True,
+            },
         },
     }
 
@@ -457,55 +578,8 @@ async def _seed_durable_recovery_fixture(*, data_dir: Path, ids: dict[str, str])
         "proposal_id": str(proposal.id),
         "interrupt_id": proof.interrupt_id,
         "proposal_hash": proof.proposal_hash,
+        "job_id": str(job_claim.job.job_id),
     }
-
-
-async def _reject_recovered_command(*, data_dir: Path, ids: dict[str, str]) -> dict[str, Any]:
-    from ketos.agentic.persistence.checkpointer import open_mvp_checkpointer
-    from ketos.services.commands import service as command_service
-    from ketos.services.commands.recovery import (
-        CommandCheckpointInspector,
-        CommandRecoveryProofError,
-        resolve_recovered_command,
-    )
-    from ketos.services.deps import get_db_service
-
-    database_service = get_db_service()
-    async with open_mvp_checkpointer(data_dir) as saver, database_service.async_session_maker() as session:
-        proposal = await resolve_recovered_command(
-            session=session,
-            checkpointer=saver,
-            checkpoint_inspector=CommandCheckpointInspector(),
-            command_service=command_service,
-            actor_id=UUID(ids["actor_id"]),
-            chat_run_id=UUID(ids["pending_chat_run_id"]),
-            proposal_id=UUID(ids["proposal_id"]),
-            approved=False,
-            component_registry={},
-        )
-        await session.commit()
-        replay_blocked = False
-        try:
-            await resolve_recovered_command(
-                session=session,
-                checkpointer=saver,
-                checkpoint_inspector=CommandCheckpointInspector(),
-                command_service=command_service,
-                actor_id=UUID(ids["actor_id"]),
-                chat_run_id=UUID(ids["pending_chat_run_id"]),
-                proposal_id=UUID(ids["proposal_id"]),
-                approved=False,
-                component_registry={},
-            )
-        except CommandRecoveryProofError:
-            replay_blocked = True
-        if not replay_blocked:
-            raise HarnessError("second recovered decision was not rejected")
-        return {
-            "proposal_id": str(proposal.id),
-            "status": str(proposal.status.value),
-            "replay_blocked": replay_blocked,
-        }
 
 
 def _read_ledger(client: ApiClient, ids: dict[str, str]) -> dict[str, Any]:
@@ -579,14 +653,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "KETOS_CONFIG_DIR": str(directories["config"]),
             "KETOS_DATA_DIR": str(directories["data"]),
             "KETOS_TEMP_DIR": str(directories["tmp"]),
-            # Transitional until A10 passes this same canonical path through the
-            # app-lifetime saver factory; never influenced by an HTTP request.
-            "KETOS_AG_UI_CHECKPOINT_DB": str(checkpoint),
             "KETOS_AG_UI_BINDING_DB": str(binding),
             "KETOS_AUTO_LOGIN": "true",
             "KETOS_DEACTIVATE_TRACING": "true",
             "KETOS_FEATURE_MVP_WORKSPACE": "true",
             "KETOS_FEATURE_MVP_CHAT": "true",
+            "KETOS_AGENTIC_EXPERIENCE": "true",
             "KETOS_LOG_LEVEL": "ERROR",
             "LANGGRAPH_STRICT_MSGPACK": "true",
             "DO_NOT_TRACK": "true",
@@ -631,13 +703,49 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         after_ledger = _read_ledger(client2, ids)
         if before_ledger != after_ledger:
             raise HarnessError("persistent entity ledger changed across restart")
-        recovered = asyncio.run(_reject_recovered_command(data_dir=directories["data"], ids=ids))
-        after_proposal = client2.request("GET", f"/api/v1/command-proposals/{ids['proposal_id']}")
+        job_history = client2.request(
+            "GET",
+            f"/api/v1/boards/{ids['board_id']}/automations/{ids['flow_id']}/runs",
+        )
+        recovered_job = [item for item in job_history if str(item.get("job_id")) == ids["job_id"]]
         if (
-            recovered["status"] != "rejected"
-            or recovered["replay_blocked"] is not True
-            or after_proposal["status"] != "rejected"
+            len(recovered_job) != 1
+            or recovered_job[0].get("status") != "failed"
+            or recovered_job[0].get("reason") != "backend_restarted"
         ):
+            raise HarnessError("prior-process Board Job did not recover once with backend_restarted")
+        def concurrent_resume(run_id: str) -> list[dict[str, Any]]:
+            concurrent_client = ApiClient(port)
+            concurrent_client.authenticate()
+            return concurrent_client.resume_recovered_interrupt(
+                chat_id=ids["chat_id"],
+                project_id=ids["project_id"],
+                interrupt_id=ids["interrupt_id"],
+                run_id=run_id,
+                expected=(200, 409),
+            )
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            concurrent_results = tuple(
+                pool.map(concurrent_resume, ("stage09-recovery-race-a", "stage09-recovery-race-b"))
+            )
+        finished = [
+            event
+            for events in concurrent_results
+            for event in events
+            if event.get("type") == "RUN_FINISHED"
+        ]
+        if len(finished) != 1 or finished[0].get("result", {}).get("status") != "rejected":
+            raise HarnessError("concurrent AG-UI resumes did not finish exactly one recovered rejection")
+        replay_events = client2.resume_recovered_interrupt(
+            chat_id=ids["chat_id"],
+            project_id=ids["project_id"],
+            interrupt_id=ids["interrupt_id"],
+            run_id="stage09-recovery-replay",
+            expected=(409,),
+        )
+        after_proposal = client2.request("GET", f"/api/v1/command-proposals/{ids['proposal_id']}")
+        if replay_events or after_proposal["status"] != "rejected":
             raise HarnessError("recovered proposal was not rejected exactly once")
         after = {
             "database_sha256": _sha256(database),
@@ -682,6 +790,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "committed_transcript_replayed": len(after_ledger["messages"]) == EXPECTED_TRANSCRIPT_MESSAGES,
             "pending_proposal_recovered": before_proposal["status"] == "awaiting_confirmation",
             "pending_proposal_resolved_once": after_proposal["status"] == "rejected",
+            "concurrent_resume_single_winner": len(finished) == 1,
+            "prior_process_job_recovered_once": len(recovered_job) == 1,
+            "job_reason_backend_restarted": recovered_job[0]["reason"] == "backend_restarted",
         },
     }
     temp_output = json_out.with_suffix(json_out.suffix + ".tmp")

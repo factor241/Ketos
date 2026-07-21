@@ -1,10 +1,12 @@
 """Fail-closed recovery of one standard LangGraph command interrupt."""
+# ruff: noqa: EM101, TRY003, PLR2004
 
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Mapping, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
 
 from langgraph.types import Interrupt
@@ -35,6 +37,7 @@ class OpenCommandInterrupt:
     proposal_hash: str
     interrupt_id: str
     thread_id: str
+    value: Mapping[str, Any]
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,7 +63,13 @@ def _descriptor(interrupt: object, *, thread_id: str) -> OpenCommandInterrupt | 
     value = interrupt.value
     if not isinstance(value, Mapping) or set(value) != {"reason", "message", "responseSchema", "metadata"}:
         return None
-    if value.get("reason") != "confirmation" or value.get("responseSchema") != _RESPONSE_SCHEMA:
+    message = value.get("message")
+    if (
+        value.get("reason") != "confirmation"
+        or not isinstance(message, str)
+        or not message.strip()
+        or value.get("responseSchema") != _RESPONSE_SCHEMA
+    ):
         return None
     metadata = value.get("metadata")
     if not isinstance(metadata, Mapping) or set(metadata) != {"type", "proposalId", "proposalHash", "preview"}:
@@ -74,7 +83,7 @@ def _descriptor(interrupt: object, *, thread_id: str) -> OpenCommandInterrupt | 
         proposal_id = UUID(str(metadata.get("proposalId")))
     except (TypeError, ValueError):
         return None
-    return OpenCommandInterrupt(proposal_id, proposal_hash, interrupt.id, thread_id)
+    return OpenCommandInterrupt(proposal_id, proposal_hash, interrupt.id, thread_id, value)
 
 
 class CommandCheckpointInspector:

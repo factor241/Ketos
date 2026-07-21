@@ -42,6 +42,7 @@ import type {
 } from "@/types/board";
 import type { ChatThread } from "@/types/chat";
 import { useAutomationPlacementActions } from "./hooks/use-automation-placement-actions";
+import { useBoardRestore } from "./hooks/use-board-restore";
 import { useBoardReturnFocus } from "./hooks/use-board-return-focus";
 import { useBoardScene } from "./hooks/use-board-scene";
 import { useBoardViewport } from "./hooks/use-board-viewport";
@@ -708,7 +709,13 @@ function LoadedBoard({
                   <Link to={`/project/${projectId}/boards`}>
                     {t("board.backToBoards")}
                   </Link>
-                  <h1 className="text-xl font-semibold">{board.title}</h1>
+                  <h1
+                    id="board-heading"
+                    tabIndex={-1}
+                    className="text-xl font-semibold"
+                  >
+                    {board.title}
+                  </h1>
                   <Button
                     ref={addNoteRef}
                     type="button"
@@ -842,8 +849,51 @@ function LoadedBoard({
   );
 }
 
-export default function BoardPage() {
+function RestorableBoardPage({
+  projectId,
+  boardId,
+  chatEnabled,
+  executionEnabled,
+}: {
+  projectId: string;
+  boardId: string;
+  chatEnabled: boolean;
+  executionEnabled: boolean;
+}) {
   const { t } = useTranslation();
+  const restore = useBoardRestore({ projectId, boardId });
+  const announcement = t(restore.announcementKey);
+
+  if (restore.board === null) {
+    if (restore.phase === "hydrating" || restore.phase === "reconnecting")
+      return <div role="status">{announcement}</div>;
+    return (
+      <main>
+        <div role="alert">{announcement}</div>
+        <button type="button" onClick={() => void restore.refetch()}>
+          {t("board.retry")}
+        </button>
+      </main>
+    );
+  }
+
+  return (
+    <>
+      <p aria-live="polite" aria-atomic="true" className="sr-only">
+        {announcement}
+      </p>
+      <LoadedBoard
+        board={restore.board}
+        projectId={projectId}
+        refresh={restore.refetch}
+        chatEnabled={chatEnabled}
+        executionEnabled={executionEnabled}
+      />
+    </>
+  );
+}
+
+export default function BoardPage() {
   const { projectId = "", boardId = "" } = useParams<{
     projectId: string;
     boardId: string;
@@ -861,32 +911,12 @@ export default function BoardPage() {
   );
   const validParams =
     UUID_PATTERN.test(projectId) && UUID_PATTERN.test(boardId);
-  const query = useGetBoard(
-    { projectId, boardId },
-    { enabled: workspaceEnabled && validParams },
-  );
-  const reloadBoard = query.refetch;
-
   if (!workspaceEnabled) return <Navigate to="/flows" replace />;
   if (!validParams) return <NotFoundAlert />;
-  if (query.isLoading) return <div role="status">{t("board.loading")}</div>;
-  if (query.isError) {
-    return (
-      <main>
-        <div role="alert">{t("board.error")}</div>
-        <button type="button" onClick={() => void reloadBoard()}>
-          {t("board.retry")}
-        </button>
-      </main>
-    );
-  }
-  if (!query.data || query.data.project_id !== projectId)
-    return <NotFoundAlert />;
   return (
-    <LoadedBoard
-      board={query.data}
+    <RestorableBoardPage
       projectId={projectId}
-      refresh={reloadBoard}
+      boardId={boardId}
       chatEnabled={chatEnabled}
       executionEnabled={executionEnabled}
     />

@@ -59,9 +59,12 @@ def test_real_backend_restart_preserves_canonical_files_and_ids(tmp_path: Path) 
     assert evidence["outcomes"] == {
         "ag_ui_health_after_restart": True,
         "committed_transcript_replayed": True,
+        "concurrent_resume_single_winner": True,
+        "job_reason_backend_restarted": True,
         "listener_pid1_closed": True,
         "pending_proposal_recovered": True,
         "pending_proposal_resolved_once": True,
+        "prior_process_job_recovered_once": True,
         "same_checkpoint_path": True,
         "same_database_path": True,
         "same_entity_ledger": True,

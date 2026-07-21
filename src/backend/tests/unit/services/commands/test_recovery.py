@@ -4,8 +4,6 @@ from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 import pytest
-from langgraph.types import Interrupt
-
 from ketos.services.commands.recovery import (
     CommandCheckpointInspector,
     CommandRecoveryProofError,
@@ -13,6 +11,7 @@ from ketos.services.commands.recovery import (
     resolve_recovered_command,
 )
 from ketos.services.database.models.command_proposal.model import CommandProposalStatus
+from langgraph.types import Interrupt
 
 THREAD_ID = str(uuid4())
 PROPOSAL_ID = uuid4()
@@ -52,7 +51,7 @@ class FakeSaver:
             pending_writes=writes,
         )
 
-    async def aget_tuple(self, config):
+    async def aget_tuple(self, _config):
         return self.tuple
 
 
@@ -82,6 +81,18 @@ async def test_inspector_proves_exact_single_standard_interrupt() -> None:
     assert proof.thread_id == THREAD_ID
 
 
+@pytest.mark.parametrize("message", [None, 42, ""])
+async def test_inspector_rejects_invalid_confirmation_message(message) -> None:
+    interrupt = _interrupt()
+    interrupt.value["message"] = message
+
+    proofs = await CommandCheckpointInspector().open_interrupts(
+        FakeSaver([("task", "__interrupt__", [interrupt])]), THREAD_ID
+    )
+
+    assert proofs == ()
+
+
 @pytest.mark.parametrize(
     "writes",
     [
@@ -92,7 +103,6 @@ async def test_inspector_proves_exact_single_standard_interrupt() -> None:
     ],
 )
 async def test_recovery_fails_closed_for_missing_or_ambiguous_interrupt(writes) -> None:
-    service = SimpleNamespace(load_authorized_proposal=lambda *args, **kwargs: None)
     inspector = CommandCheckpointInspector()
     with pytest.raises(CommandRecoveryProofError):
         await inspector.require_exact(FakeSaver(writes), thread_id=THREAD_ID, proposal=_proposal())
@@ -124,7 +134,9 @@ async def test_recover_pending_checks_authorized_row_before_checkpoint() -> None
 async def test_resolve_delegates_to_public_service_only_after_proof() -> None:
     resolutions = []
 
-    async def load_authorized_proposal(_session, *, proposal_id, actor_id):
+    async def load_authorized_proposal(_session, *, proposal_id: UUID, actor_id: UUID):
+        assert proposal_id == PROPOSAL_ID
+        assert actor_id == ACTOR_ID
         return _proposal()
 
     async def resolve_proposal(_session, **kwargs):
@@ -164,7 +176,9 @@ async def test_resolve_delegates_to_public_service_only_after_proof() -> None:
     ],
 )
 async def test_terminal_or_mismatched_proposal_never_resolves(proposal) -> None:
-    async def load_authorized_proposal(_session, *, proposal_id, actor_id):
+    async def load_authorized_proposal(_session, *, proposal_id: UUID, actor_id: UUID):
+        assert proposal_id == PROPOSAL_ID
+        assert actor_id == ACTOR_ID
         return proposal
 
     service = SimpleNamespace(load_authorized_proposal=load_authorized_proposal)

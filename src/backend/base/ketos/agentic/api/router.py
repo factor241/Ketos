@@ -4,11 +4,25 @@ This module provides the HTTP endpoints for the Ketos Assistant.
 All business logic is delegated to service modules.
 """
 
+import asyncio
+import os
 import uuid
+from collections.abc import Callable, Mapping
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
-from uuid import UUID
+from uuid import UUID, uuid4
 
+from ag_ui.core import (
+    Interrupt as AgUiInterrupt,
+)
+from ag_ui.core import (
+    MessagesSnapshotEvent,
+    RunFinishedEvent,
+    RunFinishedInterruptOutcome,
+    RunStartedEvent,
+)
 from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from kfx.base.models.unified_models import (
@@ -41,12 +55,240 @@ from ketos.agentic.services.provider_service import (
 from ketos.api.utils.core import CurrentActiveUser, DbSession
 
 if TYPE_CHECKING:
+    from ag_ui.core.types import RunAgentInput
+    from ag_ui_langgraph import LangGraphAgent
+    from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+
     from ketos.agentic.services.ag_ui.stage01_runtime import Stage01AgUiRuntime
 
 router = APIRouter(prefix="/agentic", tags=["Agentic"])
 
 _STAGE01_REGISTERED_STATE_KEY = "_ketos_stage01_ag_ui_registered"
 _STAGE01_ROUTES_STATE_KEY = "_ketos_stage01_ag_ui_routes"
+
+
+def _resolved_rejection(input_data: "RunAgentInput") -> tuple[str, bool] | None:
+    entries = tuple(input_data.resume or ())
+    if len(entries) != 1:
+        return None
+    entry = entries[0]
+    payload = entry.payload
+    if entry.status != "resolved" or not isinstance(payload, Mapping) or set(payload) != {"approved"}:
+        return None
+    if payload.get("approved") is not False:
+        return None
+    return entry.interrupt_id, False
+
+
+def create_stage09_recovery_before_dispatch(
+    original_before_dispatch: Callable,
+    *,
+    checkpointer: "AsyncSqliteSaver",
+) -> Callable:
+    """Resolve an exact persisted command rejection before model assembly.
+
+    Non-recovery requests continue through the frozen Stage-05 durable binding.
+    """
+    from ketos.agentic.services.ag_ui.auth import AG_UI_ACTOR_STATE_KEY
+    from ketos.services.chat_threads.messages import build_messages_snapshot
+    from ketos.services.commands import service as command_service
+    from ketos.services.commands.recovery import (
+        CommandCheckpointInspector,
+        CommandRecoveryProofError,
+        recover_pending_command,
+        resolve_recovered_command,
+    )
+    from ketos.services.deps import session_scope
+
+    inspector = CommandCheckpointInspector()
+    recovery_resolution_lock = asyncio.Lock()
+
+    async def before_dispatch(
+        input_data: "RunAgentInput",
+        request: Request,
+        request_agent: "LangGraphAgent",
+    ) -> None:
+        rejection = _resolved_rejection(input_data)
+        if rejection is None and input_data.resume:
+            await original_before_dispatch(input_data, request, request_agent)
+            return
+        try:
+            actor_id = UUID(str(getattr(request.state, AG_UI_ACTOR_STATE_KEY, None)))
+            chat_id = UUID(input_data.thread_id)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=403, detail="Invalid AG-UI recovery owner binding") from exc
+
+        if rejection is None:
+            open_interrupts = await inspector.open_interrupts(checkpointer, str(chat_id))
+            if len(open_interrupts) != 1:
+                await original_before_dispatch(input_data, request, request_agent)
+                return
+            proof = open_interrupts[0]
+            async with session_scope() as session:
+                proposal = await command_service.load_authorized_proposal(
+                    session,
+                    proposal_id=proof.proposal_id,
+                    actor_id=actor_id,
+                )
+                try:
+                    await recover_pending_command(
+                        session=session,
+                        checkpointer=checkpointer,
+                        checkpoint_inspector=inspector,
+                        command_service=command_service,
+                        actor_id=actor_id,
+                        chat_run_id=proposal.chat_run_id,
+                        proposal_id=proposal.id,
+                    )
+                except CommandRecoveryProofError as exc:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="AG-UI recovery decision is no longer open",
+                    ) from exc
+                snapshot = await build_messages_snapshot(
+                    session=session,
+                    owner_id=actor_id,
+                    chat_id=chat_id,
+                )
+            value = proof.value
+            interrupt = AgUiInterrupt(
+                id=proof.interrupt_id,
+                reason=str(value["reason"]),
+                message=str(value["message"]),
+                responseSchema=dict(value["responseSchema"]),
+                metadata=dict(value["metadata"]),
+            )
+
+            async def recovered_pending_run(_input: "RunAgentInput"):
+                yield RunStartedEvent(threadId=str(chat_id), runId=input_data.run_id)
+                yield MessagesSnapshotEvent(messages=list(snapshot.messages))
+                yield RunFinishedEvent(
+                    threadId=str(chat_id),
+                    runId=input_data.run_id,
+                    outcome=RunFinishedInterruptOutcome(interrupts=[interrupt]),
+                )
+
+            request_agent.run = recovered_pending_run  # type: ignore[method-assign]
+            return
+
+        interrupt_id, approved = rejection
+
+        async with recovery_resolution_lock:
+            open_interrupts = await inspector.open_interrupts(checkpointer, str(chat_id))
+            matches = tuple(item for item in open_interrupts if item.interrupt_id == interrupt_id)
+            if len(matches) != 1:
+                raise HTTPException(status_code=409, detail="AG-UI recovery interrupt is not open")
+            proof = matches[0]
+            async with session_scope() as session:
+                proposal = await command_service.load_authorized_proposal(
+                    session,
+                    proposal_id=proof.proposal_id,
+                    actor_id=actor_id,
+                )
+                try:
+                    resolved = await resolve_recovered_command(
+                        session=session,
+                        checkpointer=checkpointer,
+                        checkpoint_inspector=inspector,
+                        command_service=command_service,
+                        actor_id=actor_id,
+                        chat_run_id=proposal.chat_run_id,
+                        proposal_id=proposal.id,
+                        approved=approved,
+                        component_registry={},
+                    )
+                except CommandRecoveryProofError as exc:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="AG-UI recovery decision is no longer open",
+                    ) from exc
+                await session.commit()
+                snapshot = await build_messages_snapshot(
+                    session=session,
+                    owner_id=actor_id,
+                    chat_id=chat_id,
+                )
+
+        async def recovered_run(_input: "RunAgentInput"):
+            yield RunStartedEvent(threadId=str(chat_id), runId=input_data.run_id)
+            yield MessagesSnapshotEvent(messages=list(snapshot.messages))
+            yield RunFinishedEvent(
+                threadId=str(chat_id),
+                runId=input_data.run_id,
+                result={
+                    "proposalId": str(resolved.id),
+                    "status": str(getattr(resolved.status, "value", resolved.status)),
+                    "recovered": True,
+                },
+            )
+
+        request_agent.run = recovered_run  # type: ignore[method-assign]
+
+    return before_dispatch
+
+
+def compose_stage09_lifespan(
+    base_lifespan: Callable[[FastAPI], AbstractAsyncContextManager[None]],
+) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
+    """Open one canonical saver, reconcile bounded restart state, then serve."""
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        async with base_lifespan(app):
+            if not (FEATURE_FLAGS.mvp_workspace is True and FEATURE_FLAGS.mvp_chat is True):
+                yield
+                return
+
+            from ketos.agentic.persistence.checkpointer import (
+                AgenticCheckpointer,
+                checkpoint_path,
+            )
+            from ketos.agentic.services.ag_ui.stage01_runtime import Stage05AgUiRuntime
+            from ketos.services.chat_threads.recovery import reconcile_nonterminal_chat_runs
+            from ketos.services.deps import get_settings_service, session_scope
+            from ketos.services.jobs.recovery import reconcile_board_jobs_after_restart
+
+            data_dir = get_settings_service().settings.data_dir
+            if not data_dir:
+                message = "Ketos data_dir is required for Stage 09 recovery"
+                raise RuntimeError(message)
+            data_root = Path(data_dir)
+            runtime = Stage05AgUiRuntime(
+                checkpoint=AgenticCheckpointer(
+                    data_dir=data_root,
+                    path=checkpoint_path(data_root),
+                )  # type: ignore[arg-type]
+            )
+            worker_instance_id = uuid4()
+            async with runtime:
+                saver = runtime.checkpoint.saver
+                async with session_scope() as session:
+                    chat_summary = await reconcile_nonterminal_chat_runs(
+                        session=session,
+                        checkpointer=saver,
+                        owner_id=None,
+                    )
+                async with session_scope() as session:
+                    job_summary = await reconcile_board_jobs_after_restart(
+                        session=session,
+                        current_worker_instance_id=worker_instance_id,
+                        current_pid=os.getpid(),
+                    )
+                app.state.stage09_worker_instance_id = worker_instance_id
+                app.state.stage09_chat_recovery = chat_summary
+                app.state.stage09_job_recovery = job_summary
+                runtime.before_dispatch = create_stage09_recovery_before_dispatch(
+                    runtime.before_dispatch,
+                    checkpointer=saver,
+                )
+                registered = register_stage01_ag_ui(app, runtime)
+                try:
+                    yield
+                finally:
+                    if registered:
+                        unregister_stage01_ag_ui(app)
+
+    return lifespan
 
 
 def register_stage01_ag_ui(app: FastAPI, runtime: "Stage01AgUiRuntime") -> bool:

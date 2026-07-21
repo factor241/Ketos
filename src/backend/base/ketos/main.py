@@ -660,9 +660,9 @@ def create_app():
 
     __version__ = get_version_info()["version"]
     configure()
-    from ketos.agentic.services.ag_ui.stage01_runtime import compose_stage01_lifespan
+    from ketos.agentic.api.router import compose_stage09_lifespan
 
-    lifespan = compose_stage01_lifespan(get_lifespan(version=__version__))
+    lifespan = compose_stage09_lifespan(get_lifespan(version=__version__))
 
     settings = get_settings_service().settings
 

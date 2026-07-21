@@ -14,6 +14,12 @@ from .auth import (
 from .board import Board
 from .board_note import BoardNote
 from .chat_thread import ChatContextPolicy, ChatRun, ChatRunStatus, ChatThread
+from .command_proposal import (
+    CommandProposal,
+    CommandProposalCommandType,
+    CommandProposalSourceKind,
+    CommandProposalStatus,
+)
 from .deployment import Deployment
 from .deployment_provider_account import DeploymentProviderAccount
 from .file import File
@@ -43,11 +49,15 @@ __all__ = [
     "AuthzTeamMember",
     "Board",
     "BoardNote",
+    "CasbinRule",
     "ChatContextPolicy",
     "ChatRun",
     "ChatRunStatus",
     "ChatThread",
-    "CasbinRule",
+    "CommandProposal",
+    "CommandProposalCommandType",
+    "CommandProposalSourceKind",
+    "CommandProposalStatus",
     "Deployment",
     "DeploymentProviderAccount",
     "File",

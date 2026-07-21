@@ -5,8 +5,15 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, computed_field, field_serializer
 from pydantic import Field as PydanticField
-from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, UniqueConstraint, func
+from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
 from sqlmodel import JSON, Field, SQLModel
+
+
+def _nullable_lower_hex_sql(column: str) -> str:
+    cleaned = column
+    for character in "0123456789abcdef":
+        cleaned = f"replace({cleaned}, '{character}', '')"
+    return f"{column} IS NULL OR (length({column}) = 64 AND {column} = lower({column}) AND length({cleaned}) = 0)"
 
 
 class FlowVersion(SQLModel, table=True):  # type: ignore[call-arg]
@@ -23,6 +30,8 @@ class FlowVersion(SQLModel, table=True):  # type: ignore[call-arg]
     data: dict | None = Field(default=None, sa_column=Column(JSON))
     version_number: int = Field(nullable=False, ge=1)
     description: str | None = Field(default=None, nullable=True, max_length=500)
+    source_flow_revision: int | None = Field(default=None, sa_column=Column(Integer, nullable=True))
+    source_flow_hash: str | None = Field(default=None, sa_column=Column(String(64), nullable=True))
     created_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True),
     )
@@ -33,6 +42,18 @@ class FlowVersion(SQLModel, table=True):  # type: ignore[call-arg]
     __table_args__ = (
         UniqueConstraint("flow_id", "version_number", name="unique_flow_version_number"),
         CheckConstraint("version_number >= 1", name="check_version_number_positive"),
+        CheckConstraint(
+            "source_flow_revision IS NULL OR source_flow_revision >= 0",
+            name="ck_flow_version_source_revision_nonnegative",
+        ),
+        CheckConstraint(
+            _nullable_lower_hex_sql("source_flow_hash"),
+            name="ck_flow_version_source_hash_shape",
+        ),
+        CheckConstraint(
+            "(source_flow_revision IS NULL) = (source_flow_hash IS NULL)",
+            name="ck_flow_version_source_pair",
+        ),
     )
 
 

@@ -11,7 +11,7 @@ from emoji import purely_emoji
 from kfx.log.logger import logger
 from pydantic import BaseModel, ValidationInfo, field_serializer, field_validator
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import Text, UniqueConstraint, text
+from sqlalchemy import Integer, Text, UniqueConstraint, text
 from sqlmodel import JSON, Column, Field, Relationship, SQLModel
 
 from ketos.schema.data import Data
@@ -199,6 +199,10 @@ class Flow(FlowBase, table=True):  # type: ignore[call-arg]
     folder_id: UUID | None = Field(default=None, foreign_key="folder.id", nullable=True, index=True)
     workspace_id: UUID | None = Field(default=None, nullable=True, index=True)
     fs_path: str | None = Field(default=None, nullable=True)
+    revision: int = Field(
+        default=0,
+        sa_column=Column(Integer, nullable=False, default=0, server_default=text("0")),
+    )
     folder: Optional["Folder"] = Relationship(back_populates="flows")
 
     def to_data(self):
@@ -236,6 +240,7 @@ class FlowRead(FlowBase):
     user_id: UUID | None = Field()
     folder_id: UUID | None = Field()
     workspace_id: UUID | None = Field(default=None)
+    revision: int = Field(default=0, ge=0)
     tags: list[str] | None = Field(None, description="The tags of the flow")
     name_key: str | None = Field(None, description="Stable i18n key derived from the original English name")
 

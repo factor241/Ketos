@@ -86,8 +86,9 @@ S09_RUN_DIR="$S09_RUN_DIR" S09_CODE_SHA="$S09_CODE_SHA" \
 # can stop before the 16 GiB workstation limit.
 make unit_tests async=false ff=false args="-q -p no:cacheprovider --basetemp=$S09_RUN_DIR/tmp/pytest-package" \
   >"$S09_RUN_DIR/logs/backend-package.txt" 2>&1
-CI=true JEST_JUNIT_OUTPUT_DIR="$S09_RUN_DIR/frontend-junit" \
-  make test_frontend >"$S09_RUN_DIR/logs/frontend-package.txt" 2>&1
+# Jest workers are serialized for the same workstation memory bound.
+(cd src/frontend && CI=true JEST_JUNIT_OUTPUT_DIR="$S09_RUN_DIR/frontend-junit" \
+  npm test -- --runInBand) >"$S09_RUN_DIR/logs/frontend-package.txt" 2>&1
 
 (cd src/frontend && S09_RUN_DIR="$S09_RUN_DIR" S09_CODE_SHA="$S09_CODE_SHA" \
   npx playwright test -c playwright.mvp.config.ts \

@@ -1,9 +1,12 @@
 import { CopilotChat } from "@copilotkit/react-core/v2";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import type { Placement, PlacementDisplayState } from "@/types/board";
 import type { ChatThread } from "@/types/chat";
+import FlowCommandOutcome from "../../chats/FlowCommandOutcome";
+import { useFlowCommandInterrupt } from "../../chats/use-flow-command-interrupt";
 import { useThreadScopedCopilotAgent } from "../../chats/use-thread-scoped-copilot-agent";
 import { BoardCardFrame } from "../BoardCardFrame";
 
@@ -17,6 +20,29 @@ export interface ChatPlacementProps {
   onResizeEnd: (size: { width: number; height: number }) => void;
   onKeyboardMove?: (delta: { x: number; y: number }) => void;
   onKeyboardResize?: (delta: { width: number; height: number }) => void;
+}
+
+function ReadyChat({
+  chatId,
+  localAgentId,
+}: Readonly<{ chatId: string; localAgentId: string }>) {
+  const [resolvedProposalIds, setResolvedProposalIds] = useState<string[]>([]);
+  const rememberResolvedProposal = useCallback((proposalId: string) => {
+    setResolvedProposalIds((current) =>
+      current.includes(proposalId) ? current : [...current, proposalId],
+    );
+  }, []);
+  useFlowCommandInterrupt(localAgentId, rememberResolvedProposal);
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="min-h-0 flex-1">
+        <CopilotChat key={chatId} agentId={localAgentId} threadId={chatId} />
+      </div>
+      {resolvedProposalIds.map((proposalId) => (
+        <FlowCommandOutcome key={proposalId} proposalId={proposalId} />
+      ))}
+    </div>
+  );
 }
 
 export function ChatPlacement(props: ChatPlacementProps) {
@@ -69,10 +95,9 @@ export function ChatPlacement(props: ChatPlacementProps) {
           </div>
         ) : null}
         {binding.status === "ready" ? (
-          <CopilotChat
-            key={props.chat.id}
-            agentId={binding.localAgentId}
-            threadId={props.chat.id}
+          <ReadyChat
+            chatId={props.chat.id}
+            localAgentId={binding.localAgentId}
           />
         ) : null}
       </div>

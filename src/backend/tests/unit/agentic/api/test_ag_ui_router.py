@@ -20,6 +20,7 @@ from fastapi import HTTPException
 from ketos.agentic.services.ag_ui import durable_chat
 from ketos.agentic.services.ag_ui.auth import AG_UI_ACTOR_STATE_KEY
 from ketos.agentic.services.ag_ui.durable_chat import (
+    _flow_builder_component,
     _server_component,
     canonical_run_request,
     create_durable_chat_before_dispatch,
@@ -47,6 +48,40 @@ async def test_s05_server_component_exposes_only_read_only_current_date_kfx_tool
     assert [tool.name for tool in component.tools] == ["get_current_date"]
     assert component.add_current_date_tool is False
     assert component.add_calculator_tool is False
+
+
+@pytest.mark.asyncio
+async def test_s08_flow_builder_disables_retry_middleware_that_would_swallow_interrupts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    component = SimpleNamespace(
+        tools=[],
+        handle_parsing_errors=True,
+        system_prompt="",
+    )
+
+    async def server_component(**_kwargs):
+        return component
+
+    async def all_types(_settings):
+        return {"inputs": {"TextInput": {"template": {}}}}
+
+    monkeypatch.setattr(durable_chat, "_server_component", server_component)
+    monkeypatch.setattr(durable_chat, "get_and_cache_all_types_dict", all_types)
+
+    actual = await _flow_builder_component(
+        actor_id=ACTOR_ID,
+        provider="OpenAI",
+        model_name="gpt-4o-mini",
+        project_id=UUID(int=9),
+        chat_run_id=RUN_ROW_ID,
+        thread_id=str(CHAT_ID),
+        resume_interrupt_ids=frozenset(),
+    )
+
+    assert actual is component
+    assert component.handle_parsing_errors is False
+    assert [tool.name for tool in component.tools] == ["ProposeFlowChanges"]
 
 
 def _input(
@@ -110,6 +145,37 @@ def test_s05_client_authority_overrides_fail_closed(
     with pytest.raises(HTTPException) as exc_info:
         validate_client_authority(_input(state=state, forwarded_props=forwarded_props))
 
+    assert exc_info.value.status_code == 403
+
+
+def test_s08_standard_state_messages_do_not_trip_authority_guard() -> None:
+    resume = [{"interruptId": "interrupt-a", "status": "resolved", "payload": {"approved": True}}]
+    standard_state = {
+        "messages": [
+            {
+                "id": "assistant-1",
+                "type": "ai",
+                "role": "assistant",
+                "response_metadata": {
+                    "finish_reason": "tool_calls",
+                    "model_name": "gpt-4o-mini",
+                    "model_provider": "openai",
+                },
+                "tool_calls": [],
+            }
+        ]
+    }
+
+    validate_client_authority(_input(state=standard_state))
+    validate_client_authority(_input(state=standard_state, resume=resume))
+
+    with pytest.raises(HTTPException) as exc_info:
+        validate_client_authority(
+            _input(
+                state={**standard_state, "override": {"model": "browser-model"}},
+                resume=resume,
+            )
+        )
     assert exc_info.value.status_code == 403
 
 

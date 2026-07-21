@@ -22,8 +22,14 @@ from ag_ui.core.types import AssistantMessage, RunAgentInput, UserMessage
 from fastapi import HTTPException, Request, status
 from kfx.components.helpers import CurrentDateComponent
 from kfx.components.models_and_agents.agent import AgentComponent
+from kfx.interface.components import get_and_cache_all_types_dict
 from sqlalchemy import update
 
+from ketos.agentic.flows.flow_builder_hitl import (
+    FlowBuilderToolContext,
+    create_flow_proposal_tool,
+    flatten_component_registry,
+)
 from ketos.agentic.services.ag_ui.auth import AG_UI_ACTOR_STATE_KEY
 from ketos.services.chat_threads.message_adapter import (
     append_user_message,
@@ -37,7 +43,7 @@ from ketos.services.chat_threads.repository import (
     require_owned_chat,
 )
 from ketos.services.database.models.chat_thread.model import ChatRun, ChatRunStatus
-from ketos.services.deps import session_scope
+from ketos.services.deps import get_settings_service, session_scope
 
 if TYPE_CHECKING:
     from ag_ui_langgraph import LangGraphAgent
@@ -106,7 +112,15 @@ def validate_client_authority(input_data: RunAgentInput) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="AG-UI client runtime overrides are not permitted",
         )
-    if _contains_forbidden_authority(input_data.state) or _contains_forbidden_authority(input_data.forwarded_props):
+    state = input_data.state
+    if isinstance(state, Mapping):
+        # CopilotKit's standard run request mirrors protocol messages under
+        # state.messages, including inert provider/model response metadata on
+        # resumes and subsequent turns.
+        # The server never reads that mirror as authority; the owned Chat row
+        # selects provider/model and the checkpoint owns execution state.
+        state = {key: value for key, value in state.items() if key != "messages"}
+    if _contains_forbidden_authority(state) or _contains_forbidden_authority(input_data.forwarded_props):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="AG-UI client authority overrides are not permitted",
@@ -157,7 +171,12 @@ def _latest_user_text(input_data: RunAgentInput) -> str | None:
     return None
 
 
-async def _server_component(*, actor_id: UUID, provider: str, model_name: str) -> AgentComponent:
+async def _server_component(
+    *,
+    actor_id: UUID,
+    provider: str,
+    model_name: str,
+) -> AgentComponent:
     component = AgentComponent(_user_id=actor_id)
     component.model = [{"provider": provider, "name": model_name, "metadata": {}}]
     component.agent_llm = provider
@@ -167,6 +186,46 @@ async def _server_component(*, actor_id: UUID, provider: str, model_name: str) -
     component.tools = await current_date.to_toolkit()
     component.add_current_date_tool = False
     component.add_calculator_tool = False
+    return component
+
+
+async def _flow_builder_component(
+    *,
+    actor_id: UUID,
+    provider: str,
+    model_name: str,
+    project_id: UUID,
+    chat_run_id: UUID,
+    thread_id: str,
+    resume_interrupt_ids: frozenset[str],
+) -> AgentComponent:
+    component = await _server_component(actor_id=actor_id, provider=provider, model_name=model_name)
+    # Test doubles and compatibility callers that supply a graph-only component
+    # retain the Stage-05 behavior. Production AgentComponent always owns tools.
+    if not hasattr(component, "tools"):
+        return component
+    all_types = await get_and_cache_all_types_dict(get_settings_service())
+    component.tools = [
+        create_flow_proposal_tool(
+            FlowBuilderToolContext(
+                actor_id=actor_id,
+                project_id=project_id,
+                chat_run_id=chat_run_id,
+                thread_id=thread_id,
+                component_registry=flatten_component_registry(all_types),
+                resume_interrupt_ids=resume_interrupt_ids,
+            )
+        )
+    ]
+    # LangGraph interrupts are control-flow exceptions. AgentComponent's optional
+    # ToolRetryMiddleware retries every Exception and would otherwise turn a
+    # confirmation interrupt into an ordinary tool error/result, allowing the
+    # model to continue while the durable proposal remains unresolved.
+    component.handle_parsing_errors = False
+    component.system_prompt = (
+        "You are the Ketos Flow Builder. Clarify ambiguous requests. For concrete flow creation or editing, "
+        "use only ProposeFlowChanges. Never claim that a flow changed before the tool reports applied."
+    )
     return component
 
 
@@ -261,7 +320,16 @@ def create_durable_chat_before_dispatch():
         durable_checkpointer = getattr(request_agent.graph, "checkpointer", None)
         if durable_checkpointer is None:
             raise RuntimeError(_MISSING_CHECKPOINTER_MESSAGE)
-        component = await _server_component(actor_id=actor_id, provider=chat.provider, model_name=chat.model_name)
+        resume_interrupt_ids = frozenset(entry.interrupt_id for entry in (input_data.resume or []))
+        component = await _flow_builder_component(
+            actor_id=actor_id,
+            provider=chat.provider,
+            model_name=chat.model_name,
+            project_id=chat.project_id,
+            chat_run_id=claim.run.id,
+            thread_id=str(chat_id),
+            resume_interrupt_ids=resume_interrupt_ids,
+        )
         owned_graph = component.create_agent_runnable()
         owned_graph.checkpointer = durable_checkpointer
         request_agent.graph = owned_graph
@@ -270,7 +338,15 @@ def create_durable_chat_before_dispatch():
         configurable = dict(config.get("configurable") or {})
         metadata = dict(config.get("metadata") or {})
         configurable.update({"thread_id": str(chat_id), "ketos_actor_id": str(actor_id)})
-        metadata.update({"chat_id": str(chat_id), "run_id": input_data.run_id, "actor_id": str(actor_id)})
+        metadata.update(
+            {
+                "chat_id": str(chat_id),
+                "chat_run_id": str(claim.run.id),
+                "project_id": str(chat.project_id),
+                "run_id": input_data.run_id,
+                "actor_id": str(actor_id),
+            }
+        )
         config.update({"configurable": configurable, "metadata": metadata})
         request_agent.config = config
 

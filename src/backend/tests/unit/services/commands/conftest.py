@@ -23,7 +23,7 @@ class CommandContext:
     thread_id: str
 
 
-@pytest.fixture
+@pytest.fixture(name="command_session")
 async def command_session():
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
@@ -33,7 +33,7 @@ async def command_session():
     await engine.dispose()
 
 
-@pytest.fixture
+@pytest.fixture(name="command_context")
 async def command_context(command_session: AsyncSession) -> CommandContext:
     actor_id = uuid4()
     project_id = uuid4()

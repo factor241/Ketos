@@ -3,9 +3,7 @@
   "baseline": {
     "commit": "def832f409c01f0acd3937b9317dde03d0273552",
     "captured_on": "2026-07-11",
-    "scope": [
-      "src/frontend/src/**/*.{ts,tsx,js,jsx}"
-    ],
+    "scope": ["src/frontend/src/**/*.{ts,tsx,js,jsx}"],
     "raw_candidate_count": 97,
     "ast_jsx_text_candidate_count": 66,
     "ast_visible_attribute_candidate_count": 22,
@@ -20,9 +18,7 @@
       "machine_contract": 11,
       "semantic_key_required": 0
     },
-    "static_html_scope": [
-      "src/frontend/index.html"
-    ],
+    "static_html_scope": ["src/frontend/index.html"],
     "ast_candidate_count": 0,
     "ast_contract_captured_on": "2026-07-12"
   },
@@ -2371,6 +2367,27 @@
       "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
       "owner": "localization-governance",
       "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/executions/execution-query-keys.ts",
+      "value": "board-executions",
+      "reason": "Exact TanStack Query cache namespace; translating it would break cache identity and invalidation.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/executions/execution-query-keys.ts",
+      "value": "list",
+      "reason": "Exact TanStack Query list-key segment; it is a machine-facing cache contract.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/executions/use-post-automation-run.ts",
+      "value": "${getURL(\"BOARDS\")}/${encodeURIComponent(boardId)}/automations/${encodeURIComponent(flowId)}/runs",
+      "reason": "Exact API route template; translating it would break board automation requests.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
     }
   ],
   "debt_ownership": [
@@ -3630,9 +3647,7 @@
   "scan_contract": {
     "raw": {
       "engine": "ripgrep --pcre2",
-      "include": [
-        "src/frontend/src/**/*.{ts,tsx,js,jsx}"
-      ],
+      "include": ["src/frontend/src/**/*.{ts,tsx,js,jsx}"],
       "exclude": [
         "**/__tests__/**",
         "**/*.test.*",
@@ -3655,9 +3670,7 @@
     },
     "ast": {
       "engine": "TypeScript 5.9.3 compiler API",
-      "include": [
-        "src/frontend/src/**/*.{ts,tsx}"
-      ],
+      "include": ["src/frontend/src/**/*.{ts,tsx}"],
       "exclude": [
         "node_modules",
         "__tests__",
@@ -3689,9 +3702,7 @@
     },
     "static_html": {
       "engine": "explicit HTML inventory",
-      "include": [
-        "src/frontend/index.html"
-      ],
+      "include": ["src/frontend/index.html"],
       "checks": [
         "html[lang] runtime locale attribute",
         "title exact product brand",

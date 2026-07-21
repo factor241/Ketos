@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 
 import type {
   BoardExecution,
-  BoardExecutionReason,
   JsonValue,
 } from "@/controllers/API/queries/executions";
 import type { Placement } from "@/types/board";
@@ -41,41 +40,6 @@ function serializeJson(value: JsonValue): [string, boolean] {
   }
 }
 
-type TerminalStatusKey =
-  | "board.execution.status.failed"
-  | "board.execution.status.cancelled";
-
-type ResultReasonKey =
-  | "board.execution.reason.enqueueFailed"
-  | "board.execution.reason.timedOut"
-  | "board.execution.reason.cancelledByUser"
-  | "board.execution.reason.cancelledBySystem"
-  | "board.execution.reason.backendRestarted"
-  | "board.execution.reason.executionFailed";
-
-function reasonKey(reason: BoardExecutionReason): ResultReasonKey {
-  switch (reason) {
-    case "enqueue_failed":
-      return "board.execution.reason.enqueueFailed";
-    case "timed_out":
-      return "board.execution.reason.timedOut";
-    case "user_cancelled":
-      return "board.execution.reason.cancelledByUser";
-    case "system_cancelled":
-      return "board.execution.reason.cancelledBySystem";
-    case "backend_restarted":
-      return "board.execution.reason.backendRestarted";
-    default:
-      return "board.execution.reason.executionFailed";
-  }
-}
-
-function terminalStatusKey(status: "failed" | "cancelled"): TerminalStatusKey {
-  return status === "failed"
-    ? "board.execution.status.failed"
-    : "board.execution.status.cancelled";
-}
-
 export function ResultPlacement({
   placement,
   execution,
@@ -94,6 +58,22 @@ export function ResultPlacement({
   const terminal = ["succeeded", "failed", "cancelled"].includes(
     execution.status,
   );
+  const terminalStatus =
+    execution.status === "failed"
+      ? t("board.execution.status.failed")
+      : t("board.execution.status.cancelled");
+  const terminalReason =
+    execution.reason === "enqueue_failed"
+      ? t("board.execution.reason.enqueueFailed")
+      : execution.reason === "timed_out"
+        ? t("board.execution.reason.timedOut")
+        : execution.reason === "user_cancelled"
+          ? t("board.execution.reason.cancelledByUser")
+          : execution.reason === "system_cancelled"
+            ? t("board.execution.reason.cancelledBySystem")
+            : execution.reason === "backend_restarted"
+              ? t("board.execution.reason.backendRestarted")
+              : t("board.execution.reason.executionFailed");
   let renderedValue = "";
   let clientTruncated = false;
   if (validTarget && execution.status === "succeeded" && execution.result) {
@@ -155,11 +135,9 @@ export function ResultPlacement({
       ) : execution.status === "failed" || execution.status === "cancelled" ? (
         <div role="status" className="space-y-1">
           <p className="text-sm font-medium text-foreground">
-            {t(terminalStatusKey(execution.status))}
+            {terminalStatus}
           </p>
-          <p className="text-xs text-muted-foreground">
-            {t(reasonKey(execution.reason))}
-          </p>
+          <p className="text-xs text-muted-foreground">{terminalReason}</p>
         </div>
       ) : null}
     </BoardCardFrame>

@@ -11,6 +11,10 @@ const runRoot =
 const backendDataRoot = path.join(runRoot, "backend");
 const bindingRoot = path.join(runRoot, "binding");
 const checkpointRoot = path.join(runRoot, "checkpoint");
+const traceMode =
+  process.env.STAGE08_TRACE === "on"
+    ? ("off" as const)
+    : ("retain-on-failure" as const);
 
 for (const directory of [
   runRoot,
@@ -32,7 +36,7 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:3000",
     actionTimeout: 20_000,
-    trace: "retain-on-failure",
+    trace: traceMode,
   },
   projects: [
     {

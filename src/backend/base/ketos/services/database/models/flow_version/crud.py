@@ -6,6 +6,7 @@ from kfx.log import logger
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlmodel import col, delete, func, select
 
+from ketos.services.database.models.command_proposal.model import CommandProposal
 from ketos.services.database.models.deployment.model import Deployment
 from ketos.services.database.models.flow_version.exceptions import (
     FlowVersionConflictError,
@@ -114,12 +115,16 @@ async def create_flow_version_entry(
             )
             .distinct()
         )
+        pinned_version_ids = select(CommandProposal.pinned_flow_version_id).where(
+            CommandProposal.pinned_flow_version_id.is_not(None)
+        )
         version_ids_to_prune = (
             await session.exec(
                 select(FlowVersion.id)
                 .where(
                     FlowVersion.flow_id == flow_id,
                     col(FlowVersion.id).not_in(deployed_version_ids),
+                    col(FlowVersion.id).not_in(pinned_version_ids),
                 )
                 .order_by(col(FlowVersion.version_number).desc())
                 .offset(max_entries)
@@ -151,6 +156,33 @@ async def create_flow_version_entry(
             exc_info=True,
         )
 
+    return entry
+
+
+async def create_pinned_flow_version_entry(
+    session: AsyncSession,
+    *,
+    flow_id: UUID,
+    user_id: UUID,
+    data: dict | None,
+    source_flow_revision: int,
+    source_flow_hash: str,
+    description: str,
+) -> FlowVersion:
+    """Create an AI rollback snapshot without pruning inside the transaction."""
+    version_number = await get_next_version_number(session, flow_id)
+    entry = FlowVersion(
+        flow_id=flow_id,
+        user_id=user_id,
+        data=data,
+        description=description,
+        version_number=version_number,
+        source_flow_revision=source_flow_revision,
+        source_flow_hash=source_flow_hash,
+    )
+    session.add(entry)
+    await session.flush()
+    await session.refresh(entry)
     return entry
 
 
@@ -354,6 +386,15 @@ async def delete_flow_version_entry(
             f"Version entry {version_id} is attached to one or more deployments "
             f"and cannot be deleted. Remove its deployment attachment rows first."
         )
+        raise FlowVersionDeployedError(msg)
+
+    pinned = (
+        await session.exec(
+            select(CommandProposal.id).where(CommandProposal.pinned_flow_version_id == version_id).limit(1)
+        )
+    ).first()
+    if pinned is not None:
+        msg = f"Version entry {version_id} is pinned by a command proposal and cannot be deleted."
         raise FlowVersionDeployedError(msg)
 
     await session.delete(entry)

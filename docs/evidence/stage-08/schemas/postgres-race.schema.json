@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ketos.test/evidence/stage-08/postgres-race.schema.json",
+  "title": "Ketos Stage 08 PostgreSQL race evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "stage", "frozenSha", "runId", "nodeId", "status", "databaseKind", "connectionFingerprint", "serverVersion", "startedAt", "endedAt", "scenarios", "phaseVerdicts", "skipped", "logPath", "logSha256", "blocker"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "stage": {"const": "08"},
+    "frozenSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "runId": {"type": "string", "minLength": 1},
+    "nodeId": {"const": "postgres-behavioral"},
+    "status": {"enum": ["PASS", "FAIL", "BLOCKED"]},
+    "databaseKind": {"const": "postgresql"},
+    "connectionFingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "serverVersion": {"type": "string"},
+    "startedAt": {"type": "string", "format": "date-time"},
+    "endedAt": {"type": "string", "format": "date-time"},
+    "scenarios": {"type": "array", "minItems": 5, "items": {"$ref": "#/$defs/scenario"}},
+    "phaseVerdicts": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/invariant"}},
+    "skipped": {"const": 0},
+    "logPath": {"type": "string", "minLength": 1},
+    "logSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "blocker": {"type": ["string", "null"]}
+  },
+  "$defs": {
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "status", "participants", "barrier", "outcomes", "invariants", "artifactPaths", "reason"],
+      "properties": {
+        "id": {"type": "string"},
+        "name": {"type": "string"},
+        "status": {"enum": ["PASS", "FAIL", "BLOCKED"]},
+        "participants": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/participant"}},
+        "barrier": {"$ref": "#/$defs/barrier"},
+        "outcomes": {"type": "array", "items": {"$ref": "#/$defs/outcome"}},
+        "invariants": {"type": "array", "items": {"$ref": "#/$defs/invariant"}},
+        "artifactPaths": {"type": "array", "items": {"type": "string"}},
+        "reason": {"type": ["string", "null"]}
+      }
+    },
+    "participant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "backendPid", "connectionOrdinal", "startedAt", "finishedAt"],
+      "properties": {
+        "name": {"type": "string"},
+        "backendPid": {"type": "integer", "minimum": 1},
+        "connectionOrdinal": {"type": "integer", "minimum": 1},
+        "startedAt": {"type": "string", "format": "date-time"},
+        "finishedAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "barrier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "expectedParticipants", "arrivedParticipants", "releasedAt"],
+      "properties": {
+        "id": {"type": "string"},
+        "expectedParticipants": {"type": "integer", "minimum": 2},
+        "arrivedParticipants": {"type": "integer", "minimum": 2},
+        "releasedAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["participant", "proposalStatus", "flowRevisionBefore", "flowRevisionAfter", "snapshotDelta", "flowRowDelta", "errorCategory"],
+      "properties": {
+        "participant": {"type": "string"},
+        "proposalStatus": {"type": "string"},
+        "flowRevisionBefore": {"type": ["integer", "null"], "minimum": 0},
+        "flowRevisionAfter": {"type": ["integer", "null"], "minimum": 0},
+        "snapshotDelta": {"type": "integer"},
+        "flowRowDelta": {"type": "integer"},
+        "errorCategory": {"type": ["string", "null"]}
+      }
+    },
+    "invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "expected", "observed", "passed"],
+      "properties": {
+        "name": {"type": "string"},
+        "expected": {"type": "string"},
+        "observed": {"type": "string"},
+        "passed": {"type": "boolean"}
+      }
+    }
+  }
+}

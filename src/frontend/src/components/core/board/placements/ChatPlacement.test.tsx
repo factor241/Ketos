@@ -19,6 +19,7 @@ jest.mock("../../chats/use-thread-scoped-copilot-agent", () => ({
     mockUseThreadScopedCopilotAgent(chatId),
 }));
 jest.mock("@copilotkit/react-core/v2", () => ({
+  useInterrupt: jest.fn(),
   CopilotChat: (props: { agentId?: string; threadId?: string }) => {
     chats.push(props);
     return <div data-testid={`chat-${props.threadId}`} />;

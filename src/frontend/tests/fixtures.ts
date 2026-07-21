@@ -16,7 +16,9 @@ const CPU_THROTTLE_RATE = (() => {
 // Extend test to log backend errors
 export const test = base.extend({
   page: async ({ page }, use, testInfo) => {
-    const usesApplicationLocale = testInfo.file.includes("localization-");
+    const usesApplicationLocale =
+      testInfo.file.includes("localization-") ||
+      testInfo.tags.includes("@localization");
     const context = page.context();
     if (!usesApplicationLocale) {
       // Most legacy E2E assertions use English as their explicit known state.

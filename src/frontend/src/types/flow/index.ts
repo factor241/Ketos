@@ -1,6 +1,42 @@
+import type { Interrupt } from "@copilotkit/react-core/v2";
 import type { Edge, Node, ReactFlowJsonObject } from "@xyflow/react";
 import type { BuildStatus } from "../../constants/enums";
 import type { APIClassType, OutputFieldType } from "../api/index";
+
+export type FlowCommandSnapshot = {
+  revision: number | null;
+  hash: string | null;
+  nodeCount: number;
+  edgeCount: number;
+};
+
+export type FlowCommandPreviewData = {
+  before: FlowCommandSnapshot;
+  after: FlowCommandSnapshot;
+  operationSummaries: Array<{
+    index: number;
+    op: string;
+    status: "applied" | "noop";
+    summary: string;
+    affectedNodeIds: string[];
+    affectedEdges: string[];
+  }>;
+  warnings: string[];
+  risk: "low" | "medium" | "high";
+  canRestore: boolean;
+};
+
+export type FlowCommandMetadata = {
+  type: "ketos.flow-command-confirmation.v1";
+  proposalId: string;
+  proposalHash: string;
+  preview: FlowCommandPreviewData;
+};
+
+export type FlowCommandInterrupt = {
+  interrupt: Interrupt;
+  metadata: FlowCommandMetadata;
+};
 
 export type PaginatedFlowsType = {
   items: FlowType[];

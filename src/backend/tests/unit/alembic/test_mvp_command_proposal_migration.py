@@ -50,6 +50,8 @@ def _postgres_uri() -> str:
     uri = os.getenv("KETOS_TEST_DATABASE_URI") or os.getenv("MVP_POSTGRES_URI")
     if not uri:
         pytest.fail(POSTGRES_BLOCKER)
+    if not uri.startswith(("postgresql://", "postgres://", "postgresql+psycopg://")):
+        pytest.skip("PostgreSQL migration parity is exercised by the dedicated PostgreSQL gate")
     if uri.startswith("postgresql://"):
         return uri.replace("postgresql://", "postgresql+psycopg://", 1)
     if uri.startswith("postgres://"):

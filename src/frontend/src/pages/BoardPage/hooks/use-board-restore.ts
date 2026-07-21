@@ -14,6 +14,7 @@ export type BoardRestorePhase =
 export type BoardRestoreResult = {
   phase: BoardRestorePhase;
   board: BoardRead | null;
+  serverMismatch: boolean;
   announcementKey: BoardRestoreAnnouncementKey;
   refetch: ReturnType<typeof useGetBoard>["refetch"];
 };
@@ -110,12 +111,14 @@ function isValidServerBoard(
 export function useBoardRestore({
   projectId,
   boardId,
+  enabled = true,
 }: {
   projectId: string;
   boardId: string;
+  enabled?: boolean;
 }): BoardRestoreResult {
   const routeKey = `${projectId}\u0000${boardId}`;
-  const query = useGetBoard({ projectId, boardId });
+  const query = useGetBoard({ projectId, boardId }, { enabled });
   const focusDescriptorRef = useRef<FocusDescriptor | null>(null);
   const renderedRouteRef = useRef(routeKey);
   const lastServerBoardRef = useRef<{
@@ -223,6 +226,7 @@ export function useBoardRestore({
   return {
     phase,
     board,
+    serverMismatch: invalidServerResponse,
     announcementKey: ANNOUNCEMENT_KEYS[phase],
     refetch: query.refetch,
   };

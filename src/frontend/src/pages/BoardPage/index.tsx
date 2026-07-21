@@ -852,24 +852,41 @@ function LoadedBoard({
 function RestorableBoardPage({
   projectId,
   boardId,
+  workspaceEnabled,
+  validParams,
   chatEnabled,
   executionEnabled,
 }: {
   projectId: string;
   boardId: string;
+  workspaceEnabled: boolean;
+  validParams: boolean;
   chatEnabled: boolean;
   executionEnabled: boolean;
 }) {
   const { t } = useTranslation();
-  const restore = useBoardRestore({ projectId, boardId });
+  const restore = useBoardRestore({
+    projectId,
+    boardId,
+    enabled: workspaceEnabled && validParams,
+  });
   const announcement = t(restore.announcementKey);
+
+  if (!workspaceEnabled) return <Navigate to="/flows" replace />;
+  if (!validParams || restore.serverMismatch) return <NotFoundAlert />;
 
   if (restore.board === null) {
     if (restore.phase === "hydrating" || restore.phase === "reconnecting")
-      return <div role="status">{announcement}</div>;
+      return (
+        <div role="status" aria-label={announcement}>
+          {t("board.loading")}
+        </div>
+      );
     return (
       <main>
-        <div role="alert">{announcement}</div>
+        <div role="alert" aria-label={announcement}>
+          {t("board.error")}
+        </div>
         <button type="button" onClick={() => void restore.refetch()}>
           {t("board.retry")}
         </button>
@@ -911,12 +928,12 @@ export default function BoardPage() {
   );
   const validParams =
     UUID_PATTERN.test(projectId) && UUID_PATTERN.test(boardId);
-  if (!workspaceEnabled) return <Navigate to="/flows" replace />;
-  if (!validParams) return <NotFoundAlert />;
   return (
     <RestorableBoardPage
       projectId={projectId}
       boardId={boardId}
+      workspaceEnabled={workspaceEnabled}
+      validParams={validParams}
       chatEnabled={chatEnabled}
       executionEnabled={executionEnabled}
     />

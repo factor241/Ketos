@@ -18,15 +18,15 @@ import { useFlowCommandInterrupt } from "../../chats/use-flow-command-interrupt"
 import { useThreadScopedCopilotAgent } from "../../chats/use-thread-scoped-copilot-agent";
 import { BoardCardFrame } from "../BoardCardFrame";
 
-const CHAT_DRAFT_STORAGE_PREFIX = "ketos.chat.draft.v1:";
 const ChatDraftContext = createContext<string | null>(null);
+
+function chatDraftStorageKey(chatId: string): string {
+  return `ketos-chat-draft-v1-${chatId}`;
+}
 
 function readStoredDraft(chatId: string): string {
   try {
-    return (
-      window.sessionStorage.getItem(`${CHAT_DRAFT_STORAGE_PREFIX}${chatId}`) ??
-      ""
-    );
+    return window.sessionStorage.getItem(`ketos-chat-draft-v1-${chatId}`) ?? "";
   } catch {
     return "";
   }
@@ -34,7 +34,7 @@ function readStoredDraft(chatId: string): string {
 
 function writeStoredDraft(chatId: string, value: string): void {
   try {
-    const key = `${CHAT_DRAFT_STORAGE_PREFIX}${chatId}`;
+    const key = chatDraftStorageKey(chatId);
     if (value) window.sessionStorage.setItem(key, value);
     else window.sessionStorage.removeItem(key);
   } catch {

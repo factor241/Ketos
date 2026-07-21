@@ -201,7 +201,7 @@ describe("ChatPlacement restart reconnect", () => {
   });
 
   it("restores and preserves an unsent stock-composer draft without auto-send", () => {
-    const key = `ketos.chat.draft.v1:${CHAT_ONE}`;
+    const key = `ketos-chat-draft-v1-${CHAT_ONE}`;
     sessionStorage.setItem(key, "unsent restart draft");
     const view = render(
       <ChatPlacement
@@ -235,8 +235,8 @@ describe("ChatPlacement restart reconnect", () => {
   });
 
   it("clears only the submitted chat draft and isolates another chat", () => {
-    const firstKey = `ketos.chat.draft.v1:${CHAT_ONE}`;
-    const secondKey = `ketos.chat.draft.v1:${CHAT_TWO}`;
+    const firstKey = `ketos-chat-draft-v1-${CHAT_ONE}`;
+    const secondKey = `ketos-chat-draft-v1-${CHAT_TWO}`;
     sessionStorage.setItem(firstKey, "send me");
     sessionStorage.setItem(secondKey, "leave me");
     render(

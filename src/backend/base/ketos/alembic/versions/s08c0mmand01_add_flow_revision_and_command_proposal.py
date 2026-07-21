@@ -112,7 +112,7 @@ def upgrade() -> None:
         sa.Column("interrupt_bound_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("source_proposal_id", sa.Uuid(), nullable=True),
         sa.Column("flow_id", sa.Uuid(), nullable=False),
-        sa.Column("command_type", sa.String(length=20), nullable=False),
+        sa.Column("command_type", sa.String(length=16), nullable=False),
         sa.Column("canonical_payload", sa.JSON(), nullable=False),
         sa.Column("preview", sa.JSON(), nullable=False),
         sa.Column("proposal_hash", sa.String(length=64), nullable=False),

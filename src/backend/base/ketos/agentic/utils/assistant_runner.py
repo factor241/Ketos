@@ -23,6 +23,7 @@ from ketos.agentic.services.assistant_service import execute_flow_with_validatio
 from ketos.agentic.services.flow_types import KETOS_ASSISTANT_FLOW
 from ketos.api.v1.flows import _new_flow, _save_flow_to_fs
 from ketos.initial_setup.setup import get_or_create_default_folder
+from ketos.services.commands.flow_revision import mutate_flow_content_once
 from ketos.services.database.models.flow.model import Flow, FlowCreate
 from ketos.services.deps import get_storage_service
 
@@ -210,9 +211,13 @@ async def run_assistant_and_persist(
         # each to the working flow here or the text edit is dropped (Bug #13641).
         for edit in field_edits:
             _apply_field_edit(flow_data, edit)
-        flow.data = flow_data
-        if created_new and canvas.name:
-            flow.name = canvas.name
+
+        def apply_canvas(target: Flow) -> None:
+            target.data = flow_data
+            if created_new and canvas.name:
+                target.name = canvas.name
+
+        mutate_flow_content_once(flow, apply_canvas)
         session.add(flow)
         await session.commit()
         await _save_flow_to_fs(flow, user_id, get_storage_service())

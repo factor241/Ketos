@@ -7,6 +7,7 @@ from kfx.graph.graph.base import Graph
 from kfx.log.logger import logger
 
 from ketos.helpers.flow import get_flow_by_id_or_endpoint_name
+from ketos.services.commands.flow_revision import mutate_flow_content_once
 from ketos.services.database.models.flow.model import Flow
 from ketos.services.deps import session_scope
 
@@ -276,7 +277,7 @@ async def update_component_field_value(
                 return {"error": "User does not have permission to update this flow", "success": False}
 
             # Update the flow data
-            db_flow.data = flow_data
+            mutate_flow_content_once(db_flow, lambda target: setattr(target, "data", flow_data))
             session.add(db_flow)
             await session.commit()
             await session.refresh(db_flow)

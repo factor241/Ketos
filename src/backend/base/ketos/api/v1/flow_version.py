@@ -14,6 +14,7 @@ from ketos.api.utils import CurrentActiveUser, DbSession
 from ketos.api.utils.core import remove_api_keys
 from ketos.api.v1.mappers.deployments.helpers import get_owned_provider_account_or_404
 from ketos.api.v1.mappers.deployments.sync import sync_flow_version_attachments
+from ketos.services.commands.flow_revision import mutate_flow_content_once
 from ketos.services.database.models.flow.model import Flow, FlowRead
 from ketos.services.database.models.flow_version.crud import (
     create_flow_version_entry,
@@ -269,7 +270,7 @@ async def activate_version(
                     description=f"Auto-saved before activating v{target_entry.version_number}",
                 )
 
-            flow.data = target_data
+            mutate_flow_content_once(flow, lambda target: setattr(target, "data", target_data))
             flow.updated_at = datetime.now(timezone.utc)
 
             session.add(flow)

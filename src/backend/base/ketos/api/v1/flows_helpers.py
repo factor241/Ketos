@@ -22,6 +22,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ketos.api.utils import build_content_disposition, normalize_flow_for_export, remove_api_keys
+from ketos.services.commands.flow_revision import mutate_flow_content_once
 from ketos.services.database.models.base import orjson_dumps
 from ketos.services.database.models.deployment.orm_guards import ensure_flow_move_allowed
 from ketos.services.database.models.flow.model import (
@@ -140,9 +141,13 @@ _UPDATABLE_FLOW_FIELDS: frozenset[str] = frozenset(
 
 def _apply_update_data(target: Flow, update_data: dict[str, Any]) -> None:
     """Apply *update_data* to the ORM *target*, restricted to the allowlist."""
-    for key, value in update_data.items():
-        if key in _UPDATABLE_FLOW_FIELDS:
-            setattr(target, key, value)
+
+    def apply_fields(flow: Flow) -> None:
+        for key, value in update_data.items():
+            if key in _UPDATABLE_FLOW_FIELDS:
+                setattr(flow, key, value)
+
+    mutate_flow_content_once(target, apply_fields)
 
 
 def _endpoint_name_was_explicitly_cleared(flow: FlowCreate | FlowUpdate) -> bool:

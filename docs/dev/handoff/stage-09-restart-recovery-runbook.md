@@ -82,7 +82,9 @@ S09_RUN_DIR="$S09_RUN_DIR" S09_CODE_SHA="$S09_CODE_SHA" \
 (cd src/frontend && npm run i18n:check) >"$S09_RUN_DIR/logs/i18n-check.txt" 2>&1
 (cd src/frontend && npm run type-check:production) >"$S09_RUN_DIR/logs/typecheck-production.txt" 2>&1
 
-make unit_tests ff=false args="-q -p no:cacheprovider --basetemp=$S09_RUN_DIR/tmp/pytest-package" \
+# Keep the package gate single-process so the coordinator's 15.5 GiB RSS guard
+# can stop before the 16 GiB workstation limit.
+make unit_tests async=false ff=false args="-q -p no:cacheprovider --basetemp=$S09_RUN_DIR/tmp/pytest-package" \
   >"$S09_RUN_DIR/logs/backend-package.txt" 2>&1
 CI=true JEST_JUNIT_OUTPUT_DIR="$S09_RUN_DIR/frontend-junit" \
   make test_frontend >"$S09_RUN_DIR/logs/frontend-package.txt" 2>&1

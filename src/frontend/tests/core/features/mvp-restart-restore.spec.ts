@@ -341,7 +341,7 @@ test(
             "{corrupted-json",
           );
           sessionStorage.setItem(
-            `ketos.chat.draft.v1:${chatId}`,
+            `ketos-chat-draft-v1-${chatId}`,
             "unsent restart draft",
           );
         },

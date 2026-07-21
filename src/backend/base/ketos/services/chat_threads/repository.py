@@ -10,7 +10,7 @@ from sqlalchemy import func, update
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 
-from ketos.services.database.models.chat_thread.model import ChatContextPolicy, ChatRun, ChatThread
+from ketos.services.database.models.chat_thread.model import ChatContextPolicy, ChatRun, ChatRunStatus, ChatThread
 from ketos.services.database.models.folder.model import Folder
 
 if TYPE_CHECKING:
@@ -71,6 +71,64 @@ class ChatRunAllocationError(Exception):
 class ChatRunClaim:
     run: ChatRun
     replayed: bool
+
+
+async def list_nonterminal_chat_runs(
+    session: AsyncSession,
+    *,
+    limit: int,
+) -> list[ChatRun]:
+    """Return a bounded deterministic set for startup-only classification."""
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 1000:
+        raise ValueError("limit must be an integer between 1 and 1000")
+    result = await session.exec(
+        select(ChatRun)
+        .where(ChatRun.status.in_((ChatRunStatus.CLAIMED, ChatRunStatus.RUNNING)))
+        .order_by(ChatRun.created_at.asc(), ChatRun.id.asc())
+        .limit(limit)
+    )
+    return list(result.all())
+
+
+async def get_owned_chat_run(
+    session: AsyncSession,
+    *,
+    run_id: UUID,
+    actor_id: UUID,
+) -> ChatRun | None:
+    """Fetch one run exclusively through its persisted Folder owner chain."""
+    result = await session.exec(
+        select(ChatRun)
+        .join(ChatThread, ChatRun.chat_id == ChatThread.id)
+        .join(Folder, ChatThread.project_id == Folder.id)
+        .where(ChatRun.id == run_id, Folder.user_id == actor_id)
+        .execution_options(populate_existing=True)
+    )
+    return result.one_or_none()
+
+
+async def mark_chat_run_failed_recoverable(
+    session: AsyncSession,
+    *,
+    run_id: UUID,
+    observed_status: ChatRunStatus,
+    finished_at: datetime,
+    redacted_audit: dict[str, str],
+) -> bool:
+    """CAS one exactly observed nonterminal run into the restart outcome."""
+    if observed_status not in (ChatRunStatus.CLAIMED, ChatRunStatus.RUNNING):
+        return False
+    result = await session.exec(
+        update(ChatRun)
+        .where(ChatRun.id == run_id, ChatRun.status == observed_status)
+        .values(
+            status=ChatRunStatus.FAILED_RECOVERABLE,
+            outcome="backend_restarted",
+            finished_at=finished_at,
+            redacted_audit=redacted_audit,
+        )
+    )
+    return result.rowcount == 1
 
 
 async def require_owned_chat(session: AsyncSession, *, chat_id: UUID, actor_id: UUID) -> ChatThread:

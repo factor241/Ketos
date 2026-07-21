@@ -79,6 +79,7 @@ const SENSITIVE_TRACE_KEYS = new Set([
   "headers",
   "html",
   "jsonData",
+  "message",
   "messages",
   "nodes",
   "operations",
@@ -100,6 +101,16 @@ function sanitizeTraceValue(value: unknown): unknown {
       key,
       SENSITIVE_TRACE_KEYS.has(key) ? "[REDACTED]" : sanitizeTraceValue(item),
     ]),
+  );
+}
+
+function hasUnredactedSensitiveTraceValue(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(hasUnredactedSensitiveTraceValue);
+  if (value === null || typeof value !== "object") return false;
+  return Object.entries(value).some(
+    ([key, item]) =>
+      (SENSITIVE_TRACE_KEYS.has(key) && item !== "[REDACTED]") ||
+      hasUnredactedSensitiveTraceValue(item),
   );
 }
 
@@ -134,11 +145,14 @@ async function sanitizePlaywrightTrace(sourcePath: string, targetPath: string) {
   const verificationTrace = await verificationZip
     .file("trace.trace")
     ?.async("string");
+  const verificationEntries = (verificationTrace ?? "")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
   if (
     !verificationTrace ||
-    /S08 (?:CREATE|EDIT|RU)|"(?:jsonData|postData|messages|operations|nodes|edges|parameter|state)"/.test(
-      verificationTrace,
-    )
+    /S08 (?:CREATE|EDIT|RU)/.test(verificationTrace) ||
+    verificationEntries.some(hasUnredactedSensitiveTraceValue)
   ) {
     throw new Error(
       "Sanitized Playwright trace still contains governed payload data",

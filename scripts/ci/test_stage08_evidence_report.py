@@ -362,6 +362,7 @@ def test_browser_trace_is_sanitized_before_it_enters_the_evidence_bundle() -> No
     assert 'zip.remove("trace.network")' in spec
     assert 'entry.type !== "frame-snapshot"' in spec
     assert "SENSITIVE_TRACE_KEYS" in spec
+    assert '"message",' in spec
     assert "rawTracePath" in spec
     assert "finally" in spec
     assert "existsSync(rawTracePath)" in spec

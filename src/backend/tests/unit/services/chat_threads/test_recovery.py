@@ -11,6 +11,7 @@ from ketos.services.chat_threads.recovery import (
     ChatRunRecoveryConflictError,
     ChatRunRecoveryNotFoundError,
     classify_nonterminal_runs,
+    reconcile_nonterminal_chat_runs,
     reconcile_owned_run,
 )
 from ketos.services.database.models.chat_thread.model import ChatRun, ChatRunStatus, ChatThread
@@ -27,6 +28,15 @@ class FakeCheckpointProbe:
     async def has_resumable_checkpoint(self, thread_id: str) -> bool:
         self.calls.append(thread_id)
         return thread_id in self.resumable_thread_ids
+
+
+class FakeSaver:
+    def __init__(self, resumable_thread_ids: set[str]) -> None:
+        self.resumable_thread_ids = resumable_thread_ids
+
+    async def aget_tuple(self, config):
+        thread_id = config["configurable"]["thread_id"]
+        return object() if thread_id in self.resumable_thread_ids else None
 
 
 @pytest.fixture(name="recovery_session")
@@ -188,6 +198,24 @@ async def test_startup_limit_is_bounded_and_validated(
     assert len(probe.calls) == 1
     with pytest.raises(ValueError, match="between 1 and 1000"):
         await classify_nonterminal_runs(recovery_session, probe=probe, limit=0)
+
+
+async def test_frozen_reconcile_interface_returns_bounded_summary(
+    recovery_session: AsyncSession,
+) -> None:
+    actor_id, resumable = await _seed_run(recovery_session)
+    _foreign_actor, _foreign = await _seed_run(recovery_session)
+
+    summary = await reconcile_nonterminal_chat_runs(
+        session=recovery_session,
+        checkpointer=FakeSaver({resumable.langgraph_thread_id}),
+        owner_id=actor_id,
+    )
+
+    assert summary.scanned == 1
+    assert summary.resumable == 1
+    assert summary.failed_recoverable == 0
+    assert summary.run_ids == (resumable.id,)
 
 
 async def test_foreign_owner_gets_no_checkpoint_state(

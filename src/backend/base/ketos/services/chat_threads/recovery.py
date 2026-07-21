@@ -17,6 +17,7 @@ from ketos.services.chat_threads.repository import (
 from ketos.services.database.models.chat_thread.model import ChatRun, ChatRunStatus
 
 if TYPE_CHECKING:
+    from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
     from sqlmodel.ext.asyncio.session import AsyncSession
 
 
@@ -34,6 +35,24 @@ class ChatRunRecoveryResult:
     status: ChatRunStatus
     checkpoint_resumable: bool
     changed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ChatRecoverySummary:
+    scanned: int
+    resumable: int
+    failed_recoverable: int
+    run_ids: tuple[UUID, ...]
+    reasons: tuple[str, ...]
+
+
+class _SaverCheckpointProbe:
+    def __init__(self, saver: AsyncSqliteSaver) -> None:
+        self._saver = saver
+
+    async def has_resumable_checkpoint(self, thread_id: str) -> bool:
+        checkpoint = await self._saver.aget_tuple({"configurable": {"thread_id": thread_id}})
+        return checkpoint is not None
 
 
 _RESTART_AUDIT = {
@@ -83,6 +102,27 @@ async def classify_nonterminal_runs(
     return results
 
 
+async def reconcile_nonterminal_chat_runs(
+    *,
+    session: AsyncSession,
+    checkpointer: AsyncSqliteSaver,
+    owner_id: UUID | None,
+) -> ChatRecoverySummary:
+    """Frozen Stage 09 entrypoint for bounded startup/request classification."""
+    candidates = await list_nonterminal_chat_runs(session, limit=100, actor_id=owner_id)
+    probe = _SaverCheckpointProbe(checkpointer)
+    results = tuple([await _classify_run(session, run=run, probe=probe) for run in candidates])
+    if any(result.changed for result in results):
+        await session.commit()
+    return ChatRecoverySummary(
+        scanned=len(results),
+        resumable=sum(result.checkpoint_resumable for result in results),
+        failed_recoverable=sum(result.changed for result in results),
+        run_ids=tuple(result.run_id for result in results),
+        reasons=tuple("backend_restarted" for result in results if result.changed),
+    )
+
+
 async def reconcile_owned_run(
     session: AsyncSession,
     *,
@@ -109,7 +149,9 @@ __all__ = [
     "ChatRunRecoveryConflictError",
     "ChatRunRecoveryNotFoundError",
     "ChatRunRecoveryResult",
+    "ChatRecoverySummary",
     "CheckpointProbe",
     "classify_nonterminal_runs",
+    "reconcile_nonterminal_chat_runs",
     "reconcile_owned_run",
 ]

@@ -9,6 +9,8 @@ import pytest
 from ketos.agentic.persistence.checkpointer import (
     AgenticCheckpointer,
     chat_thread_id,
+    checkpoint_path,
+    open_mvp_checkpointer,
     production_checkpointer,
 )
 
@@ -23,6 +25,10 @@ def test_chat_thread_id_is_stable_for_same_uuid() -> None:
 
     assert chat_thread_id(chat_id) == str(chat_id)
     assert chat_thread_id(chat_id) == chat_thread_id(chat_id)
+
+
+def test_checkpoint_path_uses_frozen_mvp_location(tmp_path: Path) -> None:
+    assert checkpoint_path(tmp_path) == (tmp_path / "mvp" / "langgraph-checkpoints.sqlite3").resolve()
 
 
 def test_explicit_path_requires_a_root(tmp_path: Path) -> None:
@@ -79,7 +85,7 @@ async def test_sequential_production_savers_read_the_same_file(
         }
     }
 
-    async with production_checkpointer(data_dir=data_dir) as first_saver:
+    async with open_mvp_checkpointer(data_dir) as first_saver:
         await first_saver.aput(
             config,
             checkpoint,
@@ -99,6 +105,6 @@ async def test_sequential_production_savers_read_the_same_file(
     assert restored.checkpoint["id"] == checkpoint_id
     assert restored.checkpoint["channel_values"]["message"] == "persisted"
 
-    database = data_dir / "ag-ui" / "checkpoints.sqlite3"
+    database = data_dir / "mvp" / "langgraph-checkpoints.sqlite3"
     assert database.is_file()
     assert os.stat(database).st_mode & 0o777 == 0o600

@@ -16,12 +16,23 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from ketos.agentic.services.ag_ui.checkpoint import AsyncSqliteCheckpoint, resolve_checkpoint_path
 
+_MVP_CHECKPOINT_RELATIVE_PATH = Path("mvp/langgraph-checkpoints.sqlite3")
+
 
 def chat_thread_id(chat_id: UUID) -> str:
     """Return the one stable LangGraph thread identifier for a Chat row."""
     if not isinstance(chat_id, UUID):
         raise TypeError("chat_id must be a UUID")
     return str(chat_id)
+
+
+def checkpoint_path(data_dir: str | Path) -> Path:
+    """Return the frozen Stage 09 checkpoint path below an explicit data root."""
+    root = Path(data_dir).expanduser().resolve(strict=False)
+    candidate = (root / _MVP_CHECKPOINT_RELATIVE_PATH).resolve(strict=False)
+    if not candidate.is_relative_to(root):
+        raise ValueError("checkpoint path escapes configured data_dir")
+    return candidate
 
 
 def _resolve_path(*, data_dir: Path | None, path: Path | None) -> Path:
@@ -77,7 +88,16 @@ async def production_checkpointer(
     *, data_dir: Path | None = None, path: Path | None = None
 ) -> AsyncIterator[AsyncSqliteSaver]:
     """Yield one setup, file-backed saver and close it on app shutdown."""
+    if data_dir is not None and path is None:
+        path = checkpoint_path(data_dir)
     async with AgenticCheckpointer(data_dir=data_dir, path=path) as checkpointer:
         saver = checkpointer.saver
         await saver.setup()
+        yield saver
+
+
+@asynccontextmanager
+async def open_mvp_checkpointer(data_dir: str | Path) -> AsyncIterator[AsyncSqliteSaver]:
+    """Open and close the exact frozen Stage 09 file-backed saver."""
+    async with production_checkpointer(data_dir=Path(data_dir)) as saver:
         yield saver

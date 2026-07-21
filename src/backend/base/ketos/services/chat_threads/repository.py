@@ -77,16 +77,25 @@ async def list_nonterminal_chat_runs(
     session: AsyncSession,
     *,
     limit: int,
+    actor_id: UUID | None = None,
 ) -> list[ChatRun]:
     """Return a bounded deterministic set for startup-only classification."""
     if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 1000:
         raise ValueError("limit must be an integer between 1 and 1000")
-    result = await session.exec(
-        select(ChatRun)
-        .where(ChatRun.status.in_((ChatRunStatus.CLAIMED, ChatRunStatus.RUNNING)))
+    statement = select(ChatRun)
+    if actor_id is not None:
+        statement = statement.join(ChatThread, ChatRun.chat_id == ChatThread.id).join(
+            Folder, ChatThread.project_id == Folder.id
+        )
+    statement = (
+        statement.where(
+            ChatRun.status.in_((ChatRunStatus.CLAIMED, ChatRunStatus.RUNNING)),
+            *(() if actor_id is None else (Folder.user_id == actor_id,)),
+        )
         .order_by(ChatRun.created_at.asc(), ChatRun.id.asc())
         .limit(limit)
     )
+    result = await session.exec(statement)
     return list(result.all())
 
 

@@ -22,7 +22,7 @@ from ketos.services.jobs.board_contracts import BoardAutomationRunRequest
 from ketos.services.jobs.worker_identity import get_worker_instance_id
 
 BOARD_JOB_NAMESPACE = UUID("7a2d1c1e-7f9b-5bd6-9fd9-4f80243c3c55")
-BOARD_JOB_SCHEMA_VERSION = 1
+BOARD_JOB_SCHEMA_VERSION = 2
 BOARD_JOB_KIND = "board_automation_run"
 BOARD_JOB_METADATA_MAX_BYTES = 32 * 1024
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -75,12 +75,16 @@ def build_board_request_fingerprint(
     board_id: UUID,
     flow_id: UUID,
     flow_hash: str,
+    schema_version: int = BOARD_JOB_SCHEMA_VERSION,
 ) -> str:
     """Hash the frozen, non-secret Board request identity shape."""
     _validate_flow_hash(flow_hash)
+    if schema_version not in (1, 2):
+        msg = "schema_version must be 1 or 2"
+        raise ValueError(msg)
     canonical = json.dumps(
         {
-            "schema_version": BOARD_JOB_SCHEMA_VERSION,
+            "schema_version": schema_version,
             "actor_id": str(actor_id),
             "board_id": str(board_id),
             "flow_id": str(flow_id),

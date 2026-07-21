@@ -61,6 +61,7 @@ def _valid_job(*, status: JobStatus, reason=None, result=None) -> Job:
                     board_id=board_id,
                     flow_id=flow_id,
                     flow_hash="a" * 64,
+                    schema_version=1,
                 ),
                 "policy_version": 1,
                 "origin_pid": 123,

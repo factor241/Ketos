@@ -163,7 +163,7 @@ async def test_new_claim_writes_exact_domain_marker_without_raw_key() -> None:
     assert claim.job.status is JobStatus.QUEUED
     mvp = _mvp(claim.job)
     assert mvp == {
-        "schema_version": 1,
+        "schema_version": 2,
         "kind": "board_automation_run",
         "board_id": str(BOARD_ID),
         "flow_id": str(FLOW_ID),
@@ -252,7 +252,7 @@ async def test_integrity_conflict_rolls_back_then_reads_in_fresh_session(monkeyp
         dedupe_key=hashlib.sha256(b"ketos.board-job-key.v1:fresh-session").hexdigest(),
         job_metadata={
             "mvp": {
-                "schema_version": 1,
+                "schema_version": 2,
                 "kind": "board_automation_run",
                 "board_id": str(BOARD_ID),
                 "flow_id": str(FLOW_ID),

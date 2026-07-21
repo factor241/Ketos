@@ -72,6 +72,7 @@ _MVP_KEYS = frozenset(
         "audit",
     }
 )
+_RECOVERED_LEGACY_KEYS = _MVP_KEYS - {"origin_pid", "worker_instance_id"}
 _CLAIM_AUDIT_KEYS = frozenset({"request_id", "sequence", "duration_ms", "outcome"})
 _TERMINAL_AUDIT_KEYS = frozenset({*_CLAIM_AUDIT_KEYS, "reason", "flow_hash"})
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -306,14 +307,24 @@ def require_board_mvp(job: Job) -> dict[str, Any]:
     mvp = metadata.get("mvp") if isinstance(metadata, dict) else None
     if not isinstance(metadata, dict) or set(metadata) != {"mvp"}:
         raise BoardResultMetadataError(job.job_id)
-    if not isinstance(mvp, dict) or set(mvp) != _MVP_KEYS:
+    if not isinstance(mvp, dict):
         raise BoardResultMetadataError(job.job_id)
-    if mvp.get("schema_version") != BOARD_JOB_SCHEMA_VERSION or mvp.get("kind") != BOARD_JOB_KIND:
+    schema_version = mvp.get("schema_version")
+    recovered_legacy = (
+        frozenset(mvp) == _RECOVERED_LEGACY_KEYS
+        and schema_version == BOARD_JOB_SCHEMA_VERSION
+        and job.status is JobStatus.FAILED
+        and mvp.get("reason") == "backend_restarted"
+    )
+    if frozenset(mvp) != _MVP_KEYS and not recovered_legacy:
+        raise BoardResultMetadataError(job.job_id)
+    if schema_version not in (1, BOARD_JOB_SCHEMA_VERSION) or mvp.get("kind") != BOARD_JOB_KIND:
         raise BoardResultMetadataError(job.job_id)
     try:
         board_id = UUID(str(mvp["board_id"]))
         flow_id = UUID(str(mvp["flow_id"]))
-        UUID(str(mvp["worker_instance_id"]))
+        if not recovered_legacy:
+            UUID(str(mvp["worker_instance_id"]))
     except (TypeError, ValueError) as exc:
         raise BoardResultMetadataError(job.job_id) from exc
     flow_hash = mvp.get("flow_hash")
@@ -329,15 +340,17 @@ def require_board_mvp(job: Job) -> dict[str, Any]:
         board_id=board_id,
         flow_id=flow_id,
         flow_hash=flow_hash,
+        schema_version=schema_version,
     )
     if request_fingerprint != expected_fingerprint:
         raise BoardResultMetadataError(job.job_id)
     policy_version = mvp.get("policy_version")
     if isinstance(policy_version, bool) or not isinstance(policy_version, int) or policy_version <= 0:
         raise BoardResultMetadataError(job.job_id)
-    origin_pid = mvp.get("origin_pid")
-    if isinstance(origin_pid, bool) or not isinstance(origin_pid, int) or origin_pid <= 0:
-        raise BoardResultMetadataError(job.job_id)
+    if not recovered_legacy:
+        origin_pid = mvp.get("origin_pid")
+        if isinstance(origin_pid, bool) or not isinstance(origin_pid, int) or origin_pid <= 0:
+            raise BoardResultMetadataError(job.job_id)
     reason = mvp.get("reason")
     if reason is not None and (not isinstance(reason, str) or reason not in _ALL_REASONS):
         raise BoardResultMetadataError(job.job_id)

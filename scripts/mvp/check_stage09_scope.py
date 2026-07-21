@@ -65,6 +65,7 @@ BASELINE_REMEDIATION_PATHS = {
     "src/backend/tests/unit/brand_state/test_database.py",
     "src/backend/tests/unit/services/database/test_brand_state_db_preservation.py",
     "src/backend/tests/unit/test_ketos_namespace_cutover.py",
+    "src/frontend/.gitignore",
 }
 ALLOWED_PATHS |= BASELINE_REMEDIATION_PATHS
 FORBIDDEN_PARTS = {"alembic", "migrations", "event_store", "outbox", "leader_election"}

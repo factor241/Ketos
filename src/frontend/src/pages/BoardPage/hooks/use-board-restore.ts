@@ -14,7 +14,7 @@ export type BoardRestorePhase =
 export type BoardRestoreResult = {
   phase: BoardRestorePhase;
   board: BoardRead | null;
-  announcementKey: string;
+  announcementKey: BoardRestoreAnnouncementKey;
   refetch: ReturnType<typeof useGetBoard>["refetch"];
 };
 
@@ -22,13 +22,15 @@ type FocusDescriptor =
   | { kind: "placement"; dataId: string }
   | { kind: "element"; id: string };
 
-const ANNOUNCEMENT_KEYS: Record<BoardRestorePhase, string> = {
+const ANNOUNCEMENT_KEYS = {
   hydrating: "board.restore.hydrating",
   reconnecting: "board.restore.reconnecting",
   restored: "board.restore.restored",
   failed_recoverable: "board.restore.failedRecoverable",
   unknown: "board.restore.unknown",
-};
+} as const satisfies Record<BoardRestorePhase, string>;
+export type BoardRestoreAnnouncementKey =
+  (typeof ANNOUNCEMENT_KEYS)[BoardRestorePhase];
 const SAFE_SELECTOR_VALUE = /^[A-Za-z0-9-]+$/;
 
 function errorStatus(error: unknown): number | undefined {

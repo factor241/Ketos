@@ -34,8 +34,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 READY_TIMEOUT_SECONDS = 120.0
 STOP_TIMEOUT_SECONDS = 15.0
 HTTP_OK = 200
+HTTP_CONFLICT = 409
 RESTART_PROCESS_COUNT = 2
 EXPECTED_TRANSCRIPT_MESSAGES = 2
+RECOVERY_CLOSED_DETAIL = "AG-UI recovery decision is no longer open"
 
 
 class HarnessError(RuntimeError):
@@ -108,6 +110,13 @@ class BackendProcess:
     @property
     def pid(self) -> int:
         return self.process.pid
+
+
+@dataclass(frozen=True)
+class AgUiResumeResponse:
+    status: int
+    events: list[dict[str, Any]]
+    error: dict[str, Any] | None
 
 
 def _start_backend(*, port: int, env: dict[str, str], log_path: Path) -> BackendProcess:
@@ -245,7 +254,7 @@ class ApiClient:
         interrupt_id: str,
         run_id: str,
         expected: tuple[int, ...] = (200,),
-    ) -> list[dict[str, Any]]:
+    ) -> AgUiResumeResponse:
         if self.access_token is None:
             raise HarnessError("AG-UI resume requires an authenticated access token")
         payload = {
@@ -284,13 +293,20 @@ class ApiClient:
         if status not in expected:
             detail = raw.decode("utf-8", errors="replace")[:2000]
             raise HarnessError(f"AG-UI resume expected {expected}, got {status}: {detail}")
-        if status != HTTP_OK:
-            return []
-        return [
-            json.loads(line.removeprefix("data: "))
-            for line in raw.decode("utf-8").splitlines()
-            if line.startswith("data: ")
-        ]
+        if status == HTTP_OK:
+            events = [
+                json.loads(line.removeprefix("data: "))
+                for line in raw.decode("utf-8").splitlines()
+                if line.startswith("data: ")
+            ]
+            return AgUiResumeResponse(status=status, events=events, error=None)
+        try:
+            error = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise HarnessError(f"AG-UI resume HTTP {status} did not return JSON") from exc
+        if not isinstance(error, dict):
+            raise HarnessError(f"AG-UI resume HTTP {status} error is not an object")
+        return AgUiResumeResponse(status=status, events=[], error=error)
 
 
 def _seed_real_api(client: ApiClient, *, actor_id: str) -> dict[str, str]:
@@ -714,7 +730,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             or recovered_job[0].get("reason") != "backend_restarted"
         ):
             raise HarnessError("prior-process Board Job did not recover once with backend_restarted")
-        def concurrent_resume(run_id: str) -> list[dict[str, Any]]:
+
+        def concurrent_resume(run_id: str) -> AgUiResumeResponse:
             concurrent_client = ApiClient(port)
             concurrent_client.authenticate()
             return concurrent_client.resume_recovered_interrupt(
@@ -730,14 +747,19 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 pool.map(concurrent_resume, ("stage09-recovery-race-a", "stage09-recovery-race-b"))
             )
         finished = [
-            event
-            for events in concurrent_results
-            for event in events
-            if event.get("type") == "RUN_FINISHED"
+            event for response in concurrent_results for event in response.events if event.get("type") == "RUN_FINISHED"
         ]
-        if len(finished) != 1 or finished[0].get("result", {}).get("status") != "rejected":
+        winners = [response for response in concurrent_results if response.status == HTTP_OK]
+        losers = [response for response in concurrent_results if response.status == HTTP_CONFLICT]
+        if (
+            len(winners) != 1
+            or len(losers) != 1
+            or losers[0].error != {"detail": RECOVERY_CLOSED_DETAIL}
+            or len(finished) != 1
+            or finished[0].get("result", {}).get("status") != "rejected"
+        ):
             raise HarnessError("concurrent AG-UI resumes did not finish exactly one recovered rejection")
-        replay_events = client2.resume_recovered_interrupt(
+        replay_response = client2.resume_recovered_interrupt(
             chat_id=ids["chat_id"],
             project_id=ids["project_id"],
             interrupt_id=ids["interrupt_id"],
@@ -745,7 +767,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             expected=(409,),
         )
         after_proposal = client2.request("GET", f"/api/v1/command-proposals/{ids['proposal_id']}")
-        if replay_events or after_proposal["status"] != "rejected":
+        if (
+            replay_response.status != HTTP_CONFLICT
+            or replay_response.events
+            or replay_response.error != {"detail": RECOVERY_CLOSED_DETAIL}
+            or after_proposal["status"] != "rejected"
+        ):
             raise HarnessError("recovered proposal was not rejected exactly once")
         after = {
             "database_sha256": _sha256(database),
@@ -791,6 +818,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "pending_proposal_recovered": before_proposal["status"] == "awaiting_confirmation",
             "pending_proposal_resolved_once": after_proposal["status"] == "rejected",
             "concurrent_resume_single_winner": len(finished) == 1,
+            "concurrent_resume_exact_statuses": sorted(response.status for response in concurrent_results)
+            == [200, 409],
+            "concurrent_resume_loser_fail_closed": losers[0].error == {"detail": RECOVERY_CLOSED_DETAIL},
+            "replay_rejected_fail_closed": replay_response.error == {"detail": RECOVERY_CLOSED_DETAIL},
             "prior_process_job_recovered_once": len(recovered_job) == 1,
             "job_reason_backend_restarted": recovered_job[0]["reason"] == "backend_restarted",
         },

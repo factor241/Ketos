@@ -78,6 +78,8 @@ REDIRECTED_ARTIFACT_DIRS = (
     "src/frontend/temp",
     "src/frontend/test-results",
 )
+ARTIFACT_REDIRECT_SCHEMA = 1
+ARTIFACT_REDIRECT_MANIFEST = "repo-artifact-redirects.json"
 
 
 class ScopeError(RuntimeError):
@@ -85,9 +87,7 @@ class ScopeError(RuntimeError):
 
 
 def _git(*args: str) -> str:
-    result = subprocess.run(
-        ["git", *args], cwd=REPO_ROOT, check=True, capture_output=True, text=True
-    )
+    result = subprocess.run(["git", *args], cwd=REPO_ROOT, check=True, capture_output=True, text=True)
     return result.stdout
 
 
@@ -130,6 +130,10 @@ def _snapshot(code_sha: str) -> dict[str, Any]:
     files: dict[str, Any] = {}
     for root, directories, names in os.walk(REPO_ROOT, topdown=True, followlinks=False):
         root_path = Path(root)
+        if root_path != REPO_ROOT:
+            relative_root = root_path.relative_to(REPO_ROOT).as_posix()
+            if relative_root in REDIRECTED_ARTIFACT_DIRS:
+                files[relative_root] = _file_record(root_path)
         if root_path == REPO_ROOT:
             directories[:] = sorted(name for name in directories if name != ".git")
         else:
@@ -152,29 +156,120 @@ def _external_run_dir(run_dir: Path) -> Path:
     return resolved
 
 
+def _move_directory(source: Path, destination: Path) -> None:
+    destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    try:
+        source.rename(destination)
+    except OSError:
+        shutil.move(str(source), str(destination))
+
+
+def _artifact_redirect_paths(run_root: Path) -> tuple[Path, Path, Path]:
+    temporary = run_root / "tmp"
+    return (
+        temporary / "repo-artifact-originals",
+        temporary / "repo-artifact-live",
+        temporary / ARTIFACT_REDIRECT_MANIFEST,
+    )
+
+
 def _prepare_artifact_redirects(run_dir: Path) -> None:
     run_root = _external_run_dir(run_dir)
-    artifact_root = run_root / "tmp" / "repo-artifacts"
-    artifact_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    originals_root, live_root, manifest_path = _artifact_redirect_paths(run_root)
+    for path in (originals_root, live_root, manifest_path):
+        if path.exists() or path.is_symlink():
+            raise ScopeError(f"artifact redirect state already exists: {path}")
+
+    entries: list[dict[str, Any]] = []
     for relative in REDIRECTED_ARTIFACT_DIRS:
         source = REPO_ROOT / relative
-        destination = artifact_root / relative
-        destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if not source.parent.is_dir():
+            raise ScopeError(f"artifact parent directory is missing: {source.parent}")
         if source.is_symlink():
             raise ScopeError(f"refusing to replace existing artifact symlink: {relative}")
-        if destination.exists() or destination.is_symlink():
-            raise ScopeError(f"artifact redirect target already exists: {destination}")
-        if source.exists():
-            if not source.is_dir():
-                raise ScopeError(f"artifact path is not a directory: {relative}")
-            try:
-                source.rename(destination)
-            except OSError:
-                shutil.move(str(source), str(destination))
-        else:
-            destination.mkdir(mode=0o700)
-        source.parent.mkdir(parents=True, exist_ok=True)
-        source.symlink_to(destination, target_is_directory=True)
+        if source.exists() and not source.is_dir():
+            raise ScopeError(f"artifact path is not a directory: {relative}")
+        entries.append({"path": relative, "original_present": source.exists()})
+
+    processed: list[dict[str, Any]] = []
+    try:
+        originals_root.mkdir(mode=0o700, parents=True)
+        live_root.mkdir(mode=0o700, parents=True)
+        for entry in entries:
+            processed.append(entry)
+            relative = str(entry["path"])
+            source = REPO_ROOT / relative
+            original = originals_root / relative
+            live = live_root / relative
+            if bool(entry["original_present"]):
+                _move_directory(source, original)
+            live.mkdir(mode=0o700, parents=True)
+            source.symlink_to(live, target_is_directory=True)
+        _write_json(
+            manifest_path,
+            {
+                "schema_version": ARTIFACT_REDIRECT_SCHEMA,
+                "repo_root": str(REPO_ROOT),
+                "entries": entries,
+            },
+        )
+    except Exception:
+        for entry in reversed(processed):
+            relative = str(entry["path"])
+            source = REPO_ROOT / relative
+            original = originals_root / relative
+            live = live_root / relative
+            if source.is_symlink() and source.resolve(strict=False) == live.resolve(strict=False):
+                source.unlink()
+            if live.is_dir():
+                shutil.rmtree(live)
+            if bool(entry["original_present"]) and original.is_dir() and not source.exists():
+                _move_directory(original, source)
+        shutil.rmtree(live_root, ignore_errors=True)
+        shutil.rmtree(originals_root, ignore_errors=True)
+        manifest_path.unlink(missing_ok=True)
+        raise
+
+
+def _restore_artifact_redirects(run_dir: Path) -> None:
+    run_root = _external_run_dir(run_dir)
+    originals_root, live_root, manifest_path = _artifact_redirect_paths(run_root)
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    entries = payload.get("entries")
+    if (
+        payload.get("schema_version") != ARTIFACT_REDIRECT_SCHEMA
+        or payload.get("repo_root") != str(REPO_ROOT)
+        or not isinstance(entries, list)
+        or [entry.get("path") for entry in entries if isinstance(entry, dict)] != list(REDIRECTED_ARTIFACT_DIRS)
+        or not all(isinstance(entry, dict) and isinstance(entry.get("original_present"), bool) for entry in entries)
+    ):
+        raise ScopeError("invalid artifact redirect restoration manifest")
+
+    for entry in entries:
+        relative = str(entry["path"])
+        source = REPO_ROOT / relative
+        original = originals_root / relative
+        live = live_root / relative
+        if not source.is_symlink() or source.resolve(strict=False) != live.resolve(strict=False):
+            raise ScopeError(f"artifact redirect was replaced or retargeted: {relative}")
+        if not live.is_dir() or live.is_symlink():
+            raise ScopeError(f"artifact live directory is invalid: {live}")
+        if bool(entry["original_present"]) != (original.is_dir() and not original.is_symlink()):
+            raise ScopeError(f"artifact original state is invalid: {original}")
+
+    for entry in entries:
+        relative = str(entry["path"])
+        source = REPO_ROOT / relative
+        original = originals_root / relative
+        live = live_root / relative
+        source.unlink()
+        if bool(entry["original_present"]):
+            _move_directory(original, source)
+        shutil.rmtree(live)
+
+    manifest_path.unlink()
+    shutil.rmtree(live_root)
+    shutil.rmtree(originals_root)
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -204,9 +299,7 @@ def _check_changed_scope(base: str, code_sha: str) -> None:
     if _head() != code_sha:
         raise ScopeError("scope check code SHA is not current HEAD")
     changed = {
-        line.strip()
-        for line in _git("diff", "--name-only", f"{base}...{code_sha}").splitlines()
-        if line.strip()
+        line.strip() for line in _git("diff", "--name-only", f"{base}...{code_sha}").splitlines() if line.strip()
     }
     forbidden: list[str] = []
     for path in sorted(changed):
@@ -234,6 +327,8 @@ def _parser() -> argparse.ArgumentParser:
     compare.add_argument("--json-out", type=Path, required=True)
     prepare = subparsers.add_parser("prepare-artifacts")
     prepare.add_argument("--run-dir", type=Path, required=True)
+    restore = subparsers.add_parser("restore-artifacts")
+    restore.add_argument("--run-dir", type=Path, required=True)
     return parser
 
 
@@ -248,6 +343,8 @@ def main(argv: list[str] | None = None) -> int:
             _compare(args.before, args.code_sha, args.json_out)
         elif args.command == "prepare-artifacts":
             _prepare_artifact_redirects(args.run_dir)
+        elif args.command == "restore-artifacts":
+            _restore_artifact_redirects(args.run_dir)
         elif args.base and args.code_sha:
             _check_changed_scope(args.base, args.code_sha)
         else:

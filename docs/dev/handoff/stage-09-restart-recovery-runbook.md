@@ -12,6 +12,7 @@ This runbook seals one tested commit as immutable external evidence. It does not
 ## Freeze and external staging
 
 ```bash
+set -euo pipefail
 export S09_BASE_SHA=79c2c1ffb2eca0eac7672a092f6df7806f531b37
 export S09_EVIDENCE_ROOT='<explicitly approved external persistent absolute path>'
 test -z "$(git status --porcelain=v1 --untracked-files=all)"
@@ -31,15 +32,17 @@ export PYTHONDONTWRITEBYTECODE=1
 export PLAYWRIGHT_HTML_OUTPUT_DIR="$S09_RUN_DIR/playwright/html"
 mkdir -p "$XDG_CACHE_HOME" "$PYTHONPYCACHEPREFIX" "$PLAYWRIGHT_HTML_OUTPUT_DIR"
 
-# Move known ignored build/cache/report directories behind stable symlinks into
-# external staging before the frozen filesystem snapshot. Gate commands may
-# write through these links, but no repository path is created or modified.
-uv run python scripts/mvp/check_stage09_scope.py prepare-artifacts \
-  --run-dir "$S09_RUN_DIR"
-
 uv run python scripts/mvp/check_stage09_scope.py assert-frozen --code-sha "$S09_CODE_SHA"
 uv run python scripts/mvp/check_stage09_scope.py snapshot \
   --code-sha "$S09_CODE_SHA" --json-out "$S09_RUN_DIR/repo-before.json"
+
+# Preserve the pre-existing ignored directories intact, then route gate writes
+# to separate external live directories. The EXIT trap restores the originals
+# even when a gate fails; the post-gate manifest comparison uses the snapshot
+# captured above, before any redirect was installed.
+uv run python scripts/mvp/check_stage09_scope.py prepare-artifacts \
+  --run-dir "$S09_RUN_DIR"
+trap 'uv run python scripts/mvp/check_stage09_scope.py restore-artifacts --run-dir "$S09_RUN_DIR"' EXIT
 ```
 
 Capture read-only routing and dependency evidence under `$S09_RUN_DIR/logs`: RaytSystem doctor/status/graph status/lint against the repository root, a bounded Graphify query for Stage-09 recovery symbols, and the installed `langgraph` and `langgraph-checkpoint-sqlite` versions. Never rebuild Graphify as part of this stage.
@@ -77,7 +80,7 @@ S09_RUN_DIR="$S09_RUN_DIR" S09_CODE_SHA="$S09_CODE_SHA" \
 (cd src/frontend && npm run i18n:check) >"$S09_RUN_DIR/logs/i18n-check.txt" 2>&1
 (cd src/frontend && npm run type-check:production) >"$S09_RUN_DIR/logs/typecheck-production.txt" 2>&1
 
-make unit_tests args="-q -p no:cacheprovider --basetemp=$S09_RUN_DIR/tmp/pytest-package" \
+make unit_tests ff=false args="-q -p no:cacheprovider --basetemp=$S09_RUN_DIR/tmp/pytest-package" \
   >"$S09_RUN_DIR/logs/backend-package.txt" 2>&1
 CI=true JEST_JUNIT_OUTPUT_DIR="$S09_RUN_DIR/frontend-junit" \
   make test_frontend >"$S09_RUN_DIR/logs/frontend-package.txt" 2>&1
@@ -101,6 +104,8 @@ The browser gate is authoritative only together with the process and storage pro
 ## Zero-write comparison and report data
 
 ```bash
+uv run python scripts/mvp/check_stage09_scope.py restore-artifacts --run-dir "$S09_RUN_DIR"
+trap - EXIT
 test "$(git rev-parse HEAD)" = "$S09_CODE_SHA"
 test -z "$(git status --porcelain=v1 --untracked-files=all)"
 uv run python scripts/mvp/check_stage09_scope.py compare \

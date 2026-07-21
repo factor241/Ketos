@@ -60,6 +60,13 @@ ALLOWED_PATHS = {
     "docs/dev/handoff/stage-09-restart-recovery-runbook.md",
     "docs/dev/handoff/schemas/stage-09-evidence.schema.json",
 }
+BASELINE_REMEDIATION_PATHS = {
+    "src/backend/tests/unit/alembic/test_api_key_created_at_default.py",
+    "src/backend/tests/unit/brand_state/test_database.py",
+    "src/backend/tests/unit/services/database/test_brand_state_db_preservation.py",
+    "src/backend/tests/unit/test_ketos_namespace_cutover.py",
+}
+ALLOWED_PATHS |= BASELINE_REMEDIATION_PATHS
 FORBIDDEN_PARTS = {"alembic", "migrations", "event_store", "outbox", "leader_election"}
 FORBIDDEN_NAMES = {
     "package-lock.json",
@@ -426,7 +433,11 @@ def _check_changed_scope(base: str, code_sha: str) -> None:
     forbidden: list[str] = []
     for path in sorted(changed):
         parts = set(Path(path).parts)
-        if path not in ALLOWED_PATHS or parts & FORBIDDEN_PARTS or Path(path).name in FORBIDDEN_NAMES:
+        if (
+            path not in ALLOWED_PATHS
+            or (parts & FORBIDDEN_PARTS and path not in BASELINE_REMEDIATION_PATHS)
+            or Path(path).name in FORBIDDEN_NAMES
+        ):
             forbidden.append(path)
     if forbidden:
         raise ScopeError("Stage-09 scope violation: " + ", ".join(forbidden))

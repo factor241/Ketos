@@ -12,6 +12,7 @@ WORKSPACE = Path(__file__).resolve().parents[5]
 ALEMBIC_ROOT = WORKSPACE / "src/backend/base/ketos/alembic"
 REVISION = "505c0a700002"
 DOWN_REVISION = "505c0a700001"
+HEAD_REVISION = "s08c0mmand01"
 
 
 def test_clean_upgrade_preserves_api_key_created_at_default() -> None:
@@ -60,4 +61,4 @@ def test_api_key_default_revision_is_the_single_head() -> None:
     migration = script.get_revision(REVISION)
     assert migration is not None
     assert migration.down_revision == DOWN_REVISION
-    assert script.get_heads() == [REVISION]
+    assert script.get_heads() == [HEAD_REVISION]

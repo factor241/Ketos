@@ -122,12 +122,13 @@ def test_alembic_revision_graph_is_well_formed() -> None:
             assert isinstance(revision, str)
             assert revision not in revisions
             revisions[revision] = values.get("down_revision")  # type: ignore[assignment]
-    assert len(revisions) == 84
+    assert len(revisions) == 85
     assert revisions["9a6e34f1c2d8"] == "bb693ad2fbab"
     assert revisions["b03dca5a0001"] == "9a6e34f1c2d8"
     assert revisions["c04d5e6f7a8b"] == "b03dca5a0001"
     assert revisions["505c0a700001"] == "c04d5e6f7a8b"
     assert revisions["505c0a700002"] == "505c0a700001"
+    assert revisions["s08c0mmand01"] == "505c0a700002"
     for parent in revisions.values():
         parents = parent if isinstance(parent, tuple) else (parent,)
         assert all(item is None or item in revisions for item in parents)

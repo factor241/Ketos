@@ -238,10 +238,11 @@ def test_complete_alembic_revision_history_remains_vendored() -> None:
     versions = Path(database_service_module.__file__).resolve().parents[2] / "alembic" / "versions"
     revision_files = sorted(path for path in versions.glob("*.py") if path.name != "__init__.py")
 
-    assert len(revision_files) == 84
+    assert len(revision_files) == 85
     assert any(path.name == "9a6e34f1c2d8_restrict_preferred_locale_to_ru_en.py" for path in revision_files)
     assert any(path.name == "505c0a700001_add_durable_chat_tables.py" for path in revision_files)
     assert any(path.name == "505c0a700002_restore_api_key_created_at_default.py" for path in revision_files)
+    assert any(path.name == "s08c0mmand01_add_flow_revision_and_command_proposal.py" for path in revision_files)
 
 
 @pytest.mark.parametrize(

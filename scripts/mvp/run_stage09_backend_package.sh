@@ -12,6 +12,16 @@ if [[ -n "${KETOS_TEST_DATABASE_URI:-}" && "$KETOS_TEST_DATABASE_URI" != "$MVP_P
 fi
 export MVP_POSTGRES_URI
 export KETOS_TEST_DATABASE_URI="$MVP_POSTGRES_URI"
+if [[ -z "${MVP_REDIS_URL:-}" ]]; then
+  printf 'BLOCKED: MVP_REDIS_URL is required for the Stage 09 backend package\n' >&2
+  exit 2
+fi
+if [[ -n "${KETOS_TASK11_REDIS_URL:-}" && "$KETOS_TASK11_REDIS_URL" != "$MVP_REDIS_URL" ]]; then
+  printf 'BLOCKED: KETOS_TASK11_REDIS_URL conflicts with MVP_REDIS_URL\n' >&2
+  exit 2
+fi
+export MVP_REDIS_URL
+export KETOS_TASK11_REDIS_URL="$MVP_REDIS_URL"
 
 shards=(
   agentic alembic base brand_state components core custom events exceptions

@@ -56,12 +56,19 @@ Run every command below sequentially. Call `assert-frozen` immediately before an
 ```bash
 export S09_REPO_ROOT="$(git rev-parse --show-toplevel)"
 : "${MVP_POSTGRES_URI:?MVP_POSTGRES_URI must identify the verified Stage 09 PostgreSQL service}"
+: "${MVP_REDIS_URL:?MVP_REDIS_URL must identify the verified Stage 09 Redis service on DB 15}"
 if [[ -n "${KETOS_TEST_DATABASE_URI:-}" && "$KETOS_TEST_DATABASE_URI" != "$MVP_POSTGRES_URI" ]]; then
   printf 'BLOCKED: KETOS_TEST_DATABASE_URI conflicts with MVP_POSTGRES_URI\n' >&2
   exit 2
 fi
 export MVP_POSTGRES_URI
 export KETOS_TEST_DATABASE_URI="$MVP_POSTGRES_URI"
+if [[ -n "${KETOS_TASK11_REDIS_URL:-}" && "$KETOS_TASK11_REDIS_URL" != "$MVP_REDIS_URL" ]]; then
+  printf 'BLOCKED: KETOS_TASK11_REDIS_URL conflicts with MVP_REDIS_URL\n' >&2
+  exit 2
+fi
+export MVP_REDIS_URL
+export KETOS_TASK11_REDIS_URL="$MVP_REDIS_URL"
 mkdir -p "$S09_RUN_DIR/process/gates" "$S09_RUN_DIR/process/telemetry"
 
 run_s09_gate() {

@@ -73,15 +73,16 @@ def paths(tmp_path: Path) -> dict[str, Path]:
 
 
 def run_backend_package_until_first_target(
-    tmp_path: Path, postgres_env: dict[str, str]
+    tmp_path: Path, service_env: dict[str, str]
 ) -> tuple[subprocess.CompletedProcess[str], Path]:
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir(parents=True)
-    probe = tmp_path / "postgres-env.txt"
+    probe = tmp_path / "service-env.txt"
     fake_uv = fake_bin / "uv"
     fake_uv.write_text(
         "#!/bin/sh\n"
-        "printf '%s\\n%s\\n' \"$MVP_POSTGRES_URI\" \"$KETOS_TEST_DATABASE_URI\" "
+        "printf '%s\\n%s\\n%s\\n%s\\n' \"$MVP_POSTGRES_URI\" \"$KETOS_TEST_DATABASE_URI\" "
+        '"$MVP_REDIS_URL" "$KETOS_TASK11_REDIS_URL" '
         ' >"$S09_ENV_PROBE"\n'
         "exit 17\n",
         encoding="utf-8",
@@ -90,7 +91,9 @@ def run_backend_package_until_first_target(
     env = os.environ.copy()
     env.pop("MVP_POSTGRES_URI", None)
     env.pop("KETOS_TEST_DATABASE_URI", None)
-    env.update(postgres_env)
+    env.pop("MVP_REDIS_URL", None)
+    env.pop("KETOS_TASK11_REDIS_URL", None)
+    env.update(service_env)
     env.update(
         {
             "PATH": f"{fake_bin}{os.pathsep}{env['PATH']}",
@@ -421,6 +424,9 @@ def test_stage09_contract_requires_controller_evidence_and_owned_paths() -> None
     assert 'if [[ -z "${MVP_POSTGRES_URI:-}" ]]' in backend_package
     assert 'KETOS_TEST_DATABASE_URI" != "$MVP_POSTGRES_URI"' in backend_package
     assert 'export KETOS_TEST_DATABASE_URI="$MVP_POSTGRES_URI"' in backend_package
+    assert 'KETOS_TASK11_REDIS_URL" != "$MVP_REDIS_URL"' in backend_package
+    assert 'export KETOS_TASK11_REDIS_URL="$MVP_REDIS_URL"' in backend_package
+    assert "MVP_REDIS_URL must identify the verified Stage 09 Redis service on DB 15" in runbook
     assert '".hypothesis/unicode_data"' in scope
     assert "004-logger-regression" in runbook
     assert "logger-regression.txt" in runbook
@@ -491,7 +497,7 @@ def test_playwright_runtime_preserves_entry_symlink_for_externalized_dist() -> N
     ) in config
 
 
-def test_backend_package_postgres_environment_fails_closed_before_pytest(tmp_path: Path) -> None:
+def test_backend_package_service_environment_fails_closed_before_pytest(tmp_path: Path) -> None:
     missing, missing_probe = run_backend_package_until_first_target(tmp_path / "missing", {})
     assert missing.returncode == 2
     assert "MVP_POSTGRES_URI is required" in missing.stderr
@@ -509,12 +515,44 @@ def test_backend_package_postgres_environment_fails_closed_before_pytest(tmp_pat
     assert not conflict_probe.exists()
 
     verified_uri = "postgresql+psycopg://verified.invalid/postgres"
-    same, same_probe = run_backend_package_until_first_target(
-        tmp_path / "same",
+    redis_missing, redis_missing_probe = run_backend_package_until_first_target(
+        tmp_path / "redis-missing",
         {"MVP_POSTGRES_URI": verified_uri, "KETOS_TEST_DATABASE_URI": verified_uri},
     )
+    assert redis_missing.returncode == 2
+    assert "MVP_REDIS_URL is required" in redis_missing.stderr
+    assert not redis_missing_probe.exists()
+
+    verified_redis_url = "redis://127.0.0.1:56379/15"
+    redis_conflict, redis_conflict_probe = run_backend_package_until_first_target(
+        tmp_path / "redis-conflict",
+        {
+            "MVP_POSTGRES_URI": verified_uri,
+            "KETOS_TEST_DATABASE_URI": verified_uri,
+            "MVP_REDIS_URL": verified_redis_url,
+            "KETOS_TASK11_REDIS_URL": "redis://127.0.0.1:6379/15",
+        },
+    )
+    assert redis_conflict.returncode == 2
+    assert "KETOS_TASK11_REDIS_URL conflicts with MVP_REDIS_URL" in redis_conflict.stderr
+    assert not redis_conflict_probe.exists()
+
+    same, same_probe = run_backend_package_until_first_target(
+        tmp_path / "same",
+        {
+            "MVP_POSTGRES_URI": verified_uri,
+            "KETOS_TEST_DATABASE_URI": verified_uri,
+            "MVP_REDIS_URL": verified_redis_url,
+            "KETOS_TASK11_REDIS_URL": verified_redis_url,
+        },
+    )
     assert same.returncode == 17
-    assert same_probe.read_text(encoding="utf-8").splitlines() == [verified_uri, verified_uri]
+    assert same_probe.read_text(encoding="utf-8").splitlines() == [
+        verified_uri,
+        verified_uri,
+        verified_redis_url,
+        verified_redis_url,
+    ]
 
 
 def test_summarize_requires_continuous_accepted_gate_evidence(tmp_path: Path) -> None:

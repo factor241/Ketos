@@ -82,10 +82,115 @@ S09_RUN_DIR="$S09_RUN_DIR" S09_CODE_SHA="$S09_CODE_SHA" \
 (cd src/frontend && npm run i18n:check) >"$S09_RUN_DIR/logs/i18n-check.txt" 2>&1
 (cd src/frontend && npm run type-check:production) >"$S09_RUN_DIR/logs/typecheck-production.txt" 2>&1
 
-# Keep the package gate single-process so the coordinator's 15.5 GiB RSS guard
-# can stop before the 16 GiB workstation limit.
-make unit_tests async=false ff=false args="-q -p no:cacheprovider --basetemp=$S09_RUN_DIR/tmp/pytest-package" \
-  >"$S09_RUN_DIR/logs/backend-package.txt" 2>&1
+# Keep the package gate sequential, but start a fresh pytest process and a fresh
+# private temp/XDG/pycache root for every shard. A single pytest process retains
+# enough fixtures to cross the coordinator's 15.5 GiB RSS guard late in the
+# suite; reusing XDG state also invalidates brand-state discovery tests. The
+# shards below are a complete file-selection partition of src/backend/tests/unit
+# excluding the repository's existing template exclusion. Process/session
+# lifecycle intentionally resets between shards; monolithic CI remains a
+# separate higher-memory signal for cross-test pollution.
+bash -eu -o pipefail <<'BACKEND_PACKAGE'
+shards=(
+  agentic alembic base brand_state components core custom events exceptions
+  graph groq helpers initial_setup inputs interface io schema scripts
+  serialization services utils
+)
+cleanup_success_root() {
+  case "$1" in
+    /private/tmp/ketos-stage09-backend-?*) ;;
+    *) printf 'refusing unexpected temp cleanup path: %s\n' "$1" >&2; exit 64 ;;
+  esac
+  test "$(dirname -- "$1")" = /private/tmp && test -d "$1" && test ! -L "$1" || {
+    printf 'refusing unsafe temp cleanup target: %s\n' "$1" >&2
+    exit 65
+  }
+  rm -rf -- "$1"
+}
+index=0
+for shard in "${shards[@]}"; do
+  index=$((index + 1))
+  shard_root=$(mktemp -d "/private/tmp/ketos-stage09-backend-${shard}.XXXXXX")
+  mkdir -p "$shard_root/tmp" "$shard_root/xdg-cache" "$shard_root/xdg-config" \
+    "$shard_root/xdg-data" "$shard_root/xdg-state" "$shard_root/pycache"
+  TMPDIR="$shard_root/tmp" \
+  XDG_CACHE_HOME="$shard_root/xdg-cache" \
+  XDG_CONFIG_HOME="$shard_root/xdg-config" \
+  XDG_DATA_HOME="$shard_root/xdg-data" \
+  XDG_STATE_HOME="$shard_root/xdg-state" \
+  PYTHONPYCACHEPREFIX="$shard_root/pycache" \
+  PYTHONDONTWRITEBYTECODE=1 \
+    uv run pytest "src/backend/tests/unit/$shard" \
+      --instafail -ra -m "not api_key_required" -q -p no:cacheprovider \
+      --basetemp="$shard_root/pytest" \
+      >"$S09_RUN_DIR/logs/backend-package-$(printf '%03d' "$index")-$shard.txt" 2>&1
+  cleanup_success_root "$shard_root"
+done
+
+shopt -s nullglob
+run_file_target() {
+  target=$1
+  label=$2
+  index=$((index + 1))
+  target_root=$(mktemp -d "/private/tmp/ketos-stage09-backend-${label}.XXXXXX")
+  mkdir -p "$target_root/tmp" "$target_root/xdg-cache" \
+    "$target_root/xdg-config" "$target_root/xdg-data" \
+    "$target_root/xdg-state" "$target_root/pycache"
+  target_log="$S09_RUN_DIR/logs/backend-package-$(printf '%03d' "$index")-$label.txt"
+  if TMPDIR="$target_root/tmp" \
+    XDG_CACHE_HOME="$target_root/xdg-cache" \
+    XDG_CONFIG_HOME="$target_root/xdg-config" \
+    XDG_DATA_HOME="$target_root/xdg-data" \
+    XDG_STATE_HOME="$target_root/xdg-state" \
+    PYTHONPYCACHEPREFIX="$target_root/pycache" \
+    PYTHONDONTWRITEBYTECODE=1 \
+      uv run pytest "$target" \
+        --instafail -ra -m "not api_key_required" -q -p no:cacheprovider \
+        --basetemp="$target_root/pytest" \
+        >"$target_log" 2>&1; then
+    target_status=0
+  else
+    target_status=$?
+  fi
+  # A file containing only api_key_required tests is fully deselected by the
+  # package gate's marker expression. Pytest reports that valid empty selection
+  # as exit 5 when the file is isolated; accept only the explicit deselection
+  # summary, never another exit-5 cause or a failing/error result.
+  if ((target_status == 5)) && tail -n 1 "$target_log" \
+    | grep -Eq '^=+ [0-9]+ deselected(, [0-9]+ warnings?)? in [0-9]+(\.[0-9]+)?s =+$'; then
+    target_status=0
+  fi
+  ((target_status == 0)) || return "$target_status"
+  cleanup_success_root "$target_root"
+}
+
+# The API directory is the remaining large unit subtree: one process for it can
+# still jump above the 15.5 GiB coordinator guard during late fixture teardown.
+# Run every API test file independently while preserving the same file selection.
+if ! api_listing=$(find src/backend/tests/unit/api -type f -name 'test_*.py' -print | LC_ALL=C sort); then
+  printf 'API backend test discovery failed\n' >&2
+  exit 66
+fi
+test -n "$api_listing" || { printf 'API backend test selection is empty\n' >&2; exit 67; }
+api_tests=()
+while IFS= read -r api_test; do
+  api_tests+=("$api_test")
+done <<< "$api_listing"
+for api_test in "${api_tests[@]}"; do
+  api_name=${api_test#src/backend/tests/unit/api/}
+  api_name=${api_name%.py}
+  api_name=${api_name//\//-}
+  run_file_target "$api_test" "api-$api_name"
+done
+
+root_tests=(src/backend/tests/unit/test_*.py)
+((${#root_tests[@]} > 0)) || { printf 'root backend test glob is empty\n' >&2; exit 68; }
+for root_test in "${root_tests[@]}"; do
+  root_name=${root_test##*/}
+  root_name=${root_name%.py}
+  run_file_target "$root_test" "root-$root_name"
+done
+BACKEND_PACKAGE
 # Jest workers are serialized for the same workstation memory bound.
 (cd src/frontend && CI=true JEST_JUNIT_OUTPUT_DIR="$S09_RUN_DIR/frontend-junit" \
   npm test -- --runInBand) >"$S09_RUN_DIR/logs/frontend-package.txt" 2>&1

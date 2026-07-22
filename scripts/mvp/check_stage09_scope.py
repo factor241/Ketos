@@ -86,6 +86,7 @@ FORBIDDEN_NAMES = {
     "NOTICE",
 }
 REDIRECTED_ARTIFACT_DIRS = (
+    ".hypothesis",
     "src/copilot-runtime/dist",
     "src/frontend/coverage",
     "src/frontend/node_modules/.vite",

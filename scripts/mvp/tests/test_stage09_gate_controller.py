@@ -36,6 +36,16 @@ def load_controller():
     return module
 
 
+def load_scope():
+    spec = importlib.util.spec_from_file_location("check_stage09_scope", SCOPE)
+    assert spec
+    assert spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def init_repo(path: Path) -> tuple[Path, str]:
     git = shutil.which("git")
     assert git
@@ -411,6 +421,7 @@ def test_stage09_contract_requires_controller_evidence_and_owned_paths() -> None
     assert 'if [[ -z "${MVP_POSTGRES_URI:-}" ]]' in backend_package
     assert 'KETOS_TEST_DATABASE_URI" != "$MVP_POSTGRES_URI"' in backend_package
     assert 'export KETOS_TEST_DATABASE_URI="$MVP_POSTGRES_URI"' in backend_package
+    assert '".hypothesis"' in scope
     assert "004-logger-regression" in runbook
     assert "logger-regression.txt" in runbook
     assert "logs/logger-regression.txt" in finalizer
@@ -432,6 +443,38 @@ def test_stage09_contract_requires_controller_evidence_and_owned_paths() -> None
         'KETOS_MVP_RUN_DIR="$S09_RUN_DIR/tmp/ketos-stage01-playwright-runtime"'
         in playwright_gate
     )
+
+
+def test_artifact_redirect_preserves_or_removes_hypothesis_cache(tmp_path: Path) -> None:
+    scope = load_scope()
+    repo, _ = init_repo(tmp_path / "repo")
+    run_dir = tmp_path / "evidence"
+    run_dir.mkdir()
+    scope.REPO_ROOT = repo
+    scope.REDIRECTED_ARTIFACT_DIRS = (".hypothesis",)
+    hypothesis = repo / ".hypothesis"
+    hypothesis.mkdir()
+    original = hypothesis / "original.bin"
+    original.write_bytes(b"preserve-exactly")
+
+    scope._prepare_artifact_redirects(run_dir)
+    assert hypothesis.is_symlink()
+    (hypothesis / "generated.bin").write_bytes(b"discard-after-gate")
+    scope._restore_artifact_redirects(run_dir)
+
+    assert hypothesis.is_dir()
+    assert not hypothesis.is_symlink()
+    assert original.read_bytes() == b"preserve-exactly"
+    assert not (hypothesis / "generated.bin").exists()
+
+    shutil.rmtree(hypothesis)
+    scope._prepare_artifact_redirects(run_dir)
+    assert hypothesis.is_symlink()
+    (hypothesis / "generated.bin").write_bytes(b"discard-after-gate")
+    scope._restore_artifact_redirects(run_dir)
+
+    assert not hypothesis.exists()
+    assert not hypothesis.is_symlink()
 
 
 def test_playwright_runtime_preserves_entry_symlink_for_externalized_dist() -> None:

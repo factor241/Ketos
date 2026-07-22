@@ -19,6 +19,7 @@
     "storage",
     "persistent_ids",
     "row_counts",
+    "resource",
     "browser",
     "scope"
   ],
@@ -78,6 +79,49 @@
         "before": { "$ref": "#/$defs/countMap" },
         "after": { "$ref": "#/$defs/countMap" },
         "same": { "const": true }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "metric",
+        "idle_limit_bytes",
+        "soft_limit_bytes",
+        "predictive_limit_bytes",
+        "hard_limit_bytes",
+        "absolute_limit_bytes",
+        "telemetry_continuous",
+        "observed_ge_16",
+        "peak_system_rss_bytes",
+        "monitor_losses",
+        "ram_guard_trips",
+        "result_files",
+        "summary"
+      ],
+      "properties": {
+        "metric": { "const": "psutil.virtual_memory.total-minus-available" },
+        "idle_limit_bytes": { "const": 15569256448 },
+        "soft_limit_bytes": { "const": 16106127360 },
+        "predictive_limit_bytes": { "const": 16374562816 },
+        "hard_limit_bytes": { "const": 16642998272 },
+        "absolute_limit_bytes": { "const": 17179869184 },
+        "telemetry_continuous": { "const": true },
+        "observed_ge_16": { "const": false },
+        "peak_system_rss_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "exclusiveMaximum": 17179869184
+        },
+        "monitor_losses": { "const": 0 },
+        "ram_guard_trips": { "const": 0 },
+        "result_files": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^process/gates/[a-z0-9][a-z0-9-]*\\.json$" }
+        },
+        "summary": { "const": "process/resource-summary.json" }
       }
     },
     "browser": {

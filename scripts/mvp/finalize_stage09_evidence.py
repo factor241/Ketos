@@ -25,6 +25,7 @@ REQUIRED_FILES = {
     "repo-before.json",
     "repo-after-full.json",
     "process/recovery.json",
+    "process/resource-summary.json",
     "logs/focused-backend.txt",
     "logs/restart-integration.txt",
     "logs/restart-smoke.txt",

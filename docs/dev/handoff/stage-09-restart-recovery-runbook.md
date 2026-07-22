@@ -54,7 +54,37 @@ Capture read-only routing and dependency evidence under `$S09_RUN_DIR/logs`: Ray
 Run every command below sequentially. Call `assert-frozen` immediately before and after every command. Record exact argv, UTC start/end, exit code, tested SHA, counts, and relative log path in `$S09_RUN_DIR/commands.json`. A red command ends the attempt; do not patch and continue in the same staging directory.
 
 ```bash
-uv run pytest -p no:cacheprovider --basetemp="$S09_RUN_DIR/tmp/pytest-focused" \
+export S09_REPO_ROOT="$(git rev-parse --show-toplevel)"
+mkdir -p "$S09_RUN_DIR/process/gates" "$S09_RUN_DIR/process/telemetry"
+
+run_s09_gate() {
+  gate_id=$1
+  gate_cwd=$2
+  timeout_seconds=$3
+  nonzero_classification=$4
+  log_name=$5
+  shift 5
+  uv run python scripts/mvp/check_stage09_scope.py assert-frozen --code-sha "$S09_CODE_SHA"
+  if uv run python scripts/mvp/stage09_gate_controller.py run \
+    --cwd "$gate_cwd" \
+    --expected-sha "$S09_CODE_SHA" \
+    --result "$S09_RUN_DIR/process/gates/$gate_id.json" \
+    --telemetry "$S09_RUN_DIR/process/telemetry/$gate_id.jsonl" \
+    --log "$S09_RUN_DIR/logs/$log_name" \
+    --lock-path "$S09_EVIDENCE_ROOT/.stage09-heavy-gate.lock" \
+    --timeout-seconds "$timeout_seconds" \
+    --nonzero-classification "$nonzero_classification" \
+    -- "$@"; then
+    gate_status=0
+  else
+    gate_status=$?
+  fi
+  uv run python scripts/mvp/check_stage09_scope.py assert-frozen --code-sha "$S09_CODE_SHA"
+  ((gate_status == 0)) || return "$gate_status"
+}
+
+run_s09_gate 001-focused-backend "$S09_REPO_ROOT" 1800 TEST_FAILURE focused-backend.txt \
+  uv run pytest -p no:cacheprovider --basetemp="$S09_RUN_DIR/tmp/pytest-focused" \
   src/backend/tests/unit/agentic/persistence/test_checkpointer.py \
   src/backend/tests/unit/services/chat_threads/test_recovery.py \
   src/backend/tests/unit/services/chat_threads/test_messages_snapshot.py \
@@ -62,25 +92,27 @@ uv run pytest -p no:cacheprovider --basetemp="$S09_RUN_DIR/tmp/pytest-focused" \
   src/backend/tests/unit/services/commands/test_apply_service.py \
   src/backend/tests/unit/services/jobs/test_restart_recovery.py \
   src/backend/tests/unit/services/jobs/test_board_claim.py \
-  src/backend/tests/unit/services/jobs/test_board_results.py -q \
-  >"$S09_RUN_DIR/logs/focused-backend.txt" 2>&1
+  src/backend/tests/unit/services/jobs/test_board_results.py -q
 
-uv run pytest -p no:cacheprovider --basetemp="$S09_RUN_DIR/tmp/pytest-restart" \
-  src/backend/tests/integration/test_mvp_restart_recovery.py -q \
-  >"$S09_RUN_DIR/logs/restart-integration.txt" 2>&1
-S09_RUN_DIR="$S09_RUN_DIR" S09_CODE_SHA="$S09_CODE_SHA" \
-  bash scripts/mvp/restart_restore_smoke.sh \
-  >"$S09_RUN_DIR/logs/restart-smoke.txt" 2>&1
+run_s09_gate 002-restart-integration "$S09_REPO_ROOT" 1800 TEST_FAILURE restart-integration.txt \
+  uv run pytest -p no:cacheprovider --basetemp="$S09_RUN_DIR/tmp/pytest-restart" \
+  src/backend/tests/integration/test_mvp_restart_recovery.py -q
+run_s09_gate 003-restart-smoke "$S09_REPO_ROOT" 1800 SERVICE_FAILURE restart-smoke.txt \
+  /usr/bin/env S09_RUN_DIR="$S09_RUN_DIR" S09_CODE_SHA="$S09_CODE_SHA" \
+  bash scripts/mvp/restart_restore_smoke.sh
 
-(cd src/frontend && npm test -- --runInBand --no-cache \
+run_s09_gate 004-focused-frontend "$S09_REPO_ROOT/src/frontend" 1800 TEST_FAILURE focused-frontend.txt \
+  npm test -- --runInBand --no-cache \
   src/pages/BoardPage/hooks/__tests__/use-board-restore.test.tsx \
   src/components/core/board/placements/ChatPlacement.reconnect.test.tsx \
   src/components/core/chats/__tests__/FlowCommandConfirmation.test.tsx \
   src/components/core/chats/__tests__/FlowCommandConfirmation.reconnect.test.tsx \
   src/components/core/chats/__tests__/use-flow-command-interrupt.reconnect.test.tsx \
-  src/components/core/board) >"$S09_RUN_DIR/logs/focused-frontend.txt" 2>&1
-(cd src/frontend && npm run i18n:check) >"$S09_RUN_DIR/logs/i18n-check.txt" 2>&1
-(cd src/frontend && npm run type-check:production) >"$S09_RUN_DIR/logs/typecheck-production.txt" 2>&1
+  src/components/core/board
+run_s09_gate 005-i18n "$S09_REPO_ROOT/src/frontend" 900 TEST_FAILURE i18n-check.txt \
+  npm run i18n:check
+run_s09_gate 006-typecheck "$S09_REPO_ROOT/src/frontend" 1800 TEST_FAILURE typecheck-production.txt \
+  npm run type-check:production
 
 # Keep the package gate sequential, but start a fresh pytest process and a fresh
 # private temp/XDG/pycache root for every shard. A single pytest process retains
@@ -90,123 +122,33 @@ S09_RUN_DIR="$S09_RUN_DIR" S09_CODE_SHA="$S09_CODE_SHA" \
 # excluding the repository's existing template exclusion. Process/session
 # lifecycle intentionally resets between shards; monolithic CI remains a
 # separate higher-memory signal for cross-test pollution.
-bash -eu -o pipefail <<'BACKEND_PACKAGE'
-shards=(
-  agentic alembic base brand_state components core custom events exceptions
-  graph groq helpers initial_setup inputs interface io schema scripts
-  serialization services utils
-)
-cleanup_success_root() {
-  case "$1" in
-    /private/tmp/ketos-stage09-backend-?*) ;;
-    *) printf 'refusing unexpected temp cleanup path: %s\n' "$1" >&2; exit 64 ;;
-  esac
-  test "$(dirname -- "$1")" = /private/tmp && test -d "$1" && test ! -L "$1" || {
-    printf 'refusing unsafe temp cleanup target: %s\n' "$1" >&2
-    exit 65
-  }
-  rm -rf -- "$1"
-}
-index=0
-for shard in "${shards[@]}"; do
-  index=$((index + 1))
-  shard_root=$(mktemp -d "/private/tmp/ketos-stage09-backend-${shard}.XXXXXX")
-  mkdir -p "$shard_root/tmp" "$shard_root/xdg-cache" "$shard_root/xdg-config" \
-    "$shard_root/xdg-data" "$shard_root/xdg-state" "$shard_root/pycache"
-  TMPDIR="$shard_root/tmp" \
-  XDG_CACHE_HOME="$shard_root/xdg-cache" \
-  XDG_CONFIG_HOME="$shard_root/xdg-config" \
-  XDG_DATA_HOME="$shard_root/xdg-data" \
-  XDG_STATE_HOME="$shard_root/xdg-state" \
-  PYTHONPYCACHEPREFIX="$shard_root/pycache" \
-  PYTHONDONTWRITEBYTECODE=1 \
-    uv run pytest "src/backend/tests/unit/$shard" \
-      --instafail -ra -m "not api_key_required" -q -p no:cacheprovider \
-      --basetemp="$shard_root/pytest" \
-      >"$S09_RUN_DIR/logs/backend-package-$(printf '%03d' "$index")-$shard.txt" 2>&1
-  cleanup_success_root "$shard_root"
-done
+run_s09_gate 007-backend-package "$S09_REPO_ROOT" 14400 TEST_FAILURE backend-package.txt \
+  /usr/bin/env S09_RUN_DIR="$S09_RUN_DIR" bash scripts/mvp/run_stage09_backend_package.sh
 
-shopt -s nullglob
-run_file_target() {
-  target=$1
-  label=$2
-  index=$((index + 1))
-  target_root=$(mktemp -d "/private/tmp/ketos-stage09-backend-${label}.XXXXXX")
-  mkdir -p "$target_root/tmp" "$target_root/xdg-cache" \
-    "$target_root/xdg-config" "$target_root/xdg-data" \
-    "$target_root/xdg-state" "$target_root/pycache"
-  target_log="$S09_RUN_DIR/logs/backend-package-$(printf '%03d' "$index")-$label.txt"
-  if TMPDIR="$target_root/tmp" \
-    XDG_CACHE_HOME="$target_root/xdg-cache" \
-    XDG_CONFIG_HOME="$target_root/xdg-config" \
-    XDG_DATA_HOME="$target_root/xdg-data" \
-    XDG_STATE_HOME="$target_root/xdg-state" \
-    PYTHONPYCACHEPREFIX="$target_root/pycache" \
-    PYTHONDONTWRITEBYTECODE=1 \
-      uv run pytest "$target" \
-        --instafail -ra -m "not api_key_required" -q -p no:cacheprovider \
-        --basetemp="$target_root/pytest" \
-        >"$target_log" 2>&1; then
-    target_status=0
-  else
-    target_status=$?
-  fi
-  # A file containing only api_key_required tests is fully deselected by the
-  # package gate's marker expression. Pytest reports that valid empty selection
-  # as exit 5 when the file is isolated; accept only the explicit deselection
-  # summary, never another exit-5 cause or a failing/error result.
-  if ((target_status == 5)) && tail -n 1 "$target_log" \
-    | grep -Eq '^=+ [0-9]+ deselected(, [0-9]+ warnings?)? in [0-9]+(\.[0-9]+)?s =+$'; then
-    target_status=0
-  fi
-  ((target_status == 0)) || return "$target_status"
-  cleanup_success_root "$target_root"
-}
-
-# The API directory is the remaining large unit subtree: one process for it can
-# still jump above the 15.5 GiB coordinator guard during late fixture teardown.
-# Run every API test file independently while preserving the same file selection.
-if ! api_listing=$(find src/backend/tests/unit/api -type f -name 'test_*.py' -print | LC_ALL=C sort); then
-  printf 'API backend test discovery failed\n' >&2
-  exit 66
-fi
-test -n "$api_listing" || { printf 'API backend test selection is empty\n' >&2; exit 67; }
-api_tests=()
-while IFS= read -r api_test; do
-  api_tests+=("$api_test")
-done <<< "$api_listing"
-for api_test in "${api_tests[@]}"; do
-  api_name=${api_test#src/backend/tests/unit/api/}
-  api_name=${api_name%.py}
-  api_name=${api_name//\//-}
-  run_file_target "$api_test" "api-$api_name"
-done
-
-root_tests=(src/backend/tests/unit/test_*.py)
-((${#root_tests[@]} > 0)) || { printf 'root backend test glob is empty\n' >&2; exit 68; }
-for root_test in "${root_tests[@]}"; do
-  root_name=${root_test##*/}
-  root_name=${root_name%.py}
-  run_file_target "$root_test" "root-$root_name"
-done
-BACKEND_PACKAGE
 # Jest workers are serialized for the same workstation memory bound.
-(cd src/frontend && CI=true JEST_JUNIT_OUTPUT_DIR="$S09_RUN_DIR/frontend-junit" \
-  npm test -- --runInBand) >"$S09_RUN_DIR/logs/frontend-package.txt" 2>&1
+run_s09_gate 008-frontend-package "$S09_REPO_ROOT/src/frontend" 7200 TEST_FAILURE frontend-package.txt \
+  /usr/bin/env CI=true JEST_JUNIT_OUTPUT_DIR="$S09_RUN_DIR/frontend-junit" \
+  npm test -- --runInBand
 
-(cd src/frontend && S09_RUN_DIR="$S09_RUN_DIR" S09_CODE_SHA="$S09_CODE_SHA" \
+run_s09_gate 009-playwright "$S09_REPO_ROOT/src/frontend" 3600 TEST_FAILURE playwright.txt \
+  /usr/bin/env S09_RUN_DIR="$S09_RUN_DIR" S09_CODE_SHA="$S09_CODE_SHA" \
   npx playwright test -c playwright.mvp.config.ts \
   tests/core/features/mvp-restart-restore.spec.ts --project=chromium \
-  --output="$S09_RUN_DIR/playwright/results") \
-  >"$S09_RUN_DIR/logs/playwright.txt" 2>&1
+  --output="$S09_RUN_DIR/playwright/results"
 
-uv run pytest -p no:cacheprovider --basetemp="$S09_RUN_DIR/tmp/pytest-compat" \
-  src/backend/tests/unit/api/v2/test_workflow.py -q \
-  >"$S09_RUN_DIR/logs/workflow-compat.txt" 2>&1
-git diff --check "$S09_BASE_SHA"..."$S09_CODE_SHA"
-uv run python scripts/mvp/check_stage09_scope.py \
+run_s09_gate 010-workflow-compat "$S09_REPO_ROOT" 1800 TEST_FAILURE workflow-compat.txt \
+  uv run pytest -p no:cacheprovider --basetemp="$S09_RUN_DIR/tmp/pytest-compat" \
+  src/backend/tests/unit/api/v2/test_workflow.py -q
+run_s09_gate 011-diff-check "$S09_REPO_ROOT" 900 TEST_FAILURE diff-check.txt \
+  git diff --check "$S09_BASE_SHA"..."$S09_CODE_SHA"
+run_s09_gate 012-scope-check "$S09_REPO_ROOT" 900 TEST_FAILURE scope-check.txt \
+  uv run python scripts/mvp/check_stage09_scope.py \
   --base "$S09_BASE_SHA" --code-sha "$S09_CODE_SHA"
+
+uv run python scripts/mvp/stage09_gate_controller.py summarize \
+  --results-dir "$S09_RUN_DIR/process/gates" \
+  --telemetry-dir "$S09_RUN_DIR/process/telemetry" \
+  --output "$S09_RUN_DIR/process/resource-summary.json"
 ```
 
 The browser gate is authoritative only together with the process and storage proof. It opens the direct Board URL, injects corrupt local cache, checks server IDs and content, restores the committed transcript and unsent stock-composer draft, observes exactly one polite restore announcement, verifies restored confirmation focus, rejects the standard interrupt once, and proves the prior-worker Job is exposed as `failed/backend_restarted` after a real listener PID change. Screenshots are supplemental; the trace, network/DOM assertions, process ledger, DB/checkpoint hashes, row counts, and proposal/Job API state are the proof.

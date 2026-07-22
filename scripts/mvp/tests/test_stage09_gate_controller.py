@@ -22,6 +22,7 @@ FINALIZER = ROOT / "scripts/mvp/finalize_stage09_evidence.py"
 RUNBOOK = ROOT / "docs/dev/handoff/stage-09-restart-recovery-runbook.md"
 SCHEMA = ROOT / "docs/dev/handoff/schemas/stage-09-evidence.schema.json"
 SCOPE = ROOT / "scripts/mvp/check_stage09_scope.py"
+PLAYWRIGHT_CONFIG = ROOT / "src/frontend/playwright.mvp.config.ts"
 GIB = 1024**3
 
 
@@ -423,6 +424,23 @@ def test_stage09_contract_requires_controller_evidence_and_owned_paths() -> None
     )[0]
     assert 'MVP_POSTGRES_URI="$MVP_POSTGRES_URI"' not in backend_gate
     assert 'KETOS_TEST_DATABASE_URI="$KETOS_TEST_DATABASE_URI"' not in backend_gate
+    assert '"src/frontend/playwright.mvp.config.ts"' in scope
+    playwright_gate = runbook.split("run_s09_gate 010-playwright", 1)[1].split(
+        "run_s09_gate 011-workflow-compat", 1
+    )[0]
+    assert (
+        'KETOS_MVP_RUN_DIR="$S09_RUN_DIR/tmp/ketos-stage01-playwright-runtime"'
+        in playwright_gate
+    )
+
+
+def test_playwright_runtime_preserves_entry_symlink_for_externalized_dist() -> None:
+    config = PLAYWRIGHT_CONFIG.read_text(encoding="utf-8")
+
+    assert (
+        "npm run build && exec node --preserve-symlinks-main "
+        "--enable-source-maps dist/server.js"
+    ) in config
 
 
 def test_backend_package_postgres_environment_fails_closed_before_pytest(tmp_path: Path) -> None:

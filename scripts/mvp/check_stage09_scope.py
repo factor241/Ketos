@@ -60,6 +60,7 @@ ALLOWED_PATHS = {
     "src/frontend/src/pages/BoardPage/hooks/__tests__/use-board-restore.test.tsx",
     "src/frontend/src/pages/BoardPage/hooks/use-board-restore.ts",
     "src/frontend/src/pages/BoardPage/index.tsx",
+    "src/frontend/playwright.mvp.config.ts",
     "src/frontend/tests/core/features/mvp-restart-restore.spec.ts",
     "docs/dev/handoff/stage-09-restart-recovery-runbook.md",
     "docs/dev/handoff/schemas/stage-09-evidence.schema.json",

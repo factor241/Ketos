@@ -151,8 +151,12 @@ run_s09_gate 009-frontend-package "$S09_REPO_ROOT/src/frontend" 7200 TEST_FAILUR
   /usr/bin/env CI=true JEST_JUNIT_OUTPUT_DIR="$S09_RUN_DIR/frontend-junit" \
   npm test -- --runInBand
 
+# The fixed runtime root prevents duplicate config-evaluation directories. The
+# runtime command preserves only the main symlink identity, so bare ESM imports
+# resolve from repo-local node_modules while generated dist remains external.
 run_s09_gate 010-playwright "$S09_REPO_ROOT/src/frontend" 3600 TEST_FAILURE playwright.txt \
   /usr/bin/env S09_RUN_DIR="$S09_RUN_DIR" S09_CODE_SHA="$S09_CODE_SHA" \
+  KETOS_MVP_RUN_DIR="$S09_RUN_DIR/tmp/ketos-stage01-playwright-runtime" \
   npx playwright test -c playwright.mvp.config.ts \
   tests/core/features/mvp-restart-restore.spec.ts --project=chromium \
   --output="$S09_RUN_DIR/playwright/results"

@@ -72,7 +72,8 @@ export default defineConfig({
       },
     },
     {
-      command: "npm run build && exec node --enable-source-maps dist/server.js",
+      command:
+        "npm run build && exec node --preserve-symlinks-main --enable-source-maps dist/server.js",
       cwd: runtimeRoot,
       url: "http://127.0.0.1:8788/api/copilotkit/info",
       reuseExistingServer: false,

@@ -127,13 +127,18 @@ class TestConfigure:
                     if isinstance(handler, logging.handlers.RotatingFileHandler):
                         logging.root.removeHandler(handler)
 
-    def test_configure_with_invalid_log_file_path(self):
+    def test_configure_with_invalid_log_file_path(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         """Test configure() with invalid log file path falls back to cache dir."""
-        invalid_path = Path("/nonexistent/directory/log.txt")
+        cache_dir = tmp_path / "fresh-cache"
+        invalid_path = tmp_path / "nonexistent" / "directory" / "log.txt"
+        monkeypatch.delenv("LANGFLOW_CACHE_DIR", raising=False)
+        monkeypatch.setenv("KETOS_CACHE_DIR", str(cache_dir))
 
         configure(log_file=invalid_path)
         config = structlog._config
         assert config is not None
+        assert (cache_dir / "ketos.log").is_file()
+        assert not invalid_path.exists()
 
         # Should create file handler without raising exception
         # The function should fall back to cache directory

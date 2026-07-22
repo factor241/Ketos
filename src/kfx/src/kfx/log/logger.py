@@ -645,7 +645,7 @@ def configure(
     # Set up file logging if needed
     if log_file:
         if not log_file.parent.exists():
-            cache_dir = ketos_cache_dir()
+            cache_dir = ketos_cache_dir(create=True)
             log_file = cache_dir / "ketos.log"
 
         # Parse rotation settings

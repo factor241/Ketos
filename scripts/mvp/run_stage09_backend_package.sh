@@ -2,6 +2,16 @@
 set -eu -o pipefail
 
 : "${S09_RUN_DIR:?S09_RUN_DIR is required}"
+if [[ -z "${MVP_POSTGRES_URI:-}" ]]; then
+  printf 'BLOCKED: MVP_POSTGRES_URI is required for the Stage 09 backend package\n' >&2
+  exit 2
+fi
+if [[ -n "${KETOS_TEST_DATABASE_URI:-}" && "$KETOS_TEST_DATABASE_URI" != "$MVP_POSTGRES_URI" ]]; then
+  printf 'BLOCKED: KETOS_TEST_DATABASE_URI conflicts with MVP_POSTGRES_URI\n' >&2
+  exit 2
+fi
+export MVP_POSTGRES_URI
+export KETOS_TEST_DATABASE_URI="$MVP_POSTGRES_URI"
 
 shards=(
   agentic alembic base brand_state components core custom events exceptions

@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -16,6 +17,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
 CONTROLLER = ROOT / "scripts/mvp/stage09_gate_controller.py"
+BACKEND_PACKAGE = ROOT / "scripts/mvp/run_stage09_backend_package.sh"
 FINALIZER = ROOT / "scripts/mvp/finalize_stage09_evidence.py"
 RUNBOOK = ROOT / "docs/dev/handoff/stage-09-restart-recovery-runbook.md"
 SCHEMA = ROOT / "docs/dev/handoff/schemas/stage-09-evidence.schema.json"
@@ -57,6 +59,54 @@ def paths(tmp_path: Path) -> dict[str, Path]:
         "telemetry_path": evidence / "telemetry.jsonl",
         "log_path": evidence / "command.log",
     }
+
+
+def run_backend_package_until_first_target(
+    tmp_path: Path, postgres_env: dict[str, str]
+) -> tuple[subprocess.CompletedProcess[str], Path]:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir(parents=True)
+    probe = tmp_path / "postgres-env.txt"
+    fake_uv = fake_bin / "uv"
+    fake_uv.write_text(
+        "#!/bin/sh\n"
+        "printf '%s\\n%s\\n' \"$MVP_POSTGRES_URI\" \"$KETOS_TEST_DATABASE_URI\" "
+        ' >"$S09_ENV_PROBE"\n'
+        "exit 17\n",
+        encoding="utf-8",
+    )
+    fake_uv.chmod(0o700)
+    env = os.environ.copy()
+    env.pop("MVP_POSTGRES_URI", None)
+    env.pop("KETOS_TEST_DATABASE_URI", None)
+    env.update(postgres_env)
+    env.update(
+        {
+            "PATH": f"{fake_bin}{os.pathsep}{env['PATH']}",
+            "S09_ENV_PROBE": str(probe),
+            "S09_RUN_DIR": str(tmp_path / "evidence"),
+        }
+    )
+    bash = shutil.which("bash")
+    assert bash
+    result = subprocess.run(
+        [bash, str(BACKEND_PACKAGE)],
+        cwd=ROOT,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    temp_match = re.search(
+        r"temp=(/private/tmp/ketos-stage09-backend-[^\s]+)", result.stdout + result.stderr
+    )
+    if temp_match:
+        target_root = Path(temp_match.group(1))
+        assert target_root.parent == Path("/private/tmp")
+        assert target_root.name.startswith("ketos-stage09-backend-")
+        assert not target_root.is_symlink()
+        shutil.rmtree(target_root)
+    return result, probe
 
 
 def test_policy_matches_stage09_memory_contract() -> None:
@@ -339,6 +389,7 @@ def test_service_failure_uses_explicit_nonzero_class(tmp_path: Path) -> None:
 
 
 def test_stage09_contract_requires_controller_evidence_and_owned_paths() -> None:
+    backend_package = BACKEND_PACKAGE.read_text(encoding="utf-8")
     schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
     finalizer = FINALIZER.read_text(encoding="utf-8")
     scope = SCOPE.read_text(encoding="utf-8")
@@ -355,6 +406,48 @@ def test_stage09_contract_requires_controller_evidence_and_owned_paths() -> None
     assert '"scripts/mvp/run_stage09_backend_package.sh"' in scope
     assert "stage09_gate_controller.py run" in runbook
     assert '--lock-path "$S09_EVIDENCE_ROOT/.stage09-heavy-gate.lock"' in runbook
+    assert 'if [[ -z "${MVP_POSTGRES_URI:-}" ]]' in backend_package
+    assert 'KETOS_TEST_DATABASE_URI" != "$MVP_POSTGRES_URI"' in backend_package
+    assert 'export KETOS_TEST_DATABASE_URI="$MVP_POSTGRES_URI"' in backend_package
+    assert "004-logger-regression" in runbook
+    assert "logger-regression.txt" in runbook
+    assert "logs/logger-regression.txt" in finalizer
+    assert "process/gates/004-logger-regression.json" in finalizer
+    assert "process/telemetry/004-logger-regression.jsonl" in finalizer
+    assert resource["properties"]["result_files"]["contains"] == {
+        "const": "process/gates/004-logger-regression.json"
+    }
+    backend_gate = runbook.split("run_s09_gate 008-backend-package", 1)[1].split(
+        "run_s09_gate 009-frontend-package", 1
+    )[0]
+    assert 'MVP_POSTGRES_URI="$MVP_POSTGRES_URI"' not in backend_gate
+    assert 'KETOS_TEST_DATABASE_URI="$KETOS_TEST_DATABASE_URI"' not in backend_gate
+
+
+def test_backend_package_postgres_environment_fails_closed_before_pytest(tmp_path: Path) -> None:
+    missing, missing_probe = run_backend_package_until_first_target(tmp_path / "missing", {})
+    assert missing.returncode == 2
+    assert "MVP_POSTGRES_URI is required" in missing.stderr
+    assert not missing_probe.exists()
+
+    conflict, conflict_probe = run_backend_package_until_first_target(
+        tmp_path / "conflict",
+        {
+            "MVP_POSTGRES_URI": "postgresql+psycopg://verified.invalid/postgres",
+            "KETOS_TEST_DATABASE_URI": "postgresql+psycopg://ambient.invalid/postgres",
+        },
+    )
+    assert conflict.returncode == 2
+    assert "KETOS_TEST_DATABASE_URI conflicts with MVP_POSTGRES_URI" in conflict.stderr
+    assert not conflict_probe.exists()
+
+    verified_uri = "postgresql+psycopg://verified.invalid/postgres"
+    same, same_probe = run_backend_package_until_first_target(
+        tmp_path / "same",
+        {"MVP_POSTGRES_URI": verified_uri, "KETOS_TEST_DATABASE_URI": verified_uri},
+    )
+    assert same.returncode == 17
+    assert same_probe.read_text(encoding="utf-8").splitlines() == [verified_uri, verified_uri]
 
 
 def test_summarize_requires_continuous_accepted_gate_evidence(tmp_path: Path) -> None:

@@ -119,6 +119,7 @@
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
+          "contains": { "const": "process/gates/004-logger-regression.json" },
           "items": { "type": "string", "pattern": "^process/gates/[a-z0-9][a-z0-9-]*\\.json$" }
         },
         "summary": { "const": "process/resource-summary.json" }

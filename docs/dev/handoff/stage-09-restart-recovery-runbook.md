@@ -55,6 +55,13 @@ Run every command below sequentially. Call `assert-frozen` immediately before an
 
 ```bash
 export S09_REPO_ROOT="$(git rev-parse --show-toplevel)"
+: "${MVP_POSTGRES_URI:?MVP_POSTGRES_URI must identify the verified Stage 09 PostgreSQL service}"
+if [[ -n "${KETOS_TEST_DATABASE_URI:-}" && "$KETOS_TEST_DATABASE_URI" != "$MVP_POSTGRES_URI" ]]; then
+  printf 'BLOCKED: KETOS_TEST_DATABASE_URI conflicts with MVP_POSTGRES_URI\n' >&2
+  exit 2
+fi
+export MVP_POSTGRES_URI
+export KETOS_TEST_DATABASE_URI="$MVP_POSTGRES_URI"
 mkdir -p "$S09_RUN_DIR/process/gates" "$S09_RUN_DIR/process/telemetry"
 
 run_s09_gate() {
@@ -101,7 +108,20 @@ run_s09_gate 003-restart-smoke "$S09_REPO_ROOT" 1800 SERVICE_FAILURE restart-smo
   /usr/bin/env S09_RUN_DIR="$S09_RUN_DIR" S09_CODE_SHA="$S09_CODE_SHA" \
   bash scripts/mvp/restart_restore_smoke.sh
 
-run_s09_gate 004-focused-frontend "$S09_REPO_ROOT/src/frontend" 1800 TEST_FAILURE focused-frontend.txt \
+mkdir -p "$S09_RUN_DIR/tmp/logger" "$S09_RUN_DIR/cache/logger/xdg" \
+  "$S09_RUN_DIR/cache/logger/config" "$S09_RUN_DIR/cache/logger/data" \
+  "$S09_RUN_DIR/cache/logger/state" "$S09_RUN_DIR/cache/logger/pycache"
+run_s09_gate 004-logger-regression "$S09_REPO_ROOT" 900 TEST_FAILURE logger-regression.txt \
+  /usr/bin/env TMPDIR="$S09_RUN_DIR/tmp/logger" \
+  XDG_CACHE_HOME="$S09_RUN_DIR/cache/logger/xdg" \
+  XDG_CONFIG_HOME="$S09_RUN_DIR/cache/logger/config" \
+  XDG_DATA_HOME="$S09_RUN_DIR/cache/logger/data" \
+  XDG_STATE_HOME="$S09_RUN_DIR/cache/logger/state" \
+  PYTHONPYCACHEPREFIX="$S09_RUN_DIR/cache/logger/pycache" \
+  uv run pytest -p no:cacheprovider --basetemp="$S09_RUN_DIR/tmp/pytest-logger" \
+  src/backend/tests/unit/test_logger.py -q
+
+run_s09_gate 005-focused-frontend "$S09_REPO_ROOT/src/frontend" 1800 TEST_FAILURE focused-frontend.txt \
   npm test -- --runInBand --no-cache \
   src/pages/BoardPage/hooks/__tests__/use-board-restore.test.tsx \
   src/components/core/board/placements/ChatPlacement.reconnect.test.tsx \
@@ -109,9 +129,9 @@ run_s09_gate 004-focused-frontend "$S09_REPO_ROOT/src/frontend" 1800 TEST_FAILUR
   src/components/core/chats/__tests__/FlowCommandConfirmation.reconnect.test.tsx \
   src/components/core/chats/__tests__/use-flow-command-interrupt.reconnect.test.tsx \
   src/components/core/board
-run_s09_gate 005-i18n "$S09_REPO_ROOT/src/frontend" 900 TEST_FAILURE i18n-check.txt \
+run_s09_gate 006-i18n "$S09_REPO_ROOT/src/frontend" 900 TEST_FAILURE i18n-check.txt \
   npm run i18n:check
-run_s09_gate 006-typecheck "$S09_REPO_ROOT/src/frontend" 1800 TEST_FAILURE typecheck-production.txt \
+run_s09_gate 007-typecheck "$S09_REPO_ROOT/src/frontend" 1800 TEST_FAILURE typecheck-production.txt \
   npm run type-check:production
 
 # Keep the package gate sequential, but start a fresh pytest process and a fresh
@@ -122,26 +142,27 @@ run_s09_gate 006-typecheck "$S09_REPO_ROOT/src/frontend" 1800 TEST_FAILURE typec
 # excluding the repository's existing template exclusion. Process/session
 # lifecycle intentionally resets between shards; monolithic CI remains a
 # separate higher-memory signal for cross-test pollution.
-run_s09_gate 007-backend-package "$S09_REPO_ROOT" 14400 TEST_FAILURE backend-package.txt \
-  /usr/bin/env S09_RUN_DIR="$S09_RUN_DIR" bash scripts/mvp/run_stage09_backend_package.sh
+run_s09_gate 008-backend-package "$S09_REPO_ROOT" 14400 TEST_FAILURE backend-package.txt \
+  /usr/bin/env S09_RUN_DIR="$S09_RUN_DIR" \
+  bash scripts/mvp/run_stage09_backend_package.sh
 
 # Jest workers are serialized for the same workstation memory bound.
-run_s09_gate 008-frontend-package "$S09_REPO_ROOT/src/frontend" 7200 TEST_FAILURE frontend-package.txt \
+run_s09_gate 009-frontend-package "$S09_REPO_ROOT/src/frontend" 7200 TEST_FAILURE frontend-package.txt \
   /usr/bin/env CI=true JEST_JUNIT_OUTPUT_DIR="$S09_RUN_DIR/frontend-junit" \
   npm test -- --runInBand
 
-run_s09_gate 009-playwright "$S09_REPO_ROOT/src/frontend" 3600 TEST_FAILURE playwright.txt \
+run_s09_gate 010-playwright "$S09_REPO_ROOT/src/frontend" 3600 TEST_FAILURE playwright.txt \
   /usr/bin/env S09_RUN_DIR="$S09_RUN_DIR" S09_CODE_SHA="$S09_CODE_SHA" \
   npx playwright test -c playwright.mvp.config.ts \
   tests/core/features/mvp-restart-restore.spec.ts --project=chromium \
   --output="$S09_RUN_DIR/playwright/results"
 
-run_s09_gate 010-workflow-compat "$S09_REPO_ROOT" 1800 TEST_FAILURE workflow-compat.txt \
+run_s09_gate 011-workflow-compat "$S09_REPO_ROOT" 1800 TEST_FAILURE workflow-compat.txt \
   uv run pytest -p no:cacheprovider --basetemp="$S09_RUN_DIR/tmp/pytest-compat" \
   src/backend/tests/unit/api/v2/test_workflow.py -q
-run_s09_gate 011-diff-check "$S09_REPO_ROOT" 900 TEST_FAILURE diff-check.txt \
+run_s09_gate 012-diff-check "$S09_REPO_ROOT" 900 TEST_FAILURE diff-check.txt \
   git diff --check "$S09_BASE_SHA"..."$S09_CODE_SHA"
-run_s09_gate 012-scope-check "$S09_REPO_ROOT" 900 TEST_FAILURE scope-check.txt \
+run_s09_gate 013-scope-check "$S09_REPO_ROOT" 900 TEST_FAILURE scope-check.txt \
   uv run python scripts/mvp/check_stage09_scope.py \
   --base "$S09_BASE_SHA" --code-sha "$S09_CODE_SHA"
 

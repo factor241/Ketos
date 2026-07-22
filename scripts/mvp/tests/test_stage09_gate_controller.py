@@ -216,7 +216,8 @@ def test_monitor_loss_kills_only_owned_process_group(tmp_path: Path) -> None:
             **paths(tmp_path),
         )
 
-        target_pid = int((tmp_path / "evidence/command.log").read_text().strip())
+        assert result["target_pid"] is not None
+        target_pid = int(result["target_pid"])
         deadline = time.monotonic() + 2
         while psutil.pid_exists(target_pid) and time.monotonic() < deadline:
             time.sleep(0.01)

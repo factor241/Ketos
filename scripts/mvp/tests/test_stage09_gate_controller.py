@@ -421,7 +421,7 @@ def test_stage09_contract_requires_controller_evidence_and_owned_paths() -> None
     assert 'if [[ -z "${MVP_POSTGRES_URI:-}" ]]' in backend_package
     assert 'KETOS_TEST_DATABASE_URI" != "$MVP_POSTGRES_URI"' in backend_package
     assert 'export KETOS_TEST_DATABASE_URI="$MVP_POSTGRES_URI"' in backend_package
-    assert '".hypothesis"' in scope
+    assert '".hypothesis/unicode_data"' in scope
     assert "004-logger-regression" in runbook
     assert "logger-regression.txt" in runbook
     assert "logs/logger-regression.txt" in finalizer
@@ -451,30 +451,35 @@ def test_artifact_redirect_preserves_or_removes_hypothesis_cache(tmp_path: Path)
     run_dir = tmp_path / "evidence"
     run_dir.mkdir()
     scope.REPO_ROOT = repo
-    scope.REDIRECTED_ARTIFACT_DIRS = (".hypothesis",)
+    scope.REDIRECTED_ARTIFACT_DIRS = (".hypothesis/unicode_data",)
     hypothesis = repo / ".hypothesis"
     hypothesis.mkdir()
-    original = hypothesis / "original.bin"
+    (hypothesis / ".gitignore").write_text("*\n", encoding="utf-8")
+    unicode_data = hypothesis / "unicode_data"
+    unicode_data.mkdir()
+    original = unicode_data / "original.bin"
     original.write_bytes(b"preserve-exactly")
 
     scope._prepare_artifact_redirects(run_dir)
-    assert hypothesis.is_symlink()
-    (hypothesis / "generated.bin").write_bytes(b"discard-after-gate")
+    assert unicode_data.is_symlink()
+    assert scope._git("status", "--porcelain=v1", "--untracked-files=all") == ""
+    (unicode_data / "generated.bin").write_bytes(b"discard-after-gate")
     scope._restore_artifact_redirects(run_dir)
 
-    assert hypothesis.is_dir()
-    assert not hypothesis.is_symlink()
+    assert unicode_data.is_dir()
+    assert not unicode_data.is_symlink()
     assert original.read_bytes() == b"preserve-exactly"
-    assert not (hypothesis / "generated.bin").exists()
+    assert not (unicode_data / "generated.bin").exists()
 
-    shutil.rmtree(hypothesis)
+    shutil.rmtree(unicode_data)
     scope._prepare_artifact_redirects(run_dir)
-    assert hypothesis.is_symlink()
-    (hypothesis / "generated.bin").write_bytes(b"discard-after-gate")
+    assert unicode_data.is_symlink()
+    assert scope._git("status", "--porcelain=v1", "--untracked-files=all") == ""
+    (unicode_data / "generated.bin").write_bytes(b"discard-after-gate")
     scope._restore_artifact_redirects(run_dir)
 
-    assert not hypothesis.exists()
-    assert not hypothesis.is_symlink()
+    assert not unicode_data.exists()
+    assert not unicode_data.is_symlink()
 
 
 def test_playwright_runtime_preserves_entry_symlink_for_externalized_dist() -> None:

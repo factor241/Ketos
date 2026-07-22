@@ -2,6 +2,7 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from ketos.services.auth.service import AuthService
 from ketos.services.auth.utils import create_super_user
 from ketos.services.database.models.user.model import User
 from ketos.services.utils import teardown_superuser
@@ -141,6 +142,7 @@ async def test_create_super_user_race_condition():
     """Test create_super_user handles race conditions gracefully when multiple workers try to create the same user."""
     # Mock the database session
     mock_session = AsyncMock()
+    mock_session.add = MagicMock()
 
     # Create a mock user that will be "created" by the first worker
     mock_user = MagicMock(spec=User)
@@ -149,6 +151,7 @@ async def test_create_super_user_race_condition():
 
     # Mock get_password_hash to return a fixed value
     mock_get_password_hash = MagicMock(return_value="hashed_password")
+    auth_service = AuthService(MagicMock())
 
     # Set up the race condition scenario:
     # 1. First call to get_user_by_username returns None (user doesn't exist)
@@ -160,8 +163,9 @@ async def test_create_super_user_race_condition():
     mock_session.commit.side_effect = IntegrityError("statement", "params", Exception("orig"))
     with (
         patch("ketos.services.auth.service.get_user_by_username", mock_get_user_by_username),
-        patch("ketos.services.auth.utils.get_password_hash", mock_get_password_hash),
-        patch("ketos.services.database.models.user.model.User") as mock_user_class,
+        patch.object(auth_service, "get_password_hash", mock_get_password_hash),
+        patch("ketos.services.auth.utils._auth_service", return_value=auth_service),
+        patch("ketos.services.auth.service.User") as mock_user_class,
     ):
         # Configure the User class mock to return our mock_user when instantiated
         mock_user_class.return_value = mock_user
@@ -181,6 +185,7 @@ async def test_create_super_user_race_condition_no_user_found():
     """Test that create_super_user re-raises exception if no user is found after IntegrityError."""
     # Mock the database session
     mock_session = AsyncMock()
+    mock_session.add = MagicMock()
 
     # Mock get_user_by_username to always return None (even after rollback)
     mock_get_user_by_username = AsyncMock()
@@ -189,6 +194,7 @@ async def test_create_super_user_race_condition_no_user_found():
     # Mock other dependencies
     mock_get_password_hash = MagicMock(return_value="hashed_password")
     mock_user = MagicMock(spec=User)
+    auth_service = AuthService(MagicMock())
 
     # Set up scenario where IntegrityError occurs but no user is found afterward
     integrity_error = IntegrityError("statement", "params", Exception("orig"))
@@ -196,8 +202,9 @@ async def test_create_super_user_race_condition_no_user_found():
 
     with (
         patch("ketos.services.auth.service.get_user_by_username", mock_get_user_by_username),
-        patch("ketos.services.auth.utils.get_password_hash", mock_get_password_hash),
-        patch("ketos.services.database.models.user.model.User", return_value=mock_user),
+        patch.object(auth_service, "get_password_hash", mock_get_password_hash),
+        patch("ketos.services.auth.utils._auth_service", return_value=auth_service),
+        patch("ketos.services.auth.service.User", return_value=mock_user),
         pytest.raises(IntegrityError),
     ):
         await create_super_user("testuser", "password", mock_session)
@@ -215,6 +222,8 @@ async def test_create_super_user_concurrent_workers():
 
     mock_session1 = AsyncMock()
     mock_session2 = AsyncMock()
+    mock_session1.add = MagicMock()
+    mock_session2.add = MagicMock()
 
     # Create mock users
     mock_user = MagicMock(spec=User)
@@ -222,6 +231,7 @@ async def test_create_super_user_concurrent_workers():
     mock_user.is_superuser = True
 
     mock_get_user_by_username = AsyncMock()
+    auth_service = AuthService(MagicMock())
 
     # Worker 1 succeeds, Worker 2 gets IntegrityError then finds existing user
     mock_session1.commit.return_value = None  # Success
@@ -230,7 +240,11 @@ async def test_create_super_user_concurrent_workers():
     # get_user_by_username returns None initially, then the created user for worker 2
     mock_get_user_by_username.side_effect = [None, None, mock_user]
 
-    with patch("ketos.services.auth.service.get_user_by_username", mock_get_user_by_username):
+    with (
+        patch("ketos.services.auth.service.get_user_by_username", mock_get_user_by_username),
+        patch.object(auth_service, "get_password_hash", return_value="hashed_password"),
+        patch("ketos.services.auth.utils._auth_service", return_value=auth_service),
+    ):
         # Simulate concurrent execution using asyncio.gather
         result1, result2 = await asyncio.gather(
             create_super_user("admin", "password", mock_session1),

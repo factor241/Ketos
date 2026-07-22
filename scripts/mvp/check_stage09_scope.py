@@ -45,6 +45,7 @@ ALLOWED_PATHS = {
     "src/backend/tests/unit/services/jobs/test_board_claim.py",
     "src/backend/tests/unit/services/jobs/test_board_results.py",
     "src/backend/tests/unit/services/jobs/test_restart_recovery.py",
+    "src/backend/tests/unit/test_setup_superuser.py",
     "src/frontend/src/components/core/board/placements/ChatPlacement.reconnect.test.tsx",
     "src/frontend/src/components/core/board/placements/ChatPlacement.test.tsx",
     "src/frontend/src/components/core/board/placements/ChatPlacement.tsx",

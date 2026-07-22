@@ -404,6 +404,7 @@ def test_stage09_contract_requires_controller_evidence_and_owned_paths() -> None
     assert '"scripts/mvp/stage09_gate_controller.py"' in scope
     assert '"scripts/mvp/tests/test_stage09_gate_controller.py"' in scope
     assert '"scripts/mvp/run_stage09_backend_package.sh"' in scope
+    assert '"src/backend/tests/unit/test_setup_superuser.py"' in scope
     assert "stage09_gate_controller.py run" in runbook
     assert '--lock-path "$S09_EVIDENCE_ROOT/.stage09-heavy-gate.lock"' in runbook
     assert 'if [[ -z "${MVP_POSTGRES_URI:-}" ]]' in backend_package

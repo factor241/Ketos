@@ -512,16 +512,21 @@ test(
     // 2. Durable edited/moved Note with sanitized Markdown rendering.
     const markdown =
       "**Stage 10 bold**\n\n- one\n- two\n\n[Ketos](https://example.com)";
+    const addNote = page.getByRole("button", {
+      name: /Add note|Добавить заметку/,
+    });
+    await expect(addNote).toBeVisible();
+    await expect(addNote).toBeEnabled();
     const [noteResponse] = await Promise.all([
       page.waitForResponse(
         (response) =>
           response.request().method() === "POST" &&
           new URL(response.url()).pathname ===
-            `/api/v1/boards/${board.id}/board-notes` &&
-          response.status() === 201,
+            `/api/v1/boards/${board.id}/board-notes`,
       ),
-      page.getByRole("button", { name: /Add note|Добавить заметку/ }).click(),
+      addNote.click(),
     ]);
+    expect(noteResponse.status(), await noteResponse.text()).toBe(201);
     const noteCreate = (await noteResponse.json()) as {
       note: Entity;
       placement: Placement;

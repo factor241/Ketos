@@ -12,6 +12,9 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 import ketos.services.database.models  # noqa: F401
+from ketos.services.board.exceptions import UnsafeMarkdownError
+from ketos.services.board.note_service import create_note_with_placement, update_note_cas
+from ketos.services.board.placement_service import create_placement, delete_placement_cas
 from ketos.services.board.service import (
     BoardNotFoundError,
     BoardRevisionConflictError,
@@ -20,9 +23,15 @@ from ketos.services.board.service import (
     require_owned_project,
     update_board_viewport,
 )
+from ketos.services.chat_threads.message_adapter import append_user_message, commit_assistant_message
+from ketos.services.chat_threads.messages import build_messages_snapshot
+from ketos.services.chat_threads.repository import claim_chat_run
 from ketos.services.database.models.board.model import Board
+from ketos.services.database.models.board_note.model import BoardNote
+from ketos.services.database.models.chat_thread.model import ChatContextPolicy, ChatRun, ChatThread
 from ketos.services.database.models.flow.model import Flow
 from ketos.services.database.models.folder.model import Folder
+from ketos.services.database.models.placement.model import Placement, PlacementTargetKind
 from ketos.services.database.models.user.model import User
 
 _SEED_SCRIPT = Path(__file__).resolve().parents[4] / "scripts" / "mvp" / "seed_vertical_slice.py"
@@ -268,3 +277,288 @@ async def test_project_board_ownership_revision_cas_and_persistence(
         assert persisted.viewport_y == -42.0
         assert persisted.viewport_zoom == 1.25
         assert persisted.revision == 1
+
+
+@pytest.mark.asyncio
+async def test_note_chat_vertical_slice_persists_entities_and_isolates_threads(
+    async_session: AsyncSession,
+) -> None:
+    owner_id = uuid4()
+    project_id = uuid4()
+    board_id = uuid4()
+
+    owner = User(
+        id=owner_id,
+        username=f"s10-owner-{owner_id}",
+        password="!disabled-stage10!",
+        is_active=True,
+    )
+    async_session.add(owner)
+    await async_session.flush()
+
+    project = Folder(
+        id=project_id,
+        name="Stage 10 Project",
+        user_id=owner.id,
+    )
+    async_session.add(project)
+    await async_session.flush()
+
+    board = Board(
+        id=board_id,
+        project_id=project.id,
+        created_by_id=owner.id,
+        title="Stage 10 Board",
+    )
+    async_session.add(board)
+    await async_session.commit()
+
+    original_content = (
+        "**Stage 10 note**\n\n"
+        "- first item\n"
+        "- second item\n\n"
+        "[Ketos documentation](https://ketos.test/docs)"
+    )
+    note, note_placement = await create_note_with_placement(
+        async_session,
+        board_id=board.id,
+        actor_id=owner.id,
+        note_input=SimpleNamespace(
+            content=original_content,
+            color="yellow",
+        ),
+        placement_input=SimpleNamespace(
+            x=96.0,
+            y=112.0,
+            width=320.0,
+            height=220.0,
+            z_index=2,
+        ),
+    )
+
+    assert isinstance(note, BoardNote)
+    assert isinstance(note_placement, Placement)
+    original_note_id = note.id
+
+    updated_content = (
+        "**Updated Stage 10 note**\n\n"
+        "- persisted item\n\n"
+        "[Safe link](https://example.com/stage-10)"
+    )
+    updated_note = await update_note_cas(
+        async_session,
+        note_id=note.id,
+        actor_id=owner.id,
+        expected_revision=note.revision,
+        patch=SimpleNamespace(
+            content=updated_content,
+            color="blue",
+        ),
+    )
+    assert updated_note.id == original_note_id
+    assert updated_note.content == updated_content
+    assert updated_note.color == "blue"
+
+    async_session.expire_all()
+    reloaded_note = await async_session.get(BoardNote, original_note_id)
+    assert reloaded_note is not None
+    assert reloaded_note.content == updated_content
+    assert reloaded_note.color == "blue"
+
+    with pytest.raises(UnsafeMarkdownError):
+        await update_note_cas(
+            async_session,
+            note_id=reloaded_note.id,
+            actor_id=owner.id,
+            expected_revision=reloaded_note.revision,
+            patch=SimpleNamespace(
+                content="<script>alert('stage-10')</script>",
+                color=None,
+            ),
+        )
+
+    with pytest.raises(UnsafeMarkdownError):
+        await update_note_cas(
+            async_session,
+            note_id=reloaded_note.id,
+            actor_id=owner.id,
+            expected_revision=reloaded_note.revision,
+            patch=SimpleNamespace(
+                content="[unsafe](javascript:alert('stage-10'))",
+                color=None,
+            ),
+        )
+
+    await delete_placement_cas(
+        async_session,
+        placement_id=note_placement.id,
+        actor_id=owner.id,
+        expected_revision=note_placement.revision,
+    )
+    preserved_note = await async_session.get(BoardNote, original_note_id)
+    assert preserved_note is not None
+
+    replacement_note_placement = await create_placement(
+        async_session,
+        board_id=board.id,
+        actor_id=owner.id,
+        target_kind=PlacementTargetKind.NOTE,
+        target_id=preserved_note.id,
+        geometry=SimpleNamespace(
+            x=420.0,
+            y=180.0,
+            width=300.0,
+            height=200.0,
+            z_index=3,
+        ),
+    )
+    assert replacement_note_placement.target_id == original_note_id
+    assert replacement_note_placement.id != note_placement.id
+
+    chat_a = ChatThread(
+        id=uuid4(),
+        project_id=project.id,
+        created_by_id=owner.id,
+        title="Stage 10 Chat A",
+        provider="OpenAI",
+        model_name="deepseek-v4-flash",
+        context_policy=ChatContextPolicy.BOARD,
+    )
+    chat_b = ChatThread(
+        id=uuid4(),
+        project_id=project.id,
+        created_by_id=owner.id,
+        title="Stage 10 Chat B",
+        provider="OpenAI",
+        model_name="deepseek-v4-flash",
+        context_policy=ChatContextPolicy.BOARD,
+    )
+    async_session.add_all([chat_a, chat_b])
+    await async_session.commit()
+
+    claim_a = await claim_chat_run(
+        async_session,
+        chat_id=chat_a.id,
+        actor_id=owner.id,
+        ag_ui_run_id=f"s10-run-{uuid4()}",
+        idempotency_key=f"s10-idempotency-{uuid4()}",
+        request_fingerprint="a" * 64,
+    )
+    claim_b = await claim_chat_run(
+        async_session,
+        chat_id=chat_b.id,
+        actor_id=owner.id,
+        ag_ui_run_id=f"s10-run-{uuid4()}",
+        idempotency_key=f"s10-idempotency-{uuid4()}",
+        request_fingerprint="b" * 64,
+    )
+
+    assert isinstance(claim_a.run, ChatRun)
+    assert isinstance(claim_b.run, ChatRun)
+    assert claim_a.replayed is False
+    assert claim_b.replayed is False
+    assert claim_a.run.id != claim_b.run.id
+    assert claim_a.run.langgraph_thread_id == str(chat_a.id)
+    assert claim_b.run.langgraph_thread_id == str(chat_b.id)
+    assert claim_a.run.langgraph_thread_id != claim_b.run.langgraph_thread_id
+
+    await append_user_message(
+        async_session,
+        chat_id=chat_a.id,
+        chat_run_id=claim_a.run.id,
+        actor_id=owner.id,
+        text="user-message-chat-a",
+    )
+    await commit_assistant_message(
+        async_session,
+        chat_id=chat_a.id,
+        chat_run_id=claim_a.run.id,
+        actor_id=owner.id,
+        text="assistant-message-chat-a",
+    )
+    await append_user_message(
+        async_session,
+        chat_id=chat_b.id,
+        chat_run_id=claim_b.run.id,
+        actor_id=owner.id,
+        text="user-message-chat-b",
+    )
+    await commit_assistant_message(
+        async_session,
+        chat_id=chat_b.id,
+        chat_run_id=claim_b.run.id,
+        actor_id=owner.id,
+        text="assistant-message-chat-b",
+    )
+
+    snapshot_a = await build_messages_snapshot(
+        session=async_session,
+        owner_id=owner.id,
+        chat_id=chat_a.id,
+        after_sequence=0,
+    )
+    snapshot_b = await build_messages_snapshot(
+        session=async_session,
+        owner_id=owner.id,
+        chat_id=chat_b.id,
+        after_sequence=0,
+    )
+
+    messages_a = list(snapshot_a.messages)
+    messages_b = list(snapshot_b.messages)
+    assert [message["role"] for message in messages_a] == ["user", "assistant"]
+    assert [message["role"] for message in messages_b] == ["user", "assistant"]
+    assert [message["content"] for message in messages_a] == [
+        "user-message-chat-a",
+        "assistant-message-chat-a",
+    ]
+    assert [message["content"] for message in messages_b] == [
+        "user-message-chat-b",
+        "assistant-message-chat-b",
+    ]
+    assert all("chat-b" not in message["content"] for message in messages_a)
+    assert all("chat-a" not in message["content"] for message in messages_b)
+    assert snapshot_a.cursor == 2
+    assert snapshot_b.cursor == 2
+
+    chat_placement = await create_placement(
+        async_session,
+        board_id=board.id,
+        actor_id=owner.id,
+        target_kind=PlacementTargetKind.CHAT,
+        target_id=chat_a.id,
+        geometry=SimpleNamespace(
+            x=720.0,
+            y=120.0,
+            width=360.0,
+            height=480.0,
+            z_index=4,
+        ),
+    )
+    await delete_placement_cas(
+        async_session,
+        placement_id=chat_placement.id,
+        actor_id=owner.id,
+        expected_revision=chat_placement.revision,
+    )
+
+    preserved_chat = await async_session.get(ChatThread, chat_a.id)
+    assert preserved_chat is not None
+    assert preserved_chat.id == chat_a.id
+
+    replacement_chat_placement = await create_placement(
+        async_session,
+        board_id=board.id,
+        actor_id=owner.id,
+        target_kind=PlacementTargetKind.CHAT,
+        target_id=preserved_chat.id,
+        geometry=SimpleNamespace(
+            x=760.0,
+            y=160.0,
+            width=360.0,
+            height=480.0,
+            z_index=5,
+        ),
+    )
+    assert replacement_chat_placement.target_id == chat_a.id
+    assert replacement_chat_placement.id != chat_placement.id

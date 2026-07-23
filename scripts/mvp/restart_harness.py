@@ -758,7 +758,28 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             or len(finished) != 1
             or finished[0].get("result", {}).get("status") != "rejected"
         ):
-            raise HarnessError("concurrent AG-UI resumes did not finish exactly one recovered rejection")
+            diagnostic = [
+                {
+                    "status": response.status,
+                    "error": response.error,
+                    "events": [
+                        {
+                            "type": event.get("type"),
+                            "result_status": (
+                                event.get("result", {}).get("status")
+                                if isinstance(event.get("result"), dict)
+                                else None
+                            ),
+                        }
+                        for event in response.events
+                    ],
+                }
+                for response in concurrent_results
+            ]
+            raise HarnessError(
+                "concurrent AG-UI resumes did not finish exactly one recovered "
+                f"rejection: {json.dumps(diagnostic, sort_keys=True)}"
+            )
         replay_response = client2.resume_recovered_interrupt(
             chat_id=ids["chat_id"],
             project_id=ids["project_id"],

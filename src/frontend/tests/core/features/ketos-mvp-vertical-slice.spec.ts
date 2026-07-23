@@ -811,7 +811,9 @@ test(
     ).toBe(true);
 
     // 8. Restore the exact server-owned board state after both restarts.
-    await page.goto(boardUrl, { waitUntil: "commit" });
+    const focusedBoardUrl = `${boardUrl}?focusPlacementId=${automation.id}`;
+    await page.goto(focusedBoardUrl);
+    await expect(page).toHaveURL(new RegExp(`${focusedBoardUrl}$`));
     await expect(
       page.getByRole("heading", { name: "Ketos MVP vertical slice" }),
     ).toBeVisible({ timeout: 60_000 });

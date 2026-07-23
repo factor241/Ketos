@@ -1,0 +1,290 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ketos.test/evidence/stage-10/screenshot-manifest.schema.json",
+  "title": "Stage 10 Screenshot Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "stage",
+    "artifact_kind",
+    "code_sha",
+    "generated_at",
+    "viewport",
+    "screenshots",
+    "audits",
+    "secret_scan"
+  ],
+  "properties": {
+    "stage": {
+      "const": 10
+    },
+    "artifact_kind": {
+      "const": "screenshot-manifest"
+    },
+    "code_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "viewport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "width",
+        "height"
+      ],
+      "properties": {
+        "width": {
+          "const": 1440
+        },
+        "height": {
+          "const": 900
+        }
+      }
+    },
+    "screenshots": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "prefixItems": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "sha256",
+            "size_bytes"
+          ],
+          "properties": {
+            "name": {
+              "const": "01-board-note-chat.png"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "size_bytes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "sha256",
+            "size_bytes"
+          ],
+          "properties": {
+            "name": {
+              "const": "02-automation-result.png"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "size_bytes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "sha256",
+            "size_bytes"
+          ],
+          "properties": {
+            "name": {
+              "const": "03-ai-preview-confirmation.png"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "size_bytes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "sha256",
+            "size_bytes"
+          ],
+          "properties": {
+            "name": {
+              "const": "04-settings-entry.png"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "size_bytes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "sha256",
+            "size_bytes"
+          ],
+          "properties": {
+            "name": {
+              "const": "05-restored-board.png"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "size_bytes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      ],
+      "items": false
+    },
+    "audits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product_design",
+        "chrome",
+        "computer_use"
+      ],
+      "properties": {
+        "product_design": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "P0",
+            "P1",
+            "P2"
+          ],
+          "properties": {
+            "status": {
+              "const": "PASS"
+            },
+            "P0": {
+              "const": 0
+            },
+            "P1": {
+              "const": 0
+            },
+            "P2": {
+              "const": 0
+            }
+          }
+        },
+        "chrome": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "P0",
+            "P1",
+            "P2",
+            "accessibility",
+            "network",
+            "focus"
+          ],
+          "properties": {
+            "status": {
+              "const": "PASS"
+            },
+            "P0": {
+              "const": 0
+            },
+            "P1": {
+              "const": 0
+            },
+            "P2": {
+              "const": 0
+            },
+            "accessibility": {
+              "const": "PASS"
+            },
+            "network": {
+              "const": "PASS"
+            },
+            "focus": {
+              "const": "PASS"
+            }
+          }
+        },
+        "computer_use": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "P0",
+            "P1",
+            "P2",
+            "layout",
+            "focus"
+          ],
+          "properties": {
+            "status": {
+              "const": "PASS"
+            },
+            "P0": {
+              "const": 0
+            },
+            "P1": {
+              "const": 0
+            },
+            "P2": {
+              "const": 0
+            },
+            "layout": {
+              "const": "PASS"
+            },
+            "focus": {
+              "const": "PASS"
+            }
+          }
+        }
+      }
+    },
+    "secret_scan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "matches",
+        "files_scanned"
+      ],
+      "properties": {
+        "status": {
+          "const": "PASS"
+        },
+        "matches": {
+          "const": 0
+        },
+        "files_scanned": {
+          "const": 5
+        }
+      }
+    }
+  }
+}

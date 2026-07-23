@@ -371,9 +371,10 @@ def run_guarded(
     pid_ledger_path: Path,
     log_path: Path,
     policy: Policy | None = None,
+    timeout_seconds: float = 3600,
 ) -> dict[str, Any]:
     policy = policy or Policy()
-    if re.fullmatch(r"[0-9a-f]{40}", expected_sha) is None or not command:
+    if re.fullmatch(r"[0-9a-f]{40}", expected_sha) is None or not command or timeout_seconds <= 0:
         raise ValueError("expected SHA and command are required")
     cwd = cwd.resolve(strict=True)
     if not _git_clean(cwd, expected_sha):
@@ -412,8 +413,13 @@ def run_guarded(
                     start_new_session=True,
                 )
                 identity = _identity(target.pid)
+                gate_started = time.monotonic()
                 while target.poll() is None:
                     tick = time.monotonic()
+                    if tick - gate_started >= timeout_seconds:
+                        classification = "TIMEOUT"
+                        cleanup = terminate_attributed(target, identity, classification, policy)
+                        break
                     try:
                         sequence += 1
                         current = sample_with_deadline(sequence, gate_id, "gate")
@@ -531,6 +537,7 @@ def run_guarded(
             else "FAIL"
         ),
         "policy": asdict(policy),
+        "timeout_seconds": timeout_seconds,
         "sample_count": len(samples),
         "peak_system_used_bytes": peak_system,
         "peak_aggregate_rss_bytes": peak_aggregate,
@@ -594,6 +601,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--telemetry", type=Path, required=True)
     run.add_argument("--pid-ledger", type=Path, required=True)
     run.add_argument("--log", type=Path, required=True)
+    run.add_argument("--timeout-seconds", type=float, default=3600)
     run.add_argument("command", nargs=argparse.REMAINDER)
     return parser
 
@@ -616,6 +624,7 @@ def main() -> int:
         telemetry_path=args.telemetry,
         pid_ledger_path=args.pid_ledger,
         log_path=args.log,
+        timeout_seconds=args.timeout_seconds,
     )
     print(json.dumps({"gate_id": result["gate_id"], "verdict": result["verdict"]}))
     return 0 if result["verdict"] == "PASS" else 1

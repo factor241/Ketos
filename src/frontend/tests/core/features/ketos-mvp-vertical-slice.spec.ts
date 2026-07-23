@@ -811,7 +811,7 @@ test(
     ).toBe(true);
 
     // 8. Restore the exact server-owned board state after both restarts.
-    await page.goto(boardUrl);
+    await page.goto(boardUrl, { waitUntil: "commit" });
     await expect(
       page.getByRole("heading", { name: "Ketos MVP vertical slice" }),
     ).toBeVisible();

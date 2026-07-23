@@ -421,6 +421,52 @@ def test_ram_guard_aggregate_rss_records_unreadable_process(
     assert guard._aggregate_rss() == (123, 1, 1)
 
 
+def test_ram_guard_timeout_stops_only_owned_group(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    guard = load_module("stage10_guard_timeout", RAM_GUARD)
+    evidence = tmp_path / "guard"
+    evidence.mkdir()
+    monkeypatch.setattr(guard, "_git_clean", lambda *_args: True)
+    monkeypatch.setattr(
+        guard,
+        "_recovery_admission",
+        lambda **_kwargs: (True, False, 0, []),
+    )
+    monkeypatch.setattr(
+        guard,
+        "sample_with_deadline",
+        lambda sequence, gate_id, phase: {
+            "schema": "ketos.stage10.memory-sample.v1",
+            "sequence": sequence,
+            "gate_id": gate_id,
+            "phase": phase,
+            "system_used_bytes": 1,
+            "aggregate_rss_bytes": 1,
+            "critical_memory_pressure": False,
+        },
+    )
+
+    result = guard.run_guarded(
+        cwd=ROOT,
+        expected_sha=SHA,
+        gate_id="timeout",
+        command=[sys.executable, "-c", "import time; time.sleep(30)"],
+        result_path=evidence / "result.json",
+        telemetry_path=evidence / "telemetry.jsonl",
+        pid_ledger_path=evidence / "pid-ledger.json",
+        log_path=evidence / "gate.log",
+        policy=guard.Policy(sample_interval_seconds=0.01, tail_seconds=0),
+        timeout_seconds=0.05,
+    )
+
+    assert result["classification"] == "TIMEOUT"
+    assert result["verdict"] == "FAIL"
+    assert result["cleanup"]["term_sent"] is True
+    assert result["cleanup"]["survivors"] == []
+
+
 def test_sealer_rejects_wrong_control_and_manifest_checksum(tmp_path: Path) -> None:
     sealer = load_module("stage10_sealer", SEALER)
     bundle = make_bundle(tmp_path)

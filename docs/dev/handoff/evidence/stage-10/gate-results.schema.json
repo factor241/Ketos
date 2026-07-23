@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ketos.test/evidence/stage-10/gate-results.schema.json",
+  "title": "Ketos Stage 10 Gate Results",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema",
+    "s10_code_sha",
+    "owner",
+    "retention_policy",
+    "started_at",
+    "ended_at",
+    "command",
+    "cwd",
+    "exit_code",
+    "verdict",
+    "source_clean_before",
+    "source_clean_after",
+    "source_sha_unchanged",
+    "tasks",
+    "gates"
+  ],
+  "properties": {
+    "schema": {"const": "ketos.stage10.gate-results.v1"},
+    "s10_code_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "owner": {"type": "string", "minLength": 1},
+    "retention_policy": {"type": "string", "minLength": 1},
+    "started_at": {"type": "string", "format": "date-time"},
+    "ended_at": {"type": "string", "format": "date-time"},
+    "command": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "cwd": {"type": "string", "minLength": 1},
+    "exit_code": {"const": 0},
+    "verdict": {"const": "PASS"},
+    "source_clean_before": {"const": true},
+    "source_clean_after": {"const": true},
+    "source_sha_unchanged": {"const": true},
+    "tasks": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "commit_sha",
+          "changed_paths",
+          "command",
+          "cwd",
+          "started_at",
+          "ended_at",
+          "exit_code",
+          "verdict",
+          "evidence"
+        ],
+        "properties": {
+          "id": {"type": "string", "pattern": "^task-a(?:0[1-9]|10)$"},
+          "commit_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+          "changed_paths": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+          "command": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "cwd": {"type": "string", "minLength": 1},
+          "started_at": {"type": "string", "format": "date-time"},
+          "ended_at": {"type": "string", "format": "date-time"},
+          "exit_code": {"const": 0},
+          "verdict": {"const": "PASS"},
+          "evidence": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "gates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "s10_code_sha",
+          "command",
+          "cwd",
+          "started_at",
+          "ended_at",
+          "exit_code",
+          "skip_count",
+          "peak_system_used_bytes",
+          "telemetry_sequence_start",
+          "telemetry_sequence_end",
+          "post_gate_tail_seconds",
+          "verdict",
+          "evidence"
+        ],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "s10_code_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+          "command": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "cwd": {"type": "string", "minLength": 1},
+          "started_at": {"type": "string", "format": "date-time"},
+          "ended_at": {"type": "string", "format": "date-time"},
+          "exit_code": {"const": 0},
+          "skip_count": {"const": 0},
+          "peak_system_used_bytes": {"type": "integer", "minimum": 0, "exclusiveMaximum": 16000000000},
+          "telemetry_sequence_start": {"type": "integer", "minimum": 1},
+          "telemetry_sequence_end": {"type": "integer", "minimum": 1},
+          "post_gate_tail_seconds": {"const": 30},
+          "verdict": {"const": "PASS"},
+          "evidence": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ketos.test/evidence/stage-10/live-ai-smoke.schema.json",
+  "title": "Ketos Stage 10 Live AI Smoke",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema",
+    "s10_code_sha",
+    "owner",
+    "retention_policy",
+    "started_at",
+    "ended_at",
+    "command",
+    "cwd",
+    "exit_code",
+    "verdict",
+    "provider_adapter",
+    "provider_upstream",
+    "model",
+    "base_url",
+    "raw_content_retained",
+    "ketos_provider_config",
+    "direct_preflight",
+    "ketos_live",
+    "db_correlation"
+  ],
+  "properties": {
+    "schema": {"const": "ketos.stage10.live-ai-smoke.v1"},
+    "s10_code_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "owner": {"type": "string", "minLength": 1},
+    "retention_policy": {"type": "string", "minLength": 1},
+    "started_at": {"type": "string", "format": "date-time"},
+    "ended_at": {"type": "string", "format": "date-time"},
+    "command": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "cwd": {"type": "string", "minLength": 1},
+    "exit_code": {"const": 0},
+    "verdict": {"const": "PASS"},
+    "provider_adapter": {"const": "OpenAI"},
+    "provider_upstream": {"const": "CometAPI"},
+    "model": {"const": "deepseek-v4-flash"},
+    "base_url": {"const": "https://api.cometapi.com/v1"},
+    "raw_content_retained": {"const": false},
+    "ketos_provider_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["variables_creation_order", "variables_api", "check_config", "provider_adapter", "model"],
+      "properties": {
+        "variables_creation_order": {"const": ["OPENAI_BASE_URL", "OPENAI_API_KEY"]},
+        "variables_api": {"const": "PASS"},
+        "check_config": {"const": "PASS"},
+        "provider_adapter": {"const": "OpenAI"},
+        "model": {"const": "deepseek-v4-flash"}
+      }
+    },
+    "direct_preflight": {
+      "type": "object",
+      "required": ["models_status", "reply_status", "typed_tool_status", "tool_followup_status"],
+      "properties": {
+        "models_status": {"const": "PASS"},
+        "reply_status": {"const": "PASS"},
+        "typed_tool_status": {"const": "PASS"},
+        "tool_followup_status": {"const": "PASS"}
+      }
+    },
+    "ketos_live": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["reply", "reject", "approve"],
+      "properties": {
+        "reply": {
+          "type": "object",
+          "required": ["durable_assistant_commits"],
+          "properties": {"durable_assistant_commits": {"const": 1}}
+        },
+        "reject": {
+          "type": "object",
+          "required": ["flow_effects", "outcome"],
+          "properties": {"flow_effects": {"const": 0}, "outcome": {"const": "rejected"}}
+        },
+        "approve": {
+          "type": "object",
+          "required": ["flow_effects", "outcome"],
+          "properties": {"flow_effects": {"const": 1}, "outcome": {"const": "applied"}}
+        }
+      }
+    },
+    "db_correlation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reply_chat_runs",
+        "reply_message_commits",
+        "reject_proposals",
+        "reject_message_commits",
+        "approve_proposals",
+        "approve_message_commits",
+        "distinct_proposal_ids"
+      ],
+      "properties": {
+        "reply_chat_runs": {"const": 1},
+        "reply_message_commits": {"const": 1},
+        "reject_proposals": {"const": 1},
+        "reject_message_commits": {"const": 1},
+        "approve_proposals": {"const": 1},
+        "approve_message_commits": {"const": 1},
+        "distinct_proposal_ids": {"const": true}
+      }
+    }
+  }
+}

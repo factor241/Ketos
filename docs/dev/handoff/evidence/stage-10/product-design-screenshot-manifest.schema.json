@@ -1,13 +1,15 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.ketos.test/evidence/stage-10/screenshot-manifest.schema.json",
-  "title": "Stage 10 Screenshot Manifest",
+  "$id": "https://schemas.ketos.test/evidence/stage-10/product-design-screenshot-manifest.schema.json",
+  "title": "Stage 10 Product Design Screenshot Manifest",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "stage",
     "artifact_kind",
-    "code_sha",
+    "s10_code_sha",
+    "owner",
+    "retention_policy",
     "generated_at",
     "viewport",
     "screenshots",
@@ -19,11 +21,19 @@
       "const": 10
     },
     "artifact_kind": {
-      "const": "screenshot-manifest"
+      "const": "product-design-screenshot-manifest"
     },
-    "code_sha": {
+    "s10_code_sha": {
       "type": "string",
       "pattern": "^[0-9a-f]{40}$"
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "retention_policy": {
+      "type": "string",
+      "minLength": 1
     },
     "generated_at": {
       "type": "string",

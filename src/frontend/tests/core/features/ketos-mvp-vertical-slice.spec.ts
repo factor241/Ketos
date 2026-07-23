@@ -1,16 +1,19 @@
+import { type ChildProcess, execFileSync, spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   appendFileSync,
   chmodSync,
+  closeSync,
   existsSync,
+  fsyncSync,
+  linkSync,
   mkdirSync,
-  renameSync,
+  openSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { spawn, type ChildProcess } from "node:child_process";
-import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
 import type { Page } from "@playwright/test";
 
 import { expect, test } from "../../fixtures";
@@ -55,6 +58,16 @@ function requireEnvironment() {
     throw new Error(
       "KETOS_MVP_RUN_DIR, KETOS_DATABASE_URL, KETOS_DATA_DIR, and " +
         "KETOS_STAGE10_ENTITY_LEDGER are required",
+    );
+  }
+  if (
+    process.env.KETOS_STAGE10_ACCEPTANCE_MODE === "1" &&
+    (!process.env.S10_CODE_SHA ||
+      !process.env.KETOS_MVP_EVIDENCE_OWNER ||
+      !process.env.KETOS_MVP_EVIDENCE_RETENTION_POLICY)
+  ) {
+    throw new Error(
+      "acceptance mode requires S10_CODE_SHA, evidence owner, and retention policy",
     );
   }
   return { runRoot, databaseUrl, dataDir, ledgerPath };
@@ -512,7 +525,17 @@ function writeLedger(payload: Record<string, Json>) {
     mode: 0o600,
   });
   chmodSync(temporary, 0o600);
-  renameSync(temporary, target);
+  const descriptor = openSync(temporary, "r");
+  try {
+    fsyncSync(descriptor);
+  } finally {
+    closeSync(descriptor);
+  }
+  try {
+    linkSync(temporary, target);
+  } finally {
+    unlinkSync(temporary);
+  }
   chmodSync(target, 0o600);
 }
 
@@ -530,6 +553,7 @@ test(
   },
   async ({ page }) => {
     const env = requireEnvironment();
+    const startedAt = new Date().toISOString();
     await awaitBootstrapTest(page, { skipModal: true });
     await page.setViewportSize({ width: 1440, height: 900 });
     const whoAmI = await page.request.get("/api/v1/users/whoami");
@@ -863,7 +887,43 @@ test(
     }
 
     writeLedger({
-      schema: "ketos.stage10.entity-ledger.dev.v1",
+      schema: "ketos.stage10.entity-ledger.v1",
+      s10_code_sha:
+        process.env.S10_CODE_SHA ??
+        execFileSync("/usr/bin/git", ["rev-parse", "HEAD"], {
+          cwd: repositoryRoot,
+          encoding: "utf8",
+        }).trim(),
+      owner: process.env.KETOS_MVP_EVIDENCE_OWNER ?? "development",
+      retention_policy:
+        process.env.KETOS_MVP_EVIDENCE_RETENTION_POLICY ?? "development-only",
+      started_at: startedAt,
+      ended_at: new Date().toISOString(),
+      command: [
+        "./node_modules/.bin/playwright",
+        "test",
+        "-c",
+        "playwright.mvp.config.ts",
+        "tests/core/features/ketos-mvp-vertical-slice.spec.ts",
+        "--project=chromium",
+        "--workers=1",
+      ],
+      cwd: frontendRoot,
+      exit_code: 0,
+      verdict: "PASS",
+      acceptance_run_redacted: "$KETOS_STAGE10_ACCEPTANCE_RUN_DIR",
+      entities: [
+        { kind: "Project", id: project.id, revision: project.revision },
+        { kind: "Board", id: board.id, revision: board.revision },
+        { kind: "BoardNote", id: noteCreate.note.id, revision: note.revision },
+        { kind: "ChatThread", id: chatA.id },
+        { kind: "ChatThread", id: chatB.id },
+        { kind: "Flow", id: flow.id, revision: flow.revision },
+        { kind: "Job", id: run.job_id },
+        { kind: "CommandProposal", id: rejectedProposalId },
+        { kind: "CommandProposal", id: approvedProposalId },
+        { kind: "Placement", id: resultPlacement?.id ?? "" },
+      ],
       project_id: project.id,
       board_id: board.id,
       note_id: noteCreate.note.id,

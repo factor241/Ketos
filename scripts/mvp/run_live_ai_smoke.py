@@ -289,9 +289,7 @@ def _group_members(pgid: int) -> list[dict[str, Any]]:
                     "pid": process.pid,
                     "ppid": process.ppid(),
                     "started_at_epoch": process.create_time(),
-                    "command_sha256": hashlib.sha256(
-                        "\0".join(process.cmdline()).encode()
-                    ).hexdigest(),
+                    "command_sha256": hashlib.sha256("\0".join(process.cmdline()).encode()).hexdigest(),
                 }
             )
         except (OSError, psutil.Error):
@@ -357,9 +355,7 @@ def bind_ag_ui_access_token(
         raise RuntimeError("auto-login returned no access token")
     client.headers["Authorization"] = f"Bearer {access_token}"
     forbidden = [
-        (cookie.domain, cookie.path, cookie.name)
-        for cookie in client.cookies.jar
-        if cookie.name == "apikey_tkn_lflw"
+        (cookie.domain, cookie.path, cookie.name) for cookie in client.cookies.jar if cookie.name == "apikey_tkn_lflw"
     ]
     for domain, path, name in forbidden:
         client.cookies.jar.clear(domain, path, name)
@@ -408,9 +404,7 @@ def _post_ag_ui(
 
 def _assistant_text(events: Sequence[Mapping[str, Any]]) -> str:
     chunks = [
-        str(event.get("delta", ""))
-        for event in events
-        if str(event.get("type", "")).upper() == "TEXT_MESSAGE_CONTENT"
+        str(event.get("delta", "")) for event in events if str(event.get("type", "")).upper() == "TEXT_MESSAGE_CONTENT"
     ]
     value = "".join(chunks).strip()
     if not value:
@@ -442,11 +436,7 @@ def _inspect_chat_run(
             if len(runs) != 1:
                 raise RuntimeError("expected exactly one durable ChatRun")
             run = runs[0]
-            proposals = list(
-                session.exec(
-                    select(CommandProposal).where(CommandProposal.chat_run_id == run.id)
-                ).all()
-            )
+            proposals = list(session.exec(select(CommandProposal).where(CommandProposal.chat_run_id == run.id)).all())
             assistant_messages = len(
                 session.exec(
                     select(MessageTable).where(
@@ -705,16 +695,10 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
                 raise RuntimeError("Variables API did not persist the provider contract")
 
             config = _request_json(client, "GET", "/api/v1/agentic/check-config")
-            providers = {
-                item.get("name"): item
-                for item in config.get("providers", [])
-                if isinstance(item, dict)
-            }
+            providers = {item.get("name"): item for item in config.get("providers", []) if isinstance(item, dict)}
             openai_config = providers.get(PROVIDER_ADAPTER)
             available_models = {
-                item.get("name")
-                for item in (openai_config or {}).get("models", [])
-                if isinstance(item, dict)
+                item.get("name") for item in (openai_config or {}).get("models", []) if isinstance(item, dict)
             }
             if (
                 not config.get("configured")
@@ -735,10 +719,7 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
                     "model_name": LIVE_MODEL,
                 },
             )
-            if (
-                patched_chat["provider"] != PROVIDER_ADAPTER
-                or patched_chat["model_name"] != LIVE_MODEL
-            ):
+            if patched_chat["provider"] != PROVIDER_ADAPTER or patched_chat["model_name"] != LIVE_MODEL:
                 raise RuntimeError("Chat provider/model patch was not committed")
 
             messages_before = _request_json(client, "GET", f"/api/v1/chats/{chat_id}/messages")
@@ -911,6 +892,17 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
     evidence = {
         "schema": "ketos.stage10.live-ai-smoke.v1",
         "s10_code_sha": code_sha,
+        "owner": os.environ.get("KETOS_MVP_EVIDENCE_OWNER", "development"),
+        "retention_policy": os.environ.get("KETOS_MVP_EVIDENCE_RETENTION_POLICY", "development-only"),
+        "command": [
+            "uv",
+            "run",
+            "python",
+            "scripts/mvp/run_live_ai_smoke.py",
+            "<redacted-arguments>",
+        ],
+        "cwd": str(REPO_ROOT),
+        "exit_code": 0,
         "started_at": started_at,
         "ended_at": utc_now(),
         "verdict": "PASS",
@@ -924,6 +916,13 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
         "chat_id": chat_id,
         "flow_id": flow_id,
         "canonical_saver": str(saver_path) if saver_path else None,
+        "ketos_provider_config": {
+            "variables_creation_order": ["OPENAI_BASE_URL", "OPENAI_API_KEY"],
+            "variables_api": "PASS",
+            "check_config": "PASS",
+            "provider_adapter": PROVIDER_ADAPTER,
+            "model": LIVE_MODEL,
+        },
         "direct_preflight": direct,
         "ketos_live": {
             "reply": {
@@ -969,6 +968,15 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
             "term_sent": cleanup["term_sent"],
             "kill_sent": cleanup["kill_sent"],
             "survivor_count": len(cleanup["survivors"]),
+        },
+        "db_correlation": {
+            "reply_chat_runs": 1,
+            "reply_message_commits": 1,
+            "reject_proposals": 1,
+            "reject_message_commits": 1,
+            "approve_proposals": 1,
+            "approve_message_commits": 1,
+            "distinct_proposal_ids": approved.id != rejected.id,
         },
         "secret_file_retained": True,
         "raw_content_retained": False,

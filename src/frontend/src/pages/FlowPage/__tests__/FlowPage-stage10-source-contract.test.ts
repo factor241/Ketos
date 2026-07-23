@@ -33,7 +33,9 @@ describe("Stage 10 board-to-flow editor source contract", () => {
     expect(openEditorSource).toMatch(
       /buildAutomationEditorUrl\(\s*flowId\s*,\s*\{\s*boardId\s*,\s*placementId\s*\}\s*\)/,
     );
-    expect(routeSource).toMatch(/\/flow\/\$\{flowId\}/);
+    expect(routeSource).toContain(
+      '["", "flow", encodeURIComponent(flowId)].join("/")',
+    );
     expect(routeSource).toMatch(/\breturnBoardId\b/);
     expect(routeSource).toMatch(/\breturnPlacementId\b/);
     expect(routeSource).toMatch(/\bparseAutomationEditorReturnRef\b/);

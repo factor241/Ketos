@@ -491,12 +491,20 @@ test(
     const env = requireEnvironment();
     await awaitBootstrapTest(page, { skipModal: true });
     await page.setViewportSize({ width: 1440, height: 900 });
+    const whoAmI = await page.request.get("/api/v1/users/whoami");
+    expect(whoAmI.ok(), await whoAmI.text()).toBeTruthy();
+    const actor = (await whoAmI.json()) as Entity;
+    const locale = await page.request.patch(`/api/v1/users/${actor.id}`, {
+      data: { preferred_locale: "en" },
+    });
+    expect(locale.ok(), await locale.text()).toBeTruthy();
 
     // 1. Project and Board.
     const project = await createProject(page);
     const board = await createBoard(page, project.id);
     const boardUrl = `/project/${project.id}/board/${board.id}`;
     await page.goto(boardUrl);
+    await expect(page).toHaveURL(new RegExp(`${boardUrl}$`));
     await expect(
       page.getByRole("heading", { name: "Ketos MVP vertical slice" }),
     ).toBeVisible();
@@ -504,40 +512,46 @@ test(
     // 2. Durable edited/moved Note with sanitized Markdown rendering.
     const markdown =
       "**Stage 10 bold**\n\n- one\n- two\n\n[Ketos](https://example.com)";
-    const noteResponse = page.waitForResponse(
-      (response) =>
-        response.request().method() === "POST" &&
-        new URL(response.url()).pathname ===
-          `/api/v1/boards/${board.id}/board-notes` &&
-        response.status() === 201,
-    );
-    await page.getByRole("button", { name: "Add note" }).click();
-    const noteCreate = (await (await noteResponse).json()) as {
+    const [noteResponse] = await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          new URL(response.url()).pathname ===
+            `/api/v1/boards/${board.id}/board-notes` &&
+          response.status() === 201,
+      ),
+      page.getByRole("button", { name: /Add note|Добавить заметку/ }).click(),
+    ]);
+    const noteCreate = (await noteResponse.json()) as {
       note: Entity;
       placement: Placement;
     };
     const noteCard = page.getByRole("region", { name: "Note" });
     await expect(noteCard).toBeVisible();
     await noteCard.getByRole("textbox", { name: "Edit note" }).fill(markdown);
-    const notePatch = page.waitForResponse(
-      (response) =>
-        response.request().method() === "PATCH" &&
-        new URL(response.url()).pathname ===
-          `/api/v1/board-notes/${noteCreate.note.id}` &&
-        response.ok(),
-    );
-    await noteCard.getByRole("button", { name: "Save note" }).click();
-    const note = (await (await notePatch).json()) as Entity;
-    const placementPatch = page.waitForResponse(
-      (response) =>
-        response.request().method() === "PATCH" &&
-        new URL(response.url()).pathname ===
-          `/api/v1/placements/${noteCreate.placement.id}` &&
-        response.ok(),
-    );
+    const [notePatch] = await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          response.request().method() === "PATCH" &&
+          new URL(response.url()).pathname ===
+            `/api/v1/board-notes/${noteCreate.note.id}` &&
+          response.ok(),
+      ),
+      noteCard.getByRole("button", { name: "Save note" }).click(),
+    ]);
+    const note = (await notePatch.json()) as Entity;
     await noteCard.focus();
-    await page.keyboard.press("Alt+ArrowRight");
-    const notePlacement = (await (await placementPatch).json()) as Placement;
+    const [placementPatch] = await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          response.request().method() === "PATCH" &&
+          new URL(response.url()).pathname ===
+            `/api/v1/placements/${noteCreate.placement.id}` &&
+          response.ok(),
+      ),
+      page.keyboard.press("Alt+ArrowRight"),
+    ]);
+    const notePlacement = (await placementPatch.json()) as Placement;
     await page.reload();
     const restoredNoteCard = page.getByRole("region", { name: "Note" });
     await expect(restoredNoteCard).toBeVisible();
@@ -607,14 +621,15 @@ test(
     await expect(page.locator("#react-flow-id")).toBeVisible();
     await page.getByTestId("flow_name").click();
     await page.getByTestId("input-flow-name").fill("Stage 10 Manually Saved");
-    const flowSaved = page.waitForResponse(
-      (response) =>
-        response.request().method() === "PATCH" &&
-        new URL(response.url()).pathname === `/api/v1/flows/${flow.id}` &&
-        response.ok(),
-    );
-    await page.getByTestId("save-flow-settings").click();
-    await flowSaved;
+    await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          response.request().method() === "PATCH" &&
+          new URL(response.url()).pathname === `/api/v1/flows/${flow.id}` &&
+          response.ok(),
+      ),
+      page.getByTestId("save-flow-settings").click(),
+    ]);
     await page.getByTestId("return-to-board").click();
     await expect(page).toHaveURL(new RegExp(`${board.id}`));
     await expect(
@@ -625,31 +640,31 @@ test(
     const automationCard = page.locator(
       `[data-id="${automation.id}"] > section`,
     );
-    const runResponse = page.waitForResponse(
-      (response) =>
-        response.request().method() === "POST" &&
-        new URL(response.url()).pathname ===
-          `/api/v1/boards/${board.id}/automations/${flow.id}/runs`,
-    );
-    await automationCard.getByRole("button", { name: "Run" }).click();
-    const run = (await (await runResponse).json()) as Run;
+    const [runResponse] = await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          new URL(response.url()).pathname ===
+            `/api/v1/boards/${board.id}/automations/${flow.id}/runs`,
+      ),
+      automationCard.getByRole("button", { name: "Run" }).click(),
+    ]);
+    const run = (await runResponse.json()) as Run;
     await expect(automationCard).toContainText("Succeeded", {
       timeout: 60_000,
     });
-    const resultPlacement = await expect
+    await expect
       .poll(async () =>
-        (await placements(page, board.id)).find(
+        (await placements(page, board.id)).some(
           (item) =>
             item.target_kind === "job_result" && item.target_id === run.job_id,
         ),
       )
-      .not.toBeUndefined()
-      .then(async () =>
-        (await placements(page, board.id)).find(
-          (item) =>
-            item.target_kind === "job_result" && item.target_id === run.job_id,
-        ),
-      );
+      .toBe(true);
+    const resultPlacement = (await placements(page, board.id)).find(
+      (item) =>
+        item.target_kind === "job_result" && item.target_id === run.job_id,
+    );
     expect(resultPlacement).toBeDefined();
 
     // 6. Reject one server proposal, then approve one fresh proposal.
@@ -741,7 +756,7 @@ test(
     ).toBe(true);
 
     // 9. The single account Settings entry returns to the exact Board URL.
-    await page.getByTestId("user-profile-settings").click();
+    await page.getByTestId("user_menu_button").click();
     await expect(page.getByTestId("menu_settings_button")).toHaveCount(1);
     await page.getByTestId("menu_settings_button").click();
     await expect(page).toHaveURL(/\/settings\/(?:general|global-variables)/);

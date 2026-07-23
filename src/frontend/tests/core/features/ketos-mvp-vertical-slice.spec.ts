@@ -694,7 +694,7 @@ test(
       (await rejectConfirmation.getAttribute("data-proposal-id")) ?? "";
     await rejectConfirmation.getByRole("button", { name: "Reject" }).click();
     await expect(
-      governed.getByText("The authoritative command result was recorded."),
+      governed.getByText("The flow changes were rejected."),
     ).toBeVisible({ timeout: 60_000 });
     flow = (await (
       await page.request.get(`/api/v1/flows/${flow.id}`)
@@ -716,7 +716,7 @@ test(
       .getByRole("button", { name: "Apply changes" })
       .click();
     await expect(
-      approveCard.getByText("The authoritative command result was recorded."),
+      approveCard.getByText("The server applied the flow changes."),
     ).toBeVisible({ timeout: 60_000 });
     flow = (await (
       await page.request.get(`/api/v1/flows/${flow.id}`)

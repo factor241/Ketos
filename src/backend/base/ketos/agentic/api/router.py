@@ -102,6 +102,7 @@ def create_stage09_recovery_before_dispatch(
 
     inspector = CommandCheckpointInspector()
     recovery_resolution_lock = asyncio.Lock()
+    recovered_interrupts: set[tuple[str, str]] = set()
 
     async def before_dispatch(
         input_data: "RunAgentInput",
@@ -117,6 +118,15 @@ def create_stage09_recovery_before_dispatch(
             chat_id = UUID(input_data.thread_id)
         except (TypeError, ValueError) as exc:
             raise HTTPException(status_code=403, detail="Invalid AG-UI recovery owner binding") from exc
+
+        recovery_key: tuple[str, str] | None = None
+        if rejection is not None:
+            recovery_key = (str(chat_id), rejection[0])
+            async with recovery_resolution_lock:
+                is_recovered_interrupt = recovery_key in recovered_interrupts
+            if not is_recovered_interrupt:
+                await original_before_dispatch(input_data, request, request_agent)
+                return
 
         if rejection is None:
             open_interrupts = await inspector.open_interrupts(checkpointer, str(chat_id))
@@ -168,6 +178,8 @@ def create_stage09_recovery_before_dispatch(
                     outcome=RunFinishedInterruptOutcome(interrupts=[interrupt]),
                 )
 
+            async with recovery_resolution_lock:
+                recovered_interrupts.add((str(chat_id), proof.interrupt_id))
             request_agent.run = recovered_pending_run  # type: ignore[method-assign]
             return
 
@@ -208,6 +220,8 @@ def create_stage09_recovery_before_dispatch(
                     owner_id=actor_id,
                     chat_id=chat_id,
                 )
+            if recovery_key is not None:
+                recovered_interrupts.discard(recovery_key)
 
         async def recovered_run(_input: "RunAgentInput"):
             yield RunStartedEvent(threadId=str(chat_id), runId=input_data.run_id)

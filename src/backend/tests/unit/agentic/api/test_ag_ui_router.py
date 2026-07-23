@@ -3,7 +3,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import ANY, AsyncMock
 from uuid import UUID
 
 import pytest
@@ -17,6 +17,7 @@ from ag_ui.core.events import (
     TextMessageStartEvent,
 )
 from fastapi import HTTPException
+from ketos.agentic.api.router import create_stage09_recovery_before_dispatch
 from ketos.agentic.services.ag_ui import durable_chat
 from ketos.agentic.services.ag_ui.auth import AG_UI_ACTOR_STATE_KEY
 from ketos.agentic.services.ag_ui.durable_chat import (
@@ -28,7 +29,10 @@ from ketos.agentic.services.ag_ui.durable_chat import (
     request_fingerprint,
     validate_client_authority,
 )
+from ketos.services.chat_threads import messages as chat_messages
 from ketos.services.chat_threads.repository import ChatIdempotencyConflictError
+from ketos.services.commands import recovery as command_recovery
+from ketos.services.commands import service as command_service
 from ketos.services.database.models.chat_thread.model import ChatRunStatus
 from starlette.requests import Request
 
@@ -183,6 +187,148 @@ def _request() -> Request:
     request = Request({"type": "http", "method": "POST", "path": "/ag-ui", "headers": []})
     setattr(request.state, AG_UI_ACTOR_STATE_KEY, str(ACTOR_ID))
     return request
+
+
+@pytest.mark.asyncio
+async def test_s10_live_single_rejection_delegates_to_langgraph(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inspector = SimpleNamespace(
+        open_interrupts=AsyncMock(
+            side_effect=AssertionError("live rejection must not enter restart recovery"),
+        ),
+    )
+    monkeypatch.setattr(
+        command_recovery,
+        "CommandCheckpointInspector",
+        lambda: inspector,
+    )
+    original_before_dispatch = AsyncMock()
+    hook = create_stage09_recovery_before_dispatch(
+        original_before_dispatch,
+        checkpointer=object(),  # type: ignore[arg-type]
+    )
+    live_rejection = _input(
+        run_id="resume-live-rejection",
+        resume=[
+            {
+                "interruptId": "interrupt-live",
+                "status": "resolved",
+                "payload": {"approved": False},
+            },
+        ],
+    )
+
+    await hook(live_rejection, _request(), _Agent([]))  # type: ignore[arg-type]
+
+    original_before_dispatch.assert_awaited_once_with(
+        live_rejection,
+        ANY,
+        ANY,
+    )
+    inspector.open_interrupts.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_s10_restart_recovery_rejection_uses_marked_interrupt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    proposal_id = UUID("40000000-0000-0000-0000-000000000001")
+    interrupt_id = "interrupt-recovered"
+    proof = SimpleNamespace(
+        proposal_id=proposal_id,
+        interrupt_id=interrupt_id,
+        value={
+            "reason": "confirmation",
+            "message": "Review",
+            "responseSchema": {
+                "type": "object",
+                "properties": {"approved": {"type": "boolean"}},
+                "required": ["approved"],
+                "additionalProperties": False,
+            },
+            "metadata": {
+                "type": "ketos.flow-command-confirmation.v1",
+                "proposalId": str(proposal_id),
+                "proposalHash": "a" * 64,
+                "preview": {},
+            },
+        },
+    )
+    inspector = SimpleNamespace(
+        open_interrupts=AsyncMock(return_value=(proof,)),
+    )
+    monkeypatch.setattr(
+        command_recovery,
+        "CommandCheckpointInspector",
+        lambda: inspector,
+    )
+    proposal = SimpleNamespace(id=proposal_id, chat_run_id=RUN_ROW_ID)
+    resolved = SimpleNamespace(id=proposal_id, status="rejected")
+    monkeypatch.setattr(
+        command_service,
+        "load_authorized_proposal",
+        AsyncMock(return_value=proposal),
+    )
+    recover_pending = AsyncMock()
+    resolve_recovered = AsyncMock(return_value=resolved)
+    monkeypatch.setattr(
+        command_recovery,
+        "recover_pending_command",
+        recover_pending,
+    )
+    monkeypatch.setattr(
+        command_recovery,
+        "resolve_recovered_command",
+        resolve_recovered,
+    )
+    monkeypatch.setattr(
+        chat_messages,
+        "build_messages_snapshot",
+        AsyncMock(return_value=SimpleNamespace(messages=())),
+    )
+    session = SimpleNamespace(commit=AsyncMock())
+
+    @asynccontextmanager
+    async def fake_session_scope():
+        yield session
+
+    monkeypatch.setattr("ketos.services.deps.session_scope", fake_session_scope)
+    original_before_dispatch = AsyncMock()
+    hook = create_stage09_recovery_before_dispatch(
+        original_before_dispatch,
+        checkpointer=object(),  # type: ignore[arg-type]
+    )
+
+    pending_agent = _Agent([])
+    await hook(_input(run_id="re-present"), _request(), pending_agent)  # type: ignore[arg-type]
+    pending_events = [event async for event in pending_agent.run(_input())]
+    assert isinstance(pending_events[-1], RunFinishedEvent)
+    assert pending_events[-1].outcome.interrupts[0].id == interrupt_id
+
+    recovered_agent = _Agent([])
+    rejection = _input(
+        run_id="resolve-recovered",
+        resume=[
+            {
+                "interruptId": interrupt_id,
+                "status": "resolved",
+                "payload": {"approved": False},
+            },
+        ],
+    )
+    await hook(rejection, _request(), recovered_agent)  # type: ignore[arg-type]
+    recovered_events = [event async for event in recovered_agent.run(rejection)]
+
+    original_before_dispatch.assert_not_awaited()
+    recover_pending.assert_awaited_once()
+    resolve_recovered.assert_awaited_once()
+    session.commit.assert_awaited_once()
+    assert recovered_events[-1].result == {
+        "proposalId": str(proposal_id),
+        "status": "rejected",
+        "recovered": True,
+    }
 
 
 class _Agent:

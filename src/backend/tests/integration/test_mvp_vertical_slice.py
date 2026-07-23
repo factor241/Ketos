@@ -321,8 +321,8 @@ async def test_note_chat_vertical_slice_persists_entities_and_isolates_threads(
     )
     note, note_placement = await create_note_with_placement(
         async_session,
-        board_id=board.id,
-        actor_id=owner.id,
+        board_id=board_id,
+        actor_id=owner_id,
         note_input=SimpleNamespace(
             content=original_content,
             color="yellow",
@@ -339,6 +339,8 @@ async def test_note_chat_vertical_slice_persists_entities_and_isolates_threads(
     assert isinstance(note, BoardNote)
     assert isinstance(note_placement, Placement)
     original_note_id = note.id
+    original_placement_id = note_placement.id
+    original_placement_revision = note_placement.revision
 
     updated_content = (
         "**Updated Stage 10 note**\n\n"
@@ -348,7 +350,7 @@ async def test_note_chat_vertical_slice_persists_entities_and_isolates_threads(
     updated_note = await update_note_cas(
         async_session,
         note_id=note.id,
-        actor_id=owner.id,
+        actor_id=owner_id,
         expected_revision=note.revision,
         patch=SimpleNamespace(
             content=updated_content,
@@ -369,7 +371,7 @@ async def test_note_chat_vertical_slice_persists_entities_and_isolates_threads(
         await update_note_cas(
             async_session,
             note_id=reloaded_note.id,
-            actor_id=owner.id,
+            actor_id=owner_id,
             expected_revision=reloaded_note.revision,
             patch=SimpleNamespace(
                 content="<script>alert('stage-10')</script>",
@@ -381,7 +383,7 @@ async def test_note_chat_vertical_slice_persists_entities_and_isolates_threads(
         await update_note_cas(
             async_session,
             note_id=reloaded_note.id,
-            actor_id=owner.id,
+            actor_id=owner_id,
             expected_revision=reloaded_note.revision,
             patch=SimpleNamespace(
                 content="[unsafe](javascript:alert('stage-10'))",
@@ -391,17 +393,17 @@ async def test_note_chat_vertical_slice_persists_entities_and_isolates_threads(
 
     await delete_placement_cas(
         async_session,
-        placement_id=note_placement.id,
-        actor_id=owner.id,
-        expected_revision=note_placement.revision,
+        placement_id=original_placement_id,
+        actor_id=owner_id,
+        expected_revision=original_placement_revision,
     )
     preserved_note = await async_session.get(BoardNote, original_note_id)
     assert preserved_note is not None
 
     replacement_note_placement = await create_placement(
         async_session,
-        board_id=board.id,
-        actor_id=owner.id,
+        board_id=board_id,
+        actor_id=owner_id,
         target_kind=PlacementTargetKind.NOTE,
         target_id=preserved_note.id,
         geometry=SimpleNamespace(
@@ -413,12 +415,12 @@ async def test_note_chat_vertical_slice_persists_entities_and_isolates_threads(
         ),
     )
     assert replacement_note_placement.target_id == original_note_id
-    assert replacement_note_placement.id != note_placement.id
+    assert replacement_note_placement.id != original_placement_id
 
     chat_a = ChatThread(
         id=uuid4(),
-        project_id=project.id,
-        created_by_id=owner.id,
+        project_id=project_id,
+        created_by_id=owner_id,
         title="Stage 10 Chat A",
         provider="OpenAI",
         model_name="deepseek-v4-flash",
@@ -426,8 +428,8 @@ async def test_note_chat_vertical_slice_persists_entities_and_isolates_threads(
     )
     chat_b = ChatThread(
         id=uuid4(),
-        project_id=project.id,
-        created_by_id=owner.id,
+        project_id=project_id,
+        created_by_id=owner_id,
         title="Stage 10 Chat B",
         provider="OpenAI",
         model_name="deepseek-v4-flash",
@@ -439,7 +441,7 @@ async def test_note_chat_vertical_slice_persists_entities_and_isolates_threads(
     claim_a = await claim_chat_run(
         async_session,
         chat_id=chat_a.id,
-        actor_id=owner.id,
+        actor_id=owner_id,
         ag_ui_run_id=f"s10-run-{uuid4()}",
         idempotency_key=f"s10-idempotency-{uuid4()}",
         request_fingerprint="a" * 64,
@@ -447,7 +449,7 @@ async def test_note_chat_vertical_slice_persists_entities_and_isolates_threads(
     claim_b = await claim_chat_run(
         async_session,
         chat_id=chat_b.id,
-        actor_id=owner.id,
+        actor_id=owner_id,
         ag_ui_run_id=f"s10-run-{uuid4()}",
         idempotency_key=f"s10-idempotency-{uuid4()}",
         request_fingerprint="b" * 64,
@@ -466,40 +468,40 @@ async def test_note_chat_vertical_slice_persists_entities_and_isolates_threads(
         async_session,
         chat_id=chat_a.id,
         chat_run_id=claim_a.run.id,
-        actor_id=owner.id,
+        actor_id=owner_id,
         text="user-message-chat-a",
     )
     await commit_assistant_message(
         async_session,
         chat_id=chat_a.id,
         chat_run_id=claim_a.run.id,
-        actor_id=owner.id,
+        actor_id=owner_id,
         text="assistant-message-chat-a",
     )
     await append_user_message(
         async_session,
         chat_id=chat_b.id,
         chat_run_id=claim_b.run.id,
-        actor_id=owner.id,
+        actor_id=owner_id,
         text="user-message-chat-b",
     )
     await commit_assistant_message(
         async_session,
         chat_id=chat_b.id,
         chat_run_id=claim_b.run.id,
-        actor_id=owner.id,
+        actor_id=owner_id,
         text="assistant-message-chat-b",
     )
 
     snapshot_a = await build_messages_snapshot(
         session=async_session,
-        owner_id=owner.id,
+        owner_id=owner_id,
         chat_id=chat_a.id,
         after_sequence=0,
     )
     snapshot_b = await build_messages_snapshot(
         session=async_session,
-        owner_id=owner.id,
+        owner_id=owner_id,
         chat_id=chat_b.id,
         after_sequence=0,
     )
@@ -523,8 +525,8 @@ async def test_note_chat_vertical_slice_persists_entities_and_isolates_threads(
 
     chat_placement = await create_placement(
         async_session,
-        board_id=board.id,
-        actor_id=owner.id,
+        board_id=board_id,
+        actor_id=owner_id,
         target_kind=PlacementTargetKind.CHAT,
         target_id=chat_a.id,
         geometry=SimpleNamespace(
@@ -538,7 +540,7 @@ async def test_note_chat_vertical_slice_persists_entities_and_isolates_threads(
     await delete_placement_cas(
         async_session,
         placement_id=chat_placement.id,
-        actor_id=owner.id,
+        actor_id=owner_id,
         expected_revision=chat_placement.revision,
     )
 
@@ -548,8 +550,8 @@ async def test_note_chat_vertical_slice_persists_entities_and_isolates_threads(
 
     replacement_chat_placement = await create_placement(
         async_session,
-        board_id=board.id,
-        actor_id=owner.id,
+        board_id=board_id,
+        actor_id=owner_id,
         target_kind=PlacementTargetKind.CHAT,
         target_id=preserved_chat.id,
         geometry=SimpleNamespace(

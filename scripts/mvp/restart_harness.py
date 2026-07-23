@@ -27,6 +27,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import Barrier
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -307,6 +308,56 @@ class ApiClient:
         if not isinstance(error, dict):
             raise HarnessError(f"AG-UI resume HTTP {status} error is not an object")
         return AgUiResumeResponse(status=status, events=[], error=error)
+
+    def present_recovered_interrupt(
+        self,
+        *,
+        chat_id: str,
+        project_id: str,
+        run_id: str,
+    ) -> list[dict[str, Any]]:
+        if self.access_token is None:
+            raise HarnessError("AG-UI recovery presentation requires an authenticated access token")
+        payload = {
+            "threadId": chat_id,
+            "runId": run_id,
+            "state": {"projectId": project_id},
+            "messages": [],
+            "tools": [],
+            "context": [],
+            "forwardedProps": {},
+            "resume": [],
+        }
+        request = urllib.request.Request(  # noqa: S310 - fixed loopback origin
+            self.base_url + "/api/v1/agentic/ag-ui",
+            data=json.dumps(payload).encode("utf-8"),
+            method="POST",
+            headers={
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json",
+                "Accept": "text/event-stream",
+            },
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - loopback URL
+                status = response.status
+                content_type = response.headers.get_content_type()
+                raw = response.read()
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")[:2000]
+            raise HarnessError(f"AG-UI recovery presentation failed with HTTP {exc.code}: {detail}") from exc
+        if status != HTTP_OK:
+            detail = raw.decode("utf-8", errors="replace")[:2000]
+            raise HarnessError(f"AG-UI recovery presentation expected 200, got {status}: {detail}")
+        if content_type != "text/event-stream":
+            raise HarnessError(
+                f"AG-UI recovery presentation expected text/event-stream, got {content_type}"
+            )
+        return [
+            json.loads(line.removeprefix("data: "))
+            for line in raw.decode("utf-8").splitlines()
+            if line.startswith("data: ")
+        ]
 
 
 def _seed_real_api(client: ApiClient, *, actor_id: str) -> dict[str, str]:
@@ -731,9 +782,38 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         ):
             raise HarnessError("prior-process Board Job did not recover once with backend_restarted")
 
+        presentation_events = client2.present_recovered_interrupt(
+            chat_id=ids["chat_id"],
+            project_id=ids["project_id"],
+            run_id="stage09-recovery-presentation",
+        )
+        presentation_finished = [
+            event for event in presentation_events if event.get("type") == "RUN_FINISHED"
+        ]
+        presentation_outcome = (
+            presentation_finished[0].get("outcome", {}) if len(presentation_finished) == 1 else {}
+        )
+        presentation_interrupts = (
+            presentation_outcome.get("interrupts", [])
+            if isinstance(presentation_outcome, dict)
+            else []
+        )
+        presentation_types = [event.get("type") for event in presentation_events]
+        if (
+            presentation_types != ["RUN_STARTED", "MESSAGES_SNAPSHOT", "RUN_FINISHED"]
+            or presentation_finished[0].get("runId") != "stage09-recovery-presentation"
+            or presentation_outcome.get("type") != "interrupt"
+            or len(presentation_interrupts) != 1
+            or presentation_interrupts[0].get("id") != ids["interrupt_id"]
+        ):
+            raise HarnessError("backend did not re-present the exact persisted interrupt after restart")
+
+        resume_barrier = Barrier(2)
+
         def concurrent_resume(run_id: str) -> AgUiResumeResponse:
             concurrent_client = ApiClient(port)
             concurrent_client.authenticate()
+            resume_barrier.wait(timeout=10)
             return concurrent_client.resume_recovered_interrupt(
                 chat_id=ids["chat_id"],
                 project_id=ids["project_id"],
@@ -757,6 +837,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             or losers[0].error != {"detail": RECOVERY_CLOSED_DETAIL}
             or len(finished) != 1
             or finished[0].get("result", {}).get("status") != "rejected"
+            or finished[0].get("result", {}).get("proposalId") != ids["proposal_id"]
+            or finished[0].get("result", {}).get("recovered") is not True
         ):
             diagnostic = [
                 {
@@ -837,6 +919,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "ag_ui_health_after_restart": True,
             "committed_transcript_replayed": len(after_ledger["messages"]) == EXPECTED_TRANSCRIPT_MESSAGES,
             "pending_proposal_recovered": before_proposal["status"] == "awaiting_confirmation",
+            "pending_proposal_represented": presentation_interrupts[0]["id"] == ids["interrupt_id"],
             "pending_proposal_resolved_once": after_proposal["status"] == "rejected",
             "concurrent_resume_single_winner": len(finished) == 1,
             "concurrent_resume_exact_statuses": sorted(response.status for response in concurrent_results)

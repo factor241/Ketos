@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -21,6 +22,14 @@ def test_real_backend_restart_preserves_canonical_files_and_ids(tmp_path: Path) 
         capture_output=True,
         text=True,
     ).stdout.strip()
+    harness_env = dict(os.environ)
+    harness_env.pop("COMETAPI_KEY", None)
+    harness_env.update(
+        {
+            "OPENAI_API_KEY": "stage10-deterministic-test-key",
+            "OPENAI_BASE_URL": "http://127.0.0.1:9",
+        }
+    )
 
     completed = subprocess.run(  # noqa: S603 - fixed harness argv
         [
@@ -36,6 +45,7 @@ def test_real_backend_restart_preserves_canonical_files_and_ids(tmp_path: Path) 
             str(output),
         ],
         cwd=REPO_ROOT,
+        env=harness_env,
         check=False,
         capture_output=True,
         text=True,
@@ -65,6 +75,7 @@ def test_real_backend_restart_preserves_canonical_files_and_ids(tmp_path: Path) 
         "job_reason_backend_restarted": True,
         "listener_pid1_closed": True,
         "pending_proposal_recovered": True,
+        "pending_proposal_represented": True,
         "pending_proposal_resolved_once": True,
         "prior_process_job_recovered_once": True,
         "replay_rejected_fail_closed": True,

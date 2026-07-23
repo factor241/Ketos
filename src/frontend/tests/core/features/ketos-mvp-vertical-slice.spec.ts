@@ -794,6 +794,8 @@ test(
     // 7. Stop both initial listeners, prove death, and start replacements.
     const backendPid1 = await stopListener(7860);
     const frontendPid1 = await stopListener(3000);
+    await page.goto("about:blank", { waitUntil: "load" });
+    expect(page.url()).toBe("about:blank");
     const backendReplacement = startBackend();
     replacementProcesses.push(backendReplacement);
     await waitHttp("http://127.0.0.1:7860/health");
@@ -812,7 +814,7 @@ test(
 
     // 8. Restore the exact server-owned board state after both restarts.
     const focusedBoardUrl = `${boardUrl}?focusPlacementId=${automation.id}`;
-    await page.goto(focusedBoardUrl);
+    await page.goto(focusedBoardUrl, { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(
       new RegExp(`${boardUrl}\\?focusPlacementId=${automation.id}$`),
     );

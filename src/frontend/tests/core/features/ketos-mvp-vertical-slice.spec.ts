@@ -1,4 +1,5 @@
 import {
+  appendFileSync,
   chmodSync,
   existsSync,
   mkdirSync,
@@ -144,11 +145,30 @@ test.beforeAll(async () => {
       const lastUser = messages[lastUserIndex];
       const prompt = providerText(lastUser?.content);
       const id = `chatcmpl-stage10-${Date.now()}`;
-      if (
-        messages
-          .slice(lastUserIndex + 1)
-          .some((message) => message.role === "tool")
-      ) {
+      const toolAfterLastUser = messages
+        .slice(lastUserIndex + 1)
+        .some((message) => message.role === "tool");
+      appendFileSync(
+        path.join(
+          requireEnvironment().runRoot,
+          "provider-request-shapes.jsonl",
+        ),
+        `${JSON.stringify({
+          sequence: messages.length,
+          roles: messages.map((message) => message.role ?? "unknown"),
+          last_user_index: lastUserIndex,
+          prompt_kind: prompt.startsWith("S10 REJECT")
+            ? "reject"
+            : prompt.startsWith("S10 APPROVE")
+              ? "approve"
+              : prompt.includes("independent B")
+                ? "chat_b"
+                : "chat_a",
+          tool_after_last_user: toolAfterLastUser,
+        })}\n`,
+        { encoding: "utf8", mode: 0o600 },
+      );
+      if (toolAfterLastUser) {
         sendSse(response, [
           completionChunk(
             id,
@@ -214,7 +234,10 @@ test.afterAll(async () => {
   for (const socket of providerSockets) socket.destroy();
   providerSockets.clear();
   providerServer.closeAllConnections();
-  await new Promise<void>((resolve) => providerServer.close(() => resolve()));
+  await Promise.race([
+    new Promise<void>((resolve) => providerServer.close(() => resolve())),
+    new Promise<void>((resolve) => setTimeout(resolve, 2_000)),
+  ]);
 });
 
 function canonical(value: Json): string {
@@ -286,8 +309,16 @@ async function createChat(page: Page, projectId: string, title: string) {
 async function sendChat(page: Page, title: string, prompt: string) {
   await page.getByRole("button", { name: title }).click();
   const card = page.getByRole("region", { name: title });
+  const runResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname ===
+        "/api/copilotkit/agent/ketos-chat/run",
+  );
   await card.getByTestId("copilot-chat-textarea").fill(prompt);
   await card.getByTestId("copilot-send-button").click();
+  const response = await runResponse;
+  expect(response.status(), await response.text()).toBe(200);
   return card;
 }
 

@@ -226,13 +226,13 @@ def create_stage09_recovery_before_dispatch(
                         detail="AG-UI recovery decision is no longer open",
                     ) from exc
                 await session.commit()
+                if recovery_key is not None:
+                    recovered_interrupts[recovery_key] = False
                 snapshot = await build_messages_snapshot(
                     session=session,
                     owner_id=actor_id,
                     chat_id=chat_id,
                 )
-            if recovery_key is not None:
-                recovered_interrupts[recovery_key] = False
 
         async def recovered_run(_input: "RunAgentInput"):
             yield RunStartedEvent(threadId=str(chat_id), runId=input_data.run_id)

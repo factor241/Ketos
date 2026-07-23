@@ -110,6 +110,24 @@ Record command array, cwd, start/end, exit code, skip count, `S10_CODE_SHA`,
 redacted artifact path and verdict for each entry in `gate-results.json`.
 
 ```bash
+uv run python -c '
+import os
+from alembic import command
+from alembic.config import Config
+
+config = Config()
+config.set_main_option("script_location", "src/backend/base/ketos/alembic")
+config.set_main_option(
+    "sqlalchemy.url",
+    os.environ["KETOS_DATABASE_URL"].replace(
+        "sqlite:///",
+        "sqlite+aiosqlite:///",
+        1,
+    ),
+)
+command.upgrade(config, "head")
+'
+
 uv run python scripts/mvp/seed_vertical_slice.py \
   --database-url "$KETOS_DATABASE_URL" \
   --seed-key stage10-acceptance \

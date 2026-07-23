@@ -318,7 +318,7 @@ async function sendChat(page: Page, title: string, prompt: string) {
   await card.getByTestId("copilot-chat-textarea").fill(prompt);
   await card.getByTestId("copilot-send-button").click();
   const response = await runResponse;
-  expect(response.status(), await response.text()).toBe(200);
+  expect(response.status()).toBe(200);
   return card;
 }
 

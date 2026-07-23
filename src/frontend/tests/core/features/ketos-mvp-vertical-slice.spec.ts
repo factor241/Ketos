@@ -504,62 +504,54 @@ test(
     // 2. Durable edited/moved Note with sanitized Markdown rendering.
     const markdown =
       "**Stage 10 bold**\n\n- one\n- two\n\n[Ketos](https://example.com)";
-    const noteResponse = await page.request.post(
-      `/api/v1/boards/${board.id}/board-notes`,
-      {
-        data: {
-          content: "draft",
-          color: "neutral",
-          placement: {
-            x: 120,
-            y: 160,
-            width: 320,
-            height: 240,
-            z_index: 1,
-          },
-        },
-      },
+    const noteResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname ===
+          `/api/v1/boards/${board.id}/board-notes` &&
+        response.status() === 201,
     );
-    expect(noteResponse.status(), await noteResponse.text()).toBe(201);
-    const noteCreate = (await noteResponse.json()) as {
+    await page.getByRole("button", { name: "Add note" }).click();
+    const noteCreate = (await (await noteResponse).json()) as {
       note: Entity;
       placement: Placement;
     };
-    const notePatch = await page.request.patch(
-      `/api/v1/board-notes/${noteCreate.note.id}`,
-      {
-        data: {
-          content: markdown,
-          expected_revision: noteCreate.note.revision,
-        },
-      },
-    );
-    expect(notePatch.ok(), await notePatch.text()).toBeTruthy();
-    const note = (await notePatch.json()) as Entity;
-    const placementPatch = await page.request.patch(
-      `/api/v1/placements/${noteCreate.placement.id}`,
-      {
-        data: {
-          x: 200,
-          y: 220,
-          expected_revision: noteCreate.placement.revision,
-        },
-      },
-    );
-    expect(placementPatch.ok(), await placementPatch.text()).toBeTruthy();
-    const notePlacement = (await placementPatch.json()) as Placement;
-    await page.reload();
     const noteCard = page.getByRole("region", { name: "Note" });
-    await noteCard.getByRole("button", { name: "Note preview" }).click();
-    await expect(noteCard.getByText("Stage 10 bold")).toHaveJSProperty(
+    await expect(noteCard).toBeVisible();
+    await noteCard.getByRole("textbox", { name: "Edit note" }).fill(markdown);
+    const notePatch = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        new URL(response.url()).pathname ===
+          `/api/v1/board-notes/${noteCreate.note.id}` &&
+        response.ok(),
+    );
+    await noteCard.getByRole("button", { name: "Save note" }).click();
+    const note = (await (await notePatch).json()) as Entity;
+    const placementPatch = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        new URL(response.url()).pathname ===
+          `/api/v1/placements/${noteCreate.placement.id}` &&
+        response.ok(),
+    );
+    await noteCard.focus();
+    await page.keyboard.press("Alt+ArrowRight");
+    const notePlacement = (await (await placementPatch).json()) as Placement;
+    await page.reload();
+    const restoredNoteCard = page.getByRole("region", { name: "Note" });
+    await expect(restoredNoteCard).toBeVisible();
+    await restoredNoteCard
+      .getByRole("button", { name: "Note preview" })
+      .click();
+    await expect(restoredNoteCard.getByText("Stage 10 bold")).toHaveJSProperty(
       "tagName",
       "STRONG",
     );
-    await expect(noteCard.getByRole("list")).toBeVisible();
-    await expect(noteCard.getByRole("link", { name: "Ketos" })).toHaveAttribute(
-      "rel",
-      "noopener noreferrer",
-    );
+    await expect(restoredNoteCard.getByRole("list")).toBeVisible();
+    await expect(
+      restoredNoteCard.getByRole("link", { name: "Ketos" }),
+    ).toHaveAttribute("rel", "noopener noreferrer");
 
     // 3. Two independent durable Chat threads and replies.
     const chatA = await createChat(page, project.id, "Stage 10 Chat A");

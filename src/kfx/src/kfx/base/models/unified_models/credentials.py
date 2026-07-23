@@ -427,12 +427,44 @@ def validate_model_provider_key(provider: str, variables: dict[str, str], model_
             api_key = variables.get("OPENAI_API_KEY")
             if not api_key:
                 return
-            llm_kwargs = {"api_key": api_key, "model_name": validation_model, "max_tokens": 1}
             base_url = variables.get("OPENAI_BASE_URL")
             if base_url:
                 from kfx.utils.util import transform_localhost_url
 
-                llm_kwargs["base_url"] = transform_localhost_url(base_url)
+                base_url = transform_localhost_url(base_url).rstrip("/")
+                if model_name is None:
+                    import requests
+
+                    try:
+                        response = requests.get(
+                            f"{base_url}/models",
+                            headers={"Authorization": f"Bearer {api_key}"},
+                            timeout=10,
+                        )
+                        response.raise_for_status()
+                        payload = response.json()
+                    except (requests.RequestException, ValueError) as exc:
+                        msg = "Could not validate the custom OpenAI-compatible endpoint"
+                        raise ValueError(msg) from exc
+                    entries = payload.get("data") if isinstance(payload, dict) else None
+                    discovered_model = next(
+                        (
+                            entry["id"]
+                            for entry in entries or ()
+                            if isinstance(entry, dict)
+                            and isinstance(entry.get("id"), str)
+                            and entry["id"].strip()
+                        ),
+                        None,
+                    )
+                    validation_model = discovered_model
+                if not validation_model:
+                    msg = "Custom OpenAI-compatible endpoint returned no model identifiers"
+                    raise ValueError(msg)
+
+            llm_kwargs = {"api_key": api_key, "model_name": validation_model, "max_tokens": 1}
+            if base_url:
+                llm_kwargs["base_url"] = base_url
             llm = ChatOpenAI(**llm_kwargs)
             llm.invoke("test")
 

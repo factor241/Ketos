@@ -102,6 +102,35 @@ class TestKeyValidationWithBaseUrl:
 
         assert "base_url" not in chat_openai.call_args.kwargs
 
+    def test_should_discover_validation_model_from_custom_endpoint(self):
+        response = MagicMock()
+        response.json.return_value = {
+            "data": [
+                {"id": "custom-tool-model"},
+                {"id": "another-model"},
+            ]
+        }
+        response.raise_for_status.return_value = None
+        chat_openai = MagicMock()
+
+        with (
+            patch("langchain_openai.ChatOpenAI", chat_openai),
+            patch("requests.get", return_value=response) as http_get,
+        ):
+            validate_model_provider_key(
+                "OpenAI",
+                {
+                    "OPENAI_API_KEY": "custom-endpoint-key",
+                    "OPENAI_BASE_URL": CUSTOM_BASE_URL,
+                },
+            )
+
+        assert http_get.call_args.args[0] == f"{CUSTOM_BASE_URL}/models"
+        assert http_get.call_args.kwargs["headers"] == {
+            "Authorization": "Bearer custom-endpoint-key"
+        }
+        assert chat_openai.call_args.kwargs["model_name"] == "custom-tool-model"
+
 
 class TestLiveOpenAICompatibleModels:
     def test_should_return_empty_when_no_base_url_is_configured(self):

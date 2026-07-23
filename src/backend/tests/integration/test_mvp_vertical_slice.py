@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -13,7 +14,13 @@ from ketos.services.database.models.board.model import Board
 from ketos.services.database.models.flow.model import Flow
 from ketos.services.database.models.folder.model import Folder
 from ketos.services.database.models.user.model import User
-from scripts.mvp.seed_vertical_slice import main as seed_main
+
+_SEED_SCRIPT = Path(__file__).resolve().parents[4] / "scripts" / "mvp" / "seed_vertical_slice.py"
+_SEED_SPEC = spec_from_file_location("ketos_stage10_seed_vertical_slice", _SEED_SCRIPT)
+assert _SEED_SPEC is not None and _SEED_SPEC.loader is not None
+_SEED_MODULE = module_from_spec(_SEED_SPEC)
+_SEED_SPEC.loader.exec_module(_SEED_MODULE)
+seed_main = _SEED_MODULE.main
 
 
 SECRET_KEY_FRAGMENTS = {

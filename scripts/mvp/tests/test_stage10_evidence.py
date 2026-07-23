@@ -402,6 +402,25 @@ def test_ram_guard_sampler_has_independent_deadline(monkeypatch: pytest.MonkeyPa
     assert time.monotonic() - started < 0.1
 
 
+def test_ram_guard_aggregate_rss_records_unreadable_process(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    guard = load_module("stage10_guard_rss", RAM_GUARD)
+
+    class Process:
+        def __init__(self, memory_info):
+            self.info = {"memory_info": memory_info}
+
+    readable = type("Memory", (), {"rss": 123})()
+    monkeypatch.setattr(
+        guard.psutil,
+        "process_iter",
+        lambda _fields: [Process(readable), Process(None)],
+    )
+
+    assert guard._aggregate_rss() == (123, 1, 1)
+
+
 def test_sealer_rejects_wrong_control_and_manifest_checksum(tmp_path: Path) -> None:
     sealer = load_module("stage10_sealer", SEALER)
     bundle = make_bundle(tmp_path)

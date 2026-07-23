@@ -118,9 +118,13 @@ def _aggregate_rss() -> tuple[int, int, int]:
     unreadable = 0
     for process in psutil.process_iter(["memory_info"]):
         try:
-            total += int(process.info["memory_info"].rss)
+            memory_info = process.info["memory_info"]
+            if memory_info is None:
+                unreadable += 1
+                continue
+            total += int(memory_info.rss)
             counted += 1
-        except (psutil.Error, OSError):
+        except (AttributeError, psutil.Error, OSError):
             unreadable += 1
     return total, counted, unreadable
 

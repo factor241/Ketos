@@ -513,7 +513,7 @@ test(
     const markdown =
       "**Stage 10 bold**\n\n- one\n- two\n\n[Ketos](https://example.com)";
     const addNote = page.getByRole("button", {
-      name: /Add note|Добавить заметку/,
+      name: /Add note|Добавить заметку/i,
     });
     await expect(addNote).toBeVisible();
     await expect(addNote).toBeEnabled();

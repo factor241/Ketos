@@ -3,7 +3,9 @@ from __future__ import annotations
 # ruff: noqa: FBT003, PLR2004, PT018, S101, S108, SLF001
 import importlib.util
 import json
+import plistlib
 import struct
+import subprocess
 import sys
 import time
 import zlib
@@ -345,6 +347,42 @@ def test_validator_builds_exclusive_redacted_manifest(tmp_path: Path) -> None:
             no_secret_report=report,
             manifest_path=manifest,
         )
+
+
+def test_volume_identity_walks_to_diskutil_supported_parent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    validator = load_module("stage10_validator_volume", VALIDATOR)
+    nested = tmp_path / "nested" / "bundle"
+    nested.mkdir(parents=True)
+    supported = tmp_path.resolve()
+    calls: list[Path] = []
+
+    def diskutil(command, **_kwargs):
+        candidate = Path(command[-1])
+        calls.append(candidate)
+        if candidate != supported:
+            raise subprocess.CalledProcessError(1, command)
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=plistlib.dumps(
+                {
+                    "FilesystemType": "apfs",
+                    "VolumeUUID": "11111111-2222-3333-4444-555555555555",
+                },
+            ),
+        )
+
+    monkeypatch.setattr(validator.subprocess, "run", diskutil)
+
+    assert validator._volume_identity(nested, require_apfs=True) == (
+        "apfs",
+        "11111111-2222-3333-4444-555555555555",
+    )
+    assert calls[-1] == supported
+    assert calls[0] == nested.resolve()
 
 
 def test_validator_rejects_secret_and_screenshot_tamper(tmp_path: Path) -> None:

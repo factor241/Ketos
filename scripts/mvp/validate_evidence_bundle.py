@@ -374,20 +374,27 @@ def _validate_gate_results(bundle: Path, s10_code_sha: str) -> None:
 
 
 def _volume_identity(path: Path, *, require_apfs: bool) -> tuple[str, str]:
-    try:
-        result = subprocess.run(
-            ["/usr/sbin/diskutil", "info", "-plist", str(path)],
-            check=True,
-            capture_output=True,
-            timeout=10,
-        )
-        info = plistlib.loads(result.stdout)
+    canonical = path.resolve(strict=True)
+    for candidate in (canonical, *canonical.parents):
+        try:
+            result = subprocess.run(
+                ["/usr/sbin/diskutil", "info", "-plist", str(candidate)],
+                check=True,
+                capture_output=True,
+                timeout=10,
+            )
+            info = plistlib.loads(result.stdout)
+        except (
+            OSError,
+            subprocess.CalledProcessError,
+            subprocess.TimeoutExpired,
+            plistlib.InvalidFileException,
+        ):
+            continue
         value = info.get("VolumeUUID") or info.get("APFSVolumeUUID")
         filesystem = str(info.get("FilesystemType") or info.get("Type (Bundle)") or "").lower()
         if value and (not require_apfs or "apfs" in filesystem):
             return filesystem or "unknown", str(value)
-    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired, plistlib.InvalidFileException):
-        pass
     if require_apfs:
         raise ValueError("APFS volume UUID is required")
     return "test", f"device-{path.stat().st_dev}"

@@ -9,7 +9,6 @@ import contextlib
 import errno
 import json
 import os
-import plistlib
 import re
 import stat
 import subprocess
@@ -19,7 +18,13 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from validate_evidence_bundle import _inventory, _load_json, _scan_secrets, _sha256
+from validate_evidence_bundle import (
+    _inventory,
+    _load_json,
+    _scan_secrets,
+    _sha256,
+    _volume_identity,
+)
 
 UF_IMMUTABLE = getattr(stat, "UF_IMMUTABLE", 0x00000002)
 
@@ -55,23 +60,8 @@ def _write_json_exclusive(path: Path, payload: object) -> None:
 
 
 def _disk_identity(path: Path, *, require_apfs: bool) -> dict[str, str]:
-    try:
-        result = subprocess.run(
-            ["/usr/sbin/diskutil", "info", "-plist", str(path)],
-            check=True,
-            capture_output=True,
-            timeout=10,
-        )
-        info = plistlib.loads(result.stdout)
-    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired, plistlib.InvalidFileException) as exc:
-        if require_apfs:
-            raise ValueError("diskutil APFS identity is unavailable") from exc
-        return {"filesystem": "test", "volume_uuid": f"device-{path.stat().st_dev}"}
-    filesystem = str(info.get("FilesystemType") or info.get("Type (Bundle)") or "").lower()
-    volume_uuid = str(info.get("VolumeUUID") or info.get("APFSVolumeUUID") or "")
-    if require_apfs and ("apfs" not in filesystem or not volume_uuid):
-        raise ValueError("bundle must be on an APFS volume with a UUID")
-    return {"filesystem": filesystem or "unknown", "volume_uuid": volume_uuid or f"device-{path.stat().st_dev}"}
+    filesystem, volume_uuid = _volume_identity(path, require_apfs=require_apfs)
+    return {"filesystem": filesystem, "volume_uuid": volume_uuid}
 
 
 def _read_detached_checksum(path: Path) -> str:

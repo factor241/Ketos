@@ -30,14 +30,9 @@ describe("Stage 10 board-to-flow editor source contract", () => {
     const routeSource = readSource("../../../utils/automation-editor-route.ts");
     const flowPageSource = compact(readSource("../index.tsx"));
 
-    const routeBuilderCall = openEditorSource.match(
-      /buildAutomationEditorUrl\(\s*\{([^}]*)\}\s*\)/,
+    expect(openEditorSource).toMatch(
+      /buildAutomationEditorUrl\(\s*flowId\s*,\s*\{\s*boardId\s*,\s*placementId\s*\}\s*\)/,
     );
-
-    expect(routeBuilderCall).not.toBeNull();
-    expect(routeBuilderCall?.[1]).toMatch(/\bflowId\b/);
-    expect(routeBuilderCall?.[1]).toMatch(/\bboardId\b/);
-    expect(routeBuilderCall?.[1]).toMatch(/\bplacementId\b/);
     expect(routeSource).toMatch(/\/flow\/\$\{flowId\}/);
     expect(routeSource).toMatch(/\breturnBoardId\b/);
     expect(routeSource).toMatch(/\breturnPlacementId\b/);

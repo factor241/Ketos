@@ -72,6 +72,10 @@ REQUIRED_GATE_IDS = {
     "secret",
     "ram",
 }
+MIN_WINDOW_SAMPLES = 30
+MIN_ADMISSION_SPAN_NS = 30_000_000_000
+MIN_TAIL_SPAN_NS = 28_900_000_000
+MIN_TAIL_AFTER_GATE_NS = 30_000_000_000
 SECRET_PATTERNS = (
     re.compile(rb"sk-[A-Za-z0-9_-]{20,}"),
     re.compile(rb"(?i)authorization\s*:\s*bearer\s+[A-Za-z0-9._~+/-]{12,}"),
@@ -282,6 +286,15 @@ def _validate_ram_evidence(bundle: Path) -> None:
     if set(by_gate) != REQUIRED_GATE_IDS:
         raise ValueError("memory monitor does not cover the exact Stage 10 gate set")
     for gate_id, rows in by_gate.items():
+        boundaries = [
+            row
+            for row in records
+            if row.get("schema") == "ketos.stage10.memory-boundary.v1"
+            and row.get("gate_id") == gate_id
+            and row.get("boundary") == "gate_finished"
+        ]
+        if len(boundaries) != 1 or "monotonic_ns" not in boundaries[0]:
+            raise ValueError(f"exactly one gate-finished boundary is required for gate {gate_id}")
         sequences = [int(row["sequence"]) for row in rows]
         if sequences != list(range(sequences[0], sequences[0] + len(sequences))):
             raise ValueError(f"memory sequence gap for gate {gate_id}")
@@ -292,7 +305,14 @@ def _validate_ram_evidence(bundle: Path) -> None:
             raise ValueError(f"memory phases are incomplete for gate {gate_id}")
         admission_span = int(admission[-1]["monotonic_ns"]) - int(admission[0]["monotonic_ns"])
         tail_span = int(tail[-1]["monotonic_ns"]) - int(tail[0]["monotonic_ns"])
-        if admission_span < 29_000_000_000 or tail_span < 29_000_000_000:
+        tail_after_gate = int(tail[-1]["monotonic_ns"]) - int(boundaries[0]["monotonic_ns"])
+        if (
+            len(admission) < MIN_WINDOW_SAMPLES
+            or admission_span < MIN_ADMISSION_SPAN_NS
+            or len(tail) < MIN_WINDOW_SAMPLES
+            or tail_span < MIN_TAIL_SPAN_NS
+            or tail_after_gate < MIN_TAIL_AFTER_GATE_NS
+        ):
             raise ValueError(f"30-second admission/tail evidence is missing for gate {gate_id}")
         if any(int(row["system_used_bytes"]) >= 13_000_000_000 for row in admission):
             raise ValueError(f"RAM admission exceeded resume threshold for gate {gate_id}")

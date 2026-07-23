@@ -472,6 +472,14 @@ def run_guarded(
                 exit_code = target.wait()
                 if classification == "INFRA_FAILURE":
                     classification = "PASS" if exit_code == 0 else "TEST_FAILURE"
+                gate_finished = {
+                    "schema": "ketos.stage10.memory-boundary.v1",
+                    "at": _now(),
+                    "monotonic_ns": time.monotonic_ns(),
+                    "gate_id": gate_id,
+                    "boundary": "gate_finished",
+                }
+                _record(telemetry, gate_finished)
                 tail_deadline = time.monotonic() + policy.tail_seconds
                 next_tail_tick = time.monotonic()
                 while time.monotonic() < tail_deadline:

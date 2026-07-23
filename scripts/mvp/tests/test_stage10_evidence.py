@@ -276,6 +276,16 @@ def make_bundle(tmp_path: Path) -> Path:
                         "monitor_loss": False,
                     }
                 )
+            if phase == "gate":
+                memory_rows.append(
+                    {
+                        "schema": "ketos.stage10.memory-boundary.v1",
+                        "at": "2026-07-23T00:00:00Z",
+                        "monotonic_ns": sequence * 1_000_000_000 + 500_000_000,
+                        "gate_id": gate_id,
+                        "boundary": "gate_finished",
+                    }
+                )
     (bundle / "memory-monitor.jsonl").write_text(
         "".join(json.dumps(row) + "\n" for row in memory_rows),
         encoding="utf-8",
@@ -292,7 +302,7 @@ def make_bundle(tmp_path: Path) -> Path:
             {
                 "schema": "ketos.stage10.ram-summary.v1",
                 "gate_count": len(GATE_IDS),
-                "sample_count": len(memory_rows),
+                "sample_count": sum(row["schema"] == "ketos.stage10.memory-sample.v1" for row in memory_rows),
                 "peak_system_used_bytes": 12_000_000_000,
                 "peak_aggregate_rss_bytes": 9_000_000_000,
                 "warning_trips": 0,
@@ -403,6 +413,52 @@ def test_validator_rejects_secret_and_screenshot_tamper(tmp_path: Path) -> None:
         )
 
 
+def test_validator_accepts_scheduler_jitter_for_30_tail_samples(tmp_path: Path) -> None:
+    validator = load_module("stage10_validator_tail_jitter", VALIDATOR)
+    bundle = make_bundle(tmp_path)
+    monitor = bundle / "memory-monitor.jsonl"
+    rows = [json.loads(line) for line in monitor.read_text(encoding="utf-8").splitlines()]
+    target = [row for row in rows if row["gate_id"] == "frontend-build" and row.get("phase") == "tail"]
+    rows.remove(target[-1])
+    target = target[:-1]
+    boundary = next(
+        row
+        for row in rows
+        if row["gate_id"] == "frontend-build" and row["schema"] == "ketos.stage10.memory-boundary.v1"
+    )
+    first_monotonic_ns = boundary["monotonic_ns"] + 1_006_000_000
+    for index, row in enumerate(target):
+        row["monotonic_ns"] = first_monotonic_ns + index * 999_827_000
+    monitor.write_text(
+        "".join(json.dumps(row) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+    summary = json.loads((bundle / "ram-summary.json").read_text(encoding="utf-8"))
+    summary["sample_count"] = sum(row["schema"] == "ketos.stage10.memory-sample.v1" for row in rows)
+    (bundle / "ram-summary.json").write_text(json.dumps(summary), encoding="utf-8")
+
+    validator._validate_ram_evidence(bundle)
+
+
+def test_validator_rejects_missing_gate_finished_boundary(tmp_path: Path) -> None:
+    validator = load_module("stage10_validator_missing_boundary", VALIDATOR)
+    bundle = make_bundle(tmp_path)
+    monitor = bundle / "memory-monitor.jsonl"
+    rows = [json.loads(line) for line in monitor.read_text(encoding="utf-8").splitlines()]
+    rows = [
+        row
+        for row in rows
+        if not (row["gate_id"] == "frontend-build" and row["schema"] == "ketos.stage10.memory-boundary.v1")
+    ]
+    monitor.write_text(
+        "".join(json.dumps(row) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="gate-finished boundary"):
+        validator._validate_ram_evidence(bundle)
+
+
 def test_ram_guard_stage10_state_machine_contract() -> None:
     guard = load_module("stage10_guard", RAM_GUARD)
     policy = guard.Policy()
@@ -503,6 +559,60 @@ def test_ram_guard_timeout_stops_only_owned_group(
     assert result["verdict"] == "FAIL"
     assert result["cleanup"]["term_sent"] is True
     assert result["cleanup"]["survivors"] == []
+
+
+def test_ram_guard_emits_gate_finished_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    guard = load_module("stage10_guard_boundary", RAM_GUARD)
+    evidence = tmp_path / "guard"
+    evidence.mkdir()
+    monkeypatch.setattr(guard, "_git_clean", lambda *_args: True)
+    monkeypatch.setattr(
+        guard,
+        "_recovery_admission",
+        lambda **_kwargs: (True, False, 0, []),
+    )
+    monkeypatch.setattr(
+        guard,
+        "sample_with_deadline",
+        lambda sequence, gate_id, phase: {
+            "schema": "ketos.stage10.memory-sample.v1",
+            "at": "2026-07-23T00:00:00Z",
+            "monotonic_ns": time.monotonic_ns(),
+            "sequence": sequence,
+            "gate_id": gate_id,
+            "phase": phase,
+            "system_used_bytes": 1,
+            "aggregate_rss_bytes": 1,
+            "pageouts": 0,
+            "swapouts": 0,
+            "critical_memory_pressure": False,
+            "monitor_loss": False,
+        },
+    )
+    telemetry = evidence / "telemetry.jsonl"
+
+    result = guard.run_guarded(
+        cwd=ROOT,
+        expected_sha=SHA,
+        gate_id="boundary",
+        command=[sys.executable, "-c", "pass"],
+        result_path=evidence / "result.json",
+        telemetry_path=telemetry,
+        pid_ledger_path=evidence / "pid-ledger.json",
+        log_path=evidence / "gate.log",
+        policy=guard.Policy(sample_interval_seconds=0.01, tail_seconds=0.02),
+    )
+    records = [json.loads(line) for line in telemetry.read_text(encoding="utf-8").splitlines()]
+
+    assert result["verdict"] == "PASS"
+    assert [
+        row
+        for row in records
+        if row.get("schema") == "ketos.stage10.memory-boundary.v1" and row.get("boundary") == "gate_finished"
+    ]
 
 
 def test_sealer_rejects_wrong_control_and_manifest_checksum(tmp_path: Path) -> None:

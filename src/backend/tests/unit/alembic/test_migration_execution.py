@@ -1,6 +1,6 @@
+import ast
 import errno
 import os
-import re
 import shutil
 import subprocess
 import tempfile
@@ -130,9 +130,34 @@ def _parse_revision_values(line: str) -> list[str]:
     raw = raw.strip()
     if raw == "None":
         return []
-    # Extract all quoted strings from the value (handles both single values
-    # and tuples like ("abc", "def"))
-    return re.findall(r"""["']([a-f0-9]+)["']""", raw)
+    try:
+        value = ast.literal_eval(raw)
+    except (SyntaxError, ValueError):
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, tuple) and all(isinstance(item, str) for item in value):
+        return list(value)
+    return []
+
+
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    [
+        ('revision: str = "s08c0mmand01"', ["s08c0mmand01"]),
+        (
+            'down_revision: tuple[str, str] = ("mb00a1b2c3d4", "kb1a2b3c4d5e")',
+            ["mb00a1b2c3d4", "kb1a2b3c4d5e"],
+        ),
+        ('down_revision: str = "mb01b2c3d4e5"  # branch parent', ["mb01b2c3d4e5"]),
+        ("down_revision: str | None = None", []),
+    ],
+)
+def test_parse_revision_values_accepts_alembic_revision_identifiers(
+    line: str,
+    expected: list[str],
+) -> None:
+    assert _parse_revision_values(line) == expected
 
 
 def _get_main_branch_head() -> str | None:
@@ -456,27 +481,11 @@ def test_upgrade_from_main_branch(db_url):
     upgrades to a branch with new migrations. The upgrade must succeed, the resulting
     schema must match the models, and downgrade back to main must also succeed.
     """
-    from alembic.script import ScriptDirectory
-
     main_head = _get_main_branch_head()
     if main_head is None:
         if os.environ.get("MIGRATION_VALIDATION_CI"):
             pytest.fail("Could not determine main branch head revision — ensure fetch-depth: 0 and origin/main exists")
         pytest.skip("Could not determine main branch head revision (shallow clone or no origin/main)")
-
-    # Check if main and branch share the same alembic head (no new migrations).
-    # In that case this test is a no-op — alembic won't re-run already-applied
-    # migrations, so upgrade(main_head) -> upgrade(head) does nothing.
-    # Modified migrations are exercised by test_no_phantom_migrations instead.
-    branch_cfg = Config()
-    branch_cfg.set_main_option("script_location", str(_SCRIPT_LOCATION))
-    branch_script = ScriptDirectory.from_config(branch_cfg)
-    branch_heads = branch_script.get_heads()
-    if len(branch_heads) == 1 and branch_heads[0] == main_head:
-        pytest.skip(
-            "No new migrations on this branch — main and branch share the same "
-            "alembic head. Modified migrations are tested by test_no_phantom_migrations."
-        )
 
     alembic_cfg = _make_alembic_cfg(db_url)
 

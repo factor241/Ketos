@@ -134,12 +134,21 @@ test.beforeAll(async () => {
     request.on("end", () => {
       const payload = JSON.parse(body) as { messages?: ProviderMessage[] };
       const messages = payload.messages ?? [];
-      const lastUser = [...messages]
-        .reverse()
-        .find((message) => message.role === "user");
+      let lastUserIndex = -1;
+      for (let index = messages.length - 1; index >= 0; index -= 1) {
+        if (messages[index].role === "user") {
+          lastUserIndex = index;
+          break;
+        }
+      }
+      const lastUser = messages[lastUserIndex];
       const prompt = providerText(lastUser?.content);
       const id = `chatcmpl-stage10-${Date.now()}`;
-      if (messages.some((message) => message.role === "tool")) {
+      if (
+        messages
+          .slice(lastUserIndex + 1)
+          .some((message) => message.role === "tool")
+      ) {
         sendSse(response, [
           completionChunk(
             id,

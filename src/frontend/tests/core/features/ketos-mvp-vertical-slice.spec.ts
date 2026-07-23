@@ -435,6 +435,7 @@ function startBackend(): ChildProcess {
         KETOS_DEACTIVATE_TRACING: "true",
         KETOS_FEATURE_MVP_WORKSPACE: "true",
         KETOS_FEATURE_MVP_CHAT: "true",
+        KETOS_AGENTIC_EXPERIENCE: "true",
         KETOS_LOG_LEVEL: "ERROR",
         LANGGRAPH_STRICT_MSGPACK: "true",
         DO_NOT_TRACK: "true",
@@ -645,6 +646,9 @@ test(
     const automationCard = page.locator(
       `[data-id="${automation.id}"] > section`,
     );
+    const runAutomation = automationCard.getByRole("button", { name: "Run" });
+    await expect(runAutomation).toBeVisible();
+    await expect(runAutomation).toBeEnabled();
     const [runResponse] = await Promise.all([
       page.waitForResponse(
         (response) =>
@@ -652,7 +656,7 @@ test(
           new URL(response.url()).pathname ===
             `/api/v1/boards/${board.id}/automations/${flow.id}/runs`,
       ),
-      automationCard.getByRole("button", { name: "Run" }).click(),
+      runAutomation.click(),
     ]);
     const run = (await runResponse.json()) as Run;
     await expect(automationCard).toContainText("Succeeded", {

@@ -348,6 +348,23 @@ def _assistant_count(messages: Sequence[Mapping[str, Any]]) -> int:
     return sum(item.get("role") == "assistant" and bool(item.get("content")) for item in messages)
 
 
+def bind_ag_ui_access_token(
+    client: httpx.Client,
+    tokens: Mapping[str, Any],
+) -> None:
+    access_token = tokens.get("access_token")
+    if not isinstance(access_token, str) or not access_token:
+        raise RuntimeError("auto-login returned no access token")
+    client.headers["Authorization"] = f"Bearer {access_token}"
+    forbidden = [
+        (cookie.domain, cookie.path, cookie.name)
+        for cookie in client.cookies.jar
+        if cookie.name == "apikey_tkn_lflw"
+    ]
+    for domain, path, name in forbidden:
+        client.cookies.jar.clear(domain, path, name)
+
+
 def _post_ag_ui(
     client: httpx.Client,
     *,
@@ -650,7 +667,8 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
     try:
         _wait_http(f"http://127.0.0.1:{port}/health", process)
         with httpx.Client(base_url=f"http://127.0.0.1:{port}", timeout=180.0) as client:
-            _request_json(client, "GET", "/api/v1/auto_login")
+            tokens = _request_json(client, "GET", "/api/v1/auto_login")
+            bind_ag_ui_access_token(client, tokens)
             whoami = _request_json(client, "GET", "/api/v1/users/whoami")
             actor_id = str(whoami["id"])
 

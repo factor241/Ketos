@@ -6,6 +6,7 @@ import json
 import sys
 from pathlib import Path
 
+import httpx
 import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -108,6 +109,20 @@ def test_sse_parser_requires_json_data_records() -> None:
     ]
     with pytest.raises(ValueError, match="malformed AG-UI SSE"):
         module.parse_sse_events("data: not-json\n\n")
+
+
+def test_ag_ui_auth_uses_bearer_and_drops_forbidden_api_cookie() -> None:
+    module = load_module()
+    client = httpx.Client(base_url="http://127.0.0.1:7860")
+    client.cookies.set("access_token_lf", "access")
+    client.cookies.set("apikey_tkn_lflw", "forbidden")
+
+    module.bind_ag_ui_access_token(client, {"access_token": "access"})
+
+    assert client.headers["Authorization"] == "Bearer access"
+    assert client.cookies.get("access_token_lf") == "access"
+    assert all(cookie.name != "apikey_tkn_lflw" for cookie in client.cookies.jar)
+    client.close()
 
 
 def test_exact_proposal_payload_rejects_extra_operations() -> None:

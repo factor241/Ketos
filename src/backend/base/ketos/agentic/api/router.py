@@ -65,6 +65,7 @@ router = APIRouter(prefix="/agentic", tags=["Agentic"])
 
 _STAGE01_REGISTERED_STATE_KEY = "_ketos_stage01_ag_ui_registered"
 _STAGE01_ROUTES_STATE_KEY = "_ketos_stage01_ag_ui_routes"
+_RECOVERY_MARKER_LIMIT = 4096
 
 
 def _resolved_rejection(input_data: "RunAgentInput") -> tuple[str, bool] | None:
@@ -102,7 +103,7 @@ def create_stage09_recovery_before_dispatch(
 
     inspector = CommandCheckpointInspector()
     recovery_resolution_lock = asyncio.Lock()
-    recovered_interrupts: set[tuple[str, str]] = set()
+    recovered_interrupts: dict[tuple[str, str], bool] = {}
 
     async def before_dispatch(
         input_data: "RunAgentInput",
@@ -123,8 +124,10 @@ def create_stage09_recovery_before_dispatch(
         if rejection is not None:
             recovery_key = (str(chat_id), rejection[0])
             async with recovery_resolution_lock:
-                is_recovered_interrupt = recovery_key in recovered_interrupts
-            if not is_recovered_interrupt:
+                recovery_state = recovered_interrupts.get(recovery_key)
+            if recovery_state is False:
+                raise HTTPException(status_code=409, detail="AG-UI recovery decision is no longer open")
+            if recovery_state is not True:
                 await original_before_dispatch(input_data, request, request_agent)
                 return
 
@@ -179,13 +182,21 @@ def create_stage09_recovery_before_dispatch(
                 )
 
             async with recovery_resolution_lock:
-                recovered_interrupts.add((str(chat_id), proof.interrupt_id))
+                recovery_key = (str(chat_id), proof.interrupt_id)
+                if (
+                    recovery_key not in recovered_interrupts
+                    and len(recovered_interrupts) >= _RECOVERY_MARKER_LIMIT
+                ):
+                    raise HTTPException(status_code=503, detail="AG-UI recovery capacity unavailable")
+                recovered_interrupts[recovery_key] = True
             request_agent.run = recovered_pending_run  # type: ignore[method-assign]
             return
 
         interrupt_id, approved = rejection
 
         async with recovery_resolution_lock:
+            if recovery_key is None or recovered_interrupts.get(recovery_key) is not True:
+                raise HTTPException(status_code=409, detail="AG-UI recovery decision is no longer open")
             open_interrupts = await inspector.open_interrupts(checkpointer, str(chat_id))
             matches = tuple(item for item in open_interrupts if item.interrupt_id == interrupt_id)
             if len(matches) != 1:
@@ -221,7 +232,7 @@ def create_stage09_recovery_before_dispatch(
                     chat_id=chat_id,
                 )
             if recovery_key is not None:
-                recovered_interrupts.discard(recovery_key)
+                recovered_interrupts[recovery_key] = False
 
         async def recovered_run(_input: "RunAgentInput"):
             yield RunStartedEvent(threadId=str(chat_id), runId=input_data.run_id)

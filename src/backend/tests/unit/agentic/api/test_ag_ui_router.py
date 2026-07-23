@@ -320,10 +320,15 @@ async def test_s10_restart_recovery_rejection_uses_marked_interrupt(
     await hook(rejection, _request(), recovered_agent)  # type: ignore[arg-type]
     recovered_events = [event async for event in recovered_agent.run(rejection)]
 
+    with pytest.raises(HTTPException) as replay_error:
+        await hook(rejection, _request(), _Agent([]))  # type: ignore[arg-type]
+
     original_before_dispatch.assert_not_awaited()
     recover_pending.assert_awaited_once()
     resolve_recovered.assert_awaited_once()
     session.commit.assert_awaited_once()
+    assert replay_error.value.status_code == 409
+    assert replay_error.value.detail == "AG-UI recovery decision is no longer open"
     assert recovered_events[-1].result == {
         "proposalId": str(proposal_id),
         "status": "rejected",

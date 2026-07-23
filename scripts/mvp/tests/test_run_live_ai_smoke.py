@@ -13,6 +13,21 @@ ROOT = Path(__file__).resolve().parents[3]
 SCRIPT = ROOT / "scripts/mvp/run_live_ai_smoke.py"
 
 
+def test_chromium_story_keeps_deterministic_provider_out_of_acceptance_database() -> None:
+    config_source = (ROOT / "src/frontend/playwright.mvp.config.ts").read_text(encoding="utf-8")
+    story_source = (ROOT / "src/frontend/tests/core/features/ketos-mvp-vertical-slice.spec.ts").read_text(
+        encoding="utf-8"
+    )
+    backend_start = story_source.index("function startBackend()")
+    frontend_start = story_source.index("function startFrontend()", backend_start)
+    start_backend_source = story_source[backend_start:frontend_start]
+
+    assert '"stage10-deterministic-test-key"' in config_source
+    assert 'KETOS_STORE_ENVIRONMENT_VARIABLES: "false"' in config_source
+    assert 'OPENAI_API_KEY: "stage10-deterministic-test-key"' in start_backend_source
+    assert 'KETOS_STORE_ENVIRONMENT_VARIABLES: "false"' in start_backend_source
+
+
 def load_module():
     spec = importlib.util.spec_from_file_location("run_live_ai_smoke", SCRIPT)
     assert spec

@@ -492,6 +492,7 @@ function startBackend(): ChildProcess {
         KETOS_LOG_LEVEL: "ERROR",
         LANGGRAPH_STRICT_MSGPACK: "true",
         DO_NOT_TRACK: "true",
+        KETOS_STORE_ENVIRONMENT_VARIABLES: "false",
         OPENAI_API_KEY: "stage10-deterministic-test-key",
         OPENAI_BASE_URL: `http://127.0.0.1:${providerPort}/v1`,
       },

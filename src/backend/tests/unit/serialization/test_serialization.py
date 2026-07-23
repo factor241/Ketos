@@ -6,11 +6,11 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from hypothesis import given, settings
+from hypothesis import example, given, settings
 from hypothesis import strategies as st
-from langchain_core.documents import Document
 from ketos.serialization.constants import MAX_ITEMS_LENGTH, MAX_TEXT_LENGTH
 from ketos.serialization.serialization import serialize, serialize_or_str
+from langchain_core.documents import Document
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic.v1 import BaseModel as PydanticV1BaseModel
 
@@ -151,10 +151,15 @@ class TestSerializationHypothesis:
             assert result == data
 
     @settings(max_examples=100)
+    @example(nested=float("inf"))
     @given(nested=nested_strategy)
     def test_nested_structures(self, nested: Any) -> None:
-        result: list | dict | int | float | str | bool = serialize(nested)
-        assert isinstance(result, list | dict | int | float | str | bool)
+        result: list | dict | int | float | str | bool | None = serialize(nested)
+        if result is None:
+            assert isinstance(nested, float)
+            assert not math.isfinite(nested)
+        else:
+            assert isinstance(result, list | dict | int | float | str | bool)
 
     @settings(max_examples=100)
     @given(text=text_strategy)

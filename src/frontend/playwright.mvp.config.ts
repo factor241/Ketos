@@ -45,7 +45,7 @@ export default defineConfig({
   webServer: [
     {
       command:
-        "uv run uvicorn --factory ketos.main:create_app --host 127.0.0.1 --port 7860 --loop asyncio --log-level error --no-access-log",
+        "exec uv run uvicorn --factory ketos.main:create_app --host 127.0.0.1 --port 7860 --loop asyncio --log-level error --no-access-log",
       cwd: repositoryRoot,
       url: "http://127.0.0.1:7860/health",
       reuseExistingServer: false,

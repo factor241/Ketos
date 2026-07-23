@@ -1,10 +1,8 @@
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
-import { describe, expect, it } from "vitest";
+import { resolve } from "node:path";
 
 const readSource = (relativePath: string) =>
-  readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), "utf8");
+  readFileSync(resolve(__dirname, relativePath), "utf8");
 
 const compact = (source: string) => source.replace(/\s+/g, " ");
 

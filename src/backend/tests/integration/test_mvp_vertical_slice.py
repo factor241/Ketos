@@ -3,13 +3,23 @@ from __future__ import annotations
 import json
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 import ketos.services.database.models  # noqa: F401
+from ketos.services.board.service import (
+    BoardNotFoundError,
+    BoardRevisionConflictError,
+    create_board,
+    get_owned_board,
+    require_owned_project,
+    update_board_viewport,
+)
 from ketos.services.database.models.board.model import Board
 from ketos.services.database.models.flow.model import Flow
 from ketos.services.database.models.folder.model import Folder
@@ -126,3 +136,135 @@ def test_seed_idempotency_rejects_relative_sqlite_url(tmp_path: Path) -> None:
         )
 
     assert not (tmp_path / "must-not-exist.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_project_board_ownership_revision_cas_and_persistence(
+    async_session: AsyncSession,
+) -> None:
+    owner_uuid = uuid4()
+    foreign_uuid = uuid4()
+    project_uuid = uuid4()
+    null_project_uuid = uuid4()
+    null_board_uuid = uuid4()
+
+    owner = User(
+        id=owner_uuid,
+        username=f"s10-owner-{owner_uuid}",
+        password="!disabled-stage10!",
+        is_active=True,
+    )
+    foreign = User(
+        id=foreign_uuid,
+        username=f"s10-foreign-{foreign_uuid}",
+        password="!disabled-stage10!",
+        is_active=True,
+    )
+    async_session.add_all([owner, foreign])
+    await async_session.flush()
+
+    project = Folder(
+        id=project_uuid,
+        name="Stage 10 Project",
+        user_id=owner.id,
+    )
+    null_project = Folder(
+        id=null_project_uuid,
+        name="Stage 10 Null Owner Project",
+        user_id=None,
+    )
+    async_session.add_all([project, null_project])
+    await async_session.flush()
+
+    null_board = Board(
+        id=null_board_uuid,
+        project_id=null_project.id,
+        created_by_id=owner.id,
+        title="Null owner",
+    )
+    async_session.add(null_board)
+    await async_session.commit()
+
+    owned_project = await require_owned_project(
+        async_session,
+        project_id=project_uuid,
+        actor_id=owner_uuid,
+    )
+    assert owned_project.id == project_uuid
+    assert owned_project.user_id == owner_uuid
+
+    created = await create_board(
+        async_session,
+        project_id=project_uuid,
+        actor_id=owner_uuid,
+        title="Stage 10 Project Board",
+    )
+    board_uuid = created.id
+
+    assert created.project_id == project_uuid
+    assert created.created_by_id == owner_uuid
+    assert created.revision == 0
+
+    updated = await update_board_viewport(
+        async_session,
+        board_id=board_uuid,
+        actor_id=owner_uuid,
+        viewport=SimpleNamespace(
+            x=125.5,
+            y=-42.0,
+            zoom=1.25,
+            expected_revision=0,
+        ),
+    )
+
+    assert updated.id == board_uuid
+    assert updated.project_id == project_uuid
+    assert updated.viewport_x == 125.5
+    assert updated.viewport_y == -42.0
+    assert updated.viewport_zoom == 1.25
+    assert updated.revision == 1
+
+    with pytest.raises(BoardRevisionConflictError):
+        await update_board_viewport(
+            async_session,
+            board_id=board_uuid,
+            actor_id=owner_uuid,
+            viewport=SimpleNamespace(
+                x=999.0,
+                y=888.0,
+                zoom=0.5,
+                expected_revision=0,
+            ),
+        )
+
+    with pytest.raises(BoardNotFoundError):
+        await get_owned_board(
+            async_session,
+            board_id=board_uuid,
+            actor_id=foreign_uuid,
+        )
+
+    with pytest.raises(BoardNotFoundError):
+        await get_owned_board(
+            async_session,
+            board_id=null_board_uuid,
+            actor_id=owner_uuid,
+        )
+
+    async with AsyncSession(
+        async_session.bind,
+        expire_on_commit=False,
+    ) as reopened:
+        persisted = await get_owned_board(
+            reopened,
+            board_id=board_uuid,
+            actor_id=owner_uuid,
+        )
+
+        assert persisted.id == board_uuid
+        assert persisted.project_id == project_uuid
+        assert persisted.created_by_id == owner_uuid
+        assert persisted.viewport_x == 125.5
+        assert persisted.viewport_y == -42.0
+        assert persisted.viewport_zoom == 1.25
+        assert persisted.revision == 1

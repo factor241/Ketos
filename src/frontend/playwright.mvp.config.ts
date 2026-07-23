@@ -8,20 +8,18 @@ const runtimeRoot = path.resolve(__dirname, "../copilot-runtime");
 const runRoot =
   process.env.KETOS_MVP_RUN_DIR ??
   path.join(realpathSync(tmpdir()), `ketos-stage01-playwright-${process.pid}`);
-const backendDataRoot = path.join(runRoot, "backend");
+const backendDataRoot =
+  process.env.KETOS_DATA_DIR ?? path.join(runRoot, "backend");
+const databaseUrl =
+  process.env.KETOS_DATABASE_URL ??
+  `sqlite:///${path.join(backendDataRoot, "ketos.sqlite3")}`;
 const bindingRoot = path.join(runRoot, "binding");
-const checkpointRoot = path.join(runRoot, "checkpoint");
 const traceMode =
   process.env.STAGE08_TRACE === "on"
     ? ("off" as const)
     : ("retain-on-failure" as const);
 
-for (const directory of [
-  runRoot,
-  backendDataRoot,
-  bindingRoot,
-  checkpointRoot,
-]) {
+for (const directory of [runRoot, backendDataRoot, bindingRoot]) {
   mkdirSync(directory, { recursive: true, mode: 0o700 });
 }
 
@@ -53,15 +51,11 @@ export default defineConfig({
       reuseExistingServer: false,
       timeout: 120_000,
       env: {
-        KETOS_DATABASE_URL: `sqlite:///${path.join(backendDataRoot, "ketos.sqlite3")}`,
+        KETOS_DATABASE_URL: databaseUrl,
         KETOS_CONFIG_DIR: backendDataRoot,
         KETOS_DATA_DIR: backendDataRoot,
         KETOS_TEMP_DIR: backendDataRoot,
         KETOS_AG_UI_BINDING_DB: path.join(bindingRoot, "run-bindings.ledger"),
-        KETOS_AG_UI_CHECKPOINT_DB: path.join(
-          checkpointRoot,
-          "langgraph-checkpoints.sqlite3",
-        ),
         KETOS_AUTO_LOGIN: "true",
         KETOS_DEACTIVATE_TRACING: "true",
         KETOS_FEATURE_MVP_WORKSPACE: "true",
@@ -69,6 +63,12 @@ export default defineConfig({
         KETOS_LOG_LEVEL: "ERROR",
         LANGGRAPH_STRICT_MSGPACK: "true",
         DO_NOT_TRACK: "true",
+        OPENAI_API_KEY:
+          process.env.STAGE10_DETERMINISTIC_OPENAI_API_KEY ??
+          "stage10-deterministic-test-key",
+        OPENAI_BASE_URL: `http://127.0.0.1:${
+          process.env.STAGE10_OPENAI_PORT ?? "18767"
+        }/v1`,
       },
     },
     {

@@ -28,7 +28,11 @@ describe("Stage 10 board-to-flow editor source contract", () => {
       readSource("../../BoardPage/hooks/use-open-automation-editor.ts"),
     );
     const routeSource = readSource("../../../utils/automation-editor-route.ts");
-    const flowPageSource = compact(readSource("../index.tsx"));
+    const flowMenuSource = compact(
+      readSource(
+        "../../../components/core/appHeaderComponent/components/FlowMenu/index.tsx",
+      ),
+    );
 
     expect(openEditorSource).toMatch(
       /buildAutomationEditorUrl\(\s*flowId\s*,\s*\{\s*boardId\s*,\s*placementId\s*\}\s*\)/,
@@ -39,8 +43,8 @@ describe("Stage 10 board-to-flow editor source contract", () => {
     expect(routeSource).toMatch(/\breturnBoardId\b/);
     expect(routeSource).toMatch(/\breturnPlacementId\b/);
     expect(routeSource).toMatch(/\bparseAutomationEditorReturnRef\b/);
-    expect(flowPageSource).toMatch(/\buseBoardReturnContext\b/);
-    expect(flowPageSource).toMatch(
+    expect(flowMenuSource).toMatch(/\buseBoardReturnContext\b/);
+    expect(flowMenuSource).toMatch(
       /useBoardReturnContext\(\s*\{[^}]*\bflowId\b[^}]*\}\s*\)/,
     );
     expect(openEditorSource).not.toMatch(/\/flow\/new\b/);

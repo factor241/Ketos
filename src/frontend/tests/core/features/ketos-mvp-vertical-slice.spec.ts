@@ -677,7 +677,9 @@ test(
       page.getByTestId("save-flow-settings").click(),
     ]);
     await page.getByTestId("return-to-board").click();
-    await expect(page).toHaveURL(new RegExp(`${board.id}`));
+    await expect(page).toHaveURL(
+      new RegExp(`${boardUrl}\\?focusPlacementId=${automation.id}$`),
+    );
     await expect(
       page.locator(`[data-id="${automation.id}"] > section`),
     ).toBeFocused();

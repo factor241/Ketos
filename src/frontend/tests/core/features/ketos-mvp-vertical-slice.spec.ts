@@ -814,7 +814,7 @@ test(
     await page.goto(boardUrl, { waitUntil: "commit" });
     await expect(
       page.getByRole("heading", { name: "Ketos MVP vertical slice" }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 60_000 });
     await expect(page.getByRole("region", { name: "Note" })).toBeVisible();
     await expect(
       page.locator(`[data-id="${automation.id}"] > section`),

@@ -221,3 +221,47 @@ UV_NO_CACHE=1 PYTHONDONTWRITEBYTECODE=1 \
 ```
 
 `PASS/GO` is allowed only when every A01–A10 focused result, both serialized gate passes, PID and listener proof, stable ID/effect ledger, browser story, clean frozen tree, equal pre/post manifests, committed schema validation, immutable manifest verification, and independent review are green on the same `S09_CODE_SHA`. Otherwise report `FAIL` or `BLOCKED` with the exact criterion. Never reuse a mixed or partially rerun bundle.
+
+## Recursive APFS closure seal
+
+The manifest-only finalizer is intentionally non-final. Running `verify`
+without a receipt returns `payload-valid-nonfinal` and `transition=no-go`.
+Stage 09 may become final only through the generic APFS sealer and the detached,
+self-protected receipt:
+
+```bash
+uv run python scripts/mvp/reseal_stage09_evidence.py \
+  --source-bundle "$S09_FRESH_SOURCE_BUNDLE" \
+  --final-bundle "$S09_NEW_SIBLING_BUNDLE" \
+  --receipt-directory "$S09_NEW_RECEIPT_DIRECTORY" \
+  --frozen-product-worktree "$S09_PRODUCT_WORKTREE" \
+  --frozen-schema "$S09_PRODUCT_WORKTREE/docs/dev/handoff/schemas/stage-09-evidence.schema.json" \
+  --closure-tooling-sha "$S09_CLOSURE_TOOLING_SHA"
+
+uv run python scripts/mvp/finalize_stage09_evidence.py verify \
+  --bundle "$S09_NEW_SIBLING_BUNDLE" \
+  --receipt-directory "$S09_NEW_RECEIPT_DIRECTORY"
+```
+
+The sealer validates the exact frozen product SHA and schema, manifest and
+structured zero-write proof, creates byte-distinct files with no shared inode,
+applies `0400`/`0500`, seals descendants bottom-up, publishes the root
+atomically, seals the root last, runs all mutation-denial probes, then
+atomically publishes a receipt/checksum directory and verifies its own
+protection. Only the final combined verifier may emit
+`STAGE09_FINALIZATION=PASS`.
+
+This is an owner-level operational integrity seal on the pinned APFS volume.
+`UF_IMMUTABLE` prevents ordinary mutation while the flag remains set; it is not
+a defense against the owning user deliberately clearing the flag, a privileged
+administrator, or offline filesystem manipulation. The receipt proves the
+verified on-disk state at verification time within that threat model.
+
+If any `chmod`, `chflags`, publication, probe, receipt, or source-stability
+step fails after mutation begins, the candidate is permanently quarantined as
+`INVALID_PARTIAL_SEAL`. Do not clear flags, delete, repair, resume, or reuse it.
+Record the path and the sealed/unsealed inventory, fix the tooling, and start
+from a new unique acceptance root and a new unique sibling destination. Test
+fixtures under `/Volumes/Projects/.ketos-seal-test-fixtures/` are the sole
+exception and may clear flags only after exact path, inode, and run-ID
+verification.

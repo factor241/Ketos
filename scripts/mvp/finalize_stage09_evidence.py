@@ -8,6 +8,7 @@ import argparse
 import ctypes
 import errno
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -47,6 +48,8 @@ SECRET_PATTERNS = (
     re.compile(r"\beyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\b"),
 )
 REPO_ROOT = Path(__file__).resolve().parents[2]
+SEAL_MODULE = Path(__file__).resolve().with_name("stage_evidence_seal.py")
+RECEIPT_SCHEMA = REPO_ROOT / "docs/dev/handoff/schemas/stage-09-seal-receipt.schema.json"
 
 
 class EvidenceError(RuntimeError):
@@ -80,8 +83,10 @@ def _validate_root(repo_root: Path, evidence_root: Path) -> Path:
         Path("/private/tmp").resolve(),
         Path("/var/tmp").resolve(),
     }
-    if root == repo or root.is_relative_to(repo) or any(
-        root == item or root.is_relative_to(item) for item in temporary_roots
+    if (
+        root == repo
+        or root.is_relative_to(repo)
+        or any(root == item or root.is_relative_to(item) for item in temporary_roots)
     ):
         raise EvidenceError("evidence root must be persistent, external to the repository, and outside temp")
     mode = stat.S_IMODE(root.stat().st_mode)
@@ -197,10 +202,7 @@ def _require_payload(staging: Path) -> None:
         raise EvidenceError("missing mandatory evidence files: " + ", ".join(missing))
     if not any(path.suffix == ".zip" for path in (staging / "playwright").rglob("*")):
         raise EvidenceError("Playwright trace zip is required")
-    if not any(
-        path.suffix.lower() in {".png", ".jpg", ".jpeg"}
-        for path in (staging / "playwright").rglob("*")
-    ):
+    if not any(path.suffix.lower() in {".png", ".jpg", ".jpeg"} for path in (staging / "playwright").rglob("*")):
         raise EvidenceError("at least one supplemental browser screenshot is required")
 
 
@@ -220,9 +222,7 @@ def _freeze_permissions(root: Path) -> None:
     root.chmod(0o500)
 
 
-def _finalize(
-    *, repo_root: Path, evidence_root: Path, staging: Path, code_sha: str, run_id: str, schema: Path
-) -> Path:
+def _finalize(*, repo_root: Path, evidence_root: Path, staging: Path, code_sha: str, run_id: str, schema: Path) -> Path:
     root = _validate_root(repo_root, evidence_root)
     staging = staging.expanduser().resolve(strict=True)
     expected_staging = root / f".stage09-{code_sha}-{run_id}"
@@ -269,7 +269,7 @@ def _finalize(
     return destination
 
 
-def _verify(bundle: Path) -> None:
+def _verify(bundle: Path) -> Path:
     bundle = bundle.expanduser().resolve(strict=True)
     _reject_symlinks(bundle)
     manifest_path = bundle / "manifest.json"
@@ -290,6 +290,69 @@ def _verify(bundle: Path) -> None:
     if actual != set(manifest.get("files", {})):
         raise EvidenceError("bundle payload set does not match manifest")
     _scan_secrets(_payload_files(bundle))
+    return bundle
+
+
+def _load_sealer():
+    spec = importlib.util.spec_from_file_location("stage09_finalizer_sealer", SEAL_MODULE)
+    if spec is None or spec.loader is None:
+        raise EvidenceError("unable to load the generic APFS sealer")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _verify_final_seal(bundle: Path, receipt_directory: Path) -> dict[str, Any]:
+    bundle = _verify(bundle)
+    receipt_directory = receipt_directory.expanduser().resolve(strict=True)
+    receipt = _load_json(receipt_directory / "receipt.json")
+    recorded_bundle = receipt.get("paths", {}).get("final_bundle")
+    if (
+        not isinstance(recorded_bundle, str)
+        or Path(recorded_bundle) != bundle
+        or Path(recorded_bundle).resolve(strict=True) != bundle
+    ):
+        raise EvidenceError("receipt is not bound to the verified bundle")
+    if receipt.get("status") != "PASS":
+        raise EvidenceError("receipt does not carry the sealed-bundle PASS precondition")
+    try:
+        from jsonschema import Draft202012Validator
+    except ImportError as exc:
+        raise EvidenceError("jsonschema is required to validate the seal receipt") from exc
+    errors = sorted(
+        Draft202012Validator(_load_json(RECEIPT_SCHEMA)).iter_errors(receipt),
+        key=lambda error: list(error.path),
+    )
+    if errors:
+        detail = "; ".join(error.message for error in errors[:10])
+        raise EvidenceError(f"seal receipt does not match the committed schema: {detail}")
+    sealer = _load_sealer()
+    try:
+        recorded_digests = receipt["digests"]
+        expected_bytes = {
+            "root_sha256": recorded_digests["byte_inventory_root_sha256"],
+            "xattr_root_sha256": recorded_digests["xattr_inventory_root_sha256"],
+        }
+        if (
+            hashlib.sha256((bundle / "manifest.json").read_bytes()).hexdigest()
+            != recorded_digests["source_manifest_sha256"]
+        ):
+            raise EvidenceError("receipt source manifest digest does not match the verified bundle")
+        recursive = sealer.verify_recursive_seal(bundle, expected_bytes=expected_bytes)
+        probes = sealer.run_negative_mutation_probes(bundle, baseline=expected_bytes)
+        receipt_protection = sealer.verify_receipt_self_protection(receipt_directory)
+    except sealer.SealError as exc:
+        raise EvidenceError(f"recursive seal verification failed: {exc}") from exc
+    return {
+        "status": "pass",
+        "terminal": "STAGE09_FINALIZATION=PASS",
+        "bundle": str(bundle),
+        "receipt_directory": str(receipt_directory),
+        "recursive": recursive,
+        "negative_probes": probes,
+        "receipt_protection": receipt_protection,
+    }
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -311,6 +374,7 @@ def _parser() -> argparse.ArgumentParser:
     finalize.add_argument("--schema", type=Path, required=True)
     verify = commands.add_parser("verify")
     verify.add_argument("--bundle", type=Path, required=True)
+    verify.add_argument("--receipt-directory", type=Path)
     return parser
 
 
@@ -333,9 +397,20 @@ def main(argv: list[str] | None = None) -> int:
                     schema=args.schema,
                 )
             )
+        elif args.receipt_directory is None:
+            bundle = _verify(args.bundle)
+            print(
+                json.dumps(
+                    {
+                        "status": "payload-valid-nonfinal",
+                        "transition": "no-go",
+                        "bundle": str(bundle),
+                        "reason": "recursive APFS seal and protected receipt were not supplied",
+                    }
+                )
+            )
         else:
-            _verify(args.bundle)
-            print(json.dumps({"status": "pass", "bundle": str(args.bundle)}))
+            print(json.dumps(_verify_final_seal(args.bundle, args.receipt_directory), sort_keys=True))
     except (EvidenceError, OSError, json.JSONDecodeError, shutil.Error) as exc:
         print(f"stage09 evidence finalizer failed: {exc}", file=sys.stderr)
         return 1

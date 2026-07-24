@@ -48,29 +48,42 @@ export default function ProfilePictureChooserComponent({
             </div>
             <div className="block overflow-hidden">
               <div className="flex items-center gap-1 overflow-x-auto rounded-lg bg-muted px-1 custom-scroll">
-                {profilePictures![folder].map((path, idx) => (
-                  <Button
-                    key={idx}
-                    ref={value === folder + "/" + path ? ref : undefined}
-                    unstyled
-                    onClick={() => onChange(folder + "/" + path)}
-                    className="shrink-0 px-0.5 py-2"
-                  >
-                    <img
+                {profilePictures![folder].map((path, idx) => {
+                  const optionLabel = t("settings.profilePictureOption", {
+                    category: t(
+                      `settings.profilePictureCategory.${folder}`,
+                      folder,
+                    ),
+                    image: path,
+                  });
+                  const optionValue = folder + "/" + path;
+                  return (
+                    <Button
                       key={idx}
-                      src={customPreLoadImageUrl(`${folder}/${path}`)}
-                      style={{
-                        filter:
-                          value === folder + "/" + path
-                            ? dark
-                              ? "drop-shadow(0 0 0.3rem rgb(255, 255, 255))"
-                              : "drop-shadow(0 0 0.3rem rgb(0, 0, 0))"
-                            : "",
-                      }}
-                      className={cn("h-12 w-12")}
-                    />
-                  </Button>
-                ))}
+                      ref={value === optionValue ? ref : undefined}
+                      unstyled
+                      onClick={() => onChange(optionValue)}
+                      className="shrink-0 px-0.5 py-2"
+                      aria-label={optionLabel}
+                      aria-pressed={value === optionValue}
+                    >
+                      <img
+                        key={idx}
+                        src={customPreLoadImageUrl(`${folder}/${path}`)}
+                        alt=""
+                        style={{
+                          filter:
+                            value === optionValue
+                              ? dark
+                                ? "drop-shadow(0 0 0.3rem rgb(255, 255, 255))"
+                                : "drop-shadow(0 0 0.3rem rgb(0, 0, 0))"
+                              : "",
+                        }}
+                        className={cn("h-12 w-12")}
+                      />
+                    </Button>
+                  );
+                })}
               </div>
             </div>
           </div>

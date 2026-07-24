@@ -293,6 +293,7 @@
   "settings.languageSelectAriaLabel": "Select language",
   "settings.profilePictureTitle": "Profile Picture",
   "settings.profilePictureDescription": "Choose the image that appears as your profile picture.",
+  "settings.profilePictureOption": "Profile picture {{category}} {{image}}",
   "settings.profilePictureCategory.People": "People",
   "settings.profilePictureCategory.Space": "Space",
   "settings.apiKeysTitle": "Ketos API Keys",

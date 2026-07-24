@@ -20,6 +20,7 @@ export const AddFolderButton = ({
         size="icon"
         className="h-7 w-7 border-0 text-muted-foreground hover:bg-muted"
         onClick={onClick}
+        aria-label={t("folder.createNewProject")}
         data-testid="add-project-button"
         disabled={disabled}
         loading={loading}

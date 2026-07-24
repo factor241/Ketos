@@ -12,6 +12,7 @@ export const UploadFolderButton = ({ onClick, disabled }) => {
         size="icon"
         className="h-7 w-7 border-0 text-muted-foreground hover:bg-muted"
         onClick={onClick}
+        aria-label={t("folder.uploadFlow")}
         data-testid="upload-project-button"
         disabled={disabled}
       >

@@ -50,6 +50,7 @@ export const SelectOptions = ({
           <SelectTrigger
             className="w-fit"
             id={`options-trigger-${item.name}`}
+            aria-label={t("folder.options")}
             data-testid={
               "more-options-button" + `_${convertTestName(item?.name ?? "")}`
             }

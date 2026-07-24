@@ -293,6 +293,7 @@
   "settings.languageSelectAriaLabel": "Выберите язык",
   "settings.profilePictureTitle": "Изображение профиля",
   "settings.profilePictureDescription": "Выберите изображение профиля.",
+  "settings.profilePictureOption": "Изображение профиля: {{category}}, {{image}}",
   "settings.profilePictureCategory.People": "Люди",
   "settings.profilePictureCategory.Space": "Космос",
   "settings.apiKeysTitle": "API-ключи Ketos",

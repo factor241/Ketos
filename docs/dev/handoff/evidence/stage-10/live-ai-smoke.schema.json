@@ -3,7 +3,7 @@
   "$id": "https://schemas.ketos.test/evidence/stage-10/live-ai-smoke.schema.json",
   "title": "Ketos Stage 10 Live AI Smoke",
   "type": "object",
-  "additionalProperties": true,
+  "additionalProperties": false,
   "required": [
     "schema",
     "s10_code_sha",
@@ -19,28 +19,44 @@
     "provider_upstream",
     "model",
     "base_url",
-    "raw_content_retained",
+    "actor_id",
+    "project_id",
+    "board_id",
+    "chat_id",
+    "flow_id",
+    "canonical_saver",
     "ketos_provider_config",
     "direct_preflight",
     "ketos_live",
-    "db_correlation"
+    "server_process",
+    "db_correlation",
+    "secret_file_retained",
+    "raw_content_retained"
   ],
   "properties": {
     "schema": {"const": "ketos.stage10.live-ai-smoke.v1"},
-    "s10_code_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "s10_code_sha": {"$ref": "#/$defs/sha40"},
     "owner": {"type": "string", "minLength": 1},
     "retention_policy": {"type": "string", "minLength": 1},
     "started_at": {"type": "string", "format": "date-time"},
     "ended_at": {"type": "string", "format": "date-time"},
     "command": {"type": "array", "minItems": 1, "items": {"type": "string"}},
-    "cwd": {"type": "string", "minLength": 1},
+    "cwd": {"type": "string", "pattern": "^/"},
     "exit_code": {"const": 0},
     "verdict": {"const": "PASS"},
     "provider_adapter": {"const": "OpenAI"},
     "provider_upstream": {"const": "CometAPI"},
     "model": {"const": "deepseek-v4-flash"},
     "base_url": {"const": "https://api.cometapi.com/v1"},
-    "raw_content_retained": {"const": false},
+    "actor_id": {"type": "string", "minLength": 1},
+    "project_id": {"type": "string", "minLength": 1},
+    "board_id": {"type": "string", "minLength": 1},
+    "chat_id": {"type": "string", "minLength": 1},
+    "flow_id": {"type": "string", "minLength": 1},
+    "canonical_saver": {
+      "type": ["string", "null"],
+      "pattern": "^/"
+    },
     "ketos_provider_config": {
       "type": "object",
       "additionalProperties": false,
@@ -55,34 +71,140 @@
     },
     "direct_preflight": {
       "type": "object",
-      "required": ["models_status", "reply_status", "typed_tool_status", "tool_followup_status"],
+      "additionalProperties": false,
+      "required": [
+        "models_status",
+        "models_latency_ms",
+        "reply_status",
+        "reply_request_id",
+        "reply_latency_ms",
+        "reply_usage",
+        "typed_tool_status",
+        "typed_tool_request_id",
+        "typed_tool_latency_ms",
+        "typed_tool_usage",
+        "tool_followup_status",
+        "tool_followup_request_id",
+        "tool_followup_latency_ms",
+        "tool_followup_usage"
+      ],
       "properties": {
         "models_status": {"const": "PASS"},
+        "models_latency_ms": {"$ref": "#/$defs/nonnegative"},
         "reply_status": {"const": "PASS"},
+        "reply_request_id": {"$ref": "#/$defs/nullableId"},
+        "reply_latency_ms": {"$ref": "#/$defs/nonnegative"},
+        "reply_usage": {"$ref": "#/$defs/nullableUsage"},
         "typed_tool_status": {"const": "PASS"},
-        "tool_followup_status": {"const": "PASS"}
+        "typed_tool_request_id": {"$ref": "#/$defs/nullableId"},
+        "typed_tool_latency_ms": {"$ref": "#/$defs/nonnegative"},
+        "typed_tool_usage": {"$ref": "#/$defs/nullableUsage"},
+        "tool_followup_status": {"const": "PASS"},
+        "tool_followup_request_id": {"$ref": "#/$defs/nullableId"},
+        "tool_followup_latency_ms": {"$ref": "#/$defs/nonnegative"},
+        "tool_followup_usage": {"$ref": "#/$defs/nullableUsage"}
       }
     },
     "ketos_live": {
       "type": "object",
-      "additionalProperties": true,
+      "additionalProperties": false,
       "required": ["reply", "reject", "approve"],
       "properties": {
         "reply": {
           "type": "object",
-          "required": ["durable_assistant_commits"],
-          "properties": {"durable_assistant_commits": {"const": 1}}
+          "additionalProperties": false,
+          "required": [
+            "run_id",
+            "chat_run_id",
+            "request_id",
+            "latency_ms",
+            "assistant_text_sha256",
+            "assistant_text_bytes",
+            "durable_assistant_commits"
+          ],
+          "properties": {
+            "run_id": {"$ref": "#/$defs/id"},
+            "chat_run_id": {"$ref": "#/$defs/id"},
+            "request_id": {"$ref": "#/$defs/id"},
+            "latency_ms": {"$ref": "#/$defs/nonnegative"},
+            "assistant_text_sha256": {"$ref": "#/$defs/sha256"},
+            "assistant_text_bytes": {"type": "integer", "minimum": 1},
+            "durable_assistant_commits": {"const": 1}
+          }
         },
         "reject": {
           "type": "object",
-          "required": ["flow_effects", "outcome"],
-          "properties": {"flow_effects": {"const": 0}, "outcome": {"const": "rejected"}}
+          "additionalProperties": false,
+          "required": [
+            "run_id",
+            "resume_run_id",
+            "proposal_id",
+            "proposal_latency_ms",
+            "resume_latency_ms",
+            "revision_before",
+            "revision_after",
+            "hash_unchanged",
+            "flow_effects",
+            "durable_assistant_commits",
+            "outcome"
+          ],
+          "properties": {
+            "run_id": {"$ref": "#/$defs/id"},
+            "resume_run_id": {"$ref": "#/$defs/id"},
+            "proposal_id": {"$ref": "#/$defs/id"},
+            "proposal_latency_ms": {"$ref": "#/$defs/nonnegative"},
+            "resume_latency_ms": {"$ref": "#/$defs/nonnegative"},
+            "revision_before": {"type": "integer", "minimum": 0},
+            "revision_after": {"type": "integer", "minimum": 0},
+            "hash_unchanged": {"const": true},
+            "flow_effects": {"const": 0},
+            "durable_assistant_commits": {"const": 1},
+            "outcome": {"const": "rejected"}
+          }
         },
         "approve": {
           "type": "object",
-          "required": ["flow_effects", "outcome"],
-          "properties": {"flow_effects": {"const": 1}, "outcome": {"const": "applied"}}
+          "additionalProperties": false,
+          "required": [
+            "run_id",
+            "resume_run_id",
+            "proposal_id",
+            "proposal_latency_ms",
+            "resume_latency_ms",
+            "revision_before",
+            "revision_after",
+            "hash_changed",
+            "flow_effects",
+            "durable_assistant_commits",
+            "outcome"
+          ],
+          "properties": {
+            "run_id": {"$ref": "#/$defs/id"},
+            "resume_run_id": {"$ref": "#/$defs/id"},
+            "proposal_id": {"$ref": "#/$defs/id"},
+            "proposal_latency_ms": {"$ref": "#/$defs/nonnegative"},
+            "resume_latency_ms": {"$ref": "#/$defs/nonnegative"},
+            "revision_before": {"type": "integer", "minimum": 0},
+            "revision_after": {"type": "integer", "minimum": 0},
+            "hash_changed": {"const": true},
+            "flow_effects": {"const": 1},
+            "durable_assistant_commits": {"const": 1},
+            "outcome": {"const": "applied"}
+          }
         }
+      }
+    },
+    "server_process": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pid", "pgid", "started_at_epoch", "term_sent", "kill_sent", "survivor_count"],
+      "properties": {
+        "pid": {"type": "integer", "minimum": 1},
+        "pgid": {"type": "integer", "minimum": 1},
+        "started_at_epoch": {"type": "number", "exclusiveMinimum": 0},
+        "term_sent": {"type": "boolean"},
+        "kill_sent": {"type": "boolean"},
+        "survivor_count": {"const": 0}
       }
     },
     "db_correlation": {
@@ -106,6 +228,30 @@
         "approve_message_commits": {"const": 1},
         "distinct_proposal_ids": {"const": true}
       }
+    },
+    "secret_file_retained": {"const": true},
+    "raw_content_retained": {"const": false}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1},
+    "nullableId": {"type": ["string", "null"], "minLength": 1},
+    "nonnegative": {"type": "integer", "minimum": 0},
+    "sha40": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "prompt_tokens": {"type": "integer", "minimum": 0},
+        "completion_tokens": {"type": "integer", "minimum": 0},
+        "total_tokens": {"type": "integer", "minimum": 0}
+      }
+    },
+    "nullableUsage": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/usage"}
+      ]
     }
   }
 }

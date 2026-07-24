@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-# ruff: noqa: FBT003, PLR2004, PT018, S101, S108, SLF001
+# ruff: noqa: FBT003, PLR2004, PLW1510, PT007, PT018, S101, S108, S603, SIM105, SLF001
+import hashlib
 import importlib.util
 import json
+import os
 import plistlib
 import struct
 import subprocess
@@ -21,6 +23,9 @@ SCHEMA_DIR = ROOT / "docs/dev/handoff/evidence/stage-10"
 SHA = "a" * 40
 OWNER = "stage10-owner"
 RETENTION = "forever"
+CLOSURE_TOOLING_SHA = "638f2b2d35e353fe0ad9f39ee800315ebe6d1338"
+GENERIC_SEAL = ROOT / "scripts/mvp/stage_evidence_seal.py"
+GENERIC_SEAL_GIT_BLOB_OID = "cb152e95594c9579d5e40cf130e81669cc10991a"
 SCREENSHOT_NAMES = (
     "01-board-note-chat.png",
     "02-automation-result.png",
@@ -164,6 +169,12 @@ def make_bundle(tmp_path: Path) -> Path:
             "provider_upstream": "CometAPI",
             "model": "deepseek-v4-flash",
             "base_url": "https://api.cometapi.com/v1",
+            "actor_id": "actor-1",
+            "project_id": "project-1",
+            "board_id": "board-1",
+            "chat_id": "chat-1",
+            "flow_id": "flow-1",
+            "canonical_saver": "/Volumes/Projects/stage10/data/mvp/langgraph-checkpoints.sqlite3",
             "raw_content_retained": False,
             "ketos_provider_config": {
                 "variables_creation_order": ["OPENAI_BASE_URL", "OPENAI_API_KEY"],
@@ -174,14 +185,64 @@ def make_bundle(tmp_path: Path) -> Path:
             },
             "direct_preflight": {
                 "models_status": "PASS",
+                "models_latency_ms": 1,
                 "reply_status": "PASS",
+                "reply_request_id": "reply-request-1",
+                "reply_latency_ms": 1,
+                "reply_usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
                 "typed_tool_status": "PASS",
+                "typed_tool_request_id": "tool-request-1",
+                "typed_tool_latency_ms": 1,
+                "typed_tool_usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
                 "tool_followup_status": "PASS",
+                "tool_followup_request_id": "follow-request-1",
+                "tool_followup_latency_ms": 1,
+                "tool_followup_usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
             },
             "ketos_live": {
-                "reply": {"durable_assistant_commits": 1},
-                "reject": {"flow_effects": 0, "outcome": "rejected"},
-                "approve": {"flow_effects": 1, "outcome": "applied"},
+                "reply": {
+                    "run_id": "reply-run",
+                    "chat_run_id": "reply-chat-run",
+                    "request_id": "reply-request",
+                    "latency_ms": 1,
+                    "assistant_text_sha256": "1" * 64,
+                    "assistant_text_bytes": 5,
+                    "durable_assistant_commits": 1,
+                },
+                "reject": {
+                    "run_id": "reject-run",
+                    "resume_run_id": "reject-resume",
+                    "proposal_id": "reject-proposal",
+                    "proposal_latency_ms": 1,
+                    "resume_latency_ms": 1,
+                    "revision_before": 1,
+                    "revision_after": 1,
+                    "hash_unchanged": True,
+                    "flow_effects": 0,
+                    "durable_assistant_commits": 1,
+                    "outcome": "rejected",
+                },
+                "approve": {
+                    "run_id": "approve-run",
+                    "resume_run_id": "approve-resume",
+                    "proposal_id": "approve-proposal",
+                    "proposal_latency_ms": 1,
+                    "resume_latency_ms": 1,
+                    "revision_before": 1,
+                    "revision_after": 2,
+                    "hash_changed": True,
+                    "flow_effects": 1,
+                    "durable_assistant_commits": 1,
+                    "outcome": "applied",
+                },
+            },
+            "server_process": {
+                "pid": 100,
+                "pgid": 100,
+                "started_at_epoch": 1.0,
+                "term_sent": True,
+                "kill_sent": False,
+                "survivor_count": 0,
             },
             "db_correlation": {
                 "reply_chat_runs": 1,
@@ -192,6 +253,7 @@ def make_bundle(tmp_path: Path) -> Path:
                 "approve_message_commits": 1,
                 "distinct_proposal_ids": True,
             },
+            "secret_file_retained": True,
         }
     )
     (bundle / "live-ai-smoke.json").write_text(json.dumps(live), encoding="utf-8")
@@ -245,8 +307,6 @@ def make_bundle(tmp_path: Path) -> Path:
         },
         "secret_scan": {"status": "PASS", "matches": 0, "files_scanned": 5},
     }
-    import hashlib
-
     for name in SCREENSHOT_NAMES:
         data = (screenshots / name).read_bytes()
         manifest["screenshots"].append(
@@ -315,6 +375,35 @@ def make_bundle(tmp_path: Path) -> Path:
         ),
         encoding="utf-8",
     )
+    (bundle / "repo-after-full.json").write_text(
+        json.dumps(
+            {
+                "schema": "ketos.stage10.repo-after-full.v1",
+                "s10_code_sha": SHA,
+                "head_sha": SHA,
+                "changed_paths": [],
+                "matches_before": True,
+                "verdict": "PASS",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (bundle / "tooling-provenance.json").write_text(
+        json.dumps(
+            {
+                "schema": "ketos.stage10.tooling-provenance.v1",
+                "s10_code_sha": SHA,
+                "closure_tooling_sha": CLOSURE_TOOLING_SHA,
+                "generic_path": "scripts/mvp/stage_evidence_seal.py",
+                "generic_git_blob_oid": GENERIC_SEAL_GIT_BLOB_OID,
+                "generic_sha256": hashlib.sha256(GENERIC_SEAL.read_bytes()).hexdigest(),
+                "wrapper_path": "scripts/mvp/seal_evidence_bundle.py",
+                "wrapper_sha256": hashlib.sha256(SEALER.read_bytes()).hexdigest(),
+                "verdict": "PASS",
+            }
+        ),
+        encoding="utf-8",
+    )
     return bundle
 
 
@@ -344,6 +433,8 @@ def test_validator_builds_exclusive_redacted_manifest(tmp_path: Path) -> None:
         "entity-ledger.json",
         "no-secret-qa.json",
         "product-design/1440x900/01-board-note-chat.png",
+        "repo-after-full.json",
+        "tooling-provenance.json",
     }
     assert all(not Path(item["path"]).is_absolute() for item in payload["artifacts"])
     with pytest.raises(FileExistsError):
@@ -357,6 +448,100 @@ def test_validator_builds_exclusive_redacted_manifest(tmp_path: Path) -> None:
             no_secret_report=report,
             manifest_path=manifest,
         )
+
+
+def test_validator_records_intended_final_bundle_and_structured_zero_write(tmp_path: Path) -> None:
+    validator = load_module("stage10_validator_final_path", VALIDATOR)
+    bundle = make_bundle(tmp_path)
+    final_bundle = tmp_path / "published" / "stage-10" / SHA / "run-1"
+
+    result = validator.validate_and_manifest(
+        bundle=bundle,
+        schema_dir=SCHEMA_DIR,
+        s10_code_sha=SHA,
+        owner=OWNER,
+        retention_policy=RETENTION,
+        deny_secrets=True,
+        no_secret_report=bundle / "no-secret-qa.json",
+        manifest_path=bundle / "manifest.json",
+        intended_final_bundle=final_bundle,
+    )
+
+    assert result["canonical_bundle"] == str(final_bundle)
+    assert result["persistent_root"] == str(final_bundle.parents[2])
+
+
+def test_validator_rejects_nonempty_structured_diff(tmp_path: Path) -> None:
+    validator = load_module("stage10_validator_repo_after", VALIDATOR)
+    bundle = make_bundle(tmp_path)
+    repo_after = bundle / "repo-after-full.json"
+    payload = json.loads(repo_after.read_text(encoding="utf-8"))
+    payload["changed_paths"] = ["src/backend/base/ketos/api/v1/projects.py"]
+    payload["matches_before"] = False
+    repo_after.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="structured zero-write"):
+        validator.validate_and_manifest(
+            bundle=bundle,
+            schema_dir=SCHEMA_DIR,
+            s10_code_sha=SHA,
+            owner=OWNER,
+            retention_policy=RETENTION,
+            deny_secrets=True,
+            no_secret_report=bundle / "no-secret-qa.json",
+            manifest_path=bundle / "manifest.json",
+        )
+
+
+def test_validator_rejects_tooling_provenance_mismatch(tmp_path: Path) -> None:
+    validator = load_module("stage10_validator_provenance", VALIDATOR)
+    bundle = make_bundle(tmp_path)
+    provenance = bundle / "tooling-provenance.json"
+    payload = json.loads(provenance.read_text(encoding="utf-8"))
+    payload["generic_sha256"] = "0" * 64
+    provenance.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="tooling provenance"):
+        validator.validate_and_manifest(
+            bundle=bundle,
+            schema_dir=SCHEMA_DIR,
+            s10_code_sha=SHA,
+            owner=OWNER,
+            retention_policy=RETENTION,
+            deny_secrets=True,
+            no_secret_report=bundle / "no-secret-qa.json",
+            manifest_path=bundle / "manifest.json",
+        )
+
+
+def test_stage10_sealer_is_a_thin_generic_adapter() -> None:
+    source = SEALER.read_text(encoding="utf-8")
+
+    assert "import stage_evidence_seal as seal" in source
+    assert "materialize_distinct_copy" in source
+    assert "run_negative_mutation_probes" in source
+    assert "publish_receipt_atomically" in source
+    assert "verify_receipt_self_protection" in source
+    assert "def _run_chflags" not in source
+    assert "os.chmod(" not in source
+
+
+def test_stage10_sealer_rejects_staging_inventory_drift() -> None:
+    sealer = load_module("stage10_sealer_inventory_binding", SEALER)
+    expected = {"root_sha256": "1" * 64, "xattr_root_sha256": "2" * 64}
+    changed = {"root_sha256": "3" * 64, "xattr_root_sha256": "2" * 64}
+
+    with pytest.raises(ValueError, match="staging differs"):
+        sealer._assert_inventory_equal(expected, changed, label="staging")
+
+
+def test_stage10_sealer_rechecks_worktree_parent_identity_and_staging_secrets() -> None:
+    source = SEALER.read_text(encoding="utf-8")
+
+    assert source.count("_verify_frozen_worktree(") >= 4
+    assert "_scan_secrets(_inventory(staging))" in source
+    assert "_verify_directory_identity(final.parent" in source
+    assert "_verify_directory_identity(receipt_dir.parent" in source
 
 
 def test_volume_identity_walks_to_diskutil_supported_parent(
@@ -613,6 +798,448 @@ def test_ram_guard_emits_gate_finished_boundary(
         for row in records
         if row.get("schema") == "ketos.stage10.memory-boundary.v1" and row.get("boundary") == "gate_finished"
     ]
+    assert result["tail_complete"] is True
+    assert result["last_sample_sequence"] >= 1
+    assert result["last_heartbeat_age_seconds"] >= 0
+    assert result["pageout_delta"] == 0
+    assert result["swapout_delta"] == 0
+    assert result["child_outcomes"]["target"]["returncode"] == 0
+
+
+def test_ram_guard_supplies_devnull_when_parent_stdin_is_closed(tmp_path: Path) -> None:
+    evidence = tmp_path / "closed-stdin"
+    evidence.mkdir()
+    driver = (
+        "import importlib.util, os, pathlib, sys;"
+        f"p=pathlib.Path({str(RAM_GUARD)!r});"
+        "s=importlib.util.spec_from_file_location('stage10_guard_closed_stdin',p);"
+        "m=importlib.util.module_from_spec(s);sys.modules[s.name]=m;s.loader.exec_module(m);"
+        "m._git_clean=lambda *_args: True;"
+        "m._recovery_admission=lambda **_kwargs:(True,False,0,[]);"
+        "m.sample_with_deadline=lambda sequence,gate_id,phase:{"
+        "'schema':'ketos.stage10.memory-sample.v1','at':'2026-07-23T00:00:00Z',"
+        "'monotonic_ns':sequence+1,'sequence':sequence,'gate_id':gate_id,'phase':phase,"
+        "'system_used_bytes':1,'aggregate_rss_bytes':1,'pageouts':0,'swapouts':0,"
+        "'critical_memory_pressure':False,'monitor_loss':False};"
+        "os.close(0);"
+        f"root=pathlib.Path({str(evidence)!r});"
+        "r=m.run_guarded(cwd=pathlib.Path.cwd(),expected_sha='a'*40,gate_id='closed-stdin',"
+        "command=[sys.executable,'-c','import os;[os.fstat(fd) for fd in (0,1,2)]'],"
+        "result_path=root/'result.json',telemetry_path=root/'telemetry.jsonl',"
+        "pid_ledger_path=root/'pid-ledger.json',log_path=root/'gate.log',"
+        "policy=m.Policy(sample_interval_seconds=.01,recovery_seconds=0,tail_seconds=.02),"
+        "timeout_seconds=5);"
+        "raise SystemExit(0 if r['verdict']=='PASS' else 1)"
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", driver],
+        cwd=ROOT,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    result = json.loads((evidence / "result.json").read_text(encoding="utf-8"))
+    assert result["classification"] == "PASS"
+
+
+def test_ram_guard_retries_transient_identity_capture_for_live_child(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    guard = load_module("stage10_guard_identity_retry", RAM_GUARD)
+    evidence = tmp_path / "identity-retry"
+    evidence.mkdir()
+    monkeypatch.setattr(guard, "_git_clean", lambda *_args: True)
+    monkeypatch.setattr(guard, "_recovery_admission", lambda **_kwargs: (True, False, 0, []))
+    monkeypatch.setattr(
+        guard,
+        "sample_with_deadline",
+        lambda sequence, gate_id, phase: {
+            "schema": "ketos.stage10.memory-sample.v1",
+            "at": "2026-07-23T00:00:00Z",
+            "monotonic_ns": time.monotonic_ns(),
+            "sequence": sequence,
+            "gate_id": gate_id,
+            "phase": phase,
+            "system_used_bytes": 1,
+            "aggregate_rss_bytes": 1,
+            "pageouts": 0,
+            "swapouts": 0,
+            "critical_memory_pressure": False,
+            "monitor_loss": False,
+        },
+    )
+    real_identity = guard._identity
+    attempts = 0
+
+    def transient_identity(pid):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise guard.psutil.AccessDenied(pid)
+        return real_identity(pid)
+
+    monkeypatch.setattr(guard, "_identity", transient_identity)
+    result = guard.run_guarded(
+        cwd=ROOT,
+        expected_sha=SHA,
+        gate_id="identity-retry",
+        command=[sys.executable, "-c", "import time; time.sleep(0.1)"],
+        result_path=evidence / "result.json",
+        telemetry_path=evidence / "telemetry.jsonl",
+        pid_ledger_path=evidence / "pid-ledger.json",
+        log_path=evidence / "gate.log",
+        policy=guard.Policy(sample_interval_seconds=0.01, tail_seconds=0.02),
+    )
+
+    assert attempts >= 2
+    assert result["verdict"] == "PASS"
+    assert result["cleanup"]["survivors"] == []
+
+
+def test_ram_guard_persistent_identity_capture_failure_reaps_spawn_handle(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    guard = load_module("stage10_guard_identity_failure", RAM_GUARD)
+    evidence = tmp_path / "identity-failure"
+    evidence.mkdir()
+    monkeypatch.setattr(guard, "_git_clean", lambda *_args: True)
+    monkeypatch.setattr(guard, "_recovery_admission", lambda **_kwargs: (True, False, 0, []))
+    monkeypatch.setattr(guard, "_identity", lambda pid: (_ for _ in ()).throw(guard.psutil.AccessDenied(pid)))
+
+    descendant_pid = evidence / "descendant.pid"
+    child_source = (
+        "import pathlib,signal,subprocess,sys,time;"
+        f"p=subprocess.Popen([sys.executable,'-c','import signal,time;"
+        "signal.signal(signal.SIGTERM,signal.SIG_IGN);time.sleep(30)']);"
+        f"pathlib.Path({str(descendant_pid)!r}).write_text(str(p.pid));"
+        "signal.signal(signal.SIGTERM,signal.SIG_IGN);time.sleep(30)"
+    )
+    result = guard.run_guarded(
+        cwd=ROOT,
+        expected_sha=SHA,
+        gate_id="identity-failure",
+        command=[sys.executable, "-c", child_source],
+        result_path=evidence / "result.json",
+        telemetry_path=evidence / "telemetry.jsonl",
+        pid_ledger_path=evidence / "pid-ledger.json",
+        log_path=evidence / "gate.log",
+        policy=guard.Policy(sample_interval_seconds=0.01, tail_seconds=0.02, term_grace_seconds=0),
+    )
+
+    assert result["classification"] == "IDENTITY_CAPTURE_FAILURE"
+    assert result["verdict"] == "FAIL"
+    assert result["cleanup"]["spawn_handle_verified"] is True
+    assert result["cleanup"]["kill_sent"] is True
+    assert result["cleanup"]["survivors"] == []
+    assert result["child_outcomes"]["target"]["returncode"] is not None
+    assert descendant_pid.exists()
+
+
+def test_ram_guard_tail_interrupt_still_publishes_terminal_signal_result(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    guard = load_module("stage10_guard_signal", RAM_GUARD)
+    evidence = tmp_path / "signal"
+    evidence.mkdir()
+    monkeypatch.setattr(guard, "_git_clean", lambda *_args: True)
+    monkeypatch.setattr(
+        guard,
+        "_recovery_admission",
+        lambda **_kwargs: (True, False, 0, []),
+    )
+
+    def interrupt_tail(sequence, gate_id, phase):
+        if phase == "tail":
+            raise KeyboardInterrupt
+        return {
+            "schema": "ketos.stage10.memory-sample.v1",
+            "at": "2026-07-23T00:00:00Z",
+            "monotonic_ns": time.monotonic_ns(),
+            "sequence": sequence,
+            "gate_id": gate_id,
+            "phase": phase,
+            "system_used_bytes": 1,
+            "aggregate_rss_bytes": 1,
+            "pageouts": 0,
+            "swapouts": 0,
+            "critical_memory_pressure": False,
+            "monitor_loss": False,
+        }
+
+    monkeypatch.setattr(guard, "sample_with_deadline", interrupt_tail)
+    result_path = evidence / "result.json"
+    result = None
+    try:
+        result = guard.run_guarded(
+            cwd=ROOT,
+            expected_sha=SHA,
+            gate_id="signal",
+            command=[sys.executable, "-c", "pass"],
+            result_path=result_path,
+            telemetry_path=evidence / "telemetry.jsonl",
+            pid_ledger_path=evidence / "pid-ledger.json",
+            log_path=evidence / "gate.log",
+            policy=guard.Policy(sample_interval_seconds=0.01, tail_seconds=0.02),
+        )
+    except KeyboardInterrupt:
+        pass
+
+    assert result_path.exists()
+    persisted = json.loads(result_path.read_text(encoding="utf-8"))
+    assert persisted["classification"] == "SIGNAL"
+    assert persisted["verdict"] == "FAIL"
+    assert persisted["tail_complete"] is False
+    assert result == persisted
+
+
+def test_ram_guard_rechecks_root_identity_immediately_before_term(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    guard = load_module("stage10_guard_pid_reuse", RAM_GUARD)
+    checks = iter((True, False))
+    signals: list[tuple[int, int]] = []
+    identity = {
+        "pid": 77123,
+        "ppid": 1,
+        "pgid": 77123,
+        "start_time": 1.0,
+        "owner_uid": os.getuid(),
+        "command_sha256": "a" * 64,
+    }
+    target = type("Target", (), {"pid": 77123})()
+    monkeypatch.setattr(guard, "_identity_matches", lambda _expected: next(checks))
+    monkeypatch.setattr(guard, "_members", lambda _pgid: [77123])
+    monkeypatch.setattr(guard, "_member_identities", lambda _pgid: {77123: identity})
+    monkeypatch.setattr(guard.os, "killpg", lambda pgid, sig: signals.append((pgid, sig)))
+
+    outcome = guard.terminate_attributed(target, identity, "test", guard.Policy(term_grace_seconds=0))
+
+    assert signals == []
+    assert outcome["term_sent"] is False
+    assert outcome["identity_error"] == "pid/start-time/command/pgid mismatch before TERM"
+
+
+def test_atomic_result_publish_failure_never_exposes_partial_pass(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    guard = load_module("stage10_guard_atomic_result", RAM_GUARD)
+    result_path = tmp_path / "ram-result.json"
+    monkeypatch.setattr(guard.os, "link", lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("fault")))
+
+    with pytest.raises(OSError, match="fault"):
+        guard._write_json_atomic_exclusive(result_path, {"verdict": "PASS"})
+
+    assert not result_path.exists()
+    assert not list(tmp_path.glob(".ram-result.json.*.tmp"))
+
+
+@pytest.mark.parametrize(
+    ("child_source", "expected_code"),
+    (
+        ("import os; os.close(1)", 0),
+        ("import os; os.close(2)", 0),
+        ("raise SystemExit(7)", 7),
+    ),
+)
+def test_ram_guard_child_stream_closure_and_nonzero_still_get_terminal_tail(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    child_source: str,
+    expected_code: int,
+) -> None:
+    guard = load_module(f"stage10_guard_stream_{expected_code}_{len(child_source)}", RAM_GUARD)
+    evidence = tmp_path / f"stream-{expected_code}-{len(child_source)}"
+    evidence.mkdir()
+    monkeypatch.setattr(guard, "_git_clean", lambda *_args: True)
+    monkeypatch.setattr(guard, "_recovery_admission", lambda **_kwargs: (True, False, 0, []))
+    monkeypatch.setattr(
+        guard,
+        "sample_with_deadline",
+        lambda sequence, gate_id, phase: {
+            "schema": "ketos.stage10.memory-sample.v1",
+            "at": "2026-07-23T00:00:00Z",
+            "monotonic_ns": time.monotonic_ns(),
+            "sequence": sequence,
+            "gate_id": gate_id,
+            "phase": phase,
+            "system_used_bytes": 1,
+            "aggregate_rss_bytes": 1,
+            "pageouts": 0,
+            "swapouts": 0,
+            "critical_memory_pressure": False,
+            "monitor_loss": False,
+        },
+    )
+
+    result = guard.run_guarded(
+        cwd=ROOT,
+        expected_sha=SHA,
+        gate_id="stream",
+        command=[sys.executable, "-c", child_source],
+        result_path=evidence / "result.json",
+        telemetry_path=evidence / "telemetry.jsonl",
+        pid_ledger_path=evidence / "pid-ledger.json",
+        log_path=evidence / "gate.log",
+        policy=guard.Policy(sample_interval_seconds=0.01, tail_seconds=0.02),
+    )
+
+    assert result["exit_code"] == expected_code
+    assert result["tail_complete"] is True
+    assert (evidence / "result.json").exists()
+    assert result["verdict"] == ("PASS" if expected_code == 0 else "FAIL")
+    assert result["classification"] == ("PASS" if expected_code == 0 else "TEST_FAILURE")
+
+
+def test_ram_guard_two_runtime_sample_misses_stop_owned_child_and_emit_result(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    guard = load_module("stage10_guard_runtime_loss", RAM_GUARD)
+    evidence = tmp_path / "monitor-loss"
+    evidence.mkdir()
+    monkeypatch.setattr(guard, "_git_clean", lambda *_args: True)
+    monkeypatch.setattr(guard, "_recovery_admission", lambda **_kwargs: (True, False, 0, []))
+    monkeypatch.setattr(
+        guard,
+        "sample_with_deadline",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("sample fault")),
+    )
+
+    result = guard.run_guarded(
+        cwd=ROOT,
+        expected_sha=SHA,
+        gate_id="monitor-loss",
+        command=[sys.executable, "-c", "import time; time.sleep(30)"],
+        result_path=evidence / "result.json",
+        telemetry_path=evidence / "telemetry.jsonl",
+        pid_ledger_path=evidence / "pid-ledger.json",
+        log_path=evidence / "gate.log",
+        policy=guard.Policy(sample_interval_seconds=0.01, tail_seconds=0.02, term_grace_seconds=1),
+        timeout_seconds=5,
+    )
+
+    assert result["classification"] == "MONITOR_LOST"
+    assert result["verdict"] == "FAIL"
+    assert result["monitor_losses"] >= 1
+    assert result["cleanup"]["survivors"] == []
+    assert (evidence / "result.json").exists()
+
+
+def test_ram_guard_absolute_limit_invalidates_run_and_preserves_unrelated_process(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    guard = load_module("stage10_guard_absolute", RAM_GUARD)
+    evidence = tmp_path / "absolute"
+    evidence.mkdir()
+    monkeypatch.setattr(guard, "_git_clean", lambda *_args: True)
+    monkeypatch.setattr(guard, "_recovery_admission", lambda **_kwargs: (True, False, 0, []))
+    monkeypatch.setattr(
+        guard,
+        "sample_with_deadline",
+        lambda sequence, gate_id, phase: {
+            "schema": "ketos.stage10.memory-sample.v1",
+            "at": "2026-07-23T00:00:00Z",
+            "monotonic_ns": time.monotonic_ns(),
+            "sequence": sequence,
+            "gate_id": gate_id,
+            "phase": phase,
+            "system_used_bytes": 16_000_000_000,
+            "aggregate_rss_bytes": 1,
+            "pageouts": 0,
+            "swapouts": 0,
+            "critical_memory_pressure": False,
+            "monitor_loss": False,
+        },
+    )
+    unrelated = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(30)"],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    try:
+        result = guard.run_guarded(
+            cwd=ROOT,
+            expected_sha=SHA,
+            gate_id="absolute",
+            command=[sys.executable, "-c", "import time; time.sleep(30)"],
+            result_path=evidence / "result.json",
+            telemetry_path=evidence / "telemetry.jsonl",
+            pid_ledger_path=evidence / "pid-ledger.json",
+            log_path=evidence / "gate.log",
+            policy=guard.Policy(sample_interval_seconds=0.01, tail_seconds=0.02, term_grace_seconds=1),
+            timeout_seconds=5,
+        )
+
+        assert result["classification"] == "ABSOLUTE_LIMIT"
+        assert result["observed_ge_16"] is True
+        assert result["verdict"] == "FAIL"
+        assert unrelated.poll() is None
+    finally:
+        unrelated.terminate()
+        unrelated.wait(timeout=5)
+
+
+def test_ram_guard_escalates_only_owned_term_ignoring_child(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    guard = load_module("stage10_guard_term_ignore", RAM_GUARD)
+    evidence = tmp_path / "term-ignore"
+    evidence.mkdir()
+    monkeypatch.setattr(guard, "_git_clean", lambda *_args: True)
+    monkeypatch.setattr(guard, "_recovery_admission", lambda **_kwargs: (True, False, 0, []))
+    monkeypatch.setattr(
+        guard,
+        "sample_with_deadline",
+        lambda sequence, gate_id, phase: {
+            "schema": "ketos.stage10.memory-sample.v1",
+            "at": "2026-07-23T00:00:00Z",
+            "monotonic_ns": time.monotonic_ns(),
+            "sequence": sequence,
+            "gate_id": gate_id,
+            "phase": phase,
+            "system_used_bytes": 1,
+            "aggregate_rss_bytes": 1,
+            "pageouts": 0,
+            "swapouts": 0,
+            "critical_memory_pressure": False,
+            "monitor_loss": False,
+        },
+    )
+
+    result = guard.run_guarded(
+        cwd=ROOT,
+        expected_sha=SHA,
+        gate_id="term-ignore",
+        command=[
+            sys.executable,
+            "-c",
+            "import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(30)",
+        ],
+        result_path=evidence / "result.json",
+        telemetry_path=evidence / "telemetry.jsonl",
+        pid_ledger_path=evidence / "pid-ledger.json",
+        log_path=evidence / "gate.log",
+        policy=guard.Policy(sample_interval_seconds=0.01, tail_seconds=0.02, term_grace_seconds=0),
+        timeout_seconds=0.2,
+    )
+
+    assert result["classification"] == "TIMEOUT"
+    assert result["cleanup"]["term_sent"] is True
+    assert result["cleanup"]["kill_sent"] is True
+    assert result["cleanup"]["survivors"] == []
+    assert result["verdict"] == "FAIL"
 
 
 def test_sealer_rejects_wrong_control_and_manifest_checksum(tmp_path: Path) -> None:
@@ -653,6 +1280,15 @@ def test_schema_set_is_complete_and_draft_2020_12() -> None:
     for name in expected:
         payload = json.loads((SCHEMA_DIR / name).read_text(encoding="utf-8"))
         assert payload["$schema"] == "https://json-schema.org/draft/2020-12/schema"
+
+
+def test_live_ai_schema_is_a_strict_redacted_allowlist() -> None:
+    payload = json.loads((SCHEMA_DIR / "live-ai-smoke.schema.json").read_text(encoding="utf-8"))
+
+    assert payload["additionalProperties"] is False
+    assert payload["properties"]["direct_preflight"]["additionalProperties"] is False
+    assert payload["properties"]["ketos_live"]["additionalProperties"] is False
+    assert payload["properties"]["ketos_live"]["properties"]["reply"]["additionalProperties"] is False
 
 
 def test_no_material_artifact_is_symlinked(tmp_path: Path) -> None:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-# ruff: noqa: PLR2004, S101
+# ruff: noqa: EM101, PLR2004, S101, S108, SLF001, TRY003
 import importlib.util
 import json
 import sys
@@ -52,6 +52,67 @@ def test_secret_loader_accepts_only_one_canonical_assignment(tmp_path: Path) -> 
     path = hardened_secret(tmp_path)
 
     assert module.load_hardened_secret(path) == "test-value"
+
+
+def test_cli_pins_the_stage10_secret_file_without_override() -> None:
+    module = load_module()
+    parser = module._parser()
+
+    parsed = parser.parse_args(
+        [
+            "--database-url",
+            "sqlite:////tmp/test.sqlite",
+            "--entity-ledger",
+            "/tmp/entity.json",
+            "--evidence",
+            "/tmp/evidence.json",
+        ]
+    )
+    assert parsed.secret_file == module.DEFAULT_SECRET_FILE
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            [
+                "--database-url",
+                "sqlite:////tmp/test.sqlite",
+                "--entity-ledger",
+                "/tmp/entity.json",
+                "--evidence",
+                "/tmp/evidence.json",
+                "--secret-file",
+                "/tmp/override.env",
+            ]
+        )
+
+
+def test_direct_provider_failure_is_terminal_without_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    calls = 0
+
+    class Models:
+        @staticmethod
+        def list():
+            nonlocal calls
+            calls += 1
+            raise RuntimeError("upstream unavailable")
+
+    class Client:
+        models = Models()
+
+    monkeypatch.setattr(module, "OpenAI", lambda **_kwargs: Client())
+
+    with pytest.raises(RuntimeError, match="upstream unavailable"):
+        module._direct_preflight("test-value")
+    assert calls == 1
+
+
+def test_fallback_and_mock_environment_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_module()
+    monkeypatch.setenv("OLLAMA_HOST", "http://127.0.0.1:11434")
+
+    with pytest.raises(ValueError, match="fallback"):
+        module._require_no_fallback_environment()
 
 
 @pytest.mark.parametrize(
@@ -113,10 +174,7 @@ def test_flow_hash_is_canonical_and_ignores_transport_fields() -> None:
 
 def test_sse_parser_requires_json_data_records() -> None:
     module = load_module()
-    body = (
-        'data: {"type":"RUN_STARTED","runId":"one"}\n\n'
-        'data: {"type":"TEXT_MESSAGE_CONTENT","delta":"ready"}\n\n'
-    )
+    body = 'data: {"type":"RUN_STARTED","runId":"one"}\n\ndata: {"type":"TEXT_MESSAGE_CONTENT","delta":"ready"}\n\n'
 
     assert [item["type"] for item in module.parse_sse_events(body)] == [
         "RUN_STARTED",

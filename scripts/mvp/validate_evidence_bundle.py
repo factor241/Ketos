@@ -22,6 +22,11 @@ from typing import Any
 from jsonschema import Draft202012Validator, FormatChecker
 
 BASE_SHA = "18a2a2a9518d23c589c6700c322ad5844adce932"
+CLOSURE_TOOLING_SHA = "638f2b2d35e353fe0ad9f39ee800315ebe6d1338"
+GENERIC_SEAL_PATH = "scripts/mvp/stage_evidence_seal.py"
+GENERIC_SEAL_GIT_BLOB_OID = "cb152e95594c9579d5e40cf130e81669cc10991a"
+GENERIC_SEAL_SHA256 = "36ffffb0d412d0a77ac7d23fcd6fc657fdc3271c1592a1dfcbe6d1081c424b33"
+WRAPPER_PATH = "scripts/mvp/seal_evidence_bundle.py"
 REQUIRED_FILES = {
     "entity-ledger.json",
     "gate-results.json",
@@ -33,7 +38,9 @@ REQUIRED_FILES = {
     "pid-ledger.json",
     "memory-baseline.json",
     "ram-summary.json",
+    "repo-after-full.json",
     "seal-probe.txt",
+    "tooling-provenance.json",
 }
 SCREENSHOT_NAMES = (
     "01-board-note-chat.png",
@@ -393,6 +400,42 @@ def _validate_gate_results(bundle: Path, s10_code_sha: str) -> None:
             raise ValueError(f"gate result is not accepted: {row.get('id')}")
 
 
+def _validate_structured_zero_write(bundle: Path, s10_code_sha: str) -> None:
+    payload = _load_json(bundle / "repo-after-full.json")
+    if (
+        not isinstance(payload, dict)
+        or payload.get("schema") != "ketos.stage10.repo-after-full.v1"
+        or payload.get("s10_code_sha") != s10_code_sha
+        or payload.get("head_sha") != s10_code_sha
+        or payload.get("changed_paths") != []
+        or payload.get("matches_before") is not True
+        or payload.get("verdict") != "PASS"
+    ):
+        raise ValueError("structured zero-write evidence is invalid")
+
+
+def _validate_tooling_provenance(bundle: Path, s10_code_sha: str) -> None:
+    payload = _load_json(bundle / "tooling-provenance.json")
+    repo = Path(__file__).resolve().parents[2]
+    generic = repo / GENERIC_SEAL_PATH
+    wrapper = repo / WRAPPER_PATH
+    expected = {
+        "schema": "ketos.stage10.tooling-provenance.v1",
+        "s10_code_sha": s10_code_sha,
+        "closure_tooling_sha": CLOSURE_TOOLING_SHA,
+        "generic_path": GENERIC_SEAL_PATH,
+        "generic_git_blob_oid": GENERIC_SEAL_GIT_BLOB_OID,
+        "generic_sha256": GENERIC_SEAL_SHA256,
+        "wrapper_path": WRAPPER_PATH,
+        "wrapper_sha256": _sha256(wrapper),
+        "verdict": "PASS",
+    }
+    if not isinstance(payload, dict) or payload != expected:
+        raise ValueError("tooling provenance is invalid")
+    if _sha256(generic) != GENERIC_SEAL_SHA256:
+        raise ValueError("tooling provenance generic sealer digest mismatch")
+
+
 def _volume_identity(path: Path, *, require_apfs: bool) -> tuple[str, str]:
     canonical = path.resolve(strict=True)
     for candidate in (canonical, *canonical.parents):
@@ -455,6 +498,10 @@ def _artifact_metadata(path: Path, *, bundle: Path, owner: str, generated_at: st
         producing_command = ["scripts/mvp/stage10_ram_guard.py", "run", "<redacted-gate-arguments>"]
     elif relative in {"memory-monitor.jsonl", "pid-ledger.json", "memory-baseline.json", "ram-summary.json"}:
         producing_command = ["scripts/mvp/stage10_ram_guard.py", "<aggregate>"]
+    elif relative == "repo-after-full.json":
+        producing_command = ["stage10-coordinator", "structured-zero-write"]
+    elif relative == "tooling-provenance.json":
+        producing_command = ["stage10-coordinator", "tooling-provenance"]
     elif relative in {"seal-probe.txt", "no-secret-qa.json"}:
         producing_command = ["scripts/mvp/validate_evidence_bundle.py", "<redacted-arguments>"]
     elif relative in {
@@ -525,6 +572,7 @@ def validate_and_manifest(
     deny_secrets: bool,
     no_secret_report: Path,
     manifest_path: Path,
+    intended_final_bundle: Path | None = None,
     enforce_external_location: bool = False,
 ) -> dict[str, object]:
     if re.fullmatch(r"[0-9a-f]{40}", s10_code_sha) is None:
@@ -561,6 +609,8 @@ def validate_and_manifest(
                 raise ValueError(f"{artifact} owner/retention mismatch")
 
     _validate_gate_results(bundle, s10_code_sha)
+    _validate_structured_zero_write(bundle, s10_code_sha)
+    _validate_tooling_provenance(bundle, s10_code_sha)
     screenshot_manifest = _load_json(bundle / "product-design-screenshot-manifest.json")
     screenshot_rows = screenshot_manifest["screenshots"]
     for expected_name, row in zip(SCREENSHOT_NAMES, screenshot_rows, strict=True):
@@ -596,6 +646,18 @@ def validate_and_manifest(
             for path in inventory
             if path != manifest_path
         ]
+        canonical_bundle = bundle
+        if intended_final_bundle is not None:
+            if not intended_final_bundle.is_absolute() or intended_final_bundle.is_symlink():
+                raise ValueError("intended final bundle must be an absolute non-symlink path")
+            canonical_bundle = intended_final_bundle.absolute()
+            if canonical_bundle.exists():
+                raise FileExistsError(f"intended final bundle already exists: {canonical_bundle}")
+            if enforce_external_location:
+                approved = Path("/Volumes/Projects/.ketos-stage10-evidence").resolve(strict=True)
+                if approved not in canonical_bundle.parents:
+                    raise ValueError("intended final bundle must be under the approved evidence root")
+        persistent_root = canonical_bundle.parents[2] if intended_final_bundle is not None else bundle.parents[1]
         manifest = {
             "schema": "ketos.stage10.evidence-manifest.v1",
             "stage": 10,
@@ -606,10 +668,10 @@ def validate_and_manifest(
             "retention_policy": retention_policy,
             "retention_class": "indefinite",
             "generated_at": generated_at,
-            "persistent_root": str(bundle.parents[1]),
+            "persistent_root": str(persistent_root),
             "filesystem": filesystem,
             "volume_uuid": volume_uuid,
-            "canonical_bundle": str(bundle),
+            "canonical_bundle": str(canonical_bundle),
             "no_secret_qa": {"path": "no-secret-qa.json", "verdict": "PASS", "matches": 0},
             "seal_control": "apfs-uchg",
             "verdict": "PASS",
@@ -634,6 +696,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--deny-secrets", action="store_true")
     parser.add_argument("--write-no-secret-report", type=Path, required=True)
     parser.add_argument("--write-manifest", type=Path, required=True)
+    parser.add_argument("--intended-final-bundle", type=Path)
     return parser
 
 
@@ -648,6 +711,7 @@ def main() -> int:
         deny_secrets=args.deny_secrets,
         no_secret_report=args.write_no_secret_report,
         manifest_path=args.write_manifest,
+        intended_final_bundle=args.intended_final_bundle,
         enforce_external_location=True,
     )
     print(json.dumps({"verdict": manifest["verdict"], "artifact_count": len(manifest["artifacts"])}))

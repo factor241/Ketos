@@ -42,13 +42,18 @@ authentication, and a digest-pinned `postgres:16` image.
 From the Stage 10 worktree:
 
 ```bash
+uv run python scripts/mvp/stage10_acceptance_controller.py \
+  --repo-root /Volumes/Projects/ketos_canvas_mod_main \
+  --publication-id 20260724T140346Z-48988 \
+  --json
+
 test -z "$(git status --porcelain=v1)"
 export S10_CODE_SHA="$(git rev-parse HEAD)"
 test "$(git merge-base "$S10_CODE_SHA" 18a2a2a9518d23c589c6700c322ad5844adce932)" = \
   18a2a2a9518d23c589c6700c322ad5844adce932
 git diff --check 18a2a2a9518d23c589c6700c322ad5844adce932..."$S10_CODE_SHA"
 
-export KETOS_STAGE10_ACCEPTANCE_RUN_DIR="$(mktemp -d /tmp/ketos-stage10-acceptance.XXXXXX)"
+export KETOS_STAGE10_ACCEPTANCE_RUN_DIR="$(mktemp -d /Volumes/Projects/.ketos-stage10-acceptance.XXXXXX)"
 export KETOS_DATA_DIR="$KETOS_STAGE10_ACCEPTANCE_RUN_DIR/data"
 export KETOS_DATABASE_URL="sqlite:///$KETOS_STAGE10_ACCEPTANCE_RUN_DIR/ketos-mvp.sqlite"
 mkdir -p "$KETOS_DATA_DIR"
@@ -59,10 +64,16 @@ export KETOS_MVP_EVIDENCE_ROOT=/Volumes/Projects/.ketos-stage10-evidence
 export KETOS_MVP_EVIDENCE_OWNER=kirillustuzanin
 export KETOS_MVP_EVIDENCE_RETENTION_POLICY=forever
 export KETOS_MVP_EVIDENCE_SEAL_CONTROL=apfs-uchg
-export KETOS_STAGE10_EVIDENCE_BUNDLE="$KETOS_MVP_EVIDENCE_ROOT/stage-10/$S10_CODE_SHA"
-export KETOS_STAGE10_SEAL_RECEIPT="$KETOS_MVP_EVIDENCE_ROOT/stage-10/$S10_CODE_SHA.seal-receipt.json"
+export KETOS_STAGE10_RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+export KETOS_STAGE10_EVIDENCE_BUNDLE="$KETOS_MVP_EVIDENCE_ROOT/.candidate-$KETOS_STAGE10_RUN_ID"
+export KETOS_STAGE10_FINAL_BUNDLE="$KETOS_MVP_EVIDENCE_ROOT/stage-10/$S10_CODE_SHA/$KETOS_STAGE10_RUN_ID"
+export KETOS_STAGE10_SEAL_RECEIPT="$KETOS_MVP_EVIDENCE_ROOT/receipts/stage-10/$S10_CODE_SHA/$KETOS_STAGE10_RUN_ID"
 test ! -e "$KETOS_STAGE10_EVIDENCE_BUNDLE"
+test ! -e "$KETOS_STAGE10_FINAL_BUNDLE"
 test ! -e "$KETOS_STAGE10_SEAL_RECEIPT"
+mkdir -m 0700 -p \
+  "$(dirname "$KETOS_STAGE10_FINAL_BUNDLE")" \
+  "$(dirname "$KETOS_STAGE10_SEAL_RECEIPT")"
 mkdir -m 0700 -p "$KETOS_STAGE10_EVIDENCE_BUNDLE/product-design/1440x900"
 ```
 
@@ -227,8 +238,11 @@ Record hashes and byte sizes in
 
 ## Evidence validation and immutable seal
 
-Create `final-journal.json` with all eight required sections and
-`final-report.md`, plus the tracked immutable probe:
+Create `final-journal.json` with all eight required sections,
+`final-report.md`, structured `repo-after-full.json` with an empty
+`changed_paths` array and `matches_before: true`, exact
+`tooling-provenance.json` for the reviewed generic sealer, plus the tracked
+immutable probe:
 
 ```bash
 printf '%s\n' 'stage10 immutable seal probe' > \
@@ -250,27 +264,34 @@ uv run python scripts/mvp/validate_evidence_bundle.py \
   --retention-policy "$KETOS_MVP_EVIDENCE_RETENTION_POLICY" \
   --deny-secrets \
   --write-no-secret-report "$KETOS_STAGE10_EVIDENCE_BUNDLE/no-secret-qa.json" \
-  --write-manifest "$KETOS_STAGE10_EVIDENCE_BUNDLE/manifest.json"
+  --write-manifest "$KETOS_STAGE10_EVIDENCE_BUNDLE/manifest.json" \
+  --intended-final-bundle "$KETOS_STAGE10_FINAL_BUNDLE"
 
 (cd "$KETOS_STAGE10_EVIDENCE_BUNDLE" && shasum -a 256 manifest.json > manifest.sha256)
 
 uv run python scripts/mvp/seal_evidence_bundle.py \
-  --bundle "$KETOS_STAGE10_EVIDENCE_BUNDLE" \
+  --source-bundle "$KETOS_STAGE10_EVIDENCE_BUNDLE" \
+  --final-bundle "$KETOS_STAGE10_FINAL_BUNDLE" \
   --control "$KETOS_MVP_EVIDENCE_SEAL_CONTROL" \
   --manifest-sha-file "$KETOS_STAGE10_EVIDENCE_BUNDLE/manifest.sha256" \
   --owner "$KETOS_MVP_EVIDENCE_OWNER" \
   --retention-policy "$KETOS_MVP_EVIDENCE_RETENTION_POLICY" \
   --verify-final-no-secrets \
-  --external-receipt "$KETOS_STAGE10_SEAL_RECEIPT"
+  --receipt-directory "$KETOS_STAGE10_SEAL_RECEIPT" \
+  --s10-code-sha "$S10_CODE_SHA" \
+  --frozen-product-worktree "$PWD" \
+  --frozen-schema "$PWD/docs/dev/handoff/evidence/stage-10/evidence-manifest.schema.json"
 ```
 
 The validator rejects symlinks, non-regular files, schema/SHA/owner/retention
 mismatch, screenshot tampering, RAM failure and high-confidence secrets. The
-manifest uses only relative artifact paths and hashes every pre-manifest
-artifact. The sealer rechecks the detached manifest checksum and all inventory
-hashes, applies files `0400`, directories `0500`, recursive APFS `uchg`, and
-requires create/write/rename/unlink/mtime probes to fail. Only then does it
-create and separately protect the sibling receipt.
+manifest uses only relative artifact paths, binds the intended final path, and
+hashes every pre-manifest artifact. The thin Stage 10 adapter reuses the exact
+reviewed generic sealer: it creates an inode-distinct copy, publishes it
+without replacement, applies files `0400`, directories `0500`, recursive APFS
+`uchg`, and requires all eight create/overwrite/truncate/chmod/mtime/rename/
+unlink/root-rename probes to fail. Only then does it atomically publish and
+recursively protect the separate receipt directory and checksum.
 
 On final PASS, remove the exact PostgreSQL container and its exact disposable
 directory after another external-storage guard. On FAIL/BLOCKED, stop the

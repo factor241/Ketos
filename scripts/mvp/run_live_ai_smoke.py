@@ -33,6 +33,12 @@ PROVIDER_UPSTREAM = "CometAPI"
 DEFAULT_SECRET_FILE = Path("/Volumes/Projects/.ketos-stage10-secrets/cometapi.env")
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SECRET_PATTERN = re.compile(r"\ACOMETAPI_KEY=([^\r\n\x00]+)\n?\Z")
+FORBIDDEN_FALLBACK_ENV = (
+    "OLLAMA_HOST",
+    "OLLAMA_MODEL",
+    "KETOS_AI_FALLBACK_MODEL",
+    "KETOS_MVP_MOCK_AI",
+)
 FORBIDDEN_EVIDENCE_FIELDS = frozenset(
     {
         "api_key",
@@ -64,11 +70,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--assert-canonical-saver-path", action="store_true")
     parser.add_argument("--entity-ledger", required=True, type=Path)
     parser.add_argument("--evidence", required=True, type=Path)
-    parser.add_argument(
-        "--secret-file",
-        type=Path,
-        default=Path(os.environ.get("KETOS_STAGE10_SECRET_FILE", DEFAULT_SECRET_FILE)),
-    )
+    parser.set_defaults(secret_file=DEFAULT_SECRET_FILE)
     return parser
 
 
@@ -114,6 +116,12 @@ def load_hardened_secret(path: Path) -> str:
     if match is None or not match.group(1):
         raise ValueError("secret file contract: expected one COMETAPI_KEY assignment")
     return match.group(1)
+
+
+def _require_no_fallback_environment() -> None:
+    configured = [name for name in FORBIDDEN_FALLBACK_ENV if os.environ.get(name)]
+    if configured:
+        raise ValueError(f"fallback/mock provider environment is forbidden: {configured}")
 
 
 def _canonical_json(value: Any) -> str:
@@ -593,6 +601,7 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
         args.entity_ledger,
         args.evidence,
     )
+    _require_no_fallback_environment()
     api_key = load_hardened_secret(args.secret_file)
     saver_path = _canonical_saver_path() if args.assert_canonical_saver_path else None
     ledger = json.loads(ledger_path.read_text(encoding="utf-8"))

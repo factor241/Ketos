@@ -15,6 +15,7 @@ import signal
 import subprocess
 import threading
 import time
+import uuid
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -96,6 +97,41 @@ def _write_json_exclusive(path: Path, payload: object) -> None:
             os.fsync(stream.fileno())
     finally:
         os.close(descriptor)
+
+
+def _write_json_atomic_exclusive(path: Path, payload: object) -> None:
+    """Publish one complete JSON file atomically without replacing a peer."""
+    if not path.is_absolute():
+        raise ValueError(f"evidence path must be absolute: {path}")
+    parent = path.parent.resolve(strict=True)
+    if path.exists() or path.is_symlink():
+        raise FileExistsError(f"refusing to overwrite evidence: {path}")
+    temporary = parent / f".{path.name}.{uuid.uuid4().hex}.tmp"
+    linked = False
+    try:
+        _write_json_exclusive(temporary, payload)
+        os.link(temporary, path, follow_symlinks=False)
+        linked = True
+        parent_descriptor = os.open(parent, os.O_RDONLY)
+        try:
+            os.fsync(parent_descriptor)
+        except OSError:
+            path.unlink()
+            linked = False
+            os.fsync(parent_descriptor)
+            raise
+        finally:
+            os.close(parent_descriptor)
+    finally:
+        with contextlib.suppress(FileNotFoundError):
+            temporary.unlink()
+        parent_descriptor = os.open(parent, os.O_RDONLY)
+        try:
+            os.fsync(parent_descriptor)
+        finally:
+            os.close(parent_descriptor)
+        if linked and not path.exists():
+            raise RuntimeError("atomic result publication disappeared")
 
 
 def _open_exclusive(path: Path) -> int:
@@ -251,6 +287,62 @@ def _member_identities(pgid: int) -> dict[int, dict[str, Any]]:
     return identities
 
 
+def _terminate_spawn_handle(target: subprocess.Popen[bytes], policy: Policy) -> dict[str, Any]:
+    """Fail closed via the unreaped direct-child handle when psutil identity capture fails."""
+    outcome: dict[str, Any] = {
+        "reason": "identity-capture-failed",
+        "identity_verified": False,
+        "spawn_handle_verified": True,
+        "term_sent": False,
+        "kill_sent": False,
+        "survivors": [],
+        "refused_kills": [],
+    }
+    if target.poll() is not None:
+        return outcome
+    pid = target.pid
+    try:
+        pgid = os.getpgid(pid)
+    except OSError:
+        pgid = pid
+    if pgid != pid:
+        outcome["spawn_handle_verified"] = False
+        outcome["refused_kills"].append({"pid": pid, "reason": "unexpected-pgid"})
+        outcome["survivors"] = [pid] if target.poll() is None else []
+        return outcome
+    os.killpg(pgid, signal.SIGTERM)
+    outcome["term_sent"] = True
+    deadline = time.monotonic() + policy.term_grace_seconds
+    while _members(pgid) and time.monotonic() < deadline:
+        time.sleep(0.05)
+    if _members(pgid):
+        os.killpg(pgid, signal.SIGKILL)
+        outcome["kill_sent"] = True
+        deadline = time.monotonic() + 2
+        while _members(pgid) and time.monotonic() < deadline:
+            time.sleep(0.05)
+    with contextlib.suppress(subprocess.TimeoutExpired):
+        target.wait(timeout=2)
+    outcome["survivors"] = _members(pgid)
+    return outcome
+
+
+def _capture_spawn_identity(
+    target: subprocess.Popen[bytes],
+    policy: Policy,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    deadline = time.monotonic() + min(1.0, max(0.1, policy.sample_interval_seconds))
+    while True:
+        if target.poll() is not None:
+            return None, None
+        try:
+            return _identity(target.pid), None
+        except (psutil.Error, OSError):
+            if time.monotonic() >= deadline:
+                return None, _terminate_spawn_handle(target, policy)
+            time.sleep(0.01)
+
+
 def terminate_attributed(
     target: subprocess.Popen[bytes], identity: dict[str, Any], reason: str, policy: Policy
 ) -> dict[str, Any]:
@@ -269,6 +361,10 @@ def terminate_attributed(
     pgid = int(identity["pgid"])
     attributed = _member_identities(pgid)
     if _members(pgid):
+        if not _identity_matches(identity):
+            outcome["identity_verified"] = False
+            outcome["identity_error"] = "pid/start-time/command/pgid mismatch before TERM"
+            return outcome
         os.killpg(pgid, signal.SIGTERM)
         outcome["term_sent"] = True
         deadline = time.monotonic() + policy.term_grace_seconds
@@ -379,8 +475,6 @@ def run_guarded(
     cwd = cwd.resolve(strict=True)
     if not _git_clean(cwd, expected_sha):
         raise RuntimeError("source SHA/worktree preflight failed")
-    telemetry_fd = _open_exclusive(telemetry_path)
-    log_fd = _open_exclusive(log_path)
     started_at = _now()
     sequence = 0
     samples: list[dict[str, Any]] = []
@@ -391,11 +485,18 @@ def run_guarded(
     identity: dict[str, Any] | None = None
     target: subprocess.Popen[bytes] | None = None
     state = GuardState()
+    telemetry_fd = -1
+    log_fd = -1
+    tail_started_ns: int | None = None
+    tail_finished_ns: int | None = None
+    tail_complete = False
+    terminal_error_type: str | None = None
     try:
-        with (
-            os.fdopen(telemetry_fd, "w", encoding="utf-8", closefd=False) as telemetry,
-            os.fdopen(log_fd, "wb", closefd=False) as log,
-        ):
+        telemetry_fd = _open_exclusive(telemetry_path)
+        log_fd = _open_exclusive(log_path)
+        telemetry = os.fdopen(telemetry_fd, "w", encoding="utf-8")
+        telemetry_fd = -1
+        with telemetry:
             admitted, admission_monitor_lost, sequence, admission = _recovery_admission(
                 stream=telemetry, sequence=sequence, gate_id=gate_id, policy=policy
             )
@@ -408,13 +509,20 @@ def run_guarded(
                 target = subprocess.Popen(
                     command,
                     cwd=cwd,
-                    stdout=log,
+                    stdin=subprocess.DEVNULL,
+                    stdout=log_fd,
                     stderr=subprocess.STDOUT,
                     start_new_session=True,
                 )
-                identity = _identity(target.pid)
+                os.close(log_fd)
+                log_fd = -1
+                identity, capture_cleanup = _capture_spawn_identity(target, policy)
+                if capture_cleanup is not None:
+                    classification = "IDENTITY_CAPTURE_FAILURE"
+                    terminal_error_type = "IdentityCaptureError"
+                    cleanup = capture_cleanup
                 gate_started = time.monotonic()
-                while target.poll() is None:
+                while identity is not None and target.poll() is None:
                     tick = time.monotonic()
                     if tick - gate_started >= timeout_seconds:
                         classification = "TIMEOUT"
@@ -469,9 +577,20 @@ def run_guarded(
                     delay = policy.sample_interval_seconds - (time.monotonic() - tick)
                     if delay > 0:
                         time.sleep(delay)
-                exit_code = target.wait()
+                if target.poll() is None:
+                    try:
+                        exit_code = target.wait(timeout=policy.term_grace_seconds + 2)
+                    except subprocess.TimeoutExpired:
+                        exit_code = target.poll()
+                else:
+                    exit_code = target.wait()
                 if classification == "INFRA_FAILURE":
-                    classification = "PASS" if exit_code == 0 else "TEST_FAILURE"
+                    if exit_code == 0:
+                        classification = "PASS"
+                    elif exit_code is not None and exit_code < 0:
+                        classification = "SIGNAL"
+                    else:
+                        classification = "TEST_FAILURE"
                 gate_finished = {
                     "schema": "ketos.stage10.memory-boundary.v1",
                     "at": _now(),
@@ -480,6 +599,7 @@ def run_guarded(
                     "boundary": "gate_finished",
                 }
                 _record(telemetry, gate_finished)
+                tail_started_ns = time.monotonic_ns()
                 tail_deadline = time.monotonic() + policy.tail_seconds
                 next_tail_tick = time.monotonic()
                 while time.monotonic() < tail_deadline:
@@ -515,17 +635,46 @@ def run_guarded(
                         for event in decisions
                         if event in {"STOP", "EMERGENCY_STOP", "ABSOLUTE_LIMIT", "MONITOR_LOST"}
                     ]
-                    if blocking:
+                    if blocking and classification != "ABSOLUTE_LIMIT":
                         classification = blocking[-1]
+                tail_finished_ns = time.monotonic_ns()
+                tail_complete = (
+                    tail_finished_ns - tail_started_ns >= int(policy.tail_seconds * 1_000_000_000)
+                    and state.missed_consecutive < policy.missed_samples
+                )
+    except BaseException as exc:
+        terminal_error_type = type(exc).__name__
+        classification = "SIGNAL" if isinstance(exc, (KeyboardInterrupt, SystemExit)) else "INFRA_FAILURE"
     finally:
-        os.close(telemetry_fd)
-        os.close(log_fd)
         if target is not None and target.poll() is None and identity is not None:
             cleanup = terminate_attributed(target, identity, "supervisor-finally", policy)
-            target.wait()
+            if cleanup.get("survivors") == []:
+                with contextlib.suppress(subprocess.TimeoutExpired):
+                    exit_code = target.wait(timeout=2)
+        if telemetry_fd >= 0:
+            os.close(telemetry_fd)
+        if log_fd >= 0:
+            os.close(log_fd)
 
     peak_system = max((int(row["system_used_bytes"]) for row in samples), default=0)
     peak_aggregate = max((int(row["aggregate_rss_bytes"]) for row in samples), default=0)
+    first_sample = samples[0] if samples else {}
+    last_sample = samples[-1] if samples else {}
+    last_sample_monotonic_ns = int(last_sample.get("monotonic_ns", time.monotonic_ns()))
+    last_sample_sequence = int(last_sample.get("sequence", 0))
+    child_outcomes = {
+        "target": {
+            "started": target is not None,
+            "pid": None if target is None else target.pid,
+            "returncode": exit_code,
+            "terminated_by_signal": exit_code is not None and exit_code < 0,
+        },
+        "monitor": {
+            "mode": "in-process-deadline-sampler",
+            "tail_complete": tail_complete,
+            "terminal_error_type": terminal_error_type,
+        },
+    }
     result = {
         "schema": "ketos.stage10.ram-gate-result.v1",
         "s10_code_sha": expected_sha,
@@ -540,6 +689,8 @@ def run_guarded(
             "PASS"
             if classification == "PASS"
             and peak_system < policy.absolute_limit_bytes
+            and tail_complete
+            and state.missed_consecutive < policy.missed_samples
             and cleanup.get("survivors") == []
             and cleanup.get("refused_kills", []) == []
             else "FAIL"
@@ -549,18 +700,32 @@ def run_guarded(
         "sample_count": len(samples),
         "peak_system_used_bytes": peak_system,
         "peak_aggregate_rss_bytes": peak_aggregate,
+        "last_sample_sequence": last_sample_sequence,
+        "last_heartbeat_age_seconds": max(
+            0.0,
+            (time.monotonic_ns() - last_sample_monotonic_ns) / 1_000_000_000,
+        ),
+        "pageout_delta": int(last_sample.get("pageouts", 0)) - int(first_sample.get("pageouts", 0)),
+        "swapout_delta": int(last_sample.get("swapouts", 0)) - int(first_sample.get("swapouts", 0)),
+        "tail_seconds_required": policy.tail_seconds,
+        "tail_started_monotonic_ns": tail_started_ns,
+        "tail_finished_monotonic_ns": tail_finished_ns,
+        "tail_complete": tail_complete,
         "warning_trips": sum(row.get("event") == "WARNING" for row in events),
         "stop_trips": sum(row.get("event") == "STOP" for row in events),
         "emergency_trips": sum(row.get("event") == "EMERGENCY_STOP" for row in events),
         "observed_ge_16": peak_system >= policy.absolute_limit_bytes,
         "monitor_losses": sum(row.get("event") == "MONITOR_LOST" for row in events),
+        "terminal_error_type": terminal_error_type,
+        "child_outcomes": child_outcomes,
         "cleanup": cleanup,
+        "terminal_result_atomic": True,
     }
     if not _git_clean(cwd, expected_sha):
         result["verdict"] = "FAIL"
         result["classification"] = "STALE_SHA"
-    _write_json_exclusive(result_path, result)
-    _write_json_exclusive(
+    _write_json_atomic_exclusive(result_path, result)
+    _write_json_atomic_exclusive(
         pid_ledger_path,
         {
             "schema": "ketos.stage10.pid-ledger.v1",

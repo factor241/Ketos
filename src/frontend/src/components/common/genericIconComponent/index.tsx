@@ -9,8 +9,43 @@ import React, {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDarkStore } from "../../../stores/darkStore";
 import { IconComponentProps } from "../../../types/components";
-import { getCachedIcon, getNodeIcon } from "../../../utils/styleUtils";
+import {
+  getCachedIcon,
+  getNodeIcon,
+  nodeIconToDisplayIconMap,
+} from "../../../utils/styleUtils";
 import { cn } from "../../../utils/utils";
+
+const THEME_AWARE_ICON_NAMES = new Set([
+  "Anthropic",
+  "AstraDB",
+  "AWS",
+  "AWSInverted",
+  "BWPython",
+  "Cleanlab",
+  "CometAPI",
+  "Composio",
+  "DB2",
+  "DeepSeek",
+  "HCD",
+  "javascript",
+  "JigsawStack",
+  "Mem0",
+  "Mem0Composio",
+  "NVIDIA",
+  "Ollama",
+  "Pinecone",
+  "TwitterX",
+  "VectorStores",
+  "vLLM",
+  "WatsonxAI",
+  "WatsonxOrchestrate",
+  "Windsurf",
+  "xAI",
+]);
+
+const isThemeAwareIcon = (name: string) =>
+  THEME_AWARE_ICON_NAMES.has(nodeIconToDisplayIconMap[name] ?? name);
 
 type IconComponentType = React.ComponentType<{
   className?: string;
@@ -153,9 +188,10 @@ export const ForwardedIconComponent = memo(
       };
 
       const componentProps = { ...baseProps, ref };
+      const themeProps = isThemeAwareIcon(name) ? { isDark } : {};
 
       const content = isValidComponent ? (
-        <TargetIcon {...componentProps} isDark={isDark} />
+        <TargetIcon {...componentProps} {...themeProps} />
       ) : (
         <div {...baseProps}>{TargetIcon}</div>
       );

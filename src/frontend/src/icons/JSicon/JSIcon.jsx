@@ -1,10 +1,10 @@
-const SvgJSIcon = (props) => (
+const SvgJSIcon = ({ isDark = false, ...props }) => (
   <svg
     viewBox="0 0 16 16"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
     {...props}
-    filter={props.isDark ? "invert(100%)" : "invert(0%)"}
+    filter={isDark ? "invert(100%)" : "invert(0%)"}
   >
     <g id="Frame" clipPath="url(#clip0_2046_939)">
       <path id="Vector" d="M16 0H0V16H16V0Z" fill="black" />

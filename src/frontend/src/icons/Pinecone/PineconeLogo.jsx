@@ -1,5 +1,5 @@
-const SvgPineconeLogo = (props) => {
-  const color = props.isDark ? "#fff" : "#000";
+const SvgPineconeLogo = ({ isDark = false, ...props }) => {
+  const color = isDark ? "#fff" : "#000";
 
   return (
     <svg

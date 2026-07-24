@@ -1,5 +1,5 @@
-export const SvgOllama = (props) => {
-  const color = props.isDark ? "#fff" : "#000";
+export const SvgOllama = ({ isDark = false, ...props }) => {
+  const color = isDark ? "#fff" : "#000";
 
   return (
     <svg

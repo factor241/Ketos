@@ -268,8 +268,8 @@ Expected: one exact PASS report with SHA, product version, version-family member
 
 ## Block A execution record — 2026-07-25
 
-- Implementation status: `IMPLEMENTED AND VERIFIED IN WORKTREE`.
-- Base SHA: `4c98c0beffac69e1864b1e2651df55b1ee1319a3`.
+- Implementation status: `EXACT-SHA PASS`.
+- Candidate SHA: `ef9bfaf9254d8f19b16336efcdef9e67d7ab720a`.
 - `33 passed` for the version-contract and current-experience suites.
 - After audit fixes, the combined version/current-experience/bundle-sync suite
   passed `54` tests.
@@ -286,10 +286,10 @@ Expected: one exact PASS report with SHA, product version, version-family member
   complete untracked path set must remain unchanged.
 - Chrome confirmed the default Boards route and Board empty state without
   console errors; it did not create or mutate product data.
-- The implementation is not committed. Therefore this record does **not**
-  claim an exact-SHA technical PASS for the modified source. The exact-SHA seal
-  remains pending a separately authorized commit/candidate step, and Block B
-  has not started.
+- The first committed candidate exposed a cold-start timeout and failed closed.
+  After a RED regression and a 180-second backend startup budget, candidate
+  `ef9bfaf9254d8f19b16336efcdef9e67d7ab720a` repeated all Block A gates,
+  live proof, and cleanup successfully. Block B is admitted from this SHA.
 
 ---
 
@@ -342,9 +342,9 @@ Make Board the single project workspace while retaining Flow as the canonical au
 
 ## Task B1 — Freeze the domain and route contracts
 
-- [ ] Add unit assertions that persisted automations remain `Flow` records and Board bindings remain automation Placements.
-- [ ] Keep `buildAutomationEditorUrl(flowId, { boardId, placementId })` as the only frontend editor URL builder.
-- [ ] Preserve the server-validated editor context:
+- [x] Add unit assertions that persisted automations remain `Flow` records and Board bindings remain automation Placements.
+- [x] Keep `buildAutomationEditorUrl(flowId, { boardId, placementId })` as the only frontend editor URL builder.
+- [x] Preserve the server-validated editor context:
 
 ```text
 /flow/{flowId}?returnBoardId={boardId}&returnPlacementId={placementId}
@@ -352,8 +352,8 @@ Make Board the single project workspace while retaining Flow as the canonical au
 → /project/{projectId}/board/{boardId}?focusPlacementId={placementId}
 ```
 
-- [ ] Add a route contract test proving a Flow editor reload still recovers the return URL from server data, not transient navigation state.
-- [ ] Prohibit direct Board imports of FlowPage, `flowStore`, or a second ReactFlow graph state.
+- [x] Add a route contract test proving a Flow editor reload still recovers the return URL from server data, not transient navigation state.
+- [x] Prohibit direct Board imports of FlowPage, `flowStore`, or a second ReactFlow graph state.
 
 **Focused verification**
 
@@ -409,13 +409,13 @@ Response:
 
 For non-clean starters, `automation` and `placement` are populated.
 
-- [ ] Write RED schema/API tests for all starter variants, extra fields, empty names, invalid template IDs, inaccessible projects/templates, and stable error codes.
-- [ ] Add `BoardCommandReceipt` with unique `(principal_id, operation, idempotency_key)` and canonical request hash.
-- [ ] Add the exact additive Alembic revision `ubw01cmdrec` down-revisioned from `s08c0mmand01`.
-- [ ] Write RED fault-injection tests for failures after Board flush, Flow flush, starter clone, Placement creation, and receipt update.
-- [ ] Reuse the flush-only `_new_flow` behavior from `flows_helpers.py`; separate or compensate filesystem persistence so a database rollback cannot leave an externally persisted orphan.
-- [ ] Refactor `create_board` into a flush-only primitive plus the existing commit-owning wrapper, preserving the legacy endpoint.
-- [ ] Implement one `AsyncSession.begin()` command:
+- [x] Write RED schema/API tests for all starter variants, extra fields, empty names, invalid template IDs, inaccessible projects/templates, and stable error codes.
+- [x] Add `BoardCommandReceipt` with unique `(principal_id, operation, idempotency_key)` and canonical request hash.
+- [x] Add the exact additive Alembic revision `ubw01cmdrec` down-revisioned from `s08c0mmand01`.
+- [x] Write RED fault-injection tests for failures after Board flush, Flow flush, starter clone, Placement creation, and receipt update.
+- [x] Reuse the flush-only `_new_flow` behavior from `flows_helpers.py`; separate or compensate filesystem persistence so a database rollback cannot leave an externally persisted orphan.
+- [x] Refactor `create_board` into a flush-only primitive plus the existing commit-owning wrapper, preserving the legacy endpoint.
+- [x] Implement one `AsyncSession.begin()` command:
   1. validate actor/project/template before the first write;
   2. reserve receipt;
   3. create Board;
@@ -423,10 +423,10 @@ For non-clean starters, `automation` and `placement` are populated.
   5. optionally create Placement;
   6. store result IDs in receipt;
   7. commit once.
-- [ ] Return the same IDs for same-key/same-payload replay.
-- [ ] Return `409` for same-key/different-payload replay.
-- [ ] Resolve concurrent same-key requests through the unique constraint and receipt reread, never through check-then-insert.
-- [ ] Return not found for missing or inaccessible resources; never reveal cross-project ownership.
+- [x] Return the same IDs for same-key/same-payload replay.
+- [x] Return `409` for same-key/different-payload replay.
+- [x] Resolve concurrent same-key requests through the unique constraint and receipt reread, never through check-then-insert.
+- [x] Return not found for missing or inaccessible resources; never reveal cross-project ownership.
 
 **Focused verification**
 
@@ -452,13 +452,13 @@ Idempotency-Key: <UUID>
 
 Request reuses the non-clean starter union. Response contains `automation`, `placement`, and `idempotency_replayed`.
 
-- [ ] Write RED tests for blank, Simple Agent, RAG, arbitrary authorized template, project mismatch, duplicate Placement, replay, and concurrency.
-- [ ] Validate Board ownership first and derive project ID from the Board on the server; do not trust a client project ID.
-- [ ] Clone starter data; never mutate the shared starter Flow.
-- [ ] Replace the frontend `useAddFlow` + `usePostPlacement` chain in `use-automation-placement-actions.ts` with one `useCreateBoardAutomation` mutation.
-- [ ] Invalidate project automation summaries and Board scene queries after success.
-- [ ] Focus the returned Placement.
-- [ ] Offer “Create” and “Create and edit”; the latter must use `buildAutomationEditorUrl` with the returned Flow/Placement IDs.
+- [x] Write RED tests for blank, Simple Agent, RAG, arbitrary authorized template, project mismatch, duplicate Placement, replay, and concurrency.
+- [x] Validate Board ownership first and derive project ID from the Board on the server; do not trust a client project ID.
+- [x] Clone starter data; never mutate the shared starter Flow.
+- [x] Replace the frontend `useAddFlow` + `usePostPlacement` chain in `use-automation-placement-actions.ts` with one `useCreateBoardAutomation` mutation.
+- [x] Invalidate project automation summaries and Board scene queries after success.
+- [x] Focus the returned Placement.
+- [x] Offer “Create” and “Create and edit”; the latter must use `buildAutomationEditorUrl` with the returned Flow/Placement IDs.
 
 **Focused verification**
 
@@ -480,23 +480,23 @@ Expected: one Flow and one Placement per command; no client-side partial sequenc
 
 ## Task B4 — Make Board the primary project surface without losing existing Flows
 
-- [ ] Remove the primary “Сценарии” tab from `ProjectPage`; keep Boards as the only project tab.
-- [ ] Change project selection in `CollectionPage` to the Board route without relying on a disabled-by-default flag.
-- [ ] Add an automation inventory panel to the Boards route and Board editor:
+- [x] Remove the primary “Сценарии” tab from `ProjectPage`; keep Boards as the only project tab.
+- [x] Change project selection in `CollectionPage` to the Board route without relying on a disabled-by-default flag.
+- [x] Add an automation inventory panel to the Boards route and Board editor:
   - search current project Flows;
   - show placed/unplaced state;
   - add an existing Flow to a selected/current Board;
   - open the same Flow in the existing full editor;
   - never copy a Flow merely to place it.
-- [ ] Preserve existing unplaced Flows in the inventory. Do not perform a bulk Placement backfill.
-- [ ] Convert `/flows` and `/all/folder/:folderId` to compatibility bridges:
+- [x] Preserve existing unplaced Flows in the inventory. Do not perform a bulk Placement backfill.
+- [x] Convert `/flows` and `/all/folder/:folderId` to compatibility bridges:
   - known project → `/project/{projectId}/boards?panel=automations`;
   - no resolved project → project chooser, then Boards with the continuation;
   - no redirect loop;
   - no 404 for existing bookmarks.
-- [ ] Keep `/flow/:id` unchanged as the canonical editor route.
-- [ ] Keep legacy Flow APIs and folder metadata.
-- [ ] Remove “Новый сценарий” from primary CTAs. “Новая доска” opens Board creation; “Новая автоматизация” always requires a Board.
+- [x] Keep `/flow/:id` unchanged as the canonical editor route.
+- [x] Keep legacy Flow APIs and folder metadata.
+- [x] Remove “Новый сценарий” from primary CTAs. “Новая доска” opens Board creation; “Новая автоматизация” always requires a Board.
 
 **Focused verification**
 
@@ -523,6 +523,30 @@ Expected: Boards are the primary project route; existing Flows remain discoverab
 - Board automation execution uses the existing `/boards/{board_id}/automations/{flow_id}/runs` contract.
 - No second automation model, graph store, editor, or runtime exists.
 - Primary navigation and create actions no longer present “Scenarios”.
+
+## Block B execution record — 2026-07-25
+
+- Status: `EXACT-SHA PASS — BLOCK C ADMITTED`.
+- Exact product SHA:
+  `69e92b8f03b6601e03270622f5c762d1d2f91956`.
+- Commits:
+  - `99abe550f06c78a38daed40927ac7d52288a7efe` — Board-primary
+    automation workspace and atomic command implementation;
+  - `69e92b8f03b6601e03270622f5c762d1d2f91956` — isolated
+    command-owned API transaction scope.
+- Backend Block B matrix: `60 passed`, exit `0`.
+- Expanded frontend matrix: `24` suites and `132` tests passed, exit `0`.
+- Production TypeScript, changed-Python Ruff, and whole-frontend Biome passed;
+  Biome reported only `38` pre-existing warnings outside this block.
+- Alembic reported the sole head `ubw01cmdrec`.
+- Independent backend and frontend audits found no residual P0/P1/P2.
+- A separate independent acceptance audit returned `B PASS — admit C`.
+- Live browser, Playwright, accessibility, and legacy migration compatibility
+  remain mandatory Block D evidence; this record is not a final PASS for the
+  whole plan.
+- Dirty state at admission contains only transition/status documentation and
+  the preserved user-owned untracked `outputs/`; product source matches the
+  exact SHA above.
 
 ---
 
@@ -592,14 +616,14 @@ First view:
 
 `Browse more` is navigation into a gallery, not a template ID. Selecting a template returns to the form with the chosen ID.
 
-- [ ] Extract a shared visual starter-tile primitive from `flowBuilderWelcome`; do not rename the Flow welcome overlay into a Board component.
-- [ ] Write RED tests for required trimmed name, default clean selection, four visible options, gallery loading/error/retry, selected template, double submit, retry, cancel, and success.
-- [ ] Implement `BoardCreationDialog` with a radio group for starter selection and a distinct Browse-more button.
-- [ ] Generate one `crypto.randomUUID()` idempotency key per explicit submit attempt; a transport retry of that attempt reuses the same key.
-- [ ] Keep form data and selected starter after a recoverable error.
-- [ ] On success, navigate to `/project/{projectId}/board/{boardId}` and append `focusPlacementId` only when the response includes a Placement.
-- [ ] If the wizard is continuing “create automation”, open the new Board’s automation picker after navigation.
-- [ ] Remove the plain title/create form after all wizard entry points use the compound endpoint.
+- [x] Extract a shared visual starter-tile primitive from `flowBuilderWelcome`; do not rename the Flow welcome overlay into a Board component.
+- [x] Write RED tests for required trimmed name, default clean selection, four visible options, gallery loading/error/retry, selected template, double submit, retry, cancel, and success.
+- [x] Implement `BoardCreationDialog` with a radio group for starter selection and a distinct Browse-more button.
+- [x] Generate one `crypto.randomUUID()` idempotency key per explicit submit attempt; a transport retry of that attempt reuses the same key.
+- [x] Keep form data and selected starter after a recoverable error.
+- [x] On success, navigate to `/project/{projectId}/board/{boardId}` and append `focusPlacementId` only when the response includes a Placement.
+- [x] If the wizard is continuing “create automation”, open the new Board’s automation picker after navigation.
+- [x] Remove the plain title/create form after all wizard entry points use the compound endpoint.
 
 **State machine**
 
@@ -643,20 +667,20 @@ Expected: clean, Simple Agent, RAG, and Browse-more template payloads exactly ma
 
 ## Task C2 — Add the per-project plus menu
 
-- [ ] Add a real `Plus` icon trigger to every project row, immediately before the existing `...` options.
-- [ ] Use the existing Radix dropdown/menu primitives.
-- [ ] Prevent trigger clicks, Enter, and Space from selecting or navigating the project row.
-- [ ] Menu items:
+- [x] Add a real `Plus` icon trigger to every project row, immediately before the existing `...` options.
+- [x] Use the existing Radix dropdown/menu primitives.
+- [x] Prevent trigger clicks, Enter, and Space from selecting or navigating the project row.
+- [x] Menu items:
   - “Создать новую доску” → open Board wizard with that exact project ID;
   - “Создать новую автоматизацию” → open Board picker for that project.
-- [ ] Board picker states:
+- [x] Board picker states:
   - loading skeleton;
   - error + Retry;
   - existing Boards;
   - no Boards + “Создать доску” continuation.
-- [ ] After choosing a Board, navigate with a one-shot `open-add-automation` intent; Board consumes it, opens the existing automation selector, then removes the intent with `replace`.
-- [ ] Do not retain stale selected project ID when a second project menu opens.
-- [ ] Hide create actions when the current capability contract denies creation.
+- [x] After choosing a Board, navigate with a one-shot `open-add-automation` intent; Board consumes it, opens the existing automation selector, then removes the intent with `replace`.
+- [x] Do not retain stale selected project ID when a second project menu opens.
+- [x] Hide create actions when the current capability contract denies creation.
 
 **Required labels/test IDs**
 
@@ -688,14 +712,14 @@ Expected: each action is scoped to the triggering project and keyboard focus ret
 
 ## Task C3 — Move Knowledge Bases and My Files into the account menu
 
-- [ ] Add Knowledge Bases and My Files immediately after Settings in `sidebarAccountComponent/index.tsx`.
-- [ ] Preserve existing routes and conditions:
+- [x] Add Knowledge Bases and My Files immediately after Settings in `sidebarAccountComponent/index.tsx`.
+- [x] Preserve existing routes and conditions:
   - Knowledge Bases only when `ENABLE_FILE_MANAGEMENT && ENABLE_KNOWLEDGE_BASES`;
   - My Files only when `ENABLE_FILE_MANAGEMENT`.
-- [ ] Reuse real `Library` and `File` icons.
-- [ ] Remove the duplicate footer buttons from `sideBarFolderButtons/index.tsx`.
-- [ ] Add menu max-height, viewport-bounded scrolling, and the existing focus-return behavior.
-- [ ] Prove each resource action exists exactly once in the sidebar DOM.
+- [x] Reuse real `Library` and `File` icons.
+- [x] Remove the duplicate footer buttons from `sideBarFolderButtons/index.tsx`.
+- [x] Add menu max-height, viewport-bounded scrolling, and the existing focus-return behavior.
+- [x] Prove each resource action exists exactly once in the sidebar DOM.
 
 **Required test IDs**
 
@@ -725,14 +749,14 @@ Idempotency-Key: <UUID>
 
 The server derives project/actor from Board, creates `ChatThread + Placement` in one transaction, and returns both.
 
-- [ ] Write RED service/API tests for provider/model payload validation, authorization, placement geometry, same-key replay, different-payload conflict, and rollback after chat or Placement failure.
-- [ ] Reuse `BoardCommandReceipt` with operation `create_board_chat`.
-- [ ] Implement `use-create-board-chat.ts` as the only Board chat-create mutation.
-- [ ] Refactor `ChatList` so its Create action and the new Board header icon call the same hook.
-- [ ] Add a `MessageSquarePlus` icon-only Board header button next to Add note/Add automation.
-- [ ] Use the existing non-colliding placement algorithm and focus the returned Placement.
-- [ ] If no enabled model provider exists, open the existing provider-configuration path and send no create request.
-- [ ] Block repeat clicks while pending; preserve a safe retry.
+- [x] Write RED service/API tests for provider/model payload validation, authorization, placement geometry, same-key replay, different-payload conflict, and rollback after chat or Placement failure.
+- [x] Reuse `BoardCommandReceipt` with operation `create_board_chat`.
+- [x] Implement `use-create-board-chat.ts` as the only Board chat-create mutation.
+- [x] Refactor `ChatList` so its Create action and the new Board header icon call the same hook.
+- [x] Add a `MessageSquarePlus` icon-only Board header button next to Add note/Add automation.
+- [x] Use the existing non-colliding placement algorithm and focus the returned Placement.
+- [x] If no enabled model provider exists, open the existing provider-configuration path and send no create request.
+- [x] Block repeat clicks while pending; preserve a safe retry.
 
 **Focused verification**
 
@@ -756,23 +780,23 @@ Expected: a failed Placement leaves no chat; both Board entry points create/focu
 
 Place the button in `CanvasControls` immediately after Ketos Assistant and before the zoom dropdown.
 
-- [ ] Write a RED icon contract proving `ForwardedIconComponent name="MessageSquarePlus"` resolves to the existing icon library without fallback or console error.
-- [ ] Add `CanvasCreateChatButton` with:
+- [x] Write a RED icon contract proving `ForwardedIconComponent name="MessageSquarePlus"` resolves to the existing icon library without fallback or console error.
+- [x] Add `CanvasCreateChatButton` with:
   - `data-testid="canvas-create-chat-button"`;
   - accessible label “Create chat”;
   - Board-context label “Create chat in Board”;
   - `aria-busy` while creating;
   - tooltip as supplemental text only.
-- [ ] Standalone Flow behavior: open/create the existing Playground session scoped to the current Flow; do not call Board chat APIs.
-- [ ] Board-context behavior:
+- [x] Standalone Flow behavior: open/create the existing Playground session scoped to the current Flow; do not call Board chat APIs.
+- [x] Board-context behavior:
   1. extend `use-board-return-context.ts` to expose the validated `project_id`, `board_id`, `placement_id`, and `flow_id` alongside `returnUrl`;
   2. require that complete server-validated Board return context;
   3. call the atomic Board chat command for that Board;
   4. navigate to the canonical Board return URL with the returned chat Placement focused.
-- [ ] Never downgrade an invalid/expired Board context into standalone behavior. Show a bounded “Reopen this automation from its Board” error.
-- [ ] With workspace/chat disabled, keep the button discoverable but disabled with `aria-describedby`.
-- [ ] With no enabled model provider, open provider configuration without issuing a create request.
-- [ ] Prevent duplicate requests and reuse the same idempotency key for Retry.
+- [x] Never downgrade an invalid/expired Board context into standalone behavior. Show a bounded “Reopen this automation from its Board” error.
+- [x] With workspace/chat disabled, keep the button discoverable but disabled with `aria-describedby`.
+- [x] With no enabled model provider, open provider configuration without issuing a create request.
+- [x] Prevent duplicate requests and reuse the same idempotency key for Retry.
 
 **Focused verification**
 
@@ -789,16 +813,16 @@ Expected: standalone and Board-context branches call different, correct chat pat
 
 ## Task C6 — Complete terminology and localization
 
-- [ ] Add en/ru keys for:
+- [x] Add en/ru keys for:
   - Board wizard titles, choices, validation, loading, retry, and failure;
   - per-project create menu and Board picker;
   - Board/Flow chat creation, provider-required, disabled, invalid-context, loading, and retry;
   - account Knowledge Bases/My Files;
   - automation inventory, placed/unplaced status, create, place, edit, and return.
-- [ ] Reuse existing `boards.*`, `board.*`, `chat.*`, and `account.*` namespaces where a semantic key already exists.
-- [ ] Remove “Сценарии / Scenario(s)” from primary navigation and create actions.
-- [ ] Retain legacy translation keys required by compatibility routes; do not delete them merely to satisfy a string scan.
-- [ ] Add locale contract assertions for all new visible keys and hardcoded-string protection.
+- [x] Reuse existing `boards.*`, `board.*`, `chat.*`, and `account.*` namespaces where a semantic key already exists.
+- [x] Remove “Сценарии / Scenario(s)” from primary navigation and create actions.
+- [x] Retain legacy translation keys required by compatibility routes; do not delete them merely to satisfy a string scan.
+- [x] Add locale contract assertions for all new visible keys and hardcoded-string protection.
 
 **Focused verification**
 

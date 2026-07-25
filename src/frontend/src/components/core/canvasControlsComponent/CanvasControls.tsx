@@ -18,6 +18,7 @@ import useFlowStore from "@/stores/flowStore";
 import { usePlaygroundStore } from "@/stores/playgroundStore";
 import type { AllNodeType } from "@/types/flow";
 import CanvasControlsDropdown from "./CanvasControlsDropdown";
+import { CanvasCreateChatButton } from "./CanvasCreateChatButton";
 import HelpDropdown from "./HelpDropdown";
 
 // Delay before the "Try the new Ketos Assistant!" tooltip surfaces, in ms.
@@ -246,6 +247,7 @@ const CanvasControls = ({
             </PopoverPrimitive.Content>
           </PopoverPrimitive.Portal>
         </PopoverPrimitive.Root>
+        <CanvasCreateChatButton />
         <CanvasControlsDropdown selectedNode={selectedNode} />
         <Button
           unstyled

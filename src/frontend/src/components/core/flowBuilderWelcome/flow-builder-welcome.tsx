@@ -12,6 +12,7 @@ import ModelProviderModal from "@/modals/modelProviderModal";
 import { NAV_ITEMS } from "@/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items";
 import { WELCOME_MAX_INPUT_LENGTH } from "./flow-builder-welcome.constants";
 import type { StarterTemplateNameKey } from "./helpers/find-starter-template";
+import { StarterTile } from "./starter-tile";
 
 interface FlowBuilderWelcomeProps {
   /** Called with the trimmed text when the user submits the textarea. */
@@ -245,57 +246,30 @@ export function FlowBuilderWelcome({
             {t("flowBuilderWelcome.orTemplateLabel")}
           </span>
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <button
-              type="button"
-              data-testid="flow-builder-welcome-template-simple-agent"
+            <StarterTile
+              icon="Bot"
+              label={t("flowBuilderWelcome.simpleAgentLabel")}
+              testId="flow-builder-welcome-template-simple-agent"
+              labelTestId="flow-builder-welcome-simple-agent-label"
               onClick={() => onSelectTemplate("simple_agent")}
-              className="grid h-16 w-[13.75rem] max-w-full grid-cols-[1rem_minmax(0,1fr)_1rem] items-center gap-2.5 rounded-xl border border-border bg-muted px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-border"
-            >
-              <ForwardedIconComponent name="Bot" className="h-4 w-4 shrink-0" />
-              <span
-                data-testid="flow-builder-welcome-simple-agent-label"
-                className="min-w-0 whitespace-normal text-center leading-snug"
-              >
-                {t("flowBuilderWelcome.simpleAgentLabel")}
-              </span>
-              <span aria-hidden="true" className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              data-testid="flow-builder-welcome-template-vector-store-rag"
+              className="w-[13.75rem] max-w-full"
+            />
+            <StarterTile
+              icon="Database"
+              label={t("flowBuilderWelcome.vectorStoreRagLabel")}
+              testId="flow-builder-welcome-template-vector-store-rag"
+              labelTestId="flow-builder-welcome-vector-store-rag-label"
               onClick={() => onSelectTemplate("vector_store_rag")}
-              className="grid h-16 w-[13.75rem] max-w-full grid-cols-[1rem_minmax(0,1fr)_1rem] items-center gap-2.5 rounded-xl border border-border bg-muted px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-border"
-            >
-              <ForwardedIconComponent
-                name="Database"
-                className="h-4 w-4 shrink-0"
-              />
-              <span
-                data-testid="flow-builder-welcome-vector-store-rag-label"
-                className="min-w-0 whitespace-normal text-center leading-snug"
-              >
-                {t("flowBuilderWelcome.vectorStoreRagLabel")}
-              </span>
-              <span aria-hidden="true" className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              data-testid="flow-builder-welcome-browse-more"
+              className="w-[13.75rem] max-w-full"
+            />
+            <StarterTile
+              icon="LayoutGrid"
+              label={t("flowBuilderWelcome.browseMoreLabel")}
+              testId="flow-builder-welcome-browse-more"
+              labelTestId="flow-builder-welcome-browse-more-label"
               onClick={onBrowseMore}
-              className="grid h-16 w-[13.75rem] max-w-full grid-cols-[1rem_minmax(0,1fr)_1rem] items-center gap-2.5 rounded-xl border border-border bg-muted px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-border"
-            >
-              <ForwardedIconComponent
-                name="LayoutGrid"
-                className="h-4 w-4 shrink-0"
-              />
-              <span
-                data-testid="flow-builder-welcome-browse-more-label"
-                className="min-w-0 whitespace-normal text-center leading-snug"
-              >
-                {t("flowBuilderWelcome.browseMoreLabel")}
-              </span>
-              <span aria-hidden="true" className="h-4 w-4" />
-            </button>
+              className="w-[13.75rem] max-w-full"
+            />
           </div>
         </div>
       </div>

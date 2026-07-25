@@ -7,6 +7,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from ketos.api.v1.chat_threads import router
+from ketos.services.board.service import create_board
 from ketos.services.chat_threads import service
 from ketos.services.database.models.folder.model import Folder
 from ketos.services.database.models.user.model import User
@@ -45,6 +46,7 @@ def test_chat_thread_router_is_registered_once_in_v1_chain() -> None:
         for candidate in included_router.effective_route_contexts()
     ]
     assert route_paths.count("/v1/projects/{project_id}/chats") == 2
+    assert route_paths.count("/v1/boards/{board_id}/chats") == 1
     assert route_paths.count("/v1/chats/{chat_id}") == 2
 
 
@@ -55,6 +57,124 @@ def _create_payload(title: str = "API chat") -> dict[str, str]:
         "model_name": "stage05-model",
         "context_policy": "chat_only",
     }
+
+
+def _board_create_payload(title: str = "Board API chat") -> dict:
+    return {
+        "title": title,
+        "provider": "OpenAI",
+        "model_name": "stage05-model",
+        "placement": {
+            "x": 12,
+            "y": 24,
+            "width": 360,
+            "height": 240,
+            "z_index": 2,
+        },
+    }
+
+
+async def test_board_chat_api_is_atomic_replayable_and_server_scoped(
+    chat_client: AsyncClient,
+    logged_in_headers,
+    active_user,
+) -> None:
+    project = await _folder(active_user.id, "Board API")
+    async with session_scope() as session:
+        board = await create_board(
+            session,
+            project_id=project.id,
+            actor_id=active_user.id,
+            title="API Board",
+        )
+    key = str(uuid4())
+    response = await chat_client.post(
+        f"/api/v1/boards/{board.id}/chats",
+        json=_board_create_payload(),
+        headers={**logged_in_headers, "Idempotency-Key": key},
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["chat"]["project_id"] == str(project.id)
+    assert body["chat"]["created_by_id"] == str(active_user.id)
+    assert body["chat"]["context_policy"] == "board"
+    assert body["placement"]["board_id"] == str(board.id)
+    assert body["placement"]["target_kind"] == "chat"
+    assert body["placement"]["target_id"] == body["chat"]["id"]
+    assert body["placement"]["x"] == 12
+    assert body["idempotency_replayed"] is False
+
+    replay = await chat_client.post(
+        f"/api/v1/boards/{board.id}/chats",
+        json=_board_create_payload(),
+        headers={**logged_in_headers, "Idempotency-Key": key},
+    )
+    assert replay.status_code == 201
+    assert replay.json()["idempotency_replayed"] is True
+    assert (
+        replay.json()["chat"]["id"],
+        replay.json()["placement"]["id"],
+    ) == (body["chat"]["id"], body["placement"]["id"])
+
+    changed = _board_create_payload()
+    changed["placement"]["x"] = 13
+    conflict = await chat_client.post(
+        f"/api/v1/boards/{board.id}/chats",
+        json=changed,
+        headers={**logged_in_headers, "Idempotency-Key": key},
+    )
+    assert conflict.status_code == 409
+    assert conflict.json()["detail"]["code"] == "idempotency_key_reused"
+
+
+async def test_board_chat_api_rejects_missing_header_provider_and_forged_scope(
+    chat_client: AsyncClient,
+    logged_in_headers,
+    active_user,
+) -> None:
+    project = await _folder(active_user.id, "Board validation")
+    async with session_scope() as session:
+        board = await create_board(
+            session,
+            project_id=project.id,
+            actor_id=active_user.id,
+            title="Validation Board",
+        )
+    url = f"/api/v1/boards/{board.id}/chats"
+
+    missing_header = await chat_client.post(
+        url,
+        json=_board_create_payload(),
+        headers=logged_in_headers,
+    )
+    assert missing_header.status_code == 422
+
+    unavailable = _board_create_payload()
+    unavailable["provider"] = "Unavailable"
+    invalid_provider = await chat_client.post(
+        url,
+        json=unavailable,
+        headers={**logged_in_headers, "Idempotency-Key": str(uuid4())},
+    )
+    assert invalid_provider.status_code == 422
+    assert invalid_provider.json()["detail"]["code"] == "chat_validation_error"
+
+    forged = _board_create_payload()
+    forged.update(
+        {
+            "project_id": str(uuid4()),
+            "actor_id": str(uuid4()),
+            "context_policy": "chat_only",
+            "target_id": str(uuid4()),
+        }
+    )
+    forged_scope = await chat_client.post(
+        url,
+        json=forged,
+        headers={**logged_in_headers, "Idempotency-Key": str(uuid4())},
+    )
+    assert forged_scope.status_code == 422
 
 
 async def test_chat_api_owner_roundtrip_search_and_conflict(

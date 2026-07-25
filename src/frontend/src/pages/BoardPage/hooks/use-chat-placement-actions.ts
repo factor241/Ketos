@@ -5,8 +5,8 @@ import { usePostPlacement } from "@/controllers/API/queries/placements";
 import type { Placement } from "@/types/board";
 import type { ChatThread } from "@/types/chat";
 
-const CHAT_WIDTH = 480;
-const CHAT_HEIGHT = 360;
+export const CHAT_PLACEMENT_WIDTH = 480;
+export const CHAT_PLACEMENT_HEIGHT = 360;
 const PLACEMENT_GAP = 40;
 
 type Position = { x: number; y: number };
@@ -15,9 +15,9 @@ function collides(position: Position, placements: readonly Placement[]) {
   return placements.some(
     (placement) =>
       position.x < placement.x + placement.width + PLACEMENT_GAP &&
-      position.x + CHAT_WIDTH + PLACEMENT_GAP > placement.x &&
+      position.x + CHAT_PLACEMENT_WIDTH + PLACEMENT_GAP > placement.x &&
       position.y < placement.y + placement.height + PLACEMENT_GAP &&
-      position.y + CHAT_HEIGHT + PLACEMENT_GAP > placement.y,
+      position.y + CHAT_PLACEMENT_HEIGHT + PLACEMENT_GAP > placement.y,
   );
 }
 
@@ -26,12 +26,12 @@ export function findChatPlacementPosition(
   center: Position,
 ): Position {
   const desired = {
-    x: Math.max(0, center.x - CHAT_WIDTH / 2),
-    y: Math.max(0, center.y - CHAT_HEIGHT / 2),
+    x: Math.max(0, center.x - CHAT_PLACEMENT_WIDTH / 2),
+    y: Math.max(0, center.y - CHAT_PLACEMENT_HEIGHT / 2),
   };
   const adjacent = placements.flatMap((placement) => [
     {
-      x: placement.x - CHAT_WIDTH - PLACEMENT_GAP,
+      x: placement.x - CHAT_PLACEMENT_WIDTH - PLACEMENT_GAP,
       y: placement.y,
     },
     {
@@ -44,7 +44,7 @@ export function findChatPlacementPosition(
     },
     {
       x: placement.x,
-      y: placement.y - CHAT_HEIGHT - PLACEMENT_GAP,
+      y: placement.y - CHAT_PLACEMENT_HEIGHT - PLACEMENT_GAP,
     },
   ]);
   const candidates = [desired, ...adjacent]
@@ -55,7 +55,7 @@ export function findChatPlacementPosition(
   for (let row = 1; row <= placements.length + 1; row += 1) {
     const fallback = {
       x: desired.x,
-      y: desired.y + row * (CHAT_HEIGHT + PLACEMENT_GAP),
+      y: desired.y + row * (CHAT_PLACEMENT_HEIGHT + PLACEMENT_GAP),
     };
     if (!collides(fallback, placements)) return fallback;
   }
@@ -88,8 +88,8 @@ export function useChatPlacementActions({ boardId }: { boardId: string }) {
           targetKind: "chat",
           targetId: chat.id,
           ...position,
-          width: CHAT_WIDTH,
-          height: CHAT_HEIGHT,
+          width: CHAT_PLACEMENT_WIDTH,
+          height: CHAT_PLACEMENT_HEIGHT,
         });
       } finally {
         opening.current.delete(chat.id);

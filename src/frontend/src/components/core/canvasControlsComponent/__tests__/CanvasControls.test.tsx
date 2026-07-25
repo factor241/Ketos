@@ -77,6 +77,14 @@ jest.mock("../CanvasControlsDropdown", () => ({
   default: () => <div data-testid="controls-dropdown" />,
 }));
 
+jest.mock("../CanvasCreateChatButton", () => ({
+  CanvasCreateChatButton: () => (
+    <button type="button" data-testid="canvas-create-chat-button">
+      create-chat
+    </button>
+  ),
+}));
+
 jest.mock("../HelpDropdown", () => ({
   __esModule: true,
   default: () => <div data-testid="help-dropdown" />,
@@ -117,6 +125,14 @@ describe("CanvasControls", () => {
     expect(screen.getByTestId("main_canvas_controls")).toBeInTheDocument();
     expect(screen.getByTestId("controls-dropdown")).toBeInTheDocument();
     expect(screen.getByTestId("help-dropdown")).toBeInTheDocument();
+    const panelChildren = Array.from(
+      screen.getByTestId("main_canvas_controls").children,
+    );
+    expect(
+      panelChildren.indexOf(screen.getByTestId("canvas-create-chat-button")),
+    ).toBeLessThan(
+      panelChildren.indexOf(screen.getByTestId("controls-dropdown")),
+    );
   });
 
   it("should_render_assistant_button_with_new_badge", () => {

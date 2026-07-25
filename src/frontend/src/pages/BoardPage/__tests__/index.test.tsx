@@ -11,6 +11,7 @@ import { useBoardReturnFocus } from "../hooks/use-board-return-focus";
 import { useBoardScene } from "../hooks/use-board-scene";
 import { useBoardViewport } from "../hooks/use-board-viewport";
 import { useChatPlacementActions } from "../hooks/use-chat-placement-actions";
+import { useCreateBoardChat } from "../hooks/use-create-board-chat";
 import { useNotePlacementActions } from "../hooks/use-note-placement-actions";
 import { usePlacementPersistence } from "../hooks/use-placement-persistence";
 
@@ -45,7 +46,13 @@ jest.mock("@/controllers/API/queries/models/use-get-model-providers", () => ({
   useGetModelProviders: jest.fn(),
 }));
 jest.mock("../hooks/use-chat-placement-actions", () => ({
+  CHAT_PLACEMENT_WIDTH: 480,
+  CHAT_PLACEMENT_HEIGHT: 360,
+  findChatPlacementPosition: () => ({ x: 0, y: 0 }),
   useChatPlacementActions: jest.fn(),
+}));
+jest.mock("../hooks/use-create-board-chat", () => ({
+  useCreateBoardChat: jest.fn(),
 }));
 jest.mock("../hooks/use-automation-placement-actions", () => ({
   useAutomationPlacementActions: jest.fn(),
@@ -97,13 +104,30 @@ jest.mock("@/components/core/boards/AutomationInventoryPanel", () => ({
   ),
 }));
 jest.mock("@/components/core/chats/ChatList", () => ({
-  ChatList: () => <div data-testid="chat-list" />,
+  ChatList: ({
+    onCreate,
+    isCreatePending,
+  }: {
+    onCreate: () => void;
+    isCreatePending: boolean;
+  }) => (
+    <div data-testid="chat-list">
+      <button type="button" disabled={isCreatePending} onClick={onCreate}>
+        chat-list-create
+      </button>
+    </div>
+  ),
 }));
 jest.mock("@/components/core/chats/CopilotKitBoardProvider", () => ({
   CopilotKitBoardProvider: ({ children }: { children: ReactNode }) => children,
 }));
 jest.mock("@/components/core/board/BoardNoteDeleteDialog", () => ({
   BoardNoteDeleteDialog: () => null,
+}));
+jest.mock("@/modals/modelProviderModal", () => ({
+  __esModule: true,
+  default: ({ open }: { open: boolean }) =>
+    open ? <div role="dialog">provider-configuration</div> : null,
 }));
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -117,6 +141,7 @@ const mockUseGetBoard = useGetBoard as jest.Mock;
 const mockUseBoardViewport = useBoardViewport as jest.Mock;
 const mockUseGetModelProviders = useGetModelProviders as jest.Mock;
 const mockUseChatPlacementActions = useChatPlacementActions as jest.Mock;
+const mockUseCreateBoardChat = useCreateBoardChat as jest.Mock;
 const mockUseAutomationPlacementActions =
   useAutomationPlacementActions as jest.Mock;
 const mockUseBoardReturnFocus = useBoardReturnFocus as jest.Mock;
@@ -125,6 +150,7 @@ const mockUsePlacementPersistence = usePlacementPersistence as jest.Mock;
 const mockUseBoardNoteActions = useNotePlacementActions as jest.Mock;
 const mockBoardCanvas = BoardCanvas as jest.Mock;
 let mockRefetch: jest.Mock;
+let mockSceneRefetch: jest.Mock;
 
 function renderBoard(path = `/project/${PROJECT_ID}/board/${BOARD_ID}`) {
   return render(
@@ -155,6 +181,7 @@ beforeEach(() => {
   mockChatEnabled = false;
   mockExecutionEnabled = true;
   mockRefetch = jest.fn().mockResolvedValue({});
+  mockSceneRefetch = jest.fn().mockResolvedValue({});
   successfulQuery();
   mockUseBoardViewport.mockReturnValue({
     initialViewport: { x: 12, y: 24, zoom: 1.25 },
@@ -172,6 +199,7 @@ beforeEach(() => {
     placements: [],
     isLoading: false,
     isError: false,
+    refetch: mockSceneRefetch,
   });
   mockUsePlacementPersistence.mockReturnValue({
     move: jest.fn(),
@@ -195,6 +223,10 @@ beforeEach(() => {
   mockUseChatPlacementActions.mockReturnValue({
     open: jest.fn(),
     archive: jest.fn(),
+    isPending: false,
+  });
+  mockUseCreateBoardChat.mockReturnValue({
+    create: jest.fn(),
     isPending: false,
   });
   mockUseAutomationPlacementActions.mockReturnValue({
@@ -386,6 +418,76 @@ it("enables the durable Chat surface only when both MVP flags are strict boolean
       enabled: true,
     },
   );
+});
+
+it("uses one atomic Board chat action for the header and ChatList", async () => {
+  const create = jest.fn().mockResolvedValue({
+    chat: { id: "chat-created" },
+    placement: { id: "placement-chat-created" },
+    idempotencyReplayed: false,
+  });
+  mockChatEnabled = true;
+  mockUseCreateBoardChat.mockReturnValue({ create, isPending: false });
+  mockUseGetModelProviders.mockReturnValue({
+    data: [
+      {
+        provider: "OpenAI",
+        is_enabled: true,
+        models: [{ model_name: "gpt-4o", metadata: {} }],
+      },
+    ],
+    refetch: jest.fn(),
+  });
+  renderBoard();
+
+  fireEvent.click(
+    screen.getByRole("button", { name: "chat.actions.createInBoard" }),
+  );
+  await act(async () => undefined);
+  fireEvent.click(screen.getByRole("button", { name: "chat-list-create" }));
+  await act(async () => undefined);
+
+  expect(mockUseCreateBoardChat).toHaveBeenCalledWith({
+    boardId: BOARD_ID,
+    projectId: PROJECT_ID,
+  });
+  expect(create).toHaveBeenCalledTimes(2);
+  const expectedInput = {
+    title: "chat.defaultTitle",
+    provider: "OpenAI",
+    modelName: "gpt-4o",
+    placement: {
+      x: 0,
+      y: 0,
+      width: 480,
+      height: 360,
+      zIndex: 0,
+    },
+  };
+  expect(create).toHaveBeenNthCalledWith(1, expectedInput);
+  expect(create).toHaveBeenNthCalledWith(2, expectedInput);
+  expect(mockSceneRefetch).toHaveBeenCalledTimes(2);
+});
+
+it("opens provider configuration and sends no chat command when no provider is enabled", () => {
+  const create = jest.fn();
+  mockChatEnabled = true;
+  mockUseCreateBoardChat.mockReturnValue({ create, isPending: false });
+  mockUseGetModelProviders.mockReturnValue({
+    data: [],
+    isLoading: false,
+    refetch: jest.fn(),
+  });
+  renderBoard();
+
+  fireEvent.click(
+    screen.getByRole("button", { name: "chat.actions.createInBoard" }),
+  );
+
+  expect(screen.getByRole("dialog")).toHaveTextContent(
+    "provider-configuration",
+  );
+  expect(create).not.toHaveBeenCalled();
 });
 
 it("renders loading without hydrating the canvas", () => {

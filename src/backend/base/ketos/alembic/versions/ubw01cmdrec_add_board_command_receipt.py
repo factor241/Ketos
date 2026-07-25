@@ -25,6 +25,7 @@ def upgrade() -> None:
         sa.Column("request_hash", sa.String(length=64), nullable=False),
         sa.Column("board_id", sa.Uuid(), nullable=False),
         sa.Column("automation_id", sa.Uuid(), nullable=True),
+        sa.Column("chat_id", sa.Uuid(), nullable=True),
         sa.Column("placement_id", sa.Uuid(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.CheckConstraint(
@@ -36,8 +37,18 @@ def upgrade() -> None:
             name="ck_board_command_receipt_request_hash",
         ),
         sa.CheckConstraint(
-            "(automation_id IS NULL) = (placement_id IS NULL)",
-            name="ck_board_command_receipt_automation_placement_pair",
+            "("
+            "operation = 'board_bootstrap' AND chat_id IS NULL AND "
+            "((automation_id IS NULL AND placement_id IS NULL) OR "
+            "(automation_id IS NOT NULL AND placement_id IS NOT NULL))"
+            ") OR ("
+            "operation = 'board_automation' AND chat_id IS NULL AND "
+            "automation_id IS NOT NULL AND placement_id IS NOT NULL"
+            ") OR ("
+            "operation = 'create_board_chat' AND automation_id IS NULL AND "
+            "chat_id IS NOT NULL AND placement_id IS NOT NULL"
+            ")",
+            name="ck_board_command_receipt_result_shape",
         ),
         sa.ForeignKeyConstraint(["principal_id"], ["user.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),

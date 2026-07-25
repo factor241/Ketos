@@ -5,6 +5,7 @@ from ketos.api.v1.schemas.board_commands import (
     BoardAutomationCreate,
     BoardBootstrapCreate,
 )
+from ketos.initial_setup.constants import STARTER_FOLDER_NAME
 from ketos.services.board.command_service import bootstrap_board, create_board_automation
 from ketos.services.board.exceptions import BoardResourceNotFoundError
 from ketos.services.board.service import create_board
@@ -103,6 +104,87 @@ async def test_authorized_template_is_cloned_without_mutating_source(active_user
         assert persisted_source is not None
         assert persisted_source.folder_id == source_project.id
         assert persisted_source.data == source_data
+
+
+async def test_system_starter_template_is_authorized_for_board_wizard(active_user) -> None:
+    target_project = await _project(active_user.id, "System target")
+    async with session_scope() as session:
+        starter_project = (await session.exec(select(Folder).where(Folder.name == STARTER_FOLDER_NAME))).first()
+        if starter_project is None:
+            starter_project = Folder(name=STARTER_FOLDER_NAME, user_id=None)
+            session.add(starter_project)
+            await session.flush()
+        template = Flow(
+            name=f"System template {uuid4()}",
+            user_id=None,
+            folder_id=starter_project.id,
+            data={"nodes": [{"id": "system-source"}], "edges": []},
+            is_component=False,
+        )
+        session.add(template)
+        await session.commit()
+        await session.refresh(template)
+        template_id = template.id
+
+    payload = BoardBootstrapCreate.model_validate(
+        {
+            "title": "System template board",
+            "starter": {
+                "kind": "template",
+                "template_id": template_id,
+                "name": "System clone",
+            },
+        }
+    )
+    async with session_scope() as session:
+        result = await bootstrap_board(
+            session,
+            project_id=target_project.id,
+            actor_id=active_user.id,
+            idempotency_key=uuid4(),
+            payload=payload,
+        )
+
+    assert result.automation is not None
+    assert result.automation.folder_id == target_project.id
+    assert result.automation.data == {"nodes": [{"id": "system-source"}], "edges": []}
+
+
+async def test_unowned_template_outside_system_starter_folder_is_hidden(active_user) -> None:
+    source_project = await _project(None, "Unowned non-system")
+    target_project = await _project(active_user.id, "Unowned target")
+    async with session_scope() as session:
+        template = Flow(
+            name=f"Unowned template {uuid4()}",
+            user_id=None,
+            folder_id=source_project.id,
+            data={"nodes": [], "edges": []},
+            is_component=False,
+        )
+        session.add(template)
+        await session.commit()
+        await session.refresh(template)
+        template_id = template.id
+
+    payload = BoardBootstrapCreate.model_validate(
+        {
+            "title": "Hidden system-looking template",
+            "starter": {
+                "kind": "template",
+                "template_id": template_id,
+                "name": "Hidden",
+            },
+        }
+    )
+    with pytest.raises(BoardResourceNotFoundError):
+        async with session_scope() as session:
+            await bootstrap_board(
+                session,
+                project_id=target_project.id,
+                actor_id=active_user.id,
+                idempotency_key=uuid4(),
+                payload=payload,
+            )
 
 
 async def test_template_replay_does_not_revalidate_deleted_source(active_user) -> None:

@@ -23,6 +23,85 @@ const SEMANTIC_KEYS = [
   "sidebar.bundles.reload.success.warnings",
   "sidebar.bundles.reload.success.withChanges",
 ] as const;
+const UNIFIED_BOARD_VISIBLE_KEYS = [
+  "account.knowledgeBases",
+  "account.myFiles",
+  "projectCreate.label",
+  "projectCreate.board",
+  "projectCreate.automation",
+  "boardPicker.title",
+  "boardPicker.description",
+  "boardPicker.loading",
+  "boardPicker.error",
+  "boardPicker.retry",
+  "boardPicker.empty",
+  "boardPicker.create",
+  "boardPicker.cancel",
+  "boardCreation.title",
+  "boardCreation.description",
+  "boardCreation.nameLabel",
+  "boardCreation.nameRequired",
+  "boardCreation.starterGroup",
+  "boardCreation.clean.title",
+  "boardCreation.clean.description",
+  "boardCreation.simpleAgent.title",
+  "boardCreation.simpleAgent.description",
+  "boardCreation.vectorStoreRag.title",
+  "boardCreation.vectorStoreRag.description",
+  "boardCreation.browseMore.title",
+  "boardCreation.browseMore.description",
+  "boardCreation.selectedTemplate",
+  "boardCreation.createError",
+  "boardCreation.creating",
+  "boardCreation.retry",
+  "boardCreation.submit",
+  "boardCreation.cancel",
+  "boardCreation.gallery.description",
+  "boardCreation.gallery.loading",
+  "boardCreation.gallery.error",
+  "boardCreation.gallery.back",
+  "boardCreation.gallery.empty",
+  "chat.actions.create",
+  "chat.actions.createInBoard",
+  "chat.actions.retry",
+  "chat.states.loading",
+  "chat.create.errorTitle",
+  "chat.create.providerLoadError",
+  "chat.create.placementLoadError",
+  "chat.create.invalidBoardContext",
+  "chat.create.disabled",
+  "board.automation.inventory.title",
+  "board.automation.inventory.search",
+  "board.automation.inventory.placed",
+  "board.automation.inventory.unplaced",
+  "board.automation.inventory.placeAction",
+  "board.automation.inventory.openAction",
+  "board.automation.returnToBoard",
+] as const;
+const PRIMARY_AUTOMATION_TERMINOLOGY_KEYS = [
+  "page.createFirstFlow",
+  "sidebar.emptyMessage",
+  "projectShell.flows",
+  "mainPage.tabFlows",
+  "mainPage.newFlow",
+  "mainPage.flowType.flows",
+  "folder.uploadFlow",
+  "emptyPage.newFlow",
+  "mainPage.searchFlows",
+  "mainPage.searchFlowsAndComponents",
+] as const;
+const UNIFIED_BOARD_SOURCE_FILES = [
+  "../components/core/canvasControlsComponent/CanvasCreateChatButton.tsx",
+  "../components/core/boardCreationWizard/BoardCreationDialog.tsx",
+  "../components/core/boardCreationWizard/BoardTemplateGallery.tsx",
+  "../components/core/boardCreationWizard/BoardTemplatePicker.tsx",
+  "../components/core/folderSidebarComponent/components/sideBarFolderButtons/index.tsx",
+  "../components/core/folderSidebarComponent/components/sideBarFolderButtons/components/board-picker-dialog.tsx",
+  "../components/core/folderSidebarComponent/components/sideBarFolderButtons/components/project-create-menu.tsx",
+  "../components/core/sidebarAccountComponent/index.tsx",
+  "../pages/BoardPage/index.tsx",
+  "../pages/BoardsPage/index.tsx",
+] as const;
 
 function readCatalog(locale: string): Catalog {
   return JSON.parse(
@@ -94,6 +173,44 @@ describe("frontend locale catalog contract", () => {
       }
     },
   );
+
+  it.each(SHIPPED_LOCALES)(
+    "contains every unified Board visible key in %s",
+    (locale) => {
+      const catalog = readCatalog(locale);
+      for (const key of UNIFIED_BOARD_VISIBLE_KEYS) {
+        expect(catalog[key]).toEqual(expect.any(String));
+        expect(catalog[key].trim()).not.toBe("");
+      }
+    },
+  );
+
+  it.each(SHIPPED_LOCALES)(
+    "uses automation terminology in primary navigation and create actions for %s",
+    (locale) => {
+      const catalog = readCatalog(locale);
+      const forbidden = locale === "ru" ? /сценари/iu : /\bscenarios?\b/iu;
+      for (const key of PRIMARY_AUTOMATION_TERMINOLOGY_KEYS)
+        expect(catalog[key]).not.toMatch(forbidden);
+    },
+  );
+
+  it("does not hardcode unified Board catalog values in visible source", () => {
+    const ru = readCatalog("ru");
+    const source = UNIFIED_BOARD_SOURCE_FILES.map((file) =>
+      readFileSync(path.resolve(__dirname, file), "utf8"),
+    ).join("\n");
+    for (const key of UNIFIED_BOARD_VISIBLE_KEYS) {
+      for (const visibleValue of [en[key], ru[key]]) {
+        if (
+          visibleValue.length >= 4 &&
+          !visibleValue.includes("{{") &&
+          !/^[A-Z0-9 _-]+$/.test(visibleValue)
+        )
+          expect(source).not.toContain(`>${visibleValue}<`);
+      }
+    }
+  });
 
   it.each(SHIPPED_LOCALES)(
     "contains all Task 7 semantic keys in %s",

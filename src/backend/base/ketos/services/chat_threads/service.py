@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func
@@ -23,6 +24,16 @@ _INVALID_VALUE_ERROR = "invalid chat field"
 _PROVIDER_MODEL_ERROR = "provider/model is not available for this user"
 _LIST_LIMIT_ERROR = "limit must be between 1 and 50"
 _MAX_LIST_LIMIT = 50
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedChatCreate:
+    project_id: UUID
+    actor_id: UUID
+    title: str
+    provider: str
+    model_name: str
+    context_policy: ChatContextPolicy
 
 
 def _clean(value: str, *, label: str, limit: int) -> str:
@@ -56,18 +67,61 @@ async def create_chat(
     model_name: str,
     context_policy: ChatContextPolicy,
 ) -> ChatThread:
+    prepared = await prepare_chat_create(
+        session,
+        project_id=project_id,
+        actor_id=actor_id,
+        title=title,
+        provider=provider,
+        model_name=model_name,
+        context_policy=context_policy,
+    )
+    chat = await create_chat_uncommitted(session, prepared=prepared)
+    await session.commit()
+    await session.refresh(chat)
+    return chat
+
+
+async def prepare_chat_create(
+    session: AsyncSession,
+    *,
+    project_id: UUID,
+    actor_id: UUID,
+    title: str,
+    provider: str,
+    model_name: str,
+    context_policy: ChatContextPolicy,
+) -> PreparedChatCreate:
     await require_owned_project(session, project_id=project_id, actor_id=actor_id)
     clean_provider, clean_model = resolve_provider_model(provider=provider, model_name=model_name, actor_id=actor_id)
-    chat = ChatThread(
+    return PreparedChatCreate(
         project_id=project_id,
-        created_by_id=actor_id,
+        actor_id=actor_id,
         title=_clean(title, label="title", limit=120),
         provider=clean_provider,
         model_name=clean_model,
         context_policy=ChatContextPolicy(context_policy),
     )
+
+
+async def create_chat_uncommitted(
+    session: AsyncSession,
+    *,
+    prepared: PreparedChatCreate,
+    chat_id: UUID | None = None,
+) -> ChatThread:
+    chat = ChatThread(
+        project_id=prepared.project_id,
+        created_by_id=prepared.actor_id,
+        title=prepared.title,
+        provider=prepared.provider,
+        model_name=prepared.model_name,
+        context_policy=prepared.context_policy,
+    )
+    if chat_id is not None:
+        chat.id = chat_id
     session.add(chat)
-    await session.commit()
+    await session.flush()
     await session.refresh(chat)
     return chat
 

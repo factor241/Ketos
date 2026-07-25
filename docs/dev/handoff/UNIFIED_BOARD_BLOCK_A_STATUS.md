@@ -3,9 +3,9 @@
 | Field | Value |
 | --- | --- |
 | Date | `2026-07-25` |
-| Base SHA | `4c98c0beffac69e1864b1e2651df55b1ee1319a3` |
+| Candidate SHA | `ef9bfaf9254d8f19b16336efcdef9e67d7ab720a` |
 | Scope | Block A, Tasks A1–A3 only |
-| Worktree status | `IMPLEMENTED AND VERIFIED IN WORKTREE` |
+| Technical status | `EXACT-SHA PASS` |
 | Next block | `NOT STARTED` |
 
 ## Delivered
@@ -53,11 +53,23 @@
 
 ## Exact-SHA boundary
 
-The source changes are intentionally left uncommitted because no commit was
-authorized. The SHA above is the tested base, not an immutable candidate
-containing the Block A diff. This status therefore does not convert the
-worktree evidence into an exact-SHA technical PASS. A candidate commit and
-repeat proof are still required before Block B admission. Predecessor stages
+The user authorized a candidate commit and continuation. The initial candidate
+`fa7bda46cee841ba13b240cfeb974b53b63c4f35` exposed a real cold-start timeout:
+the backend completed startup just after the configured 120-second deadline.
+The supervisor failed closed with exit `21` and cleaned up all children.
+
+A RED regression was added, the backend startup budget was raised to 180
+seconds, and the correction was committed as
+`ef9bfaf9254d8f19b16336efcdef9e67d7ab720a`. On that exact SHA:
+
+- `54`, `37`, and `15` test groups passed;
+- version and Alembic preflight passed;
+- live `run-current` and second-terminal `current-proof` passed;
+- the proof printed the exact candidate SHA;
+- Ctrl+C returned the expected `130` and released all three ports;
+- Git status returned to the sole pre-existing user-owned `outputs/`.
+
+This is the Block A technical PASS that admits Block B. Predecessor stages
 remain accepted for transition under the separate user decision and do not
 re-enter admission.
 

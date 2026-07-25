@@ -12,7 +12,11 @@ import {
 import { DATASTAX_DOCS_URL, DOCS_URL } from "@/constants/constants";
 import { AuthContext } from "@/contexts/authContext";
 import { useLogout } from "@/controllers/API/queries/auth";
-import { ENABLE_DATASTAX_KETOS } from "@/customization/feature-flags";
+import {
+  ENABLE_DATASTAX_KETOS,
+  ENABLE_FILE_MANAGEMENT,
+  ENABLE_KNOWLEDGE_BASES,
+} from "@/customization/feature-flags";
 import { useCustomNavigate } from "@/customization/hooks/use-custom-navigate";
 import useAuthStore from "@/stores/authStore";
 import { useDarkStore } from "@/stores/darkStore";
@@ -109,6 +113,31 @@ export function SidebarAccountCard() {
           />
           <span>{t("account.settings")}</span>
         </DropdownMenuItem>
+
+        {ENABLE_FILE_MANAGEMENT && ENABLE_KNOWLEDGE_BASES ? (
+          <DropdownMenuItem
+            data-testid="account-menu-knowledge-bases"
+            onSelect={() => navigate("/assets/knowledge-bases")}
+            className="gap-2 rounded-sm"
+          >
+            <ForwardedIconComponent
+              name="Library"
+              className={menuIconClassName}
+            />
+            <span>{t("account.knowledgeBases")}</span>
+          </DropdownMenuItem>
+        ) : null}
+
+        {ENABLE_FILE_MANAGEMENT ? (
+          <DropdownMenuItem
+            data-testid="account-menu-my-files"
+            onSelect={() => navigate("/assets/files")}
+            className="gap-2 rounded-sm"
+          >
+            <ForwardedIconComponent name="File" className={menuIconClassName} />
+            <span>{t("account.myFiles")}</span>
+          </DropdownMenuItem>
+        ) : null}
 
         {isAdmin && !autoLogin && (
           <DropdownMenuItem

@@ -70,6 +70,13 @@ describe("useBoardReturnContext", () => {
     });
     expect(rendered.captured?.options.enabled).toBe(false);
     expect(rendered.hook.result.current.returnUrl).toBeNull();
+    expect(rendered.hook.result.current.context).toBeNull();
+    expect(rendered.hook.result.current.hasBoardReturnIntent).toBe(
+      search.length > 0,
+    );
+    expect(rendered.hook.result.current.status).toBe(
+      search.length > 0 ? "invalid" : "absent",
+    );
     expect(mockApiGet).not.toHaveBeenCalled();
   });
 
@@ -117,6 +124,13 @@ describe("useBoardReturnContext", () => {
     expect(rendered.hook.result.current.returnUrl).toBe(
       `/project/${PROJECT_ID}/board/${BOARD_ID}?focusPlacementId=${PLACEMENT_ID}`,
     );
+    expect(rendered.hook.result.current.context).toEqual({
+      project_id: PROJECT_ID,
+      board_id: BOARD_ID,
+      placement_id: PLACEMENT_ID,
+      flow_id: FLOW_ID,
+    });
+    expect(rendered.hook.result.current.status).toBe("valid");
   });
 
   it.each([
@@ -166,6 +180,10 @@ describe("useBoardReturnContext", () => {
         { ...queryResult, data: undefined, refetch: jest.fn() },
       );
       expect(rendered.hook.result.current.returnUrl).toBeNull();
+      expect(rendered.hook.result.current.context).toBeNull();
+      expect(rendered.hook.result.current.status).toBe(
+        queryResult.isLoading ? "loading" : "invalid",
+      );
     }
   });
 });

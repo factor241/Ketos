@@ -2,7 +2,7 @@ import { useIsFetching, useIsMutating } from "@tanstack/react-query";
 import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useParams } from "react-router-dom";
-import ForwardedIconComponent from "@/components/common/genericIconComponent";
+import { BoardCreationDialog } from "@/components/core/boardCreationWizard/BoardCreationDialog";
 import { Input } from "@/components/ui/input";
 import {
   Sidebar,
@@ -26,8 +26,6 @@ import { useGetDownloadFolders } from "@/controllers/API/queries/folders/use-get
 import CustomSidebarAccount from "@/customization/components/custom-sidebar-account";
 import {
   ENABLE_CUSTOM_PARAM,
-  ENABLE_FILE_MANAGEMENT,
-  ENABLE_KNOWLEDGE_BASES,
   ENABLE_MCP_NOTICE,
 } from "@/customization/feature-flags";
 import { useCustomNavigate } from "@/customization/hooks/use-custom-navigate";
@@ -44,6 +42,7 @@ import type { FolderType } from "../../../../../pages/MainPage/entities";
 import useAlertStore from "../../../../../stores/alertStore";
 import useFlowsManagerStore from "../../../../../stores/flowsManagerStore";
 import { useFolderStore } from "../../../../../stores/foldersStore";
+import { useUtilityStore } from "../../../../../stores/utilityStore";
 import { cn } from "../../../../../utils/utils";
 import {
   isProjectScopedPath,
@@ -51,8 +50,10 @@ import {
 } from "../../helpers/resolve-current-project-id";
 import useFileDrop from "../../hooks/use-on-file-drop";
 import { SidebarFolderSkeleton } from "../sidebarFolderSkeleton";
+import { BoardPickerDialog } from "./components/board-picker-dialog";
 import { HeaderButtons } from "./components/header-buttons";
 import { MCPServerNotice } from "./components/mcp-server-notice";
+import { ProjectCreateMenu } from "./components/project-create-menu";
 import { SelectOptions } from "./components/select-options";
 import { useInlineProjectRename } from "./hooks/use-inline-project-rename";
 
@@ -64,6 +65,22 @@ type SideBarFoldersButtonsComponentProps = {
 
 type UploadedFlowFile = FlowType | { flows: FlowType[] };
 
+type CreateSurface =
+  | { kind: "closed" }
+  | {
+      kind: "board";
+      projectId: string;
+      projectName: string;
+      trigger: HTMLButtonElement;
+      continuation?: "open-add-automation";
+    }
+  | {
+      kind: "picker";
+      projectId: string;
+      projectName: string;
+      trigger: HTMLButtonElement;
+    };
+
 const SideBarFoldersButtonsComponent = ({
   handleChangeFolder,
   handleDeleteFolder,
@@ -73,6 +90,10 @@ const SideBarFoldersButtonsComponent = ({
   const pathname = location.pathname;
   const folders = useFolderStore((state) => state.folders);
   const loading = !folders;
+  const hideNewFlowButton = useUtilityStore((state) => state.hideNewFlowButton);
+  const [createSurface, setCreateSurface] = useState<CreateSurface>({
+    kind: "closed",
+  });
 
   const _navigate = useCustomNavigate();
 
@@ -328,12 +349,44 @@ const SideBarFoldersButtonsComponent = ({
     });
   };
 
-  const handleFilesNavigation = () => {
-    _navigate("/assets/files");
+  const closeCreateSurface = () => {
+    const trigger =
+      createSurface.kind === "closed" ? null : createSurface.trigger;
+    setCreateSurface({ kind: "closed" });
+    requestAnimationFrame(() => {
+      if (trigger?.isConnected) trigger.focus();
+    });
   };
 
-  const handleKnowledgeNavigation = () => {
-    _navigate("/assets/knowledge-bases");
+  const getProjectName = (projectIdToFind: string) => {
+    const project = folders?.find(
+      (candidate) => candidate.id === projectIdToFind,
+    );
+    return project ? getFolderDisplayName(project) : projectIdToFind;
+  };
+
+  const openBoardCreation = (
+    projectIdToOpen: string,
+    trigger: HTMLButtonElement,
+  ) => {
+    setCreateSurface({
+      kind: "board",
+      projectId: projectIdToOpen,
+      projectName: getProjectName(projectIdToOpen),
+      trigger,
+    });
+  };
+
+  const openAutomationCreation = (
+    projectIdToOpen: string,
+    trigger: HTMLButtonElement,
+  ) => {
+    setCreateSurface({
+      kind: "picker",
+      projectId: projectIdToOpen,
+      projectName: getProjectName(projectIdToOpen),
+      trigger,
+    });
   };
 
   return (
@@ -392,7 +445,7 @@ const SideBarFoldersButtonsComponent = ({
                               handleDoubleClick(event, item);
                             }}
                             className={cn(
-                              "flex-grow pr-8",
+                              "min-w-0 flex-grow pr-[5.5rem]",
                               hoveredFolderId === item.id && "bg-accent",
                               checkHoveringFolder(item.id!),
                             )}
@@ -427,8 +480,18 @@ const SideBarFoldersButtonsComponent = ({
                           </SidebarMenuButton>
                           <div
                             data-folder-options
-                            className="absolute right-2 top-[0.45rem] flex items-center hover:text-foreground"
+                            className="absolute right-1 top-0 flex items-center hover:text-foreground"
                           >
+                            {!hideNewFlowButton && item.id ? (
+                              <ProjectCreateMenu
+                                project={{
+                                  id: item.id,
+                                  name: getFolderDisplayName(item),
+                                }}
+                                onCreateBoard={openBoardCreation}
+                                onCreateAutomation={openAutomationCreation}
+                              />
+                            ) : null}
                             <SelectOptions
                               item={item}
                               handleDeleteFolder={handleDeleteFolder}
@@ -474,32 +537,46 @@ const SideBarFoldersButtonsComponent = ({
         )}
       </SidebarContent>
       <SidebarFooter className="border-t">
-        {ENABLE_FILE_MANAGEMENT && (
-          <div className="grid w-full items-center gap-2 p-2">
-            {ENABLE_KNOWLEDGE_BASES && (
-              <SidebarMenuButton
-                onClick={handleKnowledgeNavigation}
-                size="md"
-                className="text-sm"
-              >
-                <ForwardedIconComponent name="Library" className="h-4 w-4" />
-                {t("sidebar.knowledge")}
-              </SidebarMenuButton>
-            )}
-            <SidebarMenuButton
-              onClick={handleFilesNavigation}
-              size="md"
-              className="text-sm"
-            >
-              <ForwardedIconComponent name="File" className="h-4 w-4" />
-              {t("sidebar.myFiles")}
-            </SidebarMenuButton>
-          </div>
-        )}
-        <div className={cn("p-2", ENABLE_FILE_MANAGEMENT && "border-t")}>
+        <div className="p-2">
           <CustomSidebarAccount />
         </div>
       </SidebarFooter>
+      {createSurface.kind === "picker" ? (
+        <BoardPickerDialog
+          open
+          projectId={createSurface.projectId}
+          projectName={createSurface.projectName}
+          onOpenChange={(open) => {
+            if (!open) closeCreateSurface();
+          }}
+          onSelectBoard={(boardId) => {
+            const projectIdToOpen = createSurface.projectId;
+            setCreateSurface({ kind: "closed" });
+            _navigate(
+              `/project/${projectIdToOpen}/board/${boardId}?open-add-automation=1`,
+            );
+          }}
+          onCreateBoard={() => {
+            setCreateSurface({
+              kind: "board",
+              projectId: createSurface.projectId,
+              projectName: createSurface.projectName,
+              trigger: createSurface.trigger,
+              continuation: "open-add-automation",
+            });
+          }}
+        />
+      ) : null}
+      {createSurface.kind === "board" ? (
+        <BoardCreationDialog
+          open
+          projectId={createSurface.projectId}
+          continuation={createSurface.continuation}
+          onOpenChange={(open) => {
+            if (!open) closeCreateSurface();
+          }}
+        />
+      ) : null}
     </Sidebar>
   );
 };

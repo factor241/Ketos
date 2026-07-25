@@ -4,10 +4,26 @@ from collections.abc import Awaitable, Callable
 from typing import Annotated, TypeVar
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from kfx.services.deps import injectable_session_scope_manual
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ketos.api.utils import CurrentActiveUser, DbSession
-from ketos.api.v1.schemas.chat_threads import ChatCreate, ChatMessageRead, ChatPatch, ChatRead
+from ketos.api.v1.schemas.board_entities import PlacementRead
+from ketos.api.v1.schemas.chat_threads import (
+    BoardChatCreate,
+    BoardChatCreateResponse,
+    ChatCreate,
+    ChatMessageRead,
+    ChatPatch,
+    ChatRead,
+)
+from ketos.services.board.command_service import (
+    BoardCommandInvariantError,
+    IdempotencyKeyReusedError,
+    create_board_chat,
+)
+from ketos.services.board.exceptions import BoardResourceNotFoundError
 from ketos.services.chat_threads.message_adapter import load_committed_messages
 from ketos.services.chat_threads.repository import (
     ChatNotFoundError,
@@ -22,6 +38,10 @@ from ketos.services.chat_threads.service import (
 
 router = APIRouter(tags=["Chat threads"])
 T = TypeVar("T")
+CommandDbSession = Annotated[
+    AsyncSession,
+    Depends(injectable_session_scope_manual),
+]
 
 
 async def _run_service(call: Callable[[], Awaitable[T]]) -> T:
@@ -39,7 +59,32 @@ async def _run_service(call: Callable[[], Awaitable[T]]) -> T:
         ) from exc
     except (TypeError, ValueError) as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"code": "chat_validation_error"},
+        ) from exc
+
+
+async def _run_board_chat_command(call: Callable[[], Awaitable[T]]) -> T:
+    try:
+        return await call()
+    except BoardResourceNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "board_command_resource_not_found"},
+        ) from exc
+    except IdempotencyKeyReusedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": exc.code},
+        ) from exc
+    except BoardCommandInvariantError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": exc.code},
+        ) from exc
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={"code": "chat_validation_error"},
         ) from exc
 
@@ -60,6 +105,36 @@ async def create_project_chat(
         )
     )
     return ChatRead.model_validate(chat)
+
+
+@router.post(
+    "/boards/{board_id}/chats",
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_chat_in_board(
+    board_id: UUID,
+    payload: BoardChatCreate,
+    session: CommandDbSession,
+    current_user: CurrentActiveUser,
+    idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
+) -> BoardChatCreateResponse:
+    result = await _run_board_chat_command(
+        lambda: create_board_chat(
+            session,
+            board_id=board_id,
+            actor_id=current_user.id,
+            idempotency_key=idempotency_key,
+            payload=payload,
+        )
+    )
+    return BoardChatCreateResponse(
+        chat=ChatRead.model_validate(result.chat, from_attributes=True),
+        placement=PlacementRead.model_validate(
+            result.placement,
+            from_attributes=True,
+        ),
+        idempotency_replayed=result.idempotency_replayed,
+    )
 
 
 @router.get("/projects/{project_id}/chats")

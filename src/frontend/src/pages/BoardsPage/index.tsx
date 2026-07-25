@@ -2,7 +2,7 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
-
+import { BoardCreationDialog } from "@/components/core/boardCreationWizard/BoardCreationDialog";
 import { AutomationInventoryPanel } from "@/components/core/boards/AutomationInventoryPanel";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +18,6 @@ import {
   useDeleteBoard,
   useGetBoards,
   usePatchBoard,
-  usePostBoard,
 } from "@/controllers/API/queries/boards";
 import {
   useGetBoardPlacements,
@@ -39,11 +38,10 @@ export default function BoardsPage({
   const projectId = projectIdProp ?? params.projectId ?? "";
   const boardsQuery = useGetBoards({ projectId });
   const reloadBoards = boardsQuery.refetch;
-  const createBoard = usePostBoard({ projectId });
   const patchBoard = usePatchBoard({ projectId });
   const deleteBoard = useDeleteBoard({ projectId });
 
-  const [newTitle, setNewTitle] = useState("");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [renamingBoard, setRenamingBoard] = useState<BoardRead | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
   const [deletingBoard, setDeletingBoard] = useState<BoardRead | null>(null);
@@ -99,24 +97,6 @@ export default function BoardsPage({
         boardId: selectedBoardId,
         placementId: placement.id,
       }),
-    );
-  };
-
-  const submitCreate = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const title = newTitle.trim();
-    if (!title || createBoard.isPending) return;
-
-    setMutationError(null);
-    createBoard.mutate(
-      { title },
-      {
-        onSuccess: (board) => {
-          setNewTitle("");
-          openBoard(board);
-        },
-        onError: () => setMutationError(t("boards.mutationError")),
-      },
     );
   };
 
@@ -193,37 +173,30 @@ export default function BoardsPage({
 
   return (
     <main className="flex h-full flex-col gap-6 p-6">
-      <header>
+      <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{t("boards.title")}</h1>
-      </header>
-
-      <form className="flex max-w-xl gap-2" onSubmit={submitCreate}>
-        <Label className="sr-only" htmlFor="new-board-title">
-          {t("boards.create.title")}
-        </Label>
-        <Input
-          className="min-w-0 flex-1"
-          id="new-board-title"
-          value={newTitle}
-          onChange={(event) => setNewTitle(event.target.value)}
-        />
         <Button
-          variant="outline"
-          type="submit"
+          type="button"
           ignoreTitleCase
-          disabled={createBoard.isPending || !newTitle.trim()}
-          loading={createBoard.isPending}
+          onClick={() => setIsCreateDialogOpen(true)}
         >
           {t("boards.create.submit")}
         </Button>
-      </form>
+      </header>
 
       {mutationError ? <p role="alert">{mutationError}</p> : null}
 
       {boards.length === 0 ? (
-        <section className="rounded-lg border border-dashed p-8 text-center">
+        <section className="space-y-4 rounded-lg border border-dashed p-8 text-center">
           <h2>{t("boards.empty.title")}</h2>
           <p>{t("boards.empty.description")}</p>
+          <Button
+            type="button"
+            ignoreTitleCase
+            onClick={() => setIsCreateDialogOpen(true)}
+          >
+            {t("boards.create.submit")}
+          </Button>
         </section>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -304,6 +277,12 @@ export default function BoardsPage({
           onOpen={openAutomation}
         />
       </section>
+
+      <BoardCreationDialog
+        open={isCreateDialogOpen}
+        projectId={projectId}
+        onOpenChange={setIsCreateDialogOpen}
+      />
 
       <Dialog
         open={renamingBoard !== null}

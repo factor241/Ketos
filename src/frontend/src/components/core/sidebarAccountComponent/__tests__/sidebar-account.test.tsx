@@ -10,6 +10,8 @@ const mockLogout = jest.fn();
 const mockSetDark = jest.fn();
 
 let mockEnableDatastaxKetos = false;
+let mockEnableFileManagement = false;
+let mockEnableKnowledgeBases = false;
 
 const mockDarkState = {
   dark: false,
@@ -31,6 +33,12 @@ jest.mock("@/customization/hooks/use-custom-navigate", () => ({
 jest.mock("@/customization/feature-flags", () => ({
   get ENABLE_DATASTAX_KETOS() {
     return mockEnableDatastaxKetos;
+  },
+  get ENABLE_FILE_MANAGEMENT() {
+    return mockEnableFileManagement;
+  },
+  get ENABLE_KNOWLEDGE_BASES() {
+    return mockEnableKnowledgeBases;
   },
 }));
 
@@ -59,6 +67,8 @@ describe("SidebarAccountCard", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockEnableDatastaxKetos = false;
+    mockEnableFileManagement = false;
+    mockEnableKnowledgeBases = false;
     mockDarkState.dark = false;
     mockDarkState.version = "1.10.2";
     mockDarkState.latestVersion = "1.10.2";
@@ -235,6 +245,67 @@ describe("SidebarAccountCard", () => {
     await user.click(screen.getByTestId("menu_settings_button"));
 
     expect(mockNavigate).toHaveBeenCalledWith("/settings");
+  });
+
+  it.each([
+    {
+      files: false,
+      knowledge: false,
+      hasKnowledge: false,
+      hasFiles: false,
+    },
+    {
+      files: true,
+      knowledge: false,
+      hasKnowledge: false,
+      hasFiles: true,
+    },
+    {
+      files: true,
+      knowledge: true,
+      hasKnowledge: true,
+      hasFiles: true,
+    },
+  ])(
+    "shows account resources for files=$files knowledge=$knowledge",
+    async ({ files, knowledge, hasKnowledge, hasFiles }) => {
+      mockEnableFileManagement = files;
+      mockEnableKnowledgeBases = knowledge;
+      render(<SidebarAccountCard />);
+      await openAccountMenu();
+
+      if (hasKnowledge) {
+        expect(
+          screen.getByTestId("account-menu-knowledge-bases"),
+        ).toBeInTheDocument();
+      } else {
+        expect(
+          screen.queryByTestId("account-menu-knowledge-bases"),
+        ).not.toBeInTheDocument();
+      }
+      if (hasFiles) {
+        expect(screen.getByTestId("account-menu-my-files")).toBeInTheDocument();
+      } else {
+        expect(
+          screen.queryByTestId("account-menu-my-files"),
+        ).not.toBeInTheDocument();
+      }
+    },
+  );
+
+  it("navigates from the account resource items", async () => {
+    const user = userEvent.setup();
+    mockEnableFileManagement = true;
+    mockEnableKnowledgeBases = true;
+    render(<SidebarAccountCard />);
+    await openAccountMenu(user);
+
+    await user.click(screen.getByTestId("account-menu-knowledge-bases"));
+    expect(mockNavigate).toHaveBeenLastCalledWith("/assets/knowledge-bases");
+
+    await openAccountMenu(user);
+    await user.click(screen.getByTestId("account-menu-my-files"));
+    expect(mockNavigate).toHaveBeenLastCalledWith("/assets/files");
   });
 
   it("should run the logout mutation when Sign out is selected", async () => {

@@ -4,6 +4,7 @@ import type {
   OnNodeDrag,
   ReactFlowInstance,
 } from "@xyflow/react";
+import { MessageSquarePlus } from "lucide-react";
 import {
   createContext,
   useCallback,
@@ -14,7 +15,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import BoardCanvas from "@/components/core/board";
 import { BoardNoteDeleteDialog } from "@/components/core/board/BoardNoteDeleteDialog";
 import { createBoardNodeTypes } from "@/components/core/board/board-node-types";
@@ -35,6 +36,8 @@ import { useGetBoard } from "@/controllers/API/queries/boards";
 import type { BoardExecution } from "@/controllers/API/queries/executions";
 import { useGetModelProviders } from "@/controllers/API/queries/models/use-get-model-providers";
 import { useCustomNavigate } from "@/customization/hooks/use-custom-navigate";
+import ModelProviderModal from "@/modals/modelProviderModal";
+import useAlertStore from "@/stores/alertStore";
 import { useUtilityStore } from "@/stores/utilityStore";
 import type {
   BoardNote,
@@ -48,7 +51,13 @@ import { useBoardRestore } from "./hooks/use-board-restore";
 import { useBoardReturnFocus } from "./hooks/use-board-return-focus";
 import { useBoardScene } from "./hooks/use-board-scene";
 import { useBoardViewport } from "./hooks/use-board-viewport";
-import { useChatPlacementActions } from "./hooks/use-chat-placement-actions";
+import {
+  CHAT_PLACEMENT_HEIGHT,
+  CHAT_PLACEMENT_WIDTH,
+  findChatPlacementPosition,
+  useChatPlacementActions,
+} from "./hooks/use-chat-placement-actions";
+import { useCreateBoardChat } from "./hooks/use-create-board-chat";
 import { useNotePlacementActions } from "./hooks/use-note-placement-actions";
 import { useOpenAutomationEditor } from "./hooks/use-open-automation-editor";
 import { usePlaceJobResult } from "./hooks/use-place-job-result";
@@ -374,11 +383,31 @@ function LoadedBoard({
     },
   });
   const chatActions = useChatPlacementActions({ boardId: board.id });
+  const boardChat = useCreateBoardChat({ boardId: board.id, projectId });
   const automationActions = useAutomationPlacementActions({
     projectId,
     boardId: board.id,
   });
   const [automationSelectorOpen, setAutomationSelectorOpen] = useState(false);
+  const [providerModalOpen, setProviderModalOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const automationIntentConsumedRef = useRef<string | null>(null);
+  const automationIntentValues = searchParams.getAll("open-add-automation");
+  const automationIntent =
+    automationIntentValues.length === 1 && automationIntentValues[0] === "1";
+  useEffect(() => {
+    if (!automationIntent) {
+      automationIntentConsumedRef.current = null;
+      return;
+    }
+    const signature = `${board.id}:${searchParams.toString()}`;
+    if (automationIntentConsumedRef.current === signature) return;
+    automationIntentConsumedRef.current = signature;
+    setAutomationSelectorOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("open-add-automation");
+    setSearchParams(next, { replace: true });
+  }, [automationIntent, board.id, searchParams, setSearchParams]);
   useBoardReturnFocus({
     placements: scene.placements,
     isLoading: scene.isLoading,
@@ -671,6 +700,38 @@ function LoadedBoard({
         contextPolicy: "board" as const,
       }
     : null;
+  const createBoardChat = useCallback(async () => {
+    if (!createDefaults) {
+      setProviderModalOpen(true);
+      return;
+    }
+    const position = findChatPlacementPosition(scene.placements, center());
+    const zIndex =
+      scene.placements.reduce(
+        (highest, placement) => Math.max(highest, placement.zIndex),
+        -1,
+      ) + 1;
+    try {
+      const result = await boardChat.create({
+        title: t("chat.defaultTitle"),
+        provider: createDefaults.provider,
+        modelName: createDefaults.modelName,
+        placement: {
+          ...position,
+          width: CHAT_PLACEMENT_WIDTH,
+          height: CHAT_PLACEMENT_HEIGHT,
+          zIndex,
+        },
+      });
+      await scene.refetch();
+      focusPlacement(result.placement.id);
+    } catch {
+      useAlertStore.getState().setErrorData({
+        title: t("chat.create.errorTitle"),
+        list: [t("errors.generic")],
+      });
+    }
+  }, [boardChat, center, createDefaults, focusPlacement, scene, t]);
   const placeExistingAutomation = useCallback(
     async (summary: (typeof scene.automations)[number]) => {
       try {
@@ -772,6 +833,23 @@ function LoadedBoard({
                       >
                         {t("board.note.add")}
                       </Button>
+                      {chatEnabled ? (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="outline"
+                          className="h-10 w-10"
+                          aria-label={t("chat.actions.createInBoard")}
+                          title={t("chat.actions.createInBoard")}
+                          aria-busy={boardChat.isPending}
+                          disabled={
+                            boardChat.isPending || modelProviders.isLoading
+                          }
+                          onClick={() => void createBoardChat()}
+                        >
+                          <MessageSquarePlus aria-hidden="true" />
+                        </Button>
+                      ) : null}
                       <Popover
                         open={automationSelectorOpen}
                         onOpenChange={setAutomationSelectorOpen}
@@ -856,7 +934,10 @@ function LoadedBoard({
                     <aside className="w-80 shrink-0 overflow-auto border-r border-border bg-background">
                       <ChatList
                         projectId={projectId}
-                        createDefaults={createDefaults}
+                        isCreatePending={
+                          boardChat.isPending || modelProviders.isLoading
+                        }
+                        onCreate={createBoardChat}
                         actionRef={chatActionRef}
                         onOpen={async (chat) => {
                           const placement = await chatActions.open(
@@ -899,6 +980,16 @@ function LoadedBoard({
                     requestAnimationFrame(() => addNoteRef.current?.focus());
                   }}
                 />
+                {providerModalOpen ? (
+                  <ModelProviderModal
+                    open={providerModalOpen}
+                    modelType="llm"
+                    onClose={({ hasChanges } = {}) => {
+                      setProviderModalOpen(false);
+                      if (hasChanges) void modelProviders.refetch();
+                    }}
+                  />
+                ) : null}
               </main>
             </BoardResultRuntimeContext.Provider>
           </BoardAutomationRuntimeContext.Provider>

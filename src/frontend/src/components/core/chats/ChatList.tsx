@@ -5,9 +5,8 @@ import { Button } from "@/components/ui/button";
 import {
   useGetProjectChats,
   usePatchChat,
-  usePostChat,
 } from "@/controllers/API/queries/chat-threads";
-import type { ChatContextPolicy, ChatThread } from "@/types/chat";
+import type { ChatThread } from "@/types/chat";
 
 function useOnlineStatus() {
   const [online, setOnline] = useState(() =>
@@ -28,19 +27,15 @@ function useOnlineStatus() {
 
 export interface ChatListProps {
   projectId: string;
-  createDefaults: {
-    provider: string;
-    modelName: string;
-    contextPolicy: ChatContextPolicy;
-  } | null;
+  isCreatePending: boolean;
+  onCreate: () => void | Promise<void>;
   onOpen: (chat: ChatThread) => void | Promise<void>;
-  onCreate?: (chat: ChatThread) => void;
   actionRef?: Ref<HTMLButtonElement>;
 }
 
 export function ChatList({
   projectId,
-  createDefaults,
+  isCreatePending,
   onOpen,
   onCreate,
   actionRef,
@@ -54,19 +49,16 @@ export function ChatList({
   );
   const creating = useRef(false);
   const opening = useRef<Set<string>>(new Set());
-  const create = usePostChat({ projectId });
   const patch = usePatchChat();
 
   const createChat = async () => {
-    if (creating.current || create.isPending || !createDefaults) return;
+    if (creating.current || isCreatePending) return;
     creating.current = true;
     try {
-      const chat = await create.mutateAsync({
-        title: t("chat.defaultTitle"),
-        ...createDefaults,
-      });
-      onCreate?.(chat);
-      await onOpen(chat);
+      await onCreate();
+    } catch {
+      // The command owner reports a bounded error. Consume the event promise so
+      // React never receives an unhandled rejection from a click activation.
     } finally {
       creating.current = false;
     }
@@ -111,7 +103,7 @@ export function ChatList({
         <Button
           ref={actionRef}
           type="button"
-          disabled={create.isPending || !createDefaults}
+          disabled={isCreatePending}
           onClick={() => void createChat()}
         >
           {t("chat.actions.create")}

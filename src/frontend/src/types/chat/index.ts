@@ -1,3 +1,4 @@
+import type { Placement, PlacementGeometryInput } from "../board";
 import type { FlowType } from "../flow";
 
 export type ChatType = { flow: FlowType };
@@ -197,6 +198,19 @@ export interface ChatCreateInput {
   provider: string;
   modelName: string;
   contextPolicy: ChatContextPolicy;
+}
+
+export interface BoardChatCreateInput {
+  title: string;
+  provider: string;
+  modelName: string;
+  placement: PlacementGeometryInput;
+}
+
+export interface BoardChatCreateResult {
+  chat: ChatThread;
+  placement: Placement;
+  idempotencyReplayed: boolean;
 }
 
 export interface ChatPatchInput {

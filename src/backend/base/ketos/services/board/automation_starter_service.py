@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID
 
+from sqlalchemy import and_, or_
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -15,8 +16,10 @@ from ketos.api.v1.schemas.board_commands import (
     TemplateStarter,
     VectorStoreRagStarter,
 )
+from ketos.initial_setup.constants import STARTER_FOLDER_NAME
 from ketos.services.board.exceptions import BoardResourceNotFoundError
 from ketos.services.database.models.flow.model import Flow, FlowCreate
+from ketos.services.database.models.folder.model import Folder
 
 _STARTER_DIRECTORY = Path(__file__).resolve().parents[2] / "initial_setup" / "starter_projects"
 _NAMED_STARTER_FILES = {
@@ -74,10 +77,18 @@ async def prepare_automation_starter(
     if isinstance(starter, TemplateStarter):
         template = (
             await session.exec(
-                select(Flow).where(
+                select(Flow)
+                .join(Folder, Flow.folder_id == Folder.id)
+                .where(
                     Flow.id == starter.template_id,
-                    Flow.user_id == actor_id,
                     Flow.is_component == False,  # noqa: E712
+                    or_(
+                        Flow.user_id == actor_id,
+                        and_(
+                            Flow.user_id.is_(None),
+                            Folder.name == STARTER_FOLDER_NAME,
+                        ),
+                    ),
                 )
             )
         ).first()

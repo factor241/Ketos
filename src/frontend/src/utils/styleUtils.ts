@@ -1,4 +1,5 @@
 import { TwitterLogoIcon } from "@radix-ui/react-icons";
+import { MessageSquarePlus } from "lucide-react";
 import dynamicIconImports from "lucide-react/dynamicIconImports";
 import React, { lazy } from "react";
 import { FaApple, FaDiscord, FaGithub } from "react-icons/fa";
@@ -706,6 +707,7 @@ const iconMappingsPromise = import("../icons/lazyIconImports").then(
 export const eagerLoadedIconsMap = {
   // Custom icons
   BotMessageSquareIcon: BotMessageSquareIcon,
+  MessageSquarePlus,
 
   // React icon
   FaApple: FaApple,

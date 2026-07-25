@@ -39,6 +39,14 @@ function parseContext(value: unknown): AutomationEditorContextRead {
 
 export function useBoardReturnContext({ flowId }: { flowId: string }) {
   const { search } = useLocation();
+  const hasBoardReturnIntent = useMemo(() => {
+    const params = new URLSearchParams(search);
+    return (
+      params.has("returnBoardId") ||
+      params.has("returnPlacementId") ||
+      params.has("returnTo")
+    );
+  }, [search]);
   const ref = useMemo(() => parseAutomationEditorReturnRef(search), [search]);
   const enabled = ref !== null && isUUID(flowId);
   const { query } = UseRequestProcessor();
@@ -75,9 +83,22 @@ export function useBoardReturnContext({ flowId }: { flowId: string }) {
     context.placement_id === ref.placementId &&
     context.flow_id === flowId &&
     isUUID(context.project_id);
+  const validatedContext = contextMatches ? context : null;
+  const status = !hasBoardReturnIntent
+    ? ("absent" as const)
+    : !enabled
+      ? ("invalid" as const)
+      : result.isLoading
+        ? ("loading" as const)
+        : result.isError || !contextMatches
+          ? ("invalid" as const)
+          : ("valid" as const);
   return {
-    returnUrl: contextMatches
-      ? `/project/${context.project_id}/board/${context.board_id}?focusPlacementId=${context.placement_id}`
+    hasBoardReturnIntent,
+    status,
+    context: validatedContext,
+    returnUrl: validatedContext
+      ? `/project/${validatedContext.project_id}/board/${validatedContext.board_id}?focusPlacementId=${validatedContext.placement_id}`
       : null,
     isLoading: result.isLoading,
     isError: result.isError,

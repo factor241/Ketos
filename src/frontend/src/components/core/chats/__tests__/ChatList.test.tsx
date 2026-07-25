@@ -4,11 +4,9 @@ import type { ChatThread } from "@/types/chat";
 import { ChatList } from "../ChatList";
 
 const mockGetChats = jest.fn();
-const mockPostChat = jest.fn();
 const mockPatchChat = jest.fn();
 jest.mock("@/controllers/API/queries/chat-threads", () => ({
   useGetProjectChats: (...args: unknown[]) => mockGetChats(...args),
-  usePostChat: (...args: unknown[]) => mockPostChat(...args),
   usePatchChat: (...args: unknown[]) => mockPatchChat(...args),
 }));
 jest.mock("react-i18next", () => ({
@@ -37,11 +35,8 @@ function renderList(
   return render(
     <ChatList
       projectId="project-1"
-      createDefaults={{
-        provider: "OpenAI",
-        modelName: "gpt-4o",
-        contextPolicy: "board",
-      }}
+      isCreatePending={false}
+      onCreate={jest.fn()}
       onOpen={jest.fn()}
       {...props}
     />,
@@ -60,10 +55,6 @@ describe("ChatList", () => {
       isLoading: false,
       isError: false,
       refetch,
-    });
-    mockPostChat.mockReturnValue({
-      isPending: false,
-      mutateAsync: jest.fn().mockResolvedValue(chat),
     });
     mockPatchChat.mockReturnValue({ isPending: false, mutate: jest.fn() });
   });
@@ -150,32 +141,38 @@ describe("ChatList", () => {
     );
   });
 
-  it("suppresses duplicate create and preserves server model/context", async () => {
-    let resolveCreate!: (value: ChatThread) => void;
-    const mutateAsync = jest.fn(
-      () =>
-        new Promise<ChatThread>((resolve) => {
-          resolveCreate = resolve;
-        }),
-    );
-    mockPostChat.mockReturnValue({ isPending: false, mutateAsync });
+  it("delegates create to the Board command owner and suppresses duplicate activation", () => {
     const onCreate = jest.fn();
-    const onOpen = jest.fn();
-    renderList({ onCreate, onOpen });
+    renderList({ onCreate });
     const button = screen.getByRole("button", {
       name: /chat\.actions\.create/i,
     });
     fireEvent.click(button);
     fireEvent.click(button);
-    expect(mutateAsync).toHaveBeenCalledTimes(1);
-    expect(mutateAsync).toHaveBeenCalledWith({
-      title: "chat.defaultTitle",
-      provider: "OpenAI",
-      modelName: "gpt-4o",
-      contextPolicy: "board",
+    expect(onCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps Create disabled while the shared atomic command is pending", () => {
+    const onCreate = jest.fn();
+    renderList({ onCreate, isCreatePending: true });
+    const button = screen.getByRole("button", {
+      name: /chat\.actions\.create/i,
     });
-    resolveCreate(chat);
-    await waitFor(() => expect(onCreate).toHaveBeenCalledWith(chat));
-    expect(onOpen).toHaveBeenCalledWith(chat);
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+
+  it("consumes a rejected Board command event and re-enables activation", async () => {
+    const onCreate = jest.fn().mockRejectedValue(new Error("network"));
+    renderList({ onCreate });
+    const button = screen.getByRole("button", {
+      name: /chat\.actions\.create/i,
+    });
+
+    fireEvent.click(button);
+    await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(1));
+    fireEvent.click(button);
+    await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(2));
   });
 });

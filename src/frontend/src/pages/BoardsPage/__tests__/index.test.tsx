@@ -5,7 +5,6 @@ import {
   useDeleteBoard,
   useGetBoards,
   usePatchBoard,
-  usePostBoard,
 } from "@/controllers/API/queries/boards";
 import { useGetAutomationSummaries } from "@/controllers/API/queries/flows/use-get-automation-summaries";
 import {
@@ -16,7 +15,6 @@ import BoardsPage from "../index";
 
 const mockNavigate = jest.fn();
 const mockRefetch = jest.fn();
-const mockCreateMutate = jest.fn();
 const mockPatchMutate = jest.fn();
 const mockDeleteMutate = jest.fn();
 const mockPlaceMutateAsync = jest.fn();
@@ -39,9 +37,27 @@ jest.mock("react-router-dom", () => ({
 }));
 jest.mock("@/controllers/API/queries/boards", () => ({
   useGetBoards: jest.fn(),
-  usePostBoard: jest.fn(),
   usePatchBoard: jest.fn(),
   useDeleteBoard: jest.fn(),
+}));
+jest.mock("@/components/core/boardCreationWizard/BoardCreationDialog", () => ({
+  BoardCreationDialog: ({
+    open,
+    projectId,
+    onOpenChange,
+  }: {
+    open: boolean;
+    projectId: string;
+    onOpenChange: (open: boolean) => void;
+  }) =>
+    open ? (
+      <div role="dialog" aria-label="board-wizard">
+        <span>{projectId}</span>
+        <button type="button" onClick={() => onOpenChange(false)}>
+          close-wizard
+        </button>
+      </div>
+    ) : null,
 }));
 jest.mock(
   "@/controllers/API/queries/flows/use-get-automation-summaries",
@@ -122,10 +138,6 @@ describe("BoardsPage", () => {
       isError: false,
       refetch: mockRefetch,
     });
-    (usePostBoard as jest.Mock).mockReturnValue({
-      mutate: mockCreateMutate,
-      isPending: false,
-    });
     (usePatchBoard as jest.Mock).mockReturnValue({
       mutate: mockPatchMutate,
       isPending: false,
@@ -190,31 +202,15 @@ describe("BoardsPage", () => {
     expect(screen.getByText("boards.empty.description")).toBeInTheDocument();
   });
 
-  it("creates by title and opens the server-issued id", async () => {
+  it("opens the reusable creation wizard from the page CTA", async () => {
     const user = userEvent.setup();
-    const serverBoard = makeBoard(
-      "55555555-5555-4555-8555-555555555555",
-      "Research",
-      0,
-    );
-    mockCreateMutate.mockImplementation((_payload, options) =>
-      options.onSuccess(serverBoard),
-    );
     renderPage();
-    await user.type(
-      screen.getByRole("textbox", { name: "boards.create.title" }),
-      serverBoard.title,
-    );
     await user.click(
-      screen.getByRole("button", { name: "boards.create.submit" }),
+      screen.getAllByRole("button", { name: "boards.create.submit" })[0],
     );
-    expect(mockCreateMutate).toHaveBeenCalledWith(
-      { title: serverBoard.title },
-      expect.any(Object),
-    );
-    expect(mockNavigate).toHaveBeenCalledWith(
-      `/project/${projectId}/board/${serverBoard.id}`,
-    );
+    expect(
+      screen.getByRole("dialog", { name: "board-wizard" }),
+    ).toHaveTextContent(projectId);
   });
 
   it("opens each listed board with an accessible control", async () => {
@@ -295,15 +291,13 @@ describe("BoardsPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("blocks duplicate create while pending without hiding the list", async () => {
-    (usePostBoard as jest.Mock).mockReturnValue({
-      mutate: mockCreateMutate,
-      isPending: true,
-    });
+  it("keeps the board list visible while the creation wizard is open", async () => {
+    const user = userEvent.setup();
     renderPage();
-    expect(
-      screen.getByRole("button", { name: "boards.create.submit" }),
-    ).toBeDisabled();
+    await user.click(
+      screen.getAllByRole("button", { name: "boards.create.submit" })[0],
+    );
+    expect(screen.getByRole("dialog", { name: "board-wizard" })).toBeVisible();
     expect(
       screen.getByRole("link", { name: boardOne.title }),
     ).toBeInTheDocument();
@@ -351,7 +345,6 @@ describe("BoardsPage", () => {
       x: 0,
       y: 0,
     });
-    expect(mockCreateMutate).not.toHaveBeenCalled();
   });
 
   it("opens a placed Flow with server-return context", async () => {

@@ -21,6 +21,11 @@ describe("project route contract", () => {
     expect(source).toContain('path="folder/:folderId"');
     expect(source).toContain('path="flow/:id/"');
     expect(source).toContain('path="settings"');
+    expect(source).toContain("<LegacyFlowsRedirect />");
+    expect(source).toMatch(
+      /lazy\(\s*\(\)\s*=>\s*import\("\.\/components\/core\/boards\/LegacyFlowsRedirect"\),?\s*\)/,
+    );
+    expect(source).not.toContain('<HomePage key="flows" type="flows" />');
     expect(source).not.toContain('path="projects');
   });
 });

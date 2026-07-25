@@ -162,11 +162,34 @@ async def list_boards(session: AsyncSession, project_id: UUID, actor_id: UUID) -
     return list(result.all())
 
 
-async def create_board(session: AsyncSession, project_id: UUID, actor_id: UUID, title: str) -> Board:
+async def create_board_uncommitted(
+    session: AsyncSession,
+    project_id: UUID,
+    actor_id: UUID,
+    title: str,
+    *,
+    board_id: UUID | None = None,
+    project_validated: bool = False,
+) -> Board:
     clean_title = _validate_title(title)
-    await require_owned_project(session, project_id=project_id, actor_id=actor_id)
+    if not project_validated:
+        await require_owned_project(session, project_id=project_id, actor_id=actor_id)
     board = Board(project_id=project_id, created_by_id=actor_id, title=clean_title)
+    if board_id is not None:
+        board.id = board_id
     session.add(board)
+    await session.flush()
+    await session.refresh(board)
+    return board
+
+
+async def create_board(session: AsyncSession, project_id: UUID, actor_id: UUID, title: str) -> Board:
+    board = await create_board_uncommitted(
+        session,
+        project_id=project_id,
+        actor_id=actor_id,
+        title=title,
+    )
     await session.commit()
     await session.refresh(board)
     return board

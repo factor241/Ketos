@@ -100,7 +100,7 @@ describe("AutomationSelector", () => {
       />,
     );
     fireEvent.click(
-      screen.getByRole("button", { name: "board.automation.add" }),
+      screen.getByRole("button", { name: "board.automation.create" }),
     );
     expect(onCreate).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Daily report" }));

@@ -195,6 +195,63 @@ async def _validate_job_result_target(
     return job
 
 
+async def create_placement_uncommitted(
+    session: AsyncSession,
+    *,
+    board_id: UUID,
+    actor_id: UUID,
+    target_kind: PlacementTargetKind,
+    target_id: UUID,
+    geometry: PlacementGeometryInput,
+    placement_id: UUID | None = None,
+    board: Board | None = None,
+    target_validated: bool = False,
+) -> Placement:
+    if board is None:
+        board = await require_owned_board(session, board_id=board_id, actor_id=actor_id)
+    elif board.id != board_id:
+        raise BoardResourceNotFoundError(board_id)
+    try:
+        normalized_kind = PlacementTargetKind(target_kind)
+    except (TypeError, ValueError) as exc:
+        raise TargetKindNotAvailableError(target_kind) from exc
+    if not target_validated:
+        if normalized_kind is PlacementTargetKind.JOB_RESULT:
+            await _validate_job_result_target(
+                session,
+                board=board,
+                job_id=target_id,
+                actor_id=actor_id,
+            )
+        else:
+            await validate_placement_target(
+                session,
+                board=board,
+                target_kind=normalized_kind,
+                target_id=target_id,
+                actor_id=actor_id,
+            )
+    placement = Placement.model_validate(
+        {
+            "board_id": board_id,
+            "target_kind": normalized_kind,
+            "target_id": target_id,
+            **_geometry_values(geometry),
+        }
+    )
+    if placement_id is not None:
+        placement.id = placement_id
+    session.add(placement)
+    try:
+        await session.flush()
+    except IntegrityError as exc:
+        if _is_duplicate_placement_error(exc):
+            raise PlacementAlreadyExistsError(target_id) from exc
+        raise
+    await session.refresh(placement)
+    return placement
+
+
 async def create_placement(
     session: AsyncSession,
     *,
@@ -204,41 +261,18 @@ async def create_placement(
     target_id: UUID,
     geometry: PlacementGeometryInput,
 ) -> Placement:
-    board = await require_owned_board(session, board_id=board_id, actor_id=actor_id)
     try:
-        normalized_kind = PlacementTargetKind(target_kind)
-    except (TypeError, ValueError) as exc:
-        raise TargetKindNotAvailableError(target_kind) from exc
-    if normalized_kind is PlacementTargetKind.JOB_RESULT:
-        await _validate_job_result_target(
+        placement = await create_placement_uncommitted(
             session,
-            board=board,
-            job_id=target_id,
+            board_id=board_id,
             actor_id=actor_id,
-        )
-    else:
-        await validate_placement_target(
-            session,
-            board=board,
-            target_kind=normalized_kind,
+            target_kind=target_kind,
             target_id=target_id,
-            actor_id=actor_id,
+            geometry=geometry,
         )
-    placement = Placement.model_validate(
-        {
-            "board_id": board_id,
-            "target_kind": normalized_kind,
-            "target_id": target_id,
-            **_geometry_values(geometry),
-        }
-    )
-    session.add(placement)
-    try:
         await session.commit()
-    except IntegrityError as exc:
+    except Exception:
         await session.rollback()
-        if _is_duplicate_placement_error(exc):
-            raise PlacementAlreadyExistsError(target_id) from exc
         raise
     await session.refresh(placement)
     return placement

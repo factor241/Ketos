@@ -73,23 +73,19 @@ jest.mock("@/components/core/board/placements/ChatPlacement", () => ({
 jest.mock("@/components/core/board/placements/AutomationPlacement", () => ({
   AutomationPlacement: () => <div data-testid="automation-placement" />,
 }));
-jest.mock("@/components/core/automations/AutomationSelector", () => ({
-  AutomationSelector: ({
-    onSelect,
+jest.mock("@/components/core/boards/AutomationInventoryPanel", () => ({
+  AutomationInventoryPanel: ({
+    onPlace,
     onCreate,
   }: {
-    onSelect: (summary: {
-      id: string;
-      name: string;
-      description: null;
-    }) => void;
+    onPlace: (summary: { id: string; name: string; description: null }) => void;
     onCreate: () => void;
   }) => (
     <div>
       <button
         type="button"
         onClick={() =>
-          onSelect({ id: "flow-1", name: "Automation 1", description: null })
+          onPlace({ id: "flow-1", name: "Automation 1", description: null })
         }
       >
         select-existing-automation
@@ -294,7 +290,11 @@ it("wires Automation add/re-place to the current Board scene and return focus", 
     targetId: "flow-1",
   };
   const placeExisting = jest.fn().mockResolvedValue(placement);
-  const createAndPlace = jest.fn().mockResolvedValue(placement);
+  const createAndPlace = jest.fn().mockResolvedValue({
+    automation: { id: "created-flow", name: "Created", description: null },
+    placement,
+    idempotencyReplayed: false,
+  });
   mockUseAutomationPlacementActions.mockReturnValue({
     placeExisting,
     createAndPlace,
@@ -358,15 +358,16 @@ it("denies a board belonging to another project without metadata", () => {
   expect(screen.queryByText(FOREIGN_PROJECT_ID)).not.toBeInTheDocument();
 });
 
-it("hides board UI when the feature flag is off", () => {
+it("keeps existing Board data readable without a feature-flag redirect loop", () => {
   mockFeatureEnabled = false;
   renderBoard();
   expect(mockUseGetBoard).toHaveBeenCalledWith(
     { projectId: PROJECT_ID, boardId: BOARD_ID },
-    { enabled: false },
+    { enabled: true },
   );
-  expect(screen.getByTestId("flows-page")).toBeInTheDocument();
-  expect(screen.queryByTestId("board-canvas")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("flows-page")).not.toBeInTheDocument();
+  expect(screen.getByTestId("board-canvas")).toBeInTheDocument();
+  expect(screen.queryByTestId("chat-list")).not.toBeInTheDocument();
 });
 
 it("enables the durable Chat surface only when both MVP flags are strict booleans", () => {

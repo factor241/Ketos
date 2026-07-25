@@ -1,4 +1,6 @@
 export { boardKeys } from "./keys";
+export { useBootstrapBoard } from "./use-bootstrap-board";
+export { useCreateBoardAutomation } from "./use-create-board-automation";
 export { useDeleteBoard } from "./use-delete-board";
 export { useGetBoard } from "./use-get-board";
 export { useGetBoards } from "./use-get-boards";

@@ -49,6 +49,9 @@ const DeleteAccountPage = lazy(() => import("./pages/DeleteAccountPage"));
 const BoardPage = lazy(() => import("./pages/BoardPage"));
 const BoardsPage = lazy(() => import("./pages/BoardsPage"));
 const ProjectPage = lazy(() => import("./pages/ProjectPage"));
+const LegacyFlowsRedirect = lazy(
+  () => import("./components/core/boards/LegacyFlowsRedirect"),
+);
 
 const PlaygroundPage = lazy(() => import("./pages/Playground"));
 
@@ -93,10 +96,7 @@ const router = createBrowserRouter(
               />
               <Route path="" element={<CustomDashboardWrapperPage />}>
                 <Route path="" element={<CollectionPage />}>
-                  <Route
-                    index
-                    element={<CustomNavigate replace to={"flows"} />}
-                  />
+                  <Route index element={<LegacyFlowsRedirect />} />
                   <Route path="project/:projectId" element={<ProjectPage />}>
                     <Route path="boards" element={<BoardsPage />} />
                   </Route>
@@ -125,10 +125,7 @@ const router = createBrowserRouter(
                       )}
                     </Route>
                   )}
-                  <Route
-                    path="flows/"
-                    element={<HomePage key="flows" type="flows" />}
-                  />
+                  <Route path="flows/" element={<LegacyFlowsRedirect />} />
                   <Route
                     path="components/"
                     element={<HomePage key="components" type="components" />}
@@ -138,13 +135,10 @@ const router = createBrowserRouter(
                       element={<HomePage key="components" type="components" />}
                     />
                   </Route>
-                  <Route
-                    path="all/"
-                    element={<HomePage key="flows" type="flows" />}
-                  >
+                  <Route path="all/" element={<LegacyFlowsRedirect />}>
                     <Route
                       path="folder/:folderId"
-                      element={<HomePage key="flows" type="flows" />}
+                      element={<LegacyFlowsRedirect />}
                     />
                   </Route>
                   <Route

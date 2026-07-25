@@ -6,16 +6,13 @@ import SideBarFoldersButtonsComponent from "@/components/core/folderSidebarCompo
 import { getProjectShellRoute } from "@/components/core/folderSidebarComponent/helpers/project-shell-route";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useDeleteFolders } from "@/controllers/API/queries/folders";
-import CustomEmptyPageCommunity from "@/customization/components/custom-empty-page";
 import CustomLoader from "@/customization/components/custom-loader";
 import { useCustomNavigate } from "@/customization/hooks/use-custom-navigate";
 import { useIsMobile } from "@/hooks/use-mobile";
 import useAlertStore from "@/stores/alertStore";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
 import { useFolderStore } from "@/stores/foldersStore";
-import { useUtilityStore } from "@/stores/utilityStore";
 import ModalsComponent from "../components/modalsComponent";
-import { shouldShowMainContent } from "./main-page-utils";
 
 export default function CollectionPage(): JSX.Element {
   const isMobile = useIsMobile({ maxWidth: 1024 });
@@ -23,9 +20,6 @@ export default function CollectionPage(): JSX.Element {
   const [openDeleteFolderModal, setOpenDeleteFolderModal] = useState(false);
   const setFolderToEdit = useFolderStore((state) => state.setFolderToEdit);
   const navigate = useCustomNavigate();
-  const mvpWorkspaceEnabled = useUtilityStore(
-    (state) => state.featureFlags.mvp_workspace === true,
-  );
   const flows = useFlowsManagerStore((state) => state.flows);
   const examples = useFlowsManagerStore((state) => state.examples);
   const setSuccessData = useAlertStore((state) => state.setSuccessData);
@@ -63,17 +57,13 @@ export default function CollectionPage(): JSX.Element {
     );
   };
 
-  const showMainContent = shouldShowMainContent(flows, examples, folders);
-
   return (
     <SidebarProvider width="280px" defaultOpen={!isMobile}>
       {flows && examples && folders && (
         <SideBarFoldersButtonsComponent
           handleChangeFolder={(id: string) => {
-            const projectShellRoute = mvpWorkspaceEnabled
-              ? getProjectShellRoute(id)
-              : null;
-            navigate(projectShellRoute ?? `all/folder/${id}`);
+            const projectShellRoute = getProjectShellRoute(id);
+            if (projectShellRoute) navigate(projectShellRoute);
           }}
           handleDeleteFolder={(item) => {
             setFolderToEdit(item);
@@ -89,11 +79,7 @@ export default function CollectionPage(): JSX.Element {
           <div
             className={`relative mx-auto flex h-full w-full flex-col overflow-hidden`}
           >
-            {showMainContent ? (
-              <Outlet />
-            ) : (
-              <CustomEmptyPageCommunity setOpenModal={setOpenModal} />
-            )}
+            <Outlet />
           </div>
         ) : (
           <div className="flex h-full w-full items-center justify-center">

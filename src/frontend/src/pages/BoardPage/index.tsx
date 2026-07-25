@@ -14,8 +14,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, Navigate, useParams } from "react-router-dom";
-import { AutomationSelector } from "@/components/core/automations/AutomationSelector";
+import { Link, useParams } from "react-router-dom";
 import BoardCanvas from "@/components/core/board";
 import { BoardNoteDeleteDialog } from "@/components/core/board/BoardNoteDeleteDialog";
 import { createBoardNodeTypes } from "@/components/core/board/board-node-types";
@@ -23,6 +22,7 @@ import { AutomationPlacement } from "@/components/core/board/placements/Automati
 import { BoardNotePlacement } from "@/components/core/board/placements/BoardNotePlacement";
 import { ChatPlacement } from "@/components/core/board/placements/ChatPlacement";
 import { ResultPlacement } from "@/components/core/board/placements/ResultPlacement";
+import { AutomationInventoryPanel } from "@/components/core/boards/AutomationInventoryPanel";
 import { ChatList } from "@/components/core/chats/ChatList";
 import { CopilotKitBoardProvider } from "@/components/core/chats/CopilotKitBoardProvider";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ import {
 import { useGetBoard } from "@/controllers/API/queries/boards";
 import type { BoardExecution } from "@/controllers/API/queries/executions";
 import { useGetModelProviders } from "@/controllers/API/queries/models/use-get-model-providers";
+import { useCustomNavigate } from "@/customization/hooks/use-custom-navigate";
 import { useUtilityStore } from "@/stores/utilityStore";
 import type {
   BoardNote,
@@ -41,6 +42,7 @@ import type {
   PlacementDisplayState,
 } from "@/types/board";
 import type { ChatThread } from "@/types/chat";
+import { buildAutomationEditorUrl } from "@/utils/automation-editor-route";
 import { useAutomationPlacementActions } from "./hooks/use-automation-placement-actions";
 import { useBoardRestore } from "./hooks/use-board-restore";
 import { useBoardReturnFocus } from "./hooks/use-board-return-focus";
@@ -315,14 +317,17 @@ function LoadedBoard({
   refresh,
   chatEnabled,
   executionEnabled,
+  workspaceEnabled,
 }: {
   board: BoardRead;
   projectId: string;
   refresh: BoardRefetch;
   chatEnabled: boolean;
   executionEnabled: boolean;
+  workspaceEnabled: boolean;
 }) {
   const { t } = useTranslation();
+  const navigate = useCustomNavigate();
   const viewport = useBoardViewport({ projectId, board, refresh });
   const [executionsByFlow, setExecutionsByFlow] = useState<
     Record<string, readonly BoardExecution[]>
@@ -676,8 +681,9 @@ function LoadedBoard({
         );
         setAutomationSelectorOpen(false);
         focusPlacement(placement.id);
-      } catch {
+      } catch (error) {
         // The bounded alert is owned by useAutomationPlacementActions.
+        throw error;
       }
     },
     [
@@ -688,16 +694,54 @@ function LoadedBoard({
       scene.placements,
     ],
   );
-  const createAutomation = useCallback(async () => {
-    try {
-      const placement = await automationActions.createAndPlace(center());
-      await scene.refetch();
-      setAutomationSelectorOpen(false);
-      focusPlacement(placement.id);
-    } catch {
-      // Creation and placement hooks publish their bounded user-facing errors.
-    }
-  }, [automationActions, center, focusPlacement, scene]);
+  const createAutomation = useCallback(
+    async (mode: "create" | "createAndEdit") => {
+      try {
+        const result = await automationActions.createAndPlace(center());
+        await scene.refetch();
+        setAutomationSelectorOpen(false);
+        focusPlacement(result.placement.id);
+        if (mode === "createAndEdit") {
+          navigate(
+            buildAutomationEditorUrl(result.automation.id, {
+              boardId: board.id,
+              placementId: result.placement.id,
+            }),
+          );
+        }
+      } catch {
+        // The atomic command hook publishes the bounded user-facing error.
+      }
+    },
+    [automationActions, board.id, center, focusPlacement, navigate, scene],
+  );
+  const openAutomation = useCallback(
+    async (
+      summary: (typeof scene.automations)[number],
+      existingPlacement: (typeof scene.placements)[number] | undefined,
+    ) => {
+      try {
+        const placement =
+          existingPlacement ??
+          (await automationActions.placeExisting(
+            summary,
+            scene.placements,
+            center(),
+          ));
+        setAutomationSelectorOpen(false);
+        navigate(
+          buildAutomationEditorUrl(summary.id, {
+            boardId: board.id,
+            placementId: placement.id,
+          }),
+        );
+      } catch (error) {
+        // The placement hook owns the bounded user-facing error.
+        throw error;
+      }
+    },
+    [automationActions, board.id, center, navigate, scene.placements],
+  );
   return (
     <CopilotKitBoardProvider enabled={chatEnabled}>
       <BoardNoteRuntimeContext.Provider value={runtime}>
@@ -716,43 +760,58 @@ function LoadedBoard({
                   >
                     {board.title}
                   </h1>
-                  <Button
-                    ref={addNoteRef}
-                    type="button"
-                    size="sm"
-                    className="ml-auto"
-                    disabled={actions.isPending}
-                    onClick={() => actions.createAt(center())}
-                  >
-                    {t("board.note.add")}
-                  </Button>
-                  <Popover
-                    open={automationSelectorOpen}
-                    onOpenChange={setAutomationSelectorOpen}
-                  >
-                    <PopoverTrigger asChild>
+                  {workspaceEnabled ? (
+                    <>
                       <Button
-                        ref={automationActionRef}
+                        ref={addNoteRef}
                         type="button"
                         size="sm"
-                        variant="outline"
-                        disabled={automationActions.isPending}
-                        ignoreTitleCase
+                        className="ml-auto"
+                        disabled={actions.isPending}
+                        onClick={() => actions.createAt(center())}
                       >
-                        {t("board.automation.add")}
+                        {t("board.note.add")}
                       </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-80">
-                      <AutomationSelector
-                        projectId={projectId}
-                        disabled={automationActions.isPending}
-                        onSelect={(summary) =>
-                          void placeExistingAutomation(summary)
-                        }
-                        onCreate={() => void createAutomation()}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                      <Popover
+                        open={automationSelectorOpen}
+                        onOpenChange={setAutomationSelectorOpen}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button
+                            ref={automationActionRef}
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={automationActions.isPending}
+                            ignoreTitleCase
+                          >
+                            {t("board.automation.add")}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-96">
+                          <AutomationInventoryPanel
+                            projectId={projectId}
+                            placements={scene.placements}
+                            disabled={automationActions.isPending}
+                            onPlace={(summary) =>
+                              placeExistingAutomation(summary)
+                            }
+                            onOpen={(summary, placement) =>
+                              openAutomation(summary, placement)
+                            }
+                            onCreate={() => void createAutomation("create")}
+                            onCreateAndEdit={() =>
+                              void createAutomation("createAndEdit")
+                            }
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </>
+                  ) : (
+                    <span className="ml-auto text-sm text-muted-foreground">
+                      {t("board.workspace.readOnly")}
+                    </span>
+                  )}
                 </header>
                 {viewport.conflict || placementConflict ? (
                   <p role="alert" className="p-3 text-sm text-muted-foreground">
@@ -868,11 +927,10 @@ function RestorableBoardPage({
   const restore = useBoardRestore({
     projectId,
     boardId,
-    enabled: workspaceEnabled && validParams,
+    enabled: validParams,
   });
   const announcement = t(restore.announcementKey);
 
-  if (!workspaceEnabled) return <Navigate to="/flows" replace />;
   if (!validParams || restore.serverMismatch) return <NotFoundAlert />;
 
   if (restore.board === null) {
@@ -905,6 +963,7 @@ function RestorableBoardPage({
         refresh={restore.refetch}
         chatEnabled={chatEnabled}
         executionEnabled={executionEnabled}
+        workspaceEnabled={workspaceEnabled}
       />
     </>
   );

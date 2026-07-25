@@ -65,10 +65,23 @@ describe("board automation route compatibility", () => {
   });
 
   it("keeps construction origin-independent and outside storage state", () => {
-    expect(helperSource).toMatch(/\["", "flow", encodeURIComponent\(flowId\)\]/);
+    expect(helperSource).toMatch(
+      /\["", "flow", encodeURIComponent\(flowId\)\]/,
+    );
     expect(helperSource).toContain('path.concat("?", search.toString())');
     expect(helperSource).not.toMatch(/https?:\/\//);
     expect(helperSource).not.toMatch(/hostname|localStorage|sessionStorage/);
     expect(helperSource).not.toMatch(/location\.state|useLocation|useNavigate/);
+  });
+
+  it("keeps Board composition separate from the canonical Flow editor state", () => {
+    const boardSource = readFileSync(
+      resolve(__dirname, "../pages/BoardPage/index.tsx"),
+      "utf8",
+    );
+
+    expect(boardSource).not.toMatch(/FlowPage|flowStore|useReactFlow/);
+    expect(boardSource).not.toMatch(/ReactFlowProvider|<ReactFlow\b/);
+    expect(boardSource).toContain("AutomationInventoryPanel");
   });
 });

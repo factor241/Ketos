@@ -1,8 +1,9 @@
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { AutomationInventoryPanel } from "@/components/core/boards/AutomationInventoryPanel";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,7 +20,13 @@ import {
   usePatchBoard,
   usePostBoard,
 } from "@/controllers/API/queries/boards";
-import type { BoardRead } from "@/types/board";
+import {
+  useGetBoardPlacements,
+  usePostPlacement,
+} from "@/controllers/API/queries/placements";
+import type { BoardRead, Placement } from "@/types/board";
+import type { AutomationSummary } from "@/types/flow/automation";
+import { buildAutomationEditorUrl } from "@/utils/automation-editor-route";
 
 type BoardsPageProps = { projectId?: string };
 
@@ -42,9 +49,58 @@ export default function BoardsPage({
   const [deletingBoard, setDeletingBoard] = useState<BoardRead | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const boards = boardsQuery.data ?? [];
+  const [selectedBoardId, setSelectedBoardId] = useState("");
+  const placementsQuery = useGetBoardPlacements(
+    { boardId: selectedBoardId },
+    { enabled: Boolean(selectedBoardId) },
+  );
+  const createPlacement = usePostPlacement({ boardId: selectedBoardId });
+
+  useEffect(() => {
+    if (boards.length === 0) {
+      if (selectedBoardId) setSelectedBoardId("");
+      return;
+    }
+    if (!boards.some((board) => board.id === selectedBoardId)) {
+      setSelectedBoardId(boards[0].id);
+    }
+  }, [boards, selectedBoardId]);
 
   const openBoard = (board: BoardRead) =>
     navigate(`/project/${projectId}/board/${board.id}`);
+
+  const placeExistingAutomation = async (summary: AutomationSummary) => {
+    if (!selectedBoardId) throw new Error("A Board must be selected");
+    setMutationError(null);
+    try {
+      const placement = await createPlacement.mutateAsync({
+        targetKind: "automation",
+        targetId: summary.id,
+        x: 0,
+        y: 0,
+      });
+      await placementsQuery.refetch();
+      return placement;
+    } catch (error) {
+      setMutationError(t("board.automation.placementError"));
+      throw error;
+    }
+  };
+
+  const openAutomation = async (
+    summary: AutomationSummary,
+    existingPlacement: Placement | undefined,
+  ) => {
+    if (!selectedBoardId) return;
+    const placement =
+      existingPlacement ?? (await placeExistingAutomation(summary));
+    navigate(
+      buildAutomationEditorUrl(summary.id, {
+        boardId: selectedBoardId,
+        placementId: placement.id,
+      }),
+    );
+  };
 
   const submitCreate = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -212,6 +268,42 @@ export default function BoardsPage({
           ))}
         </ul>
       )}
+
+      <section className="rounded-lg border border-border p-4">
+        {boards.length > 0 ? (
+          <div className="mb-4 flex max-w-md flex-col gap-2">
+            <Label htmlFor="automation-inventory-board">
+              {t("board.automation.inventory.board")}
+            </Label>
+            <select
+              id="automation-inventory-board"
+              className="rounded-md border border-input bg-background px-3 py-2 text-foreground"
+              value={selectedBoardId}
+              onChange={(event) => setSelectedBoardId(event.target.value)}
+            >
+              {boards.map((board) => (
+                <option key={board.id} value={board.id}>
+                  {board.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
+        {placementsQuery.isError ? (
+          <p role="alert">{t("board.automation.inventory.placementsError")}</p>
+        ) : null}
+        <AutomationInventoryPanel
+          projectId={projectId}
+          placements={placementsQuery.data ?? []}
+          disabled={
+            !selectedBoardId ||
+            placementsQuery.isLoading ||
+            createPlacement.isPending
+          }
+          onPlace={placeExistingAutomation}
+          onOpen={openAutomation}
+        />
+      </section>
 
       <Dialog
         open={renamingBoard !== null}

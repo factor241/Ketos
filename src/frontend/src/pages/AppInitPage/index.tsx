@@ -74,10 +74,7 @@ export function AppInitPage() {
   const isConfigReady = !isAuthReady || isConfigFetched;
 
   const isReady =
-    isAutoLoginComplete &&
-    isConfigReady &&
-    isExamplesFetched &&
-    isSessionReady;
+    isAutoLoginComplete && isConfigReady && isExamplesFetched && isSessionReady;
 
   return (
     <>

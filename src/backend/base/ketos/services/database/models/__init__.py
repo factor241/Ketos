@@ -12,6 +12,7 @@ from .auth import (
     SSOUserProfile,
 )
 from .board import Board
+from .board_command_receipt import BoardCommandReceipt
 from .board_note import BoardNote
 from .chat_thread import ChatContextPolicy, ChatRun, ChatRunStatus, ChatThread
 from .command_proposal import (
@@ -48,6 +49,7 @@ __all__ = [
     "AuthzTeam",
     "AuthzTeamMember",
     "Board",
+    "BoardCommandReceipt",
     "BoardNote",
     "CasbinRule",
     "ChatContextPolicy",

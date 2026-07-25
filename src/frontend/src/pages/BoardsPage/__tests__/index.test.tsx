@@ -7,6 +7,11 @@ import {
   usePatchBoard,
   usePostBoard,
 } from "@/controllers/API/queries/boards";
+import { useGetAutomationSummaries } from "@/controllers/API/queries/flows/use-get-automation-summaries";
+import {
+  useGetBoardPlacements,
+  usePostPlacement,
+} from "@/controllers/API/queries/placements";
 import BoardsPage from "../index";
 
 const mockNavigate = jest.fn();
@@ -14,12 +19,18 @@ const mockRefetch = jest.fn();
 const mockCreateMutate = jest.fn();
 const mockPatchMutate = jest.fn();
 const mockDeleteMutate = jest.fn();
+const mockPlaceMutateAsync = jest.fn();
+const mockPlacementsRefetch = jest.fn();
 
 jest.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: jest.fn() },
   useTranslation: () => ({
-    t: (key: string, values?: { title?: string }) =>
-      values?.title ? `${key} ${values.title}` : key,
+    t: (key: string, values?: { title?: string; name?: string }) =>
+      values?.title
+        ? `${key} ${values.title}`
+        : values?.name
+          ? `${key} ${values.name}`
+          : key,
   }),
 }));
 jest.mock("react-router-dom", () => ({
@@ -31,6 +42,16 @@ jest.mock("@/controllers/API/queries/boards", () => ({
   usePostBoard: jest.fn(),
   usePatchBoard: jest.fn(),
   useDeleteBoard: jest.fn(),
+}));
+jest.mock(
+  "@/controllers/API/queries/flows/use-get-automation-summaries",
+  () => ({
+    useGetAutomationSummaries: jest.fn(),
+  }),
+);
+jest.mock("@/controllers/API/queries/placements", () => ({
+  useGetBoardPlacements: jest.fn(),
+  usePostPlacement: jest.fn(),
 }));
 
 const projectId = "11111111-1111-4111-8111-111111111111";
@@ -56,6 +77,31 @@ const boardTwo = makeBoard(
   "Delivery",
   7,
 );
+const placedFlow = {
+  id: "66666666-6666-4666-8666-666666666666",
+  name: "Placed automation",
+  description: null,
+};
+const unplacedFlow = {
+  id: "77777777-7777-4777-8777-777777777777",
+  name: "Unplaced automation",
+  description: null,
+};
+const placement = {
+  id: "88888888-8888-4888-8888-888888888888",
+  boardId: boardOne.id,
+  targetKind: "automation",
+  targetId: placedFlow.id,
+  x: 0,
+  y: 0,
+  width: 320,
+  height: 240,
+  zIndex: 0,
+  displayState: "normal",
+  revision: 0,
+  createdAt: "2026-01-01T00:00:00Z",
+  updatedAt: "2026-01-01T00:00:00Z",
+};
 
 function renderPage() {
   return render(
@@ -86,6 +132,22 @@ describe("BoardsPage", () => {
     });
     (useDeleteBoard as jest.Mock).mockReturnValue({
       mutate: mockDeleteMutate,
+      isPending: false,
+    });
+    (useGetAutomationSummaries as jest.Mock).mockReturnValue({
+      data: [placedFlow, unplacedFlow],
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    });
+    (useGetBoardPlacements as jest.Mock).mockReturnValue({
+      data: [placement],
+      isLoading: false,
+      isError: false,
+      refetch: mockPlacementsRefetch,
+    });
+    (usePostPlacement as jest.Mock).mockReturnValue({
+      mutateAsync: mockPlaceMutateAsync,
       isPending: false,
     });
   });
@@ -228,7 +290,9 @@ describe("BoardsPage", () => {
     );
     await waitFor(() => expect(mockRefetch).toHaveBeenCalledTimes(1));
     expect(screen.getByRole("alert")).toHaveTextContent("boards.conflict");
-    expect(screen.getByText(boardOne.title)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: boardOne.title }),
+    ).toBeInTheDocument();
   });
 
   it("blocks duplicate create while pending without hiding the list", async () => {
@@ -240,7 +304,99 @@ describe("BoardsPage", () => {
     expect(
       screen.getByRole("button", { name: "boards.create.submit" }),
     ).toBeDisabled();
-    expect(screen.getByText(boardOne.title)).toBeInTheDocument();
-    expect(screen.getByText(boardTwo.title)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: boardOne.title }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: boardTwo.title }),
+    ).toBeInTheDocument();
+  });
+
+  it("lists placed and unplaced project Flows for the selected Board", () => {
+    renderPage();
+
+    expect(
+      screen.getByRole("complementary", {
+        name: "board.automation.inventory.title",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(placedFlow.name)).toBeInTheDocument();
+    expect(screen.getByText(unplacedFlow.name)).toBeInTheDocument();
+    expect(
+      screen.getByText("board.automation.inventory.placed"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("board.automation.inventory.unplaced"),
+    ).toBeInTheDocument();
+  });
+
+  it("places the original Flow without creating a copy", async () => {
+    const user = userEvent.setup();
+    mockPlaceMutateAsync.mockResolvedValue({
+      ...placement,
+      id: "99999999-9999-4999-8999-999999999999",
+      targetId: unplacedFlow.id,
+    });
+    renderPage();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: `board.automation.inventory.place ${unplacedFlow.name}`,
+      }),
+    );
+
+    expect(mockPlaceMutateAsync).toHaveBeenCalledWith({
+      targetKind: "automation",
+      targetId: unplacedFlow.id,
+      x: 0,
+      y: 0,
+    });
+    expect(mockCreateMutate).not.toHaveBeenCalled();
+  });
+
+  it("opens a placed Flow with server-return context", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: `board.automation.inventory.open ${placedFlow.name}`,
+      }),
+    );
+
+    expect(mockNavigate).toHaveBeenCalledWith(
+      `/flow/${placedFlow.id}?returnBoardId=${boardOne.id}&returnPlacementId=${placement.id}`,
+    );
+  });
+
+  it("reconciles the selected Board after a list refetch removes it", async () => {
+    const rendered = renderPage();
+    await waitFor(() =>
+      expect(useGetBoardPlacements).toHaveBeenLastCalledWith(
+        { boardId: boardOne.id },
+        { enabled: true },
+      ),
+    );
+
+    (useGetBoards as jest.Mock).mockReturnValue({
+      data: [boardTwo],
+      isLoading: false,
+      isError: false,
+      refetch: mockRefetch,
+    });
+    rendered.rerender(
+      <MemoryRouter initialEntries={[`/project/${projectId}/boards`]}>
+        <Routes>
+          <Route path="/project/:projectId/boards" element={<BoardsPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() =>
+      expect(useGetBoardPlacements).toHaveBeenLastCalledWith(
+        { boardId: boardTwo.id },
+        { enabled: true },
+      ),
+    );
   });
 });

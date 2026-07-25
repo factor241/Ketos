@@ -1,27 +1,19 @@
 import { useTranslation } from "react-i18next";
-import { Navigate, Outlet, useParams } from "react-router-dom";
+import { Outlet, useParams } from "react-router-dom";
 import { getProjectShellRoute } from "@/components/core/folderSidebarComponent/helpers/project-shell-route";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetFolderQuery } from "@/controllers/API/queries/folders/use-get-folder";
 import { CustomLink } from "@/customization/components/custom-link";
-import { useUtilityStore } from "@/stores/utilityStore";
 
 export default function ProjectPage() {
   const { t } = useTranslation();
   const { projectId } = useParams<{ projectId: string }>();
   const normalizedProjectId = projectId?.trim() ?? "";
   const projectRoute = getProjectShellRoute(normalizedProjectId);
-  const isEnabled = useUtilityStore(
-    (state) => state.featureFlags.mvp_workspace === true,
-  );
   const { data, isLoading, isError } = useGetFolderQuery(
     { id: normalizedProjectId, page: 1, size: 1 },
-    { enabled: isEnabled && Boolean(projectRoute) },
+    { enabled: Boolean(projectRoute) },
   );
-
-  if (!isEnabled) {
-    return <Navigate replace to="/flows" />;
-  }
 
   if (isLoading) {
     return (
@@ -69,12 +61,6 @@ export default function ProjectPage() {
       >
         <CustomLink data-testid="project-boards-link" to={projectRoute}>
           {t("projectShell.boards")}
-        </CustomLink>
-        <CustomLink
-          data-testid="project-flows-link"
-          to={`/all/folder/${encodeURIComponent(normalizedProjectId)}`}
-        >
-          {t("projectShell.flows")}
         </CustomLink>
       </nav>
 

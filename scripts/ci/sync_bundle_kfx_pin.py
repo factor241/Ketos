@@ -33,7 +33,8 @@ Stdlib only, so it runs in any CI checkout (same constraint as the sibling
 ``scripts/ci/update_bundle_versions.py`` and ``scripts/migrate/port_bundle.py``).
 
 Usage:
-    python scripts/ci/sync_bundle_kfx_pin.py 1.10.0
+    uv run python scripts/ci/sync_bundle_kfx_pin.py 1.10.0
+    uv run python scripts/ci/sync_bundle_kfx_pin.py --planned-changed-files 1.10.0
 """
 
 from __future__ import annotations
@@ -43,6 +44,8 @@ import sys
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[2]
+SYNC_ARG_COUNT = 2
+PLAN_ARG_COUNT = 3
 
 # Matches a bundle's ``"kfx<op>VERSION[,<UPPER]"`` runtime dependency. The
 # version operator immediately after ``kfx`` is what distinguishes the runtime
@@ -101,24 +104,42 @@ def sync_bundles(version: str, bundles_dir: Path) -> list[tuple[str, bool]]:
     return results
 
 
+def planned_bundle_changes(version: str, bundles_dir: Path) -> list[Path]:
+    """Return bundle manifests that a sync would change, without writing."""
+    floor_spec = kfx_floor_spec(version)
+    changed: list[Path] = []
+    for pyproject in sorted(bundles_dir.glob("*/pyproject.toml")):
+        original = pyproject.read_text(encoding="utf-8")
+        if rewrite_kfx_dep(original, floor_spec) != original:
+            changed.append(pyproject)
+    return changed
+
+
 def main() -> None:
     """Entry point.
 
     Usage:
         sync_bundle_kfx_pin.py <version>
+        sync_bundle_kfx_pin.py --planned-changed-files <version>
 
     ``version`` is the Ketos/KFX release version (e.g. ``1.10.0``).
     """
-    expected_args = 2
-    if len(sys.argv) != expected_args:
-        print("Usage: sync_bundle_kfx_pin.py <version>")
+    planned_mode = len(sys.argv) == PLAN_ARG_COUNT and sys.argv[1] == "--planned-changed-files"
+    if len(sys.argv) != SYNC_ARG_COUNT and not planned_mode:
+        print("Usage: sync_bundle_kfx_pin.py <version> | --planned-changed-files <version>")
         sys.exit(1)
 
-    version = sys.argv[1]
+    version = sys.argv[2] if planned_mode else sys.argv[1]
     floor_spec = kfx_floor_spec(version)  # validates early
     bundles_dir = BASE_DIR / "src" / "bundles"
     if not bundles_dir.is_dir():
-        print("No src/bundles directory; nothing to sync.")
+        if not planned_mode:
+            print("No src/bundles directory; nothing to sync.")
+        return
+
+    if planned_mode:
+        for pyproject in planned_bundle_changes(version, bundles_dir):
+            print(pyproject.relative_to(BASE_DIR).as_posix())
         return
 
     print(f'Syncing bundle kfx pin -> "{floor_spec}"')

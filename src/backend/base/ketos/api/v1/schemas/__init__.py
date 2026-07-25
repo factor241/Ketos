@@ -381,8 +381,8 @@ class FrontendFeatureFlags(BaseModel):
 
     wxo_deployments: bool = False
     mvp_components: bool = False
-    mvp_workspace: bool = False
-    mvp_chat: bool = False
+    mvp_workspace: bool = True
+    mvp_chat: bool = True
     agentic_experience: bool = False
 
 

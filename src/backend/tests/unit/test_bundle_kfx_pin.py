@@ -136,3 +136,18 @@ class TestSyncBundles:
         mod.sync_bundles("1.10.0", bundles)
         second = dict(mod.sync_bundles("1.10.0", bundles))
         assert second == {"arxiv": False}
+
+    def test_planned_changes_are_read_only_and_exact(self, tmp_path):
+        bundles = tmp_path / "bundles"
+        arxiv = self._make_bundle(bundles, "arxiv", "kfx>=0.5.0")
+        ibm = self._make_bundle(
+            bundles,
+            "ibm",
+            "kfx>=1.10.0.dev0,<2.0.0",
+        )
+        before = {path: path.read_bytes() for path in (arxiv, ibm)}
+
+        planned = mod.planned_bundle_changes("1.10.0", bundles)
+
+        assert planned == [arxiv]
+        assert {path: path.read_bytes() for path in (arxiv, ibm)} == before

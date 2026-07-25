@@ -1,4 +1,4 @@
-.PHONY: all init format_backend format lint build run_backend dev help tests coverage clean_python_cache clean_npm_cache clean_frontend_build clean_all run_clic load_test_setup load_test_setup_basic load_test_list_flows load_test_run load_test_ketos_quick load_test_stress load_test_example load_test_clean load_test_remote_setup load_test_remote_run load_test_help docs docs_build docs_install api_examples_local api_examples_local_syntax
+.PHONY: all init format_backend format lint build run_backend dev help tests coverage clean_python_cache clean_npm_cache clean_frontend_build clean_all run_clic run_cli version-check current-preflight run-current current-proof run-legacy load_test_setup load_test_setup_basic load_test_list_flows load_test_run load_test_ketos_quick load_test_stress load_test_example load_test_clean load_test_remote_setup load_test_remote_run load_test_help docs docs_build docs_install api_examples_local api_examples_local_syntax
 
 # Configurations
 VERSION=$(shell grep "^version" pyproject.toml | sed 's/.*\"\(.*\)\"$$/\1/')
@@ -243,9 +243,27 @@ run_clic: clean_frontend_build install_frontend install_backend build_frontend #
 		$(if $(env),--env-file $(env),) \
 		$(if $(filter false,$(open_browser)),--no-open-browser)
 
-run_cli: install_frontend install_backend build_frontend ## run the CLI quickly (without cleaning build cache)
-	@echo 'Running the CLI quickly (reusing existing build cache if available)'
-	@uv run ketos run \
+version-check: ## validate the declared product version family
+	@uv run python scripts/ci/version_contract.py check
+
+current-preflight: version-check ## validate the canonical current-experience profile without mutation
+	@uv run python scripts/ci/current_experience.py preflight
+
+run-current: ## run the canonical backend, frontend, and copilot experience
+	@uv run python scripts/ci/current_experience.py run
+
+current-proof: ## prove the running canonical current experience
+	@uv run python scripts/ci/current_experience.py proof
+
+run_cli: ## run the supported current experience
+	@$(MAKE) run-current
+
+run-legacy: install_frontend install_backend build_frontend ## run the explicitly disabled compatibility profile
+	@echo 'Running the legacy compatibility profile with Board/chat/agentic disabled'
+	@KETOS_FEATURE_MVP_WORKSPACE=false \
+		KETOS_FEATURE_MVP_CHAT=false \
+		KETOS_AGENTIC_EXPERIENCE=false \
+		uv run ketos run \
 		--frontend-path $(path) \
 		--log-level $(log_level) \
 		--host $(host) \
@@ -280,6 +298,13 @@ setup_env: ## set up the environment
 
 
 backend: setup_env install_backend ## run the backend in development mode
+	@if [ "$$KFX_DEV" != "1" ] || \
+		[ "$$KETOS_FEATURE_MVP_WORKSPACE" != "true" ] || \
+		[ "$$KETOS_FEATURE_MVP_CHAT" != "true" ] || \
+		[ "$$KETOS_AGENTIC_EXPERIENCE" != "true" ] || \
+		[ "$$LANGGRAPH_STRICT_MSGPACK" != "true" ]; then \
+		echo "$(YELLOW)This low-level target is missing canonical current-profile values; use 'make run-current'.$(NC)"; \
+	fi
 	@-kill -9 $$(lsof -t -i:7860) || true
 ifdef login
 	@echo "Running backend autologin is $(login)";
@@ -557,64 +582,75 @@ alembic-stamp: ## stamp the database with a specific revision
 
 patch: ## Update version across all projects. Usage: make patch v=1.5.0
 	@if [ -z "$(v)" ]; then \
-		echo "$(RED)Error: Version argument required.$(NC)"; \
-		echo "Usage: make patch v=1.5.0"; \
-		exit 1; \
-	fi; \
-	echo "$(GREEN)Updating version to $(v)$(NC)"; \
-	\
-	KETOS_VERSION="$(v)"; \
-	KETOS_BASE_VERSION=$$(echo "$$KETOS_VERSION" | sed -E 's/^[0-9]+\.(.*)$$/0.\1/'); \
-	\
-	echo "$(GREEN)Ketos version: $$KETOS_VERSION$(NC)"; \
-	echo "$(GREEN)Ketos-base version: $$KETOS_BASE_VERSION$(NC)"; \
-	echo "$(GREEN)KFX (synced): $$KETOS_VERSION$(NC)"; \
-	\
-	echo "$(GREEN)Updating main pyproject.toml...$(NC)"; \
-	python -c "import re; fname='pyproject.toml'; txt=open(fname).read(); txt=re.sub(r'^version = \".*\"', 'version = \"$$KETOS_VERSION\"', txt, flags=re.MULTILINE); txt=re.sub(r'\"ketos-base(?:\[[^\]]*\])?(?:==|>=|~=)[^\"]*\"', '\"ketos-base[complete]>=$$KETOS_BASE_VERSION\"', txt); open(fname, 'w').write(txt)"; \
-	\
-	echo "$(GREEN)Updating ketos-base pyproject.toml...$(NC)"; \
-	python -c "import re; fname='src/backend/base/pyproject.toml'; txt=open(fname).read(); txt=re.sub(r'^version = \".*\"', 'version = \"$$KETOS_BASE_VERSION\"', txt, flags=re.MULTILINE); txt=re.sub(r'\"kfx(?:~=|>=)[^\"]*\"', '\"kfx~=$$KETOS_VERSION\"', txt); open(fname, 'w').write(txt)"; \
-	\
-	echo "$(GREEN)Updating kfx pyproject.toml...$(NC)"; \
-	python -c "import re; fname='src/kfx/pyproject.toml'; txt=open(fname).read(); txt=re.sub(r'^version = \".*\"', 'version = \"$$KETOS_VERSION\"', txt, flags=re.MULTILINE); open(fname, 'w').write(txt)"; \
-	\
-	echo "$(GREEN)Syncing bundle kfx pins (src/bundles/*) -> $$KETOS_VERSION...$(NC)"; \
-	python scripts/ci/sync_bundle_kfx_pin.py "$$KETOS_VERSION"; \
-	\
-	echo "$(GREEN)Updating frontend package.json...$(NC)"; \
-	python -c "import re; fname='src/frontend/package.json'; txt=open(fname).read(); txt=re.sub(r'\"version\": \".*\"', '\"version\": \"$$KETOS_VERSION\"', txt); open(fname, 'w').write(txt)"; \
-	\
-	echo "$(GREEN)Validating version changes...$(NC)"; \
-	if ! grep -q "^version = \"$$KETOS_VERSION\"" pyproject.toml; then echo "$(RED)✗ Main pyproject.toml version validation failed$(NC)"; exit 1; fi; \
-	if ! grep -qF "\"ketos-base[complete]>=$$KETOS_BASE_VERSION\"" pyproject.toml; then echo "$(RED)✗ Main pyproject.toml ketos-base dependency validation failed$(NC)"; exit 1; fi; \
-	if ! grep -q "^version = \"$$KETOS_BASE_VERSION\"" src/backend/base/pyproject.toml; then echo "$(RED)✗ Ketos-base pyproject.toml version validation failed$(NC)"; exit 1; fi; \
-	if ! grep -q "\"kfx~=$$KETOS_VERSION\"" src/backend/base/pyproject.toml; then echo "$(RED)✗ Ketos-base pyproject.toml kfx pin validation failed$(NC)"; exit 1; fi; \
-	if ! grep -q "^version = \"$$KETOS_VERSION\"" src/kfx/pyproject.toml; then echo "$(RED)✗ KFX pyproject.toml version validation failed$(NC)"; exit 1; fi; \
-	if ! grep -q "\"version\": \"$$KETOS_VERSION\"" src/frontend/package.json; then echo "$(RED)✗ Frontend package.json version validation failed$(NC)"; exit 1; fi; \
-	echo "$(GREEN)✓ All versions updated successfully$(NC)"; \
-	\
-	echo "$(GREEN)Syncing dependencies in parallel...$(NC)"; \
-	uv sync --quiet & \
-	(cd src/frontend && npm install --silent) & \
-	wait; \
-	\
-	echo "$(GREEN)Validating final state...$(NC)"; \
-	CHANGED_FILES=$$(git status --porcelain | wc -l | tr -d ' '); \
-	if [ "$$CHANGED_FILES" -lt 6 ]; then \
-		echo "$(RED)✗ Expected at least 6 changed files, but found $$CHANGED_FILES$(NC)"; \
-		echo "$(RED)Changed files:$(NC)"; \
-		git status --porcelain; \
-		exit 1; \
-	fi; \
-	EXPECTED_FILES="pyproject.toml uv.lock src/backend/base/pyproject.toml src/kfx/pyproject.toml src/frontend/package.json src/frontend/package-lock.json"; \
-	for file in $$EXPECTED_FILES; do \
-		if ! git status --porcelain | grep -q "$$file"; then \
-			echo "$(RED)✗ Expected file $$file was not modified$(NC)"; \
+			echo "$(RED)Error: Version argument required.$(NC)"; \
+			echo "Usage: make patch v=1.5.0"; \
 			exit 1; \
 		fi; \
-	done; \
-	echo "$(GREEN)✓ All required files were modified.$(NC)"; \
+		if ! git diff --quiet || ! git diff --cached --quiet; then \
+			echo "$(RED)✗ make patch requires a clean tracked worktree so its exact output set is auditable.$(NC)"; \
+			exit 1; \
+		fi; \
+		echo "$(GREEN)Updating version to $(v)$(NC)"; \
+	\
+		KETOS_VERSION="$(v)"; \
+		KETOS_BASE_VERSION=$$(echo "$$KETOS_VERSION" | sed -E 's/^[0-9]+\.(.*)$$/0.\1/'); \
+		\
+		echo "$(GREEN)Ketos version: $$KETOS_VERSION$(NC)"; \
+		echo "$(GREEN)Ketos-base version: $$KETOS_BASE_VERSION$(NC)"; \
+		echo "$(GREEN)KFX (synced): $$KETOS_VERSION$(NC)"; \
+		\
+		BASELINE_UNTRACKED=$$(git ls-files --others --exclude-standard | LC_ALL=C sort); \
+		AUTHORIZED_BUNDLE_FILES="src/bundles/arxiv/pyproject.toml src/bundles/docling/pyproject.toml src/bundles/duckduckgo/pyproject.toml src/bundles/ibm/pyproject.toml"; \
+		BUNDLE_FILES=$$(uv run python scripts/ci/sync_bundle_kfx_pin.py --planned-changed-files "$$KETOS_VERSION"); \
+		for file in $$BUNDLE_FILES; do \
+			case " $$AUTHORIZED_BUNDLE_FILES " in \
+				*" $$file "*) ;; \
+				*) \
+					echo "$(RED)✗ Bundle pin plan contains an unauthorized path: $$file$(NC)"; \
+					exit 1; \
+					;; \
+			esac; \
+		done; \
+		\
+		uv run python scripts/ci/version_contract.py bump --version "$$KETOS_VERSION"; \
+		\
+		echo "$(GREEN)Syncing bundle kfx pins (src/bundles/*) -> $$KETOS_VERSION...$(NC)"; \
+		uv run python scripts/ci/sync_bundle_kfx_pin.py "$$KETOS_VERSION"; \
+		\
+		echo "$(GREEN)Syncing dependencies in parallel...$(NC)"; \
+	uv sync --quiet & \
+	(cd src/frontend && npm install --silent) & \
+		wait; \
+		\
+		echo "$(GREEN)Validating final state...$(NC)"; \
+		EXPECTED_FILES=$$(printf '%s\n' \
+			"pyproject.toml" \
+			"uv.lock" \
+			"src/backend/base/pyproject.toml" \
+			"src/kfx/pyproject.toml" \
+			"src/frontend/package.json" \
+			"src/frontend/package-lock.json" \
+			$$BUNDLE_FILES | sed '/^$$/d' | LC_ALL=C sort -u); \
+		ACTUAL_FILES=$$(git diff --name-only | LC_ALL=C sort); \
+		ACTUAL_UNTRACKED=$$(git ls-files --others --exclude-standard | LC_ALL=C sort); \
+		if [ "$$ACTUAL_FILES" != "$$EXPECTED_FILES" ]; then \
+			echo "$(RED)✗ make patch changed an unexpected exact file set.$(NC)"; \
+			echo "$(RED)Expected:$(NC)"; \
+			echo "$$EXPECTED_FILES"; \
+			echo "$(RED)Actual:$(NC)"; \
+			echo "$$ACTUAL_FILES"; \
+			exit 1; \
+		fi; \
+		if [ "$$ACTUAL_UNTRACKED" != "$$BASELINE_UNTRACKED" ]; then \
+			echo "$(RED)✗ make patch changed the untracked file set.$(NC)"; \
+			echo "$(RED)Before:$(NC)"; \
+			echo "$$BASELINE_UNTRACKED"; \
+			echo "$(RED)After:$(NC)"; \
+			echo "$$ACTUAL_UNTRACKED"; \
+			exit 1; \
+		fi; \
+		uv run python scripts/ci/version_contract.py check; \
+		echo "$(GREEN)✓ Exact required version and lock paths were modified.$(NC)"; \
 	\
 	echo "$(GREEN)Version update complete!$(NC)"; \
 	echo "$(GREEN)Updated files:$(NC)"; \

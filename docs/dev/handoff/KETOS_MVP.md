@@ -1,5 +1,23 @@
 # Ketos MVP Stage 10 handoff
 
+## Management transition status
+
+On `2026-07-25`, at repository SHA
+`4c98c0beffac69e1864b1e2651df55b1ee1319a3`, the user explicitly accepted all
+stages preceding
+`docs/superpowers/plans/2026-07-25-unified-board-workspace-version-convergence.md`
+for transition.
+
+- Status: `ACCEPTED FOR TRANSITION`.
+- Authority: explicit user management decision.
+- Effect: Stage 09/10 technical STOP-gates do not block the unified Board plan.
+- Non-effect: this does not alter raw evidence, change any raw `FAIL`, fill a
+  missing monitor tail, create a seal/receipt, or claim technical Stage 10
+  `PASS`.
+- Accepted historical debt: the latest Stage 10 candidate remained unsealed;
+  `backend-package` and `frontend-full` lacked strict full-gate acceptance; the
+  final receipt was absent.
+
 This runbook reproduces the final Ketos MVP vertical-slice acceptance. It does
 not start a Stage 11. Runtime evidence belongs only in the approved external
 bundle; it must never be committed to the source tree.

@@ -108,6 +108,22 @@ members = [
     # ketos-extensions:bundle-members-end
 ]
 
+[tool.ketos.version-family]
+canonical = "pyproject.toml"
+members = [
+    { path = "pyproject.toml", format = "toml-project", relation = "exact" },
+    { path = "src/kfx/pyproject.toml", format = "toml-project", relation = "exact" },
+    { path = "src/frontend/package.json", format = "package-json", relation = "exact" },
+    { path = "src/backend/base/pyproject.toml", format = "toml-project", relation = "zero-major" },
+]
+private_exclusions = [
+    { path = "src/copilot-runtime/package.json", format = "package-json", expected = "0.0.0-private", reason = "private-runtime" },
+]
+dependency_pins = [
+    { path = "pyproject.toml", name = "ketos-base[complete]", operator = ">=", relation = "zero-major" },
+    { path = "src/backend/base/pyproject.toml", name = "kfx", operator = "~=", relation = "exact" },
+]
+
 [tool.hatch.build.targets.wheel]
 bypass-selection = true
 

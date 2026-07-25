@@ -1,0 +1,85 @@
+schema_version = 1
+env_file = ".env"
+
+[environment.managed]
+KFX_DEV = "1"
+KETOS_FEATURE_MVP_WORKSPACE = "true"
+KETOS_FEATURE_MVP_CHAT = "true"
+KETOS_AGENTIC_EXPERIENCE = "true"
+LANGGRAPH_STRICT_MSGPACK = "true"
+
+[alembic]
+working_directory = "src/backend/base/ketos"
+config_file = "alembic.ini"
+database_url_environment = "KETOS_DATABASE_URL"
+
+[[services]]
+name = "backend"
+working_directory = "."
+command = [
+    "uv",
+    "run",
+    "uvicorn",
+    "--factory",
+    "ketos.main:create_app",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "7860",
+    "--loop",
+    "asyncio",
+]
+host = "127.0.0.1"
+port = 7860
+readiness = "http"
+readiness_url = "http://127.0.0.1:7860/health_check"
+startup_timeout_seconds = 120
+
+[[services]]
+name = "frontend"
+working_directory = "src/frontend"
+command = [
+    "npm",
+    "run",
+    "start",
+    "--",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "3000",
+    "--strictPort",
+]
+host = "127.0.0.1"
+port = 3000
+readiness = "http"
+readiness_url = "http://127.0.0.1:3000/"
+startup_timeout_seconds = 90
+
+[[services]]
+name = "copilot"
+working_directory = "src/copilot-runtime"
+command = ["npm", "start"]
+host = "127.0.0.1"
+port = 8788
+readiness = "tcp"
+required_artifacts = ["src/copilot-runtime/dist/server.js"]
+startup_timeout_seconds = 45
+
+[proof]
+backend_health_url = "http://127.0.0.1:7860/health_check"
+backend_version_url = "http://127.0.0.1:7860/api/v1/version"
+backend_config_url = "http://127.0.0.1:7860/api/v1/config"
+frontend_url = "http://127.0.0.1:3000/"
+copilot_host = "127.0.0.1"
+copilot_port = 8788
+request_timeout_seconds = 10
+
+[proof.expected_config]
+mvp_workspace = true
+mvp_chat = true
+agentic_experience = true
+
+[supervisor]
+poll_interval_seconds = 0.25
+term_grace_seconds = 8
+kill_grace_seconds = 2

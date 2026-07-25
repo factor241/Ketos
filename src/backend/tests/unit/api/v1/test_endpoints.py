@@ -35,13 +35,30 @@ async def test_get_config_basic(client: AsyncClient, logged_in_headers: dict):
     assert "max_file_size_upload" in result, "The dictionary must contain a key called 'max_file_size_upload'"
 
 
-async def test_get_config_exposes_default_off_mvp_flags(client: AsyncClient, monkeypatch):
+async def test_get_config_exposes_default_on_mvp_flags(client: AsyncClient, monkeypatch):
     import ketos.api.v1.schemas as config_schemas
     from kfx.services.settings.feature_flags import FeatureFlags
 
     for suffix in ("MVP_WORKSPACE", "MVP_CHAT"):
         monkeypatch.delenv(f"KETOS_FEATURE_{suffix}", raising=False)
         monkeypatch.delenv(f"LANGFLOW_FEATURE_{suffix}", raising=False)
+    monkeypatch.setattr(config_schemas, "FEATURE_FLAGS", FeatureFlags())
+
+    response = await client.get("api/v1/config")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["feature_flags"]["mvp_workspace"] is True
+    assert response.json()["feature_flags"]["mvp_chat"] is True
+
+
+async def test_get_config_preserves_explicit_false_mvp_flags(client: AsyncClient, monkeypatch):
+    import ketos.api.v1.schemas as config_schemas
+    from kfx.services.settings.feature_flags import FeatureFlags
+
+    monkeypatch.setenv("KETOS_FEATURE_MVP_WORKSPACE", "false")
+    monkeypatch.setenv("KETOS_FEATURE_MVP_CHAT", "false")
+    monkeypatch.delenv("LANGFLOW_FEATURE_MVP_WORKSPACE", raising=False)
+    monkeypatch.delenv("LANGFLOW_FEATURE_MVP_CHAT", raising=False)
     monkeypatch.setattr(config_schemas, "FEATURE_FLAGS", FeatureFlags())
 
     response = await client.get("api/v1/config")

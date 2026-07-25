@@ -1,5 +1,15 @@
 # Ketos Stage 09/10 All Blockers Closure Implementation Plan
 
+> **Transition supersession — 2026-07-25.** At repository SHA
+> `4c98c0beffac69e1864b1e2651df55b1ee1319a3`, the user explicitly accepted all
+> stages preceding
+> `docs/superpowers/plans/2026-07-25-unified-board-workspace-version-convergence.md`
+> for transition. Status: `ACCEPTED FOR TRANSITION`. This plan remains an
+> immutable historical description of unfinished technical verification; its
+> Stage 09/10 STOP conditions no longer gate admission to the unified Board
+> plan. Raw evidence, raw failures, missing tails, and missing receipts are not
+> rewritten and are not technical PASS.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: use
 > `superpowers:executing-plans`, `superpowers:test-driven-development`,
 > `superpowers:systematic-debugging`, `superpowers:verification-before-completion`,

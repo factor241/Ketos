@@ -1,5 +1,15 @@
 # Этап 10. Единый vertical slice, минимальная стабилизация и MVP handoff
 
+> **Management transition record — 2026-07-25.** The user explicitly accepted
+> every stage preceding
+> `docs/superpowers/plans/2026-07-25-unified-board-workspace-version-convergence.md`
+> for transition at repository SHA
+> `4c98c0beffac69e1864b1e2651df55b1ee1319a3`. Status:
+> `ACCEPTED FOR TRANSITION`. The technical status and raw evidence described in
+> this handoff remain historical and unchanged; the decision does not assert a
+> Stage 10 PASS. The NO-GO rules below are retained as historical acceptance
+> policy but no longer block admission to the unified Board plan.
+
 > **Для agentic workers:** этот этап обязательно выполнять через `superpowers:subagent-driven-development` или `superpowers:executing-plans`. Требуются все десять практических субагентов `S10-A01…S10-A10`; одновременно работают 3–5 независимых lanes. До начала реализации перечитать `/Volumes/Projects/ketos_canvas_mod_main/AGENTS.md` и `/Volumes/Projects/ketos_canvas_mod_main/14_KETOS_FINAL_MASTER_IMPLEMENTATION_PLAN.md` целиком. Каждый шаг отмечается checkbox-состоянием в рабочем ledger. Следующего продуктового этапа после Stage 10 нет: успешный результат закрывает MVP и допускает только отдельную Post-MVP-программу.
 
 **Goal:** на одной чистой SQLite DB и одном неизменяемом exact SHA доказать весь Ketos MVP-путь, выполнить focused compatibility/UX/live-provider gates и передать воспроизводимый handoff без добавления новых продуктовых возможностей.

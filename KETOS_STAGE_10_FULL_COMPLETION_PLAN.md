@@ -1,5 +1,15 @@
 # Ketos Stage 10 Full Completion Implementation Plan
 
+> **Transition supersession — 2026-07-25.** At repository SHA
+> `4c98c0beffac69e1864b1e2651df55b1ee1319a3`, the user explicitly closed Stage
+> 10 for management transition into
+> `docs/superpowers/plans/2026-07-25-unified-board-workspace-version-convergence.md`.
+> Status: `ACCEPTED FOR TRANSITION`. This is not a technical Stage 10 PASS:
+> incomplete full-package checks, incomplete monitor tails, the unsealed
+> candidate, and the missing final receipt remain recorded historical debt.
+> This document no longer acts as an admission stop-gate for the unified Board
+> plan.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: use
 > `superpowers:executing-plans`, `superpowers:test-driven-development`,
 > `superpowers:systematic-debugging`, `superpowers:verification-before-completion`,

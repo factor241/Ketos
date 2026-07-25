@@ -26,15 +26,39 @@ def test_feature_flags_accept_legacy_only(monkeypatch, field_name: str, suffix: 
     assert getattr(flags, field_name) is True
 
 
-def test_mvp_workspace_and_chat_default_off(monkeypatch) -> None:
+def test_mvp_workspace_and_chat_default_on(monkeypatch) -> None:
     for suffix in ("MVP_WORKSPACE", "MVP_CHAT"):
         monkeypatch.delenv(f"KETOS_FEATURE_{suffix}", raising=False)
         monkeypatch.delenv(f"LANGFLOW_FEATURE_{suffix}", raising=False)
 
     flags = FeatureFlags()
 
-    assert flags.mvp_workspace is False
-    assert flags.mvp_chat is False
+    assert flags.mvp_workspace is True
+    assert flags.mvp_chat is True
+
+
+@pytest.mark.parametrize(
+    ("suffix", "workspace_expected", "chat_expected"),
+    [
+        ("MVP_WORKSPACE", False, True),
+        ("MVP_CHAT", True, False),
+    ],
+)
+def test_mvp_flags_can_be_disabled_independently(
+    monkeypatch,
+    suffix: str,
+    workspace_expected,
+    chat_expected,
+) -> None:
+    for candidate in ("MVP_WORKSPACE", "MVP_CHAT"):
+        monkeypatch.delenv(f"KETOS_FEATURE_{candidate}", raising=False)
+        monkeypatch.delenv(f"LANGFLOW_FEATURE_{candidate}", raising=False)
+    monkeypatch.setenv(f"KETOS_FEATURE_{suffix}", "false")
+
+    flags = FeatureFlags()
+
+    assert flags.mvp_workspace is workspace_expected
+    assert flags.mvp_chat is chat_expected
 
 
 @pytest.mark.parametrize(("field_name", "suffix"), [("mvp_workspace", "MVP_WORKSPACE"), ("mvp_chat", "MVP_CHAT")])

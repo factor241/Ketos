@@ -33,7 +33,7 @@ host = "127.0.0.1"
 port = 7860
 readiness = "http"
 readiness_url = "http://127.0.0.1:7860/health_check"
-startup_timeout_seconds = 120
+startup_timeout_seconds = 180
 
 [[services]]
 name = "frontend"

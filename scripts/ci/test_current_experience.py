@@ -46,6 +46,8 @@ def test_profile_declares_exact_current_experience_contract() -> None:
         "frontend": 3000,
         "copilot": 8788,
     }
+    backend = next(service for service in profile.services if service.name == "backend")
+    assert backend.startup_timeout_seconds >= 180
     assert profile.alembic_working_directory == REPO_ROOT / "src/backend/base/ketos"
     assert profile.expected_config == {
         "mvp_workspace": True,

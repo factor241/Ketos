@@ -846,6 +846,27 @@ Expected: en/ru catalogs are complete; new UI has no untranslated or hardcoded v
 - All new controls are keyboard-operable, labelled, focus-safe, and usable at 320px, 768px, 1440px, 200% zoom.
 - Primary en/ru UI no longer calls automations “Scenarios”.
 
+## Block C execution record — 2026-07-25
+
+- Status: `EXACT-SHA PASS — BLOCK D ADMITTED`.
+- Exact product SHA:
+  `cc685550f00ec6dbeb258da0a43864993182e677`.
+- Backend starter/chat/API repeat: `31 passed`, exit `0`.
+- Frontend exact-SHA repeat: `13` suites and `93` tests passed; the expanded
+  pre-seal matrix on identical product content passed `14` suites and `100`
+  tests.
+- i18n passed `44` Node tests and `72` Jest tests.
+- Production TypeScript, changed-file Biome, Ruff, and Ruff format checks
+  passed.
+- Three independent repeat audits covering C1–C3, canvas/frontend chat, and
+  backend chat commands found no P0/P1/P2.
+- Graphify read-only traversal confirmed the retained
+  Board/Placement/Flow/editor-return graph boundary. Generated Graphify
+  artifacts were not rebuilt.
+- Browser/Playwright layout and focus, legacy migration compatibility, full
+  package gates, live launch proof, and rollout/rollback remain explicitly
+  owned by Block D.
+
 ---
 
 # Block D — Testing, migration, browser acceptance, and rollout

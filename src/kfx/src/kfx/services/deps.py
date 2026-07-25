@@ -214,6 +214,12 @@ async def injectable_session_scope():
         yield session
 
 
+async def injectable_session_scope_manual():
+    """Inject an isolated session whose transaction is owned by the caller."""
+    async with session_scope_manual() as session:
+        yield session
+
+
 @asynccontextmanager
 async def session_scope() -> AsyncGenerator[AsyncSession, None]:
     """Context manager for managing an async session scope with auto-commit for write operations.
@@ -257,6 +263,19 @@ async def session_scope() -> AsyncGenerator[AsyncSession, None]:
                     await session.rollback()
             raise
         # No explicit close needed - _with_session() handles it
+
+
+@asynccontextmanager
+async def session_scope_manual() -> AsyncGenerator[AsyncSession, None]:
+    """Yield an isolated session without automatic transaction finalization.
+
+    Use this only when the callee defines and closes its own transaction
+    boundary. The database service still owns session creation and cleanup;
+    closing the session rolls back any transaction the callee left open.
+    """
+    db_service = get_db_service()
+    async with db_service._with_session() as session:  # noqa: SLF001
+        yield session
 
 
 async def injectable_session_scope_readonly():

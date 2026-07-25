@@ -2,7 +2,9 @@ from collections.abc import Awaitable, Callable
 from typing import Annotated, TypeVar
 from uuid import UUID
 
-from fastapi import APIRouter, Header, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
+from kfx.services.deps import injectable_session_scope_manual
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ketos.api.utils import CurrentActiveUser, DbSession
 from ketos.api.v1.schemas.board import BoardCreate, BoardPatch, BoardRead, BoardViewportUpdate
@@ -34,6 +36,10 @@ from ketos.services.database.models.flow.model import FlowRead
 
 router = APIRouter(tags=["Boards"])
 T = TypeVar("T")
+CommandDbSession = Annotated[
+    AsyncSession,
+    Depends(injectable_session_scope_manual),
+]
 
 
 async def _run_service(call: Callable[[], Awaitable[T]]) -> T:
@@ -87,7 +93,7 @@ async def create_project_board(
 async def bootstrap_project_board(
     project_id: UUID,
     payload: BoardBootstrapCreate,
-    session: DbSession,
+    session: CommandDbSession,
     current_user: CurrentActiveUser,
     idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
 ) -> BoardBootstrapRead:
@@ -121,7 +127,7 @@ async def bootstrap_project_board(
 async def create_automation_in_board(
     board_id: UUID,
     payload: BoardAutomationCreate,
-    session: DbSession,
+    session: CommandDbSession,
     current_user: CurrentActiveUser,
     idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
 ) -> BoardAutomationRead:

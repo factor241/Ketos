@@ -127,7 +127,8 @@ async def test_bootstrap_endpoint_requires_key_and_replays(command_client: Async
     created = await command_client.post(path, json=payload, headers=headers)
     replay = await command_client.post(path, json=payload, headers=headers)
 
-    assert created.status_code == replay.status_code == 201
+    assert created.status_code == 201, created.text
+    assert replay.status_code == 201, replay.text
     assert created.json()["idempotency_replayed"] is False
     assert replay.json()["idempotency_replayed"] is True
     assert replay.json()["board"]["id"] == created.json()["board"]["id"]
@@ -165,7 +166,7 @@ async def test_existing_board_endpoint_returns_atomic_flow_and_placement(
         headers={**logged_in_headers, "Idempotency-Key": str(uuid4())},
     )
 
-    assert response.status_code == 201
+    assert response.status_code == 201, response.text
     body = response.json()
     assert body["automation"]["folder_id"] == project_id
     assert body["placement"]["board_id"] == board_id
@@ -179,5 +180,5 @@ async def test_bootstrap_hides_missing_or_inaccessible_project(command_client: A
         headers={**logged_in_headers, "Idempotency-Key": str(uuid4())},
     )
 
-    assert response.status_code == 404
+    assert response.status_code == 404, response.text
     assert response.json()["detail"]["code"] == "board_command_resource_not_found"

@@ -1,491 +1,418 @@
-# Ketos Public Project Page Implementation Plan
+# Ketos Public Page MCP and Attribution Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans
-> to implement this plan task-by-task. Repository policy requires the main
-> agent to perform every tool call and workspace edit. Subagents may review
-> only complete text packets supplied by the main agent.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use
+> superpowers:executing-plans to implement this plan task-by-task. Steps use
+> checkbox (`- [ ]`) syntax for tracking. Repository policy requires the main
+> agent to perform every tool call and workspace edit; no-tools subagents may
+> review complete packets supplied by the main agent.
 
-**Goal:** Publish an accurate, professional English project page and supporting
-public documentation for `factor241/Ketos`.
+**Goal:** Remove the unsuitable product screenshot, make the implemented MCP
+control surface prominent and accurately documented, and align the MIT
+copyright notices for Langflow-derived and original Ketos-specific material.
 
-**Architecture:** The root README is the product overview and navigation hub.
-Focused supporting documents own contributor, security, Board-contract, KFX,
-and documentation-site detail. Product claims are derived from the current
-public `main` source and accepted repository evidence, while maturity,
-deployment, and localization limits remain explicit.
+**Architecture:** `README.md` remains the product-first overview.
+`src/kfx/KFX_MCP.md` owns the detailed tool and client-configuration reference.
+`LICENSE` preserves the MIT grant while listing both applicable copyright
+notices, and `NOTICE` explains their boundaries without transferring upstream
+or contributor rights.
 
-**Tech Stack:** GitHub Flavored Markdown, Docusaurus, React/TypeScript,
-Python/FastAPI, React Flow, TanStack Query, Zustand, KFX, GitHub CLI, Chrome.
+**Tech Stack:** GitHub Flavored Markdown, FastMCP, KFX, Python, FastAPI,
+Docusaurus, Git, GitHub CLI, Chrome.
 
 ## Global Constraints
 
-- Write all public-facing project documentation changed by this plan in
-  professional English.
-- Describe Ketos as an MIT-licensed local-first visual builder and runtime for
-  extensible AI workflows under active alpha development.
-- Current shipped interface languages are English and Russian only.
-- Kazakh, Kyrgyz, Tajik, Uzbek, and other regional languages are planned, not
-  implemented.
-- Use the current request's regional position: Kazakhstan, Russia, and other
-  CIS countries.
-- Do not claim a hosted service, production readiness, production-grade
-  multi-client collaboration, complete offline operation, adoption, security
-  certification, compliance, or market leadership.
-- Preserve application code, generated files, lock files, deployment
-  configuration, persisted component identifiers, KFX and Bundle API
-  contracts, `LICENSE`, `NOTICE`, and unrelated internal planning files.
-- Use GitHub private vulnerability reporting for confidential security reports;
-  do not publish a personal email address or an `@ketos.test` address.
-- Do not add a CI badge while inherited or scheduled public workflows are
-  failing.
-- Treat “infinite Canvas” as a spatial product concept, not as a mathematical
-  size, performance, or scalability guarantee.
+- Write all changed public documentation in professional English.
+- Keep Ketos described as an active-alpha, local-first visual builder and
+  runtime for extensible AI workflows.
+- Remove the screenshot, caption, and `docs/assets/ketos-board-workspace.jpg`;
+  do not replace them with another product image.
+- Give MCP a dedicated README section immediately after the infinite Canvas.
+- Describe only MCP tools and behavior present in
+  `src/kfx/src/kfx/mcp/`.
+- State that MCP controls flows, components, connections, and execution rather
+  than every Ketos screen or Board interaction.
+- Run `kfx-mcp` from an initialized Ketos source checkout; do not recommend the
+  unrelated `kfx` package currently published on PyPI.
+- Preserve the complete MIT permission grant and disclaimer.
+- Preserve `Copyright (c) 2024 Langflow`.
+- Add the user-approved line exactly:
+  `Portions Copyright (c) 2026 Daria Shemelina`.
+- Do not imply ownership of unchanged Langflow code or of contributions
+  authored by other people.
+- Preserve application code, generated artifacts, lock files, deployment
+  configuration, persisted component identifiers, and KFX/Bundle wire
+  contracts.
+- Current shipped interface languages are English and Russian. Other regional
+  languages remain planned.
+- Do not claim hosted production availability, production readiness, complete
+  offline operation, universal MCP control, regulatory compliance, adoption,
+  or market leadership.
 
 ---
 
-### Task 1: Prepare a truthful product visual
-
-**Files:**
-- Create when a clean capture succeeds:
-  `docs/assets/ketos-board-workspace.png`
-- Modify later: `README.md`
-
-**Interfaces:**
-- Consumes: current Board UI with note, chat, automation, and job-result
-  placement support.
-- Produces: a repository-relative image safe to embed as
-  `./docs/assets/ketos-board-workspace.png`, or a recorded decision to omit the
-  image.
-
-- [ ] **Step 1: Inspect candidate repository screenshots**
-
-Review current Board evidence images and reject any image containing browser
-chrome, internal audit labels, personal data, debug overlays, or a layout that
-does not represent current `main`.
-
-- [ ] **Step 2: Attempt a clean English capture**
-
-Run the current application from the isolated worktree, open it in Chrome, set
-the interface to English, and capture a coherent Board view. The preferred
-scene contains at least two current placement kinds and no fake customer,
-adoption, or production data.
-
-- [ ] **Step 3: Store or omit the asset**
-
-If the capture is accurate and clean, store it as:
-
-```text
-docs/assets/ketos-board-workspace.png
-```
-
-If a clean capture cannot be produced from current source, do not add an image
-and do not reuse an internal audit screenshot.
-
-- [ ] **Step 4: Verify the asset**
-
-Open the saved file at original resolution and check legibility, cropping,
-absence of secrets, and absence of browser or debugger UI.
-
----
-
-### Task 2: Rewrite the public README
+### Task 1: Update the root public page
 
 **Files:**
 - Modify: `README.md`
-- Use when created: `docs/assets/ketos-board-workspace.png`
+- Delete: `docs/assets/ketos-board-workspace.jpg`
 
 **Interfaces:**
-- Consumes: the verified product facts and asset decision from Task 1.
-- Produces: the canonical public product overview linked by all later
-  contributor and documentation pages.
+- Consumes: the verified Canvas and MCP behavior in the approved design.
+- Produces: the canonical product overview and navigation hub.
 
-- [ ] **Step 1: Replace the sparse introduction**
+- [x] **Step 1: Remove the product visual**
 
-Use this section order:
-
-```text
-# Ketos
-status and navigation
-product visual, when available
-## What Ketos is
-## Why it exists
-## The infinite Canvas
-## Core capabilities
-## Example workflows
-## Quick start
-## How Ketos fits together
-## Development status
-## Known limitations
-## Roadmap
-## Regional and language focus
-## Documentation
-## Contributing and security
-## License and attribution
-```
-
-- [ ] **Step 2: Add bounded product and audience copy**
-
-State that Ketos is for developers, automation builders, and technical teams
-who want to prototype, organize, run, and inspect AI workflows locally. Explain
-that it brings notes, AI conversations, automations, and execution results into
-one persistent spatial workspace while retaining a programmable runtime and
-extension SDK.
-
-- [ ] **Step 3: Document current Canvas behavior**
-
-Describe:
-
-- project-scoped Boards;
-- panning, zooming, and persisted viewport;
-- note, chat, automation, and job-result placements;
-- moving, resizing, collapsing, and maximizing placements;
-- Board note management;
-- Board-scoped chat and automation creation;
-- revision-aware conflict handling.
-
-State explicitly that “infinite Canvas” is the interaction model and does not
-promise unlimited scale or real-time multiplayer editing.
-
-- [ ] **Step 4: Add a feature-status table**
-
-Use four unambiguous states: `Implemented`, `In development`, `Planned`, and
-`Not provided`. At minimum cover Canvas placements, workflow editing and local
-runtime, KFX/extensions, English/Russian UI, multi-client PostgreSQL hardening,
-additional regional languages, and hosted production service.
-
-- [ ] **Step 5: Add quick start and examples**
-
-Publish the verified prerequisites:
-
-```text
-Python 3.10-3.14
-uv 0.4 or newer
-Node.js 20.19 or newer; Node.js 22.12 LTS recommended
-npm 10.9 or newer
-GNU Make
-```
-
-Publish the source commands exactly:
+Delete the screenshot Markdown, its italic caption, and the image asset. Confirm
+there are no remaining references:
 
 ```bash
-make init
-make run_cli
+rg -n "ketos-board-workspace|current local build of the Ketos Board" README.md
+test ! -e docs/assets/ketos-board-workspace.jpg
 ```
 
-State that the default local address is `http://127.0.0.1:7860` and link to
-`DEVELOPMENT.md`. Use Simple Agent, Vector Store RAG, mixed Board workspace,
-and KFX component execution as bounded examples.
+Expected: no matches outside historical Git diffs.
 
-- [ ] **Step 6: Add architecture and lifecycle summary**
+- [x] **Step 2: Add the MCP product section**
 
-Include a compact table for:
+Insert `## Programmatic control through MCP` immediately after
+`## The infinite Canvas`. Explain:
+
+- the stdio MCP server connects an MCP-compatible client to a running Ketos
+  REST API;
+- authentication uses `KETOS_API_KEY` or the `login` tool;
+- supported areas are flows, starters, components, connections, validation,
+  builds, execution, layout, batching, and UI-settled notification;
+- changes appear in the Ketos visual editor because MCP and the UI use the same
+  stored flow model;
+- the current scope does not provide universal control of every screen or all
+  Board placements.
+
+Link the full tool and setup reference to `src/kfx/KFX_MCP.md`.
+
+- [x] **Step 3: Thread MCP through the existing overview**
+
+Add bounded MCP entries to:
+
+- `Core capabilities`;
+- `Example workflows`;
+- `How Ketos fits together`;
+- `Development status`;
+- `Known limitations`;
+- `Documentation`.
+
+Avoid duplicating the detailed tool list outside the dedicated MCP section.
+
+- [x] **Step 4: Replace the license summary**
+
+Use a concise final section stating:
 
 ```text
-src/frontend
-src/backend/base/ketos
-src/kfx
-src/bundles
+Ketos is distributed under the MIT License. Portions derived from Langflow
+retain their original copyright and MIT license notices. Original
+Ketos-specific contributions authored by Daria Shemelina are Copyright (c)
+2026 Daria Shemelina and are also released under the MIT License.
+Contributions authored by other contributors remain copyrighted by their
+respective authors unless those rights have been separately assigned.
 ```
 
-Explain server-authoritative Board persistence, TanStack Query server cache,
-transient Zustand UI state, FastAPI APIs, React Flow rendering, KFX components,
-and stable persisted component class names.
+Retain links to `LICENSE` and `NOTICE` and the independent/unofficial
+affiliation disclaimer.
 
-- [ ] **Step 7: Add status, roadmap, and regional context**
+- [x] **Step 5: Review the README structure**
 
-Use active-alpha wording. State that no hosted production service is provided,
-APIs and UX may change, PostgreSQL multi-client hardening and broader browser
-and deployment validation remain, and external services can receive data when
-a workflow is configured to call them.
-
-List undated roadmap themes only. State that the initial product and community
-focus includes Kazakhstan, Russia, and other CIS countries; English and Russian
-are shipped, while other named regional languages are planned.
-
-- [ ] **Step 8: Link contribution, security, license, and attribution**
-
-Link to `CONTRIBUTING.md`, `SECURITY.md`, GitHub Issues, `LICENSE`, and
-`NOTICE`. Do not duplicate legal text.
-
-- [ ] **Step 9: Review the README packet independently**
-
-Supply the complete README text to a no-tools subagent. Require it to flag
-unsupported capabilities, ambiguous status language, missing requested
-sections, broken relative links visible from the text, and marketing
-overstatement. Apply valid corrections through the main agent.
-
-- [ ] **Step 10: Commit the product overview**
-
-```bash
-git add README.md docs/assets/ketos-board-workspace.png
-git commit -m "docs: refresh Ketos public project overview"
-```
-
-If no screenshot was created, omit the asset path from `git add`.
+Confirm the section order matches the approved design and that all relative
+links resolve from the repository root.
 
 ---
 
-### Task 3: Repair contributor and security guidance
+### Task 2: Correct the detailed KFX MCP guide
 
 **Files:**
-- Modify: `CONTRIBUTING.md`
-- Modify: `SECURITY.md`
-- Modify: `CODE_OF_CONDUCT.md`
+- Modify: `src/kfx/KFX_MCP.md`
 
 **Interfaces:**
-- Consumes: the canonical repository URL
-  `https://github.com/factor241/Ketos` and enabled GitHub private vulnerability
-  reporting.
-- Produces: working contributor and confidential-reporting routes linked by
+- Consumes: the `kfx-mcp` console entry point in `src/kfx/pyproject.toml` and
+  tool implementations under `src/kfx/src/kfx/mcp/`.
+- Produces: the authoritative source-based setup and tool reference linked by
   the README.
 
-- [ ] **Step 1: Update contribution instructions**
+- [x] **Step 1: Bound the opening claim**
 
-Replace the test repository URL with the GitHub repository. Keep the fork,
-branch, focused verification, and pull-request workflow. Explain that issues
-are used for bugs and feature proposals, and link `DEVELOPMENT.md` for setup.
+Replace “full programmatic control over a Ketos instance” with language that
+names flows, components, connections, builds, validation, and execution. State
+that the server does not expose every application screen or Board interaction.
 
-- [ ] **Step 2: Replace the test security policy**
+- [x] **Step 2: Replace the unsafe installation instructions**
 
-Describe the project as active alpha, not a test fork. Direct confidential
-reports to the repository's GitHub private vulnerability reporting interface.
-Ask reporters to include affected revision/version, reproduction steps,
-impact, and suggested mitigation when available. Do not promise a response
-SLA that has not been operationally established.
-
-- [ ] **Step 3: Repair Code of Conduct enforcement contact**
-
-Remove `support@ketos.test`. Instruct reporters to request a private maintainer
-contact through a minimal GitHub issue without sensitive details when no
-private contact channel is already available. Keep security vulnerabilities
-on the separate private vulnerability-reporting path.
-
-- [ ] **Step 4: Scan for invalid public contacts**
-
-Run:
+Document:
 
 ```bash
-rg -n "git\\.ketos\\.test|@ketos\\.test|test fork|test-only placeholder" \
-  CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md
+git clone https://github.com/factor241/Ketos.git
+cd Ketos
+make init
+uv run kfx-mcp
 ```
 
-Expected: no matches.
-
-- [ ] **Step 5: Commit community documentation**
-
-```bash
-git add CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md
-git commit -m "docs: repair public contribution and security guidance"
-```
-
----
-
-### Task 4: Align Board, documentation-site, and KFX pages
-
-**Files:**
-- Modify: `docs/docs/development/board-workspace.md`
-- Modify: `docs/docs/index.mdx`
-- Modify: `src/kfx/README.md`
-
-**Interfaces:**
-- Consumes: README terminology and current Board/KFX source contracts.
-- Produces: supporting documentation that no longer contradicts the public
-  project overview or routes users to test domains.
-
-- [ ] **Step 1: Replace the historical Board stage boundary**
-
-Rewrite `board-workspace.md` as the current Board workspace contract. Preserve
-the verified persistence, owner authorization, revision conflict, TanStack
-Query, Zustand, viewport-save, keyboard, and route facts. Add the current
-placement kinds and interaction model. Remove statements that Boards contain
-no placements or that later stages have not started.
-
-- [ ] **Step 2: Align the documentation landing page**
-
-Update `docs/docs/index.mdx` with the current active-alpha summary, unified
-Canvas, supported English/Russian interface, local quick start, and existing
-“Read next” links. Keep the page concise.
-
-- [ ] **Step 3: Replace KFX test-domain repository links**
-
-In `src/kfx/README.md`:
-
-- replace source links under `https://git.ketos.test/ketos/ketos` with
-  `https://github.com/factor241/Ketos`;
-- replace the raw Simple Agent URL with the corresponding GitHub raw URL;
-- replace clone instructions with
-  `git clone https://github.com/factor241/Ketos.git`;
-- replace `docs.ketos.test` links with accurate repository-relative
-  documentation links when a target exists, otherwise convert the text to an
-  unlinked local-documentation reference.
-
-Do not change KFX commands, wire contracts, or runtime behavior.
-
-- [ ] **Step 4: Scan public Board and KFX documentation**
-
-Run:
-
-```bash
-rg -n "git\\.ketos\\.test|docs\\.ketos\\.test|@ketos\\.test|Stage 03|Stage 04 has not started|Boards contain no placements" \
-  docs/docs/development src/kfx/README.md docs/docs/index.mdx
-```
-
-Expected: no stale product-boundary or test-domain matches in the changed
-public pages.
-
-- [ ] **Step 5: Review supporting-doc packet independently**
-
-Supply the complete changed text to a no-tools subagent and require a
-consistency review against the README terminology, alpha status, current
-languages, repository URL, and security route.
-
-- [ ] **Step 6: Commit aligned supporting documentation**
-
-```bash
-git add docs/docs/development/board-workspace.md docs/docs/index.mdx src/kfx/README.md
-git commit -m "docs: align Board and KFX public documentation"
-```
-
----
-
-### Task 5: Verify the complete documentation change
-
-**Files:**
-- Verify all files changed by Tasks 1-4.
-
-**Interfaces:**
-- Consumes: the complete documentation branch.
-- Produces: evidence that the branch is internally consistent and renderable.
-
-- [ ] **Step 1: Check the Git diff**
-
-Run:
-
-```bash
-git status --short
-git diff --check factor241/main...HEAD
-git diff --stat factor241/main...HEAD
-```
-
-Expected: no whitespace errors and only planned documentation/asset files.
-
-- [ ] **Step 2: Run placeholder and unsupported-claim scans**
-
-Run scoped scans for:
+Add the package-name warning that the public PyPI package named `kfx` is not
+Ketos KFX. Remove every recommendation to use:
 
 ```text
-git.ketos.test
-docs.ketos.test
-@ketos.test
-production-ready
-enterprise-ready
-real-time collaboration
-fully offline
-Kazakh/Kyrgyz/Tajik/Uzbek described as currently available
+uv pip install kfx
+pip install kfx
+uvx --from kfx
 ```
 
-Review every match rather than treating keyword presence alone as failure.
+- [x] **Step 3: Correct MCP client configuration**
 
-- [ ] **Step 3: Verify relative Markdown links**
+Use this source-checkout pattern:
 
-Resolve every relative link in the changed Markdown files from its containing
-directory. Confirm GitHub URLs with a non-mutating request or GitHub CLI.
+```json
+{
+  "command": "uv",
+  "args": [
+    "run",
+    "--project",
+    "/absolute/path/to/Ketos",
+    "kfx-mcp"
+  ]
+}
+```
 
-- [ ] **Step 4: Run documentation checks**
+Keep `KETOS_SERVER_URL` and `KETOS_API_KEY` in the client environment. Explain
+that the placeholder path must be replaced with the absolute local checkout.
 
-From `docs`:
+- [x] **Step 4: Correct the Claude Code example**
+
+Use:
 
 ```bash
-npm ci
+read -rs KETOS_API_KEY && export KETOS_API_KEY
+
+claude mcp add ketos \
+  -e KETOS_SERVER_URL=http://localhost:7860 \
+  -e KETOS_API_KEY="$KETOS_API_KEY" \
+  -- uv run --project /absolute/path/to/Ketos kfx-mcp
+```
+
+Also show the variant that omits `KETOS_API_KEY` and authenticates later through
+the MCP `login` tool. Correct the expected `claude mcp list` output and
+troubleshooting commands to the same source path.
+
+- [x] **Step 5: Verify the tool reference**
+
+Compare every documented tool name against the server registration and run:
+
+```bash
+uv run --project /absolute/path/to/Ketos \
+  python -c "import shutil; print(shutil.which('kfx-mcp'))"
+cd src/kfx
+uv sync --frozen
+uv run pytest -q tests/unit/mcp
+```
+
+Expected: the local console entry point resolves inside the worktree and the
+focused MCP tests pass.
+
+---
+
+### Task 3: Align MIT copyright and attribution
+
+**Files:**
+- Modify: `LICENSE`
+- Modify: `NOTICE`
+- Modify: `src/backend/base/{LICENSE,NOTICE}`
+- Modify: `src/sdk/{LICENSE,NOTICE}`
+- Modify: `src/kfx/{LICENSE,NOTICE}`
+- Modify: `src/bundles/{arxiv,docling,duckduckgo,ibm}/{LICENSE,NOTICE}`
+- Modify: `brand/ketos-zero-residue-contract.yaml`
+- Modify: `scripts/rebrand/check_brand.py`
+- Modify: `scripts/rebrand/tests/test_legal_provenance.py`
+
+**Interfaces:**
+- Consumes: the upstream MIT notice and the user-approved Ketos notice.
+- Produces: the authoritative root legal notices referenced by the README.
+
+- [x] **Step 1: Add the Ketos-specific copyright notice**
+
+Directly below the existing Langflow line in `LICENSE`, add:
+
+```text
+Portions Copyright (c) 2026 Daria Shemelina
+```
+
+Do not modify the MIT permission grant or disclaimer.
+
+- [x] **Step 2: Clarify NOTICE boundaries**
+
+State that:
+
+- Langflow-derived portions retain their original copyright and MIT notice;
+- original Ketos-specific modifications authored by Daria Shemelina carry the
+  approved 2026 notice and are released under MIT;
+- other contributors retain their own copyrights unless separately assigned;
+- Ketos is not affiliated with, endorsed by, or sponsored by Langflow.
+
+- [x] **Step 3: Cross-check the three public statements**
+
+Compare `README.md`, `LICENSE`, and `NOTICE` line by line. Confirm that none
+claims ownership of unchanged upstream code or third-party contributions.
+
+- [x] **Step 4: Propagate the notices into distributable packages**
+
+Apply the same MIT copyright notices and NOTICE boundaries to every Ketos MIT
+wheel/sdist source. Keep the separate Stepflow Apache legal files unchanged.
+
+- [x] **Step 5: Keep the brand scanner fail-closed**
+
+Update the frozen legal hashes. Permit approved README attribution only by
+normalized path, exact line number, exact line text, and SHA-256; do not treat
+the entire README as a legal file or permit general upstream branding.
+
+- [x] **Step 6: Verify packaged legal provenance**
+
+Build every Python wheel and sdist covered by the provenance contract and
+confirm that each artifact contains exactly one `LICENSE` and one `NOTICE` with
+the expected hashes and license metadata.
+
+---
+
+### Task 4: Verify and independently review the documentation
+
+**Files:**
+- Verify every file changed by Tasks 1-3 and the approved design/plan updates.
+- Modify: `docs/tests/docs-shell-contract.test.js`
+
+**Interfaces:**
+- Consumes: the complete branch diff.
+- Produces: reproducible evidence that the documentation is consistent,
+  buildable, and bounded by current source behavior.
+
+- [x] **Step 1: Run textual integrity checks**
+
+```bash
+git diff --check factor241/main...HEAD
+rg -n "ketos-board-workspace|current local build of the Ketos Board" README.md
+test ! -e docs/assets/ketos-board-workspace.jpg
+rg -n -- "-- uvx|uvx .*kfx-mcp|full programmatic control" \
+  README.md src/kfx/KFX_MCP.md
+```
+
+Expected: `git diff --check` exits `0`; forbidden public instructions and the
+removed screenshot have no active documentation matches.
+
+- [x] **Step 2: Run documentation gates**
+
+```bash
+cd docs
 npm run check:links
 npm run build
 ```
 
-Expected: all commands exit `0`. If the repository's locked dependency state
-or an unrelated existing documentation defect blocks a command, record the
-exact command, error, and scope before deciding whether the plan owns the fix.
+Expected: both commands exit `0`.
 
-- [ ] **Step 5: Confirm public repository settings**
+The documentation contract must permit `Langflow` only in the root README's
+`License and attribution` section. It must continue to reject upstream product
+branding from all preceding product sections.
 
-Use GitHub CLI to confirm:
-
-```text
-factor241/Ketos
-PUBLIC
-default branch main
-MIT license
-Issues enabled
-private vulnerability reporting enabled
-```
-
-- [ ] **Step 6: Review rendered README**
-
-Render or inspect the README at desktop width. Confirm heading hierarchy,
-tables, code blocks, screenshot sizing, alt text, link destinations, and
-readability.
-
-- [ ] **Step 7: Commit verification-only corrections**
-
-If verification requires text or link corrections, commit them as:
+- [x] **Step 3: Run focused MCP tests**
 
 ```bash
-git add README.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md \
-  docs/docs/development/board-workspace.md docs/docs/index.mdx \
-  src/kfx/README.md
-git commit -m "docs: correct public page verification findings"
+cd src/kfx
+uv sync --frozen
+uv run pytest -q tests/unit/mcp
 ```
 
-Stage only paths that actually changed, and do not create an empty commit when
-no correction is needed.
+Expected: all focused tests pass.
+
+- [x] **Step 4: Verify Markdown links**
+
+Resolve every relative link in the changed Markdown files from its containing
+directory. Confirm the public GitHub repository URL is reachable.
+
+- [x] **Step 5: Obtain no-tools subagent review**
+
+Provide a complete diff packet to fresh review subagents. Require verdicts on:
+
+- factual MCP scope;
+- README information hierarchy;
+- license/NOTICE consistency;
+- source-install safety;
+- unsupported product, legal, security, or production claims.
+
+Apply valid corrections through the main agent and rerun the affected checks.
+
+- [x] **Step 6: Run focused legal-distribution checks**
+
+Run the root legal tests, package wheel/sdist provenance test, exact README
+attribution test, and direct three-profile scan over every required legal file
+plus the README.
+
+- [x] **Step 7: Commit the documentation and legal-provenance updates**
+
+```bash
+git add README.md LICENSE NOTICE src/kfx/KFX_MCP.md \
+  docs/tests/docs-shell-contract.test.js \
+  docs/superpowers/specs/2026-07-28-ketos-public-project-page-design.md \
+  docs/superpowers/plans/2026-07-28-ketos-public-project-page.md
+git add -u docs/assets/ketos-board-workspace.jpg
+git commit -m "docs: clarify Ketos MCP control and attribution"
+
+git add NOTICE brand/ketos-zero-residue-contract.yaml \
+  docs/superpowers/plans/2026-07-28-ketos-public-project-page.md \
+  docs/superpowers/specs/2026-07-28-ketos-public-project-page-design.md \
+  scripts/rebrand/check_brand.py \
+  scripts/rebrand/tests/test_legal_provenance.py \
+  src/backend/base/LICENSE src/backend/base/NOTICE \
+  src/sdk/LICENSE src/sdk/NOTICE src/kfx/LICENSE src/kfx/NOTICE \
+  src/bundles/arxiv/LICENSE src/bundles/arxiv/NOTICE \
+  src/bundles/docling/LICENSE src/bundles/docling/NOTICE \
+  src/bundles/duckduckgo/LICENSE src/bundles/duckduckgo/NOTICE \
+  src/bundles/ibm/LICENSE src/bundles/ibm/NOTICE
+git commit -m "test: align legal provenance with Ketos attribution"
+```
 
 ---
 
-### Task 6: Publish and verify the public default branch
+### Task 5: Publish and inspect the public result
 
 **Files:**
-- Publish the complete `codex/public-readme` branch.
+- Publish the verified branch to `factor241/Ketos`.
 
 **Interfaces:**
-- Consumes: the verified branch from Task 5.
-- Produces: merged documentation on the public `factor241/Ketos` default
-  branch and a browser-verified public page.
+- Consumes: the verified commit from Task 4.
+- Produces: a merged public `main` and browser-verified project page.
 
-- [ ] **Step 1: Confirm branch and account**
+- [x] **Step 1: Confirm repository and account state**
 
-Confirm the branch is based on the current `factor241/main`, the working tree
-is clean, and GitHub CLI is authenticated for an account authorized to push to
-`factor241/Ketos`.
+Use GitHub CLI to confirm the target repository is `factor241/Ketos`, the
+default branch is `main`, and the `factor241` account is available. Do not
+remove the existing `ustyuzhaninkirillwhite-ui` login.
 
-- [ ] **Step 2: Push the branch**
+- [x] **Step 2: Push the feature branch**
 
-```bash
-git push -u factor241 codex/public-readme
-```
+Switch GitHub CLI to `factor241`, push
+`codex/public-readme-mcp-attribution`, and create a pull request targeting
+`main`.
 
-- [ ] **Step 3: Create the pull request**
+- [ ] **Step 3: Review and merge**
 
-Create a non-draft pull request with a concise summary, verification commands,
-and explicit statements that the change is documentation-only and makes no
-production-readiness claim.
+Inspect the PR checks and complete diff. Merge only after required checks pass.
+Do not force-push or bypass a failing required check.
 
-- [ ] **Step 4: Inspect checks and merge**
+- [ ] **Step 4: Restore the original CLI account**
 
-Review all required checks. Resolve documentation-owned failures. Do not merge
-through a failing required check caused by this change. Merge the pull request
-when repository policy permits and the documentation checks are acceptable.
+Switch GitHub CLI back to `ustyuzhaninkirillwhite-ui`.
 
-- [ ] **Step 5: Verify public `main`**
+- [ ] **Step 5: Verify public rendering**
 
-Confirm the merged commit is reachable from `factor241/main` and the default
-branch README contains the new project overview.
+Without relying on an authenticated repository view, inspect:
 
-- [ ] **Step 6: Verify without relying on private repository access**
+- the root README with no screenshot;
+- the dedicated MCP section;
+- `src/kfx/KFX_MCP.md`;
+- `LICENSE`;
+- `NOTICE`;
+- the final `main` commit and MIT license detection.
 
-Open `https://github.com/factor241/Ketos` in Chrome and inspect the public page.
-Confirm the owner, repository visibility, README rendering, image rendering
-when present, status table, quick-start blocks, links, and security guidance.
-
-- [ ] **Step 7: Restore local authentication preference**
-
-If GitHub CLI account selection was changed, restore the previously active
-account after publication without removing the `factor241` authorization.
+Expected: all pages are public, internally consistent, and rendered without
+broken Markdown.

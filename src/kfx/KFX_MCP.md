@@ -1,24 +1,48 @@
 # KFX MCP Server
 
-`kfx-mcp` is an MCP (Model Context Protocol) server that gives any MCP-compatible client full programmatic control over a Ketos instance to build and run flows.
+`kfx-mcp` is an MCP (Model Context Protocol) server that lets an
+MCP-compatible client create and manage flows, configure components and
+connections, validate and build graphs, and run workflows on a Ketos instance.
+It does not expose every application screen or every Board interaction.
 
-The server is implemented in `src/kfx/src/kfx/mcp/` using [FastMCP](https://github.com/jlowin/fastmcp).
-It connects to Ketos's REST API.
-Flow data is never cached server-side, so every mutating tool does a GET → modify → PATCH cycle.
-The component registry is cached on first access per session.
+The server is implemented in `src/kfx/src/kfx/mcp/` using
+[FastMCP](https://github.com/jlowin/fastmcp) and connects to the Ketos REST
+API. Flow data is not cached by the MCP server: each mutating tool reads the
+current flow, applies its change, and writes the updated flow back. Component
+type metadata is cached for the MCP session.
 
 ## Prerequisites
 
+- A local Ketos source checkout initialized with `make init`
 - A running Ketos instance
-- A Ketos API key
-- `kfx` installed (`uv pip install kfx`), **or** `uv` installed if you want to run via `uvx` without a permanent install
+- A Ketos API key, or username and password for the `login` tool
+- `uv`
+
+> **Package-name note:** the project currently published as `kfx` on PyPI is
+> unrelated to Ketos KFX. Do not use `pip install kfx`, `uv pip install kfx`,
+> or `uvx --from kfx` for this server.
+
+Prepare the local command from source:
+
+```bash
+git clone https://github.com/factor241/Ketos.git
+cd Ketos
+make init
+uv run kfx-mcp
+```
+
+The last command starts the stdio server and waits for an MCP client. It does
+not open an HTTP port.
 
 ## Connect a client
 
-`kfx-mcp` runs over **stdio**: your MCP client spawns it as a subprocess and communicates over stdin and stdout. There is no HTTP port to connect to.
+`kfx-mcp` runs over **stdio**: the MCP client spawns it as a subprocess and
+communicates over stdin and stdout. The subprocess then calls the configured
+Ketos HTTP API.
 
-Any client that supports stdio MCP servers can connect to the `kfx-mcp` server.
-Set the command to `kfx-mcp` (or `uvx --from kfx kfx-mcp`) and pass the following environment variables:
+Any client that supports stdio MCP servers can start `kfx-mcp` from an
+initialized source checkout. Replace `/absolute/path/to/Ketos` with the
+absolute path to that checkout and pass these environment variables:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -31,24 +55,13 @@ For example, to connect to Claude Desktop, add the following to the Claude Deskt
 {
   "mcpServers": {
     "ketos": {
-      "command": "kfx-mcp",
-      "env": {
-        "KETOS_SERVER_URL": "http://localhost:7860",
-        "KETOS_API_KEY": "<your-api-key>"
-      }
-    }
-  }
-}
-```
-
-If `kfx` is not installed globally, use it through `uvx` instead.
-
-```json
-{
-  "mcpServers": {
-    "ketos": {
-      "command": "uvx",
-      "args": ["--from", "kfx", "kfx-mcp"],
+      "command": "uv",
+      "args": [
+        "run",
+        "--project",
+        "/absolute/path/to/Ketos",
+        "kfx-mcp"
+      ],
       "env": {
         "KETOS_SERVER_URL": "http://localhost:7860",
         "KETOS_API_KEY": "<your-api-key>"
@@ -126,7 +139,7 @@ The server exposes the following tool groups to the connected MCP client.
 | Tool | Description |
 |------|-------------|
 | `layout_flow` | Re-layout a flow's components using the Sugiyama algorithm |
-| `notify_done` | Signal that you are done modifying a flow so the UI updates immediately. Optional `summary` string is forwarded in the `flow_settled` event payload visible in the UI (e.g. `"Built a RAG pipeline with OpenAI and Pinecone"`). |
+| `notify_done` | Emit a `flow_settled` UI event after modifying a flow. An optional `summary` string is forwarded in the event payload (for example, `"Built a RAG pipeline with OpenAI and Pinecone"`). |
 | `batch` | Execute multiple actions in sequence; use `$N.field` to reference results from previous steps. Cannot nest `batch` inside another `batch` (excluded from its own tool map). |
 
 ## How to use the server
@@ -166,19 +179,31 @@ This example shows how to connect Claude Code to a running Ketos instance using 
 - A Ketos server running at `http://localhost:7860`
 - A Ketos API key. Create one in the Ketos UI under **Settings → Ketos API → Create new API key**.
 - An OpenAI API key. This example uses Ketos's Agent component with OpenAI. Add your OpenAI API key as a Global Variable in Ketos under **Settings → Global Variables** so all flows can use it automatically, or pass it explicitly when prompted. If you prefer a different provider, adjust the prompt accordingly.
-- `uv` installed. The `uvx` command used to run `kfx-mcp` requires `uv`. For more information, see the [uv docs](https://docs.astral.sh/uv/getting-started/installation/).
+- An initialized Ketos source checkout at an absolute local path.
+- `uv` installed. For more information, see the [uv docs](https://docs.astral.sh/uv/getting-started/installation/).
 - Claude Code installed. For more information, see the [Claude Code docs](https://docs.anthropic.com/en/docs/claude-code).
 
 1. Add `kfx-mcp` to Claude Code.
 
-Run the following command in your terminal.
-Replacing the placeholder values with your actual keys:
+Run the following commands in your terminal. Replace the checkout path, and
+read the API key into the current shell without echoing it or placing it in
+shell history:
+
+```bash
+read -rs KETOS_API_KEY && export KETOS_API_KEY
+
+claude mcp add ketos \
+  -e KETOS_SERVER_URL=http://localhost:7860 \
+  -e KETOS_API_KEY="$KETOS_API_KEY" \
+  -- uv run --project /absolute/path/to/Ketos kfx-mcp
+```
+
+To authenticate later through the MCP `login` tool instead, omit the API key:
 
 ```bash
 claude mcp add ketos \
   -e KETOS_SERVER_URL=http://localhost:7860 \
-  -e KETOS_API_KEY=<YOUR_KETOS_API_KEY> \
-  -- uvx --from kfx kfx-mcp
+  -- uv run --project /absolute/path/to/Ketos kfx-mcp
 ```
 
 2. Verify `kfx-mcp` was added to Claude Code:
@@ -190,7 +215,7 @@ claude mcp list
 The output should include:
 
 ```
-ketos: uvx --from kfx kfx-mcp
+ketos: uv run --project /absolute/path/to/Ketos kfx-mcp
 ```
 
 This confirms that Claude Code knows to spawn an `kfx-mcp` process when it needs to talk to Ketos.
@@ -215,27 +240,36 @@ Given this instruction, Claude Code will typically do the following:
     3. Validate that every component is correctly connected using `validate_flow`.
     4. Run the flow using `run_flow` and return the response.
 
-The flow appears in your Ketos UI at `http://localhost:7860` because `kfx-mcp` creates it through the Ketos API. The answer is printed in your terminal:
-
-```
-Ketos is a visual workflow builder for AI-powered agents. It lets you
-connect LLMs, tools, and data sources in a drag-and-drop UI, then expose
-the result as an API endpoint or run it from the command line.
-```
+`kfx-mcp` stores the flow through the Ketos API, so the same flow is available
+in the visual editor after the interface refreshes. The model response is
+returned to the MCP client; its exact text depends on the selected provider,
+model, component configuration, and prompt.
 
 ### Troubleshooting
 
-* `kfx-mcp` not found when adding the server
-Use `uvx --from kfx kfx-mcp`, not `uvx kfx-mcp`. The `kfx-mcp` binary ships inside the `kfx` package, and there is no standalone `kfx-mcp` package on PyPI.
+* `kfx-mcp` is not found when the client starts the server
+
+Confirm that the path supplied to `--project` is the initialized Ketos
+checkout, then run this from any directory:
+
+```bash
+uv run --project /absolute/path/to/Ketos \
+  python -c "import shutil; print(shutil.which('kfx-mcp'))"
+```
+
+The command must print a path inside the Ketos virtual environment. If it
+prints `None`, return to the checkout and run `make init`.
 
 * 403 Forbidden when Claude Code tries to use tools
 The API key is invalid or expired. Create a new API key in Ketos under **Settings → Ketos API**, and then remove and re-add the MCP server:
 ```bash
+read -rs KETOS_API_KEY && export KETOS_API_KEY
+
 claude mcp remove ketos
 claude mcp add ketos \
   -e KETOS_SERVER_URL=http://localhost:7860 \
-  -e KETOS_API_KEY=<YOUR_KETOS_API_KEY> \
-  -- uvx --from kfx kfx-mcp
+  -e KETOS_API_KEY="$KETOS_API_KEY" \
+  -- uv run --project /absolute/path/to/Ketos kfx-mcp
 ```
 
 * Flow validation fails with an LLM provider error

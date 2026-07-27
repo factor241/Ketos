@@ -14,11 +14,6 @@ it is not offered as a hosted production service.
 [Documentation](#documentation) · [Contributing](./CONTRIBUTING.md) ·
 [Security](./SECURITY.md)
 
-![Ketos Board with a Simple Agent automation and a working note](./docs/assets/ketos-board-workspace.jpg)
-
-_A current local build of the Ketos Board workspace. The Canvas keeps an
-automation and its supporting note in one visual context._
-
 ## What Ketos is
 
 Ketos is an environment for developers, automation builders, and technical
@@ -71,6 +66,33 @@ stale Board update from silently overwriting a newer server version.
 “Infinite Canvas” describes the spatial interaction model. It is not a claim of
 unlimited scale, offline-only operation, or real-time multiplayer editing.
 
+## Programmatic control through MCP
+
+Ketos includes an implemented [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
+server for controlling workflows from an MCP-compatible client. `kfx-mcp`
+runs over stdio and connects the client to a running Ketos instance through the
+same REST API used by the application. It can authenticate with
+`KETOS_API_KEY` or through its `login` tool.
+
+The current MCP tools can:
+
+- create, inspect, rename, duplicate, export, and delete flows;
+- create a complete flow from a compact specification or use a starter project;
+- discover, add, configure, freeze, and remove components;
+- connect and disconnect components;
+- build, validate, and run flows, then retrieve build results or component
+  output;
+- apply graph layout, execute dependent operations as a batch, and emit a
+  `flow_settled` UI event when a modification sequence is complete.
+
+This makes it possible to build or revise a workflow from any MCP-compatible
+client while retaining the visual editor for inspection and further editing.
+MCP currently targets flows, components, connections, and execution. It does
+not provide universal control over every Ketos screen or every Board placement.
+
+See the [KFX MCP guide](./src/kfx/KFX_MCP.md) for the complete tool reference,
+source-based setup, authentication, and client configuration.
+
 ## Core capabilities
 
 - **Board-first workflow organization.** Create a clean Board or start with a
@@ -86,7 +108,7 @@ unlimited scale, offline-only operation, or real-time multiplayer editing.
 - **Extension bundles.** Validate and load separately packaged integrations
   through the versioned Bundle API.
 - **Developer interfaces.** Use the FastAPI application, CLI commands, KFX
-  executor, and MCP-related tooling included in the repository.
+  executor, and MCP-based flow construction, validation, and execution.
 - **Bilingual interface.** Use the currently shipped English or Russian
   interface catalog.
 
@@ -115,6 +137,14 @@ automation, and keep its result in the same spatial context.
 Create a KFX component or extension bundle, validate its manifest, and make the
 component available to the workflow palette without coupling its implementation
 to the main application package.
+
+### Build and run a flow from an MCP client
+
+Connect an MCP-compatible client to a running Ketos instance through
+`kfx-mcp`. Discover component types, create or update a flow, validate its
+graph, run it, and continue inspecting the same stored flow in the visual
+editor. The Ketos server and any provider credentials required by the selected
+components must already be configured.
 
 ## Quick start
 
@@ -148,7 +178,7 @@ may require additional credentials and dependencies.
 | --- | --- | --- |
 | Frontend | `src/frontend` | React and TypeScript interface, React Flow Canvas, localization, server-state cache, and transient UI state. |
 | Backend | `src/backend/base/ketos` | FastAPI routes, authentication boundaries, persistence, workflow services, Board revisions, and runtime orchestration. |
-| KFX | `src/kfx` | Component SDK, lightweight executor, CLI, extension loading, and MCP entry point. |
+| KFX and MCP | `src/kfx` | Component SDK, lightweight executor, CLI, extension loading, and stdio MCP server for controlling flows through the Ketos API. |
 | Official bundles | `src/bundles` | Separately packaged extension distributions maintained with the repository. |
 
 The backend is authoritative for Board data. The frontend uses TanStack Query
@@ -180,6 +210,7 @@ hosted production rollout, and no independent security audit is claimed.
 | Workflow editor and local runtime | **Implemented** | Available in the current alpha; APIs and user experience are actively evolving. |
 | Board starters | **Implemented** | Clean Board, Simple Agent, Vector Store RAG, and gallery selection. |
 | KFX SDK and Bundle API | **Implemented** | Component authoring, lightweight execution, and extension contracts are available. |
+| MCP workflow control | **Implemented** | Stdio tools cover flow, component, connection, build, validation, and execution operations against a running Ketos instance. |
 | English and Russian interface | **Implemented** | Both interface catalogs ship in the frontend. |
 | Multi-client PostgreSQL hardening | **In development** | Additional live-concurrency validation and hardening remain. |
 | Browser and deployment validation | **In development** | The current baseline is tested locally; broader environments remain to be validated. |
@@ -198,6 +229,9 @@ hosted production rollout, and no independent security audit is claimed.
 - English and Russian are the only shipped user-interface languages.
 - Local-first does not mean that every workflow is offline: configured model,
   data, storage, or tool components may send data to external services.
+- MCP requires a running Ketos server and valid authentication. Its current
+  tools manage workflows and execution rather than every application screen or
+  every Board interaction.
 - Large-Board performance, broader browser coverage, deployment operations, and
   environment-specific security remain areas for further validation.
 
@@ -240,6 +274,7 @@ in every country.
 - [Design contract](./DESIGN.md)
 - [Bundle API v1](./BUNDLE_API.md)
 - [KFX executor and CLI](./src/kfx/README.md)
+- [KFX MCP server and tool reference](./src/kfx/KFX_MCP.md)
 - [Board workspace contract](./docs/docs/development/board-workspace.md)
 - [Documentation source](./docs/README.md)
 
@@ -258,8 +293,14 @@ Community participation is governed by the
 
 ## License and attribution
 
-Ketos is distributed under the [MIT License](./LICENSE). It is an independent,
-unofficial derivative of an MIT-licensed upstream project and is not affiliated
-with or endorsed by that project's maintainers. See [NOTICE](./NOTICE) for the
-authoritative upstream attribution and the scope of Ketos-specific
-modifications.
+Ketos is distributed under the [MIT License](./LICENSE). Portions derived from
+Langflow retain their original copyright and MIT license notices. Original
+Ketos-specific contributions authored by Daria Shemelina are Copyright (c) 2026
+Daria Shemelina and are also released under the MIT License. Contributions
+authored by other contributors remain copyrighted by their respective authors
+unless those rights have been separately assigned.
+
+Ketos is an independent, unofficial derivative of Langflow and is not
+affiliated with or endorsed by Langflow or its copyright holders. See
+[LICENSE](./LICENSE) and [NOTICE](./NOTICE) for the applicable notices and
+attribution.

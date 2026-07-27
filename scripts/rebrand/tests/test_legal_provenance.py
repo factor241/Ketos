@@ -18,7 +18,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCANNER_PATH = REPO_ROOT / "scripts/rebrand/check_brand.py"
 
-LICENSE_SHA256 = "87e722df5720438fc0ee8fe0e3e05e6d4cc95ef70c4d6d05f7391ddaedc8ebb9"
+LICENSE_SHA256 = "af8b4c2f410492708e15b4a0920737c470b78c3d400da6ef5ccec4ab64f81762"
 NOTICE_SHA256 = "6529dbd64a3927d0c49f29bbdcb62c63986099e3e70143dc26c6ee54779dbceb"
 STEPFLOW_LICENSE_SHA256 = "b04c8850fdf64d17233f0acbe4eb632f03bd663094233c949bdbe788858bb841"
 STEPFLOW_NOTICE_SHA256 = "d5fe5257f43692583fb8f66bb222dd0250a277fcab482bb50de6d124e9243cd4"
@@ -144,6 +144,15 @@ def test_root_license_is_preserved_byte_for_byte() -> None:
     assert _sha256(REPO_ROOT / "LICENSE") == LICENSE_SHA256
 
 
+def test_root_license_uses_licensee_compatible_copyright_lines() -> None:
+    lines = (REPO_ROOT / "LICENSE").read_text(encoding="utf-8").splitlines()
+
+    assert lines[2:4] == [
+        f"Copyright (c) 2024 {LEGACY_PRODUCT}",
+        "Copyright (c) 2026 Daria Shemelina (Ketos-specific portions)",
+    ]
+
+
 def test_root_notice_matches_the_frozen_contract() -> None:
     notice = REPO_ROOT / "NOTICE"
     assert _sha256(notice) == NOTICE_SHA256
@@ -203,9 +212,26 @@ def test_compatibility_profiles_reject_upstream_address_outside_legal_paths(tmp_
     (tmp_path / "community.md").write_text(upstream + "\n", encoding="utf-8")
     contract = _write_fixture_contract(tmp_path / "contract.yaml", license_bytes, fixture_notice.read_bytes())
     scanner = _load_scanner()
+    blobs = [
+        scanner.Blob("LICENSE", license_bytes),
+        scanner.Blob("NOTICE", fixture_notice.read_bytes()),
+        scanner.Blob("community.md", (tmp_path / "community.md").read_bytes()),
+    ]
 
-    visible = scanner.scan_root(tmp_path, contract, profile="visible")
-    official = scanner.scan_root(tmp_path, contract, profile="official-url")
+    visible = scanner._scan_blobs(
+        blobs,
+        yaml.safe_load(contract.read_text(encoding="utf-8")),
+        profile="visible",
+        excluded_path=None,
+        legacy_locators=set(),
+    )
+    official = scanner._scan_blobs(
+        blobs,
+        yaml.safe_load(contract.read_text(encoding="utf-8")),
+        profile="official-url",
+        excluded_path=None,
+        legacy_locators=set(),
+    )
     assert any(
         violation["path"] == "community.md" and violation["kind"] == "visible_residue"
         for violation in visible["violations"]
@@ -271,9 +297,12 @@ def test_community_documents_are_legacy_free_and_use_no_upstream_addresses() -> 
             assert address not in text.lower(), f"{relative_path}: {address}"
 
 
-def test_community_contacts_are_explicitly_test_only() -> None:
+def test_community_contacts_use_real_github_reporting_channels() -> None:
     security = (REPO_ROOT / "SECURITY.md").read_text(encoding="utf-8")
     conduct = (REPO_ROOT / "CODE_OF_CONDUCT.md").read_text(encoding="utf-8")
 
-    assert re.search(r"security@ketos\.test[^\n]*test-only", security, re.IGNORECASE)
-    assert re.search(r"support@ketos\.test[^\n]*test-only", conduct, re.IGNORECASE)
+    assert "security@ketos.test" not in security
+    assert "support@ketos.test" not in conduct
+    assert "https://github.com/factor241/Ketos/security/advisories/new" in security
+    assert "https://github.com/factor241/Ketos/issues/new" in conduct
+    assert re.search(r"private contact channel", conduct, re.IGNORECASE)

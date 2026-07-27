@@ -35,8 +35,11 @@ Docusaurus, Git, GitHub CLI, Chrome.
   unrelated `kfx` package currently published on PyPI.
 - Preserve the complete MIT permission grant and disclaimer.
 - Preserve `Copyright (c) 2024 Langflow`.
-- Add the user-approved line exactly:
-  `Portions Copyright (c) 2026 Daria Shemelina`.
+- Record Daria Shemelina's Ketos-specific copyright in `LICENSE` using the
+  canonical, GitHub-detectable line
+  `Copyright (c) 2026 Daria Shemelina (Ketos-specific portions)`.
+- Preserve the exact user-approved notice
+  `Portions Copyright (c) 2026 Daria Shemelina` in `README.md` and `NOTICE`.
 - Do not imply ownership of unchanged Langflow code or of contributions
   authored by other people.
 - Preserve application code, generated artifacts, lock files, deployment
@@ -229,18 +232,21 @@ focused MCP tests pass.
 - Modify: `scripts/rebrand/tests/test_legal_provenance.py`
 
 **Interfaces:**
-- Consumes: the upstream MIT notice and the user-approved Ketos notice.
+- Consumes: the upstream MIT notice and the user-approved Ketos attribution.
 - Produces: the authoritative root legal notices referenced by the README.
 
 - [x] **Step 1: Add the Ketos-specific copyright notice**
 
-Directly below the existing Langflow line in `LICENSE`, add:
+Directly below the existing Langflow line in `LICENSE`, add the canonical
+copyright form that GitHub Licensee can normalize:
 
 ```text
-Portions Copyright (c) 2026 Daria Shemelina
+Copyright (c) 2026 Daria Shemelina (Ketos-specific portions)
 ```
 
-Do not modify the MIT permission grant or disclaimer.
+Keep the exact user-approved `Portions Copyright (c) 2026 Daria Shemelina`
+notice in `README.md` and `NOTICE`. Do not modify the MIT permission grant or
+disclaimer.
 
 - [x] **Step 2: Clarify NOTICE boundaries**
 
@@ -394,10 +400,15 @@ Switch GitHub CLI to `factor241`, push
 `codex/public-readme-mcp-attribution`, and create a pull request targeting
 `main`.
 
-- [ ] **Step 3: Review and merge**
+- [x] **Step 3: Review and merge**
 
 Inspect the PR checks and complete diff. Merge only after required checks pass.
 Do not force-push or bypass a failing required check.
+
+PR #7 was reviewed and merged into public `main` as
+`14465c957c5bc712e85a0068b8f655b1f87f8126`. A narrow follow-up corrects
+GitHub's automatic MIT detection without changing the permission grant or the
+attribution boundaries.
 
 - [ ] **Step 4: Restore the original CLI account**
 

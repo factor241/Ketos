@@ -113,15 +113,16 @@ upstream notice:
 Copyright (c) 2024 Langflow
 ```
 
-It also records the user-approved notice for original Ketos-specific
-modifications:
+For GitHub/Licensee compatibility, the root `LICENSE` records the
+Ketos-specific copyright as a canonical copyright line:
 
 ```text
-Portions Copyright (c) 2026 Daria Shemelina
+Copyright (c) 2026 Daria Shemelina (Ketos-specific portions)
 ```
 
-The MIT grant and disclaimer remain unchanged. `README.md` and `NOTICE` must
-make the same boundaries clear:
+The exact user-approved notice `Portions Copyright (c) 2026 Daria Shemelina`
+remains in `README.md` and `NOTICE`. The MIT grant and disclaimer remain
+unchanged. `README.md` and `NOTICE` must make the same boundaries clear:
 
 - Langflow-derived portions retain their original copyright and MIT notice;
 - original Ketos-specific contributions authored by Daria Shemelina are

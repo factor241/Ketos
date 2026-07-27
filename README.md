@@ -296,7 +296,8 @@ Community participation is governed by the
 Ketos is distributed under the [MIT License](./LICENSE). Portions derived from
 Langflow retain their original copyright and MIT license notices. Original
 Ketos-specific contributions authored by Daria Shemelina are Copyright (c) 2026
-Daria Shemelina and are also released under the MIT License. Contributions
+Daria Shemelina and are also released under the MIT License; the corresponding
+Ketos notice is `Portions Copyright (c) 2026 Daria Shemelina`. Contributions
 authored by other contributors remain copyrighted by their respective authors
 unless those rights have been separately assigned.
 

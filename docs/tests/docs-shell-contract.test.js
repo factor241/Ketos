@@ -131,7 +131,7 @@ test("the custom network-backed SearchBar is absent", () => {
   assert.equal(fs.existsSync(path.join(docsRoot, "src/theme/SearchBar")), false);
 });
 
-test("Stage 7 current documentation has no removed product contract", () => {
+test("Stage 7 current documentation has no removed product contract outside legal attribution", () => {
   const forbidden = new RegExp(
     `${upstreamProduct}|\\b${upstreamExecutor}\\b|${upstreamEnvPrefix}_|${upstreamExecutor.toUpperCase()}_|${upstreamProduct}-ai|docs\\.${upstreamProduct}|api\\.${upstreamProduct}|github\\.com/${upstreamProduct}-ai|fetch_openapi_spec|access_token_lf`,
     "i",
@@ -142,12 +142,23 @@ test("Stage 7 current documentation has no removed product contract", () => {
   });
   assert.ok(files.length > 0, "Stage 7 scanner must inspect owned files");
   for (const filePath of files) {
+    const source = fs.readFileSync(filePath, "utf8");
+    const content =
+      filePath === path.join(repoRoot, "README.md")
+        ? source.split(/^## License and attribution$/m)[0]
+        : source;
     assert.doesNotMatch(
-      `${path.relative(repoRoot, filePath)}\n${fs.readFileSync(filePath, "utf8")}`,
+      `${path.relative(repoRoot, filePath)}\n${content}`,
       forbidden,
       `${path.relative(repoRoot, filePath)} contains a removed product contract`,
     );
   }
+  const readmeLicense = fs
+    .readFileSync(path.join(repoRoot, "README.md"), "utf8")
+    .split(/^## License and attribution$/m)[1];
+  assert.ok(readmeLicense, "README must keep a License and attribution section");
+  assert.match(readmeLicense, /Copyright \(c\) 2026\s+Daria Shemelina/);
+  assert.match(readmeLicense, /Langflow[\s\S]*MIT License|MIT License[\s\S]*Langflow/);
   assert.equal(fs.existsSync(path.join(docsRoot, "openapi", "fetch_openapi_spec.py")), false);
 });
 

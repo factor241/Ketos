@@ -13,37 +13,37 @@ baseline:
   scan_issue_count: 3
 legal_files:
   - path: LICENSE
-    sha256: 87e722df5720438fc0ee8fe0e3e05e6d4cc95ef70c4d6d05f7391ddaedc8ebb9
+    sha256: af8b4c2f410492708e15b4a0920737c470b78c3d400da6ef5ccec4ab64f81762
   - path: NOTICE
     sha256: 6529dbd64a3927d0c49f29bbdcb62c63986099e3e70143dc26c6ee54779dbceb
   - path: src/ketos-stepflow/NOTICE
     sha256: d5fe5257f43692583fb8f66bb222dd0250a277fcab482bb50de6d124e9243cd4
   - path: src/backend/base/LICENSE
-    sha256: 87e722df5720438fc0ee8fe0e3e05e6d4cc95ef70c4d6d05f7391ddaedc8ebb9
+    sha256: af8b4c2f410492708e15b4a0920737c470b78c3d400da6ef5ccec4ab64f81762
   - path: src/backend/base/NOTICE
     sha256: 6529dbd64a3927d0c49f29bbdcb62c63986099e3e70143dc26c6ee54779dbceb
   - path: src/sdk/LICENSE
-    sha256: 87e722df5720438fc0ee8fe0e3e05e6d4cc95ef70c4d6d05f7391ddaedc8ebb9
+    sha256: af8b4c2f410492708e15b4a0920737c470b78c3d400da6ef5ccec4ab64f81762
   - path: src/sdk/NOTICE
     sha256: 6529dbd64a3927d0c49f29bbdcb62c63986099e3e70143dc26c6ee54779dbceb
   - path: src/kfx/LICENSE
-    sha256: 87e722df5720438fc0ee8fe0e3e05e6d4cc95ef70c4d6d05f7391ddaedc8ebb9
+    sha256: af8b4c2f410492708e15b4a0920737c470b78c3d400da6ef5ccec4ab64f81762
   - path: src/kfx/NOTICE
     sha256: 6529dbd64a3927d0c49f29bbdcb62c63986099e3e70143dc26c6ee54779dbceb
   - path: src/bundles/arxiv/LICENSE
-    sha256: 87e722df5720438fc0ee8fe0e3e05e6d4cc95ef70c4d6d05f7391ddaedc8ebb9
+    sha256: af8b4c2f410492708e15b4a0920737c470b78c3d400da6ef5ccec4ab64f81762
   - path: src/bundles/arxiv/NOTICE
     sha256: 6529dbd64a3927d0c49f29bbdcb62c63986099e3e70143dc26c6ee54779dbceb
   - path: src/bundles/docling/LICENSE
-    sha256: 87e722df5720438fc0ee8fe0e3e05e6d4cc95ef70c4d6d05f7391ddaedc8ebb9
+    sha256: af8b4c2f410492708e15b4a0920737c470b78c3d400da6ef5ccec4ab64f81762
   - path: src/bundles/docling/NOTICE
     sha256: 6529dbd64a3927d0c49f29bbdcb62c63986099e3e70143dc26c6ee54779dbceb
   - path: src/bundles/duckduckgo/LICENSE
-    sha256: 87e722df5720438fc0ee8fe0e3e05e6d4cc95ef70c4d6d05f7391ddaedc8ebb9
+    sha256: af8b4c2f410492708e15b4a0920737c470b78c3d400da6ef5ccec4ab64f81762
   - path: src/bundles/duckduckgo/NOTICE
     sha256: 6529dbd64a3927d0c49f29bbdcb62c63986099e3e70143dc26c6ee54779dbceb
   - path: src/bundles/ibm/LICENSE
-    sha256: 87e722df5720438fc0ee8fe0e3e05e6d4cc95ef70c4d6d05f7391ddaedc8ebb9
+    sha256: af8b4c2f410492708e15b4a0920737c470b78c3d400da6ef5ccec4ab64f81762
   - path: src/bundles/ibm/NOTICE
     sha256: 6529dbd64a3927d0c49f29bbdcb62c63986099e3e70143dc26c6ee54779dbceb
 legal_allowlist:
@@ -68,11 +68,11 @@ legal_allowlist:
     expected_text: Langflow retain their original copyright and MIT license notices. Original
     sha256: b378734a1607739b5bddb4cd81f6ab4e231f8615a00c62671b9d0077b8de696a
   - path: README.md
-    line: 303
+    line: 304
     expected_text: Ketos is an independent, unofficial derivative of Langflow and is not
     sha256: 8e4ee67773e6a36b7894d421e2bac36bae05041ff56401988a66fdb76c069c61
   - path: README.md
-    line: 304
+    line: 305
     expected_text: affiliated with or endorsed by Langflow or its copyright holders. See
     sha256: adb0b65a333ba303046e4eb9052856cef761faa75f0142f4f26cb376e7bdcde1
   - path: src/ketos-stepflow/NOTICE

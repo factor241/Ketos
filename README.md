@@ -259,7 +259,7 @@ Community participation is governed by the
 ## License and attribution
 
 Ketos is distributed under the [MIT License](./LICENSE). It is an independent,
-unofficial derivative of [Langflow](https://github.com/langflow-ai/langflow)
-and is not affiliated with or endorsed by the Langflow project. See
-[NOTICE](./NOTICE) for the authoritative attribution and scope of
-Ketos-specific modifications.
+unofficial derivative of an MIT-licensed upstream project and is not affiliated
+with or endorsed by that project's maintainers. See [NOTICE](./NOTICE) for the
+authoritative upstream attribution and the scope of Ketos-specific
+modifications.

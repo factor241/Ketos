@@ -137,8 +137,8 @@ validation, and deployment-specific verification remain development work.
 
 ## Related references
 
-- [Ketos project overview](../../../README.md)
-- [Development guide](../../../DEVELOPMENT.md)
+- [Ketos project overview](https://github.com/factor241/Ketos#readme)
+- [Development guide](https://github.com/factor241/Ketos/blob/main/DEVELOPMENT.md)
 - [React Flow component API](https://reactflow.dev/api-reference/react-flow)
 - [FastAPI bigger applications](https://fastapi.tiangolo.com/tutorial/bigger-applications/)
 - [Alembic operations](https://alembic.sqlalchemy.org/en/latest/ops.html)

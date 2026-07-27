@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import React from "react";
 import DropdownControlButton from "../DropdownControlButton";
 
 // Mock dependencies
@@ -13,9 +14,25 @@ jest.mock("@/components/common/genericIconComponent", () => ({
 }));
 
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, ...props }: React.ComponentProps<"button">) => (
-    <button {...props}>{children}</button>
-  ),
+  Button: ({
+    children,
+    asChild,
+    shouldScale: _shouldScale,
+    variant: _variant,
+    ...props
+  }: React.ComponentProps<"button"> & {
+    asChild?: boolean;
+    shouldScale?: boolean;
+    variant?: string;
+  }) =>
+    asChild && React.isValidElement(children) ? (
+      React.cloneElement(
+        children as React.ReactElement<Record<string, unknown>>,
+        props,
+      )
+    ) : (
+      <button {...props}>{children}</button>
+    ),
 }));
 
 jest.mock("@/utils/utils", () => ({
@@ -35,12 +52,12 @@ jest.mock(
       handleOnNewValue: () => void;
       id: string;
     }) => (
-      <div
+      <button
+        type="button"
         data-testid={`toggle-${id}`}
         data-value={value}
         onClick={handleOnNewValue}
         role="switch"
-        tabIndex={0}
         aria-checked={value}
         aria-label={`Toggle ${id}`}
         onKeyDown={(e) => {
@@ -115,7 +132,7 @@ describe("DropdownControlButton", () => {
   });
 
   it("renders toggle component when hasToogle is true", () => {
-    render(
+    const { container } = render(
       <DropdownControlButton
         {...defaultProps}
         hasToogle={true}
@@ -128,6 +145,7 @@ describe("DropdownControlButton", () => {
       "data-value",
       "true",
     );
+    expect(container.querySelector("button button")).not.toBeInTheDocument();
   });
 
   it("passes toggle value correctly to toggle component", () => {

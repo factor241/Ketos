@@ -16,9 +16,10 @@ export const awaitBootstrapTest = async (
     await page.goto("/");
   }
 
-  await page.waitForSelector('[data-testid="mainpage_title"]', {
-    timeout: 30000,
-  });
+  await page
+    .locator('[data-testid="mainpage_title"], [data-testid="project-sidebar"]')
+    .first()
+    .waitFor({ state: "visible", timeout: 30000 });
 
   const countEmptyButton = await page
     .getByTestId("new_project_btn_empty_page")
@@ -30,37 +31,10 @@ export const awaitBootstrapTest = async (
   await waitForNewProjectButton(page);
 
   if (!options?.skipModal) {
-    let modalCount = 0;
-    try {
-      const modalTitleElement = await page?.getByTestId("modal-title");
-      if (modalTitleElement) {
-        modalCount = await modalTitleElement.count();
-      }
-    } catch (_error) {
-      modalCount = 0;
+    const modalTitle = page.getByTestId("modal-title");
+    if (!(await modalTitle.isVisible())) {
+      await openTemplatesModal(page);
     }
-
-    let attempts = 0;
-    const maxAttempts = 5;
-
-    while (modalCount === 0 && attempts < maxAttempts) {
-      attempts++;
-      try {
-        await openTemplatesModal(page);
-        modalCount = await page.getByTestId("modal-title")?.count();
-      } catch (error) {
-        if (attempts >= maxAttempts) {
-          throw new Error(
-            `Failed to open modal after ${maxAttempts} attempts: ${error}`,
-          );
-        }
-        // Wait a bit before retrying
-        await page.waitForTimeout(1000);
-      }
-    }
-
-    if (modalCount === 0) {
-      throw new Error(`Modal did not appear after ${maxAttempts} attempts`);
-    }
+    await modalTitle.waitFor({ state: "visible", timeout: 30000 });
   }
 };

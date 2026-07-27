@@ -63,6 +63,7 @@ import { useOpenAutomationEditor } from "./hooks/use-open-automation-editor";
 import { usePlaceJobResult } from "./hooks/use-place-job-result";
 import { usePlacementPersistence } from "./hooks/use-placement-persistence";
 import { useRunAutomation } from "./hooks/use-run-automation";
+import { focusPlacementWithRetry } from "./utils/focus-placement";
 import type {
   AutomationSceneNode,
   BoardNoteSceneNode,
@@ -73,6 +74,14 @@ import type {
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function focusAfterSceneUpdate(target: {
+  readonly current: HTMLElement | null;
+}) {
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => target.current?.focus()),
+  );
+}
 
 type BoardRefetch = ReturnType<typeof useGetBoard>["refetch"];
 
@@ -388,13 +397,14 @@ function LoadedBoard({
     projectId,
     boardId: board.id,
   });
-  const [automationSelectorOpen, setAutomationSelectorOpen] = useState(false);
-  const [providerModalOpen, setProviderModalOpen] = useState(false);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const automationIntentConsumedRef = useRef<string | null>(null);
+  const [searchParams] = useSearchParams();
   const automationIntentValues = searchParams.getAll("open-add-automation");
   const automationIntent =
     automationIntentValues.length === 1 && automationIntentValues[0] === "1";
+  const [automationSelectorOpen, setAutomationSelectorOpen] =
+    useState(automationIntent);
+  const [providerModalOpen, setProviderModalOpen] = useState(false);
+  const automationIntentConsumedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!automationIntent) {
       automationIntentConsumedRef.current = null;
@@ -403,11 +413,10 @@ function LoadedBoard({
     const signature = `${board.id}:${searchParams.toString()}`;
     if (automationIntentConsumedRef.current === signature) return;
     automationIntentConsumedRef.current = signature;
-    setAutomationSelectorOpen(true);
-    const next = new URLSearchParams(searchParams);
-    next.delete("open-add-automation");
-    setSearchParams(next, { replace: true });
-  }, [automationIntent, board.id, searchParams, setSearchParams]);
+    requestAnimationFrame(() => {
+      setAutomationSelectorOpen(true);
+    });
+  }, [automationIntent, board.id, searchParams]);
   useBoardReturnFocus({
     placements: scene.placements,
     isLoading: scene.isLoading,
@@ -438,7 +447,7 @@ function LoadedBoard({
       },
       close: (node) => {
         persistence.close(node.data.placement);
-        requestAnimationFrame(() => addNoteRef.current?.focus());
+        focusAfterSceneUpdate(addNoteRef);
       },
       requestDelete: (note) => {
         deleteTriggerRef.current =
@@ -486,12 +495,16 @@ function LoadedBoard({
     }),
     [actions, drafts, persistence],
   );
+  const focusRequestRef = useRef<() => void>(() => undefined);
+  useEffect(
+    () => () => {
+      focusRequestRef.current();
+    },
+    [],
+  );
   const focusPlacement = useCallback((placementId: string) => {
-    const focus = () =>
-      document
-        .querySelector<HTMLElement>(`[data-id="${placementId}"] section`)
-        ?.focus({ preventScroll: true });
-    requestAnimationFrame(() => requestAnimationFrame(focus));
+    focusRequestRef.current();
+    focusRequestRef.current = focusPlacementWithRetry(placementId);
   }, []);
   const reportExecutions = useCallback(
     (flowId: string, next: readonly BoardExecution[]) => {
@@ -520,13 +533,15 @@ function LoadedBoard({
   const chatRuntime = useMemo<BoardChatRuntime>(
     () => ({
       close: (node) => {
-        persistence.close(node.data.placement);
-        requestAnimationFrame(() => chatActionRef.current?.focus());
+        void persistence
+          .closeAndWait(node.data.placement)
+          .then(() => focusAfterSceneUpdate(chatActionRef))
+          .catch(() => undefined);
       },
       archive: (chat, node) => {
         chatActions.archive(chat);
         persistence.close(node.data.placement);
-        requestAnimationFrame(() => chatActionRef.current?.focus());
+        focusAfterSceneUpdate(chatActionRef);
       },
       setDisplayState: (node, state) =>
         persistence.setDisplayState(node.data.placement, state),
@@ -576,7 +591,7 @@ function LoadedBoard({
       retry: () => void scene.refetch(),
       close: (node) => {
         persistence.close(node.data.placement);
-        requestAnimationFrame(() => automationActionRef.current?.focus());
+        focusAfterSceneUpdate(automationActionRef);
       },
       setDisplayState: (node, state) =>
         persistence.setDisplayState(node.data.placement, state),
@@ -851,6 +866,7 @@ function LoadedBoard({
                         </Button>
                       ) : null}
                       <Popover
+                        modal={automationIntent}
                         open={automationSelectorOpen}
                         onOpenChange={setAutomationSelectorOpen}
                       >
@@ -977,7 +993,7 @@ function LoadedBoard({
                   onConfirm={() => {
                     if (deletingNote) actions.deleteEntity(deletingNote);
                     setDeletingNote(null);
-                    requestAnimationFrame(() => addNoteRef.current?.focus());
+                    focusAfterSceneUpdate(addNoteRef);
                   }}
                 />
                 {providerModalOpen ? (

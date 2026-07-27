@@ -14,12 +14,14 @@ test(
     await openBlankFlow(page);
     await page.getByTestId("sidebar-nav-mcp").click();
     await page.waitForSelector(
-      '[data-testid="add-component-button-lf-starter_project"]',
+      '[data-testid="add-component-button-ketos-starter_project"]',
       {
         timeout: 30000,
       },
     );
-    await page.getByTestId("add-component-button-lf-starter_project").click();
+    await page
+      .getByTestId("add-component-button-ketos-starter_project")
+      .click();
 
     // See if the color matches
 
@@ -329,12 +331,14 @@ test(
     await openBlankFlow(page);
     await page.getByTestId("sidebar-nav-mcp").click();
     await page.waitForSelector(
-      '[data-testid="add-component-button-lf-starter_project"]',
+      '[data-testid="add-component-button-ketos-starter_project"]',
       {
         timeout: 30000,
       },
     );
-    await page.getByTestId("add-component-button-lf-starter_project").click();
+    await page
+      .getByTestId("add-component-button-ketos-starter_project")
+      .click();
 
     await adjustScreenView(page, { numberOfZoomOut: 3 });
 
@@ -474,12 +478,14 @@ test(
     await openBlankFlow(page);
     await page.getByTestId("sidebar-nav-mcp").click();
     await page.waitForSelector(
-      '[data-testid="add-component-button-lf-starter_project"]',
+      '[data-testid="add-component-button-ketos-starter_project"]',
       {
         timeout: 30000,
       },
     );
-    await page.getByTestId("add-component-button-lf-starter_project").click();
+    await page
+      .getByTestId("add-component-button-ketos-starter_project")
+      .click();
 
     await adjustScreenView(page, { numberOfZoomOut: 3 });
 
@@ -657,14 +663,18 @@ test(
   async ({ page }) => {
     await page.waitForTimeout(5000);
     await openBlankFlow(page);
+    const originalFlowUrl = page.url();
+    expect(originalFlowUrl).toMatch(/\/flow\/[^/?#]+/);
     await page.getByTestId("sidebar-nav-mcp").click();
     await page.waitForSelector(
-      '[data-testid="add-component-button-lf-starter_project"]',
+      '[data-testid="add-component-button-ketos-starter_project"]',
       {
         timeout: 30000,
       },
     );
-    await page.getByTestId("add-component-button-lf-starter_project").click();
+    await page
+      .getByTestId("add-component-button-ketos-starter_project")
+      .click();
 
     await page.getByTestId("canvas_controls_dropdown").click();
 
@@ -812,12 +822,10 @@ test(
 
     await awaitBootstrapTest(page, { skipModal: true });
 
-    const newFlowDiv = page
-      .getByTestId("flow-name-div")
-      .filter({ hasText: "New Flow" })
-      .first();
-    await newFlowDiv.waitFor({ state: "visible", timeout: 10000 });
-    await newFlowDiv.click();
+    await page.goto(originalFlowUrl);
+    await expect(page.locator("#react-flow-id")).toBeVisible({
+      timeout: 30000,
+    });
 
     // Wait for the MCP Tools component to be visible on canvas
     await page.waitForSelector('text="MCP Tools"', {
@@ -922,12 +930,10 @@ test(
 
     await awaitBootstrapTest(page, { skipModal: true });
 
-    const newFlowDiv2 = page
-      .getByTestId("flow-name-div")
-      .filter({ hasText: "New Flow" })
-      .first();
-    await newFlowDiv2.waitFor({ state: "visible", timeout: 10000 });
-    await newFlowDiv2.click();
+    await page.goto(originalFlowUrl);
+    await expect(page.locator("#react-flow-id")).toBeVisible({
+      timeout: 30000,
+    });
 
     // Wait for the MCP Tools component to be visible on canvas
     await page.waitForSelector('text="MCP Tools"', {
@@ -974,12 +980,14 @@ test(
     await openBlankFlow(page);
     await page.getByTestId("sidebar-nav-mcp").click();
     await page.waitForSelector(
-      '[data-testid="add-component-button-lf-starter_project"]',
+      '[data-testid="add-component-button-ketos-starter_project"]',
       {
         timeout: 30000,
       },
     );
-    await page.getByTestId("add-component-button-lf-starter_project").click();
+    await page
+      .getByTestId("add-component-button-ketos-starter_project")
+      .click();
 
     await adjustScreenView(page, { numberOfZoomOut: 3 });
 

@@ -1,4 +1,4 @@
-import { AxiosError } from "axios";
+import { AxiosError, AxiosHeaders } from "axios";
 import { placementKeys } from "../../placements/keys";
 import { boardNoteKeys } from "../keys";
 import { useDeleteBoardNote } from "../use-delete-board-note";
@@ -173,8 +173,8 @@ describe("board note query contract", () => {
         data: { detail: { code: "stale_revision" } },
         status: 409,
         statusText: "Conflict",
-        headers: {},
-        config: { headers: {} },
+        headers: new AxiosHeaders(),
+        config: { headers: new AxiosHeaders() },
       },
     );
     mockApiPatch.mockRejectedValueOnce(conflict);

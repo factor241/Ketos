@@ -1,5 +1,37 @@
 # Decision Log
 
+## 2026-07-26 — Reaffirm Unified Board Workspace transition
+
+| Field | Value |
+| --- | --- |
+| Decision ID | `DEC-2026-07-26-UNIFIED-BOARD-TRANSITION-REAFFIRMATION` |
+| Original planning SHA | `4c98c0beffac69e1864b1e2651df55b1ee1319a3` |
+| Repository HEAD observed before this update | `0437da66c6934297ccf464337d2a86921d398c6f` |
+| Decision maker | User |
+| Basis | Explicit user management decision in the active Codex task |
+| Status | `ACCEPTED FOR TRANSITION` |
+
+### Decision
+
+Reaffirm that every stage preceding
+`docs/superpowers/plans/2026-07-25-unified-board-workspace-version-convergence.md`
+is closed solely for transition/admission purposes. Historical predecessor
+exact-SHA, seal, receipt, verification-tail, STOP, and NO-GO conditions are
+not admission rules for the target plan.
+
+### Evidence treatment and retained debt
+
+This reaffirmation is not a retrospective technical PASS. Existing raw
+`FAIL`/`BLOCKED` results, incomplete checks and monitor tails, and missing
+seal/receipt remain unchanged as accepted historical debt. Raw evidence is
+neither edited nor superseded.
+
+### Consequence
+
+The target plan proceeds under its own mandatory RED/GREEN, exact-SHA,
+package, runtime, browser, and rollout-readiness gates. The management
+transition does not waive any technical gate introduced by that plan.
+
 ## 2026-07-25 — Admit Unified Board Workspace plan
 
 | Field | Value |

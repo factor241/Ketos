@@ -380,14 +380,30 @@ def get_fernet(settings_service: SettingsService) -> Fernet:
     return Fernet(ensure_fernet_key(secret_key))
 
 
-def encrypt_api_key(api_key: str, settings_service: SettingsService | None = None) -> str:  # noqa: ARG001
+def encrypt_api_key(api_key: str, settings_service: SettingsService | None = None) -> str:
+    if settings_service is not None:
+        return get_fernet(settings_service).encrypt(api_key.encode()).decode()
     return _auth_service().encrypt_api_key(api_key)
 
 
 def decrypt_api_key(
     encrypted_api_key: str,
-    settings_service: SettingsService | None = None,  # noqa: ARG001
+    settings_service: SettingsService | None = None,
 ) -> str:
+    if settings_service is not None:
+        if not isinstance(encrypted_api_key, str) or not encrypted_api_key:
+            return ""
+        if not encrypted_api_key.startswith("gAAAAA"):
+            return encrypted_api_key
+        try:
+            return get_fernet(settings_service).decrypt(encrypted_api_key.encode()).decode()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "API key decryption failed. This may indicate a corrupted key or "
+                "SECRET_KEY mismatch. Error: %r",
+                exc,
+            )
+            return ""
     return _auth_service().decrypt_api_key(encrypted_api_key)
 
 

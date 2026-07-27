@@ -11,6 +11,17 @@ import { disableInspectPanel } from "../../utils/open-advanced-options";
 import { sessionMoreMenu } from "../../utils/playground/sessions";
 import { zoomOut } from "../../utils/zoom-out";
 
+async function openSessionMenu(
+  page: import("@playwright/test").Page,
+  position: "first" | "last",
+  itemTestId: string,
+) {
+  await sessionMoreMenu(page, position).press("Enter");
+  const item = page.getByTestId(itemTestId);
+  await expect(item).toBeVisible();
+  return item;
+}
+
 test(
   "fresh start playground",
   { tag: ["@release", "@workspace", "@api"] },
@@ -101,8 +112,7 @@ test(
     await expect(page.getByTestId("chat-message-AI-edit_bot_1")).toBeVisible();
 
     // check table messages view (use sidebar session more menu — header menu hidden in fullscreen)
-    await sessionMoreMenu(page, "first").click();
-    await page.getByTestId("message-logs-option").click();
+    await (await openSessionMenu(page, "first", "message-logs-option")).click();
     await expect(page.getByText("Page 1 of 1", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: TEXTS.close }).click();
 
@@ -119,8 +129,9 @@ test(
       .getByTestId("chat-message-User-session_after_delete")
       .isVisible();
     // Use sidebar session more menu for rename
-    await sessionMoreMenu(page, "last").click();
-    await page.getByTestId("rename-session-option").click();
+    await (
+      await openSessionMenu(page, "last", "rename-session-option")
+    ).click();
     await page.getByTestId("session-rename-input").fill("my first session");
     await page.keyboard.press("Enter");
     await expect(
@@ -131,8 +142,9 @@ test(
     ).toBeVisible({ timeout: 10000 });
 
     // check cancel rename (using Escape key)
-    await sessionMoreMenu(page, "last").click();
-    await page.getByTestId("rename-session-option").click();
+    await (
+      await openSessionMenu(page, "last", "rename-session-option")
+    ).click();
     await page.getByTestId("session-rename-input").fill("cancel name");
     await page.keyboard.press("Escape");
     await expect(
@@ -143,8 +155,9 @@ test(
     ).toBeVisible({ timeout: 10000 });
 
     // check delete session
-    await sessionMoreMenu(page, "last").click();
-    await page.getByTestId("delete-session-option").click();
+    await (
+      await openSessionMenu(page, "last", "delete-session-option")
+    ).click();
     await expect(page.getByTitle("Default Session")).toBeVisible();
 
     //create new session

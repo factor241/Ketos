@@ -4,14 +4,15 @@
 
 | Field | Value |
 | --- | --- |
-| Decision date | `2026-07-25` |
-| Repository SHA | `4c98c0beffac69e1864b1e2651df55b1ee1319a3` |
+| Effective decision date | `2026-07-26` |
+| Original planning SHA | `4c98c0beffac69e1864b1e2651df55b1ee1319a3` |
+| Repository HEAD observed before this update | `0437da66c6934297ccf464337d2a86921d398c6f` |
 | Authority | Explicit user management decision |
 | Target plan | `docs/superpowers/plans/2026-07-25-unified-board-workspace-version-convergence.md` |
 | Status | `ACCEPTED FOR TRANSITION` |
 
 All stages preceding the target plan are closed for management transition and
-do not block Block A.
+do not block admission or execution of this plan.
 
 ## Accepted historical debt
 

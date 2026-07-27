@@ -49,11 +49,13 @@ export function BoardCreationDialog({
   open,
   projectId,
   continuation,
+  returnFocusElement,
   onOpenChange,
 }: {
   open: boolean;
   projectId: string;
   continuation?: BoardCreationContinuation;
+  returnFocusElement?: HTMLElement | null;
   onOpenChange: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
@@ -147,13 +149,20 @@ export function BoardCreationDialog({
     >
       <DialogContent
         data-testid="board-create-dialog"
+        aria-busy={bootstrap.isPending || inFlight.current}
         className="max-h-[min(90vh,52rem)] max-w-2xl overflow-y-auto"
         onEscapeKeyDown={(event) => {
-          if (bootstrap.isPending || inFlight.current) event.preventDefault();
+          event.preventDefault();
+          if (!bootstrap.isPending && !inFlight.current) requestClose();
         }}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           nameInputRef.current?.focus();
+        }}
+        onCloseAutoFocus={(event) => {
+          if (!returnFocusElement?.isConnected) return;
+          event.preventDefault();
+          returnFocusElement.focus();
         }}
       >
         <DialogTitle>{t("boardCreation.title")}</DialogTitle>
@@ -193,6 +202,12 @@ export function BoardCreationDialog({
                 onChange={(event) => {
                   setTitle(event.target.value);
                   setValidationError(false);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Escape") return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  requestClose();
                 }}
               />
               {validationError ? (

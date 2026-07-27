@@ -162,7 +162,7 @@ jest.mock("@/stores/alertStore", () => ({
 }));
 
 jest.mock("@/customization/feature-flags", () => ({
-  ENABLE_MCP: false,
+  ENABLE_MCP: true,
 }));
 
 describe("HeaderComponent - TabIndex Behavior with Bulk Actions", () => {
@@ -207,6 +207,14 @@ describe("HeaderComponent - TabIndex Behavior with Bulk Actions", () => {
 
     expect(screen.getByText("Бета")).toBeInTheDocument();
     expect(screen.queryByText("Beta")).not.toBeInTheDocument();
+  });
+
+  it("keeps the MCP route landmark visible for an empty project", () => {
+    render(
+      <HeaderComponent {...defaultProps} flowType="mcp" isEmptyFolder={true} />,
+    );
+
+    expect(screen.getByTestId("mcp-btn")).toHaveTextContent("MCP Server");
   });
 
   describe("DeleteConfirmationModal TabIndex - No Selections", () => {

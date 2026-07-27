@@ -11,6 +11,11 @@ type Placement = Entity & {
   target_kind: "automation" | "job_result";
   target_id: string;
 };
+type AutomationCommandResult = {
+  automation: Flow;
+  placement: Placement;
+  idempotency_replayed: boolean;
+};
 type Execution = {
   job_id: string;
   board_id: string;
@@ -50,9 +55,7 @@ async function placements(page: Page, boardId: string): Promise<Placement[]> {
 }
 
 async function installTrustedTextInput(page: Page, flowId: string) {
-  const typesResponse = await page.request.get(
-    "/api/v1/all?force_refresh=true",
-  );
+  const typesResponse = await page.request.get("/api/v1/all");
   expect(typesResponse.ok()).toBeTruthy();
   const types = (await typesResponse.json()) as Record<
     string,
@@ -122,15 +125,21 @@ test(
       page.getByRole("heading", { name: "Stage 07 execution" }),
     ).toBeVisible();
 
-    const flowCreated = page.waitForResponse(
+    const automationCreated = page.waitForResponse(
       (response) =>
         response.request().method() === "POST" &&
-        new URL(response.url()).pathname === "/api/v1/flows/" &&
+        new URL(response.url()).pathname ===
+          `/api/v1/boards/${board.id}/automations` &&
         response.status() === 201,
     );
     await page.getByRole("button", { name: "Add automation" }).first().click();
-    await page.getByRole("button", { name: "Add automation" }).last().click();
-    const flow = (await (await flowCreated).json()) as Flow;
+    await page.getByRole("button", { name: "Create", exact: true }).click();
+    const command = (await (
+      await automationCreated
+    ).json()) as AutomationCommandResult;
+    const flow = command.automation;
+    expect(command.placement.target_id).toBe(flow.id);
+    expect(command.idempotency_replayed).toBe(false);
     await installTrustedTextInput(page, flow.id);
     await expect
       .poll(async () =>
@@ -200,7 +209,7 @@ test(
     });
     await openResult.focus();
     await page.keyboard.press("Enter");
-    await expect(resultCard).toBeFocused();
+    await expect(resultCard).toBeFocused({ timeout: 15_000 });
 
     const replayOne = await page.request.post(
       `/api/v1/boards/${board.id}/automations/${flow.id}/runs`,
@@ -260,15 +269,21 @@ test(
     const board = await createBoard(page, project.id);
     await page.goto(`/project/${project.id}/board/${board.id}`);
 
-    const flowCreated = page.waitForResponse(
+    const automationCreated = page.waitForResponse(
       (response) =>
         response.request().method() === "POST" &&
-        new URL(response.url()).pathname === "/api/v1/flows/" &&
+        new URL(response.url()).pathname ===
+          `/api/v1/boards/${board.id}/automations` &&
         response.status() === 201,
     );
     await page.getByRole("button", { name: "Add automation" }).first().click();
-    await page.getByRole("button", { name: "Add automation" }).last().click();
-    const flow = (await (await flowCreated).json()) as Flow;
+    await page.getByRole("button", { name: "Create", exact: true }).click();
+    const command = (await (
+      await automationCreated
+    ).json()) as AutomationCommandResult;
+    const flow = command.automation;
+    expect(command.placement.target_id).toBe(flow.id);
+    expect(command.idempotency_replayed).toBe(false);
     await expect
       .poll(async () =>
         (await placements(page, board.id)).some(

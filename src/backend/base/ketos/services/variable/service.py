@@ -219,7 +219,12 @@ class DatabaseVariableService(VariableService, Service):
         if variable.type == CREDENTIAL_TYPE:
             from pydantic import SecretStr
 
-            return SecretStr(auth_utils.decrypt_api_key(variable.value))
+            return SecretStr(
+                auth_utils.decrypt_api_key(
+                    variable.value,
+                    settings_service=self.settings_service,
+                )
+            )
         # GENERIC type - return as-is
         return variable.value
 
@@ -230,7 +235,10 @@ class DatabaseVariableService(VariableService, Service):
         for variable in variables:
             value = None
             if variable.type == GENERIC_TYPE:
-                value = auth_utils.decrypt_api_key(variable.value)
+                value = auth_utils.decrypt_api_key(
+                    variable.value,
+                    settings_service=self.settings_service,
+                )
                 if not value:
                     # If decryption fails (likely due to encryption by different key), skip this variable
                     continue
@@ -266,7 +274,10 @@ class DatabaseVariableService(VariableService, Service):
         for var in variables:
             if var.name and var.value:
                 try:
-                    decrypted_value = auth_utils.decrypt_api_key(var.value)
+                    decrypted_value = auth_utils.decrypt_api_key(
+                        var.value,
+                        settings_service=self.settings_service,
+                    )
                 except Exception as e:  # noqa: BLE001
                     await logger.awarning(f"Decryption failed for variable '{var.name}': {e}. Skipping")
                     continue
@@ -405,7 +416,14 @@ class DatabaseVariableService(VariableService, Service):
             raise ValueError(msg)
 
         # Only encrypt CREDENTIAL_TYPE variables
-        encrypted_value = auth_utils.encrypt_api_key(value) if type_ == CREDENTIAL_TYPE else value
+        encrypted_value = (
+            auth_utils.encrypt_api_key(
+                value,
+                settings_service=self.settings_service,
+            )
+            if type_ == CREDENTIAL_TYPE
+            else value
+        )
         variable_base = VariableCreate(
             name=name,
             type=type_,

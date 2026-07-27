@@ -551,10 +551,12 @@ const SideBarFoldersButtonsComponent = ({
           }}
           onSelectBoard={(boardId) => {
             const projectIdToOpen = createSurface.projectId;
-            setCreateSurface({ kind: "closed" });
-            _navigate(
-              `/project/${projectIdToOpen}/board/${boardId}?open-add-automation=1`,
-            );
+            closeCreateSurface();
+            requestAnimationFrame(() => {
+              _navigate(
+                `/project/${projectIdToOpen}/board/${boardId}?open-add-automation=1`,
+              );
+            });
           }}
           onCreateBoard={() => {
             setCreateSurface({
@@ -572,6 +574,7 @@ const SideBarFoldersButtonsComponent = ({
           open
           projectId={createSurface.projectId}
           continuation={createSurface.continuation}
+          returnFocusElement={createSurface.trigger}
           onOpenChange={(open) => {
             if (!open) closeCreateSurface();
           }}

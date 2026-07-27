@@ -8,8 +8,12 @@ test(
   async ({ page, context }) => {
     await awaitBootstrapTest(page);
 
-    expect(page.getByText("Start from scratch", { exact: true })).toBeVisible();
-    expect(page.getByRole("button", { name: "Blank Flow" })).toBeVisible();
+    await expect(
+      page.getByText("Start from scratch", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Blank Flow" }),
+    ).toBeVisible();
 
     await page.getByTestId("side_nav_options_all-templates").click();
     await page.waitForSelector('[data-testid="search-input-template"]', {
@@ -20,49 +24,55 @@ test(
 
     await page.waitForTimeout(1000);
 
-    expect(
+    await expect(
       page.getByTestId("template_basic-prompting-(hello,-world)"),
     ).toBeVisible({ visible: false, timeout: 3000 });
 
-    expect(page.getByTestId("template_document-q&a").first()).toBeVisible();
-    expect(
+    await expect(
+      page.getByTestId("template_document-q&a").first(),
+    ).toBeVisible();
+    await expect(
       page.getByTestId(`template_sequential-tasks-agents`).first(),
     ).toBeVisible();
 
-    expect(page.getByTestId("template_vector-store")).not.toBeVisible();
-    expect(page.getByTestId(`template_simple-agent`)).not.toBeVisible();
-    expect(page.getByTestId(`template_dynamic-agent`)).not.toBeVisible();
-    expect(
+    await expect(page.getByTestId("template_vector-store")).not.toBeVisible();
+    await expect(page.getByTestId(`template_simple-agent`)).not.toBeVisible();
+    await expect(page.getByTestId(`template_dynamic-agent`)).not.toBeVisible();
+    await expect(
       page.getByTestId(`template_hierarchical-tasks-agent`),
     ).not.toBeVisible();
 
-    await page.getByTestId(`side_nav_options_prompting`).click();
-    expect(page.getByTestId(`category_title_prompting`)).toBeVisible({
+    await page.getByTestId("search-input-template").fill("");
+
+    await page.getByRole("button", { name: "Prompting" }).click();
+    await expect(page.getByTestId(`category_title_prompting`)).toBeVisible({
       timeout: 3000,
     });
 
-    await page.getByTestId(`side_nav_options_rag`).click();
+    await page.getByRole("button", { name: "RAG" }).click();
 
-    expect(page.getByTestId(`category_title_rag`)).toBeVisible({
+    await expect(page.getByTestId(`category_title_rag`)).toBeVisible({
       timeout: 3000,
     });
-    expect(page.getByTestId(`template_vector-store-rag`)).toBeVisible();
+    await expect(page.getByTestId(`template_vector-store-rag`)).toBeVisible();
 
-    expect(
+    await expect(
       page.getByTestId(`template_basic-prompting-(hello,-world)`),
     ).not.toBeVisible();
-    expect(page.getByTestId(`template_document-qa`)).not.toBeVisible();
+    await expect(page.getByTestId(`template_document-qa`)).not.toBeVisible();
 
-    await page.getByTestId(`side_nav_options_agents`).click();
+    await page.getByRole("button", { name: "Agents" }).click();
 
-    expect(page.getByTestId(`category_title_agents`)).toBeVisible({
+    await expect(page.getByTestId(`category_title_agents`)).toBeVisible({
       timeout: 3000,
     });
-    expect(
+    await expect(
       page.getByTestId(`template_basic-prompting-(hello,-world)`),
     ).toBeVisible({ visible: false, timeout: 3000 });
-    expect(page.getByTestId(`template_document-qa`)).not.toBeVisible();
-    expect(page.getByTestId(`template_vector-store-rag`)).not.toBeVisible();
+    await expect(page.getByTestId(`template_document-qa`)).not.toBeVisible();
+    await expect(
+      page.getByTestId(`template_vector-store-rag`),
+    ).not.toBeVisible();
 
     await waitForTemplateVisibility(page, templateIds);
   },

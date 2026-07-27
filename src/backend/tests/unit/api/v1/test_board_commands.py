@@ -1,8 +1,10 @@
+from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from ketos.api.v1 import boards as boards_api
 from ketos.api.v1.boards import router as boards_router
 from ketos.api.v1.projects import router as projects_router
 from ketos.api.v1.schemas.board_commands import (
@@ -182,3 +184,57 @@ async def test_bootstrap_hides_missing_or_inaccessible_project(command_client: A
 
     assert response.status_code == 404, response.text
     assert response.json()["detail"]["code"] == "board_command_resource_not_found"
+
+
+async def test_workspace_kill_switch_blocks_compound_writes_but_preserves_legacy_board_reads(
+    command_client: AsyncClient,
+    logged_in_headers,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_id = await _create_project(command_client, logged_in_headers)
+    legacy = await command_client.post(
+        f"/api/v1/projects/{project_id}/boards",
+        json={"title": "Readable during rollback"},
+        headers=logged_in_headers,
+    )
+    assert legacy.status_code == 201
+    board_id = legacy.json()["id"]
+    monkeypatch.setattr(
+        boards_api,
+        "FEATURE_FLAGS",
+        SimpleNamespace(mvp_workspace=False),
+    )
+
+    bootstrap = await command_client.post(
+        f"/api/v1/projects/{project_id}/boards/bootstrap",
+        json={"title": "Blocked bootstrap", "starter": {"kind": "clean"}},
+        headers={
+            **logged_in_headers,
+            "Idempotency-Key": str(uuid4()),
+        },
+    )
+    automation = await command_client.post(
+        f"/api/v1/boards/{board_id}/automations",
+        json={
+            "starter": {"kind": "blank_automation", "name": "Blocked automation"},
+            "placement": {"x": 0, "y": 0},
+        },
+        headers={
+            **logged_in_headers,
+            "Idempotency-Key": str(uuid4()),
+        },
+    )
+
+    for response in (bootstrap, automation):
+        assert response.status_code == 404
+        assert response.json()["detail"]["code"] == "board_command_disabled"
+    listed = await command_client.get(
+        f"/api/v1/projects/{project_id}/boards",
+        headers=logged_in_headers,
+    )
+    fetched = await command_client.get(
+        f"/api/v1/boards/{board_id}",
+        headers=logged_in_headers,
+    )
+    assert [board["id"] for board in listed.json()] == [board_id]
+    assert fetched.json()["title"] == "Readable during rollback"

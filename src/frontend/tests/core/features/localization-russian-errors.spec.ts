@@ -88,7 +88,11 @@ test(
         request.method() === "POST" &&
         new URL(request.url()).pathname.endsWith("/api/v1/flows/"),
     );
-    await page.getByTestId("blank-flow").click();
+    const templateCard = page
+      .locator('[data-testid^="template-get-started-card-"]')
+      .first();
+    await expect(templateCard).toBeVisible();
+    await templateCard.click();
     await rejectedCreateRequest;
 
     const errorAlert = page.locator(".error-build-message").first();

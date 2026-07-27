@@ -2,9 +2,11 @@
 
 ## Management transition status
 
-On `2026-07-25`, at repository SHA
-`4c98c0beffac69e1864b1e2651df55b1ee1319a3`, the user explicitly accepted all
-stages preceding
+The original transition decision was recorded on `2026-07-25` at planning SHA
+`4c98c0beffac69e1864b1e2651df55b1ee1319a3`. On `2026-07-26`, with repository
+HEAD `0437da66c6934297ccf464337d2a86921d398c6f` observed before this
+documentation update, the user explicitly reaffirmed acceptance of all stages
+preceding
 `docs/superpowers/plans/2026-07-25-unified-board-workspace-version-convergence.md`
 for transition.
 

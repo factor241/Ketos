@@ -1,12 +1,23 @@
 import { render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
-import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
+import {
+  Link,
+  MemoryRouter,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom";
 import ProjectPage from "..";
 
 const mockFolderQuery = jest.fn();
+const mockFoldersQuery = jest.fn();
 
 jest.mock("@/controllers/API/queries/folders/use-get-folder", () => ({
   useGetFolderQuery: (...args: unknown[]) => mockFolderQuery(...args),
+}));
+
+jest.mock("@/controllers/API/queries/folders/use-get-folders", () => ({
+  useGetFoldersQuery: (...args: unknown[]) => mockFoldersQuery(...args),
 }));
 
 jest.mock("@/customization/components/custom-link", () => ({
@@ -21,6 +32,14 @@ jest.mock("@/components/ui/skeleton", () => ({
   Skeleton: (props: ComponentProps<"div">) => <div {...props} />,
 }));
 
+jest.mock("@/components/ui/sidebar", () => ({
+  SidebarTrigger: (props: ComponentProps<"button">) => (
+    <button type="button" data-sidebar="trigger" {...props}>
+      Toggle Sidebar
+    </button>
+  ),
+}));
+
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, values?: { name?: string }) =>
@@ -29,8 +48,12 @@ jest.mock("react-i18next", () => ({
 }));
 
 function renderProject(path: string) {
+  const LocationProbe = () => (
+    <span data-testid="location-probe">{useLocation().pathname}</span>
+  );
   return render(
     <MemoryRouter initialEntries={[path]}>
+      <LocationProbe />
       <Routes>
         <Route path="/project/:projectId/*" element={<ProjectPage />} />
       </Routes>
@@ -41,6 +64,11 @@ function renderProject(path: string) {
 describe("ProjectPage", () => {
   beforeEach(() => {
     mockFolderQuery.mockReset();
+    mockFoldersQuery.mockReset();
+    mockFoldersQuery.mockReturnValue({
+      data: [],
+      isSuccess: true,
+    });
   });
 
   it("renders loading without stale project metadata", () => {
@@ -77,8 +105,45 @@ describe("ProjectPage", () => {
     renderProject("/project/foreign-secret/boards");
 
     expect(screen.getByRole("alert")).toHaveTextContent("projectShell.error");
-    expect(document.body).not.toHaveTextContent("foreign-secret");
-    expect(document.body).not.toHaveTextContent("Confidential name");
+    expect(screen.getByTestId("project-page")).not.toHaveTextContent(
+      "foreign-secret",
+    );
+    expect(screen.getByTestId("project-page")).not.toHaveTextContent(
+      "Confidential name",
+    );
+  });
+
+  it("replaces an unavailable project route with an accessible project", async () => {
+    mockFolderQuery.mockImplementation(({ id }: { id: string }) =>
+      id === "user-project"
+        ? {
+            data: {
+              folder: {
+                id: "user-project",
+                name: "Starter Project",
+                components: [],
+              },
+            },
+            isLoading: false,
+            isError: false,
+          }
+        : {
+            data: undefined,
+            isLoading: false,
+            isError: true,
+          },
+    );
+    mockFoldersQuery.mockReturnValue({
+      data: [{ id: "user-project", name: "Starter Project" }],
+      isSuccess: true,
+    });
+
+    renderProject("/project/admin-project/boards");
+
+    expect(await screen.findByTestId("location-probe")).toHaveTextContent(
+      "/project/user-project/boards",
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("renders metadata and canonical navigation without a stale Boards empty state", () => {
@@ -103,6 +168,9 @@ describe("ProjectPage", () => {
     expect(screen.getByTestId("project-title")).toHaveTextContent(
       "projectShell.heading:Alpha",
     );
+    expect(
+      screen.getByRole("button", { name: "Toggle Sidebar" }),
+    ).toHaveAttribute("data-sidebar", "trigger");
     expect(screen.getByTestId("project-boards-link")).toHaveAttribute(
       "href",
       "/project/alpha-id/boards",

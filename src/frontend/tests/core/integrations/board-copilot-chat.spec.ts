@@ -7,6 +7,7 @@ import type { APIResponse, Locator, Page, Request } from "@playwright/test";
 
 import { expect, test } from "../../fixtures";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
+import { deterministicProviderPort } from "../../utils/deterministic-provider-port";
 
 type Entity = { id: string; revision: number };
 type Chat = Entity & {
@@ -44,7 +45,7 @@ const evidenceRoot =
   path.join(repositoryRoot, "docs/evidence/stage-05/product-design");
 const runRoot = process.env.KETOS_MVP_RUN_DIR;
 const idsPath = runRoot ? path.join(runRoot, "stage05-ids.json") : "";
-const providerPort = Number(process.env.STAGE05_OPENAI_PORT ?? "18765");
+const providerPort = deterministicProviderPort;
 const prompts: [string, string] = [
   "Use the current date tool for UTC, then answer for stage05-release.",
   "Use the current date tool for UTC, then answer for stage05-operations.",
@@ -542,9 +543,11 @@ test.describe("Stage 05 durable CopilotKit chat", () => {
         { timeout: 45_000 },
       );
       await context.setOffline(true);
-      await expect(page.getByRole("status")).toContainText(
-        "Connection lost. Reconnecting",
-      );
+      await expect(
+        page
+          .getByRole("status")
+          .filter({ hasText: "Connection lost. Reconnecting" }),
+      ).toBeVisible();
       await page.screenshot({
         path: path.join(evidenceRoot, "04-error-reconnect.png"),
         fullPage: true,
@@ -564,7 +567,7 @@ test.describe("Stage 05 durable CopilotKit chat", () => {
       await closeResponse;
       await expect(firstCard).toHaveCount(0);
       await expect(
-        page.getByRole("button", { name: "Create chat" }),
+        page.getByRole("button", { name: "Create Chat", exact: true }),
       ).toBeFocused();
       await page.getByRole("button", { name: ids.titles[0] }).click();
       const replacedCard = page.getByRole("region", { name: ids.titles[0] });

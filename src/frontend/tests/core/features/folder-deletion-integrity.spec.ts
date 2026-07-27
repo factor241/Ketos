@@ -16,24 +16,8 @@ test(
   "deleting a folder should update the folder list immediately",
   { tag: ["@release", "@api", "@folder"] },
   async ({ page }) => {
-    await awaitBootstrapTest(page);
-
-    // Navigate to templates and create a flow first
-    await page.getByTestId("side_nav_options_all-templates").click();
-    await page
-      .getByRole("heading", { name: TEXTS.templateBasicPrompting })
-      .click();
-
-    await page.waitForSelector('[data-testid="sidebar-search-input"]', {
-      timeout: 30000,
-    });
-
-    // Go back to folder view
-    await page.getByTestId("icon-ChevronLeft").first().click();
-
-    await page.waitForSelector('[data-testid="add-project-button"]', {
-      timeout: 30000,
-    });
+    await awaitBootstrapTest(page, { skipModal: true });
+    await expect(page.getByTestId("add-project-button")).toBeVisible();
 
     // Create a new folder
     await page.getByTestId("add-project-button").click();
@@ -98,24 +82,8 @@ test(
   "deleting one folder should not affect other folders",
   { tag: ["@release", "@api", "@folder"] },
   async ({ page }) => {
-    await awaitBootstrapTest(page);
-
-    // Navigate to templates
-    await page.getByTestId("side_nav_options_all-templates").click();
-    await page
-      .getByRole("heading", { name: TEXTS.templateBasicPrompting })
-      .click();
-
-    await page.waitForSelector('[data-testid="sidebar-search-input"]', {
-      timeout: 30000,
-    });
-
-    // Go back to folder view
-    await page.getByTestId("icon-ChevronLeft").first().click();
-
-    await page.waitForSelector('[data-testid="add-project-button"]', {
-      timeout: 30000,
-    });
+    await awaitBootstrapTest(page, { skipModal: true });
+    await expect(page.getByTestId("add-project-button")).toBeVisible();
 
     // Create first folder
     await page.getByTestId("add-project-button").click();
@@ -203,9 +171,7 @@ test(
     await folderBeta.click();
 
     // The page should still be functional
-    await page.waitForSelector('[data-testid="mainpage_title"]', {
-      timeout: 10000,
-    });
+    await expect(page.getByTestId("mainpage_title")).toHaveText("Boards");
 
     // Clean up - delete the remaining folder
     await folderBeta.hover();
@@ -226,24 +192,8 @@ test(
   "creating a new folder after deletion should work correctly",
   { tag: ["@release", "@api", "@folder"] },
   async ({ page }) => {
-    await awaitBootstrapTest(page);
-
-    // Navigate to templates
-    await page.getByTestId("side_nav_options_all-templates").click();
-    await page
-      .getByRole("heading", { name: TEXTS.templateBasicPrompting })
-      .click();
-
-    await page.waitForSelector('[data-testid="sidebar-search-input"]', {
-      timeout: 30000,
-    });
-
-    // Go back to folder view
-    await page.getByTestId("icon-ChevronLeft").first().click();
-
-    await page.waitForSelector('[data-testid="add-project-button"]', {
-      timeout: 30000,
-    });
+    await awaitBootstrapTest(page, { skipModal: true });
+    await expect(page.getByTestId("add-project-button")).toBeVisible();
 
     // Create first folder
     await page.getByTestId("add-project-button").click();
@@ -334,130 +284,124 @@ test(
 );
 
 test(
-  "creating a flow after deleting all folders should create a default folder",
+  "creating an automation after deleting all projects uses the new project",
   { tag: ["@release", "@api", "@folder"] },
   async ({ page }) => {
     await awaitBootstrapTest(page, { skipModal: true });
 
-    // Get all folders in the sidebar and delete them one by one
-    const projectSidebar = page.locator("[data-testid='project-sidebar']");
+    const username = `projectless-${crypto.randomUUID().slice(0, 8)}`;
+    const password = `Projectless-${crypto.randomUUID()}-aA1`;
+    const userResponse = await page.request.post("/api/v1/users/", {
+      data: { username, password },
+    });
+    expect(userResponse.status(), await userResponse.text()).toBe(201);
+    const user = (await userResponse.json()) as { id: string };
+    const activateResponse = await page.request.patch(
+      `/api/v1/users/${user.id}`,
+      { data: { is_active: true } },
+    );
+    expect(activateResponse.ok(), await activateResponse.text()).toBeTruthy();
 
-    // Delete all folders until none are left
-    let folderCount = await projectSidebar
-      .locator('[data-testid^="sidebar-nav-"]')
-      .filter({ hasNotText: "add_note" })
-      .count();
+    await page.route("**/api/v1/auto_login", (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ auto_login: false }),
+      }),
+    );
+    await page.addInitScript(() => {
+      window.process = window.process || {};
+      Object.defineProperty(window.process, "env", {
+        value: { ...window.process.env, KETOS_AUTO_LOGIN: "false" },
+        writable: true,
+        configurable: true,
+      });
+    });
 
-    while (folderCount > 0) {
-      // Get the first folder
-      const firstFolder = projectSidebar
-        .locator('[data-testid^="sidebar-nav-"]')
-        .filter({ hasNotText: "add_note" })
-        .first();
-      const folderTestId = await firstFolder.getAttribute("data-testid");
+    try {
+      const loginResponse = await page.request.post("/api/v1/login", {
+        form: { username, password },
+      });
+      expect(loginResponse.status(), await loginResponse.text()).toBe(200);
+      await page.goto("/");
+      await expect(page.getByTestId("project-sidebar")).toBeVisible();
 
-      if (!folderTestId) {
-        break;
+      const projectsResponse = await page.request.get("/api/v1/projects/");
+      expect(projectsResponse.ok(), await projectsResponse.text()).toBeTruthy();
+      const projects = (await projectsResponse.json()) as Array<{
+        id: string;
+        name: string;
+      }>;
+      for (const project of projects) {
+        const response = await page.request.delete(
+          `/api/v1/projects/${project.id}`,
+        );
+        expect(response.status(), await response.text()).toBe(204);
       }
+      await page.reload();
+      await expect(
+        page
+          .getByTestId("project-sidebar")
+          .locator('[data-testid^="sidebar-nav-"]'),
+      ).toHaveCount(0);
 
-      // Extract folder name from testid (e.g., "sidebar-nav-Starter Project" -> "starter-project")
-      const folderName = folderTestId.replace("sidebar-nav-", "");
-      const kebabName = folderName.toLowerCase().replace(/\s+/g, "-");
-
-      // Hover and click more options
-      await firstFolder.hover();
-
-      // Try to find and click the more options button
-      const moreOptionsButton = page.getByTestId(
-        `more-options-button_${kebabName}`,
+      const createProjectResponse = page.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          new URL(response.url()).pathname === "/api/v1/projects/" &&
+          response.status() === 201,
+      );
+      await page.getByTestId("add-project-button").click();
+      const project = (await (await createProjectResponse).json()) as {
+        id: string;
+        name: string;
+      };
+      await expect(
+        page.getByTestId(`sidebar-nav-${project.name}`),
+      ).toBeVisible();
+      await expect(page).toHaveURL(
+        new RegExp(`/project/${project.id}/boards(?:[/?#]|$)`),
       );
 
-      // Wait for the button to appear after hover
-      try {
-        await moreOptionsButton.waitFor({ state: "visible", timeout: 5000 });
-        await moreOptionsButton.click();
-      } catch {
-        // Try with the original name format
-        const altMoreOptions = page
-          .locator(`[data-testid^="more-options-button_"]`)
-          .first();
-        await altMoreOptions.waitFor({ state: "visible", timeout: 5000 });
-        await altMoreOptions.click();
-      }
-
-      await page.getByTestId("btn-delete-project").click();
-      await page.getByText(TEXTS.delete).last().click();
-
-      // Wait for deletion to complete
-      await expect(page.getByText(TEXTS.toastProjectDeleted)).toBeVisible({
-        timeout: 5000,
-      });
-
-      // Wait a bit for UI to update
-      await page.waitForTimeout(500);
-
-      // Recount folders
-      folderCount = await projectSidebar
-        .locator('[data-testid^="sidebar-nav-"]')
-        .filter({ hasNotText: "add_note" })
-        .count();
-    }
-
-    // Now create a new flow using the empty state button on main page
-    // This should trigger creation of a default folder
-    await page.waitForSelector('[data-testid="new_project_btn_empty_page"]', {
-      timeout: 30000,
-    });
-
-    await page.getByTestId("new_project_btn_empty_page").click();
-
-    // The empty-state CTA can either open the templates modal directly
-    // (EmptyPageCommunity) or surface the FlowBuilderWelcome overlay
-    // (EmptyFolder → useStartNewFlow). Race both and click "Browse more"
-    // when the overlay shows up so we always end up on the templates modal.
-    await Promise.race([
-      page.waitForSelector('[data-testid="modal-title"]', { timeout: 30000 }),
-      page.waitForSelector('[data-testid="flow-builder-welcome-panel"]', {
-        timeout: 30000,
-      }),
-    ]);
-    if (
-      (await page
-        .locator('[data-testid="flow-builder-welcome-panel"]')
-        .count()) > 0
-    ) {
-      await page.getByTestId("flow-builder-welcome-browse-more").click();
-      await page.waitForSelector('[data-testid="modal-title"]', {
+      await awaitBootstrapTest(page, { skipGoto: true });
+      await page.getByTestId("side_nav_options_all-templates").click();
+      await page
+        .getByRole("heading", { name: TEXTS.templateBasicPrompting })
+        .click();
+      await page.waitForSelector('[data-testid="sidebar-search-input"]', {
         timeout: 30000,
       });
+
+      const flowId = new URL(page.url()).pathname.match(
+        /^\/flow\/([^/]+)/,
+      )?.[1];
+      expect(flowId).toBeTruthy();
+      const flowResponse = await page.request.get(`/api/v1/flows/${flowId}`);
+      expect(flowResponse.ok(), await flowResponse.text()).toBeTruthy();
+      expect(
+        ((await flowResponse.json()) as { folder_id: string }).folder_id,
+      ).toBe(project.id);
+
+      await page.getByTestId("icon-ChevronLeft").first().click();
+      await expect(page).toHaveURL(
+        new RegExp(`/project/${project.id}/boards(?:[/?#]|$)`),
+      );
+      await expect(
+        page.getByRole("searchbox", { name: "Search project automations" }),
+      ).toBeVisible({ timeout: 30_000 });
+      await expect(
+        page.getByText(TEXTS.templateBasicPrompting, { exact: true }),
+      ).toBeVisible();
+    } finally {
+      const adminLogin = await page.request.post("/api/v1/login", {
+        form: {
+          username: TEXTS.authDefaultCredential,
+          password: TEXTS.authDefaultPassword,
+        },
+      });
+      expect(adminLogin.status(), await adminLogin.text()).toBe(200);
+      const cleanup = await page.request.delete(`/api/v1/users/${user.id}`);
+      expect(cleanup.ok(), await cleanup.text()).toBeTruthy();
     }
-
-    // Navigate to templates
-    await page.getByTestId("side_nav_options_all-templates").click();
-    await page
-      .getByRole("heading", { name: TEXTS.templateBasicPrompting })
-      .click();
-
-    await page.waitForSelector('[data-testid="sidebar-search-input"]', {
-      timeout: 30000,
-    });
-
-    // Go back to folder view
-    await page.getByTestId("icon-ChevronLeft").first().click();
-
-    // Verify that a default folder ("Starter Project") was created
-    await expect(page.getByTestId("sidebar-nav-Starter Project")).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Verify we can click on the folder and see the flow
-    await page.getByTestId("sidebar-nav-Starter Project").click();
-
-    // The folder should contain our newly created flow. Templates render an
-    // extra example list-card alongside the user's flow when the folder is
-    // freshly created, so scope to the first match to satisfy strict mode.
-    await expect(page.getByTestId("list-card").first()).toBeVisible({
-      timeout: 5000,
-    });
   },
 );

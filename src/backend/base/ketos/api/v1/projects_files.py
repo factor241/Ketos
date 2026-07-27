@@ -147,6 +147,13 @@ async def upload_project_flows(
             detail="Invalid project data: expected a JSON object with 'folder_name' and 'flows' fields",
         )
 
+    # Legacy collection exports predate project metadata and contain only the
+    # top-level ``flows`` array. Keep them importable by deriving the project
+    # name from the uploaded filename, matching the ZIP import contract.
+    if "folder_name" not in data and "flows" in data:
+        project_name_base = file.filename.rsplit(".", 1)[0] if file.filename else "Imported Project"
+        data["folder_name"] = project_name_base or "Imported Project"
+
     missing_keys = [key for key in ("folder_name", "flows") if key not in data]
     if missing_keys:
         raise HTTPException(
@@ -184,7 +191,15 @@ async def upload_project_flows(
     if "flows" in data:
         # Normalise code fields: if exported with code-as-lines format, rejoin to
         # strings before creating Pydantic models so the DB always stores strings.
-        flow_list = FlowListCreate(flows=[FlowCreate(**normalize_code_for_import(flow)) for flow in data["flows"]])
+        imported_flows: list[FlowCreate] = []
+        for flow in data["flows"]:
+            normalized_flow = normalize_code_for_import(flow)
+            # A project import is a clone into a newly-created project. Reusing
+            # persisted root Flow IDs would collide with an earlier import of
+            # the same collection; nested graph node/edge IDs stay untouched.
+            normalized_flow.pop("id", None)
+            imported_flows.append(FlowCreate(**normalized_flow))
+        flow_list = FlowListCreate(flows=imported_flows)
     else:
         raise HTTPException(status_code=400, detail="No flows found in the data")
     # Generate unique names, tracking names already assigned within this batch

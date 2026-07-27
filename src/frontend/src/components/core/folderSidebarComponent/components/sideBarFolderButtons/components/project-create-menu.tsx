@@ -42,7 +42,6 @@ export function ProjectCreateMenu({
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           onPointerDown={stopRowActivation}
           onClick={stopRowActivation}
-          onKeyDown={stopRowActivation}
         >
           <ForwardedIconComponent name="Plus" className="h-4 w-4" />
         </button>

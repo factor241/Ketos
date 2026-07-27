@@ -51,6 +51,18 @@ const FilesTab = ({
   const { t } = useTranslation();
   const tableRef = useRef<ElementRef<typeof AgGridReact>>(null);
   const { data: files } = useGetFilesV2();
+  const sortedFiles = useMemo(
+    () =>
+      files
+        ? [...files].sort((a, b) =>
+            sortByDate(
+              a.updated_at ?? a.created_at,
+              b.updated_at ?? b.created_at,
+            ),
+          )
+        : [],
+    [files],
+  );
   const setErrorData = useAlertStore((state) => state.setErrorData);
   const setSuccessData = useAlertStore((state) => state.setSuccessData);
 
@@ -215,7 +227,16 @@ const FilesTab = ({
       headerName: t("files.columnModified"),
       field: "updated_at",
       valueFormatter: (params) => {
-        return params.data.progress ? "" : formatDateTime(`${params.value}Z`);
+        if (params.data.progress) return "";
+
+        const timestamp = params.value ?? params.data.created_at;
+        if (!timestamp) return "";
+
+        const normalizedTimestamp = /(?:Z|[+-]\d{2}:\d{2})$/.test(timestamp)
+          ? timestamp
+          : `${timestamp}Z`;
+        const date = new Date(normalizedTimestamp);
+        return Number.isNaN(date.getTime()) ? "" : formatDateTime(date);
       },
       editable: false,
       flex: 1,
@@ -248,7 +269,7 @@ const FilesTab = ({
   ];
 
   const onFileDrop = async (e: React.DragEvent) => {
-    e.preventDefault;
+    e.preventDefault();
     e.stopPropagation();
     const droppedFiles = Array.from(e.dataTransfer.files);
     if (droppedFiles.length > 0) {
@@ -374,12 +395,7 @@ const FilesTab = ({
                 rowSelection="multiple"
                 onSelectionChanged={handleSelectionChanged}
                 columnDefs={colDefs}
-                rowData={files.sort((a, b) => {
-                  return sortByDate(
-                    a.updated_at ?? a.created_at,
-                    b.updated_at ?? b.created_at,
-                  );
-                })}
+                rowData={sortedFiles}
                 className={cn(
                   "ag-no-border group w-full",
                   isShiftPressed && quantitySelected > 0 && "no-select-cells",

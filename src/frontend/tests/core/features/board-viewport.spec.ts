@@ -135,7 +135,9 @@ test(
     const renameDialog = page.getByRole("dialog", { name: "Rename board" });
     await renameDialog.getByLabel("Board title").fill("Renamed viewport board");
     await renameDialog.getByRole("button", { name: "Save name" }).click();
-    await expect(page.getByText("Renamed viewport board")).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Renamed viewport board" }),
+    ).toBeVisible();
     const secondAfterRename = await getBoard(page, second.id);
     expect(secondAfterRename).toMatchObject(second);
 
@@ -259,6 +261,10 @@ test(
       zoom: winner.viewport_zoom,
     });
 
+    await page.getByRole("button", { name: "Open canvas" }).click();
+    await expect(
+      page.getByRole("region", { name: "Board canvas" }),
+    ).toBeFocused();
     const flushedWrite = page.waitForResponse(
       (response) =>
         response.request().method() === "PUT" &&

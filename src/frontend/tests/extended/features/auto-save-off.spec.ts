@@ -6,22 +6,48 @@ test(
   "user should be able to manually save a flow when the auto_save is off",
   { tag: ["@release", "@api", "@database", "@components"] },
   async ({ page }) => {
-    await page.route("**/api/v1/config", (route) => {
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
+    await page.route("**/api/v1/config", async (route) => {
+      const response = await route.fetch();
+      const config: unknown = await response.json();
+      if (
+        typeof config !== "object" ||
+        config === null ||
+        Array.isArray(config)
+      ) {
+        throw new Error("Expected /api/v1/config to return a JSON object");
+      }
+      await route.fulfill({
+        response,
+        json: {
+          ...config,
           type: "full",
           auto_saving: false,
           frontend_timeout: 0,
-        }),
-        headers: {
-          "content-type": "application/json",
-          ...route.request().headers(),
         },
       });
     });
     await openBlankFlow(page);
+    const flowId = new URL(page.url()).pathname
+      .split("/")
+      .filter(Boolean)
+      .at(-1);
+    if (!flowId) {
+      throw new Error(`Flow id is missing from editor URL: ${page.url()}`);
+    }
+    const ensureEditorReady = async () => {
+      await page.locator("#react-flow-id").waitFor({
+        state: "visible",
+        timeout: 30_000,
+      });
+      const sidebarSearch = page.getByTestId("sidebar-search-input");
+      if (!(await sidebarSearch.isVisible())) {
+        await page
+          .locator('[data-testid="sidebar-trigger-search"]:visible')
+          .click();
+      }
+      await sidebarSearch.waitFor({ state: "visible", timeout: 30_000 });
+    };
+    page.on("dialog", (dialog) => void dialog.accept());
 
     await page.getByTestId("sidebar-search-input").click();
     await page.getByTestId("sidebar-search-input").fill("NVIDIA");
@@ -34,7 +60,6 @@ test(
       .getByTestId("nvidiaNVIDIA")
       .dragTo(page.locator('//*[@id="react-flow-id"]'));
     await page.mouse.up();
-    await page.mouse.down();
 
     await page.waitForSelector('[data-testid="canvas_controls_dropdown"]', {
       timeout: 5000,
@@ -44,36 +69,15 @@ test(
 
     expect(await page.getByTestId("save-flow-button").isEnabled()).toBeTruthy();
 
-    await page.waitForSelector("text=loading", {
-      state: "hidden",
-      timeout: 5000,
-    });
+    const unsavedRead = await page.request.get(`/api/v1/flows/${flowId}`);
+    expect(unsavedRead.ok(), await unsavedRead.text()).toBe(true);
+    const unsavedFlow = (await unsavedRead.json()) as {
+      data: { nodes: unknown[] };
+    };
+    expect(unsavedFlow.data.nodes).toHaveLength(0);
 
-    await page.getByTestId("icon-ChevronLeft").last().click();
-
-    try {
-      await page.waitForSelector(
-        'text="Unsaved changes will be permanently lost."',
-        {
-          state: "visible",
-          timeout: 2000,
-        },
-      );
-
-      await page.getByText("Exit Anyway", { exact: true }).click();
-    } catch (_error) {
-      console.error("Warning text not visible, skipping dialog confirmation");
-    }
-
-    const newFlowDiv = await page
-      .getByTestId("flow-name-div")
-      .filter({ hasText: "New Flow" })
-      .first();
-    await newFlowDiv.click();
-
-    await page.waitForSelector('[data-testid="sidebar-search-input"]', {
-      timeout: 5000,
-    });
+    await page.reload();
+    await ensureEditorReady();
 
     const nvidiaNode = await page.getByTestId("div-generic-node").count();
     expect(nvidiaNode).toBe(0);
@@ -109,20 +113,18 @@ test(
 
     await adjustScreenView(page);
 
-    await page.getByTestId("icon-ChevronLeft").last().click();
-
-    await page.getByText("Save And Exit", { exact: true }).click();
-
-    const newFlow = await page
-      .getByTestId("flow-name-div")
-      .filter({ hasText: "New Flow" })
-      .first();
-    await newFlow.click();
-
-    await page.waitForSelector("text=loading", {
-      state: "hidden",
-      timeout: 5000,
+    const firstSave = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return (
+        response.request().method() === "PATCH" &&
+        url.pathname === `/api/v1/flows/${flowId}`
+      );
     });
+    await page.getByTestId("save-flow-button").click();
+    expect((await firstSave).ok()).toBe(true);
+
+    await page.reload();
+    await ensureEditorReady();
 
     await expect(page.getByTestId("title-NVIDIA").first()).toBeVisible({
       timeout: 5000,
@@ -139,7 +141,6 @@ test(
       .getByTestId("nvidiaNVIDIA")
       .dragTo(page.locator('//*[@id="react-flow-id"]'));
     await page.mouse.up();
-    await page.mouse.down();
 
     await page.waitForSelector('[data-testid="canvas_controls_dropdown"]', {
       timeout: 5000,
@@ -147,33 +148,18 @@ test(
 
     await adjustScreenView(page);
 
-    await page.getByTestId("save-flow-button").click();
-    await page.getByTestId("icon-ChevronLeft").last().click();
-
-    const replaceButton = await page.getByTestId("replace-button").isVisible();
-
-    if (replaceButton) {
-      await page.getByTestId("replace-button").click();
-    }
-
-    const saveExitButton = await page
-      .getByText("Save And Exit", { exact: true })
-      .last()
-      .isVisible();
-
-    if (saveExitButton) {
-      await page.getByText("Save And Exit", { exact: true }).last().click();
-    }
-
-    const newFlow2 = await page
-      .getByTestId("flow-name-div")
-      .filter({ hasText: "New Flow" })
-      .first();
-    await newFlow2.click();
-
-    await page.waitForSelector('[data-testid="sidebar-search-input"]', {
-      timeout: 5000,
+    const secondSave = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return (
+        response.request().method() === "PATCH" &&
+        url.pathname === `/api/v1/flows/${flowId}`
+      );
     });
+    await page.getByTestId("save-flow-button").click();
+    expect((await secondSave).ok()).toBe(true);
+
+    await page.reload();
+    await ensureEditorReady();
 
     await expect(page.getByTestId("title-NVIDIA").first()).toBeVisible({
       timeout: 5000,

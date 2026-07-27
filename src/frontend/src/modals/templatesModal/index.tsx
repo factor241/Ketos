@@ -16,10 +16,15 @@ import GetStartedComponent from "./components/GetStartedComponent";
 import { Nav } from "./components/navComponent";
 import TemplateContentComponent from "./components/TemplateContentComponent";
 
+type TemplatesModalProps = newFlowModalPropsType & {
+  onSelectBlank?: () => void;
+};
+
 export default function TemplatesModal({
   open,
   setOpen,
-}: newFlowModalPropsType): JSX.Element {
+  onSelectBlank,
+}: TemplatesModalProps): JSX.Element {
   const { t } = useTranslation();
   const [currentTab, setCurrentTab] = useState("get-started");
   const [loading, setLoading] = useState(false);
@@ -43,11 +48,17 @@ export default function TemplatesModal({
   const handleCreateBlankFlow = () => {
     if (loading) return;
 
+    if (onSelectBlank) {
+      onSelectBlank();
+      return;
+    }
+
     handleFlowCreating(true);
     track("New Flow Created", { template: "Blank Flow" });
 
     addFlow()
       .then((id) => {
+        setOpen(false);
         navigate(`/flow/${id}${folderId ? `/folder/${folderId}` : ""}`);
       })
       .finally(() => {

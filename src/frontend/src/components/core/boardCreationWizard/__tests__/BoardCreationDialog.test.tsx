@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useRef, useState } from "react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 
 import { useBootstrapBoard } from "@/controllers/API/queries/boards";
@@ -42,6 +43,24 @@ function renderDialog(
   );
 }
 
+function FocusHarness() {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  return (
+    <MemoryRouter>
+      <button ref={triggerRef} type="button" onClick={() => setOpen(true)}>
+        Open Board creation
+      </button>
+      <BoardCreationDialog
+        open={open}
+        projectId="project-1"
+        returnFocusElement={triggerRef.current}
+        onOpenChange={setOpen}
+      />
+    </MemoryRouter>
+  );
+}
+
 describe("BoardCreationDialog", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -78,6 +97,31 @@ describe("BoardCreationDialog", () => {
     expect(
       screen.getByTestId("board-template-browse-more"),
     ).toBeInTheDocument();
+  });
+
+  it("restores focus to the supplied trigger after Escape", async () => {
+    const user = userEvent.setup();
+    render(<FocusHarness />);
+    const trigger = screen.getByRole("button", {
+      name: "Open Board creation",
+    });
+
+    await user.click(trigger);
+    expect(screen.getByTestId("board-name-input")).toHaveFocus();
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it("requests close when Escape originates from the name input", () => {
+    const onOpenChange = jest.fn();
+    renderDialog({ onOpenChange });
+
+    fireEvent.keyDown(screen.getByTestId("board-name-input"), {
+      key: "Escape",
+    });
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it("validates a trimmed name and submits the exact starter union", async () => {

@@ -31,7 +31,10 @@ const useAddFlow = () => {
   const { deleteFlow } = useDeleteFlow();
 
   const setNoticeData = useAlertStore.getState().setNoticeData;
-  const { folderId } = useParams();
+  const { folderId, projectId } = useParams<{
+    folderId?: string;
+    projectId?: string;
+  }>();
   const myCollectionId = useFolderStore((state) => state.myCollectionId);
   const folders = useFolderStore((state) => state.folders);
   const setMyCollectionId = useFolderStore((state) => state.setMyCollectionId);
@@ -83,7 +86,7 @@ const useAddFlow = () => {
     const hasExplicitTarget = explicitProjectId.length > 0;
     let folder_id = hasExplicitTarget
       ? explicitProjectId
-      : (folderId ?? myCollectionId ?? "");
+      : (projectId ?? folderId ?? myCollectionId ?? "");
 
     // If no folder exists, create one with the appropriate name based on onboarding state
     if (

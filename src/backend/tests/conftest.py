@@ -166,6 +166,11 @@ def blockbuster(request):
 
 
 def pytest_configure(config):
+    # Establish the canonical checkpoint profile before any session-scoped app
+    # fixture can initialize. Individual fail-closed tests may still delete or
+    # override the value with monkeypatch inside their own test body.
+    os.environ["LANGGRAPH_STRICT_MSGPACK"] = "true"
+
     config.addinivalue_line("markers", "noclient: don't create a client for this test")
     config.addinivalue_line("markers", "load_flows: load the flows for this test")
     config.addinivalue_line("markers", "api_key_required: run only if the api key is set in the environment variables")
@@ -522,6 +527,16 @@ async def client_fixture(
 
             get_service_manager().factories.clear()
             get_service_manager().services.clear()  # Clear the services cache
+
+            # The starter-flow endpoint caches database rows in module-global
+            # process memory. Every client fixture gets a fresh database, so
+            # those caches must follow the same lifecycle or xdist ordering can
+            # serve rows (including an empty result) from a previous test DB.
+            from ketos.api.v1.flows import _starter_flows_cache, _starter_flows_translated_cache
+
+            _starter_flows_cache.clear()
+            _starter_flows_translated_cache.clear()
+
             app = create_app()
             db_service = get_db_service()
             db_service.database_url = f"sqlite:///{db_path}"
@@ -529,17 +544,29 @@ async def client_fixture(
             return app, db_path
 
         app, db_path = await asyncio.to_thread(init_app)
-        # app.dependency_overrides[get_session] = get_session_override
-        async with (
-            LifespanManager(app, startup_timeout=None, shutdown_timeout=60) as manager,
-            AsyncClient(transport=ASGITransport(app=manager.app), base_url="http://testserver/", http2=True) as client,
-        ):
-            yield client
-        # app.dependency_overrides.clear()
-        monkeypatch.undo()
-        # clear the temp db
-        with suppress(FileNotFoundError):
-            await anyio.Path(db_path).unlink()
+        try:
+            # app.dependency_overrides[get_session] = get_session_override
+            async with (
+                LifespanManager(app, startup_timeout=None, shutdown_timeout=60) as manager,
+                AsyncClient(
+                    transport=ASGITransport(app=manager.app),
+                    base_url="http://testserver/",
+                    http2=True,
+                ) as client,
+            ):
+                yield client
+        finally:
+            # Do not leave DB-scoped rows available to tests that do not create
+            # their own client fixture before touching the endpoint cache.
+            from ketos.api.v1.flows import _starter_flows_cache, _starter_flows_translated_cache
+
+            _starter_flows_cache.clear()
+            _starter_flows_translated_cache.clear()
+            # app.dependency_overrides.clear()
+            monkeypatch.undo()
+            # clear the temp db
+            with suppress(FileNotFoundError):
+                await anyio.Path(db_path).unlink()
 
 
 @pytest.fixture

@@ -272,18 +272,18 @@ const CORE_ROUTE_CASES: CoreRouteCase[] = [
   {
     manifestId: "route-root",
     path: "/",
-    expectedPath: /^\/flows\/?$/,
-    readySelector: '[data-testid="flows-btn"]',
-    expectedRussian: "Сценарии",
-    forbiddenEnglish: "Flows",
+    expectedPath: /^\/project\/[0-9a-f-]+\/boards\/?$/,
+    readySelector: '[data-testid="mainpage_title"]',
+    expectedRussian: "Доски",
+    forbiddenEnglish: "Boards",
   },
   {
     manifestId: "route-index-redirect",
     path: "/",
-    expectedPath: /^\/flows\/?$/,
-    readySelector: '[data-testid="flows-btn"]',
-    expectedRussian: "Сценарии",
-    forbiddenEnglish: "Flows",
+    expectedPath: /^\/project\/[0-9a-f-]+\/boards\/?$/,
+    readySelector: '[data-testid="mainpage_title"]',
+    expectedRussian: "Доски",
+    forbiddenEnglish: "Boards",
   },
   {
     manifestId: "route-assets-redirect",
@@ -312,10 +312,10 @@ const CORE_ROUTE_CASES: CoreRouteCase[] = [
   {
     manifestId: "route-flows",
     path: "/flows/",
-    expectedPath: /^\/flows\/?$/,
-    readySelector: '[data-testid="flows-btn"]',
-    expectedRussian: "Сценарии",
-    forbiddenEnglish: "Flows",
+    expectedPath: /^\/project\/[0-9a-f-]+\/boards\/?$/,
+    readySelector: '[data-testid="mainpage_title"]',
+    expectedRussian: "Доски",
+    forbiddenEnglish: "Boards",
   },
   {
     manifestId: "route-components",
@@ -326,8 +326,10 @@ const CORE_ROUTE_CASES: CoreRouteCase[] = [
   {
     manifestId: "route-all",
     path: "/all/",
-    expectedPath: /^\/all\/?$/,
-    readySelector: '[data-testid="cards-wrapper"]',
+    expectedPath: /^\/project\/[0-9a-f-]+\/boards\/?$/,
+    readySelector: '[data-testid="mainpage_title"]',
+    expectedRussian: "Доски",
+    forbiddenEnglish: "Boards",
   },
   {
     manifestId: "route-mcp",
@@ -444,10 +446,10 @@ const CORE_ROUTE_CASES: CoreRouteCase[] = [
   {
     manifestId: "route-wildcard",
     path: "/task-18-localization-unknown-route",
-    expectedPath: /^\/flows\/?$/,
-    readySelector: '[data-testid="flows-btn"]',
-    expectedRussian: "Сценарии",
-    forbiddenEnglish: "Flows",
+    expectedPath: /^\/project\/[0-9a-f-]+\/boards\/?$/,
+    readySelector: '[data-testid="mainpage_title"]',
+    expectedRussian: "Доски",
+    forbiddenEnglish: "Boards",
   },
 ];
 
@@ -702,7 +704,7 @@ async function authenticateManualSuperuser(page: Page): Promise<void> {
   );
   await page.locator('button[type="submit"]').click();
   expect((await loginResponse).ok()).toBe(true);
-  await expect(page.getByTestId("flows-btn")).toBeVisible({
+  await expect(page.getByTestId("project-sidebar")).toBeVisible({
     timeout: 60_000,
   });
   await selectRussian(page);
@@ -880,26 +882,35 @@ test(
 
     await bootstrapToMainPage(page);
     await selectRussian(page);
-    await page.goto("/flows/");
-    await expect(page.getByTestId("new-project-btn")).toBeVisible({
-      timeout: 30_000,
+    const projectResponse = await page.request.post("/api/v1/projects/", {
+      data: {
+        name: `Russian route fixture ${crypto.randomUUID().slice(0, 8)}`,
+        description: "",
+        flows_list: [],
+        components_list: [],
+      },
     });
-
-    const createdFlow = page.waitForResponse(
-      (response) =>
-        response.request().method() === "POST" &&
-        new URL(response.url()).pathname.endsWith("/api/v1/flows/"),
-    );
-    await page.getByTestId("new-project-btn").click();
-    const flowResponse = await createdFlow;
-    expect(flowResponse.status()).toBe(201);
+    expect(projectResponse.status(), await projectResponse.text()).toBe(201);
+    const project = (await projectResponse.json()) as { id: string };
+    const flowResponse = await page.request.post("/api/v1/flows/", {
+      data: {
+        name: "Russian route fixture",
+        description: "Real identifiers for route localization acceptance",
+        folder_id: project.id,
+        data: {
+          nodes: [],
+          edges: [],
+          viewport: { x: 0, y: 0, zoom: 1 },
+        },
+      },
+    });
+    expect(flowResponse.status(), await flowResponse.text()).toBe(201);
     const flow = (await flowResponse.json()) as {
       id: string;
-      folder_id: string | null;
+      folder_id: string;
     };
     expect(flow.id).toMatch(/^[0-9a-f-]{36}$/i);
-    expect(flow.folder_id).toMatch(/^[0-9a-f-]{36}$/i);
-    await page.keyboard.press("Escape");
+    expect(flow.folder_id).toBe(project.id);
 
     const routeCases = [
       {
@@ -931,8 +942,8 @@ test(
       {
         manifestId: "route-all-folder",
         path: `/all/folder/${flow.folder_id}`,
-        expectedPath: new RegExp(`^/all/folder/${flow.folder_id}/?$`),
-        readySelector: '[data-testid="cards-wrapper"]',
+        expectedPath: new RegExp(`^/project/${flow.folder_id}/boards/?$`),
+        readySelector: '[data-testid="mainpage_title"]',
       },
       {
         manifestId: "route-mcp-folder",
@@ -942,40 +953,53 @@ test(
       },
     ];
 
-    for (const routeCase of routeCases) {
-      await test.step(`${routeCase.manifestId}: ${routeCase.path}`, async () => {
-        routeNetworkEvents.length = 0;
-        browserErrors.length = 0;
-        await page.goto(routeCase.path);
-        await expect
-          .poll(() => new URL(page.url()).pathname, { timeout: 30_000 })
-          .toMatch(routeCase.expectedPath);
-        await expect(
-          page.locator(routeCase.readySelector).first(),
-          `${routeCase.manifestId}: final URL ${page.url()}\nroute network\n${routeNetworkEvents.join("\n")}\nbrowser errors\n${browserErrors.join("\n")}`,
-        ).toBeVisible({ timeout: 30_000 });
-        if (routeCase.manifestId === "route-flow-view") {
+    try {
+      for (const routeCase of routeCases) {
+        await test.step(`${routeCase.manifestId}: ${routeCase.path}`, async () => {
+          routeNetworkEvents.length = 0;
+          browserErrors.length = 0;
+          await page.goto(routeCase.path);
+          await expect
+            .poll(() => new URL(page.url()).pathname, { timeout: 30_000 })
+            .toMatch(routeCase.expectedPath);
           await expect(
-            page.getByRole("region", {
-              name: "(Только чтение)",
-              exact: true,
-            }),
-            `${routeCase.manifestId}: localized read-only landmark`,
-          ).toBeVisible();
-          await expect(
-            page.getByRole("region", { name: "(Read-Only)", exact: true }),
-          ).toHaveCount(0);
-        } else {
-          await expect(
-            page.getByRole("button", { name: "Уведомления", exact: true }),
-            `${routeCase.manifestId}: localized application landmark`,
-          ).toBeVisible();
-          await expect(
-            page.getByRole("button", { name: "Notifications", exact: true }),
-          ).toHaveCount(0);
-        }
-        await expectStrictRussianSurface(page, routeCase.manifestId);
-      });
+            page.locator(routeCase.readySelector).first(),
+            `${routeCase.manifestId}: final URL ${page.url()}\nroute network\n${routeNetworkEvents.join("\n")}\nbrowser errors\n${browserErrors.join("\n")}`,
+          ).toBeVisible({ timeout: 30_000 });
+          if (routeCase.manifestId === "route-flow-view") {
+            await expect(
+              page.getByRole("region", {
+                name: "(Только чтение)",
+                exact: true,
+              }),
+              `${routeCase.manifestId}: localized read-only landmark`,
+            ).toBeVisible();
+            await expect(
+              page.getByRole("region", { name: "(Read-Only)", exact: true }),
+            ).toHaveCount(0);
+          } else {
+            await expect(
+              page.getByRole("button", {
+                name: "Уведомления",
+                exact: true,
+              }),
+              `${routeCase.manifestId}: localized application landmark`,
+            ).toBeVisible();
+            await expect(
+              page.getByRole("button", {
+                name: "Notifications",
+                exact: true,
+              }),
+            ).toHaveCount(0);
+          }
+          await expectStrictRussianSurface(page, routeCase.manifestId);
+        });
+      }
+    } finally {
+      const deleteResponse = await page.request.delete(
+        `/api/v1/projects/${project.id}`,
+      );
+      expect([204, 404]).toContain(deleteResponse.status());
     }
   },
 );
@@ -1104,121 +1128,184 @@ test(
   async ({ context, page }, testInfo) => {
     await bootstrapToMainPage(page);
     await selectRussian(page);
-    await page.goto("/flows/");
-    await expect(page.getByTestId(TID.newProjectBtn)).toBeVisible({
-      timeout: TIMEOUTS.standard,
+    const projectResponse = await page.request.post("/api/v1/projects/", {
+      data: {
+        name: `Russian playground fixture ${crypto.randomUUID().slice(0, 8)}`,
+        description: "",
+        flows_list: [],
+        components_list: [],
+      },
     });
+    expect(projectResponse.status(), await projectResponse.text()).toBe(201);
+    const project = (await projectResponse.json()) as { id: string };
+    let flowId: string | undefined;
 
-    const createdFlow = page.waitForResponse(
-      (response) =>
-        response.request().method() === "POST" &&
-        new URL(response.url()).pathname.endsWith("/api/v1/flows/"),
-    );
-    await page.getByTestId(TID.newProjectBtn).click();
-    expect((await createdFlow).status()).toBe(201);
+    try {
+      const flowResponse = await page.request.post("/api/v1/flows/", {
+        data: {
+          name: "Публичный чат",
+          description: "Проверка локализации публичного чата",
+          folder_id: project.id,
+          data: {
+            nodes: [],
+            edges: [],
+            viewport: { x: 0, y: 0, zoom: 1 },
+          },
+        },
+      });
+      expect(flowResponse.status(), await flowResponse.text()).toBe(201);
+      const flow = (await flowResponse.json()) as {
+        id: string;
+        folder_id: string;
+      };
+      flowId = flow.id;
+      expect(flow.folder_id).toBe(project.id);
 
-    const welcomeComponents = page.getByTestId(
-      "flow-builder-welcome-faux-rail-components",
-    );
-    await expect(welcomeComponents).toBeVisible({
-      timeout: TIMEOUTS.standard,
-    });
-    await welcomeComponents.click();
-    await expect(page.getByTestId(TID.sidebarSearchInput)).toBeVisible({
-      timeout: TIMEOUTS.standard,
-    });
+      await page.goto(`/flow/${flow.id}`);
+      await expect(page.locator("#react-flow-id")).toBeVisible({
+        timeout: TIMEOUTS.standard,
+      });
+      const sidebarSearch = page.getByTestId(TID.sidebarSearchInput);
+      if (!(await sidebarSearch.isVisible())) {
+        await page
+          .locator('[data-testid="sidebar-trigger-search"]:visible')
+          .click();
+      }
+      await expect(sidebarSearch).toBeVisible({
+        timeout: TIMEOUTS.standard,
+      });
 
-    await addComponentFromSidebar(page, {
-      search: "chat input",
-      testId: "input_outputВход чата",
-      hoverAdd: true,
-      addButtonSlug: "вход-чата",
-    });
-    await expect(page.getByTestId(TID.divGenericNode)).toHaveCount(1, {
-      timeout: TIMEOUTS.standard,
-    });
+      await addComponentFromSidebar(page, {
+        search: "chat input",
+        testId: "input_outputВход чата",
+        hoverAdd: true,
+        addButtonSlug: "вход-чата",
+      });
+      await expect(page.getByTestId(TID.divGenericNode)).toHaveCount(1, {
+        timeout: TIMEOUTS.standard,
+      });
 
-    await page.getByTestId(TID.publishButton).click();
-    await expect(page.getByTestId(TID.shareablePlayground)).toBeVisible({
-      timeout: TIMEOUTS.medium,
-    });
-    await page.getByTestId(TID.publishSwitch).click();
-    await expect(page.getByTestId(TID.publishSwitch)).toBeChecked({
-      checked: true,
-    });
-    await page.waitForTimeout(ANIMATIONS.publishTogglePropagation);
+      await page.getByTestId(TID.publishButton).click();
+      await expect(page.getByTestId(TID.shareablePlayground)).toBeVisible({
+        timeout: TIMEOUTS.medium,
+      });
+      await page.getByTestId(TID.publishSwitch).click();
+      await expect(page.getByTestId(TID.publishSwitch)).toBeChecked({
+        checked: true,
+      });
+      await page.waitForTimeout(ANIMATIONS.publishTogglePropagation);
 
-    const playgroundOpened = context.waitForEvent("page");
-    await page.getByTestId(TID.shareablePlayground).click();
-    const playgroundPage = await playgroundOpened;
-    await playgroundPage.waitForLoadState("domcontentloaded");
-    await expect
-      .poll(() => new URL(playgroundPage.url()).pathname, {
-        message: "route-playground: public route must remain mounted",
-        timeout: TIMEOUTS.long,
-      })
-      .toMatch(/^\/playground\/[0-9a-f-]{36}\/?$/i);
+      const playgroundOpened = context.waitForEvent("page");
+      await page.getByTestId(TID.shareablePlayground).click();
+      const playgroundPage = await playgroundOpened;
+      await playgroundPage.waitForLoadState("domcontentloaded");
+      await expect
+        .poll(() => new URL(playgroundPage.url()).pathname, {
+          message: "route-playground: public route must remain mounted",
+          timeout: TIMEOUTS.long,
+        })
+        .toMatch(/^\/playground\/[0-9a-f-]{36}\/?$/i);
 
-    const input = playgroundPage.getByTestId(TID.inputChatPlayground);
-    await expect(input).toBeVisible({ timeout: TIMEOUTS.long });
-    await expect(input).toHaveAttribute("placeholder", "Отправить сообщение…");
-    await expect(playgroundPage.locator("html")).toHaveAttribute("lang", "ru");
+      const input = playgroundPage.getByTestId(TID.inputChatPlayground);
+      await expect(input).toBeVisible({ timeout: TIMEOUTS.long });
+      await expect(input).toHaveAttribute(
+        "placeholder",
+        "Отправить сообщение…",
+      );
+      await expect(playgroundPage.locator("html")).toHaveAttribute(
+        "lang",
+        "ru",
+      );
 
-    for (let attempt = 0; attempt < 30; attempt += 1) {
-      if (await input.evaluate((element) => element === document.activeElement))
-        break;
-      await playgroundPage.keyboard.press("Tab");
+      for (let attempt = 0; attempt < 30; attempt += 1) {
+        if (
+          await input.evaluate((element) => element === document.activeElement)
+        )
+          break;
+        await playgroundPage.keyboard.press("Tab");
+      }
+      await expect(input).toBeFocused();
+      expect(
+        await input.evaluate((element) => element.matches(":focus-visible")),
+      ).toBe(true);
+
+      const accessibilityTree = await playgroundPage
+        .locator("body")
+        .ariaSnapshot();
+      expect(accessibilityTree).not.toMatch(
+        /\b(?:Playground|New Chat|Send message|Chat sessions)\b/i,
+      );
+      const axeResults = await new AxeBuilder({ page: playgroundPage })
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+        .analyze();
+      const seriousOrCritical = axeResults.violations
+        .filter(
+          (violation) =>
+            violation.impact === "serious" || violation.impact === "critical",
+        )
+        .map(({ id, impact, nodes }) => ({
+          id,
+          impact,
+          targets: nodes.map((node) => node.target),
+        }));
+      expect(
+        await playgroundPage.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+        ),
+        "route-playground: unexpected document horizontal overflow",
+      ).toBe(true);
+      await expectNoI18nDiagnostics(playgroundPage, "route-playground");
+
+      const screenshotPath = testInfo.outputPath("route-playground-ru.png");
+      await playgroundPage.screenshot({
+        path: screenshotPath,
+        animations: "disabled",
+        caret: "hide",
+        fullPage: false,
+      });
+      await testInfo.attach("route-playground-ru", {
+        path: screenshotPath,
+        contentType: "image/png",
+      });
+      await playgroundPage.close();
+
+      test.fail(
+        seriousOrCritical.length > 0,
+        "route-playground is fixture-unblocked but remains R7 BLOCKED until critical button-name and serious nested-interactive axe violations are fixed.",
+      );
+      expect(seriousOrCritical).toEqual([]);
+    } finally {
+      if (flowId) {
+        await page.goto(`/flow/${flowId}`);
+        await expect(page.locator("#react-flow-id")).toBeVisible({
+          timeout: TIMEOUTS.standard,
+        });
+        await page.getByTestId(TID.publishButton).click();
+      }
+      const publishSwitch = page.getByTestId(TID.publishSwitch);
+      if (flowId) {
+        await expect(publishSwitch).toBeVisible({
+          timeout: TIMEOUTS.standard,
+        });
+      }
+      if (flowId && (await publishSwitch.isChecked())) {
+        const unpublishResponse = page.waitForResponse(
+          (response) =>
+            response.request().method() === "PATCH" &&
+            new URL(response.url()).pathname.endsWith(
+              `/api/v1/flows/${flowId}`,
+            ),
+        );
+        await publishSwitch.click();
+        expect((await unpublishResponse).ok()).toBe(true);
+        await expect(publishSwitch).not.toBeChecked();
+        await page.waitForTimeout(ANIMATIONS.publishTogglePropagation);
+      }
+      const deleteResponse = await page.request.delete(
+        `/api/v1/projects/${project.id}`,
+      );
+      expect([204, 404]).toContain(deleteResponse.status());
     }
-    await expect(input).toBeFocused();
-    expect(
-      await input.evaluate((element) => element.matches(":focus-visible")),
-    ).toBe(true);
-
-    const accessibilityTree = await playgroundPage
-      .locator("body")
-      .ariaSnapshot();
-    expect(accessibilityTree).not.toMatch(
-      /\b(?:Playground|New Chat|Send message|Chat sessions)\b/i,
-    );
-    const axeResults = await new AxeBuilder({ page: playgroundPage })
-      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
-      .analyze();
-    const seriousOrCritical = axeResults.violations
-      .filter(
-        (violation) =>
-          violation.impact === "serious" || violation.impact === "critical",
-      )
-      .map(({ id, impact, nodes }) => ({
-        id,
-        impact,
-        targets: nodes.map((node) => node.target),
-      }));
-    expect(
-      await playgroundPage.evaluate(
-        () => document.documentElement.scrollWidth <= window.innerWidth + 1,
-      ),
-      "route-playground: unexpected document horizontal overflow",
-    ).toBe(true);
-    await expectNoI18nDiagnostics(playgroundPage, "route-playground");
-
-    const screenshotPath = testInfo.outputPath("route-playground-ru.png");
-    await playgroundPage.screenshot({
-      path: screenshotPath,
-      animations: "disabled",
-      caret: "hide",
-      fullPage: false,
-    });
-    await testInfo.attach("route-playground-ru", {
-      path: screenshotPath,
-      contentType: "image/png",
-    });
-    await playgroundPage.close();
-
-    test.fail(
-      seriousOrCritical.length > 0,
-      "route-playground is fixture-unblocked but remains R7 BLOCKED until critical button-name and serious nested-interactive axe violations are fixed.",
-    );
-    expect(seriousOrCritical).toEqual([]);
   },
 );
 

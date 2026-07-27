@@ -31,7 +31,7 @@ const query = (overrides: Record<string, unknown> = {}) => ({
 
 it("restores only the exact server thread", () => {
   mockedUseGetChat.mockReturnValue(
-    query({ data: chat }) as ReturnType<typeof useGetChat>,
+    query({ data: chat }) as unknown as ReturnType<typeof useGetChat>,
   );
   const { result } = renderHook(() => useChatReconnect({ chatId: CHAT_ID }));
   expect(mockedUseGetChat).toHaveBeenCalledWith({ chatId: CHAT_ID });
@@ -44,7 +44,7 @@ it("restores only the exact server thread", () => {
 
 it("fails closed for mismatched identity", () => {
   mockedUseGetChat.mockReturnValue(
-    query({ data: { ...chat, id: "foreign" } }) as ReturnType<
+    query({ data: { ...chat, id: "foreign" } }) as unknown as ReturnType<
       typeof useGetChat
     >,
   );
@@ -58,7 +58,7 @@ it.each([
   [{ isError: true }, "failed_recoverable"],
 ])("maps query state %o to %s", (state, phase) => {
   mockedUseGetChat.mockReturnValue(
-    query(state) as ReturnType<typeof useGetChat>,
+    query(state) as unknown as ReturnType<typeof useGetChat>,
   );
   const { result } = renderHook(() => useChatReconnect({ chatId: CHAT_ID }));
   expect(result.current.phase).toBe(phase);

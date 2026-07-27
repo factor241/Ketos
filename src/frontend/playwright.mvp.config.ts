@@ -3,6 +3,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
+import { deterministicProviderPort } from "./tests/utils/deterministic-provider-port";
+
 const repositoryRoot = path.resolve(__dirname, "../..");
 const runtimeRoot = path.resolve(__dirname, "../copilot-runtime");
 const runRoot =
@@ -31,6 +33,7 @@ export default defineConfig({
   workers: 1,
   timeout: 5 * 60 * 1000,
   reporter: [["list"]],
+  globalTeardown: require.resolve("./tests/globalTeardown.ts"),
   use: {
     baseURL: "http://127.0.0.1:3000",
     actionTimeout: 20_000,
@@ -57,20 +60,21 @@ export default defineConfig({
         KETOS_TEMP_DIR: backendDataRoot,
         KETOS_AG_UI_BINDING_DB: path.join(bindingRoot, "run-bindings.ledger"),
         KETOS_AUTO_LOGIN: "true",
+        KETOS_SUPERUSER: "ketos",
+        KETOS_SUPERUSER_PASSWORD: "test-superuser-password", // pragma: allowlist secret
         KETOS_DEACTIVATE_TRACING: "true",
         KETOS_FEATURE_MVP_WORKSPACE: "true",
         KETOS_FEATURE_MVP_CHAT: process.env.KETOS_FEATURE_MVP_CHAT ?? "true",
         KETOS_AGENTIC_EXPERIENCE: "true",
         KETOS_LOG_LEVEL: "ERROR",
+        KETOS_SSRF_ALLOWED_HOSTS: "ketos.localhost,localhost,127.0.0.1",
         LANGGRAPH_STRICT_MSGPACK: "true",
         DO_NOT_TRACK: "true",
         KETOS_STORE_ENVIRONMENT_VARIABLES: "false",
         OPENAI_API_KEY:
           process.env.STAGE10_DETERMINISTIC_OPENAI_API_KEY ??
           "stage10-deterministic-test-key",
-        OPENAI_BASE_URL: `http://127.0.0.1:${
-          process.env.STAGE10_OPENAI_PORT ?? "18767"
-        }/v1`,
+        OPENAI_BASE_URL: `http://127.0.0.1:${deterministicProviderPort}/v1`,
       },
     },
     {

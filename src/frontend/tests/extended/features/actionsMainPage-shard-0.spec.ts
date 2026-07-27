@@ -1,139 +1,206 @@
-import { expect, test } from "../../fixtures";
-import { addFlowToTestOnEmptyKetos } from "../../utils/add-flow-to-test-on-empty-ketos";
-import { adjustScreenView } from "../../utils/adjust-screen-view";
-import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
+import type { Page } from "@playwright/test";
 
-import { TEXTS } from "../../utils/constants/texts";
+import { expect, test } from "../../fixtures";
+
+type Project = { id: string; name: string };
+type Board = { id: string };
+type Flow = {
+  id: string;
+  name: string;
+  description: string;
+  folder_id: string;
+  data: {
+    nodes: unknown[];
+    edges: unknown[];
+    viewport: { x: number; y: number; zoom: number };
+  };
+};
+
+async function awaitWorkspaceReady(page: Page) {
+  await page.goto("/");
+  await expect(page.getByTestId("project-sidebar")).toBeVisible();
+}
+
+async function createProject(page: Page): Promise<Project> {
+  const response = await page.request.post("/api/v1/projects/", {
+    data: {
+      name: `Actions ${crypto.randomUUID().slice(0, 8)}`,
+      description: "",
+      flows_list: [],
+      components_list: [],
+    },
+  });
+  expect(response.status(), await response.text()).toBe(201);
+  return response.json();
+}
+
+async function createBoard(page: Page, projectId: string): Promise<Board> {
+  const response = await page.request.post(
+    `/api/v1/projects/${projectId}/boards`,
+    { data: { title: "Actions workspace" } },
+  );
+  expect(response.status(), await response.text()).toBe(201);
+  return response.json();
+}
+
+async function createFlow(
+  page: Page,
+  projectId: string,
+  name: string,
+): Promise<Flow> {
+  const response = await page.request.post("/api/v1/flows/", {
+    data: {
+      name,
+      description: "Actions acceptance",
+      folder_id: projectId,
+      data: {
+        nodes: [],
+        edges: [],
+        viewport: { x: 0, y: 0, zoom: 1 },
+      },
+    },
+  });
+  expect(response.status(), await response.text()).toBe(201);
+  return response.json();
+}
+
+async function deleteProject(page: Page, projectId: string) {
+  const response = await page.request.delete(`/api/v1/projects/${projectId}`);
+  expect([204, 404]).toContain(response.status());
+}
 
 test(
-  "user should be able to download a flow or a component",
-  { tag: ["@release", "@workspace"] },
+  "automation export returns the current project flow",
+  { tag: ["@release", "@workspace", "@api"] },
   async ({ page }) => {
-    await awaitBootstrapTest(page);
+    await awaitWorkspaceReady(page);
+    const project = await createProject(page);
+    await createBoard(page, project.id);
+    const flow = await createFlow(
+      page,
+      project.id,
+      `Export ${crypto.randomUUID().slice(0, 8)}`,
+    );
 
-    await page.getByTestId("side_nav_options_all-templates").click();
-    await page
-      .getByRole("heading", { name: TEXTS.templateBasicPrompting })
-      .click();
-    await adjustScreenView(page);
-
-    await page.getByText(TEXTS.componentChatInput, { exact: true }).click();
-    await page.getByTestId("more-options-modal").click();
-
-    await page.getByTestId("icon-SaveAll").first().click();
-
-    if (await page.getByTestId("replace-button").isVisible()) {
-      await page.getByTestId("replace-button").click();
-    }
-
-    await page.waitForSelector('[data-testid="sidebar-search-input"]', {
-      timeout: 100000,
-    });
-
-    const exitButton = await page
-      .getByText(TEXTS.exit, { exact: true })
-      .count();
-
-    if (exitButton > 0) {
-      await page.getByText(TEXTS.exit, { exact: true }).click();
-    }
-
-    await page.getByTestId("icon-ChevronLeft").last().click();
-    await page.getByTestId("home-dropdown-menu").nth(0).click();
-    await page.getByTestId("btn-download-json").last().click();
-    await expect(page.getByText("Export").first()).toBeVisible();
-    await expect(page.getByTestId("modal-export-button")).toBeVisible();
-    await page.getByTestId("modal-export-button").click();
-    await expect(page.getByText(/.*exported successfully/)).toBeVisible({
-      timeout: 10000,
-    });
-
-    await page.getByText("Flows", { exact: true }).click();
-    await page.getByTestId("home-dropdown-menu").nth(0).click();
-    await page.getByTestId("btn-download-json").last().click();
-    await expect(page.getByText("Export").first()).toBeVisible();
-    await expect(page.getByTestId("modal-export-button")).toBeVisible();
-    await page.getByTestId("modal-export-button").click();
-    await expect(page.getByText(/.*exported successfully/).last()).toBeVisible({
-      timeout: 10000,
-    });
-
-    if (await page.getByText(TEXTS.labelComponents).first().isVisible()) {
-      await page.getByText(TEXTS.labelComponents, { exact: true }).click();
-      await page.getByTestId("home-dropdown-menu").nth(0).click();
-      await page.getByTestId("btn-download-json").last().click();
-      await expect(
-        page.getByText(/.*exported successfully/).last(),
-      ).toBeVisible({
-        timeout: 10000,
+    try {
+      await page.goto(`/project/${project.id}/boards?panel=automations`);
+      const inventory = page.getByRole("complementary", {
+        name: "Automations",
       });
+      await expect(
+        inventory.getByText(flow.name, { exact: true }),
+      ).toBeVisible();
+
+      const response = await page.request.post("/api/v1/flows/download/", {
+        data: [flow.id],
+      });
+      expect(response.status(), await response.text()).toBe(200);
+      expect(response.headers()["content-type"]).toContain("application/json");
+      const exported = (await response.json()) as Partial<Flow>;
+      expect(exported).toMatchObject({
+        name: flow.name,
+        description: flow.description,
+        data: flow.data,
+      });
+      expect(exported.id).toBe(flow.id);
+      expect(exported).not.toHaveProperty("folder_id");
+      expect(exported).not.toHaveProperty("user_id");
+    } finally {
+      await deleteProject(page, project.id);
     }
   },
 );
 
 test(
-  "user should be able to upload a flow or a component",
+  "automation JSON upload is reflected in the selected project inventory",
   { tag: ["@release", "@api", "@workspace"] },
   async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector('[data-testid="mainpage_title"]', {
-      timeout: 30000,
-    });
-    const countEmptyButton = await page
-      .getByTestId("new_project_btn_empty_page")
-      .count();
-    if (countEmptyButton > 0) {
-      await addFlowToTestOnEmptyKetos(page);
+    await awaitWorkspaceReady(page);
+    const project = await createProject(page);
+    await createBoard(page, project.id);
+    const importedName = `Imported ${crypto.randomUUID().slice(0, 8)}`;
+
+    try {
+      const response = await page.request.post("/api/v1/flows/upload/", {
+        params: { folder_id: project.id },
+        multipart: {
+          file: {
+            name: "imported-flow.json",
+            mimeType: "application/json",
+            buffer: Buffer.from(
+              JSON.stringify({
+                name: importedName,
+                description: "Uploaded through the supported API",
+                data: {
+                  nodes: [],
+                  edges: [],
+                  viewport: { x: 0, y: 0, zoom: 1 },
+                },
+              }),
+            ),
+          },
+        },
+      });
+      expect(response.status(), await response.text()).toBe(201);
+      const imported = (await response.json()) as Flow[];
+      expect(imported).toHaveLength(1);
+      expect(imported[0]).toMatchObject({
+        name: importedName,
+        folder_id: project.id,
+      });
+      expect(imported[0].id).toBeTruthy();
+
+      await page.goto(`/project/${project.id}/boards?panel=automations`);
+      const inventory = page.getByRole("complementary", {
+        name: "Automations",
+      });
+      await expect(
+        inventory.getByText(importedName, { exact: true }),
+      ).toBeVisible();
+    } finally {
+      await deleteProject(page, project.id);
     }
-    await page.getByTestId("upload-project-button").last().click();
   },
 );
 
 test(
-  "user should be able to duplicate a flow or a component",
-  { tag: ["@release", "@workspace"] },
+  "automation clone created through the supported API preserves graph data in the primary workspace",
+  { tag: ["@release", "@workspace", "@api"] },
   async ({ page }) => {
-    await awaitBootstrapTest(page);
-
-    await page.getByTestId("side_nav_options_all-templates").click();
-    await page
-      .getByRole("heading", { name: TEXTS.templateBasicPrompting })
-      .click();
-    await adjustScreenView(page);
-
-    await page.getByText(TEXTS.componentChatInput, { exact: true }).click();
-    await page.getByTestId("more-options-modal").click();
-
-    await page.getByTestId("icon-SaveAll").first().click();
-
-    if (await page.getByTestId("replace-button").isVisible()) {
-      await page.getByTestId("replace-button").click();
-    }
-
-    await page.waitForSelector('[data-testid="sidebar-search-input"]', {
-      timeout: 100000,
+    await awaitWorkspaceReady(page);
+    const project = await createProject(page);
+    await createBoard(page, project.id);
+    const original = await createFlow(
+      page,
+      project.id,
+      `Original ${crypto.randomUUID().slice(0, 8)}`,
+    );
+    const copyResponse = await page.request.post("/api/v1/flows/", {
+      data: {
+        name: `${original.name} copy`,
+        description: original.description,
+        folder_id: project.id,
+        data: original.data,
+      },
     });
+    expect(copyResponse.status(), await copyResponse.text()).toBe(201);
+    const copy = (await copyResponse.json()) as Flow;
 
-    const exitButton = await page
-      .getByText(TEXTS.exit, { exact: true })
-      .count();
-
-    if (exitButton > 0) {
-      await page.getByText(TEXTS.exit, { exact: true }).click();
+    try {
+      expect(copy.id).not.toBe(original.id);
+      expect(copy.data).toEqual(original.data);
+      await page.goto(`/project/${project.id}/boards?panel=automations`);
+      const inventory = page.getByRole("complementary", {
+        name: "Automations",
+      });
+      await expect(
+        inventory.getByText(original.name, { exact: true }),
+      ).toBeVisible();
+      await expect(
+        inventory.getByText(copy.name, { exact: true }),
+      ).toBeVisible();
+    } finally {
+      await deleteProject(page, project.id);
     }
-
-    const replaceButton = await page.getByTestId("replace-button").isVisible();
-
-    if (replaceButton) {
-      await page.getByTestId("replace-button").click();
-    }
-
-    await page.getByTestId("icon-ChevronLeft").last().click();
-    await page.getByTestId("home-dropdown-menu").nth(1).click();
-    await page.getByTestId("btn-duplicate-flow").last().click();
-
-    await expect(page.getByText("Flow duplicated successfully")).toBeVisible({
-      timeout: 10000,
-    });
   },
 );

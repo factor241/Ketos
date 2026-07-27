@@ -1,103 +1,86 @@
+import type { Page } from "@playwright/test";
+
 import { expect, test } from "../../fixtures";
-import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
-import { TEXTS } from "../../utils/constants/texts";
 import { renameFlow } from "../../utils/rename-flow";
 
+type Project = { id: string };
+type Flow = { id: string; name: string; folder_id: string };
+
+async function createProject(page: Page): Promise<Project> {
+  const response = await page.request.post("/api/v1/projects/", {
+    data: {
+      name: `Rename ${crypto.randomUUID().slice(0, 8)}`,
+      description: "",
+      flows_list: [],
+      components_list: [],
+    },
+  });
+  expect(response.status(), await response.text()).toBe(201);
+  return response.json();
+}
+
+async function createFlow(page: Page, projectId: string): Promise<Flow> {
+  const response = await page.request.post("/api/v1/flows/", {
+    data: {
+      name: "Rename candidate",
+      description: "Rename acceptance",
+      folder_id: projectId,
+      data: {
+        nodes: [],
+        edges: [],
+        viewport: { x: 0, y: 0, zoom: 1 },
+      },
+    },
+  });
+  expect(response.status(), await response.text()).toBe(201);
+  return response.json();
+}
+
 test(
-  "user should be able to edit flow name by clicking on the header or on the main page",
-  { tag: ["@release", "@workspace", "@components"] },
+  "automation name edited in the editor persists in the project inventory",
+  { tag: ["@release", "@workspace", "@components", "@api"] },
   async ({ page }) => {
-    const randomName = Math.random().toString(36).substring(2, 15);
-    const randomName2 = Math.random().toString(36).substring(2, 15);
-    const randomName3 = Math.random().toString(36).substring(2, 15);
-    const randomName4 = Math.random().toString(36).substring(2, 15);
+    await page.goto("/");
+    await expect(page.getByTestId("project-sidebar")).toBeVisible();
+    const project = await createProject(page);
+    const boardResponse = await page.request.post(
+      `/api/v1/projects/${project.id}/boards`,
+      { data: { title: "Rename workspace" } },
+    );
+    expect(boardResponse.status(), await boardResponse.text()).toBe(201);
+    const flow = await createFlow(page, project.id);
+    const renamed = `Renamed ${crypto.randomUUID().slice(0, 8)}`;
 
-    await awaitBootstrapTest(page);
+    try {
+      await page.goto(`/flow/${flow.id}`);
+      await expect(page.locator("#react-flow-id")).toBeVisible();
+      await renameFlow(page, { flowName: renamed });
 
-    await page
-      .getByRole("heading", { name: TEXTS.templateBasicPrompting })
-      .click();
+      const storedResponse = await page.request.get(`/api/v1/flows/${flow.id}`);
+      expect(storedResponse.status(), await storedResponse.text()).toBe(200);
+      expect((await storedResponse.json()) as Flow).toMatchObject({
+        id: flow.id,
+        name: renamed,
+        folder_id: project.id,
+      });
 
-    await renameFlow(page, { flowName: randomName });
-
-    const { flowName } = await renameFlow(page);
-
-    expect(flowName).toBe(randomName);
-
-    await page.getByTestId("icon-ChevronLeft").first().click();
-
-    await page.waitForSelector('[data-testid="home-dropdown-menu"]', {
-      timeout: 5000,
-    });
-
-    await page.waitForSelector(`text=${randomName}`, {
-      timeout: 3000,
-      state: "visible",
-    });
-
-    expect(await page.getByText(randomName).count()).toBe(1);
-
-    await page.getByText(randomName).click();
-
-    await renameFlow(page, { flowName: randomName2 });
-
-    const { flowName: flowName2 } = await renameFlow(page);
-
-    expect(flowName2).toBe(randomName2);
-
-    await page.getByTestId("icon-ChevronLeft").first().click();
-
-    await page.waitForSelector('[data-testid="home-dropdown-menu"]', {
-      timeout: 5000,
-    });
-
-    await page.waitForSelector(`text=${randomName2}`, {
-      timeout: 3000,
-      state: "visible",
-    });
-
-    expect(await page.getByText(randomName2).count()).toBe(1);
-
-    await page.getByText(randomName2).click();
-
-    await renameFlow(page, { flowName: randomName3 });
-
-    const { flowName: flowName3 } = await renameFlow(page);
-
-    expect(flowName3).toBe(randomName3);
-
-    await page.getByTestId("icon-ChevronLeft").first().click();
-
-    await page.waitForSelector('[data-testid="home-dropdown-menu"]', {
-      timeout: 5000,
-    });
-
-    await page.waitForSelector(`text=${randomName3}`, {
-      timeout: 3000,
-      state: "visible",
-    });
-
-    expect(await page.getByText(randomName3).count()).toBe(1);
-
-    await page.getByText(randomName3).click();
-
-    await renameFlow(page, { flowName: randomName4 });
-
-    const { flowName: flowName4 } = await renameFlow(page);
-
-    expect(flowName4).toBe(randomName4);
-
-    await page.getByTestId("icon-ChevronLeft").first().click();
-
-    await page.waitForSelector('[data-testid="home-dropdown-menu"]', {
-      timeout: 5000,
-    });
-
-    await page.waitForSelector(`text=${randomName4}`, {
-      timeout: 3000,
-      state: "visible",
-    });
-
-    expect(await page.getByText(randomName4).count()).toBe(1);
+      await page.goto(`/project/${project.id}/boards?panel=automations`);
+      const inventory = page.getByRole("complementary", {
+        name: "Automations",
+      });
+      await expect(inventory.getByText(renamed, { exact: true })).toBeVisible();
+      await inventory
+        .getByRole("button", {
+          name: `Open ${renamed} in the automation editor`,
+        })
+        .click();
+      await expect(page).toHaveURL(new RegExp(`/flow/${flow.id}(?:[?#]|$)`));
+      await expect(page.getByTestId("flow_name")).toHaveText(renamed);
+    } finally {
+      const cleanup = await page.request.delete(
+        `/api/v1/projects/${project.id}`,
+      );
+      expect([204, 404]).toContain(cleanup.status());
+    }
   },
 );

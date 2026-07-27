@@ -18,12 +18,13 @@ test(
     await page.getByTestId("sidebar-search-input").click();
     await page.getByTestId("sidebar-search-input").fill(TEXTS.searchPrompt);
 
-    await page
-      .getByTestId("models_and_agentsPrompt Template")
-      .hover()
-      .then(async () => {
-        await page.getByTestId("add-component-button-prompt-template").click();
-      });
+    const productionPromptTemplate = page.getByTestId(
+      "models_and_agentsPrompt Template",
+    );
+    await productionPromptTemplate.hover();
+    await productionPromptTemplate
+      .getByTestId("add-component-button-prompt-template")
+      .click();
 
     await page.waitForSelector('[data-testid="title-Prompt Template"]', {
       timeout: 3000,

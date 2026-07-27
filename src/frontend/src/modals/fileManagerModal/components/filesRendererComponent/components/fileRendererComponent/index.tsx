@@ -12,6 +12,14 @@ import { FILE_ICONS } from "@/utils/styleUtils";
 import { cn } from "@/utils/utils";
 import FilesContextMenuComponent from "../../../filesContextMenuComponent";
 
+const isInteractiveTarget = (target: EventTarget | null) =>
+  target instanceof Element &&
+  Boolean(
+    target.closest(
+      'button, input, label, a, [role="checkbox"], [role="menuitem"]',
+    ),
+  );
+
 export default function FileRendererComponent({
   file,
   handleFileSelect,
@@ -72,8 +80,12 @@ export default function FileRendererComponent({
               ? "pointer-events-none cursor-not-allowed opacity-50"
               : "",
           )}
-          onClick={handleItemClick}
+          onClick={(event) => {
+            if (isInteractiveTarget(event.target)) return;
+            handleItemClick();
+          }}
           onKeyDown={(event) => {
+            if (isInteractiveTarget(event.target)) return;
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
               handleItemClick();

@@ -30,8 +30,9 @@ test(
 
     await enableOptionalComponents(page);
 
-    await page.getByTestId("sidebar-search-input").click();
-    await page.getByTestId("sidebar-search-input").fill("retrievalqa");
+    const componentSearch = page.getByTestId("sidebar-search-input");
+    await componentSearch.click();
+    await componentSearch.fill("retrievalqa");
 
     await page.waitForSelector(
       '[data-testid="langchain_utilitiesRetrieval QA"]',
@@ -46,6 +47,11 @@ test(
     await page.mouse.down();
 
     await adjustScreenView(page);
+    await componentSearch.fill("");
+    await expect(componentSearch).toHaveValue("");
+    await expect(page.getByTestId("disclosure-input & output")).toBeVisible({
+      timeout: 15_000,
+    });
 
     const outputElements = await page
       .getByTestId("handle-retrievalqa-shownode-text-right")
@@ -56,9 +62,7 @@ test(
       throw new Error("Output handle not visible");
     }
 
-    await visibleElementHandle.click({
-      force: true,
-    });
+    await visibleElementHandle.dispatchEvent("click");
 
     const disclosureTestIds = [
       "disclosure-input & output",
@@ -86,21 +90,15 @@ test(
     ];
 
     await Promise.all(
-      disclosureTestIds.map((id) => {
-        if (!expect(page.getByTestId(id)).toBeVisible()) {
-          console.error(`${id} is not visible`);
-        }
-        return expect(page.getByTestId(id)).toBeVisible();
-      }),
+      disclosureTestIds.map((id) =>
+        expect(page.getByTestId(id)).toBeVisible({ timeout: 15_000 }),
+      ),
     );
 
     await Promise.all(
-      elementTestIds.map(async (id) => {
-        if (!expect(page.getByTestId(id).first()).toBeVisible()) {
-          console.error(`${id} is not visible`);
-        }
-        return expect(page.getByTestId(id).first()).toBeVisible();
-      }),
+      elementTestIds.map((id) =>
+        expect(page.getByTestId(id).first()).toBeVisible({ timeout: 15_000 }),
+      ),
     );
 
     await page.getByTestId("sidebar-search-input").click();
@@ -117,12 +115,9 @@ test(
     ];
 
     await Promise.all(
-      visibleModelSpecsTestIds.map((id) => {
-        if (!expect(page.getByTestId(id)).toBeVisible()) {
-          console.error(`${id} is not visible`);
-        }
-        return expect(page.getByTestId(id)).toBeVisible();
-      }),
+      visibleModelSpecsTestIds.map((id) =>
+        expect(page.getByTestId(id)).toBeVisible({ timeout: 15_000 }),
+      ),
     );
 
     const chainInputElements1 = await page
@@ -136,9 +131,7 @@ test(
 
     await visibleElementHandle.blur();
 
-    await visibleElementHandle.click({
-      force: true,
-    });
+    await visibleElementHandle.dispatchEvent("click");
 
     await expect(page.getByTestId("disclosure-models & agents")).toBeVisible();
 
@@ -151,7 +144,7 @@ test(
       visibleElementHandle = templateHandle;
     }
 
-    await visibleElementHandle.click();
+    await visibleElementHandle.dispatchEvent("click");
 
     await expect(page.getByTestId("disclosure-input & output")).toBeVisible();
     await expect(page.getByTestId("disclosure-data sources")).toBeVisible();

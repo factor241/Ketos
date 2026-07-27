@@ -1,5 +1,6 @@
 import { DialogClose } from "@radix-ui/react-dialog";
 import { Trash2 } from "lucide-react";
+import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/ui/button";
 import {
@@ -32,9 +33,11 @@ export default function DeleteConfirmationModal({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild={!children ? true : asChild} tabIndex={-1}>
-        {children}
-      </DialogTrigger>
+      {children && children.type !== Fragment && (
+        <DialogTrigger asChild={asChild ?? true} tabIndex={-1}>
+          {children}
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>

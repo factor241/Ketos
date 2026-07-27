@@ -1,6 +1,26 @@
+import type { Locator, Page } from "@playwright/test";
+
 import { expect, test } from "../../fixtures";
 import { adjustScreenView } from "../../utils/adjust-screen-view";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
+
+async function selectPresetColor(page: Page, noteNode: Locator, color: string) {
+  const trigger = page.getByTestId("color_picker");
+  if (!(await trigger.isVisible())) {
+    await noteNode.click();
+  }
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+
+  const option = page.getByTestId(`color_picker_button_${color}`);
+  await expect(option).toBeVisible();
+  await option.click();
+
+  if (await option.isVisible()) {
+    await page.keyboard.press("Escape");
+  }
+  await expect(option).toBeHidden();
+}
 
 test(
   "user should be able to change note colors using the color picker",
@@ -36,7 +56,6 @@ test(
 
     // Open color picker
     await page.getByTestId("color_picker").click();
-    await page.waitForTimeout(300);
 
     // Verify all preset color buttons are visible (amber, neutral, rose, blue, lime, transparent)
     const colorButtons = [
@@ -58,23 +77,18 @@ test(
 
     // Change to rose color
     await page.getByTestId("color_picker_button_rose").click();
-    await page.waitForTimeout(500);
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("color_picker_button_rose")).toBeHidden();
 
-    // Click elsewhere to close popover and verify the note color changed
-    await page.getByTestId("note_node").click();
-    bgColor = await noteNode.evaluate(
-      (el) => window.getComputedStyle(el).backgroundColor,
-    );
     // Rose color should be pinkish - check it's not amber anymore
-    expect(bgColor).not.toBe("rgb(252, 211, 77)");
+    await expect
+      .poll(() =>
+        noteNode.evaluate((el) => window.getComputedStyle(el).backgroundColor),
+      )
+      .not.toBe("rgb(252, 211, 77)");
 
     // Change to blue color
-    await page.getByTestId("color_picker").click();
-    await page.waitForTimeout(300);
-    await page.getByTestId("color_picker_button_blue").click();
-    await page.waitForTimeout(500);
-
-    await page.getByTestId("note_node").click();
+    await selectPresetColor(page, noteNode, "blue");
     bgColor = await noteNode.evaluate(
       (el) => window.getComputedStyle(el).backgroundColor,
     );
@@ -82,24 +96,14 @@ test(
     expect(bgColor).toBeTruthy();
 
     // Change to lime color
-    await page.getByTestId("color_picker").click();
-    await page.waitForTimeout(300);
-    await page.getByTestId("color_picker_button_lime").click();
-    await page.waitForTimeout(500);
-
-    await page.getByTestId("note_node").click();
+    await selectPresetColor(page, noteNode, "lime");
     bgColor = await noteNode.evaluate(
       (el) => window.getComputedStyle(el).backgroundColor,
     );
     expect(bgColor).toBeTruthy();
 
     // Change to transparent
-    await page.getByTestId("color_picker").click();
-    await page.waitForTimeout(300);
-    await page.getByTestId("color_picker_button_transparent").click();
-    await page.waitForTimeout(500);
-
-    await page.getByTestId("note_node").click();
+    await selectPresetColor(page, noteNode, "transparent");
     bgColor = await noteNode.evaluate(
       (el) => window.getComputedStyle(el).backgroundColor,
     );
@@ -131,7 +135,6 @@ test(
 
     // Open color picker
     await page.getByTestId("color_picker").click();
-    await page.waitForTimeout(300);
 
     // Verify the custom color picker button exists
     const customButton = page.getByTestId("color_picker_button_custom");

@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import fs from "fs";
 import path from "path";
 import { expect, test } from "../../fixtures";
@@ -5,6 +6,17 @@ import { addFlowToTestOnEmptyKetos } from "../../utils/add-flow-to-test-on-empty
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
 import { TEXTS } from "../../utils/constants/texts";
 import { generateRandomFilename } from "../../utils/generate-filename";
+
+async function openFilesPage(page: Page) {
+  const accountMenu = page.getByTestId("user_menu_button");
+  await expect(accountMenu).toBeVisible();
+  await accountMenu.click();
+  const filesItem = page.getByTestId("account-menu-my-files");
+  await expect(filesItem).toBeVisible();
+  await filesItem.click();
+  await expect(page).toHaveURL(/\/assets\/files(?:[/?#]|$)/);
+  await expect(page.getByTestId("mainpage_title")).toBeVisible();
+}
 
 // Configure tests to run serially with a delay between each test
 test(
@@ -26,7 +38,7 @@ test(
     });
 
     // Click on the files button
-    await page.getByText(TEXTS.labelMyFiles).first().click();
+    await openFilesPage(page);
 
     // Check if we're on the files page
     await page.waitForSelector('[data-testid="mainpage_title"]');
@@ -70,7 +82,7 @@ test(
       timeout: 30000,
     });
 
-    await page.getByText(TEXTS.labelMyFiles).first().click();
+    await openFilesPage(page);
     const fileChooserPromise = page.waitForEvent("filechooser");
     await page.getByTestId("upload-file-btn").click();
 
@@ -88,8 +100,8 @@ test(
     expect(successMessage).toBeTruthy();
 
     // Verify file appears in the list
-    const uploadedFileName = await page.getByText(fileName + ".txt");
-    expect(await uploadedFileName.isVisible()).toBeTruthy();
+    const uploadedFileName = page.getByText(fileName + ".txt");
+    await expect(uploadedFileName).toBeVisible();
   },
 );
 
@@ -113,7 +125,7 @@ test(
       timeout: 30000,
     });
 
-    await page.getByText(TEXTS.labelMyFiles).first().click();
+    await openFilesPage(page);
 
     // Create DataTransfer object and file
     const dataTransfer = await page.evaluateHandle((fileName) => {
@@ -181,7 +193,7 @@ test(
       timeout: 30000,
     });
 
-    await page.getByText(TEXTS.labelMyFiles).first().click();
+    await openFilesPage(page);
     const fileChooserPromise = page.waitForEvent("filechooser");
     await page.getByTestId("upload-file-btn").click();
 
@@ -253,7 +265,7 @@ test(
       timeout: 30000,
     });
 
-    await page.getByText(TEXTS.labelMyFiles).first().click();
+    await openFilesPage(page);
     const fileChooserPromise = page.waitForEvent("filechooser");
     await page.getByTestId("upload-file-btn").click();
 
@@ -352,7 +364,7 @@ test(
       timeout: 30000,
     });
 
-    await page.getByText(TEXTS.labelMyFiles).first().click();
+    await openFilesPage(page);
     const fileChooserPromise = page.waitForEvent("filechooser");
     await page.getByTestId("upload-file-btn").click();
 

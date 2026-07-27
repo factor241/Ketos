@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import type { Placement } from "@/types/board";
 import type { ChatThread } from "@/types/chat";
+import type { ThreadScopedAgentBinding } from "../../chats/use-thread-scoped-copilot-agent";
 import { ChatPlacement } from "./ChatPlacement";
 
 const chats: Array<{ agentId?: string; threadId?: string }> = [];
@@ -14,8 +15,11 @@ const mockUseChatReconnect = jest.fn((input: { chatId: string }) => ({
   announcementKey: "chat.states.restored",
   retry: jest.fn(),
 }));
-const mockUseThreadScopedCopilotAgent = jest.fn((chatId: string) => ({
-  status: "ready" as const,
+const mockUseThreadScopedCopilotAgent = jest.fn<
+  ThreadScopedAgentBinding,
+  [string]
+>((chatId: string) => ({
+  status: "ready",
   localAgentId: `ketos-chat--${chatId}`,
   error: null,
   retry: jest.fn(),

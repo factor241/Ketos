@@ -149,9 +149,8 @@ test.describe("Project sidebar account", () => {
       await page.keyboard.press("Enter");
       await expect(page.getByRole("menu")).toBeVisible();
 
-      await page.keyboard.press("ArrowDown");
       await expect(settingsButton).toBeFocused();
-      await page.keyboard.press("ArrowDown");
+      await page.keyboard.press("l");
       await expect(lightButton).toBeFocused();
       await page.keyboard.press("ArrowDown");
       await expect(darkButton).toBeFocused();
@@ -177,7 +176,6 @@ test.describe("Project sidebar account", () => {
 
       const settingsButton = page.getByTestId("menu_settings_button");
       await expect(page.getByRole("menu")).toBeVisible();
-      await page.keyboard.press("ArrowDown");
       await expect(settingsButton).toBeFocused();
 
       await page.keyboard.press("Enter");
@@ -197,7 +195,7 @@ test.describe("Project sidebar account", () => {
 
       const accountMenuButton = page.getByTestId("user_menu_button");
       const sidebarTrigger = page
-        .getByTestId("mainpage_title")
+        .getByTestId("project-page")
         .locator('[data-sidebar="trigger"]');
 
       await expect(accountMenuButton).not.toBeInViewport();

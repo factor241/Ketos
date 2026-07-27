@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
 from kfx.services.deps import injectable_session_scope_manual
+from kfx.services.settings.feature_flags import FEATURE_FLAGS
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ketos.api.utils import CurrentActiveUser, DbSession
@@ -73,6 +74,14 @@ async def _run_command(call: Callable[[], Awaitable[T]]) -> T:
         ) from exc
 
 
+def _require_workspace_command() -> None:
+    if not FEATURE_FLAGS.mvp_workspace:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "board_command_disabled"},
+        )
+
+
 @router.post(
     "/projects/{project_id}/boards",
     status_code=status.HTTP_201_CREATED,
@@ -97,6 +106,7 @@ async def bootstrap_project_board(
     current_user: CurrentActiveUser,
     idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
 ) -> BoardBootstrapRead:
+    _require_workspace_command()
     result = await _run_command(
         lambda: bootstrap_board(
             session,
@@ -131,6 +141,7 @@ async def create_automation_in_board(
     current_user: CurrentActiveUser,
     idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
 ) -> BoardAutomationRead:
+    _require_workspace_command()
     result = await _run_command(
         lambda: create_board_automation(
             session,

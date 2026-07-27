@@ -59,15 +59,109 @@ async function readPlacement(page: Page, boardId: string, placementId: string) {
   return placement as Record<string, unknown>;
 }
 
-const placementWrite = (page: Page, placementId: string, method = "PATCH") =>
-  page.waitForResponse((response) => {
-    const url = new URL(response.url());
-    return (
-      response.request().method() === method &&
-      url.pathname === `/api/v1/placements/${placementId}` &&
-      response.ok()
+const placementWrite = (
+  page: Page,
+  placementId: string,
+  method = "PATCH",
+  timeout = 20_000,
+) =>
+  page.waitForResponse(
+    (response) => {
+      const url = new URL(response.url());
+      return (
+        response.request().method() === method &&
+        url.pathname === `/api/v1/placements/${placementId}` &&
+        response.ok()
+      );
+    },
+    { timeout },
+  );
+
+async function dragPlacement(
+  page: Page,
+  card: Locator,
+  dragHandle: Locator,
+  placementId: string,
+) {
+  const [canvasBox, cardBox, dragBox] = await Promise.all([
+    page.getByRole("region", { name: "Board canvas" }).boundingBox(),
+    card.boundingBox(),
+    dragHandle.boundingBox(),
+  ]);
+  expect(canvasBox).not.toBeNull();
+  expect(cardBox).not.toBeNull();
+  expect(dragBox).not.toBeNull();
+  const canvas = canvasBox as NonNullable<typeof canvasBox>;
+  const before = cardBox as NonNullable<typeof cardBox>;
+  const handle = dragBox as NonNullable<typeof dragBox>;
+  const margin = 12;
+  const candidates = [
+    {
+      dx: Math.min(
+        120,
+        canvas.x + canvas.width - (before.x + before.width) - margin,
+      ),
+      dy: 0,
+    },
+    {
+      dx: -Math.min(120, before.x - canvas.x - margin),
+      dy: 0,
+    },
+    {
+      dx: 0,
+      dy: Math.min(
+        120,
+        canvas.y + canvas.height - (before.y + before.height) - margin,
+      ),
+    },
+    {
+      dx: 0,
+      dy: -Math.min(120, before.y - canvas.y - margin),
+    },
+  ]
+    .filter(({ dx, dy }) => Math.max(Math.abs(dx), Math.abs(dy)) >= 80)
+    .sort(
+      (left, right) =>
+        Math.max(Math.abs(right.dx), Math.abs(right.dy)) -
+        Math.max(Math.abs(left.dx), Math.abs(left.dy)),
     );
-  });
+  expect(candidates.length).toBeGreaterThan(0);
+  const delta = candidates[0];
+  const start = {
+    x: handle.x + handle.width / 2,
+    y: handle.y + handle.height / 2,
+  };
+  const receivesPointer = await dragHandle.evaluate((element, point) => {
+    const hit = document.elementFromPoint(point.x, point.y);
+    return hit === element || (hit !== null && element.contains(hit));
+  }, start);
+  expect(receivesPointer).toBe(true);
+
+  const write = placementWrite(page, placementId);
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  try {
+    const threshold = {
+      x: delta.dx === 0 ? 0 : Math.sign(delta.dx) * 12,
+      y: delta.dy === 0 ? 0 : Math.sign(delta.dy) * 12,
+    };
+    await page.mouse.move(start.x + threshold.x, start.y + threshold.y, {
+      steps: 2,
+    });
+    await page.mouse.move(start.x + delta.dx, start.y + delta.dy, {
+      steps: 8,
+    });
+    await expect
+      .poll(async () => {
+        const moved = await card.boundingBox();
+        return moved ? Math.hypot(moved.x - before.x, moved.y - before.y) : 0;
+      })
+      .toBeGreaterThan(20);
+  } finally {
+    await page.mouse.up();
+  }
+  return write;
+}
 
 async function awaitPlacementCommit(
   response: Promise<APIResponse>,
@@ -167,48 +261,41 @@ test(
     const dragBox = await dragHandle.boundingBox();
     expect(dragBox).not.toBeNull();
     expect((dragBox as NonNullable<typeof dragBox>).width).toBeGreaterThan(20);
-    const dragWrite = placementWrite(page, placementId);
-    await page.mouse.move(
-      (dragBox as NonNullable<typeof dragBox>).x +
-        (dragBox as NonNullable<typeof dragBox>).width / 2,
-      (dragBox as NonNullable<typeof dragBox>).y +
-        (dragBox as NonNullable<typeof dragBox>).height / 2,
-    );
-    await page.mouse.down();
-    await page.mouse.move(
-      (dragBox as NonNullable<typeof dragBox>).x +
-        (dragBox as NonNullable<typeof dragBox>).width / 2 +
-        80,
-      (dragBox as NonNullable<typeof dragBox>).y +
-        (dragBox as NonNullable<typeof dragBox>).height / 2 +
-        60,
-      { steps: 6 },
-    );
-    await page.mouse.up();
+    const dragWrite = dragPlacement(page, card, dragHandle, placementId);
     await awaitPlacementCommit(dragWrite, card);
     expect(placementPatchCount).toBe(1);
 
     card = page.getByRole("region", { name: "Note" });
     await card.click({ position: { x: 4, y: 4 } });
-    const pointerResizeHandle = page
+    const node = page.locator(`[data-id="${placementId}"]`);
+    const nodeBoxBeforeResize = await node.boundingBox();
+    expect(nodeBoxBeforeResize).not.toBeNull();
+    const pointerResizeHandle = node
       .locator(".react-flow__resize-control.handle.bottom.right")
       .first();
     await expect(pointerResizeHandle).toBeVisible();
     const resizeBox = await pointerResizeHandle.boundingBox();
     expect(resizeBox).not.toBeNull();
+    const resizeStart = {
+      x:
+        (resizeBox as NonNullable<typeof resizeBox>).x +
+        (resizeBox as NonNullable<typeof resizeBox>).width / 2,
+      y:
+        (resizeBox as NonNullable<typeof resizeBox>).y +
+        (resizeBox as NonNullable<typeof resizeBox>).height / 2,
+    };
     const pointerResizeWrite = placementWrite(page, placementId);
-    await pointerResizeHandle.hover({ force: true });
+    await pointerResizeHandle.hover();
     await page.mouse.down();
-    await page.mouse.move(
-      (resizeBox as NonNullable<typeof resizeBox>).x +
-        (resizeBox as NonNullable<typeof resizeBox>).width / 2 +
-        80,
-      (resizeBox as NonNullable<typeof resizeBox>).y +
-        (resizeBox as NonNullable<typeof resizeBox>).height / 2 +
-        60,
-      { steps: 5 },
-    );
+    await page.mouse.move(resizeStart.x + 80, resizeStart.y + 60, {
+      steps: 8,
+    });
     await page.mouse.up();
+    await expect
+      .poll(async () => (await node.boundingBox())?.width ?? 0)
+      .toBeGreaterThan(
+        (nodeBoxBeforeResize as NonNullable<typeof nodeBoxBeforeResize>).width,
+      );
     await awaitPlacementCommit(pointerResizeWrite, card);
     expect(placementPatchCount).toBe(2);
 
@@ -218,6 +305,8 @@ test(
     await awaitPlacementCommit(moveWrite, card);
     expect(placementPatchCount).toBe(3);
 
+    await card.focus();
+    await expect(card).toBeFocused();
     const resizeWrite = placementWrite(page, placementId);
     await page.keyboard.press("Control+Alt+ArrowRight");
     await awaitPlacementCommit(resizeWrite, card);

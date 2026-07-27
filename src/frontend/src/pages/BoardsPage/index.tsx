@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { BoardCreationDialog } from "@/components/core/boardCreationWizard/BoardCreationDialog";
@@ -42,6 +42,7 @@ export default function BoardsPage({
   const deleteBoard = useDeleteBoard({ projectId });
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const createDialogTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [renamingBoard, setRenamingBoard] = useState<BoardRead | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
   const [deletingBoard, setDeletingBoard] = useState<BoardRead | null>(null);
@@ -66,6 +67,11 @@ export default function BoardsPage({
 
   const openBoard = (board: BoardRead) =>
     navigate(`/project/${projectId}/board/${board.id}`);
+
+  const openCreateDialog = (trigger: HTMLButtonElement) => {
+    createDialogTriggerRef.current = trigger;
+    setIsCreateDialogOpen(true);
+  };
 
   const placeExistingAutomation = async (summary: AutomationSummary) => {
     if (!selectedBoardId) throw new Error("A Board must be selected");
@@ -174,11 +180,13 @@ export default function BoardsPage({
   return (
     <main className="flex h-full flex-col gap-6 p-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{t("boards.title")}</h1>
+        <h1 data-testid="mainpage_title" className="text-2xl font-semibold">
+          {t("boards.title")}
+        </h1>
         <Button
           type="button"
           ignoreTitleCase
-          onClick={() => setIsCreateDialogOpen(true)}
+          onClick={(event) => openCreateDialog(event.currentTarget)}
         >
           {t("boards.create.submit")}
         </Button>
@@ -193,7 +201,7 @@ export default function BoardsPage({
           <Button
             type="button"
             ignoreTitleCase
-            onClick={() => setIsCreateDialogOpen(true)}
+            onClick={(event) => openCreateDialog(event.currentTarget)}
           >
             {t("boards.create.submit")}
           </Button>
@@ -281,6 +289,7 @@ export default function BoardsPage({
       <BoardCreationDialog
         open={isCreateDialogOpen}
         projectId={projectId}
+        returnFocusElement={createDialogTriggerRef.current}
         onOpenChange={setIsCreateDialogOpen}
       />
 

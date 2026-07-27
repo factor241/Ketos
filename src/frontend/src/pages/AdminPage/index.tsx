@@ -1,5 +1,5 @@
 import { cloneDeep, debounce } from "lodash";
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import PaginatorComponent from "@/components/common/paginatorComponent";
 import {
@@ -35,6 +35,7 @@ import useAlertStore from "../../stores/alertStore";
 import type { Users } from "../../types/api";
 import type { UserInputType } from "../../types/components";
 import { getLocalizedApiErrorMessage } from "../../utils/localized-api-error";
+import { createLatestRequestGate } from "./latest-request-wins";
 
 export default function AdminPage() {
   const { t } = useTranslation();
@@ -53,15 +54,20 @@ export default function AdminPage() {
   const { mutate: mutateAddUser } = useAddUser();
 
   const [userList, setUserList] = useState<Users[]>([]);
+  const latestUsersRequest = useMemo(createLatestRequestGate, []);
 
   const { mutate: mutateGetUsers, isPending, isIdle } = useGetUsers({});
 
   const fetchUsers = useCallback(
     (skip: number, limit: number, search?: string) => {
+      const requestId = latestUsersRequest.issue();
       mutateGetUsers(
         { skip, limit, search: search || undefined },
         {
           onSuccess: (users) => {
+            if (!latestUsersRequest.isLatest(requestId)) {
+              return;
+            }
             setTotalRowsCount(users["total_count"]);
             setUserList(users["users"]);
           },
@@ -69,7 +75,7 @@ export default function AdminPage() {
         },
       );
     },
-    [mutateGetUsers],
+    [latestUsersRequest, mutateGetUsers],
   );
 
   useEffect(() => {
@@ -85,6 +91,7 @@ export default function AdminPage() {
   }
 
   function resetFilter() {
+    debouncedSearch.cancel();
     setInputValue("");
     setPageIndex(PAGINATION_PAGE);
     setPageSize(PAGINATION_SIZE);

@@ -63,7 +63,7 @@ export const TEXTS = {
 
   // ─── Auth / login screen ────────────────────────────────────────────
   /** Visible on the sign-in route when KETOS_AUTO_LOGIN=false. */
-  authSignInHeader: "sign in to ketos",
+  authSignInHeader: "Sign in to Ketos",
   /** Default seeded username. */
   authDefaultCredential: "ketos",
   /** Explicit Playwright-only superuser password seeded in playwright.config.ts. */

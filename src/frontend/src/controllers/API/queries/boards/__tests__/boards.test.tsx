@@ -1,4 +1,4 @@
-import { AxiosError } from "axios";
+import { AxiosError, AxiosHeaders } from "axios";
 import { automationSummaryKeys } from "../../flows/use-get-automation-summaries";
 import { placementKeys } from "../../placements";
 import { boardKeys } from "../keys";
@@ -364,8 +364,8 @@ describe("board client contract", () => {
         data: { detail: { code: "board_revision_conflict" } },
         status: 409,
         statusText: "Conflict",
-        headers: {},
-        config: { headers: {} },
+        headers: new AxiosHeaders(),
+        config: { headers: new AxiosHeaders() },
       },
     );
     mockApiDelete.mockRejectedValueOnce(conflict);

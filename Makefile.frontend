@@ -71,11 +71,23 @@ format_frontend: ## frontend code formatters
 ######################
 
 tests_frontend: ## run frontend tests
-ifeq ($(UI), true)
-	@cd $(FRONTEND_DIR) && npx playwright test --ui --project=chromium
-else
-	@cd $(FRONTEND_DIR) && npx playwright test --project=chromium
-endif
+	@set -eu; \
+	RUN_ROOT="$$(mktemp -d /Volumes/Projects/ketos-playwright.XXXXXX)"; \
+	mkdir -p "$$RUN_ROOT/backend" "$$RUN_ROOT/evidence/stage05" "$$RUN_ROOT/evidence/stage08"; \
+	cd $(FRONTEND_DIR); \
+	export KETOS_MVP_RUN_DIR="$$RUN_ROOT"; \
+	export KETOS_DATABASE_URL="sqlite:///$$RUN_ROOT/backend/ketos.sqlite3"; \
+	export KETOS_DATA_DIR="$$RUN_ROOT/backend"; \
+	export KETOS_STAGE10_ENTITY_LEDGER="$$RUN_ROOT/stage10-entity-ledger.json"; \
+	export STAGE05_EVIDENCE_ROOT="$$RUN_ROOT/evidence/stage05"; \
+	export STAGE08_EVIDENCE_ROOT="$$RUN_ROOT/evidence/stage08"; \
+	export KETOS_AGENTIC_EXPERIENCE=true; \
+	export LANGGRAPH_STRICT_MSGPACK=true; \
+	if [ "$(UI)" = "true" ]; then \
+		npx playwright test -c playwright.mvp.config.ts --ui --project=chromium; \
+	else \
+		npx playwright test -c playwright.mvp.config.ts --project=chromium; \
+	fi
 
 ######################
 # FRONTEND UNIT TESTS (JEST)

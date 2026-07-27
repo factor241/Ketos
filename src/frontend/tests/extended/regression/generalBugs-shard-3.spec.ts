@@ -11,7 +11,8 @@ test(
   {
     tag: ["@release"],
   },
-  async ({ page }) => {
+  async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     skipIfMissing.openAiKey();
     loadDotenvIfLocal(__dirname);
     await openBlankFlow(page);

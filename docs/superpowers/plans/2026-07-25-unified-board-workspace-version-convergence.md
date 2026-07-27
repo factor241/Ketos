@@ -11,12 +11,14 @@
 ## Global Constraints
 
 - Execute in `/Volumes/Projects/ketos_canvas_mod_main`; the planning baseline is branch `main`, SHA `4c98c0beffac69e1864b1e2651df55b1ee1319a3`.
-- Transition admission is governed by the management decision recorded on
-  `2026-07-25` at planning SHA
-  `4c98c0beffac69e1864b1e2651df55b1ee1319a3`: all stages preceding this plan
-  are closed for transition purposes with status `ACCEPTED FOR TRANSITION`.
-  No Stage 09/10 exact-SHA PASS, seal, receipt, or rerun is a prerequisite for
-  starting this plan.
+- Transition admission is governed by the explicit user management decision,
+  reaffirmed on `2026-07-26` with repository HEAD
+  `0437da66c6934297ccf464337d2a86921d398c6f` observed before this
+  documentation update. All stages preceding this plan are closed for
+  transition purposes with status `ACCEPTED FOR TRANSITION`. The original
+  planning baseline remains
+  `4c98c0beffac69e1864b1e2651df55b1ee1319a3`. No Stage 09/10 exact-SHA PASS,
+  seal, receipt, or rerun is a prerequisite for this plan.
 - The accepted transition does not rewrite historical evidence or convert an
   incomplete predecessor check into technical PASS. The retained debt includes
   the unsealed Stage 10 candidate at
@@ -43,8 +45,9 @@
 
 | Field | Value |
 | --- | --- |
-| Decision date | `2026-07-25` |
-| Planning SHA | `4c98c0beffac69e1864b1e2651df55b1ee1319a3` |
+| Effective decision date | `2026-07-26` |
+| Original planning SHA | `4c98c0beffac69e1864b1e2651df55b1ee1319a3` |
+| Repository HEAD observed before this update | `0437da66c6934297ccf464337d2a86921d398c6f` |
 | Authority | Explicit user management decision |
 | Status | `ACCEPTED FOR TRANSITION` |
 | Scope | Every stage preceding this plan |
@@ -897,13 +900,13 @@ Prove the new workspace end to end on one exact SHA, retain legacy data/routes, 
 
 ## Task D1 — Backend/API/service matrix
 
-- [ ] Use fixed UUIDs and isolated projects/users for owner, editor, and non-member cases.
-- [ ] Test clean Board, all starter kinds, arbitrary template, existing Flow placement, and chat creation.
-- [ ] Test cross-project and cross-user denial before any write.
-- [ ] Inject failures at each compound-write stage and assert zero orphan rows.
-- [ ] Test same-key replay, same-key/different-payload conflict, and concurrent requests.
-- [ ] Test Board run authorization and idempotency through the existing execution endpoint.
-- [ ] Test kill-switch-off behavior: new entry points hide/fail closed while existing Board/Flow data remains readable.
+- [x] Use fixed UUIDs and isolated projects/users for owner, editor, and non-member cases.
+- [x] Test clean Board, all starter kinds, arbitrary template, existing Flow placement, and chat creation.
+- [x] Test cross-project and cross-user denial before any write.
+- [x] Inject failures at each compound-write stage and assert zero orphan rows.
+- [x] Test same-key replay, same-key/different-payload conflict, and concurrent requests.
+- [x] Test Board run authorization and idempotency through the existing execution endpoint.
+- [x] Test kill-switch-off behavior: new entry points hide/fail closed while existing Board/Flow data remains readable.
 
 **Focused backend gate**
 
@@ -928,17 +931,17 @@ Expected: exit `0`, no unexpected skips/xfails, and every negative case asserts 
 
 The only new schema is `BoardCommandReceipt`; Board, Placement, Flow, chat, note, and run tables are not renamed or destructively rewritten.
 
-- [ ] Test a fresh database upgrade to the new sole head.
-- [ ] Test an upgrade from `s08c0mmand01` with:
+- [x] Test a fresh database upgrade to the new sole head.
+- [x] Test an upgrade from `s08c0mmand01` with:
   - existing Flows and no Boards;
   - existing Boards and automation Placements;
   - existing durable chats and results;
   - mixed projects/users.
-- [ ] Prove the receipt unique constraint and indexes.
-- [ ] Prove legacy Flow/Board/chat/run/note records remain readable after upgrade.
-- [ ] Prove existing automation Placements still validate.
-- [ ] Prove migration downgrade only on a database with no post-upgrade receipt writes.
-- [ ] Define operational rollback as an application/flag rollback; do not destructively downgrade a database that contains new writes.
+- [x] Prove the receipt unique constraint and indexes.
+- [x] Prove legacy Flow/Board/chat/run/note records remain readable after upgrade.
+- [x] Prove existing automation Placements still validate.
+- [x] Prove migration downgrade only on a database with no post-upgrade receipt writes.
+- [x] Define operational rollback as an application/flag rollback; do not destructively downgrade a database that contains new writes.
 
 **Migration gate**
 
@@ -957,16 +960,16 @@ Expected: exit `0`; exactly one new head is printed; fresh and legacy data paths
 
 ## Task D3 — Frontend component and route matrix
 
-- [ ] Test Board default launch with workspace/chat on.
-- [ ] Test explicit kill-switch false behavior without blank screens or redirect loops.
-- [ ] Test wizard validation, every starter payload, idempotent retry, and retained form state.
-- [ ] Test project plus scoping, Board picker, and continuation.
-- [ ] Test account resource menu visibility and removal of footer duplicates.
-- [ ] Test Board/Flow chat scope, provider-required path, invalid Board context, and duplicate click.
-- [ ] Test editor return after normal navigation, direct reload, browser Back, and explicit return.
-- [ ] Test legacy `/flows` and `/all/folder/:folderId` bridges.
-- [ ] Test automation inventory for placed and unplaced existing Flows.
-- [ ] Test locale parity and accessible names/focus restoration.
+- [x] Test Board default launch with workspace/chat on.
+- [x] Test explicit kill-switch false behavior without blank screens or redirect loops.
+- [x] Test wizard validation, every starter payload, idempotent retry, and retained form state.
+- [x] Test project plus scoping, Board picker, and continuation.
+- [x] Test account resource menu visibility and removal of footer duplicates.
+- [x] Test Board/Flow chat scope, provider-required path, invalid Board context, and duplicate click.
+- [x] Test editor return after normal navigation, direct reload, browser Back, and explicit return.
+- [x] Test legacy `/flows` and `/all/folder/:folderId` bridges.
+- [x] Test automation inventory for placed and unplaced existing Flows.
+- [x] Test locale parity and accessible names/focus restoration.
 
 **Focused frontend gate**
 
@@ -1089,6 +1092,59 @@ Expected: every command exits `0`; no unrelated file is formatted or modified.
 - [ ] Roll back by disabling new frontend entry points and compound-command creation while preserving read access, existing `/flow/:id`, legacy routes, and all created data.
 - [ ] Leave the additive receipt table in place during operational rollback.
 - [ ] If starter cloning is the only failing area, temporarily allow only Clean Board and blank automation while retaining atomic/idempotent infrastructure.
+
+## Block D execution record — 2026-07-26
+
+Blocks A, B, and C are technically complete at
+`ef9bfaf9254d8f19b16336efcdef9e67d7ab720a`,
+`69e92b8f03b6601e03270622f5c762d1d2f91956`, and
+`cc685550f00ec6dbeb258da0a43864993182e677`. This technical record is
+separate from the management-only `ACCEPTED FOR TRANSITION` status of stages
+that preceded this plan; their raw historical debt remains retained and is
+not retroactively presented as PASS.
+
+Current local evidence:
+
+- D1 focused backend matrix: `102 passed`, no skips/xfails.
+- D2 PostgreSQL 16 migration matrix: `29 passed`, no skips; sole Alembic head
+  `ubw01cmdrec`.
+- D3 focused frontend matrix: `67 passed`; latest completed full Jest baseline
+  is `531` suites / `5853` tests.
+- D4 prior focused Chromium matrix: `15 passed` and exactly `2` intentional
+  controlled flag-off skips. A fresh candidate rerun remains mandatory.
+- Chrome and Computer Use evidence exists at `1440×900` and `1024×768`.
+- The authoritative full backend gate completed with `11045 passed`,
+  `464 skipped`, `11 xfailed`, exit `0`; legacy E2E completed with
+  `14 passed`; focused D4 and the post-Radix file-upload matrix are green.
+- Full Playwright and the final exact-SHA/current-proof seal remain in
+  progress and are not yet claimed as final PASS.
+- D6 is locally rollout-ready through
+  `docs/dev/handoff/UNIFIED_BOARD_ROLLOUT_ROLLBACK.md`, but no production
+  deployment was executed. Its literal deployment checkboxes remain
+  unchecked.
+
+Overall plan status: `PARTIAL`. The next stage has not started.
+
+### Block D continuation — 2026-07-27
+
+- The 2026-07-26 full backend single-worker attempt reached approximately
+  `81%`, but the Codex session restarted before a terminal pytest result
+  existed. Its temporary log/process state was lost. It is recorded only as an
+  interrupted attempt and is not PASS evidence.
+- Local Redis was restarted and a fresh authoritative full backend invocation
+  began with
+  `env -u LANGGRAPH_STRICT_MSGPACK make unit_tests async=false ff=true`.
+- The fresh backend package gate completed with `11045 passed`, `464 skipped`,
+  `11 xfailed`, and exit `0`.
+- The user explicitly authorized a separate coordinated Radix version-bump
+  operation and the resulting `src/frontend/package-lock.json` update on
+  2026-07-27. This was required by the reproduced upstream React 19
+  Presence/composed-ref defect. Focused unit tests, full Jest (`531` suites /
+  `5853` tests), full TypeScript, full Biome, and file-upload Playwright
+  (`4 passed`) are green after the bump. These results do not substitute for
+  the canonical full Playwright gate or the exact-SHA seal.
+- No D6 production action or next-stage work was started during the
+  continuation.
 
 ## Block D readiness criteria / Definition of Done
 

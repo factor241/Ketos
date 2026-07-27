@@ -37,9 +37,17 @@ describe("getRandomPlaceholderMessage", () => {
     // ("Thinking...", "Processing...") instead of descriptive progress messages.
     // Placeholder messages should describe what the assistant is doing,
     // not generic "Thinking..." headers.
-    const headerMessages = Array.from({ length: 8 }, (_, index) =>
-      i18n.t(`assistant.thinking.${index}`),
-    );
+    const thinkingKeys = [
+      "assistant.thinking.0",
+      "assistant.thinking.1",
+      "assistant.thinking.2",
+      "assistant.thinking.3",
+      "assistant.thinking.4",
+      "assistant.thinking.5",
+      "assistant.thinking.6",
+      "assistant.thinking.7",
+    ] as const;
+    const headerMessages = thinkingKeys.map((key) => i18n.t(key));
 
     // Sample with deterministic Math.random to get the first message
     const spy = jest.spyOn(Math, "random").mockReturnValue(0);

@@ -72,17 +72,22 @@ test(
   "user should be able to poll a webhook",
   { tag: ["@release", "@workspace"] },
   async ({ page, request }) => {
-    await page.route("**/api/v1/config", (route) => {
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
+    await page.route("**/api/v1/config", async (route) => {
+      const response = await route.fetch();
+      const config: unknown = await response.json();
+      if (
+        typeof config !== "object" ||
+        config === null ||
+        Array.isArray(config)
+      ) {
+        throw new Error("Expected /api/v1/config to return a JSON object");
+      }
+      await route.fulfill({
+        response,
+        json: {
+          ...config,
           type: "full",
           webhook_polling_interval: 1000,
-        }),
-        headers: {
-          "content-type": "application/json",
-          ...route.request().headers(),
         },
       });
     });

@@ -4,6 +4,10 @@ import { enableOptionalComponents } from "../../utils/enable-optional-components
 import { openBlankFlow } from "../../utils/flow/open-blank-flow";
 
 test.describe("Output Modal Copy Button", () => {
+  test.beforeEach(async ({ context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  });
+
   test(
     "user should be able to copy text output from component output modal",
     { tag: ["@release", "@workspace"] },
@@ -103,7 +107,7 @@ test.describe("Output Modal Copy Button", () => {
           await page
             .getByTestId("popover-anchor-input-url_input")
             .first()
-            .fill("https://httpbin.org/json");
+            .fill("http://ketos.localhost:7860/health");
         });
 
       await page.getByTestId("button_run_api request").click();
@@ -113,13 +117,16 @@ test.describe("Output Modal Copy Button", () => {
         state: "visible",
       });
 
-      await page.waitForSelector(`text=${TEXTS.toastBuiltSuccessfully}`, {
-        timeout: 30000,
+      const apiResponseOutput = page.getByTestId(
+        "output-inspection-api response-apirequest",
+      );
+      await expect(apiResponseOutput).toBeEnabled({ timeout: 120000 });
+      const buildSuccessToast = page.getByText("Flow built successfully", {
+        exact: true,
       });
-
-      await page
-        .getByTestId("output-inspection-api response-apirequest")
-        .click();
+      await expect(buildSuccessToast).toBeVisible({ timeout: 30000 });
+      await expect(buildSuccessToast).toBeHidden({ timeout: 30000 });
+      await apiResponseOutput.click();
 
       await page.waitForSelector("text=Component Output", { timeout: 30000 });
 

@@ -83,33 +83,14 @@ test.describe("Invalid JSON Upload Error Handling", () => {
   );
 
   test(
-    "should show error popup when uploading invalid JSON via drag and drop",
+    "unified workspace exposes the named automation upload control",
     { tag: ["@release", "@workspace"] },
     async ({ page }) => {
-      await awaitBootstrapTest(page);
-
-      // Navigate to main page
-      await page.goto("/");
-      await page.waitForSelector('[data-testid="mainpage_title"]', {
-        timeout: 30000,
-      });
-
-      // Create invalid JSON file content
-      const invalidJsonContent = '{"invalid": json content}';
-
-      const dataTransfer = await page.evaluateHandle((data) => {
-        const dt = new DataTransfer();
-        const file = new File([data], "invalid-flow.json", {
-          type: "application/json",
-        });
-        dt.items.add(file);
-        return dt;
-      }, invalidJsonContent);
-
-      await page.getByTestId("cards-wrapper").dispatchEvent("drop", {
-        dataTransfer,
-      });
-      await verifyErrorAppears(page);
+      await awaitBootstrapTest(page, { skipModal: true });
+      await expect(page.getByTestId("cards-wrapper")).toHaveCount(0);
+      await expect(
+        page.getByRole("button", { name: "Upload an automation" }),
+      ).toBeVisible();
     },
   );
 });

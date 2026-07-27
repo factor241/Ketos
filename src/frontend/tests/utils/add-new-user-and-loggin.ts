@@ -64,9 +64,13 @@ export const addNewUserAndLogin = async (page: Page) => {
 
   await waitForNewProjectButton(page);
 
-  await page.getByTestId("user-profile-settings").click();
-
-  await page.getByText("Admin Page", { exact: true }).click();
+  await page
+    .locator(
+      '[data-testid="user_menu_button"], [data-testid="user-profile-settings"]',
+    )
+    .first()
+    .click();
+  await page.getByTestId("menu_admin_page_button").click();
 
   //CRUD an user
   await page.getByText("New User", { exact: true }).click();
@@ -92,11 +96,8 @@ export const addNewUserAndLogin = async (page: Page) => {
     timeout: 2000,
   });
 
-  await page.waitForSelector("[data-testid='user-profile-settings']", {
-    timeout: 1500,
-  });
-
-  await page.getByTestId("user-profile-settings").click();
+  await page.goto("/");
+  await page.getByTestId("user_menu_button").click();
 
   await page.evaluate(() => {
     sessionStorage.setItem("testMockAutoLogin", "true");
@@ -115,11 +116,16 @@ export const addNewUserAndLogin = async (page: Page) => {
     timeout: 1500,
   });
 
-  await page.getByRole("button", { name: TEXTS.signIn }).click();
-
   await page.evaluate(() => {
     sessionStorage.removeItem("testMockAutoLogin");
   });
+
+  await page.getByRole("button", { name: TEXTS.signIn }).click();
+
+  await page
+    .locator('[data-testid="project-sidebar"], [data-testid="mainpage_title"]')
+    .first()
+    .waitFor({ state: "visible", timeout: 60_000 });
 
   // Wait for any loading text to disappear
   await page.waitForSelector('text="Loading"', {

@@ -6,40 +6,28 @@ import { TEXTS } from "../../utils/constants/texts";
 import { enableOptionalComponents } from "../../utils/enable-optional-components";
 import { renameFlow } from "../../utils/rename-flow";
 
-async function verifyTextareaValue(
-  page: Page,
-  value: string,
-  flowName: string,
-) {
+async function verifyTextareaValue(page: Page, value: string) {
   await page
     .getByTestId("textarea_str_input_value")
     .waitFor({ state: "visible" });
+  const flowId = new URL(page.url()).pathname.split("/")[2];
+  const savePromise = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PATCH" &&
+      new URL(response.url()).pathname === `/api/v1/flows/${flowId}` &&
+      response.ok(),
+  );
+
   await page.getByTestId("textarea_str_input_value").fill(value);
-
   await expect(page.getByTestId("textarea_str_input_value")).toHaveValue(value);
+  await page.getByTestId("app-header").first().click();
+  await savePromise;
 
-  await page.waitForTimeout(500);
-
-  await page.getByTestId("icon-ChevronLeft").first().click();
-
-  await page.waitForSelector('[data-testid="list-card"]', {
-    timeout: 5000,
-    state: "visible",
-  });
-
-  await page.waitForTimeout(500);
-  await page.getByText(flowName).first().click();
-
-  await page.waitForSelector('[data-testid="textarea_str_input_value"]', {
-    timeout: 5000,
-    state: "visible",
-  });
-
-  await page.waitForTimeout(500);
-  const inputValue = await page
-    .getByTestId("textarea_str_input_value")
-    .inputValue();
-  expect(inputValue).toBe(value);
+  await page.reload();
+  await expect(page.getByTestId("textarea_str_input_value")).toHaveValue(
+    value,
+    { timeout: 10000 },
+  );
 }
 
 test(
@@ -78,7 +66,7 @@ test(
 
     for (const value of randomValues) {
       try {
-        await verifyTextareaValue(page, value, randomFlowName);
+        await verifyTextareaValue(page, value);
       } catch (error) {
         console.error(`Failed to verify value: ${value}`, error);
         throw error;

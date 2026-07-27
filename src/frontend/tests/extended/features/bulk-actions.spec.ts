@@ -1,133 +1,106 @@
+import type { Page } from "@playwright/test";
+
 import { expect, test } from "../../fixtures";
-import { adjustScreenView } from "../../utils/adjust-screen-view";
-import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
-import { TEXTS } from "../../utils/constants/texts";
-import { openTemplatesModal } from "../../utils/flow/new-project-flow";
+
+type Project = { id: string };
+type Flow = { id: string; name: string };
+
+async function createProject(page: Page): Promise<Project> {
+  const response = await page.request.post("/api/v1/projects/", {
+    data: {
+      name: `Bulk actions ${crypto.randomUUID().slice(0, 8)}`,
+      description: "",
+      flows_list: [],
+      components_list: [],
+    },
+  });
+  expect(response.status(), await response.text()).toBe(201);
+  return response.json();
+}
+
+async function createFlow(
+  page: Page,
+  projectId: string,
+  name: string,
+): Promise<Flow> {
+  const response = await page.request.post("/api/v1/flows/", {
+    data: {
+      name,
+      description: "Bulk action acceptance",
+      folder_id: projectId,
+      data: {
+        nodes: [],
+        edges: [],
+        viewport: { x: 0, y: 0, zoom: 1 },
+      },
+    },
+  });
+  expect(response.status(), await response.text()).toBe(201);
+  return response.json();
+}
 
 test(
-  "user should be able to select flows with different methods and perform bulk actions",
-  { tag: ["@release", "@workspace", "@mainpage"] },
+  "supported bulk export and delete operations update the project inventory",
+  { tag: ["@release", "@workspace", "@mainpage", "@api"] },
   async ({ page }) => {
-    await awaitBootstrapTest(page);
+    await page.goto("/");
+    await expect(page.getByTestId("project-sidebar")).toBeVisible();
+    const project = await createProject(page);
+    const boardResponse = await page.request.post(
+      `/api/v1/projects/${project.id}/boards`,
+      { data: { title: "Bulk workspace" } },
+    );
+    expect(boardResponse.status(), await boardResponse.text()).toBe(201);
+    const flows = await Promise.all([
+      createFlow(page, project.id, `First ${crypto.randomUUID().slice(0, 8)}`),
+      createFlow(page, project.id, `Second ${crypto.randomUUID().slice(0, 8)}`),
+      createFlow(page, project.id, `Third ${crypto.randomUUID().slice(0, 8)}`),
+    ]);
 
-    // Add some flows to test with
-    await page.getByTestId("side_nav_options_all-templates").click();
-    await page
-      .getByRole("heading", { name: TEXTS.templateBasicPrompting })
-      .click();
-    await adjustScreenView(page);
+    try {
+      await page.goto(`/project/${project.id}/boards?panel=automations`);
+      const inventory = page.getByRole("complementary", {
+        name: "Automations",
+      });
+      for (const flow of flows) {
+        await expect(
+          inventory.getByText(flow.name, { exact: true }),
+        ).toBeVisible();
+      }
 
-    // Go back to main page
-    await page.waitForSelector('[data-testid="sidebar-search-input"]', {
-      timeout: 100000,
-    });
-    await page.getByTestId("icon-ChevronLeft").first().click();
+      const exportResponse = await page.request.post(
+        "/api/v1/flows/download/",
+        { data: flows.map((flow) => flow.id) },
+      );
+      expect(exportResponse.status(), await exportResponse.text()).toBe(200);
+      expect(exportResponse.headers()["content-type"]).toContain(
+        "application/x-zip-compressed",
+      );
+      const zipBody = await exportResponse.body();
+      expect(zipBody.byteLength).toBeGreaterThan(0);
+      expect(zipBody.subarray(0, 2).toString("ascii")).toBe("PK");
 
-    await expect(page.getByText("Projects").first()).toBeVisible();
-    await openTemplatesModal(page);
-    await page.getByTestId("side_nav_options_all-templates").click();
-    await page.getByRole("heading", { name: "Document Q&A" }).click();
-    await page.waitForSelector('[data-testid="sidebar-search-input"]', {
-      timeout: 100000,
-    });
-    await page.getByTestId("icon-ChevronLeft").first().click();
+      const deleted = [flows[0], flows[2]];
+      const deleteResponse = await page.request.delete("/api/v1/flows/", {
+        data: deleted.map((flow) => flow.id),
+      });
+      expect(deleteResponse.status(), await deleteResponse.text()).toBe(200);
+      expect(await deleteResponse.json()).toEqual({ deleted: deleted.length });
 
-    await expect(page.getByText("Projects").first()).toBeVisible();
-    await openTemplatesModal(page);
-    await page.getByTestId("side_nav_options_all-templates").click();
-    await page
-      .getByRole("heading", { name: TEXTS.templateBasicPrompting })
-      .click();
-    await page.waitForSelector('[data-testid="sidebar-search-input"]', {
-      timeout: 100000,
-    });
-    await page.getByTestId("icon-ChevronLeft").first().click();
-
-    await expect(page.getByText("Projects").first()).toBeVisible();
-    await page.waitForSelector('[data-testid="home-dropdown-menu"]', {
-      timeout: 100000,
-    });
-    await page.getByTestId("list-card").first().isVisible({ timeout: 3000 });
-    await page.waitForTimeout(500);
-
-    // Test shift selection
-    await page.keyboard.down("Shift");
-    await page.getByTestId("list-card").first().click();
-    await page.getByTestId("list-card").nth(2).click();
-    await page.keyboard.up("Shift");
-
-    // Verify both flows are selected
-    const firstCheckbox = await page.getByTestId(/^checkbox-/).first();
-    const secondCheckbox = await page.getByTestId(/^checkbox-/).nth(1);
-    const thirdCheckbox = await page.getByTestId(/^checkbox-/).nth(2);
-    await expect(firstCheckbox).toBeChecked();
-    await expect(secondCheckbox).toBeChecked();
-    await expect(thirdCheckbox).toBeChecked();
-    // Test bulk download
-    await page.getByTestId("download-bulk-btn").last().click();
-    await expect(page.getByText(/.*downloaded successfully/)).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Deselect all
-    await page.keyboard.down("Shift");
-    await page.getByTestId("list-card").first().click();
-    await page.keyboard.up("Shift");
-
-    // Verify both flows are deselected
-    await expect(firstCheckbox).not.toBeChecked();
-    await expect(secondCheckbox).not.toBeChecked();
-    await expect(thirdCheckbox).not.toBeChecked();
-
-    // Test Ctrl/Cmd selection
-    await page.keyboard.down("ControlOrMeta");
-    await page.getByTestId("list-card").first().click();
-    await page.getByTestId("list-card").nth(2).click();
-    await page.keyboard.up("ControlOrMeta");
-
-    // Verify both flows are selected again
-    await expect(firstCheckbox).toBeChecked();
-    await expect(secondCheckbox).not.toBeChecked();
-    await expect(thirdCheckbox).toBeChecked();
-
-    const firstFlowName =
-      (await page
-        .locator("[data-testid='flow-name-div']")
-        .first()
-        .locator("span")
-        .textContent()) ?? "";
-    const secondFlowName =
-      (await page
-        .locator("[data-testid='flow-name-div']")
-        .nth(1)
-        .locator("span")
-        .textContent()) ?? "";
-    const thirdFlowName =
-      (await page
-        .locator("[data-testid='flow-name-div']")
-        .nth(2)
-        .locator("span")
-        .textContent()) ?? "";
-
-    // Test bulk delete
-    await page.getByTestId("delete-bulk-btn").first().click();
-    await page.getByText("This can't be undone.").isVisible({
-      timeout: 1000,
-    });
-    await page.getByText(TEXTS.delete).last().click();
-
-    // Verify deletion success message
-    await expect(page.getByText("Flows deleted successfully")).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Verify flows are deleted
-    await expect(
-      page.getByText(firstFlowName, { exact: true }),
-    ).not.toBeVisible();
-    await expect(page.getByText(secondFlowName, { exact: true })).toBeVisible();
-    await expect(
-      page.getByText(thirdFlowName, { exact: true }),
-    ).not.toBeVisible();
+      await page.reload();
+      await expect(
+        inventory.getByText(flows[1].name, { exact: true }),
+      ).toBeVisible();
+      for (const flow of deleted) {
+        await expect(
+          inventory.getByText(flow.name, { exact: true }),
+        ).toHaveCount(0);
+      }
+    } finally {
+      const cleanup = await page.request.delete(
+        `/api/v1/projects/${project.id}`,
+      );
+      expect([204, 404]).toContain(cleanup.status());
+    }
   },
 );

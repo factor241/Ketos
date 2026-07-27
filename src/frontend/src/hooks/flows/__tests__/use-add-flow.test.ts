@@ -13,9 +13,12 @@ const mockSetMyCollectionId = jest.fn();
 const mockDeleteFlow = jest.fn();
 const mockPostAddFlow = jest.fn();
 const mockPostAddFolder = jest.fn();
+const mockRouteParams: { folderId?: string; projectId?: string } = {
+  folderId: "folder-1",
+};
 
 jest.mock("react-router-dom", () => ({
-  useParams: () => ({ folderId: "folder-1" }),
+  useParams: () => mockRouteParams,
 }));
 
 jest.mock("@/controllers/API/queries/flows/use-post-add-flow", () => ({
@@ -262,7 +265,11 @@ describe("useAddFlow — onError display", () => {
 });
 
 describe("useAddFlow — success path", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockRouteParams.folderId = "folder-1";
+    delete mockRouteParams.projectId;
+  });
 
   it("resolves with the created flow id on success", async () => {
     resolveAddFlow({ ...FLOW_STUB, id: "created-id" });
@@ -304,5 +311,18 @@ describe("useAddFlow — success path", () => {
     await result.current({ new_blank: true, targetProjectId: "   " });
 
     expect(mockPostAddFlow.mock.calls[0][0].folder_id).toBe("folder-1");
+  });
+
+  it("uses the current Board project when the route has a projectId", async () => {
+    delete mockRouteParams.folderId;
+    mockRouteParams.projectId = "board-route-project";
+    resolveAddFlow({ ...FLOW_STUB, id: "created-flow" });
+    const { result } = renderHook(() => useAddFlow());
+
+    await result.current({ flow: FLOW_STUB });
+
+    expect(mockPostAddFlow.mock.calls[0][0].folder_id).toBe(
+      "board-route-project",
+    );
   });
 });

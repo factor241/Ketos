@@ -267,3 +267,10 @@ def test_upgrade_and_downgrade_execute_on_sqlite_without_touching_prerequisites(
         }
         migration.downgrade()
         assert set(inspect(connection).get_table_names()) == {"folder", "user", "board", "migration_sentinel"}
+
+
+def test_placement_and_note_revision_remains_in_the_single_command_receipt_head_lineage() -> None:
+    script = _script()
+    assert script.get_heads() == ["ubw01cmdrec"]
+    lineage = {revision.revision for revision in script.iterate_revisions("ubw01cmdrec", "base")}
+    assert {REVISION, "s08c0mmand01", "ubw01cmdrec"} <= lineage

@@ -1,11 +1,11 @@
-import { test } from "../../fixtures";
-import { TEXTS } from "../../utils/constants/texts";
+import { expect, test } from "../../fixtures";
 import { openBlankFlow } from "../../utils/flow/open-blank-flow";
 
 test(
   "user should be able to copy JSON from output",
   { tag: ["@release", "@workspace"] },
-  async ({ page }) => {
+  async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await openBlankFlow(page);
     await page.waitForSelector('[data-testid="disclosure-data sources"]', {
       timeout: 3000,
@@ -25,7 +25,7 @@ test(
         await page
           .getByTestId("popover-anchor-input-url_input")
           .first()
-          .fill("https://www.google.com");
+          .fill("http://ketos.localhost:7860/health");
       });
 
     await page.getByTestId("button_run_api request").click();
@@ -35,11 +35,16 @@ test(
       state: "visible",
     });
 
-    await page.waitForSelector(`text=${TEXTS.toastBuiltSuccessfully}`, {
-      timeout: 30000,
+    const apiResponseOutput = page.getByTestId(
+      "output-inspection-api response-apirequest",
+    );
+    await expect(apiResponseOutput).toBeEnabled({ timeout: 120000 });
+    const buildSuccessToast = page.getByText("Flow built successfully", {
+      exact: true,
     });
-
-    await page.getByTestId("output-inspection-api response-apirequest").click();
+    await expect(buildSuccessToast).toBeVisible({ timeout: 30000 });
+    await expect(buildSuccessToast).toBeHidden({ timeout: 30000 });
+    await apiResponseOutput.click();
 
     await page.waitForSelector("text=Component Output", { timeout: 30000 });
 

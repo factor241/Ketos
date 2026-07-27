@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { useBlocker, useParams } from "react-router-dom";
@@ -94,7 +94,6 @@ export default function FlowPage({ view }: { view?: boolean }): JSX.Element {
   const navigate = useCustomNavigate();
   const saveFlow = useSaveFlow();
 
-  const flows = useFlowsManagerStore((state) => state.flows);
   const currentFlowId = useFlowsManagerStore((state) => state.currentFlowId);
 
   const updatedAt = currentSavedFlow?.updated_at;
@@ -150,21 +149,16 @@ export default function FlowPage({ view }: { view?: boolean }): JSX.Element {
   // Set flow tab id
   useEffect(() => {
     const awaitgetTypes = async () => {
-      if (flows && currentFlowId === "" && Object.keys(types).length > 0) {
-        const isAnExistingFlow = flows.find((flow) => flow.id === id);
-
-        if (!isAnExistingFlow) {
+      if (id && currentFlowId === "" && Object.keys(types).length > 0) {
+        try {
+          await getFlowToAddToCanvas(id);
+        } catch {
           navigate("/all");
-          return;
         }
-
-        const isAnExistingFlowId = isAnExistingFlow.id;
-
-        await getFlowToAddToCanvas(isAnExistingFlowId);
       }
     };
-    awaitgetTypes();
-  }, [id, flows, currentFlowId, types]);
+    void awaitgetTypes();
+  }, [id, currentFlowId, types]);
 
   useEffect(() => {
     setOnFlowPage(true);
@@ -211,6 +205,10 @@ export default function FlowPage({ view }: { view?: boolean }): JSX.Element {
   const setIsFullscreen = usePlaygroundStore((state) => state.setIsFullscreen);
   const inputs = useFlowStore((state) => state.inputs);
   const outputs = useFlowStore((state) => state.outputs);
+  const hasChatComponents =
+    inputs.some((input) => input.type === "ChatInput") ||
+    outputs.some((output) => output.type === "ChatOutput");
+  const hadChatComponentsRef = useRef(hasChatComponents);
 
   // Assistant state
   const assistantOpen = useAssistantManagerStore(
@@ -246,18 +244,18 @@ export default function FlowPage({ view }: { view?: boolean }): JSX.Element {
 
   // Auto-close playground when all chat components are removed
   useEffect(() => {
-    const hasChatInput = inputs.some((input) => input.type === "ChatInput");
-    const hasChatOutput = outputs.some(
-      (output) => output.type === "ChatOutput",
-    );
+    if (hasChatComponents) {
+      hadChatComponentsRef.current = true;
+      return;
+    }
 
-    if (isSlidingContainerOpen && !hasChatInput && !hasChatOutput) {
+    if (isSlidingContainerOpen && hadChatComponentsRef.current) {
       setSlidingContainerOpen(false);
       setIsFullscreen(false);
     }
+    hadChatComponentsRef.current = false;
   }, [
-    inputs,
-    outputs,
+    hasChatComponents,
     isSlidingContainerOpen,
     setSlidingContainerOpen,
     setIsFullscreen,

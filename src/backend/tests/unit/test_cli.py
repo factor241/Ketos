@@ -1,6 +1,4 @@
 import socket
-import threading
-import time
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -35,40 +33,42 @@ def get_free_port():
         return s.getsockname()[1]
 
 
-def run_flow(runner, port, components_path, default_settings):
-    args = [
-        "run",
-        "--port",
-        str(port),
-        "--components-path",
-        str(components_path),
-        *default_settings,
-    ]
-    result = runner.invoke(app, args)
-    if result.exit_code != 0:
-        msg = f"CLI failed with exit code {result.exit_code}: {result.output}"
-        raise RuntimeError(msg)
-
-
 def test_components_path(runner, default_settings, tmp_path):
-    # create a "components" folder
     temp_dir = tmp_path / "components"
     temp_dir.mkdir(exist_ok=True)
-
     port = get_free_port()
-
-    thread = threading.Thread(
-        target=run_flow,
-        args=(runner, port, temp_dir, default_settings),
-        daemon=True,
-    )
-    thread.start()
-
-    # Give the server some time to start
-    time.sleep(5)
-
     settings_service = deps.get_settings_service()
-    assert str(temp_dir) in settings_service.settings.components_path
+    original_components_path = list(settings_service.settings.components_path)
+    observed_components_paths: list[list[str]] = []
+
+    def capture_server_start(*_args, **_kwargs):
+        observed_components_paths.append(
+            [str(path) for path in deps.get_settings_service().settings.components_path]
+        )
+
+    try:
+        with (
+            patch("ketos.__main__.use_direct_uvicorn", return_value=True),
+            patch("uvicorn.run", side_effect=capture_server_start) as run_server,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "run",
+                    "--port",
+                    str(port),
+                    "--components-path",
+                    str(temp_dir),
+                    *default_settings,
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        run_server.assert_called_once()
+        assert len(observed_components_paths) == 1
+        assert str(temp_dir) in observed_components_paths[0]
+    finally:
+        settings_service.settings.update_settings(components_path=original_components_path)
 
 
 @pytest.mark.xdist_group(name="serial-superuser-tests")

@@ -56,7 +56,7 @@ def _sync_uri(uri: str) -> str:
 def _postgres_uri() -> str:
     uri = os.getenv("KETOS_TEST_DATABASE_URI") or os.getenv("MVP_POSTGRES_URI")
     if not uri:
-        pytest.fail(POSTGRES_BLOCKER)
+        pytest.skip(POSTGRES_BLOCKER)
     if uri.startswith("postgresql://"):
         return uri.replace("postgresql://", "postgresql+psycopg://", 1)
     if uri.startswith("postgres://"):
@@ -405,3 +405,10 @@ def test_s05_chat_model_parity_postgres() -> None:
     _assert_model_contract()
     with _postgres_test_uri() as uri, _upgraded_database(uri, from_stage04=False) as engine:
         _assert_database_contract(engine)
+
+
+def test_chat_revision_remains_in_the_single_command_receipt_head_lineage() -> None:
+    script = _script()
+    assert script.get_heads() == ["ubw01cmdrec"]
+    lineage = {revision.revision for revision in script.iterate_revisions("ubw01cmdrec", "base")}
+    assert {REVISION, "s08c0mmand01", "ubw01cmdrec"} <= lineage

@@ -74,7 +74,12 @@ test(
     await page.waitForSelector('[data-testid="mainpage_title"]', {
       timeout: 90000,
     });
-    await page.getByTestId("user-profile-settings").click();
+    await page
+      .locator(
+        '[data-testid="user_menu_button"], [data-testid="user-profile-settings"]',
+      )
+      .first()
+      .click();
     await page.getByText("Admin Page", { exact: true }).click();
     await page.getByText("New User", { exact: true }).click();
     await page
@@ -91,10 +96,13 @@ test(
 
     // Log out from admin
     await page.getByTestId("icon-ChevronLeft").first().click();
-    await page.waitForSelector("[data-testid='user-profile-settings']", {
-      timeout: 1500,
-    });
-    await page.getByTestId("user-profile-settings").click();
+    const adminMenu = page
+      .locator(
+        '[data-testid="user_menu_button"], [data-testid="user-profile-settings"]',
+      )
+      .first();
+    await adminMenu.waitFor({ state: "visible", timeout: 30_000 });
+    await adminMenu.click();
     await page.evaluate(() => {
       sessionStorage.setItem("testMockAutoLogin", "true");
     });
@@ -122,14 +130,10 @@ test(
 
     // Create a flow for User A
     await waitForNewProjectButton(page, { timeout: 60000 });
-    // Check that User A starts with an empty flows list
-    expect(
-      (
-        await page.waitForSelector("text=Welcome to Ketos", {
-          timeout: 30000,
-        })
-      ).isVisible(),
-    );
+    await expect(page).toHaveURL(/\/project\/[0-9a-f-]+\/boards(?:[/?#]|$)/, {
+      timeout: 30_000,
+    });
+    await expect(page.getByText("Project is unavailable")).toHaveCount(0);
 
     await page.waitForSelector('[data-testid="mainpage_title"]', {
       timeout: 30000,
@@ -158,18 +162,42 @@ test(
 
     await renameFlow(page, { flowName: userAFlowName });
 
-    await page.getByTestId("icon-ChevronLeft").first().click();
+    const userAFlowId = new URL(page.url()).pathname.match(
+      /^\/flow\/([^/]+)/,
+    )?.[1];
+    expect(userAFlowId).toBeTruthy();
+    const ownedFlowResponse = await page.request.get(
+      `/api/v1/flows/${userAFlowId}`,
+    );
+    expect(ownedFlowResponse.status(), await ownedFlowResponse.text()).toBe(
+      200,
+    );
+    const ownedFlow = (await ownedFlowResponse.json()) as {
+      id: string;
+      name: string;
+      folder_id: string;
+    };
+    expect(ownedFlow).toMatchObject({
+      id: userAFlowId,
+      name: userAFlowName,
+    });
 
-    // Verify User A can see their flow
-    await page.waitForSelector('[data-testid="search-store-input"]:enabled', {
-      timeout: 30000,
+    // Verify User A can see the automation in the canonical Board inventory.
+    await page.goto(`/project/${ownedFlow.folder_id}/boards?panel=automations`);
+    const userInventory = page.getByRole("complementary", {
+      name: "Automations",
     });
-    await expect(page.getByText(userAFlowName, { exact: true })).toBeVisible({
-      timeout: 2000,
-    });
+    await expect(
+      userInventory.getByText(userAFlowName, { exact: true }),
+    ).toBeVisible();
 
     // Log out User A
-    await page.getByTestId("user-profile-settings").click();
+    await page
+      .locator(
+        '[data-testid="user_menu_button"], [data-testid="user-profile-settings"]',
+      )
+      .first()
+      .click();
     await page.evaluate(() => {
       sessionStorage.setItem("testMockAutoLogin", "true");
     });
@@ -199,11 +227,20 @@ test(
       page.getByRole("button", { name: TEXTS.signIn }).click(),
     ]);
 
-    // Verify admin can't see User A's flow
-    await expect(page.getByText(userAFlowName, { exact: true })).toBeVisible({
-      timeout: 2000,
-      visible: false,
-    });
+    // Verify the next session cannot read User A's automation or retain its
+    // inventory state. The API uses 404 to avoid leaking cross-user IDs.
+    const foreignFlowResponse = await page.request.get(
+      `/api/v1/flows/${userAFlowId}`,
+    );
+    expect(foreignFlowResponse.status()).toBe(404);
+    await page.goto("/");
+    await page
+      .locator(
+        '[data-testid="project-sidebar"], [data-testid="mainpage_title"]',
+      )
+      .first()
+      .waitFor({ state: "visible", timeout: 60_000 });
+    await expect(page.getByText(userAFlowName, { exact: true })).toHaveCount(0);
 
     // Cleanup
     await page.evaluate(() => {

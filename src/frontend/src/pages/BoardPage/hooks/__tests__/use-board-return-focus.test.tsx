@@ -99,6 +99,61 @@ describe("useBoardReturnFocus", () => {
     expect(focus).toHaveBeenCalledTimes(1);
   });
 
+  it("refocuses a replacement card when hydration detaches the focused section", () => {
+    setSearch(`focusPlacementId=${AUTOMATION_ID}`);
+    const original = mount(AUTOMATION_ID);
+    renderHook(() =>
+      useBoardReturnFocus({
+        placements: [placement(AUTOMATION_ID, "automation")],
+        isLoading: false,
+      }),
+    );
+    act(() => {
+      flush();
+      flush();
+    });
+    expect(original).toHaveFocus();
+
+    const replacement = document.createElement("section");
+    replacement.tabIndex = -1;
+    const replacementFocus = jest.spyOn(replacement, "focus");
+    original.parentElement?.replaceChildren(replacement);
+    expect(document.body).toHaveFocus();
+
+    act(() => flush());
+
+    expect(replacementFocus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(replacement).toHaveFocus();
+  });
+
+  it("does not steal focus back after pointer interaction", () => {
+    setSearch(`focusPlacementId=${AUTOMATION_ID}`);
+    const original = mount(AUTOMATION_ID);
+    renderHook(() =>
+      useBoardReturnFocus({
+        placements: [placement(AUTOMATION_ID, "automation")],
+        isLoading: false,
+      }),
+    );
+    act(() => {
+      flush();
+      flush();
+    });
+
+    const userTarget = document.createElement("button");
+    document.body.append(userTarget);
+    act(() => {
+      userTarget.dispatchEvent(
+        new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
+      );
+      userTarget.focus();
+    });
+    original.remove();
+    act(() => flush());
+
+    expect(userTarget).toHaveFocus();
+  });
+
   it("ignores stale and wrong-kind placement, then accepts a changed valid id", () => {
     setSearch(`focusPlacementId=${AUTOMATION_ID}`);
     const firstFocus = jest.spyOn(mount(AUTOMATION_ID), "focus");

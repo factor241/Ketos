@@ -1,16 +1,24 @@
-import { act, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import { useUtilityStore } from "@/stores/utilityStore";
 import TemplatesModal from "../index";
 
 const navProps: Array<Record<string, unknown>> = [];
+const mockNavigate = jest.fn();
+const mockAddFlow = jest.fn(() => Promise.resolve("flow-id"));
 
 jest.mock("react-router-dom", () => ({
   useParams: () => ({}),
 }));
 
 jest.mock("@/customization/hooks/use-custom-navigate", () => ({
-  useCustomNavigate: () => jest.fn(),
+  useCustomNavigate: () => mockNavigate,
 }));
 
 jest.mock("@/customization/utils/analytics", () => ({
@@ -19,7 +27,7 @@ jest.mock("@/customization/utils/analytics", () => ({
 
 jest.mock("@/hooks/flows/use-add-flow", () => ({
   __esModule: true,
-  default: () => jest.fn(() => Promise.resolve("flow-id")),
+  default: () => mockAddFlow,
 }));
 
 jest.mock("../../baseModal", () => {
@@ -63,6 +71,8 @@ jest.mock("@/components/ui/sidebar", () => ({
 describe("TemplatesModal", () => {
   beforeEach(() => {
     navProps.length = 0;
+    mockAddFlow.mockClear();
+    mockNavigate.mockClear();
     act(() => {
       useUtilityStore.setState({ hideStarterProjects: false });
     });
@@ -101,5 +111,32 @@ describe("TemplatesModal", () => {
 
     expect(screen.getByTestId("templates-nav")).toBeInTheDocument();
     expect(navProps.at(-1)?.currentTab).toBe("get-started");
+  });
+
+  it("closes the modal before navigating to a blank flow", async () => {
+    const setOpen = jest.fn();
+
+    render(<TemplatesModal open setOpen={setOpen} />);
+
+    fireEvent.click(screen.getByTestId("blank-flow"));
+
+    await waitFor(() => {
+      expect(setOpen).toHaveBeenCalledWith(false);
+      expect(mockNavigate).toHaveBeenCalledWith("/flow/flow-id");
+    });
+  });
+
+  it("reuses a supplied blank flow instead of creating a second one", () => {
+    const onSelectBlank = jest.fn();
+
+    render(
+      <TemplatesModal open setOpen={jest.fn()} onSelectBlank={onSelectBlank} />,
+    );
+
+    fireEvent.click(screen.getByTestId("blank-flow"));
+
+    expect(onSelectBlank).toHaveBeenCalledTimes(1);
+    expect(mockAddFlow).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

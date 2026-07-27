@@ -1036,6 +1036,47 @@ async def test_upload_json_file_to_projects_rejoins_code_lines(client: AsyncClie
 
 
 @pytest.mark.usefixtures("session")
+async def test_upload_legacy_collection_json_derives_project_name(
+    client: AsyncClient,
+    json_flow: str,
+    logged_in_headers,
+):
+    """Legacy collection exports with only ``flows`` remain importable."""
+    flow = orjson.loads(json_flow)
+    payload = {
+        "flows": [
+            {
+                "name": f"Legacy Collection Flow {uuid4()}",
+                "description": "legacy collection import",
+                "data": flow["data"],
+            }
+        ]
+    }
+
+    response = await client.post(
+        "api/v1/projects/upload/",
+        files={
+            "file": (
+                "legacy-collection.json",
+                json.dumps(payload).encode("utf-8"),
+                "application/json",
+            )
+        },
+        headers=logged_in_headers,
+    )
+
+    assert response.status_code == 201, response.text
+    response_data = response.json()
+    assert len(response_data) == 1
+    project_response = await client.get(
+        f"api/v1/projects/{response_data[0]['folder_id']}",
+        headers=logged_in_headers,
+    )
+    assert project_response.status_code == 200
+    assert project_response.json()["name"].startswith("legacy-collection")
+
+
+@pytest.mark.usefixtures("session")
 async def test_download_project_zip_sanitizes_flow_names(client: AsyncClient, json_flow: str, logged_in_headers):
     """Project ZIP downloads must sanitize flow names to prevent Zip Slip paths."""
     project_response = await client.post(

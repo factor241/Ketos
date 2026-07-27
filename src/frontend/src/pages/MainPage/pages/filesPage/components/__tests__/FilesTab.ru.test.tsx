@@ -6,15 +6,22 @@ import { createTestI18n } from "@/test-utils/create-test-i18n";
 
 jest.mock("@/controllers/API/queries/file-management", () => ({
   useGetFilesV2: () => ({
-    data: [
-      {
+    data: Object.freeze([
+      Object.freeze({
         id: "file-1",
         name: "first",
         path: "first.txt",
         size: 10,
         updated_at: "2026-07-12T00:00:00",
-      },
-    ],
+      }),
+      Object.freeze({
+        id: "file-2",
+        name: "second",
+        path: "second.txt",
+        size: 20,
+        updated_at: "2026-07-13T00:00:00",
+      }),
+    ]),
   }),
 }));
 
@@ -78,6 +85,26 @@ jest.mock("@/modals/deleteConfirmationModal", () => ({
 import FilesTab from "../FilesTab";
 
 describe("FilesTab Russian bulk delete", () => {
+  it("renders file data without mutating the query cache", async () => {
+    const russian = await createTestI18n("ru");
+
+    expect(() =>
+      render(
+        <I18nextProvider i18n={russian}>
+          <FilesTab
+            quickFilterText=""
+            setQuickFilterText={jest.fn()}
+            selectedFiles={[]}
+            setSelectedFiles={jest.fn()}
+            quantitySelected={0}
+            setQuantitySelected={jest.fn()}
+            isShiftPressed={false}
+          />
+        </I18nextProvider>,
+      ),
+    ).not.toThrow();
+  });
+
   it("passes a pluralized selected-file count to the rendered confirmation", async () => {
     const russian = await createTestI18n("ru");
 

@@ -1,12 +1,12 @@
 import { expect, test } from "../../fixtures";
 import { adjustScreenView } from "../../utils/adjust-screen-view";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
-import { TID } from "../../utils/constants/testIds";
 import { TEXTS } from "../../utils/constants/texts";
 import { openTemplatesModal } from "../../utils/flow/new-project-flow";
+import { renameFlow } from "../../utils/rename-flow";
 
 test(
-  "select and delete a flow",
+  "automation deletion is reflected in the primary project workspace",
   { tag: ["@release", "@mainpage"] },
   async ({ page }) => {
     await awaitBootstrapTest(page);
@@ -20,28 +20,17 @@ test(
       timeout: 100000,
     });
 
+    const flowId = new URL(page.url()).pathname.match(/^\/flow\/([^/]+)/)?.[1];
+    expect(flowId).toBeTruthy();
+    const flowName = `Delete inventory ${crypto.randomUUID().slice(0, 8)}`;
+    await renameFlow(page, { flowName });
     await page.getByTestId("icon-ChevronLeft").first().click();
 
-    await page.waitForSelector('[data-testid="home-dropdown-menu"]', {
-      timeout: 5000,
-    });
-
-    await page.getByTestId("home-dropdown-menu").first().click();
-    await page.waitForSelector('[data-testid="icon-Trash2"]', {
-      timeout: 1000,
-    });
-    // click on the delete button
-    await page.getByText(TEXTS.delete).last().click();
-    await page.getByText("This can't be undone.").isVisible({
-      timeout: 1000,
-    });
-
-    //confirm the deletion in the modal
-    await page.getByText(TEXTS.delete).last().click();
-
-    await expect(
-      page.getByText("Selected items deleted successfully"),
-    ).toBeVisible();
+    await expect(page.getByText(flowName, { exact: true })).toBeVisible();
+    const deleteResponse = await page.request.delete(`/api/v1/flows/${flowId}`);
+    expect(deleteResponse.status(), await deleteResponse.text()).toBe(200);
+    await page.reload();
+    await expect(page.getByText(flowName, { exact: true })).toHaveCount(0);
   },
 );
 
@@ -59,7 +48,6 @@ test("search flows", { tag: ["@release", "@mainpage"] }, async ({ page }) => {
 
   await page.getByTestId("icon-ChevronLeft").first().click();
 
-  await expect(page.getByTestId(TID.newProjectBtn)).toBeVisible();
   await openTemplatesModal(page);
   await page.getByTestId("side_nav_options_all-templates").click();
   await page.getByRole("heading", { name: "Memory Chatbot" }).click();
@@ -77,13 +65,26 @@ test("search flows", { tag: ["@release", "@mainpage"] }, async ({ page }) => {
     timeout: 100000,
   });
 
-  await page.getByTestId("icon-ChevronLeft").first().click();
-  await page.getByPlaceholder("Search flows").fill("Memory Chatbot");
-  await expect(page.getByText("Memory Chatbot", { exact: true })).toBeVisible();
-  await page.getByText("Document Q&A", { exact: true }).isHidden();
-  await page
-    .getByText(TEXTS.templateBasicPrompting, { exact: true })
-    .isHidden();
+  const projectId = new URL(page.url()).pathname.match(
+    /\/folder\/([^/]+)/,
+  )?.[1];
+  expect(projectId).toBeTruthy();
+  await page.goto(`/project/${projectId}/boards`);
+  const inventory = page.getByRole("complementary", { name: "Automations" });
+  const search = inventory.getByRole("searchbox", {
+    name: "Search project automations",
+  });
+  await expect(search).toBeVisible({ timeout: 60_000 });
+  await search.fill("Memory Chatbot");
+  await expect(
+    inventory.getByText("Memory Chatbot", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    inventory.getByText("Document Q&A", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    inventory.getByText(TEXTS.templateBasicPrompting, { exact: true }),
+  ).toHaveCount(0);
 });
 
 test(

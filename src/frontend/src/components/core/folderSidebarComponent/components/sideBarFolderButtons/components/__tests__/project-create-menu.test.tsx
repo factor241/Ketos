@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ProjectCreateMenu } from "../project-create-menu";
@@ -33,7 +33,11 @@ describe("ProjectCreateMenu", () => {
     expect(onCreateBoard).toHaveBeenCalledWith("project-1", trigger);
     expect(onRowClick).not.toHaveBeenCalled();
 
-    fireEvent.keyDown(trigger, { key: "Enter" });
+    trigger.focus();
+    await user.keyboard("{Enter}");
+    expect(
+      screen.getByTestId("project-create-automation-item-project-1"),
+    ).toBeVisible();
     expect(onRowClick).not.toHaveBeenCalled();
   });
 });

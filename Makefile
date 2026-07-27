@@ -157,7 +157,7 @@ unit_tests: ## run unit tests
 	if [ "$(ff)" = "true" ]; then \
 		EXTRA_ARGS="$$EXTRA_ARGS --ff"; \
 	fi; \
-	uv run pytest src/backend/tests/unit \
+	LANGGRAPH_STRICT_MSGPACK=true uv run pytest src/backend/tests/unit \
 	--ignore=src/backend/tests/integration \
 	--ignore=src/backend/tests/unit/template \
 	$$EXTRA_ARGS \

@@ -127,9 +127,9 @@ export function AutomationInventoryPanel({
       </label>
       <input
         id="automation-inventory-search"
+        data-testid="search-store-input"
         type="search"
         value={search}
-        disabled={disabled}
         className="rounded-md border border-input bg-background px-3 py-2 text-foreground"
         onChange={(event) => setSearch(event.target.value)}
       />

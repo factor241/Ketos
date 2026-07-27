@@ -23,6 +23,41 @@ test(
     tag: ["@release", "@workspace"],
   },
   async ({ page }) => {
+    const diagnostics: string[] = [];
+    const diagnosticTasks: Promise<void>[] = [];
+    page.on("pageerror", (error) => {
+      diagnostics.push(`pageerror: ${error.stack ?? error.message}`);
+    });
+    page.on("console", (message) => {
+      if (message.type() === "error") {
+        diagnostics.push(`console: ${message.text()}`);
+        diagnosticTasks.push(
+          Promise.all(
+            message
+              .args()
+              .map((argument) =>
+                argument
+                  .evaluate((value) =>
+                    value instanceof Error
+                      ? (value.stack ?? value.message)
+                      : String(value),
+                  )
+                  .catch(() => argument.toString()),
+              ),
+          ).then((values) => {
+            diagnostics.push(`console args: ${values.join("\n")}`);
+          }),
+        );
+      }
+    });
+    page.on("requestfailed", (request) => {
+      diagnostics.push(
+        `requestfailed: ${request.method()} ${request.url()} ${
+          request.failure()?.errorText ?? "unknown"
+        }`,
+      );
+    });
+
     // Generate unique filenames for this test run
     const sourceFileName = generateRandomFilename();
     const jsonFileName = generateRandomFilename();
@@ -33,7 +68,16 @@ test(
     // Read the test file content
     const testFilePath = path.join(__dirname, "../../assets/test_file.txt");
     const fileContent = fs.readFileSync(testFilePath);
-    await openBlankFlow(page);
+    try {
+      await openBlankFlow(page);
+    } catch (error) {
+      await Promise.allSettled(diagnosticTasks);
+      throw new Error(
+        `File upload test crashed during bootstrap.\n${
+          error instanceof Error ? error.message : String(error)
+        }\n${diagnostics.join("\n")}`,
+      );
+    }
 
     await disableInspectPanel(page);
 
@@ -75,9 +119,35 @@ test(
         },
       ]);
 
+      await expect(page.getByText(`${sourceFileName}.txt`).last()).toBeVisible({
+        timeout: 5000,
+      });
+
       // Test available types
-      await expect(page.getByText("csv, json, pdf")).toBeVisible();
-      await page.getByTestId("info-types").hover();
+      const supportedTypes = page.getByText("csv, json, pdf");
+      const restartButton = page.getByRole("button", {
+        name: "Restart Ketos",
+      });
+      await expect(supportedTypes.or(restartButton)).toBeVisible();
+      if (await restartButton.isVisible()) {
+        await Promise.allSettled(diagnosticTasks);
+        throw new Error(
+          `File upload UI crashed after selection.\n${diagnostics.join("\n")}`,
+        );
+      }
+      try {
+        await page.getByTestId("info-types").hover();
+      } catch (error) {
+        if ((await restartButton.isVisible()) || diagnostics.length > 0) {
+          await Promise.allSettled(diagnosticTasks);
+          throw new Error(
+            `File upload types tooltip crashed while opening.\n${
+              error instanceof Error ? error.message : String(error)
+            }\n${diagnostics.join("\n")}`,
+          );
+        }
+        throw error;
+      }
       await expect(
         page.getByText(
           "adoc, asc, asciidoc, bmp, bz2, docm, docx, dotm, dotx, gz, htm, html, jpeg, jpg, js, md, mdx, png, potm, potx, ppsm, ppsx, pptm, pptx, py, sh, sql, tar, tgz, tiff, ts, tsx, txt, webp, xhtml, xls, xlsx, xml, yaml, yml, zip",
@@ -87,10 +157,6 @@ test(
 
       await page.getByText(TEXTS.labelMyFiles).first().hover();
       await page.waitForTimeout(500);
-
-      await expect(page.getByText(`${sourceFileName}.txt`).last()).toBeVisible({
-        timeout: 5000,
-      });
 
       await ensureFileSelected(page);
 
@@ -231,7 +297,13 @@ test(
         timeout: 5000,
       });
 
+      await expect(
+        page.getByTestId(`checkbox-${renamedTxtFile}`).last(),
+      ).toHaveAttribute("data-state", "unchecked", { timeout: 5000 });
       await page.getByTestId(`checkbox-${renamedTxtFile}`).last().click();
+      await expect(
+        page.getByTestId(`checkbox-${renamedTxtFile}`).last(),
+      ).toHaveAttribute("data-state", "checked", { timeout: 5000 });
       await page.getByTestId(`checkbox-${renamedJsonFile}`).last().click();
 
       await expect(
@@ -688,8 +760,10 @@ test(
     // Step 1: First navigate to files page and upload both files
     await awaitBootstrapTest(page, { skipModal: true });
 
-    // Navigate to My Files page
-    await page.getByText(TEXTS.labelMyFiles).first().click();
+    // Navigate through the board-first account menu.
+    await page.getByTestId("user_menu_button").click();
+    await page.getByTestId("account-menu-my-files").click();
+    await expect(page).toHaveURL(/\/assets\/files(?:[/?#]|$)/);
 
     // Check if we're on the files page
     await page.waitForSelector('[data-testid="mainpage_title"]');

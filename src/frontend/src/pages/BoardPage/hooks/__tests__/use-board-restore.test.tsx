@@ -49,7 +49,7 @@ describe("useBoardRestore", () => {
   beforeEach(() => {
     query = makeQuery({ isLoading: true });
     mockedUseGetBoard.mockImplementation(
-      () => query as ReturnType<typeof useGetBoard>,
+      () => query as unknown as ReturnType<typeof useGetBoard>,
     );
     useBoardStore.getState().unmountBoard();
     frames = [];

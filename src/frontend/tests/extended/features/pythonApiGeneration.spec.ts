@@ -7,6 +7,7 @@ test(
   "python_api_generation",
   { tag: ["@release", "@api", "@workspace"] },
   async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await awaitBootstrapTest(page);
 
     await page.getByTestId("side_nav_options_all-templates").click();

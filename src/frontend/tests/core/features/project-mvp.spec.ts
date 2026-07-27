@@ -138,7 +138,9 @@ test("Project shell preserves identity through create, rename, reload, and legac
   await expect(page.getByTestId("project-title")).toContainText(
     originalName as string,
   );
-  await expect(page.getByTestId("project-boards-empty")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "No boards yet", exact: true }),
+  ).toBeVisible();
 
   const originalRow = page.getByTestId(`sidebar-nav-${originalName as string}`);
   await expect(originalRow).toBeVisible();
@@ -198,8 +200,12 @@ test("Project shell preserves identity through create, rename, reload, and legac
   await expect(page.getByTestId("menu_settings_button")).toHaveCount(1);
   await page.keyboard.press("Escape");
 
-  await page.getByTestId("project-flows-link").click();
-  await expect(page).toHaveURL(new RegExp(`/all/folder/${encodedProjectId}$`));
+  await expect(
+    page
+      .getByRole("navigation", { name: "Project navigation" })
+      .getByRole("link", { name: "Boards" }),
+  ).toBeVisible();
+  await expect(page.getByTestId("project-flows-link")).toHaveCount(0);
 
   const persistedFlow = await reloadRealFlow(page, existingFlow.id);
   expect(persistedFlow).toEqual(existingFlow);

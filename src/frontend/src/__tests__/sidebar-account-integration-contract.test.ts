@@ -8,7 +8,7 @@ function source(relativePath: string): string {
 }
 
 describe("sidebar account integration contract", () => {
-  it("keeps account access in an always-mounted footer while file navigation stays flagged", () => {
+  it("keeps one account entry in the footer without duplicate resource links", () => {
     const sidebar = source(
       "src/components/core/folderSidebarComponent/components/sideBarFolderButtons/index.tsx",
     );
@@ -17,8 +17,11 @@ describe("sidebar account integration contract", () => {
       'import CustomSidebarAccount from "@/customization/components/custom-sidebar-account";',
     );
     expect(sidebar).toMatch(
-      /<SidebarFooter className="border-t">\s*\{ENABLE_FILE_MANAGEMENT && \([\s\S]*?sidebar\.knowledge[\s\S]*?sidebar\.myFiles[\s\S]*?\)\}\s*<div\s+className=\{cn\("p-2", ENABLE_FILE_MANAGEMENT && "border-t"\)\}\s*>\s*<CustomSidebarAccount \/>\s*<\/div>\s*<\/SidebarFooter>/,
+      /<SidebarFooter className="border-t">\s*<div className="p-2">\s*<CustomSidebarAccount \/>\s*<\/div>\s*<\/SidebarFooter>/,
     );
+    expect(sidebar).not.toContain("ENABLE_FILE_MANAGEMENT");
+    expect(sidebar).not.toContain("sidebar.knowledge");
+    expect(sidebar).not.toContain("sidebar.myFiles");
   });
 
   it("mounts the project sidebar after data loads even for the empty state", () => {

@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from ketos.api.v1 import chat_threads as chat_threads_api
 from ketos.api.v1.chat_threads import router
 from ketos.services.board.service import create_board
 from ketos.services.chat_threads import service
@@ -175,6 +176,64 @@ async def test_board_chat_api_rejects_missing_header_provider_and_forged_scope(
         headers={**logged_in_headers, "Idempotency-Key": str(uuid4())},
     )
     assert forged_scope.status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("workspace_enabled", "chat_enabled"),
+    [(False, True), (True, False), (False, False)],
+)
+async def test_chat_kill_switch_blocks_board_compound_write_but_preserves_legacy_chat_reads(
+    chat_client: AsyncClient,
+    logged_in_headers,
+    active_user,
+    monkeypatch: pytest.MonkeyPatch,
+    workspace_enabled,
+    chat_enabled,
+) -> None:
+    project = await _folder(active_user.id, "Chat rollback")
+    async with session_scope() as session:
+        board = await create_board(
+            session,
+            project_id=project.id,
+            actor_id=active_user.id,
+            title="Readable chat Board",
+        )
+    legacy = await chat_client.post(
+        f"/api/v1/projects/{project.id}/chats",
+        json=_create_payload("Readable during rollback"),
+        headers=logged_in_headers,
+    )
+    assert legacy.status_code == 201
+    monkeypatch.setattr(
+        chat_threads_api,
+        "FEATURE_FLAGS",
+        SimpleNamespace(
+            mvp_workspace=workspace_enabled,
+            mvp_chat=chat_enabled,
+        ),
+    )
+
+    blocked = await chat_client.post(
+        f"/api/v1/boards/{board.id}/chats",
+        json=_board_create_payload("Blocked Board chat"),
+        headers={
+            **logged_in_headers,
+            "Idempotency-Key": str(uuid4()),
+        },
+    )
+
+    assert blocked.status_code == 404
+    assert blocked.json()["detail"]["code"] == "board_chat_command_disabled"
+    listed = await chat_client.get(
+        f"/api/v1/projects/{project.id}/chats",
+        headers=logged_in_headers,
+    )
+    fetched = await chat_client.get(
+        f"/api/v1/chats/{legacy.json()['id']}",
+        headers=logged_in_headers,
+    )
+    assert [chat["id"] for chat in listed.json()] == [legacy.json()["id"]]
+    assert fetched.json()["title"] == "Readable during rollback"
 
 
 async def test_chat_api_owner_roundtrip_search_and_conflict(

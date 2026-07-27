@@ -1,20 +1,62 @@
+import type { Page } from "@playwright/test";
 import { expect, test } from "../../fixtures";
 import { adjustScreenView } from "../../utils/adjust-screen-view";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
 
 import { TEXTS } from "../../utils/constants/texts";
 
+async function openProjectAutomation(page: Page, name: string) {
+  const projectsResponse = await page.request.get("/api/v1/projects/");
+  expect(projectsResponse.ok()).toBeTruthy();
+  const projects = (await projectsResponse.json()) as Array<{ id: string }>;
+  const projectId = projects[0]?.id;
+  expect(projectId).toBeTruthy();
+
+  let automationId = "";
+  await expect
+    .poll(
+      async () => {
+        const search = new URLSearchParams({
+          get_all: "true",
+          header_flows: "true",
+          automation_summaries: "true",
+          folder_id: projectId,
+        });
+        const response = await page.request.get(
+          `/api/v1/flows/?${search.toString()}`,
+        );
+        expect(response.ok()).toBeTruthy();
+        const summaries = (await response.json()) as Array<{
+          id: string;
+          name: string;
+        }>;
+        automationId =
+          summaries.find((summary) => summary.name === name)?.id ?? "";
+        return automationId;
+      },
+      { timeout: 30_000 },
+    )
+    .not.toBe("");
+
+  await page.goto(`/flow/${automationId}`);
+  await expect(page.getByTestId("publish-button")).toBeVisible({
+    timeout: 60_000,
+  });
+}
+
 test(
   "curl_api_generation",
   { tag: ["@release", "@workspace", "@api"] },
 
   async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await awaitBootstrapTest(page);
 
     await page.getByTestId("side_nav_options_all-templates").click();
     await page
       .getByRole("heading", { name: TEXTS.templateBasicPrompting })
       .click();
+    await openProjectAutomation(page, TEXTS.templateBasicPrompting);
     // Wait for the new-flow Loading state to clear before checking the
     // publish button — the canvas mounts only after the flow finishes
     // loading, which can outlast a 20s action timeout on Windows CI.
@@ -60,7 +102,7 @@ test(
     expect(oldValue).not.toBe(newValue);
     expect(clipboardContent2.length).toBeGreaterThan(clipboardContent.length);
     await awaitBootstrapTest(page, { skipModal: true });
-    await page.getByText(TEXTS.templateBasicPrompting).first().click();
+    await openProjectAutomation(page, TEXTS.templateBasicPrompting);
     await page.getByTestId("publish-button").click();
     await page.getByTestId("api-access-item").click();
     expect(

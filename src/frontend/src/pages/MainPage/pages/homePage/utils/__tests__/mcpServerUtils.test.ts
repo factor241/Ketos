@@ -28,26 +28,26 @@ describe("mcpServerUtils", () => {
   });
 
   describe("getServerName", () => {
-    it("generates server name with lf- prefix", () => {
+    it("generates server name with ketos- prefix", () => {
       const name = getServerName("My Project");
-      expect(name).toBe("lf-my_project");
+      expect(name).toBe("ketos-my_project");
     });
 
     it("converts to snake_case and lowercase", () => {
       const name = getServerName("Test Project Name");
-      expect(name).toBe("lf-test_project_name");
+      expect(name).toBe("ketos-test_project_name");
     });
 
     it("truncates long names", () => {
       const longName = "a".repeat(100);
       const name = getServerName(longName, 20);
       expect(name.length).toBeLessThanOrEqual(20);
-      expect(name).toMatch(/^lf-/);
+      expect(name).toMatch(/^ketos-/);
     });
 
     it("handles undefined folderName", () => {
       const name = getServerName();
-      expect(name).toBe("lf-project");
+      expect(name).toBe("ketos-project");
     });
   });
 
@@ -116,7 +116,7 @@ describe("mcpServerUtils", () => {
       });
 
       expect(json).toContain('"mcpServers"');
-      expect(json).toContain('"lf-test"');
+      expect(json).toContain('"ketos-test"');
       expect(json).toContain('"command": "uvx"');
       expect(json).toContain('"mcp-proxy"');
     });

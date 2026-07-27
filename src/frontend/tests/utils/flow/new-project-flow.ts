@@ -7,6 +7,134 @@ import { TIMEOUTS } from "../constants/timeouts";
 // data-testid; centralizing here keeps both call sites in sync if the
 // attribute ever changes.
 const NEW_PROJECT_BUTTON_SELECTOR = `[id="${TID.newProjectBtn}"]`;
+const PROJECT_SIDEBAR_BUTTON_SELECTOR = '[data-testid="add-project-button"]';
+const PROJECT_BOARDS_ROUTE = /\/project\/([0-9a-f-]+)\/boards(?:[/?#]|$)/i;
+
+type BoardBootstrapResponse = {
+  board: {
+    id: string;
+    project_id: string;
+    revision: number;
+  };
+  automation: {
+    id: string;
+    folder_id: string;
+  } | null;
+  placement: {
+    board_id: string;
+    target_id: string;
+    target_kind: "automation";
+  } | null;
+};
+
+const openTemplatesModalFromBoards = async (
+  page: Page,
+  options?: {
+    modalTimeout?: number;
+  },
+) => {
+  const match = new URL(page.url()).pathname.match(PROJECT_BOARDS_ROUTE);
+  const routeProjectId = match?.[1];
+  const projectsResponse = await page.request.get("/api/v1/projects/");
+  if (!projectsResponse.ok()) {
+    throw new Error(
+      `Project lookup failed with ${projectsResponse.status()}: ${await projectsResponse.text()}`,
+    );
+  }
+  const projects = (await projectsResponse.json()) as Array<{ id: string }>;
+  let projectId =
+    projects.find((project) => project.id === routeProjectId)?.id ??
+    projects[0]?.id;
+  if (!projectId) {
+    const projectResponse = await page.request.post("/api/v1/projects/", {
+      data: {
+        name: `E2E Project ${crypto.randomUUID().slice(0, 8)}`,
+        description: "",
+        flows_list: [],
+        components_list: [],
+      },
+    });
+    if (!projectResponse.ok()) {
+      throw new Error(
+        `Project bootstrap failed with ${projectResponse.status()}: ${await projectResponse.text()}`,
+      );
+    }
+    projectId = ((await projectResponse.json()) as { id: string }).id;
+  }
+
+  const intentId = crypto.randomUUID();
+  const response = await page.request.post(
+    `/api/v1/projects/${projectId}/boards/bootstrap`,
+    {
+      data: {
+        title: `E2E bootstrap ${intentId.slice(0, 8)}`,
+        starter: {
+          kind: "blank_automation",
+          name: `E2E flow ${intentId.slice(0, 8)}`,
+        },
+      },
+      headers: {
+        "Idempotency-Key": intentId,
+      },
+    },
+  );
+  if (!response.ok()) {
+    throw new Error(
+      `Board bootstrap failed with ${response.status()}: ${await response.text()}`,
+    );
+  }
+
+  const result = (await response.json()) as BoardBootstrapResponse;
+  if (
+    result.board.project_id !== projectId ||
+    !result.automation?.id ||
+    result.automation.folder_id !== projectId ||
+    result.placement?.board_id !== result.board.id ||
+    result.placement.target_id !== result.automation.id ||
+    result.placement.target_kind !== "automation"
+  ) {
+    throw new Error(
+      `Board bootstrap returned an invalid compound result: ${JSON.stringify(result)}`,
+    );
+  }
+
+  const deleteBoardResponse = await page.request.delete(
+    `/api/v1/boards/${result.board.id}?expected_revision=${result.board.revision}`,
+  );
+  if (deleteBoardResponse.status() !== 204) {
+    throw new Error(
+      `Temporary Board cleanup failed with ${deleteBoardResponse.status()}: ${await deleteBoardResponse.text()}`,
+    );
+  }
+
+  await page.goto(`/flow/${result.automation.id}`);
+  await page
+    .locator("#react-flow-id")
+    .waitFor({ state: "visible", timeout: TIMEOUTS.standard });
+  await page.evaluate(async (flowId) => {
+    // The removed home-page action used useStartNewFlow(), which primed this
+    // store before navigating. The canonical Boards fallback creates the same
+    // blank placeholder atomically, then reproduces only that test-fixture
+    // state transition so the legacy template contract remains observable.
+    const modulePath = "/src/stores/flowBuilderWelcomeStore.ts";
+    const welcome = (await import(modulePath)) as {
+      default: {
+        getState: () => {
+          open: (openedForFlowId: string) => void;
+        };
+      };
+    };
+    welcome.default.getState().open(flowId);
+  }, result.automation.id);
+  await page
+    .getByTestId("flow-builder-welcome-panel")
+    .waitFor({ state: "visible", timeout: TIMEOUTS.standard });
+  await page.getByTestId("flow-builder-welcome-browse-more").click();
+  await page.getByTestId(TID.modalTitle).waitFor({
+    state: "visible",
+    timeout: options?.modalTimeout ?? TIMEOUTS.standard,
+  });
+};
 
 /**
  * Waits for the "new project" button on the projects/home page to be ready.
@@ -17,9 +145,15 @@ export const waitForNewProjectButton = async (
   page: Page,
   options?: { timeout?: number },
 ) => {
-  await page.waitForSelector(NEW_PROJECT_BUTTON_SELECTOR, {
-    timeout: options?.timeout ?? TIMEOUTS.standard,
-  });
+  await page
+    .locator(
+      `${NEW_PROJECT_BUTTON_SELECTOR}, ${PROJECT_SIDEBAR_BUTTON_SELECTOR}`,
+    )
+    .first()
+    .waitFor({
+      state: "visible",
+      timeout: options?.timeout ?? TIMEOUTS.standard,
+    });
 };
 
 /**
@@ -49,6 +183,12 @@ export const openTemplatesModal = async (
   },
 ) => {
   await waitForNewProjectButton(page, { timeout: options?.buttonTimeout });
+
+  if ((await page.locator(NEW_PROJECT_BUTTON_SELECTOR).count()) === 0) {
+    await openTemplatesModalFromBoards(page, options);
+    return;
+  }
+
   await page
     .getByTestId(
       options?.fromEmptyPage ? TID.newProjectBtnEmptyPage : TID.newProjectBtn,

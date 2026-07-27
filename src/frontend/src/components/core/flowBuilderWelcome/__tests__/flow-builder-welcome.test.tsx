@@ -247,10 +247,11 @@ describe("FlowBuilderWelcome", () => {
       for (const button of buttons) {
         expect(button).toHaveClass(
           "grid",
-          "h-16",
+          "min-h-16",
           "w-[13.75rem]",
           "max-w-full",
         );
+        expect(button).not.toHaveClass("h-16");
         expect(button).not.toHaveClass("whitespace-nowrap");
       }
 
@@ -259,9 +260,10 @@ describe("FlowBuilderWelcome", () => {
         "flow-builder-welcome-vector-store-rag-label",
         "flow-builder-welcome-browse-more-label",
       ]) {
-        expect(screen.getByTestId(testId)).toHaveClass(
+        const label = screen.getByTestId(testId);
+        expect(label).toHaveClass("block", "whitespace-normal");
+        expect(label.parentElement).toHaveClass(
           "min-w-0",
-          "whitespace-normal",
           "text-center",
           "leading-snug",
         );

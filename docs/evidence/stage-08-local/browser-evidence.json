@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1",
+  "stage": "08",
+  "frozenSha": "0000000000000000000000000000000000000000",
+  "runId": "local-browser-run",
+  "nodeId": "browser",
+  "status": "FAIL",
+  "startedAt": "2026-07-27T02:24:44.365Z",
+  "endedAt": "2026-07-27T02:24:44.416Z",
+  "browser": {
+    "name": "Chromium",
+    "version": "unknown",
+    "engine": "Blink",
+    "headless": true
+  },
+  "baseUrl": "http://127.0.0.1:3000",
+  "stories": [
+    {
+      "id": "core-integrations-ai-flow-preview-confirm-spec-ts-stage-08-ai-flow-preview-and-confirmation-real-api-and-db-enforce-create-edit-stale-restore-with-standard-all-open-resume",
+      "name": "real API and DB enforce create/edit/stale/restore with standard all-open resume",
+      "status": "FAIL",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Run the real Stage 08 browser/API/DB acceptance story",
+          "expected": "Every asserted confirmation, CAS, stale and restore invariant holds",
+          "observed": "Playwright status: failed",
+          "status": "FAIL",
+          "startedAt": "2026-07-27T02:24:44.365Z",
+          "endedAt": "2026-07-27T02:24:44.401Z",
+          "artifactPaths": []
+        }
+      ],
+      "screenshotPaths": [],
+      "tracePath": null,
+      "reason": "Playwright status: failed"
+    }
+  ],
+  "console": {
+    "errorCount": 0,
+    "warningCount": 0,
+    "logPath": "browser-console.json"
+  },
+  "network": {
+    "failedRequestCount": 0,
+    "unexpectedMutationCount": 0,
+    "resumeBodyKeys": [],
+    "logPath": "browser-network.json"
+  },
+  "artifacts": [
+    "browser-console.json",
+    "browser-network.json"
+  ],
+  "blocker": null
+}

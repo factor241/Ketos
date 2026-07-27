@@ -9,6 +9,7 @@ import {
   linkSync,
   mkdirSync,
   openSync,
+  renameSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -18,6 +19,7 @@ import type { Page } from "@playwright/test";
 
 import { expect, test } from "../../fixtures";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
+import { deterministicProviderPort } from "../../utils/deterministic-provider-port";
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 type Entity = { id: string; revision: number };
@@ -41,6 +43,11 @@ type ProviderMessage = {
   role?: string;
   content?: string | Array<{ text?: string }>;
 };
+type ReplacementProcess = {
+  child: ChildProcess;
+  role: "backend" | "frontend";
+  command_fragment: string;
+};
 
 const repositoryRoot = path.resolve(process.cwd(), "../..");
 const frontendRoot = path.resolve(repositoryRoot, "src/frontend");
@@ -48,9 +55,13 @@ const runRoot = process.env.KETOS_MVP_RUN_DIR;
 const databaseUrl = process.env.KETOS_DATABASE_URL;
 const dataDir = process.env.KETOS_DATA_DIR;
 const ledgerPath = process.env.KETOS_STAGE10_ENTITY_LEDGER;
-const providerPort = Number(process.env.STAGE10_OPENAI_PORT ?? "18767");
+const providerPort = deterministicProviderPort;
 const providerSockets = new Set<import("node:net").Socket>();
-const replacementProcesses: ChildProcess[] = [];
+const replacementProcesses: ReplacementProcess[] = [];
+const replacementRegistryPath = runRoot
+  ? path.join(runRoot, "stage10-replacement-processes.json")
+  : null;
+let replacementHandoffComplete = false;
 let providerServer: Server;
 
 function requireEnvironment() {
@@ -240,17 +251,19 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  for (const child of replacementProcesses) {
-    if (child.pid && processExists(child.pid))
-      process.kill(child.pid, "SIGTERM");
+  try {
+    if (!replacementHandoffComplete) {
+      await stopReplacementProcesses();
+    }
+  } finally {
+    for (const socket of providerSockets) socket.destroy();
+    providerSockets.clear();
+    providerServer.closeAllConnections();
+    await Promise.race([
+      new Promise<void>((resolve) => providerServer.close(() => resolve())),
+      new Promise<void>((resolve) => setTimeout(resolve, 2_000)),
+    ]);
   }
-  for (const socket of providerSockets) socket.destroy();
-  providerSockets.clear();
-  providerServer.closeAllConnections();
-  await Promise.race([
-    new Promise<void>((resolve) => providerServer.close(() => resolve())),
-    new Promise<void>((resolve) => setTimeout(resolve, 2_000)),
-  ]);
 });
 
 function canonical(value: Json): string {
@@ -403,6 +416,18 @@ function processExists(pid: number): boolean {
   }
 }
 
+function processGroup(pid: number): number {
+  if (process.platform === "win32") return pid;
+  const output = execFileSync("/bin/ps", ["-o", "pgid=", "-p", String(pid)], {
+    encoding: "utf8",
+  }).trim();
+  const pgid = Number(output);
+  if (!Number.isSafeInteger(pgid) || pgid <= 1) {
+    throw new Error(`unable to resolve process group for pid ${pid}`);
+  }
+  return pgid;
+}
+
 async function waitUntil(
   predicate: () => boolean | Promise<boolean>,
   timeoutMs = 120_000,
@@ -450,7 +475,7 @@ function startBackend(): ChildProcess {
     recursive: true,
     mode: 0o700,
   });
-  return spawn(
+  const child = spawn(
     "uv",
     [
       "run",
@@ -485,6 +510,8 @@ function startBackend(): ChildProcess {
           "run-bindings.ledger",
         ),
         KETOS_AUTO_LOGIN: "true",
+        KETOS_SUPERUSER: "ketos",
+        KETOS_SUPERUSER_PASSWORD: "test-superuser-password", // pragma: allowlist secret
         KETOS_DEACTIVATE_TRACING: "true",
         KETOS_FEATURE_MVP_WORKSPACE: "true",
         KETOS_FEATURE_MVP_CHAT: "true",
@@ -498,10 +525,12 @@ function startBackend(): ChildProcess {
       },
     },
   );
+  child.unref();
+  return child;
 }
 
 function startFrontend(): ChildProcess {
-  return spawn(
+  const child = spawn(
     "./node_modules/.bin/vite",
     ["--host", "127.0.0.1", "--port", "3000", "--strictPort"],
     {
@@ -514,6 +543,69 @@ function startFrontend(): ChildProcess {
       },
     },
   );
+  child.unref();
+  return child;
+}
+
+function persistReplacementRegistry() {
+  if (!replacementRegistryPath) {
+    throw new Error("KETOS_MVP_RUN_DIR is required for replacement cleanup");
+  }
+  const processGroups = replacementProcesses.map((replacement) => {
+    const { child } = replacement;
+    if (!child.pid || !Number.isSafeInteger(child.pid) || child.pid <= 1) {
+      throw new Error("replacement process did not expose a safe process id");
+    }
+    return {
+      pid: child.pid,
+      role: replacement.role,
+      command_fragment: replacement.command_fragment,
+    };
+  });
+  const temporary = `${replacementRegistryPath}.tmp-${process.pid}`;
+  writeFileSync(
+    temporary,
+    `${JSON.stringify({
+      schema: "ketos.stage10.replacement-processes.v1",
+      process_groups: processGroups,
+    })}\n`,
+    { encoding: "utf8", flag: "wx", mode: 0o600 },
+  );
+  renameSync(temporary, replacementRegistryPath);
+}
+
+async function stopReplacementProcesses() {
+  for (const { child } of replacementProcesses) {
+    if (!child.pid || !processExists(child.pid)) continue;
+    try {
+      process.kill(
+        process.platform === "win32" ? child.pid : -child.pid,
+        "SIGTERM",
+      );
+    } catch {
+      // A partial replacement may already have exited.
+    }
+  }
+  const deadline = Date.now() + 5_000;
+  while (
+    replacementProcesses.some(
+      ({ child }) => child.pid && processExists(child.pid),
+    ) &&
+    Date.now() < deadline
+  ) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  for (const { child } of replacementProcesses) {
+    if (!child.pid || !processExists(child.pid)) continue;
+    try {
+      process.kill(
+        process.platform === "win32" ? child.pid : -child.pid,
+        "SIGKILL",
+      );
+    } catch {
+      // A process that exited between the check and signal is already clean.
+    }
+  }
 }
 
 function writeLedger(payload: Record<string, Json>) {
@@ -798,15 +890,28 @@ test(
     await page.goto("about:blank", { waitUntil: "load" });
     expect(page.url()).toBe("about:blank");
     const backendReplacement = startBackend();
-    replacementProcesses.push(backendReplacement);
+    replacementProcesses.push({
+      child: backendReplacement,
+      role: "backend",
+      command_fragment: "uvicorn --factory ketos.main:create_app",
+    });
+    persistReplacementRegistry();
     await waitHttp("http://127.0.0.1:7860/health");
     const backendPid2 = listenerPid(7860);
     const frontendReplacement = startFrontend();
-    replacementProcesses.push(frontendReplacement);
+    replacementProcesses.push({
+      child: frontendReplacement,
+      role: "frontend",
+      command_fragment: "vite --host 127.0.0.1 --port 3000",
+    });
+    persistReplacementRegistry();
     await waitHttp("http://127.0.0.1:3000");
     const frontendPid2 = listenerPid(3000);
     expect(backendPid2).not.toBe(backendPid1);
     expect(frontendPid2).not.toBe(frontendPid1);
+    expect(processGroup(backendPid2)).toBe(backendReplacement.pid);
+    expect(processGroup(frontendPid2)).toBe(frontendReplacement.pid);
+    replacementHandoffComplete = true;
     expect(
       existsSync(
         path.join(env.dataDir, "mvp", "langgraph-checkpoints.sqlite3"),
@@ -846,7 +951,7 @@ test(
     await page.goBack();
     await expect(page).toHaveURL(new RegExp(`${project.id}.*${board.id}`));
 
-    // 10. Supported config seam hides and restores routes without deleting data.
+    // 10. Kill switches hide creation while preserving Board reads and data.
     let flagsEnabled = false;
     await page.route("**/api/v1/config", async (route) => {
       const response = await route.fetch();
@@ -865,10 +970,25 @@ test(
         },
       });
     });
-    await page.goto(boardUrl);
-    await expect(page).toHaveURL(/\/flows\/?$/);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(
+      new RegExp(`${boardUrl}\\?focusPlacementId=${automation.id}$`),
+    );
+    await expect(
+      page.getByRole("heading", { name: "Ketos MVP vertical slice" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Board creation actions are disabled"),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add note" })).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Add automation" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Create chat in Board" }),
+    ).toHaveCount(0);
     flagsEnabled = true;
-    await page.goto(boardUrl);
+    await page.reload({ waitUntil: "domcontentloaded" });
     await expect(
       page.getByRole("heading", { name: "Ketos MVP vertical slice" }),
     ).toBeVisible();

@@ -133,6 +133,26 @@ describe("useSaveFlow", () => {
     expect(mockSetCurrentFlow).toHaveBeenCalled();
   });
 
+  it("saves a directly loaded flow when the global flows list is absent", async () => {
+    flowsManagerState.flows = undefined;
+
+    const { result } = renderHook(() => useSaveFlow());
+
+    await expect(result.current()).resolves.toBeUndefined();
+
+    expect(mockMutate).toHaveBeenCalledTimes(1);
+    expect(mockSetFlows).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: "flow-1",
+        data: expect.objectContaining({
+          nodes: [],
+          edges: [],
+        }),
+      }),
+    ]);
+    expect(mockSetErrorData).not.toHaveBeenCalled();
+  });
+
   it("should_update_store_flow_folder_id_when_moved_via_drag_drop_from_dashboard", async () => {
     // Arrange — dashboard scenario: no flow open in the editor, the
     // global flows store is populated from `header_flows=true`, so the

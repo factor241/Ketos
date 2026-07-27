@@ -23,9 +23,9 @@ const ROUTE_SMOKE_CASES: RouteSmokeCase[] = [
   {
     manifestId: "route-flows",
     path: "/flows/",
-    readyTestId: "flows-btn",
-    expectedRussian: "Сценарии",
-    forbiddenEnglish: "Flows",
+    readyTestId: "mainpage_title",
+    expectedRussian: "Доски",
+    forbiddenEnglish: "Boards",
   },
   {
     manifestId: "route-mcp",

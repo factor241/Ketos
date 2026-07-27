@@ -1,8 +1,25 @@
+import type { Page } from "@playwright/test";
+
 import { expect, test } from "../../fixtures";
 import { adjustScreenView } from "../../utils/adjust-screen-view";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
 import { TEXTS } from "../../utils/constants/texts";
 import { openAddMcpServerModal } from "../../utils/open-add-mcp-server-modal";
+
+async function openProjectMcpTab(page: Page) {
+  const response = await page.request.get("/api/v1/projects/");
+  expect(response.ok()).toBeTruthy();
+  const projects = (await response.json()) as Array<{
+    id: string;
+    name: string;
+  }>;
+  const project = projects.find(({ name }) => name === "Starter Project");
+  expect(project).toBeDefined();
+  await page.goto(`/mcp/folder/${project!.id}`);
+  await expect(page.getByTestId("mcp-server-title")).toBeVisible({
+    timeout: 30000,
+  });
+}
 
 test(
   "user should be able to manage MCP server tools and configuration",
@@ -31,15 +48,12 @@ test(
       },
     );
 
-    // Exit the flow
-    await page.getByTestId("icon-ChevronLeft").last().click();
-
-    // Navigate to MCP server tab
-    await page.getByTestId("mcp-btn").click();
-    await page.waitForTimeout(500);
+    // Board-first navigation no longer exposes the legacy home-page tab.
+    // The dedicated project MCP route remains the canonical configuration
+    // surface, so navigate to it using the durable project identity.
+    await openProjectMcpTab(page);
 
     // Verify MCP server tab is visible
-    await expect(page.getByTestId("mcp-server-title")).toBeVisible();
     await expect(page.getByText("Flows/Tools")).toBeVisible();
 
     // Click on Edit Tools button
@@ -78,11 +92,10 @@ test(
 
     await page.reload();
 
-    // Navigate to MCP server tab
-    await page.getByTestId("mcp-btn").click({ timeout: 10000 });
-
     // Verify MCP server tab is visible
-    await expect(page.getByTestId("mcp-server-title")).toBeVisible();
+    await expect(page.getByTestId("mcp-server-title")).toBeVisible({
+      timeout: 30000,
+    });
     await expect(page.getByText("Flows/Tools")).toBeVisible();
 
     // Click on Edit Tools button
@@ -192,12 +205,10 @@ test(
 
     // Copy configuration
     await page.getByTestId("icon-copy").click();
-    await expect(page.getByTestId("icon-check")).toBeVisible();
 
-    // Get the SSE URL from the configuration
-    const configJson = await page.evaluate(() => {
-      return navigator.clipboard.readText();
-    });
+    // Read the rendered configuration rather than depending on browser-level
+    // clipboard permission, which is intentionally unavailable in CI.
+    const configJson = (await page.locator("pre").first().textContent()) ?? "";
     expect(configJson).toContain("mcpServers");
     expect(configJson).toContain("mcp-proxy");
     expect(configJson).toContain("uvx");
@@ -213,11 +224,8 @@ test(
     await page.waitForSelector("pre", { state: "visible", timeout: 30000 });
     // Copy configuration
     await page.getByTestId("icon-copy").click();
-    await expect(page.getByTestId("icon-check")).toBeVisible();
-
-    const configJsonLinux = await page.evaluate(() => {
-      return navigator.clipboard.readText();
-    });
+    const configJsonLinux =
+      (await page.locator("pre").first().textContent()) ?? "";
 
     const sseUrlMatchLinux = configJsonLinux?.match(
       /"args":\s*\[\s*"mcp-proxy"\s*,\s*"([^"]+)"/,
@@ -237,12 +245,14 @@ test(
     await page.getByTestId("blank-flow").click();
     await page.getByTestId("sidebar-nav-mcp").click();
     await page.waitForSelector(
-      '[data-testid="add-component-button-lf-starter_project"]',
+      '[data-testid="add-component-button-ketos-starter_project"]',
       {
         timeout: 60000,
       },
     );
-    await page.getByTestId("add-component-button-lf-starter_project").click();
+    await page
+      .getByTestId("add-component-button-ketos-starter_project")
+      .click();
 
     await adjustScreenView(page, { numberOfZoomOut: 3 });
 
@@ -258,7 +268,7 @@ test(
 
     await page
       .getByTestId("json-input")
-      .fill(configJsonLinux.replace(/lf-starter_project/g, testName) || "");
+      .fill(configJsonLinux.replace(/ketos-starter_project/g, testName) || "");
 
     await page.getByTestId("add-mcp-server-button").click();
 

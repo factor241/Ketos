@@ -12,7 +12,7 @@ WORKSPACE = Path(__file__).resolve().parents[5]
 ALEMBIC_ROOT = WORKSPACE / "src/backend/base/ketos/alembic"
 REVISION = "505c0a700002"
 DOWN_REVISION = "505c0a700001"
-HEAD_REVISION = "s08c0mmand01"
+HEAD_REVISION = "ubw01cmdrec"
 
 
 def test_clean_upgrade_preserves_api_key_created_at_default() -> None:

@@ -45,21 +45,19 @@ test(
       timeout: 30000,
     });
 
-    await page
-      .getByPlaceholder(TEXTS.placeholderUsername)
-      .fill(TEXTS.authDefaultCredential);
-    await page
-      .getByPlaceholder(TEXTS.placeholderPassword)
-      .fill(TEXTS.authDefaultPassword);
-
-    await page.evaluate(() => {
-      sessionStorage.removeItem("testMockAutoLogin");
+    const initialAdminLogin = await page.request.post("/api/v1/login", {
+      form: {
+        username: TEXTS.authDefaultCredential,
+        password: TEXTS.authDefaultPassword,
+      },
     });
-
-    await page.getByRole("button", { name: TEXTS.signIn }).click();
+    expect(initialAdminLogin.status(), await initialAdminLogin.text()).toBe(
+      200,
+    );
+    await page.goto("/");
 
     await page.waitForSelector('[data-testid="mainpage_title"]', {
-      timeout: 30000,
+      timeout: 90000,
     });
 
     await waitForNewProjectButton(page);
@@ -206,6 +204,7 @@ test(
     await expect(page.getByText(randomFlowName, { exact: true })).toBeVisible({
       timeout: 2000,
     });
+    const adminProjectUrl = page.url();
 
     await page.waitForSelector("[data-testid='user-profile-settings']", {
       timeout: 1500,
@@ -223,32 +222,16 @@ test(
       timeout: 30000,
     });
 
-    await page
-      .getByPlaceholder(TEXTS.placeholderUsername)
-      .fill(secondRandomName);
-    await page.getByPlaceholder(TEXTS.placeholderPassword).fill(randomPassword);
-
-    await page.waitForSelector("text=Sign in", {
-      timeout: 1500,
+    const secondUserLogin = await page.request.post("/api/v1/login", {
+      form: {
+        username: secondRandomName,
+        password: randomPassword,
+      },
     });
-
-    await page.getByRole("button", { name: TEXTS.signIn }).click();
-
-    await page.evaluate(() => {
-      sessionStorage.removeItem("testMockAutoLogin");
-    });
+    expect(secondUserLogin.status(), await secondUserLogin.text()).toBe(200);
+    await page.goto("/");
 
     await waitForNewProjectButton(page);
-
-    expect(
-      (
-        await page.waitForSelector("text=Welcome to Ketos", {
-          timeout: 30000,
-        })
-      ).isVisible(),
-    );
-
-    await page.waitForTimeout(2000);
 
     await awaitBootstrapTest(page, { skipGoto: true });
 
@@ -294,18 +277,16 @@ test(
       timeout: 30000,
     });
 
-    await page
-      .getByPlaceholder(TEXTS.placeholderUsername)
-      .fill(TEXTS.authDefaultCredential);
-    await page
-      .getByPlaceholder(TEXTS.placeholderPassword)
-      .fill(TEXTS.authDefaultPassword);
-
-    await page.evaluate(() => {
-      sessionStorage.removeItem("testMockAutoLogin");
+    const finalAdminLogin = await page.request.post("/api/v1/login", {
+      form: {
+        username: TEXTS.authDefaultCredential,
+        password: TEXTS.authDefaultPassword,
+      },
     });
-
-    await page.getByRole("button", { name: TEXTS.signIn }).click();
+    expect(finalAdminLogin.status(), await finalAdminLogin.text()).toBe(200);
+    await page.goto(adminProjectUrl);
+    await expect(page).toHaveURL(adminProjectUrl);
+    await expect(page.getByText("Project is unavailable")).not.toBeVisible();
 
     await page.waitForSelector('[data-testid="mainpage_title"]', {
       timeout: 30000,

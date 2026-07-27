@@ -6,6 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from kfx.services.deps import injectable_session_scope_manual
+from kfx.services.settings.feature_flags import FEATURE_FLAGS
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ketos.api.utils import CurrentActiveUser, DbSession
@@ -89,6 +90,14 @@ async def _run_board_chat_command(call: Callable[[], Awaitable[T]]) -> T:
         ) from exc
 
 
+def _require_board_chat_command() -> None:
+    if not FEATURE_FLAGS.mvp_workspace or not FEATURE_FLAGS.mvp_chat:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "board_chat_command_disabled"},
+        )
+
+
 @router.post("/projects/{project_id}/chats", status_code=status.HTTP_201_CREATED)
 async def create_project_chat(
     project_id: UUID,
@@ -118,6 +127,7 @@ async def create_chat_in_board(
     current_user: CurrentActiveUser,
     idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
 ) -> BoardChatCreateResponse:
+    _require_board_chat_command()
     result = await _run_board_chat_command(
         lambda: create_board_chat(
             session,

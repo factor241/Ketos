@@ -4,6 +4,25 @@ import { resolve } from "node:path";
 const source = readFileSync(resolve(__dirname, "../index.tsx"), "utf8");
 
 describe("FlowPage Board return contract", () => {
+  it("loads the route id from the API instead of rejecting a fresh Flow from a stale list", () => {
+    expect(source).toMatch(
+      /if \(id && currentFlowId === ""[\s\S]*?await getFlowToAddToCanvas\(id\)/,
+    );
+    expect(source).not.toMatch(/flows\.find\(\(flow\) => flow\.id === id\)/);
+  });
+
+  it("does not auto-close a standalone chat opened for a flow without chat components", () => {
+    expect(source).toContain(
+      "const hadChatComponentsRef = useRef(hasChatComponents);",
+    );
+    expect(source).toMatch(
+      /if \(isSlidingContainerOpen && hadChatComponentsRef\.current\)/,
+    );
+    expect(source).not.toMatch(
+      /isSlidingContainerOpen && !hasChatInput && !hasChatOutput/,
+    );
+  });
+
   it("uses the shared complete dirty predicate for blocker and before-unload", () => {
     expect(source).toContain(
       'import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";',

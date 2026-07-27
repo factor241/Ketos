@@ -1,5 +1,12 @@
 import Fuse from "fuse.js";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import { Button } from "@/components/ui/button";
@@ -32,7 +39,7 @@ export default function RecentFilesComponent({
 }: {
   selectedFiles: string[];
   files: FileType[];
-  setSelectedFiles: (files: string[]) => void;
+  setSelectedFiles: Dispatch<SetStateAction<string[]>>;
   types: string[];
   isList: boolean;
 }) {
@@ -188,15 +195,14 @@ export default function RecentFilesComponent({
         // Ctrl/Cmd + Click: Toggle selection for this item while keeping others
         setLastClickedIndex(index);
 
-        if (selectedFiles.includes(filePath)) {
-          setSelectedFiles(selectedFiles.filter((path) => path !== filePath));
-        } else {
-          setSelectedFiles([...selectedFiles, filePath]);
-        }
+        setSelectedFiles((currentFiles) =>
+          currentFiles.includes(filePath)
+            ? currentFiles.filter((path) => path !== filePath)
+            : [...currentFiles, filePath],
+        );
       }
     },
     [
-      selectedFiles,
       lastClickedIndex,
       sortedSearchResults,
       leafFilesInOrder,

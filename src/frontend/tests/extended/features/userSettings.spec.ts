@@ -102,8 +102,6 @@ test(
       .fill("testtesttesttesttesttesttesttest");
     await page.getByTestId("popover-anchor-apply-to-fields").click();
 
-    const fieldsCount = await page.getByPlaceholder("Fields").count();
-
     await page.getByPlaceholder("Fields").first().waitFor({
       state: "visible",
       timeout: 30000,
@@ -308,26 +306,20 @@ test("should see shortcuts", { tag: ["@release"] }, async ({ page }) => {
 test(
   "should interact with API Keys",
   { tag: ["@release", "@api"] },
-  async ({ page }) => {
+  async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await awaitBootstrapTest(page, {
       skipModal: true,
     });
-    await page.getByTestId("user-profile-settings").click();
-    await page.getByText(TEXTS.settings).click();
+    await page.goto("/settings/api-keys");
 
     // Wait for settings page to fully load
     await page
       .waitForLoadState("networkidle", { timeout: 10000 })
       .catch(() => {});
-    await page.waitForTimeout(1000);
-
-    await page.getByText("Ketos API").first().click();
-
-    // Wait for API section to load
-    await page.waitForTimeout(1000);
 
     await expect(
-      page.getByText("Ketos API Keys", { exact: true }).nth(1),
+      page.getByRole("heading", { name: "Ketos API Keys", exact: true }),
     ).toBeVisible({ timeout: 10000 });
     await page.getByText("Add New").click();
     await expect(page.getByPlaceholder("My API Key")).toBeVisible({

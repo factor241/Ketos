@@ -14,6 +14,7 @@ import JSZip from "jszip";
 
 import { expect, test } from "../../fixtures";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
+import { deterministicProviderPort } from "../../utils/deterministic-provider-port";
 
 type Entity = { id: string; revision?: number };
 type ProviderMessage = {
@@ -54,7 +55,7 @@ const runRoot = process.env.KETOS_MVP_RUN_DIR;
 const evidenceRoot =
   process.env.STAGE08_EVIDENCE_ROOT ??
   path.join(repositoryRoot, "docs/evidence/stage-08-local");
-const providerPort = Number(process.env.STAGE08_OPENAI_PORT ?? "18766");
+const providerPort = deterministicProviderPort;
 const tracePath = path.join(evidenceRoot, "stage08-playwright-trace.zip");
 const rawTracePath = path.join(
   evidenceRoot,

@@ -14,7 +14,7 @@ const useSaveFlow = () => {
   const setFlows = useFlowsManagerStore((state) => state.setFlows);
   const setErrorData = useAlertStore((state) => state.setErrorData);
   const setSaveLoading = useFlowsManagerStore((state) => state.setSaveLoading);
-  const setCurrentFlow = useFlowStore((state) => state.setCurrentFlow);
+  const setCanvasCurrentFlow = useFlowStore((state) => state.setCurrentFlow);
 
   const { mutate: getFlow } = useGetFlow();
   const { mutate } = usePatchUpdateFlow();
@@ -86,32 +86,38 @@ const useSaveFlow = () => {
             {
               onSuccess: (updatedFlow) => {
                 const flows = useFlowsManagerStore.getState().flows;
+                const onFlowPage = useFlowStore.getState().onFlowPage;
                 setSaveLoading(false);
                 if (flows) {
                   // updates flow in state
                   setFlows(
-                    flows.map((flow) => {
-                      if (flow.id === updatedFlow.id) {
-                        return updatedFlow;
-                      }
-                      return flow;
-                    }),
+                    flows.some((flow) => flow.id === updatedFlow.id)
+                      ? flows.map((flow) =>
+                          flow.id === updatedFlow.id ? updatedFlow : flow,
+                        )
+                      : [...flows, updatedFlow],
                   );
-                  // Only update useFlowStore.currentFlow when on the flow page.
-                  // When saving from the list page (e.g., renaming via settings modal),
-                  // setting this would leave stale unprocessed flow data in the store,
-                  // causing a crash when the user later navigates to the flow page.
-                  if (useFlowStore.getState().onFlowPage) {
-                    setCurrentFlow(updatedFlow);
-                  }
-                  resolve();
+                } else if (onFlowPage) {
+                  // A canonical /flow/:id deep link intentionally loads only the
+                  // current Flow. Keep its saved baseline in sync without
+                  // requiring the dashboard's global Flow list.
+                  setFlows([updatedFlow]);
                 } else {
                   setErrorData({
                     title: t("errors.failedToSaveFlow"),
                     list: [t("errors.flowsVariableUndefined")],
                   });
                   reject(new Error("Flows variable undefined"));
+                  return;
                 }
+                // Only update useFlowStore.currentFlow when on the flow page.
+                // When saving from the list page (e.g., renaming via settings modal),
+                // setting this would leave stale unprocessed flow data in the store,
+                // causing a crash when the user later navigates to the flow page.
+                if (onFlowPage && flows) {
+                  setCanvasCurrentFlow(updatedFlow);
+                }
+                resolve();
               },
               onError: (error: unknown) => {
                 setErrorData({

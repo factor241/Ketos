@@ -8,8 +8,18 @@ export const navigateSettingsPages = async (
   if (!pageName) {
     return;
   }
-  await page.getByTestId("user-profile-settings").click();
-  await page.getByText(`${pageName}`).first().click();
+  const accountMenu = page
+    .locator(
+      '[data-testid="user_menu_button"], [data-testid="user-profile-settings"]',
+    )
+    .first();
+  await accountMenu.click();
+  const settingsItem = page.getByTestId("menu_settings_button");
+  if (await settingsItem.isVisible()) {
+    await settingsItem.click();
+  } else {
+    await page.getByText(`${pageName}`).first().click();
+  }
 
   if (settingsMenuName) {
     await page.getByText(`${settingsMenuName}`).first().click();

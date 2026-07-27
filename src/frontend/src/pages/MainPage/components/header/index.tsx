@@ -142,7 +142,7 @@ const HeaderComponent = ({
         </div>
         {folderName}
       </div>
-      {!isEmptyFolder && (
+      {(!isEmptyFolder || flowType === "mcp") && (
         <>
           <div className={cn("flex flex-row-reverse pb-4")}>
             <div className="w-full border-b dark:border-border" />

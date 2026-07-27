@@ -49,9 +49,11 @@ describe("project shell translations", () => {
       "utf8",
     );
     for (const key of keys.filter(
-      (key) => key !== "projectShell.renameError",
+      (key) =>
+        key !== "projectShell.renameError" && key !== "projectShell.flows",
     )) {
       expect(source).toContain(`t("${key}"`);
     }
+    expect(source).not.toContain('t("projectShell.flows"');
   });
 });

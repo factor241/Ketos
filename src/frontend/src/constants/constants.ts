@@ -751,6 +751,7 @@ export const BUNDLES_SIDEBAR_FOLDER_NAMES = [
 export const AUTHORIZED_DUPLICATE_REQUESTS = [
   "/health",
   "/flows",
+  "/projects",
   "/logout",
   "/refresh",
   "/login",

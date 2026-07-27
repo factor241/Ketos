@@ -115,6 +115,13 @@ export function FlowBuilderWelcomeMount() {
     setIsTemplatesOpen(true);
   }, []);
 
+  const handleSelectBlank = useCallback(() => {
+    setIsTemplatesOpen(false);
+    setActiveSection("components");
+    setSidebarOpen(true);
+    close();
+  }, [close, setActiveSection, setSidebarOpen]);
+
   // Faux rail icon → open the real sidebar to its FULL expanded view with
   // that section pre-selected, then dismiss the welcome. Order: section
   // first (so the panel opens already showing the right content), then
@@ -154,7 +161,11 @@ export function FlowBuilderWelcomeMount() {
           welcome stays out of the way. The modal handles its own create-
           flow + navigate plumbing — see ``modals/templatesModal``. */}
       {isTemplatesOpen && (
-        <TemplatesModal open={isTemplatesOpen} setOpen={setIsTemplatesOpen} />
+        <TemplatesModal
+          open={isTemplatesOpen}
+          setOpen={setIsTemplatesOpen}
+          onSelectBlank={handleSelectBlank}
+        />
       )}
     </>
   );

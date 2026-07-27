@@ -223,6 +223,13 @@ async def create_project(
         else:
             await _move_flows_into_project()
 
+        # A 201 response is the durability boundary for follow-up Board
+        # commands. FastAPI finalizes request-scoped yield dependencies after
+        # sending the response, so relying on that finalizer leaves a narrow
+        # window where another connection cannot see the new project yet.
+        await session.commit()
+        await session.refresh(new_project)
+
         # Convert to FolderRead while session is still active to avoid detached instance errors
         folder_read = FolderRead.model_validate(new_project, from_attributes=True)
     except HTTPException:

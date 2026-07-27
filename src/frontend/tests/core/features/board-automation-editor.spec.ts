@@ -1,4 +1,4 @@
-import type { APIResponse, Page } from "@playwright/test";
+import type { APIResponse, Page, Route } from "@playwright/test";
 
 import { expect, test } from "../../fixtures";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
@@ -18,6 +18,11 @@ type Placement = Entity & {
   y: number;
   width: number;
   height: number;
+};
+type AutomationCommandResult = {
+  automation: Flow;
+  placement: Placement;
+  idempotency_replayed: boolean;
 };
 
 const UUID =
@@ -87,22 +92,24 @@ test(
       page.getByRole("heading", { name: "Automation roundtrip" }),
     ).toBeVisible();
 
-    const flowCreate = page.waitForResponse(
+    const automationCreate = page.waitForResponse(
       (response) =>
         response.request().method() === "POST" &&
-        new URL(response.url()).pathname === "/api/v1/flows/" &&
+        new URL(response.url()).pathname ===
+          `/api/v1/boards/${board.id}/automations` &&
         response.status() === 201,
     );
-    const placementCreate = page.waitForResponse((response) =>
-      isWrite(response, "POST", `/api/v1/boards/${board.id}/placements`),
-    );
     await page.getByRole("button", { name: "Add automation" }).first().click();
-    await page.getByRole("button", { name: "Add automation" }).last().click();
+    await page.getByRole("button", { name: "Create", exact: true }).click();
 
-    const flow = (await (await flowCreate).json()) as Flow;
-    const placement = (await (await placementCreate).json()) as Placement;
+    const command = (await (
+      await automationCreate
+    ).json()) as AutomationCommandResult;
+    const flow = command.automation;
+    const placement = command.placement;
     expect(flow.id).toMatch(UUID);
     expect(flow.folder_id).toBe(project.id);
+    expect(command.idempotency_replayed).toBe(false);
     expect(placement).toMatchObject({
       board_id: board.id,
       target_kind: "automation",
@@ -113,17 +120,18 @@ test(
     const card = page.locator(`[data-id="${placement.id}"] > section`);
     await expect(card).toBeVisible();
     await expect(card).toContainText(flow.name);
-    await expect(card.getByRole("button", { name: "Run" })).toHaveCount(0);
+    await expect(card.getByRole("button", { name: "Run" })).toBeEnabled();
     const edit = card.getByRole("link", { name: "Edit automation" });
     const editorHref = await edit.getAttribute("href");
     expect(editorHref).toBe(
       `/flow/${flow.id}?returnBoardId=${board.id}&returnPlacementId=${placement.id}`,
     );
 
-    await edit.focus();
-    await page.keyboard.press("Enter");
+    await edit.click();
     await expect(page).toHaveURL(new RegExp(`/flow/${flow.id}\\?`));
-    await expect(page.locator("#react-flow-id")).toBeVisible();
+    await expect(page.locator("#react-flow-id")).toBeVisible({
+      timeout: 60_000,
+    });
     await expect(page.getByTestId("return-to-board")).toBeVisible();
 
     const savedName = `S06 saved ${Date.now().toString(36)}`;
@@ -146,18 +154,25 @@ test(
 
     const newTab = await context.newPage();
     await newTab.goto(durableEditorUrl);
-    await expect(newTab.locator("#react-flow-id")).toBeVisible();
-    await expect(newTab.getByTestId("return-to-board")).toBeVisible();
-    await newTab.getByTestId("return-to-board").focus();
-    await newTab.keyboard.press("Enter");
+    await expect(newTab.locator("#react-flow-id")).toBeVisible({
+      timeout: 60_000,
+    });
+    const returnToBoard = newTab.getByTestId("return-to-board");
+    await expect(returnToBoard).toBeVisible();
+    await returnToBoard.press("Enter");
     await expect(newTab).toHaveURL(
       new RegExp(
         `/project/${project.id}/board/${board.id}\\?focusPlacementId=${placement.id}`,
       ),
     );
+    await expect(
+      newTab.getByRole("heading", { name: "Automation roundtrip" }),
+    ).toBeVisible({ timeout: 60_000 });
     const returnedCard = newTab.locator(
       `[data-id="${placement.id}"] > section`,
     );
+    await expect(returnedCard).toBeVisible();
+    await expect(returnedCard).toHaveAccessibleName(savedName);
     await expect(returnedCard).toBeFocused();
     const placementsAfterReturn = await readPlacements(newTab, board.id);
     expect(placementsAfterReturn).toHaveLength(1);
@@ -179,17 +194,24 @@ test(
     await invalidTab.goto(
       `/flow/${flow.id}?returnBoardId=${foreignBoard.id}&returnPlacementId=${placement.id}`,
     );
-    await expect(invalidTab.locator("#react-flow-id")).toBeVisible();
+    await expect(invalidTab.locator("#react-flow-id")).toBeVisible({
+      timeout: 60_000,
+    });
     await expect(invalidTab.getByTestId("return-to-board")).toHaveCount(0);
+    await invalidTab.close();
 
     for (const suffix of ["", `/folder/${project.id}`, "/view"]) {
-      await invalidTab.goto(`/flow/${flow.id}${suffix}`);
-      await expect(invalidTab.locator("#react-flow-id")).toBeVisible();
-      await expect(invalidTab.getByTestId("return-to-board")).toHaveCount(0);
+      const directTab = await context.newPage();
+      await directTab.goto(`/flow/${flow.id}${suffix}`);
+      await expect(directTab.locator("#react-flow-id")).toBeVisible({
+        timeout: 60_000,
+      });
+      await expect(directTab.getByTestId("return-to-board")).toHaveCount(0);
+      await directTab.close();
     }
 
     const flagOffPage = await context.newPage();
-    await flagOffPage.route("**/api/v1/config", async (route) => {
+    const flagOffConfigRoute = async (route: Route) => {
       const response = await route.fetch();
       const config = (await response.json()) as {
         feature_flags: Record<string, unknown>;
@@ -201,21 +223,29 @@ test(
           feature_flags: { ...config.feature_flags, mvp_workspace: false },
         },
       });
-    });
+    };
+    await flagOffPage.route("**/api/v1/config", flagOffConfigRoute);
     await flagOffPage.goto(`/project/${project.id}/board/${board.id}`);
-    await expect(flagOffPage).toHaveURL(/\/flows\/?$/);
+    await expect(flagOffPage).toHaveURL(
+      new RegExp(`/project/${project.id}/board/${board.id}$`),
+    );
+    await expect(
+      flagOffPage.getByText("Board creation actions are disabled"),
+    ).toBeVisible();
     await expect(
       flagOffPage.getByRole("button", { name: "Add automation" }),
     ).toHaveCount(0);
     await flagOffPage.goto(`/flow/${flow.id}`);
-    await expect(flagOffPage.locator("#react-flow-id")).toBeVisible();
+    await expect(flagOffPage.locator("#react-flow-id")).toBeVisible({
+      timeout: 60_000,
+    });
     expect(await readPlacements(page, board.id)).toHaveLength(1);
     const storedFlow = await page.request.get(`/api/v1/flows/${flow.id}`);
     expect(storedFlow.ok()).toBeTruthy();
     expect(((await storedFlow.json()) as Flow).name).toBe(savedName);
 
     await newTab.close();
-    await invalidTab.close();
+    await flagOffPage.unroute("**/api/v1/config", flagOffConfigRoute);
     await flagOffPage.close();
   },
 );

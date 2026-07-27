@@ -30,20 +30,48 @@ export function useBoardReturnFocus({
     );
     if (!placement) return;
 
-    let innerFrame: number | null = null;
-    const outerFrame = requestAnimationFrame(() => {
-      innerFrame = requestAnimationFrame(() => {
-        const section = document.querySelector<HTMLElement>(
-          `[data-id="${focusPlacementId}"] section`,
-        );
-        if (!section) return;
-        section.focus({ preventScroll: true });
-        lastFocusedIdRef.current = focusPlacementId;
-      });
+    let frame: number | null = null;
+    let remainingFrames = 60;
+    let focusedAtLeastOnce = false;
+    let userInteracted = false;
+    const stopForUser = () => {
+      userInteracted = true;
+      lastFocusedIdRef.current = focusPlacementId;
+    };
+    const removeInteractionListeners = () => {
+      window.removeEventListener("keydown", stopForUser, true);
+      window.removeEventListener("pointerdown", stopForUser, true);
+    };
+    const focusAndMonitor = () => {
+      if (userInteracted || remainingFrames-- <= 0) {
+        if (focusedAtLeastOnce) lastFocusedIdRef.current = focusPlacementId;
+        frame = null;
+        removeInteractionListeners();
+        return;
+      }
+      const section = document.querySelector<HTMLElement>(
+        `[data-id="${focusPlacementId}"] section`,
+      );
+      if (section) {
+        const activeElement = document.activeElement;
+        if (
+          activeElement !== section &&
+          !(activeElement instanceof Node && section.contains(activeElement))
+        ) {
+          section.focus({ preventScroll: true });
+        }
+        focusedAtLeastOnce = true;
+      }
+      frame = requestAnimationFrame(focusAndMonitor);
+    };
+    window.addEventListener("keydown", stopForUser, true);
+    window.addEventListener("pointerdown", stopForUser, true);
+    frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(focusAndMonitor);
     });
     return () => {
-      cancelAnimationFrame(outerFrame);
-      if (innerFrame !== null) cancelAnimationFrame(innerFrame);
+      if (frame !== null) cancelAnimationFrame(frame);
+      removeInteractionListeners();
     };
   }, [focusPlacementId, isLoading, placements]);
 }

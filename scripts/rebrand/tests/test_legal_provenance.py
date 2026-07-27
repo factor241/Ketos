@@ -1,6 +1,6 @@
 """Regression contract for Ketos legal provenance and community contacts."""
 
-# ruff: noqa: S101, S603, S607 - assertions and fixed local build command are intentional.
+# ruff: noqa: S101, S603, S607, SLF001 - assertions, fixed builds, and scanner-unit access are intentional.
 
 from __future__ import annotations
 
@@ -18,8 +18,8 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCANNER_PATH = REPO_ROOT / "scripts/rebrand/check_brand.py"
 
-LICENSE_SHA256 = "48d4a7496209a9e1f2f549384251b69319360c3a38127cf513473590be383359"
-NOTICE_SHA256 = "dad6ed5d6468b1962f598e35f334ecc661408b3cf137289073a03b3cfd77442e"
+LICENSE_SHA256 = "87e722df5720438fc0ee8fe0e3e05e6d4cc95ef70c4d6d05f7391ddaedc8ebb9"
+NOTICE_SHA256 = "6529dbd64a3927d0c49f29bbdcb62c63986099e3e70143dc26c6ee54779dbceb"
 STEPFLOW_LICENSE_SHA256 = "b04c8850fdf64d17233f0acbe4eb632f03bd663094233c949bdbe788858bb841"
 STEPFLOW_NOTICE_SHA256 = "d5fe5257f43692583fb8f66bb222dd0250a277fcab482bb50de6d124e9243cd4"
 LEGACY_PRODUCT = "Lang" + "flow"
@@ -29,10 +29,17 @@ NOTICE_LINES = {
         f"Ketos is an independent, unofficial derivative of {LEGACY_PRODUCT}, originally available at "
         f"https://github.com/{LEGACY_PRODUCT_LOWER}-ai/{LEGACY_PRODUCT_LOWER} and licensed under the MIT License."
     ),
-    5: (f"Ketos is not affiliated with, endorsed by, or sponsored by {LEGACY_PRODUCT} or its copyright holders."),
+    5: (
+        f"Portions derived from {LEGACY_PRODUCT} retain their original copyright and MIT license notices, "
+        f"including Copyright (c) 2024 {LEGACY_PRODUCT}."
+    ),
     7: (
-        "Any Ketos copyright claim applies only to new Ketos-specific modifications and does not replace or "
-        "diminish the upstream copyright notice."
+        "Original Ketos-specific modifications authored by Daria Shemelina are copyrighted by Daria Shemelina, "
+        'carry the notice "Portions Copyright (c) 2026 Daria Shemelina", and are also released under the MIT License.'
+    ),
+    11: (
+        f"Ketos is not affiliated with, endorsed by, or sponsored by {LEGACY_PRODUCT} or its copyright holders. "
+        "The Ketos-specific notice does not replace, diminish, or claim ownership of the upstream material."
     ),
 }
 
@@ -107,7 +114,7 @@ def _write_fixture_contract(path: Path, license_bytes: bytes, notice_bytes: byte
                 "expected_text": notice_lines[line_number - 1],
                 "sha256": hashlib.sha256(notice_lines[line_number - 1].encode()).hexdigest(),
             }
-            for line_number in (3, 5)
+            for line_number in (3, 5, 11)
         ),
     ]
     contract = {
@@ -207,6 +214,53 @@ def test_compatibility_profiles_reject_upstream_address_outside_legal_paths(tmp_
         violation["path"] == "community.md" and violation["kind"] == "official_url"
         for violation in official["violations"]
     )
+
+
+def test_exact_public_attribution_reference_can_be_allowlisted_without_freezing_document(
+    tmp_path: Path,
+) -> None:
+    license_bytes = (REPO_ROOT / "LICENSE").read_bytes()
+    notice_bytes = (REPO_ROOT / "NOTICE").read_bytes()
+    expected = f"Portions derived from {LEGACY_PRODUCT} retain their original MIT license notices."
+    readme = tmp_path / "README.md"
+    readme.write_text(f"# Project\n\n{expected}\n", encoding="utf-8")
+    contract_path = _write_fixture_contract(tmp_path / "contract.yaml", license_bytes, notice_bytes)
+    contract = yaml.safe_load(contract_path.read_text(encoding="utf-8"))
+    contract["legal_allowlist"].append(
+        {
+            "path": "README.md",
+            "line": 3,
+            "expected_text": expected,
+            "sha256": hashlib.sha256(expected.encode()).hexdigest(),
+        }
+    )
+    contract_path.write_text(yaml.safe_dump(contract, sort_keys=False), encoding="utf-8")
+    scanner = _load_scanner()
+    blobs = [
+        scanner.Blob("LICENSE", license_bytes),
+        scanner.Blob("NOTICE", notice_bytes),
+        scanner.Blob("README.md", readme.read_bytes()),
+    ]
+
+    assert scanner.validate_zero_residue_contract(contract_path) == []
+    accepted = scanner._scan_blobs(
+        blobs,
+        contract,
+        profile="visible",
+        excluded_path=None,
+        legacy_locators=set(),
+    )
+    assert accepted["violations"] == []
+
+    readme.write_text(f"# Project\n{expected}\n", encoding="utf-8")
+    moved = scanner._scan_blobs(
+        [*blobs[:2], scanner.Blob("README.md", readme.read_bytes())],
+        contract,
+        profile="visible",
+        excluded_path=None,
+        legacy_locators=set(),
+    )
+    assert {item["kind"] for item in moved["violations"]} >= {"missing_legal_occurrence", "visible_residue"}
 
 
 def test_community_documents_are_legacy_free_and_use_no_upstream_addresses() -> None:

@@ -220,6 +220,13 @@ focused MCP tests pass.
 **Files:**
 - Modify: `LICENSE`
 - Modify: `NOTICE`
+- Modify: `src/backend/base/{LICENSE,NOTICE}`
+- Modify: `src/sdk/{LICENSE,NOTICE}`
+- Modify: `src/kfx/{LICENSE,NOTICE}`
+- Modify: `src/bundles/{arxiv,docling,duckduckgo,ibm}/{LICENSE,NOTICE}`
+- Modify: `brand/ketos-zero-residue-contract.yaml`
+- Modify: `scripts/rebrand/check_brand.py`
+- Modify: `scripts/rebrand/tests/test_legal_provenance.py`
 
 **Interfaces:**
 - Consumes: the upstream MIT notice and the user-approved Ketos notice.
@@ -249,6 +256,23 @@ State that:
 
 Compare `README.md`, `LICENSE`, and `NOTICE` line by line. Confirm that none
 claims ownership of unchanged upstream code or third-party contributions.
+
+- [x] **Step 4: Propagate the notices into distributable packages**
+
+Apply the same MIT copyright notices and NOTICE boundaries to every Ketos MIT
+wheel/sdist source. Keep the separate Stepflow Apache legal files unchanged.
+
+- [x] **Step 5: Keep the brand scanner fail-closed**
+
+Update the frozen legal hashes. Permit approved README attribution only by
+normalized path, exact line number, exact line text, and SHA-256; do not treat
+the entire README as a legal file or permit general upstream branding.
+
+- [x] **Step 6: Verify packaged legal provenance**
+
+Build every Python wheel and sdist covered by the provenance contract and
+confirm that each artifact contains exactly one `LICENSE` and one `NOTICE` with
+the expected hashes and license metadata.
 
 ---
 
@@ -317,7 +341,13 @@ Provide a complete diff packet to fresh review subagents. Require verdicts on:
 
 Apply valid corrections through the main agent and rerun the affected checks.
 
-- [x] **Step 6: Commit**
+- [x] **Step 6: Run focused legal-distribution checks**
+
+Run the root legal tests, package wheel/sdist provenance test, exact README
+attribution test, and direct three-profile scan over every required legal file
+plus the README.
+
+- [x] **Step 7: Commit the documentation and legal-provenance updates**
 
 ```bash
 git add README.md LICENSE NOTICE src/kfx/KFX_MCP.md \
@@ -326,6 +356,19 @@ git add README.md LICENSE NOTICE src/kfx/KFX_MCP.md \
   docs/superpowers/plans/2026-07-28-ketos-public-project-page.md
 git add -u docs/assets/ketos-board-workspace.jpg
 git commit -m "docs: clarify Ketos MCP control and attribution"
+
+git add NOTICE brand/ketos-zero-residue-contract.yaml \
+  docs/superpowers/plans/2026-07-28-ketos-public-project-page.md \
+  docs/superpowers/specs/2026-07-28-ketos-public-project-page-design.md \
+  scripts/rebrand/check_brand.py \
+  scripts/rebrand/tests/test_legal_provenance.py \
+  src/backend/base/LICENSE src/backend/base/NOTICE \
+  src/sdk/LICENSE src/sdk/NOTICE src/kfx/LICENSE src/kfx/NOTICE \
+  src/bundles/arxiv/LICENSE src/bundles/arxiv/NOTICE \
+  src/bundles/docling/LICENSE src/bundles/docling/NOTICE \
+  src/bundles/duckduckgo/LICENSE src/bundles/duckduckgo/NOTICE \
+  src/bundles/ibm/LICENSE src/bundles/ibm/NOTICE
+git commit -m "test: align legal provenance with Ketos attribution"
 ```
 
 ---
@@ -339,13 +382,13 @@ git commit -m "docs: clarify Ketos MCP control and attribution"
 - Consumes: the verified commit from Task 4.
 - Produces: a merged public `main` and browser-verified project page.
 
-- [ ] **Step 1: Confirm repository and account state**
+- [x] **Step 1: Confirm repository and account state**
 
 Use GitHub CLI to confirm the target repository is `factor241/Ketos`, the
 default branch is `main`, and the `factor241` account is available. Do not
 remove the existing `ustyuzhaninkirillwhite-ui` login.
 
-- [ ] **Step 2: Push the feature branch**
+- [x] **Step 2: Push the feature branch**
 
 Switch GitHub CLI to `factor241`, push
 `codex/public-readme-mcp-attribution`, and create a pull request targeting

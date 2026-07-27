@@ -130,6 +130,16 @@ make the same boundaries clear:
   assigned;
 - Ketos is independent and is not affiliated with or endorsed by Langflow.
 
+The same `LICENSE` and `NOTICE` content must be packaged by each Ketos
+MIT-licensed wheel and sdist. The separate Stepflow Apache legal files remain
+unchanged.
+
+Because the README names the upstream project for legal attribution, the brand
+contract may allow only those reviewed lines. Each exception is bound to the
+normalized path, exact line number, exact full-line text, and SHA-256. The
+README is not treated as a whole-file legal artifact, and unrelated upstream
+branding remains a violation.
+
 The documentation must not imply ownership of unchanged Langflow code or of
 third-party contributions.
 

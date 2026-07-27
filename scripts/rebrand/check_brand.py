@@ -751,10 +751,8 @@ def validate_zero_residue_contract(path: Path | str) -> list[str]:
             errors.extend(f"{context}.{field}: missing required field" for field in LEGAL_FIELDS if field not in entry)
             errors.extend(f"{context}.{field}: unknown field" for field in sorted(set(entry) - set(LEGAL_FIELDS)))
             legal_path = entry.get("path")
-            if not _valid_legal_path(legal_path):
-                errors.append(f"{context}.path: must be an exact legal path or normalized archive member path")
-            elif legal_path not in legal_file_paths:
-                errors.append(f"{context}.path: must reference an exact legal_files entry")
+            if not _valid_legal_reference_path(legal_path):
+                errors.append(f"{context}.path: must be a normalized relative path or exact legal archive member")
             line = entry.get("line")
             if not isinstance(line, int) or isinstance(line, bool) or line < 1:
                 errors.append(f"{context}.line: must be a positive integer")
@@ -824,6 +822,14 @@ def _valid_legal_path(value: object) -> bool:
         and _valid_relative_path(member_path)
         and PurePosixPath(member_path).name in {"LICENSE", "NOTICE"}
     )
+
+
+def _valid_legal_reference_path(value: object) -> bool:
+    if not isinstance(value, str):
+        return False
+    if "!" in value:
+        return _valid_legal_path(value)
+    return _valid_relative_path(value)
 
 
 @dataclass(frozen=True)

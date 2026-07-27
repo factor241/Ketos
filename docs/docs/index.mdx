@@ -3,10 +3,14 @@ title: Ketos
 slug: /
 ---
 
-Ketos is a visual builder and local runtime for AI workflows. The supported
-source install, configuration, API, and extension contracts are documented
-here. This site deliberately excludes upstream history, promotional material,
-community claims, and deployment targets not verified by this repository.
+Ketos is an active open-source alpha for building and running extensible AI
+workflows locally. Its unified Canvas keeps notes, chats, automations, and run
+results inside project-scoped Boards, while the FastAPI backend, visual flow
+editor, and KFX SDK remain available to developers.
+
+The interface currently ships in English and Russian. The documentation covers
+the supported source install, configuration, APIs, Board workspace, and
+extension contracts without claiming a hosted production service.
 
 ## Start locally
 
@@ -15,7 +19,8 @@ make init
 make run_cli
 ```
 
-Open `http://127.0.0.1:7860`.
+Open `http://127.0.0.1:3000`. The current development profile runs the frontend
+on port 3000 and the backend API on port 7860.
 
 ## Read next
 
@@ -23,3 +28,4 @@ Open `http://127.0.0.1:7860`.
 - [Call the Ketos API](./api/run-flow)
 - [Configure Ketos](./operations/environment)
 - [Build a KFX extension](./extensions/overview)
+- [Understand the Board workspace](./development/board-workspace)

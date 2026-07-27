@@ -4,7 +4,7 @@ The Ketos Executor (KFX) is a command-line tool that serves and runs flows state
 
 Running a flow with KFX is similar to running flows with the `--backend-only` environment variable enabled, but even more lightweight because the Ketos package and all of its dependencies don't need to be installed.
 
-KFX uses a no-op database interface called [`NoopSession`](https://git.ketos.test/ketos/ketos/blob/main/src/kfx/src/kfx/services/session.py) for all operations that require persistent state.
+KFX uses a no-op database interface called [`NoopSession`](https://github.com/factor241/Ketos/blob/main/src/kfx/src/kfx/services/session.py) for all operations that require persistent state.
 There is no `ketos.db` database file when using KFX.
 You can run flows with the API, but any stateful operations that depend on the Ketos database, like saving flows, storing messages, or managing users **will not** persist data.
 Operations that depend on `ketos.db` will not work as they do in the full Ketos application.
@@ -22,7 +22,7 @@ If the `ketos` package is installed in the same Python environment as `kfx` and 
 | [`kfx run`](#run-the-simple-agent-flow-with-kfx-run) | Execute a flow locally and stream results to `stdout` |
 | [`kfx-mcp`](#kfx-mcp) | Start an MCP server that connects to a running Ketos instance |
 
-**Flow DevOps SDK commands** — documented in the [Flow DevOps Toolkit](https://docs.ketos.test/flow-devops-sdk):
+**Flow DevOps commands** — available through the KFX CLI:
 
 | Command | Description |
 |---------|-------------|
@@ -43,78 +43,44 @@ If the `ketos` package is installed in the same Python environment as `kfx` and 
 - Create or download a flow JSON file. For example, download the Simple Agent flow from the repository:
 
   ```bash
-  curl -o simple-agent-flow.json "https://git.ketos.test/ketos/ketos/raw/main/src/backend/base/ketos/initial_setup/starter_projects/Simple%20Agent.json"
+  curl -o simple-agent-flow.json "https://raw.githubusercontent.com/factor241/Ketos/main/src/backend/base/ketos/initial_setup/starter_projects/Simple%20Agent.json"
   ```
 
-- Create an [OpenAI API key](https://platform.openai.com/api-keys).
+- Configure only the credentials required by the selected flow. The Simple
+  Agent example requires OpenAI credentials. Supply secrets through the
+  supported environment or secret-management mechanism; do not place them in
+  the flow JSON or commit them to source control.
 - Create a Ketos API key. For KFX, you can generate a secure token locally (see [Serve the simple agent starter flow with `kfx serve`](#serve-the-simple-agent-starter-flow-with-kfx-serve)), or create one through the Ketos server UI or CLI.
 
-## Install KFX
+## Run KFX from the repository
 
-KFX can be installed in multiple ways. If you have installed Ketos OSS version >=1.6, `kfx` is already included.
+KFX is included in `src/kfx` and is installed as part of repository
+initialization with `make init`.
 
-### Clone repository
+> **Package-name note:** the `kfx` project currently published on PyPI is a
+> different project and is not the Ketos executor. Do not use `pip install kfx`
+> or `uvx kfx` for Ketos KFX.
 
 1. Clone the Ketos repository:
 
    ```bash
-   git clone https://git.ketos.test/ketos/ketos
+   git clone https://github.com/factor241/Ketos.git
    ```
 
-2. Change directory to `ketos/src/kfx`:
+2. Initialize the repository workspace:
 
    ```bash
-   cd ketos/src/kfx
+   cd Ketos
+   make init
    ```
 
-   From this directory, you can run `kfx` commands using `uv run kfx` as shown in [kfx serve](#serve-the-simple-agent-starter-flow-with-kfx-serve) or [kfx run](#run-the-simple-agent-flow-with-kfx-run).
-
-### Install from PyPI
-
-1. Create and activate a virtual environment:
-
-   ```bash
-   uv venv kfx-venv
-   source kfx-venv/bin/activate
-   ```
-
-2. Install the KFX package from PyPI:
-
-   ```bash
-   uv pip install kfx
-   ```
-
-   To install the latest nightly (pre-release) version of KFX:
-
-   ```bash
-   uv pip install --pre kfx
-   ```
-
-   To run `kfx` commands, continue to [kfx serve](#serve-the-simple-agent-starter-flow-with-kfx-serve) or [kfx run](#run-the-simple-agent-flow-with-kfx-run).
-
-### Run without installing
-
-Run KFX without installing it locally using `uvx`.
-
-1. Create a Ketos API key (see [Serve](#serve-the-simple-agent-starter-flow-with-kfx-serve)), and set `KETOS_API_KEY` in the same terminal session as `kfx`:
-
-   ```bash
-   export KETOS_API_KEY="sk..."
-   ```
-
-2. Run `kfx serve` using `uvx`:
-
-   ```bash
-   uvx kfx serve simple-agent-flow.json
-   ```
-
-   This command downloads and runs KFX in a temporary environment without permanent installation. From the same environment, you can also run flows directly with [kfx run](#run-the-simple-agent-flow-with-kfx-run).
+From the repository root, run KFX commands with `uv run kfx`, as shown in
+[kfx serve](#serve-the-simple-agent-starter-flow-with-kfx-serve) and
+[kfx run](#run-the-simple-agent-flow-with-kfx-run).
 
 ## Serve the simple agent starter flow with `kfx serve`
 
 `kfx serve` starts a FastAPI server that hosts one or more flows. You can load flows at startup from files or a directory, or start with an empty registry and upload flows via the API. Once running, flows are available at `POST /flows/{flow_id}/run`.
-
-`kfx serve` accepts a `.json` flow file or a `.py` Python script (same as `kfx run`), as well as inline JSON via `--flow-json` or piped input via `--stdin`.
 
 `kfx serve` accepts a `.json` flow file or a `.py` Python script (same as `kfx run`), as well as inline JSON via `--flow-json` or piped input via `--stdin`.
 
@@ -154,9 +120,8 @@ This example uses the **Agent** component's built-in OpenAI model, which require
 
 3. Install dependencies.
 
-   If you already have Ketos installed, or if you're running from source at `src/kfx`, KFX is included with Ketos and all dependencies are already available. You don't need to install additional dependencies.
-
-   If you install the standalone `kfx` package from [PyPI](https://pypi.org/project/kfx/) or run KFX with `uvx`, you need to manually install the dependencies required by the components in your flow.
+   KFX core dependencies are installed with the Ketos workspace. Individual
+   flow components can require additional optional dependencies.
 
    To find which dependencies your flow requires:
 
@@ -412,7 +377,9 @@ Credentials supplied in `KETOS_REQUEST_VARIABLES` are scoped to the current requ
 
 ### Check or upgrade flow compatibility at startup
 
-Use `--upgrade-flow` to check compatibility between a flow and the current KFX version before serving it. See [KFX and Ketos version compatibility](https://docs.ketos.test/kfx-compatibility) for details on the version model.
+Use `--upgrade-flow` to check compatibility between a flow and the current KFX
+version before serving it. The `check` and `safe` modes are described in the
+command reference below.
 
 ```bash
 # Fail at startup if any component is incompatible
@@ -453,9 +420,8 @@ This example uses the **Agent** component's built-in OpenAI model, which require
 
 2. Install dependencies.
 
-   If you already have Ketos installed, or if you're running from source at `src/kfx`, KFX is included with Ketos and all dependencies are already available. You don't need to install additional dependencies.
-
-   If you install the standalone `kfx` package from [PyPI](https://pypi.org/project/kfx/) or run KFX with `uvx`, you need to manually install the dependencies required by the components in your flow.
+   KFX core dependencies are installed with the Ketos workspace. Individual
+   flow components can require additional optional dependencies.
 
    To find which dependencies your flow requires:
 
@@ -547,7 +513,8 @@ uv run kfx run --flow-json '{"data": {"nodes": [...], "edges": [...]}}' \
 
 In addition to running flows from JSON files, you can use `kfx run` with Python scripts that define flows programmatically. This approach allows you to create flows directly in Python code without the visual builder.
 
-For a complete example of creating an agent flow programmatically using KFX components, see the [Complete Agent Example on PyPI](https://pypi.org/project/kfx) or the **Complete Agent Example** below.
+The complete example below shows how to create an agent flow programmatically
+with KFX components.
 
 #### Complete agent example
 

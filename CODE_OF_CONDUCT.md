@@ -59,10 +59,18 @@ representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement at
-support@ketos.test (test-only contact for the local test environment; it is not
-a production support service).
-All complaints will be reviewed and investigated promptly and fairly.
+reported privately to the repository maintainer. If no private maintainer
+contact is available, open a minimal
+[GitHub issue](https://github.com/factor241/Ketos/issues/new) requesting a
+private contact channel. Do not include names, screenshots, private messages,
+or other sensitive details in that public request.
+
+Security vulnerabilities follow the separate confidential process in
+[SECURITY.md](./SECURITY.md).
+
+Reports will be reviewed as maintainer availability permits. The maintainer
+will seek a fair response that protects the privacy and safety of the people
+involved.
 
 All community leaders are obligated to respect the privacy and security of the
 reporter of any incident.

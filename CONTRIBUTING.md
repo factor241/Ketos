@@ -1,32 +1,86 @@
-# How to contribute to Ketos
+# Contributing to Ketos
 
-Thank you for your interest in contributing!
+Thank you for helping improve Ketos. The project is an active alpha, so focused
+bug fixes, tests, documentation, accessibility improvements, and well-scoped
+feature proposals are especially useful.
 
-## How to Contribute
+## Before you start
 
-1. Fork the Ketos repository. The current repository URL,
-   `https://git.ketos.test/ketos/ketos`, is a test-only placeholder and not a
-   production hosting service.
-2. Create a new branch for your changes.
-3. Open a pull request against `main` with a clear title and description.
-Reference any issues fixed, for example `Fixes #1234`, and ensure the title
-follows [semantic commit conventions](https://www.conventionalcommits.org/).
-4. A maintainer will review your PR and may request changes.
+- Search [existing issues](https://github.com/factor241/Ketos/issues) before
+  opening a new report.
+- Use a public issue for reproducible bugs and feature proposals.
+- Do not place credentials, personal data, private logs, or suspected
+  vulnerability details in an issue. Follow [SECURITY.md](./SECURITY.md) for
+  confidential security reporting.
+- Keep changes focused. Large architectural changes should begin with an issue
+  that explains the problem, constraints, and proposed boundary.
 
-## Development Environment Setup
+## Contribution workflow
 
-For detailed instructions on setting up your local development environment, see [DEVELOPMENT.md](./DEVELOPMENT.md).
+1. Fork [`factor241/Ketos`](https://github.com/factor241/Ketos).
+2. Create a branch from the current `main`.
+3. Make one focused change and add or update relevant tests and documentation.
+4. Run the smallest relevant checks first, followed by the package-level gate
+   described in [DEVELOPMENT.md](./DEVELOPMENT.md).
+5. Open a pull request against `factor241/Ketos:main`.
 
-## Documentation Contributions
+Use a clear pull-request title that follows
+[Conventional Commits](https://www.conventionalcommits.org/), for example:
 
-Ketos documentation is built with [Docusaurus](https://docusaurus.io/).
-For setup instructions, see [DEVELOPMENT.md](./DEVELOPMENT.md).
+```text
+fix(frontend): preserve Board note draft after conflict
+docs: clarify KFX extension validation
+```
 
-## Additional Guides
+In the pull-request description:
 
-- [Contribute Bundles](./docs/docs/Contributing/contributing-bundles.mdx)
-- [Contribute Components](./docs/docs/Contributing/contributing-components.mdx)
-- [Contribute Tests](./docs/docs/Contributing/contributing-component-tests.mdx)
-- [Contribute Templates](./docs/docs/Contributing/contributing-templates.mdx)
+- explain the user or contributor problem;
+- summarize the chosen solution;
+- list the commands you ran and their results;
+- identify known limitations or follow-up work;
+- link the related issue with `Fixes #123` when the change closes it.
 
-Thank you for helping improve Ketos!
+## Development setup
+
+The supported source bootstrap is:
+
+```bash
+make init
+```
+
+For the full setup, current development profile, focused test commands, and
+documentation checks, see [DEVELOPMENT.md](./DEVELOPMENT.md).
+
+Python commands in this repository run through `uv`. Do not commit generated
+artifacts, local databases, credentials, cache directories, or runtime logs.
+
+## Project contracts
+
+Before changing a public interface, review:
+
+- [DESIGN.md](./DESIGN.md) for application and naming boundaries;
+- [BUNDLE_API.md](./BUNDLE_API.md) for the extension contract;
+- [NOTICE](./NOTICE) for upstream attribution;
+- [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for community expectations.
+
+Persisted component class names are stable identifiers and must not be renamed
+after use in saved workflows. Changes to KFX or Bundle API contracts require
+focused compatibility review.
+
+## Documentation contributions
+
+Ketos documentation is built with Docusaurus. Setup and verification commands
+are listed in [DEVELOPMENT.md](./DEVELOPMENT.md).
+
+Additional guides:
+
+- [Documentation contributor guide](./docs/docs/development/contributing.mdx)
+- [KFX executor and component guide](./src/kfx/README.md)
+- [Bundle API v1 contract](./BUNDLE_API.md)
+
+## Review expectations
+
+Maintainers may request smaller scope, additional evidence, compatibility
+changes, or documentation corrections before merging. A submitted pull request
+is not a promise of inclusion, but clear rationale and reproducible verification
+make review substantially easier.

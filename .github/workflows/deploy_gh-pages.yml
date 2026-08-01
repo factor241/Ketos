@@ -24,7 +24,7 @@ jobs:
           cache-dependency-glob: "uv.lock"
           python-version: "3.13"
           prune-cache: false
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm

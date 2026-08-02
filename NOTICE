@@ -1,11 +1,5 @@
 Ketos Legal Notice
 
-Ketos is an independent, unofficial derivative of Langflow, originally available at https://github.com/langflow-ai/langflow and licensed under the MIT License.
+Ketos is an independently maintained derivative of Langflow; applicable upstream copyright and MIT license notices are retained.
 
-Portions derived from Langflow retain their original copyright and MIT license notices, including Copyright (c) 2024 Langflow.
-
-Original Ketos-specific modifications authored by Daria Shemelina are copyrighted by Daria Shemelina, carry the notice "Portions Copyright (c) 2026 Daria Shemelina", and are also released under the MIT License.
-
-Contributions authored by other contributors remain copyrighted by their respective authors unless those rights have been separately assigned.
-
-Ketos is not affiliated with, endorsed by, or sponsored by Langflow or its copyright holders. The Ketos-specific notice does not replace, diminish, or claim ownership of the upstream material.
+Any Ketos copyright claim applies only to new Ketos-specific modifications and does not replace or diminish the upstream copyright notice.

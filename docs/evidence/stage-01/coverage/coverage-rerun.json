@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "measurement": "rerun",
+  "resource_evidence": "records/coverage-resource-blocker-rerun.json",
+  "packages": {
+    "backend": {
+      "status": "BLOCKED",
+      "line": {"percent": null},
+      "branch": {"percent": null},
+      "blocker": "The second resource measurement remained >=14 GiB; GC-16 still prohibited the backend package coverage rerun."
+    },
+    "frontend": {
+      "status": "BLOCKED",
+      "line": {"percent": null},
+      "branch": {"percent": null},
+      "blocker": "The second resource measurement remained >=14 GiB; GC-16 still prohibited dependency installation and the frontend package coverage rerun."
+    },
+    "kfx": {
+      "status": "BLOCKED",
+      "line": {"percent": null},
+      "branch": {"percent": null},
+      "blocker": "The second resource measurement remained >=14 GiB; GC-16 still prohibited the KFX package coverage rerun."
+    }
+  },
+  "invented_threshold": false
+}

@@ -1,0 +1,34 @@
+[project]
+name = "lfx"
+version = "1.10.2"
+description = "Compatibility aliases for the canonical KFX executor"
+license = "MIT"
+requires-python = ">=3.10,<3.15"
+dependencies = ["kfx==1.10.2", "langflow-sdk==0.2.2"]
+
+[project.scripts]
+lfx = "kfx.__main__:main"
+lfx-mcp = "kfx.mcp.__main__:main"
+
+[build-system]
+requires = ["hatchling==1.31.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lfx", "src/lfx_compat"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/lfx_compat/module-map-v1.json" = "lfx_compat/module-map-v1.json"
+
+[tool.hatch.build.targets.sdist]
+exclude = ["/tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "ruff>=0.9.10",
+]

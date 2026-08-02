@@ -1,0 +1,16 @@
+{
+  "name": "Ketos",
+  "short_name": "Ketos",
+  "description": "Ketos is a visual workflow builder for AI-powered agents.",
+  "icons": [
+    {
+      "src": "/ketos-favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "categories": ["developer", "productivity", "utilities"],
+  "screenshots": [],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

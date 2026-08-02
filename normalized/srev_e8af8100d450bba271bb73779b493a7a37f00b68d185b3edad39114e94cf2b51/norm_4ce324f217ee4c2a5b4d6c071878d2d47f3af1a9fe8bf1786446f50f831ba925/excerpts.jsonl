@@ -1,0 +1,83 @@
+{"excerpt":"# raytsystem — current status","segment_id":"seg_ed26ffefef6470a67f9db8589e46f21e72abf631a4faf57f85f5cb9d728467a4"}
+{"excerpt":"Updated: 2026-07-13  ","segment_id":"seg_bb18012a1dfcfc5aecf83f266a69ba22af740924beef2680fd6f939938509fe7"}
+{"excerpt":"Release line: pre-1.0  ","segment_id":"seg_0f7d4a4ff79ef4798f4d6602f9cbc63d46bcffc149968b45d69ca448086581b8"}
+{"excerpt":"Production readiness: not claimed","segment_id":"seg_6103eb13d516b931da5ccb01570e2500b7b18f25f33a6b9e7769d4cba1b2b4b6"}
+{"excerpt":"This page describes the shipped behavior of the public snapshot. It intentionally excludes private","segment_id":"seg_8ae6748383d620f5a3316e6c023362404ec0215c840125955c485fb91021bd61"}
+{"excerpt":"development history, local run identifiers, workstation state, and unpublished roadmap evidence.","segment_id":"seg_1cc8559aa1493ae0064977bc1daa4ad6fc1a48f9ae167fbfd9e85c8cf78e6dd9"}
+{"excerpt":"## Capability matrix","segment_id":"seg_758f9d5293175da08b8c98ea1bca406f43e3dac975511f7f27bc002103f76910"}
+{"excerpt":"| Capability | Status | Evidence / boundary |","segment_id":"seg_a203db3d6b42ac690f9d50c6ef5f87a11abe378e82c12b836aeee4cfde2e04bd"}
+{"excerpt":"|---|---|---|","segment_id":"seg_b1e77c593c1b6b61944c53f6fcdd7d45885131c36a6ace99ba1d6c2c83921daa"}
+{"excerpt":"| Python CLI | Available | `src/raytsystem/cli.py`; deterministic commands and typed JSON output |","segment_id":"seg_5329d9823d34bf12435c45aa2daae985dc33c2a721cf8d208104d3c2f871cab8"}
+{"excerpt":"| Loopback web UI | Available | `src/raytsystem/webapp/`; refuses non-`127.0.0.1` binds |","segment_id":"seg_8ff9c64e03e270db80a0cbc4735ea858b6ff7f8c7ee4553ab003ab4d56998ae0"}
+{"excerpt":"| Command Center | Available | Read-only workspace, task, run, catalog, and safety projections |","segment_id":"seg_417082d1e9744fbc989039b64a187aa755196d2f9c4bf654371a18d329af4234"}
+{"excerpt":"| Documents | Experimental | Policy-managed Markdown roots, guarded writes, revisions, search, backlinks, source/visual modes |","segment_id":"seg_e7fd3547aa4fd787955617652fa54ebb16571bda96f2c607bae725499ee28329"}
+{"excerpt":"| Knowledge Universe | Available for local verified/derived views | Knowledge, work, agents, evidence, and code lenses; derived graph is not canonical truth |","segment_id":"seg_cb6be7b28508e968147d5c089e1f033a4c212a9992f1fc10c44d81cd73eb2df7"}
+{"excerpt":"| Agents and Skills catalog | Available | Inert definitions and permission/status inspection; definitions do not imply execution |","segment_id":"seg_9ee3dbd15f76faea1ca922f4c06ee05afd6e0df6ca30b5b60eaa98eb4d50b450"}
+{"excerpt":"| Task ledger | Available | Durable transitions, dependencies, idempotency, history, and fenced checkout paths |","segment_id":"seg_ed92285932f87bfe45bff7434cc5ec3948f5cc1c278db80000600fa338f052f5"}
+{"excerpt":"| Runs and execution views | Available for recorded state | Real provider execution remains disabled by default |","segment_id":"seg_70da471191ef91b305c71e73913921eca44e1e565cd7c05c6394a670920f7955"}
+{"excerpt":"| INGEST | Available for synthetic fixtures; real promotion gated | Real-corpus promotion requires externally authenticated, hash-bound approval |","segment_id":"seg_3ba6a4a14156c9dcc99edaaec375e82e15175904fdcef0edb2fd3dca55a222b6"}
+{"excerpt":"| QUERY | Available | Generation-bound local retrieval with verified citations or explicit gaps |","segment_id":"seg_3fbbbc5f6f399e054b2480d8d7f273d8d0dc075509c09b9665f9fba5f38c87b4"}
+{"excerpt":"| LINT | Available | Deterministic integrity, provenance, projection, link, alias, and secret checks |","segment_id":"seg_7ed5024c39027e9a5a6bd74e214c687f3a3fea6398406ebe527d157cd0ea812b"}
+{"excerpt":"| SAVE | Available as DRAFT-only | Writes reviewable staging/draft artifacts; cannot promote or publish |","segment_id":"seg_5f77895d3cf0478e27d71ae229a23bc8f3fdbbe88f1b3fada1713fc554f55e1f"}
+{"excerpt":"| Code graph | Available | Derived `.raytsystem/graph/` plane with status/update/rebuild/query commands |","segment_id":"seg_208b8270ba6baa576ca27413d15f00e0b3aba4023a605804e688403eeb4b764e"}
+{"excerpt":"| Backup/export/restore | Available, pre-1.0 | Local guarded primitives; operators must verify backups before migration |","segment_id":"seg_198f95b88c159d5b6b737838c800aeee884646079c04026d2613df8e0edcc3a2"}
+{"excerpt":"| Workflow engine | Experimental | Local typed DAG controls exist; external effects remain policy-gated |","segment_id":"seg_400e6779193c869684041f374ff559f193fd1acbbe9194ce1308c47409a43750"}
+{"excerpt":"| Tool Hub media adapters | Experimental | Typed local-first contracts; URL/private hosted analysis requires destination-bound approval |","segment_id":"seg_07deae4d984fde42476c601fda56a7aaae7bb4841d466bb4e5b01240325bcadf"}
+{"excerpt":"| MCP governance | Catalog-only by default | External MCP execution is disabled |","segment_id":"seg_3537040fd7f7656a49aecfd2bbdfd9abb8439a5b6ddf995feabea9b1f0044fe3"}
+{"excerpt":"| External model execution | Disabled by default | Runtime, Codex local, and Claude local invocation bridges require separate feature/configuration decisions |","segment_id":"seg_bee86be6a5405fc56fe21f31264e5063871a1bad44247287ef90310221afb4e4"}
+{"excerpt":"| External notifications and telemetry export | Disabled by default | No destination is allowlisted in shipped configuration |","segment_id":"seg_9bbeaa7fe167c19b3146af5f2dde571026ac577d045234680c4290105e94540e"}
+{"excerpt":"## Shipped security defaults","segment_id":"seg_5e7f584b8f0f3d12335525625402f7d8165457ae18521af3469b5ce6db749eb2"}
+{"excerpt":"The defaults in `config/platform.yaml`, `config/policies.yaml`, and","segment_id":"seg_909e1aa89269ab33afa053c90823d2aaddcc6495ac44fed4337800af081ec5ac"}
+{"excerpt":"`config/runtime-adapters.yaml` are fail-closed:","segment_id":"seg_0602e0fa746f6da740c2b2c269bd2b7c8281287d9b0c8e3237f917778613c225"}
+{"excerpt":"- web serving is loopback-only;","segment_id":"seg_75a1eb3acef397b9c480d5a2551dfafb4160306278ed6029aaec5b9709791320"}
+{"excerpt":"- network policy defaults to none;","segment_id":"seg_5244cf9a6011d37c2d7e1cc46d8bc604ba41c94c561dbd5772657108d5973cf8"}
+{"excerpt":"- external actions require explicit scoped approval;","segment_id":"seg_28f8545bed9df7f92afa34a052e3f50f53043613eff0b2fc12fa3e150a02c175"}
+{"excerpt":"- imported content remains data, never instructions;","segment_id":"seg_cf79390ce605c3239bfbbd5626fffe0d4f58452ddfe3276c3cbee8bce273a222"}
+{"excerpt":"- private/PII/secret model egress requires approval;","segment_id":"seg_e080207eff45c8450d0dc9536b7bc392378a15b97e22925a647eef64af45e6fe"}
+{"excerpt":"- remote generation, external MCP, external notifications, external KMS, OTLP export, and A2A","segment_id":"seg_3d40a6d91169853226aa25383c75375e4860b91bfa7a5a17a1e6102b1e5a1e7e"}
+{"excerpt":"  network exposure are off;","segment_id":"seg_b2a6519dc11173c80cfa40193cdf6ab045762172b6987b7e3e55db3ded543060"}
+{"excerpt":"- the public repository contains only a genesis ledger scaffold, no user corpus or local runtime","segment_id":"seg_c4356692023a2063162015bef42f9fd0c950df8191e6ed4a3b062e7363e85d12"}
+{"excerpt":"  database.","segment_id":"seg_6200c2a825ced6940edc886763dcf009ebf8d7ea92cfae16e0a29ad207cca0a5"}
+{"excerpt":"## Supported environment","segment_id":"seg_6097c0e12247bbfb65109d81891222ffe245ebe66ffddb220dc199dcb9f55e87"}
+{"excerpt":"- Python `>=3.12,<3.15`.","segment_id":"seg_97978ec8bc891a5646ad0619ead400dfe1036963f4bc4280bc34d38750e32b4a"}
+{"excerpt":"- macOS and Linux; WSL 2 is the supported Windows path. Native Windows is not release-tested.","segment_id":"seg_c9e028390636e8710f1f96b84a2eae2a582e0d5634b3fa95f724e75b9dc12a6d"}
+{"excerpt":"- `uv` for locked Python installation and commands.","segment_id":"seg_3eabf97967ed4a42ff18d1a7c8f4590b9d85cdc2ca3842d9855f2e9208700218"}
+{"excerpt":"- Node.js 22 for UI/documentation development only; ordinary use relies on the checked-in reviewed","segment_id":"seg_e3e0eaedb39a1fe58331c1c43686fa80acf7ada678eebea98eecf75fe0ccf440"}
+{"excerpt":"  frontend bundle.","segment_id":"seg_9d4661f547130c7ed709fde27ba8c6aeb85fece5372e6a8b523c185273455ec2"}
+{"excerpt":"## Known limitations","segment_id":"seg_21c28e37a0f1d8f5e1e20dfb1d3f60029a7c5536f6e8dbcfcce1297e579b2141"}
+{"excerpt":"- This is a source-checkout installation; packaged desktop installers are not shipped.","segment_id":"seg_4c6fd98cbd8cd4be63553431ba5c51b3055146338978643029c7e0636128fb7e"}
+{"excerpt":"- Managed Documents and several recovery/integration surfaces remain experimental.","segment_id":"seg_c0de6bbe5cabaa40c2d1f05b6d4b532a6ece2161ace951ebbc07eb4d7764b043"}
+{"excerpt":"- Provider adapters are contracts until explicitly configured and enabled; the default UI does not","segment_id":"seg_f8caaa34a26b2b4472e6be3bd6995fbbb55c97a0c05f0275792929ee33f20079"}
+{"excerpt":"  run a model.","segment_id":"seg_83676135ec278fb9885bf88abae3d8e671f8ac1be50bdc6e3b3e9f950019d337"}
+{"excerpt":"- A visible UI section or CLI group is not proof that its external runtime is enabled.","segment_id":"seg_29661c7f3e8bb3861b4de9738cceee69690db52347ad82e8d859c83793aacce6"}
+{"excerpt":"- Native Windows, multi-user remote serving, and stable hosted-provider presets are not qualified.","segment_id":"seg_743d28ae81b0306a8952b339d34443f7dc4317a53b3bf8238026f7a8b26840b4"}
+{"excerpt":"- Pre-1.0 schemas, migrations, and CLI details may change with documented migration guidance.","segment_id":"seg_ae8b9dfb768d3fd3ac2295f646b95f6607744bbcc4e5fcc7aa55da0f0ee185e9"}
+{"excerpt":"## Verification commands","segment_id":"seg_fa0c7cc5655d2dbeeddf264580cbf3aaa706c15a56142f79500b11edfa7e1ba3"}
+{"excerpt":"```bash","segment_id":"seg_d24c5b5be2154cfbeae6a97f7e8d012c739baab9a7a5b3c09b478da047e8fa26"}
+{"excerpt":"uv sync --dev","segment_id":"seg_5497983716a5b793ababef2621e3e51d13185bcbc5e7237d49ac0c071b2c0ee6"}
+{"excerpt":"uv run pytest","segment_id":"seg_681ac567cf6dfeb0573bd3f6c2f8066ec34056afd6361d10cda580bf009455b9"}
+{"excerpt":"uv run ruff check .","segment_id":"seg_ae972488f552ff275196a06c8a571e1ca52f61d2bb941bc568016f9a291264e9"}
+{"excerpt":"uv run ruff format --check .","segment_id":"seg_0bb2900292b33dd66c3254afdcbac99e581dad93dd9187bbd4a8a37c18107bcb"}
+{"excerpt":"uv run mypy","segment_id":"seg_b605fb60b5201bd0e546793b017257b788372bb45889bc270cac639fa4c35ac2"}
+{"excerpt":"uv run pre-commit run --all-files","segment_id":"seg_26e0794376a8e4dffa86709efbbed4b2f4c85fe3d1123a4a386e330521315985"}
+{"excerpt":"npm --prefix web ci","segment_id":"seg_4abce9a82e2b8e61ca21566814d9a224944a79daea7531f2ad98ddb556e8f30e"}
+{"excerpt":"npm --prefix web run typecheck","segment_id":"seg_3b8be4f3c7191a689702b52a028c00e090efac6ec19d7f88cb63a1be8d05b5a8"}
+{"excerpt":"npm --prefix web run lint","segment_id":"seg_d60a4e1a8aa5741378350af76671490d809ddaca0c1fe97e1cdf53c29b1f6fe4"}
+{"excerpt":"npm --prefix web run browser:install","segment_id":"seg_50e4235bd4095a6b03d24ca3ef6f4b4c85f7641a5f34294c700af5b1657c6316"}
+{"excerpt":"npm --prefix web run test","segment_id":"seg_a10c8ad2527364dd51128064cb736947ac00a4119e0fbf3293be6d2a438fd326"}
+{"excerpt":"npm --prefix web run test:visual","segment_id":"seg_829e7d71dc741122de66b255928ecc1d9951f329a40febebf34398fbd147f6a2"}
+{"excerpt":"npm --prefix web run build","segment_id":"seg_793976d2fb75c31157e02f1e742727a66d23f9dd4db83c7c8c20a6c60d903760"}
+{"excerpt":"npm --prefix web run screenshots:github","segment_id":"seg_2815f2c73a10e0250eba4703825576d12ef85cf37f4bc0323915df0ed3dc652b"}
+{"excerpt":"npm --prefix website ci","segment_id":"seg_532dcfa9322cb4df4e73a7799967201a42047ea05cb4630a2a64827f4bc2fc18"}
+{"excerpt":"npm --prefix website run typecheck","segment_id":"seg_5a9f990795a8b09818265baa39af52415699f3a01b95289e150e1a5eeb7d1929"}
+{"excerpt":"npm --prefix website run check:reference","segment_id":"seg_095009c0d40798a954dcbc87471a2fdaf1724ce7045b6f941367b1c0eb7a12bf"}
+{"excerpt":"npm --prefix website run check:coverage","segment_id":"seg_efca857d1cde6ac19a499316f3126fda85513e40379ab8dd834642b773c24b42"}
+{"excerpt":"npm --prefix website run check:frontmatter","segment_id":"seg_395a87e93a3f8d21b7aadb1976a632202156421fec370ff1bb2f0d82c2ce77a3"}
+{"excerpt":"npm --prefix website run build","segment_id":"seg_d98f3b2a02fac4f68acb6de07544b817210acb8dfdb59a19f600131758e4ff2d"}
+{"excerpt":"uv run raytsystem doctor","segment_id":"seg_cacfad2064835b05bf6c3d7b14eba6b611396e47041e48afa03636e38fa9eb26"}
+{"excerpt":"uv run raytsystem status","segment_id":"seg_c7218f2afba8b42c9583366c36bdb8548cea6e6b8dac6902338d6234e8c849eb"}
+{"excerpt":"uv run raytsystem graph status --json","segment_id":"seg_034042415ac4f5ec92302d761cd97e350b33682dd94d8aa5749464bd0a2cd10e"}
+{"excerpt":"uv run raytsystem guard-checkpoint --json","segment_id":"seg_0b0d867ac8bb84c3d6b45e287802b6e98f33ff309dcf494d5014c45fd48b99fd"}
+{"excerpt":"```","segment_id":"seg_411317b474edde5eafdcfd90059b258d61c99dc5139feee4400c87cc6c705d78"}
+{"excerpt":"The publication report records the result of each command against the final one-commit public","segment_id":"seg_253f65dd64047c6cc94c72e311e9c36f492fc1814c76edcc5d2628a0422328b2"}
+{"excerpt":"snapshot. A failed required gate blocks publication.","segment_id":"seg_e3028ad8235e86d25d01da7581ccb4360dd38cfa71e5bebc3a168633dce41041"}

@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "policy": "Focused gates precede package gates; blocked heavy gates report the exact GC-16 resource condition and never become PASS.",
+  "gates": [
+    {
+      "id": "focused-backend-message",
+      "command": "uv run pytest src/backend/tests/unit/test_messages.py::test_get_messages -q",
+      "status": "PASS",
+      "evidence_record": "records/focused-backend-baseline.json",
+      "classification_or_blocker": ""
+    },
+    {
+      "id": "runtime-route-inventory",
+      "command": "uv run python docs/evidence/stage-01/tools/route_inventory.py --output docs/evidence/stage-01/security/route-capability-matrix.json",
+      "status": "PASS",
+      "evidence_record": "records/runtime-route-inventory.json",
+      "classification_or_blocker": ""
+    },
+    {
+      "id": "job-null-census",
+      "command": "uv run python docs/evidence/stage-01/tools/job_census.py",
+      "status": "PASS",
+      "evidence_record": "records/job-null-census.json",
+      "classification_or_blocker": ""
+    },
+    {
+      "id": "security-artifact-tests",
+      "command": "uv run pytest docs/evidence/stage-01/tests/test_security_inventory_artifacts.py -q",
+      "status": "PASS",
+      "evidence_record": "records/security-inventory-tests.json",
+      "classification_or_blocker": ""
+    },
+    {
+      "id": "asset-provenance-tests",
+      "command": "uv run pytest docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py -q",
+      "status": "PASS",
+      "evidence_record": "records/asset-provenance-tests.json",
+      "classification_or_blocker": ""
+    },
+    {
+      "id": "lfx-focused-compatibility",
+      "command": "uv run pytest src/compat/lfx/tests/test_lfx_compatibility.py -q",
+      "status": "PASS",
+      "evidence_record": "records/lfx-compatibility-baseline.json",
+      "classification_or_blocker": ""
+    },
+    {
+      "id": "planning-traceability-tests",
+      "command": "uv run pytest docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py -q",
+      "status": "PASS",
+      "evidence_record": "records/planning-traceability-tests.json",
+      "classification_or_blocker": ""
+    },
+    {
+      "id": "owned-python-core-static",
+      "command": "uv run ruff check docs/evidence/stage-01/tools docs/evidence/stage-01/tests --select E4,E7,E9,F,I",
+      "status": "PASS",
+      "evidence_record": "records/evidence-ruff-core-rerun.json",
+      "classification_or_blocker": ""
+    },
+    {
+      "id": "owned-python-format",
+      "command": "uv run ruff format --check docs/evidence/stage-01/tools docs/evidence/stage-01/tests",
+      "status": "PASS",
+      "evidence_record": "records/evidence-ruff-format.json",
+      "classification_or_blocker": ""
+    },
+    {
+      "id": "backend-package-coverage",
+      "command": "uv run pytest <approved backend package paths> --cov=ketos --cov-branch --cov-report=json",
+      "status": "BLOCKED",
+      "evidence_record": "records/coverage-resource-blocker-baseline.json",
+      "classification_or_blocker": "Aggregate RSS >=14 GiB; GC-16 forbids a heavy package job until RSS falls below the throttle."
+    },
+    {
+      "id": "frontend-focused-lint-type-build-coverage",
+      "command": "cd src/frontend && npm ci; then serial focused test, lint, type-check:production, build, and test:coverage -- --runInBand",
+      "status": "BLOCKED",
+      "evidence_record": "records/coverage-resource-blocker-baseline.json",
+      "classification_or_blocker": "Clean worktree has no node_modules and aggregate RSS >=14 GiB; GC-16 forbids npm installation/build/coverage until memory is released."
+    },
+    {
+      "id": "migration-package-gate",
+      "command": "make alembic-check",
+      "status": "BLOCKED",
+      "evidence_record": "records/coverage-resource-blocker-rerun.json",
+      "classification_or_blocker": "Aggregate RSS remained >=14 GiB; the package-level migration gate was not started under the resource throttle."
+    },
+    {
+      "id": "kfx-package-coverage",
+      "command": "cd src/kfx && uv run pytest tests --cov=kfx --cov-branch --cov-report=json",
+      "status": "BLOCKED",
+      "evidence_record": "records/coverage-resource-blocker-rerun.json",
+      "classification_or_blocker": "Aggregate RSS remained >=14 GiB; GC-16 forbids the heavy KFX package coverage run."
+    }
+  ]
+}

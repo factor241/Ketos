@@ -1,0 +1,19 @@
+pack_id: pack_raytsystem_core
+name: Ketos RaytSystem Core Procedures
+version: "1.0.0"
+description: User-trusted, skill-only RaytSystem procedures scoped to the Ketos workspace.
+license_expression: Apache-2.0
+trust_class: user
+agent_ids: []
+skill_ids:
+  - start
+  - graph
+  - raytsystem-ingest
+  - raytsystem-lint
+  - raytsystem-query
+  - raytsystem-research
+  - raytsystem-run-review
+  - raytsystem-save
+  - raytsystem-security-review
+context_paths: []
+optional: false

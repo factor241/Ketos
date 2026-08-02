@@ -1,0 +1,24 @@
+/* override the infima navbar docs/node_modules/infima/dist/css/default/default.css */
+.navbar {
+  box-shadow: none !important;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+}
+
+[data-theme="dark"] .navbar {
+  background: #111;
+  border-bottom-color: #2c2c32;
+}
+
+/* Navbar - smaller logo, more padding, compact */
+.navbar__logo {
+  height: 1.5rem; /* Smaller logo */
+}
+
+/* Improve logo grey marks contrast on light background */
+html[data-theme="light"] .navbar__logo {
+  filter: brightness(0.78) contrast(1.05);
+}
+
+.navbar__inner {
+  padding: 0.5rem var(--docs-gutter);
+}

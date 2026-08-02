@@ -1,0 +1,43 @@
+name: ketos-dev
+
+networks:
+  dev-ketos:
+
+services:
+  ketos:
+    build:
+      context: ..
+      dockerfile: docker/dev.Dockerfile
+    image: dev-ketos
+    container_name: dev-ketos
+    restart: always
+    ports:
+      - "7860:7860"
+      - "3000:3000"
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - KETOS_DATABASE_URL=postgresql://ketos:ketos@postgres:5432/ketos
+      - KETOS_SUPERUSER=ketos
+      - KETOS_SUPERUSER_PASSWORD=ketos
+      - KETOS_CONFIG_DIR=/var/lib/ketos
+    env_file:
+      - ${KETOS_ENV_FILE:-../.env}
+    volumes:
+      - ../:/app
+    depends_on:
+      - postgres
+    networks:
+      -  dev-ketos
+
+
+  postgres:
+    container_name: postgres
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ketos
+      POSTGRES_PASSWORD: ketos
+      POSTGRES_DB: ketos
+    ports:
+      - "5432:5432"
+    networks:
+      -  dev-ketos

@@ -1,0 +1,31 @@
+# Graphify has its own disposable output.
+graphify-out/
+
+# Langflow is mapped by its separate pinned reference graph.
+references/langflow-upstream/
+
+# RaytSystem canonical and operational generated state is not source material.
+_raw/
+normalized/
+ledger/
+.raytsystem/
+knowledge/.projection.json
+knowledge/.materialized-generation
+knowledge/graph.json
+knowledge/hot.md
+knowledge/index.md
+
+# Runtime coordination, drafts, approvals, receipts, and local databases.
+ops/staging/
+ops/runs/
+ops/locks/
+ops/task-ledger/
+ops/document-revisions/
+ops/backups/
+ops/encrypted/
+ops/approvals/
+ops/control.sqlite*
+ops/platform.sqlite*
+ops/subagent-reports/12-final-acceptance.md
+artifacts/drafts/
+artifacts/outbox/

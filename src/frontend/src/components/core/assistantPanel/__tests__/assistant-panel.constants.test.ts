@@ -1,0 +1,78 @@
+import i18n, { loadLanguage } from "@/i18n";
+import {
+  ASSISTANT_PLACEHOLDERS,
+  ASSISTANT_SESSION_STORAGE_KEY_PREFIX,
+  ASSISTANT_TITLE,
+  getAssistantPlaceholder,
+  getAssistantPlaceholders,
+} from "../assistant-panel.constants";
+
+describe("assistant-panel.constants", () => {
+  afterEach(async () => {
+    await i18n.changeLanguage("en");
+    jest.restoreAllMocks();
+  });
+
+  describe("ASSISTANT_TITLE", () => {
+    it("should be Ketos Assistant", () => {
+      expect(ASSISTANT_TITLE).toBe("Ketos Assistant");
+    });
+  });
+
+  describe("ASSISTANT_SESSION_STORAGE_KEY_PREFIX", () => {
+    it("should be a non-empty string", () => {
+      expect(ASSISTANT_SESSION_STORAGE_KEY_PREFIX).toBeTruthy();
+      expect(typeof ASSISTANT_SESSION_STORAGE_KEY_PREFIX).toBe("string");
+    });
+
+    it("should end with a separator for flow ID concatenation", () => {
+      expect(ASSISTANT_SESSION_STORAGE_KEY_PREFIX).toMatch(/-$/);
+    });
+  });
+
+  describe("ASSISTANT_PLACEHOLDERS", () => {
+    it("should have at least 2 options for randomization", () => {
+      expect(ASSISTANT_PLACEHOLDERS.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("should contain only non-empty strings", () => {
+      for (const placeholder of ASSISTANT_PLACEHOLDERS) {
+        expect(typeof placeholder).toBe("string");
+        expect(placeholder.length).toBeGreaterThan(0);
+      }
+    });
+  });
+
+  describe("getAssistantPlaceholder", () => {
+    it("should return a non-empty string", () => {
+      const result = getAssistantPlaceholder();
+
+      expect(typeof result).toBe("string");
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    it("should return a value from the active locale placeholder pool", () => {
+      const result = getAssistantPlaceholder();
+
+      expect(getAssistantPlaceholders()).toContain(result);
+    });
+
+    it("should be callable multiple times without error", () => {
+      const results = Array.from({ length: 10 }, () =>
+        getAssistantPlaceholder(),
+      );
+
+      for (const result of results) {
+        expect(getAssistantPlaceholders()).toContain(result);
+      }
+    });
+
+    it("resolves the placeholder in the active locale at call time", async () => {
+      jest.spyOn(Math, "random").mockReturnValue(0);
+      await loadLanguage("ru");
+      await i18n.changeLanguage("ru");
+
+      expect(getAssistantPlaceholder()).toBe("Создать компонент агента…");
+    });
+  });
+});

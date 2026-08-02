@@ -1,0 +1,23 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "Init", "type": "shell", "command": "make init" },
+    { "label": "Backend", "type": "shell", "command": "make backend" },
+    { "label": "Frontend", "type": "shell", "command": "make frontend" },
+    { "label": "Backend tests", "type": "shell", "command": "make unit_tests" },
+    { "label": "Frontend tests", "type": "shell", "command": "make test_frontend" },
+    { "label": "Lint", "type": "shell", "command": "make lint" },
+    { "label": "Format", "type": "shell", "command": "make format" },
+    {
+      "label": "Install Backend",
+      "type": "shell",
+      "command": "make install_backend EXTRA_ARGS='--extra audio'"
+    },
+    {
+      "label": "Docs build",
+      "type": "shell",
+      "command": "npm run build",
+      "options": { "cwd": "${workspaceFolder}/docs" }
+    }
+  ]
+}

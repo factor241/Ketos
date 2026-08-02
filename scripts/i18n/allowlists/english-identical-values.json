@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "source_locale": "en",
+  "target_locale": "ru",
+  "entries": [
+    {
+      "key": "crash.githubIssues",
+      "value": "GitHub Issues",
+      "reason": "Protected technical destination name; translating the link label would alter the GitHub product surface name.",
+      "owner": "localization-governance",
+      "reviewer": "ru-linguistic-reviewer",
+      "review_date": "2026-07-11"
+    },
+    {
+      "key": "shortcuts.name.api",
+      "value": "API",
+      "reason": "Protected protocol abbreviation; the exact token is the complete label.",
+      "owner": "localization-governance",
+      "reviewer": "ru-linguistic-reviewer",
+      "review_date": "2026-07-11"
+    },
+    {
+      "key": "mcp.modal.tabJson",
+      "value": "JSON",
+      "reason": "Protected data-format abbreviation; the exact token is the complete tab label.",
+      "owner": "localization-governance",
+      "reviewer": "ru-linguistic-reviewer",
+      "review_date": "2026-07-11"
+    },
+    {
+      "key": "mcp.modal.tabStdio",
+      "value": "STDIO",
+      "reason": "Protected transport abbreviation; the exact token is the complete tab label.",
+      "owner": "localization-governance",
+      "reviewer": "ru-linguistic-reviewer",
+      "review_date": "2026-07-11"
+    },
+    {
+      "key": "authModal.authMethod.oauth",
+      "value": "OAuth",
+      "reason": "Protected authentication protocol name; the exact token is the complete option label.",
+      "owner": "localization-governance",
+      "reviewer": "ru-linguistic-reviewer",
+      "review_date": "2026-07-11"
+    },
+    {
+      "key": "deployments.placeholderApiUrl",
+      "value": "https://api.example.com",
+      "reason": "Machine-format URL example must remain byte-identical.",
+      "owner": "localization-governance",
+      "reviewer": "ru-linguistic-reviewer",
+      "review_date": "2026-07-11"
+    },
+    {
+      "key": "assistant.title",
+      "value": "Ketos Assistant",
+      "reason": "Protected product name defined by the approved glossary.",
+      "owner": "localization-governance",
+      "reviewer": "ru-linguistic-reviewer",
+      "review_date": "2026-07-11"
+    },
+    {
+      "key": "mainPage.flowType.mcp",
+      "value": "MCP",
+      "reason": "Protected protocol abbreviation; the exact token is the complete resource-type label.",
+      "owner": "localization-governance",
+      "reviewer": "ru-linguistic-reviewer",
+      "review_date": "2026-07-11"
+    },
+    {
+      "key": "sidebar.nav.mcp",
+      "value": "MCP",
+      "reason": "Protected protocol abbreviation; the exact token is the complete navigation label.",
+      "owner": "localization-governance",
+      "reviewer": "ru-linguistic-reviewer",
+      "review_date": "2026-07-11"
+    },
+    {
+      "key": "templatesModal.rag",
+      "value": "RAG",
+      "reason": "Protected technical abbreviation; the exact token is the complete template category label.",
+      "owner": "localization-governance",
+      "reviewer": "ru-linguistic-reviewer",
+      "review_date": "2026-07-11"
+    },
+    {
+      "key": "paginator.placeholder",
+      "value": "1",
+      "reason": "Locale-neutral numeric page example contains no translatable prose.",
+      "owner": "localization-governance",
+      "reviewer": "ru-linguistic-reviewer",
+      "review_date": "2026-07-11"
+    },
+    {
+      "key": "deployments.mcpTypeLabel",
+      "value": "MCP",
+      "reason": "Protected protocol abbreviation; the exact token is the complete deployment-type label.",
+      "owner": "localization-governance",
+      "reviewer": "ru-linguistic-reviewer",
+      "review_date": "2026-07-11"
+    },
+    {
+      "key": "knowledge.ingestionSourceGoogleDrive",
+      "value": "Google Drive",
+      "reason": "Protected Google product self-name; the exact brand is the complete source label.",
+      "owner": "localization-governance",
+      "reviewer": "ru-linguistic-reviewer",
+      "review_date": "2026-07-11"
+    },
+    {
+      "key": "knowledge.ingestionSourceS3",
+      "value": "AWS S3",
+      "reason": "Protected AWS product and service self-name; the exact brand is the complete source label.",
+      "owner": "localization-governance",
+      "reviewer": "ru-linguistic-reviewer",
+      "review_date": "2026-07-11"
+    },
+    {
+      "key": "knowledge.ingestionSourceOneDrive",
+      "value": "OneDrive",
+      "reason": "Protected Microsoft product self-name; the exact brand is the complete source label.",
+      "owner": "localization-governance",
+      "reviewer": "ru-linguistic-reviewer",
+      "review_date": "2026-07-11"
+    },
+    {
+      "key": "knowledge.ingestionSourceSharePoint",
+      "value": "SharePoint",
+      "reason": "Protected Microsoft product self-name; the exact brand is the complete source label.",
+      "owner": "localization-governance",
+      "reviewer": "ru-linguistic-reviewer",
+      "review_date": "2026-07-11"
+    }
+  ]
+}

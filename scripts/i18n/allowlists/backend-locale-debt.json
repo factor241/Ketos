@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "def832f409c01f0acd3937b9317dde03d0273552",
+  "reason": "Exact pre-Russian baseline debt. New or stale debt is blocking; Task 13 must remove the absent ru entry when ru.json is created.",
+  "owner": "backend-localization",
+  "review_date": "2026-07-11",
+  "required_locales": [
+    "en",
+    "ru"
+  ],
+  "absent_locales": [],
+  "shared_debt": {
+    "locales": [],
+    "missing": [],
+    "extra": []
+  }
+}

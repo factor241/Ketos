@@ -1,0 +1,8 @@
+INFO     NumExpr defaulting to 10 threads.
+
+docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py::test_graphify_and_asset_map_record_current_source_truth PASSED [ 25%]
+docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py::test_telemetry_contract_is_bounded_and_never_fakes_an_observation_window PASSED [ 50%]
+docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py::test_lfx_desktop_xyflow_and_openswarm_pins_are_exact PASSED [ 75%]
+docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py::test_product_taxonomy_keeps_three_assistant_journeys_distinct PASSED [100%]
+
+============================== 4 passed in 0.08s ===============================

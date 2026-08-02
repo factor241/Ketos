@@ -1,0 +1,25 @@
+cases:
+- agent_configuration_sha256: '0000000000000000000000000000000000000000000000000000000000000000'
+  assertions:
+  - assertion_id: a_smoke_contains
+    assertion_type: contains
+    expected: software
+    target: result_text
+  case_id: case_eval_software_smoke
+  instruction_hashes: {}
+  name: Software Factory smoke case
+  repository_snapshot_sha256: '0000000000000000000000000000000000000000000000000000000000000000'
+  runtime_id: runtime_deterministic
+  skill_hashes: {}
+  task_fixture: tasks/software-sample.json
+suite:
+  case_ids:
+  - case_eval_software_smoke
+  dataset_id: dataset_eval_software_smoke
+  enabled: true
+  manifest_sha256: 24e9582ce5eb29e1159b2a1cb6d95abc1d442336116cb23baa5e73cd4aa0988e
+  name: Software Factory smoke suite
+  suite_id: eval_software_smoke
+  target_ids:
+  - target_workflow_software
+  version: 1.0.0

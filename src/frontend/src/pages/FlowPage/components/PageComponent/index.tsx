@@ -1,0 +1,1060 @@
+import {
+  type Connection,
+  type Edge,
+  type EdgeChange,
+  type NodeChange,
+  type OnNodeDrag,
+  ReactFlow,
+  reconnectEdge,
+  type SelectionDragHandler,
+} from "@xyflow/react";
+import _, { cloneDeep } from "lodash";
+import {
+  type KeyboardEvent,
+  type MouseEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { useHotkeys } from "react-hotkeys-hook";
+import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
+import ForwardedIconComponent from "@/components/common/genericIconComponent";
+import { FlowBuilderWelcomeMount } from "@/components/core/flowBuilderWelcome/flow-builder-welcome-mount";
+import FlowToolbar from "@/components/core/flowToolbarComponent";
+import {
+  NOTE_NODE_MIN_HEIGHT,
+  NOTE_NODE_MIN_WIDTH,
+} from "@/constants/constants";
+import { CanvasReadOnlyProvider } from "@/contexts/canvas-read-only-context";
+import { api } from "@/controllers/API/api";
+import { getURL } from "@/controllers/API/helpers/constants";
+import { useGetBuildsQuery } from "@/controllers/API/queries/_builds";
+import CustomLoader from "@/customization/components/custom-loader";
+import { track } from "@/customization/utils/analytics";
+import useApplyFlowToCanvas from "@/hooks/flows/use-apply-flow-to-canvas";
+import useAutoSaveFlow from "@/hooks/flows/use-autosave-flow";
+import { useFlowEvents } from "@/hooks/flows/use-flow-events";
+import useUploadFlow from "@/hooks/flows/use-upload-flow";
+import { useAddComponent } from "@/hooks/use-add-component";
+import InspectionPanel from "@/pages/FlowPage/components/InspectionPanel";
+import useAssistantManagerStore from "@/stores/assistantManagerStore";
+import useFlowBuilderWelcomeStore from "@/stores/flowBuilderWelcomeStore";
+import { nodeColorsName } from "@/utils/styleUtils";
+import { isSupportedNodeTypes } from "@/utils/utils";
+import ExportModal from "../../../../modals/exportModal";
+import useAlertStore from "../../../../stores/alertStore";
+import useFlowStore from "../../../../stores/flowStore";
+import useFlowsManagerStore from "../../../../stores/flowsManagerStore";
+import { useShortcutsStore } from "../../../../stores/shortcuts";
+import { useTypesStore } from "../../../../stores/typesStore";
+import useVersionPreviewStore from "../../../../stores/versionPreviewStore";
+import type { APIClassType } from "../../../../types/api";
+import type {
+  AllNodeType,
+  EdgeType,
+  FlowType,
+  NoteNodeType,
+} from "../../../../types/flow";
+import {
+  generateFlow,
+  generateNodeFromFlow,
+  getNodeId,
+  isValidConnection,
+  scapeJSONParse,
+  updateIds,
+  validateSelection,
+} from "../../../../utils/reactflowUtils";
+import { edgeTypes, nodeTypes } from "../../consts";
+import ConnectionLineComponent from "../ConnectionLineComponent";
+import FlowBuildingComponent from "../flowBuildingComponent";
+import SelectionMenu from "../SelectionMenuComponent";
+import UpdateAllComponents from "../UpdateAllComponents";
+import { CanvasBadge } from "./components/CanvasBanner";
+import HelperLines from "./components/helper-lines";
+import VersionPreviewOverlay from "./components/VersionPreviewOverlay";
+import {
+  getHelperLines,
+  getSnapPosition,
+  type HelperLinesState,
+} from "./helpers/helper-lines";
+import { useCanvasDragSelectFix } from "./hooks/useCanvasDragSelectFix";
+import {
+  MemoizedBackground,
+  MemoizedCanvasControls,
+  MemoizedSidebarTrigger,
+} from "./MemoizedComponents";
+import { computeNoteScreenPosition } from "./utils/compute-note-position";
+import getRandomName from "./utils/get-random-name";
+import isWrappedWithClass from "./utils/is-wrapped-with-class";
+
+export default function Page({
+  view,
+  setIsLoading,
+}: {
+  view?: boolean;
+  setIsLoading: (isLoading: boolean) => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const uploadFlow = useUploadFlow();
+  const autoSaveFlow = useAutoSaveFlow();
+
+  const types = useTypesStore((state) => state.types);
+  const templates = useTypesStore((state) => state.templates);
+  const setFilterEdge = useFlowStore((state) => state.setFilterEdge);
+  const setFilterComponent = useFlowStore((state) => state.setFilterComponent);
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const setPositionDictionary = useFlowStore(
+    (state) => state.setPositionDictionary,
+  );
+  const reactFlowInstance = useFlowStore((state) => state.reactFlowInstance);
+  const setReactFlowInstance = useFlowStore(
+    (state) => state.setReactFlowInstance,
+  );
+  const nodes = useFlowStore((state) => state.nodes);
+  const edges = useFlowStore((state) => state.edges);
+  const isEmptyFlow = useRef(nodes.length === 0);
+
+  const previewLabel = useVersionPreviewStore((s) => s.previewLabel);
+  const isPreviewActive = previewLabel !== null;
+  const isWelcomeOpen = useFlowBuilderWelcomeStore((state) => state.isOpen);
+  const onNodesChange = useFlowStore((state) => state.onNodesChange);
+  const onEdgesChange = useFlowStore((state) => state.onEdgesChange);
+  const setNodes = useFlowStore((state) => state.setNodes);
+  const setEdges = useFlowStore((state) => state.setEdges);
+  const deleteNode = useFlowStore((state) => state.deleteNode);
+  const deleteEdge = useFlowStore((state) => state.deleteEdge);
+  const undo = useFlowsManagerStore((state) => state.undo);
+  const redo = useFlowsManagerStore((state) => state.redo);
+  const takeSnapshot = useFlowsManagerStore((state) => state.takeSnapshot);
+  const paste = useFlowStore((state) => state.paste);
+  const lastCopiedSelection = useFlowStore(
+    (state) => state.lastCopiedSelection,
+  );
+  const setLastCopiedSelection = useFlowStore(
+    (state) => state.setLastCopiedSelection,
+  );
+  const onConnect = useFlowStore((state) => state.onConnect);
+  const setRightClickedNodeId = useFlowStore(
+    (state) => state.setRightClickedNodeId,
+  );
+  const setErrorData = useAlertStore((state) => state.setErrorData);
+  const updateCurrentFlow = useFlowStore((state) => state.updateCurrentFlow);
+  const [selectionMenuVisible, setSelectionMenuVisible] = useState(false);
+  const [openExportModal, setOpenExportModal] = useState(false);
+  const edgeUpdateSuccessful = useRef(true);
+
+  const isLocked = useFlowStore(
+    useShallow((state) => state.currentFlow?.locked),
+  );
+
+  const position = useRef({ x: 0, y: 0 });
+  const [lastSelection, setLastSelection] = useState<{
+    nodes: AllNodeType[];
+    edges: EdgeType[];
+  } | null>(null);
+  const currentFlowId = useFlowsManagerStore((state) => state.currentFlowId);
+
+  const { isAgentWorking, events, lastSettledAt, clearEvents } = useFlowEvents(
+    currentFlowId || undefined,
+  );
+  const isAssistantProcessing = useAssistantManagerStore(
+    (state) => state.isAssistantProcessing,
+  );
+  const effectiveLocked = isLocked || isAgentWorking || isAssistantProcessing;
+  const isCanvasReadOnly = Boolean(view || isPreviewActive || effectiveLocked);
+
+  // Keep banner mounted during exit animation, preserve last text
+  const [bannerVisible, setBannerVisible] = useState(false);
+  const bannerVisibleRef = useRef(false);
+  const [bannerExiting, setBannerExiting] = useState(false);
+  const [bannerText, setBannerText] = useState(t("canvas.agentWorking"));
+
+  // Update banner text while active (not during exit)
+  useEffect(() => {
+    if (isAgentWorking) {
+      const summary = events.at(-1)?.summary;
+      setBannerText(
+        summary
+          ? t("canvas.agentChanges.summary", { summary })
+          : t("canvas.agentWorking"),
+      );
+    }
+  }, [isAgentWorking, events, t]);
+
+  useEffect(() => {
+    if (isAgentWorking) {
+      setBannerExiting(false);
+      setBannerVisible(true);
+      bannerVisibleRef.current = true;
+    } else if (bannerVisibleRef.current) {
+      // bannerText is already frozen - don't update it during exit
+      setBannerExiting(true);
+      const timer = setTimeout(() => {
+        setBannerVisible(false);
+        bannerVisibleRef.current = false;
+        setBannerExiting(false);
+        setBannerText(t("canvas.agentWorking"));
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [isAgentWorking, t]);
+  const applyFlowToCanvas = useApplyFlowToCanvas();
+  const setSuccessData = useAlertStore((state) => state.setSuccessData);
+  const prevSettledRef = useRef<number | null>(null);
+
+  const eventsRef = useRef(events);
+  eventsRef.current = events;
+
+  useEffect(() => {
+    if (
+      lastSettledAt &&
+      lastSettledAt !== prevSettledRef.current &&
+      currentFlowId
+    ) {
+      prevSettledRef.current = lastSettledAt;
+      const targetFlowId = currentFlowId;
+
+      // Capture events before clearing
+      const settleEvents = [...eventsRef.current];
+      clearEvents();
+
+      const controller = new AbortController();
+
+      api
+        .get<FlowType>(`${getURL("FLOWS")}/${targetFlowId}`, {
+          signal: controller.signal,
+        })
+        .then((response) => {
+          // Verify we're still on the same flow
+          if (useFlowsManagerStore.getState().currentFlowId !== targetFlowId) {
+            return;
+          }
+
+          applyFlowToCanvas(response.data);
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              reactFlowInstance?.fitView({
+                padding: { left: "20px", right: "20px", top: "80px" },
+              });
+            });
+          });
+
+          const nonSettleEvents = settleEvents.filter(
+            (e) => e.type !== "flow_settled",
+          );
+          if (nonSettleEvents.length > 0) {
+            const counts: Record<string, number> = {};
+            for (const e of nonSettleEvents) {
+              counts[e.type] = (counts[e.type] || 0) + 1;
+            }
+            const parts = Object.entries(counts)
+              .map(([eventType, count]) => {
+                switch (eventType) {
+                  case "component_added":
+                    return t("canvas.agentChanges.componentAdded", { count });
+                  case "component_removed":
+                    return t("canvas.agentChanges.componentRemoved", {
+                      count,
+                    });
+                  case "component_configured":
+                    return t("canvas.agentChanges.componentConfigured", {
+                      count,
+                    });
+                  case "connection_added":
+                    return t("canvas.agentChanges.connectionAdded", { count });
+                  case "connection_removed":
+                    return t("canvas.agentChanges.connectionRemoved", {
+                      count,
+                    });
+                  case "flow_updated":
+                    return t("canvas.agentChanges.flowUpdated", { count });
+                  default:
+                    return null;
+                }
+              })
+              .filter((part): part is string => part !== null);
+            setSuccessData({
+              title: t("canvas.agentChanges.summary", {
+                summary: parts.join(", "),
+              }),
+            });
+          }
+        })
+        .catch((error) => {
+          if (error?.name === "CanceledError") return;
+          const isNetwork = error?.response || error?.request;
+          console.error(
+            "[FlowPage] Failed to reload flow after agent changes:",
+            error,
+          );
+          setErrorData({
+            title: isNetwork
+              ? t("canvas.agentChanges.networkError")
+              : t("canvas.agentChanges.applyError"),
+          });
+        });
+
+      return () => controller.abort();
+    }
+  }, [
+    lastSettledAt,
+    currentFlowId,
+    applyFlowToCanvas,
+    setSuccessData,
+    setErrorData,
+    clearEvents,
+    t,
+  ]);
+
+  useEffect(() => {
+    if (currentFlowId !== "") {
+      isEmptyFlow.current = nodes.length === 0;
+    }
+  }, [currentFlowId]);
+
+  const addComponent = useAddComponent();
+
+  const handleGroupNode = useCallback(() => {
+    if (isCanvasReadOnly) return;
+    takeSnapshot();
+    const edgesState = useFlowStore.getState().edges;
+    if (validateSelection(lastSelection!, edgesState).length === 0) {
+      const clonedNodes = cloneDeep(useFlowStore.getState().nodes);
+      const clonedEdges = cloneDeep(edgesState);
+      const clonedSelection = cloneDeep(lastSelection);
+      updateIds({ nodes: clonedNodes, edges: clonedEdges }, clonedSelection!);
+      const { newFlow } = generateFlow(
+        clonedSelection!,
+        clonedNodes,
+        clonedEdges,
+        getRandomName(),
+      );
+
+      const newGroupNode = generateNodeFromFlow(newFlow, getNodeId);
+
+      setNodes([
+        ...clonedNodes.filter(
+          (oldNodes) =>
+            !clonedSelection?.nodes.some(
+              (selectionNode) => selectionNode.id === oldNodes.id,
+            ),
+        ),
+        newGroupNode,
+      ]);
+    } else {
+      setErrorData({
+        title: t("errors.invalidSelection"),
+        list: validateSelection(lastSelection!, edgesState),
+      });
+    }
+  }, [isCanvasReadOnly, lastSelection, setNodes, setErrorData, takeSnapshot]);
+
+  useEffect(() => {
+    const handleMouseMove = (event) => {
+      position.current = { x: event.clientX, y: event.clientY };
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, [lastCopiedSelection, lastSelection, takeSnapshot, selectionMenuVisible]);
+
+  const { isFetching } = useGetBuildsQuery({ flowId: currentFlowId });
+
+  const showCanvas =
+    Object.keys(templates).length > 0 &&
+    Object.keys(types).length > 0 &&
+    !isFetching;
+
+  useEffect(() => {
+    setIsLoading(!showCanvas);
+  }, [showCanvas]);
+
+  useEffect(() => {
+    useFlowStore.setState({ autoSaveFlow });
+  }, [autoSaveFlow]);
+
+  function handleUndo(e: KeyboardEvent) {
+    if (isCanvasReadOnly) return;
+    if (!isWrappedWithClass(e, "noflow")) {
+      e.preventDefault();
+      (e as unknown as Event).stopImmediatePropagation();
+      undo();
+    }
+  }
+
+  function handleRedo(e: KeyboardEvent) {
+    if (isCanvasReadOnly) return;
+    if (!isWrappedWithClass(e, "noflow")) {
+      e.preventDefault();
+      (e as unknown as Event).stopImmediatePropagation();
+      redo();
+    }
+  }
+
+  function handleGroup(e: KeyboardEvent) {
+    if (isCanvasReadOnly) return;
+    if (selectionMenuVisible) {
+      e.preventDefault();
+      (e as unknown as Event).stopImmediatePropagation();
+      handleGroupNode();
+    }
+  }
+
+  function handleDuplicate(e: KeyboardEvent) {
+    if (isCanvasReadOnly) return;
+    e.preventDefault();
+    e.stopPropagation();
+    (e as unknown as Event).stopImmediatePropagation();
+    const selectedNode = nodes.filter((obj) => obj.selected);
+    if (selectedNode.length > 0) {
+      paste(
+        { nodes: selectedNode, edges: [] },
+        {
+          x: position.current.x,
+          y: position.current.y,
+        },
+      );
+    }
+  }
+
+  function handleCopy(e: KeyboardEvent) {
+    const multipleSelection = lastSelection?.nodes
+      ? lastSelection?.nodes.length > 0
+      : false;
+    const hasTextSelection =
+      (window.getSelection()?.toString().length ?? 0) > 0;
+
+    if (
+      !isWrappedWithClass(e, "noflow") &&
+      !hasTextSelection &&
+      (isWrappedWithClass(e, "react-flow__node") || multipleSelection)
+    ) {
+      e.preventDefault();
+      (e as unknown as Event).stopImmediatePropagation();
+      if (lastSelection) {
+        setLastCopiedSelection(_.cloneDeep(lastSelection));
+      }
+    }
+  }
+
+  function handleCut(e: KeyboardEvent) {
+    if (isCanvasReadOnly) return;
+    if (!isWrappedWithClass(e, "noflow")) {
+      e.preventDefault();
+      (e as unknown as Event).stopImmediatePropagation();
+      if (window.getSelection()?.toString().length === 0 && lastSelection) {
+        setLastCopiedSelection(_.cloneDeep(lastSelection), true);
+      }
+    }
+  }
+
+  function handlePaste(e: KeyboardEvent) {
+    if (isCanvasReadOnly) return;
+    if (!isWrappedWithClass(e, "noflow")) {
+      e.preventDefault();
+      (e as unknown as Event).stopImmediatePropagation();
+      if (
+        window.getSelection()?.toString().length === 0 &&
+        lastCopiedSelection
+      ) {
+        takeSnapshot();
+        paste(lastCopiedSelection, {
+          x: position.current.x,
+          y: position.current.y,
+        });
+      }
+    }
+  }
+
+  function handleDelete(e: KeyboardEvent) {
+    if (isCanvasReadOnly) return;
+    if (!isWrappedWithClass(e, "nodelete") && lastSelection) {
+      e.preventDefault();
+      (e as unknown as Event).stopImmediatePropagation();
+      takeSnapshot();
+      if (lastSelection.edges?.length) {
+        track("Component Connection Deleted");
+      }
+      if (lastSelection.nodes?.length) {
+        lastSelection.nodes.forEach((n) => {
+          track("Component Deleted", { componentType: n.data.type });
+        });
+      }
+      deleteNode(lastSelection.nodes.map((node) => node.id));
+      deleteEdge(lastSelection.edges.map((edge) => edge.id));
+    }
+  }
+
+  function handleEscape(e: KeyboardEvent) {
+    if (e.key === "Escape") {
+      setRightClickedNodeId(null);
+    }
+  }
+
+  function handleDownload(e: KeyboardEvent) {
+    if (!isWrappedWithClass(e, "noflow")) {
+      e.preventDefault();
+      (e as unknown as Event).stopImmediatePropagation();
+      setOpenExportModal(true);
+    }
+  }
+
+  const undoAction = useShortcutsStore((state) => state.undo);
+  const redoAction = useShortcutsStore((state) => state.redo);
+  const redoAltAction = useShortcutsStore((state) => state.redoAlt);
+  const copyAction = useShortcutsStore((state) => state.copy);
+  const duplicate = useShortcutsStore((state) => state.duplicate);
+  const deleteAction = useShortcutsStore((state) => state.delete);
+  const groupAction = useShortcutsStore((state) => state.group);
+  const cutAction = useShortcutsStore((state) => state.cut);
+  const pasteAction = useShortcutsStore((state) => state.paste);
+  const downloadAction = useShortcutsStore((state) => state.download);
+  //@ts-ignore
+  useHotkeys(undoAction, handleUndo);
+  //@ts-ignore
+  useHotkeys(redoAction, handleRedo);
+  //@ts-ignore
+  useHotkeys(redoAltAction, handleRedo);
+  //@ts-ignore
+  useHotkeys(groupAction, handleGroup);
+  //@ts-ignore
+  useHotkeys(duplicate, handleDuplicate);
+  //@ts-ignore
+  useHotkeys(copyAction, handleCopy);
+  //@ts-ignore
+  useHotkeys(cutAction, handleCut);
+  //@ts-ignore
+  useHotkeys(pasteAction, handlePaste);
+  //@ts-ignore
+  useHotkeys(deleteAction, handleDelete);
+  //@ts-ignore
+  useHotkeys(downloadAction, handleDownload);
+  //@ts-ignore
+  useHotkeys("delete", handleDelete);
+  //@ts-ignore
+  useHotkeys("escape", handleEscape);
+
+  const onConnectMod = useCallback(
+    (params: Connection) => {
+      if (isCanvasReadOnly) return;
+      takeSnapshot();
+      onConnect(params);
+      track("New Component Connection Added");
+    },
+    [isCanvasReadOnly, takeSnapshot, onConnect],
+  );
+
+  const [helperLines, setHelperLines] = useState<HelperLinesState>({});
+  const [isDragging, setIsDragging] = useState(false);
+  const helperLineEnabled = useFlowStore((state) => state.helperLineEnabled);
+
+  const onNodeDrag: OnNodeDrag = useCallback(
+    (_, node) => {
+      if (helperLineEnabled) {
+        const currentHelperLines = getHelperLines(node, nodes);
+        setHelperLines(currentHelperLines);
+      }
+    },
+    [helperLineEnabled, nodes],
+  );
+
+  const onNodeDragStart: OnNodeDrag = useCallback(
+    (_, node) => {
+      if (isCanvasReadOnly) return;
+      // 👇 make dragging a node undoable
+      takeSnapshot();
+      setIsDragging(true);
+      // 👉 you can place your event handlers here
+    },
+    [isCanvasReadOnly, takeSnapshot],
+  );
+
+  const onNodeDragStop: OnNodeDrag = useCallback(
+    (_, node) => {
+      if (isCanvasReadOnly) return;
+      // 👇 make moving the canvas undoable
+      autoSaveFlow();
+      updateCurrentFlow({ nodes });
+      setPositionDictionary({});
+      setIsDragging(false);
+      setHelperLines({});
+    },
+    [
+      isCanvasReadOnly,
+      takeSnapshot,
+      autoSaveFlow,
+      nodes,
+      edges,
+      reactFlowInstance,
+      setPositionDictionary,
+    ],
+  );
+
+  const onNodesChangeReadOnlyAware = useCallback(
+    (changes: NodeChange<AllNodeType>[]) => {
+      if (isCanvasReadOnly) {
+        onNodesChange(
+          changes.filter(
+            (change) =>
+              change.type === "select" || change.type === "dimensions",
+          ),
+        );
+        return;
+      }
+
+      if (!helperLineEnabled) {
+        onNodesChange(changes);
+        return;
+      }
+
+      // Apply snapping to position changes during drag
+      const modifiedChanges = changes.map((change) => {
+        if (
+          change.type === "position" &&
+          "dragging" in change &&
+          "position" in change &&
+          "id" in change &&
+          isDragging
+        ) {
+          const nodeId = change.id as string;
+          const draggedNode = nodes.find((n) => n.id === nodeId);
+
+          if (draggedNode && change.position) {
+            const updatedNode = {
+              ...draggedNode,
+              position: change.position,
+            };
+
+            const snapPosition = getSnapPosition(updatedNode, nodes);
+
+            // Only snap if we're actively dragging
+            if (change.dragging) {
+              // Apply snap if there's a significant difference
+              if (
+                Math.abs(snapPosition.x - change.position.x) > 0.1 ||
+                Math.abs(snapPosition.y - change.position.y) > 0.1
+              ) {
+                return {
+                  ...change,
+                  position: snapPosition,
+                };
+              }
+            } else {
+              // This is the final position change when drag ends
+              // Force snap to ensure it stays where it should
+              return {
+                ...change,
+                position: snapPosition,
+              };
+            }
+          }
+        }
+        return change;
+      });
+
+      onNodesChange(modifiedChanges);
+    },
+    [isCanvasReadOnly, onNodesChange, nodes, isDragging, helperLineEnabled],
+  );
+
+  const onEdgesChangeReadOnlyAware = useCallback(
+    (changes: EdgeChange<EdgeType>[]) => {
+      onEdgesChange(
+        isCanvasReadOnly
+          ? changes.filter((change) => change.type === "select")
+          : changes,
+      );
+    },
+    [isCanvasReadOnly, onEdgesChange],
+  );
+
+  const onSelectionDragStart: SelectionDragHandler = useCallback(() => {
+    if (isCanvasReadOnly) return;
+    takeSnapshot();
+  }, [isCanvasReadOnly, takeSnapshot]);
+
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    if (event.dataTransfer.types.some((types) => isSupportedNodeTypes(types))) {
+      event.dataTransfer.dropEffect = "move";
+    } else {
+      event.dataTransfer.dropEffect = "copy";
+    }
+  }, []);
+
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+      if (isCanvasReadOnly) return;
+      const grabbingElement =
+        document.getElementsByClassName("cursor-grabbing");
+      if (grabbingElement.length > 0) {
+        document.body.removeChild(grabbingElement[0]);
+      }
+      if (event.dataTransfer.types.some((type) => isSupportedNodeTypes(type))) {
+        takeSnapshot();
+
+        const datakey = event.dataTransfer.types.find((type) =>
+          isSupportedNodeTypes(type),
+        );
+
+        // Extract the data from the drag event and parse it as a JSON object
+        const data: { type: string; node?: APIClassType } = JSON.parse(
+          event.dataTransfer.getData(datakey!),
+        );
+
+        addComponent(data.node!, data.type, {
+          x: event.clientX,
+          y: event.clientY,
+        });
+      } else if (event.dataTransfer.types.some((types) => types === "Files")) {
+        takeSnapshot();
+        const position = {
+          x: event.clientX,
+          y: event.clientY,
+        };
+        uploadFlow({
+          files: Array.from(event.dataTransfer.files!),
+          position: position,
+        }).catch((error) => {
+          setErrorData({
+            title: t("errors.upload"),
+            list: [(error as Error).message],
+          });
+        });
+      } else {
+        setErrorData({
+          title: t("errors.wrongFileType"),
+          list: [t("errors.uploadJsonOnly")],
+        });
+      }
+    },
+    [isCanvasReadOnly, takeSnapshot, addComponent],
+  );
+
+  const onEdgeUpdateStart = useCallback(() => {
+    if (isCanvasReadOnly) return;
+    edgeUpdateSuccessful.current = false;
+  }, [isCanvasReadOnly]);
+
+  const onEdgeUpdate = useCallback(
+    (oldEdge: EdgeType, newConnection: Connection) => {
+      if (isCanvasReadOnly) return;
+      if (isValidConnection(newConnection, nodes, edges)) {
+        edgeUpdateSuccessful.current = true;
+        oldEdge.data = {
+          targetHandle: scapeJSONParse(newConnection.targetHandle!),
+          sourceHandle: scapeJSONParse(newConnection.sourceHandle!),
+        };
+        setEdges((els) => reconnectEdge(oldEdge, newConnection, els));
+      }
+    },
+    [isCanvasReadOnly, setEdges],
+  );
+
+  const onEdgeUpdateEnd = useCallback(
+    (_, edge: Edge): void => {
+      if (isCanvasReadOnly) return;
+      if (!edgeUpdateSuccessful.current) {
+        setEdges((eds) => eds.filter((edg) => edg.id !== edge.id));
+      }
+      edgeUpdateSuccessful.current = true;
+    },
+    [isCanvasReadOnly, setEdges],
+  );
+
+  const [selectionEnded, setSelectionEnded] = useState(true);
+
+  const onSelectionEnd = useCallback(() => {
+    setSelectionEnded(true);
+  }, []);
+  const onSelectionStart = useCallback((event: MouseEvent) => {
+    event.preventDefault();
+    setSelectionEnded(false);
+  }, []);
+
+  useCanvasDragSelectFix(reactFlowWrapper);
+
+  // Workaround to show the menu only after the selection has ended.
+  useEffect(() => {
+    if (selectionEnded && lastSelection && lastSelection.nodes.length > 1) {
+      setSelectionMenuVisible(true);
+    } else {
+      setSelectionMenuVisible(false);
+    }
+  }, [selectionEnded, lastSelection]);
+
+  const onSelectionChange = useCallback(
+    (flow: { nodes: AllNodeType[]; edges: EdgeType[] }): void => {
+      setLastSelection(flow);
+      if (flow.nodes && (flow.nodes.length === 0 || flow.nodes.length > 1)) {
+        setRightClickedNodeId(null);
+      }
+    },
+    [setRightClickedNodeId],
+  );
+
+  const onNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: AllNodeType) => {
+      event.preventDefault();
+      if (isCanvasReadOnly) return;
+
+      // Set the right-clicked node ID to show its dropdown menu
+      setRightClickedNodeId(node.id);
+
+      // Focus/select the right-clicked node (same as left-click behavior)
+      setNodes((currentNodes) => {
+        return currentNodes.map((n) => ({
+          ...n,
+          selected: n.id === node.id,
+        }));
+      });
+    },
+    [isCanvasReadOnly, setRightClickedNodeId, setNodes],
+  );
+
+  const onPaneClick = useCallback(() => {
+    setFilterEdge([]);
+    setFilterComponent("");
+    setRightClickedNodeId(null);
+  }, [setFilterEdge, setFilterComponent, setRightClickedNodeId]);
+
+  const handleEdgeClick = (event, edge) => {
+    if (effectiveLocked) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    const color =
+      nodeColorsName[edge?.data?.sourceHandle?.output_types[0]] || "cyan";
+
+    const accentColor = `hsl(var(--datatype-${color}))`;
+    reactFlowWrapper.current?.style.setProperty("--selected", accentColor);
+  };
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (effectiveLocked) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
+  // Listen for a global event to start the add-note flow from outside components.
+  // Immediately places the note above the toolbar so the user can drag it right away.
+  useEffect(() => {
+    const handleStartAddNote = () => {
+      if (isCanvasReadOnly) return;
+      const toolbar = document.querySelector(
+        "[data-testid='main_canvas_controls']",
+      );
+      const screenPos = computeNoteScreenPosition(
+        toolbar?.getBoundingClientRect(),
+      );
+      const notePosition = reactFlowInstance?.screenToFlowPosition(screenPos);
+
+      const data = {
+        node: {
+          description: "",
+          display_name: "",
+          documentation: "",
+          template: {},
+        },
+        type: "note",
+      };
+      const newId = getNodeId(data.type);
+
+      const newNode: NoteNodeType = {
+        id: newId,
+        type: "noteNode",
+        position: notePosition ?? { x: 0, y: 0 },
+        width: NOTE_NODE_MIN_WIDTH,
+        height: NOTE_NODE_MIN_HEIGHT,
+        selected: false,
+        data: { ...data, id: newId },
+      };
+
+      setNodes((nds) => nds.concat(newNode));
+      window.dispatchEvent(new Event("lf:end-add-note"));
+    };
+
+    window.addEventListener("lf:start-add-note", handleStartAddNote);
+    return () => {
+      window.removeEventListener("lf:start-add-note", handleStartAddNote);
+    };
+  }, [isCanvasReadOnly, reactFlowInstance, getNodeId, setNodes]);
+
+  const MIN_ZOOM = 0.25;
+  const MAX_ZOOM = 2;
+  const fitViewOptions = {
+    minZoom: MIN_ZOOM,
+    maxZoom: MAX_ZOOM,
+  };
+
+  // Get inspection panel visibility from store
+  const inspectionPanelVisible = useFlowStore(
+    (state) => state.inspectionPanelVisible,
+  );
+
+  // Determine if a single generic node is selected
+  const hasSingleGenericNodeSelected =
+    lastSelection?.nodes?.length === 1 &&
+    lastSelection.nodes[0].type === "genericNode";
+
+  // Get the fresh node data from the store instead of using stale reference
+  const selectedNodeId = hasSingleGenericNodeSelected
+    ? lastSelection.nodes[0].id
+    : null;
+  const selectedNode = selectedNodeId
+    ? (nodes.find((n) => n.id === selectedNodeId) as AllNodeType)
+    : null;
+
+  // Determine if InspectionPanel should be visible
+  const _showInspectionPanel = inspectionPanelVisible && !!selectedNode;
+
+  // Handler to close the inspection panel by deselecting all nodes
+  const _handleCloseInspectionPanel = useCallback(() => {
+    setNodes((nds) =>
+      nds.map((node) => ({
+        ...node,
+        selected: false,
+      })),
+    );
+  }, [setNodes]);
+
+  useEffect(() => {
+    if (inspectionPanelVisible) {
+      setSelectionMenuVisible(false);
+    }
+  }, [inspectionPanelVisible]);
+
+  return (
+    <div className="h-full w-full bg-canvas" ref={reactFlowWrapper}>
+      {showCanvas ? (
+        <>
+          <div id="react-flow-id" className="h-full w-full bg-canvas relative">
+            {!view && !isWelcomeOpen && (
+              <>
+                <MemoizedCanvasControls
+                  selectedNode={selectedNode}
+                  isAgentWorking={isAgentWorking}
+                />
+                {!isPreviewActive && <FlowToolbar />}
+                {inspectionPanelVisible && (
+                  <InspectionPanel selectedNode={selectedNode} />
+                )}
+              </>
+            )}
+            {!view && !isWelcomeOpen && <MemoizedSidebarTrigger />}
+            {!isCanvasReadOnly && (
+              <SelectionMenu
+                lastSelection={lastSelection}
+                isVisible={selectionMenuVisible}
+                nodes={lastSelection?.nodes}
+                onClick={handleGroupNode}
+              />
+            )}
+            <CanvasReadOnlyProvider readOnly={isCanvasReadOnly}>
+              <ReactFlow<AllNodeType, EdgeType>
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChangeReadOnlyAware}
+                onEdgesChange={onEdgesChangeReadOnlyAware}
+                onConnect={isCanvasReadOnly ? undefined : onConnectMod}
+                disableKeyboardA11y={true}
+                nodesFocusable={!isCanvasReadOnly}
+                edgesFocusable={!isCanvasReadOnly}
+                nodesDraggable={!isCanvasReadOnly}
+                nodesConnectable={!isCanvasReadOnly}
+                elementsSelectable={!isCanvasReadOnly}
+                onInit={setReactFlowInstance}
+                nodeTypes={nodeTypes}
+                onReconnect={isCanvasReadOnly ? undefined : onEdgeUpdate}
+                onReconnectStart={
+                  isCanvasReadOnly ? undefined : onEdgeUpdateStart
+                }
+                onReconnectEnd={isCanvasReadOnly ? undefined : onEdgeUpdateEnd}
+                onNodeDrag={isCanvasReadOnly ? undefined : onNodeDrag}
+                onNodeDragStart={isCanvasReadOnly ? undefined : onNodeDragStart}
+                onSelectionDragStart={
+                  isCanvasReadOnly ? undefined : onSelectionDragStart
+                }
+                elevateEdgesOnSelect={false}
+                onSelectionEnd={isCanvasReadOnly ? undefined : onSelectionEnd}
+                onSelectionStart={
+                  isCanvasReadOnly ? undefined : onSelectionStart
+                }
+                connectionRadius={30}
+                edgeTypes={edgeTypes}
+                connectionLineComponent={ConnectionLineComponent}
+                onDragOver={isCanvasReadOnly ? undefined : onDragOver}
+                onNodeDragStop={isCanvasReadOnly ? undefined : onNodeDragStop}
+                onDrop={isCanvasReadOnly ? undefined : onDrop}
+                onSelectionChange={onSelectionChange}
+                deleteKeyCode={[]}
+                fitView={isEmptyFlow.current ? false : true}
+                fitViewOptions={fitViewOptions}
+                className="theme-attribution"
+                tabIndex={isCanvasReadOnly ? -1 : undefined}
+                minZoom={MIN_ZOOM}
+                maxZoom={MAX_ZOOM}
+                zoomOnScroll={!view}
+                zoomOnPinch={!view}
+                selectNodesOnDrag={false}
+                panOnDrag={!view}
+                panActivationKeyCode={""}
+                proOptions={{ hideAttribution: true }}
+                onPaneClick={onPaneClick}
+                onEdgeClick={handleEdgeClick}
+                onKeyDown={handleKeyDown}
+                onNodeContextMenu={
+                  isCanvasReadOnly ? undefined : onNodeContextMenu
+                }
+              >
+                {!isCanvasReadOnly && <UpdateAllComponents />}
+                <MemoizedBackground />
+                {helperLineEnabled && <HelperLines helperLines={helperLines} />}
+              </ReactFlow>
+            </CanvasReadOnlyProvider>
+            <FlowBuildingComponent />
+            {bannerVisible && (
+              <div
+                className={`pointer-events-none absolute inset-0 z-50 ${bannerExiting ? "agent-badge-exit" : "agent-badge-enter"}`}
+              >
+                <CanvasBadge>
+                  <ForwardedIconComponent
+                    name="Loader2"
+                    className="h-4 w-4 animate-spin"
+                  />
+                  <span
+                    key={bannerExiting ? "exit" : bannerText}
+                    className={
+                      bannerExiting ? "text-sm" : "agent-text-enter text-sm"
+                    }
+                  >
+                    {bannerText}
+                  </span>
+                </CanvasBadge>
+              </div>
+            )}
+            {!view && isPreviewActive && <VersionPreviewOverlay />}
+            {/* Welcome overlay surfaces on freshly-created empty flows —
+                its visibility is driven entirely by the
+                ``flowBuilderWelcomeStore`` which is primed by the
+                "New Flow" button on the home page. */}
+            {!view && <FlowBuilderWelcomeMount />}
+          </div>
+        </>
+      ) : (
+        <div className="flex h-full w-full items-center justify-center">
+          <CustomLoader remSize={20} />
+        </div>
+      )}
+      <ExportModal open={openExportModal} setOpen={setOpenExportModal} />
+    </div>
+  );
+}

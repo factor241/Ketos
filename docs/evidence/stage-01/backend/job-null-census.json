@@ -1,0 +1,29 @@
+{
+  "classification_contract": {
+    "ambiguous": "two or more distinct non-NULL candidate users from schema-backed relations",
+    "attributable": "exactly one distinct non-NULL candidate user from Flow, MemoryBase, KnowledgeBase, or IngestionRun relations",
+    "orphan": "no non-NULL candidate user from the reviewed schema-backed relations"
+  },
+  "counts": {
+    "all_jobs": 0,
+    "all_null_owner": 0,
+    "ambiguous": 0,
+    "attributable": 0,
+    "orphan": 0,
+    "owned": 0
+  },
+  "empty_grouping_reason": "The local snapshot contains no Job rows, so type/status/age groupings are empty.",
+  "production_representative": false,
+  "schema_version": 1,
+  "snapshot": {
+    "access_mode": "sqlite-mode-ro-query-only",
+    "aggregate_only": true,
+    "database_path_redacted_to_category": "current-user application-support Ketos SQLite database",
+    "quick_check": "ok",
+    "row_content_captured": false,
+    "size_bytes_at_observation": 10358784
+  },
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "status": "LOCAL_MECHANICAL_CENSUS_ONLY",
+  "unblock_for_deployment_census": "Provide a deployment-labelled read-only snapshot or read-only connection permitting aggregate SELECT on job, flow, memory_base, knowledge_base, and ingestion_run; retain only grouped counts."
+}

@@ -1,0 +1,75 @@
+import * as Form from "@radix-ui/react-form";
+import { useTranslation } from "react-i18next";
+import { useGetProfilePicturesQuery } from "@/controllers/API/queries/files";
+import type { Users } from "@/types/api";
+import type { inputHandlerEventType } from "@/types/components";
+import { Button } from "../../../../../../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "../../../../../../components/ui/card";
+import { gradients } from "../../../../../../utils/styleUtils";
+import ProfilePictureChooserComponent from "./components/profilePictureChooserComponent";
+
+type ProfilePictureFormComponentProps = {
+  profilePicture: string;
+  handleInput: (event: inputHandlerEventType) => void;
+  handlePatchProfilePicture: (gradient: string) => void;
+  userData: Users | null;
+};
+const ProfilePictureFormComponent = ({
+  profilePicture,
+  handleInput,
+  handlePatchProfilePicture,
+  userData,
+}: ProfilePictureFormComponentProps) => {
+  const { t } = useTranslation();
+  const { isLoading, data, isFetching } = useGetProfilePicturesQuery();
+
+  return (
+    <Form.Root
+      onSubmit={(event) => {
+        handlePatchProfilePicture(profilePicture);
+        event.preventDefault();
+      }}
+    >
+      <Card x-chunk="dashboard-04-chunk-1">
+        <CardHeader>
+          <CardTitle>{t("settings.profilePictureTitle")}</CardTitle>
+          <CardDescription>
+            {t("settings.profilePictureDescription")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="py-2">
+            <ProfilePictureChooserComponent
+              profilePictures={data}
+              loading={isLoading || isFetching}
+              value={
+                profilePicture == ""
+                  ? (userData?.profile_image ??
+                    gradients[
+                      parseInt(userData?.id ?? "", 30) % gradients.length
+                    ])
+                  : profilePicture
+              }
+              onChange={(value) => {
+                handleInput({ target: { name: "profilePicture", value } });
+              }}
+            />
+          </div>
+        </CardContent>
+        <CardFooter className="border-t px-6 py-4">
+          <Form.Submit asChild>
+            <Button type="submit">{t("settings.saveButton")}</Button>
+          </Form.Submit>
+        </CardFooter>
+      </Card>
+    </Form.Root>
+  );
+};
+export default ProfilePictureFormComponent;

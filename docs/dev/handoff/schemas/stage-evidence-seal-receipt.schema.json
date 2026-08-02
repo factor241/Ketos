@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ketos.test/handoff/stage-evidence-seal-receipt.schema.json",
+  "title": "Ketos generic APFS evidence seal receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "receipt_kind",
+    "stage",
+    "status",
+    "identity",
+    "paths",
+    "digests",
+    "filesystem",
+    "inventory",
+    "seal",
+    "negative_probes",
+    "creation",
+    "receipt_policy"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "receipt_kind": { "const": "stage-evidence-seal-receipt" },
+    "stage": { "type": "integer", "minimum": 1 },
+    "status": { "const": "PASS" },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tested_code_sha", "closure_tooling_sha"],
+      "properties": {
+        "tested_code_sha": { "$ref": "#/$defs/sha40" },
+        "closure_tooling_sha": { "$ref": "#/$defs/sha40" }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_bundle",
+        "final_bundle",
+        "frozen_product_worktree",
+        "frozen_schema",
+        "manifest",
+        "repo_after_full"
+      ],
+      "properties": {
+        "source_bundle": { "$ref": "#/$defs/absolutePath" },
+        "final_bundle": { "$ref": "#/$defs/absolutePath" },
+        "frozen_product_worktree": { "$ref": "#/$defs/absolutePath" },
+        "frozen_schema": { "$ref": "#/$defs/absolutePath" },
+        "manifest": { "const": "manifest.json" },
+        "repo_after_full": { "const": "repo-after-full.json" }
+      }
+    },
+    "digests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_manifest_sha256",
+        "frozen_schema_sha256",
+        "byte_inventory_root_sha256",
+        "xattr_inventory_root_sha256"
+      ],
+      "properties": {
+        "source_manifest_sha256": { "$ref": "#/$defs/sha256" },
+        "frozen_schema_sha256": { "$ref": "#/$defs/sha256" },
+        "byte_inventory_root_sha256": { "$ref": "#/$defs/sha256" },
+        "xattr_inventory_root_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "filesystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "volume_uuid", "device"],
+      "properties": {
+        "type": { "const": "apfs" },
+        "volume_uuid": {
+          "type": "string",
+          "pattern": "^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$"
+        },
+        "device": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "inventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_objects",
+        "manifest_payload_files",
+        "type_counts",
+        "source_destination_same_inode_count",
+        "hardlink_count"
+      ],
+      "properties": {
+        "total_objects": { "type": "integer", "minimum": 1 },
+        "manifest_payload_files": { "type": "integer", "minimum": 1 },
+        "type_counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["regular", "directory", "symlink", "special"],
+          "properties": {
+            "regular": { "type": "integer", "minimum": 0 },
+            "directory": { "type": "integer", "minimum": 1 },
+            "symlink": { "const": 0 },
+            "special": { "const": 0 }
+          }
+        },
+        "source_destination_same_inode_count": { "const": 0 },
+        "hardlink_count": { "const": 0 }
+      }
+    },
+    "seal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "read_only_mode_objects",
+        "immutable_flag_objects",
+        "recursive_verification_passed",
+        "byte_inventory_equal_after_probes"
+      ],
+      "properties": {
+        "read_only_mode_objects": { "type": "integer", "minimum": 1 },
+        "immutable_flag_objects": { "type": "integer", "minimum": 1 },
+        "recursive_verification_passed": { "const": true },
+        "byte_inventory_equal_after_probes": { "const": true }
+      }
+    },
+    "negative_probes": {
+      "type": "array",
+      "minItems": 8,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/probe" }
+    },
+    "creation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "started_at_utc",
+        "completed_at_utc",
+        "started_monotonic_ns",
+        "completed_monotonic_ns"
+      ],
+      "properties": {
+        "started_at_utc": { "type": "string", "format": "date-time", "pattern": "Z$" },
+        "completed_at_utc": { "type": "string", "format": "date-time", "pattern": "Z$" },
+        "started_monotonic_ns": { "type": "integer", "minimum": 0 },
+        "completed_monotonic_ns": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "receipt_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "publication",
+        "mode",
+        "immutable_flag",
+        "checksum_algorithm",
+        "self_protection_required"
+      ],
+      "properties": {
+        "publication": { "const": "atomic-no-replace-directory" },
+        "mode": { "const": "0400" },
+        "immutable_flag": { "const": "uchg" },
+        "checksum_algorithm": { "const": "sha256" },
+        "self_protection_required": { "const": true }
+      }
+    }
+  },
+  "$defs": {
+    "sha40": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "absolutePath": { "type": "string", "pattern": "^/[^\\u0000]*$" },
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "denied", "errno"],
+      "properties": {
+        "name": {
+          "enum": [
+            "create-child",
+            "overwrite",
+            "truncate",
+            "chmod",
+            "mtime",
+            "rename-file",
+            "unlink-file",
+            "rename-root"
+          ]
+        },
+        "denied": { "const": true },
+        "errno": { "enum": [1, 13] }
+      }
+    }
+  }
+}

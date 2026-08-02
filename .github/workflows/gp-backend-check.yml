@@ -1,0 +1,55 @@
+name: GP Backend Auto-update Strings
+
+on:
+  pull_request:
+    paths:
+      - "src/kfx/src/kfx/components/**"
+      - "src/kfx/src/kfx/io/**"
+      - "src/backend/base/ketos/initial_setup/starter_projects/**"
+      - "src/backend/base/ketos/utils/i18n.py"
+      - "scripts/gp/extract_backend_strings.py"
+      - "scripts/gp/bake_note_keys.py"
+      - "scripts/i18n/**"
+
+jobs:
+  verify-generated-locales:
+    if: |
+      github.actor != 'github-actions[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    name: Verify generated locales/en.json on PR
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout tested SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: "3.12"
+
+      - name: Bake i18n_key into template noteNodes
+        run: uv run python scripts/gp/bake_note_keys.py
+
+      - name: Install workspace (kfx + ketos-base)
+        run: uv sync --no-dev
+
+      - name: Generate en.json
+        run: uv run python scripts/gp/extract_backend_strings.py --report-json /tmp/backend-extraction-report.json
+
+      - name: Verify extraction and locale contracts
+        run: |
+          uv run python scripts/gp/extract_backend_strings.py --check --report-json /tmp/backend-extraction-report.json
+          uv run python scripts/i18n/check_backend_locales.py
+
+      - name: Verify generated files are committed
+        run: |
+          git diff --exit-code -- \
+            src/backend/base/ketos/initial_setup/starter_projects/ \
+            src/backend/base/ketos/locales/en.json

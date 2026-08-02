@@ -1,0 +1,49 @@
+name: ketos
+
+services:
+  ketos:
+    image: ${KETOS_IMAGE:-ketos/ketos:local}
+    pull_policy: never                # local image only; external pulls are fail-closed
+    restart: unless-stopped
+    ports:
+      - "7860:7860"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - KETOS_DATABASE_URL=postgresql://ketos:ketos@postgres:5432/ketos
+      - KETOS_SUPERUSER_PASSWORD=${KETOS_SUPERUSER_PASSWORD:?set KETOS_SUPERUSER_PASSWORD in .env}
+      # This variable defines where the logs, file storage, monitor data and secret keys are stored.
+      - KETOS_CONFIG_DIR=/app/ketos
+    volumes:
+      - ketos-data:/app/ketos
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7860/health_check')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    # Pinned to a specific Debian base (trixie) so the postgres:16 tag does not
+    # silently roll its OS underneath us — that roll causes a glibc collation
+    # version mismatch warning on existing volumes. Matches the ketos image
+    # base. See https://git.ketos.test/ketos/ketos/issues/9608
+    image: postgres:16-trixie
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ketos
+      POSTGRES_PASSWORD: ketos
+      POSTGRES_DB: ketos
+    ports:
+      - "5432:5432"
+    volumes:
+      - ketos-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  ketos-postgres:
+  ketos-data:

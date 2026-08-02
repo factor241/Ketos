@@ -1,0 +1,47 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/evidence-ruff-format.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stdout": {
+      "path": "artifacts/evidence-ruff-format.stdout.log",
+      "sha256": "e4b88b7c519a132ae4ae349fff90861b7f9ab4d5cd5ad0c6ea5d108a77b8b9bd"
+    }
+  },
+  "classification": "COMMAND_RESULT",
+  "command": {
+    "argv": [
+      "uv",
+      "run",
+      "ruff",
+      "format",
+      "--check",
+      "docs/evidence/stage-01/tools",
+      "docs/evidence/stage-01/tests"
+    ],
+    "display": "uv run ruff format --check docs/evidence/stage-01/tools docs/evidence/stage-01/tests"
+  },
+  "created_at_utc": "2026-07-18T13:46:37Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T13:46:37Z",
+  "execution_revision": "d02cc7e7847c92a67bcf5622d010828306cdf2cb",
+  "exit_code": 1,
+  "notes": "Ruff format check for Stage 01 owned Python files.",
+  "owner": "stage01-tooling",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {
+      "suite": "owned-evidence-format"
+    }
+  },
+  "record_id": "evidence-ruff-format",
+  "reviewer": "pending",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T13:46:36Z",
+  "task_id": "S01-T09",
+  "verdict": "FAIL"
+}

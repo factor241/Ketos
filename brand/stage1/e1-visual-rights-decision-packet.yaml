@@ -1,0 +1,31 @@
+schema_version: 1
+gate: E1
+status: BLOCKED
+exact_decision: null
+scope:
+  - approved_vector_artwork
+  - product_name_rights
+  - wordmark_rights
+  - trademark_clearance
+  - wordmark_font_license
+owner: null
+approver: null
+approved_at: null
+effective_sha: null
+evidence:
+  approved_vector_sha256: null
+  logo_rights_sha256: null
+  product_name_rights_sha256: null
+  wordmark_rights_sha256: null
+  trademark_clearance_sha256: null
+  wordmark_font_license_sha256: null
+blockers:
+  - APPROVED_VECTOR_HASH_MISSING
+  - LOGO_AND_NAME_RIGHTS_MISSING
+  - WORDMARK_RIGHTS_MISSING
+  - TRADEMARK_CLEARANCE_MISSING
+  - FONT_LICENSE_MISSING
+  - OWNER_AND_APPROVER_MISSING
+  - APPROVAL_TIMESTAMP_MISSING
+  - EFFECTIVE_SHA_MISSING
+release_effect: asset_consumers_must_not_switch

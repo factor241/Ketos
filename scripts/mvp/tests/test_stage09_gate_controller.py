@@ -1,0 +1,610 @@
+from __future__ import annotations
+
+# ruff: noqa: PLR2004, S101, S603, SLF001 - fixed local test fixtures and contract constants.
+import importlib.util
+import json
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import psutil
+import pytest
+
+ROOT = Path(__file__).resolve().parents[3]
+CONTROLLER = ROOT / "scripts/mvp/stage09_gate_controller.py"
+BACKEND_PACKAGE = ROOT / "scripts/mvp/run_stage09_backend_package.sh"
+FINALIZER = ROOT / "scripts/mvp/finalize_stage09_evidence.py"
+RUNBOOK = ROOT / "docs/dev/handoff/stage-09-restart-recovery-runbook.md"
+SCHEMA = ROOT / "docs/dev/handoff/schemas/stage-09-evidence.schema.json"
+SCOPE = ROOT / "scripts/mvp/check_stage09_scope.py"
+PLAYWRIGHT_CONFIG = ROOT / "src/frontend/playwright.mvp.config.ts"
+GIB = 1024**3
+
+
+def load_controller():
+    spec = importlib.util.spec_from_file_location("stage09_gate_controller", CONTROLLER)
+    assert spec
+    assert spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_scope():
+    spec = importlib.util.spec_from_file_location("check_stage09_scope", SCOPE)
+    assert spec
+    assert spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def init_repo(path: Path) -> tuple[Path, str]:
+    git = shutil.which("git")
+    assert git
+    path.mkdir()
+    subprocess.run([git, "init", "-q"], cwd=path, check=True)
+    subprocess.run([git, "config", "user.name", "Stage Nine"], cwd=path, check=True)
+    subprocess.run([git, "config", "user.email", "stage09@example.invalid"], cwd=path, check=True)
+    (path / "README.md").write_text("gate fixture\n", encoding="utf-8")
+    subprocess.run([git, "add", "README.md"], cwd=path, check=True)
+    subprocess.run([git, "commit", "-qm", "fixture"], cwd=path, check=True)
+    sha = subprocess.run(
+        [git, "rev-parse", "HEAD"], cwd=path, check=True, capture_output=True, text=True
+    ).stdout.strip()
+    return path, sha
+
+
+def paths(tmp_path: Path) -> dict[str, Path]:
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    return {
+        "result_path": evidence / "result.json",
+        "telemetry_path": evidence / "telemetry.jsonl",
+        "log_path": evidence / "command.log",
+    }
+
+
+def run_backend_package_until_first_target(
+    tmp_path: Path, service_env: dict[str, str]
+) -> tuple[subprocess.CompletedProcess[str], Path]:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir(parents=True)
+    probe = tmp_path / "service-env.txt"
+    fake_uv = fake_bin / "uv"
+    fake_uv.write_text(
+        "#!/bin/sh\n"
+        "printf '%s\\n%s\\n%s\\n%s\\n' \"$MVP_POSTGRES_URI\" \"$KETOS_TEST_DATABASE_URI\" "
+        '"$MVP_REDIS_URL" "$KETOS_TASK11_REDIS_URL" '
+        ' >"$S09_ENV_PROBE"\n'
+        "exit 17\n",
+        encoding="utf-8",
+    )
+    fake_uv.chmod(0o700)
+    env = os.environ.copy()
+    env.pop("MVP_POSTGRES_URI", None)
+    env.pop("KETOS_TEST_DATABASE_URI", None)
+    env.pop("MVP_REDIS_URL", None)
+    env.pop("KETOS_TASK11_REDIS_URL", None)
+    env.update(service_env)
+    env.update(
+        {
+            "PATH": f"{fake_bin}{os.pathsep}{env['PATH']}",
+            "S09_ENV_PROBE": str(probe),
+            "S09_RUN_DIR": str(tmp_path / "evidence"),
+        }
+    )
+    bash = shutil.which("bash")
+    assert bash
+    result = subprocess.run(
+        [bash, str(BACKEND_PACKAGE)],
+        cwd=ROOT,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    temp_match = re.search(
+        r"temp=(/private/tmp/ketos-stage09-backend-[^\s]+)", result.stdout + result.stderr
+    )
+    if temp_match:
+        target_root = Path(temp_match.group(1))
+        assert target_root.parent == Path("/private/tmp")
+        assert target_root.name.startswith("ketos-stage09-backend-")
+        assert not target_root.is_symlink()
+        shutil.rmtree(target_root)
+    return result, probe
+
+
+def test_policy_matches_stage09_memory_contract() -> None:
+    controller = load_controller()
+
+    policy = controller.Policy()
+
+    assert policy.idle_limit_bytes == int(14.5 * GIB)
+    assert policy.soft_limit_bytes == 15 * GIB
+    assert policy.predictive_limit_bytes == int(15.25 * GIB)
+    assert policy.hard_limit_bytes == int(15.5 * GIB)
+    assert policy.absolute_limit_bytes == 16 * GIB
+    assert policy.sample_interval_seconds == 0.25
+    assert 3 * policy.sample_interval_seconds <= policy.heartbeat_timeout_seconds
+
+
+def test_policy_rejects_equal_or_misordered_thresholds() -> None:
+    controller = load_controller()
+
+    with pytest.raises(ValueError, match="ordered"):
+        controller.Policy(
+            idle_limit_bytes=100,
+            soft_limit_bytes=100,
+            predictive_limit_bytes=120,
+            hard_limit_bytes=130,
+            absolute_limit_bytes=140,
+        )
+
+
+def test_success_waits_for_monitor_and_records_continuous_telemetry(tmp_path: Path) -> None:
+    controller = load_controller()
+    repo, sha = init_repo(tmp_path / "repo")
+    output = paths(tmp_path)
+
+    result = controller.run_gate(
+        cwd=repo,
+        expected_sha=sha,
+        command=[sys.executable, "-c", "print('green')"],
+        policy=controller.Policy(sample_interval_seconds=0.01, heartbeat_timeout_seconds=0.25),
+        _test_preflight_rss_bytes=1,
+        _test_monitor_rss_bytes=(1,),
+        **output,
+    )
+
+    assert result["classification"] == "PASS"
+    assert result["exit_code"] == 0
+    assert result["monitor_ready_before_release"] is True
+    assert result["telemetry_continuous"] is True
+    assert result["target_pgid"] == result["target_pid"]
+    assert result["cleanup"]["survivors"] == []
+    assert output["log_path"].read_text(encoding="utf-8") == "green\n"
+    samples = [json.loads(line) for line in output["telemetry_path"].read_text().splitlines()]
+    assert samples[0]["event"] == "MONITOR_START"
+    assert samples[-1]["event"] == "MONITOR_STOP"
+    heartbeats = [sample for sample in samples if sample["event"] == "HEARTBEAT"]
+    assert heartbeats
+    assert [item["sequence"] for item in heartbeats] == list(range(1, len(heartbeats) + 1))
+    assert result["heartbeat_count"] == len(heartbeats)
+    assert result["peak_system_rss_bytes"] == max(item["system_rss_bytes"] for item in heartbeats)
+
+
+def test_nonzero_exit_is_test_failure(tmp_path: Path) -> None:
+    controller = load_controller()
+    repo, sha = init_repo(tmp_path / "repo")
+
+    result = controller.run_gate(
+        cwd=repo,
+        expected_sha=sha,
+        command=[sys.executable, "-c", "raise SystemExit(7)"],
+        policy=controller.Policy(sample_interval_seconds=0.01, heartbeat_timeout_seconds=0.25),
+        _test_preflight_rss_bytes=1,
+        _test_monitor_rss_bytes=(1,),
+        **paths(tmp_path),
+    )
+
+    assert result["classification"] == "TEST_FAILURE"
+    assert result["exit_code"] == 7
+
+
+def test_monitor_loss_kills_only_owned_process_group(tmp_path: Path) -> None:
+    controller = load_controller()
+    repo, sha = init_repo(tmp_path / "repo")
+    unrelated = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        result = controller.run_gate(
+            cwd=repo,
+            expected_sha=sha,
+            command=[sys.executable, "-c", "import os,time; print(os.getpid(), flush=True); time.sleep(30)"],
+            policy=controller.Policy(sample_interval_seconds=0.01, heartbeat_timeout_seconds=0.08),
+            _test_preflight_rss_bytes=1,
+            _test_monitor_rss_bytes=(1,),
+            _test_monitor_exit_after_ready=True,
+            **paths(tmp_path),
+        )
+
+        assert result["target_pid"] is not None
+        target_pid = int(result["target_pid"])
+        deadline = time.monotonic() + 2
+        while psutil.pid_exists(target_pid) and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert result["classification"] == "MONITOR_LOST"
+        assert result["cleanup"]["attempted"] is True
+        assert result["cleanup"]["survivors"] == []
+        assert not psutil.pid_exists(target_pid)
+        assert unrelated.poll() is None
+    finally:
+        unrelated.send_signal(signal.SIGTERM)
+        unrelated.wait(timeout=5)
+
+
+def test_termination_falls_back_to_exact_pid_for_unexpected_pgid() -> None:
+    controller = load_controller()
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        assert os.getpgid(child.pid) != child.pid
+
+        cleanup = controller._terminate_target(child)
+
+        assert cleanup["attempted"] is True
+        assert cleanup["identity_error"] == "target_pgid_does_not_equal_target_pid"
+        assert cleanup["survivors"] == []
+        assert child.poll() is not None
+        assert os.getpgid(os.getpid()) == os.getpgrp()
+    finally:
+        if child.poll() is None:
+            child.terminate()
+            child.wait(timeout=5)
+
+
+def test_hard_guard_kills_owned_group_and_records_ram_guard_trip(tmp_path: Path) -> None:
+    controller = load_controller()
+    repo, sha = init_repo(tmp_path / "repo")
+    policy = controller.Policy(
+        idle_limit_bytes=100,
+        soft_limit_bytes=110,
+        predictive_limit_bytes=120,
+        hard_limit_bytes=130,
+        absolute_limit_bytes=140,
+        sample_interval_seconds=0.01,
+        heartbeat_timeout_seconds=0.25,
+    )
+
+    result = controller.run_gate(
+        cwd=repo,
+        expected_sha=sha,
+        command=[sys.executable, "-c", "import time; time.sleep(30)"],
+        policy=policy,
+        _test_preflight_rss_bytes=90,
+        _test_monitor_rss_bytes=(90, 115, 125, 131),
+        **paths(tmp_path),
+    )
+
+    assert result["classification"] == "RAM_GUARD_TRIP"
+    assert result["stop_reason"] == "hard_limit"
+    assert result["peak_system_rss_bytes"] == 131
+    assert result["cleanup"]["survivors"] == []
+    events = [json.loads(line)["event"] for line in (tmp_path / "evidence/telemetry.jsonl").read_text().splitlines()]
+    assert "SOFT_WARNING" in events
+    assert "PREDICTIVE_STOP" in events
+    assert "RAM_GUARD_TRIP" in events
+
+
+def test_monitor_ready_sample_must_pass_idle_admission(tmp_path: Path) -> None:
+    controller = load_controller()
+    repo, sha = init_repo(tmp_path / "repo")
+    policy = controller.Policy(
+        idle_limit_bytes=100,
+        soft_limit_bytes=110,
+        predictive_limit_bytes=120,
+        hard_limit_bytes=130,
+        absolute_limit_bytes=140,
+        sample_interval_seconds=0.01,
+        heartbeat_timeout_seconds=0.25,
+    )
+
+    result = controller.run_gate(
+        cwd=repo,
+        expected_sha=sha,
+        command=[sys.executable, "-c", "print('must not run')"],
+        policy=policy,
+        _test_preflight_rss_bytes=90,
+        _test_monitor_rss_bytes=(100,),
+        **paths(tmp_path),
+    )
+
+    assert result["classification"] == "INFRA_FAILURE"
+    assert result["stop_reason"] == "monitor_idle_admission_denied"
+    assert result["monitor_ready_before_release"] is False
+    assert (tmp_path / "evidence/command.log").read_bytes() == b""
+
+
+def test_stale_sha_and_idle_pressure_fail_before_target_release(tmp_path: Path) -> None:
+    controller = load_controller()
+    repo, sha = init_repo(tmp_path / "repo")
+    stale_output = paths(tmp_path)
+
+    stale = controller.run_gate(
+        cwd=repo,
+        expected_sha="0" * 40,
+        command=[sys.executable, "-c", "raise AssertionError('must not run')"],
+        **stale_output,
+    )
+
+    assert stale["classification"] == "STALE_SHA"
+    assert stale["target_pid"] is None
+    assert stale_output["log_path"].read_bytes() == b""
+
+    pressure_root = tmp_path / "pressure"
+    pressure_root.mkdir()
+    pressure_output = {
+        "result_path": pressure_root / "result.json",
+        "telemetry_path": pressure_root / "telemetry.jsonl",
+        "log_path": pressure_root / "command.log",
+    }
+    pressure = controller.run_gate(
+        cwd=repo,
+        expected_sha=sha,
+        command=[sys.executable, "-c", "raise AssertionError('must not run')"],
+        _test_preflight_rss_bytes=controller.Policy().idle_limit_bytes,
+        **pressure_output,
+    )
+
+    assert pressure["classification"] == "INFRA_FAILURE"
+    assert pressure["stop_reason"] == "idle_admission_denied"
+    assert pressure["target_pid"] is None
+
+
+def test_dirty_checkout_is_stale_before_target_release(tmp_path: Path) -> None:
+    controller = load_controller()
+    repo, sha = init_repo(tmp_path / "repo")
+    (repo / "README.md").write_text("dirty\n", encoding="utf-8")
+
+    result = controller.run_gate(
+        cwd=repo,
+        expected_sha=sha,
+        command=[sys.executable, "-c", "raise AssertionError('must not run')"],
+        **paths(tmp_path),
+    )
+
+    assert result["classification"] == "STALE_SHA"
+    assert result["target_pid"] is None
+
+
+def test_delected_only_requires_exact_pytest_summary(tmp_path: Path) -> None:
+    controller = load_controller()
+    repo, sha = init_repo(tmp_path / "repo")
+    output = paths(tmp_path)
+    exact = "================ 3 deselected, 1 warning in 0.12s ================\n"
+
+    result = controller.run_gate(
+        cwd=repo,
+        expected_sha=sha,
+        command=[sys.executable, "-c", f"import sys; print({exact!r}, end=''); raise SystemExit(5)"],
+        allow_deselected_only=True,
+        policy=controller.Policy(sample_interval_seconds=0.01, heartbeat_timeout_seconds=0.25),
+        _test_preflight_rss_bytes=1,
+        _test_monitor_rss_bytes=(1,),
+        **output,
+    )
+
+    assert result["classification"] == "DESELECTED_ONLY"
+
+
+def test_service_failure_uses_explicit_nonzero_class(tmp_path: Path) -> None:
+    controller = load_controller()
+    repo, sha = init_repo(tmp_path / "repo")
+
+    result = controller.run_gate(
+        cwd=repo,
+        expected_sha=sha,
+        command=[sys.executable, "-c", "raise SystemExit(9)"],
+        nonzero_classification="SERVICE_FAILURE",
+        policy=controller.Policy(sample_interval_seconds=0.01, heartbeat_timeout_seconds=0.25),
+        _test_preflight_rss_bytes=1,
+        _test_monitor_rss_bytes=(1,),
+        **paths(tmp_path),
+    )
+
+    assert result["classification"] == "SERVICE_FAILURE"
+    assert result["exit_code"] == 9
+
+
+def test_stage09_contract_requires_controller_evidence_and_owned_paths() -> None:
+    backend_package = BACKEND_PACKAGE.read_text(encoding="utf-8")
+    schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+    finalizer = FINALIZER.read_text(encoding="utf-8")
+    scope = SCOPE.read_text(encoding="utf-8")
+    runbook = RUNBOOK.read_text(encoding="utf-8")
+
+    assert "resource" in schema["required"]
+    resource = schema["properties"]["resource"]
+    assert resource["properties"]["telemetry_continuous"] == {"const": True}
+    assert resource["properties"]["observed_ge_16"] == {"const": False}
+    assert resource["properties"]["peak_system_rss_bytes"]["exclusiveMaximum"] == 16 * GIB
+    assert '"process/resource-summary.json"' in finalizer
+    assert '"scripts/mvp/stage09_gate_controller.py"' in scope
+    assert '"scripts/mvp/tests/test_stage09_gate_controller.py"' in scope
+    assert '"scripts/mvp/run_stage09_backend_package.sh"' in scope
+    assert '"src/backend/tests/unit/test_setup_superuser.py"' in scope
+    assert "stage09_gate_controller.py run" in runbook
+    assert '--lock-path "$S09_EVIDENCE_ROOT/.stage09-heavy-gate.lock"' in runbook
+    assert 'if [[ -z "${MVP_POSTGRES_URI:-}" ]]' in backend_package
+    assert 'KETOS_TEST_DATABASE_URI" != "$MVP_POSTGRES_URI"' in backend_package
+    assert 'export KETOS_TEST_DATABASE_URI="$MVP_POSTGRES_URI"' in backend_package
+    assert 'KETOS_TASK11_REDIS_URL" != "$MVP_REDIS_URL"' in backend_package
+    assert 'export KETOS_TASK11_REDIS_URL="$MVP_REDIS_URL"' in backend_package
+    assert "MVP_REDIS_URL must identify the verified Stage 09 Redis service on DB 15" in runbook
+    assert '".hypothesis/unicode_data"' in scope
+    assert "004-logger-regression" in runbook
+    assert "logger-regression.txt" in runbook
+    assert "logs/logger-regression.txt" in finalizer
+    assert "process/gates/004-logger-regression.json" in finalizer
+    assert "process/telemetry/004-logger-regression.jsonl" in finalizer
+    assert resource["properties"]["result_files"]["contains"] == {
+        "const": "process/gates/004-logger-regression.json"
+    }
+    backend_gate = runbook.split("run_s09_gate 008-backend-package", 1)[1].split(
+        "run_s09_gate 009-frontend-package", 1
+    )[0]
+    assert 'MVP_POSTGRES_URI="$MVP_POSTGRES_URI"' not in backend_gate
+    assert 'KETOS_TEST_DATABASE_URI="$KETOS_TEST_DATABASE_URI"' not in backend_gate
+    assert '"src/frontend/playwright.mvp.config.ts"' in scope
+    playwright_gate = runbook.split("run_s09_gate 010-playwright", 1)[1].split(
+        "run_s09_gate 011-workflow-compat", 1
+    )[0]
+    assert (
+        'KETOS_MVP_RUN_DIR="$S09_RUN_DIR/tmp/ketos-stage01-playwright-runtime"'
+        in playwright_gate
+    )
+
+
+def test_artifact_redirect_preserves_or_removes_hypothesis_cache(tmp_path: Path) -> None:
+    scope = load_scope()
+    repo, _ = init_repo(tmp_path / "repo")
+    run_dir = tmp_path / "evidence"
+    run_dir.mkdir()
+    scope.REPO_ROOT = repo
+    scope.REDIRECTED_ARTIFACT_DIRS = (".hypothesis/unicode_data",)
+    hypothesis = repo / ".hypothesis"
+    hypothesis.mkdir()
+    (hypothesis / ".gitignore").write_text("*\n", encoding="utf-8")
+    unicode_data = hypothesis / "unicode_data"
+    unicode_data.mkdir()
+    original = unicode_data / "original.bin"
+    original.write_bytes(b"preserve-exactly")
+
+    scope._prepare_artifact_redirects(run_dir)
+    assert unicode_data.is_symlink()
+    assert scope._git("status", "--porcelain=v1", "--untracked-files=all") == ""
+    (unicode_data / "generated.bin").write_bytes(b"discard-after-gate")
+    scope._restore_artifact_redirects(run_dir)
+
+    assert unicode_data.is_dir()
+    assert not unicode_data.is_symlink()
+    assert original.read_bytes() == b"preserve-exactly"
+    assert not (unicode_data / "generated.bin").exists()
+
+    shutil.rmtree(unicode_data)
+    scope._prepare_artifact_redirects(run_dir)
+    assert unicode_data.is_symlink()
+    assert scope._git("status", "--porcelain=v1", "--untracked-files=all") == ""
+    (unicode_data / "generated.bin").write_bytes(b"discard-after-gate")
+    scope._restore_artifact_redirects(run_dir)
+
+    assert not unicode_data.exists()
+    assert not unicode_data.is_symlink()
+
+
+def test_playwright_runtime_preserves_entry_symlink_for_externalized_dist() -> None:
+    config = PLAYWRIGHT_CONFIG.read_text(encoding="utf-8")
+
+    assert (
+        "npm run build && exec node --preserve-symlinks-main "
+        "--enable-source-maps dist/server.js"
+    ) in config
+
+
+def test_backend_package_service_environment_fails_closed_before_pytest(tmp_path: Path) -> None:
+    missing, missing_probe = run_backend_package_until_first_target(tmp_path / "missing", {})
+    assert missing.returncode == 2
+    assert "MVP_POSTGRES_URI is required" in missing.stderr
+    assert not missing_probe.exists()
+
+    conflict, conflict_probe = run_backend_package_until_first_target(
+        tmp_path / "conflict",
+        {
+            "MVP_POSTGRES_URI": "postgresql+psycopg://verified.invalid/postgres",
+            "KETOS_TEST_DATABASE_URI": "postgresql+psycopg://ambient.invalid/postgres",
+        },
+    )
+    assert conflict.returncode == 2
+    assert "KETOS_TEST_DATABASE_URI conflicts with MVP_POSTGRES_URI" in conflict.stderr
+    assert not conflict_probe.exists()
+
+    verified_uri = "postgresql+psycopg://verified.invalid/postgres"
+    redis_missing, redis_missing_probe = run_backend_package_until_first_target(
+        tmp_path / "redis-missing",
+        {"MVP_POSTGRES_URI": verified_uri, "KETOS_TEST_DATABASE_URI": verified_uri},
+    )
+    assert redis_missing.returncode == 2
+    assert "MVP_REDIS_URL is required" in redis_missing.stderr
+    assert not redis_missing_probe.exists()
+
+    verified_redis_url = "redis://127.0.0.1:56379/15"
+    redis_conflict, redis_conflict_probe = run_backend_package_until_first_target(
+        tmp_path / "redis-conflict",
+        {
+            "MVP_POSTGRES_URI": verified_uri,
+            "KETOS_TEST_DATABASE_URI": verified_uri,
+            "MVP_REDIS_URL": verified_redis_url,
+            "KETOS_TASK11_REDIS_URL": "redis://127.0.0.1:6379/15",
+        },
+    )
+    assert redis_conflict.returncode == 2
+    assert "KETOS_TASK11_REDIS_URL conflicts with MVP_REDIS_URL" in redis_conflict.stderr
+    assert not redis_conflict_probe.exists()
+
+    same, same_probe = run_backend_package_until_first_target(
+        tmp_path / "same",
+        {
+            "MVP_POSTGRES_URI": verified_uri,
+            "KETOS_TEST_DATABASE_URI": verified_uri,
+            "MVP_REDIS_URL": verified_redis_url,
+            "KETOS_TASK11_REDIS_URL": verified_redis_url,
+        },
+    )
+    assert same.returncode == 17
+    assert same_probe.read_text(encoding="utf-8").splitlines() == [
+        verified_uri,
+        verified_uri,
+        verified_redis_url,
+        verified_redis_url,
+    ]
+
+
+def test_summarize_requires_continuous_accepted_gate_evidence(tmp_path: Path) -> None:
+    controller = load_controller()
+    repo, sha = init_repo(tmp_path / "repo")
+    run_root = tmp_path / "run"
+    gates = run_root / "process/gates"
+    telemetry = run_root / "process/telemetry"
+    logs = run_root / "logs"
+    gates.mkdir(parents=True)
+    telemetry.mkdir(parents=True)
+    logs.mkdir()
+    result = controller.run_gate(
+        cwd=repo,
+        expected_sha=sha,
+        command=[sys.executable, "-c", "print('summary')"],
+        result_path=gates / "001-green.json",
+        telemetry_path=telemetry / "001-green.jsonl",
+        log_path=logs / "green.txt",
+        policy=controller.Policy(sample_interval_seconds=0.01, heartbeat_timeout_seconds=0.25),
+        _test_preflight_rss_bytes=1,
+        _test_monitor_rss_bytes=(1,),
+    )
+    assert result["accepted"] is True
+
+    summary = controller.summarize_results(
+        results_dir=gates,
+        telemetry_dir=telemetry,
+        output=run_root / "process/resource-summary.json",
+    )
+
+    assert summary["telemetry_continuous"] is True
+    assert summary["monitor_losses"] == 0
+    assert summary["ram_guard_trips"] == 0
+    assert summary["result_files"] == ["process/gates/001-green.json"]
+    assert summary["peak_system_rss_bytes"] == 1
+
+    bad_run = tmp_path / "bad-run"
+    bad_gates = bad_run / "process/gates"
+    bad_telemetry = bad_run / "process/telemetry"
+    bad_gates.mkdir(parents=True)
+    bad_telemetry.mkdir(parents=True)
+    shutil.copy2(gates / "001-green.json", bad_gates / "001-green.json")
+    lines = (telemetry / "001-green.jsonl").read_text(encoding="utf-8").splitlines()
+    (bad_telemetry / "001-green.jsonl").write_text(
+        "\n".join(line for line in lines if json.loads(line)["event"] != "MONITOR_STOP") + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="continuous"):
+        controller.summarize_results(
+            results_dir=bad_gates,
+            telemetry_dir=bad_telemetry,
+            output=bad_run / "process/resource-summary.json",
+        )

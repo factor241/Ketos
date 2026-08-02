@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ketos.test/evidence/stage-08/test-evidence.schema.json",
+  "title": "Ketos Stage 08 test node evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "stage", "frozenSha", "runId", "nodeId", "suite", "command", "startedAt", "endedAt", "exitCode", "status", "counts", "logPath", "logSha256", "artifacts"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "stage": {"const": "08"},
+    "frozenSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "runId": {"type": "string", "minLength": 1},
+    "nodeId": {"type": "string", "minLength": 1},
+    "suite": {"type": "string", "minLength": 1},
+    "command": {"type": "string", "minLength": 1},
+    "startedAt": {"type": "string", "format": "date-time"},
+    "endedAt": {"type": "string", "format": "date-time"},
+    "exitCode": {"type": "integer"},
+    "status": {"enum": ["PASS", "FAIL", "BLOCKED"]},
+    "counts": {"$ref": "#/$defs/counts"},
+    "logPath": {"type": "string", "minLength": 1},
+    "logSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "artifacts": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "failed", "errors", "skipped", "deselected"],
+      "properties": {
+        "passed": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0},
+        "errors": {"type": "integer", "minimum": 0},
+        "skipped": {"type": "integer", "minimum": 0},
+        "deselected": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

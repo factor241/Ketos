@@ -1,0 +1,97 @@
+#!/usr/bin/env python
+
+import re
+import sys
+from pathlib import Path
+
+import packaging.version
+
+BASE_DIR = Path(__file__).parent.parent.parent
+ARGUMENT_NUMBER = 3
+
+
+def update_base_dep(pyproject_path: str, new_version: str) -> None:
+    """Update the ketos-base dependency in pyproject.toml."""
+    filepath = BASE_DIR / pyproject_path
+    content = filepath.read_text(encoding="utf-8")
+
+    # Updated pattern to handle PEP 440 version suffixes, extras (e.g., [complete]),
+    # ~=, ==, and >= version specifiers, and both ketos-base and ketos-base-nightly names
+    # Captures extras in group 2 to preserve them in the replacement
+    pattern = re.compile(r'("ketos-base(?:-nightly)?((?:\[[^\]]+\])?)(?:~=|==|>=)[\d.]+(?:\.(?:post|dev|a|b|rc)\d+)*")')
+
+    # Check if the pattern is found
+    match = pattern.search(content)
+    if not match:
+        msg = f'ketos-base dependency not found in "{filepath}"'
+        raise ValueError(msg)
+
+    # Extract extras if present (e.g., "[complete]")
+    extras = match.group(2) if match.group(2) else ""
+    # Keep the canonical `ketos-base` name; the exact `==<dev>` pin enables pre-release
+    # resolution down the tree and keeps base in lockstep with the run.
+    replacement = f'"ketos-base{extras}=={new_version}"'
+
+    # Replace the matched pattern with the new one
+    content = pattern.sub(replacement, content)
+    filepath.write_text(content, encoding="utf-8")
+
+
+def update_kfx_dep_in_base(pyproject_path: str, kfx_version: str) -> None:
+    """Update the KFX dependency in ketos-base pyproject.toml to use nightly version."""
+    filepath = BASE_DIR / pyproject_path
+    content = filepath.read_text(encoding="utf-8")
+
+    # Updated pattern to handle PEP 440 version suffixes, both ~= and == version specifiers,
+    # both kfx and kfx-nightly names, extras (e.g. kfx[cassandra], kfx[toolguard]), and
+    # trailing markers (e.g. `; python_version < '3.14'`).
+    # The extras group (1) MUST be preserved: base's `[complete]` extra pulls these
+    # `kfx[extra]` references, and if they keep a `~=X.Y.0` floor while base's bare `kfx`
+    # dep is pinned to `==X.Y.0.devN`, the floor (>=X.Y.0) excludes the dev release and
+    # the nightly resolve becomes unsatisfiable.
+    version_pattern = r"[0-9]+(?:\.[0-9]+)*(?:\.(?:post|dev|a|b|rc)\d+)*"
+    pattern = re.compile(rf'"kfx(?:-nightly)?((?:\[[^\]]+\])?)(?:~=|==){version_pattern}([^"]*)"')
+    # Pin base's kfx dep to the exact canonical dev version (single `kfx` distribution, no
+    # `kfx-nightly`), so there is no `kfx` vs `kfx-nightly` install collision with the bundles.
+
+    # Check if the pattern is found
+    if not pattern.search(content):
+        msg = f'KFX dependency not found in "{filepath}"'
+        raise ValueError(msg)
+
+    # Replace each match, preserving its own extras and environment marker.
+    content = pattern.sub(lambda m: f'"kfx{m.group(1)}=={kfx_version}{m.group(2)}"', content)
+    filepath.write_text(content, encoding="utf-8")
+
+
+def verify_pep440(version):
+    """Verify if version is PEP440 compliant.
+
+    https://github.com/pypa/packaging/blob/16.7/packaging/version.py#L191
+    """
+    return packaging.version.Version(version)
+
+
+def main() -> None:
+    if len(sys.argv) != ARGUMENT_NUMBER:
+        msg = "Usage: update_ketos_base_dependency.py <base_version> <kfx_version>"
+        raise ValueError(msg)
+    base_version = sys.argv[1]
+    kfx_version = sys.argv[2]
+
+    # Strip "v" prefix from versions if present
+    base_version = base_version.removeprefix("v")
+    kfx_version = kfx_version.removeprefix("v")
+
+    verify_pep440(base_version)
+    verify_pep440(kfx_version)
+
+    # Update ketos-base dependency in main project
+    update_base_dep("pyproject.toml", base_version)
+
+    # Update KFX dependency in ketos-base
+    update_kfx_dep_in_base("src/backend/base/pyproject.toml", kfx_version)
+
+
+if __name__ == "__main__":
+    main()

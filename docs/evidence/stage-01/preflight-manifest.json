@@ -1,0 +1,85 @@
+{
+  "task_id": "S01-T01",
+  "approved_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "integration": {
+    "path": "/Volumes/Projects/ketos-stage01-integration",
+    "branch": "codex/stage01-baseline-evidence",
+    "admission_head": "80878261d07c21ad257de017d98069f211ada2c2",
+    "evidence_execution_revision": "4df0e1dc55382734e51d7921c43c9aeb32bca999",
+    "upstream": null,
+    "admission_status": "clean before this task created its owned evidence bundle",
+    "current_scope_status": "only docs/evidence/stage-01/** differs from the approved SHA",
+    "branch_record": "records/integration-branch.json",
+    "sha_record": "records/integration-head-sha.json",
+    "scope_check_record": "records/integration-clean-outside-owned-scope.json"
+  },
+  "approved_baseline": {
+    "branch": "redesign/sidebar-account",
+    "sha": "80878261d07c21ad257de017d98069f211ada2c2",
+    "upstream": "origin/redesign/sidebar-account",
+    "ahead": 0,
+    "behind": 0,
+    "origin_url": "git@github.com:ustyuzhaninkirillwhite-ui/Ketas-Canvas-Mod-Main.git",
+    "decision": "APPROVED_FOR_STAGE_01"
+  },
+  "root_dirty_paths": [
+    {"path": "KETOS_CODEX_AUDIT_VERIFICATION_CLAUDE.md", "owner": "user", "disposition": "exclude; modified tracked file"},
+    {"path": ".playwright-mcp/", "owner": "user", "disposition": "exclude; untracked directory"},
+    {"path": "08_KETOS_AUDIT_CRITIQUE_ASSESSMENT.md", "owner": "user", "disposition": "exclude; untracked"},
+    {"path": "09_KETOS_MASTER_IMPLEMENTATION_PLAN.md", "owner": "user", "disposition": "exclude; untracked"},
+    {"path": "10_KETOS_MASTER_PLAN_AUDIT_REPORT.md", "owner": "user", "disposition": "exclude; untracked"},
+    {"path": "11_KETOS_REVISED_MASTER_IMPLEMENTATION_PLAN.md", "owner": "user", "disposition": "exclude; untracked"},
+    {"path": "12_KETOS_MASTER_PLAN_VERIFICATION_REPORT.md", "owner": "user", "disposition": "exclude; untracked"},
+    {"path": "13_KETOS_VERIFICATION_REPORT_ASSESSMENT.md", "owner": "user", "disposition": "exclude; untracked"},
+    {"path": "14_KETOS_FINAL_MASTER_IMPLEMENTATION_PLAN.md", "owner": "user", "disposition": "exclude; untracked"},
+    {"path": "15_KETOS_STAGE_01_BASELINE_EVIDENCE.md", "owner": "user", "disposition": "exclude; untracked"},
+    {"path": "16_KETOS_STAGE_02_SECURITY_CONTAINMENT.md", "owner": "user", "disposition": "exclude; untracked"},
+    {"path": "17_KETOS_STAGE_03_RISK_EXPERIMENTS.md", "owner": "user", "disposition": "exclude; untracked"},
+    {"path": "18_KETOS_STAGE_04_CONTRACT_ADR_FREEZE.md", "owner": "user", "disposition": "exclude; untracked"},
+    {"path": "19_KETOS_STAGE_05_BACKWARD_COMPATIBLE_FOUNDATIONS.md", "owner": "user", "disposition": "exclude; untracked"},
+    {"path": "20_KETOS_STAGE_06_DUAL_WRITE_MIGRATION_CUTOVER.md", "owner": "user", "disposition": "exclude; untracked"},
+    {"path": "21_KETOS_STAGE_07_BOARD_CHAT_PROJECT.md", "owner": "user", "disposition": "exclude; untracked"},
+    {"path": "22_KETOS_STAGE_08_EDITOR_EXECUTION_AI.md", "owner": "user", "disposition": "exclude; untracked"},
+    {"path": "23_KETOS_STAGE_09_ADAPTERS_RESTORE_HARDENING.md", "owner": "user", "disposition": "exclude; untracked"},
+    {"path": "24_KETOS_STAGE_10_ROLLOUT_OBSERVATION_COMPLETION.md", "owner": "user", "disposition": "exclude; untracked"},
+    {"path": "25_KETOS_UNIVERSAL_STAGE_EXECUTION_PROMPT.md", "owner": "user", "disposition": "exclude; untracked"}
+  ],
+  "root_dirty_status_record": "records/root-dirty-status.json",
+  "graphify": {
+    "approved_snapshot": {
+      "built_at_commit": "572fad8ea2223e342508ecf095133091c7714e1b",
+      "nodes": 65618,
+      "edges": 0,
+      "classification": "STALE_INCOMPLETE"
+    },
+    "fresh_check_record": "records/graphify-metadata.json",
+    "fresh_check_result": "graphify-out/graph.json is absent from this approved integration checkout; it was not rebuilt",
+    "decision": "Do not use the historical snapshot as current topology evidence."
+  },
+  "resource_measurements": {
+    "approved_historical_values_gib": [13.744, 13.907, 12.961],
+    "historical_timestamps": "not supplied in the approved baseline; values are preserved without invented timestamps",
+    "disk_usage_remeasurement": {
+      "captured_at_utc": "2026-07-18T12:30:12Z",
+      "command": "du -sk /Volumes/Projects/ketos-stage01-integration",
+      "kib": 3415332,
+      "gib": 3.2571144104003906
+    }
+  },
+  "rss_measurement": {
+    "record": "records/current-rss.json",
+    "captured_at_utc": "2026-07-18T12:49:44Z",
+    "command": "ps -axo rss= | awk '{sum += $1} END {printf \"%.0f KiB\\n\", sum}'",
+    "aggregate_rss_kib": 14123632
+  },
+  "post_fix_root_dirty_preservation_record": "records/post-fix-root-dirty-preservation.json",
+  "evidence_revision_contract": {
+    "source_baseline_field": "source_baseline_sha",
+    "execution_revision_field": "execution_revision",
+    "delivery_pointer": "DELIVERY_REVISION.md",
+    "payload_commit": "0167b047baf496cc29ce2e6d650b17fa03ef1ba7",
+    "attestation_record": "records/delivery-attestation.json",
+    "rule": "The delivery pointer is attested after the payload commit; it never claims a commit contains its own SHA."
+  },
+  "no_previous_stage_admission": "Предыдущих этапов нет"
+}

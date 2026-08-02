@@ -1,0 +1,45 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/integration-clean-outside-owned-scope.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stdout": {
+      "path": "artifacts/integration-clean-outside-owned-scope.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "classification": "COMMAND_RESULT",
+  "command": {
+    "argv": [
+      "git",
+      "diff",
+      "--quiet",
+      "80878261d07c21ad257de017d98069f211ada2c2",
+      "--",
+      ".",
+      ":(exclude)docs/evidence/stage-01/**"
+    ],
+    "display": "git diff --quiet 80878261d07c21ad257de017d98069f211ada2c2 -- . :(exclude)docs/evidence/stage-01/**"
+  },
+  "created_at_utc": "2026-07-18T12:49:45Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T12:49:45Z",
+  "execution_revision": "4df0e1dc55382734e51d7921c43c9aeb32bca999",
+  "exit_code": 0,
+  "notes": "Clean integration proof excluding the evidence bundle being created by this task.",
+  "owner": "stage-01",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {}
+  },
+  "record_id": "integration-clean-outside-owned-scope",
+  "reviewer": "pending",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T12:49:45Z",
+  "task_id": "S01-T01",
+  "verdict": "PASS"
+}

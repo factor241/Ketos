@@ -1,0 +1,43 @@
+name: Deploy Storybook to GitHub Pages
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy Storybook
+    if: ${{ vars.KETOS_EXTERNAL_RELEASE_ENABLED == 'true' && github.event_name == 'workflow_dispatch' && github.ref_type == 'tag' && vars.KETOS_RELEASE_COMMIT == github.sha && vars.KETOS_EXTERNAL_RELEASE == format('publish:{0}', github.sha) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd src/frontend && npm ci
+
+      - name: Build Storybook
+        run: cd src/frontend && npm run build-storybook
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: src/frontend/storybook-static
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

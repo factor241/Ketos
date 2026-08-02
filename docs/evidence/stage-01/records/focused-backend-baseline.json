@@ -1,0 +1,43 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/focused-backend-baseline.stderr.log",
+      "sha256": "e9186c3f33723b2448b19c4d8c99423e719230067a8cdf19436eeb1ca283be88"
+    },
+    "stdout": {
+      "path": "artifacts/focused-backend-baseline.stdout.log",
+      "sha256": "5dc122eddb2e143c35482c7829ae87cf5a6ad80c1f11baeddaf385cc186f698b"
+    }
+  },
+  "classification": "COMMAND_RESULT",
+  "command": {
+    "argv": [
+      "uv",
+      "run",
+      "pytest",
+      "src/backend/tests/unit/test_messages.py::test_get_messages",
+      "-q"
+    ],
+    "display": "uv run pytest src/backend/tests/unit/test_messages.py::test_get_messages -q"
+  },
+  "created_at_utc": "2026-07-18T12:50:04Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T12:50:04Z",
+  "execution_revision": "4df0e1dc55382734e51d7921c43c9aeb32bca999",
+  "exit_code": 0,
+  "notes": "Required focused baseline test; the broad interrupted test is documented separately and not rerun.",
+  "owner": "stage-01",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {}
+  },
+  "record_id": "focused-backend-baseline",
+  "reviewer": "pending",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T12:49:50Z",
+  "task_id": "S01-T04",
+  "verdict": "PASS"
+}

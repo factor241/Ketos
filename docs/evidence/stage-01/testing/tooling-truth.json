@@ -1,0 +1,43 @@
+{
+  "coverage_configuration": {
+    "backend_root_config_branch_enabled": false,
+    "frontend_jest_provider": "v8",
+    "frontend_threshold_configured": false,
+    "kfx_branch_enabled": true,
+    "project_fail_under_configured": false
+  },
+  "known_command_defects": [
+    {
+      "command": "make coverage",
+      "effect": "runs coverage run and then immediately coverage erase; it does not emit a retained numeric report",
+      "source": "Makefile:144-146"
+    },
+    {
+      "command": "make test_frontend / make tests_frontend",
+      "effect": "named by AGENTS but no matching executable target exists in the current Makefile",
+      "source": "Makefile target census at approved SHA"
+    }
+  ],
+  "make_lint": {
+    "depends_on": [
+      "install_backend"
+    ],
+    "message": "No type checker configured. See PR #12448 for context.",
+    "runs_type_or_lint_checker": false,
+    "source": "Makefile:78-80,231-232"
+  },
+  "schema_version": 1,
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "supported_direct_commands": [
+    "uv run ruff check <owned paths>",
+    "uv run ruff format --check <owned paths>",
+    "uv run pytest <focused-or-package-path> -q",
+    "cd src/frontend && npm test -- --runInBand",
+    "cd src/frontend && npm run test:coverage -- --runInBand",
+    "cd src/frontend && npm run lint",
+    "cd src/frontend && npm run type-check:production",
+    "cd src/frontend && npm run build",
+    "cd src/kfx && uv run pytest tests",
+    "uv run pytest src/compat/lfx/tests/test_lfx_compatibility.py -q"
+  ]
+}

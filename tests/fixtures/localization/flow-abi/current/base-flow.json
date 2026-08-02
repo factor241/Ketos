@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "case_id": "base-flow",
+  "source_format_version": "current",
+  "topology": "text-regex-output",
+  "traits": ["base"],
+  "stable_ids": {
+    "nodes": ["base-input", "base-regex", "base-output"],
+    "edges": ["edge:base-input:text:base-regex:input_text", "edge:base-regex:text:base-output:input_value"]
+  },
+  "expected_component_types": ["TextInput", "RegexExtractorComponent", "TextOutput"],
+  "input": "Contact base@example.com",
+  "expected_runtime": { "result_name": "text", "text": "base@example.com" }
+}

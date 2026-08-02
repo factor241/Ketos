@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ketos.test/evidence/stage-08/manifest.schema.json",
+  "title": "Ketos Stage 08 evidence manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "stage", "frozenSha", "baseSha", "runId", "createdAt", "sealedAt", "status", "nodes", "files", "reportPath", "sealPath"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "stage": {"const": "08"},
+    "frozenSha": {"$ref": "#/$defs/gitSha"},
+    "baseSha": {"$ref": "#/$defs/gitSha"},
+    "runId": {"type": "string", "pattern": "^[0-9]{8}T[0-9]{6}Z-[0-9]+$"},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "sealedAt": {"type": "string", "format": "date-time"},
+    "status": {"$ref": "#/$defs/status"},
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/node"}
+    },
+    "files": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/file"}
+    },
+    "reportPath": {"type": "string", "minLength": 1},
+    "sealPath": {"const": "SEAL.json"}
+  },
+  "$defs": {
+    "gitSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "status": {"enum": ["PASS", "FAIL", "BLOCKED"]},
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "status", "startedAt", "endedAt", "command", "exitCode", "logPath", "logSha256", "artifactPaths", "reason"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+        "name": {"type": "string", "minLength": 1},
+        "status": {"$ref": "#/$defs/status"},
+        "startedAt": {"type": "string", "format": "date-time"},
+        "endedAt": {"type": "string", "format": "date-time"},
+        "command": {"type": "string", "minLength": 1},
+        "exitCode": {"type": ["integer", "null"]},
+        "logPath": {"type": "string", "minLength": 1},
+        "logSha256": {"$ref": "#/$defs/sha256"},
+        "artifactPaths": {"type": "array", "items": {"type": "string"}},
+        "reason": {"type": ["string", "null"]}
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "bytes", "sha256", "mediaType"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "bytes": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "mediaType": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

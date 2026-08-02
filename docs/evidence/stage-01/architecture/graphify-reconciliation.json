@@ -1,0 +1,14 @@
+{
+  "classification": "STALE_NAVIGATION_ONLY",
+  "graph_built_at_commit": "572fad8ea2223e342508ecf095133091c7714e1b",
+  "links": 131157,
+  "missing_link_endpoints": 0,
+  "nodes": 65618,
+  "query_role": "navigation and candidate discovery only",
+  "rebuild_performed": false,
+  "rebuild_reason": "Stage 01 is product-source read-only and AGENTS forbids a Graphify rebuild as a RaytSystem side effect; direct source resolved every material path.",
+  "schema_version": 1,
+  "self_loops": 17,
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "source_is_authoritative": true
+}

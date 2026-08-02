@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ketos.test/handoff/stage-09-evidence.schema.json",
+  "title": "Ketos Stage 09 restart recovery evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "stage",
+    "status",
+    "transition",
+    "base_sha",
+    "code_sha",
+    "run_id",
+    "bundle_id",
+    "tasks",
+    "commands",
+    "process",
+    "storage",
+    "persistent_ids",
+    "row_counts",
+    "resource",
+    "browser",
+    "scope"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "stage": { "const": 9 },
+    "status": { "enum": ["pass", "fail", "blocked"] },
+    "transition": { "enum": ["go", "no-go"] },
+    "base_sha": { "$ref": "#/$defs/sha" },
+    "code_sha": { "$ref": "#/$defs/sha" },
+    "run_id": { "type": "string", "pattern": "^[0-9]{8}T[0-9]{6}Z-[0-9]+$" },
+    "bundle_id": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "tasks": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": { "$ref": "#/$defs/task" }
+    },
+    "commands": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/command" }
+    },
+    "process": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pid_1", "pid_2", "pid_changed", "listener_pid_1_closed"],
+      "properties": {
+        "pid_1": { "type": "integer", "minimum": 1 },
+        "pid_2": { "type": "integer", "minimum": 1 },
+        "pid_changed": { "const": true },
+        "listener_pid_1_closed": { "const": true }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["database_path", "checkpoint_path", "same_paths", "before_hashes", "after_hashes"],
+      "properties": {
+        "database_path": { "const": "data/ketos.db" },
+        "checkpoint_path": { "const": "data/mvp/langgraph-checkpoints.sqlite3" },
+        "same_paths": { "const": true },
+        "before_hashes": { "$ref": "#/$defs/hashMap" },
+        "after_hashes": { "$ref": "#/$defs/hashMap" }
+      }
+    },
+    "persistent_ids": {
+      "type": "object",
+      "minProperties": 8,
+      "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 256 }
+    },
+    "row_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before", "after", "same"],
+      "properties": {
+        "before": { "$ref": "#/$defs/countMap" },
+        "after": { "$ref": "#/$defs/countMap" },
+        "same": { "const": true }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "metric",
+        "idle_limit_bytes",
+        "soft_limit_bytes",
+        "predictive_limit_bytes",
+        "hard_limit_bytes",
+        "absolute_limit_bytes",
+        "telemetry_continuous",
+        "observed_ge_16",
+        "peak_system_rss_bytes",
+        "monitor_losses",
+        "ram_guard_trips",
+        "result_files",
+        "summary"
+      ],
+      "properties": {
+        "metric": { "const": "psutil.virtual_memory.total-minus-available" },
+        "idle_limit_bytes": { "const": 15569256448 },
+        "soft_limit_bytes": { "const": 16106127360 },
+        "predictive_limit_bytes": { "const": 16374562816 },
+        "hard_limit_bytes": { "const": 16642998272 },
+        "absolute_limit_bytes": { "const": 17179869184 },
+        "telemetry_continuous": { "const": true },
+        "observed_ge_16": { "const": false },
+        "peak_system_rss_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "exclusiveMaximum": 17179869184
+        },
+        "monitor_losses": { "const": 0 },
+        "ram_guard_trips": { "const": 0 },
+        "result_files": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "contains": { "const": "process/gates/004-logger-regression.json" },
+          "items": { "type": "string", "pattern": "^process/gates/[a-z0-9][a-z0-9-]*\\.json$" }
+        },
+        "summary": { "const": "process/resource-summary.json" }
+      }
+    },
+    "browser": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["direct_url", "server_wins", "transcript_restored", "draft_preserved", "focus_stable", "live_region_single", "interrupt_resolved_once", "job_recovery_visible", "trace", "screenshots"],
+      "properties": {
+        "direct_url": { "const": true },
+        "server_wins": { "const": true },
+        "transcript_restored": { "const": true },
+        "draft_preserved": { "const": true },
+        "focus_stable": { "const": true },
+        "live_region_single": { "const": true },
+        "interrupt_resolved_once": { "const": true },
+        "job_recovery_visible": { "const": true },
+        "trace": { "type": "string", "minLength": 1 },
+        "screenshots": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["head_frozen", "worktree_clean", "pre_post_equal", "allowed_paths_only", "no_alembic", "no_ha_scope"],
+      "properties": {
+        "head_frozen": { "const": true },
+        "worktree_clean": { "const": true },
+        "pre_post_equal": { "const": true },
+        "allowed_paths_only": { "const": true },
+        "no_alembic": { "const": true },
+        "no_ha_scope": { "const": true }
+      }
+    }
+  },
+  "$defs": {
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "commit", "status", "focused_command", "exit_code"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^S09-A(0[1-9]|10)$" },
+        "commit": { "$ref": "#/$defs/sha" },
+        "status": { "const": "pass" },
+        "focused_command": { "type": "string", "minLength": 1 },
+        "exit_code": { "const": 0 }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["argv", "code_sha", "started_at", "ended_at", "exit_code", "log"],
+      "properties": {
+        "argv": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "code_sha": { "$ref": "#/$defs/sha" },
+        "started_at": { "type": "string", "format": "date-time" },
+        "ended_at": { "type": "string", "format": "date-time" },
+        "exit_code": { "const": 0 },
+        "log": { "type": "string", "minLength": 1 },
+        "counts": { "$ref": "#/$defs/countMap" }
+      }
+    },
+    "countMap": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "hashMap": {
+      "type": "object",
+      "minProperties": 2,
+      "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    }
+  }
+}

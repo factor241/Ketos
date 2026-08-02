@@ -1,0 +1,137 @@
+import { useTranslation } from "react-i18next";
+import { Outlet, type To } from "react-router-dom";
+import SideBarButtonsComponent from "@/components/core/sidebarComponent";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { ENABLE_PROFILE_ICONS } from "@/customization/feature-flags";
+import useAuthStore from "@/stores/authStore";
+import ForwardedIconComponent from "../../components/common/genericIconComponent";
+import PageLayout from "../../components/common/pageLayout";
+export default function SettingsPage(): JSX.Element {
+  const { t } = useTranslation();
+  const autoLogin = useAuthStore((state) => state.autoLogin);
+
+  // Hides the General settings if there is nothing to show
+  const showGeneralSettings = ENABLE_PROFILE_ICONS || !autoLogin;
+
+  const sidebarNavItems: {
+    href?: string;
+    title: string;
+    icon: React.ReactNode;
+    testId?: string;
+  }[] = [];
+
+  if (showGeneralSettings) {
+    sidebarNavItems.push({
+      title: t("settings.nav.general"),
+      href: "/settings/general",
+      icon: (
+        <ForwardedIconComponent
+          name="SlidersHorizontal"
+          className="w-4 flex-shrink-0 justify-start stroke-[1.5]"
+        />
+      ),
+    });
+  }
+
+  sidebarNavItems.push(
+    {
+      title: t("settings.languageTitle"),
+      href: "/settings/language",
+      testId: "sidebar-nav-language",
+      icon: (
+        <ForwardedIconComponent
+          name="Languages"
+          className="w-4 flex-shrink-0 justify-start stroke-[1.5]"
+        />
+      ),
+    },
+    {
+      title: t("settings.nav.mcpServers"),
+      href: "/settings/mcp-servers",
+      icon: (
+        <ForwardedIconComponent
+          name="Mcp"
+          className="w-4 flex-shrink-0 justify-start stroke-[1.5]"
+        />
+      ),
+    },
+    {
+      title: t("settings.nav.mcpClient"),
+      href: "/settings/mcp-client",
+      icon: (
+        <ForwardedIconComponent
+          name="Terminal"
+          className="w-4 flex-shrink-0 justify-start stroke-[1.5]"
+        />
+      ),
+    },
+    {
+      title: t("settings.nav.globalVariables"),
+      href: "/settings/global-variables",
+      icon: (
+        <ForwardedIconComponent
+          name="Globe"
+          className="w-4 flex-shrink-0 justify-start stroke-[1.5]"
+        />
+      ),
+    },
+    {
+      title: t("settings.nav.modelProviders"),
+      href: "/settings/model-providers",
+      icon: (
+        <ForwardedIconComponent
+          name="BrainCircuit"
+          className="w-4 flex-shrink-0 justify-start stroke-[1.5]"
+        />
+      ),
+    },
+    {
+      title: t("settings.nav.dbProviders"),
+      href: "/settings/db-providers",
+      icon: (
+        <ForwardedIconComponent
+          name="Database"
+          className="w-4 flex-shrink-0 justify-start stroke-[1.5]"
+        />
+      ),
+    },
+
+    {
+      title: t("settings.nav.shortcuts"),
+      href: "/settings/shortcuts",
+      icon: (
+        <ForwardedIconComponent
+          name="Keyboard"
+          className="w-4 flex-shrink-0 justify-start stroke-[1.5]"
+        />
+      ),
+    },
+    {
+      title: t("settings.nav.messages"),
+      href: "/settings/messages",
+      icon: (
+        <ForwardedIconComponent
+          name="MessagesSquare"
+          className="w-4 flex-shrink-0 justify-start stroke-[1.5]"
+        />
+      ),
+    },
+  );
+
+  return (
+    <PageLayout
+      backTo={-1 as To}
+      title={t("settings.title")}
+      description={t("settings.description")}
+    >
+      <SidebarProvider width="15rem" defaultOpen={false}>
+        <SideBarButtonsComponent items={sidebarNavItems} wrapLabels />
+        <main className="flex flex-1 overflow-hidden">
+          <div className="flex flex-1 flex-col overflow-x-hidden pt-1">
+            <Outlet />
+          </div>
+        </main>
+      </SidebarProvider>
+    </PageLayout>
+  );
+}

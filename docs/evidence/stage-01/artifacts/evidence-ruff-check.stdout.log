@@ -1,0 +1,2268 @@
+INP001 File `docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py` is part of an implicit namespace package. Add an `__init__.py`.
+--> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:1:1
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import json
+4 | | from pathlib import Path
+  | |________________________^
+  |
+help: Organize imports
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:19:5
+   |
+17 |     asset_map = (BUNDLE / "architecture/current-asset-map.md").read_text(encoding="utf-8")
+18 |
+19 |     assert graph["source_baseline_sha"] == BASELINE_SHA
+   |     ^^^^^^
+20 |     assert graph["graph_built_at_commit"] == "572fad8ea2223e342508ecf095133091c7714e1b"
+21 |     assert graph["classification"] == "STALE_NAVIGATION_ONLY"
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:20:5
+   |
+19 |     assert graph["source_baseline_sha"] == BASELINE_SHA
+20 |     assert graph["graph_built_at_commit"] == "572fad8ea2223e342508ecf095133091c7714e1b"
+   |     ^^^^^^
+21 |     assert graph["classification"] == "STALE_NAVIGATION_ONLY"
+22 |     assert graph["nodes"] == 65618
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:21:5
+   |
+19 |     assert graph["source_baseline_sha"] == BASELINE_SHA
+20 |     assert graph["graph_built_at_commit"] == "572fad8ea2223e342508ecf095133091c7714e1b"
+21 |     assert graph["classification"] == "STALE_NAVIGATION_ONLY"
+   |     ^^^^^^
+22 |     assert graph["nodes"] == 65618
+23 |     assert graph["links"] == 131157
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:22:5
+   |
+20 |     assert graph["graph_built_at_commit"] == "572fad8ea2223e342508ecf095133091c7714e1b"
+21 |     assert graph["classification"] == "STALE_NAVIGATION_ONLY"
+22 |     assert graph["nodes"] == 65618
+   |     ^^^^^^
+23 |     assert graph["links"] == 131157
+24 |     assert graph["missing_link_endpoints"] == 0
+   |
+
+PLR2004 Magic value used in comparison, consider replacing `65618` with a constant variable
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:22:30
+   |
+20 |     assert graph["graph_built_at_commit"] == "572fad8ea2223e342508ecf095133091c7714e1b"
+21 |     assert graph["classification"] == "STALE_NAVIGATION_ONLY"
+22 |     assert graph["nodes"] == 65618
+   |                              ^^^^^
+23 |     assert graph["links"] == 131157
+24 |     assert graph["missing_link_endpoints"] == 0
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:23:5
+   |
+21 |     assert graph["classification"] == "STALE_NAVIGATION_ONLY"
+22 |     assert graph["nodes"] == 65618
+23 |     assert graph["links"] == 131157
+   |     ^^^^^^
+24 |     assert graph["missing_link_endpoints"] == 0
+25 |     assert graph["self_loops"] == 17
+   |
+
+PLR2004 Magic value used in comparison, consider replacing `131157` with a constant variable
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:23:30
+   |
+21 |     assert graph["classification"] == "STALE_NAVIGATION_ONLY"
+22 |     assert graph["nodes"] == 65618
+23 |     assert graph["links"] == 131157
+   |                              ^^^^^^
+24 |     assert graph["missing_link_endpoints"] == 0
+25 |     assert graph["self_loops"] == 17
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:24:5
+   |
+22 |     assert graph["nodes"] == 65618
+23 |     assert graph["links"] == 131157
+24 |     assert graph["missing_link_endpoints"] == 0
+   |     ^^^^^^
+25 |     assert graph["self_loops"] == 17
+26 |     assert "36/36" in asset_map
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:25:5
+   |
+23 |     assert graph["links"] == 131157
+24 |     assert graph["missing_link_endpoints"] == 0
+25 |     assert graph["self_loops"] == 17
+   |     ^^^^^^
+26 |     assert "36/36" in asset_map
+27 |     assert "source citations are authoritative" in asset_map
+   |
+
+PLR2004 Magic value used in comparison, consider replacing `17` with a constant variable
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:25:35
+   |
+23 |     assert graph["links"] == 131157
+24 |     assert graph["missing_link_endpoints"] == 0
+25 |     assert graph["self_loops"] == 17
+   |                                   ^^
+26 |     assert "36/36" in asset_map
+27 |     assert "source citations are authoritative" in asset_map
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:26:5
+   |
+24 |     assert graph["missing_link_endpoints"] == 0
+25 |     assert graph["self_loops"] == 17
+26 |     assert "36/36" in asset_map
+   |     ^^^^^^
+27 |     assert "source citations are authoritative" in asset_map
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:27:5
+   |
+25 |     assert graph["self_loops"] == 17
+26 |     assert "36/36" in asset_map
+27 |     assert "source citations are authoritative" in asset_map
+   |     ^^^^^^
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:33:5
+   |
+31 |     contract = load_json("telemetry/r34-contract.json")
+32 |
+33 |     assert contract["source_baseline_sha"] == BASELINE_SHA
+   |     ^^^^^^
+34 |     assert contract["current_transport"] == "NO_OP"
+35 |     assert contract["observation"]["status"] == "BLOCKED_NO_EMITTED_EVENTS"
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:34:5
+   |
+33 |     assert contract["source_baseline_sha"] == BASELINE_SHA
+34 |     assert contract["current_transport"] == "NO_OP"
+   |     ^^^^^^
+35 |     assert contract["observation"]["status"] == "BLOCKED_NO_EMITTED_EVENTS"
+36 |     assert contract["observation"]["window_days"] is None
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:35:5
+   |
+33 |     assert contract["source_baseline_sha"] == BASELINE_SHA
+34 |     assert contract["current_transport"] == "NO_OP"
+35 |     assert contract["observation"]["status"] == "BLOCKED_NO_EMITTED_EVENTS"
+   |     ^^^^^^
+36 |     assert contract["observation"]["window_days"] is None
+37 |     assert contract["observation"]["usage_counts"] is None
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:36:5
+   |
+34 |     assert contract["current_transport"] == "NO_OP"
+35 |     assert contract["observation"]["status"] == "BLOCKED_NO_EMITTED_EVENTS"
+36 |     assert contract["observation"]["window_days"] is None
+   |     ^^^^^^
+37 |     assert contract["observation"]["usage_counts"] is None
+38 |     assert contract["prohibited_fields"]
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:37:5
+   |
+35 |     assert contract["observation"]["status"] == "BLOCKED_NO_EMITTED_EVENTS"
+36 |     assert contract["observation"]["window_days"] is None
+37 |     assert contract["observation"]["usage_counts"] is None
+   |     ^^^^^^
+38 |     assert contract["prohibited_fields"]
+39 |     assert all(event["bounded_dimensions"] for event in contract["proposed_events"])
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:38:5
+   |
+36 |     assert contract["observation"]["window_days"] is None
+37 |     assert contract["observation"]["usage_counts"] is None
+38 |     assert contract["prohibited_fields"]
+   |     ^^^^^^
+39 |     assert all(event["bounded_dimensions"] for event in contract["proposed_events"])
+40 |     serialized = json.dumps(contract, sort_keys=True).lower()
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:39:5
+   |
+37 |     assert contract["observation"]["usage_counts"] is None
+38 |     assert contract["prohibited_fields"]
+39 |     assert all(event["bounded_dimensions"] for event in contract["proposed_events"])
+   |     ^^^^^^
+40 |     serialized = json.dumps(contract, sort_keys=True).lower()
+41 |     for prohibited in ("message_content", "prompt_content", "api_key", "raw_path", "raw_error"):
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:42:9
+   |
+40 |     serialized = json.dumps(contract, sort_keys=True).lower()
+41 |     for prohibited in ("message_content", "prompt_content", "api_key", "raw_path", "raw_error"):
+42 |         assert prohibited in serialized
+   |         ^^^^^^
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:51:5
+   |
+49 |     openswarm = (BUNDLE / "provenance/openswarm-ab982af.md").read_text(encoding="utf-8")
+50 |
+51 |     assert lfx["source_commit"] == "87a5206ae925b1fb88f8ecc6bc248316128b64ee"
+   |     ^^^^^^
+52 |     assert lfx["source_python_files"] == 975
+53 |     assert lfx["logical_modules"] == 974
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:52:5
+   |
+51 |     assert lfx["source_commit"] == "87a5206ae925b1fb88f8ecc6bc248316128b64ee"
+52 |     assert lfx["source_python_files"] == 975
+   |     ^^^^^^
+53 |     assert lfx["logical_modules"] == 974
+54 |     assert lfx["legacy_modules_sha256"] == "1e26944c9961e2d15e394eefdf0730708135948675a114f1b6f61602af70c043"
+   |
+
+PLR2004 Magic value used in comparison, consider replacing `975` with a constant variable
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:52:42
+   |
+51 |     assert lfx["source_commit"] == "87a5206ae925b1fb88f8ecc6bc248316128b64ee"
+52 |     assert lfx["source_python_files"] == 975
+   |                                          ^^^
+53 |     assert lfx["logical_modules"] == 974
+54 |     assert lfx["legacy_modules_sha256"] == "1e26944c9961e2d15e394eefdf0730708135948675a114f1b6f61602af70c043"
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:53:5
+   |
+51 |     assert lfx["source_commit"] == "87a5206ae925b1fb88f8ecc6bc248316128b64ee"
+52 |     assert lfx["source_python_files"] == 975
+53 |     assert lfx["logical_modules"] == 974
+   |     ^^^^^^
+54 |     assert lfx["legacy_modules_sha256"] == "1e26944c9961e2d15e394eefdf0730708135948675a114f1b6f61602af70c043"
+55 |     assert lfx["focused_suite"]["passed"] == 9
+   |
+
+PLR2004 Magic value used in comparison, consider replacing `974` with a constant variable
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:53:38
+   |
+51 |     assert lfx["source_commit"] == "87a5206ae925b1fb88f8ecc6bc248316128b64ee"
+52 |     assert lfx["source_python_files"] == 975
+53 |     assert lfx["logical_modules"] == 974
+   |                                      ^^^
+54 |     assert lfx["legacy_modules_sha256"] == "1e26944c9961e2d15e394eefdf0730708135948675a114f1b6f61602af70c043"
+55 |     assert lfx["focused_suite"]["passed"] == 9
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:54:5
+   |
+52 |     assert lfx["source_python_files"] == 975
+53 |     assert lfx["logical_modules"] == 974
+54 |     assert lfx["legacy_modules_sha256"] == "1e26944c9961e2d15e394eefdf0730708135948675a114f1b6f61602af70c043"
+   |     ^^^^^^
+55 |     assert lfx["focused_suite"]["passed"] == 9
+56 |     assert desktop["disposition"] == "EXCLUDED_FROM_V1"
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:55:5
+   |
+53 |     assert lfx["logical_modules"] == 974
+54 |     assert lfx["legacy_modules_sha256"] == "1e26944c9961e2d15e394eefdf0730708135948675a114f1b6f61602af70c043"
+55 |     assert lfx["focused_suite"]["passed"] == 9
+   |     ^^^^^^
+56 |     assert desktop["disposition"] == "EXCLUDED_FROM_V1"
+57 |     assert desktop["current_checkout_shell"] == "ABSENT"
+   |
+
+PLR2004 Magic value used in comparison, consider replacing `9` with a constant variable
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:55:46
+   |
+53 |     assert lfx["logical_modules"] == 974
+54 |     assert lfx["legacy_modules_sha256"] == "1e26944c9961e2d15e394eefdf0730708135948675a114f1b6f61602af70c043"
+55 |     assert lfx["focused_suite"]["passed"] == 9
+   |                                              ^
+56 |     assert desktop["disposition"] == "EXCLUDED_FROM_V1"
+57 |     assert desktop["current_checkout_shell"] == "ABSENT"
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:56:5
+   |
+54 |     assert lfx["legacy_modules_sha256"] == "1e26944c9961e2d15e394eefdf0730708135948675a114f1b6f61602af70c043"
+55 |     assert lfx["focused_suite"]["passed"] == 9
+56 |     assert desktop["disposition"] == "EXCLUDED_FROM_V1"
+   |     ^^^^^^
+57 |     assert desktop["current_checkout_shell"] == "ABSENT"
+58 |     assert desktop["external_prototypes_are_support_proof"] is False
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:57:5
+   |
+55 |     assert lfx["focused_suite"]["passed"] == 9
+56 |     assert desktop["disposition"] == "EXCLUDED_FROM_V1"
+57 |     assert desktop["current_checkout_shell"] == "ABSENT"
+   |     ^^^^^^
+58 |     assert desktop["external_prototypes_are_support_proof"] is False
+59 |     assert xyflow["xyflow_import_files"] == 45
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:58:5
+   |
+56 |     assert desktop["disposition"] == "EXCLUDED_FROM_V1"
+57 |     assert desktop["current_checkout_shell"] == "ABSENT"
+58 |     assert desktop["external_prototypes_are_support_proof"] is False
+   |     ^^^^^^
+59 |     assert xyflow["xyflow_import_files"] == 45
+60 |     assert xyflow["legacy_reactflow_import_files"] == 0
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:59:5
+   |
+57 |     assert desktop["current_checkout_shell"] == "ABSENT"
+58 |     assert desktop["external_prototypes_are_support_proof"] is False
+59 |     assert xyflow["xyflow_import_files"] == 45
+   |     ^^^^^^
+60 |     assert xyflow["legacy_reactflow_import_files"] == 0
+61 |     assert xyflow["legacy_reactflow_dependency_declared"] is True
+   |
+
+PLR2004 Magic value used in comparison, consider replacing `45` with a constant variable
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:59:45
+   |
+57 |     assert desktop["current_checkout_shell"] == "ABSENT"
+58 |     assert desktop["external_prototypes_are_support_proof"] is False
+59 |     assert xyflow["xyflow_import_files"] == 45
+   |                                             ^^
+60 |     assert xyflow["legacy_reactflow_import_files"] == 0
+61 |     assert xyflow["legacy_reactflow_dependency_declared"] is True
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:60:5
+   |
+58 |     assert desktop["external_prototypes_are_support_proof"] is False
+59 |     assert xyflow["xyflow_import_files"] == 45
+60 |     assert xyflow["legacy_reactflow_import_files"] == 0
+   |     ^^^^^^
+61 |     assert xyflow["legacy_reactflow_dependency_declared"] is True
+62 |     assert "ab982afcea63dbc775f8a40b74a1b1339a28097f" in openswarm
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:61:5
+   |
+59 |     assert xyflow["xyflow_import_files"] == 45
+60 |     assert xyflow["legacy_reactflow_import_files"] == 0
+61 |     assert xyflow["legacy_reactflow_dependency_declared"] is True
+   |     ^^^^^^
+62 |     assert "ab982afcea63dbc775f8a40b74a1b1339a28097f" in openswarm
+63 |     assert "d45d05a6c6b60d74ea3d5f6b5ac7e5b7f4d6ad5c" in openswarm
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:62:5
+   |
+60 |     assert xyflow["legacy_reactflow_import_files"] == 0
+61 |     assert xyflow["legacy_reactflow_dependency_declared"] is True
+62 |     assert "ab982afcea63dbc775f8a40b74a1b1339a28097f" in openswarm
+   |     ^^^^^^
+63 |     assert "d45d05a6c6b60d74ea3d5f6b5ac7e5b7f4d6ad5c" in openswarm
+64 |     assert "No code was copied" in openswarm
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:63:5
+   |
+61 |     assert xyflow["legacy_reactflow_dependency_declared"] is True
+62 |     assert "ab982afcea63dbc775f8a40b74a1b1339a28097f" in openswarm
+63 |     assert "d45d05a6c6b60d74ea3d5f6b5ac7e5b7f4d6ad5c" in openswarm
+   |     ^^^^^^
+64 |     assert "No code was copied" in openswarm
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:64:5
+   |
+62 |     assert "ab982afcea63dbc775f8a40b74a1b1339a28097f" in openswarm
+63 |     assert "d45d05a6c6b60d74ea3d5f6b5ac7e5b7f4d6ad5c" in openswarm
+64 |     assert "No code was copied" in openswarm
+   |     ^^^^^^
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:71:5
+   |
+69 |     audit = (BUNDLE / "frontend/product-design-audit.md").read_text(encoding="utf-8")
+70 |
+71 |     assert taxonomy["source_baseline_sha"] == BASELINE_SHA
+   |     ^^^^^^
+72 |     assert {journey["id"] for journey in taxonomy["assistant_journeys"]} == {
+73 |         "public-playground",
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:72:5
+   |
+71 |     assert taxonomy["source_baseline_sha"] == BASELINE_SHA
+72 |     assert {journey["id"] for journey in taxonomy["assistant_journeys"]} == {
+   |     ^^^^^^
+73 |         "public-playground",
+74 |         "private-flow-session-chat",
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:77:5
+   |
+75 |         "agentic-authoring-assistant",
+76 |     }
+77 |     assert taxonomy["analytics_call_counts"] == {"track": 23, "trackDataLoaded": 1, "trackFlowBuild": 2}
+   |     ^^^^^^
+78 |     assert "Browser verification status" in audit
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_asset_provenance_artifacts.py:78:5
+   |
+76 |     }
+77 |     assert taxonomy["analytics_call_counts"] == {"track": 23, "trackDataLoaded": 1, "trackFlowBuild": 2}
+78 |     assert "Browser verification status" in audit
+   |     ^^^^^^
+   |
+
+INP001 File `docs/evidence/stage-01/tests/test_evidence_runner.py` is part of an implicit namespace package. Add an `__init__.py`.
+--> docs/evidence/stage-01/tests/test_evidence_runner.py:1:1
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> docs/evidence/stage-01/tests/test_evidence_runner.py:3:1
+   |
+ 1 |   """Black-box contract tests for the Stage 01 stdlib evidence runner."""
+ 2 |
+ 3 | / from __future__ import annotations
+ 4 | |
+ 5 | | import json
+ 6 | | import shutil
+ 7 | | import subprocess
+ 8 | | import sys
+ 9 | | from pathlib import Path
+10 | |
+11 | | import pytest
+   | |_____________^
+   |
+help: Organize imports
+
+S603 `subprocess` call: check for execution of untrusted input
+  --> docs/evidence/stage-01/tests/test_evidence_runner.py:48:14
+   |
+46 |         command_line.extend(["--profile-json", json.dumps(profile)])
+47 |     command_line.extend(["--", *command])
+48 |     result = subprocess.run(command_line, text=True, capture_output=True, check=False)
+   |              ^^^^^^^^^^^^^^
+49 |     assert result.returncode == 0, result.stderr
+50 |     return result, output / "records" / f"{artifact_id}.json"
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_evidence_runner.py:49:5
+   |
+47 |     command_line.extend(["--", *command])
+48 |     result = subprocess.run(command_line, text=True, capture_output=True, check=False)
+49 |     assert result.returncode == 0, result.stderr
+   |     ^^^^^^
+50 |     return result, output / "records" / f"{artifact_id}.json"
+   |
+
+S603 `subprocess` call: check for execution of untrusted input
+  --> docs/evidence/stage-01/tests/test_evidence_runner.py:54:12
+   |
+53 | def validate(record_path: Path) -> subprocess.CompletedProcess[str]:
+54 |     return subprocess.run(
+   |            ^^^^^^^^^^^^^^
+55 |         ["uv", "run", "python", str(RUNNER), "--validate", str(record_path)],
+56 |         text=True,
+   |
+
+S607 Starting a process with a partial executable path
+  --> docs/evidence/stage-01/tests/test_evidence_runner.py:55:9
+   |
+53 | def validate(record_path: Path) -> subprocess.CompletedProcess[str]:
+54 |     return subprocess.run(
+55 |         ["uv", "run", "python", str(RUNNER), "--validate", str(record_path)],
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+56 |         text=True,
+57 |         capture_output=True,
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_evidence_runner.py:70:5
+   |
+69 |     record = json.loads(record_path.read_text())
+70 |     assert record["verdict"] == "PASS"
+   |     ^^^^^^
+71 |     assert "source_baseline_sha" in record
+72 |     assert "execution_revision" in record
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_evidence_runner.py:71:5
+   |
+69 |     record = json.loads(record_path.read_text())
+70 |     assert record["verdict"] == "PASS"
+71 |     assert "source_baseline_sha" in record
+   |     ^^^^^^
+72 |     assert "execution_revision" in record
+73 |     assert validate(record_path).returncode == 0
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_evidence_runner.py:72:5
+   |
+70 |     assert record["verdict"] == "PASS"
+71 |     assert "source_baseline_sha" in record
+72 |     assert "execution_revision" in record
+   |     ^^^^^^
+73 |     assert validate(record_path).returncode == 0
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_evidence_runner.py:73:5
+   |
+71 |     assert "source_baseline_sha" in record
+72 |     assert "execution_revision" in record
+73 |     assert validate(record_path).returncode == 0
+   |     ^^^^^^
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_evidence_runner.py:92:5
+   |
+90 |     stdout = (bundle_root / record["artifacts"]["stdout"]["path"]).read_text()
+91 |     stderr = (bundle_root / record["artifacts"]["stderr"]["path"]).read_text()
+92 |     assert stdout == "alpha\n\nbeta\n"
+   |     ^^^^^^
+93 |     assert stderr == "gamma\n"
+94 |     assert validate(record_path).returncode == 0
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_evidence_runner.py:93:5
+   |
+91 |     stderr = (bundle_root / record["artifacts"]["stderr"]["path"]).read_text()
+92 |     assert stdout == "alpha\n\nbeta\n"
+93 |     assert stderr == "gamma\n"
+   |     ^^^^^^
+94 |     assert validate(record_path).returncode == 0
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_evidence_runner.py:94:5
+   |
+92 |     assert stdout == "alpha\n\nbeta\n"
+93 |     assert stderr == "gamma\n"
+94 |     assert validate(record_path).returncode == 0
+   |     ^^^^^^
+   |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:106:5
+    |
+105 |     result = validate(invalid)
+106 |     assert result.returncode != 0
+    |     ^^^^^^
+107 |     assert "PASS requires exit_code 0" in result.stderr
+    |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:107:5
+    |
+105 |     result = validate(invalid)
+106 |     assert result.returncode != 0
+107 |     assert "PASS requires exit_code 0" in result.stderr
+    |     ^^^^^^
+    |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:133:9
+    |
+131 |     ).read_text()
+132 |     for secret in ("visible-secret", "stderr-secret", "command-secret", "profile-secret"):
+133 |         assert secret not in serialized + stdout + stderr
+    |         ^^^^^^
+134 |     assert "[REDACTED]" in serialized + stdout + stderr
+    |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:134:5
+    |
+132 |     for secret in ("visible-secret", "stderr-secret", "command-secret", "profile-secret"):
+133 |         assert secret not in serialized + stdout + stderr
+134 |     assert "[REDACTED]" in serialized + stdout + stderr
+    |     ^^^^^^
+    |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:146:5
+    |
+145 |     result = validate(copied_record)
+146 |     assert result.returncode != 0
+    |     ^^^^^^
+147 |     assert "sha256 mismatch" in result.stderr
+148 |     assert validate(record_path).returncode == 0
+    |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:147:5
+    |
+145 |     result = validate(copied_record)
+146 |     assert result.returncode != 0
+147 |     assert "sha256 mismatch" in result.stderr
+    |     ^^^^^^
+148 |     assert validate(record_path).returncode == 0
+    |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:148:5
+    |
+146 |     assert result.returncode != 0
+147 |     assert "sha256 mismatch" in result.stderr
+148 |     assert validate(record_path).returncode == 0
+    |     ^^^^^^
+    |
+
+S603 `subprocess` call: check for execution of untrusted input
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:153:14
+    |
+151 | def test_runner_rejects_artifact_path_traversal(tmp_path: Path) -> None:
+152 |     output = tmp_path / "bundle"
+153 |     result = subprocess.run(
+    |              ^^^^^^^^^^^^^^
+154 |         [
+155 |             "uv",
+    |
+
+S607 Starting a process with a partial executable path
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:154:9
+    |
+152 |       output = tmp_path / "bundle"
+153 |       result = subprocess.run(
+154 | /         [
+155 | |             "uv",
+156 | |             "run",
+157 | |             "python",
+158 | |             str(RUNNER),
+159 | |             "--output",
+160 | |             str(output),
+161 | |             "--id",
+162 | |             "../escape",
+163 | |             "--task-id",
+164 | |             "S01-T03",
+165 | |             "--cwd",
+166 | |             str(tmp_path),
+167 | |             "--sha",
+168 | |             "80878261d07c21ad257de017d98069f211ada2c2",
+169 | |             "--owner",
+170 | |             "stage-01",
+171 | |             "--reviewer",
+172 | |             "unreviewed",
+173 | |             "--",
+174 | |             sys.executable,
+175 | |             "-c",
+176 | |             "print('never runs')",
+177 | |         ],
+    | |_________^
+178 |           text=True,
+179 |           capture_output=True,
+    |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:183:5
+    |
+181 |     )
+182 |
+183 |     assert result.returncode != 0
+    |     ^^^^^^
+184 |     assert "unsafe artifact id" in result.stderr
+185 |     assert not (tmp_path / "escape.json").exists()
+    |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:184:5
+    |
+183 |     assert result.returncode != 0
+184 |     assert "unsafe artifact id" in result.stderr
+    |     ^^^^^^
+185 |     assert not (tmp_path / "escape.json").exists()
+    |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:185:5
+    |
+183 |     assert result.returncode != 0
+184 |     assert "unsafe artifact id" in result.stderr
+185 |     assert not (tmp_path / "escape.json").exists()
+    |     ^^^^^^
+    |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:204:5
+    |
+202 |     ).read_text()
+203 |     serialized = json.dumps(record) + stdout
+204 |     assert "sort_keys=True" in serialized
+    |     ^^^^^^
+205 |     assert "visible-secret" not in serialized
+206 |     assert "other-secret" not in serialized
+    |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:205:5
+    |
+203 |     serialized = json.dumps(record) + stdout
+204 |     assert "sort_keys=True" in serialized
+205 |     assert "visible-secret" not in serialized
+    |     ^^^^^^
+206 |     assert "other-secret" not in serialized
+    |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:206:5
+    |
+204 |     assert "sort_keys=True" in serialized
+205 |     assert "visible-secret" not in serialized
+206 |     assert "other-secret" not in serialized
+    |     ^^^^^^
+    |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:235:5
+    |
+234 |     result = validate(record_path)
+235 |     assert result.returncode != 0
+    |     ^^^^^^
+236 |     assert expected in result.stderr
+    |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:236:5
+    |
+234 |     result = validate(record_path)
+235 |     assert result.returncode != 0
+236 |     assert expected in result.stderr
+    |     ^^^^^^
+    |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:256:5
+    |
+255 |     result = validate(copied_record)
+256 |     assert result.returncode != 0
+    |     ^^^^^^
+257 |     assert "artifact path" in result.stderr
+    |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:257:5
+    |
+255 |     result = validate(copied_record)
+256 |     assert result.returncode != 0
+257 |     assert "artifact path" in result.stderr
+    |     ^^^^^^
+    |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:263:5
+    |
+261 |     manifest = json.loads((STAGE_ROOT / "preflight-manifest.json").read_text())
+262 |
+263 |     assert "rss_measurement" in manifest
+    |     ^^^^^^
+264 |     assert "current_rss_record" not in manifest["resource_measurements"]
+265 |     assert manifest["rss_measurement"]["command"] == (
+    |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:264:5
+    |
+263 |     assert "rss_measurement" in manifest
+264 |     assert "current_rss_record" not in manifest["resource_measurements"]
+    |     ^^^^^^
+265 |     assert manifest["rss_measurement"]["command"] == (
+266 |         "ps -axo rss= | awk '{sum += $1} END {printf \"%.0f KiB\\n\", sum}'"
+    |
+
+S101 Use of `assert` detected
+   --> docs/evidence/stage-01/tests/test_evidence_runner.py:265:5
+    |
+263 |     assert "rss_measurement" in manifest
+264 |     assert "current_rss_record" not in manifest["resource_measurements"]
+265 |     assert manifest["rss_measurement"]["command"] == (
+    |     ^^^^^^
+266 |         "ps -axo rss= | awk '{sum += $1} END {printf \"%.0f KiB\\n\", sum}'"
+267 |     )
+    |
+
+INP001 File `docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py` is part of an implicit namespace package. Add an `__init__.py`.
+--> docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py:1:1
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import json
+4 | | from pathlib import Path
+  | |________________________^
+  |
+help: Organize imports
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py:13:9
+   |
+11 |     plan = (BUNDLE / "planning/stage-02-w0-plan.md").read_text(encoding="utf-8")
+12 |     for domain in ("W0-A", "W0-B", "W0-C", "W0-D"):
+13 |         assert domain in plan
+   |         ^^^^^^
+14 |     for contract in ("Owner", "Dependencies", "Focused tests", "Rollback"):
+15 |         assert contract in plan
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py:15:9
+   |
+13 |         assert domain in plan
+14 |     for contract in ("Owner", "Dependencies", "Focused tests", "Rollback"):
+15 |         assert contract in plan
+   |         ^^^^^^
+16 |     assert "Stage 02 implementation status: NOT STARTED" in plan
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py:16:5
+   |
+14 |     for contract in ("Owner", "Dependencies", "Focused tests", "Rollback"):
+15 |         assert contract in plan
+16 |     assert "Stage 02 implementation status: NOT STARTED" in plan
+   |     ^^^^^^
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py:21:5
+   |
+19 | def test_mcp_direct_name_fixture_spec_is_fail_closed() -> None:
+20 |     fixture = (BUNDLE / "planning/mcp-direct-name-fixture.md").read_text(encoding="utf-8")
+21 |     assert "direct-name" in fixture
+   |     ^^^^^^
+22 |     assert "mcp_enabled=true" in fixture
+23 |     assert "Flow EXECUTE" in fixture
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py:22:5
+   |
+20 |     fixture = (BUNDLE / "planning/mcp-direct-name-fixture.md").read_text(encoding="utf-8")
+21 |     assert "direct-name" in fixture
+22 |     assert "mcp_enabled=true" in fixture
+   |     ^^^^^^
+23 |     assert "Flow EXECUTE" in fixture
+24 |     assert "unauthenticated" in fixture
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py:23:5
+   |
+21 |     assert "direct-name" in fixture
+22 |     assert "mcp_enabled=true" in fixture
+23 |     assert "Flow EXECUTE" in fixture
+   |     ^^^^^^
+24 |     assert "unauthenticated" in fixture
+25 |     assert "wrong owner" in fixture
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py:24:5
+   |
+22 |     assert "mcp_enabled=true" in fixture
+23 |     assert "Flow EXECUTE" in fixture
+24 |     assert "unauthenticated" in fixture
+   |     ^^^^^^
+25 |     assert "wrong owner" in fixture
+26 |     assert "list/direct parity" in fixture
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py:25:5
+   |
+23 |     assert "Flow EXECUTE" in fixture
+24 |     assert "unauthenticated" in fixture
+25 |     assert "wrong owner" in fixture
+   |     ^^^^^^
+26 |     assert "list/direct parity" in fixture
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py:26:5
+   |
+24 |     assert "unauthenticated" in fixture
+25 |     assert "wrong owner" in fixture
+26 |     assert "list/direct parity" in fixture
+   |     ^^^^^^
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py:33:5
+   |
+31 |     gc_rows = traceability["guardrails"]
+32 |     requirement_rows = traceability["requirements"]
+33 |     assert len(gc_rows) == 18
+   |     ^^^^^^
+34 |     assert len(requirement_rows) == 40
+35 |     assert {row["id"] for row in gc_rows} == {f"GC-{index:02d}" for index in range(1, 19)}
+   |
+
+PLR2004 Magic value used in comparison, consider replacing `18` with a constant variable
+  --> docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py:33:28
+   |
+31 |     gc_rows = traceability["guardrails"]
+32 |     requirement_rows = traceability["requirements"]
+33 |     assert len(gc_rows) == 18
+   |                            ^^
+34 |     assert len(requirement_rows) == 40
+35 |     assert {row["id"] for row in gc_rows} == {f"GC-{index:02d}" for index in range(1, 19)}
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py:34:5
+   |
+32 |     requirement_rows = traceability["requirements"]
+33 |     assert len(gc_rows) == 18
+34 |     assert len(requirement_rows) == 40
+   |     ^^^^^^
+35 |     assert {row["id"] for row in gc_rows} == {f"GC-{index:02d}" for index in range(1, 19)}
+36 |     assert {row["id"] for row in requirement_rows} == {f"R-{index:02d}" for index in range(1, 41)}
+   |
+
+PLR2004 Magic value used in comparison, consider replacing `40` with a constant variable
+  --> docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py:34:37
+   |
+32 |     requirement_rows = traceability["requirements"]
+33 |     assert len(gc_rows) == 18
+34 |     assert len(requirement_rows) == 40
+   |                                     ^^
+35 |     assert {row["id"] for row in gc_rows} == {f"GC-{index:02d}" for index in range(1, 19)}
+36 |     assert {row["id"] for row in requirement_rows} == {f"R-{index:02d}" for index in range(1, 41)}
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py:35:5
+   |
+33 |     assert len(gc_rows) == 18
+34 |     assert len(requirement_rows) == 40
+35 |     assert {row["id"] for row in gc_rows} == {f"GC-{index:02d}" for index in range(1, 19)}
+   |     ^^^^^^
+36 |     assert {row["id"] for row in requirement_rows} == {f"R-{index:02d}" for index in range(1, 41)}
+37 |     assert all(row["status"] != "FEATURE_PASS" for row in gc_rows + requirement_rows)
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py:36:5
+   |
+34 |     assert len(requirement_rows) == 40
+35 |     assert {row["id"] for row in gc_rows} == {f"GC-{index:02d}" for index in range(1, 19)}
+36 |     assert {row["id"] for row in requirement_rows} == {f"R-{index:02d}" for index in range(1, 41)}
+   |     ^^^^^^
+37 |     assert all(row["status"] != "FEATURE_PASS" for row in gc_rows + requirement_rows)
+38 |     assert all(row["evidence_or_disposition"] for row in gc_rows + requirement_rows)
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py:37:5
+   |
+35 |     assert {row["id"] for row in gc_rows} == {f"GC-{index:02d}" for index in range(1, 19)}
+36 |     assert {row["id"] for row in requirement_rows} == {f"R-{index:02d}" for index in range(1, 41)}
+37 |     assert all(row["status"] != "FEATURE_PASS" for row in gc_rows + requirement_rows)
+   |     ^^^^^^
+38 |     assert all(row["evidence_or_disposition"] for row in gc_rows + requirement_rows)
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py:38:5
+   |
+36 |     assert {row["id"] for row in requirement_rows} == {f"R-{index:02d}" for index in range(1, 41)}
+37 |     assert all(row["status"] != "FEATURE_PASS" for row in gc_rows + requirement_rows)
+38 |     assert all(row["evidence_or_disposition"] for row in gc_rows + requirement_rows)
+   |     ^^^^^^
+   |
+
+INP001 File `docs/evidence/stage-01/tests/test_security_inventory_artifacts.py` is part of an implicit namespace package. Add an `__init__.py`.
+--> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:1:1
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import json
+4 | | from pathlib import Path
+  | |________________________^
+  |
+help: Organize imports
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:19:5
+   |
+17 |     census = load_json("backend/job-null-census.json")
+18 |
+19 |     assert inventory["source_baseline_sha"] == BASELINE_SHA
+   |     ^^^^^^
+20 |     assert inventory["nullable_owner_contract"] is True
+21 |     assert len(inventory["writers"]) == 9
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:20:5
+   |
+19 |     assert inventory["source_baseline_sha"] == BASELINE_SHA
+20 |     assert inventory["nullable_owner_contract"] is True
+   |     ^^^^^^
+21 |     assert len(inventory["writers"]) == 9
+22 |     assert all(writer["owner_argument"] for writer in inventory["writers"])
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:21:5
+   |
+19 |     assert inventory["source_baseline_sha"] == BASELINE_SHA
+20 |     assert inventory["nullable_owner_contract"] is True
+21 |     assert len(inventory["writers"]) == 9
+   |     ^^^^^^
+22 |     assert all(writer["owner_argument"] for writer in inventory["writers"])
+23 |     assert inventory["fail_open_or_unscoped_paths"]
+   |
+
+PLR2004 Magic value used in comparison, consider replacing `9` with a constant variable
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:21:41
+   |
+19 |     assert inventory["source_baseline_sha"] == BASELINE_SHA
+20 |     assert inventory["nullable_owner_contract"] is True
+21 |     assert len(inventory["writers"]) == 9
+   |                                         ^
+22 |     assert all(writer["owner_argument"] for writer in inventory["writers"])
+23 |     assert inventory["fail_open_or_unscoped_paths"]
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:22:5
+   |
+20 |     assert inventory["nullable_owner_contract"] is True
+21 |     assert len(inventory["writers"]) == 9
+22 |     assert all(writer["owner_argument"] for writer in inventory["writers"])
+   |     ^^^^^^
+23 |     assert inventory["fail_open_or_unscoped_paths"]
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:23:5
+   |
+21 |     assert len(inventory["writers"]) == 9
+22 |     assert all(writer["owner_argument"] for writer in inventory["writers"])
+23 |     assert inventory["fail_open_or_unscoped_paths"]
+   |     ^^^^^^
+24 |
+25 |     assert census["source_baseline_sha"] == BASELINE_SHA
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:25:5
+   |
+23 |     assert inventory["fail_open_or_unscoped_paths"]
+24 |
+25 |     assert census["source_baseline_sha"] == BASELINE_SHA
+   |     ^^^^^^
+26 |     counts = census["counts"]
+27 |     assert counts["attributable"] + counts["ambiguous"] + counts["orphan"] == counts["all_null_owner"]
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:27:5
+   |
+25 |     assert census["source_baseline_sha"] == BASELINE_SHA
+26 |     counts = census["counts"]
+27 |     assert counts["attributable"] + counts["ambiguous"] + counts["orphan"] == counts["all_null_owner"]
+   |     ^^^^^^
+28 |     assert counts["all_jobs"] == counts["owned"] + counts["all_null_owner"]
+29 |     assert census["snapshot"]["access_mode"] == "sqlite-mode-ro-query-only"
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:28:5
+   |
+26 |     counts = census["counts"]
+27 |     assert counts["attributable"] + counts["ambiguous"] + counts["orphan"] == counts["all_null_owner"]
+28 |     assert counts["all_jobs"] == counts["owned"] + counts["all_null_owner"]
+   |     ^^^^^^
+29 |     assert census["snapshot"]["access_mode"] == "sqlite-mode-ro-query-only"
+30 |     assert census["production_representative"] is False
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:29:5
+   |
+27 |     assert counts["attributable"] + counts["ambiguous"] + counts["orphan"] == counts["all_null_owner"]
+28 |     assert counts["all_jobs"] == counts["owned"] + counts["all_null_owner"]
+29 |     assert census["snapshot"]["access_mode"] == "sqlite-mode-ro-query-only"
+   |     ^^^^^^
+30 |     assert census["production_representative"] is False
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:30:5
+   |
+28 |     assert counts["all_jobs"] == counts["owned"] + counts["all_null_owner"]
+29 |     assert census["snapshot"]["access_mode"] == "sqlite-mode-ro-query-only"
+30 |     assert census["production_representative"] is False
+   |     ^^^^^^
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:49:5
+   |
+47 |     }
+48 |
+49 |     assert matrix["source_baseline_sha"] == BASELINE_SHA
+   |     ^^^^^^
+50 |     assert matrix["runtime"]["installed_plugin_entry_points"] == []
+51 |     assert matrix["runtime"]["route_method_registrations"] == len(routes)
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:50:5
+   |
+49 |     assert matrix["source_baseline_sha"] == BASELINE_SHA
+50 |     assert matrix["runtime"]["installed_plugin_entry_points"] == []
+   |     ^^^^^^
+51 |     assert matrix["runtime"]["route_method_registrations"] == len(routes)
+52 |     assert matrix["runtime"]["openapi_route_method_count"] == 137
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:51:5
+   |
+49 |     assert matrix["source_baseline_sha"] == BASELINE_SHA
+50 |     assert matrix["runtime"]["installed_plugin_entry_points"] == []
+51 |     assert matrix["runtime"]["route_method_registrations"] == len(routes)
+   |     ^^^^^^
+52 |     assert matrix["runtime"]["openapi_route_method_count"] == 137
+53 |     assert len(routes) == 263
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:52:5
+   |
+50 |     assert matrix["runtime"]["installed_plugin_entry_points"] == []
+51 |     assert matrix["runtime"]["route_method_registrations"] == len(routes)
+52 |     assert matrix["runtime"]["openapi_route_method_count"] == 137
+   |     ^^^^^^
+53 |     assert len(routes) == 263
+54 |     assert all(required <= route.keys() for route in routes)
+   |
+
+PLR2004 Magic value used in comparison, consider replacing `137` with a constant variable
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:52:63
+   |
+50 |     assert matrix["runtime"]["installed_plugin_entry_points"] == []
+51 |     assert matrix["runtime"]["route_method_registrations"] == len(routes)
+52 |     assert matrix["runtime"]["openapi_route_method_count"] == 137
+   |                                                               ^^^
+53 |     assert len(routes) == 263
+54 |     assert all(required <= route.keys() for route in routes)
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:53:5
+   |
+51 |     assert matrix["runtime"]["route_method_registrations"] == len(routes)
+52 |     assert matrix["runtime"]["openapi_route_method_count"] == 137
+53 |     assert len(routes) == 263
+   |     ^^^^^^
+54 |     assert all(required <= route.keys() for route in routes)
+55 |     assert len({(route["path"], route["method"], route["endpoint"]) for route in routes}) == len(routes)
+   |
+
+PLR2004 Magic value used in comparison, consider replacing `263` with a constant variable
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:53:27
+   |
+51 |     assert matrix["runtime"]["route_method_registrations"] == len(routes)
+52 |     assert matrix["runtime"]["openapi_route_method_count"] == 137
+53 |     assert len(routes) == 263
+   |                           ^^^
+54 |     assert all(required <= route.keys() for route in routes)
+55 |     assert len({(route["path"], route["method"], route["endpoint"]) for route in routes}) == len(routes)
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:54:5
+   |
+52 |     assert matrix["runtime"]["openapi_route_method_count"] == 137
+53 |     assert len(routes) == 263
+54 |     assert all(required <= route.keys() for route in routes)
+   |     ^^^^^^
+55 |     assert len({(route["path"], route["method"], route["endpoint"]) for route in routes}) == len(routes)
+56 |     assert any(route["path"].startswith("/api/mcp/") for route in routes)
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:55:5
+   |
+53 |     assert len(routes) == 263
+54 |     assert all(required <= route.keys() for route in routes)
+55 |     assert len({(route["path"], route["method"], route["endpoint"]) for route in routes}) == len(routes)
+   |     ^^^^^^
+56 |     assert any(route["path"].startswith("/api/mcp/") for route in routes)
+57 |     assert any(route["path"].startswith("/api/v1/mcp/") for route in routes)
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:56:5
+   |
+54 |     assert all(required <= route.keys() for route in routes)
+55 |     assert len({(route["path"], route["method"], route["endpoint"]) for route in routes}) == len(routes)
+56 |     assert any(route["path"].startswith("/api/mcp/") for route in routes)
+   |     ^^^^^^
+57 |     assert any(route["path"].startswith("/api/v1/mcp/") for route in routes)
+58 |     by_path_method = {(route["path"], route["method"]): route for route in routes}
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:57:5
+   |
+55 |     assert len({(route["path"], route["method"], route["endpoint"]) for route in routes}) == len(routes)
+56 |     assert any(route["path"].startswith("/api/mcp/") for route in routes)
+57 |     assert any(route["path"].startswith("/api/v1/mcp/") for route in routes)
+   |     ^^^^^^
+58 |     by_path_method = {(route["path"], route["method"]): route for route in routes}
+59 |     assert by_path_method[("/api/v1/responses", "POST")]["auth"] == "api-key"
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:59:5
+   |
+57 |     assert any(route["path"].startswith("/api/v1/mcp/") for route in routes)
+58 |     by_path_method = {(route["path"], route["method"]): route for route in routes}
+59 |     assert by_path_method[("/api/v1/responses", "POST")]["auth"] == "api-key"
+   |     ^^^^^^
+60 |     assert by_path_method[("/api/v1/agentic/assist", "POST")]["auth"] == "cookie-jwt-or-api-key"
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:60:5
+   |
+58 |     by_path_method = {(route["path"], route["method"]): route for route in routes}
+59 |     assert by_path_method[("/api/v1/responses", "POST")]["auth"] == "api-key"
+60 |     assert by_path_method[("/api/v1/agentic/assist", "POST")]["auth"] == "cookie-jwt-or-api-key"
+   |     ^^^^^^
+61 |
+62 |     captured = json.loads((BUNDLE / "artifacts/runtime-route-inventory.stdout.log").read_text(encoding="utf-8"))
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:63:5
+   |
+62 |     captured = json.loads((BUNDLE / "artifacts/runtime-route-inventory.stdout.log").read_text(encoding="utf-8"))
+63 |     assert captured == matrix
+   |     ^^^^^^
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:70:5
+   |
+68 |     serialized = json.dumps(profile, sort_keys=True).lower()
+69 |
+70 |     assert profile["source_baseline_sha"] == BASELINE_SHA
+   |     ^^^^^^
+71 |     assert profile["secret_values_captured"] is False
+72 |     assert profile["settings"]["webhook_auth_enable"]["safe_required_value"] is True
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:71:5
+   |
+70 |     assert profile["source_baseline_sha"] == BASELINE_SHA
+71 |     assert profile["secret_values_captured"] is False
+   |     ^^^^^^
+72 |     assert profile["settings"]["webhook_auth_enable"]["safe_required_value"] is True
+73 |     assert profile["settings"]["ssrf_protection_enabled"]["safe_required_value"] is True
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:72:5
+   |
+70 |     assert profile["source_baseline_sha"] == BASELINE_SHA
+71 |     assert profile["secret_values_captured"] is False
+72 |     assert profile["settings"]["webhook_auth_enable"]["safe_required_value"] is True
+   |     ^^^^^^
+73 |     assert profile["settings"]["ssrf_protection_enabled"]["safe_required_value"] is True
+74 |     assert profile["settings"]["allow_public_custom_components"]["safe_required_value"] is False
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:73:5
+   |
+71 |     assert profile["secret_values_captured"] is False
+72 |     assert profile["settings"]["webhook_auth_enable"]["safe_required_value"] is True
+73 |     assert profile["settings"]["ssrf_protection_enabled"]["safe_required_value"] is True
+   |     ^^^^^^
+74 |     assert profile["settings"]["allow_public_custom_components"]["safe_required_value"] is False
+75 |     assert "api_key=" not in serialized
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:74:5
+   |
+72 |     assert profile["settings"]["webhook_auth_enable"]["safe_required_value"] is True
+73 |     assert profile["settings"]["ssrf_protection_enabled"]["safe_required_value"] is True
+74 |     assert profile["settings"]["allow_public_custom_components"]["safe_required_value"] is False
+   |     ^^^^^^
+75 |     assert "api_key=" not in serialized
+76 |     assert "password=" not in serialized
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:75:5
+   |
+73 |     assert profile["settings"]["ssrf_protection_enabled"]["safe_required_value"] is True
+74 |     assert profile["settings"]["allow_public_custom_components"]["safe_required_value"] is False
+75 |     assert "api_key=" not in serialized
+   |     ^^^^^^
+76 |     assert "password=" not in serialized
+77 |     assert "token=" not in serialized
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:76:5
+   |
+74 |     assert profile["settings"]["allow_public_custom_components"]["safe_required_value"] is False
+75 |     assert "api_key=" not in serialized
+76 |     assert "password=" not in serialized
+   |     ^^^^^^
+77 |     assert "token=" not in serialized
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:77:5
+   |
+75 |     assert "api_key=" not in serialized
+76 |     assert "password=" not in serialized
+77 |     assert "token=" not in serialized
+   |     ^^^^^^
+78 |
+79 |     safe_floor = (BUNDLE / "security/safe-rollback-floor.md").read_text(encoding="utf-8")
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:81:5
+   |
+79 |     safe_floor = (BUNDLE / "security/safe-rollback-floor.md").read_text(encoding="utf-8")
+80 |     emergency = (BUNDLE / "security/emergency-rollback.md").read_text(encoding="utf-8")
+81 |     assert "NOT_SAFE_AT_BASELINE_SHA" in safe_floor
+   |     ^^^^^^
+82 |     assert "AUTO_LOGIN=false" in emergency
+83 |     assert "WEBHOOK_AUTH_ENABLE=true" in emergency
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:82:5
+   |
+80 |     emergency = (BUNDLE / "security/emergency-rollback.md").read_text(encoding="utf-8")
+81 |     assert "NOT_SAFE_AT_BASELINE_SHA" in safe_floor
+82 |     assert "AUTO_LOGIN=false" in emergency
+   |     ^^^^^^
+83 |     assert "WEBHOOK_AUTH_ENABLE=true" in emergency
+84 |     assert "ssrf_protection_enabled=true" in emergency
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:83:5
+   |
+81 |     assert "NOT_SAFE_AT_BASELINE_SHA" in safe_floor
+82 |     assert "AUTO_LOGIN=false" in emergency
+83 |     assert "WEBHOOK_AUTH_ENABLE=true" in emergency
+   |     ^^^^^^
+84 |     assert "ssrf_protection_enabled=true" in emergency
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_security_inventory_artifacts.py:84:5
+   |
+82 |     assert "AUTO_LOGIN=false" in emergency
+83 |     assert "WEBHOOK_AUTH_ENABLE=true" in emergency
+84 |     assert "ssrf_protection_enabled=true" in emergency
+   |     ^^^^^^
+   |
+
+INP001 File `docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py` is part of an implicit namespace package. Add an `__init__.py`.
+--> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:1:1
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import json
+4 | | from pathlib import Path
+  | |________________________^
+  |
+help: Organize imports
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:17:5
+   |
+15 | def test_tooling_truth_does_not_treat_make_lint_as_a_lint_gate() -> None:
+16 |     truth = load_json("testing/tooling-truth.json")
+17 |     assert truth["source_baseline_sha"] == BASELINE_SHA
+   |     ^^^^^^
+18 |     assert truth["make_lint"]["depends_on"] == ["install_backend"]
+19 |     assert truth["make_lint"]["runs_type_or_lint_checker"] is False
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:18:5
+   |
+16 |     truth = load_json("testing/tooling-truth.json")
+17 |     assert truth["source_baseline_sha"] == BASELINE_SHA
+18 |     assert truth["make_lint"]["depends_on"] == ["install_backend"]
+   |     ^^^^^^
+19 |     assert truth["make_lint"]["runs_type_or_lint_checker"] is False
+20 |     assert truth["supported_direct_commands"]
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:19:5
+   |
+17 |     assert truth["source_baseline_sha"] == BASELINE_SHA
+18 |     assert truth["make_lint"]["depends_on"] == ["install_backend"]
+19 |     assert truth["make_lint"]["runs_type_or_lint_checker"] is False
+   |     ^^^^^^
+20 |     assert truth["supported_direct_commands"]
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:20:5
+   |
+18 |     assert truth["make_lint"]["depends_on"] == ["install_backend"]
+19 |     assert truth["make_lint"]["runs_type_or_lint_checker"] is False
+20 |     assert truth["supported_direct_commands"]
+   |     ^^^^^^
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:25:5
+   |
+23 | def test_baseline_gates_have_commands_results_and_record_links() -> None:
+24 |     gates = load_json("testing/baseline-gates.json")
+25 |     assert gates["source_baseline_sha"] == BASELINE_SHA
+   |     ^^^^^^
+26 |     assert gates["gates"]
+27 |     for gate in gates["gates"]:
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:26:5
+   |
+24 |     gates = load_json("testing/baseline-gates.json")
+25 |     assert gates["source_baseline_sha"] == BASELINE_SHA
+26 |     assert gates["gates"]
+   |     ^^^^^^
+27 |     for gate in gates["gates"]:
+28 |         assert gate["command"]
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:28:9
+   |
+26 |     assert gates["gates"]
+27 |     for gate in gates["gates"]:
+28 |         assert gate["command"]
+   |         ^^^^^^
+29 |         assert gate["status"] in {"PASS", "BASELINE_DEFECT", "BLOCKED", "INCONCLUSIVE"}
+30 |         assert gate["evidence_record"]
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:29:9
+   |
+27 |     for gate in gates["gates"]:
+28 |         assert gate["command"]
+29 |         assert gate["status"] in {"PASS", "BASELINE_DEFECT", "BLOCKED", "INCONCLUSIVE"}
+   |         ^^^^^^
+30 |         assert gate["evidence_record"]
+31 |         assert (BUNDLE / gate["evidence_record"]).is_file()
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:30:9
+   |
+28 |         assert gate["command"]
+29 |         assert gate["status"] in {"PASS", "BASELINE_DEFECT", "BLOCKED", "INCONCLUSIVE"}
+30 |         assert gate["evidence_record"]
+   |         ^^^^^^
+31 |         assert (BUNDLE / gate["evidence_record"]).is_file()
+32 |         if gate["status"] != "PASS":
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:31:9
+   |
+29 |         assert gate["status"] in {"PASS", "BASELINE_DEFECT", "BLOCKED", "INCONCLUSIVE"}
+30 |         assert gate["evidence_record"]
+31 |         assert (BUNDLE / gate["evidence_record"]).is_file()
+   |         ^^^^^^
+32 |         if gate["status"] != "PASS":
+33 |             assert gate["classification_or_blocker"]
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:33:13
+   |
+31 |         assert (BUNDLE / gate["evidence_record"]).is_file()
+32 |         if gate["status"] != "PASS":
+33 |             assert gate["classification_or_blocker"]
+   |             ^^^^^^
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:39:5
+   |
+37 |     baseline = load_json("coverage/coverage-baseline.json")
+38 |     rerun = load_json("coverage/coverage-rerun.json")
+39 |     assert baseline["source_baseline_sha"] == BASELINE_SHA
+   |     ^^^^^^
+40 |     assert rerun["source_baseline_sha"] == BASELINE_SHA
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:40:5
+   |
+38 |     rerun = load_json("coverage/coverage-rerun.json")
+39 |     assert baseline["source_baseline_sha"] == BASELINE_SHA
+40 |     assert rerun["source_baseline_sha"] == BASELINE_SHA
+   |     ^^^^^^
+41 |
+42 |     for package in ("backend", "frontend", "kfx"):
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:45:9
+   |
+43 |         first = baseline["packages"][package]
+44 |         second = rerun["packages"][package]
+45 |         assert first["status"] == second["status"]
+   |         ^^^^^^
+46 |         if first["status"] == "MEASURED":
+47 |             for dimension in ("line", "branch"):
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:50:17
+   |
+48 |                 first_value = first[dimension]["percent"]
+49 |                 second_value = second[dimension]["percent"]
+50 |                 assert isinstance(first_value, (int, float))
+   |                 ^^^^^^
+51 |                 assert isinstance(second_value, (int, float))
+52 |                 assert abs(first_value - second_value) <= 0.5
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:51:17
+   |
+49 |                 second_value = second[dimension]["percent"]
+50 |                 assert isinstance(first_value, (int, float))
+51 |                 assert isinstance(second_value, (int, float))
+   |                 ^^^^^^
+52 |                 assert abs(first_value - second_value) <= 0.5
+53 |         else:
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:52:17
+   |
+50 |                 assert isinstance(first_value, (int, float))
+51 |                 assert isinstance(second_value, (int, float))
+52 |                 assert abs(first_value - second_value) <= 0.5
+   |                 ^^^^^^
+53 |         else:
+54 |             assert first["status"] == "BLOCKED"
+   |
+
+PLR2004 Magic value used in comparison, consider replacing `0.5` with a constant variable
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:52:59
+   |
+50 |                 assert isinstance(first_value, (int, float))
+51 |                 assert isinstance(second_value, (int, float))
+52 |                 assert abs(first_value - second_value) <= 0.5
+   |                                                           ^^^
+53 |         else:
+54 |             assert first["status"] == "BLOCKED"
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:54:13
+   |
+52 |                 assert abs(first_value - second_value) <= 0.5
+53 |         else:
+54 |             assert first["status"] == "BLOCKED"
+   |             ^^^^^^
+55 |             assert first["line"]["percent"] is None
+56 |             assert first["branch"]["percent"] is None
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:55:13
+   |
+53 |         else:
+54 |             assert first["status"] == "BLOCKED"
+55 |             assert first["line"]["percent"] is None
+   |             ^^^^^^
+56 |             assert first["branch"]["percent"] is None
+57 |             assert first["blocker"]
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:56:13
+   |
+54 |             assert first["status"] == "BLOCKED"
+55 |             assert first["line"]["percent"] is None
+56 |             assert first["branch"]["percent"] is None
+   |             ^^^^^^
+57 |             assert first["blocker"]
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:57:13
+   |
+55 |             assert first["line"]["percent"] is None
+56 |             assert first["branch"]["percent"] is None
+57 |             assert first["blocker"]
+   |             ^^^^^^
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:62:5
+   |
+60 | def test_diff_coverage_uses_na_instead_of_zero_for_documentation_only_stage() -> None:
+61 |     diff = load_json("coverage/diff-coverage.json")
+62 |     assert diff["source_baseline_sha"] == BASELINE_SHA
+   |     ^^^^^^
+63 |     assert diff["changed_executable_lines"] == 0
+64 |     assert diff["status"] == "N/A_NO_PRODUCT_SOURCE_DIFF"
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:63:5
+   |
+61 |     diff = load_json("coverage/diff-coverage.json")
+62 |     assert diff["source_baseline_sha"] == BASELINE_SHA
+63 |     assert diff["changed_executable_lines"] == 0
+   |     ^^^^^^
+64 |     assert diff["status"] == "N/A_NO_PRODUCT_SOURCE_DIFF"
+65 |     assert diff["line_percent"] is None
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:64:5
+   |
+62 |     assert diff["source_baseline_sha"] == BASELINE_SHA
+63 |     assert diff["changed_executable_lines"] == 0
+64 |     assert diff["status"] == "N/A_NO_PRODUCT_SOURCE_DIFF"
+   |     ^^^^^^
+65 |     assert diff["line_percent"] is None
+66 |     assert diff["branch_percent"] is None
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:65:5
+   |
+63 |     assert diff["changed_executable_lines"] == 0
+64 |     assert diff["status"] == "N/A_NO_PRODUCT_SOURCE_DIFF"
+65 |     assert diff["line_percent"] is None
+   |     ^^^^^^
+66 |     assert diff["branch_percent"] is None
+   |
+
+S101 Use of `assert` detected
+  --> docs/evidence/stage-01/tests/test_tooling_coverage_artifacts.py:66:5
+   |
+64 |     assert diff["status"] == "N/A_NO_PRODUCT_SOURCE_DIFF"
+65 |     assert diff["line_percent"] is None
+66 |     assert diff["branch_percent"] is None
+   |     ^^^^^^
+   |
+
+EXE001 Shebang is present but file is not executable
+ --> docs/evidence/stage-01/tools/asset_probe.py:1:1
+  |
+1 | #!/usr/bin/env python3
+  | ^^^^^^^^^^^^^^^^^^^^^^
+2 | """Emit deterministic static/provenance facts used by Stage 01 asset records."""
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> docs/evidence/stage-01/tools/asset_probe.py:4:1
+   |
+ 2 |   """Emit deterministic static/provenance facts used by Stage 01 asset records."""
+ 3 |
+ 4 | / from __future__ import annotations
+ 5 | |
+ 6 | | import hashlib
+ 7 | | import json
+ 8 | | import re
+ 9 | | import subprocess
+10 | | from pathlib import Path
+   | |________________________^
+   |
+help: Organize imports
+
+S603 `subprocess` call: check for execution of untrusted input
+  --> docs/evidence/stage-01/tools/asset_probe.py:23:12
+   |
+22 | def git(*args: str) -> str:
+23 |     return subprocess.run(
+   |            ^^^^^^^^^^^^^^
+24 |         ["git", "-C", str(OPENSWARM), *args],
+25 |         check=True,
+   |
+
+S607 Starting a process with a partial executable path
+  --> docs/evidence/stage-01/tools/asset_probe.py:24:9
+   |
+22 | def git(*args: str) -> str:
+23 |     return subprocess.run(
+24 |         ["git", "-C", str(OPENSWARM), *args],
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+25 |         check=True,
+26 |         capture_output=True,
+   |
+
+S603 `subprocess` call: check for execution of untrusted input
+  --> docs/evidence/stage-01/tools/asset_probe.py:51:28
+   |
+49 | manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+50 | payload = {
+51 |     "source_baseline_sha": subprocess.run(
+   |                            ^^^^^^^^^^^^^^
+52 |         ["git", "-C", str(REPO), "rev-parse", "80878261d07c21ad257de017d98069f211ada2c2"],
+53 |         check=True,
+   |
+
+S607 Starting a process with a partial executable path
+  --> docs/evidence/stage-01/tools/asset_probe.py:52:9
+   |
+50 | payload = {
+51 |     "source_baseline_sha": subprocess.run(
+52 |         ["git", "-C", str(REPO), "rev-parse", "80878261d07c21ad257de017d98069f211ada2c2"],
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+53 |         check=True,
+54 |         capture_output=True,
+   |
+
+T201 `print` found
+  --> docs/evidence/stage-01/tools/asset_probe.py:85:1
+   |
+83 |     },
+84 | }
+85 | print(json.dumps(payload, indent=2, sort_keys=True))
+   | ^^^^^
+   |
+help: Remove `print`
+
+EXE001 Shebang is present but file is not executable
+ --> docs/evidence/stage-01/tools/evidence_runner.py:1:1
+  |
+1 | #!/usr/bin/env python3
+  | ^^^^^^^^^^^^^^^^^^^^^^
+2 | """Run and verify redacted, content-addressed Stage 01 evidence records.
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> docs/evidence/stage-01/tools/evidence_runner.py:9:1
+   |
+ 7 |   """
+ 8 |
+ 9 | / from __future__ import annotations
+10 | |
+11 | | import argparse
+12 | | import datetime as dt
+13 | | import hashlib
+14 | | import json
+15 | | import platform
+16 | | import re
+17 | | import subprocess
+18 | | import sys
+19 | | from pathlib import Path
+20 | | from typing import Any
+   | |______________________^
+   |
+help: Organize imports
+
+S105 Possible hardcoded password assigned to: "SECRET_NAME"
+  --> docs/evidence/stage-01/tools/evidence_runner.py:28:15
+   |
+26 | SHA256 = re.compile(r"^[0-9a-f]{64}$")
+27 | UTC_TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+28 | SECRET_NAME = [REDACTED]"(?:[A-Za-z0-9]+_)*(?:key|token|password|secret)(?:_[A-Za-z0-9]+)*"
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+29 | SECRET_ASSIGNMENT = [REDACTED](
+30 |     rf"(?i)(\b{SECRET_NAME}\b\s*[:=]\s*)([^\s,;'\"()]+)"
+   |
+
+TRY003 Avoid specifying long messages outside the exception class
+  --> docs/evidence/stage-01/tools/evidence_runner.py:94:15
+   |
+92 | def safe_artifact_id(value: str) -> str:
+93 |     if not SAFE_ID.fullmatch(value) or ".." in value:
+94 |         raise ValueError(f"unsafe artifact id: {value!r}")
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+95 |     return value
+   |
+
+EM102 Exception must not use an f-string literal, assign to variable first
+  --> docs/evidence/stage-01/tools/evidence_runner.py:94:26
+   |
+92 | def safe_artifact_id(value: str) -> str:
+93 |     if not SAFE_ID.fullmatch(value) or ".." in value:
+94 |         raise ValueError(f"unsafe artifact id: {value!r}")
+   |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+95 |     return value
+   |
+help: Assign to variable; remove f-string literal
+
+TRY003 Avoid specifying long messages outside the exception class
+   --> docs/evidence/stage-01/tools/evidence_runner.py:111:15
+    |
+109 |     artifact_id = safe_artifact_id(args.artifact_id)
+110 |     if not args.command:
+111 |         raise ValueError("a command argv is required after --")
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+112 |     for field in ("source_baseline_sha", "execution_revision"):
+113 |         if not SHA40.fullmatch(getattr(args, field)):
+    |
+
+EM101 Exception must not use a string literal, assign to variable first
+   --> docs/evidence/stage-01/tools/evidence_runner.py:111:26
+    |
+109 |     artifact_id = safe_artifact_id(args.artifact_id)
+110 |     if not args.command:
+111 |         raise ValueError("a command argv is required after --")
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+112 |     for field in ("source_baseline_sha", "execution_revision"):
+113 |         if not SHA40.fullmatch(getattr(args, field)):
+    |
+help: Assign to variable; remove string literal
+
+TRY003 Avoid specifying long messages outside the exception class
+   --> docs/evidence/stage-01/tools/evidence_runner.py:114:19
+    |
+112 |     for field in ("source_baseline_sha", "execution_revision"):
+113 |         if not SHA40.fullmatch(getattr(args, field)):
+114 |             raise ValueError(f"{field} must be a lowercase 40-hex Git SHA")
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+115 |     output = Path(args.output).resolve()
+116 |     cwd = Path(args.cwd).resolve()
+    |
+
+EM102 Exception must not use an f-string literal, assign to variable first
+   --> docs/evidence/stage-01/tools/evidence_runner.py:114:30
+    |
+112 |     for field in ("source_baseline_sha", "execution_revision"):
+113 |         if not SHA40.fullmatch(getattr(args, field)):
+114 |             raise ValueError(f"{field} must be a lowercase 40-hex Git SHA")
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+115 |     output = Path(args.output).resolve()
+116 |     cwd = Path(args.cwd).resolve()
+    |
+help: Assign to variable; remove f-string literal
+
+TRY003 Avoid specifying long messages outside the exception class
+   --> docs/evidence/stage-01/tools/evidence_runner.py:118:15
+    |
+116 |     cwd = Path(args.cwd).resolve()
+117 |     if not cwd.is_dir():
+118 |         raise ValueError(f"cwd is not a directory: {cwd}")
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+119 |     profile = json.loads(args.profile_json)
+120 |     if not isinstance(profile, dict):
+    |
+
+EM102 Exception must not use an f-string literal, assign to variable first
+   --> docs/evidence/stage-01/tools/evidence_runner.py:118:26
+    |
+116 |     cwd = Path(args.cwd).resolve()
+117 |     if not cwd.is_dir():
+118 |         raise ValueError(f"cwd is not a directory: {cwd}")
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+119 |     profile = json.loads(args.profile_json)
+120 |     if not isinstance(profile, dict):
+    |
+help: Assign to variable; remove f-string literal
+
+TRY004 Prefer `TypeError` exception for invalid type
+   --> docs/evidence/stage-01/tools/evidence_runner.py:121:9
+    |
+119 |     profile = json.loads(args.profile_json)
+120 |     if not isinstance(profile, dict):
+121 |         raise ValueError("profile JSON must be an object")
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+122 |
+123 |     started = utc_now()
+    |
+
+TRY003 Avoid specifying long messages outside the exception class
+   --> docs/evidence/stage-01/tools/evidence_runner.py:121:15
+    |
+119 |     profile = json.loads(args.profile_json)
+120 |     if not isinstance(profile, dict):
+121 |         raise ValueError("profile JSON must be an object")
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+122 |
+123 |     started = utc_now()
+    |
+
+EM101 Exception must not use a string literal, assign to variable first
+   --> docs/evidence/stage-01/tools/evidence_runner.py:121:26
+    |
+119 |     profile = json.loads(args.profile_json)
+120 |     if not isinstance(profile, dict):
+121 |         raise ValueError("profile JSON must be an object")
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+122 |
+123 |     started = utc_now()
+    |
+help: Assign to variable; remove string literal
+
+UP022 Prefer `capture_output` over sending `stdout` and `stderr` to `PIPE`
+   --> docs/evidence/stage-01/tools/evidence_runner.py:125:21
+    |
+123 |       started = utc_now()
+124 |       try:
+125 |           completed = subprocess.run(
+    |  _____________________^
+126 | |             args.command,
+127 | |             cwd=str(cwd),
+128 | |             stdout=subprocess.PIPE,
+129 | |             stderr=subprocess.PIPE,
+130 | |             text=True,
+131 | |             check=False,
+132 | |             shell=False,
+133 | |         )
+    | |_________^
+134 |           exit_code = completed.returncode
+135 |           stdout, stderr = completed.stdout, completed.stderr
+    |
+help: Replace with `capture_output` keyword argument
+
+S603 `subprocess` call: check for execution of untrusted input
+   --> docs/evidence/stage-01/tools/evidence_runner.py:125:21
+    |
+123 |     started = utc_now()
+124 |     try:
+125 |         completed = subprocess.run(
+    |                     ^^^^^^^^^^^^^^
+126 |             args.command,
+127 |             cwd=str(cwd),
+    |
+
+PERF401 Use `list.extend` to create a transformed list
+   --> docs/evidence/stage-01/tools/evidence_runner.py:221:13
+    |
+219 |     for field in ("task_id", "cwd", "owner", "reviewer", "classification"):
+220 |         if not is_nonempty_string(record[field]):
+221 |             errors.append(f"invalid {field}")
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+222 |     if not isinstance(record["notes"], str):
+223 |         errors.append("invalid notes")
+    |
+help: Replace for loop with list.extend
+
+PERF401 Use `list.extend` to create a transformed list
+   --> docs/evidence/stage-01/tools/evidence_runner.py:226:13
+    |
+224 |     for field in ("source_baseline_sha", "execution_revision"):
+225 |         if not isinstance(record[field], str) or not SHA40.fullmatch(record[field]):
+226 |             errors.append(f"invalid {field}")
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+227 |     for field in ("started_at_utc", "ended_at_utc", "created_at_utc"):
+228 |         if not is_utc_timestamp(record[field]):
+    |
+help: Replace for loop with list.extend
+
+PERF401 Use `list.extend` to create a transformed list
+   --> docs/evidence/stage-01/tools/evidence_runner.py:229:13
+    |
+227 |     for field in ("started_at_utc", "ended_at_utc", "created_at_utc"):
+228 |         if not is_utc_timestamp(record[field]):
+229 |             errors.append(f"invalid {field}")
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+230 |
+231 |     command = record["command"]
+    |
+help: Replace for loop with list.extend
+
+SIM114 [*] Combine `if` branches using logical `or` operator
+   --> docs/evidence/stage-01/tools/evidence_runner.py:232:5
+    |
+231 |       command = record["command"]
+232 | /     if not isinstance(command, dict) or set(command) != {"argv", "display"}:
+233 | |         errors.append("invalid command")
+234 | |     elif (
+235 | |         not isinstance(command["argv"], list)
+236 | |         or not command["argv"]
+237 | |         or not all(is_nonempty_string(argument) for argument in command["argv"])
+238 | |         or not isinstance(command["display"], str)
+239 | |         or command["display"] != " ".join(command["argv"])
+240 | |     ):
+241 | |         errors.append("invalid command")
+    | |________________________________________^
+242 |
+243 |       profile = record["profile"]
+    |
+help: Combine `if` branches
+
+SIM114 [*] Combine `if` branches using logical `or` operator
+   --> docs/evidence/stage-01/tools/evidence_runner.py:244:5
+    |
+243 |       profile = record["profile"]
+244 | /     if not isinstance(profile, dict) or set(profile) != {"environment", "provided"}:
+245 | |         errors.append("invalid profile")
+246 | |     elif not all(isinstance(profile[field], dict) for field in ("environment", "provided")):
+247 | |         errors.append("invalid profile")
+    | |________________________________________^
+248 |       if record["verdict"] not in ALLOWED_VERDICTS:
+249 |           errors.append(f"invalid verdict: {record['verdict']!r}")
+    |
+help: Combine `if` branches
+
+RUF005 Consider `[*errors, "invalid artifacts"]` instead of concatenation
+   --> docs/evidence/stage-01/tools/evidence_runner.py:258:16
+    |
+256 |     artifacts = record["artifacts"]
+257 |     if not isinstance(artifacts, dict) or set(artifacts) != {"stdout", "stderr"}:
+258 |         return errors + ["invalid artifacts"]
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+259 |     for stream in ("stdout", "stderr"):
+260 |         artifact = artifacts.get(stream)
+    |
+help: Replace with `[*errors, "invalid artifacts"]`
+
+T201 `print` found
+   --> docs/evidence/stage-01/tools/evidence_runner.py:329:17
+    |
+327 |             errors = validate_record(args.validate)
+328 |             if errors:
+329 |                 print("\n".join(errors), file=sys.stderr)
+    |                 ^^^^^
+330 |                 return 1
+331 |             print(f"valid: {args.validate}")
+    |
+help: Remove `print`
+
+T201 `print` found
+   --> docs/evidence/stage-01/tools/evidence_runner.py:331:13
+    |
+329 |                 print("\n".join(errors), file=sys.stderr)
+330 |                 return 1
+331 |             print(f"valid: {args.validate}")
+    |             ^^^^^
+332 |             return 0
+333 |         print(write_record(args))
+    |
+help: Remove `print`
+
+T201 `print` found
+   --> docs/evidence/stage-01/tools/evidence_runner.py:333:9
+    |
+331 |             print(f"valid: {args.validate}")
+332 |             return 0
+333 |         print(write_record(args))
+    |         ^^^^^
+334 |         return 0
+335 |     except (ValueError, json.JSONDecodeError) as error:
+    |
+help: Remove `print`
+
+TRY300 Consider moving this statement to an `else` block
+   --> docs/evidence/stage-01/tools/evidence_runner.py:334:9
+    |
+332 |             return 0
+333 |         print(write_record(args))
+334 |         return 0
+    |         ^^^^^^^^
+335 |     except (ValueError, json.JSONDecodeError) as error:
+336 |         print(error, file=sys.stderr)
+    |
+
+T201 `print` found
+   --> docs/evidence/stage-01/tools/evidence_runner.py:336:9
+    |
+334 |         return 0
+335 |     except (ValueError, json.JSONDecodeError) as error:
+336 |         print(error, file=sys.stderr)
+    |         ^^^^^
+337 |         return 2
+    |
+help: Remove `print`
+
+EXE001 Shebang is present but file is not executable
+ --> docs/evidence/stage-01/tools/job_census.py:1:1
+  |
+1 | #!/usr/bin/env python3
+  | ^^^^^^^^^^^^^^^^^^^^^^
+2 | """Run the aggregate-only Stage 01 Job owner census on local SQLite."""
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> docs/evidence/stage-01/tools/job_census.py:4:1
+  |
+2 |   """Run the aggregate-only Stage 01 Job owner census on local SQLite."""
+3 |
+4 | / from __future__ import annotations
+5 | |
+6 | | import json
+7 | | import sqlite3
+8 | | from pathlib import Path
+  | |________________________^
+  |
+help: Organize imports
+
+TRY003 Avoid specifying long messages outside the exception class
+  --> docs/evidence/stage-01/tools/job_census.py:32:11
+   |
+30 | missing_tables = sorted(required_tables - available_tables)
+31 | if missing_tables:
+32 |     raise SystemExit(f"required census tables missing: {', '.join(missing_tables)}")
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+33 |
+34 | classification_query = """
+   |
+
+EM102 Exception must not use an f-string literal, assign to variable first
+  --> docs/evidence/stage-01/tools/job_census.py:32:22
+   |
+30 | missing_tables = sorted(required_tables - available_tables)
+31 | if missing_tables:
+32 |     raise SystemExit(f"required census tables missing: {', '.join(missing_tables)}")
+   |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+33 |
+34 | classification_query = """
+   |
+help: Assign to variable; remove f-string literal
+
+T201 `print` found
+  --> docs/evidence/stage-01/tools/job_census.py:97:1
+   |
+95 |     "row_content_emitted": False,
+96 | }
+97 | print(json.dumps(payload, indent=2, sort_keys=True))
+   | ^^^^^
+   |
+help: Remove `print`
+
+EXE001 Shebang is present but file is not executable
+ --> docs/evidence/stage-01/tools/route_inventory.py:1:1
+  |
+1 | #!/usr/bin/env python3
+  | ^^^^^^^^^^^^^^^^^^^^^^
+2 | """Emit a sanitized runtime route/capability inventory for Stage 01."""
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> docs/evidence/stage-01/tools/route_inventory.py:4:1
+   |
+ 2 |   """Emit a sanitized runtime route/capability inventory for Stage 01."""
+ 3 |
+ 4 | / from __future__ import annotations
+ 5 | |
+ 6 | | import argparse
+ 7 | | import importlib.metadata
+ 8 | | import json
+ 9 | | from pathlib import Path
+10 | | from typing import Any
+11 | |
+12 | | from fastapi.routing import APIRoute
+13 | |
+14 | | from ketos.main import create_app
+   | |_________________________________^
+   |
+help: Organize imports
+
+T201 `print` found
+   --> docs/evidence/stage-01/tools/route_inventory.py:214:5
+    |
+212 |         args.output.parent.mkdir(parents=True, exist_ok=True)
+213 |         args.output.write_text(payload, encoding="utf-8")
+214 |     print(payload, end="")
+    |     ^^^^^
+215 |     return 0
+    |
+help: Remove `print`
+
+EXE001 Shebang is present but file is not executable
+ --> docs/evidence/stage-01/tools/update_artifact_index.py:1:1
+  |
+1 | #!/usr/bin/env python3
+  | ^^^^^^^^^^^^^^^^^^^^^^
+2 | """Reconcile Stage 01 artifact-index hashes without indexing the index itself."""
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> docs/evidence/stage-01/tools/update_artifact_index.py:4:1
+  |
+2 |   """Reconcile Stage 01 artifact-index hashes without indexing the index itself."""
+3 |
+4 | / from __future__ import annotations
+5 | |
+6 | | import hashlib
+7 | | import json
+8 | | from pathlib import Path
+  | |________________________^
+  |
+help: Organize imports
+
+T201 `print` found
+  --> docs/evidence/stage-01/tools/update_artifact_index.py:82:1
+   |
+81 | INDEX.write_text(json.dumps({"artifacts": entries}, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+82 | print(json.dumps({"indexed_artifacts": len(entries), "index_excludes_itself": True}, sort_keys=True))
+   | ^^^^^
+   |
+help: Remove `print`
+
+Found 211 errors.
+[*] 12 fixable with the `--fix` option (16 hidden fixes can be enabled with the `--unsafe-fixes` option).

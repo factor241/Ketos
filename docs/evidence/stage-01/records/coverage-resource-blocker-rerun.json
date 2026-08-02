@@ -1,0 +1,50 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/coverage-resource-blocker-rerun.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stdout": {
+      "path": "artifacts/coverage-resource-blocker-rerun.stdout.log",
+      "sha256": "bfa73b06d5a993a2ced2cb93d1249703d2a9a3143ae9719ee258064ae1c813ea"
+    }
+  },
+  "classification": "BLOCKED",
+  "command": {
+    "argv": [
+      "uv",
+      "run",
+      "python",
+      "-c",
+      "import subprocess; values=[int(x) for x in subprocess.check_output([\"ps\",\"-axo\",\"rss=\"], text=True).split()]; print(f\"TOTAL_RSS_GIB={sum(values)/1048576:.3f}; THROTTLE_GIB=14; HEAVY_COVERAGE_RERUN=BLOCKED\")"
+    ],
+    "display": "uv run python -c import subprocess; values=[int(x) for x in subprocess.check_output([\"ps\",\"-axo\",\"rss=\"], text=True).split()]; print(f\"TOTAL_RSS_GIB={sum(values)/1048576:.3f}; THROTTLE_GIB=14; HEAVY_COVERAGE_RERUN=BLOCKED\")"
+  },
+  "created_at_utc": "2026-07-18T13:47:26Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T13:47:26Z",
+  "execution_revision": "d02cc7e7847c92a67bcf5622d010828306cdf2cb",
+  "exit_code": 0,
+  "notes": "Second resource-guard measurement; coverage rerun remains prohibited while aggregate RSS is at or above 14 GiB.",
+  "owner": "stage01-testing",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {
+      "requested_jobs": [
+        "backend coverage rerun",
+        "frontend coverage rerun",
+        "kfx coverage rerun"
+      ],
+      "resource_guard": "throttle_at_14_gib"
+    }
+  },
+  "record_id": "coverage-resource-blocker-rerun",
+  "reviewer": "pending",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T13:47:26Z",
+  "task_id": "S01-T10",
+  "verdict": "BLOCKED"
+}

@@ -1,0 +1,45 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/security-inventory-tests.stderr.log",
+      "sha256": "e9186c3f33723b2448b19c4d8c99423e719230067a8cdf19436eeb1ca283be88"
+    },
+    "stdout": {
+      "path": "artifacts/security-inventory-tests.stdout.log",
+      "sha256": "20df5c1531ed475a38180e2ac33afe34a1552efd74d6fe49cca6debddcd349d4"
+    }
+  },
+  "classification": "COMMAND_RESULT",
+  "command": {
+    "argv": [
+      "uv",
+      "run",
+      "pytest",
+      "docs/evidence/stage-01/tests/test_security_inventory_artifacts.py",
+      "-q"
+    ],
+    "display": "uv run pytest docs/evidence/stage-01/tests/test_security_inventory_artifacts.py -q"
+  },
+  "created_at_utc": "2026-07-18T13:33:40Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T13:33:40Z",
+  "execution_revision": "c27d266a61bff8ace9d0ebc8eea820b5d2ac283c",
+  "exit_code": 0,
+  "notes": "Focused artifact contract tests.",
+  "owner": "stage01-security-implementation",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {
+      "suite": "focused-evidence-artifacts"
+    }
+  },
+  "record_id": "security-inventory-tests",
+  "reviewer": "pending",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T13:33:35Z",
+  "task_id": "S01-T05-T07",
+  "verdict": "PASS"
+}

@@ -1,0 +1,127 @@
+import { useHotkeys } from "react-hotkeys-hook";
+import useFlowStore from "@/stores/flowStore";
+import { useShortcutsStore } from "@/stores/shortcuts";
+import isWrappedWithClass from "../../PageComponent/utils/is-wrapped-with-class";
+
+export default function useShortcuts({
+  showOverrideModal,
+  showModalAdvanced,
+  openModal,
+  FreezeAllVertices,
+  downloadFunction,
+  displayDocs,
+  saveComponent,
+  showAdvance,
+  handleCodeModal,
+  ungroup,
+  minimizeFunction,
+  activateToolMode,
+  hasToolMode,
+}: {
+  showOverrideModal?: boolean;
+  showModalAdvanced?: boolean;
+  openModal?: boolean;
+  FreezeAllVertices?: () => void;
+  downloadFunction?: () => void;
+  displayDocs?: () => void;
+  saveComponent?: () => void;
+  showAdvance?: () => void;
+  handleCodeModal?: () => void;
+  ungroup?: () => void;
+  minimizeFunction?: () => void;
+  activateToolMode?: () => void;
+  hasToolMode?: boolean;
+}) {
+  const advancedSettings = useShortcutsStore((state) => state.advancedSettings);
+  const minimize = useShortcutsStore((state) => state.minimize);
+  const save = useShortcutsStore((state) => state.saveComponent);
+  const docs = useShortcutsStore((state) => state.docs);
+  const code = useShortcutsStore((state) => state.code);
+  const group = useShortcutsStore((state) => state.group);
+  const download = useShortcutsStore((state) => state.download);
+  const freezeAll = useShortcutsStore((state) => state.freezePath);
+  const toolMode = useShortcutsStore((state) => state.toolMode);
+
+  const inspectionPanelVisible = useFlowStore(
+    (state) => state.inspectionPanelVisible,
+  );
+
+  function handleFreezeAll(e: KeyboardEvent) {
+    if (isWrappedWithClass(e, "noflow") || !FreezeAllVertices) return;
+    e.preventDefault();
+    FreezeAllVertices();
+  }
+
+  function handleDownloadWShortcut(e: KeyboardEvent) {
+    if (!downloadFunction) return;
+    e.preventDefault();
+    downloadFunction();
+  }
+
+  function handleDocsWShortcut(e: KeyboardEvent) {
+    if (!displayDocs) return;
+    e.preventDefault();
+    displayDocs();
+  }
+
+  function handleSaveWShortcut(e: KeyboardEvent) {
+    if (
+      (isWrappedWithClass(e, "noflow") && !showOverrideModal) ||
+      !saveComponent
+    )
+      return;
+    e.preventDefault();
+    saveComponent();
+  }
+
+  function handleAdvancedWShortcut(e: KeyboardEvent) {
+    if ((isWrappedWithClass(e, "noflow") && !showModalAdvanced) || !showAdvance)
+      return;
+    e.preventDefault();
+    showAdvance();
+  }
+
+  function handleCodeWShortcut(e: KeyboardEvent) {
+    if ((isWrappedWithClass(e, "noflow") && !openModal) || !handleCodeModal)
+      return;
+    e.preventDefault();
+    handleCodeModal();
+  }
+
+  function handleGroupWShortcut(e: KeyboardEvent) {
+    if (isWrappedWithClass(e, "noflow") || !ungroup) return;
+    e.preventDefault();
+    ungroup();
+  }
+
+  function handleMinimizeWShortcut(e: KeyboardEvent) {
+    if (isWrappedWithClass(e, "noflow") || !minimizeFunction) return;
+    e.preventDefault();
+    minimizeFunction();
+  }
+
+  function handleToolModeWShortcut(e: KeyboardEvent, hasToolMode?: boolean) {
+    if (!hasToolMode) return;
+    if (isWrappedWithClass(e, "noflow") || !activateToolMode) return;
+    e.preventDefault();
+    activateToolMode();
+  }
+
+  useHotkeys(minimize, handleMinimizeWShortcut, { preventDefault: true });
+  useHotkeys(group, handleGroupWShortcut, { preventDefault: true });
+  useHotkeys(code, handleCodeWShortcut, { preventDefault: true });
+  useHotkeys(
+    advancedSettings,
+    !inspectionPanelVisible ? handleAdvancedWShortcut : () => {},
+    {
+      preventDefault: true,
+    },
+  );
+  useHotkeys(save, handleSaveWShortcut, { preventDefault: true });
+  useHotkeys(docs, handleDocsWShortcut, { preventDefault: true });
+  useHotkeys(download, handleDownloadWShortcut, { preventDefault: true });
+  useHotkeys(freezeAll, handleFreezeAll);
+  useHotkeys(toolMode, (e) => handleToolModeWShortcut(e, hasToolMode), {
+    preventDefault: true,
+  });
+}

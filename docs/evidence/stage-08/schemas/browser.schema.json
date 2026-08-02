@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ketos.test/evidence/stage-08/browser.schema.json",
+  "title": "Ketos Stage 08 browser evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "stage", "frozenSha", "runId", "nodeId", "status", "startedAt", "endedAt", "browser", "baseUrl", "stories", "console", "network", "artifacts", "blocker"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "stage": {"const": "08"},
+    "frozenSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "runId": {"type": "string", "minLength": 1},
+    "nodeId": {"type": "string", "minLength": 1},
+    "status": {"enum": ["PASS", "FAIL", "BLOCKED"]},
+    "startedAt": {"type": "string", "format": "date-time"},
+    "endedAt": {"type": "string", "format": "date-time"},
+    "browser": {"$ref": "#/$defs/browser"},
+    "baseUrl": {"type": "string", "format": "uri"},
+    "stories": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/story"}},
+    "console": {"$ref": "#/$defs/console"},
+    "network": {"$ref": "#/$defs/network"},
+    "artifacts": {"type": "array", "items": {"type": "string"}},
+    "blocker": {"type": ["string", "null"]}
+  },
+  "$defs": {
+    "browser": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "engine", "headless"],
+      "properties": {
+        "name": {"type": "string"},
+        "version": {"type": "string"},
+        "engine": {"type": "string"},
+        "headless": {"type": "boolean"}
+      }
+    },
+    "story": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "status", "steps", "screenshotPaths", "tracePath", "reason"],
+      "properties": {
+        "id": {"type": "string"},
+        "name": {"type": "string"},
+        "status": {"enum": ["PASS", "FAIL", "BLOCKED"]},
+        "steps": {"type": "array", "items": {"$ref": "#/$defs/step"}},
+        "screenshotPaths": {"type": "array", "items": {"type": "string"}},
+        "tracePath": {"type": ["string", "null"]},
+        "reason": {"type": ["string", "null"]}
+      }
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "action", "expected", "observed", "status", "startedAt", "endedAt", "artifactPaths"],
+      "properties": {
+        "index": {"type": "integer", "minimum": 1},
+        "action": {"type": "string"},
+        "expected": {"type": "string"},
+        "observed": {"type": "string"},
+        "status": {"enum": ["PASS", "FAIL", "BLOCKED"]},
+        "startedAt": {"type": "string", "format": "date-time"},
+        "endedAt": {"type": "string", "format": "date-time"},
+        "artifactPaths": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "console": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["errorCount", "warningCount", "logPath"],
+      "properties": {
+        "errorCount": {"type": "integer", "minimum": 0},
+        "warningCount": {"type": "integer", "minimum": 0},
+        "logPath": {"type": "string"}
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["failedRequestCount", "unexpectedMutationCount", "resumeBodyKeys", "logPath"],
+      "properties": {
+        "failedRequestCount": {"type": "integer", "minimum": 0},
+        "unexpectedMutationCount": {"type": "integer", "minimum": 0},
+        "resumeBodyKeys": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {"enum": ["threadId", "runId", "resume"]},
+          "allOf": [
+            {"contains": {"const": "threadId"}},
+            {"contains": {"const": "runId"}},
+            {"contains": {"const": "resume"}}
+          ]
+        },
+        "logPath": {"type": "string"}
+      }
+    }
+  }
+}

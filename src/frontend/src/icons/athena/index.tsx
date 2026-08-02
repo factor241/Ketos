@@ -1,0 +1,12 @@
+import type React from "react";
+import { forwardRef } from "react";
+import { AthenaComponent } from "./athena";
+
+export const AthenaIcon = forwardRef<
+  SVGSVGElement,
+  React.PropsWithChildren<{ className?: string }>
+>((props, ref) => {
+  return (
+    <AthenaComponent ref={ref} {...props} className={props.className ?? ""} />
+  );
+});

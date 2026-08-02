@@ -1,0 +1,4 @@
+self-hosted-runner:
+  labels:
+    - ketos-local-arm64-40gb-ephemeral
+    - Ketos-runner

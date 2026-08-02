@@ -1,0 +1,45 @@
+{
+  "artifacts": {
+    "stderr": {
+      "path": "artifacts/planning-traceability-tests.stderr.log",
+      "sha256": "e9186c3f33723b2448b19c4d8c99423e719230067a8cdf19436eeb1ca283be88"
+    },
+    "stdout": {
+      "path": "artifacts/planning-traceability-tests.stdout.log",
+      "sha256": "a7bc4d6e2f24839d018a2bf0799551777adffeafaba77bf511f53a160c95ea41"
+    }
+  },
+  "classification": "COMMAND_RESULT",
+  "command": {
+    "argv": [
+      "uv",
+      "run",
+      "pytest",
+      "docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py",
+      "-q"
+    ],
+    "display": "uv run pytest docs/evidence/stage-01/tests/test_planning_traceability_artifacts.py -q"
+  },
+  "created_at_utc": "2026-07-18T13:45:56Z",
+  "cwd": "/Volumes/Projects/ketos-stage01-integration",
+  "ended_at_utc": "2026-07-18T13:45:56Z",
+  "execution_revision": "d02cc7e7847c92a67bcf5622d010828306cdf2cb",
+  "exit_code": 0,
+  "notes": "Focused W0 planning, fail-closed MCP fixture and exact 18/40 traceability tests.",
+  "owner": "stage01-planning",
+  "profile": {
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.13.14"
+    },
+    "provided": {
+      "suite": "planning-traceability-contracts"
+    }
+  },
+  "record_id": "planning-traceability-tests",
+  "reviewer": "pending",
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "started_at_utc": "2026-07-18T13:45:52Z",
+  "task_id": "S01-T14-T15",
+  "verdict": "PASS"
+}

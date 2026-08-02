@@ -1,0 +1,31 @@
+{
+  "frontend_dependencies": {
+    "legacy_reactflow_import_files": 0,
+    "xyflow_import_files": 45
+  },
+  "graphify": {
+    "built_at_commit": "572fad8ea2223e342508ecf095133091c7714e1b",
+    "links": 131157,
+    "missing_link_endpoints": 0,
+    "nodes": 65618,
+    "self_loops": 17
+  },
+  "lfx": {
+    "legacy_modules_sha256": "1e26944c9961e2d15e394eefdf0730708135948675a114f1b6f61602af70c043",
+    "logical_modules": 974,
+    "manifest_file_sha256": "aacbadc146f45b9bf0f049b8dc7b02c2c4e21c5774e8578d2cabfa50ede4d5bd",
+    "source_commit": "87a5206ae925b1fb88f8ecc6bc248316128b64ee",
+    "source_python_files": 975
+  },
+  "openswarm": {
+    "commit": "ab982afcea63dbc775f8a40b74a1b1339a28097f",
+    "dirty_paths": [
+      "?? backend/graphify-out/",
+      "?? graphify-out/"
+    ],
+    "license_sha256": "e9e2b30fcdb2bd90189d0d91819a0cfb79e7912a883fd4aad5f17cce6d0ee905",
+    "origin": "https://github.com/openswarm-ai/openswarm.git",
+    "tree": "d45d05a6c6b60d74ea3d5f6b5ac7e5b7f4d6ad5c"
+  },
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2"
+}

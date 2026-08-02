@@ -1,0 +1,13 @@
+{
+  "task_id": "S01-T01",
+  "approved_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "worktrees": [
+    {"name": "integration", "path": "/Volumes/Projects/ketos-stage01-integration", "branch_or_state": "codex/stage01-baseline-evidence", "sha": "80878261d07c21ad257de017d98069f211ada2c2", "clean_status": "clean at admission; now contains only this task's evidence bundle", "purpose": "Stage 01 integration evidence", "owner": "stage-01", "disposition": "active"},
+    {"name": "architecture", "path": "/Volumes/Projects/ketos-stage01-lane-architecture", "branch_or_state": "detached", "sha": "80878261d07c21ad257de017d98069f211ada2c2", "clean_status": "clean", "purpose": "isolated architecture lane", "owner": "stage-01", "disposition": "reserved"},
+    {"name": "backend", "path": "/Volumes/Projects/ketos-stage01-lane-backend", "branch_or_state": "detached", "sha": "80878261d07c21ad257de017d98069f211ada2c2", "clean_status": "clean", "purpose": "isolated backend lane", "owner": "stage-01", "disposition": "reserved"},
+    {"name": "frontend", "path": "/Volumes/Projects/ketos-stage01-lane-frontend", "branch_or_state": "detached", "sha": "80878261d07c21ad257de017d98069f211ada2c2", "clean_status": "clean", "purpose": "isolated frontend lane", "owner": "stage-01", "disposition": "reserved"},
+    {"name": "testing", "path": "/Volumes/Projects/ketos-stage01-lane-testing", "branch_or_state": "detached", "sha": "80878261d07c21ad257de017d98069f211ada2c2", "clean_status": "clean", "purpose": "isolated test lane", "owner": "stage-01", "disposition": "reserved"},
+    {"name": "docs", "path": "/Volumes/Projects/ketos-stage01-lane-docs", "branch_or_state": "detached", "sha": "80878261d07c21ad257de017d98069f211ada2c2", "clean_status": "clean", "purpose": "isolated documentation lane", "owner": "stage-01", "disposition": "reserved"}
+  ],
+  "evidence_record": "records/worktree-list.json"
+}

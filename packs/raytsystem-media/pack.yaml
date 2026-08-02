@@ -1,0 +1,11 @@
+pack_id: pack_raytsystem_media
+name: Ketos RaytSystem Media Procedures
+version: "1.0.0"
+description: User-trusted, skill-only media inspection procedure for the Ketos workspace.
+license_expression: Apache-2.0
+trust_class: user
+agent_ids: []
+skill_ids:
+  - raytsystem-watch
+context_paths: []
+optional: true

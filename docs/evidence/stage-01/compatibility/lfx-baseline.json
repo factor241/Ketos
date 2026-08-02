@@ -1,0 +1,17 @@
+{
+  "compatibility_version": "1.10.2",
+  "focused_suite": {
+    "command": "uv run pytest src/compat/lfx/tests/test_lfx_compatibility.py -q",
+    "passed": 9,
+    "status": "PASS"
+  },
+  "legacy_modules_sha256": "1e26944c9961e2d15e394eefdf0730708135948675a114f1b6f61602af70c043",
+  "logical_modules": 974,
+  "manifest_file_sha256": "aacbadc146f45b9bf0f049b8dc7b02c2c4e21c5774e8578d2cabfa50ede4d5bd",
+  "normal_ci_contract": "versioned manifest and alias/import tests; no historical checkout required",
+  "regeneration_contract": "separate historical job may compare source commit and regenerate only after explicit review",
+  "schema_version": 1,
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "source_commit": "87a5206ae925b1fb88f8ecc6bc248316128b64ee",
+  "source_python_files": 975
+}

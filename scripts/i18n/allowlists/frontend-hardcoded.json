@@ -1,0 +1,3747 @@
+{
+  "schema_version": 1,
+  "baseline": {
+    "commit": "def832f409c01f0acd3937b9317dde03d0273552",
+    "captured_on": "2026-07-11",
+    "scope": ["src/frontend/src/**/*.{ts,tsx,js,jsx}"],
+    "raw_candidate_count": 97,
+    "ast_jsx_text_candidate_count": 66,
+    "ast_visible_attribute_candidate_count": 22,
+    "policy": "Committed AST baselines are evidence only. Every current candidate must be localized, classified as active debt, or present in the exact reviewed allowlist.",
+    "reproduced_raw_candidate_count": 97,
+    "reproduced_candidate_file_count": 44,
+    "ast_production_file_count": 1598,
+    "triage_counts": {
+      "allowlist_exact": 14,
+      "already_semantic_key": 17,
+      "false_positive_scanner": 55,
+      "machine_contract": 11,
+      "semantic_key_required": 0
+    },
+    "static_html_scope": ["src/frontend/index.html"],
+    "ast_candidate_count": 0,
+    "ast_contract_captured_on": "2026-07-12"
+  },
+  "entries": [
+    {
+      "path": "src/frontend/src/components/common/ketos-mcp-composition.tsx",
+      "value": "MCP",
+      "reason": "Exact protocol mark; the surrounding system-owned prose remains translatable.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-15"
+    },
+    {
+      "path": "src/frontend/src/constants/languages.ts",
+      "value": "ru",
+      "reason": "Exact supported locale code returned by locale normalization; it is a machine-facing identifier.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-15"
+    },
+    {
+      "path": "src/frontend/src/modals/apiModal/utils/get-js-api-code.tsx",
+      "value": "${authSection}const crypto = require('crypto'); const fs = require('fs'); const path = require('path'); const BASE_URL = \"${baseUrl}\"; const FLOW_ID = \"${flowId}\"; const protocol = new URL(BASE_URL).protocol; const httpModule = protocol === 'https:' ? require('https') : require('http'); // Helper function to create multipart form data function createFormData(filePath) { const boundary = '----FormBoundary' + Date.now(); const filename = path.basename(filePath); if (!fs.existsSync(filePath)) { throw new Error(\\`File not found: \\${filePath}\\`); } const fileData = fs.readFileSync(filePath); let data = ''; data += \\`--\\${boundary}\\\\r\\\\n\\`; data += \\`Content-Disposition: form-data; name=\"file\"; filename=\"\\${filename}\"\\\\r\\\\n\\`; data += \\`Content-Type: application/octet-stream\\\\r\\\\n\\\\r\\\\n\\`; const payload = Buffer.concat([ Buffer.from(data, 'utf8'), fileData, Buffer.from(\\`\\\\r\\\\n--\\${boundary}--\\\\r\\\\n\\`, 'utf8') ]); return { payload, boundary }; } // Helper function to make HTTP requests function makeRequest(options, data) { return new Promise((resolve, reject) => { const req = httpModule.request(options, (res) => { let responseData = ''; res.on('data', (chunk) => { responseData += chunk; }); res.on('end', () => { if (res.statusCode >= 200 && res.statusCode < 300) { try { resolve(JSON.parse(responseData)); } catch (e) { resolve(responseData); } } else { reject(new Error(\\`Request failed with status \\${res.statusCode}: \\${responseData}\\`)); } }); }); req.on('error', reject); if (data) req.write(data); req.end(); }); } async function uploadAndExecuteFlow() { try {${ shouldDisplayApiKey ? ` const apiKey = 'YOUR_API_KEY_HERE'; const authHeaders = { 'x-api-key': apiKey };` : ` const authHeaders = {};` } ${uploadSteps.join(\"\\n\\n\")} // Step ${uploadSteps.length + 1}: Execute flow with all file paths const executePayload = JSON.stringify({ \"output_type\": \"${typeof payload.output_type === \"string\" ? payload.output_type : \"chat\"}\", \"input_type\": \"${typeof payload.input_type === \"string\" ? payload.input_type : \"chat\"}\", \"input_value\": \"${ typeof payload.input_value === \"string\" ? payload.input_value : \"Your message here\" }\", \"session_id\": crypto.randomUUID(), \"tweaks\": { ${allTweaks} } }); const executeOptions = { hostname: '${hostname}', port: ${port}, path: \\`/api/v1/run/${endpointName || flowId}\\`, method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(executePayload),${formatJsHeadersForInline()} ...authHeaders } }; const result = await makeRequest(executeOptions, executePayload); console.log('Flow execution successful!'); console.log(result); } catch (error) { console.error('Error:', error.message); } } uploadAndExecuteFlow();",
+      "reason": "Exact generated API client source code; translating it would corrupt the executable sample.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-15"
+    },
+    {
+      "path": "src/frontend/src/modals/apiModal/utils/get-python-api-code.tsx",
+      "value": "import requests import os import uuid ${authSection}base_url = \"${baseUrl}\" flow_id = \"${flowId}\" ${headersSection} ${uploadSteps.join(\"\\n\\n\")} # Step ${uploadSteps.length + 1}: Execute flow with all file paths payload = { \"output_type\": \"${typeof payload.output_type === \"string\" ? payload.output_type : \"chat\"}\", \"input_type\": \"${typeof payload.input_type === \"string\" ? payload.input_type : \"chat\"}\", \"input_value\": \"${typeof payload.input_value === \"string\" ? payload.input_value : \"Your message here\"}\", \"session_id\": str(uuid.uuid4()), \"tweaks\": { ${allTweaks} } } response = requests.post( f\"{base_url}/api/v1/run/{endpointName or flowId}\", headers={\"Content-Type\": \"application/json\", **headers}, json=payload ) response.raise_for_status() print(response.json())",
+      "reason": "Exact generated API client source code; translating it would corrupt the executable sample.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-15"
+    },
+    {
+      "path": "src/frontend/src/utils/ketos-storage-keys.ts",
+      "value": "ketos-flow-session-${flowId ?? \"unknown\"}",
+      "reason": "Exact browser storage key format; translating it would break persisted application state.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-15"
+    },
+    {
+      "path": "src/frontend/src/utils/ketos-storage-keys.ts",
+      "value": "ketos-table-state-${tableReference}",
+      "reason": "Exact browser storage key format; translating it would break persisted application state.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-15"
+    },
+    {
+      "path": "src/frontend/src/components/core/folderSidebarComponent/helpers/project-shell-route.ts",
+      "value": "/project/${encodeURIComponent(normalizedProjectId)}/boards",
+      "reason": "Exact canonical application route template; translating it would break routing.",
+      "owner": "frontend-routing",
+      "review_date": "2026-07-19"
+    },
+    {
+      "path": "src/frontend/src/components/core/chats/use-thread-scoped-copilot-agent.ts",
+      "value": "${CHAT_RUNTIME_AGENT_ID}--${chatId}",
+      "reason": "Exact scoped CopilotKit runtime agent instance identifier; translating it would break thread isolation.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/board-notes/keys.ts",
+      "value": "project",
+      "reason": "Exact TanStack Query cache-key namespace segment; it is a machine-facing contract, not system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/board-notes/keys.ts",
+      "value": "detail",
+      "reason": "Exact TanStack Query cache-key namespace segment; it is a machine-facing contract, not system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/chat-threads/keys.ts",
+      "value": "list",
+      "reason": "Exact TanStack Query cache-key namespace segment; it is a machine-facing contract, not system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/chat-threads/keys.ts",
+      "value": "detail",
+      "reason": "Exact TanStack Query cache-key namespace segment; it is a machine-facing contract, not system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/placements/keys.ts",
+      "value": "scene",
+      "reason": "Exact TanStack Query cache-key namespace segment; it is a machine-facing contract, not system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/placements/keys.ts",
+      "value": "detail",
+      "reason": "Exact TanStack Query cache-key namespace segment; it is a machine-facing contract, not system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
+    },
+    {
+      "path": "src/frontend/index.html",
+      "value": "Ketos",
+      "reason": "Exact product brand in the static document title; surrounding system text is not exempt.",
+      "owner": "frontend-localization",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/index.html",
+      "value": "Для работы Ketos необходимо включить JavaScript.",
+      "reason": "Localized static fallback sentence whose only Latin tokens are the protected Ketos and JavaScript names.",
+      "owner": "frontend-localization",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/common/loadingTextComponent/index.tsx",
+      "value": "${prevDots}.",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/common/loadingTextComponent/index.tsx",
+      "value": "${text}${dots}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/common/renderIconComponent/components/renderKey/index.tsx",
+      "value": "Ctrl",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/appHeaderComponent/index.tsx",
+      "value": "${baseClasses} right-[0.3rem] top-[5px]",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/appHeaderComponent/index.tsx",
+      "value": "hidden",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/appHeaderComponent/index.tsx",
+      "value": "notifications",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/assistantPanel/components/assistant-file-card.tsx",
+      "value": "${formatNumber(bytes / 1024 / 1024, { maximumFractionDigits: 1, })} MB",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/assistantPanel/components/assistant-file-card.tsx",
+      "value": "${formatNumber(bytes / 1024, { maximumFractionDigits: 1 })} kB",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/assistantPanel/components/assistant-file-card.tsx",
+      "value": "${formatNumber(bytes)} B",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/assistantPanel/components/assistant-flow-edit-card.tsx",
+      "value": "-&gt;",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/assistantPanel/components/model-selector.tsx",
+      "value": "Bot",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/assistantPanel/helpers/mention-parsing.ts",
+      "value": "'${componentId}.${fieldName}'",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/assistantPanel/helpers/mention-parsing.ts",
+      "value": "'${componentId}'",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/assistantPanel/helpers/model-strength.ts",
+      "value": "strong",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/assistantPanel/helpers/model-strength.ts",
+      "value": "weak",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/assistantPanel/hooks/use-assistant-session-id.ts",
+      "value": "${ASSISTANT_SESSION_STORAGE_KEY_PREFIX}${flowId}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/canvasControlsComponent/utils/canvasUtils.ts",
+      "value": "${Math.round(zoom * 100)}%",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/canvasControlsComponent/utils/canvasUtils.ts",
+      "value": "Ctrl",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/chatComponents/ContentBlockDisplay.tsx",
+      "value": "Bot",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/chatComponents/ContentBlockDisplay.tsx",
+      "value": "Check",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/chatComponents/ContentDisplay.tsx",
+      "value": "**${t(\"chat.errorLabel\")}**",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/chatComponents/ContentDisplay.tsx",
+      "value": "**${t(\"chat.inputLabel\")}**",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/chatComponents/ContentDisplay.tsx",
+      "value": "**${t(\"chat.outputLabel\")}**",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/dateReaderComponent/index.tsx",
+      "value": "${year}-${month}-${day} ${hours}:${minutes}:${seconds}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/dropdownComponent/index.tsx",
+      "value": "${firstWord}: ${localizedLabel}\\n${metadataEntries.join(\"\\n\")}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/dropdownComponent/index.tsx",
+      "value": "${key}: ${displayValue}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/dropdownComponent/index.tsx",
+      "value": "${String(value)} ${key}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/folderSidebarComponent/components/sideBarFolderButtons/index.tsx",
+      "value": "bg-accent text-accent-foreground",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/GlobalVariableModal/utils/assign-tab.tsx",
+      "value": "Credential",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/accordionPromptComponent/index.tsx",
+      "value": "<span class=\"chat-message-highlight\">{${varName}}</span>",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/accordionPromptComponent/index.tsx",
+      "value": "<span class=\"chat-message-highlight\">${match}</span>",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/accordionPromptComponent/index.tsx",
+      "value": "${outerLeft}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/accordionPromptComponent/index.tsx",
+      "value": "${outerRight}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/accordionPromptComponent/index.tsx",
+      "value": "variable_name",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/codeAreaComponent/index.tsx",
+      "value": "background-fade-input",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/codeAreaComponent/index.tsx",
+      "value": "background-fade-input-edit-node",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/codeAreaComponent/index.tsx",
+      "value": "gradient-fade-input",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/codeAreaComponent/index.tsx",
+      "value": "gradient-fade-input-edit-node",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/copyFieldAreaComponent/index.tsx",
+      "value": "${URL_MCP_SSE}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/copyFieldAreaComponent/index.tsx",
+      "value": "${URL_WEBHOOK}${endpointName}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/copyFieldAreaComponent/index.tsx",
+      "value": "background-fade-input",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/copyFieldAreaComponent/index.tsx",
+      "value": "background-fade-input-edit-node",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/copyFieldAreaComponent/index.tsx",
+      "value": "gradient-fade-input",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/copyFieldAreaComponent/index.tsx",
+      "value": "gradient-fade-input-edit-node",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/copyFieldAreaComponent/index.tsx",
+      "value": "primary-input ${isFocused ? \"text-primary\" : \"text-muted-foreground\"}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/copyFieldAreaComponent/index.tsx",
+      "value": "w-full ${isFocused ? \"\" : \"pr-3\"}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/inputComponent/components/helpers/get-icon-name.ts",
+      "value": "GlobeOkIcon",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/inputComponent/components/helpers/get-icon-name.ts",
+      "value": "Hammer",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/inputComponent/components/helpers/get-icon-name.ts",
+      "value": "lock",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/inputListComponent/helpers/get-test-id.ts",
+      "value": "input-list-${type}-btn${editNode ? \"-edit\" : \"\"}_${componentName}-${index}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/keypairListComponent/index.tsx",
+      "value": "${editNode ? \"editNode\" : \"\"}${prefix}${index}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/mustachePromptComponent/index.tsx",
+      "value": "<span class=\"chat-message-highlight\">{{${varName}}}</span>",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/promptComponent/index.tsx",
+      "value": "<span class=\"chat-message-highlight\">{${varName}}</span>",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/promptComponent/index.tsx",
+      "value": "${outerLeft}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/promptComponent/index.tsx",
+      "value": "${outerRight}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/queryComponent/index.tsx",
+      "value": "background-fade-input",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/queryComponent/index.tsx",
+      "value": "background-fade-input-edit-node",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/queryComponent/index.tsx",
+      "value": "gradient-fade-input",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/queryComponent/index.tsx",
+      "value": "gradient-fade-input-edit-node",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/queryComponent/index.tsx",
+      "value": "primary-input ${isFocused ? \"text-primary\" : \"text-muted-foreground\"}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/queryComponent/index.tsx",
+      "value": "w-full ${isFocused ? \"\" : \"pr-3\"}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/sliderComponent/helpers/build-color-by-name.ts",
+      "value": "hsl(${hue}, ${saturation}%, ${lightness}%)",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/sliderComponent/index.tsx",
+      "value": "#27272a",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/sliderComponent/index.tsx",
+      "value": "#52525b",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/sliderComponent/index.tsx",
+      "value": "#e4e4e7",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/TableNodeComponent/index.tsx",
+      "value": "${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/TableNodeComponent/index.tsx",
+      "value": "${params.value}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/textAreaComponent/index.tsx",
+      "value": "background-fade-input",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/textAreaComponent/index.tsx",
+      "value": "background-fade-input-edit-node",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/textAreaComponent/index.tsx",
+      "value": "gradient-fade-input",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/textAreaComponent/index.tsx",
+      "value": "gradient-fade-input-edit-node",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/textAreaComponent/index.tsx",
+      "value": "primary-input ${isFocused ? \"text-primary\" : \"text-muted-foreground\"}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/textAreaComponent/index.tsx",
+      "value": "w-full ${isFocused ? \"\" : \"pr-3\"} ${password ? \"pr-16\" : \"\"}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/playgroundComponent/chat-view/chat-header/utils/get-session-title.ts",
+      "value": "${i18n.t(\"assistant.newSession\")} — ${formatDateTime(timestamp, { month: \"short\", day: \"2-digit\", hour: \"2-digit\", minute: \"2-digit\", second: \"2-digit\", })}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/playgroundComponent/chat-view/chat-messages/hooks/use-chat-history.ts",
+      "value": "useGetMessagesQuery",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/playgroundComponent/chat-view/chat-messages/utils/content-blocks.ts",
+      "value": "partial",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/playgroundComponent/chat-view/chat-messages/utils/format.ts",
+      "value": "${baseName.slice(0, numberToTruncate)}...${fileExtension}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/playgroundComponent/chat-view/utils/file-utils.ts",
+      "value": "${baseName.slice(0, maxLength)}...${fileExtension}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/core/playgroundComponent/chat-view/utils/file-utils.ts",
+      "value": "${baseUrlWithSlash}files/images/${encodedPath}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/ui/sidebar.tsx",
+      "value": "${Math.floor(Math.random() * 40) + 50}%",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/components/ui/simple-sidebar.tsx",
+      "value": "var(--simple-sidebar-width)",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/constants/dbProviderConstants.ts",
+      "value": "admin",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/constants/dbProviderConstants.ts",
+      "value": "Astra DB",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/constants/dbProviderConstants.ts",
+      "value": "chroma",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/constants/dbProviderConstants.ts",
+      "value": "Chroma Cloud",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/constants/dbProviderConstants.ts",
+      "value": "Chroma Local",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/constants/dbProviderConstants.ts",
+      "value": "chroma_cloud",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/constants/dbProviderConstants.ts",
+      "value": "ck-…",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/constants/dbProviderConstants.ts",
+      "value": "default-database",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/constants/dbProviderConstants.ts",
+      "value": "default-tenant",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/constants/dbProviderConstants.ts",
+      "value": "https://search.example.com:9200",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/constants/dbProviderConstants.ts",
+      "value": "ketos_knowledge",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/constants/dbProviderConstants.ts",
+      "value": "MongoDB Atlas",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/constants/dbProviderConstants.ts",
+      "value": "opensearch",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/constants/dbProviderConstants.ts",
+      "value": "OpenSearch",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/constants/dbProviderConstants.ts",
+      "value": "Postgres pgvector",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/constants/dbProviderConstants.ts",
+      "value": "text",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/constants/dbProviderConstants.ts",
+      "value": "us-east-1",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/constants/dbProviderConstants.ts",
+      "value": "vector_field",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/constants/languages.ts",
+      "value": "en",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/constants/languages.ts",
+      "value": "English",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/api.tsx",
+      "value": "http://localhost",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/helpers/constants.ts",
+      "value": "${v2 ? BASE_URL_API_V2 : getBaseUrl()}${url}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/file-management/upload-name-utils.ts",
+      "value": "${rootBase} (${counter})${ext}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/file-management/upload-name-utils.ts",
+      "value": "${rootBase} (${Date.now()})${ext}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/models/use-get-model-providers.ts",
+      "value": "Bot",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/traces/helpers.ts",
+      "value": "none",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/traces/helpers.ts",
+      "value": "unset",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/controllers/utils/create-query-param-string.ts",
+      "value": "${baseUrl}?${queryString}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/customization/hooks/use-custom-generate-token.ts",
+      "value": "token",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/customization/utils/custom-buildUtils.ts",
+      "value": "${getBaseUrl()}${playgroundPage ? \"build_public_tmp\" : \"build\"}/${flowId}/flow",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/customization/utils/custom-buildUtils.ts",
+      "value": "${getBaseUrl()}${playgroundPage ? \"build_public_tmp\" : \"build\"}/${jobId}/cancel",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/customization/utils/custom-buildUtils.ts",
+      "value": "${getBaseUrl()}${playgroundPage ? \"build_public_tmp\" : \"build\"}/${jobId}/events",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/customization/utils/custom-code-samples.ts",
+      "value": "${line}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/customization/utils/custom-code-samples.ts",
+      "value": "${protocol}//${host}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/customization/utils/custom-mcp-open.ts",
+      "value": "_blank",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/customization/utils/custom-mcp-url.ts",
+      "value": "${baseUrl}/sse",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/customization/utils/custom-mcp-url.ts",
+      "value": "${baseUrl}/streamable",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/customization/utils/custom-pre-load-image-url.ts",
+      "value": "${getBaseUrl()}files/profile_pictures/${imageUrl}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/customization/utils/get-fetch-credentials.ts",
+      "value": "include",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/customization/utils/urls.ts",
+      "value": "/api/v1/",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/customization/utils/urls.ts",
+      "value": "/health",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/customization/utils/urls.ts",
+      "value": "https://ketos.test",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/GenericNode/components/handleRenderComponent/index.tsx",
+      "value": "0 0 0 3px ${color}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/GenericNode/components/handleRenderComponent/index.tsx",
+      "value": "none",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/GenericNode/components/NodeStatus/index.tsx",
+      "value": "button_connected_${display_name.toLowerCase()}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/GenericNode/components/NodeStatus/index.tsx",
+      "value": "button_disconnected_${display_name.toLowerCase()}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/GenericNode/components/NodeStatus/index.tsx",
+      "value": "button_error_${display_name.toLowerCase()}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/GenericNode/components/NodeStatus/utils/format-run-time.ts",
+      "value": "${ms}ms",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/GenericNode/components/NodeStatus/utils/format-run-time.ts",
+      "value": "${parseFloat(minutes)}.${Math.round((parseFloat(seconds) * 100) / 60)}m",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/GenericNode/components/NodeStatus/utils/format-run-time.ts",
+      "value": "${parseFloat(seconds)}s",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/GenericNode/components/outputModal/components/switchOutputView/index.tsx",
+      "value": "${resultMessage.substring(0, MAX_TEXT_LENGTH)}...",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/GenericNode/components/outputModal/components/switchOutputView/index.tsx",
+      "value": "${value.substring(0, MAX_TEXT_LENGTH)}...",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/helpers/get-class-from-build-status.ts",
+      "value": "border-destructive border-[1px] ring-[0.75px] ring-destructive",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/helpers/get-class-from-build-status.ts",
+      "value": "border-foreground border-[1px] ring-[0.75px] ring-foreground",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/helpers/get-class-toolbar-transform.ts",
+      "value": "translate-x-[10.4rem] opacity-100",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/helpers/get-class-toolbar-transform.ts",
+      "value": "translate-x-[5rem] opacity-0",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/helpers/get-class-toolbar-transform.ts",
+      "value": "translate-x-[6.4rem] opacity-100",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/helpers/get-class-toolbar-transform.ts",
+      "value": "translate-x-[8rem] opacity-0",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/NoteNode/index.tsx",
+      "value": "!text-black",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/NoteNode/index.tsx",
+      "value": "!text-white",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/NoteNode/index.tsx",
+      "value": "dark",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/NoteNode/index.tsx",
+      "value": "dark:!ring-background dark:text-background",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/CustomNodes/NoteNode/index.tsx",
+      "value": "light",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/flow_constants.tsx",
+      "value": "flow.defaultDescription.${i}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/hooks/extensions/typed-error-formatting.ts",
+      "value": "[${payload.code}] ${localizeExtensionDiagnostic(payload, translate)}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/hooks/files/use-upload-file.ts",
+      "value": ".${type}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/hooks/use-language-preference.ts",
+      "value": "${LANGUAGE_STORAGE_KEY}:${userId}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/hooks/use-language-preference.ts",
+      "value": "qps-ploc",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/i18n-diagnostics.ts",
+      "value": "${key}_${category}",
+      "reason": "Exact i18next plural-key construction; translating it would break locale lookup.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/i18n/pseudo-locale.ts",
+      "value": "［${translated}］",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/icons/Apify/index.tsx",
+      "value": "Apify",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/icons/AWS/AWS.jsx",
+      "value": ".st1{fill-rule:evenodd;clip-rule:evenodd;fill:#f90}",
+      "reason": "Exact SVG-internal style metadata; it is not rendered prose and translating it would corrupt the icon.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/icons/AWSInverted/AWS.jsx",
+      "value": ".st1{fill-rule:evenodd;clip-rule:evenodd;fill:#f90}",
+      "reason": "Exact SVG-internal style metadata; it is not rendered prose and translating it would corrupt the icon.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/icons/Bitbucket/bitbucket.jsx",
+      "value": "Bitbucket Logo Streamline Icon: https://streamlinehq.com",
+      "reason": "Exact embedded SVG source-attribution metadata; it is not product UI prose.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/icons/CometAPI/cometapi.jsx",
+      "value": "CometAPI",
+      "reason": "Exact protected product self-name in icon accessibility metadata.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/icons/contentful/contentful.jsx",
+      "value": "Contentful Streamline Icon: https://streamlinehq.com",
+      "reason": "Exact embedded SVG source-attribution metadata; it is not product UI prose.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/icons/DuckDuckGo/DuckDuckGo.jsx",
+      "value": ".b{fill:#fff}",
+      "reason": "Exact SVG-internal style metadata; it is not rendered prose and translating it would corrupt the icon.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/icons/DuckDuckGo/DuckDuckGo.jsx",
+      "value": "duckduckgo",
+      "reason": "Exact protected product self-name in embedded icon metadata.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/icons/Firecrawl/FirecrawlLogo.jsx",
+      "value": ".cls-3 { fill: url(#linear-gradient-1); } .cls-4 { fill: #fc9502; } .cls-5 { fill: #fce202; }",
+      "reason": "Exact SVG-internal style metadata; it is not rendered prose and translating it would corrupt the icon.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/icons/freezeAll/freezeAll.jsx",
+      "value": "snowflake-svg",
+      "reason": "Exact SVG-internal identifier; translating it would break icon references.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/icons/Groq/GroqLogo.jsx",
+      "value": "groq logo",
+      "reason": "Exact protected product self-name in icon accessibility metadata.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/icons/IBM/db2/DB2.jsx",
+      "value": "DB2",
+      "reason": "Exact protected product self-name embedded in the provider icon.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/icons/MCP/McpIcon.jsx",
+      "value": "ModelContextProtocol",
+      "reason": "Exact protocol identifier embedded in the MCP icon; protocol tokens are not translated.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/icons/Nvidia/nvidia.jsx",
+      "value": "generated by pstoedit version:3.44 from NVBadge_2D.eps",
+      "reason": "Exact generated SVG provenance metadata; it is not product UI prose.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/icons/OneDrive/OneDrive.jsx",
+      "value": "OfficeCore10_32x_24x_20x_16x_01-22-2019",
+      "reason": "Exact SVG-internal asset identifier; translating it would corrupt icon metadata.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/icons/Pandadoc/pandadoc.jsx",
+      "value": ".st0{fill:#47B972;} .st1{fill:#FFFFFF;}",
+      "reason": "Exact SVG-internal style metadata; it is not rendered prose and translating it would corrupt the icon.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/icons/SambaNova/SambaNovaLogo.jsx",
+      "value": "sambanova logo",
+      "reason": "Exact protected product self-name in icon accessibility metadata.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/icons/Spider/SpiderIcon.jsx",
+      "value": "Spider v0 Logo",
+      "reason": "Exact protected product/version name embedded in the provider icon.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/icons/Upstash/UpstashIcon.jsx",
+      "value": "upstash",
+      "reason": "Exact protected product self-name embedded in the provider icon.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/icons/Weaviate/Weaviate.jsx",
+      "value": ".weaviate_svg__cls-1{fill:none}",
+      "reason": "Exact SVG-internal style metadata; it is not rendered prose and translating it would corrupt the icon.",
+      "owner": "platform-contracts",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/icons/xAI/xAIIcon.jsx",
+      "value": "Grok",
+      "reason": "Exact protected product self-name embedded in the provider icon.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/modals/apiModal/codeTabs/code-tabs.tsx",
+      "value": "cURL",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/modals/apiModal/codeTabs/code-tabs.tsx",
+      "value": "JavaScript",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/modals/apiModal/codeTabs/code-tabs.tsx",
+      "value": "macOS/Linux",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/modals/apiModal/codeTabs/code-tabs.tsx",
+      "value": "Python",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/modals/apiModal/codeTabs/code-tabs.tsx",
+      "value": "Windows",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/modals/apiModal/utils/get-curl-code.tsx",
+      "value": "$jsonData = @' ${singleLinePayload} '@ curl.exe --request POST \\` --url \"${apiUrl}?stream=false\" \\` ${getApiSampleHeaders(\"curl\")} --header \"Content-Type: application/json\" \\`${ authHeader ? \"\\n\" + authHeader : \"\" } --data $jsonData",
+      "reason": "Exact generated code or CLI sample syntax; translated surrounding UI remains outside the sample contract.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/apiModal/utils/get-curl-code.tsx",
+      "value": "curl --request POST \\\\ --url '${apiUrl}?stream=false' \\\\ --header 'Content-Type: application/json' \\\\${ authHeader ? \"\\n\" + authHeader : \"\" } --data '${unixFormattedPayload}'",
+      "reason": "Exact generated code or CLI sample syntax; translated surrounding UI remains outside the sample contract.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/apiModal/utils/get-js-api-code.tsx",
+      "value": "${authSection}const payload = ${payloadString}; payload.session_id = crypto.randomUUID(); const options = { method: 'POST', ${headersSection} body: JSON.stringify(payload) }; fetch('${apiUrl}', options) .then(response => response.json()) .then(response => console.warn(response)) .catch(err => console.error(err));",
+      "reason": "Exact generated code or CLI sample syntax; translated surrounding UI remains outside the sample contract.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/apiModal/utils/get-python-api-code.tsx",
+      "value": "import requests import os import uuid ${authSection} url = \"${apiUrl}\" # The complete API endpoint URL for this flow # Request payload configuration payload = ${payloadString} payload[\"session_id\"] = str(uuid.uuid4()) ${headersSection} try: # Send API request response = requests.request(\"POST\", url, json=payload, headers=headers) response.raise_for_status() # Raise exception for bad status codes # Print response print(response.text) except requests.exceptions.RequestException as e: print(f\"Error making API request: {e}\") except ValueError as e: print(f\"Error parsing response: {e}\")",
+      "reason": "Exact generated code or CLI sample syntax; translated surrounding UI remains outside the sample contract.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/authModal/index.tsx",
+      "value": "http://localhost:1234",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/authModal/index.tsx",
+      "value": "http://localhost:1234/auth/idaas/authorize",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/authModal/index.tsx",
+      "value": "http://localhost:1234/auth/idaas/token",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/authModal/index.tsx",
+      "value": "http://localhost:9000/auth/idaas/callback",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/authModal/index.tsx",
+      "value": "localhost",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/authModal/index.tsx",
+      "value": "openid",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/authModal/index.tsx",
+      "value": "user",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/editNodeModal/index.tsx",
+      "value": "ID:",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/fileManagerModal/components/dragFilesComponent/index.tsx",
+      "value": ".${type}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/fileManagerModal/components/filesRendererComponent/components/fileRendererComponent/index.tsx",
+      "value": "${file.name}.${type}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/fileManagerModal/components/importButtonComponent/index.tsx",
+      "value": "OneDrive",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/modals/fileManagerModal/components/recentFilesComponent/index.tsx",
+      "value": "${t(\"fileManager.noFilesFound\")}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/fileManagerModal/components/recentFilesComponent/index.tsx",
+      "value": "${t(\"fileManager.uploadOrImport\")},",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/IOModal/components/chatView/chatInput/components/voice-assistant/helpers/create-new-session-name.ts",
+      "value": "${GENERATED_SESSION_ID_PREFIX}${now.getTime()}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/IOModal/components/chatView/chatInput/components/voice-assistant/helpers/format-time.ts",
+      "value": "${minutes.toString().padStart(2, \"0\")}:${seconds.toString().padStart(2, \"0\")}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/IOModal/components/chatView/fileComponent/utils/format-file-name.tsx",
+      "value": "${baseName.slice(0, numberToTruncate)}...${fileExtension}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/IOModal/components/chatView/fileComponent/utils/get-classes.tsx",
+      "value": "relative h-20 w-80 cursor-pointer rounded-lg border border-ring bg-muted shadow transition duration-300 hover:drop-shadow-lg ${ isHovered ? \"shadow-md\" : \"\" }",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/knowledgeBaseUploadModal/components/StepConfiguration.tsx",
+      "value": "\\n",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/knowledgeBaseUploadModal/constants.ts",
+      "value": ".${ext}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/knowledgeBaseUploadModal/hooks/useKnowledgeBaseForm.ts",
+      "value": "knowledge.validationOpenSearchIndexRequired",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/knowledgeBaseUploadModal/utils.ts",
+      "value": "${(bytes / (1024 * 1024)).toFixed(1)} MB",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/knowledgeBaseUploadModal/utils.ts",
+      "value": "${(bytes / 1024).toFixed(1)} KB",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/knowledgeBaseUploadModal/utils.ts",
+      "value": "${bytes} B",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/modelProviderModal/components/ProviderConfigurationForm.tsx",
+      "value": "${config.prefix}${\"•\".repeat(maskedLength)}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/modelProviderModal/components/ProviderConfigurationForm.tsx",
+      "value": "${selectedProvider.provider || t(\"modelProviders.unknownProvider\")} ${requiresConfiguration && ` ${t(\"modelProviders.configuration\")}`}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/modelProviderModal/components/ProviderConfigurationForm.tsx",
+      "value": "AIza...",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/modelProviderModal/components/ProviderConfigurationForm.tsx",
+      "value": "http://localhost:11434",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/modelProviderModal/components/ProviderConfigurationForm.tsx",
+      "value": "sk-...",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/modelProviderModal/components/ProviderConfigurationForm.tsx",
+      "value": "sk-ant-...",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/mustachePromptModal/index.tsx",
+      "value": "{{${v}}}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/mustachePromptModal/index.tsx",
+      "value": "code-highlight",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/mustachePromptModal/index.tsx",
+      "value": "code-nohighlight",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/promptModal/index.tsx",
+      "value": "code-highlight",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/promptModal/index.tsx",
+      "value": "code-nohighlight",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/promptModal/utils/var-highlight-html.tsx",
+      "value": "<span class=\"font-semibold chat-message-highlight\">{${name}}</span>",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/promptModal/utils/var-highlight-html.tsx",
+      "value": "<span class=\"font-semibold chat-message-highlight\">${name}</span>",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/secretKeyModal/components/form-key-render.tsx",
+      "value": "${y}-${m}-${d}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/templatesModal/components/TemplateGetStartedCardComponent/index.tsx",
+      "value": "${flow.name} Horizontal",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/templatesModal/components/TemplateGetStartedCardComponent/index.tsx",
+      "value": "${flow.name} Spiral",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/modals/toolsModal/components/toolsTable/index.tsx",
+      "value": "${params.data.name}_${params.data.display_name}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/flowBuildingComponent/helpers/get-running-node-label.ts",
+      "value": "${className}-${uuid}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/flowBuildingComponent/index.tsx",
+      "value": "${secondsValue.toFixed(1)}s",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/FlowVersionSidebar/index.tsx",
+      "value": "/ ${maxEntries}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items.ts",
+      "value": "memory.sidebarTitle",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items.ts",
+      "value": "sidebar.nav.bundles",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items.ts",
+      "value": "sidebar.nav.components",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items.ts",
+      "value": "sidebar.nav.mcp",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items.ts",
+      "value": "sidebar.nav.traces",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items.ts",
+      "value": "sidebar.nav.versionHistory",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items.ts",
+      "value": "sidebar.nav.versions",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/index.tsx",
+      "value": "${t(\"misc.mcpServer\")}: ${mcpServer.name}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/InspectionPanel/components/InspectionPanelHeader.tsx",
+      "value": "ID:",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/MemoriesMainContent/components/MemoryDetailsHeader.tsx",
+      "value": "${sessionLabel.slice(0, 20)}...",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/MemoriesMainContent/helpers.ts",
+      "value": "${parts[0]}T${parts.slice(1).join(\"\")}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/MemoriesMainContent/hooks/useMemorySessionResolver.ts",
+      "value": "__all__",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/PageComponent/utils/get-random-name.tsx",
+      "value": "${lv}_${rv}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/PageComponent/utils/get-random-name.tsx",
+      "value": "${lv}_${rv}${retrySuffix}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/TraceComponent/config/flowTraceColumnsHelpers.ts",
+      "value": "${name} - ${id}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/TraceComponent/traceViewHelpers.ts",
+      "value": "Circle",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/TraceComponent/traceViewHelpers.ts",
+      "value": "errorStatic",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/TraceComponent/traceViewHelpers.ts",
+      "value": "secondaryStatic",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/FlowPage/components/TraceComponent/traceViewHelpers.ts",
+      "value": "successStatic",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/LoginPage/index.tsx",
+      "value": "&nbsp;",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/LoginPage/index.tsx",
+      "value": "${t(\"auth.noAccount\")} ${t(\"auth.signUpLink\")}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/deploymentsPage/components/deployment-details-modal/flow-version-item.tsx",
+      "value": "v",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/deploymentsPage/components/deployment-expanded-row.tsx",
+      "value": "v",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/deploymentsPage/components/provider-card.tsx",
+      "value": "watsonx",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/deploymentsPage/components/provider-modal-intro.tsx",
+      "value": "watsonx Orchestrate",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/deploymentsPage/components/test-deployment-modal/use-deployment-chat.ts",
+      "value": "${Date.now()}-${Math.random().toString(36).slice(2, 9)}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/deploymentsPage/types.ts",
+      "value": "${flowId}:${versionId}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/deploymentsPage/types.ts",
+      "value": "Flow",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/components/McpJsonContent.tsx",
+      "value": "SSE",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/components/McpServerTab.tsx",
+      "value": "JSON",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/index.tsx",
+      "value": "list",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "value": "\"--headers\",\"x-api-key\",\"${apiKey || \"YOUR_API_KEY\"}\"",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "value": "\"${a}\"",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "value": "\"${m[1]}\"",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "value": "{ \"mcpServers\": { \"${serverName}\": { \"command\": \"${command}\", \"args\": [ ${argsString} ] } } }",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "value": "Claude",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "value": "cmd",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "value": "Cursor",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "value": "lf-${parseString(name, [ \"snake_case\", \"no_blank\", \"lowercase\", \"sanitize_mcp_name\", ]).slice(0, maxLen - 3)}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "value": "macOS/Linux",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "value": "uvx",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "value": "Windows",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "value": "Windsurf",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "value": "wsl",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "value": "WSL",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/knowledgePage/components/IngestionRunsSection.tsx",
+      "value": "${formatNumber(bytes / (1024 * 1024 * 1024), { maximumFractionDigits: 1 })} GB",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/knowledgePage/components/IngestionRunsSection.tsx",
+      "value": "${formatNumber(bytes / (1024 * 1024), { maximumFractionDigits: 1 })} MB",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/knowledgePage/components/IngestionRunsSection.tsx",
+      "value": "${formatNumber(bytes / 1024, { maximumFractionDigits: 1 })} KB",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/knowledgePage/components/IngestionRunsSection.tsx",
+      "value": "${formatNumber(bytes)} B",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/knowledgePage/config/statusConfig.ts",
+      "value": "knowledge.status.cancelling",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/knowledgePage/config/statusConfig.ts",
+      "value": "knowledge.status.empty",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/knowledgePage/config/statusConfig.ts",
+      "value": "knowledge.status.failed",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/knowledgePage/config/statusConfig.ts",
+      "value": "knowledge.status.ingesting",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/knowledgePage/config/statusConfig.ts",
+      "value": "knowledge.status.ready",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/knowledgePage/utils/backendMetadata.ts",
+      "value": "chroma",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/knowledgePage/utils/backendMetadata.ts",
+      "value": "Chroma Cloud",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/pages/knowledgePage/utils/knowledgeBaseUtils.ts",
+      "value": "${formatNumber(Math.round(avgChunkSize))}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/utils/get-template-style.ts",
+      "value": "group_components",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/MainPage/utils/get-template-style.ts",
+      "value": "Workflow",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/Playground/index.tsx",
+      "value": "Ketos",
+      "reason": "Exact product brand used only as the document-title fallback when no user-owned flow name exists.",
+      "owner": "frontend-localization",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/pages/SettingsPage/pages/DBProvidersPage/index.tsx",
+      "value": "false",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/SettingsPage/pages/DBProvidersPage/index.tsx",
+      "value": "true",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/SettingsPage/pages/GlobalVariablesPage/index.tsx",
+      "value": "${variable.name}: ${t(\"globalVars.invalidApiKey\")}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/SettingsPage/pages/McpClientPage/index.tsx",
+      "value": "Bob (IBM)",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/pages/SettingsPage/pages/McpClientPage/index.tsx",
+      "value": "Claude Code",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-11"
+    },
+    {
+      "path": "src/frontend/src/pages/SettingsPage/pages/McpClientPage/index.tsx",
+      "value": "claude mcp add ketos -- uvx --from kfx kfx-mcp \\\\ -e KETOS_SERVER_URL=${serverUrl} \\\\ -e KETOS_API_KEY=YOUR_API_KEY",
+      "reason": "Exact generated code or CLI sample syntax; translated surrounding UI remains outside the sample contract.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/SettingsPage/pages/McpClientPage/index.tsx",
+      "value": "login",
+      "reason": "Exact generated code or CLI sample syntax; translated surrounding UI remains outside the sample contract.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/SettingsPage/pages/ShortcutsPage/EditShortcutButton/helpers.ts",
+      "value": "${ oldKey.length > 0 ? toTitleCase(oldKey) : oldKey.toUpperCase() } + ${key.length > 0 ? toTitleCase(key) : key.toUpperCase()}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/SettingsPage/pages/ShortcutsPage/EditShortcutButton/helpers.ts",
+      "value": "${key.length > 0 ? toTitleCase(key) : toTitleCase(key)}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/SignUpPage/index.tsx",
+      "value": "&nbsp;",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/pages/SignUpPage/index.tsx",
+      "value": "${t(\"auth.haveAccount\")} ${t(\"auth.signInLink\")}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/stores/sessionManagerStore.ts",
+      "value": "ketos-local-sessions-${flowId}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/apiError.ts",
+      "value": "An unknown error occurred",
+      "reason": "Exact diagnostic or test-fixture text that is not rendered as native system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/decorate-wxo-url.ts",
+      "value": "ketos",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/format-token-count.ts",
+      "value": "${millions % 1 === 0 ? millions.toFixed(0) : millions.toFixed(1)}M",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/format-token-count.ts",
+      "value": "${thousands % 1 === 0 ? thousands.toFixed(0) : thousands.toFixed(1)}K",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/inputAutofill.ts",
+      "value": "new-password",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/inputAutofill.ts",
+      "value": "off",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/reactflowUtils.ts",
+      "value": "\"${key}\":${customStringify(obj[key])}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/reactflowUtils.ts",
+      "value": "\"${obj.toISOString()}\"",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/reactflowUtils.ts",
+      "value": "[${arrayItems}]",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/reactflowUtils.ts",
+      "value": "{${keyValuePairs.join(\",\")}}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/reactflowUtils.ts",
+      "value": "null",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/reactflowUtils.ts",
+      "value": "reactflow__edge-",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/stringManipulation.ts",
+      "value": "/${part}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/stringManipulation.ts",
+      "value": "${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/stringManipulation.ts",
+      "value": "0 Bytes",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/stringManipulation.ts",
+      "value": "red-500",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/stringManipulation.ts",
+      "value": "text-accent-amber-foreground",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/testUtils/mockData/mockAPIData.ts",
+      "value": "mocks the component",
+      "reason": "Exact diagnostic or test-fixture text that is not rendered as native system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/utils.ts",
+      "value": "\"${output}\"",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/utils.ts",
+      "value": "(${uid})",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/utils.ts",
+      "value": "{\"input_value\": \"message\"}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/utils.ts",
+      "value": "${source.nodeDisplayName}${ source.outputDisplayName ? \" | \" + source.outputDisplayName : \"\" } -> ${target.displayName}${target.field ? \" | \" + target.field : \"\"}",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/utils/utils.ts",
+      "value": "text",
+      "reason": "Exact reviewed non-prose machine, format, style, icon, unit, semantic-key, or ABI token; it is not translatable system UI prose.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-12"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/executions/execution-query-keys.ts",
+      "value": "board-executions",
+      "reason": "Exact TanStack Query cache namespace; translating it would break cache identity and invalidation.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/executions/execution-query-keys.ts",
+      "value": "list",
+      "reason": "Exact TanStack Query list-key segment; it is a machine-facing cache contract.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
+    },
+    {
+      "path": "src/frontend/src/controllers/API/queries/executions/use-post-automation-run.ts",
+      "value": "${getURL(\"BOARDS\")}/${encodeURIComponent(boardId)}/automations/${encodeURIComponent(flowId)}/runs",
+      "reason": "Exact API route template; translating it would break board automation requests.",
+      "owner": "localization-governance",
+      "review_date": "2026-07-21"
+    }
+  ],
+  "debt_ownership": [
+    {
+      "scope": "shell/shared/auth/admin",
+      "target_task": 9,
+      "disposition": "semantic_key_required"
+    },
+    {
+      "scope": "dashboard/assets/settings/deployments/mcp",
+      "target_task": 10,
+      "disposition": "semantic_key_required"
+    },
+    {
+      "scope": "canvas/nodes/component_forms/editor_dialogs",
+      "target_task": 11,
+      "disposition": "semantic_key_required"
+    },
+    {
+      "scope": "assistant/playground/io/voice/traces/memories",
+      "target_task": 12,
+      "disposition": "semantic_key_required"
+    }
+  ],
+  "candidate_inventory": [
+    {
+      "candidate_id": "cf8af738343a",
+      "path": "src/frontend/src/components/common/renderIconComponent/components/renderKey/index.tsx",
+      "line": 23,
+      "source_excerpt": "<span>Ctrl</span>",
+      "disposition": "machine_contract",
+      "owner": "platform-contracts",
+      "reason": "Source evidence identifies an icon or key name, command, URL, credential prefix, scope, or machine-format example; translating it would alter or misrepresent a machine-facing value.",
+      "ast_evidence": [
+        {
+          "kind": "jsx_text",
+          "value": "Ctrl"
+        }
+      ]
+    },
+    {
+      "candidate_id": "0c5c5b8eb624",
+      "path": "src/frontend/src/components/core/assistantPanel/components/model-selector.tsx",
+      "line": 81,
+      "source_excerpt": "if (!currentModel) return \"Bot\";",
+      "disposition": "machine_contract",
+      "owner": "platform-contracts",
+      "reason": "Source evidence identifies an icon or key name, command, URL, credential prefix, scope, or machine-format example; translating it would alter or misrepresent a machine-facing value.",
+      "ast_evidence": [
+        {
+          "kind": "returned_display_string",
+          "value": "Bot"
+        }
+      ]
+    },
+    {
+      "candidate_id": "840e38b3b06c",
+      "path": "src/frontend/src/components/core/assistantPanel/hooks/use-assistant-chat.ts",
+      "line": 149,
+      "source_excerpt": "const handleApprovePlanRef = useRef<((id: string) => Promise<void>) | null>(",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "34faabdfbd9f",
+      "path": "src/frontend/src/components/core/assistantPanel/hooks/use-assistant-chat.ts",
+      "line": 194,
+      "source_excerpt": "updater: (msg: AssistantMessage) => Partial<AssistantMessage>,",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "e8c0f30b8695",
+      "path": "src/frontend/src/components/core/assistantPanel/hooks/use-assistant-chat.ts",
+      "line": 70,
+      "source_excerpt": ") => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "4dbbd065a5d8",
+      "path": "src/frontend/src/components/core/assistantPanel/hooks/use-assistant-chat.ts",
+      "line": 71,
+      "source_excerpt": "handleApprove: (messageId: string, componentCode?: string) => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "a8e6e15d1da3",
+      "path": "src/frontend/src/components/core/assistantPanel/hooks/use-assistant-chat.ts",
+      "line": 76,
+      "source_excerpt": ") => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "84823ef4739e",
+      "path": "src/frontend/src/components/core/assistantPanel/hooks/use-assistant-chat.ts",
+      "line": 82,
+      "source_excerpt": "handleApprovePlan: (messageId: string) => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "75c5478a8e4e",
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/inputComponent/components/helpers/get-icon-name.ts",
+      "line": 10,
+      "source_excerpt": "if (selectedOption && nodeStyle) return \"GlobeOkIcon\";",
+      "disposition": "machine_contract",
+      "owner": "platform-contracts",
+      "reason": "Source evidence identifies an icon or key name, command, URL, credential prefix, scope, or machine-format example; translating it would alter or misrepresent a machine-facing value.",
+      "ast_evidence": [
+        {
+          "kind": "returned_display_string",
+          "value": "GlobeOkIcon"
+        }
+      ]
+    },
+    {
+      "candidate_id": "23d4ba27eb85",
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/inputComponent/components/helpers/get-icon-name.ts",
+      "line": 8,
+      "source_excerpt": "if (isToolMode) return \"Hammer\";",
+      "disposition": "machine_contract",
+      "owner": "platform-contracts",
+      "reason": "Source evidence identifies an icon or key name, command, URL, credential prefix, scope, or machine-format example; translating it would alter or misrepresent a machine-facing value.",
+      "ast_evidence": [
+        {
+          "kind": "returned_display_string",
+          "value": "Hammer"
+        }
+      ]
+    },
+    {
+      "candidate_id": "464c8f7985a0",
+      "path": "src/frontend/src/components/core/parameterRenderComponent/components/inputComponent/components/popover/index.tsx",
+      "line": 205,
+      "source_excerpt": "const memoizedOptions = useMemo(() => new Set<string>(options), [options]);",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "c4f58820d122",
+      "path": "src/frontend/src/components/core/playgroundComponent/chat-view/chat-header/components/chat-header-title.tsx",
+      "line": 10,
+      "source_excerpt": "onRenameSave: (newSessionId: string) => void | Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "35b88afb7c35",
+      "path": "src/frontend/src/components/core/playgroundComponent/chat-view/chat-header/components/chat-sidebar.tsx",
+      "line": 19,
+      "source_excerpt": "onRenameSession?: (oldId: string, newId: string) => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "b8ff6c655011",
+      "path": "src/frontend/src/components/core/playgroundComponent/chat-view/chat-header/components/session-selector.tsx",
+      "line": 22,
+      "source_excerpt": "handleRename?: (oldSessionId: string, newSessionId: string) => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "de32431d63df",
+      "path": "src/frontend/src/components/core/playgroundComponent/chat-view/chat-header/hooks/use-rename-session.ts",
+      "line": 5,
+      "source_excerpt": "handleRename: (sessionId: string, newSessionId: string) => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "97babafbaed2",
+      "path": "src/frontend/src/components/core/playgroundComponent/chat-view/chat-header/types/chat-header.types.ts",
+      "line": 14,
+      "source_excerpt": "onRenameSession?: (oldId: string, newId: string) => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "641469ff7dd3",
+      "path": "src/frontend/src/components/core/playgroundComponent/chat-view/chat-input/chat-input.tsx",
+      "line": 20,
+      "source_excerpt": "}) => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "fc66306d495e",
+      "path": "src/frontend/src/components/core/playgroundComponent/chat-view/chat-input/components/no-input.tsx",
+      "line": 13,
+      "source_excerpt": "sendMessage: () => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "42f5d321845d",
+      "path": "src/frontend/src/controllers/API/api.tsx",
+      "line": 294,
+      "source_excerpt": "onData: (event: object) => Promise<boolean>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "5eecba9572ce",
+      "path": "src/frontend/src/controllers/API/api.tsx",
+      "line": 295,
+      "source_excerpt": "onDataBatch?: (events: object[]) => Promise<boolean>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "3ef3a97e37fa",
+      "path": "src/frontend/src/controllers/API/queries/_builds/use-get-builds-polling-mutation.ts",
+      "line": 18,
+      "source_excerpt": "callback: () => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "239c5c6e6d5f",
+      "path": "src/frontend/src/controllers/API/queries/messages/use-get-messages-polling.ts",
+      "line": 32,
+      "source_excerpt": "callback: () => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "d59c7f79d4e5",
+      "path": "src/frontend/src/hooks/extensions/use-extension-events.ts",
+      "line": 51,
+      "source_excerpt": "const pollRef = useRef<(() => Promise<void>) | undefined>(undefined);",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "e65ee1aef442",
+      "path": "src/frontend/src/hooks/flows/use-flow-events.ts",
+      "line": 29,
+      "source_excerpt": "const pollRef = useRef<() => Promise<void>>();",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "282b4649667d",
+      "path": "src/frontend/src/modals/IOModal/components/chatView/chatInput/components/no-input.tsx",
+      "line": 14,
+      "source_excerpt": "sendMessage: (args: { repeat: number }) => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "fef3f13f2ef2",
+      "path": "src/frontend/src/modals/IOModal/types/chat-view-wrapper.ts",
+      "line": 16,
+      "source_excerpt": "sendMessage: (options: { repeat: number; files?: string[] }) => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "2789c9d20fa6",
+      "path": "src/frontend/src/modals/apiModal/codeTabs/code-tabs.tsx",
+      "line": 104,
+      "source_excerpt": "title: \"Python\",",
+      "disposition": "allowlist_exact",
+      "owner": "localization-governance",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "Python",
+          "property": "title"
+        }
+      ],
+      "allowlist_value": "Python"
+    },
+    {
+      "candidate_id": "f8092168d8b6",
+      "path": "src/frontend/src/modals/apiModal/codeTabs/code-tabs.tsx",
+      "line": 113,
+      "source_excerpt": "title: \"JavaScript\",",
+      "disposition": "allowlist_exact",
+      "owner": "localization-governance",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "JavaScript",
+          "property": "title"
+        }
+      ],
+      "allowlist_value": "JavaScript"
+    },
+    {
+      "candidate_id": "c08fb43e6ba9",
+      "path": "src/frontend/src/modals/apiModal/codeTabs/code-tabs.tsx",
+      "line": 122,
+      "source_excerpt": "title: \"cURL\",",
+      "disposition": "allowlist_exact",
+      "owner": "localization-governance",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "cURL",
+          "property": "title"
+        }
+      ],
+      "allowlist_value": "cURL"
+    },
+    {
+      "candidate_id": "c9263af0c9ed",
+      "path": "src/frontend/src/modals/apiModal/codeTabs/code-tabs.tsx",
+      "line": 27,
+      "source_excerpt": "title: \"macOS/Linux\",",
+      "disposition": "allowlist_exact",
+      "owner": "localization-governance",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "macOS/Linux",
+          "property": "title"
+        }
+      ],
+      "allowlist_value": "macOS/Linux"
+    },
+    {
+      "candidate_id": "111419bd705c",
+      "path": "src/frontend/src/modals/apiModal/codeTabs/code-tabs.tsx",
+      "line": 32,
+      "source_excerpt": "title: \"Windows\",",
+      "disposition": "allowlist_exact",
+      "owner": "localization-governance",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "Windows",
+          "property": "title"
+        }
+      ],
+      "allowlist_value": "Windows"
+    },
+    {
+      "candidate_id": "18d5bd13bdd8",
+      "path": "src/frontend/src/modals/authModal/index.tsx",
+      "line": 245,
+      "source_excerpt": "placeholder=\"localhost\"",
+      "disposition": "machine_contract",
+      "owner": "platform-contracts",
+      "reason": "Source evidence identifies an icon or key name, command, URL, credential prefix, scope, or machine-format example; translating it would alter or misrepresent a machine-facing value.",
+      "ast_evidence": [
+        {
+          "kind": "visible_jsx_attribute",
+          "value": "localhost",
+          "property": "placeholder"
+        }
+      ]
+    },
+    {
+      "candidate_id": "8d94303e9e7b",
+      "path": "src/frontend/src/modals/authModal/index.tsx",
+      "line": 280,
+      "source_excerpt": "placeholder=\"http://localhost:1234\"",
+      "disposition": "machine_contract",
+      "owner": "platform-contracts",
+      "reason": "Source evidence identifies an icon or key name, command, URL, credential prefix, scope, or machine-format example; translating it would alter or misrepresent a machine-facing value.",
+      "ast_evidence": [
+        {
+          "kind": "visible_jsx_attribute",
+          "value": "http://localhost:1234",
+          "property": "placeholder"
+        }
+      ]
+    },
+    {
+      "candidate_id": "7abe0922f810",
+      "path": "src/frontend/src/modals/authModal/index.tsx",
+      "line": 297,
+      "source_excerpt": "placeholder=\"http://localhost:9000/auth/idaas/callback\"",
+      "disposition": "machine_contract",
+      "owner": "platform-contracts",
+      "reason": "Source evidence identifies an icon or key name, command, URL, credential prefix, scope, or machine-format example; translating it would alter or misrepresent a machine-facing value.",
+      "ast_evidence": [
+        {
+          "kind": "visible_jsx_attribute",
+          "value": "http://localhost:9000/auth/idaas/callback",
+          "property": "placeholder"
+        }
+      ]
+    },
+    {
+      "candidate_id": "c59df0f6a64a",
+      "path": "src/frontend/src/modals/authModal/index.tsx",
+      "line": 355,
+      "source_excerpt": "placeholder=\"http://localhost:1234/auth/idaas/authorize\"",
+      "disposition": "machine_contract",
+      "owner": "platform-contracts",
+      "reason": "Source evidence identifies an icon or key name, command, URL, credential prefix, scope, or machine-format example; translating it would alter or misrepresent a machine-facing value.",
+      "ast_evidence": [
+        {
+          "kind": "visible_jsx_attribute",
+          "value": "http://localhost:1234/auth/idaas/authorize",
+          "property": "placeholder"
+        }
+      ]
+    },
+    {
+      "candidate_id": "41f0739238f2",
+      "path": "src/frontend/src/modals/authModal/index.tsx",
+      "line": 372,
+      "source_excerpt": "placeholder=\"http://localhost:1234/auth/idaas/token\"",
+      "disposition": "machine_contract",
+      "owner": "platform-contracts",
+      "reason": "Source evidence identifies an icon or key name, command, URL, credential prefix, scope, or machine-format example; translating it would alter or misrepresent a machine-facing value.",
+      "ast_evidence": [
+        {
+          "kind": "visible_jsx_attribute",
+          "value": "http://localhost:1234/auth/idaas/token",
+          "property": "placeholder"
+        }
+      ]
+    },
+    {
+      "candidate_id": "69385570f94e",
+      "path": "src/frontend/src/modals/authModal/index.tsx",
+      "line": 388,
+      "source_excerpt": "placeholder=\"user\"",
+      "disposition": "machine_contract",
+      "owner": "platform-contracts",
+      "reason": "Source evidence identifies an icon or key name, command, URL, credential prefix, scope, or machine-format example; translating it would alter or misrepresent a machine-facing value.",
+      "ast_evidence": [
+        {
+          "kind": "visible_jsx_attribute",
+          "value": "user",
+          "property": "placeholder"
+        }
+      ]
+    },
+    {
+      "candidate_id": "555a6c6b9905",
+      "path": "src/frontend/src/modals/authModal/index.tsx",
+      "line": 405,
+      "source_excerpt": "placeholder=\"openid\"",
+      "disposition": "machine_contract",
+      "owner": "platform-contracts",
+      "reason": "Source evidence identifies an icon or key name, command, URL, credential prefix, scope, or machine-format example; translating it would alter or misrepresent a machine-facing value.",
+      "ast_evidence": [
+        {
+          "kind": "visible_jsx_attribute",
+          "value": "openid",
+          "property": "placeholder"
+        }
+      ]
+    },
+    {
+      "candidate_id": "8e825358fbc0",
+      "path": "src/frontend/src/modals/modelProviderModal/components/ModelProvidersContent.tsx",
+      "line": 13,
+      "source_excerpt": "onFlushRef?: React.MutableRefObject<(() => Promise<void>) | null>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "a5a4b48bce35",
+      "path": "src/frontend/src/modals/modelProviderModal/hooks/useModelToggleQueue.ts",
+      "line": 37,
+      "source_excerpt": "flushPendingChanges: () => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "8659ae6f889d",
+      "path": "src/frontend/src/modals/modelProviderModal/hooks/useProviderConfiguration.ts",
+      "line": 46,
+      "source_excerpt": "handleSaveAllVariables: () => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "da06e71b7673",
+      "path": "src/frontend/src/modals/modelProviderModal/hooks/useProviderConfiguration.ts",
+      "line": 48,
+      "source_excerpt": "handleDisconnect: () => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "e9a52cba37ab",
+      "path": "src/frontend/src/modals/modelProviderModal/hooks/useProviderConfiguration.ts",
+      "line": 50,
+      "source_excerpt": "validateCredentials: () => Promise<boolean>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "d928acc14659",
+      "path": "src/frontend/src/modals/modelProviderModal/hooks/useProviderConfiguration.ts",
+      "line": 52,
+      "source_excerpt": "flushPendingChanges: () => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "0cc42b05cb1e",
+      "path": "src/frontend/src/modals/modelProviderModal/index.tsx",
+      "line": 20,
+      "source_excerpt": "const flushRef = useRef<(() => Promise<void>) | null>(null);",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "c713102aeb74",
+      "path": "src/frontend/src/modals/templatesModal/index.tsx",
+      "line": 104,
+      "source_excerpt": "// { title: \"Summarization\", icon: \"Bot\", id: \"summarization\" },",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "337b90b17b96",
+      "path": "src/frontend/src/modals/templatesModal/index.tsx",
+      "line": 105,
+      "source_excerpt": "// { title: \"Web Scraping\", icon: \"CodeXml\", id: \"web-scraping\" },",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "b0478011b784",
+      "path": "src/frontend/src/pages/FlowPage/components/MemoriesMainContent/types.ts",
+      "line": 42,
+      "source_excerpt": "onRefresh: () => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "7a194439c5f7",
+      "path": "src/frontend/src/pages/FlowPage/components/MemoriesMainContent/types.ts",
+      "line": 88,
+      "source_excerpt": "onRefresh: () => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "2cd34417f7de",
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items.ts",
+      "line": 25,
+      "source_excerpt": "label: \"sidebar.nav.components\",",
+      "disposition": "already_semantic_key",
+      "owner": "frontend-localization",
+      "reason": "AST evidence is an existing semantic translation key present in the English source catalog; no new translation key is required.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "sidebar.nav.components",
+          "property": "label"
+        }
+      ]
+    },
+    {
+      "candidate_id": "59d3f01417e3",
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items.ts",
+      "line": 26,
+      "source_excerpt": "tooltip: \"sidebar.nav.components\",",
+      "disposition": "already_semantic_key",
+      "owner": "frontend-localization",
+      "reason": "AST evidence is an existing semantic translation key present in the English source catalog; no new translation key is required.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "sidebar.nav.components",
+          "property": "tooltip"
+        }
+      ]
+    },
+    {
+      "candidate_id": "88bb7200f21e",
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items.ts",
+      "line": 31,
+      "source_excerpt": "label: \"sidebar.nav.mcp\",",
+      "disposition": "already_semantic_key",
+      "owner": "frontend-localization",
+      "reason": "AST evidence is an existing semantic translation key present in the English source catalog; no new translation key is required.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "sidebar.nav.mcp",
+          "property": "label"
+        }
+      ]
+    },
+    {
+      "candidate_id": "3a213d2ff403",
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items.ts",
+      "line": 32,
+      "source_excerpt": "tooltip: \"sidebar.nav.mcp\",",
+      "disposition": "already_semantic_key",
+      "owner": "frontend-localization",
+      "reason": "AST evidence is an existing semantic translation key present in the English source catalog; no new translation key is required.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "sidebar.nav.mcp",
+          "property": "tooltip"
+        }
+      ]
+    },
+    {
+      "candidate_id": "449d40795c94",
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items.ts",
+      "line": 37,
+      "source_excerpt": "label: \"sidebar.nav.bundles\",",
+      "disposition": "already_semantic_key",
+      "owner": "frontend-localization",
+      "reason": "AST evidence is an existing semantic translation key present in the English source catalog; no new translation key is required.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "sidebar.nav.bundles",
+          "property": "label"
+        }
+      ]
+    },
+    {
+      "candidate_id": "12f1a34459c3",
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items.ts",
+      "line": 38,
+      "source_excerpt": "tooltip: \"sidebar.nav.bundles\",",
+      "disposition": "already_semantic_key",
+      "owner": "frontend-localization",
+      "reason": "AST evidence is an existing semantic translation key present in the English source catalog; no new translation key is required.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "sidebar.nav.bundles",
+          "property": "tooltip"
+        }
+      ]
+    },
+    {
+      "candidate_id": "3de80446828a",
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items.ts",
+      "line": 43,
+      "source_excerpt": "label: \"sidebar.nav.versions\",",
+      "disposition": "already_semantic_key",
+      "owner": "frontend-localization",
+      "reason": "AST evidence is an existing semantic translation key present in the English source catalog; no new translation key is required.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "sidebar.nav.versions",
+          "property": "label"
+        }
+      ]
+    },
+    {
+      "candidate_id": "0107017cb997",
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items.ts",
+      "line": 44,
+      "source_excerpt": "tooltip: \"sidebar.nav.versionHistory\",",
+      "disposition": "already_semantic_key",
+      "owner": "frontend-localization",
+      "reason": "AST evidence is an existing semantic translation key present in the English source catalog; no new translation key is required.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "sidebar.nav.versionHistory",
+          "property": "tooltip"
+        }
+      ]
+    },
+    {
+      "candidate_id": "7ed37a971690",
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items.ts",
+      "line": 49,
+      "source_excerpt": "label: \"memory.sidebarTitle\",",
+      "disposition": "already_semantic_key",
+      "owner": "frontend-localization",
+      "reason": "AST evidence is an existing semantic translation key present in the English source catalog; no new translation key is required.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "memory.sidebarTitle",
+          "property": "label"
+        }
+      ]
+    },
+    {
+      "candidate_id": "f88aef47b224",
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items.ts",
+      "line": 50,
+      "source_excerpt": "tooltip: \"memory.sidebarTitle\",",
+      "disposition": "already_semantic_key",
+      "owner": "frontend-localization",
+      "reason": "AST evidence is an existing semantic translation key present in the English source catalog; no new translation key is required.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "memory.sidebarTitle",
+          "property": "tooltip"
+        }
+      ]
+    },
+    {
+      "candidate_id": "7a1b596f148e",
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items.ts",
+      "line": 55,
+      "source_excerpt": "label: \"sidebar.nav.traces\",",
+      "disposition": "already_semantic_key",
+      "owner": "frontend-localization",
+      "reason": "AST evidence is an existing semantic translation key present in the English source catalog; no new translation key is required.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "sidebar.nav.traces",
+          "property": "label"
+        }
+      ]
+    },
+    {
+      "candidate_id": "6a72edb98c57",
+      "path": "src/frontend/src/pages/FlowPage/components/flowSidebarComponent/components/sidebar-nav-items.ts",
+      "line": 56,
+      "source_excerpt": "tooltip: \"sidebar.nav.traces\",",
+      "disposition": "already_semantic_key",
+      "owner": "frontend-localization",
+      "reason": "AST evidence is an existing semantic translation key present in the English source catalog; no new translation key is required.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "sidebar.nav.traces",
+          "property": "tooltip"
+        }
+      ]
+    },
+    {
+      "candidate_id": "e3bfea8ec43d",
+      "path": "src/frontend/src/pages/FlowPage/components/nodeToolbarComponent/index.tsx",
+      "line": 143,
+      "source_excerpt": "edges.filter((edge) => edge.target === data.id).length <= 1;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "1589f51a858a",
+      "path": "src/frontend/src/pages/MainPage/pages/deploymentsPage/contexts/deployment-stepper-context.tsx",
+      "line": 167,
+      "source_excerpt": "() => initialState?.initialToolNameByFlow ?? new Map<string, string>(),",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "a5ea1c2615b7",
+      "path": "src/frontend/src/pages/MainPage/pages/deploymentsPage/contexts/deployment-stepper-context.tsx",
+      "line": 171,
+      "source_excerpt": "() => initialState?.initialConnectionsByFlow ?? new Map<string, string[]>(),",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "0e65578337de",
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/components/McpJsonContent.tsx",
+      "line": 165,
+      "source_excerpt": "<TabsTrigger value=\"sse\">SSE</TabsTrigger>",
+      "disposition": "allowlist_exact",
+      "owner": "localization-governance",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "ast_evidence": [
+        {
+          "kind": "jsx_text",
+          "value": "SSE"
+        }
+      ],
+      "allowlist_value": "SSE"
+    },
+    {
+      "candidate_id": "b88ac26c4510",
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/components/McpServerTab.tsx",
+      "line": 111,
+      "source_excerpt": "{ id: \"json\", label: \"JSON\" },",
+      "disposition": "allowlist_exact",
+      "owner": "localization-governance",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "JSON",
+          "property": "label"
+        }
+      ],
+      "allowlist_value": "JSON"
+    },
+    {
+      "candidate_id": "82b58294b0c0",
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "line": 37,
+      "source_excerpt": "title: \"Cursor\",",
+      "disposition": "allowlist_exact",
+      "owner": "localization-governance",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "Cursor",
+          "property": "title"
+        }
+      ],
+      "allowlist_value": "Cursor"
+    },
+    {
+      "candidate_id": "95b5d1232aa6",
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "line": 41,
+      "source_excerpt": "{ name: \"claude\", title: \"Claude\", icon: \"Claude\", transport: \"sse\" },",
+      "disposition": "allowlist_exact",
+      "owner": "localization-governance",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "Claude",
+          "property": "title"
+        }
+      ],
+      "allowlist_value": "Claude"
+    },
+    {
+      "candidate_id": "34cbe1e22e8e",
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "line": 44,
+      "source_excerpt": "title: \"Windsurf\",",
+      "disposition": "allowlist_exact",
+      "owner": "localization-governance",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "Windsurf",
+          "property": "title"
+        }
+      ],
+      "allowlist_value": "Windsurf"
+    },
+    {
+      "candidate_id": "09b62f905ff9",
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "line": 51,
+      "source_excerpt": "{ name: \"macoslinux\", title: \"macOS/Linux\", icon: \"FaApple\" },",
+      "disposition": "allowlist_exact",
+      "owner": "localization-governance",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "macOS/Linux",
+          "property": "title"
+        }
+      ],
+      "allowlist_value": "macOS/Linux"
+    },
+    {
+      "candidate_id": "a95ea7400c9c",
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "line": 52,
+      "source_excerpt": "{ name: \"windows\", title: \"Windows\", icon: \"FaWindows\" },",
+      "disposition": "allowlist_exact",
+      "owner": "localization-governance",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "Windows",
+          "property": "title"
+        }
+      ],
+      "allowlist_value": "Windows"
+    },
+    {
+      "candidate_id": "6c6ee8fe285e",
+      "path": "src/frontend/src/pages/MainPage/pages/homePage/utils/mcpServerUtils.tsx",
+      "line": 53,
+      "source_excerpt": "{ name: \"wsl\", title: \"WSL\", icon: \"FaLinux\" },",
+      "disposition": "allowlist_exact",
+      "owner": "localization-governance",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "WSL",
+          "property": "title"
+        }
+      ],
+      "allowlist_value": "WSL"
+    },
+    {
+      "candidate_id": "bf49fac18f1b",
+      "path": "src/frontend/src/pages/MainPage/pages/knowledgePage/config/statusConfig.ts",
+      "line": 12,
+      "source_excerpt": "label: \"knowledge.status.ingesting\",",
+      "disposition": "already_semantic_key",
+      "owner": "frontend-localization",
+      "reason": "AST evidence is an existing semantic translation key present in the English source catalog; no new translation key is required.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "knowledge.status.ingesting",
+          "property": "label"
+        }
+      ]
+    },
+    {
+      "candidate_id": "066846c669a7",
+      "path": "src/frontend/src/pages/MainPage/pages/knowledgePage/config/statusConfig.ts",
+      "line": 16,
+      "source_excerpt": "label: \"knowledge.status.failed\",",
+      "disposition": "already_semantic_key",
+      "owner": "frontend-localization",
+      "reason": "AST evidence is an existing semantic translation key present in the English source catalog; no new translation key is required.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "knowledge.status.failed",
+          "property": "label"
+        }
+      ]
+    },
+    {
+      "candidate_id": "3096ffc3a50c",
+      "path": "src/frontend/src/pages/MainPage/pages/knowledgePage/config/statusConfig.ts",
+      "line": 20,
+      "source_excerpt": "label: \"knowledge.status.cancelling\",",
+      "disposition": "already_semantic_key",
+      "owner": "frontend-localization",
+      "reason": "AST evidence is an existing semantic translation key present in the English source catalog; no new translation key is required.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "knowledge.status.cancelling",
+          "property": "label"
+        }
+      ]
+    },
+    {
+      "candidate_id": "4ea48e09f032",
+      "path": "src/frontend/src/pages/MainPage/pages/knowledgePage/config/statusConfig.ts",
+      "line": 24,
+      "source_excerpt": "label: \"knowledge.status.empty\",",
+      "disposition": "already_semantic_key",
+      "owner": "frontend-localization",
+      "reason": "AST evidence is an existing semantic translation key present in the English source catalog; no new translation key is required.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "knowledge.status.empty",
+          "property": "label"
+        }
+      ]
+    },
+    {
+      "candidate_id": "e2c0d152117d",
+      "path": "src/frontend/src/pages/MainPage/pages/knowledgePage/config/statusConfig.ts",
+      "line": 8,
+      "source_excerpt": "label: \"knowledge.status.ready\",",
+      "disposition": "already_semantic_key",
+      "owner": "frontend-localization",
+      "reason": "AST evidence is an existing semantic translation key present in the English source catalog; no new translation key is required.",
+      "ast_evidence": [
+        {
+          "kind": "visible_object_property",
+          "value": "knowledge.status.ready",
+          "property": "label"
+        }
+      ]
+    },
+    {
+      "candidate_id": "27fd95539575",
+      "path": "src/frontend/src/pages/MainPage/pages/knowledgePage/utils/backendMetadata.ts",
+      "line": 24,
+      "source_excerpt": "return \"Chroma Cloud\";",
+      "disposition": "allowlist_exact",
+      "owner": "localization-governance",
+      "reason": "Exact protected product, provider, platform, protocol, programming-language, client, or native self-name; surrounding system-owned prose remains translation debt.",
+      "ast_evidence": [
+        {
+          "kind": "returned_display_string",
+          "value": "Chroma Cloud"
+        }
+      ],
+      "allowlist_value": "Chroma Cloud"
+    },
+    {
+      "candidate_id": "edaada398f7a",
+      "path": "src/frontend/src/pages/MainPage/utils/get-template-style.ts",
+      "line": 7,
+      "source_excerpt": "): { getIcon: () => Promise<string> } => {",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "8720c42208f1",
+      "path": "src/frontend/src/pages/StorePage/index.tsx",
+      "line": 323,
+      "source_excerpt": "{/* <SelectItem value=\"Recent\">Most Recent</SelectItem> */}",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "53cde2a8e00b",
+      "path": "src/frontend/src/types/api/index.ts",
+      "line": 305,
+      "source_excerpt": ") => UseQueryResult<R>",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "c2d3c3460da9",
+      "path": "src/frontend/src/types/api/index.ts",
+      "line": 309,
+      "source_excerpt": ") => UseQueryResult<R>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "f86ed36adcc0",
+      "path": "src/frontend/src/types/api/index.ts",
+      "line": 316,
+      "source_excerpt": ") => UseQueryResult<any>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "3f404931806d",
+      "path": "src/frontend/src/types/api/index.ts",
+      "line": 325,
+      "source_excerpt": ") => UseMutationResult<any, any, any, any>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "fcd782827363",
+      "path": "src/frontend/src/types/api/index.ts",
+      "line": 341,
+      "source_excerpt": ") => UseMutationResult<Data, Error, Variables>",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "eb9829dbd7bd",
+      "path": "src/frontend/src/types/api/index.ts",
+      "line": 348,
+      "source_excerpt": ") => UseMutationResult<Data, Error, Variables>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "c10c17dc2b30",
+      "path": "src/frontend/src/types/components/index.ts",
+      "line": 587,
+      "source_excerpt": "}) => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "9b566ba8ebe4",
+      "path": "src/frontend/src/types/components/index.ts",
+      "line": 881,
+      "source_excerpt": "}) => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "3f9a3f4a2d15",
+      "path": "src/frontend/src/types/tabs/index.ts",
+      "line": 20,
+      "source_excerpt": ") => Promise<string | undefined>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "e5ae3a97082c",
+      "path": "src/frontend/src/types/tabs/index.ts",
+      "line": 41,
+      "source_excerpt": "}) => Promise<string | never>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "74431e5c6df9",
+      "path": "src/frontend/src/types/tabs/index.ts",
+      "line": 49,
+      "source_excerpt": ") => Promise<string | undefined>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "4d3e5ddd6bf0",
+      "path": "src/frontend/src/types/tabs/index.ts",
+      "line": 6,
+      "source_excerpt": "saveFlow: (flow?: FlowType, silent?: boolean) => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "5df08b09093e",
+      "path": "src/frontend/src/types/zustand/auth/index.ts",
+      "line": 19,
+      "source_excerpt": "logout: () => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "deb028342527",
+      "path": "src/frontend/src/types/zustand/flow/index.ts",
+      "line": 210,
+      "source_excerpt": "}) => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "c211cb2a2181",
+      "path": "src/frontend/src/types/zustand/flow/index.ts",
+      "line": 305,
+      "source_excerpt": "clearEdgesRunningByNodes: () => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "b3ad7431fdcb",
+      "path": "src/frontend/src/types/zustand/store/index.ts",
+      "line": 10,
+      "source_excerpt": "fetchApiData: () => Promise<void>;",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    },
+    {
+      "candidate_id": "f197f231bea3",
+      "path": "src/frontend/src/utils/buildUtils.ts",
+      "line": 628,
+      "source_excerpt": ") => Promise<boolean>,",
+      "disposition": "false_positive_scanner",
+      "owner": "localization-tooling",
+      "reason": "The line matched a raw regex but contains no AST-visible JSX text, visible attribute/default/object value, or returned display string; it is code syntax or a machine expression and must not be translated.",
+      "ast_evidence": []
+    }
+  ],
+  "scan_contract": {
+    "raw": {
+      "engine": "ripgrep --pcre2",
+      "include": ["src/frontend/src/**/*.{ts,tsx,js,jsx}"],
+      "exclude": [
+        "**/__tests__/**",
+        "**/*.test.*",
+        "**/*.spec.*",
+        "**/*.stories.*",
+        "**/__mocks__/**",
+        "**/testUtils/**",
+        "**/components/examples/**",
+        "**/icons/**"
+      ],
+      "patterns": [
+        ">\\s*[A-Za-z][^<{\\n]*\\s*<",
+        "(?:aria-label|title|placeholder|alt|label|description|tooltip|headerName|emptyMessage|buttonText|helperText|caption)\\s*=\\s*\\x22[A-Za-z][^\\x22\\n]*\\x22",
+        "(?:title|placeholder|label|description|tooltip|headerName|message|content|buttonText|text)\\s*:\\s*\\x22[A-Za-z][^\\x22\\n]*\\x22",
+        "return\\s+(?:\\x22|`)[A-Z][A-Za-z][^\\x22`\\n]*(?:\\x22|`)"
+      ],
+      "deduplication": "LC_ALL=C sort -u on full path:line:source records",
+      "expected_unique_candidates": 239,
+      "expected_candidate_files": 94
+    },
+    "ast": {
+      "engine": "TypeScript 5.9.3 compiler API",
+      "include": ["src/frontend/src/**/*.{ts,tsx}"],
+      "exclude": [
+        "node_modules",
+        "__tests__",
+        "__mocks__",
+        "*.test.*",
+        "*.spec.*",
+        "*.stories.*",
+        "*.story.*",
+        "locales/**"
+      ],
+      "visible_attributes": [
+        "title",
+        "placeholder",
+        "aria-label",
+        "alt",
+        "label",
+        "description",
+        "tooltip",
+        "headerName",
+        "emptyMessage",
+        "buttonText",
+        "helperText",
+        "caption"
+      ],
+      "candidate_predicate": "Alphabetic JSXText plus literal values in visible attributes; candidate inventory then distinguishes semantic keys and raw-regex false positives.",
+      "expected_production_files": 1397,
+      "expected_jsx_text_candidates": 201,
+      "expected_visible_attribute_candidates": 21
+    },
+    "static_html": {
+      "engine": "explicit HTML inventory",
+      "include": ["src/frontend/index.html"],
+      "checks": [
+        "html[lang] runtime locale attribute",
+        "title exact product brand",
+        "noscript visible system text"
+      ],
+      "expected_candidates": 3
+    }
+  },
+  "static_html_inventory": [
+    {
+      "candidate_id": "html-lang",
+      "path": "src/frontend/index.html",
+      "line": 2,
+      "value": "en",
+      "disposition": "runtime_locale_attribute_required",
+      "target_task": 4,
+      "owner": "frontend-localization",
+      "reason": "The static bootstrap value must be synchronized to the active normalized locale; it is not translated prose."
+    },
+    {
+      "candidate_id": "html-title-brand",
+      "path": "src/frontend/index.html",
+      "line": 20,
+      "value": "Ketos",
+      "disposition": "allowlist_exact",
+      "allowlist_value": "Ketos",
+      "owner": "frontend-localization",
+      "reason": "Exact product brand verified against the reviewed path/value allowlist entry."
+    },
+    {
+      "candidate_id": "html-noscript",
+      "path": "src/frontend/index.html",
+      "line": 23,
+      "value": "Для работы Ketos необходимо включить JavaScript.",
+      "disposition": "allowlist_exact",
+      "allowlist_value": "Для работы Ketos необходимо включить JavaScript.",
+      "owner": "frontend-localization",
+      "reason": "Localized static fallback whose remaining Latin tokens are protected technology names."
+    }
+  ],
+  "ast_baseline_inventory": []
+}

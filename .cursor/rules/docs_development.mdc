@@ -1,0 +1,37 @@
+---
+description: "Maintain the current Ketos Docusaurus manual and examples."
+globs:
+  - "docs/**/*.{md,mdx}"
+  - "docs/**/*.{js,jsx,ts,tsx}"
+  - "docs/package.json"
+  - "docs/docusaurus.config.js"
+  - "docs/sidebars.js"
+alwaysApply: false
+---
+
+# Ketos documentation
+
+The published manual is `docs/docs`; `docs/sidebars.js` is its explicit route
+inventory. Use only verified current behavior, `ketos` and `kfx` commands,
+`KETOS_*` and `KFX_*` settings, `x-api-key: ${KETOS_API_KEY}` for API keys,
+`Authorization: Bearer` only for JWT/OAuth tokens, and `X-KETOS-GLOBAL-VAR-*`
+request variables.
+
+Do not add upstream release history, community promotion, external OpenAPI
+fetches, unverified deployment instructions, or screenshots from another
+product. Retained media must be a canonical asset under `brand/assets/generated`
+or a new Ketos capture with recorded OCR review.
+
+Every page has `title` and `slug` frontmatter. Use relative links for manual
+pages and fenced executable examples. Verify with:
+
+```bash
+cd docs
+npm run check:links
+npm run build
+make api_examples_local_syntax
+make api_examples_local
+```
+
+Generated OpenAPI JSON is not edited by hand. The only source generator is
+`docs/openapi/generate_openapi.py`, which imports the local application.

@@ -1,0 +1,436 @@
+from __future__ import annotations
+
+# Assertions are the contract surface in this pytest module.
+# ruff: noqa: S101
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tarfile
+import time
+from collections import defaultdict
+from copy import deepcopy
+from pathlib import Path
+from zipfile import ZipFile
+
+import pytest
+import tomllib
+
+ROOT = Path(__file__).resolve().parents[3]
+OLD_PRODUCT = "lang" + "flow"
+OLD_EXECUTOR = "l" + "fx"
+CANONICAL_PACKAGE_PATHS = {
+    "ketos-base": "src/backend/base",
+    "ketos": ".",
+    "kfx": "src/kfx",
+    "ketos-stepflow": "src/ketos-stepflow",
+    "ketos-sdk": "src/sdk",
+}
+LEGACY_PACKAGE_PATHS = {
+    f"{OLD_PRODUCT}-base": f"src/compat/{OLD_PRODUCT}-base",
+    OLD_PRODUCT: f"src/compat/{OLD_PRODUCT}",
+    OLD_EXECUTOR: f"src/compat/{OLD_EXECUTOR}",
+    f"{OLD_PRODUCT}-sdk": f"src/compat/{OLD_PRODUCT}-sdk",
+    f"{OLD_PRODUCT}-stepflow": f"src/compat/{OLD_PRODUCT}-stepflow",
+}
+BUNDLE_PACKAGE_PATHS = {
+    "kfx-duckduckgo": "src/bundles/duckduckgo",
+    "kfx-arxiv": "src/bundles/arxiv",
+    "kfx-ibm": "src/bundles/ibm",
+    "kfx-docling": "src/bundles/docling",
+}
+_INHERITED_PYTHON_PATH_ENV_VARS = (
+    "CONDA_PREFIX",
+    "PIP_PREFIX",
+    "PIP_TARGET",
+    "PYTHONEXECUTABLE",
+    "PYTHONHOME",
+    "PYTHONPATH",
+    "PYTHONUSERBASE",
+    "UV_PROJECT_ENVIRONMENT",
+    "VIRTUAL_ENV",
+    "__PYVENV_LAUNCHER__",
+)
+_INSTALLED_CLI_SLOW_TIMEOUT_SECONDS = 240.0
+
+
+def _root_manifest() -> dict:
+    with (ROOT / "pyproject.toml").open("rb") as handle:
+        return tomllib.load(handle)
+
+
+def _wheel_name_and_top_level_packages(wheel: Path) -> tuple[str, set[str]]:
+    with ZipFile(wheel) as archive:
+        names = archive.namelist()
+        metadata_name = next(name for name in names if name.endswith(".dist-info/METADATA"))
+        metadata = archive.read(metadata_name).decode()
+    distribution = next(line.removeprefix("Name: ") for line in metadata.splitlines() if line.startswith("Name: "))
+    packages = {
+        name.partition("/")[0]
+        for name in names
+        if "/" in name and ".dist-info/" not in name and not name.startswith(".")
+    }
+    return distribution, packages
+
+
+def _assert_canonical_namespace_owners(wheels: list[Path]) -> dict[str, set[str]]:
+    owners: defaultdict[str, set[str]] = defaultdict(set)
+    for wheel in wheels:
+        distribution, packages = _wheel_name_and_top_level_packages(wheel)
+        for package in packages:
+            owners[package].add(distribution)
+    assert owners.get("ketos") == {"ketos-base"}, owners
+    return dict(owners)
+
+
+def _fresh_venv_subprocess_env(environment: dict[str, str]) -> dict[str, str]:
+    isolated = environment.copy()
+    for name in _INHERITED_PYTHON_PATH_ENV_VARS:
+        isolated.pop(name, None)
+    isolated["PYTHONNOUSERSITE"] = "1"
+    return isolated
+
+
+@pytest.fixture(scope="module")
+def root_artifacts(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    output = tmp_path_factory.mktemp("root-artifacts")
+    uv = shutil.which("uv")
+    assert uv is not None
+    result = subprocess.run(  # noqa: S603 - resolved executable, fixed arguments
+        [uv, "build", "--package", "ketos", "--no-sources", "--out-dir", str(output)],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=90,
+    )
+    assert result.returncode == 0, result.stderr
+    base_result = subprocess.run(  # noqa: S603 - resolved executable, fixed arguments
+        [uv, "build", "--wheel", "--out-dir", str(output), str(ROOT / "src/backend/base")],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=90,
+    )
+    assert base_result.returncode == 0, base_result.stderr
+    return output
+
+
+def test_root_is_code_free_ketos_metapackage() -> None:
+    manifest = _root_manifest()
+
+    assert manifest["project"]["name"] == "ketos"
+    assert manifest["project"]["scripts"] == {"ketos": "ketos.ketos_launcher:main"}
+    assert manifest["tool"]["hatch"]["build"]["targets"]["wheel"] == {
+        "bypass-selection": True,
+    }
+    assert manifest["project"]["dependencies"][0] == "ketos-base[complete]>=0.10.2"
+    assert manifest["project"]["readme"] == {
+        "text": "Ketos is a visual workflow builder for AI-powered agents.\n",
+        "content-type": "text/plain",
+    }
+    assert manifest["tool"]["hatch"]["build"]["targets"]["sdist"] == {
+        "only-include": ["pyproject.toml", "LICENSE", "NOTICE"],
+    }
+
+
+def test_workspace_contains_every_canonical_package_once() -> None:
+    manifest = _root_manifest()
+    sources = manifest["tool"]["uv"]["sources"]
+    members = manifest["tool"]["uv"]["workspace"]["members"]
+
+    assert members == [
+        *CANONICAL_PACKAGE_PATHS.values(),
+        *LEGACY_PACKAGE_PATHS.values(),
+        *BUNDLE_PACKAGE_PATHS.values(),
+    ]
+    assert len(members) == len(set(members))
+    workspace_sources = set(CANONICAL_PACKAGE_PATHS | LEGACY_PACKAGE_PATHS | BUNDLE_PACKAGE_PATHS)
+    assert set(sources) == workspace_sources | {"torch", "torchvision"}
+    assert all(sources[name] == {"workspace": True} for name in workspace_sources)
+    assert sources["torch"] == {"index": "pytorch-cpu"}
+    assert sources["torchvision"] == {"index": "pytorch-cpu"}
+
+    package_manifests = {
+        name: tomllib.loads((ROOT / path / "pyproject.toml").read_text(encoding="utf-8"))
+        for name, path in (CANONICAL_PACKAGE_PATHS | LEGACY_PACKAGE_PATHS).items()
+        if path != "."
+    }
+    package_manifests["ketos"] = manifest
+    expected_namespace_owners = {
+        "ketos": "ketos-base",
+        "kfx": "kfx",
+        "ketos_sdk": "ketos-sdk",
+        "ketos_stepflow": "ketos-stepflow",
+        OLD_PRODUCT: f"{OLD_PRODUCT}-base",
+        f"{OLD_PRODUCT}_compat": f"{OLD_PRODUCT}-base",
+        OLD_EXECUTOR: OLD_EXECUTOR,
+        f"{OLD_EXECUTOR}_compat": OLD_EXECUTOR,
+        f"{OLD_PRODUCT}_sdk": f"{OLD_PRODUCT}-sdk",
+        f"{OLD_PRODUCT}_stepflow": f"{OLD_PRODUCT}-stepflow",
+    }
+    actual_namespace_owners: dict[str, str] = {}
+    for distribution, package_manifest in package_manifests.items():
+        wheel = package_manifest["tool"]["hatch"]["build"]["targets"]["wheel"]
+        for package_path in wheel.get("packages", []):
+            namespace = Path(package_path).name
+            assert namespace not in actual_namespace_owners, namespace
+            actual_namespace_owners[namespace] = distribution
+    assert actual_namespace_owners == expected_namespace_owners
+    assert package_manifests["ketos"]["tool"]["hatch"]["build"]["targets"]["wheel"] == {
+        "bypass-selection": True,
+    }
+    assert package_manifests[OLD_PRODUCT]["tool"]["hatch"]["build"]["targets"]["wheel"] == {
+        "bypass-selection": True,
+    }
+
+    expected_compatibility_dependencies = {
+        f"{OLD_PRODUCT}-base": ["ketos-base==0.10.2", f"{OLD_EXECUTOR}==1.10.2"],
+        OLD_PRODUCT: ["ketos==1.10.2", f"{OLD_PRODUCT}-base==0.10.2"],
+        OLD_EXECUTOR: ["kfx==1.10.2", f"{OLD_PRODUCT}-sdk==0.2.2"],
+        f"{OLD_PRODUCT}-sdk": ["ketos-sdk==0.2.2"],
+        f"{OLD_PRODUCT}-stepflow": [
+            "ketos-stepflow==0.1.0",
+            f"{OLD_EXECUTOR}==1.10.2",
+            f"{OLD_PRODUCT}-base==0.10.2",
+        ],
+    }
+    for distribution, expected_dependencies in expected_compatibility_dependencies.items():
+        assert package_manifests[distribution]["project"]["dependencies"] == expected_dependencies
+
+
+def test_bundle_dependencies_and_sources_use_kfx_names() -> None:
+    manifest = _root_manifest()
+    dependencies = manifest["project"]["dependencies"]
+    sources = manifest["tool"]["uv"]["sources"]
+
+    for suffix in ("duckduckgo", "arxiv", "ibm", "docling"):
+        assert any(item.startswith(f"kfx-{suffix}") for item in dependencies)
+        assert sources[f"kfx-{suffix}"] == {"workspace": True}
+
+
+def test_root_tool_paths_use_canonical_namespaces() -> None:
+    manifest = _root_manifest()
+    make_text = "\n".join((ROOT / name).read_text(encoding="utf-8") for name in ("Makefile", "Makefile.frontend"))
+
+    compatibility_metadata = deepcopy(manifest)
+    sources = compatibility_metadata["tool"]["uv"]["sources"]
+    members = compatibility_metadata["tool"]["uv"]["workspace"]["members"]
+    for distribution, member in LEGACY_PACKAGE_PATHS.items():
+        assert sources.pop(distribution) == {"workspace": True}
+        members.remove(member)
+    unauthorized_manifest_text = json.dumps(compatibility_metadata, sort_keys=True)
+
+    for forbidden in (
+        OLD_PRODUCT,
+        "src/" + OLD_EXECUTOR,
+        OLD_EXECUTOR.upper() + "_DEV",
+        OLD_PRODUCT.upper() + "_AUTO_LOGIN",
+        OLD_PRODUCT.upper() + "_HOST",
+    ):
+        assert forbidden not in unauthorized_manifest_text
+        assert forbidden not in make_text
+
+    assert "src/backend/base/ketos/frontend" in make_text
+    assert "KFX_DEV=1" in make_text
+    assert "KETOS_AUTO_LOGIN=$(login)" in make_text
+    assert "KETOS_HOST=$(locust_host)" in make_text
+    assert "uv run ketos run --frontend-path src/frontend/build" in make_text
+
+    for relative in ("scripts/ci/sync_bundle_kfx_pin.py",):
+        assert (ROOT / relative).is_file(), f"Makefile calls missing path: {relative}"
+
+
+def test_root_build_artifacts_are_code_free_and_metadata_clean(root_artifacts: Path) -> None:
+    wheel = next(root_artifacts.glob("ketos-*.whl"))
+    sdist = next(root_artifacts.glob("ketos-*.tar.gz"))
+
+    with ZipFile(wheel) as archive:
+        wheel_names = archive.namelist()
+        metadata_name = next(name for name in wheel_names if name.endswith(".dist-info/METADATA"))
+        metadata = archive.read(metadata_name).decode()
+    assert not any(name.startswith("ketos/") for name in wheel_names)
+    assert OLD_PRODUCT not in metadata.casefold()
+
+    with tarfile.open(sdist, "r:gz") as archive:
+        sdist_names = [name.removeprefix("ketos-1.10.2/") for name in archive.getnames()]
+        pkg_info_name = next(name for name in archive.getnames() if name.endswith("/PKG-INFO"))
+        pkg_info = archive.extractfile(pkg_info_name)
+        assert pkg_info is not None
+        metadata = pkg_info.read().decode()
+    assert set(sdist_names) <= {"", ".gitignore", "LICENSE", "NOTICE", "PKG-INFO", "pyproject.toml"}
+    assert OLD_PRODUCT not in metadata.casefold()
+
+
+def test_duplicate_namespace_owner_adversary_is_rejected(root_artifacts: Path, tmp_path: Path) -> None:
+    root_wheel = next(root_artifacts.glob("ketos-*.whl"))
+    base_wheel = next(root_artifacts.glob("ketos_base-*.whl"))
+    assert _assert_canonical_namespace_owners([root_wheel, base_wheel]) == {"ketos": {"ketos-base"}}
+
+    duplicate = tmp_path / "duplicate.whl"
+    with ZipFile(duplicate, "w") as archive:
+        archive.writestr("ketos/__init__.py", "")
+        archive.writestr("ketos-duplicate.dist-info/METADATA", "Name: ketos-duplicate\nVersion: 0\n")
+    with pytest.raises(AssertionError, match="ketos-duplicate"):
+        _assert_canonical_namespace_owners([root_wheel, base_wheel, duplicate])
+
+
+@pytest.mark.slow
+@pytest.mark.timeout(600)
+def test_fresh_root_cli_uses_base_namespace_owner(root_artifacts: Path, tmp_path: Path) -> None:
+    uv = shutil.which("uv")
+    assert uv is not None
+    environment = tmp_path / "venv"
+    subprocess.run(  # noqa: S603
+        [uv, "venv", "--python", f"{sys.version_info.major}.{sys.version_info.minor}", str(environment)],
+        check=True,
+    )
+    dependency_output = tmp_path / "dependency-wheels"
+    for source in (
+        "src/kfx",
+        "src/sdk",
+        "src/bundles/duckduckgo",
+        "src/bundles/arxiv",
+        "src/bundles/ibm",
+        "src/bundles/docling",
+    ):
+        subprocess.run(  # noqa: S603
+            [uv, "build", "--wheel", "--out-dir", str(dependency_output), str(ROOT / source)],
+            cwd=ROOT,
+            check=True,
+        )
+    wheels = [
+        next(root_artifacts.glob("ketos-*.whl")),
+        next(root_artifacts.glob("ketos_base-*.whl")),
+        *dependency_output.glob("*.whl"),
+    ]
+    subprocess.run(  # noqa: S603
+        [uv, "pip", "install", "--python", str(environment / "bin/python"), *map(str, wheels)],
+        check=True,
+    )
+
+    host_site_packages = tmp_path / "host-site-packages"
+    for namespace in ("ketos", "kfx", OLD_PRODUCT, OLD_EXECUTOR):
+        package = host_site_packages / namespace
+        package.mkdir(parents=True)
+        (package / "__init__.py").write_text("HOST_CONTAMINATION = True\n", encoding="utf-8")
+
+    hostile_pythonpath_env = os.environ.copy()
+    hostile_pythonpath_env["PYTHONPATH"] = str(host_site_packages)
+    hostile_pythonpath_probe = subprocess.run(  # noqa: S603
+        [
+            str(environment / "bin/python"),
+            "-c",
+            (
+                "from pathlib import Path; import ketos; import kfx; "
+                f"host = Path({str(host_site_packages)!r}).resolve(); "
+                "assert ketos.HOST_CONTAMINATION is True; "
+                "assert kfx.HOST_CONTAMINATION is True; "
+                "assert Path(ketos.__file__).resolve().is_relative_to(host), ketos.__file__; "
+                "assert Path(kfx.__file__).resolve().is_relative_to(host), kfx.__file__"
+            ),
+        ],
+        env=hostile_pythonpath_env,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert hostile_pythonpath_probe.returncode == 0, hostile_pythonpath_probe.stderr
+
+    contaminated_env = os.environ.copy()
+    for name in _INHERITED_PYTHON_PATH_ENV_VARS:
+        contaminated_env[name] = str(host_site_packages)
+    env = _fresh_venv_subprocess_env(contaminated_env)
+    executable_probe = subprocess.run(  # noqa: S603
+        [
+            str(environment / "bin/python"),
+            "-c",
+            (
+                "import os, platform, runpy, sys\n"
+                "script = os.path.join(sys.prefix, 'bin', 'ketos')\n"
+                "calls = []\n"
+                "os.execv = lambda executable, argv: calls.append((executable, argv))\n"
+                "platform.system = lambda: 'Darwin'\n"
+                "sys.argv = [script, '--help']\n"
+                "try:\n"
+                "    runpy.run_path(script, run_name='__main__')\n"
+                "except SystemExit as exc:\n"
+                "    assert exc.code is None, exc.code\n"
+                "expected = [(sys.executable, [sys.executable, '-m', 'ketos.__main__', '--help'])]\n"
+                "assert calls == expected, calls"
+            ),
+        ],
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert executable_probe.returncode == 0, executable_probe.stderr
+
+    cold_start_started = time.monotonic()
+    cold_start_probe = subprocess.run(  # noqa: S603
+        [str(environment / "bin/python"), "-c", "import ketos.__main__"],
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=_INSTALLED_CLI_SLOW_TIMEOUT_SECONDS,
+    )
+    cold_start_latency_seconds = time.monotonic() - cold_start_started
+    assert cold_start_probe.returncode == 0, cold_start_probe.stderr
+    behavioral_timeout_seconds = min(
+        _INSTALLED_CLI_SLOW_TIMEOUT_SECONDS,
+        max(30.0, cold_start_latency_seconds * 4),
+    )
+    behavioral_cli_env = env | {"OBJC_DISABLE_INITIALIZE_FORK_SAFETY": "YES"}
+    behavioral_cli_probe = subprocess.run(  # noqa: S603
+        [str(environment / "bin/python"), "-m", "ketos.__main__", "--help"],
+        env=behavioral_cli_env,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=behavioral_timeout_seconds,
+    )
+    assert behavioral_cli_probe.returncode == 0, behavioral_cli_probe.stderr
+    assert "Run Ketos" in behavioral_cli_probe.stdout
+
+    installation_probe = subprocess.run(  # noqa: S603
+        [
+            str(environment / "bin/python"),
+            "-c",
+            (
+                "import importlib.metadata as metadata; import importlib.util; "
+                "from pathlib import Path; import ketos; import kfx; import os; import sys; "
+                "prefix = Path(sys.prefix).resolve(); "
+                f"assert not (set(os.environ) & {set(_INHERITED_PYTHON_PATH_ENV_VARS)!r}); "
+                "assert Path(ketos.__file__).resolve().is_relative_to(prefix), ketos.__file__; "
+                "assert Path(kfx.__file__).resolve().is_relative_to(prefix), kfx.__file__; "
+                "assert all(Path(metadata.distribution(name).locate_file('')).resolve().is_relative_to(prefix) "
+                "for name in ('ketos', 'ketos-base', 'kfx')); "
+                "console_scripts = [entry for entry in metadata.distribution('ketos').entry_points "
+                "if entry.group == 'console_scripts' and entry.name == 'ketos']; "
+                "assert [entry.value for entry in console_scripts] == ['ketos.ketos_launcher:main'], console_scripts; "
+                "owners = metadata.packages_distributions(); "
+                "assert set(owners['ketos']) == {'ketos-base'}, owners['ketos']; "
+                "assert set(owners['kfx']) == {'kfx'}, owners['kfx']; "
+                "assert importlib.util.find_spec('lang' + 'flow') is None; "
+                "assert importlib.util.find_spec('l' + 'fx') is None"
+            ),
+        ],
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert installation_probe.returncode == 0, installation_probe.stderr
+
+
+def test_root_node_manifest_has_ketos_identity() -> None:
+    package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
+    assert package["name"] == "ketos"
+    assert package["private"] is True

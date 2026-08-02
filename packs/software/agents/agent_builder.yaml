@@ -1,0 +1,12 @@
+accent: '#5b8def'
+agent_id: agent_builder
+capabilities: []
+description: Disabled catalog definition for scoped Ketos implementation work.
+enabled: false
+name: Ketos Builder
+pack_id: pack_software
+role: builder
+runtime_adapter_id: adapter_disabled
+skill_ids:
+- skill_builder
+version: 1.0.0

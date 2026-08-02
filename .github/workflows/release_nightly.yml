@@ -1,0 +1,794 @@
+name: Ketos Nightly Build
+run-name: Ketos Nightly Release by @${{ github.actor }}
+
+on:
+  workflow_call:
+    inputs:
+      build_docker_base:
+        description: "Build Docker Image for Ketos Nightly Base"
+        required: false
+        type: boolean
+        default: false
+      build_docker_main:
+        description: "Build Docker Image for Ketos Nightly"
+        required: false
+        type: boolean
+        default: false
+      build_docker_ep:
+        description: "Build Docker Image for Ketos Nightly with Entrypoint"
+        required: false
+        type: boolean
+        default: false
+      build_kfx:
+        description: "Build and release KFX package"
+        required: false
+        type: boolean
+        default: false
+      nightly_tag_release:
+        description: "Tag for the nightly main build"
+        required: true
+        type: string
+      nightly_tag_base:
+        description: "Tag for the nightly base build"
+        required: true
+        type: string
+      nightly_tag_kfx:
+        description: "Tag for the nightly KFX build"
+        required: false
+        type: string
+      nightly_tag_sdk:
+        description: "Tag for the nightly SDK build"
+        required: false
+        type: string
+      push_to_registry:
+        description: "Whether to push images to registries. Set to false for testing builds without publishing."
+        required: false
+        type: boolean
+        default: false
+
+env:
+  POETRY_VERSION: "1.8.3"
+  PYTHON_VERSION: "3.13"
+
+jobs:
+  build-nightly-kfx:
+    name: Build KFX Nightly
+    if: ${{ inputs.build_kfx }}
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.verify.outputs.version }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the code at a specific ref
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: true
+      - name: "Setup Environment"
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: ${{ env.PYTHON_VERSION }}
+          prune-cache: false
+      - name: Install KFX dependencies
+        run: cd src/kfx && uv sync
+
+      - name: Verify SDK Nightly Name and Version
+        if: ${{ inputs.build_kfx }}
+        run: |
+          name=$(grep '^name = "' src/sdk/pyproject.toml | head -n 1 | sed 's/.*"\(.*\)".*/\1/')
+          version=$(grep '^version = "' src/sdk/pyproject.toml | head -n 1 | sed 's/.*"\(.*\)".*/\1/')
+          if [ "$name" != "ketos-sdk" ]; then
+            echo "Name $name does not match ketos-sdk. Exiting the workflow."
+            exit 1
+          fi
+          if [ "v$version" != "${{ inputs.nightly_tag_sdk }}" ]; then
+            echo "Version v$version does not match nightly tag ${{ inputs.nightly_tag_sdk }}. Exiting the workflow."
+            exit 1
+          fi
+
+      - name: Verify Nightly Name and Version
+        id: verify
+        run: |
+          cd src/kfx
+          # Root the tree at kfx; a bare `grep kfx` matches bundles like `kfx-ibm` first.
+          name=$(uv tree --package kfx | head -n 1 | awk '{print $1}')
+          version=$(uv tree --package kfx | head -n 1 | awk '{print $2}')
+          if [ "$name" != "kfx" ]; then
+            echo "Name $name does not match kfx. Exiting the workflow."
+            exit 1
+          fi
+          if [ "$version" != "${{ inputs.nightly_tag_kfx }}" ]; then
+            echo "Version $version does not match nightly tag ${{ inputs.nightly_tag_kfx }}. Exiting the workflow."
+            exit 1
+          fi
+          # Strip the leading `v` from the version
+          version=$(echo $version | sed 's/^v//')
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+      - name: Build ketos-sdk for distribution
+        run: |
+          make sdk_build args="--wheel"
+
+      - name: Build KFX for distribution
+        run: |
+          cd src/kfx
+          rm -rf dist/
+          uv build --wheel --out-dir dist
+
+      - name: Test KFX CLI
+        run: |
+          cd src/kfx
+          # Use a clean venv and install both wheels together so uv can resolve
+          # the local SDK dependency without falling back to PyPI.
+          uv venv test-env --seed
+          uv pip install --python ./test-env/bin/python --force-reinstall ../sdk/dist/*.whl dist/*.whl
+          ./test-env/bin/kfx --help
+          echo "KFX CLI test completed successfully"
+
+      # PyPI publishing moved to after cross-platform testing
+
+      - name: Upload ketos-sdk Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist-nightly-sdk
+          path: src/sdk/dist
+
+      - name: Upload KFX Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist-nightly-kfx
+          path: src/kfx/dist
+
+  build-nightly-base:
+    name: Build Ketos Nightly Base
+    needs: [build-nightly-kfx]
+    if: ${{ always() && (needs.build-nightly-kfx.result == 'success' || inputs.build_kfx == false) }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      version: ${{ steps.verify.outputs.version }}
+      skipped: ${{ steps.verify.outputs.skipped }}
+    steps:
+      - name: Check out the code at a specific ref
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: true
+      - name: "Setup Environment"
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: ${{ env.PYTHON_VERSION }}
+          prune-cache: false
+
+      - name: Download KFX artifact
+        if: inputs.build_kfx
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-nightly-kfx
+          path: kfx-dist
+
+      - name: Install the project
+        run: uv sync
+
+      - name: Force reinstall KFX from built wheel
+        if: inputs.build_kfx
+        run: |
+          echo "Installing KFX from built wheel to test the actual distribution package..."
+          # While workspace resolution installs from source, we want to test the exact
+          # wheel that will be published to PyPI to catch any packaging issues
+          uv pip install --force-reinstall --no-deps kfx-dist/*.whl
+
+      - name: Verify Nightly Name and Version
+        id: verify
+        run: |
+          # Root the tree at ketos-base; it prints as a top-level `ketos-base v<ver>` line,
+          # so a bare `grep ketos-base` would read the version into $name and leave $version empty.
+          name=$(uv tree --package ketos-base | head -n 1 | awk '{print $1}')
+          version=$(uv tree --package ketos-base | head -n 1 | awk '{print $2}')
+          # Strip extras from package name (e.g., "ketos-base[complete]" -> "ketos-base")
+          name_without_extras=$(echo $name | sed 's/\[.*\]//')
+          if [ "$name_without_extras" != "ketos-base" ]; then
+            echo "Name $name_without_extras does not match ketos-base. Exiting the workflow."
+            echo "skipped=true" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          if [ "$version" != "${{ inputs.nightly_tag_base }}" ]; then
+            echo "Version $version does not match nightly tag ${{ inputs.nightly_tag_base }}. Exiting the workflow."
+            echo "skipped=true" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          # Strip the leading `v` from the version
+          version=$(echo $version | sed 's/^v//')
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "skipped=false" >> $GITHUB_OUTPUT
+
+      - name: Build Ketos Base for distribution
+        run: |
+          rm -rf src/backend/base/dist
+          rm -rf dist
+          make build base=true args="--no-sources --wheel"
+
+      - name: Test Ketos Base CLI
+        run: |
+          # TODO: Unsure why the whl is not built in src/backend/base/dist
+          mkdir src/backend/base/dist
+          mv dist/*.whl src/backend/base/dist/
+          # Install with [complete] extra to test all optional dependencies
+          WHEEL_FILE=$(ls src/backend/base/dist/*.whl)
+          uv pip install "${WHEEL_FILE}[complete]"
+          uv run python -m ketos run --host localhost --port 7860 --backend-only &
+          SERVER_PID=$!
+          # Wait for the server to start
+          timeout 120 bash -c 'until curl -f http://localhost:7860/api/v1/auto_login; do sleep 2; done' || (echo "Server did not start in time" && kill $SERVER_PID && exit 1)
+          # Terminate the server
+          kill $SERVER_PID || (echo "Failed to terminate the server" && exit 1)
+          sleep 20 # give the server some time to terminate
+          # Check if the server is still running
+          if kill -0 $SERVER_PID 2>/dev/null; then
+            echo "Failed to terminate the server"
+            exit 0
+          else
+            echo "Server terminated successfully"
+          fi
+
+      # PyPI publishing moved to after cross-platform testing
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist-nightly-base
+          path: src/backend/base/dist
+
+  build-nightly-main:
+    name: Build Ketos Nightly Main
+    needs: [build-nightly-base]
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.verify.outputs.version }}
+      bundles-found: ${{ steps.build-bundles.outputs.bundles-found }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the code at a specific ref
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: true
+      - name: "Setup Environment"
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: ${{ env.PYTHON_VERSION }}
+          prune-cache: false
+
+      - name: Download KFX artifact
+        if: inputs.build_kfx
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-nightly-kfx
+          path: kfx-dist
+
+      - name: Download base artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-nightly-base
+          path: base-dist
+
+      - name: Install the project
+        run: uv sync
+
+      - name: Force reinstall packages from built wheels
+        run: |
+          # While workspace resolution installs from source, we want to test the exact
+          # wheels that will be published to PyPI to catch any packaging issues
+          if [ "${{ inputs.build_kfx }}" == "true" ]; then
+            echo "Installing KFX from built wheel..."
+            uv pip install --force-reinstall --no-deps kfx-dist/*.whl
+          fi
+          echo "Installing ketos-base from built wheel..."
+          uv pip install --force-reinstall --no-deps base-dist/*.whl
+
+      - name: Verify Nightly Name and Version
+        id: verify
+        run: |
+          name=$(uv tree | grep -E '^ketos[[:space:]]' | awk '{print $1}')
+          version=$(uv tree | grep -E '^ketos[[:space:]]' | awk '{print $2}')
+          if [ "$name" != "ketos" ]; then
+            echo "Name $name does not match ketos. Exiting the workflow."
+            exit 1
+          fi
+          if [ "$version" != "${{ inputs.nightly_tag_release }}" ]; then
+            echo "Version $version does not match nightly tag ${{ inputs.nightly_tag_release }}. Exiting the workflow."
+            exit 1
+          fi
+          # Strip the leading `v` from the version
+          version=$(echo $version | sed 's/^v//')
+          echo "version=$version" >> $GITHUB_OUTPUT
+      - name: Wait for PyPI Propagation
+        if: needs.build-nightly-base.outputs.skipped == 'false'
+        run: sleep 300 # wait for 5 minutes to ensure PyPI propagation of base
+
+      - name: Build Ketos Main for distribution
+        run: make build main=true args="--no-sources --wheel"
+      - name: Test Ketos Main CLI
+        run: |
+          uv pip install dist/*.whl
+          uv run python -m ketos run --host localhost --port 7860 --backend-only &
+          SERVER_PID=$!
+          # Wait for the server to start
+          timeout 120 bash -c 'until curl -f http://localhost:7860/health_check; do sleep 2; done' || (echo "Server did not start in time" && kill $SERVER_PID && exit 1)
+          # Terminate the server
+          kill $SERVER_PID || (echo "Failed to terminate the server" && exit 1)
+          sleep 20 # give the server some time to terminate
+          # Check if the server is still running
+          if kill -0 $SERVER_PID 2>/dev/null; then
+            echo "Failed to terminate the server"
+            exit 0
+          else
+            echo "Server terminated successfully"
+          fi
+
+      - name: Prepare Ketos Main artifact
+        run: |
+          shopt -s nullglob
+          MAIN_WHEELS=(dist/ketos-*.whl)
+          if [ ${#MAIN_WHEELS[@]} -ne 1 ]; then
+            echo "Expected exactly one ketos wheel in dist/, found ${#MAIN_WHEELS[@]}"
+            ls -la dist/
+            exit 1
+          fi
+          rm -rf main-dist
+          mkdir -p main-dist
+          cp "${MAIN_WHEELS[0]}" main-dist/
+
+      - name: Build bundle wheels for cross-platform test
+        id: build-bundles
+        run: |
+          shopt -s nullglob
+          bundles=(src/bundles/*/pyproject.toml)
+          if [ ${#bundles[@]} -eq 0 ]; then
+            echo "No bundles found under src/bundles/*/"
+            echo "bundles-found=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mkdir -p bundles-dist
+          BUNDLES_DIST="$PWD/bundles-dist"
+          for bundle_pyproject in "${bundles[@]}"; do
+            bundle_dir=$(dirname "$bundle_pyproject")
+            echo "Building wheel for $bundle_dir"
+            (cd "$bundle_dir" && uv build --wheel --out-dir "$BUNDLES_DIST")
+          done
+          echo "bundles-found=1" >> "$GITHUB_OUTPUT"
+          ls -la bundles-dist/
+
+      - name: Upload Bundles Artifact
+        if: steps.build-bundles.outputs.bundles-found == '1'
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist-nightly-bundles
+          path: bundles-dist
+
+      # PyPI publishing moved to after cross-platform testing
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist-nightly-main
+          path: main-dist
+
+  test-cross-platform:
+    name: Test Cross-Platform Installation
+    needs: [build-nightly-kfx, build-nightly-base, build-nightly-main]
+    uses: ./.github/workflows/cross-platform-test.yml
+    with:
+      base-artifact-name: "dist-nightly-base"
+      main-artifact-name: "dist-nightly-main"
+      kfx-artifact-name: "dist-nightly-kfx"
+      sdk-artifact-name: "dist-nightly-sdk"
+      bundles-artifact-name: "dist-nightly-bundles"
+      pre_release: true
+
+  publish-nightly-kfx:
+    name: Publish KFX Nightly to PyPI
+    needs: [build-nightly-kfx, test-cross-platform, publish-nightly-sdk]
+    if: ${{ inputs.build_kfx }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: true
+      - name: Download KFX artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-nightly-kfx
+          path: src/kfx/dist
+      - name: Setup Environment
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+          python-version: "3.13"
+      - name: Publish KFX to PyPI
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
+          KETOS_EXTERNAL_RELEASE: ${{ vars.KETOS_EXTERNAL_RELEASE }}
+        run: |
+          uv run python "$GITHUB_WORKSPACE/scripts/ci/require_external_release.py" && make kfx_publish
+
+  publish-nightly-sdk:
+    name: Publish SDK Nightly to PyPI
+    needs: [build-nightly-kfx, test-cross-platform]
+    if: ${{ inputs.build_kfx }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: true
+      - name: Download ketos-sdk artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-nightly-sdk
+          path: src/sdk/dist
+      - name: Setup Environment
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+          python-version: "3.13"
+      - name: Publish SDK to PyPI
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
+          KETOS_EXTERNAL_RELEASE: ${{ vars.KETOS_EXTERNAL_RELEASE }}
+        run: |
+          uv run python "$GITHUB_WORKSPACE/scripts/ci/require_external_release.py" && make sdk_publish
+
+  publish-nightly-base:
+    name: Publish Ketos Base Nightly to PyPI
+    needs: [build-nightly-base, test-cross-platform, publish-nightly-kfx]
+    if: ${{ always() && needs.build-nightly-base.result == 'success' && needs.test-cross-platform.result == 'success' && (needs.publish-nightly-kfx.result == 'success' || inputs.build_kfx == false) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: true
+      - name: Download base artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-nightly-base
+          path: src/backend/base/dist
+      - name: Setup Environment
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+          python-version: "3.13"
+      - name: Publish base to PyPI
+        if: needs.build-nightly-base.outputs.skipped == 'false'
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
+          KETOS_EXTERNAL_RELEASE: ${{ vars.KETOS_EXTERNAL_RELEASE }}
+        run: |
+          uv run python "$GITHUB_WORKSPACE/scripts/ci/require_external_release.py" && make publish base=true
+
+  publish-nightly-bundles:
+    name: Publish Bundle Dependencies to PyPI
+    needs: [build-nightly-main, test-cross-platform, publish-nightly-kfx]
+    if: ${{ always() && needs.build-nightly-main.result == 'success' && needs.build-nightly-main.outputs.bundles-found == '1' && needs.test-cross-platform.result == 'success' && (needs.publish-nightly-kfx.result == 'success' || inputs.build_kfx == false) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: true
+      - name: Download bundles artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-nightly-bundles
+          path: bundles-dist
+      - name: Setup Environment
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+          python-version: "3.13"
+      - name: Publish bundle dependencies to PyPI
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
+          KETOS_EXTERNAL_RELEASE: ${{ vars.KETOS_EXTERNAL_RELEASE }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          wheels=(bundles-dist/*.whl)
+          if [ ${#wheels[@]} -eq 0 ]; then
+            echo "No bundle wheels to publish."
+            exit 0
+          fi
+
+          publish_plan="$(mktemp)"
+          uv run --with packaging --no-project python - "${wheels[@]}" > "$publish_plan" <<'PY'
+          import email
+          import json
+          import sys
+          import tomllib
+          import urllib.error
+          import urllib.request
+          import zipfile
+          from pathlib import Path
+
+          from packaging.requirements import Requirement
+          from packaging.utils import canonicalize_name
+          from packaging.version import InvalidVersion, Version
+
+          root_order = {}
+          root_dependencies = tomllib.loads(Path("pyproject.toml").read_text())["project"].get("dependencies", [])
+          for index, dependency in enumerate(root_dependencies):
+            try:
+              requirement = Requirement(dependency)
+            except Exception:
+              continue
+            root_order.setdefault(canonicalize_name(requirement.name), index)
+
+          def read_wheel_metadata(path: Path) -> tuple[str, Version]:
+            with zipfile.ZipFile(path) as wheel:
+              metadata_path = next(name for name in wheel.namelist() if name.endswith(".dist-info/METADATA"))
+              metadata = email.message_from_bytes(wheel.read(metadata_path))
+            return canonicalize_name(metadata["Name"]), Version(metadata["Version"])
+
+          plan = []
+          for wheel_arg in sys.argv[1:]:
+            wheel_path = Path(wheel_arg)
+            name, version = read_wheel_metadata(wheel_path)
+            url = f"https://pypi.org/pypi/{name}/json"
+            try:
+              with urllib.request.urlopen(url, timeout=30) as response:
+                project = json.load(response)
+            except urllib.error.HTTPError as exc:
+              if exc.code != 404:
+                raise
+              print(f"Will publish new PyPI project {name} {version}: {wheel_path}", file=sys.stderr)
+              plan.append((0, root_order.get(name, 9999), name, str(wheel_path)))
+              continue
+
+            published_versions = set()
+            for version_text in project.get("releases", {}):
+              try:
+                published_versions.add(Version(version_text))
+              except InvalidVersion:
+                continue
+
+            if version in published_versions:
+              print(f"Skipping {name} {version}: already published.", file=sys.stderr)
+              continue
+
+            print(f"Will publish new version {name} {version}: {wheel_path}", file=sys.stderr)
+            plan.append((1, root_order.get(name, 9999), name, str(wheel_path)))
+
+          for _, _, _, wheel_path in sorted(plan):
+            print(wheel_path)
+          PY
+
+          if [ ! -s "$publish_plan" ]; then
+            echo "No bundle wheels need publishing."
+            exit 0
+          fi
+
+          mapfile -t wheels < "$publish_plan"
+          failed=0
+          pypi_publish_delay_seconds=60
+          pypi_publish_max_attempts=5
+          wheel_count=${#wheels[@]}
+          wheel_number=0
+          for wheel in "${wheels[@]}"; do
+            wheel_number=$((wheel_number + 1))
+            echo "Publishing $wheel"
+            attempt=1
+            published=0
+            while true; do
+              # Re-running a nightly without bumping bundle versions should be a no-op.
+              if err=$(uv run python "$GITHUB_WORKSPACE/scripts/ci/require_external_release.py" && uv publish "$wheel" 2>&1); then
+                echo "$err"
+                published=1
+                break
+              fi
+              echo "$err"
+              if echo "$err" | grep -qiE 'already exists|file already exists|HTTP 400|duplicate'; then
+                echo "Skipping $wheel: already published."
+                break
+              fi
+              if echo "$err" | grep -qiE 'HTTP 429|429 Too Many Requests|Too many new projects created'; then
+                if [ "$attempt" -lt "$pypi_publish_max_attempts" ]; then
+                  echo "PyPI rate limited $wheel; sleeping ${pypi_publish_delay_seconds}s before retry $((attempt + 1))/${pypi_publish_max_attempts}."
+                  sleep "$pypi_publish_delay_seconds"
+                  attempt=$((attempt + 1))
+                  continue
+                fi
+              fi
+              echo "Publish failed for $wheel"
+              failed=1
+              break
+            done
+            if [ "$published" = "1" ] && [ "$wheel_number" -lt "$wheel_count" ]; then
+              echo "Sleeping ${pypi_publish_delay_seconds}s before the next PyPI upload."
+              sleep "$pypi_publish_delay_seconds"
+            fi
+          done
+          if [ "$failed" = "1" ]; then
+            exit 1
+          fi
+
+  check-nightly-main-pypi-dependencies:
+    name: Check Main Nightly PyPI Dependencies
+    needs: [build-nightly-main, test-cross-platform, publish-nightly-base, publish-nightly-bundles]
+    if: ${{ always() && needs.build-nightly-main.result == 'success' && needs.test-cross-platform.result == 'success' && needs.publish-nightly-base.result == 'success' && (needs.publish-nightly-bundles.result == 'success' || needs.build-nightly-main.outputs.bundles-found != '1') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: true
+      - name: Setup Environment
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+          python-version: "3.13"
+      - name: Wait for bundle PyPI propagation
+        if: needs.publish-nightly-bundles.result == 'success'
+        run: sleep 120
+      - name: Check direct bundle dependencies on PyPI
+        run: |
+          uv run --with packaging --no-project python - <<'PY'
+          import json
+          import sys
+          import tomllib
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          from packaging.requirements import Requirement
+          from packaging.utils import canonicalize_name
+          from packaging.version import InvalidVersion, Version
+
+          data = tomllib.loads(Path("pyproject.toml").read_text())
+          requirements = []
+          for dependency in data["project"].get("dependencies", []):
+            requirement = Requirement(dependency)
+            name = canonicalize_name(requirement.name)
+            if name.startswith("kfx-"):
+              requirements.append(requirement)
+
+          if not requirements:
+            print("No direct kfx-* dependencies found.")
+            sys.exit(0)
+
+          missing = []
+          unsatisfied = []
+          for requirement in requirements:
+            name = canonicalize_name(requirement.name)
+            url = f"https://pypi.org/pypi/{name}/json"
+            try:
+              with urllib.request.urlopen(url, timeout=30) as response:
+                project = json.load(response)
+            except urllib.error.HTTPError as exc:
+              if exc.code == 404:
+                missing.append(name)
+                continue
+              raise
+
+            matching_versions = []
+            for version_text in project.get("releases", {}):
+              try:
+                version = Version(version_text)
+              except InvalidVersion:
+                continue
+              if version in requirement.specifier:
+                matching_versions.append(version)
+
+            if not matching_versions:
+              unsatisfied.append(f"{name}{requirement.specifier}")
+            else:
+              latest = max(matching_versions)
+              print(f"{name}{requirement.specifier}: available, latest matching {latest}")
+
+          if missing or unsatisfied:
+            if missing:
+              print("Missing PyPI projects: " + ", ".join(missing), file=sys.stderr)
+            if unsatisfied:
+              print("No published version satisfies: " + ", ".join(unsatisfied), file=sys.stderr)
+            sys.exit(1)
+          PY
+
+  publish-nightly-main:
+    name: Publish Ketos Main Nightly to PyPI
+    needs: [build-nightly-main, test-cross-platform, publish-nightly-base, check-nightly-main-pypi-dependencies]
+    if: ${{ always() && needs.build-nightly-main.result == 'success' && needs.test-cross-platform.result == 'success' && needs.publish-nightly-base.result == 'success' && needs.check-nightly-main-pypi-dependencies.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: true
+      - name: Download main artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-nightly-main
+          path: dist
+      - name: Setup Environment
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+          python-version: "3.13"
+      - name: Publish to PyPI
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          KETOS_RELEASE_COMMIT: ${{ vars.KETOS_RELEASE_COMMIT }}
+          KETOS_EXTERNAL_RELEASE: ${{ vars.KETOS_EXTERNAL_RELEASE }}
+        run: |
+          uv run python "$GITHUB_WORKSPACE/scripts/ci/require_external_release.py" && make publish main=true
+
+  call_docker_build_base:
+    name: Call Docker Build Workflow for Ketos Base
+    if: ${{ always() && inputs.build_docker_base }}
+    needs: [build-nightly-base, build-nightly-main]
+    uses: ./.github/workflows/docker-nightly-build.yml
+    with:
+      ref: ${{ github.sha }}
+      release_type: nightly-base
+      push_to_registry: ${{ inputs.push_to_registry }}
+    secrets: inherit
+
+  call_docker_build_main:
+    name: Call Docker Build Workflow for Ketos
+    if: ${{ always() && inputs.build_docker_main }}
+    needs: [build-nightly-main, call_docker_build_base]
+    uses: ./.github/workflows/docker-nightly-build.yml
+    with:
+      ref: ${{ github.sha }}
+      release_type: nightly-main
+      push_to_registry: ${{ inputs.push_to_registry }}
+    secrets: inherit
+
+  # TODO: Uncomment this when our runner can fit the builds that contain pytorch (and other large dependencies)
+  # call_docker_build_main_all:
+  #   name: Call Docker Build Workflow for ketos-all
+  #   if: always() && ${{ inputs.build_docker_main == 'true' }}
+  #   needs: [build-nightly-main]
+  #   uses: ./.github/workflows/docker-nightly-build.yml
+  #   with:
+  #     ref: ${{ github.sha }}
+  #     release_type: nightly-main-all
+  #     main_version: ${{ inputs.nightly_tag_release }}
+  #   secrets: inherit
+
+  # call_docker_build_main_ep:
+  #   name: Call Docker Build Workflow for Ketos with Entrypoint
+  #   if: ${{ always() && inputs.build_docker_ep }}
+  #   needs: [build-nightly-main, call_docker_build_main]
+  #   uses: ./.github/workflows/docker-build-v2.yml
+  #   with:
+  #     ref: ${{ github.sha }}
+  #     release_type: main-ep
+  #     push_to_registry: ${{ inputs.push_to_registry }}
+  #   secrets: inherit

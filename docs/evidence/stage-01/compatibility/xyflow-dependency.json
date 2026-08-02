@@ -1,0 +1,10 @@
+{
+  "legacy_reactflow_declared_version": "^11.11.3",
+  "legacy_reactflow_dependency_declared": true,
+  "legacy_reactflow_import_files": 0,
+  "removal_disposition": "DEFER_TO_REGISTRAR_CLEANUP",
+  "schema_version": 1,
+  "source_baseline_sha": "80878261d07c21ad257de017d98069f211ada2c2",
+  "xyflow_declared_version": "^12.3.6",
+  "xyflow_import_files": 45
+}

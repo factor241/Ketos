@@ -1,0 +1,13 @@
+src/frontend/node_modules
+src/frontend/build
+src/backend/base/ketos/frontend
+src/frontend/coverage
+src/frontend/test-results
+src/frontend/playwright-report
+src/frontend/.dspy_cache
+**/.DS_Store
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.venv
+**/.env

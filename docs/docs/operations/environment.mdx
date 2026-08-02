@@ -1,0 +1,82 @@
+---
+title: Environment variables
+slug: /operations/environment
+---
+
+Current Ketos-owned settings use the `KETOS_` prefix. Common local settings:
+
+| Variable | Purpose |
+| --- | --- |
+| `KETOS_HOST` | Bind host |
+| `KETOS_PORT` | HTTP port |
+| `KETOS_LOG_LEVEL` | Runtime log level |
+| `KETOS_DATABASE_URL` | SQLAlchemy database URL |
+| `KETOS_CONFIG_DIR` | Configuration directory |
+| `KETOS_COMPONENTS_PATH` | Extra local component roots |
+| `KETOS_API_KEY_SOURCE` | API key source (`db` or `env`) |
+| `KETOS_API_KEY` | Local environment-backed API key |
+| `KETOS_CORS_ORIGINS` | Explicit allowed origins |
+| `KETOS_AUTHZ_ENABLED` | Authorization plugin enforcement switch |
+| `KETOS_ENABLE_EXTENSION_RELOAD` | Local extension reload endpoint switch |
+
+Keep secrets in an untracked `.env`. Production CORS must name explicit origins.
+
+## Destructive clean cutover
+
+Ketos does not read or migrate pre-cutover environment variables, config files,
+databases, caches, or runtime keys. Perform this procedure in a maintenance
+window. The archive is a rollback artifact, not a runtime input.
+
+### 1. Stop and prove quiescence
+
+Stop every web process, worker, scheduler, and migration job. Confirm there are
+no remaining Ketos or pre-cutover processes and no open database sessions. Do
+not change the PostgreSQL migration-lock namespace while any process is alive.
+
+### 2. Archive outside the repository
+
+Archive the complete pre-cutover config, data, database, uploaded files,
+extension registry, logs, and relevant Redis export to encrypted storage
+**outside this repository**. Record checksums and ownership/permissions. Test
+that the archive can be listed and restored before deleting anything.
+
+### 3. Delete pre-cutover state
+
+Delete the pre-cutover local directories, SQLite database (including WAL/SHM),
+temporary files, and caches. From a maintenance Redis connection, inventory
+keys first, then delete every pre-cutover application key, queue, channel, and
+consumer-group entry. All Ketos-owned keys must use the `ketos:` prefix, and no
+pre-cutover application keys remain before initialization. Do not flush a
+shared Redis database; unrelated keys may remain in a shared Redis database.
+
+The Ketos roots are independent:
+
+```bash
+export KETOS_CONFIG_DIR=/srv/ketos/config
+export KETOS_DATA_DIR=/srv/ketos/data
+export KETOS_CACHE_DIR=/srv/ketos/cache
+export KETOS_TEMP_DIR=/srv/ketos/temp
+```
+
+Do not place these directories inside the source checkout or copy archived
+files into them.
+
+### 4. Initialize clean Ketos state
+
+Create empty roots with least-privilege ownership, configure only `KETOS_*`
+variables, and start one Ketos process so it initializes `ketos.db` and runs
+schema migrations. Verify the health endpoint and schema revision, then start
+workers. Confirm every Ketos-owned Redis key uses the `ketos:` prefix, no
+pre-cutover application keys reappeared, and no state appeared in the current
+working directory or installed package.
+
+### Rollback
+
+Stop all Ketos processes, archive the failed clean-state attempt separately,
+delete the four Ketos roots and Ketos Redis keys, then restore the verified
+pre-cutover archive to its original external locations. Restore a Redis
+snapshot only for a dedicated Redis instance. When the Redis instance is
+shared, including when Ketos uses a dedicated logical database number, restore
+only the archived application namespace. Restore the matching database and
+Redis application state as one consistency unit before restarting the previous
+release. Never merge the two states or point Ketos at the rollback archive.

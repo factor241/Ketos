@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ketos.test/evidence/stage-08/report.schema.json",
+  "title": "Ketos Stage 08 closure report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "stage", "frozenSha", "baseSha", "runId", "status", "generatedAt", "summary", "acceptance", "failures", "blockers", "manifestPath"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "stage": {"const": "08"},
+    "frozenSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "baseSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "runId": {"type": "string", "minLength": 1},
+    "status": {"enum": ["PASS", "FAIL", "BLOCKED"]},
+    "generatedAt": {"type": "string", "format": "date-time"},
+    "summary": {"type": "string"},
+    "acceptance": {"type": "array", "items": {"$ref": "#/$defs/acceptance"}},
+    "failures": {"type": "array", "items": {"$ref": "#/$defs/problem"}},
+    "blockers": {"type": "array", "items": {"$ref": "#/$defs/problem"}},
+    "manifestPath": {"const": "manifest.json"}
+  },
+  "$defs": {
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "requirement", "status", "nodeIds", "evidencePaths", "note"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "requirement": {"type": "string", "minLength": 1},
+        "status": {"enum": ["PASS", "FAIL", "BLOCKED"]},
+        "nodeIds": {"type": "array", "items": {"type": "string"}},
+        "evidencePaths": {"type": "array", "items": {"type": "string"}},
+        "note": {"type": "string"}
+      }
+    },
+    "problem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "nodeId", "message", "evidencePaths"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "nodeId": {"type": "string", "minLength": 1},
+        "message": {"type": "string", "minLength": 1},
+        "evidencePaths": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

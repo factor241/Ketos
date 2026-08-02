@@ -1,0 +1,203 @@
+import {
+  Background,
+  BackgroundVariant,
+  ControlButton,
+  Controls,
+  MiniMap,
+  type NodeTypes,
+  type OnNodeDrag,
+  ReactFlow,
+  type ReactFlowInstance,
+  ReactFlowProvider,
+  useNodesState,
+  type Viewport,
+} from "@xyflow/react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
+import { useTranslation } from "react-i18next";
+
+import { Button } from "@/components/ui/button";
+import type { BoardSceneNode } from "@/pages/BoardPage/utils/placement-to-node";
+
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 2;
+const ZOOM_STEP = 0.2;
+const PAN_STEP = 40;
+const LARGE_PAN_STEP = 160;
+const RESET_VIEWPORT: Viewport = { x: 0, y: 0, zoom: 1 };
+
+type MoveHandler = (
+  event: MouseEvent | TouchEvent | null,
+  viewport: Viewport,
+) => void;
+
+export interface BoardCanvasProps {
+  initialViewport: Viewport;
+  nodes: BoardSceneNode[];
+  nodeTypes: NodeTypes;
+  onNodeDragStop?: OnNodeDrag<BoardSceneNode>;
+  onMoveStart?: MoveHandler;
+  onMoveEnd: MoveHandler;
+  onInstanceReady?: (
+    instance: ReactFlowInstance,
+    canvasElement: HTMLDivElement,
+  ) => void;
+}
+
+export function BoardCanvas({
+  initialViewport,
+  nodes: sourceNodes,
+  nodeTypes,
+  onNodeDragStop,
+  onMoveStart,
+  onMoveEnd,
+  onInstanceReady,
+}: BoardCanvasProps) {
+  const { t } = useTranslation();
+  const entryButtonRef = useRef<HTMLButtonElement>(null);
+  const canvasRegionRef = useRef<HTMLDivElement>(null);
+  const instanceRef = useRef<ReactFlowInstance | null>(null);
+  const [nodes, setNodes, onNodesChange] = useNodesState(sourceNodes);
+
+  useEffect(() => setNodes(sourceNodes), [setNodes, sourceNodes]);
+
+  const focusCanvas = useCallback(() => canvasRegionRef.current?.focus(), []);
+  const handleInstanceReady = useCallback(
+    (instance: ReactFlowInstance) => {
+      instanceRef.current = instance;
+      if (canvasRegionRef.current) {
+        onInstanceReady?.(instance, canvasRegionRef.current);
+      }
+    },
+    [onInstanceReady],
+  );
+  const commitViewport = useCallback(
+    (viewport: Viewport) => {
+      if (!instanceRef.current) return;
+      void instanceRef.current.setViewport(viewport, { duration: 0 });
+      onMoveEnd(null, viewport);
+    },
+    [onMoveEnd],
+  );
+
+  const handleEntryKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      focusCanvas();
+    }
+  };
+
+  const handleCanvasKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      entryButtonRef.current?.focus();
+      return;
+    }
+    const instance = instanceRef.current;
+    if (!instance) return;
+    const current = instance.getViewport();
+    const panStep = event.shiftKey ? LARGE_PAN_STEP : PAN_STEP;
+    let next: Viewport | null = null;
+    switch (event.key) {
+      case "ArrowLeft":
+        next = { ...current, x: current.x + panStep };
+        break;
+      case "ArrowRight":
+        next = { ...current, x: current.x - panStep };
+        break;
+      case "ArrowUp":
+        next = { ...current, y: current.y + panStep };
+        break;
+      case "ArrowDown":
+        next = { ...current, y: current.y - panStep };
+        break;
+      case "+":
+      case "=":
+        next = {
+          ...current,
+          zoom: Math.min(MAX_ZOOM, current.zoom + ZOOM_STEP),
+        };
+        break;
+      case "-":
+      case "_":
+        next = {
+          ...current,
+          zoom: Math.max(MIN_ZOOM, current.zoom - ZOOM_STEP),
+        };
+        break;
+      case "0":
+        next = { ...RESET_VIEWPORT };
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    commitViewport(next);
+  };
+
+  return (
+    <ReactFlowProvider>
+      <div className="flex h-full min-h-0 flex-col">
+        <Button
+          ref={entryButtonRef}
+          className="m-2 shrink-0 self-start"
+          type="button"
+          size="sm"
+          variant="outline"
+          ignoreTitleCase
+          onClick={focusCanvas}
+          onKeyDown={handleEntryKeyDown}
+        >
+          {t("board.canvas.open")}
+        </Button>
+        <div
+          ref={canvasRegionRef}
+          className="min-h-0 w-full flex-1"
+          role="region"
+          tabIndex={0}
+          aria-label={t("board.canvas.label")}
+          onKeyDown={handleCanvasKeyDown}
+        >
+          <ReactFlow
+            nodes={nodes}
+            edges={[]}
+            nodeTypes={nodeTypes}
+            fitView={false}
+            defaultViewport={initialViewport}
+            minZoom={MIN_ZOOM}
+            maxZoom={MAX_ZOOM}
+            nodesDraggable
+            nodesConnectable={false}
+            elementsSelectable
+            onNodesChange={onNodesChange}
+            onNodeDragStop={onNodeDragStop}
+            onInit={(instance) =>
+              handleInstanceReady(instance as unknown as ReactFlowInstance)
+            }
+            onMoveStart={onMoveStart}
+            onMoveEnd={onMoveEnd}
+          >
+            <Background variant={BackgroundVariant.Dots} />
+            <MiniMap />
+            <Controls showFitView={false}>
+              <ControlButton
+                aria-label={t("board.viewport.reset")}
+                onClick={() => commitViewport({ ...RESET_VIEWPORT })}
+              >
+                0
+              </ControlButton>
+            </Controls>
+          </ReactFlow>
+        </div>
+      </div>
+    </ReactFlowProvider>
+  );
+}
+
+export default BoardCanvas;

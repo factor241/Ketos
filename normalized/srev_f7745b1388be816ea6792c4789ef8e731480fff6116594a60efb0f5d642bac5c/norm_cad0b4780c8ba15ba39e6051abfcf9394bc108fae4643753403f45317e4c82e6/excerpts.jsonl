@@ -1,0 +1,70 @@
+{"excerpt":"<!-- markdownlint-disable MD030 -->","segment_id":"seg_a7e33f4b5553863cf85dfda5dd94ffa6545b2a5455d8bd4544f6f746b6cda614"}
+{"excerpt":"<picture>","segment_id":"seg_22e2c4f051c1ec3fcf98a1f5f499a7ced6fb658dafdedf0e44a2599a776ce166"}
+{"excerpt":"  <source media=\"(prefers-color-scheme: dark)\" srcset=\"./docs/static/img/langflow-logo-color-blue-bg.svg\">","segment_id":"seg_c792b9f5f9eb89ae74a1ba7830272372f713a62642f361c5f3d6aa384516b15a"}
+{"excerpt":"  <img src=\"./docs/static/img/langflow-logo-color-black-solid.svg\" alt=\"Langflow logo\">","segment_id":"seg_9c84b3c04ea03bcfc14c953167a37f9103fb86c965fa8614a6252fa44236e64e"}
+{"excerpt":"</picture>","segment_id":"seg_ccf23aa4fee0c3da804f0d3a5db8cc4fb6026d64f8c64eb5ba21f20dd2dadb6e"}
+{"excerpt":"[![Release Notes](https://img.shields.io/github/release/langflow-ai/langflow?style=flat-square)](https://github.com/langflow-ai/langflow/releases)","segment_id":"seg_a0056393df5eb3dbbd41f23322e468e209f4c11969c0ffc3982e8406a3ddf29b"}
+{"excerpt":"[![PyPI - License](https://img.shields.io/badge/license-MIT-orange)](https://opensource.org/licenses/MIT)","segment_id":"seg_1e31b71fd1745ef60ec01cf438000e386e9129188a1904e08fbc017af47fcc16"}
+{"excerpt":"[![PyPI - Downloads](https://img.shields.io/pypi/dm/langflow?style=flat-square)](https://pypistats.org/packages/langflow)","segment_id":"seg_bdab6c4a53e48aa18270308bbb3b47749bcfdd922d4a9720609f788fea6c0016"}
+{"excerpt":"[![Twitter](https://img.shields.io/twitter/url/https/twitter.com/langflow-ai.svg?style=social&label=Follow%20%40Langflow)](https://twitter.com/langflow_ai)","segment_id":"seg_2c3c643cd6cdfe103f1a0bedeade1b361d507bd38e81dc73f5a3957f2225a978"}
+{"excerpt":"[![YouTube Channel](https://img.shields.io/youtube/channel/subscribers/UCn2bInQrjdDYKEEmbpwblLQ?label=Subscribe)](https://www.youtube.com/@Langflow)","segment_id":"seg_1fa8ef9c1897d1066a62af1a99f7b5a4248235cf8457604d8e0fa39f48bb5d4f"}
+{"excerpt":"[![Discord Server](https://img.shields.io/discord/1116803230643527710?logo=discord&style=social&label=Join)](https://discord.gg/EqksyE2EX9)","segment_id":"seg_62e103eb3a5168f81cc51eec0777c377190752648bcdb9543317b1754f70c843"}
+{"excerpt":"[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/langflow-ai/langflow)","segment_id":"seg_570638ce508b4e24623a6714364b7227b1c1a1fc6473bdfd6b0c091e80d0b387"}
+{"excerpt":"[Langflow](https://langflow.org) is a powerful platform for building and deploying AI-powered agents and workflows. It provides developers with both a visual authoring experience and built-in API and MCP servers that turn every workflow into a tool that can be integrated into applications built on any framework or stack. Langflow comes with batteries included and supports all major LLMs, vector databases and a growing library of AI tools.","segment_id":"seg_02eeb791b3032771288aaf024bebf6b0fc1aba334d5e121c167da392f99cbf74"}
+{"excerpt":"## ✨ Highlight features","segment_id":"seg_8e7504b87be37159f86f4d68f28b13570bd490990a8374388dd5eba197748baf"}
+{"excerpt":"- **Visual builder interface** to quickly get started and iterate.","segment_id":"seg_ea20895b3f28152d4e56513a21b93e0eb3d64e40313a392a13585eb1d29aa5b8"}
+{"excerpt":"- **Source code access** lets you customize any component using Python.","segment_id":"seg_79de8f1cc75c891c1214e67244cdddc1acd0188c1c1afbbf4cbb1d0fc18b80f7"}
+{"excerpt":"- **Interactive playground** to immediately test and refine your flows with step-by-step control.","segment_id":"seg_e70e184c80a20b36a392021925326afd01f95d85180c3e092cffcb8590103242"}
+{"excerpt":"- **Multi-agent orchestration** with conversation management and retrieval.","segment_id":"seg_bcdccf7b3f59a117715179ac7d65c08891c4862cce8433da700a4c14bed37ade"}
+{"excerpt":"- **Deploy as an API** or export as JSON for Python apps.","segment_id":"seg_dae6fc2081d2cb8c513232a425ec50dfe8e2f6d226f45371be755c802d48e716"}
+{"excerpt":"- **Deploy as an MCP server** and turn your flows into tools for MCP clients.","segment_id":"seg_feabff3e1127971c76cee445753d5d7a1a2fc7087842bf69920198057800f815"}
+{"excerpt":"- **Observability** with LangSmith, LangFuse and other integrations.","segment_id":"seg_2217297ec70820c6d3fb7310bd9762484c453b39cd1bc3e2d22e310342bce606"}
+{"excerpt":"- **Enterprise-ready** security and scalability.","segment_id":"seg_abd3a8be14ef0de62d629e7dea9712ab44f640706c74cce327827eacb83bc7c2"}
+{"excerpt":"## 🖥️  Langflow Desktop","segment_id":"seg_fea7e2ec85611aa5a6f55c9d6bc1a517f985affc5250e2df54621638e5d52676"}
+{"excerpt":"Langflow Desktop is the easiest way to get started with Langflow. All dependencies are included, so you don't need to manage Python environments or install packages manually.","segment_id":"seg_9043eafc69e88e8b1cfb01dbc32fa378ccf9dc57e87664a7674c159ed3aa5843"}
+{"excerpt":"Available for Windows and macOS.","segment_id":"seg_506183836c729d7e158600b856e4a2305f7145039dc27703b5c2cb299787e26b"}
+{"excerpt":"[📥 Download Langflow Desktop](https://www.langflow.org/desktop)","segment_id":"seg_e32dfa97536c0314d05d2a9f5b2d1f2d598799244d56eae68dbd90efb7e59155"}
+{"excerpt":"## ⚡️ Quickstart","segment_id":"seg_d8c615186ec16618d469d1d9673d65326583432169b3226ca4fe93c5f3c76a46"}
+{"excerpt":"### Install locally (recommended)","segment_id":"seg_16b0a7fb158daa034f39c49c8aa71ec69d3a39fc08ece11f4468780fb9afae11"}
+{"excerpt":"Requires Python 3.10–3.14 and [uv](https://docs.astral.sh/uv/getting-started/installation/) (recommended package manager).","segment_id":"seg_2102f7026c01548fca1211a75f52ebefe9b71a611896b4b6d6fd9f15ccb8d573"}
+{"excerpt":"#### Install","segment_id":"seg_fd774aa0a1c825a2283b3294dff53d6d2a9a1a1079ba0458072dc36929d760f6"}
+{"excerpt":"From a fresh directory, run:","segment_id":"seg_2dea054100113ecd7c80c8ba08d1f8ecb281b0401cf4886033b06f5ff53179fc"}
+{"excerpt":"```shell","segment_id":"seg_8810f2c014ac654da1cfc9de27fe22d8eb612cd7431d0863e757d052078a2927"}
+{"excerpt":"uv pip install langflow -U","segment_id":"seg_71e63526729dbabe9d9ad87bc524fe1f009ebed481b982386c8a3e466412119e"}
+{"excerpt":"```","segment_id":"seg_1510a5c7800eb59ff166b4d1dc652a56f0e6dd5b7e1a869d229e064523bf1122"}
+{"excerpt":"The latest Langflow package is installed.","segment_id":"seg_38138575188de60cb3e40fd1aa06c50df48bc61a4b21bfd5b47d73de8f0f5cb5"}
+{"excerpt":"For more information, see [Install and run the Langflow OSS Python package](https://docs.langflow.org/get-started-installation#install-and-run-the-langflow-oss-python-package).","segment_id":"seg_f7e78420e0c09f0ce891c9ef7a49f2e8f74c9a36851470e86644083db42f1b00"}
+{"excerpt":"#### Run","segment_id":"seg_e7ec3effb305a5b5d0eee94db8564329c066f1b37fc3b82c49065029ad1f03d4"}
+{"excerpt":"To start Langflow, run:","segment_id":"seg_fa0803b690c8d9578d5494f6ac2431afc6df10cbd589ac414d1e3e5fcc9360a9"}
+{"excerpt":"```shell","segment_id":"seg_814673bbe871b842f57ff4782ffb2b15981328078a68efd476ce7b09f2412bbb"}
+{"excerpt":"uv run langflow run","segment_id":"seg_0cf8f57ac0125d0837a5050e050720917ea1d4a2dc43c9c37c9e5e19e165f1ab"}
+{"excerpt":"```","segment_id":"seg_71a3ae1c7b9fef1e39615b8c950b8293a6b843777643f4b3613e2857c928b8a9"}
+{"excerpt":"Langflow starts at http://127.0.0.1:7860.","segment_id":"seg_901d76bb1fa84d057ceea1d373eb9dbf6e05a46db03c12e5dd4b794fc5f68035"}
+{"excerpt":"That's it! You're ready to build with Langflow! 🎉","segment_id":"seg_c779a616c8e73062b6039dd299a32afa9e61f2c802c188f0eb4c7cd539104b39"}
+{"excerpt":"## 📦 Other install options","segment_id":"seg_e2305ea29c05175c4501b7aa1ca93cae1ab5005a84ffa48b716d24997e050aa4"}
+{"excerpt":"### Run from source","segment_id":"seg_2124007165d00f272c5ea4b02958038de63afd5db40cc10fc2279440ca032227"}
+{"excerpt":"If you've cloned this repository and want to contribute, run this command from the repository root:","segment_id":"seg_bc4e6c8006da16b9ccdfec4d0976aaede2319a9e35067f4eb4edf303882d13d4"}
+{"excerpt":"```shell","segment_id":"seg_fa14a11c609eee285580f4dad74c4a19f78e0258398e11f3ff578d4c38253f8f"}
+{"excerpt":"make run_cli","segment_id":"seg_f6956a19c11706aa696b54b08db9e48a332d8edf8a96b99c2ff1770f43eed52d"}
+{"excerpt":"```","segment_id":"seg_f7b9528c146b57f26456adbefe7de9a9fa034299930e3eea38dd8c15aa04c180"}
+{"excerpt":"For more information, see [DEVELOPMENT.md](./DEVELOPMENT.md).","segment_id":"seg_d3bb81f48693949462005c5d3818dcc129cf8aa0d5f98c7095a8e62c7efca87b"}
+{"excerpt":"### Docker","segment_id":"seg_04a4f296074eba737b29f1bdf20cf8a7cef351f4c420fe1401d494f759d87325"}
+{"excerpt":"Start a Langflow container with default settings:","segment_id":"seg_7c1d9731596b5f89a3b12ab66ede0c604a26ee5f1f317f21a3aa31899a43873b"}
+{"excerpt":"```shell","segment_id":"seg_63bcd0114106d3c5dd555e6d092e3682cbe5de05891822e557b4857c7a02efa4"}
+{"excerpt":"docker run -p 7860:7860 langflowai/langflow:latest","segment_id":"seg_aa6933b1e5b065633e011cea28eea01756fd881e7956270da16c2cbbb384562d"}
+{"excerpt":"```","segment_id":"seg_d111f36a00b82e240fb4bbb1f6ded2b3449f95ab2da945d032d5610069a3e213"}
+{"excerpt":"Langflow is available at http://localhost:7860/.","segment_id":"seg_53a3583d6d0d9c80504b71b03bf77466bdf61ebcb8939dbf30e646c7e3155dd9"}
+{"excerpt":"For configuration options, see the [Docker deployment guide](https://docs.langflow.org/deployment-docker).","segment_id":"seg_49e1eaa634c4293a65fd04eebe577dc76b4c7ec7a07e24b76527cf26b9da5887"}
+{"excerpt":"## 🛡️ Security","segment_id":"seg_32d1f2a076f53cd489f68451a5bffc085a066908003435c39b669a3546e9ca88"}
+{"excerpt":"For security information, see our [Security Policy](./SECURITY.md).","segment_id":"seg_eb4e6f95f54f8c6ef2b1273aea7a56c5475fb18bc25e2a3965a53c1ac99efc02"}
+{"excerpt":"## 🚀 Deployment","segment_id":"seg_12a53d725f7514e49ba56a16e36a59dbe4b8c257ada82b6cc811ef9063739b7e"}
+{"excerpt":"Langflow is completely open source and you can deploy it to all major deployment clouds. To learn how to deploy Langflow, see our [Langflow deployment guides](https://docs.langflow.org/deployment-overview).","segment_id":"seg_a080d6c1f879e99b13d4707399c0682794ee9a3efbffdd1104afc0b2ba154879"}
+{"excerpt":"## ⭐ Stay up-to-date","segment_id":"seg_8e2eadcc99cc891e272442626b9f21e0644b266fd5a8c1a74d694ae884cfe55d"}
+{"excerpt":"Star Langflow on GitHub to be instantly notified of new releases.","segment_id":"seg_d27ed495c9f46a340c3d7ffebe611da67994e3c9268cb1082dcb6328a12a4185"}
+{"excerpt":"![Star Langflow](https://github.com/user-attachments/assets/03168b17-a11d-4b2a-b0f7-c1cce69e5a2c)","segment_id":"seg_e98db72d35f7fb79b75d89e126e97ab3d42af82420f788c4d5a0b26b72190d85"}
+{"excerpt":"## 👋 Contribute","segment_id":"seg_2cedc66aa75bf9735d03a0d66b4bebf0da83d76a7e85212bc401b2a5b4879b70"}
+{"excerpt":"We welcome contributions from developers of all levels. If you'd like to contribute, please check our [contributing guidelines](./CONTRIBUTING.md) and help make Langflow more accessible.","segment_id":"seg_7d3380c088d89527fec1cfbe920ba850c7c8ac1bb619d7e0a1bc3bbb7b63c154"}
+{"excerpt":"---","segment_id":"seg_6f7b2fc5ba15be37941916cb66b6b4c11fc0c78187f429e04d786e06d86fabc9"}
+{"excerpt":"[![Star History Chart](https://api.star-history.com/svg?repos=langflow-ai/langflow&type=Timeline)](https://star-history.com/#langflow-ai/langflow&Date)","segment_id":"seg_f49ec88a1814993811d12c13f113e9213a79d5c575dcf48646641d9c90944bd3"}
+{"excerpt":"## ❤️ Contributors","segment_id":"seg_3a8d600e6df69c42d480dea0c02b66ba187c33d1573d0df24128ba020ec234a3"}
+{"excerpt":"[![langflow contributors](https://contrib.rocks/image?repo=langflow-ai/langflow)](https://github.com/langflow-ai/langflow/graphs/contributors)","segment_id":"seg_9088c6ec7f1a324e927ffd5f510f0f13f87458545a50baeadab3ca49fa15dd57"}

@@ -1,0 +1,24 @@
+services:
+  # A Docker web service
+  - type: web
+    name: ketos
+    runtime: docker
+    dockerfilePath: ./docker/render.Dockerfile
+    repo: https://git.ketos.test/ketos/ketos
+    branch: main
+    plan: standard
+    healthCheckPath: /health_check
+    autoDeploy: false
+    envVars:
+      - key: KETOS_DATABASE_URL
+        value: sqlite:////app/data/.cache/ketos/ketos.db
+      - key: KETOS_HOST
+        value: 0.0.0.0
+      - key: KETOS_PORT
+        # default render port https://docs.render.com/web-services#port-binding
+        value: 10000
+      - key: KETOS_LOG_LEVEL
+        value: INFO
+    disk:
+      name: ketos-data
+      mountPath: /app/data

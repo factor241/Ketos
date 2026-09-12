@@ -152,6 +152,73 @@ describe('PiAiAdapter provider routing', () => {
     expect(server.requests[0]).not.toHaveProperty('dsh_plugin_packages')
   })
 
+  it('stamps x-opencode-session header on OpenCode routes from session id', async () => {
+    const server = await mockServer([{ events: textEvents }])
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(LlmPiAi, {
+      providers: {
+        'opencode-go': {
+          apiKeyEnv: 'PI_TEST_KEY',
+          baseURL: server.url,
+          api: 'openai-completions',
+          models: [{ id: 'glm-5.3-flash', name: 'GLM 5.3 Flash', contextWindow: 65536 }],
+        },
+      },
+    })
+
+    await assemble(ctx, {
+      provider: 'opencode-go',
+      model: 'glm-5.3-flash',
+      messages: [],
+      sessionId: 'session-05681fd4-1667-4f46-874f-11fd7f10abbe' as never,
+    })
+
+    expect(server.headers[0]?.['x-opencode-session']).toBe('05681fd4-1667-4f46-874f-11fd7f10abbe')
+    expect(server.headers[0]?.['n-session']).toBe('05681fd4-1667-4f46-874f-11fd7f10abbe')
+    expect(server.headers[0]?.['n-client']).toBe('deepseek-harness')
+  })
+
+  it('generates a fresh session UUID for OpenCode routes when sessionId is omitted', async () => {
+    const server = await mockServer([{ events: textEvents }])
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(LlmPiAi, {
+      providers: {
+        'opencode-go': {
+          apiKeyEnv: 'PI_TEST_KEY',
+          baseURL: server.url,
+          api: 'openai-completions',
+          models: [{ id: 'glm-5.3-flash', name: 'GLM 5.3 Flash', contextWindow: 65536 }],
+        },
+      },
+    })
+
+    await assemble(ctx, {
+      provider: 'opencode-go',
+      model: 'glm-5.3-flash',
+      messages: [],
+    })
+
+    const opencodeSession = server.headers[0]?.['x-opencode-session']
+    expect(typeof opencodeSession).toBe('string')
+    expect(opencodeSession).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+  })
+
+  it('omits x-opencode-session header on non-OpenCode routes', async () => {
+    const server = await mockServer([{ events: textEvents }])
+    const ctx = await harness(server.url)
+
+    await assemble(ctx, {
+      provider: 'deepseek',
+      model: 'deepseek-v4-flash',
+      messages: [],
+      sessionId: 'session-05681fd4-1667-4f46-874f-11fd7f10abbe' as never,
+    })
+
+    expect(server.headers[0]?.['x-opencode-session']).toBeUndefined()
+  })
+
   it('uses a dynamic request effort and reports unsupported efforts before network I/O', async () => {
     const server = await mockServer([{ events: textEvents }, { events: textEvents }])
     const ctx = await harness(server.url, { reasoning: 'max' })

@@ -26,6 +26,7 @@
  * @module dsh-llm-pi-ai/adapter
  */
 
+import { randomUUID } from 'node:crypto'
 import { createModels, getSupportedThinkingLevels } from '@earendil-works/pi-ai'
 import type {
   Api,
@@ -201,12 +202,33 @@ function reasoningInfo(
   }
 }
 
+const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
+
+function toOpenCodeSessionId(sessionId: unknown): string {
+  if (typeof sessionId === 'string' && sessionId.length > 0) {
+    const match = sessionId.match(UUID_PATTERN)
+    if (match !== null) return match[0]
+    return sessionId
+  }
+  return randomUUID()
+}
+
+function isOpenCodeRoute(provider: string, profile: ResolvedPiAiProviderProfile, model: Model<Api>): boolean {
+  if (provider.toLowerCase().startsWith('opencode')) return true
+  const baseUrl = profile.baseURL ?? profile.piProvider?.baseUrl ?? (model as { baseUrl?: string }).baseUrl ?? ''
+  return baseUrl.includes('opencode.ai')
+}
+
 /** Merge deployment headers while removing case-insensitive attribution collisions. */
-function requestHeaders(headers: Readonly<Record<string, string>> | undefined): Record<string, string> {
+function requestHeaders(
+  headers: Readonly<Record<string, string>> | undefined,
+  sessionHeaders?: Readonly<Record<string, string>>,
+): Record<string, string> {
   const attribution = attributionHeaders()
   const reserved = new Set(Object.keys(attribution).map(name => name.toLowerCase()))
   return {
     ...Object.fromEntries(Object.entries(headers ?? {}).filter(([name]) => !reserved.has(name.toLowerCase()))),
+    ...sessionHeaders,
     ...attribution,
   }
 }
@@ -377,6 +399,13 @@ export class PiAiAdapter extends LlmAdapter {
             maxBytes: profile.requestImageMaxBytes,
           },
         }, onReplayDegrade)
+      const sessionHeaders: Record<string, string> = {}
+      if (isOpenCodeRoute(options.provider, profile, model)) {
+        const opencodeSession = toOpenCodeSessionId(options.sessionId)
+        sessionHeaders['x-opencode-session'] = opencodeSession
+        sessionHeaders['n-session'] = opencodeSession
+        sessionHeaders['n-client'] = 'deepseek-harness'
+      }
       const events = snapshot.models.streamSimple(model, context, {
         ...profileOptions(profile, reasoning, apiKey),
         ...options.temperature === undefined ? {} : { temperature: options.temperature },
@@ -385,7 +414,7 @@ export class PiAiAdapter extends LlmAdapter {
         signal: watchdog.signal,
         // Profile headers are deployment-owned; attribution names are
         // Harness-owned and therefore win collisions.
-        headers: requestHeaders(profile.headers),
+        headers: requestHeaders(profile.headers, sessionHeaders),
       })
       const iterator = toStreamChunks(events, model.contextWindow, options.signal, model.id)[Symbol.asyncIterator]()
       let exhausted = false

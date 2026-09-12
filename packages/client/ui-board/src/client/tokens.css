@@ -1,0 +1,46 @@
+:root {
+  /* Холст и бесконечная сетка */
+  --board-canvas-bg: #F5F5F0;
+  --board-canvas-grid-dot: rgba(0, 0, 0, 0.08);
+  --board-canvas-grid-size: 24px;
+
+  /* Темная модальность (Карточки агентов, Док, Меню действий) */
+  --board-dark-card: #2B2A30;
+  --board-dark-card-border: #3A3940;
+  --board-dark-input: #201F24;
+  --board-dark-input-border: #323037;
+  --board-dark-dock: #28262C;
+  --board-dark-menu: #222126;
+  --board-dark-pill: #1E1D22;
+  --board-dark-text: #E6E4E8;
+  --board-dark-muted: #8F8E94;
+
+  /* Светлая модальность (Окна инструментов, Дашборды, Настройки) */
+  --board-light-card: #FFFFFF;
+  --board-light-card-border: #E8E6E1;
+  --board-light-sidebar: #FAFAF8;
+  --board-light-sidebar-active: #F5EEE6;
+  --board-light-text: #1C1B1F;
+  --board-light-muted: #787570;
+
+  /* Фирменный акцент — Теплая терракота OpenSwarm */
+  --board-brand-terracotta: #B8532F;
+  --board-brand-terracotta-hover: #C85E39;
+  --board-brand-terracotta-subtle: rgba(184, 83, 47, 0.12);
+
+  /* Семантические статусы */
+  --board-status-done-bg: #E9F1DC;
+  --board-status-done-text: #265B19;
+  --board-status-warning: #805C1F;
+  --board-status-error: #B53333;
+  --board-status-info: #3266AD;
+
+  /* Скругления и тени */
+  --board-radius-window: 18px;
+  --board-radius-dock: 26px;
+  --board-radius-menu: 14px;
+  --board-radius-pill: 9999px;
+  --board-shadow-dark-card: 0 20px 48px -8px rgba(0, 0, 0, 0.28), 0 6px 16px -4px rgba(0, 0, 0, 0.15);
+  --board-shadow-light-window: 0 16px 36px -6px rgba(0, 0, 0, 0.06), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
+  --board-shadow-dock: 0 12px 32px -4px rgba(0, 0, 0, 0.35);
+}

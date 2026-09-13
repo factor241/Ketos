@@ -1,13 +1,16 @@
 /**
  * React entry views for the Spatial Board slot registrations.
  */
-import type { PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { PropsLocale, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { createBoardStore } from './store.ts'
 import { DashboardCanvas } from './canvas/DashboardCanvas.tsx'
 
-export function BoardRoot(props: PropsStore<ReturnType<typeof createBoardStore>>) {
+/** Props of the board main-panel body: store share + locale `t` seat. */
+export type BoardRootProps = PropsStore<ReturnType<typeof createBoardStore>> & PropsLocale<'board'>
+
+export function BoardRoot(props: BoardRootProps) {
   const state = props.useStore(s => s)
-  return <DashboardCanvas state={state} actions={props.actions} />
+  return <DashboardCanvas t={props.t} state={state} actions={props.actions} />
 }
 
 export function BoardIcon({ size, active }: { size: number; active?: boolean }) {

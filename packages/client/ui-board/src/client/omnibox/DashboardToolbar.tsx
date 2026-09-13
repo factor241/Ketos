@@ -2,14 +2,18 @@
  * Center floating Omnibox with Action Menu OpenSwarm-style.
  */
 import { useState, type FormEvent } from 'react'
+import type { BoardTranslate } from '../locale.ts'
 
 export interface DashboardToolbarProps {
+  /** Locale seat resolving this omnibox's copy. */
+  t: BoardTranslate
   onSendMessage: (text: string) => void
   onStartElementSelection: () => void
   onOpenConnectors: () => void
 }
 
 export function DashboardToolbar({
+  t,
   onSendMessage,
   onStartElementSelection,
   onOpenConnectors,
@@ -56,35 +60,35 @@ export function DashboardToolbar({
           }}
         >
           <button
-            onClick={() => { setMenuOpen(false); alert('Attach file') }}
+            onClick={() => { setMenuOpen(false); alert(t('menu.attachFile')) }}
             style={{ padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', color: '#E6E4E8', cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
           >
-            <span>📎</span> Attach file
+            <span>📎</span> {t('menu.attachFile')}
           </button>
           <button
-            onClick={() => { setMenuOpen(false); alert('Dictate') }}
+            onClick={() => { setMenuOpen(false); alert(t('menu.dictate')) }}
             style={{ padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', color: '#E6E4E8', cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
           >
-            <span>🎙️</span> Dictate
+            <span>🎙️</span> {t('menu.dictate')}
           </button>
           <button
-            onClick={() => { setMenuOpen(false); alert('Web search') }}
+            onClick={() => { setMenuOpen(false); alert(t('menu.webSearch')) }}
             style={{ padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', color: '#E6E4E8', cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
           >
-            <span>🌐</span> Web search
+            <span>🌐</span> {t('menu.webSearch')}
           </button>
           <button
             onClick={() => { setMenuOpen(false); onStartElementSelection() }}
             style={{ padding: '8px 12px', textAlign: 'left', background: 'rgba(184, 83, 47, 0.15)', border: 'none', color: '#B8532F', fontWeight: 600, cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
           >
-            <span>🎯</span> Select an element
+            <span>🎯</span> {t('menu.selectElement')}
           </button>
           <div style={{ height: 1, background: '#36353C', margin: '4px 0' }} />
           <button
             onClick={() => { setMenuOpen(false); onOpenConnectors() }}
             style={{ padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', color: '#E6E4E8', cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
           >
-            <span>🔌</span> Tools & Connectors
+            <span>🔌</span> {t('menu.connectors')}
           </button>
         </div>
       )}
@@ -120,7 +124,7 @@ export function DashboardToolbar({
             justifyContent: 'center',
             cursor: 'pointer',
           }}
-          title="Open Action Menu"
+          title={t('menu.openActionMenu')}
         >
           +
         </button>
@@ -128,8 +132,8 @@ export function DashboardToolbar({
         <input
           type="text"
           value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Ask me anything..."
+          onChange={e => setText(e.target.value)}
+          placeholder={t('toolbar.composerPlaceholder')}
           style={{
             flex: 1,
             background: 'transparent',

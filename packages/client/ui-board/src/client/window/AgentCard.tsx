@@ -3,8 +3,12 @@
  */
 import React, { useCallback, useRef } from 'react'
 import type { BoardWindowState, WindowId } from '../contract/slots.ts'
+import type { BoardTranslate } from '../locale.ts'
+import { finishBoardPointerGesture } from './pointer-cleanup.ts'
 
 export interface AgentCardProps {
+  /** Locale seat resolving this card's copy. */
+  t: BoardTranslate
   cardWindow: BoardWindowState
   zoom: number
   isActive: boolean
@@ -16,6 +20,7 @@ export interface AgentCardProps {
 }
 
 export function AgentCard({
+  t,
   cardWindow,
   zoom,
   isActive,
@@ -45,11 +50,7 @@ export function AgentCard({
     }
 
     const onPointerUp = (upEvt: PointerEvent) => {
-      try {
-        e.currentTarget.releasePointerCapture(upEvt.pointerId)
-      } catch {}
-      globalThis.removeEventListener('pointermove', onPointerMove)
-      globalThis.removeEventListener('pointerup', onPointerUp)
+      finishBoardPointerGesture(e.currentTarget, upEvt, onPointerMove, onPointerUp)
     }
 
     globalThis.addEventListener('pointermove', onPointerMove)
@@ -100,11 +101,7 @@ export function AgentCard({
     }
 
     const onPointerUp = (upEvt: PointerEvent) => {
-      try {
-        e.currentTarget.releasePointerCapture(upEvt.pointerId)
-      } catch {}
-      globalThis.removeEventListener('pointermove', onPointerMove)
-      globalThis.removeEventListener('pointerup', onPointerUp)
+      finishBoardPointerGesture(e.currentTarget, upEvt, onPointerMove, onPointerUp)
     }
 
     globalThis.addEventListener('pointermove', onPointerMove)
@@ -161,7 +158,7 @@ export function AgentCard({
             <button
               onClick={() => onClose(cardWindow.id)}
               style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF5F56', border: 'none', padding: 0, cursor: 'pointer' }}
-              title="Close"
+              title={t('window.close')}
             />
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FFBD2E' }} />
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#27C93F' }} />
@@ -183,13 +180,13 @@ export function AgentCard({
             <span style={{ color: '#E6E4E8', fontWeight: 500 }}>{cardWindow.title}</span>
             <span>|</span>
             <span style={{ color: '#265B19', background: '#E9F1DC', borderRadius: 4, padding: '1px 5px', fontSize: 10, fontWeight: 600 }}>
-              ✓ Done
+              {t('agent.doneBadge')}
             </span>
           </div>
         </div>
 
         <div style={{ fontSize: 11, color: '#8F8E94', background: '#222126', padding: '2px 8px', borderRadius: 6 }}>
-          1 learned
+          {t('agent.learnedCount')}
         </div>
       </div>
 
@@ -204,10 +201,10 @@ export function AgentCard({
         }}
       >
         <div style={{ color: '#8F8E94', marginBottom: 8, fontSize: 12 }}>
-          {cardWindow.statusText ?? 'Autonomous Agent ready. Instructions executed.'}
+          {cardWindow.statusText ?? t('agent.statusReady')}
         </div>
         <div style={{ background: '#222126', borderRadius: 10, padding: '12px', border: '1px solid #323037' }}>
-          Hello! I am your autonomous AI expert twin. I am monitoring corporate workflows and ready to execute routine tasks.
+          {t('agent.greeting')}
         </div>
       </div>
 
@@ -225,7 +222,7 @@ export function AgentCard({
         >
           <input
             type="text"
-            placeholder="Ask agent anything..."
+            placeholder={t('agent.composerPlaceholder')}
             style={{
               background: 'transparent',
               border: 'none',
@@ -251,7 +248,7 @@ export function AgentCard({
               fontSize: 15,
               marginLeft: 8,
             }}
-            title="Action Menu"
+            title={t('agent.actionMenu')}
           >
             +
           </button>
@@ -287,7 +284,7 @@ export function AgentCard({
           }}
         />
         <span>
-          <strong style={{ color: '#E6E4E8' }}>{contextUsed.percent}%</strong> · {(contextUsed.usedTokens / 1000).toFixed(1)}K / {(contextUsed.maxTokens / 1000).toFixed(1)}K context used
+          <strong style={{ color: '#E6E4E8' }}>{contextUsed.percent}%</strong> · {t('agent.contextUsed', { used: (contextUsed.usedTokens / 1000).toFixed(1), max: (contextUsed.maxTokens / 1000).toFixed(1) })}
         </span>
       </div>
     </div>

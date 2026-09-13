@@ -36,7 +36,7 @@ board 是 dsh 网页客户端的一个空间化主面板：一块 `OpenSwarm` �
 <details>
 <summary>实现细节 — 点击展开</summary>
 
-唯一的注册面：`apply` 注册 `main` 面板条目（携带共享 board store）与 `sidebar.panellist` 图标；contract 模块另声明 `board.*` 槽位集（`board.canvas`、`board.dock`、`board.windows`、`board.window`、`board.minimap`、`board.omnibar`），供后续组合把这些区域改为槽位而不是内置装配。board 状态是一个在面板条目上声明的 `dsh-client-store` engine store——平移、缩放、窗口映射、z 序与元素选择标志——配合纯 draft action（`setPan`、`setZoom`、`zoomTowardPointer`、`addWindow`、`moveWindow`、`resizeWindow`、`focusWindow`、`closeWindow`、`setSelectingElement`）。画布读取的所有内容都来自 store 的框架 `useStore` 席位；组件自身不持有任何订阅。
+唯一的注册面：`apply` 注册 `main` 面板条目（携带共享 board store）与 `sidebar.panellist` 图标；contract 模块另声明 `board.*` 槽位集（`board.canvas`、`board.dock`、`board.windows`、`board.window`、`board.minimap`、`board.omnibar`），供后续组合把这些区域改为槽位而不是内置装配。board 状态是一个在面板条目上声明的 `dsh-client-store` engine store——平移、缩放、窗口映射、z 序与元素选择标志——配合纯 draft action（`setPan`、`setZoom`、`zoomTowardPointer`、`addWindow`、`moveWindow`、`resizeWindow`、`focusWindow`、`closeWindow`、`setSelectingElement`）。画布读取的所有内容都来自 store 的框架 `useStore` 席位；组件自身不持有任何订阅。可见文案由 locale 接管：`apply` 通过 `ctx.locale` 注册 `board` 命名空间词典，面板条目声明该命名空间，从而在 `BoardRoot` 上放置类型化的 `t` 席位并把本地化字符串以 props 逐层下传。
 
 </details>
 

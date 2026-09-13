@@ -3,8 +3,12 @@
  */
 import React, { useCallback, useState } from 'react'
 import type { BoardWindowState, WindowId } from '../contract/slots.ts'
+import type { BoardTranslate } from '../locale.ts'
+import { finishBoardPointerGesture } from './pointer-cleanup.ts'
 
 export interface ToolWindowProps {
+  /** Locale seat resolving this window's copy. */
+  t: BoardTranslate
   cardWindow: BoardWindowState
   zoom: number
   isActive: boolean
@@ -15,6 +19,7 @@ export interface ToolWindowProps {
 }
 
 export function ToolWindow({
+  t,
   cardWindow,
   zoom,
   isActive,
@@ -43,11 +48,7 @@ export function ToolWindow({
     }
 
     const onPointerUp = (upEvt: PointerEvent) => {
-      try {
-        e.currentTarget.releasePointerCapture(upEvt.pointerId)
-      } catch {}
-      globalThis.removeEventListener('pointermove', onPointerMove)
-      globalThis.removeEventListener('pointerup', onPointerUp)
+      finishBoardPointerGesture(e.currentTarget, upEvt, onPointerMove, onPointerUp)
     }
 
     globalThis.addEventListener('pointermove', onPointerMove)
@@ -98,11 +99,7 @@ export function ToolWindow({
     }
 
     const onPointerUp = (upEvt: PointerEvent) => {
-      try {
-        e.currentTarget.releasePointerCapture(upEvt.pointerId)
-      } catch {}
-      globalThis.removeEventListener('pointermove', onPointerMove)
-      globalThis.removeEventListener('pointerup', onPointerUp)
+      finishBoardPointerGesture(e.currentTarget, upEvt, onPointerMove, onPointerUp)
     }
 
     globalThis.addEventListener('pointermove', onPointerMove)
@@ -157,7 +154,7 @@ export function ToolWindow({
             <button
               onClick={() => onClose(cardWindow.id)}
               style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF5F56', border: 'none', padding: 0, cursor: 'pointer' }}
-              title="Close"
+              title={t('window.close')}
             />
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FFBD2E' }} />
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#27C93F' }} />
@@ -178,7 +175,7 @@ export function ToolWindow({
               cursor: 'pointer',
             }}
           >
-            Connectors
+            {t('tool.tabConnectors')}
           </button>
           <button
             onClick={() => setActiveTab('settings')}
@@ -193,7 +190,7 @@ export function ToolWindow({
               cursor: 'pointer',
             }}
           >
-            Settings
+            {t('tool.tabSettings')}
           </button>
         </div>
       </div>
@@ -202,14 +199,14 @@ export function ToolWindow({
         {activeTab === 'connectors' ? (
           <div>
             <div style={{ fontWeight: 600, marginBottom: 8, color: '#787570', fontSize: 11, textTransform: 'uppercase' }}>
-              Built-in Connectors & MCP Tools
+              {t('tool.connectorsHeading')}
             </div>
             {[
-              { name: 'Core Tools', desc: 'Read, write, edit, bash, subagents', enabled: true },
-              { name: 'Web Search', desc: 'DuckDuckGo / Enterprise Search Proxy', enabled: true },
-              { name: 'Browser Inspector', desc: 'DOM capture, element selection', enabled: true },
-              { name: 'Temporal Orchestration', desc: 'Long-running macro workflows', enabled: true },
-              { name: 'External MCP: Twitter/X', desc: 'Read/post integration', enabled: false },
+              { name: t('tool.coreName'), desc: t('tool.coreDesc'), enabled: true },
+              { name: t('tool.webSearchName'), desc: t('tool.webSearchDesc'), enabled: true },
+              { name: t('tool.inspectorName'), desc: t('tool.inspectorDesc'), enabled: true },
+              { name: t('tool.temporalName'), desc: t('tool.temporalDesc'), enabled: true },
+              { name: t('tool.mcpName'), desc: t('tool.mcpDesc'), enabled: false },
             ].map((tool, idx) => (
               <div
                 key={idx}
@@ -257,12 +254,12 @@ export function ToolWindow({
         ) : (
           <div>
             <div style={{ fontWeight: 600, marginBottom: 12, color: '#787570', fontSize: 11, textTransform: 'uppercase' }}>
-              Agent Configuration
+              {t('tool.agentConfigHeading')}
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4 }}>System Prompt</label>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4 }}>{t('tool.systemPrompt')}</label>
               <textarea
-                defaultValue="You are an autonomous AI expert twin in Кетос."
+                defaultValue={t('tool.defaultSystemPrompt')}
                 rows={3}
                 style={{
                   width: '100%',
@@ -277,7 +274,7 @@ export function ToolWindow({
               />
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4 }}>Model Selection</label>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4 }}>{t('tool.modelSelection')}</label>
               <select
                 style={{
                   width: '100%',
@@ -288,9 +285,9 @@ export function ToolWindow({
                   background: '#FFFFFF',
                 }}
               >
-                <option>DeepSeek-V3 (671B MoE)</option>
-                <option>DeepSeek-R1 (Reasoning)</option>
-                <option>Local Enterprise vLLM Endpoint</option>
+                <option>{t('tool.modelDeepSeekV3')}</option>
+                <option>{t('tool.modelDeepSeekR1')}</option>
+                <option>{t('tool.modelLocalVllm')}</option>
               </select>
             </div>
           </div>

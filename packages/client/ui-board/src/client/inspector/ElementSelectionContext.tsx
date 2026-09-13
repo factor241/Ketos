@@ -2,13 +2,17 @@
  * Spatial Element Inspector Overlay OpenSwarm-style.
  */
 import { useEffect } from 'react'
+import type { BoardTranslate } from '../locale.ts'
 
 export interface ElementSelectionOverlayProps {
+  /** Locale seat resolving this overlay's copy. */
+  t: BoardTranslate
   active: boolean
   onCancel: () => void
 }
 
 export function ElementSelectionOverlay({
+  t,
   active,
   onCancel,
 }: ElementSelectionOverlayProps) {
@@ -53,7 +57,7 @@ export function ElementSelectionOverlay({
           gap: 12,
         }}
       >
-        <span>🎯 Select an element or window on the canvas</span>
+        <span>{t('inspector.selectTarget')}</span>
         <button
           onClick={onCancel}
           style={{

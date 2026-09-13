@@ -6,6 +6,10 @@ import { Minimap } from '../src/client/canvas/Minimap.tsx'
 import { DashboardCanvas } from '../src/client/canvas/DashboardCanvas.tsx'
 import { createBoardStore } from '../src/client/store.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
+import { en, type BoardKey, type BoardTranslate } from '../src/client/locale.ts'
+
+/** English-bound locale seat: components render the English dictionary verbatim. */
+const t: BoardTranslate = key => en[key as BoardKey]
 
 describe('Minimap Component', () => {
   it('renders SVG rectangles for board windows and camera frustum', () => {
@@ -86,7 +90,7 @@ describe('DashboardCanvas Component', () => {
     actions.addWindow(win)
 
     const { container, getByText } = render(
-      <DashboardCanvas state={store.getSnapshot()} actions={actions} />,
+      <DashboardCanvas t={t} state={store.getSnapshot()} actions={actions} />,
     )
 
     // Canvas surface exists

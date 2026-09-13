@@ -4,8 +4,11 @@
 import { useState } from 'react'
 import type { BoardState } from '../store.ts'
 import type { WindowId } from '../contract/slots.ts'
+import type { BoardTranslate } from '../locale.ts'
 
 export interface SessionRailProps {
+  /** Locale seat resolving this rail's copy. */
+  t: BoardTranslate
   state: BoardState
   onSelectWindow: (id: WindowId) => void
   onAddAgent: () => void
@@ -14,6 +17,7 @@ export interface SessionRailProps {
 }
 
 export function SessionRail({
+  t,
   state,
   onSelectWindow,
   onAddAgent,
@@ -75,7 +79,7 @@ export function SessionRail({
               }}
               title={win.title}
             >
-              {isAgent ? 'AI' : '🛠'}
+              {isAgent ? t('rail.agentBadge') : '🛠'}
             </button>
 
             {isHovered && (
@@ -121,7 +125,7 @@ export function SessionRail({
           alignItems: 'center',
           justifyContent: 'center',
         }}
-        title="Add Agent Card"
+        title={t('rail.addAgent')}
       >
         +
       </button>
@@ -141,7 +145,7 @@ export function SessionRail({
           alignItems: 'center',
           justifyContent: 'center',
         }}
-        title="Connectors & Tools"
+        title={t('rail.addConnectors')}
       >
         ⚙
       </button>
@@ -161,7 +165,7 @@ export function SessionRail({
           alignItems: 'center',
           justifyContent: 'center',
         }}
-        title="Center / Reset Canvas"
+        title={t('rail.resetView')}
       >
         ⌖
       </button>

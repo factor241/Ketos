@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { BoardState } from '../store.ts'
 import type { BoardWindowState, WindowId } from '../contract/slots.ts'
 import { Minimap } from './Minimap.tsx'
+import type { BoardTranslate } from '../locale.ts'
 import { AgentCard } from '../window/AgentCard.tsx'
 import { ToolWindow } from '../window/ToolWindow.tsx'
 import { SessionRail } from '../dock/SessionRail.tsx'
@@ -13,6 +14,8 @@ import { ElementSelectionOverlay } from '../inspector/ElementSelectionContext.ts
 import '../tokens.css'
 
 export interface DashboardCanvasProps {
+  /** Locale seat resolving this panel's copy. */
+  t: BoardTranslate
   state: BoardState
   actions: {
     setPan: (panX: number, panY: number) => void
@@ -27,7 +30,7 @@ export interface DashboardCanvasProps {
   }
 }
 
-export function DashboardCanvas({ state, actions }: DashboardCanvasProps) {
+export function DashboardCanvas({ t, state, actions }: DashboardCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [viewportSize, setViewportSize] = useState({ width: 1920, height: 1080 })
   const isPanningRef = useRef(false)
@@ -106,14 +109,14 @@ export function DashboardCanvas({ state, actions }: DashboardCanvasProps) {
     const newWin: BoardWindowState = {
       id,
       kind: 'agent',
-      title: `Agent #${state.windowOrder.length + 1}`,
+      title: t('canvas.agentTitle', { n: state.windowOrder.length + 1 }),
       x: (-state.panX + viewportSize.width / 2 - 240) / state.zoom,
       y: (-state.panY + viewportSize.height / 2 - 280) / state.zoom,
       width: 480,
       height: 560,
       zIndex: 10 + state.windowOrder.length,
       status: 'idle',
-      statusText: 'Autonomous AI Expert twin online.',
+      statusText: t('canvas.agentStatusOnline'),
     }
     actions.addWindow(newWin)
   }, [state.panX, state.panY, state.zoom, state.windowOrder.length, viewportSize, actions])
@@ -123,7 +126,7 @@ export function DashboardCanvas({ state, actions }: DashboardCanvasProps) {
     const newWin: BoardWindowState = {
       id,
       kind: 'connectors',
-      title: 'Tools & Connectors',
+      title: t('canvas.connectorsTitle'),
       x: (-state.panX + viewportSize.width / 2 - 260) / state.zoom,
       y: (-state.panY + viewportSize.height / 2 - 240) / state.zoom,
       width: 520,
@@ -175,6 +178,7 @@ export function DashboardCanvas({ state, actions }: DashboardCanvasProps) {
             return (
               <AgentCard
                 key={win.id}
+                t={t}
                 cardWindow={win}
                 zoom={state.zoom}
                 isActive={isActive}
@@ -190,6 +194,7 @@ export function DashboardCanvas({ state, actions }: DashboardCanvasProps) {
           return (
             <ToolWindow
               key={win.id}
+              t={t}
               cardWindow={win}
               zoom={state.zoom}
               isActive={isActive}
@@ -204,6 +209,7 @@ export function DashboardCanvas({ state, actions }: DashboardCanvasProps) {
 
       {/* Floating Overlays */}
       <SessionRail
+        t={t}
         state={state}
         onSelectWindow={handleSelectWindow}
         onAddAgent={handleAddAgent}
@@ -212,7 +218,8 @@ export function DashboardCanvas({ state, actions }: DashboardCanvasProps) {
       />
 
       <DashboardToolbar
-        onSendMessage={(msg) => alert(`Message sent: ${msg}`)}
+        t={t}
+        onSendMessage={msg => alert(t('canvas.messageSent', { message: msg }))}
         onStartElementSelection={() => actions.setSelectingElement(true)}
         onOpenConnectors={handleAddTools}
       />
@@ -226,6 +233,7 @@ export function DashboardCanvas({ state, actions }: DashboardCanvasProps) {
       />
 
       <ElementSelectionOverlay
+        t={t}
         active={state.isSelectingElement}
         onCancel={() => actions.setSelectingElement(false)}
       />

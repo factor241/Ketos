@@ -216,6 +216,11 @@
       "@deepseek-ai/dsh-client-ui-schedule/client": ["./packages/client/ui-schedule/src/client/index.ts"],
       "@deepseek-ai/dsh-client-ui-plan": ["./packages/client/ui-plan/src"],
       "@deepseek-ai/dsh-client-ui-user-questions": ["./packages/client/ui-user-questions/src"],
+      // ui-board's npm name dsh-client-ui-board carries the client- prefix its
+      // directory ui-board/ drops, so the generated aliases cannot map it; these
+      // two stay hand-written like dsh-client-ui-user-questions above.
+      "@deepseek-ai/dsh-client-ui-board": ["./packages/client/ui-board/src"],
+      "@deepseek-ai/dsh-client-ui-board/client": ["./packages/client/ui-board/src/client/index.ts"],
       "@deepseek-ai/dsh-client-ui-trajectory": ["./packages/client/ui-trajectory/src"],
       "@deepseek-ai/dsh-client-ui-workspace": ["./packages/client/ui-workspace/src"],
       "@deepseek-ai/dsh-client-ui-theme": ["./packages/client/ui-theme/src"],
@@ -252,6 +257,8 @@
       // session-log-export lives under session-query/, so the generated aliases map only its
       // bare name; the browser half needs this explicit subpath for source-mode dynamic imports.
       "@deepseek-ai/dsh-session-log-export/client": ["./packages/session-query/session-log-export/src/client"],
+      "@ketos/client-locale-ru": ["./packages/ketos/client-locale-ru/src"],
+      "@ketos/client-locale-ru/client": ["./packages/ketos/client-locale-ru/src/client/index.ts"],
       // BEGIN generated package aliases — pnpm run gen-tsconfig-paths
       "@deepseek-ai/dsh-acp": ["./packages/acp/acp/src"],
       "@deepseek-ai/dsh-acp-app": ["./packages/bundle/acp-app/src"],
@@ -457,10 +464,8 @@
       "@deepseek-ai/dsh-workflow/invariant": ["./packages/workflow/workflow/src/invariant.ts"],
       "@deepseek-ai/dsh-workflow-worker-thread": ["./packages/workflow/workflow-worker-thread/src"],
       "@deepseek-ai/dsh-workspace": ["./packages/workspace/workspace/src"],
-      "@deepseek-ai/dsh-workspace/invariant": ["./packages/workspace/workspace/src/invariant.ts"],
+      "@deepseek-ai/dsh-workspace/invariant": ["./packages/workspace/workspace/src/invariant.ts"]
       // END generated package aliases
-      "@ketos/client-locale-ru": ["./packages/ketos/client-locale-ru/src"],
-      "@ketos/client-locale-ru/client": ["./packages/ketos/client-locale-ru/src/client/index.ts"]
     }
   }
 }

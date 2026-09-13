@@ -1,11 +1,12 @@
 /**
- * Russian base dictionary for the common namespace: one translated entry per
+ * Russian base dictionary for the `common` namespace: one translated entry per
  * key of `@deepseek-ai/dsh-client-locale`'s en dictionary, with `{placeholder}`
  * templates kept verbatim. The `satisfies` check pins the key set to en's;
  * the import is type-only, so the client bundle stays pure.
  */
 import type { CommonKey } from '@deepseek-ai/dsh-client-locale/client'
 
+/** Dictionary registered into `locale` for the common namespace. */
 export const ru = {
   'ok': 'ОК',
   'cancel': 'Отмена',

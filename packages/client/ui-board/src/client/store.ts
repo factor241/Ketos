@@ -1,9 +1,22 @@
 /**
  * Spatial multi-window board store.
  */
-import { defineStore } from '@deepseek-ai/dsh-client-store'
+import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
 import type { BoardWindowState, WindowId } from './contract/slots.ts'
 
+type BoardActions = {
+  setPan: (draft: BoardState, panX: number, panY: number) => void
+  setZoom: (draft: BoardState, zoom: number) => void
+  zoomTowardPointer: (draft: BoardState, delta: number, pointerX: number, pointerY: number) => void
+  addWindow: (draft: BoardState, window: BoardWindowState) => void
+  moveWindow: (draft: BoardState, id: WindowId, x: number, y: number, snap: boolean) => void
+  resizeWindow: (draft: BoardState, id: WindowId, width: number, height: number, snap: boolean) => void
+  focusWindow: (draft: BoardState, id: WindowId) => void
+  closeWindow: (draft: BoardState, id: WindowId) => void
+  setSelectingElement: (draft: BoardState, selecting: boolean) => void
+}
+
+/** Pan, zoom, window, and selection state of the board canvas. */
 export interface BoardState {
   panX: number
   panY: number
@@ -14,8 +27,12 @@ export interface BoardState {
   isSelectingElement: boolean
 }
 
-/** Factory creating a board snapshot store handle. */
-export function createBoardStore(opts?: { persist?: string }) {
+/**
+ * Create the board canvas view store handle.
+ * @param opts - persist key naming the localStorage entry backing the layout; omitted keeps the layout session-only.
+ * @returns a handle instantiated once per scope by the renderer's store seat.
+ */
+export function createBoardStore(opts?: { persist?: string }): EngineStoreHandle<BoardState, BoardActions> {
   return defineStore({
     ...(opts?.persist ? { persist: opts.persist } : {}),
     init: (): BoardState => ({
@@ -77,7 +94,9 @@ export function createBoardStore(opts?: { persist?: string }) {
         })
       },
       closeWindow: (draft, id: WindowId) => {
-        delete draft.windows[id as string]
+        // Immer draft: removing the window entry on close; WindowId is
+        // opaque, so the record key is only reachable dynamically.
+        Reflect.deleteProperty(draft.windows, id)
         draft.windowOrder = draft.windowOrder.filter(wId => wId !== id)
         if (draft.activeWindowId === id) {
           draft.activeWindowId = draft.windowOrder[draft.windowOrder.length - 1] ?? null

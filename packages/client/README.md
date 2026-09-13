@@ -48,6 +48,7 @@ The kernel packages boot and serve the page; the UI feature packages present it.
 | [`ui-workspace/`](ui-workspace/README.md) | Provides workspace selection and creation surfaces | — |
 | [`ui-conversation/`](ui-conversation/README.md) | Presents the active conversation and its input surface | — |
 | [`ui-chat/`](ui-chat/README.md) | Projects and renders the Chat conversation target | — |
+| [`ui-board/`](ui-board/README.md) | Renders the spatial board main panel with draggable, resizable windows | — |
 | [`ui-approval/`](ui-approval/README.md) | Presents approval requests and returns user decisions | — |
 | [`ui-tool/`](ui-tool/README.md) | Composes Tool call trees and keyed per-Tool views | — |
 | [`ui-workflow-run/`](ui-workflow-run/README.md) | Replays durable workflow runs as nested chat disclosures | — |

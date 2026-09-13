@@ -42,7 +42,7 @@ The ketos group owns the packages the Ketos fork adds on top of the upstream Dee
 <a id="related-documentation"></a>
 ## Related documentation
 
-- [Ketos rebranding plan](../../docs/ketos/stage-00-rebranding.md) — the staged plan that owns this group and its constraints.
+- The staged rebranding plan (external planning folder, not in-repo) owns this group and its constraints.
 
 <a id="dev-note"></a>
 ## Dev Note

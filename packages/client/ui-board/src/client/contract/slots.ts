@@ -4,10 +4,16 @@
 import type { Branded } from '@deepseek-ai/dsh-brand'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 
+/** Session-wide identity of one board window. */
 export type WindowId = Branded<'BoardWindowId'>
 
+/** Window category, driving the card's default rendering and placement. */
 export type WindowKind = 'agent' | 'connectors' | 'settings' | 'dashboard'
 
+/**
+ * Layout and status fields for one window on the board canvas.
+ * Position, size, and stack order are board-local view state, not session data.
+ */
 export interface BoardWindowState {
   id: WindowId
   kind: WindowKind
@@ -27,6 +33,10 @@ export interface BoardWindowState {
   }
 }
 
+/**
+ * Owner props of one keyed `board.window` slot instance.
+ * @param window - the window state the card renders.
+ */
 export interface BoardWindowOwnerProps {
   window: BoardWindowState
 }

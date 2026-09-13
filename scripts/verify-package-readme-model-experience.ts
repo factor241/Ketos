@@ -55,6 +55,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/code-runtime/code-runtime-worker-thread': { kind: 'indirect', reason: 'The worker backend delegates model rendering to PTC mode in dsh-tools.' },
   'packages/experimental/code-runtime-python': { kind: 'indirect', reason: 'Explicit source-checkout compositions delegate model rendering to PTC mode in dsh-tools.' },
   'packages/client/ui-agent-preset': { kind: 'indirect', reason: 'Browser-side settings row; the preset it selects owns every model-facing effect.' },
+  'packages/client/ui-board': { kind: 'none', reason: 'Browser-only spatial board canvas; registers no tool, prompt section, or session event, and its window cards are board-local view state.' },
   'packages/util/crypto': { kind: 'indirect', reason: 'Pure identifier minting; the ids consumers mint with it never enter prompts as semantic content.' },
   'packages/util/deque': { kind: 'none', reason: 'In-process collection primitive; registers nothing model-facing.' },
   'packages/util/chunked-list': { kind: 'none', reason: 'Immutable collection primitive; registers nothing model-facing.' },
@@ -195,6 +196,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/web/web': { kind: 'indirect', reason: 'The provider registry delegates model rendering to dsh-tool-web.' },
   'packages/web/web-fetch-http': { kind: 'indirect', reason: 'The provider backend delegates model rendering to dsh-tool-web.' },
   'packages/web/web-search-exa': { kind: 'indirect', reason: 'The provider backend delegates model rendering to dsh-tool-web.' },
+  'packages/ketos/client-locale-ru': { kind: 'none', reason: 'Client-only locale pack; the UI copy it maps never enters model context or changes model input.' },
   'packages/workflow/workflow': { kind: 'indirect', reason: 'The service delegates parent and child model rendering to its consumer and engine.' },
 }
 

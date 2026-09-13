@@ -42,7 +42,7 @@ kind: "package-group"
 <a id="related-documentation"></a>
 ## Related documentation
 
-- [Ketos rebranding plan](../../docs/ketos/stage-00-rebranding.md) — поэтапный план, владеющий этой группой и её констрейнтами (сохранён без перевода).
+- Поэтапный план ребрендинга живёт во внешней папке планирования вне репозитория и владеет этой группой и её констрейнтами.
 
 <a id="dev-note"></a>
 ## Dev Note

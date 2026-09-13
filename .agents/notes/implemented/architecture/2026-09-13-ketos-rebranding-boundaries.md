@@ -1,0 +1,46 @@
+# Agent Note: Ketos rebranding boundaries
+
+Status: implemented
+
+English | [中文](2026-09-13-ketos-rebranding-boundaries.zh.md)
+## Problem
+
+The repo boots as a DeepSeek Harness soft fork that ships under another product name: user-facing surfaces read "DeepSeek Harness", the launcher command is only `dsh`, data land in `~/.dsh`, and there is no namespace for fork-owned packages. Renaming internal identifiers (`@deepseek-ai/*`, `DSH_*`, profile names, session format) would destroy upstream mergeability; shipping unbranded would confuse users. The fork needs a written boundary between what the user sees and what stays internal, plus an enforcement story for both directions.
+
+## Decision
+
+Product and interface surfaces carry the Ketos brand; every internal identifier keeps its upstream name. The split shipped at the same time:
+
+- **Launcher.** `ketos` joins the bin map (root script `pnpm ketos`, `apps/cli` bin alias, `verify-application-entrypoints` allowlist) as an alias to the same entry `lib/bin.js` the `dsh` bin keeps; `package.json` owns both `dsh` and `ketos` scripts. User-facing CLI strings print `ketos` (`Usage: ketos …`, `ketos: boot a Ketos profile`, headless/sdk-app/web-app help, `NAME = 'ketos'` diagnostics, `app-boot` profile error literals). The `dsh` bin survives because the SDK resolver, `verify-application-entrypoints`, and the Python runtime resolve it.
+- **Readiness protocol.** The server startup line is `ketos web: <url>`; every parser consumer — bundle tests, CLI e2e fixtures and expectations, `publish-npm-baseline`, headless stderr snippets, session snapshots — moves in the same commit. `dsh web:` is not a valid readiness prefix anymore, while the ACP profile help (`Usage: dsh --profile acp`) stays `dsh` because ACP keeps upstream client names.
+- **Container home.** `apps/cli/src/bin.ts` sets `process.env.DSH_HOME ??= join(homedir(), '.ketos')` before boot resolves any path; the *variable name* `DSH_HOME` and `resolveDshHome`'s internal default `~/.dsh` never change.
+- **Package surface.** `@ketos/<name>` is the fork-only scope under `packages/ketos/`: the workspace-constraint release-member regex excludes the group beside `experimental/`, so members fall through to the mandatory `private: true` branch; the group is exempt from subsystem pages; its READMEs still follow the ordinary bilingual pair contract. First member: `@ketos/client-locale-ru`.
+- **Locale.** The ru language pack registers `ru` with fallback `en`, registers the shared `common` and `settings.locale` ru dictionaries, and applies `setLocale('ru')` only when the durable `locale` settings snapshot resolves with no stored `preference`, so an explicit en survives disposal and re-apply.
+- **Web brand.** Official build title `Ketos` (vite local default `Ketos Local Build`), PWA manifest `Ketos`/`KETOS`, a Ketos favicon glyph, boot page `KETOS`, package-local `KetosMark`/`KetosWordmark` sidebar artwork replacing the upstream fish only in `ui-brand-official`, `brand.localBuild` = `Ketos Local Build`, and Ketos onboarding copy with the notice version bumped. `ui-primitives` exports (`FishLogo`, hero fish) stay upstream.
+- **Model-visible text (deferred).** The harness identity line, web-surface prompts, and the cordis preset persona keep upstream wording; a deployment that needs a Ketos persona uses a user patch layer (`includeHarnessIdentity: false` + `personaPrefix`, documented in `docs/ketos/model-identity.md`). One exception shipped in stage 0.3 scope corrections: the 401 web-auth body names `ketos web` because that text reaches browsers directly.
+
+`docs/ketos/` owns the fork-side inventory and decisions: `brand-inventory.md` (classification plus reproducible greps), `upstream-sync.md` (tag-based acceptance), `model-identity.md` (the deferred choice and patch route). The corpus preset excludes `docs/ketos/` from the translation-pairing scope because those documents are the fork's Russian-language planning material by construction.
+
+Enforcement is mechanical: `verify-application-entrypoints` pins the bin map; the constraint gate pins group privacy; `pwa-manifest.e2e.ts`, `built-boot.expected.e2e.ts`, `boot-page.client.spec.ts`, `client-build-environment.client.spec.ts`, `dev-web.spec.ts`, `release/families.spec.ts` pin the web literals; the CLI e2e pins pin `ketos web:`; `verify-package-paths` and the leftover-brand greps in `brand-inventory.md` back the review checklist.
+
+## Alternatives considered
+
+**Rename internal identifiers to a `ketos` namespace.** Lost: fork upgrades upstream and renames would land in every merge; the SDK, Python runtime, and release tooling all resolve `dsh`, so the break radius is the whole repository for zero user-visible gain.
+
+**Ship the model-visible identity rewrite now.** Lost: 31 `system-prompt.expected.md` sidecars, 39 brand-mention snapshots, and 9 pinning spec/e2e files would change at once; the safe path (config-level off-switch plus persona patch) already exists in-tree (`sdk-minimal/cordis.patch.yml`) and stays user-adjustable without touching shipped compositions.
+
+**Publish `@ketos/*` publicly.** Lost: the fork inherits upstream identity constraints and the group is a soft-fork internal consumer; `private: true` keeps the release gate honest.
+
+**Rebrand by renaming the `dsh` bin.** Lost: the readiness parsing, entrypoint verification, and Python-runtime installation pin `dsh`; the alias approach adds brand without breaking resolvers.
+
+## Consequences
+
+Merges from upstream concentrate in a known file set (the record lives in `docs/ketos/upstream-sync.md`, conflicts still occur wherever rebranded literals and upstream edits meet). New upstream surfaces are unbranded until classified — the inventory and review checklist are the extension discipline, not automation. The Ketos web title changed release verification constants, so official environment checks and `families.ts` move together whenever the title moves again. Feature-local UI copy not covered by the common ru dictionary still renders in English through the documented fallback (known limitation of the locale pack, recorded in its README).
+
+## Related
+
+- `docs/ketos/brand-inventory.md` — the classification and grep checklist every rebranding commit must leave clean.
+- `docs/ketos/upstream-sync.md` — remotes, tags, merge procedure.
+- `docs/ketos/model-identity.md` — the deferred model-visible decision and the patch-layer route.
+- [single `dsh` application launcher](2026-08-22-single-dsh-application-launcher.md) — the launcher decision this note extends with the `ketos` bin alias.
+- [mandatory app attribution headers](2026-06-21-mandatory-app-attribution-headers.md) — the wire-attribution tokens that stay upstream under this boundary.

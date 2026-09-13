@@ -207,4 +207,4 @@ grep -n "SESSION_FORMAT_VERSION" packages/core/session/src/types.ts
 
 ## Источники
 
-Записи этого документа опираются на план этапа [docs/ketos/stage-00-rebranding.md](stage-00-rebranding.md), мастер-инструкцию проекта [docs/ketos/ketos_v7_master_instruction.md](ketos_v7_master_instruction.md) и товарные ограничения [BRAND_GUIDELINES.md](../../BRAND_GUIDELINES.md).
+Записи этого документа опираются на файлы плана «Кетос» в папке планирования вне репозитория (`stage-00-rebranding.md`, ревизия 3; `ketos_v7_master_instruction.md`) и товарные ограничения [BRAND_GUIDELINES.md](../../BRAND_GUIDELINES.md).

@@ -41,6 +41,30 @@ const RELOADED_EXPECTED = join(SNAPSHOT_DIR, 'reloaded.expected.md')
 const RELOADED_EXPANDED_EXPECTED = join(SNAPSHOT_DIR, 'reloaded-expanded.expected.md')
 const MODE = webSnapshotMode()
 
+/**
+ * Capture the frame with the rotating hero phrase tokenized, so the golden
+ * pins the hero layout instead of the random pick.
+ * @param page - the page under test.
+ * @param workspaceCwd - normalization input.
+ * @returns the stable normalized snapshot.
+ */
+async function captureFrameAria(page: Page, workspaceCwd: string): Promise<string> {
+  // FoldText's first span is the screen-reader copy, the node the aria
+  // snapshot carries; textContent keeps its spaces (the visual panels use
+  // NBSP and are aria-hidden).
+  const phrase = await page.locator('[data-testid="hero-headline"] > span > span:first-child').textContent()
+  if (phrase === null) throw new Error('hero headline has no accessible phrase')
+  const snapshot = await captureStableAria(page, '[class*="frame"]', workspaceCwd, {
+    replacements: [[phrase, '{{hero-headline}}']],
+  })
+  // Lexical mounts the composer's empty paragraph nondeterministically; drop
+  // the childless node and the child-list colon so both editor states
+  // normalize to the same golden.
+  return snapshot
+    .replace(/^ +- paragraph\n/gm, '')
+    .replace(/^(- textbox "Describe what you want to build[^\n]*"):$/m, '$1')
+}
+
 const PROMPT = 'Reply with the single word LIGHTHOUSE and stop.'
 const REPLAY_PACE_MS = 100
 
@@ -216,7 +240,7 @@ describe('web e2e: lifecycle & chrome (workspace flow / reload / dark mode)', ()
       // mean the submitted text is gone yet: under load the capture can catch
       // a textbox still holding `/plan`.
       await expect.poll(() => input.textContent(), { timeout: 10_000 }).toBe('')
-      const planSnapshot = await captureStableAria(activePage, '[class*="frame"]', activeScaffold.workspaceCwd)
+      const planSnapshot = await captureFrameAria(activePage, activeScaffold.workspaceCwd)
       await compareOrRefreshGolden(PLAN_ACTIVE_EXPECTED, planSnapshot, MODE)
       const planStyle = await planButton.evaluate((element) => {
         const probe = document.createElement('span')
@@ -259,16 +283,16 @@ describe('web e2e: lifecycle & chrome (workspace flow / reload / dark mode)', ()
       expect(fixtureUserPrompts(await readFile(FIXTURE, 'utf8'))).toEqual([PROMPT])
     }
     // The blank frame renders the hero, not the resident composer: the
-    // headline plus the guidance placeholder are the empty state's anchors.
-    await expect.poll(() => page.getByText('Into the Unknown', { exact: false }).count(), { timeout: 15_000 }).toBe(1)
+    // rotating headline plus the guidance placeholder are the empty state's anchors.
+    await expect.poll(() => page.getByTestId('hero-headline').count(), { timeout: 15_000 }).toBe(1)
     const input = page.locator('[data-composer-input]').first()
     await input.waitFor({ timeout: 10_000 })
     if (MODE !== 'record') {
-      await page.getByText('Into the Unknown', { exact: false }).hover()
+      await page.getByTestId('hero-headline').hover()
       await expect.poll(() => page.getByRole('tooltip').count()).toBe(0)
       // Golden of the hero's stable waiting state (captured before any send;
       // the conversation-region goldens belong to the other scenarios).
-      const snapshot = await captureStableAria(page, '[class*="frame"]', scaffold.workspaceCwd)
+      const snapshot = await captureFrameAria(page, scaffold.workspaceCwd)
       await compareOrRefreshGolden(HERO_EXPECTED, snapshot, MODE)
     }
     const settled = scaffold.whenTurnSettled()

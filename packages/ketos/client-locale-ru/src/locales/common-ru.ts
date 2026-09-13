@@ -10,7 +10,7 @@ import type { CommonKey } from '@deepseek-ai/dsh-client-locale/client'
 /** Dictionary registered into `locale` for the common namespace. */
 export const ru = {
   'back': 'Назад',
-  'brand.localBuild': 'Локальная сборка Кетос',
+  'brand.localBuild': 'Кетос',
   'cancel': 'Отмена',
   'close': 'Закрыть',
   'collapse': 'Свернуть',

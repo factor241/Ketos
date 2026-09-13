@@ -20,7 +20,7 @@
 - button "Settings":
   - img
   - text: Settings
-- text: Into the Unknown Preview
+- text: {{hero-headline}}
 - button "Choose workspace":
   - img
   - text: workspace
@@ -29,8 +29,7 @@
   - img
   - text: Standard mode
   - img
-- textbox "Describe what you want to build, / commands, @ files or sessions":
-  - paragraph
+- textbox "Describe what you want to build, / commands, @ files or sessions"
 - button "Add files or run commands":
   - img
 - 'button "Access mode, current: Workspace Write"': Workspace Write

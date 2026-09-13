@@ -9,15 +9,16 @@ export const inject = ['slots']
 
 /**
  * Fill the sidebar brand slots as one declaration-aware registration set. The
- * conversation hero stays on its declaring package's animated fish fallback,
- * so the official build registers nothing there.
+ * mark ships in every build profile; the lettering name stays official-build
+ * only, so a local build keeps its `brand.localBuild` text beside the mark.
  * @param ctx - Client root context.
  */
 export function apply(ctx: ClientContext): void {
-  if (process.env.DSH_CLIENT_BUILD_PROFILE !== 'official') return
   ctx.slots.inject('sidebar.brand.mark', () =>
     ctx.slots.inject('sidebar.brand.name', function* () {
       yield ctx.slots.register({ name: 'sidebar.brand.mark' }, OfficialBrandMark)
-      yield ctx.slots.register({ name: 'sidebar.brand.name' }, OfficialBrandName)
+      if (process.env.DSH_CLIENT_BUILD_PROFILE === 'official') {
+        yield ctx.slots.register({ name: 'sidebar.brand.name' }, OfficialBrandName)
+      }
     }))
 }

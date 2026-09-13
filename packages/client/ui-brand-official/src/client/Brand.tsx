@@ -1,29 +1,24 @@
-import type { SidebarBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
+import { KETOS_MARK_DATA_URI } from './mark.ts'
 
 /**
- * Render the Ketos sign: a stylized sea-monster tail fluke. Reused with the
- * same geometry as apps/web/public/favicon.svg so the browser shell and the
- * sidebar show one mark.
- * @param props.size - width in px (default 24; the viewBox is square, so the
- * height matches).
+ * Render the Ketos sign: the product owner's 512×512 PNG, embedded verbatim
+ * from {@link KETOS_MARK_DATA_URI}. The artwork is the supplied file, not a
+ * redrawn approximation.
+ * @param props.size - square edge in px (default 24).
  * @param props.className - extra class for layout placement.
- * @returns the Ketos mark svg (aria-hidden decorative brand art).
+ * @returns the Ketos mark image (aria-hidden decorative brand art).
  */
 export function KetosMark({ size = 24, className }: { size?: number | undefined; className?: string | undefined }) {
   return (
-    <svg
+    <img
+      src={KETOS_MARK_DATA_URI}
       width={size}
       height={size}
       className={className}
-      viewBox="0 0 50 50"
-      fill="none"
+      alt=""
       aria-hidden="true"
-    >
-      <path
-        d="M4 46C12 44 22 40 28 30 30 22 34 12 44 6 40 16 38 22 36 26 40 28 44 32 46 40 40 38 34 36 30 34 22 34 10 38 4 46Z"
-        fill="currentColor"
-      />
-    </svg>
+      draggable={false}
+    />
   )
 }
 
@@ -56,11 +51,11 @@ export function KetosWordmark({ size = 24, className }: { size?: number | undefi
 
 /**
  * Render the official mark with the presentation requested by its host surface.
- * @param props - Host-supplied mark presentation.
+ * @param props - Host-supplied mark presentation (square edge and layout class).
  * @returns the official Ketos mark.
  */
-export function OfficialBrandMark({ size }: SidebarBrandMarkOwnerProps) {
-  return <KetosMark size={size} />
+export function OfficialBrandMark({ size, className }: { size: number; className?: string | undefined }) {
+  return <KetosMark size={size} className={className} />
 }
 
 /**

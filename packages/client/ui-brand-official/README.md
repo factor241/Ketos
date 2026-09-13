@@ -25,15 +25,15 @@ This package gives an `official` client build the Ketos mark and name in the sid
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin in the browser roster of a deployment whose identity is Ketos, then build the client with the `official` profile so the occupants register.
+Mount this plugin in the browser roster of a deployment whose identity is Ketos; the mark registers in every build, the lettering name in the `official` profile.
 
 ### Choosing the profile
 
-`DSH_CLIENT_BUILD_PROFILE` selects which brand renders. An `official` build shows the official mark and name in the sidebar; any other value leaves the shell fallbacks — the fish mark and the local-build label — in place. The conversation hero keeps the animated hero fish from `dsh-client-ui-conversation` regardless of profile; the hero slot stays on its declaring fallback in this package. The plugin still loads and validates in both cases; only the registration is profile-gated.
+The Ketos mark registers in every build profile. `DSH_CLIENT_BUILD_PROFILE` gates only the lettering name: an `official` build shows the wordmark in the sidebar, any other value leaves the `brand.localBuild` label beside the mark. The conversation hero renders the rotating headline without a mark, so this package registers nothing there and the hero's declared mark slot stays unoccupied. The plugin still loads and validates in both cases; only the name registration is profile-gated.
 
 ### Replacing the brand
 
-A deployment with its own identity leaves this package out and composes another package that occupies the sidebar slots — and the hero slot, which this package leaves on its fallback. Occupying a slot is the only composition route; there is no brand configuration surface here.
+A deployment with its own identity leaves this package out and composes another package that occupies the sidebar slots. Occupying a slot is the only composition route; there is no brand configuration surface here.
 
 -----
 

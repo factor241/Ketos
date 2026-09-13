@@ -29,30 +29,6 @@
     path: ':memory:'
     openAt: never
 
-# The ru language pack localizes the permission preset table: the base row
-# defines the presets without display names, so the UI would fall back to
-# title-cased machine ids ("read-only" → "Read Only"). This restatement keeps
-# the same ids, sandbox, and approval knobs with the Russian names.
-- id: permission
-  name: '@deepseek-ai/dsh-permission-presets'
-  config:
-    presets:
-      read-only:
-        sandbox: read-only
-        approval: ask
-        name: Только чтение
-        description: Агент может читать файлы, но не изменять их; расширение прав требует подтверждения.
-      workspace-write:
-        sandbox: workspace-write
-        approval: ask
-        name: Запись в рабочей папке
-        description: Запись внутри рабочей папки и разрешённых временных папок; более широкие действия требуют подтверждения.
-      danger-full-access:
-        sandbox: danger-full-access
-        approval: never
-        name: Полный доступ
-        description: Полный доступ к файлам без запросов подтверждения.
-
 - id: tools
   config:
     # TEMPORARY workaround: DSH_TOOLS_MODE (native|ptc|both) opts a whole dsh

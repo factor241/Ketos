@@ -25,15 +25,15 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在采用 Ketos 品牌的部署中，将本插件挂载到浏览器插件名单，然后以 `official` profile 构建客户端，让填充得以注册。
+在采用 Ketos 品牌的部署中，将本插件挂载到浏览器插件名单；标志在所有构建中注册，字母标志仅在 `official` profile 注册。
 
 ### 选择 profile
 
-`DSH_CLIENT_BUILD_PROFILE` 决定渲染哪个品牌。`official` 构建在侧栏显示官方标志与名称；任何其他取值都让外壳回退——鱼形标志与本地构建标签——保持原样。会话首屏无论 profile 如何都保留来自 `dsh-client-ui-conversation` 的动画首屏鱼；本包让首屏 slot 维持其声明方的回退。两种情况下插件都会照常加载并通过校验；只有注册受 profile 门控。
+Ketos 标志在所有构建 profile 中都会注册。`DSH_CLIENT_BUILD_PROFILE` 只门控字母标志：`official` 构建在侧栏显示字母标志，任何其他取值让 `brand.localBuild` 标签显示在标志旁。会话首屏只渲染轮换标题、不显示标志，因此本包不在那里注册，首屏声明的标志 slot 保持未占用。两种情况下插件都会照常加载并通过校验；只有名称注册受 profile 门控。
 
 ### 替换品牌
 
-自有身份的部署不组合本包，而是组合另一个占据侧栏 slot——以及本包留给回退的首屏 slot——的包。占据 slot 是唯一的组合路径；这里不存在任何品牌配置面。
+自有身份的部署不组合本包，而是组合另一个占据侧栏 slot 的包。占据 slot 是唯一的组合路径；这里不存在任何品牌配置面。
 
 -----
 

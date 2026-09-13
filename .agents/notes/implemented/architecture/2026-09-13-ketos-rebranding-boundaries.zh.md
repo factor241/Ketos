@@ -6,42 +6,42 @@ Status: implemented
 
 ## Problem
 
-Репозиторий запускается как софт-форк DeepSeek Harness, который поставляется под другим названием продукта: пользовательские поверхности печатают «DeepSeek Harness», лаунчер — только `dsh`, данные живут в `~/.dsh`, а собственного npm-неймспейса у форка нет. Переименование внутренних идентификаторов (`@deepseek-ai/*`, `DSH_*`, имена профилей, формат сессий) разрушило бы совместимость с upstream при синхронизации; поставка без бренда сбивала бы пользователей. Форку нужна письменно закреплённая граница между тем, что видит пользователь, и тем, что остаётся внутренним, плюс механическая история контроля обеих сторон.
+该仓库以 DeepSeek Harness 软分叉的形式启动，并以另一个产品名对外发布：面向用户的界面显示“DeepSeek Harness”，启动器命令只有 `dsh`，数据落在 `~/.dsh`，且分叉自有包没有命名空间。重命名内部标识符（`@deepseek-ai/*`、`DSH_*`、profile 名称、会话格式）会破坏与 upstream 的可合并性；不带品牌发布又会误导用户。分叉需要一份书面边界：哪些面向用户、哪些保持内部，并为两个方向提供执行力机制。
 
 ## Decision
 
-Продуктовые и интерфейсные поверхности несут бренд Ketos; каждый внутренний идентификатор сохраняет upstream-имя. Расщепление поставлено одновременно:
+产品与界面承担 Ketos 品牌；每个内部标识符保留 upstream 名称。切分同时落地：
 
-- **Лаунчер.** `ketos` входит в bin-карту (корневой скрипт `pnpm ketos`, бин-алиас в `apps/cli`, allowlist `verify-application-entrypoints`) как алиас к тому же entry `lib/bin.js`, который сохраняет и `dsh`; `package.json` несёт оба скрипта. Пользовательские строки CLI печатают `ketos` (`Usage: ketos …`, описание `ketos: boot a Ketos profile`, help headless/sdk-app/web-app, диагностические `NAME = 'ketos'`, литералы ошибок профиля в `app-boot`). Бин `dsh` сохраняется, потому что его резолвят SDK, `verify-application-entrypoints` и Python-runtime.
-- **Readiness-протокол.** Строка готовности сервера — `ketos web: <url>`; все потребители-парсеры — тесты бандлов, CLI e2e-фикстуры и ожидания, `publish-npm-baseline`, stderr-сниппеты headless, снапшоты сессий — должны переехать одним коммитом. `dsh web:` больше не валидный префикс готовности, при этом help ACP-профиля (`Usage: dsh --profile acp`) остаётся `dsh`, поскольку ACP сохраняет upstream-имена клиентов.
-- **Дом контейнера.** `apps/cli/src/bin.ts` устанавливает `process.env.DSH_HOME ??= join(homedir(), '.ketos')` до того, как boot разрешит хоть один путь; само имя переменной `DSH_HOME` и внутренний дефолт `resolveDshHome` `~/.dsh` не меняются.
-- **Пакетная поверхность.** `@ketos/<name>` — scope форка под `packages/ketos/`: regex release-member в workspace-констрейнте исключает группу рядом с `experimental/`, так что пакеты падают в обязательную ветку `private: true`; группа освобождена от страниц подсистем; её README следуют обычному контракту билингвальной пары. Первый член группы — `@ketos/client-locale-ru`.
-- **Локаль.** Языковой пакет ru регистрирует `ru` с фолбэком `en`, регистрирует ru-словари общих `common` и `settings.locale` и применяет `setLocale('ru')` только когда durable-снапшот настроек `locale` резолвится без сохранённого `preference` и когда браузер сам называет язык с тегом `ru`, так что штатные цепочки `zh`/`en` и явный выбор en переживают disposal и повторное применение.
-- **Веб-бренд.** Официальный заголовок сборки `Ketos` (локальный дефолт vite `Ketos Local Build`), PWA-манифест `Ketos`/`KETOS`, новый глиф favicon Кетоса, бут-страница `KETOS`, пакет-локальные `KetosMark`/`KetosWordmark` в сайдбаре заменяют upstream-рыбу только в `ui-brand-official`, `brand.localBuild` = `Ketos Local Build`, onboarding-тексты переводятся на Кетоса с повышением версии notice. Экспорты `ui-primitives` (`FishLogo`, hero-рыба) остаются upstream.
-- **Model-visible текст (отложено).** Строка идентичности, web-surface промпты и персона пресета cordis сохраняют upstream-формулировки; развёртывание, которому нужна персона Кетоса, пользуется пользовательским patch-слоем (`includeHarnessIdentity: false` + `personaPrefix`, документировано в `docs/ketos/model-identity.md`). Одно исключение вошло в исправления этапа 0.3: тело 401 web-auth называет `ketos web`, потому что этот текст напрямую видит браузер.
+- **启动器。** `ketos` 加入 bin 映射（根脚本 `pnpm ketos`、`apps/cli` bin 别名、`verify-application-entrypoints` 白名单）作为与 `dsh` 相同入口 `lib/bin.js` 的别名；`package.json` 同时拥有 `dsh` 与 `ketos` 脚本。面向用户的 CLI 字符串输出 `ketos`（`Usage: ketos …`、`ketos: boot a Ketos profile`、headless/sdk-app/web-app 帮助、`NAME = 'ketos'` 诊断、`app-boot` profile 错误字面量）。`dsh` bin 继续存在，因为 SDK 解析器、`verify-application-entrypoints` 与 Python runtime 都会解析它。
+- **就绪协议。** 服务启动行为 `ketos web: <url>`；所有解析型消费者——bundle 测试、CLI e2e 夹具与期望、`publish-npm-baseline`、headless stderr 片段、会话快照——在同一次提交中迁移。`dsh web:` 不再是有效的就绪前缀，而 ACP profile 帮助（`Usage: dsh --profile acp`）保持 `dsh`，因为 ACP 保留 upstream 客户端名称。
+- **容器 home。** `apps/cli/src/bin.ts` 在 boot 解析任何路径之前设置 `process.env.DSH_HOME ??= join(homedir(), '.ketos')`；变量名 `DSH_HOME` 与 `resolveDshHome` 的内部默认 `~/.dsh` 永不改变。
+- **包面。** `@ketos/<name>` 是 `packages/ketos/` 下分叉专属的 scope：workspace 约束的 release-member 正则在 `experimental/` 旁排除该组，使成员落入强制 `private: true` 分支；该组豁免子系统页面；其 README 仍遵循常规双语对契约。首个成员：`@ketos/client-locale-ru`。
+- **Locale。** ru 语言包以回退 `en` 注册 `ru`，注册共享 `common`、`settings.locale` 与 `board` 的 ru 词典，并且仅在 durable `locale` 设置快照解析为没有已存 `preference`、且浏览器本身请求带 `ru` 标签的语言时应用 `setLocale('ru')`，因此随附 `zh`/`en` 回退契约与显式 en 在 disposal 与重新应用后依然保持。
+- **Web 品牌。** 官方构建标题 `Ketos`（Vite 本地默认 `Ketos Local Build`）、PWA 清单 `Ketos`/`KETOS`、Ketos favicon 图形、启动页 `KETOS`、包内 `KetosMark`/`KetosWordmark` 侧边栏图形仅在 `ui-brand-official` 替换 upstream 鱼形标志、`brand.localBuild` = `Ketos Local Build`、Ketos onboarding 文案并提升 notice 版本。`ui-primitives` 导出（`FishLogo`、hero 鱼形）保持 upstream。
+- **模型可见文本（暂缓）。** harness 身份行、web-surface 提示词与 cordis preset persona 保留 upstream 措辞；需要 Ketos persona 的部署使用用户 patch 层（`includeHarnessIdentity: false` + `personaPrefix`，记录于 `docs/ketos/model-identity.md`，并作为 `docs/ketos/model-identity.patch.yml` 随仓库提供）。一个在阶段 0.3 范围内例外落地：401 web-auth 正文命名为 `ketos web`，因为该文本会直接到达浏览器。
 
-`docs/ketos/` владеет инвентарём и решениями форка: `brand-inventory.md` (классификация плюс воспроизводимые grep'и), `upstream-sync.md` (приёмка по тегам), `model-identity.md` (отложенный выбор и маршрут патча). Как исключение корпуса, `docs/ketos/` выведено из scope translation-pairing, поскольку эти документы — русскоязычный планировочный материал форка by construction.
+`docs/ketos/` 拥有分叉侧的清单与决策：`brand-inventory.md`（分类与可复现 grep）、`upstream-sync.md`（按标签的验收）、`model-identity.md`（暂缓选择与 patch 路线）。语料预设将 `docs/ketos/` 排除在 translation-pairing 范围之外，因为这些文档按构造就是分叉的俄语规划材料。
 
-Контроль механический: `verify-application-entrypoints` пинит bin-карту; констрейнт-гейт пинит приватность группы; `pwa-manifest.e2e.ts`, `built-boot.expected.e2e.ts`, `boot-page.client.spec.ts`, `client-build-environment.client.spec.ts`, `dev-web.spec.ts`, `release/families.spec.ts` пинят веб-литералы; CLI e2e пины пинят `ketos web:`; `verify-package-paths` и grep-чеклист остаточного бренда в `brand-inventory.md` замыкают чек-лист ревью.
+执行是机械化的：`verify-application-entrypoints` 钉住 bin 映射；约束闸门钉住组隐私；`pwa-manifest.e2e.ts`、`built-boot.expected.e2e.ts`、`boot-page.client.spec.ts`、`client-build-environment.client.spec.ts`、`dev-web.spec.ts`、`release/families.spec.ts` 钉住 web 字面量；CLI e2e 钉住 `ketos web:`；`verify-package-paths` 与 `brand-inventory.md` 中的残留品牌 grep 支撑评审清单。
 
 ## Alternatives considered
 
-**Переименовать внутренние идентификаторы в неймспейс ketos.** Проиграло: форк обновляет upstream, и переименования попадали бы в каждый merge; SDK, Python-runtime и релизный тулинг резолвят `dsh`, так что радиус поломки — весь репозиторий при нулевой пользовательской пользе.
+**把内部标识符重命名为 `ketos` 命名空间。** 未采用：分叉会升级 upstream，重命名会进入每次 merge；SDK、Python runtime 与发布工具都解析 `dsh`，因此破坏半径是整个仓库而用户可见收益为零。
 
-**Переписать model-visible идентичность прямо сейчас.** Проиграло: 31 сайдкар `system-prompt.expected.md`, 39 снапшотов с упоминанием бренда и 9 пинящих spec/e2e файлов менялись бы за один шаг; безопасный маршрут (конфиговое отключение плюс персона-патч) уже есть в дереве (`sdk-minimal/cordis.patch.yml`) и настраивается пользователем без касания shipped-композиций.
+**立即发布模型可见身份改写。** 未采用：31 个 `system-prompt.expected.md` sidecar、39 个提及品牌的快照与 9 个钉住 spec/e2e 文件会一次性改变；安全路径（配置级关闭开关加 persona patch）已在仓库内存在（`sdk-minimal/cordis.patch.yml`），并且无需触碰 shipped 组合即可由用户调整。
 
-**Публиковать `@ketos/*` публично.** Проиграло: форк наследует identity-ограничения upstream, а группа — это локальный внутренний потребитель софт-форка; `private: true` сохраняет честность релизного гейта.
+**公开发布 `@ketos/*`。** 未采用：分叉继承 upstream 身份约束，而该组是软分叉内部消费者；`private: true` 让发布闸门保持诚实。
 
-**Ребрендить через переименование бина `dsh`.** Проиграло: парсинг readiness, entrypoint-верификация и установка Python-runtime пинят `dsh`; алиас добавляет бренд, не ломая резолверы.
+**通过重命名 `dsh` bin 来实现品牌。** 未采用：就绪解析、入口点校验与 Python-runtime 安装都钉住 `dsh`；别名方案在增加品牌的同时不破坏解析器。
 
 ## Consequences
 
-Мерджи из upstream сосредоточены в известном наборе файлов (процедура в `docs/ketos/upstream-sync.md`; конфликты всё равно случаются там, где ребренд-литералы и upstream-правки пересекаются). Новые upstream-поверхности нелокализованы под бренд до классификации — инвентарь и чек-лист ревью являются дисциплиной расширения, а не автоматикой. Официальный заголовок веб-клиента меняет константы release-верификации, поэтому проверки окружения и `families.ts` двигаются вместе при каждой смене. Фича-локальная UI-копия, не покрытая общим ru-словарём, рендерится на английском через документированный фолбэк (известное ограничение языкового пакета, записанное в его README).
+来自 upstream 的 merge 集中于已知文件集（记录在 `docs/ketos/upstream-sync.md`；品牌字面量与 upstream 编辑相遇处仍会产生冲突）。新的 upstream 界面在分类之前不带品牌——清单与评审清单是扩展纪律，而非自动化。Ketos 网页标题改变了发布校验常量，因此每次标题变动时官方环境检查与 `families.ts` 一起移动。未被 common、settings.locale 与 board ru 词典覆盖的特性本地 UI 文案仍通过已记录的退化链以英文渲染（语言包的已知限制，记录在其 README）。Desktop/Electron 用户界面已在 `brand-inventory.md` 中分类，并随 post-MVP 桌面应用一并暂缓；MVP 只发布 web profile。
 
 ## Related
 
-- `docs/ketos/brand-inventory.md` — классификация и grep-чеклист, которые каждый ребренд-коммит обязан оставить чистыми.
-- `docs/ketos/upstream-sync.md` — ремоуты, теги, процедура merge.
-- `docs/ketos/model-identity.md` — отложенное model-visible решение и маршрут патч-слоя.
-- [single `dsh` application launcher](2026-08-22-single-dsh-application-launcher.zh.md) — решение по лаунчеру, расширенное алиасом `ketos` в bin-карте.
-- [mandatory app attribution headers](2026-06-21-mandatory-app-attribution-headers.zh.md) — wire-атрибуционные токены, остающиеся upstream под этой границей.
+- `docs/ketos/brand-inventory.md` — 每次品牌重塑提交都必须保持干净的分类与 grep 清单。
+- `docs/ketos/upstream-sync.md` — remotes、标签、merge 流程。
+- `docs/ketos/model-identity.md` — 暂缓的模型可见决策与 patch 层路线。
+- [single `dsh` application launcher](2026-08-22-single-dsh-application-launcher.zh.md) — 本 note 以 `ketos` bin 别名扩展的启动器决策。
+- [mandatory app attribution headers](2026-06-21-mandatory-app-attribution-headers.zh.md) — 在该边界下保持 upstream 的 wire 归因令牌。

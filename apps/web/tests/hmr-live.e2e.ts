@@ -120,7 +120,7 @@ it('hot-reloads a real client-plugin source edit without refreshing the page', a
         DSH_HOME: join(world, '.dsh'),
       },
     ))
-    const baseUrl = await waitForOutput(host, /dsh web: (http:\/\/[^\s]+)/, 'built dsh web')
+    const baseUrl = await waitForOutput(host, /ketos web: (http:\/\/[^\s]+)/, 'built ketos web')
     browser = await chromium.launch()
     const page = await browser.newPage()
     const pageErrors: string[] = []

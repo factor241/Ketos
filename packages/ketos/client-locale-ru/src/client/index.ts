@@ -61,7 +61,11 @@ export function apply(ctx: ClientContext): void {
     const snapshot = scope.getSnapshot()
     if (defaulted || snapshot.status === 'loading') return
     defaulted = true
-    if (snapshot.value?.[LOCALE_PREFERENCE_FIELD] === undefined) locale.setLocale('ru')
+    // An unavailable scope stays on the browser-derived locale; only an
+    // available document without a stored preference defaults to `ru`.
+    if (snapshot.status === 'ready' && snapshot.value?.[LOCALE_PREFERENCE_FIELD] === undefined) {
+      locale.setLocale('ru')
+    }
   }
   ctx.effect(() => {
     const unsubscribe = scope.subscribe(applyDefaultOnce)

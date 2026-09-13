@@ -459,7 +459,8 @@
       "@deepseek-ai/dsh-workspace": ["./packages/workspace/workspace/src"],
       "@deepseek-ai/dsh-workspace/invariant": ["./packages/workspace/workspace/src/invariant.ts"],
       // END generated package aliases
-      "@ketos/client-locale-ru": ["./packages/ketos/client-locale-ru/src"]
+      "@ketos/client-locale-ru": ["./packages/ketos/client-locale-ru/src"],
+      "@ketos/client-locale-ru/client": ["./packages/ketos/client-locale-ru/src/client/index.ts"]
     }
   }
 }

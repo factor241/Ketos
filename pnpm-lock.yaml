@@ -10171,6 +10171,9 @@ importers:
       '@deepseek-ai/dsh-web-app':
         specifier: workspace:^
         version: link:../../bundle/web-app
+      '@ketos/client-locale-ru':
+        specifier: workspace:^
+        version: link:../../ketos/client-locale-ru
       '@types/js-yaml':
         specifier: ^4.0.9
         version: 4.0.9

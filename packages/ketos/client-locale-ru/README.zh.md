@@ -15,7 +15,7 @@ kind: "package-reference"
 
 - [使用本包](#use-this-package)
 - [已知限制与暂缓事项](#known-limitations-and-deferred-work)
-- [Dev Note](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -31,6 +31,6 @@ kind: "package-reference"
 - 当已保存文档最初没有偏好时，`ru` 默认值通过常规写路径写入 `locale: { preference: ru }`；全新 home 因此在首次使用后记录该选择。
 
 <a id="dev-note"></a>
-## Dev Note
+## 开发备注
 
 无。

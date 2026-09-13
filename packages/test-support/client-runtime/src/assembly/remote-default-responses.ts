@@ -15,6 +15,8 @@ export const remoteDefaultResponses: RemoteTable = {
     'session/list': ok({ items: [] }),
     // ui-settings `mirror.ensure()` at apply and again on `connection/reset`.
     'settings/describe': ok({ writable: true, hasDocument: false, namespaces: [] }),
+    // @ketos/client-locale-ru ru default: the write answers with the updated `locale` view.
+    'settings/mutate': ok({ ns: 'locale', schema: null, value: { preference: 'ru' }, user: { preference: 'ru' }, applies: 'live' as const, secrets: [], revision: 1 }),
     // ui-model-selection `ModelDirectoryResolver` constructor.
     'session/modelCatalog': ok({
       default: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },

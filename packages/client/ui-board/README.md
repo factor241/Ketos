@@ -31,6 +31,8 @@ Open the bot panel through the board icon in the sidebar panel list; the canvas 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
+**Runtime invariant:** No companion is published. The panel entry registers the `main` slot with the single engine store; the store's disposer proves removal, independently observable through the board.* slot declarations.
+
 <details>
 <summary>Implementation internals — click to expand</summary>
 

@@ -31,6 +31,8 @@ board 是 dsh 网页客户端的一个空间化主面板：一块 `OpenSwarm` �
 <a id="understand-the-implementation"></a>
 ## 理解实现
 
+**Runtime invariant:** 无已发布的 companion。面板条目把 `main` 槽位连同唯一的 engine store 一起注册；store 的 disposer 证明移除，同时可通过 `board.*` 槽位声明独立观察。
+
 <details>
 <summary>实现细节 — 点击展开</summary>
 

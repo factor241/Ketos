@@ -22,6 +22,8 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
+**Runtime invariant:** 无已发布的 companion。本包通过 locale 服务注册（`addLanguage`、词典注册）和一个 settings-scope 观察器；disposal 移除语言与词典，这在 locale 目录上可观察。
+
 `ketos` CLI 的 web 配置通过客户端插件名册加载本包，不需要任何配置；激活顺序让插件位于 `locale` 行之后，因此语言服务与其 scope 在插件运行时已经就位。已注册的特性照常通过共享查找读取俄语文案：各特性命名空间经共享链解析，`common` 现在携带全部翻译键，包括 `brand.localBuild` 的 `Локальная сборка Кетос`。插件在本地镜像 locale 命名空间与偏好字段常量（对 locale 包只做类型导入），以保持客户端打包纯净。
 
 -----

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/ketos/client-locale-ru/README.md
-README.md: 454baf5488cdb7f6adac64da49473e1cf93428ff
-README.zh.md: 177ae1c759ec0d04e660d33cd844b71cb302db48
+README.md: 54786167bae5a072d750444ed7bce2b84e907206
+README.zh.md: c14810af75826c8e093fcc8b581dac94f6d4f7d9

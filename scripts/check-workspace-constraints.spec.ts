@@ -5,6 +5,7 @@ import {
   checkDshFamilyVersion,
   checkExperimentalDependencyIsolation,
   checkExperimentalManifest,
+  checkWorkspaceManifest,
   expectedDshPackageFiles,
   type WorkspaceManifest,
 } from './check-workspace-constraints.ts'
@@ -95,6 +96,26 @@ describe('experimental workspace constraints', () => {
 
     expect(checkExperimentalDependencyIsolation(manifests)).toEqual([
       '@deepseek-ai/dsh-python-runtime: dependencies.@deepseek-ai/dsh-experimental-prototype must not reference an experimental package',
+    ])
+  })
+})
+
+describe('ketos group constraints', () => {
+  const ketosPackage: WorkspaceManifest = {
+    dir: 'packages/ketos/locale-ru',
+    manifest: { name: '@ketos/locale-ru', private: true },
+  }
+
+  it('accepts a private @ketos package without release-member metadata', () => {
+    expect(checkWorkspaceManifest(ketosPackage)).toEqual([])
+  })
+
+  it('requires private: true without promoting the directory to a release member', () => {
+    expect(checkWorkspaceManifest({
+      ...ketosPackage,
+      manifest: { name: '@ketos/locale-ru' },
+    })).toEqual([
+      'packages/ketos/locale-ru/package.json: @ketos/locale-ru: package.json must set "private": true',
     ])
   })
 })

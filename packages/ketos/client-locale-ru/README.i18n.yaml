@@ -1,6 +1,6 @@
 # Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
-#   pnpm run verify-translation-pairing --write packages/ketos/README.md
-README.md: 19fb0445b2f56fa37936fb2266a4fe8e63779a3e
-README.zh.md: 3697a284707be65a665b0750a685b0800b928761
+#   pnpm run verify-translation-pairing --write packages/ketos/client-locale-ru/README.md
+README.md: d181496c4c4f0eccd024c2202176231d33f4f87f
+README.zh.md: 797c71b0ebe489f0e89cd60d307211b623590bd7

@@ -204,6 +204,12 @@
     - id: locale
       name: '@deepseek-ai/dsh-client-locale'
 
+    # Ketos language pack: adds the ru locale and dictionaries, and applies ru
+    # as the default while the settings document has no locale preference. Runs
+    # after the locale row so the service is present at activation.
+    - id: ketos-locale-ru
+      name: '@ketos/client-locale-ru'
+
     - id: ui-layout
       name: '@deepseek-ai/dsh-client-ui-layout'
 

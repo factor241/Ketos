@@ -7,9 +7,18 @@
 /* v8 ignore file -- built-bin acceptance exercises this self-executing dispatch. */
 
 import { readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 import { loadLayeredEnv } from '@deepseek-ai/dsh-app-boot'
 import { parseDshArgs } from './args.ts'
+
+// Ketos reroutes the deployment home to ~/.ketos through the standard DSH_HOME
+// variable (resolveDshHome's internal ~/.dsh default stays untouched). This
+// statement runs before every profile boot path, in both the tsx source launch
+// (apps/cli/src/bin.ts) and the bundled bin (apps/cli/lib/bin.js), which is
+// bundled from this file. `??=` keeps an explicit DSH_HOME as the user's choice.
+process.env.DSH_HOME ??= join(homedir(), '.ketos')
 
 // Both the source tree (apps/cli/src) and the bundled bin (apps/cli/lib) sit
 // one directory under apps/cli, so the checked-in manifest resolves with the

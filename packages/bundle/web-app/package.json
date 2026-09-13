@@ -50,6 +50,7 @@
     "@deepseek-ai/dsh-client-file-upload": "workspace:^",
     "@deepseek-ai/dsh-client-hmr": "workspace:^",
     "@deepseek-ai/dsh-client-locale": "workspace:^",
+    "@ketos/client-locale-ru": "workspace:^",
     "@deepseek-ai/dsh-client-modules": "workspace:^",
     "@deepseek-ai/dsh-client-resources": "workspace:^",
     "@deepseek-ai/dsh-client-ui-agent-preset": "workspace:^",

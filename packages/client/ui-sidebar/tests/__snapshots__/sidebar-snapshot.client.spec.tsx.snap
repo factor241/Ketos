@@ -273,7 +273,7 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
                 <span
                   class="localBuildTitle"
                 >
-                  Ketos Local Build
+                  Ketos 本地构建
                 </span>
                 <span
                   class="buildVersion"

@@ -175,7 +175,7 @@ describe('ketos ru language pack', () => {
       })
       expect(b.locale().getLocale().active).toBe('ru')
       expect(b.locale().bind(COMMON_NS)('copy')).toBe('Копировать')
-      expect(b.locale().bind(COMMON_NS)('brand.localBuild')).toBe('Локальная сборка Кетос')
+      expect(b.locale().bind(COMMON_NS)('brand.localBuild')).toBe('Кетос')
       expect(b.locale().bind(COMMON_NS)('copy.optionsHint', { action: 'Действие' })).toContain('Действие;')
     })
   })
@@ -205,7 +205,7 @@ describe('ketos ru language pack', () => {
       expect(b.locale().bind('settings.models')('welcomeBody')).toContain('Кетос')
       expect(b.locale().bind('settings.models')('welcomeBody')).not.toContain('Harness')
       expect(b.locale().bind('settings.models')('onboardingDescription')).toContain('DeepSeek')
-      expect(b.locale().bind(COMMON_NS)('brand.localBuild')).toBe('Локальная сборка Кетос')
+      expect(b.locale().bind(COMMON_NS)('brand.localBuild')).toBe('Кетос')
     })
   })
 

@@ -24,7 +24,7 @@ Ketos 以俄语作为界面语言，同时不重命名 locale 机制、也不覆
 
 **Runtime invariant:** 无已发布的 companion。本包通过 locale 服务（`addLanguage`、词典注册）和一个 settings-scope 观察器注册；disposal 移除语言与词典，这在 locale 目录上可观察。
 
-`ketos` CLI 的 web 配置通过客户端插件名册加载本包，无需任何配置；激活顺序让插件位于 `locale` 行之后，因此语言服务与其 scope 在插件运行时已经就位。web bundle 补丁还会用俄语显示名重述权限预设表，因为基座行只带机器 id。已注册的特性照常通过共享查找读取俄语文案：各特性命名空间经共享链解析，`common` 的 `brand.localBuild` 为 `Локальная сборка Кетос`，`board` 命名空间则以俄语覆盖画布、停靠栏、Omnibox 与窗口文案。插件在本地镜像 locale 命名空间与偏好字段常量（对 locale 包只做类型导入），以保持客户端打包纯净。
+`ketos` CLI 的 web 配置通过客户端插件名册加载本包，无需任何配置；激活顺序让插件位于 `locale` 行之后，因此语言服务与其 scope 在插件运行时已经就位。内置权限预设标签由所属客户端包的词典本地化（`displayPermissionPreset`），因此基座机器 id 表保持不变，各语言渲染各自的名称——此处为 `Запись в рабочей папке`。已注册的特性照常通过共享查找读取俄语文案：各特性命名空间经共享链解析，`common` 的 `brand.localBuild` 为 `Кетос`，`board` 命名空间则以俄语覆盖画布、停靠栏、Omnibox 与窗口文案。插件在本地镜像 locale 命名空间与偏好字段常量（对 locale 包只做类型导入），以保持客户端打包纯净。
 
 词典是生成产物：`scripts/sync-dictionaries.mjs` 合并社区包、fork 语料与 `scripts/dictionary-overrides.json`（改名覆盖项，以及社区包未覆盖键的人工翻译）生成 `src/locales/{common-ru,pack-ru}.ts`，并写出键清单 `tests/fixtures/ru-keys.json` 供包测试校验覆盖率。移植的社区内容继续遵循其 MIT 许可；上游版权声明保留在 `LICENSE-locale-ru`。
 

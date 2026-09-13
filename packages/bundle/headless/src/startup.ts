@@ -30,13 +30,13 @@ export interface HeadlessStartupValues {
  */
 function headlessCommand(): Command {
   return new Command()
-    .name('dsh --profile headless')
+    .name('ketos --profile headless')
     .description('Answer one task, stream reasoning to stderr, print the final assistant message, and exit.')
     .helpOption('-h, --help', 'show this help')
     .argument('[task...]', 'the task text; multiple words are joined by spaces')
     .addHelpText('after', `
 Examples:
-  dsh --profile headless "run the tests"     answer one task and exit
+  ketos --profile headless "run the tests"     answer one task and exit
 `)
 }
 
@@ -50,7 +50,7 @@ export function apply(ctx: Context): void {
   const program = headlessCommand()
   program.action(() => {
     const task = program.args.join(' ')
-    if (task.trim() === '') program.error('error: a task is required, for example: dsh --profile headless "run the tests"')
+    if (task.trim() === '') program.error('error: a task is required, for example: ketos --profile headless "run the tests"')
     ctx.provide(HEADLESS_STARTUP_SERVICE, { task } satisfies HeadlessStartupValues)
   })
   parseCmdline(ctx, program)

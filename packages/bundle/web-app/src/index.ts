@@ -268,13 +268,13 @@ export function apply(ctx: Context, config: Config): void {
           : connectionCtx.connection.authenticatedUrl(`http://${lanCandidate}:${String(port)}`)
         ANNOUNCED_ROOTS.add(connectionCtx.root)
         if (config.printUrl) {
-          console.log(`dsh web: ${authenticatedUrl}${lanUrl === undefined ? '' : ` (LAN: ${lanUrl})`}`)
+          console.log(`ketos web: ${authenticatedUrl}${lanUrl === undefined ? '' : ` (LAN: ${lanUrl})`}`)
         }
         if (handoffBrowser) {
-          console.log('dsh web: opening the default browser; pass --no-open to disable')
+          console.log('ketos web: opening the default browser; pass --no-open to disable')
           void internals.openBrowser(authenticatedUrl).catch((error: unknown) => {
             const reason = error instanceof Error ? error.message : String(error)
-            console.error(`web-app: could not open the default browser because ${reason}; use the dsh web URL printed at startup`)
+            console.error(`web-app: could not open the default browser because ${reason}; use the ketos web URL printed at startup`)
           })
         }
       }

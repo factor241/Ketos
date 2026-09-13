@@ -25,7 +25,7 @@ import {
 } from '@deepseek-ai/dsh-app-boot'
 import { INSTALL_ANCHOR } from './profile-boot.ts'
 
-const NAME = 'dsh'
+const NAME = 'ketos'
 
 /**
  * Whether a resolved dependency exports a profile patch, i.e. is a bundle.

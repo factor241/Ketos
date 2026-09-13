@@ -968,7 +968,7 @@ describe('healProfilesModuleFallback', () => {
         mkdirSync(proxy, { recursive: true })
         writeFileSync(join(proxy, 'package.json'), metadata)
         await expect(healProfilesModuleFallback({ installAnchor: anchor, home })).rejects.toThrow(
-          'exists and is not a dsh-managed module proxy',
+          'exists and is not a ketos-managed module proxy',
         )
       }
     } finally {

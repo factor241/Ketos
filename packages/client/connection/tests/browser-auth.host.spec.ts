@@ -163,7 +163,7 @@ describe('BrowserAuth', () => {
       })
       expect(denied.state.body).toBe(candidate.method === 'HEAD'
         ? undefined
-        : 'dsh web authentication required; reopen the URL printed by dsh web.\n')
+        : 'ketos web authentication required; reopen the URL printed by ketos web.\n')
     }
   })
 

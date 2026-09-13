@@ -351,7 +351,7 @@ function stderrFromSession(log: string): string {
   const appendReasoning = (text: string): void => {
     if (text === '') return
     if (!open) {
-      output += 'dsh: reasoning:\n'
+      output += 'ketos: reasoning:\n'
       open = true
     }
     output += text
@@ -428,7 +428,7 @@ function stderrFromSession(log: string): string {
   if (typeof error?.code !== 'string' || typeof error.message !== 'string') {
     throw new Error('headless snapshot error reason has no code and message')
   }
-  return `${output}dsh: ${error.code}: ${error.message}\n`
+  return `${output}ketos: ${error.code}: ${error.message}\n`
 }
 
 function modelFromSession(log: string): { provider: string; model: string } {
@@ -729,11 +729,11 @@ describe('headless recorded-session snapshots', () => {
     ].map(record => JSON.stringify(record)).join('\n')
 
     expect(stderrFromSession(log)).toBe([
-      'dsh: reasoning:',
+      'ketos: reasoning:',
       'first',
-      'dsh: reasoning:',
+      'ketos: reasoning:',
       'second',
-      'dsh: reasoning:',
+      'ketos: reasoning:',
       'third',
       '',
     ].join('\n'))
@@ -757,7 +757,7 @@ describe('headless recorded-session snapshots', () => {
         { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } },
       ].map(record => JSON.stringify(record)).join('\n')
 
-      expect(stderrFromSession(log)).toBe('dsh: reasoning:\nfirst thought\n')
+      expect(stderrFromSession(log)).toBe('ketos: reasoning:\nfirst thought\n')
     },
   )
 
@@ -780,7 +780,7 @@ describe('headless recorded-session snapshots', () => {
       { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } },
     ].map(record => JSON.stringify(record)).join('\n')
 
-    expect(stderrFromSession(log)).toBe('dsh: reasoning:\nfirst thought\ndsh: reasoning:\nsecond\n')
+    expect(stderrFromSession(log)).toBe('ketos: reasoning:\nfirst thought\nketos: reasoning:\nsecond\n')
   })
 
   it.each([10, 20])('assigns sibling roles by catalog order when the first child timestamp is %i', async (firstCreatedAt) => {

@@ -1,2 +1,2 @@
-dsh: reasoning:
+ketos: reasoning:
 Inspecting the task before the tool call.

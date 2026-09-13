@@ -32,7 +32,7 @@ export default async function open(url) {
     headers: { cookie: setCookie.split(';', 1)[0] },
   })
   const html = await response.text()
-  console.log(`dsh browser-open: ${JSON.stringify({
+  console.log(`ketos browser-open: ${JSON.stringify({
     url,
     status: response.status,
     bootManifest: html.includes('__DSH_BOOT__'),

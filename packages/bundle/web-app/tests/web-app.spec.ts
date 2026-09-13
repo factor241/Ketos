@@ -143,12 +143,12 @@ describe('web-app runtime glue', () => {
       lanAddresses: ['192.168.1.5'],
       trustedHosts: ['192.168.1.5', 'lab.internal'],
     })
-    expect(log).toHaveBeenCalledWith('dsh web: http://127.0.0.1:4567/?token=test-token (LAN: http://192.168.1.5:4567/?token=test-token)')
-    expect(log).toHaveBeenCalledWith('dsh web: opening the default browser; pass --no-open to disable')
+    expect(log).toHaveBeenCalledWith('ketos web: http://127.0.0.1:4567/?token=test-token (LAN: http://192.168.1.5:4567/?token=test-token)')
+    expect(log).toHaveBeenCalledWith('ketos web: opening the default browser; pass --no-open to disable')
     expect(openBrowser).toHaveBeenCalledWith('http://127.0.0.1:4567/?token=test-token')
     expect(lifecycle).toEqual([
-      'dsh web: http://127.0.0.1:4567/?token=test-token (LAN: http://192.168.1.5:4567/?token=test-token)',
-      'dsh web: opening the default browser; pass --no-open to disable',
+      'ketos web: http://127.0.0.1:4567/?token=test-token (LAN: http://192.168.1.5:4567/?token=test-token)',
+      'ketos web: opening the default browser; pass --no-open to disable',
       'open:http://127.0.0.1:4567/?token=test-token',
     ])
     const assembly = await ctx.systemPrompt.assemble()
@@ -212,7 +212,7 @@ describe('web-app runtime glue', () => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})
     apply(ctx, new Config({ openBrowser: false, printUrl: true, surfaceContext: true, trustedHosts: [] }))
     await new Promise(resolve => setTimeout(resolve, 0))
-    expect(log).toHaveBeenCalledWith('dsh web: http://127.0.0.1:4567/?token=test-token')
+    expect(log).toHaveBeenCalledWith('ketos web: http://127.0.0.1:4567/?token=test-token')
     await ctx.fiber.dispose()
   })
 
@@ -248,7 +248,7 @@ describe('web-app runtime glue', () => {
     internals.openBrowser = openBrowser
     apply(ctx, new Config({ openBrowser: true, printUrl: true, surfaceContext: false, trustedHosts: [] }))
     await new Promise(resolve => setTimeout(resolve, 0))
-    expect(log).toHaveBeenCalledWith('dsh web: http://127.0.0.1:4567/?token=test-token')
+    expect(log).toHaveBeenCalledWith('ketos web: http://127.0.0.1:4567/?token=test-token')
     expect(openBrowser).not.toHaveBeenCalled()
     await ctx.fiber.dispose()
   })
@@ -272,7 +272,7 @@ describe('web-app runtime glue', () => {
     expect(openBrowser).not.toHaveBeenCalled()
     release!()
     await new Promise(resolve => setTimeout(resolve, 0))
-    expect(log).toHaveBeenCalledWith('dsh web: http://127.0.0.1:4567/?token=test-token')
+    expect(log).toHaveBeenCalledWith('ketos web: http://127.0.0.1:4567/?token=test-token')
     expect(openBrowser).toHaveBeenCalledWith('http://127.0.0.1:4567/?token=test-token')
     await settled.fiber.dispose()
 
@@ -350,9 +350,9 @@ describe('web-app runtime glue', () => {
     const diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {})
     apply(ctx, new Config({ openBrowser: true, printUrl: false, surfaceContext: false, trustedHosts: [] }))
     await new Promise(resolve => setTimeout(resolve, 0))
-    expect(log).toHaveBeenCalledWith('dsh web: opening the default browser; pass --no-open to disable')
+    expect(log).toHaveBeenCalledWith('ketos web: opening the default browser; pass --no-open to disable')
     expect(diagnostic).toHaveBeenCalledWith(
-      `web-app: could not open the default browser because ${reason}; use the dsh web URL printed at startup`,
+      `web-app: could not open the default browser because ${reason}; use the ketos web URL printed at startup`,
     )
     expect(ctx.get('webServer')).toBeDefined()
     await ctx.fiber.dispose()

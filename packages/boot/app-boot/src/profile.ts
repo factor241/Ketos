@@ -96,7 +96,7 @@ export function resolveProfileDir(name: string, home: string = resolveDshHome())
   if (name === '' || name.includes('/') || name.includes('\\') || name === '.' || name === '..'
     // The launcher-maintained flat module fallback lives at this sibling path.
     || name === 'node_modules') {
-    throw new Error(`dsh: invalid profile name ${JSON.stringify(name)}`)
+    throw new Error(`ketos: invalid profile name ${JSON.stringify(name)}`)
   }
   return join(home, PROFILES_DIR, name)
 }
@@ -207,7 +207,7 @@ function ensureSymlink(link: string, target: string): void {
     if (!stat.isSymbolicLink()) {
       const existing = stat.isDirectory() ? readModuleProxyRecord(link) : undefined
       if (existing?.dsh?.moduleFallback?.targets === undefined) {
-        throw new Error(`dsh: ${link} exists and is not a symlink or dsh-managed module proxy; remove it so dsh can manage the installation fallback`)
+        throw new Error(`ketos: ${link} exists and is not a symlink or ketos-managed module proxy; remove it so ketos can manage the installation fallback`)
       }
       rmSync(link, { recursive: true })
       stat = undefined
@@ -329,14 +329,14 @@ function packageEntryFromPackage(
   } catch (error) {
     if ((error as Error).message.startsWith('No known conditions for ')) return undefined
     const specifier = subpath === '.' ? packageName : packageName + subpath.slice(1)
-    throw new Error(`dsh: cannot resolve ESM export ${specifier} from installed package ${packageName}`, { cause: error })
+    throw new Error(`ketos: cannot resolve ESM export ${specifier} from installed package ${packageName}`, { cause: error })
   }
   for (const candidate of candidates ?? []) {
     const target = candidate
     const entry = resolve(packageDir, target)
     const relativeEntry = relative(packageDir, entry)
     if (!target.startsWith('./') || /^\.\.(?:[\\/]|$)/u.test(relativeEntry)) {
-      throw new Error(`dsh: installed package ${packageName} export ${subpath} resolves outside its package: ${target}`)
+      throw new Error(`ketos: installed package ${packageName} export ${subpath} resolves outside its package: ${target}`)
     }
     if (existsSync(entry) && statSync(entry).isFile()) return pathToFileURL(entry).href
   }
@@ -357,7 +357,7 @@ function packageProxySource(
     version?: unknown
   }
   if (typeof manifest.version !== 'string' || manifest.version.length === 0) {
-    throw new Error(`dsh: installed package ${packageName} must declare a non-empty version`)
+    throw new Error(`ketos: installed package ${packageName} must declare a non-empty version`)
   }
   const declared = manifest.exports
   if (declared === undefined) {
@@ -371,7 +371,7 @@ function packageProxySource(
         && (manifest.bin !== undefined || manifest.types !== undefined || manifest.typings !== undefined)) {
         return { version: manifest.version, targets: {} }
       }
-      throw new Error(`dsh: installed package ${packageName} main entry is missing at ${entry}`, { cause: error })
+      throw new Error(`ketos: installed package ${packageName} main entry is missing at ${entry}`, { cause: error })
     }
   }
   const subpaths = declared !== null && typeof declared === 'object' && !Array.isArray(declared)
@@ -429,7 +429,7 @@ function ensureModuleProxy(
   if (stat !== undefined) {
     const existing = readModuleProxyRecord(link)
     if (existing?.dsh?.moduleFallback?.targets === undefined) {
-      throw new Error(`dsh: ${link} exists and is not a dsh-managed module proxy; remove it so dsh can manage the installation fallback`)
+      throw new Error(`ketos: ${link} exists and is not a ketos-managed module proxy; remove it so ketos can manage the installation fallback`)
     }
     if (existing.version === version
       && JSON.stringify(existing.dsh.moduleFallback.targets) === JSON.stringify(targets)

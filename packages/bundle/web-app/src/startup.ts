@@ -45,8 +45,8 @@ interface WebOptions {
  */
 function webCommand(): Command {
   return new Command()
-    .name('dsh --profile web')
-    .description('Serve the DeepSeek Harness browser UI.')
+    .name('ketos --profile web')
+    .description('Serve the Ketos browser UI.')
     .helpOption('-h, --help', 'show this help')
     .option('--host <host>', 'bind host')
     .option('--no-open', 'do not open the Web UI in the default browser')
@@ -54,9 +54,9 @@ function webCommand(): Command {
     .option('--trusted-host <authority...>', 'extra authority the /api browser-trust fence accepts (host or host:port; repeatable)')
     .addHelpText('after', `
 Examples:
-  dsh --profile web                          serve on the composed host and port
-  dsh --profile web --no-open                serve without opening a browser
-  dsh --profile web --port 8080              serve on another port
+  ketos --profile web                          serve on the composed host and port
+  ketos --profile web --no-open                serve without opening a browser
+  ketos --profile web --port 8080              serve on another port
 `)
 }
 

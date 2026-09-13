@@ -74,14 +74,14 @@ function rejectElectronProfile(program: Command, profile: string): void {
 /** The launcher's own help text; each app prints its own. */
 const HELP_EXAMPLES = `
 Examples:
-  dsh --profile web                          boot the web profile (same as: dsh web)
-  dsh --profile rescue --from-default-profile web
-                                             create rescue from the shipped web template, then boot it
-  dsh --profile headless "run the tests"     answer one task, print the result, and exit
-  dsh --profile tui --patch ./extra.yml      boot a custom profile with one extra overlay
-  dsh --profile tui --resume <session>       arguments after the launcher flags reach the app
-  dsh --profile web --help                   the web app's own flags and help
-  dsh plugin --profile tui add <package>     install a plugin into the tui profile
+  ketos --profile web                          boot the web profile (same as: ketos web)
+  ketos --profile rescue --from-default-profile web
+                                               create rescue from the shipped web template, then boot it
+  ketos --profile headless "run the tests"     answer one task, print the result, and exit
+  ketos --profile tui --patch ./extra.yml      boot a custom profile with one extra overlay
+  ketos --profile tui --resume <session>       arguments after the launcher flags reach the app
+  ketos --profile web --help                   the web app's own flags and help
+  ketos plugin --profile tui add <package>     install a plugin into the tui profile
 `
 
 /**
@@ -129,9 +129,9 @@ export function parseDshArgs(argv: readonly string[], version: string): DshInvoc
   // inferred type would be circular through its own chain.
   const program: Command = new Command()
   program
-    .name('dsh')
+    .name('ketos')
     .version(version, '-V, --version', 'output the version number')
-    .description('dsh: boot a DeepSeek Harness profile — an ordered stack of plugin-bundle patch layers under your own overrides.')
+    .description('ketos: boot a Ketos profile — an ordered stack of plugin-bundle patch layers under your own overrides.')
     .addHelpText('after', HELP_EXAMPLES)
     .exitOverride()
     // The launcher's flags come first and end at the first token it does not
@@ -141,7 +141,7 @@ export function parseDshArgs(argv: readonly string[], version: string): DshInvoc
     .allowUnknownOption()
     .passThroughOptions()
     .enablePositionalOptions()
-    .argument('[args...]', 'arguments for the booted profile\'s app (see: dsh --profile <name> --help)')
+    .argument('[args...]', 'arguments for the booted profile\'s app (see: ketos --profile <name> --help)')
     .option('--profile <name>', 'the profile under $DSH_HOME/profiles to boot')
     .option('--from-default-profile <name>', 'initialize a new custom profile from a shipped profile template')
     .option('--patch <path>', 'extra patch-list overlay applied after the profile layer (repeatable)', collect)
@@ -178,7 +178,7 @@ export function parseDshArgs(argv: readonly string[], version: string): DshInvoc
     .allowUnknownOption()
     .passThroughOptions()
     .enablePositionalOptions()
-    .argument('[args...]', 'arguments for the web app (see: dsh web --help)')
+    .argument('[args...]', 'arguments for the web app (see: ketos web --help)')
     .option('--patch <path>', 'extra patch-list overlay applied after the profile layer (repeatable)', collect)
     .option('--dump-config', 'print the composed web-profile tree (with the user layer and any --patch) and exit')
     .option('--dump-default-config', 'print the web profile\'s bundle layers (no user layer) and exit')

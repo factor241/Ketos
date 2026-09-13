@@ -56,7 +56,7 @@ describe('SDK app startup', () => {
 
   it('prints app help without publishing readiness or binding stdin', () => {
     const { ctx, exits, out, stdin } = start(['--help'])
-    expect(out()).toContain('dsh --profile sdk')
+    expect(out()).toContain('ketos --profile sdk')
     expect(ctx.get(SDK_APP_STARTUP_SERVICE)).toBeUndefined()
     expect(exits).toEqual([0])
     stdin.end()
@@ -65,7 +65,7 @@ describe('SDK app startup', () => {
 
   it('renders the selected SDK profile name in help', () => {
     const { out } = start(['--help'], { profile: 'sdk-minimal' })
-    expect(out()).toContain('Usage: dsh --profile sdk-minimal')
-    expect(out()).toContain('dsh --profile sdk-minimal')
+    expect(out()).toContain('Usage: ketos --profile sdk-minimal')
+    expect(out()).toContain('ketos --profile sdk-minimal')
   })
 })

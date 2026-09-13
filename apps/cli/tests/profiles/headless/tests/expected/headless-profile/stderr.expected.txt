@@ -1,1 +1,1 @@
-dsh: SERVER: CLI mock provider failed
+ketos: SERVER: CLI mock provider failed

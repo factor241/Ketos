@@ -38,6 +38,13 @@ describe('application entrypoints', () => {
     ])
   })
 
+  it('accepts the launcher bin with its ketos alias to the same entry', () => {
+    const root = fixture()
+    write(root, 'apps/cli/package.json', JSON.stringify({ bin: { dsh: 'lib/bin.js', ketos: 'lib/bin.js' } }))
+
+    expect(applicationEntrypointViolations(root)).toEqual([])
+  })
+
   it('rejects an unclassified executable source', () => {
     const root = fixture()
     write(root, 'packages/example/app/src/bin.ts', '#!/usr/bin/env node\n')

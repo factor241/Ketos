@@ -93,7 +93,7 @@ function observeProcess(child: ChildProcess): ProcessObservation {
   timer.unref()
   const append = (chunk: Buffer | string): void => {
     output = `${output}${String(chunk)}`.slice(-100_000)
-    const match = /dsh web: (http:\/\/[^\s]+)/u.exec(output)
+    const match = /ketos web: (http:\/\/[^\s]+)/u.exec(output)
     if (settled || match?.[1] === undefined) return
     settled = true
     clearTimeout(timer)

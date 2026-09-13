@@ -124,7 +124,7 @@ async function runHeadlessPtySmoke(): Promise<string> {
 describe.skipIf(process.platform === 'win32')('headless process shutdown (real Loader tree in a PTY)', () => {
   it('lets a second Ctrl+C force exit while the first signal is draining', async () => {
     const output = await runHeadlessPtySmoke()
-    expect(output).not.toContain('dsh: observing at ')
+    expect(output).not.toContain('ketos: observing at ')
     expect(output).toContain('dsh-test: never-dispose ready')
     expect(output).toContain('dsh-test: never-dispose started')
   }, LOADER_SMOKE_TEST_TIMEOUT_MS)

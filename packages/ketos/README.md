@@ -25,7 +25,7 @@ The ketos group owns the packages the Ketos fork adds on top of the upstream Dee
 
 | Package | Role |
 |---|---|
-| [`@ketos/client-locale-ru`](client-locale-ru/README.md) | Russian locale pack for the web GUI: registers `ru`, translates the shared and settings vocabularies, and applies `ru` while the user has no stored locale preference |
+| [`@ketos/client-locale-ru`](client-locale-ru/README.md) | Russian locale pack for the web GUI: registers `ru`, translates the shared, settings, and board vocabularies, and applies `ru` while the user has no stored locale preference |
 
 -----
 

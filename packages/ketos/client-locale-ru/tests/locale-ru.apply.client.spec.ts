@@ -14,7 +14,7 @@ import { LocaleSettingsSchema } from '@deepseek-ai/dsh-client-locale/src/locale-
 import {
   apply as localeApply, inject as localeInject, type LocaleRuntime,
 } from '@deepseek-ai/dsh-client-locale/client'
-import { apply, COMMON_NS } from '../src/client/index.ts'
+import { apply, BOARD_NS, COMMON_NS } from '../src/client/index.ts'
 
 /** Adds a hook that keeps the first settings describe pending until released. */
 interface BenchOptions {
@@ -138,6 +138,9 @@ describe('ketos ru language pack', () => {
     await withBrowserLanguage(['ru-RU'], async () => {
       const b = await bench(undefined)
       await vi.waitFor(() => { expect(b.locale().getLocale().active).toBe('ru') })
+      // The board namespace is translated too: the Ketos canvas copy has no ru fallback gap.
+      expect(b.locale().bind(BOARD_NS)('sidebar.panel')).toBe('Доска')
+      expect(b.locale().bind(BOARD_NS)('agent.contextUsed', { used: '32.9', max: '200.0' })).toContain('32.9')
     })
   })
 

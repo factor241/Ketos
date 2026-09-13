@@ -1,10 +1,11 @@
 /**
  * Ketos Russian language pack, browser half. Registers the `ru` locale with
- * the shared locale service, translates the `common` and `settings.locale`
- * namespaces, and applies Russian as the default active locale exactly once —
- * only when the durable locale preference is absent. An explicit user choice
- * (for example English) is adopted by the locale service's own scope
- * subscription; this plugin observes it and never writes over it.
+ * the shared locale service, translates the `common`, `settings.locale`, and
+ * `board` namespaces, and applies Russian as the default active locale
+ * exactly once — only when the durable locale preference is absent. An
+ * explicit user choice (for example English) is adopted by the locale
+ * service's own scope subscription; this plugin observes it and never writes
+ * over it.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the ctx.locale service merge and the shared key unions
@@ -12,7 +13,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // client bundle purity gate).
 import type { LocaleSettings } from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-import { ru, settingsRu } from '../locales/index.ts'
+import { boardRu, ru, settingsRu } from '../locales/index.ts'
 
 // Value import from the same package's browser face is impossible without a
 // feature-plugin dependency; the browser-name check mirrors
@@ -29,6 +30,8 @@ const LOCALE_PREFERENCE_FIELD = 'preference'
 export const COMMON_NS = 'common'
 /** Namespace of the locale feature's own settings-row copy. */
 export const SETTINGS_NS = 'settings.locale'
+/** Namespace of the Ketos spatial board (canvas, rail, windows, omnibox). */
+export const BOARD_NS = 'board'
 
 /**
  * Whether the browser asks for Russian without naming a base language first.
@@ -81,6 +84,10 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(
     () => locale.register(SETTINGS_NS, 'ru', settingsRu),
     'ketos-locale-ru: settings.locale dictionary',
+  )
+  ctx.effect(
+    () => locale.register(BOARD_NS, 'ru', boardRu),
+    'ketos-locale-ru: board dictionary',
   )
 
   // The runtime's own scope adoption resolves stored preferences; this watcher

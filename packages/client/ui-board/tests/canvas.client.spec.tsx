@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 
-import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { render } from '@testing-library/react'
 import { Minimap } from '../src/client/canvas/Minimap.tsx'
@@ -51,7 +50,7 @@ describe('Minimap Component', () => {
         viewportHeight={1080}
         onPanChange={onPanChange}
         onFocusWindow={onFocusWindow}
-      />
+      />,
     )
 
     const svg = container.querySelector('svg')
@@ -87,7 +86,7 @@ describe('DashboardCanvas Component', () => {
     actions.addWindow(win)
 
     const { container, getByText } = render(
-      <DashboardCanvas state={store.getSnapshot()} actions={actions} />
+      <DashboardCanvas state={store.getSnapshot()} actions={actions} />,
     )
 
     // Canvas surface exists

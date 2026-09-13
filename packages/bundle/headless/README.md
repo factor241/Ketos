@@ -33,7 +33,7 @@ Run one task, get the final answer, and exit. The task is the command line itsel
 dsh --profile headless "run the tests"
 ```
 
-The agent works through the task, streams each non-empty provider reasoning delta to stderr under a `dsh: reasoning:` heading, then prints the final answer on stdout and exits. Consecutive reasoning deltas stay in one section, and the runner closes that section before later output when the provider supplied no trailing newline. A successful run without reasoning keeps stderr empty; a failure exits 1 and prints `dsh: <code>: <message>` to stderr. A missing or blank task is rejected before anything runs. The task text is supplied through the single `task` setting:
+The agent works through the task, streams each non-empty provider reasoning delta to stderr under a `ketos: reasoning:` heading, then prints the final answer on stdout and exits. Consecutive reasoning deltas stay in one section, and the runner closes that section before later output when the provider supplied no trailing newline. A successful run without reasoning keeps stderr empty; a failure exits 1 and prints `ketos: <code>: <message>` to stderr. A missing or blank task is rejected before anything runs. The task text is supplied through the single `task` setting:
 
 | Field | Default | Meaning |
 |---|---|---|
@@ -69,7 +69,7 @@ The patch rides over `dsh-base`: it inherits the projection cache, sets the codi
 
 ### Exit mapping
 
-A completed final `turn/end` exits 0; any other outcome — aborted, error, or no turn in the owned interval — exits 1. An `error` reason also writes `dsh: <code>: <message>` to stderr. A direct driver failure (for example, Agent creation) writes `dsh: <message>` to stderr and exits 1.
+A completed final `turn/end` exits 0; any other outcome — aborted, error, or no turn in the owned interval — exits 1. An `error` reason also writes `ketos: <code>: <message>` to stderr. A direct driver failure (for example, Agent creation) writes `ketos: <message>` to stderr and exits 1.
 
 ### Source map
 

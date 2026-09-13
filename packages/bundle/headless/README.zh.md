@@ -33,7 +33,7 @@ kind: "package-bundle"
 dsh --profile headless "run the tests"
 ```
 
-agent 会完成该任务，把提供方的每个非空推理（reasoning）增量流式写入 stderr 的 `dsh: reasoning:` 段，然后把最终答案写入 stdout 并退出。连续推理增量保持在同一段中；提供方未给尾换行时，runner 会在后续输出前结束该段。没有推理内容的成功运行保持 stderr 为空；失败时退出码为 1，并以 `dsh: <code>: <message>` 向 stderr 写入错误。缺失或空白任务会在任何执行开始之前被拒绝。任务文本通过唯一的 `task` 设置提供：
+agent 会完成该任务，把提供方的每个非空推理（reasoning）增量流式写入 stderr 的 `ketos: reasoning:` 段，然后把最终答案写入 stdout 并退出。连续推理增量保持在同一段中；提供方未给尾换行时，runner 会在后续输出前结束该段。没有推理内容的成功运行保持 stderr 为空；失败时退出码为 1，并以 `ketos: <code>: <message>` 向 stderr 写入错误。缺失或空白任务会在任何执行开始之前被拒绝。任务文本通过唯一的 `task` 设置提供：
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
@@ -69,7 +69,7 @@ patch 叠加在 `dsh-base` 之上：继承投影缓存，在基础 `system-promp
 
 ### 退出映射
 
-最终 `turn/end` 完成时退出码为 0；任何其他结果——aborted、error，或所属区间内没有轮次——退出码为 1。结束原因为 `error` 时还会向 stderr 写入 `dsh: <code>: <message>`。直接驱动器失败（例如 Agent 创建失败）向 stderr 写入 `dsh: <message>` 并退出 1。
+最终 `turn/end` 完成时退出码为 0；任何其他结果——aborted、error，或所属区间内没有轮次——退出码为 1。结束原因为 `error` 时还会向 stderr 写入 `ketos: <code>: <message>`。直接驱动器失败（例如 Agent 创建失败）向 stderr 写入 `ketos: <message>` 并退出 1。
 
 ### 源码地图
 

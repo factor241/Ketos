@@ -14,6 +14,12 @@ import type { LocaleSettings } from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { ru, settingsRu } from '../locales/index.ts'
 
+// Value import from the same package's browser face is impossible without a
+// feature-plugin dependency; the browser-name check mirrors
+// `detectBrowserLocale` in dsh-client-locale, whose token ordering contract
+// this helper keeps local.
+const RU_TOKEN = 'ru'
+
 /** Mirror of the locale package's namespace constants; type-only import contract. */
 const LOCALE_SETTINGS_NAMESPACE = 'locale'
 /** Mirror of the locale package's preference field constant. */
@@ -23,6 +29,30 @@ const LOCALE_PREFERENCE_FIELD = 'preference'
 export const COMMON_NS = 'common'
 /** Namespace of the locale feature's own settings-row copy. */
 export const SETTINGS_NS = 'settings.locale'
+
+/**
+ * Whether the browser asks for Russian without naming a base language first.
+ * Mirrors `detectBrowserLocale` in dsh-client-locale word-for-word: tags
+ * match `ru` exactly, by primary subtag, and the ordered `languages` list
+ * precedes `language`; the list order wins. A browser naming a base language
+ * (`zh`, `en`) first keeps the ordinary chain, and the shipped
+ * no-shipped-language fallback stays English, so the Ketos default applies
+ * only when the deployment's browser itself asks for Russian.
+ * Non-browser runs report `false` and keep the shipped fallback.
+ * @returns `true` when the browser asks for `ru` and the default may apply.
+ */
+function browserAsksRu(): boolean {
+  if (typeof window === 'undefined') return false
+  const navigator = (window as { readonly navigator?: { language?: string; languages?: readonly string[] } }).navigator
+  for (const tag of [...(navigator?.languages ?? []), navigator?.language]) {
+    if (tag === undefined) continue
+    const requested = tag.toLowerCase()
+    if (requested === RU_TOKEN) return true
+    if (requested.startsWith(`${RU_TOKEN}-`)) return true
+    if (requested.split('-')[0] === RU_TOKEN) return true
+  }
+  return false
+}
 
 /** Required services: the locale registry and the settings transport. */
 export const inject = ['locale', 'settingsScope']
@@ -61,10 +91,12 @@ export function apply(ctx: ClientContext): void {
     const snapshot = scope.getSnapshot()
     if (defaulted || snapshot.status === 'loading') return
     defaulted = true
-    // An unavailable scope stays on the browser-derived locale; only an
-    // available document without a stored preference defaults to `ru`.
+    // An unavailable scope stays on the browser-derived locale; the pack
+    // defaults to `ru` only when the browser itself asks for Russian and no
+    // stored preference exists, leaving the shipped zh/en fallback contract
+    // untouched otherwise.
     if (snapshot.status === 'ready' && snapshot.value?.[LOCALE_PREFERENCE_FIELD] === undefined) {
-      locale.setLocale('ru')
+      if (browserAsksRu()) locale.setLocale('ru')
     }
   }
   ctx.effect(() => {

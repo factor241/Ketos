@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-13-ketos-rebranding-boundaries.md
-2026-09-13-ketos-rebranding-boundaries.md: 234489774a958efb75c7eca75aeccbdc91aa846c
-2026-09-13-ketos-rebranding-boundaries.zh.md: 39862c303567e5bade751c723c1a87fcdef4e44b
+2026-09-13-ketos-rebranding-boundaries.md: 2ae5bb482c8e67cc66add6e31cceb8c1fd9eff25
+2026-09-13-ketos-rebranding-boundaries.zh.md: 8bc0df3e80b709d69beb7ed8c8763c331ea1abd4

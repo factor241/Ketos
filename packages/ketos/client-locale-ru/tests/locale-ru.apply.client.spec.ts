@@ -14,7 +14,7 @@ import { LocaleSettingsSchema } from '@deepseek-ai/dsh-client-locale/src/locale-
 import {
   apply as localeApply, inject as localeInject, type LocaleRuntime,
 } from '@deepseek-ai/dsh-client-locale/client'
-import { apply, COMMON_NS, SETTINGS_NS } from '../src/client/index.ts'
+import { apply, COMMON_NS } from '../src/client/index.ts'
 
 /** Adds a hook that keeps the first settings describe pending until released. */
 interface BenchOptions {
@@ -78,13 +78,36 @@ async function bench(storedPreference: string | undefined, options: BenchOptions
   }
 }
 
+/**
+ * Run `body` with the browser's own language reports stubbed; `undefined`
+ * removes the navigator entirely, so the shipped fallback contract is what
+ * the pack sees.
+ */
+async function withBrowserLanguage(tags: string[] | undefined, body: () => Promise<void>): Promise<void> {
+  const g = globalThis as unknown as {
+    navigator?: { language: string; languages?: string[] }
+    window?: { navigator?: { language: string; languages?: string[] } }
+  }
+  const originalNavigator = g.navigator
+  const originalWindow = g.window
+  const stub = tags === undefined ? undefined : { language: tags.at(-1)!, languages: tags.slice(0, -1) }
+  Object.defineProperty(g, 'navigator', { value: stub, configurable: true })
+  Object.defineProperty(g, 'window', { value: stub === undefined ? undefined : { navigator: stub }, configurable: true })
+  try {
+    await body()
+  } finally {
+    if (originalNavigator === undefined) delete (g as Record<string, unknown>).navigator
+    else Object.defineProperty(g, 'navigator', { value: originalNavigator, configurable: true })
+    if (originalWindow === undefined) delete (g as Record<string, unknown>).window
+    else Object.defineProperty(g, 'window', { value: originalWindow, configurable: true })
+  }
+}
+
 describe('ketos ru language pack', () => {
-  it('adds ru to the catalog with the en fallback and translates the registered namespaces', async () => {
+  it('adds ru to the catalog with the en fallback and leaves the active chain alone without a ru ask', async () => {
     const b = await bench(undefined)
     const locales = b.locale().getLocale().locales
     expect(locales.find(locale => locale.id === 'ru')).toEqual({ id: 'ru', label: 'Русский', fallback: 'en' })
-    // The settings row copy answers in Russian through the namespace's own seat.
-    expect(b.locale().bind(SETTINGS_NS)('language.title')).toBe('Язык')
   })
 
   it('disposal removes the language and its dictionaries (registry contributions prove disposal)', async () => {
@@ -94,19 +117,41 @@ describe('ketos ru language pack', () => {
     expect(b.locale().getLocale().active).toBe('en')
   })
 
-  it('defers the no-preference default until the settings document resolves, then applies ru', async () => {
-    const b = await bench(undefined, { defer: true })
-    expect(b.locale().getLocale().active).not.toBe('ru')
-    b.release()
-    await vi.waitFor(() => { expect(b.locale().getLocale().active).toBe('ru') })
-    expect(b.locale().bind(COMMON_NS)('copy')).toBe('Копировать')
-    expect(b.locale().bind(COMMON_NS)('brand.localBuild')).toBe('Локальная сборка Кетос')
-    expect(b.locale().bind(COMMON_NS)('copy.optionsHint', { action: 'Действие' })).toContain('Действие;')
+  it('defers the durable ru preference write until the settings document resolves, then writes it once', async () => {
+    await withBrowserLanguage(['ru-RU'], async () => {
+      const b = await bench(undefined, { defer: true })
+      // The provisional recompute may already show ru after registration, but
+      // the durable preference write must not happen before the document asks.
+      expect(b.mutate).not.toHaveBeenCalled()
+      b.release()
+      await vi.waitFor(() => {
+        expect(b.mutate.mock.calls.some(([, ops]) => ops[0]?.value === 'ru')).toBe(true)
+      })
+      expect(b.locale().getLocale().active).toBe('ru')
+      expect(b.locale().bind(COMMON_NS)('copy')).toBe('Копировать')
+      expect(b.locale().bind(COMMON_NS)('brand.localBuild')).toBe('Локальная сборка Кетос')
+      expect(b.locale().bind(COMMON_NS)('copy.optionsHint', { action: 'Действие' })).toContain('Действие;')
+    })
   })
 
-  it('defaults to ru immediately when the stored document already resolved without a preference', async () => {
-    const b = await bench(undefined)
-    await vi.waitFor(() => { expect(b.locale().getLocale().active).toBe('ru') })
+  it('defaults to ru immediately when the settings document resolved without a preference', async () => {
+    await withBrowserLanguage(['ru-RU'], async () => {
+      const b = await bench(undefined)
+      await vi.waitFor(() => { expect(b.locale().getLocale().active).toBe('ru') })
+    })
+  })
+
+  it('keeps the browser-requested base language and the no-shipped-language en fallback', async () => {
+    await withBrowserLanguage(['en-US'], async () => {
+      const b = await bench(undefined)
+      await vi.waitFor(() => { expect(b.locale().getLocale().active).toBe('en') })
+      expect(b.mutate).not.toHaveBeenCalled()
+    })
+    await withBrowserLanguage(['fr-FR'], async () => {
+      const b = await bench(undefined)
+      await vi.waitFor(() => { expect(b.locale().getLocale().active).toBe('en') })
+      expect(b.mutate).not.toHaveBeenCalled()
+    })
   })
 
   it('keeps an explicit en preference: no ru write, en stays active across disposal and re-apply', async () => {

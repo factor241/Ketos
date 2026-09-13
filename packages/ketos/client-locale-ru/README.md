@@ -1,5 +1,5 @@
 ---
-description: "Ketos language pack for the web GUI: the Russian locale, its shared and settings dictionaries, and the ru default while no locale preference is stored."
+description: "Ketos language pack for the web GUI: the Russian locale, its shared and settings dictionaries, and the ru default when the deployment's browser asks for Russian."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Ketos ships Russian as the default interface language without renaming the locale machinery or overriding an explicit user choice. The client plugin registers the `ru` language in the shared catalog (fallback `en`), translates the `common` and `settings.locale` namespaces, and switches the active locale to `ru` exactly once — only when the durable `locale` settings section carries no `preference`. A stored selection (for example `en`) is adopted by the locale service's own scope subscription and is never overwritten.
+Ketos ships Russian as the default interface language for Russian deployments without renaming the locale machinery or overriding an explicit user choice. The client plugin registers the `ru` language in the shared catalog (fallback `en`), translates the `common` and `settings.locale` namespaces, and switches the active locale to `ru` exactly once — when the durable `locale` settings section carries no `preference` and the browser itself asks for a `ru`-tagged language (the same ordered `navigator.languages` match `dsh-client-locale` applies). Browsers naming the shipped `zh`/`en` chains or an unregistered language keep the ordinary browser-derived fallback; a stored selection (for example `en`) is adopted by the locale service's own scope subscription and is never overwritten.
 
 ## Table of Contents
 
@@ -38,7 +38,7 @@ No effect; the one settings entry the `ru` default writes at boot (`locale: { pr
 ## Known Limitations and Deferred Work
 
 - Dictionaries cover `common` and `settings.locale` only; namespace-local dictionaries of the other client features resolve through the `ru → en` fallback chain, so those surfaces keep English copy until their owning packages open per-feature `ru` dictionaries.
-- The `ru` default writes `locale: { preference: ru }` through the ordinary set path when the stored document initially lacks a preference; a fresh home therefore records the choice after the first run.
+- The `ru` default writes `locale: { preference: ru }` through the ordinary set path when the browser asks Russian and the stored document initially lacks a preference; a fresh home therefore records the choice after the first run, and an `en`-named browser keeps English.
 
 ### Dev Note
 

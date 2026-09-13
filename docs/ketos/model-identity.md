@@ -10,24 +10,25 @@
 
 Патч-слой заменяет ряд конфига плагина целиком — остальные ключи перечисляются заново. Готовый in-tree прецедент: [packages/bundle/sdk-minimal/cordis.patch.yml](../../packages/bundle/sdk-minimal/cordis.patch.yml) (строка `system-prompt` с `includeHarnessIdentity: false`).
 
-Файл `$DSH_HOME/cordis.patch.yml` (пользовательский patch-слой поверх профиля; форма строки совпадает с [packages/bundle/web-app/cordis.patch.yml](../../packages/bundle/web-app/cordis.patch.yml)):
+Готовый патч-файл: [`model-identity.patch.yml`](model-identity.patch.yml) (в этом каталоге). Форма строки совпадает с [packages/bundle/web-app/cordis.patch.yml](../../packages/bundle/web-app/cordis.patch.yml):
 
 ```yaml
 - id: system-prompt
   name: '@deepseek-ai/dsh-system-prompt'
   config:
     includeHarnessIdentity: false
-    personaPrefix: 'You are an assistant of the Ketos platform, a personal AI-orchestration environment.'
+    personaSuffix: Your working directory is {{cwd}}.
+    personaPrefix: >-
+      You are an assistant of the Ketos platform, a personal AI-orchestration environment.
 ```
 
 Формы применения: `cordis.patch.yml` в доме пользователя или флаг `--patch <файл>` (`dsh --patch a.yml` — повторяемый сборщик патч-оверлеев). Поле `includeHarnessIdentity: false` опускает только фиксированный first-party опенер; `personaPrefix` задаёт собственный текст.
 
 ## Проверка применения
 
-Запуск сесии с патчем не требует API-ключа для проверки сборки промпта: гейт `includeHarnessIdentity` покрыт спеком `packages/core/system-prompt/tests/system-prompt.spec.ts` (кейс `includeHarnessIdentity: false` + `personaPrefix`), который собирает реальный prompt через плагин `SystemPrompt` и подтверждает отсутствие identity-строки и наличие персона-текста. Отправка запроса с патчем не меняет формат сессии и `SESSION_FORMAT_VERSION`; снапшоты не пересобираются.
+Патч применяется без модели и без API-ключа: `pnpm dsh --profile web --patch docs/ketos/model-identity.patch.yml --dump-config` печатает собранное дерево профиля с наложенным оверлеем (в строке `system-prompt` видны `includeHarnessIdentity: false` и `personaPrefix`), exit 0 подтверждает, что файл валиден и композиция собирается. Полная сборка промпта с тем же отключением идентичности покрыта спеком `packages/core/system-prompt/tests/system-prompt.spec.ts` (кейс `includeHarnessIdentity: false` + `personaPrefix`), который собирает реальный prompt через плагин `SystemPrompt` и подтверждает отсутствие identity-строки и наличие персона-текста. Отправка запроса с патчем не меняет формат сессии и `SESSION_FORMAT_VERSION`; снапшоты не пересобираются.
 
 ```sh
+pnpm dsh --profile web --patch docs/ketos/model-identity.patch.yml --dump-config
 pnpm exec vitest run packages/core/system-prompt/tests
 ```
-
-Успех команды — подтверждение, что маршрут патча не ломает сборку промпта и не требует обновлений снапшотов.

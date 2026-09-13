@@ -1,0 +1,11 @@
+# Ketos deployment persona patch.
+# Apply with `--patch docs/ketos/model-identity.patch.yml`, or copy this file to
+# $DSH_HOME/cordis.patch.yml for a per-home default. A patch replaces the
+# targeted row's whole `config`, so every key to keep is restated.
+- id: system-prompt
+  name: '@deepseek-ai/dsh-system-prompt'
+  config:
+    includeHarnessIdentity: false
+    personaSuffix: Your working directory is {{cwd}}.
+    personaPrefix: >-
+      You are an assistant of the Ketos platform, a personal AI-orchestration environment.

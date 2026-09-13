@@ -16,7 +16,7 @@ Status: implemented
 - **就绪协议。** 服务启动行为 `ketos web: <url>`；所有解析型消费者——bundle 测试、CLI e2e 夹具与期望、`publish-npm-baseline`、headless stderr 片段、会话快照——在同一次提交中迁移。`dsh web:` 不再是有效的就绪前缀，而 ACP profile 帮助（`Usage: dsh --profile acp`）保持 `dsh`，因为 ACP 保留 upstream 客户端名称。
 - **容器 home。** `apps/cli/src/bin.ts` 在 boot 解析任何路径之前设置 `process.env.DSH_HOME ??= join(homedir(), '.ketos')`；变量名 `DSH_HOME` 与 `resolveDshHome` 的内部默认 `~/.dsh` 永不改变。
 - **包面。** `@ketos/<name>` 是 `packages/ketos/` 下分叉专属的 scope：workspace 约束的 release-member 正则在 `experimental/` 旁排除该组，使成员落入强制 `private: true` 分支；该组豁免子系统页面；其 README 仍遵循常规双语对契约。首个成员：`@ketos/client-locale-ru`。
-- **Locale。** ru 语言包以回退 `en` 注册 `ru`，注册共享 `common`、`settings.locale` 与 `board` 的 ru 词典，并且仅在 durable `locale` 设置快照解析为没有已存 `preference`、且浏览器本身请求带 `ru` 标签的语言时应用 `setLocale('ru')`，因此随附 `zh`/`en` 回退契约与显式 en 在 disposal 与重新应用后依然保持。
+- **Locale。** ru 语言包以回退 `en` 注册 `ru`，翻译完整的 Ketos UI 词典——社区 [`deepseek-harness-locale-ru`](https://github.com/warment/deepseek-harness-locale-ru) 包（MIT，随 `LICENSE-locale-ru` 中的声明一并引入），已改名为 Ketos 并补齐 Ketos 语料新增的键，加上 `common` 与 `board`（44 个命名空间）——并且仅在 durable `locale` 设置快照解析为没有已存 `preference`、且浏览器本身请求带 `ru` 标签的语言时应用 `setLocale('ru')`，因此随附 `zh`/`en` 回退契约与显式 en 在 disposal 与重新应用后依然保持。词典由 `packages/ketos/client-locale-ru/scripts/sync-dictionaries.mjs` 从社区包、fork 语料与改名/补缺覆盖项生成；包测试按生成的 `tests/fixtures/ru-keys.json` 清单校验覆盖率。web bundle 补丁重述权限预设表，因为基座行只带机器 id。
 - **Web 品牌。** 官方构建标题 `Ketos`（Vite 本地默认 `Ketos Local Build`）、PWA 清单 `Ketos`/`KETOS`、Ketos favicon 图形、启动页 `KETOS`、包内 `KetosMark`/`KetosWordmark` 侧边栏图形仅在 `ui-brand-official` 替换 upstream 鱼形标志、`brand.localBuild` = `Ketos Local Build`、Ketos onboarding 文案并提升 notice 版本。`ui-primitives` 导出（`FishLogo`、hero 鱼形）保持 upstream。
 - **模型可见文本（暂缓）。** harness 身份行、web-surface 提示词与 cordis preset persona 保留 upstream 措辞；需要 Ketos persona 的部署使用用户 patch 层（`includeHarnessIdentity: false` + `personaPrefix`，记录于 `docs/ketos/model-identity.md`，并作为 `docs/ketos/model-identity.patch.yml` 随仓库提供）。一个在阶段 0.3 范围内例外落地：401 web-auth 正文命名为 `ketos web`，因为该文本会直接到达浏览器。
 
@@ -36,7 +36,7 @@ Status: implemented
 
 ## Consequences
 
-来自 upstream 的 merge 集中于已知文件集（记录在 `docs/ketos/upstream-sync.md`；品牌字面量与 upstream 编辑相遇处仍会产生冲突）。新的 upstream 界面在分类之前不带品牌——清单与评审清单是扩展纪律，而非自动化。Ketos 网页标题改变了发布校验常量，因此每次标题变动时官方环境检查与 `families.ts` 一起移动。未被 common、settings.locale 与 board ru 词典覆盖的特性本地 UI 文案仍通过已记录的退化链以英文渲染（语言包的已知限制，记录在其 README）。Desktop/Electron 用户界面已在 `brand-inventory.md` 中分类，并随 post-MVP 桌面应用一并暂缓；MVP 只发布 web profile。
+来自 upstream 的 merge 集中于已知文件集（记录在 `docs/ketos/upstream-sync.md`；品牌字面量与 upstream 编辑相遇处仍会产生冲突）。新的 upstream 界面在分类之前不带品牌——清单与评审清单是扩展纪律，而非自动化。Ketos 网页标题改变了发布校验常量，因此每次标题变动时官方环境检查与 `families.ts` 一起移动。上次语料提取之后由 upstream 新增的客户端键仍会通过已记录的退化链以英文渲染，直到重新同步语言包（语言包的已知限制，连同提取与再生成流程记录在其 README）。Desktop/Electron 用户界面已在 `brand-inventory.md` 中分类，并随 post-MVP 桌面应用一并暂缓；MVP 只发布 web profile。
 
 ## Related
 

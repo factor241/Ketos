@@ -1,7 +1,7 @@
 /**
  * Ketos Russian language pack, browser half. Registers the `ru` locale with
- * the shared locale service, translates the `common`, `settings.locale`, and
- * `board` namespaces, and applies Russian as the default active locale
+ * the shared locale service, translates the complete Ketos UI corpus (the
+ * community pack's namespaces plus `common` and `board`), and applies Russian as the default active locale
  * exactly once — only when the durable locale preference is absent. An
  * explicit user choice (for example English) is adopted by the locale
  * service's own scope subscription; this plugin observes it and never writes
@@ -13,7 +13,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // client bundle purity gate).
 import type { LocaleSettings } from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-import { boardRu, ru, settingsRu } from '../locales/index.ts'
+import { boardRu, packRu, ru } from '../locales/index.ts'
 
 // Value import from the same package's browser face is impossible without a
 // feature-plugin dependency; the browser-name check mirrors
@@ -28,16 +28,14 @@ const LOCALE_PREFERENCE_FIELD = 'preference'
 
 /** Namespace of the shared shell vocabulary. */
 export const COMMON_NS = 'common'
-/** Namespace of the locale feature's own settings-row copy. */
-export const SETTINGS_NS = 'settings.locale'
 /** Namespace of the Ketos spatial board (canvas, rail, windows, omnibox). */
 export const BOARD_NS = 'board'
 
 /**
  * Whether the browser asks for Russian without naming a base language first.
- * Mirrors `detectBrowserLocale` in dsh-client-locale word-for-word: tags
- * match `ru` exactly, by primary subtag, and the ordered `languages` list
- * precedes `language`; the list order wins. A browser naming a base language
+ * Mirrors `detectBrowserLocale` in dsh-client-locale: tags match `ru` exactly
+ * or by the `ru-` prefix, and the ordered `languages` list precedes
+ * `language`; the list order wins. A browser naming a base language
  * (`zh`, `en`) first keeps the ordinary chain, and the shipped
  * no-shipped-language fallback stays English, so the Ketos default applies
  * only when the deployment's browser itself asks for Russian.
@@ -46,13 +44,12 @@ export const BOARD_NS = 'board'
  */
 function browserAsksRu(): boolean {
   if (typeof window === 'undefined') return false
-  const navigator = (window as { readonly navigator?: { language?: string; languages?: readonly string[] } }).navigator
-  for (const tag of [...(navigator?.languages ?? []), navigator?.language]) {
-    if (tag === undefined) continue
+  // Embedders and older WebViews may omit the DOM-typed `languages` property.
+  const languages = (navigator as { readonly languages?: readonly string[] }).languages
+  for (const tag of [...(languages ?? []), navigator.language]) {
     const requested = tag.toLowerCase()
     if (requested === RU_TOKEN) return true
     if (requested.startsWith(`${RU_TOKEN}-`)) return true
-    if (requested.split('-')[0] === RU_TOKEN) return true
   }
   return false
 }
@@ -82,13 +79,15 @@ export function apply(ctx: ClientContext): void {
     'ketos-locale-ru: common dictionary',
   )
   ctx.effect(
-    () => locale.register(SETTINGS_NS, 'ru', settingsRu),
-    'ketos-locale-ru: settings.locale dictionary',
-  )
-  ctx.effect(
     () => locale.register(BOARD_NS, 'ru', boardRu),
     'ketos-locale-ru: board dictionary',
   )
+  for (const [namespace, dictionary] of Object.entries(packRu)) {
+    ctx.effect(
+      () => locale.register(namespace, 'ru', dictionary),
+      `ketos-locale-ru: ${namespace} dictionary`,
+    )
+  }
 
   // The runtime's own scope adoption resolves stored preferences; this watcher
   // only decides the no-preference default, once, and then stands down.

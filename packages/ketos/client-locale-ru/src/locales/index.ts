@@ -6,4 +6,4 @@
  */
 export { ru as boardRu } from './board-ru.ts'
 export { ru } from './common-ru.ts'
-export { ru as settingsRu } from './settings-ru.ts'
+export { ru as packRu } from './pack-ru.ts'

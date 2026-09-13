@@ -5,6 +5,7 @@
  * snapshot), and the stored-preference guard that keeps an explicit `en`
  * choice untouched. Service-level seams; no DOM pragma needed.
  */
+import { readFileSync } from 'node:fs'
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -15,6 +16,8 @@ import {
   apply as localeApply, inject as localeInject, type LocaleRuntime,
 } from '@deepseek-ai/dsh-client-locale/client'
 import { apply, BOARD_NS, COMMON_NS } from '../src/client/index.ts'
+import { apply as hostApply } from '../src/index.ts'
+import { boardRu, packRu, ru as commonRu } from '../src/locales/index.ts'
 
 /** Adds a hook that keeps the first settings describe pending until released. */
 interface BenchOptions {
@@ -90,7 +93,12 @@ async function withBrowserLanguage(tags: string[] | undefined, body: () => Promi
   }
   const originalNavigator = g.navigator
   const originalWindow = g.window
-  const stub = tags === undefined ? undefined : { language: tags.at(-1)!, languages: tags.slice(0, -1) }
+  // A single tag omits `languages`, the embedder/older-WebView state the
+  // locale package's detector guards with `?? []`; two or more tags exercise
+  // the ordered `languages` list.
+  const stub = tags === undefined
+    ? undefined
+    : { language: tags.at(-1)!, ...(tags.length > 1 ? { languages: tags.slice(0, -1) } : {}) }
   Object.defineProperty(g, 'navigator', { value: stub, configurable: true })
   Object.defineProperty(g, 'window', { value: stub === undefined ? undefined : { navigator: stub }, configurable: true })
   try {
@@ -104,6 +112,44 @@ async function withBrowserLanguage(tags: string[] | undefined, body: () => Promi
 }
 
 describe('ketos ru language pack', () => {
+  it('covers every key of the recorded fork corpus with a non-empty translation', () => {
+    const manifest = JSON.parse(
+      readFileSync(new URL('./fixtures/ru-keys.json', import.meta.url), 'utf8'),
+    ) as Record<string, string[]>
+    const dictionaries: Record<string, Record<string, string>> = { common: commonRu, board: boardRu, ...packRu }
+    expect(Object.keys(dictionaries).sort()).toEqual(Object.keys(manifest).sort())
+    for (const [namespace, keys] of Object.entries(manifest)) {
+      const dictionary = dictionaries[namespace] ?? {}
+      expect(Object.keys(dictionary).sort()).toEqual(keys)
+      for (const value of Object.values(dictionary)) {
+        // A NBSP group separator is a legitimate non-empty value; trim() would
+        // erase it.
+        expect(value).not.toBe('')
+      }
+    }
+  })
+
+  it('mounts and disposes the host half as an ordinary no-op plugin', async () => {
+    const ctx = new Context()
+    const host = ctx.plugin({ apply: hostApply })
+    await host.await()
+    await host.dispose()
+  })
+
+  it('defaults to ru when the browser names the exact ru tag', async () => {
+    await withBrowserLanguage(['ru'], async () => {
+      const b = await bench(undefined)
+      await vi.waitFor(() => { expect(b.locale().getLocale().active).toBe('ru') })
+    })
+  })
+
+  it('defaults to ru when the ordered languages list names ru after a base language', async () => {
+    await withBrowserLanguage(['de-DE', 'ru'], async () => {
+      const b = await bench(undefined)
+      await vi.waitFor(() => { expect(b.locale().getLocale().active).toBe('ru') })
+    })
+  })
+
   it('adds ru to the catalog with the en fallback and leaves the active chain alone without a ru ask', async () => {
     const b = await bench(undefined)
     const locales = b.locale().getLocale().locales
@@ -141,6 +187,25 @@ describe('ketos ru language pack', () => {
       // The board namespace is translated too: the Ketos canvas copy has no ru fallback gap.
       expect(b.locale().bind(BOARD_NS)('sidebar.panel')).toBe('Доска')
       expect(b.locale().bind(BOARD_NS)('agent.contextUsed', { used: '32.9', max: '200.0' })).toContain('32.9')
+    })
+  })
+
+  it('registers the complete Ketos corpus: the community namespaces, common, and board resolve in ru', async () => {
+    await withBrowserLanguage(['ru-RU'], async () => {
+      const b = await bench(undefined)
+      await vi.waitFor(() => { expect(b.locale().getLocale().active).toBe('ru') })
+      expect(b.locale().bind('chat')('stats.dialog.title')).toBe('Статистика сессии')
+      expect(b.locale().bind('settings.locale')('language.title')).toBe('Язык')
+      expect(b.locale().bind('settings.models')('customBaseUrlInvalid')).toBe('Введите корректный URL с HTTP или HTTPS.')
+      expect(b.locale().bind('schedule.catalog')('status.overdue')).toBe('Просрочено')
+      expect(b.locale().bind('open-in-app')('app.explorer')).toBe('Проводник')
+      expect(b.locale().bind('sidebarRight')('dock.splitPane')).toBe('Разделить')
+      // Rebranding: the community pack's product-name strings are Ketos, while
+      // the DeepSeek provider keeps its own name.
+      expect(b.locale().bind('settings.models')('welcomeBody')).toContain('Кетос')
+      expect(b.locale().bind('settings.models')('welcomeBody')).not.toContain('Harness')
+      expect(b.locale().bind('settings.models')('onboardingDescription')).toContain('DeepSeek')
+      expect(b.locale().bind(COMMON_NS)('brand.localBuild')).toBe('Локальная сборка Кетос')
     })
   })
 

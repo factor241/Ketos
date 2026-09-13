@@ -1,50 +1,51 @@
 /**
- * Russian base dictionary for the `common` namespace: one translated entry per
- * key of `@deepseek-ai/dsh-client-locale`'s en dictionary, with `{placeholder}`
- * templates kept verbatim. The `satisfies` check pins the key set to en's;
- * the import is type-only, so the client bundle stays pure.
+ * Russian base dictionary for the `common` namespace: the full ru corpus of
+ * the Ketos shell, rebranded from the community `deepseek-harness-locale-ru`
+ * pack (MIT; see the package README). The `satisfies` check pins the key set
+ * to the owning package's en dictionary; the import is type-only, so the
+ * client bundle stays pure.
  */
 import type { CommonKey } from '@deepseek-ai/dsh-client-locale/client'
 
 /** Dictionary registered into `locale` for the common namespace. */
 export const ru = {
-  'ok': 'ОК',
-  'cancel': 'Отмена',
-  'close': 'Закрыть',
-  'copy': 'Копировать',
-  'copied': 'Скопировано',
-  'copy.failed': 'Не удалось скопировать',
-  'copy.value': 'Копировать значение',
-  'copy.json': 'Копировать JSON',
-  'copy.path': 'Копировать путь свойства',
-  'copy.prettyJson': 'Копировать форматированный JSON',
-  'copy.compactJson': 'Копировать компактный JSON',
-  'copy.optionsHint': '{action}; щёлкните правой кнопкой, чтобы выбрать режим копирования',
-  'retry': 'Повторить',
-  'loading': 'Загрузка…',
-  'load.failed': 'Не удалось загрузить',
-  'submit': 'Отправить',
-  'submitting': 'Отправка…',
-  'next': 'Далее',
-  'previous': 'Предыдущая',
-  'skip': 'Пропустить',
-  'delete': 'Удалить',
-  'edit': 'Редактировать',
-  'save': 'Сохранить',
-  'search': 'Поиск',
-  'more': 'Ещё',
-  'collapse': 'Свернуть',
-  'expand': 'Развернуть',
   'back': 'Назад',
   'brand.localBuild': 'Локальная сборка Кетос',
-  'unknown': 'Неизвестно',
-  'none': 'Отсутствует',
-  'truncated': 'Усечено',
+  'cancel': 'Отмена',
+  'close': 'Закрыть',
+  'collapse': 'Свернуть',
+  'copied': 'Скопировано',
+  'copy': 'Копировать',
+  'copy.compactJson': 'Копировать компактный JSON',
+  'copy.failed': 'Не удалось скопировать',
+  'copy.json': 'Копировать JSON',
+  'copy.optionsHint': '{action}; щёлкните правой кнопкой мыши для вариантов копирования',
+  'copy.path': 'Копировать путь свойства',
+  'copy.prettyJson': 'Копировать форматированный JSON',
+  'copy.value': 'Копировать значение',
+  'delete': 'Удалить',
+  'edit': 'Изменить',
+  'expand': 'Развернуть',
   'json.collapseNode': 'Свернуть узел JSON',
   'json.expandNode': 'Развернуть узел JSON',
   'json.label': 'JSON',
+  'load.failed': 'Не удалось загрузить',
+  'loading': 'Загрузка…',
   'markdown.footnotes': 'Сноски',
-  'markdown.truncatedCharacters': '… усечено на {total} символах',
-  'number.thousand': '{value}К',
+  'markdown.truncatedCharacters': '… усечено до {total} символов',
+  'more': 'Ещё',
+  'next': 'Далее',
+  'none': 'Нет',
   'number.million': '{value}М',
+  'number.thousand': '{value}К',
+  'ok': 'ОК',
+  'previous': 'Назад',
+  'retry': 'Повторить',
+  'save': 'Сохранить',
+  'search': 'Поиск',
+  'skip': 'Пропустить',
+  'submit': 'Отправить',
+  'submitting': 'Отправка…',
+  'truncated': 'Усечено',
+  'unknown': 'Неизвестно',
 } satisfies Record<CommonKey, string>

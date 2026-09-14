@@ -9,7 +9,7 @@ Status: implemented
 
 ## Decision
 
-Ketos 仓库是位于 `/Volumes/Projects/Ketos bot` 的独立检出，GitHub `factor241/Ketos` 为 `origin`，`deepseek-harness` 为 `upstream`，父检出作为 `base` remote。其唯一主干是 `main`；继承来的 `feat/ketos-spatial-board` 分支已退役（其内容即上游基线 `d5675c2`，由 `ketos-base-d5675c2` 标签固定，且已包含在 `main` 的内容中）。
+Ketos 仓库是位于 `/Volumes/Projects/Ketos bot` 的独立检出，GitHub `factor241/Ketos` 为 `origin`，`deepseek-harness` 为 `upstream`，父检出作为 `base` remote。其唯一主干是 `main`；继承来的 `feat/ketos-spatial-board` 分支已退役（其内容即上游基线 `d5675c2`，由 `ketos-base-d5675c2` 标签固定；浅克隆经过重新导入，因此基线的树包含在 `main` 的历史中，而不是通过祖先遍历可达）。
 
 从阶段 1 起，每个阶段都在从 `main` 创建的独立 git worktree 中进行：
 

@@ -9,7 +9,7 @@ Stage 0 shipped from a checkout inside the upstream base (`/Volumes/Projects/dee
 
 ## Decision
 
-The Ketos repository is a standalone checkout at `/Volumes/Projects/Ketos bot` with GitHub `factor241/Ketos` as `origin`, `deepseek-harness` as `upstream`, and the parent checkout as the `base` remote. Its single trunk is `main`; the inherited `feat/ketos-spatial-board` branch is retired (its content, the upstream base `d5675c2`, is fixed by the `ketos-base-d5675c2` tag and is an ancestor of `main`'s content).
+The Ketos repository is a standalone checkout at `/Volumes/Projects/Ketos bot` with GitHub `factor241/Ketos` as `origin`, `deepseek-harness` as `upstream`, and the parent checkout as the `base` remote. Its single trunk is `main`; the inherited `feat/ketos-spatial-board` branch is retired (its content, the upstream base `d5675c2`, is fixed by the `ketos-base-d5675c2` tag; the shallow clone was reimported, so the base's tree is contained in `main`'s history rather than reachable through an ancestor walk).
 
 Every stage from stage 1 onward runs in its own git worktree created from `main`:
 

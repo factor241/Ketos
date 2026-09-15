@@ -27,7 +27,7 @@ $ grep -n "name: 'board\." src/client/index.ts           # регистраци�
 - [x] `entryKey` = `window.kind`, экземпляр — в owner props; два окна одного типа рендерит один occupant. `tests/slots.client.spec.tsx` «routes each window to the frame registered for its kind» (окно agent несёт composer агентской карточки, окно connectors — табы и панель тул-окна) и «closes a window through its frame and removes it from the layer»: два agent-окна → 2 `[data-board-window="agent"]`, после клика по кнопке закрытия — 1 и укороченный `windowOrder`.
 - [x] Переключение `bodyKind` меняет содержимое. Тот же спек: connectors body → `setWindowBodyKind(id, 'settings')` → settings-панель; в живом браузере — клик по табу «Настройки» (кадр 04 GIF).
 - [x] Число регистраций `board.window` равно числу типов окон. Спек: тест каскада сверяет список шести keyed-регистраций (`['agent','clone','connectors','settings','dashboard','tasks']`) без открытых окон, ledger-тесты — что число не растёт после открытия окон.
-- [x] `pnpm run test:gui` зелёный — 384 файла, 5463 passed, 1 skipped.
+- [x] `pnpm run test:gui` зелёный — 385 файлов, 5466 passed, 1 skipped.
 - [x] HMR и dispose не оставляют следов — `tests/roster.client.spec.ts` «rebuilds the row through the Loader without duplicating board contributions» прогоняет реальный путь client-hmr (`tearDownEntryFiber` → `entry.refresh()`) на поставленном веб-ростере и требует тот же набор вкладов (1/1/1/6/3/1) после пересборки; `tests/slots.client.spec.tsx` добавляет повторный `apply` после `dispose()` (без дублей) и полное снятие вкладов по всем ключам с исчезновением DOM.
 - [x] `DSH_SNAPSHOT=replay pnpm run test:web` — 101 файл passed, 1 skipped; 359 passed, 15 skipped; снимки не менялись (перестройка композиции визуального вывода не меняет).
 - [x] `verify-client-catalog` зелёный после регенерации — каталог отдаёт закрытые key-домены (`{ [Key in WindowKind]: … }`), занятые ключи (`agent, clone, connectors, dashboard, settings, tasks`; `connectors, conversation, settings`) и owner props обоих keyed-слотов (`window`, `renderBody`).
@@ -51,7 +51,7 @@ $ grep -n "name: 'board\." src/client/index.ts           # регистраци�
 | Команда | Результат |
 |---|---|
 | `pnpm exec vitest run packages/client/ui-board/tests` | зелёный: 7 файлов, 40 passed |
-| `pnpm run test:gui` | зелёный: 384 файла, 5463 passed, 1 skipped |
+| `pnpm run test:gui` | зелёный: 385 файлов, 5466 passed, 1 skipped |
 | `DSH_SNAPSHOT=replay pnpm run test:web` | зелёный: 101 файл passed, 1 skipped; 359 passed, 15 skipped |
 | `pnpm run build` | зелёный; build-запись `238 client artifact(s) with 3 public value(s)`; `lib/client.js` доски и каталог-бандл содержат аудированный код (`data-board-layer` ×4, `renderBody`) |
 | `pnpm run typecheck` | зелёный (сборка + `tsc -b tsconfig.client.json`) |

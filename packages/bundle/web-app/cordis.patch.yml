@@ -261,6 +261,11 @@
     - id: ui-chat
       name: '@deepseek-ai/dsh-client-ui-chat'
 
+    # Ketos board: the spatial multi-window canvas as a `main` panel, with its
+    # entry in the sidebar panel list.
+    - id: ui-board
+      name: '@deepseek-ai/dsh-client-ui-board'
+
     # Official occupants for the generic sidebar and conversation brand slots.
     - id: ui-brand-official
       name: '@deepseek-ai/dsh-client-ui-brand-official'

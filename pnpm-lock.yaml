@@ -1802,6 +1802,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-attachment':
         specifier: workspace:^
         version: link:../../client/ui-attachment
+      '@deepseek-ai/dsh-client-ui-board':
+        specifier: workspace:^
+        version: link:../../client/ui-board
       '@deepseek-ai/dsh-client-ui-brand-official':
         specifier: workspace:^
         version: link:../../client/ui-brand-official

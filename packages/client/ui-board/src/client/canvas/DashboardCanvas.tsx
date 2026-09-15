@@ -148,8 +148,9 @@ export function DashboardCanvas({ t, state, actions }: DashboardCanvasProps) {
       onPointerDown={handlePointerDown}
       onWheel={handleWheel}
       style={{
-        position: 'absolute',
-        inset: 0,
+        position: 'relative',
+        width: '100%',
+        height: '100%',
         overflow: 'hidden',
         background: '#F5F5F0',
         backgroundImage: `radial-gradient(circle, rgba(0, 0, 0, 0.08) ${Math.max(1, 1.5 * state.zoom)}px, transparent ${Math.max(1, 1.5 * state.zoom)}px)`,

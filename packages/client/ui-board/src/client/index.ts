@@ -17,10 +17,12 @@ export type { BoardKey } from './locale.ts'
 export { createBoardStore } from './store.ts'
 export type { BoardState } from './store.ts'
 
+/** Services required by the board plugin: slot registration, panel selection, and copy. */
 export const inject = ['slots', 'layout', 'locale']
 
 /**
- * Mounts the Spatial Board plugin into DeepSeek Harness slots.
+ * Register the board main panel and its sidebar panel-list entry.
+ * @param ctx - Client root context.
  */
 export function apply(ctx: ClientContext): void {
   const boardStore = createBoardStore()

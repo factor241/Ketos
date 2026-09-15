@@ -21,6 +21,7 @@ import { closeMockServers, mockServer, textEvents } from './mock-server.ts'
 
 afterEach(async () => {
   vi.unstubAllEnvs()
+  vi.unstubAllGlobals()
   await closeMockServers()
 })
 
@@ -217,6 +218,107 @@ describe('PiAiAdapter provider routing', () => {
     })
 
     expect(server.headers[0]?.['x-opencode-session']).toBeUndefined()
+  })
+
+  it('passes a non-UUID session id through to the OpenCode headers', async () => {
+    const server = await mockServer([{ events: textEvents }])
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(LlmPiAi, {
+      providers: {
+        'opencode-go': {
+          apiKeyEnv: 'PI_TEST_KEY',
+          baseURL: server.url,
+          api: 'openai-completions',
+          models: [{ id: 'glm-5.3-flash', name: 'GLM 5.3 Flash', contextWindow: 65536 }],
+        },
+      },
+    })
+
+    await assemble(ctx, {
+      provider: 'opencode-go',
+      model: 'glm-5.3-flash',
+      messages: [],
+      sessionId: 'session-not-a-uuid' as never,
+    })
+
+    expect(server.headers[0]?.['x-opencode-session']).toBe('session-not-a-uuid')
+    expect(server.headers[0]?.['n-session']).toBe('session-not-a-uuid')
+  })
+
+  it('generates a fresh session UUID for an empty session id on OpenCode routes', async () => {
+    const server = await mockServer([{ events: textEvents }])
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(LlmPiAi, {
+      providers: {
+        'opencode-go': {
+          apiKeyEnv: 'PI_TEST_KEY',
+          baseURL: server.url,
+          api: 'openai-completions',
+          models: [{ id: 'glm-5.3-flash', name: 'GLM 5.3 Flash', contextWindow: 65536 }],
+        },
+      },
+    })
+
+    await assemble(ctx, {
+      provider: 'opencode-go',
+      model: 'glm-5.3-flash',
+      messages: [],
+      sessionId: '' as never,
+    })
+
+    expect(server.headers[0]?.['x-opencode-session'])
+      .toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+  })
+
+  it('uses a provider-level catalog endpoint without marking the route as OpenCode', async () => {
+    const requests: Array<{ url: string; headers: Headers }> = []
+    vi.stubGlobal('fetch', async (url: string | URL, init?: RequestInit) => {
+      requests.push({ url: String(url), headers: new Headers(init?.headers) })
+      return new Response(
+        'data: {"choices":[{"delta":{"role":"assistant","content":"hi"},"index":0,"finish_reason":null}]}\n\n'
+        + 'data: {"choices":[{"delta":{},"index":0,"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n',
+        { status: 200, headers: { 'content-type': 'text/event-stream' } },
+      )
+    })
+
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    ctx.llm.registerAdapter(['openai'], adapterOf({ openai: {} }))
+    await assemble(ctx, { provider: 'openai', model: 'gpt-4', messages: [] })
+
+    expect(requests[0]?.url.startsWith('https://api.openai.com/v1')).toBe(true)
+    expect(requests[0]?.headers.get('x-opencode-session')).toBeNull()
+  })
+
+  it('reads the OpenCode marker from a per-model catalog base URL without stamping the header', async () => {
+    // A catalog route with no provider-level endpoint: the marker check must
+    // fall back to the endpoint the resolved model carries.
+    const requests: Array<{ url: string; headers: unknown }> = []
+    vi.stubGlobal('fetch', async (url: string | URL, init?: RequestInit) => {
+      requests.push({ url: String(url), headers: init?.headers })
+      return new Response(
+        'data: {"choices":[{"delta":{"role":"assistant","content":"hi"},"index":0,"finish_reason":null}]}\n\n'
+        + 'data: {"choices":[{"delta":{},"index":0,"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n',
+        { status: 200, headers: { 'content-type': 'text/event-stream' } },
+      )
+    })
+
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    ctx.llm.registerAdapter(['google-vertex'], adapterOf({ 'google-vertex': { api: 'openai-completions' } }))
+    await assemble(ctx, {
+      provider: 'google-vertex',
+      model: 'gemini-2.5-flash',
+      messages: [],
+      sessionId: 'session-05681fd4-1667-4f46-874f-11fd7f10abbe' as never,
+    })
+
+    expect(requests[0]?.url.startsWith('https://{location}-aiplatform.googleapis.com')).toBe(true)
+    const headerText = JSON.stringify(requests[0]?.headers ?? {})
+    expect(headerText).not.toContain('x-opencode-session')
+    expect(headerText).not.toContain('n-session')
   })
 
   it('uses a dynamic request effort and reports unsupported efforts before network I/O', async () => {

@@ -12,7 +12,7 @@
 |---|---|---|---|
 | 1.1 Чистая база и воспроизводимость | `ketos-5v2.2.1` | выполнен | `pnpm install && pnpm run build` зелёный; `test:gui` — 380 файлов / 5435 passed; `typecheck`, `constraints` зелёные; смоук `ketos web` на чистом доме |
 | 1.2 Дев-цикл и диагностика | `ketos-5v2.2.2` | выполнен | правка `ui-theme/base.css` видна в браузере без пересборки и после reload; `docs/ketos/dev-loop.md`; чек испытан на сломанном ростере (53 записи вместо 54) и возвращён |
-| 1.3 Политика покрытия и процесс | `ketos-5v2.2.3` | выполнен | точечные исключения в `vitest.config.ts`; полный прогон покрытия — 22 502 теста зелёные, базовые файлы задокументированы; Agent Note MVP; шаблон отчёта и отчёты этапов 0–1 |
+| 1.3 Политика покрытия и процесс | `ketos-5v2.2.3` | выполнен | точечные исключения в `vitest.config.ts`; полный прогон покрытия зелёный (22 506 тестов) после закрытия базовых файлов; Agent Note MVP; шаблон отчёта и отчёты этапов 0–1 |
 | Баг этапа | `ketos-5v2.2.4` | закрыт | Summary ru-пака сокращён до 96 слов, i18n-пара синхронизирована |
 
 ## 3. Критерии приёмки этапа
@@ -27,7 +27,7 @@
 ## 4. Отклонения
 
 - 17 базовых ошибок `pnpm run lint` в `packages/client/ui-board` исправлены по итогам критического ревью (механические скобки, поведение не менялось); lint зелёный, доска стартует этапы 2–4 с чистого гейта.
-- `test:coverage` на macOS: платформенные `subprocess-local/src/linux-execve.ts` и `code-runtime-python/src/index.ts` закрыты исключениями не-Linux хостов (`nonLinuxOnlyCoverageExclusions`; Linux-линия CI сохраняет оба файла под per-file 100%). Остаётся `llm-pi-ai/src/adapter.ts` (4 места из форк-коммита `a4b5114`) — закрывается тестами в этом же этапе после ревью.
+- `test:coverage` на macOS: платформенные `subprocess-local/src/linux-execve.ts` и `code-runtime-python/src/index.ts` закрыты исключениями не-Linux хостов (`nonLinuxOnlyCoverageExclusions`; Linux-линия CI сохраняет оба файла под per-file 100%); `llm-pi-ai/src/adapter.ts` (4 места из форк-коммита `a4b5114`) закрыт тестами после ревью, полный прогон зелёный.
 - `packages/client/ui-board/src/**` исключён из per-file покрытия по MVP-политике (Agent Note); исключение снимается, когда этапы 2–4 принесут поведенческие тесты.
 - Пробный стиль дев-цикла проверялся на `ui-theme` (`base.css`), а не на `ui-board/tokens.css`, как предлагал план: доска ещё не подключена к ростору (этап 2), её бандл в браузере не рендерится; цепочка watch для доски проверена изменением `lib/client.js`.
 - Исправленные по пути базовые дефекты: shebang `sync-dictionaries.mjs` (падал `verify-application-entrypoints`), ключ `'cordis'` в ru-словарях (падал `vendor rescope` в `hygiene`), ожидание fish-логотипа в `built-boot.expected.e2e.ts`, macOS-симлинк tmp в фикстуре `browser-bundled-externals.spec.ts`, гонка `hang`-replay в `queue-actions.e2e.ts` (тест не дожидался рендера `partial`). Однократный таймаут `hmr-config.spec.ts` не воспроизвёлся.
@@ -39,7 +39,7 @@
 | `pnpm install` | зелёный |
 | `pnpm run build` | зелёный; build-запись на `fd640dc` |
 | `pnpm run test:gui` | 380 файлов, 5435 passed, 1 skipped |
-| `pnpm run test:coverage` | 22 502 теста зелёные; 3 базовых файла ниже порога (см. `baseline-issues.md`) |
+| `pnpm run test:coverage` | зелёный: 1267 файлов, 22 506 тестов, 1 ожидаемый провал, 131 skipped (после ревью) |
 | `pnpm run typecheck`, `pnpm run constraints`, `pnpm run lint` | зелёные (после ревью) |
 | `pnpm run hygiene` | 16 gates passed, 0 failed |
 | `pnpm run doc-sync` | 34 gates passed, 0 failed |

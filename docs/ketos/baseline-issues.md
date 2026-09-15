@@ -1,6 +1,6 @@
 # Ketos: базовые проблемы и отклонения (этап 1)
 
-Документ фиксирует состояние базы после ребрендинга: что проверено, что уже сломано до этапа 1 и не чинится в этапах 2–20, и какие регрессии устранены здесь же. Обновляется по мере обнаружения новых базовых проблем.
+Документ фиксирует состояние базы после ребрендинга: что проверено, какие базовые проблемы и регрессии были найдены и как закрыты. На момент приёмки этапа 1 известных базовых проблем не остаётся; документ обновляется по мере обнаружения новых.
 
 ## Проверенная база
 
@@ -22,17 +22,8 @@
 | Локаторы приложений | `pnpm run verify-application-entrypoints` | зелёный (после исправления, см. ниже) |
 | Сводки README | `pnpm run verify-package-readme-summaries` | 322 сводки ≤ 100 слов (после исправления) |
 | Гигиена релиза | `pnpm run hygiene` | 16 gates passed (после исправления, см. ниже) |
+| Покрытие | `pnpm run test:coverage` | зелёный: 1267 файлов, 22 506 тестов (после исправления, см. ниже) |
 | Смоук на чистом доме | `pnpm ketos web --no-open` | зелёный: 200 на `http://127.0.0.1:3080/`, `<title>Ketos Local Build</title>`, `~/.dsh` не создан |
-
-## Известные базовые проблемы
-
-### 1. `pnpm run test:coverage` — `llm-pi-ai/src/adapter.ts` ниже per-file 100%
-
-Прогон полного покрытия на этапе 1: 1267 файлов, 22 502 теста зелёные, один ожидаемый провал, 12 файлов и 131 тест пропущены по условиям; пороговые падения были в трёх файлах, ни один из которых не относится к Кетосу. Два платформенных файла закрыты исключениями не-Linux хостов (см. «Исправлено», п. 10); третий не зависит от платформы и приходит из форк-коммита до этапа 0.
-
-- `packages/llm/llm-pi-ai/src/adapter.ts` — 99.1% lines, 95.83% branches: 4 непокрытых места — путь `toOpenCodeSessionId` для строки без UUID (`adapter.ts:210-211`) и комбинации fallback `baseUrl` в `isOpenCodeRoute` (`adapter.ts:218`). Код добавлен форк-коммитом `a4b5114` до этапа 0; тесты `adapter.spec.ts` покрывают только UUID-путь и один вариант baseUrl. Закрывается в этапе 1 по итогам ревью (задача `ketos-hc5`).
-
-Проверка, что исключения Кетоса не задели чужие файлы: после добавления `packages/client/ui-board/src/**` и `packages/ketos/clone-*/src/**` в `vitest.config.ts` пороговых ошибок по ui-board нет, `@ketos/client-locale-ru` сохраняет 100%, остальные upstream-пакеты — без новых пропусков.
 
 ## Исправлено в этапе 1 (регрессии ребрендинга и базовой сборки)
 
@@ -46,6 +37,9 @@
 8. `apps/web/tests/queue-actions.e2e.ts` — гонка golden-захвата: replay-запись `hang` пишет `.hang-ready` сразу после выдачи чанка `partial`, не дожидаясь его рендера в браузере, поэтому под нагрузкой полного `test:web` снимок снимался без абзаца `partial` (и сценарий не доводил записанные вызовы: `llm-replay: fixture not fully consumed — consumed 1/4 recorded call(s)`). Тест теперь дожидается отрендеренного абзаца перед сценарием; полный `DSH_SNAPSHOT=replay pnpm run test:web` зелёный (101 файл, 359 тестов).
 9. `pnpm run lint` — 17 ошибок `typescript(no-confusing-void-expression)` в `packages/client/ui-board` (конструкции импортированной базы `bbe514e`). Исправлены по итогам ревью механическими скобками в 6 файлах (`DashboardCanvas`, `ToolWindow`, `SessionRail`, `AgentCard`, `DashboardToolbar`, `ElementSelectionContext`), поведение не менялось; `pnpm run lint` зелёный. Политика Agent Note обновлена: доска стартует этапы 2–4 с чистого линт-гейта.
 10. `pnpm run test:coverage` — платформенные файлы `subprocess-local/src/linux-execve.ts` (Linux exec-ve) и `code-runtime-python/src/index.ts` (чтение `/proc/<pid>/stat`) не покрываются на macOS. Добавлены в `vitest.config.ts` как `nonLinuxOnlyCoverageExclusions` (активны при `process.platform !== 'linux'`, рядом с существующими windows/pwsh-исключениями); Linux-линия CI сохраняет оба файла под per-file 100%. Политика Agent Note обновлена (en/zh, пара перезаписана).
+11. `llm-pi-ai/src/adapter.ts` — 4 непокрытых места из форк-коммита `a4b5114`: путь `toOpenCodeSessionId` без UUID и fallback-цепочка `baseUrl` в `isOpenCodeRoute`. Добавлены тесты (`adapter.spec.ts`): не-UUID и пустой session id на OpenCode-маршруте, endpoint уровня провайдера и endpoint уровня модели из каталога; сборка OpenCode-заголовков вынесена из инлайн-блока в `openCodeSessionHeaders` (V8-артефакт ветки на инлайн-`if` исчез, ignore-комментарий не понадобился). Полный `pnpm run test:coverage` зелёный: 1267 файлов, 22 506 тестов, один ожидаемый провал, 131 пропущен. Задача `ketos-hc5` закрыта.
+
+Проверка, что исключения Кетоса не задели чужие файлы: после добавления `packages/client/ui-board/src/**`, `packages/ketos/clone-*/src/**` и `nonLinuxOnlyCoverageExclusions` в `vitest.config.ts` пороговых ошибок по ui-board нет, `@ketos/client-locale-ru` сохраняет 100%, остальные upstream-пакеты — без новых пропусков.
 
 ## Проверочные команды
 

@@ -10,15 +10,14 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import { createBoardStore } from './store.ts'
 import { BoardRoot, BoardIcon } from './BoardViews.tsx'
 import { NS, en, zh } from './locale.ts'
-import './tokens.css'
 
 export type { WindowId, BoardWindowState } from './contract/slots.ts'
 export type { BoardKey } from './locale.ts'
 export { createBoardStore } from './store.ts'
 export type { BoardState } from './store.ts'
 
-/** Services required by the board plugin: slot registration, panel selection, and copy. */
-export const inject = ['slots', 'layout', 'locale']
+/** Services required by the board plugin: slot registration and copy. */
+export const inject = ['slots', 'locale']
 
 /**
  * Register the board main panel and its sidebar panel-list entry.

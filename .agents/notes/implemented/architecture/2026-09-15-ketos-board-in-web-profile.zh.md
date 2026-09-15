@@ -14,33 +14,38 @@ Status: implemented
 
 看板通过普通客户端插件通路加载，三个注册面齐备：
 
-- `tsconfig.client.json` 引用 `./packages/client/ui-board`（阶段 0 的类型检查聚合已加入）。
+- `tsconfig.client.json` 引用 `./packages/client/ui-board`（第 107 行）。
 - `packages/bundle/web-app/cordis.patch.yml` 的浏览器名册行：`- id: ui-board` / `name: '@deepseek-ai/dsh-client-ui-board'`。
 - `packages/bundle/web-app/package.json` 声明 `"@deepseek-ai/dsh-client-ui-board": "workspace:^"`；`verify-cordis-config` 对每个名册行都要求该依赖。
 
-画布根节点按其 `main` 面板定尺：`DashboardCanvas` 根节点使用 `position: relative; width: 100%; height: 100%; overflow: hidden`，使 `inset: 0` 的子元素（变换后的内容层、侧栏轨道、Omnibox、小地图）以看板盒为包含块，并由该列的 `overflow: hidden` 裁切。这遵循 shell 对每个 `main` 占用者既有的约定（`ConversationRoot` 为 `position: relative; height: 100%`），而不是为一个消费者把 `ui-layout` 的中央列改成定位元素。
+画布根节点按其 `main` 面板定尺：`DashboardCanvas` 根节点使用 `position: relative; width: 100%; height: 100%; overflow: hidden`，使绝对定位的子元素（变换后的内容层、侧栏轨道、Omnibox、小地图）以看板盒为包含块，并由该列的 `overflow: hidden` 裁切看板。同一条声明还让看板成为其自身覆盖层的包含块，而这正是它们被约束住的真正原因——当包含块是 frame 时，frame 的裁切并不生效。这遵循唯一既有 `main` 占用者的做法（`ConversationRoot` 为 `position: relative; height: 100%`），而不是为单个消费者把 `ui-layout` 的中央列改成定位元素。
 
-`tests/apply.client.spec.tsx` 在生产 `SlotTestRuntime` 上钉住注册行为：`main` 得到 `board` 占用者，`sidebar.panellist` 得到 `id: 'board'`，面板渲染画布，图标按 owner 给定尺寸渲染，行标签通过包字典解析出 `Board`/`看板`，销毁插件 fiber 后两条注册都被移除。
+看板只声明它读取的 Cordis 服务——`slots` 与 `locale`——不再等待 `layout`：`ctx.layout.selectPanel(id)` 是侧栏外壳的调用，而不是看板的。`dsh.client.inject` 清单保留信息性的 `ui-layout` 边，因为看板注册进去的 `main` 声明属于该包。
 
-该包保留 MVP 覆盖豁免（`vitest.config.ts` 中的 `packages/client/ui-board/src/**`）：阶段 3–4 会重写这些组件，豁免在 MVP 验收时复核。
+`tests/apply.client.spec.tsx` 在生产 `SlotTestRuntime` 上钉住注册行为：两条占用者及其元数据（`order` 15、声明的 `locale`、store 句柄、无 `children`），面板尺寸的画布盒与按 owner 给定尺寸渲染的图标，行标签通过包字典解析出 `Board`/`看板`，销毁时移除条目及其 DOM 而 frame 持有的声明保留，以及延迟路径——看板先于槽位声明应用，并在声明到达时完成注册。
+
+接线令两个死面变为在线，因此移除而不是保留：`src/client/tokens.css`——一个全局 `:root` 表，其 33 个 `--board-*` 属性没有任何读取者，且构建工具在启动时把它注入 `document.head`——被删除；omnibox 与操作菜单中的四个 `alert()` 占位成为 no-op，因为一个为并未发生的发送报告 "Message sent" 的阻塞对话框比无响应控件更糟。两条限制都记录在包 README 中。
+
+该包保留 MVP 覆盖豁免（`vitest.config.ts` 中的 `packages/client/ui-board/src/**`，依据 [Ketos MVP 工程政策](../process/2026-09-15-ketos-mvp-engineering-policy.zh.md)）：注册测试不会抬升后续看板阶段要重写的组件的逐文件覆盖。
 
 ## Alternatives considered
 
-- **保持画布以 shell frame 为定位基准。** 未采用：frame 跨越侧栏，画布会拦截所有侧栏指针事件——实机检查发现会话树上的 `document.elementFromPoint` 返回画布表面。看板是 `main` 面板，而不是无边框的全窗口表面。
+- **保持画布以 shell frame 为定位基准。** 未采用：frame 跨越侧栏，画布会拦截所有侧栏指针事件——看板打开时会话树无法触达。看板是 `main` 面板，而不是无边框的全窗口表面。
 - **在 `ui-layout` 中把中央列改成定位上下文。** 未采用：为一个消费者的假设去改动共享的 upstream 包；而 shell 约定已经让每个占用者拥有自己的定位、满高根节点。
-- **现在就给看板一个 host 包（`@ketos/board`、`board.db`）。** 未采用：MVP 通过 settings 命名空间 `ui-board` 持久化布局（阶段 8）；第二个存储会在布局文档存在之前复制 settings 的 revision-CAS 方案。
-- **既然有了注册测试，现在就取消整个 `ui-board` 覆盖豁免。** 未采用：该测试覆盖注册，而非阶段 3–4 会替换的画布与窗口组件；现在取消会把一次性 GUI 纳入闸门，而政策 note 已把复核点定在 MVP 验收。
+- **因为面板是经 layout 服务选中的，所以保留 `layout` 服务边。** 未采用：选中是侧栏的调用，而非看板的；一条 contribution 从不读取的必需服务边会延迟激活，并绕过 `slots.inject` 本应服务的延迟注册路径。
+- **在配色迁移之前保留 `tokens.css`。** 未采用：其属性无人消费，删除不改变行为；而该表的全局 `:root` 写入与构建注入的 `<style>` 都没有生命周期归属。
+- **现在就给看板一个 host 包（`@ketos/board`、`board.db`）。** 未采用：MVP 通过 settings 命名空间 `ui-board` 持久化布局；第二个存储会在布局文档存在之前复制 settings 的 revision-CAS 方案。
 
 ## Consequences
 
-看板走上与每个 upstream UI 插件相同的通路：`window.__DSH_BOOT__` 增加一行（含看板共 55 行），没有新机制，也没有 `dsh.client.external` 请求。面板经 `@ketos/client-locale-ru` 语料在 ru 界面显示为 `Доска`。画布填满 `main` 列（280–1200 px）且侧栏仍可点击，已通过 `pnpm ketos web` 实机验证。
+看板走上与每个 upstream UI 插件相同的通路：`ui-board` 行随 `window.__DSH_BOOT__` 下发，没有新机制，包也不发起 `dsh.client.external` 请求。面板经 `@ketos/client-locale-ru` 语料在 ru 界面显示为 `Доска`，画布填满 `main` 列且侧栏保留其指针事件。
 
-该可见变化由 replay golden 钉住：`snapshots/web/lifecycle-chrome/{hero,plan-active}.expected.md` 增加 `Global panels / Board` 行，通过该场景的 `DSH_SNAPSHOT=refresh` 刷新，并在 `DSH_SNAPSHOT=replay` 下复验。
+该可见变化由 replay golden 钉住：`snapshots/web/lifecycle-chrome/{hero,plan-active}.expected.md` 携带 `Global panels / Board` 行。
 
-继续保留、本阶段不修复的已知限制：窗口卡片仍是静态占位，布局不持久化，滚轮缩放会打印 `Unable to preventDefault inside passive event listener invocation`，因为 `onWheel` 是 React 的 passive 监听器——手势层归阶段 5。`board.*` 槽位在阶段 3 注册进去之前仍是仅声明。
+继续保留、本处不修复的已知限制：窗口卡片仍是静态占位，布局不持久化，滚轮缩放会打印 `Unable to preventDefault inside passive event listener invocation`，因为 `onWheel` 是 React 的 passive 监听器（登记为 `ketos-3kf`，归视口手势工作），`board.*` 槽位在组合工作注册进去之前仍是仅声明。
 
 ## Related
 
-- [`docs/ketos/dev-loop.md`](../../../../docs/ketos/dev-loop.md) — 本阶段实践过的三个注册面与插件加载诊断。
+- [`docs/ketos/dev-loop.md`](../../../../docs/ketos/dev-loop.md) — 本次改动实践过的三个注册面与插件加载诊断。
 - [`packages/client/AGENTS.md`](../../../../packages/client/AGENTS.md) — 这些注册面来源的新插件清单。
 - [Ketos MVP engineering policy](../process/2026-09-15-ketos-mvp-engineering-policy.zh.md) — 看板的覆盖豁免与 MVP 测试清单。

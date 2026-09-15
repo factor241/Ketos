@@ -27,7 +27,7 @@ kind: "package-reference"
 
 本插件在 root slot 中组合侧边栏、主内容和右栏。侧边栏宽度为 264～420px，默认为 280px，收起后保留 56px 控制栏；窗口宽度低于 1024px 时自动收起，打开右侧面板也会收起手动展开的侧边栏。右侧面板首次打开时使用视口宽度的 45%，之后保留用户的像素宽度偏好，上限为 70%。为给中栏保留 400px，框架先将右侧面板缩减至 300px，再报告空间不足，使占用方将其关闭，最后才进一步压缩中栏。拖动没有过渡延迟；右侧手柄在关闭或全屏时不显示。
 
-全局面板占据 root 作用域的 `main` keyed slot；`conversation` 是为会话界面保留的 key。`ctx.layout.selectPanel(id)` 选中已注册面板，`null` 则选中会话界面，但不改变当前会话。默认组合不注册任何全局面板。
+全局面板占据 root 作用域的 `main` keyed slot；`conversation` 是为会话界面保留的 key。`ctx.layout.selectPanel(id)` 选中已注册面板，`null` 则选中会话界面，但不改变当前会话。随附的 web profile 在 `board` key 下注册看板面板。
 
 ### 主题呈现
 

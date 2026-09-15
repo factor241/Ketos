@@ -28,6 +28,9 @@ export function DashboardToolbar({
     setText('')
   }
 
+  // Attachment, dictation, and web-search entries only close the menu until their windows land.
+  const closeMenu = () => { setMenuOpen(false) }
+
   return (
     <div
       style={{
@@ -60,19 +63,19 @@ export function DashboardToolbar({
           }}
         >
           <button
-            onClick={() => { setMenuOpen(false); alert(t('menu.attachFile')) }}
+            onClick={closeMenu}
             style={{ padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', color: '#E6E4E8', cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
           >
             <span>📎</span> {t('menu.attachFile')}
           </button>
           <button
-            onClick={() => { setMenuOpen(false); alert(t('menu.dictate')) }}
+            onClick={closeMenu}
             style={{ padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', color: '#E6E4E8', cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
           >
             <span>🎙️</span> {t('menu.dictate')}
           </button>
           <button
-            onClick={() => { setMenuOpen(false); alert(t('menu.webSearch')) }}
+            onClick={closeMenu}
             style={{ padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', color: '#E6E4E8', cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
           >
             <span>🌐</span> {t('menu.webSearch')}

@@ -11,7 +11,6 @@ import { ToolWindow } from '../window/ToolWindow.tsx'
 import { SessionRail } from '../dock/SessionRail.tsx'
 import { DashboardToolbar } from '../omnibox/DashboardToolbar.tsx'
 import { ElementSelectionOverlay } from '../inspector/ElementSelectionContext.tsx'
-import '../tokens.css'
 
 export interface DashboardCanvasProps {
   /** Locale seat resolving this panel's copy. */
@@ -220,7 +219,9 @@ export function DashboardCanvas({ t, state, actions }: DashboardCanvasProps) {
 
       <DashboardToolbar
         t={t}
-        onSendMessage={(msg) => { alert(t('canvas.messageSent', { message: msg })) }}
+        onSendMessage={() => {
+          // Prompt delivery lands with the conversation window stages.
+        }}
         onStartElementSelection={() => { actions.setSelectingElement(true) }}
         onOpenConnectors={handleAddTools}
       />

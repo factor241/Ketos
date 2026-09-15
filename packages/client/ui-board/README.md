@@ -68,6 +68,8 @@ These limits are current package constraints.
 - **Per-window preset selection is pending** — an agent window has no UI to choose its agent preset or model; every window shows the same fixed card content until that selection model lands.
 - **The built-in assembly bypasses the declared slot set** — the current assembly renders `DashboardCanvas` directly in the `main` panel; the `board.*` slots exist as contract for follow-up composition and are unused.
 - **The layout is session-only** — `apply` creates the board store without a persist key, so pan, zoom, and window arrangement reset on page reload.
+- **Board chrome actions are not wired** — the omnibox send and the action-menu attach, dictation, and web-search entries only close the menu; they do not yet reach Sessions, files, or the Web capability.
+- **The palette is theme-independent** — components paint literal colors instead of `--dsw-*` semantic tokens, so the board keeps its own light palette under a dark application theme until the token migration.
 
 <a id="dev-note"></a>
 ### Dev Note

@@ -54,7 +54,7 @@ $ grep -n "name: 'board\." src/client/index.ts           # регистраци�
 | `pnpm exec vitest run packages/client/ui-board/tests` | зелёный: 7 файлов, 40 passed |
 | `pnpm run test:gui` | зелёный: 385 файлов, 5466 passed, 1 skipped |
 | `DSH_SNAPSHOT=replay pnpm run test:web` | зелёный: 101 файл passed, 1 skipped; 359 passed, 15 skipped |
-| `pnpm run build` | зелёный; build-запись `238 client artifact(s) with 3 public value(s)`; `lib/client.js` доски и каталог-бандл содержат аудированный код (`data-board-layer` ×4, `renderBody`) |
+| `pnpm run build` | зелёный на чистом дереве принятого коммита: build-запись `238 client artifact(s) with 2 public value(s)`, `DSH_CLIENT_COMMIT_HASH=3107625` без `GIT_DIRTY`; `lib/client.js` доски и каталог-бандл содержат аудированный код (`data-board-layer` ×4, `renderBody`) |
 | `pnpm run typecheck` | зелёный (сборка + `tsc -b tsconfig.client.json`) |
 | `pnpm run lint` | зелёный |
 | `pnpm run doc-sync` | зелёный: 34 passed, 0 failed |

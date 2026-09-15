@@ -15,7 +15,6 @@ import { BoardWindowLayer } from './canvas/BoardWindowLayer.tsx'
 import { Minimap } from './canvas/Minimap.tsx'
 import { AgentCard } from './window/AgentCard.tsx'
 import { ToolWindow } from './window/ToolWindow.tsx'
-import { ToolWindowBody } from './window/ToolWindowBody.tsx'
 import { ConversationBody } from './window/ConversationBody.tsx'
 import { SessionRail } from './dock/SessionRail.tsx'
 import { DashboardToolbar } from './omnibox/DashboardToolbar.tsx'
@@ -81,10 +80,11 @@ export function apply(ctx: ClientContext): void {
     yield ctx.slots.register({ name: 'board.window', key: 'tasks', store: boardStore, locale: NS }, ToolWindow)
   })
 
+  // Only the conversation body ships today: no board window presents mock
+  // tool or settings content, and the stages that own those surfaces register
+  // their own bodies.
   ctx.slots.inject('board.window.body', function* () {
     yield ctx.slots.register({ name: 'board.window.body', key: 'conversation', locale: NS }, ConversationBody)
-    yield ctx.slots.register({ name: 'board.window.body', key: 'connectors', locale: NS }, ToolWindowBody)
-    yield ctx.slots.register({ name: 'board.window.body', key: 'settings', locale: NS }, ToolWindowBody)
   })
 
   ctx.slots.inject('board.dock', () => ctx.slots.register({

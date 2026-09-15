@@ -1,23 +1,22 @@
-/* Light window frame (connectors, settings, dashboard, and task windows):
- * the board's white surface. The ui-theme brand layer rebinds the semantic
- * aliases for `[data-board-surface='light']`, so these rules name aliases
- * only. Placement stays inline; everything painted lives here. */
+/* Light tool-window frame: the same floating-panel recipe as the agent
+ * window, so every window type shares one chrome. Placement stays inline;
+ * everything painted lives here. */
 
 .window {
   position: absolute;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 18px;
-  background: var(--dsw-alias-bg-base);
+  border-radius: 20px;
+  background: var(--dsw-alias-bg-layer-2);
   border: 0;
-  box-shadow: var(--dsw-elevation-panel);
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
+  box-shadow: var(--dsw-elevation-prominent);
   user-select: none;
 }
 
 .window.active {
-  --dsw-elevation-stroke-color: var(--dsw-alias-brand-primary);
-  box-shadow: var(--dsw-elevation-prominent);
+  --dsw-elevation-stroke-color: var(--dsw-alias-state-business-primary);
 }
 
 .handle {
@@ -94,8 +93,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  background: var(--dsw-alias-bg-layer-1);
+  gap: 8px;
+  padding: 10px 12px;
   border-bottom: 0.5px solid var(--dsw-alias-border-l1);
   cursor: grab;
 }
@@ -104,61 +103,35 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
-.traffic {
+.closeButton {
   display: flex;
-  gap: 6px;
-}
-
-.trafficDot {
-  width: 10px;
-  height: 10px;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   corner-shape: round;
-  padding: 0;
-}
-
-.trafficClose {
-  background: var(--dsw-alias-state-error-primary);
-  border: none;
-  cursor: pointer;
-}
-
-.trafficMinimize {
-  background: var(--dsw-alias-state-warn-primary);
-}
-
-.trafficZoom {
-  background: var(--dsw-alias-state-success-tertiary);
-}
-
-.title {
-  margin-left: 8px;
-  color: var(--dsw-alias-label-primary);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.tabs {
-  display: flex;
-  gap: 4px;
-}
-
-.tab {
-  padding: 4px 8px;
-  border-radius: 6px;
   border: none;
   background: transparent;
   color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
-  font-weight: 500;
   cursor: pointer;
 }
 
-.tab.active {
-  background: var(--dsw-alias-bg-layer-2);
-  color: var(--dsw-alias-brand-primary);
+.closeButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.title {
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* The body scrolls inside elevated chrome, so the thumb rides the l2 pair

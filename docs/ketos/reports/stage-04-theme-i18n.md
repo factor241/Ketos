@@ -1,89 +1,85 @@
-# Отчёт этапа 4. Визуальный язык Кетос: токены, CSS Modules, локали
+# Отчёт этапа 4. Визуальный язык: тема Harness, CSS Modules, локали
 
-> Заполнен по шаблону [stage-report-template.md](../stage-report-template.md). Ветка `stage-04-theme-i18n`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-04` (от принятой ветки этапа 3 `stage-03-slots-windows`, `c31a39c`). Состояние отчёта — коммит `4292283` (реализация этапа); GIF снят с построенного дерева этого коммита.
+> Заполнен по шаблону [stage-report-template.md](../stage-report-template.md). Ветка `stage-04-theme-i18n`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-04` (от принятой ветки этапа 3 `stage-03-slots-windows`, `c31a39c`). Отчёт переписан после реворка: пользователь отменил кетосовую палитру и потребовал рисовать доску темой и элементами DeepSeek Harness. Состояние отчёта — финальный коммит этапа (см. §6).
 
 ## 1. Итог этапа
 
-Палитра доски объявлена один раз и живёт в `ui-theme`: новый бренд-слой `ketos-brand.css` маппит палитру Кетос на семантические алиасы **только внутри `.board-canvas`**, а белые инструментальные окна перебиндовывают те же алиасы через `data-board-surface="light"`; `body` и `body[data-ds-dark-theme]` не трогаются. Каждый компонент доски получил собственный CSS Module на `--dsw-*`-алиасах и `clsx`, инлайн остался только геометрией и вычисляемыми pan/zoom-переменными — в `packages/client/ui-board/src` не осталось ни одного hex-цвета (единственное исключение — точка сетки холста, задокументированная бренд-переменная модуля холста). Локализация сохранила механику этапа 0: строки владеются словарями `zh`/`en` пакета, ru приходит из корпуса `@ketos/client-locale-ru`, манифест `ru-keys.json` пересинхронизирован. Все гейты этапа зелёные: `test:gui` 385 файлов / 5466 passed, `DSH_SNAPSHOT=replay pnpm run test:web` без расхождений, `verify-client-ui-i18n`, `verify-translation-pairing`, `typecheck`, `lint`, `build`, `hygiene`, `doc-sync`.
+Доска перестала быть отдельным визуальным островом. Палитра — только семантические алиасы `ui-theme` (никаких оранжевых/кремовых override-слоёв): холст на `--dsw-alias-bg-base`, окна и док — по рецепту плавающей панели (`bg-layer-2` + `border: 0` + `--dsw-elevation-prominent` + перебиндовка `--dsw-elevation-stroke-color`), фокус — `--dsw-alias-state-business-primary`, разделители — 0.5px-волоски, скролл-пары l2. Хром собран из элементов Harness: иконки `ui-primitives`, `Tooltip` на каждом иконочном контроле, `Menu` для Action Menu, `Tag` для статус-капсул; цветной «светофор» и эмодзи удалены. Мок-контент (фейковые модели, system prompt, тумблеры коннекторов) удалён вместе с ключами словарей, ru-корпусом и манифестом; `board.window.body` теперь предоставляет только `conversation`. Компоненты доски остались разбиты на CSS Modules с инлайном только для геометрии и вычисляемых pan/zoom-переменных; в `packages/client/ui-board/src` нет ни одного литерального цвета. Гейты этапа зелёные.
 
 ## 2. Подэтапы
 
 | Подэтап | Задача Beads | Статус | Подтверждение |
 |---|---|---|---|
-| 4.1 Токены бренда Кетос | `ketos-5v2.5.1` | выполнен | `packages/client/ui-theme/src/styles/ketos-brand.css` (+ строка в `src/client/styles.ts`, порядок зафиксирован в `tests/client-styles.client.spec.ts`); grep по `src` доски даёт 0 hex; живая проверка `getComputedStyle` под тёмной темой оболочки: `body --dsw-alias-bg-base: #151517`, `.board-canvas … : #f5f5f0`, `--dsw-alias-brand-primary: #b8532f`, elevation-штрих `#3a3940`; два плейсхолдер-пункта удалены; контраст проверен по живым кадрам |
-| 4.2 Перевод компонентов на CSS Modules | `ketos-5v2.5.2` | выполнен | 10 модулей (`DashboardCanvas`, `AgentCard`, `ToolWindow`, `ToolWindowBody`, `ConversationBody`, `SessionRail`, `DashboardToolbar`, `Minimap`, `ElementSelectionOverlay`, `BoardViews`); `pnpm --filter @deepseek-ai/dsh-client-ui-board bundle` собирает 10 style-инъекторов; инлайн — только `left/top/width/height/zIndex` и вычисляемые `--board-*`; `test:gui` зелёный |
-| 4.3 Локализация: zh/en у `ui-board`, ru — корпус пакета | `ketos-5v2.5.3` | выполнен | `src/client/locale.ts` (zh/en, `BoardKey`), `packages/ketos/client-locale-ru/src/locales/board-ru.ts`, `tests/fixtures/ru-keys.json` (41 ключ); `verify-client-ui-i18n` (623 файла) и `verify-translation-pairing` (818 пар) зелёные; живая проверка: ru-подписи, затем Settings → English → «Board», «Connectors», «Core Tools», «Ask me anything...», «Done» |
-| 4.4 Гейты и визуальная приёмка | `ketos-5v2.5.4` | выполнен | `tests/canvas.client.spec.tsx` без литеральных цветов (классы модулей + custom properties), `tests/apply.client.spec.tsx` — на `board-canvas`-хук и модульные классы; 40 passed; snapshot replay без расхождений; чек-лист визуальной приёмки заполнен; GIF `.playwright-mcp/stage-04-gif/board-theme-i18n.gif` (1200×750, 12.8 с, 128 кадров, 3.1 МБ) |
+| 4.1 Токены темы | `ketos-5v2.5.1` | выполнен | `ui-theme` снова 6 листов (`ketos-brand.css` удалён, порядок закреплён в `client-styles.client.spec.ts`); grep по `ui-board/src` — 0 hex/rgba; точка сетки — `--dsw-alias-border-l3`; `getComputedStyle` живьём в обеих темах |
+| 4.2 CSS Modules и хром из Harness | `ketos-5v2.5.2` | выполнен | 9 модулей; `ui-primitives` (иконки, `Tooltip`, `Menu`, `Tag`); инлайн — только `left/top/width/height/zIndex` и `--board-pan-*`/`--board-zoom`/`--board-grid-*`; `pnpm --filter @deepseek-ai/dsh-client-ui-board bundle` собирает 9 style-инъекторов |
+| 4.3 Локализация | `ketos-5v2.5.3` | выполнен | `src/client/locale.ts` (zh/en, 23 ключа), `board-ru.ts`, `tests/fixtures/ru-keys.json`; `verify-client-ui-i18n` (622 файла) и `verify-translation-pairing` зелёные; живьём ru → Settings → English |
+| 4.4 Гейты и визуальная приёмка | `ketos-5v2.5.4` | выполнен | `canvas`/`apply`/`slots`/`roster`/`open-window`/`inspector` спеки обновлены (39 passed); `test:gui` 385 файлов; snapshot replay без расхождений; чек-лист §4 заполнен; GIF существует |
 
 ## 3. Критерии приёмки этапа
 
-- [x] **Бренд-слой в `ui-theme` только на `.board-canvas`.** `ketos-brand.css` объявляет палитру на `.board-canvas` (класс-хук носит корень доски рядом с hash-классом модуля) и перебиндовывает те же алиасы на `[data-board-surface='light']`; `body`/`body[data-ds-dark-theme]` в файле не упоминаются. Живое доказательство — вычисленные значения из §2.1 под включённой тёмной темой оболочки: глобальные токены тёмные, токены доски — кетосовские.
-- [x] **Ноль литеральных цветов и `var(--board-*)`; `tokens.css` отсутствует.** `grep -rn "#[0-9a-fA-F]\{3,8\}" packages/client/ui-board/src` → пусто; файла `tokens.css` в дереве нет (удалён ещё этапом 2); остался один `rgba(0,0,0,0.08)` — точка сетки в `DashboardCanvas.module.css`, единственное исключение из плана.
-- [x] **Плейсхолдеры `Temporal Orchestration` и `External MCP: Twitter/X` удалены.** Ключи `tool.temporalName/Desc`, `tool.mcpName/Desc` удалены из `zh`/`en`, из `board-ru.ts` и из `ru-keys.json`; в ростере остались три пункта, называющие реальные возможности Harness (Core Tools, Web Search, Browser Inspector); новых заглушек нет.
-- [x] **Контраст текста проверен.** Живые кадры `qa/02-agent-window.png` (тёмная карточка: `#E6E4E8`/`#8F8E94` на `#2B2A30`, бейдж `#265B19` на `#E9F1DC`) и `qa/03-tools-window.png` (светлое окно: `#1C1B1F`/`#787570` на `#FFFFFF`/`#FAFAF8`); тёмная тема оболочки доску не меняет (`qa/08-board-dark-shell.png`).
-- [x] **CSS Modules и `clsx`.** 10 модулей рядом с компонентами; `clsx` в 9 местах (фокус окна, активный таб, активная строка дока, открытое меню, готовность отправки, включённый тумблер, светлая/тёмная заливка прямоугольника миникарты, активная иконка панели).
-- [x] **Инлайн — только геометрия и вычисляемые переменные, правило задокументировано в `DashboardCanvas`.** JSDoc модуля: «inline styles are reserved for geometry and the computed metrics that scale with the live pan/zoom (passed as component-local custom properties)».
-- [x] **Типы модулей работают при сборке.** `src/css-modules.d.ts` переставлен в порядок `*.module.css` → `*.css` (в прежнем порядке ambient-декларация `*.css` перекрывала модульную, и `.root` не существовал для TS — латентный дефект этапа 1); `tsc -b tsconfig.client.json` зелёный, бандл собирает CSS.
-- [x] **`pnpm run test:gui` зелёный** — 385 файлов, 5466 passed, 1 skipped (в т. ч. ui-theme-спеки: elevation-парность, corner-shape-парность, перебиндовка скроллбара на приподнятых поверхностях).
-- [x] **`DSH_SNAPSHOT=replay pnpm run test:web`** — 101 файл passed, 1 skipped; 359 passed, 15 skipped; расхождений снимков нет.
-- [x] **Язык переключается.** zh/en — словари `ui-board` (спек `apply` проверяет `Board` → `看板` через `ctx.locale.setLocale`), ru — корпус ru-пака (его спек проверяет `Доска`, `agent.contextUsed` и полный охват ключей); живьём — ru по умолчанию и английские подписи доски после Settings → English.
-- [x] **Чек-лист визуальной приёмки заполнен** (§4 ниже) и GIF существует — `.playwright-mcp/stage-04-gif/board-theme-i18n.gif`.
+- [x] **Палитра — из DeepSeek Harness, без оранжевого.** В `ui-board/src` нет ни одного литерального цвета; все правила — `--dsw-*`-алиасы; `grep` не находит `ketos-brand`, `board-canvas`, `data-board-surface`. Живьём: в светлой теме доска светлая, в тёмной — тёмная (одна и та же композиция).
+- [x] **Элементы доски — из Harness.** Иконки `ui-primitives` вместо эмодзи/самодельных глифов; `Tooltip` на dock-строках, закрытии окна, composer-действии и отправке; Action Menu — `Menu` (портал, `selection="fill"`); статус-капсулы — `Tag` (`success`/`neutral`); фокус-ринги — конвенция Harness. Пустой `Button`/`Switch`/`StateDot` не подключены осознанно (см. §5).
+- [x] **Настройки и окно — из Harness.** Мок-панель Settings (фейковые модели, system prompt) и мок-панель Connectors (три фейковых тумблера) удалены вместе с таб-полосой, кнопкой дока, пунктом меню, ключами `tool.*`/`menu.connectors`/`rail.addConnectors`/`canvas.connectorsTitle`/`canvas.messageSent` и ru-переводами; новых заглушек нет. Цветной «светофор» заменён одной кнопкой закрытия (`IconCloseOutline16`); меню `•••` — этап 6 по плану.
+- [x] **Стили — модульные, инлайн только геометрия/переменные.** JSDoc `DashboardCanvas` фиксирует правило; 9 модулей рядом с компонентами; `clsx` в условных состояниях (фокус окна, активная строка дока, открытое меню, готовность отправки, agent/tool-заливка прямоугольника).
+- [x] **Типы модулей работают при сборке** — `src/css-modules.d.ts` в порядке `*.module.css` → `*.css`; `tsc -b tsconfig.client.json` зелёный; бандл собирает CSS.
+- [x] **Локализация.** zh/en — словари пакета, ru — корпус `@ketos/client-locale-ru`; `verify-client-ui-i18n` и `verify-translation-pairing` зелёные; переключение языка проверено живьём (ru по умолчанию; Settings → English меняет подписи доски).
+- [x] **Гейты.** `pnpm run test:gui` 385 файлов / 5465 passed / 1 skipped; `DSH_SNAPSHOT=replay pnpm run test:web` без расхождений; `typecheck`, `lint`, `build`, `hygiene`, `doc-sync`, `verify-client-catalog` (после `gen-client-catalog`), `verify-client-packages`, `verify-cordis-config` зелёные.
+- [x] **Визуальная приёмка и GIF** — чек-лист §4 заполнен; `.playwright-mcp/stage-04-gif/board-harness-theme.gif`.
 
 ## 4. Визуальная приёмка (чек-лист)
 
-Наблюдение — живой `pnpm ketos web` (scratch `DSH_HOME`, порт 3185) с дерева коммита `4292283` после `pnpm run build`; кадры в `.playwright-mcp/stage-04-gif/qa/`.
+Наблюдение — живой `pnpm ketos web` (scratch `DSH_HOME`, порт 3185) с дерева финального коммита после `pnpm run build`; кадры в `.playwright-mcp/stage-04-gif/qa/` (светлая и тёмная темы).
 
 | Элемент | Наблюдение | Кадр |
 |---|---|---|
-| Холст | кремовый `#F5F5F0`, точечная сетка, панорамирование/зум | `01-board.png`, `05-zoom.png` |
-| Сетка | точка масштабируется с зумом (`--board-canvas-dot-radius`/`--board-canvas-grid`) | `05-zoom.png` |
-| Карточка агента | графит `#2B2A30`, терракотовый штрих при фокусе, светофор, бейдж «✓ Готово», композер `#201F24`, ContextRing | `02-agent-window.png` |
-| Светлое окно | белый фон, тёплый заголовок, терракотовые табы, тумблеры | `03-tools-window.png`, `04-settings-body.png` |
-| Док | графитовая капсула, терракотовая активная строка, тултип на overlay-токене | `06-tooltip.png` |
-| Миникарта | терракота для агента, синий `state-business` для тула, акцентный фрустум | `03-tools-window.png` |
-| Omnibox | тёмная капсула с blur, терракотовая кнопка меню, локализованный placeholder | `01-board.png` |
-| Тёмная тема оболочки | сайдбар тёмный, доска сохраняет палитру Кетос | `07-settings-dark.png`, `08-board-dark-shell.png` |
-| Язык | ru по умолчанию; после Settings → English подписи доски английские | `10-board-english.png` |
+| Холст и сетка | поверхность темы (`bg-base`) с точечной сеткой на `border-l3`, видима в обеих темах; зум масштабирует точку и шаг | `01-board-light.png`, `07-board-dark.png` |
+| Карточка агента | поверхность `bg-layer-2` с elevation-штрихом; фокус — бизнес-синий; иконка закрытия, `Tag success` «Готово», `Tag neutral` «Изучено»; composer на `specific-input-major` | `02-agent-window.png` |
+| Второе окно | та же панельная рецептура, что и у карточки (один хром на все типы) | `03-second-window.png` |
+| Док | панель `bg-layer-2`, строки-иконки (`IconAgentPresetOutline16`), `Tooltip` с заголовком, активная строка на `markdown-tag`, reset — `IconFullscreenOutline16` | `04-dock-tooltip.png` |
+| Omnibox | composer-рецепт (`specific-input-major` + `elevation-soft` + r22), меню `Menu` с иконками, кнопка отправки на `button-info-fill` | `05-action-menu.png`, `06-sent.png` |
+| Инспектор | пунктирная рамка `state-business-primary`, капсула `bg-layer-3` + `IconCloseOutline16` | `08-inspector.png` |
+| Тема | светлая и тёмная темы: доска следует палитре, оранжевого нет | `01-board-light.png` / `07-board-dark.png` |
+| Язык | ru по умолчанию; Settings → English → подписи доски английские | `09-board-english.png` |
 
-Референс OpenSwarm: каталог `docs/ketos/reference/` в репозитории отсутствует (план ссылается на скриншот, которого нет), поэтому сверка велась с палитрой и композицией, зафиксированными в плане этапа (§4.1) и в реализации этапа 2, и по живым кадрам до/после перехода на токены. Направление — терракотовый акцент, графитовые карточки, кремовый холст — сохранено.
+Референс OpenSwarm: каталог `docs/ketos/reference/` в репозитории отсутствует; сверка велась по палитре/композиции и по живым кадрам. Прежний «кетосовский» вид (кремовый холст, тёмные карточки) отменён пользователем осознанно — доска теперь следует теме Harness.
 
 ## 5. Отклонения
 
-- **Премиса плана о `tokens.css` устарела.** Глобального `src/client/tokens.css` с русскими комментариями в дереве не было: он удалён ещё в этапе 2 (`f944353`). Работа свелась к инлайн-литералам, `--board-*`-переменных в коде также не осталось. Критерий «`tokens.css` удалён» выполнен по факту отсутствия, а не правкой.
-- **Светлое окно — блок перебинда в бренд-слое, а не вторая палитра.** Один субдерево доски смешивает кремовый холст, графитовые карточки и белые окна, а семантический алиас даёт одно значение на элемент. Решение: `.board-canvas` объявляет палитру графитовой оболочки, а `[data-board-surface='light']` — перебиндовывает те же алиасы (белая заливка, тёплый заголовок, светлые волоски, тёмные чернила). Альтернативы (литералы в модулях окна, глобальный перебинд `body`, новые `--dsw-specific-board-*`) разобраны в Agent Note.
-- **Три цвета без прямого алиаса получили семантическое соответствие, а не новые токены.** Зелёный огонёк зума — `--dsw-alias-state-success-tertiary` (`#27C93F`), потому что `-primary`/`-secondary` заняты бейджем «Готово» (`#265B19` на `#E9F1DC`, как в плане); красный/жёлтый огоньки — `state-error-primary`/`state-warn-primary`; синие прямоугольники миникарты — `state-business-primary`. Точка сетки холста — единственная бренд-переменная модуля (`--board-canvas-dot`), как и предписано планом.
-- **Миграция на elevation/волоски меняет тень и толщину рамок (намеренно).** Карточки и окна теперь `border: 0` + `--dsw-elevation-panel`/`-prominent`, фокус перебиндовывает `--dsw-elevation-stroke-color` в акцент; внутренние разделители — 0.5px-волоски. Это требование спек ui-theme (широкий нейтральный бордер, пара «нейтральный бордер + elevation-тень» запрещены), поэтому «вид не изменился» из §4.2 понимается как «не изменился относительно состояния 4.1»: палитра, композиция и вёрстка те же, тени и толщины приведены к системным.
-- **`inject` остаётся `['slots', 'locale']` — `layout` не добавлен.** План предписывал «проверить `inject = ['slots', 'layout', 'locale']`». Проверка: доска не читает сервис `layout`; регистрация в `main` использует `ctx.slots.inject`, который ждёт *декларацию* слота от ui-layout, а не её сервис. Другой occupant `main` — ui-conversation — тоже не инжектит `layout`. Добавление неиспользуемого сервиса заставило бы фибру ждать лишний провайдер.
-- **Иконка панели в сайдбаре больше не терракотовая при активации.** Она живёт вне `.board-canvas`, поэтому бренд-слой на неё не действует; вместо литерала `#B8532F` она следует `currentColor` (shell-чернила), а при активации — `--dsw-alias-brand-primary` в контексте оболочки. Это осознанно: сайдбар — поверхность Harness, а не доски.
-- **Из пяти пунктов ростера удалены два, три оставлены.** Удалены ровно те, что называли несуществующие продуктовые интеграции (`Temporal Orchestration`, `External MCP: Twitter/X`, включая их ru-переводы и ключи манифеста). «Core Tools», «Web Search», «Browser Inspector» называют реальные возможности Harness и остаются статичным ростором окна до момента, когда соответствующие этапы подключат их по-настоящему; это зафиксировано в Known Limitations README.
-- **Латентный дефект типов CSS Modules исправлен по ходу.** В `src/css-modules.d.ts` порядок ambient-деклараций был `*.css` → `*.module.css`, из-за чего TypeScript выбирал пустую `*.css`-декларацию и модули не типизировались (дефект не проявлялся, пока ни один компонент не импортировал модуль). Порядок приведён к конвенции остальных пакетов.
-- **Окно не перелокализует заголовок при смене языка.** Заголовок окна резолвится из словаря в момент открытия и хранится в `BoardWindowState.title` как данные окна; после переключения языка на английский существующее окно остаётся с русским заголовком (наблюдалось живьём в `qa/10-board-english.png`). Это поведение не менялось в этапе 4; заведена задача `ketos-1lx`.
-- **Минорное наблюдение при записи.** В консоли — два `Unable to preventDefault inside passive event listener invocation` от колеса холста; известная проблема `ketos-3kf` (жест колеса принадлежит этапу 5.1), в этапе 4 не трогалась.
-- **Базовые проблемы:** `verify-client-domain-graph` остаётся красным из-за unrelated upstream-пакетов (`ketos-bmz`, `docs/ketos/baseline-issues.md`); собственных нарушений `ui-board` нет.
+- **Отмена §4.8 плана и `AUDIT_REPORT.md` (97, 186–188).** План требовал объявить палитру Кетос бренд-слоем в `ui-theme` на селекторе `.board-canvas` и держать «доску в своей палитре Кетос»; пользователь отменил это требование. Решение записано новой Agent Note («доска использует общую тему и контролы Harness»), старая заметка о бренд-слое переведена в `archived/architecture/` (полное замещение, кросс-ссылки починены, печать архивного гейта пройдена).
+- **`inject` остаётся `['slots', 'locale']`.** План предписывал «проверить `inject = ['slots', 'layout', 'locale']`»; доска не читает сервис `layout` — регистрация в `main` ждёт декларацию слота, а не сервис, как и у ui-conversation.
+- **Мок-панели удалены, а не перекрашены.** Реальных полей (модель, пресет, cwd) в этапе 4 нет: их источники — `ctx.modelDirectories`, `remote.session.modelCatalog/selectModel`, `remote.agentPresets.*` — принадлежат этапам 11/13, а секции настроек Harness нельзя смонтировать вне панели, которая их объявляет; клиентского редактора system prompt в Harness нет вовсе. `WindowKind`/`WindowBodyKind` и регистрации кадров сохранены, но ни один вход не открывает пустые окна.
+- **Одна кнопка закрытия вместо меню `•••`.** Меню «закрыть/свернуть/дублировать» — задача подэтапа 6.1 плана; этап 4 ограничился заменой цветного светофора на иконочный контрол.
+- **Цвета без прямых алиасов получили семантическое соответствие:** мини-карта — `state-business-primary` (агент) и `label-caption` (прочее), фрустум — бизнес-тинт; статус-капсулы — `Tag` (`success`/`neutral`). Новых `--dsw-*`-токенов и бренд-переменных не добавлено; точка сетки больше не исключение — она на `border-l3`.
+- **`ui-primitives` подключён, но не целиком.** Использованы иконки (25+), `Tooltip`, `Menu`, `Tag`. `Button` не подходит для круглых иконочных контролов (в каталоге нет icon-only варианта — это зафиксированное ограничение пакета), `Switch` и `StateDot` остались без потребителя после удаления мок-контента. Пакет уже был в devDependencies доски — новых зависимостей не добавлено.
+- **Каталог слотов регенерирован.** `gen-client-catalog` обновил `slot-catalog.ts`: `board.window.body` теперь сообщает один занятый ключ (`conversation`) и один occupant.
+- **ru-манифест обновлён вручную.** `sync-dictionaries.mjs` требует корпус community-пака (`--corpus`, `--community`), недоступный офлайн; ключи namespace `board` в `tests/fixtures/ru-keys.json` приведены к новому набору тем же правилом, что применяет скрипт (ключи словаря = ключи корпуса), и спек `locale-ru` это подтверждает.
+- **Поведенческое следствие реворка:** «тёмная карточка» больше не тёмная в светлой теме — окна следуют поверхности темы. Это и есть требование пользователя; в README это отражено как свойство, а не как ограничение.
+- **Латентный дефект типов CSS Modules исправлен по ходу** (порядок ambient-деклараций в `src/css-modules.d.ts`), иначе модули не типизировались.
+- **Открытые пробелы:** `ketos-1lx` (заголовки окон не перелокализуются), `ketos-3kf` (passive-listener колеса — этап 5.1), `ketos-e9s`, `ketos-4k3`, `ketos-0s0`; базовые проблемы (`verify-client-domain-graph` по unrelated upstream-пакетам, `ketos-bmz`).
 
 ## 6. Проверки
 
 | Команда | Результат |
 |---|---|
-| `pnpm exec vitest run packages/client/ui-board/tests` | зелёный: 7 файлов, 40 passed |
+| `pnpm exec vitest run packages/client/ui-board/tests` | зелёный: 7 файлов, 39 passed |
 | `pnpm exec vitest run packages/client/ui-theme/tests packages/ketos/client-locale-ru/tests` | зелёный: 12 файлов, 93 passed |
-| `pnpm run test:gui` | зелёный: 385 файлов, 5466 passed, 1 skipped |
+| `pnpm run test:gui` | зелёный: 385 файлов, 5465 passed, 1 skipped |
 | `DSH_SNAPSHOT=replay pnpm run test:web` | зелёный: 101 файл passed, 1 skipped; 359 passed, 15 skipped; расхождений нет |
 | `pnpm run typecheck` | зелёный: host-сборка + `tsc -b tsconfig.client.json` |
-| `pnpm run lint` | зелёный: oxlint 0 warnings / 0 errors, 3606 файлов |
-| `pnpm run build` | зелёный на чистом коммите `4292283`: `238 client artifact(s) with 2 public value(s)`; в `ui-theme/lib/client.js` — `ketos-brand.css` (2 вхождения), в `ui-board/lib/client.js` — `board-canvas` (13) |
-| `pnpm run doc-sync` | зелёный: 34 passed, 0 failed |
+| `pnpm run lint` | зелёный: oxlint 1.76.0, 0 diagnostics на 3605 файлах |
+| `pnpm run build` | зелёный на чистом дереве финального коммита: `238 client artifact(s)` |
+| `pnpm run doc-sync` | зелёный: 34 passed |
 | `pnpm run hygiene` | зелёный: 16 gates passed |
-| `pnpm run verify-client-ui-i18n` | зелёный: 623 файла |
-| `pnpm run verify-translation-pairing` | зелёный: 818 пар (включая новые ru/en пары README ui-theme, README ui-board и Agent Note) |
-| `pnpm run verify-client-catalog` | зелёный: каталог актуален |
+| `pnpm run verify-client-ui-i18n` | зелёный: 622 файла |
+| `pnpm run verify-translation-pairing` | зелёный: пары консистентны (README/заметки перезаписаны) |
+| `pnpm run verify-client-catalog` | зелёный после `gen-client-catalog` (body-ключи доски: `conversation`) |
 | `pnpm run verify-client-packages` | зелёный: 52 пакета |
 | `pnpm run verify-cordis-config` | зелёный: 143 конфига |
-| `pnpm --filter @deepseek-ai/dsh-client-ui-board bundle` | зелёный: 10 style-инъекторов (по одному на модуль) |
-| Живой `pnpm ketos web` (scratch `DSH_HOME`, порт 3185, коммит `4292283`) | ru по умолчанию; холст/сетка/карточка/светлое окно/док/миникарта/Omnibox по чек-листу §4; тёмная тема оболочки доску не меняет; Settings → English переключает подписи доски; 2 предупреждения консоли — известный `ketos-3kf`; сервер остановлен |
-| `getComputedStyle` живьём | под тёмной оболочкой: `body --dsw-alias-bg-base #151517`, `.board-canvas` `#f5f5f0`, `--dsw-alias-brand-primary #b8532f`; светлое окно `#fff`/`#1c1b1f`/`#e8e6e1`; карточка `rgb(43,42,48)`, `border-width 0px`, тень начинается с волоска `rgb(58,57,64) 0 0 0 0.5px` |
-| GIF-запись `record-browser-gif` | `.playwright-mcp/stage-04-gif/board-theme-i18n.gif`, 1200×750, 12.8 с, 128 кадров, 3.1 МБ; источник 13.5–28.2 с, скорость 1.5×, финальная задержка 3 с; снят с коммита `4292283`, порт 3185; storyboard, QA-кадры, `console-errors.log` и исходный WebM рядом; вызовов модели нет — окна доски остаются заглушками до этапов 6/10 |
+| `pnpm run verify-archived-agent-notes` | зелёный: 1887 артефактов, 3 новых печати |
+| `pnpm --filter @deepseek-ai/dsh-client-ui-board bundle` | зелёный: 9 style-инъекторов |
+| Живой `pnpm ketos web` (scratch `DSH_HOME`, порт 3185) | холст/сетка/окно/док/омнибокс/миникарта/инспектор по чек-листу §4 в светлой и тёмной темах; ru и en; консоль без ошибок (два известных предупреждения `ketos-3kf`); сервер остановлен |
+| GIF-запись `record-browser-gif` | `.playwright-mcp/stage-04-gif/board-harness-theme.gif` — 1200×750, финальный прогон с того же коммита; storyboard, QA-кадры и исходный WebM рядом; вызовов модели нет (окна доски — заглушки до этапов 9/10) |
 
 ## 7. Следующий шаг
 
-Этап 5 — «Оконный менеджер холста» (эпик этапа 5): 8-направленный ресайз, жесты, passive-listener, GPU-трансформации; за ним этап 6 — каркас чат-окна. Предпосылки этапа 4 выполнены: визуальный язык собран в одном бренд-слое, компоненты разбиты на модули с семантическими токенами (правки стилей в этапах 5–19 не требуют трогать палитру), строки владеются словарями, поэтому новые подписи окон и меню попадают в тот же namespace. Открытые задачи, связанные с этапом: `ketos-3kf` (passive listener колеса), `ketos-e9s` (колесо над доком/омнибоксом/миникартой больше не зумит холст), `ketos-4k3` (дублирование ресайза), `ketos-0s0` (слушатели жеста при размонтировании), `ketos-1lx` (заголовки окон не перелокализуются). После приёмки агент закрывает эпик `ketos-5v2.5` в Beads и готовит worktree этапа 5 от принятой ветки.
+Этап 5 — «Оконный менеджер холста» (жесты, passive-listener, GPU-трансформации), затем этап 6 — каркас чат-окна (в том числе меню `•••`). Предпосылки выполнены: палитра и контролы общие с Harness, поэтому правки стилей в этапах 5–19 не задевают доску как исключение, а новые окна наследуют хром; строки по-прежнему владеются словарями. После приёмки агент закрывает эпик `ketos-5v2.5` в Beads и готовит worktree этапа 5 от принятой ветки.

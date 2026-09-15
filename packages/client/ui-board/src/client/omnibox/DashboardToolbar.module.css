@@ -1,4 +1,6 @@
-/* Center floating Omnibox with its Action Menu, on the dark Ketos chrome. */
+/* Center floating Omnibox. The menu is the shared Menu primitive; the form
+ * follows the conversation composer recipe (input fill, soft elevation tier
+ * drawing the stroke). */
 
 .omnibar {
   position: absolute;
@@ -12,78 +14,40 @@
   user-select: none;
 }
 
-.menu {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 200px;
-  margin-bottom: 10px;
-  padding: 6px;
-  border-radius: 14px;
-  background: var(--dsw-alias-bg-layer-3);
-  border: 0;
-  box-shadow: var(--dsw-elevation-panel);
-  color: var(--dsw-alias-label-primary);
-  font-size: 13px;
-}
-
-.menuItem {
-  display: flex;
-  gap: 8px;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--dsw-alias-label-primary);
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-}
-
-/* The element-inspector entry is the menu's brand action. */
-.menuItemAccent {
-  background: color-mix(in srgb, var(--dsw-alias-brand-primary) 15%, transparent);
-  color: var(--dsw-alias-brand-primary);
-  font-weight: 600;
-}
-
-.menuDivider {
-  height: 0.5px;
-  margin: 4px 0;
-  background: var(--dsw-alias-border-l1);
-}
-
 .form {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 440px;
   padding: 6px 10px;
-  border-radius: 9999px;
-  corner-shape: round;
-  background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 92%, transparent);
-  backdrop-filter: blur(16px);
+  border-radius: 22px;
+  background: var(--dsw-specific-input-major);
   border: 0;
-  box-shadow: var(--dsw-elevation-prominent);
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
+  box-shadow: var(--dsw-elevation-soft);
 }
 
 .menuButton {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: none;
   width: 28px;
   height: 28px;
   border-radius: 50%;
   corner-shape: round;
-  background: var(--dsw-alias-button-floating-fill);
   border: none;
-  color: var(--dsw-alias-label-primary-inverted);
-  font-size: 16px;
+  background: var(--dsw-specific-selector);
+  color: var(--dsw-alias-label-primary);
   cursor: pointer;
 }
 
+.menuButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+}
+
 .menuButton.open {
-  background: var(--dsw-alias-brand-primary);
+  background: var(--dsw-alias-interactive-bg-hover-solid);
 }
 
 .input {
@@ -99,18 +63,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  flex: none;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   corner-shape: round;
-  background: var(--dsw-alias-button-floating-fill);
   border: none;
-  color: var(--dsw-alias-label-primary-inverted);
-  font-size: 13px;
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+  color: var(--dsw-alias-label-tertiary);
   cursor: default;
 }
 
 .submit.ready {
-  background: var(--dsw-alias-brand-primary);
+  background: var(--dsw-alias-button-info-fill);
+  color: var(--dsw-alias-label-primary-foreground);
   cursor: pointer;
+}
+
+.submit.ready:hover {
+  background: var(--dsw-alias-button-info-hover);
 }

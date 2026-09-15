@@ -1,6 +1,5 @@
-/* Board root: the frame that stacks the floating layers. The literal
- * `board-canvas` class is the hook the ui-theme brand layer scopes the Ketos
- * palette to (ketos-brand.css); only this element carries it. */
+/* Board root: the frame that stacks the floating layers. The board consumes
+ * the shared theme directly — no brand override layer, no scoped class hook. */
 
 .root {
   position: relative;
@@ -11,8 +10,4 @@
 
 .icon {
   stroke: currentColor;
-}
-
-.icon.active {
-  stroke: var(--dsw-alias-brand-primary);
 }

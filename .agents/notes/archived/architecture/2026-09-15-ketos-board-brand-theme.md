@@ -1,6 +1,7 @@
 # Agent Note: The Ketos board palette is a scoped brand layer
 
 Status: implemented
+Archived: 2026-09-15
 
 English | [中文](2026-09-15-ketos-board-brand-theme.zh.md)
 

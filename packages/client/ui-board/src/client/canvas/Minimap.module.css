@@ -1,16 +1,16 @@
-/* Bottom-right interactive minimap: a translucent board-colored card with one
- * rect per window and the camera frustum. Window geometry is projected by the
- * component; the rect fills and frustum colors are semantic tokens. */
+/* Bottom-right interactive minimap: a floating panel with one rect per window
+ * and the camera frustum. Window geometry is projected by the component; the
+ * fills and the frustum ride the theme's accent and neutral scales. */
 
 .minimap {
   position: absolute;
   bottom: 24px;
   right: 24px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--dsw-alias-bg-base) 85%, transparent);
-  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  background: var(--dsw-alias-bg-layer-2);
   border: 0;
-  box-shadow: var(--dsw-elevation-panel);
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
+  box-shadow: var(--dsw-elevation-prominent);
   overflow: hidden;
   z-index: 100;
   user-select: none;
@@ -25,12 +25,14 @@
   cursor: pointer;
 }
 
+/* Agent windows take the platform accent; every other window takes the
+   neutral caption tone. */
 .agent {
-  fill: var(--dsw-alias-brand-primary);
+  fill: var(--dsw-alias-state-business-primary);
 }
 
 .tool {
-  fill: var(--dsw-alias-state-business-primary);
+  fill: var(--dsw-alias-label-caption);
 }
 
 .active {
@@ -38,12 +40,12 @@
 }
 
 .idle {
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
 .frustum {
-  fill: color-mix(in srgb, var(--dsw-alias-brand-primary) 8%, transparent);
-  stroke: var(--dsw-alias-brand-primary);
+  fill: color-mix(in srgb, var(--dsw-alias-state-business-primary) 10%, transparent);
+  stroke: var(--dsw-alias-state-business-primary);
   stroke-width: 1.5;
   pointer-events: none;
 }

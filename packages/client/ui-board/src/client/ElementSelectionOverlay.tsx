@@ -1,7 +1,9 @@
 /**
- * Spatial Element Inspector Overlay OpenSwarm-style.
+ * Element-selection overlay: the canvas frame and instruction capsule shown
+ * while the user picks a window or canvas element.
  */
 import { useEffect } from 'react'
+import { IconCloseOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { BoardTranslate } from './locale.ts'
 import css from './ElementSelectionOverlay.module.css'
 
@@ -32,8 +34,13 @@ export function ElementSelectionOverlay({
     <div className={css.overlay}>
       <div className={css.pill}>
         <span>{t('inspector.selectTarget')}</span>
-        <button onClick={onCancel} className={css.cancel}>
-          ✕
+        <button
+          type="button"
+          onClick={onCancel}
+          className={css.cancel}
+          aria-label={t('inspector.cancel')}
+        >
+          <IconCloseOutline16 />
         </button>
       </div>
     </div>

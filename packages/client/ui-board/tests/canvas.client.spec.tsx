@@ -144,7 +144,7 @@ describe('DashboardCanvas Component', () => {
     // Zoom and pan reach the stylesheet as component-local custom properties.
     expect(surfaces[0]?.style.getPropertyValue('--board-zoom')).toBe('1.5')
     expect(surfaces[0]?.style.getPropertyValue('--board-pan-x')).toBe('40px')
-    expect(surfaces[0]?.style.getPropertyValue('--board-canvas-grid')).toBe('36px')
+    expect(surfaces[0]?.style.getPropertyValue('--board-grid-size')).toBe('36px')
     expect(container.querySelector('[data-testid="windows-layer"]')).not.toBeNull()
 
     // The canvas publishes its measured box and renders the declared window layer.

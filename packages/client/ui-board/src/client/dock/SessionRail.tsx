@@ -1,9 +1,16 @@
 /**
- * Left floating rail for active sessions/windows OpenSwarm-style.
+ * Left floating dock: one row per open window plus the board controls.
  */
-import { useState } from 'react'
 import clsx from 'clsx'
+import {
+  IconAgentPresetOutline16,
+  IconBrowseOutline16,
+  IconFullscreenOutline16,
+  IconPlusOutline16,
+  Tooltip,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { WindowKind } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
 import { openBoardWindow } from '../open-window.ts'
 import css from './SessionRail.module.css'
@@ -13,13 +20,14 @@ export type SessionRailProps =
   & PropsStore<BoardStoreHandle>
   & PropsLocale<'board'>
 
-/** Glyphs of the rail controls; they are icons, not copy. */
-const TOOL_GLYPH = '🛠'
-const CONNECTORS_GLYPH = '⚙'
-const RESET_GLYPH = '⌖'
+/** The dock glyph for one window kind. */
+function windowGlyph(kind: WindowKind) {
+  return kind === 'agent' || kind === 'clone'
+    ? <IconAgentPresetOutline16 />
+    : <IconBrowseOutline16 />
+}
 
 export function SessionRail({ useStore, actions, t }: SessionRailProps) {
-  const [hoveredId, setHoveredId] = useState<string | null>(null)
   const windowOrder = useStore(s => s.windowOrder)
   const windows = useStore(s => s.windows)
   const activeWindowId = useStore(s => s.activeWindowId)
@@ -31,71 +39,55 @@ export function SessionRail({ useStore, actions, t }: SessionRailProps) {
     })
   }
 
-  const openConnectors = () => {
-    openBoardWindow(actions, 'connectors', t('canvas.connectorsTitle'))
-  }
-
   return (
     <div data-board-layer="dock" className={css.rail}>
       {windowOrder.map((id) => {
         const win = windows[id as string]
         if (!win) return null
         const isActive = id === activeWindowId
-        const isHovered = hoveredId === id
-        const isAgent = win.kind === 'agent'
 
         return (
-          <div
-            key={id}
-            className={css.row}
-            onMouseEnter={() => { setHoveredId(id) }}
-            onMouseLeave={() => { setHoveredId(null) }}
-          >
-            <button
-              onClick={() => { actions.centerOnWindow(id) }}
-              className={clsx(css.windowButton, isActive && css.active)}
-              title={win.title}
-            >
-              {isAgent ? t('rail.agentBadge') : TOOL_GLYPH}
-            </button>
-
-            {isHovered && (
-              <div className={css.tooltip}>
-                {win.title}
-              </div>
-            )}
+          <div key={id} className={css.row}>
+            <Tooltip label={win.title} side="right" delayMs={300}>
+              <button
+                type="button"
+                onClick={() => { actions.centerOnWindow(id) }}
+                className={clsx(css.windowButton, isActive && css.active)}
+                aria-label={win.title}
+              >
+                {windowGlyph(win.kind)}
+              </button>
+            </Tooltip>
           </div>
         )
       })}
 
       <div className={css.divider} />
 
-      <button
-        onClick={openAgent}
-        className={css.addButton}
-        title={t('rail.addAgent')}
-      >
-        +
-      </button>
+      <Tooltip label={t('rail.addAgent')} side="right" delayMs={300}>
+        <button
+          type="button"
+          onClick={openAgent}
+          className={css.addButton}
+          aria-label={t('rail.addAgent')}
+        >
+          <IconPlusOutline16 />
+        </button>
+      </Tooltip>
 
-      <button
-        onClick={openConnectors}
-        className={css.control}
-        title={t('rail.addConnectors')}
-      >
-        {CONNECTORS_GLYPH}
-      </button>
-
-      <button
-        onClick={() => {
-          actions.setPan(0, 0)
-          actions.setZoom(1)
-        }}
-        className={css.control}
-        title={t('rail.resetView')}
-      >
-        {RESET_GLYPH}
-      </button>
+      <Tooltip label={t('rail.resetView')} side="right" delayMs={300}>
+        <button
+          type="button"
+          onClick={() => {
+            actions.setPan(0, 0)
+            actions.setZoom(1)
+          }}
+          className={css.control}
+          aria-label={t('rail.resetView')}
+        >
+          <IconFullscreenOutline16 />
+        </button>
+      </Tooltip>
     </div>
   )
 }

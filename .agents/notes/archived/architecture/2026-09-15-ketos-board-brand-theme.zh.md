@@ -1,6 +1,7 @@
 # Agent Note: Ketos 看板调色板是一个限定范围的品牌层
 
 Status: implemented
+Archived: 2026-09-15
 
 [English](2026-09-15-ketos-board-brand-theme.md) | 中文
 

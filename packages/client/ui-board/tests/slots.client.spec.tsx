@@ -82,12 +82,13 @@ describe('board slot composition', () => {
     expect(runtime.slots.spec('board.window')).toEqual({ kind: 'keyed', scope: 'root' })
     expect(runtime.slots.spec('board.window.body')).toEqual({ kind: 'keyed', scope: 'root' })
 
-    // One frame registration per window type, one body registration per default body.
+    // One frame registration per window type, one body registration for the
+    // conversation body (no board window ships mock tool or settings content).
     expect(runtime.slots.entries('board.window').map(entry => entry.options.key)).toEqual([
       'agent', 'clone', 'connectors', 'settings', 'dashboard', 'tasks',
     ])
     expect(runtime.slots.entries('board.window.body').map(entry => entry.options.key)).toEqual([
-      'conversation', 'connectors', 'settings',
+      'conversation',
     ])
 
     expect(runtime.slots.entries('sidebar.panellist').map(entry => entry.options.id)).toEqual(['board'])
@@ -124,15 +125,15 @@ describe('board slot composition', () => {
     })
     await runtime.flush()
 
-    // Each frame renders its own component: the dark card's composer and the light frame's tabs
-    // are mutually exclusive, so a frame dispatched to the wrong occupant fails these assertions.
+    // Each frame renders its own component: only the agent frame carries the
+    // composer, so a frame dispatched to the wrong occupant fails these assertions.
     const agentFrame = panel.container.querySelector('[data-board-window="agent"]')
     const toolFrame = panel.container.querySelector('[data-board-window="connectors"]')
     expect(agentFrame?.querySelector('input[placeholder="Ask agent anything..."]')).not.toBeNull()
     expect(toolFrame?.querySelector('input[placeholder="Ask agent anything..."]')).toBeNull()
-    expect(toolFrame?.textContent).toContain('Built-in Connectors & MCP Tools')
-    expect(agentFrame?.textContent).not.toContain('Built-in Connectors & MCP Tools')
-    expect(toolFrame?.textContent).toContain('Settings')
+    expect(toolFrame?.querySelector('input')).toBeNull()
+    expect(toolFrame?.textContent).toContain('Tools')
+    expect(agentFrame?.textContent).toContain('First agent')
   })
 
   it('swaps the body occupant when bodyKind changes', async () => {
@@ -148,32 +149,15 @@ describe('board slot composition', () => {
     await runtime.flush()
     expect(panel.view.getByText(/autonomous AI expert twin/)).not.toBeNull()
 
-    // The connectors body is a different component, so this proves the body seat dispatch.
+    // An unoccupied body kind renders the frame with an empty content region.
     act(() => { board.actions.setWindowBodyKind('a1' as WindowId, 'connectors') })
     await runtime.flush()
     expect(panel.view.queryByText(/autonomous AI expert twin/)).toBeNull()
-    expect(panel.view.getByText('Built-in Connectors & MCP Tools')).not.toBeNull()
-  })
+    expect(panel.container.querySelector('[data-board-window="agent"]')).not.toBeNull()
 
-  it('renders the tool body panes selected by bodyKind', async () => {
-    const { runtime } = await bench()
-    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
-    const board = runtime.storeOf('board.dock') as BoardInstance
-
-    act(() => {
-      board.actions.openWindow(windowState({
-        id: 't1' as WindowId, kind: 'connectors', bodyKind: 'connectors', title: 'Tools', width: 520, height: 480,
-      }))
-    })
+    act(() => { board.actions.setWindowBodyKind('a1' as WindowId, 'conversation') })
     await runtime.flush()
-    expect(panel.view.getByText('Built-in Connectors & MCP Tools')).not.toBeNull()
-
-    // The settings body reuses the tool window's configuration pane.
-    act(() => { board.actions.setWindowBodyKind('t1' as WindowId, 'settings') })
-    await runtime.flush()
-    expect(panel.view.queryByText('Built-in Connectors & MCP Tools')).toBeNull()
-    expect(panel.view.getByText('Agent Configuration')).not.toBeNull()
-    expect(panel.view.getByText('System Prompt')).not.toBeNull()
+    expect(panel.view.getByText(/autonomous AI expert twin/)).not.toBeNull()
   })
 
   it('renders the conversation body for an agent window and nothing for an unoccupied body kind', async () => {
@@ -203,7 +187,6 @@ describe('board slot composition', () => {
     expect(cloneFrame).not.toBeNull()
     expect(cloneFrame?.textContent).toContain('Clone memory')
     expect(cloneFrame?.textContent).not.toContain('autonomous AI expert twin')
-    expect(cloneFrame?.textContent).not.toContain('Built-in Connectors & MCP Tools')
   })
 
   it('closes a window through its frame and removes it from the layer', async () => {
@@ -219,7 +202,7 @@ describe('board slot composition', () => {
     expect(panel.container.querySelectorAll('[data-board-window="agent"]')).toHaveLength(2)
 
     const firstFrame = panel.container.querySelectorAll('[data-board-window="agent"]')[0] as HTMLElement
-    fireEvent.click(firstFrame.querySelector('button[title="Close"]') as Element)
+    fireEvent.click(firstFrame.querySelector('button[aria-label="Close"]') as Element)
     await runtime.flush()
 
     expect(panel.container.querySelectorAll('[data-board-window="agent"]')).toHaveLength(1)
@@ -255,7 +238,7 @@ describe('board slot composition', () => {
     expect(runtime.slots.entriesOfSlot('board.canvas')).toHaveLength(1)
     expect(runtime.slots.entriesOfSlot('board.windows')).toHaveLength(1)
     expect(runtime.slots.entries('board.window')).toHaveLength(6)
-    expect(runtime.slots.entries('board.window.body')).toHaveLength(3)
+    expect(runtime.slots.entries('board.window.body')).toHaveLength(1)
   })
 
   it('re-applies without duplicating registrations and renders again', async () => {
@@ -273,7 +256,7 @@ describe('board slot composition', () => {
       expect(runtime.slots.entriesOfSlot('board.canvas')).toHaveLength(1)
       expect(runtime.slots.entriesOfSlot('board.windows')).toHaveLength(1)
       expect(runtime.slots.entries('board.window')).toHaveLength(6)
-      expect(runtime.slots.entries('board.window.body')).toHaveLength(3)
+      expect(runtime.slots.entries('board.window.body')).toHaveLength(1)
       await vi.waitFor(() => {
         expect(panel.container.querySelector('[data-surface="canvas"]')).not.toBeNull()
       })

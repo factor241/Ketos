@@ -83,10 +83,10 @@ export function DashboardCanvas({ renderSlot, useStore, actions }: DashboardCanv
   // Grid geometry follows the live zoom; the dot grid paints from these variables.
   const grid = 24 * zoom
   const gridStyle = {
-    '--board-canvas-dot-radius': `${Math.max(1, 1.5 * zoom)}px`,
-    '--board-canvas-grid': `${grid}px`,
-    '--board-canvas-grid-x': `${panX % grid}px`,
-    '--board-canvas-grid-y': `${panY % grid}px`,
+    '--board-grid-dot-radius': `${Math.max(1, 1.5 * zoom)}px`,
+    '--board-grid-size': `${grid}px`,
+    '--board-grid-x': `${panX % grid}px`,
+    '--board-grid-y': `${panY % grid}px`,
     '--board-pan-x': `${panX}px`,
     '--board-pan-y': `${panY}px`,
     '--board-zoom': zoom,

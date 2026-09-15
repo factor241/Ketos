@@ -45,7 +45,7 @@ describe('the board in the shipped web roster', () => {
   it('rebuilds the row through the Loader without duplicating board contributions', async ({ start }) => {
     const client = await start()
     const before = boardContributions(client)
-    expect(before).toEqual({ panel: 1, canvas: 1, windows: 1, frames: 6, bodies: 3, sidebar: 1 })
+    expect(before).toEqual({ panel: 1, canvas: 1, windows: 1, frames: 6, bodies: 1, sidebar: 1 })
 
     // client-hmr's real rebuild path: tear the entry fiber down, then refresh the Loader entry.
     await client.reload(BOARD)

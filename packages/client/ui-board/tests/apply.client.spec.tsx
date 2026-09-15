@@ -121,7 +121,7 @@ describe('board plugin registration', () => {
     expect(runtime.slots.entriesOfSlot('board.canvas')).toHaveLength(1)
     expect(runtime.slots.entriesOfSlot('board.windows')).toHaveLength(1)
     expect(runtime.slots.entries('board.window')).toHaveLength(6)
-    expect(runtime.slots.entries('board.window.body')).toHaveLength(3)
+    expect(runtime.slots.entries('board.window.body')).toHaveLength(1)
 
     runtime.root.release()
     expect(runtime.slots.entries('main')).toEqual([])
@@ -136,9 +136,7 @@ describe('board plugin registration', () => {
     await runtime.mount({ inject: [...inject], apply })
 
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
-    // The board root carries the `board-canvas` hook the ui-theme brand layer
-    // scopes the Ketos palette to; the canvas occupant fills it.
-    expect(element(panel.container, '.board-canvas')).not.toBeNull()
+    // The board root frames the floating layers; the canvas occupant fills it.
     const surface = htmlElement(panel.container, '[data-surface="canvas"]')
     expect(surface.classList.contains(classOf(canvasCss, 'canvas'))).toBe(true)
     expect(htmlElement(surface, '[data-surface="canvas"]').classList.contains(classOf(canvasCss, 'surface'))).toBe(true)

@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-15-ketos-board-harness-theme.md
+2026-09-15-ketos-board-harness-theme.md: 3ed541f3f1b1acfc7428e1f8ced56ab74d0eb6ab
+2026-09-15-ketos-board-harness-theme.zh.md: 437fbf4f6943b820e9c5768eb4da9f0c1fa45f43

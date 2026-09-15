@@ -1,7 +1,6 @@
 /**
  * React entry views for the Spatial Board slot registrations.
  */
-import clsx from 'clsx'
 import type { PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from './store.ts'
 import { ElementSelectionOverlay } from './ElementSelectionOverlay.tsx'
@@ -17,7 +16,7 @@ export type BoardRootProps =
 export function BoardRoot({ renderSlot, useStore, actions, t }: BoardRootProps) {
   const selecting = useStore(s => s.isSelectingElement)
   return (
-    <div data-surface="board" className={clsx(css.root, 'board-canvas')}>
+    <div data-surface="board" className={css.root}>
       {renderSlot('board.canvas', {})}
       {renderSlot('board.dock', {})}
       {renderSlot('board.omnibar', {})}
@@ -31,7 +30,7 @@ export function BoardRoot({ renderSlot, useStore, actions, t }: BoardRootProps) 
   )
 }
 
-export function BoardIcon({ size, active }: PropsRuntime<'sidebar.panellist'>) {
+export function BoardIcon({ size }: PropsRuntime<'sidebar.panellist'>) {
   return (
     <svg
       width={size}
@@ -41,7 +40,7 @@ export function BoardIcon({ size, active }: PropsRuntime<'sidebar.panellist'>) {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={clsx(css.icon, active && css.active)}
+      className={css.icon}
     >
       <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
       <line x1="3" y1="9" x2="21" y2="9" />

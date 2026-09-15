@@ -16,10 +16,10 @@ describe('ElementSelectionOverlay', () => {
 
   it('shows the selection prompt and cancels through the button and Escape', () => {
     const onCancel = vi.fn()
-    const { getByText } = render(<ElementSelectionOverlay t={t} active onCancel={onCancel} />)
+    const { getByText, container } = render(<ElementSelectionOverlay t={t} active onCancel={onCancel} />)
 
-    expect(getByText('🎯 Select an element or window on the canvas')).not.toBeNull()
-    fireEvent.click(getByText('✕'))
+    expect(getByText('Select an element or window on the canvas')).not.toBeNull()
+    fireEvent.click(container.querySelector('button[aria-label="Cancel selection"]') as Element)
     expect(onCancel).toHaveBeenCalledOnce()
 
     fireEvent.keyDown(document, { key: 'Escape' })

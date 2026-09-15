@@ -2,7 +2,6 @@ import type { Context } from '@deepseek-ai/cordis'
 import base from '../styles/base.css?inline'
 import cornerShape from '../styles/corner-shape.css?inline'
 import designPlatform from '../styles/design-platform.css?inline'
-import ketosBrand from '../styles/ketos-brand.css?inline'
 import scrollbar from '../styles/scrollbar.css?inline'
 import gradientShadowText from '../styles/gradient-shadow-text.css?inline'
 import shiki from '../styles/shiki.css?inline'
@@ -13,7 +12,6 @@ const STYLES = [
   ['base.css', base],
   ['corner-shape.css', cornerShape],
   ['design-platform.css', designPlatform],
-  ['ketos-brand.css', ketosBrand],
   ['scrollbar.css', scrollbar],
   ['gradient-shadow-text.css', gradientShadowText],
   ['shiki.css', shiki],

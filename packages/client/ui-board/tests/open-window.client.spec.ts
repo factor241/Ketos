@@ -31,12 +31,12 @@ describe('openBoardWindow', () => {
 
   it('mints a distinct id per window and omits a status the caller did not pass', () => {
     const { openWindow, actions } = recorder()
-    openBoardWindow(actions, 'connectors', 'Tools')
-    openBoardWindow(actions, 'connectors', 'Tools')
+    openBoardWindow(actions, 'agent', 'Agent #1')
+    openBoardWindow(actions, 'agent', 'Agent #2')
 
     const [first, second] = openWindow.mock.calls.map(call => call[0])
     expect(first?.id).not.toBe(second?.id)
-    expect(first).toMatchObject({ kind: 'connectors', bodyKind: 'connectors', width: 520, height: 480 })
+    expect(first).toMatchObject({ kind: 'agent', bodyKind: 'conversation', width: 480, height: 560 })
     expect(first).not.toHaveProperty('status')
     expect(first).not.toHaveProperty('statusText')
   })

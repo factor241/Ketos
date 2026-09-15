@@ -1,8 +1,9 @@
 /**
- * Dark window frame (agent and clone windows) with 8-direction resize.
+ * Window frame (agent and clone windows) with 8-direction resize.
  */
 import React, { useCallback } from 'react'
 import clsx from 'clsx'
+import { IconCloseOutline16, IconPlusOutline16, Tag, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
 import { finishBoardPointerGesture } from './pointer-cleanup.ts'
@@ -132,27 +133,22 @@ export function AgentCard({ window: cardWindow, renderBody, useStore, actions, t
 
       <div onPointerDown={handleHeaderPointerDown} className={css.header}>
         <div className={css.headerLeft}>
-          <div className={css.traffic}>
+          <Tooltip label={t('window.close')} side="bottom">
             <button
+              type="button"
               onClick={() => { actions.closeWindow(cardWindow.id) }}
-              className={clsx(css.trafficDot, css.trafficClose)}
-              title={t('window.close')}
-            />
-            <div className={clsx(css.trafficDot, css.trafficMinimize)} />
-            <div className={clsx(css.trafficDot, css.trafficZoom)} />
-          </div>
-
-          <div className={css.titlePill}>
-            <span className={css.title}>{cardWindow.title}</span>
-            <span>|</span>
-            <span className={css.doneBadge}>
-              {t('agent.doneBadge')}
-            </span>
-          </div>
+              className={css.closeButton}
+              aria-label={t('window.close')}
+            >
+              <IconCloseOutline16 />
+            </button>
+          </Tooltip>
+          <span className={css.title}>{cardWindow.title}</span>
         </div>
 
-        <div className={css.learned}>
-          {t('agent.learnedCount')}
+        <div className={css.headerMeta}>
+          <Tag tone="success">{t('agent.doneBadge')}</Tag>
+          <Tag tone="neutral">{t('agent.learnedCount')}</Tag>
         </div>
       </div>
 
@@ -167,13 +163,16 @@ export function AgentCard({ window: cardWindow, renderBody, useStore, actions, t
             placeholder={t('agent.composerPlaceholder')}
             className={css.composerInput}
           />
-          <button
-            onClick={() => { actions.setSelectingElement(true) }}
-            className={css.actionButton}
-            title={t('agent.actionMenu')}
-          >
-            +
-          </button>
+          <Tooltip label={t('agent.actionMenu')} side="top">
+            <button
+              type="button"
+              onClick={() => { actions.setSelectingElement(true) }}
+              className={css.actionButton}
+              aria-label={t('agent.actionMenu')}
+            >
+              <IconPlusOutline16 />
+            </button>
+          </Tooltip>
         </div>
       </div>
 

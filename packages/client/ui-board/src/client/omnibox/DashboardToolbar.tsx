@@ -1,24 +1,28 @@
 /**
- * Center floating Omnibox with Action Menu OpenSwarm-style.
+ * Center floating Omnibox with its Action Menu. The menu is the shared
+ * ui-primitives `Menu`; the entries are the navigation stubs the later stages
+ * wire to capabilities.
  */
 import { useState, type FormEvent } from 'react'
 import clsx from 'clsx'
+import {
+  IconGlobeOutline14,
+  IconInspectOutline12,
+  IconPaperclipOutline16,
+  IconSendOutline16,
+  IconSparkle16,
+  Menu,
+  Tooltip,
+  type MenuEntry,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
-import { openBoardWindow } from '../open-window.ts'
 import css from './DashboardToolbar.module.css'
 
 export type DashboardToolbarProps =
   PropsRuntime<'board.omnibar'>
   & PropsStore<BoardStoreHandle>
   & PropsLocale<'board'>
-
-/** Icon glyphs of the action-menu entries. */
-const ATTACH_GLYPH = '📎'
-const DICTATE_GLYPH = '🎙️'
-const WEB_SEARCH_GLYPH = '🌐'
-const SELECT_ELEMENT_GLYPH = '🎯'
-const CONNECTORS_GLYPH = '🔌'
 
 export function DashboardToolbar({ actions, t }: DashboardToolbarProps) {
   const [text, setText] = useState('')
@@ -31,51 +35,42 @@ export function DashboardToolbar({ actions, t }: DashboardToolbarProps) {
     setText('')
   }
 
-  const openConnectors = () => {
-    openBoardWindow(actions, 'connectors', t('canvas.connectorsTitle'))
-  }
+  const menuItems: readonly MenuEntry[] = [
+    { id: 'attachFile', label: t('menu.attachFile'), icon: <IconPaperclipOutline16 /> },
+    { id: 'dictate', label: t('menu.dictate'), icon: <IconSparkle16 /> },
+    { id: 'webSearch', label: t('menu.webSearch'), icon: <IconGlobeOutline14 /> },
+    { id: 'selectElement', label: t('menu.selectElement'), icon: <IconInspectOutline12 /> },
+  ]
 
-  // Attach, dictation, and web search close the menu without reaching their capabilities.
-  const closeMenu = () => { setMenuOpen(false) }
+  // Attach, dictation, and web search close the menu without reaching their capabilities yet.
+  const handleMenuSelect = (id: string): void => {
+    setMenuOpen(false)
+    if (id === 'selectElement') actions.setSelectingElement(true)
+  }
 
   return (
     <div data-board-layer="omnibar" className={css.omnibar}>
-      {menuOpen && (
-        <div className={css.menu}>
-          <button onClick={closeMenu} className={css.menuItem}>
-            <span>{ATTACH_GLYPH}</span> {t('menu.attachFile')}
-          </button>
-          <button onClick={closeMenu} className={css.menuItem}>
-            <span>{DICTATE_GLYPH}</span> {t('menu.dictate')}
-          </button>
-          <button onClick={closeMenu} className={css.menuItem}>
-            <span>{WEB_SEARCH_GLYPH}</span> {t('menu.webSearch')}
-          </button>
-          <button
-            onClick={() => { setMenuOpen(false); actions.setSelectingElement(true) }}
-            className={clsx(css.menuItem, css.menuItemAccent)}
-          >
-            <span>{SELECT_ELEMENT_GLYPH}</span> {t('menu.selectElement')}
-          </button>
-          <div className={css.menuDivider} />
-          <button
-            onClick={() => { setMenuOpen(false); openConnectors() }}
-            className={css.menuItem}
-          >
-            <span>{CONNECTORS_GLYPH}</span> {t('menu.connectors')}
-          </button>
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className={css.form}>
-        <button
-          type="button"
-          onClick={() => { setMenuOpen(!menuOpen) }}
-          className={clsx(css.menuButton, menuOpen && css.open)}
-          title={t('menu.openActionMenu')}
-        >
-          +
-        </button>
+        <Menu
+          open={menuOpen}
+          side="top"
+          selection="fill"
+          anchor={(
+            <Tooltip label={t('menu.openActionMenu')} side="top">
+              <button
+                type="button"
+                onClick={() => { setMenuOpen(!menuOpen) }}
+                className={clsx(css.menuButton, menuOpen && css.open)}
+                aria-label={t('menu.openActionMenu')}
+              >
+                +
+              </button>
+            </Tooltip>
+          )}
+          items={menuItems}
+          onSelect={handleMenuSelect}
+          onClose={() => { setMenuOpen(false) }}
+        />
 
         <input
           type="text"
@@ -85,12 +80,15 @@ export function DashboardToolbar({ actions, t }: DashboardToolbarProps) {
           className={css.input}
         />
 
-        <button
-          type="submit"
-          className={clsx(css.submit, text.trim() !== '' && css.ready)}
-        >
-          ↑
-        </button>
+        <Tooltip label={t('menu.send')} side="top">
+          <button
+            type="submit"
+            className={clsx(css.submit, text.trim() !== '' && css.ready)}
+            aria-label={t('menu.send')}
+          >
+            <IconSendOutline16 />
+          </button>
+        </Tooltip>
       </form>
     </div>
   )

@@ -1,4 +1,4 @@
-/* Canvas layer: the cream surface with its zoom-scaled dot grid and the
+/* Canvas layer: the theme base surface with its zoom-scaled dot grid and the
  * transformed window surface. Radii, colors, and shadows live here; the
  * component passes only geometry and the computed grid/transform metrics as
  * component-local custom properties. */
@@ -9,17 +9,16 @@
   height: 100%;
   overflow: hidden;
   background: var(--dsw-alias-bg-base);
-  /* The canvas dot grid is the board's own value — the one palette member
-     with no semantic alias. It stays a canvas-local property, not a theme
-     token, because no other component paints it. */
-  --board-canvas-dot: rgba(0, 0, 0, 0.08);
+  /* The grid dots ride the theme's border scale, so the mesh stays visible in
+     both palettes without a board-local color. */
+  --board-grid-dot: var(--dsw-alias-border-l3);
   background-image: radial-gradient(
     circle,
-    var(--board-canvas-dot) var(--board-canvas-dot-radius),
-    transparent var(--board-canvas-dot-radius)
+    var(--board-grid-dot) var(--board-grid-dot-radius),
+    transparent var(--board-grid-dot-radius)
   );
-  background-size: var(--board-canvas-grid) var(--board-canvas-grid);
-  background-position: var(--board-canvas-grid-x) var(--board-canvas-grid-y);
+  background-size: var(--board-grid-size) var(--board-grid-size);
+  background-position: var(--board-grid-x) var(--board-grid-y);
 }
 
 /* Element-selection mode targets the canvas, so the cursor is the affordance. */

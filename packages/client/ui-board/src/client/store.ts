@@ -43,7 +43,6 @@ export interface BoardState {
 /** Size and body of the windows the board's own chrome opens. */
 export const BOARD_WINDOW_TEMPLATES = {
   agent: { kind: 'agent', bodyKind: 'conversation', width: 480, height: 560 },
-  connectors: { kind: 'connectors', bodyKind: 'connectors', width: 520, height: 480 },
 } as const satisfies Record<string, Pick<BoardWindowState, 'kind' | 'bodyKind' | 'width' | 'height'>>
 
 /**

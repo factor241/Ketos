@@ -1,24 +1,24 @@
-/* Dark window frame (agent and clone windows): graphite chrome on the Ketos
- * palette. Placement (left/top/width/height/z-index) stays inline because it
- * comes from the board store; everything painted lives here. */
+/* Window frame (agent and clone windows): the theme's floating-panel recipe —
+ * layer-2 fill, no border, the elevation hairline carrying the stroke, and the
+ * focused state rebinding that stroke to the business accent. Placement
+ * (left/top/width/height/z-index) stays inline because it comes from the board
+ * store; everything painted lives here. */
 
 .window {
   position: absolute;
   display: flex;
   flex-direction: column;
   overflow: visible;
-  border-radius: 18px;
-  background: var(--dsw-alias-bg-layer-1);
+  border-radius: 20px;
+  background: var(--dsw-alias-bg-layer-2);
   border: 0;
-  box-shadow: var(--dsw-elevation-panel);
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
+  box-shadow: var(--dsw-elevation-prominent);
   user-select: none;
 }
 
-/* The focused window draws its hairline in the brand accent and lifts one
-   elevation tier. */
 .window.active {
-  --dsw-elevation-stroke-color: var(--dsw-alias-brand-primary);
-  box-shadow: var(--dsw-elevation-prominent);
+  --dsw-elevation-stroke-color: var(--dsw-alias-state-business-primary);
 }
 
 /* 8-direction resize handles: invisible hit zones along the edges (6px) and
@@ -97,7 +97,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  gap: 8px;
+  padding: 10px 12px;
   border-bottom: 0.5px solid var(--dsw-alias-border-l1);
   cursor: grab;
 }
@@ -106,68 +107,43 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
-.traffic {
-  display: flex;
-  gap: 6px;
-}
-
-.trafficDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  corner-shape: round;
-  padding: 0;
-}
-
-.trafficClose {
-  background: var(--dsw-alias-state-error-primary);
-  border: none;
-  cursor: pointer;
-}
-
-.trafficMinimize {
-  background: var(--dsw-alias-state-warn-primary);
-}
-
-.trafficZoom {
-  background: var(--dsw-alias-state-success-tertiary);
-}
-
-.titlePill {
+.headerMeta {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-left: 8px;
-  padding: 3px 10px;
-  border-radius: 9999px;
+}
+
+/* Round icon control in the chrome idiom: 28px circle, secondary ink, hover
+   fill (the settings header and dockkit strip recipe). */
+.closeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
   corner-shape: round;
-  background: var(--dsw-alias-bg-overlay);
-  font-size: 12px;
+  border: none;
+  background: transparent;
   color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.closeButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
 }
 
 .title {
+  overflow: hidden;
   color: var(--dsw-alias-label-primary);
+  font-size: 13px;
   font-weight: 500;
-}
-
-.doneBadge {
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--dsw-alias-state-success-secondary);
-  color: var(--dsw-alias-state-success-primary);
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.learned {
-  padding: 2px 8px;
-  border-radius: 6px;
-  background: var(--dsw-alias-bg-layer-3);
-  color: var(--dsw-alias-label-secondary);
-  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* The body scrolls inside elevated chrome, so the thumb rides the l2 pair
@@ -187,14 +163,18 @@
   padding: 12px 16px;
 }
 
+/* The composer card follows the conversation composer recipe: the input fill,
+   no border, and the soft elevation tier drawing the stroke. */
 .composer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  border-radius: 14px;
+  border-radius: 22px;
   background: var(--dsw-specific-input-major);
-  border: 0.5px solid var(--dsw-alias-border-l1);
+  border: 0;
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
+  box-shadow: var(--dsw-elevation-soft);
 }
 
 .composerInput {
@@ -210,16 +190,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  flex: none;
+  width: 28px;
+  height: 28px;
   margin-left: 8px;
   border-radius: 50%;
   corner-shape: round;
-  background: var(--dsw-alias-bg-layer-1);
-  border: 0.5px solid var(--dsw-alias-border-l2);
+  border: none;
+  background: var(--dsw-specific-selector);
   color: var(--dsw-alias-label-primary);
-  font-size: 15px;
   cursor: pointer;
+}
+
+.actionButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
 }
 
 /* Context capsule floating under the window in world coordinates. */
@@ -234,9 +218,9 @@
   padding: 4px 12px;
   border-radius: 9999px;
   corner-shape: round;
-  background: var(--dsw-alias-bg-overlay);
+  background: var(--dsw-alias-bg-layer-3);
   border: 0;
-  box-shadow: var(--dsw-elevation-soft);
+  box-shadow: var(--dsw-elevation-panel);
   color: var(--dsw-alias-label-secondary);
   font-size: 11px;
   white-space: nowrap;
@@ -251,6 +235,6 @@
   height: 8px;
   border-radius: 50%;
   corner-shape: round;
-  border: 2px solid var(--dsw-alias-brand-primary);
+  border: 2px solid var(--dsw-alias-state-business-primary);
   border-top-color: transparent;
 }

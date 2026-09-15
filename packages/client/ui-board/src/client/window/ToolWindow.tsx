@@ -1,13 +1,12 @@
 /**
- * Light window frame (connectors, settings, dashboard, and task windows) with
- * 8-direction resize. The tab strip selects which `board.window.body` occupant
- * fills the frame. The `data-board-surface` marker hands the frame to the
- * ui-theme brand layer's light palette rebind.
+ * Tool-window frame (connectors, settings, dashboard, and task windows) with
+ * 8-direction resize. The frame supplies chrome and the content region; the
+ * `board.window.body` occupant selected by `bodyKind` fills the region.
  */
 import React, { useCallback } from 'react'
 import clsx from 'clsx'
+import { IconCloseOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
-import type { WindowBodyKind } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
 import { finishBoardPointerGesture } from './pointer-cleanup.ts'
 import css from './ToolWindow.module.css'
@@ -32,8 +31,6 @@ const RESIZE_HANDLES = [
 export function ToolWindow({ window: cardWindow, renderBody, useStore, actions, t }: ToolWindowProps) {
   const zoom = useStore(s => s.zoom)
   const isActive = useStore(s => s.activeWindowId === cardWindow.id)
-  const activeTab: WindowBodyKind = cardWindow.bodyKind === 'settings' ? 'settings' : 'connectors'
-  const showTabs = cardWindow.kind === 'connectors' || cardWindow.kind === 'settings'
 
   const handleHeaderPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest('button')) return
@@ -116,7 +113,6 @@ export function ToolWindow({ window: cardWindow, renderBody, useStore, actions, 
   return (
     <div
       data-board-window={cardWindow.kind}
-      data-board-surface="light"
       className={clsx(css.window, isActive && css.active)}
       onPointerDown={() => { actions.focusWindow(cardWindow.id) }}
       style={{
@@ -137,33 +133,18 @@ export function ToolWindow({ window: cardWindow, renderBody, useStore, actions, 
 
       <div onPointerDown={handleHeaderPointerDown} className={css.header}>
         <div className={css.headerLeft}>
-          <div className={css.traffic}>
+          <Tooltip label={t('window.close')} side="bottom">
             <button
+              type="button"
               onClick={() => { actions.closeWindow(cardWindow.id) }}
-              className={clsx(css.trafficDot, css.trafficClose)}
-              title={t('window.close')}
-            />
-            <div className={clsx(css.trafficDot, css.trafficMinimize)} />
-            <div className={clsx(css.trafficDot, css.trafficZoom)} />
-          </div>
+              className={css.closeButton}
+              aria-label={t('window.close')}
+            >
+              <IconCloseOutline16 />
+            </button>
+          </Tooltip>
           <span className={css.title}>{cardWindow.title}</span>
         </div>
-        {showTabs && (
-          <div className={css.tabs}>
-            <button
-              onClick={() => { actions.setWindowBodyKind(cardWindow.id, 'connectors') }}
-              className={clsx(css.tab, activeTab === 'connectors' && css.active)}
-            >
-              {t('tool.tabConnectors')}
-            </button>
-            <button
-              onClick={() => { actions.setWindowBodyKind(cardWindow.id, 'settings') }}
-              className={clsx(css.tab, activeTab === 'settings' && css.active)}
-            >
-              {t('tool.tabSettings')}
-            </button>
-          </div>
-        )}
       </div>
 
       <div className={css.body}>

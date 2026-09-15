@@ -65,7 +65,10 @@ it('boots the built plugin graph and renders a fixture session end to end', asyn
     expect(document.querySelector('svg[viewBox="0 0 66 24"]')).not.toBeNull()
     expect(screen.queryByText('Ketos Local Build')).toBeNull()
   } else {
-    expect(document.querySelector('svg[viewBox="0 0 23.16 17.04"]')).not.toBeNull()
+    // The supplied Ketos mark ships as the sidebar `img` in every profile;
+    // the local profile adds the `Ketos Local Build` version text in place of
+    // the official lettering wordmark.
+    expect(document.querySelector('img[src^="data:image/png;base64,"]')).not.toBeNull()
     const version = clientBuildValue('DSH_CLIENT_VERSION')
     if (version === undefined) throw new Error('default client build record must carry DSH_CLIENT_VERSION')
     const commit = clientBuildValue('DSH_CLIENT_COMMIT_HASH')

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Ketos ships Russian as the default interface language without renaming the locale machinery or overriding an explicit user choice. The client plugin registers the `ru` language (fallback `en`), translates the complete Ketos UI corpus — the community [`deepseek-harness-locale-ru`](https://github.com/warment/deepseek-harness-locale-ru) pack (MIT), rebranded to Ketos and extended with the keys the Ketos corpus adds, plus `common` and `board` — and switches the active locale to `ru` when the durable `locale` settings section has no `preference` and the browser itself asks for a `ru`-tagged language (the same ordered `navigator.languages` match `dsh-client-locale` applies). Browsers naming the shipped `zh`/`en` chains or an unregistered language keep the ordinary fallback; a stored selection (for example `en`) is adopted by the locale service's own scope subscription and never overwritten.
+Ketos ships Russian as the default interface language without renaming the locale machinery or overriding an explicit user choice. The client plugin registers the `ru` language (fallback `en`) and translates the complete Ketos UI corpus — the MIT-licensed community [`deepseek-harness-locale-ru`](https://github.com/warment/deepseek-harness-locale-ru) pack, rebranded and extended with the keys the Ketos corpus adds, plus `common` and `board`. When no preference is stored and the browser asks for a `ru`-tagged language, it switches the active locale to `ru` once. Browsers naming the shipped `zh`/`en` chains or an unregistered language keep the ordinary fallback; a stored selection is never overwritten.
 
 ## Table of Contents
 

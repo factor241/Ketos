@@ -113,7 +113,6 @@ function HeroHeadline({ t }: { t: HeroTranslate }) {
       setPhrase(current => pickPhrase(phrases, current))
     }, HERO_ROTATION_MS)
     return () => { window.clearInterval(timer) }
-    return () => { if (timer !== undefined) window.clearTimeout(timer) }
   }, [phrases])
 
   const animation = useMemo(

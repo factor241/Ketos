@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-Ketos 以俄语作为界面语言，同时不重命名 locale 机制、也不覆盖用户的显式选择。客户端插件在共享语言目录中注册 `ru`（回退 `en`），翻译完整的 Ketos UI 词典——社区 [`deepseek-harness-locale-ru`](https://github.com/warment/deepseek-harness-locale-ru) 包（MIT，已改名为 Ketos 并补齐 Ketos 语料新增的键）、`common` 与 `board`——并在 durable 的 `locale` 设置段没有 `preference` 且浏览器本身请求带 `ru` 标签的语言时，仅执行一次活动 locale 切换到 `ru`（与 `dsh-client-locale` 相同的 `navigator.languages` 有序匹配）。命名了随附 `zh`/`en` 链或未注册语言的浏览器保持常规回退；已保存的选择（例如 `en`）由 locale 服务自身的 scope 订阅采用，永不被覆盖。
+Ketos 以俄语作为界面语言，同时不重命名 locale 机制、也不覆盖用户的显式选择。客户端插件注册 `ru` 语言（回退 `en`），并翻译完整的 Ketos UI 词典——MIT 许可的社区 [`deepseek-harness-locale-ru`](https://github.com/warment/deepseek-harness-locale-ru) 包，已改名为 Ketos 并补齐 Ketos 语料新增的键，另加 `common` 与 `board`。未存储偏好且浏览器请求带 `ru` 标签的语言时，它仅执行一次活动 locale 切换到 `ru`。命名了随附 `zh`/`en` 链或未注册语言的浏览器保持常规回退；已保存的选择永不被覆盖。
 
 ## 目录
 

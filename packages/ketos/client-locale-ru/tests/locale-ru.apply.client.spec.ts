@@ -25,11 +25,14 @@ interface BenchOptions {
   defer?: boolean
 }
 
+/** The scripted Host settings `mutate` surface this pack writes through. */
+type SettingsMutate = (ns: string, ops: { value: string }[]) => Promise<{ ok: true; value: unknown }>
+
 interface Bench {
   ctx: Context
   disposePack: () => Promise<void>
   locale: () => LocaleRuntime
-  mutate: ReturnType<typeof vi.fn>
+  mutate: ReturnType<typeof vi.fn<SettingsMutate>>
   /** Resolve all describe calls deferred by {@link BenchOptions.defer}. */
   release: () => void
 }
@@ -60,9 +63,9 @@ async function bench(storedPreference: string | undefined, options: BenchOptions
       value: { writable: true, hasDocument: true, namespaces: [namespace()] },
     }
     if (options.defer !== true) return answer
-    return new Promise<typeof answer>((resolve) => { pending.push(() => resolve(answer)) })
+    return new Promise<typeof answer>((resolve) => { pending.push(() => { resolve(answer) }) })
   })
-  const mutate = vi.fn(async (_ns: string, ops: { value: string }[]) => {
+  const mutate = vi.fn<SettingsMutate>(async (_ns, ops) => {
     preference = ops[0]!.value
     revision += 1
     return { ok: true as const, value: namespace() }

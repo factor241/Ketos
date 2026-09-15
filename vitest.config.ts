@@ -343,6 +343,13 @@ export default defineConfig({
         'packages/interaction/commands/src/index.ts',
         'packages/interaction/commands/src/invariant.ts',
         'packages/session/session-projection/src/index.ts',
+        // MVP-fork coverage policy (2026-09-15 Ketos MVP engineering policy
+        // Agent Note): the raw board GUI is rewritten through stages 2-4 and
+        // the @ketos/clone-* packages do not exist yet; behaviour tests for
+        // pure math, persistence, registration, routes, and memory remain in
+        // force. @ketos/client-locale-ru keeps per-file 100%.
+        'packages/client/ui-board/src/**',
+        'packages/ketos/clone-*/src/**',
         ...windowsUnsupportedCoveragePackages.map(path => `${path}/src/**/*.ts`),
         ...windowsOnlyCoverageExclusions,
         ...windowsRunnerCoverageExclusions,

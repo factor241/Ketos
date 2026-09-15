@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Regenerate the Ketos Russian dictionaries from the community pack corpus.
  *

@@ -1,6 +1,6 @@
 # Отчёт этапа 3. Слоты и оконный каркас
 
-> Заполнен по шаблону [stage-report-template.md](../stage-report-template.md). Ветка `stage-03-slots-windows`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-03` (от принятой ветки этапа 2 `stage-02-board-wiring`, `b1ca735`). Финальный коммит этапа — голова этой ветки на момент приёмки; проверочный аудит этапа и его доработки названы в §4.
+> Заполнен по шаблону [stage-report-template.md](../stage-report-template.md). Ветка `stage-03-slots-windows`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-03` (от принятой ветки этапа 2 `stage-02-board-wiring`, `b1ca735`). Состояние отчёта — коммит `5c572bb` (голова ветки на момент приёмки); проверочные аудиты этапа и их доработки названы в §4.
 
 ## 1. Итог этапа
 
@@ -31,7 +31,7 @@ $ grep -n "name: 'board\." src/client/index.ts           # регистраци�
 - [x] HMR и dispose не оставляют следов — `tests/roster.client.spec.ts` «rebuilds the row through the Loader without duplicating board contributions» прогоняет реальный путь client-hmr (`tearDownEntryFiber` → `entry.refresh()`) на поставленном веб-ростере и требует тот же набор вкладов (1/1/1/6/3/1) после пересборки; `tests/slots.client.spec.tsx` добавляет повторный `apply` после `dispose()` (без дублей) и полное снятие вкладов по всем ключам с исчезновением DOM.
 - [x] `DSH_SNAPSHOT=replay pnpm run test:web` — 101 файл passed, 1 skipped; 359 passed, 15 skipped; снимки не менялись (перестройка композиции визуального вывода не меняет).
 - [x] `verify-client-catalog` зелёный после регенерации — каталог отдаёт закрытые key-домены (`{ [Key in WindowKind]: … }`), занятые ключи (`agent, clone, connectors, dashboard, settings, tasks`; `connectors, conversation, settings`) и owner props обоих keyed-слотов (`window`, `renderBody`).
-- [x] В браузере доска выглядит как раньше — живой `pnpm ketos web` (scratch `DSH_HOME`, порт 3183): холст, rail, Omnibox, миникарта; agent-окно (тёмная карточка с conversation-body), tools-окно, табы, закрытие окна, центрирование по rail-строке; 0 ошибок консоли. GIF: `.playwright-mcp/stage-03-gif/board-slot-composition.gif` (1200×750, 13.0 с, 130 кадров, 1.8 МБ; источник 4.0–20.0 с, скорость 1.6×, финальная задержка 3 с; без вызовов модели — окна доски остаются заглушками до этапов 6/10).
+- [x] В браузере доска выглядит как раньше — живой `pnpm ketos web` (scratch `DSH_HOME`, порт 3184) с дерева коммита `5c572bb` (после `pnpm run build` этого дерева): холст, rail, Omnibox, миникарта; agent-окно (тёмная карточка с conversation-body), tools-окно, табы, закрытие окна, центрирование по rail-строке; 0 ошибок консоли. GIF: `.playwright-mcp/stage-03-gif/board-slot-composition.gif` (1200×750, 13.0 с, 130 кадров, 1.4 МБ; источник 23.0 с, интервал 4.0–20.0 с, скорость 1.6×, финальная задержка 3 с; скрипт, storyboard и QA-кадры рядом; без вызовов модели — окна доски остаются заглушками до этапов 6/10).
 - [x] Agent Note этапа — `.agents/notes/implemented/architecture/2026-09-15-ketos-board-slot-composition.md` (+ zh-пара, pairing перезаписан); в ней же зафиксировано вынужденное отклонение от буквального каскада плана.
 
 ## 4. Отклонения
@@ -53,7 +53,7 @@ $ grep -n "name: 'board\." src/client/index.ts           # регистраци�
 | `pnpm exec vitest run packages/client/ui-board/tests` | зелёный: 7 файлов, 40 passed |
 | `pnpm run test:gui` | зелёный: 384 файла, 5463 passed, 1 skipped |
 | `DSH_SNAPSHOT=replay pnpm run test:web` | зелёный: 101 файл passed, 1 skipped; 359 passed, 15 skipped |
-| `pnpm run build` | зелёный; build-запись клиентских артефактов перезаписана на финальный коммит этапа |
+| `pnpm run build` | зелёный; build-запись `238 client artifact(s) with 3 public value(s)`; `lib/client.js` доски и каталог-бандл содержат аудированный код (`data-board-layer` ×4, `renderBody`) |
 | `pnpm run typecheck` | зелёный (сборка + `tsc -b tsconfig.client.json`) |
 | `pnpm run lint` | зелёный |
 | `pnpm run doc-sync` | зелёный: 34 passed, 0 failed |
@@ -67,8 +67,8 @@ $ grep -n "name: 'board\." src/client/index.ts           # регистраци�
 | `pnpm exec tsx scripts/verify-client-domain-graph.ts` | строк `ui-board` нет; 25 чужих нарушений — `ketos-bmz` |
 | `pnpm exec vitest run packages/client/ui-board/tests --coverage --coverage.include='packages/client/ui-board/src/**/*.{ts,tsx}'` | 37 passed; отчёт покрытия пуст (0 файлов) — исключение `packages/client/ui-board/src/**` из MVP-политики перекрывает include |
 | Ручные мутации | удаление `board.omnibar` из children `main`/`board` → `SlotOwnershipError` в `main` (8 тестов валятся); удаление `board.window`/`board.window.body` из children слоя окон → `SlotOwnershipError` в `board.windows` (по 6 тестов); подмена `entryKey` каркасов на константу `'agent'` → валится тест диспетчера; подмена `entryKey` тел на `'conversation'` → 4 теста; удаление `renderSlot('board.minimap')` → тест рендер-мест; лишняя регистрация body → ростер-reload; все изменения возвращены |
-| Живой `pnpm ketos web` (scratch `DSH_HOME`, порт 3183) | 200; холст, rail, Omnibox, миникарта; agent-окно, tools-окно, табы, закрытие, центрирование; 0 ошибок консоли; сервер остановлен |
-| GIF-запись `record-browser-gif` | `.playwright-mcp/stage-03-gif/board-slot-composition.gif`, 1200×750, 13.0 с, 130 кадров, 1.8 МБ; источник, скрипт, storyboard и QA-кадры рядом |
+| Живой `pnpm ketos web` (scratch `DSH_HOME`, порт 3184, коммит `5c572bb`) | 200; холст, rail, Omnibox, миникарта; agent-окно, tools-окно, табы, закрытие, центрирование; 0 ошибок консоли; сервер остановлен |
+| GIF-запись `record-browser-gif` | `.playwright-mcp/stage-03-gif/board-slot-composition.gif`, 1200×750, 13.0 с, 130 кадров, 1.4 МБ; снят с коммита `5c572bb`, порт 3184; источник, скрипт, storyboard и QA-кадры рядом |
 
 ## 6. Следующий шаг
 

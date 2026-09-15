@@ -15,6 +15,7 @@ Coverage exceptions are narrow, named config entries in `vitest.config.ts`, each
 
 - `packages/client/ui-board/src/**` — the raw board GUI is rewritten through stages 2–4; per-file coverage would pin throwaway components.
 - `packages/ketos/clone-*/src/**` — the clone packages arrive in stages 15–19; the glob is inert until then.
+- `packages/subprocess/subprocess-local/src/linux-execve.ts` and `packages/experimental/code-runtime-python/src/index.ts` — Linux-only sources (exec-ve, the `/proc/<pid>/stat` probe) excluded on non-Linux hosts; the Linux coverage lane keeps both gated.
 
 Every other path keeps per-file 100%, including `@ketos/client-locale-ru` and every package that imports the excluded ones; the ui-board glob covers that package's whole `src` tree. Exceptions are removed when the owning stages land their behaviour tests, reviewed at MVP acceptance (stage 20).
 
@@ -31,8 +32,8 @@ Agent Notes remain mandatory for non-trivial changes: they are the project's che
 
 ## Consequences
 
-- The coverage gate can be green while board GUI and unwritten clone packages have no per-file signal; the named behaviour tests are the compensating evidence, and the two config globs are the complete visible list of what the gate skips.
-- `pnpm run lint` stays red on 17 pre-existing `packages/client/ui-board` errors until the board rewrite lands; they are recorded in [baseline issues](../../../../docs/ketos/baseline-issues.md) rather than fixed here.
+- The coverage gate can be green while board GUI and unwritten clone packages have no per-file signal; the named behaviour tests are the compensating evidence, and the named config entries are the complete visible list of what the gate skips.
+- `pnpm run lint` is green: the 17 pre-existing `packages/client/ui-board` errors were fixed in stage 1 after review ([baseline issues](../../../../docs/ketos/baseline-issues.md)), so the board rewrite starts from a clean gate.
 - A future Ketos package defaults to the gate; leaving it must be justified in its own Agent Note and added as a named config entry.
 
 ## Related

@@ -15,6 +15,7 @@ Fork 本地代码保持上游的命名与打包纪律：新的 Ketos 包位于 `
 
 - `packages/client/ui-board/src/**` —— 原始看板 GUI 会在阶段 2–4 中被重写；逐文件覆盖会钉死一次性组件。
 - `packages/ketos/clone-*/src/**` —— clone 包在阶段 15–19 才出现；在此之前该 glob 为空操作。
+- `packages/subprocess/subprocess-local/src/linux-execve.ts` 与 `packages/experimental/code-runtime-python/src/index.ts` —— Linux 专属源码（exec-ve、`/proc/<pid>/stat` 探针），在非 Linux 主机上排除；Linux 覆盖通道仍对两者保持闸门。
 
 其他所有路径保持逐文件 100%，包括 `@ketos/client-locale-ru` 以及所有导入被排除包的那些包；ui-board 的 glob 覆盖该包的整个 `src` 树。当所属阶段落地其行为测试后移除例外，并在 MVP 验收（阶段 20）时复核。
 
@@ -31,8 +32,8 @@ Fork 本地代码保持上游的命名与打包纪律：新的 Ketos 包位于 `
 
 ## Consequences
 
-- 当看板 GUI 与尚未编写的 clone 包没有逐文件信号时，覆盖闸门仍可为绿；具名行为测试是补偿证据，而两个配置 glob 就是闸门跳过内容的完整可见清单。
-- 在看板重写落地前，`pnpm run lint` 会因 `packages/client/ui-board` 中 17 个既有错误保持红色；它们记录在[基线问题](../../../../docs/ketos/baseline-issues.md)中，而不是在此修复。
+- 当看板 GUI 与尚未编写的 clone 包没有逐文件信号时，覆盖闸门仍可为绿；具名行为测试是补偿证据，而具名配置项就是闸门跳过内容的完整可见清单。
+- `pnpm run lint` 为绿：评审后 `packages/client/ui-board` 的 17 个既有错误已在阶段 1 修复（[基线问题](../../../../docs/ketos/baseline-issues.md)），看板重写从干净的闸门开始。
 - 未来的 Ketos 包默认受闸；若要移出，必须在其 Agent Note 中说明理由并添加具名配置项。
 
 ## Related

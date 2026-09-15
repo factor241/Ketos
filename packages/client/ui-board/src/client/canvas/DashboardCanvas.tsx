@@ -47,7 +47,7 @@ export function DashboardCanvas({ t, state, actions }: DashboardCanvasProps) {
     }
     updateSize()
     window.addEventListener('resize', updateSize)
-    return () => window.removeEventListener('resize', updateSize)
+    return () => { window.removeEventListener('resize', updateSize) }
   }, [])
 
   // Canvas pan via dragging on empty space
@@ -186,7 +186,7 @@ export function DashboardCanvas({ t, state, actions }: DashboardCanvasProps) {
                 onMove={actions.moveWindow}
                 onResize={actions.resizeWindow}
                 onClose={actions.closeWindow}
-                onActionMenuClick={() => actions.setSelectingElement(true)}
+                onActionMenuClick={() => { actions.setSelectingElement(true) }}
               />
             )
           }
@@ -219,8 +219,8 @@ export function DashboardCanvas({ t, state, actions }: DashboardCanvasProps) {
 
       <DashboardToolbar
         t={t}
-        onSendMessage={msg => alert(t('canvas.messageSent', { message: msg }))}
-        onStartElementSelection={() => actions.setSelectingElement(true)}
+        onSendMessage={(msg) => { alert(t('canvas.messageSent', { message: msg })) }}
+        onStartElementSelection={() => { actions.setSelectingElement(true) }}
         onOpenConnectors={handleAddTools}
       />
 
@@ -235,7 +235,7 @@ export function DashboardCanvas({ t, state, actions }: DashboardCanvasProps) {
       <ElementSelectionOverlay
         t={t}
         active={state.isSelectingElement}
-        onCancel={() => actions.setSelectingElement(false)}
+        onCancel={() => { actions.setSelectingElement(false) }}
       />
     </div>
   )

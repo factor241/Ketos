@@ -57,11 +57,11 @@ export function SessionRail({
           <div
             key={id}
             style={{ position: 'relative' }}
-            onMouseEnter={() => setHoveredId(id)}
-            onMouseLeave={() => setHoveredId(null)}
+            onMouseEnter={() => { setHoveredId(id) }}
+            onMouseLeave={() => { setHoveredId(null) }}
           >
             <button
-              onClick={() => onSelectWindow(id)}
+              onClick={() => { onSelectWindow(id) }}
               style={{
                 width: 38,
                 height: 38,

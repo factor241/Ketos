@@ -108,7 +108,7 @@ export function ToolWindow({
 
   return (
     <div
-      onPointerDown={() => onFocus(cardWindow.id)}
+      onPointerDown={() => { onFocus(cardWindow.id) }}
       style={{
         position: 'absolute',
         left: cardWindow.x,
@@ -152,7 +152,7 @@ export function ToolWindow({
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ display: 'flex', gap: 6 }}>
             <button
-              onClick={() => onClose(cardWindow.id)}
+              onClick={() => { onClose(cardWindow.id) }}
               style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF5F56', border: 'none', padding: 0, cursor: 'pointer' }}
               title={t('window.close')}
             />
@@ -163,7 +163,7 @@ export function ToolWindow({
         </div>
         <div style={{ display: 'flex', gap: 4 }}>
           <button
-            onClick={() => setActiveTab('connectors')}
+            onClick={() => { setActiveTab('connectors') }}
             style={{
               padding: '4px 8px',
               fontSize: 12,
@@ -178,7 +178,7 @@ export function ToolWindow({
             {t('tool.tabConnectors')}
           </button>
           <button
-            onClick={() => setActiveTab('settings')}
+            onClick={() => { setActiveTab('settings') }}
             style={{
               padding: '4px 8px',
               fontSize: 12,

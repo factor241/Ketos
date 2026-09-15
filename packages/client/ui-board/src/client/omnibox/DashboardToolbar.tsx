@@ -110,7 +110,7 @@ export function DashboardToolbar({
       >
         <button
           type="button"
-          onClick={() => setMenuOpen(!menuOpen)}
+          onClick={() => { setMenuOpen(!menuOpen) }}
           style={{
             width: 28,
             height: 28,
@@ -132,7 +132,7 @@ export function DashboardToolbar({
         <input
           type="text"
           value={text}
-          onChange={e => setText(e.target.value)}
+          onChange={(e) => { setText(e.target.value) }}
           placeholder={t('toolbar.composerPlaceholder')}
           style={{
             flex: 1,

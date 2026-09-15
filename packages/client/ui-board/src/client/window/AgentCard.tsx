@@ -113,7 +113,7 @@ export function AgentCard({
   return (
     <div
       ref={cardRef}
-      onPointerDown={() => onFocus(cardWindow.id)}
+      onPointerDown={() => { onFocus(cardWindow.id) }}
       style={{
         position: 'absolute',
         left: cardWindow.x,
@@ -156,7 +156,7 @@ export function AgentCard({
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ display: 'flex', gap: 6 }}>
             <button
-              onClick={() => onClose(cardWindow.id)}
+              onClick={() => { onClose(cardWindow.id) }}
               style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF5F56', border: 'none', padding: 0, cursor: 'pointer' }}
               title={t('window.close')}
             />

@@ -13,7 +13,7 @@
 | GUI-тесты | `pnpm run test:gui` | 380 файлов, 5435 passed, 1 skipped |
 | Типы | `pnpm run typecheck` | зелёный |
 | Констрейнты | `pnpm run constraints` | зелёный |
-| Линт | `pnpm run lint` | 17 базовых ошибок, см. ниже |
+| Линт | `pnpm run lint` | зелёный (17 базовых ошибок исправлены, см. ниже) |
 | Документация | `pnpm run doc-sync` | 34 gates passed, 0 failed |
 | Каталог слотов | `pnpm run verify-client-catalog` | зелёный (`slot-catalog.ts is up to date`) |
 | Клиентские пакеты | `pnpm run verify-client-packages` | 52 пакета (47 dynamic, 5 statically linked) |
@@ -26,34 +26,11 @@
 
 ## Известные базовые проблемы
 
-### 1. `pnpm run lint` — 17 ошибок в `packages/client/ui-board`
+### 1. `pnpm run test:coverage` — `llm-pi-ai/src/adapter.ts` ниже per-file 100%
 
-Все ошибки — правило `typescript(no-confusing-void-expression)` в конструкциях, которые существуют в импортированной базе (коммит `bbe514e`, пакет доски), а не появились при ребрендинге. Пакет подключается к веб-профилю начиная с этапа 2, его компоненты переписываются на этапах 3–4; до тех пор ошибки не чинятся здесь, чтобы не смешивать базовую правку с фичами.
+Прогон полного покрытия на этапе 1: 1267 файлов, 22 502 теста зелёные, один ожидаемый провал, 12 файлов и 131 тест пропущены по условиям; пороговые падения были в трёх файлах, ни один из которых не относится к Кетосу. Два платформенных файла закрыты исключениями не-Linux хостов (см. «Исправлено», п. 10); третий не зависит от платформы и приходит из форк-коммита до этапа 0.
 
-Падающие локации (17):
-
-- `packages/client/ui-board/src/client/canvas/DashboardCanvas.tsx:50:18`, `189:42`, `222:31`, `223:40`, `238:25`
-- `packages/client/ui-board/src/client/window/ToolWindow.tsx:111:28`, `155:30`, `166:28`, `181:28`
-- `packages/client/ui-board/src/client/dock/SessionRail.tsx:60:33`, `61:33`, `64:30`
-- `packages/client/ui-board/src/client/window/AgentCard.tsx:116:28`, `159:30`
-- `packages/client/ui-board/src/client/omnibox/DashboardToolbar.tsx:113:26`, `135:26`
-- `packages/client/ui-board/src/client/inspector/ElementSelectionContext.tsx:25:18`
-
-Дословный пример:
-
-```
-packages/client/ui-board/src/client/canvas/DashboardCanvas.tsx:50:18: error typescript(no-confusing-void-expression): Returning a void expression from an arrow function shorthand is forbidden. help: Add braces to the arrow function.
-```
-
-Полный список повторяется командой `pnpm run lint`.
-
-### 2. `pnpm run test:coverage` — три базовых файла ниже per-file 100%
-
-Прогон полного покрытия на этапе 1: 1267 файлов, 22 502 теста зелёные, один ожидаемый провал, 12 файлов и 131 тест пропущены по условиям; все падения — только пороговые, в трёх файлах, ни один из которых не относится к Кетосу. Два первых файла — платформенные: Linux-линия покрытия CI покрывает их штатно, macOS не может. Третий не зависит от платформы и приходит из форк-коммита до этапа 0; его закрытие — отдельная задача, вне этапа 1 (тот же принцип «не чинить базовое в этапах 2–20»).
-
-- `packages/subprocess/subprocess-local/src/linux-execve.ts` — 40% lines, 25% functions, 8.33% branches: Linux-only реализация exec-ve, импортируется только на Linux (`linux-scope.ts`, `spawn-runner.ts`); происходит из upstream-импорта `f5d8f1e`.
-- `packages/experimental/code-runtime-python/src/index.ts` — 99.08% lines, 99.15% statements: ветка чтения `/proc/<pid>/stat` в `readProcessStart`; сам файл помечает её как платформенную (`/* v8 ignore next -- one arm per platform: the Linux coverage lane always takes the read path, and Darwin always this one. */`); происходит из upstream-импорта `f5d8f1e`.
-- `packages/llm/llm-pi-ai/src/adapter.ts` — 99.1% lines, 95.83% branches: 4 непокрытых места — путь `toOpenCodeSessionId` для строки без UUID (`adapter.ts:210-211`) и комбинации fallback `baseUrl` в `isOpenCodeRoute` (`adapter.ts:218`). Код добавлен форк-коммитом `a4b5114` до этапа 0; тесты `adapter.spec.ts` покрывают только UUID-путь и один вариант baseUrl.
+- `packages/llm/llm-pi-ai/src/adapter.ts` — 99.1% lines, 95.83% branches: 4 непокрытых места — путь `toOpenCodeSessionId` для строки без UUID (`adapter.ts:210-211`) и комбинации fallback `baseUrl` в `isOpenCodeRoute` (`adapter.ts:218`). Код добавлен форк-коммитом `a4b5114` до этапа 0; тесты `adapter.spec.ts` покрывают только UUID-путь и один вариант baseUrl. Закрывается в этапе 1 по итогам ревью (задача `ketos-hc5`).
 
 Проверка, что исключения Кетоса не задели чужие файлы: после добавления `packages/client/ui-board/src/**` и `packages/ketos/clone-*/src/**` в `vitest.config.ts` пороговых ошибок по ui-board нет, `@ketos/client-locale-ru` сохраняет 100%, остальные upstream-пакеты — без новых пропусков.
 
@@ -67,6 +44,8 @@ packages/client/ui-board/src/client/canvas/DashboardCanvas.tsx:50:18: error type
 6. `packages/boot/app-boot/tests/hmr-config.spec.ts` — однократный таймаут «HMR did not observe config creation» в первом полном coverage-прогоне под нагрузкой; изолированно и в повторном полном прогоне зелёный (файловый watcher и 10-секундный дедлайн чувствительны к нагрузке). Зафиксировано как плавающее; при повторении заводится отдельная задача.
 7. `pnpm run hygiene` — падал на гейте `vendor rescope` из-за ключа `'cordis'` в сгенерированном `packages/ketos/client-locale-ru/src/locales/pack-ru.ts` и манифесте `tests/fixtures/ru-keys.json`: это id неймспейса локали пакета `@deepseek-ai/dsh-client-ui-cordis` (`NS = 'cordis'`), а не ссылка на вендоренный пакет. Файлы добавлены в `GENERIC_SKIPS` с обоснованием, как уже сделано для локалей `ui-cordis`. `pnpm run rescope-vendor:check` и `pnpm run hygiene` зелёные (16 gates).
 8. `apps/web/tests/queue-actions.e2e.ts` — гонка golden-захвата: replay-запись `hang` пишет `.hang-ready` сразу после выдачи чанка `partial`, не дожидаясь его рендера в браузере, поэтому под нагрузкой полного `test:web` снимок снимался без абзаца `partial` (и сценарий не доводил записанные вызовы: `llm-replay: fixture not fully consumed — consumed 1/4 recorded call(s)`). Тест теперь дожидается отрендеренного абзаца перед сценарием; полный `DSH_SNAPSHOT=replay pnpm run test:web` зелёный (101 файл, 359 тестов).
+9. `pnpm run lint` — 17 ошибок `typescript(no-confusing-void-expression)` в `packages/client/ui-board` (конструкции импортированной базы `bbe514e`). Исправлены по итогам ревью механическими скобками в 6 файлах (`DashboardCanvas`, `ToolWindow`, `SessionRail`, `AgentCard`, `DashboardToolbar`, `ElementSelectionContext`), поведение не менялось; `pnpm run lint` зелёный. Политика Agent Note обновлена: доска стартует этапы 2–4 с чистого линт-гейта.
+10. `pnpm run test:coverage` — платформенные файлы `subprocess-local/src/linux-execve.ts` (Linux exec-ve) и `code-runtime-python/src/index.ts` (чтение `/proc/<pid>/stat`) не покрываются на macOS. Добавлены в `vitest.config.ts` как `nonLinuxOnlyCoverageExclusions` (активны при `process.platform !== 'linux'`, рядом с существующими windows/pwsh-исключениями); Linux-линия CI сохраняет оба файла под per-file 100%. Политика Agent Note обновлена (en/zh, пара перезаписана).
 
 ## Проверочные команды
 

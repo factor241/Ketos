@@ -22,7 +22,7 @@ export function ElementSelectionOverlay({
       if (e.key === 'Escape') onCancel()
     }
     globalThis.addEventListener('keydown', handleKeyDown)
-    return () => globalThis.removeEventListener('keydown', handleKeyDown)
+    return () => { globalThis.removeEventListener('keydown', handleKeyDown) }
   }, [active, onCancel])
 
   if (!active) return null

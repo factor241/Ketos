@@ -87,6 +87,17 @@ const windowsOnlyCoverageExclusions = process.platform !== 'win32'
     ]
   : []
 
+// Linux-only sources: the exec-ve syscall path and the `/proc/<pid>/stat`
+// process probe execute exclusively on the Linux coverage lane, which holds
+// their per-file 100%. Other hosts serve the platform's own path, so the gate
+// must not fail there on code those hosts can never reach.
+const nonLinuxOnlyCoverageExclusions = process.platform === 'linux'
+  ? []
+  : [
+      'packages/subprocess/subprocess-local/src/linux-execve.ts',
+      'packages/experimental/code-runtime-python/src/index.ts',
+    ]
+
 // The confinement runner entry executes exclusively as a spawned child
 // process (the sandbox seam's argv-prefix wrapper): its module-level main()
 // would run the confinement in-process if imported, and vitest's v8 coverage
@@ -354,6 +365,7 @@ export default defineConfig({
         ...windowsOnlyCoverageExclusions,
         ...windowsRunnerCoverageExclusions,
         ...pwshCoverageExclusions,
+        ...nonLinuxOnlyCoverageExclusions,
       ],
       // 100% or it doesn't merge (docs/testing.md: excessive tests are welcome).
       // Per-file so a well-covered big file can't subsidize a bare one.

@@ -13,14 +13,16 @@ git remote -v
 
 ## Рабочее дерево и worktrees этапов
 
-Каждый этап (начиная с этапа 1) выполняется в отдельном git-worktree, созданном от `main`; ветка и каталог несут номер и slug этапа. Ветка вливается в `main` только после зелёных критериев приёмки этапа, после чего worktree удаляется. Каталоги worktree живут рядом с репозиторием и не коммитятся.
+Каждый этап (начиная с этапа 1) выполняется в отдельном git-worktree, созданном от принятого состояния предыдущего этапа (для этапа 1 — от `main`); ветка и каталог несут номер и slug этапа. Этап завершается коммитом в своей ветке и вопросом пользователю «Принимаете ли вы этап?»; после приёмки автоматически подготавливается worktree следующего этапа, а перенос результатов всех этапов в `main` и финальная интеграционная проверка выполняются после завершения всех этапов. Каталоги worktree живут рядом с репозиторием, не коммитятся и сохраняются до финальной интеграции.
 
 ```sh
 cd "/Volumes/Projects/Ketos bot"
 git worktree add "/Volumes/Projects/Ketos bot.worktrees/stage-01" -b stage-01-dev-stand main
-# работа и гейты этапа — в каталоге worktree
-git switch main && git merge --no-ff stage-01-dev-stand
-git worktree remove "/Volumes/Projects/Ketos bot.worktrees/stage-01"
+# работа и гейты этапа — в каталоге worktree; коммит — в ветке этапа
+# после приёмки — worktree следующего этапа от принятой ветки:
+git worktree add "/Volumes/Projects/Ketos bot.worktrees/stage-02" -b stage-02-board-wiring stage-01-dev-stand
+# перенос в main — после всех этапов (финальная интеграция):
+git switch main && git merge --no-ff stage-20-mvp-acceptance
 ```
 
 ## Ритм

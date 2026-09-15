@@ -16,7 +16,7 @@
 
 ## 3. Критерии приёмки этапа
 
-- [x] Иконка и панель доски видны в web-профиле — `pnpm ketos web`, русский интерфейс: строка «Доска» в «Глобальные панели», клик рендерит холст, rail/Omnibox/миникарта в области `main`; скриншот и GIF в `.playwright-mcp/`.
+- [x] Иконка и панель доски видны в web-профиле — `pnpm ketos web`, русский интерфейс: строка «Доска» в «Глобальные панели», клик рендерит холст, rail/Omnibox/миникарта в области `main`. Доказательство: `.playwright-mcp/stage-02-gif/board-in-web-profile.gif` — записан с дерева `f774753` (чистый worktree), сервер `pnpm ketos web --no-open --port 3180` на scratch-доме `/tmp/ketos-gif-home`, реальный UI без вызовов модели; интервал 10.0–20.8 с источника, скорость 1.4×, финальная задержка 3 с (bundled encoder `record-browser-gif`).
 - [x] `verify-cordis-config`, `verify-client-packages`, README/JSDoc-гейты зелёные — 143 config file; 52 client packages; `doc-sync` 34/34 (включая `verify-package-readme-summaries`, `verify-package-readme-limitations`, `verify-package-readme-model-experience`, `verify-export-jsdoc`, `verify-translation-pairing` с новой Agent Note).
 - [x] Smoke-тест регистрации зелёный — `pnpm exec vitest run packages/client/ui-board/tests` — 3 файла, 12 тестов passed (9 прежних + 3 новых): две регистрации (`main` key `board`, `sidebar.panellist` id `board`), рендер холста и иконки, label из словаря (`Board`/`看板`), снятие обеих регистраций при dispose.
 - [x] Загрузка доски через дев-цикл этапа 1 подтверждена — сборка пакета `pnpm --filter @deepseek-ai/dsh-client-ui-board bundle` и перезагрузка страницы видны в живом сервере; путь плагина тот же, что у upstream-плагинов (`/plugins/ui-board/client.js` в `__DSH_BOOT__`).
@@ -49,6 +49,7 @@
 | `pnpm run typecheck && pnpm run lint` и `pnpm run constraints` | зелёные (exit 0) |
 | `pnpm ketos web` | 200; «Доска» в сайдбаре; холст в `main`; pan/zoom; 0 ошибок консоли |
 | `pnpm ketos web --dump-config \| grep ui-board` | строка `- id: ui-board` из манифеста бандла |
+| GIF-запись доски (`record-browser-gif`) | `.playwright-mcp/stage-02-gif/board-in-web-profile.gif`, 1200×750, 10.7 с, 107 кадров, 1.8 МБ; источники рядом (webm, storyboard, QA-кадры) |
 
 ## 6. Следующий шаг
 

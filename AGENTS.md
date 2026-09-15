@@ -153,3 +153,17 @@ Docs accompany every code change: update affected README and JSDoc contracts tog
 ## Vendoring policy
 
 `vendor/` packages are pinned source copies (manifest with upstream SHAs in [vendor/README.md](vendor/README.md)). Update via the sync procedure there; re-apply or retire the logged local modifications; rerun `pnpm run test && pnpm run build`.
+
+
+<!-- BEGIN BEADS INTEGRATION v:1 profile:full hash:19cc25d9 -->
+## Issue Tracking with bd (beads)
+
+**IMPORTANT**: All task tracking lives in **bd** — never markdown TODOs, task lists, or other trackers.
+
+- Session start / after compaction: `bd prime` — full workflow context (SSOT)
+- Find work: `bd ready` · claim atomically: `bd update <id> --claim`
+- Create: `bd create "Title" -t task|bug|feature -p 0-4 --json` · close: `bd close <id> --reason "Done"`
+- Ketos stage workflow (stage epics, substage tasks, dependency chain, transition procedure): [docs/ketos/beads.md](docs/ketos/beads.md)
+- Git policy stays conservative: report status and proposed commands; do not commit, push, or `bd dolt push` unless explicitly asked.
+
+<!-- END BEADS INTEGRATION -->

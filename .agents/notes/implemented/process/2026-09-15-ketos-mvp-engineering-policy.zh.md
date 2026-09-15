@@ -16,7 +16,7 @@ Fork 本地代码保持上游的命名与打包纪律：新的 Ketos 包位于 `
 - `packages/client/ui-board/src/**` —— 原始看板 GUI 会在阶段 2–4 中被重写；逐文件覆盖会钉死一次性组件。
 - `packages/ketos/clone-*/src/**` —— clone 包在阶段 15–19 才出现；在此之前该 glob 为空操作。
 
-其他所有路径保持逐文件 100%，包括 `@ketos/client-locale-ru` 以及被排除包的导入（ui-board 的 `src/index.ts` 仅在组件树位于 `src/client/` 期间被同一 glob 覆盖）。当所属阶段落地其行为测试后移除例外，并在 MVP 验收（阶段 20）时复核。
+其他所有路径保持逐文件 100%，包括 `@ketos/client-locale-ru` 以及所有导入被排除包的那些包；ui-board 的 glob 覆盖该包的整个 `src` 树。当所属阶段落地其行为测试后移除例外，并在 MVP 验收（阶段 20）时复核。
 
 强制测试集合为 §II.4 的 MVP 清单：纯数学（`zoomTowardPointer`、snap、小地图投影）、持久化（CAS 设置、`user_version`、`clones.db` CRUD）、槽与工具的注册/释放、Fetch 路由边界（错误码、校验），以及记忆行为（remember → search → 注入）。每个 CSS 类的测试、所有状态的截图、resize 压力测试不在范围内。
 

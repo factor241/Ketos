@@ -20,7 +20,7 @@
 - [x] Стенд поднимается по документу — `pnpm install` зелёный, `pnpm run build` зелёный; `pnpm ketos web` на чистом доме отвечает 200 на `http://127.0.0.1:3080/`, `<title>Ketos Local Build</title>`; `~/.dsh` не создан; `dev:web` + `ketos web` дают рабочий русский интерфейс.
 - [x] Dev-цикл работает — пробная переменная из `packages/client/ui-theme/src/styles/base.css` наблюдалась через `getComputedStyle` сразу (HMR) и после reload; `packages/client/ui-board/lib/client.js` пересобирается watcher'ом; пробы возвращены.
 - [x] Диагностический чек проверен на намеренно сломанном ростере и возвращён — без строки `ketos-locale-ru` хост поднялся без ошибок, `__DSH_BOOT__` 53 записи, интерфейс `lang="en"`; после возврата — 54 записи и `lang="ru"`.
-- [x] Базовые гейты зелёные или задокументированы — зелёные: `build`, `test:gui`, `typecheck`, `constraints`, `doc-sync` (34 гейта), `verify-client-catalog/packages/cordis-config/ui-i18n/application-entrypoints`, `verify-package-readme-summaries`, `DSH_SNAPSHOT=replay pnpm run test:web`; задокументированы: 17 базовых линт-ошибок `ui-board` и 3 базовых файла ниже per-file 100% в покрытии.
+- [x] Базовые гейты зелёные или задокументированы — зелёные: `build`, `test:gui`, `typecheck`, `constraints`, `doc-sync` (34 гейта), `hygiene` (16 гейтов), `verify-client-catalog/packages/cordis-config/ui-i18n/application-entrypoints`, `verify-package-readme-summaries`, `DSH_SNAPSHOT=replay pnpm run test:web`; задокументированы: 17 базовых линт-ошибок `ui-board` и 3 базовых файла ниже per-file 100% в покрытии.
 - [x] Политика покрытия и процесс зафиксированы — исключения `packages/client/ui-board/src/**` и `packages/ketos/clone-*/src/**` с пометкой политики; Agent Note; шаблон отчёта.
 - [x] Agent Note MVP создан — `.agents/notes/implemented/process/2026-09-15-ketos-mvp-engineering-policy.{md,zh.md,i18n.yaml}`, гейты формата, классификации и парности зелёные.
 
@@ -30,7 +30,7 @@
 - `test:coverage` на macOS не проходит порог в трёх базовых файлах: `subprocess-local/src/linux-execve.ts` и `code-runtime-python/src/index.ts` покрываются Linux-линией CI по построению, `llm-pi-ai/src/adapter.ts` содержит 4 непокрытых места из форк-коммита `a4b5114`. Все тесты (22 502) зелёные; файлы не относятся к Кетосу (см. `baseline-issues.md`).
 - `packages/client/ui-board/src/**` исключён из per-file покрытия по MVP-политике (Agent Note); исключение снимается, когда этапы 2–4 принесут поведенческие тесты.
 - Пробный стиль дев-цикла проверялся на `ui-theme` (`base.css`), а не на `ui-board/tokens.css`, как предлагал план: доска ещё не подключена к ростору (этап 2), её бандл в браузере не рендерится; цепочка watch для доски проверена изменением `lib/client.js`.
-- Исправленные по пути базовые дефекты: shebang `sync-dictionaries.mjs` (падал `verify-application-entrypoints`), ожидание fish-логотипа в `built-boot.expected.e2e.ts`, macOS-симлинк tmp в фикстуре `browser-bundled-externals.spec.ts`, гонка `hang`-replay в `queue-actions.e2e.ts` (тест не дожидался рендера `partial`). Однократный таймаут `hmr-config.spec.ts` не воспроизвёлся.
+- Исправленные по пути базовые дефекты: shebang `sync-dictionaries.mjs` (падал `verify-application-entrypoints`), ключ `'cordis'` в ru-словарях (падал `vendor rescope` в `hygiene`), ожидание fish-логотипа в `built-boot.expected.e2e.ts`, macOS-симлинк tmp в фикстуре `browser-bundled-externals.spec.ts`, гонка `hang`-replay в `queue-actions.e2e.ts` (тест не дожидался рендера `partial`). Однократный таймаут `hmr-config.spec.ts` не воспроизвёлся.
 
 ## 5. Проверки
 
@@ -41,6 +41,7 @@
 | `pnpm run test:gui` | 380 файлов, 5435 passed, 1 skipped |
 | `pnpm run test:coverage` | 22 502 теста зелёные; 3 базовых файла ниже порога (см. `baseline-issues.md`) |
 | `pnpm run typecheck`, `pnpm run constraints`, `pnpm run lint` | typecheck и constraints зелёные; lint — 17 базовых ошибок `ui-board` |
+| `pnpm run hygiene` | 16 gates passed, 0 failed |
 | `pnpm run doc-sync` | 34 gates passed, 0 failed |
 | `pnpm run verify-client-catalog/packages/cordis-config/ui-i18n/application-entrypoints` | зелёные |
 | `DSH_SNAPSHOT=replay pnpm run test:web` | зелёный: 101 файл / 359 тестов, 15 skipped (после исправления ожидания марки и гонки queue-actions) |

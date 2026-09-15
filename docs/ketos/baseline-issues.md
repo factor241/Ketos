@@ -21,6 +21,7 @@
 | Локализация UI | `pnpm run verify-client-ui-i18n` | 619 файлов |
 | Локаторы приложений | `pnpm run verify-application-entrypoints` | зелёный (после исправления, см. ниже) |
 | Сводки README | `pnpm run verify-package-readme-summaries` | 322 сводки ≤ 100 слов (после исправления) |
+| Гигиена релиза | `pnpm run hygiene` | 16 gates passed (после исправления, см. ниже) |
 | Смоук на чистом доме | `pnpm ketos web --no-open` | зелёный: 200 на `http://127.0.0.1:3080/`, `<title>Ketos Local Build</title>`, `~/.dsh` не создан |
 
 ## Известные базовые проблемы
@@ -46,9 +47,9 @@ packages/client/ui-board/src/client/canvas/DashboardCanvas.tsx:50:18: error type
 
 Полный список повторяется командой `pnpm run lint`.
 
-### 2. `pnpm run test:coverage` — три базовых файла ниже per-file 100% на macOS
+### 2. `pnpm run test:coverage` — три базовых файла ниже per-file 100%
 
-Прогон полного покрытия на этапе 1: 1267 файлов, 22 502 теста зелёные, 12 файлов и 131 тест пропущены по условиям; все падения — только пороговые, в трёх файлах, ни один из которых не относится к Кетосу. CI владеет Linux-линией покрытия, где первые два файла покрываются штатно; закрытие третьего — отдельная задача, вне этапа 1 (тот же принцип «не чинить базовое в этапах 2–20»).
+Прогон полного покрытия на этапе 1: 1267 файлов, 22 502 теста зелёные, один ожидаемый провал, 12 файлов и 131 тест пропущены по условиям; все падения — только пороговые, в трёх файлах, ни один из которых не относится к Кетосу. Два первых файла — платформенные: Linux-линия покрытия CI покрывает их штатно, macOS не может. Третий не зависит от платформы и приходит из форк-коммита до этапа 0; его закрытие — отдельная задача, вне этапа 1 (тот же принцип «не чинить базовое в этапах 2–20»).
 
 - `packages/subprocess/subprocess-local/src/linux-execve.ts` — 40% lines, 25% functions, 8.33% branches: Linux-only реализация exec-ve, импортируется только на Linux (`linux-scope.ts`, `spawn-runner.ts`); происходит из upstream-импорта `f5d8f1e`.
 - `packages/experimental/code-runtime-python/src/index.ts` — 99.08% lines, 99.15% statements: ветка чтения `/proc/<pid>/stat` в `readProcessStart`; сам файл помечает её как платформенную (`/* v8 ignore next -- one arm per platform: the Linux coverage lane always takes the read path, and Darwin always this one. */`); происходит из upstream-импорта `f5d8f1e`.
@@ -64,7 +65,8 @@ packages/client/ui-board/src/client/canvas/DashboardCanvas.tsx:50:18: error type
 4. `apps/web/tests/built-boot.expected.e2e.ts` — ожидание неофициального профиля требовало fish-логотип (`svg[viewBox="0 0 23.16 17.04"]`), тогда как поставленная марка Кетоса (`img` с data URI) рендерится во всех профилях после коммита `6231f0e`. Ожидание приведено к фактическому поведению; `DSH_SNAPSHOT=replay pnpm run test:web` зелёный.
 5. `scripts/browser-bundled-externals.spec.ts` — детерминированное падение на macOS: `mkdtempSync` отдаёт путь через симлинк `/var` → `/private/var`, Vite канонизирует root и `vite:build-html` эмитит чанк с относительным путём (`RollupError: … received "../../../../…/index.html"`). Фикстура канонизирует корень через `realpathSync`; 6 тестов зелёные.
 6. `packages/boot/app-boot/tests/hmr-config.spec.ts` — однократный таймаут «HMR did not observe config creation» в первом полном coverage-прогоне под нагрузкой; изолированно и в повторном полном прогоне зелёный (файловый watcher и 10-секундный дедлайн чувствительны к нагрузке). Зафиксировано как плавающее; при повторении заводится отдельная задача.
-7. `apps/web/tests/queue-actions.e2e.ts` — гонка golden-захвата: replay-запись `hang` пишет `.hang-ready` сразу после выдачи чанка `partial`, не дожидаясь его рендера в браузере, поэтому под нагрузкой полного `test:web` снимок снимался без абзаца `partial` (и сценарий не доводил записанные вызовы: `llm-replay: fixture not fully consumed — consumed 1/4 recorded call(s)`). Тест теперь дожидается отрендеренного абзаца перед сценарием; полный `DSH_SNAPSHOT=replay pnpm run test:web` зелёный (101 файл, 359 тестов).
+7. `pnpm run hygiene` — падал на гейте `vendor rescope` из-за ключа `'cordis'` в сгенерированном `packages/ketos/client-locale-ru/src/locales/pack-ru.ts` и манифесте `tests/fixtures/ru-keys.json`: это id неймспейса локали пакета `@deepseek-ai/dsh-client-ui-cordis` (`NS = 'cordis'`), а не ссылка на вендоренный пакет. Файлы добавлены в `GENERIC_SKIPS` с обоснованием, как уже сделано для локалей `ui-cordis`. `pnpm run rescope-vendor:check` и `pnpm run hygiene` зелёные (16 gates).
+8. `apps/web/tests/queue-actions.e2e.ts` — гонка golden-захвата: replay-запись `hang` пишет `.hang-ready` сразу после выдачи чанка `partial`, не дожидаясь его рендера в браузере, поэтому под нагрузкой полного `test:web` снимок снимался без абзаца `partial` (и сценарий не доводил записанные вызовы: `llm-replay: fixture not fully consumed — consumed 1/4 recorded call(s)`). Тест теперь дожидается отрендеренного абзаца перед сценарием; полный `DSH_SNAPSHOT=replay pnpm run test:web` зелёный (101 файл, 359 тестов).
 
 ## Проверочные команды
 

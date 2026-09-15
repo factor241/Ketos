@@ -16,7 +16,7 @@ Coverage exceptions are narrow, named config entries in `vitest.config.ts`, each
 - `packages/client/ui-board/src/**` — the raw board GUI is rewritten through stages 2–4; per-file coverage would pin throwaway components.
 - `packages/ketos/clone-*/src/**` — the clone packages arrive in stages 15–19; the glob is inert until then.
 
-Every other path keeps per-file 100%, including `@ketos/client-locale-ru` and the imports of the excluded packages (`src/index.ts` of ui-board is excluded by the same glob only while the component tree lives under `src/client/`). Exceptions are removed when the owning stages land their behaviour tests, reviewed at MVP acceptance (stage 20).
+Every other path keeps per-file 100%, including `@ketos/client-locale-ru` and every package that imports the excluded ones; the ui-board glob covers that package's whole `src` tree. Exceptions are removed when the owning stages land their behaviour tests, reviewed at MVP acceptance (stage 20).
 
 The mandatory test set is the MVP list from §II.4: pure math (`zoomTowardPointer`, snap, minimap projection), persistence (CAS settings, `user_version`, `clones.db` CRUD), slot/tool registration and disposal, Fetch-route boundaries (error codes, validation), and memory behaviour (remember → search → injection). Tests for every CSS class, screenshots of every state, and resize stress tests stay out of scope.
 

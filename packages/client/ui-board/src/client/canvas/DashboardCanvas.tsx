@@ -1,10 +1,16 @@
 /**
  * Canvas layer of the board: the transformed surface, its dot grid, pan and
  * wheel zoom, and the window layer rendered through `board.windows`.
+ *
+ * Presentation lives in `DashboardCanvas.module.css`; inline styles are
+ * reserved for geometry and the computed metrics that scale with the live
+ * pan/zoom (passed as component-local custom properties).
  */
 import { useCallback, useEffect, useRef } from 'react'
+import clsx from 'clsx'
 import type { PropsRenderSlots, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
+import css from './DashboardCanvas.module.css'
 
 export type DashboardCanvasProps =
   PropsRenderSlots<'board.windows'>
@@ -74,6 +80,18 @@ export function DashboardCanvas({ renderSlot, useStore, actions }: DashboardCanv
     actions.zoomTowardPointer(e.deltaY, pointerX, pointerY)
   }, [actions])
 
+  // Grid geometry follows the live zoom; the dot grid paints from these variables.
+  const grid = 24 * zoom
+  const gridStyle = {
+    '--board-canvas-dot-radius': `${Math.max(1, 1.5 * zoom)}px`,
+    '--board-canvas-grid': `${grid}px`,
+    '--board-canvas-grid-x': `${panX % grid}px`,
+    '--board-canvas-grid-y': `${panY % grid}px`,
+    '--board-pan-x': `${panX}px`,
+    '--board-pan-y': `${panY}px`,
+    '--board-zoom': zoom,
+  } as React.CSSProperties
+
   return (
     <div
       ref={containerRef}
@@ -81,29 +99,11 @@ export function DashboardCanvas({ renderSlot, useStore, actions }: DashboardCanv
       data-surface="canvas"
       onPointerDown={handlePointerDown}
       onWheel={handleWheel}
-      style={{
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-        overflow: 'hidden',
-        background: '#F5F5F0',
-        backgroundImage: `radial-gradient(circle, rgba(0, 0, 0, 0.08) ${Math.max(1, 1.5 * zoom)}px, transparent ${Math.max(1, 1.5 * zoom)}px)`,
-        backgroundSize: `${24 * zoom}px ${24 * zoom}px`,
-        backgroundPosition: `${panX % (24 * zoom)}px ${panY % (24 * zoom)}px`,
-        cursor: isSelectingElement ? 'crosshair' : 'default',
-      }}
+      className={clsx(css.canvas, isSelectingElement && css.selecting)}
+      style={gridStyle}
     >
       {/* Transformed Canvas Content Surface */}
-      <div
-        data-surface="canvas"
-        style={{
-          position: 'absolute',
-          inset: 0,
-          transformOrigin: '0 0',
-          transform: `translate3d(${panX}px, ${panY}px, 0) scale(${zoom})`,
-          willChange: 'transform',
-        }}
-      >
+      <div data-surface="canvas" className={css.surface}>
         {renderSlot('board.windows', {})}
       </div>
     </div>

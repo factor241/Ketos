@@ -2,8 +2,10 @@
  * Interactive SVG Minimap for Spatial Board Canvas.
  */
 import { useCallback, useRef } from 'react'
+import clsx from 'clsx'
 import type { PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
+import css from './Minimap.module.css'
 
 export type MinimapProps =
   PropsRuntime<'board.minimap'>
@@ -98,26 +100,13 @@ export function Minimap({ useStore, actions }: MinimapProps) {
   return (
     <div
       data-board-layer="minimap"
-      style={{
-        position: 'absolute',
-        bottom: 24,
-        right: 24,
-        width: MINIMAP_WIDTH,
-        height: MINIMAP_HEIGHT,
-        background: 'rgba(255, 255, 255, 0.85)',
-        backdropFilter: 'blur(12px)',
-        borderRadius: 12,
-        border: '1px solid rgba(0, 0, 0, 0.08)',
-        boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.1)',
-        overflow: 'hidden',
-        zIndex: 100,
-        userSelect: 'none',
-      }}
+      className={css.minimap}
+      style={{ width: MINIMAP_WIDTH, height: MINIMAP_HEIGHT }}
     >
       <svg
         width={MINIMAP_WIDTH}
         height={MINIMAP_HEIGHT}
-        style={{ display: 'block', cursor: 'crosshair' }}
+        className={css.svg}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -128,8 +117,6 @@ export function Minimap({ useStore, actions }: MinimapProps) {
           const ww = Math.max(4, win.width * scale)
           const wh = Math.max(4, win.height * scale)
           const isAgent = win.kind === 'agent'
-          const fill = isAgent ? '#B8532F' : '#3266AD'
-          const opacity = win.id === activeWindowId ? 0.9 : 0.5
 
           return (
             <rect
@@ -139,13 +126,15 @@ export function Minimap({ useStore, actions }: MinimapProps) {
               width={ww}
               height={wh}
               rx={3}
-              fill={fill}
-              opacity={opacity}
+              className={clsx(
+                css.rect,
+                isAgent ? css.agent : css.tool,
+                win.id === activeWindowId ? css.active : css.idle,
+              )}
               onClick={(e) => {
                 e.stopPropagation()
                 actions.centerOnWindow(win.id)
               }}
-              style={{ cursor: 'pointer' }}
             />
           )
         })}
@@ -156,10 +145,7 @@ export function Minimap({ useStore, actions }: MinimapProps) {
           width={frustumW}
           height={frustumH}
           rx={4}
-          fill="rgba(184, 83, 47, 0.08)"
-          stroke="#B8532F"
-          strokeWidth={1.5}
-          style={{ pointerEvents: 'none' }}
+          className={css.frustum}
         />
       </svg>
     </div>

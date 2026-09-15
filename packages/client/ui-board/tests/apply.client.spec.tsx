@@ -6,6 +6,7 @@ import { act, cleanup, waitFor } from '@testing-library/react'
 import { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
+import canvasCss from '../src/client/canvas/DashboardCanvas.module.css'
 import { apply, inject } from '../src/client/index.ts'
 
 const runtimes = new Set<SlotTestRuntime>()
@@ -30,6 +31,13 @@ function element(root: ParentNode, selector: string): Element {
 function htmlElement(root: ParentNode, selector: string): HTMLElement {
   const found = element(root, selector)
   if (!(found instanceof HTMLElement)) throw new Error(`element ${selector} is not an HTML element`)
+  return found
+}
+
+/** Resolve a CSS Module class; a class the stylesheet must define fails loudly at the call site. */
+function classOf(classes: Record<string, string>, name: string): string {
+  const found = classes[name]
+  if (found === undefined) throw new Error(`class ${name} missing from the stylesheet`)
   return found
 }
 
@@ -128,11 +136,13 @@ describe('board plugin registration', () => {
     await runtime.mount({ inject: [...inject], apply })
 
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    // The board root carries the `board-canvas` hook the ui-theme brand layer
+    // scopes the Ketos palette to; the canvas occupant fills it.
+    expect(element(panel.container, '.board-canvas')).not.toBeNull()
     const surface = htmlElement(panel.container, '[data-surface="canvas"]')
-    expect(surface.style.position).toBe('relative')
-    expect(surface.style.width).toBe('100%')
-    expect(surface.style.height).toBe('100%')
-    expect(htmlElement(surface, '[data-surface="canvas"]').style.transform).toContain('scale')
+    expect(surface.classList.contains(classOf(canvasCss, 'canvas'))).toBe(true)
+    expect(htmlElement(surface, '[data-surface="canvas"]').classList.contains(classOf(canvasCss, 'surface'))).toBe(true)
+    expect(surface.style.getPropertyValue('--board-zoom')).toBe('1')
 
     const row = runtime.renderSlot('sidebar.panellist', { size: 18, active: false }, { only: 'board' })
     const icon = element(row.container, 'svg')

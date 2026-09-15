@@ -1,0 +1,15 @@
+/* Conversation body of a dark window: the status line and the opening
+ * message card. */
+
+.status {
+  margin-bottom: 8px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+
+.greeting {
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-3);
+  border: 0.5px solid var(--dsw-alias-border-l1);
+}

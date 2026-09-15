@@ -3,6 +3,7 @@
  * conversation lane mounts here.
  */
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import css from './ConversationBody.module.css'
 
 export type ConversationBodyProps =
   PropsRuntime<'board.window.body'>
@@ -11,10 +12,10 @@ export type ConversationBodyProps =
 export function ConversationBody({ window: cardWindow, t }: ConversationBodyProps) {
   return (
     <>
-      <div style={{ color: '#8F8E94', marginBottom: 8, fontSize: 12 }}>
+      <div className={css.status}>
         {cardWindow.statusText ?? t('agent.statusReady')}
       </div>
-      <div style={{ background: '#222126', borderRadius: 10, padding: '12px', border: '1px solid #323037' }}>
+      <div className={css.greeting}>
         {t('agent.greeting')}
       </div>
     </>

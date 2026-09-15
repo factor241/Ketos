@@ -2,14 +2,23 @@
  * Center floating Omnibox with Action Menu OpenSwarm-style.
  */
 import { useState, type FormEvent } from 'react'
+import clsx from 'clsx'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
 import { openBoardWindow } from '../open-window.ts'
+import css from './DashboardToolbar.module.css'
 
 export type DashboardToolbarProps =
   PropsRuntime<'board.omnibar'>
   & PropsStore<BoardStoreHandle>
   & PropsLocale<'board'>
+
+/** Icon glyphs of the action-menu entries. */
+const ATTACH_GLYPH = '📎'
+const DICTATE_GLYPH = '🎙️'
+const WEB_SEARCH_GLYPH = '🌐'
+const SELECT_ELEMENT_GLYPH = '🎯'
+const CONNECTORS_GLYPH = '🔌'
 
 export function DashboardToolbar({ actions, t }: DashboardToolbarProps) {
   const [text, setText] = useState('')
@@ -30,102 +39,39 @@ export function DashboardToolbar({ actions, t }: DashboardToolbarProps) {
   const closeMenu = () => { setMenuOpen(false) }
 
   return (
-    <div
-      data-board-layer="omnibar"
-      style={{
-        position: 'absolute',
-        bottom: 24,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 100,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        userSelect: 'none',
-      }}
-    >
+    <div data-board-layer="omnibar" className={css.omnibar}>
       {menuOpen && (
-        <div
-          style={{
-            marginBottom: 10,
-            background: '#222126',
-            borderRadius: 14,
-            border: '1px solid #36353C',
-            boxShadow: '0 16px 36px rgba(0,0,0,0.4)',
-            padding: 6,
-            minWidth: 200,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-            color: '#E6E4E8',
-            fontSize: 13,
-          }}
-        >
-          <button
-            onClick={closeMenu}
-            style={{ padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', color: '#E6E4E8', cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
-          >
-            <span>📎</span> {t('menu.attachFile')}
+        <div className={css.menu}>
+          <button onClick={closeMenu} className={css.menuItem}>
+            <span>{ATTACH_GLYPH}</span> {t('menu.attachFile')}
           </button>
-          <button
-            onClick={closeMenu}
-            style={{ padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', color: '#E6E4E8', cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
-          >
-            <span>🎙️</span> {t('menu.dictate')}
+          <button onClick={closeMenu} className={css.menuItem}>
+            <span>{DICTATE_GLYPH}</span> {t('menu.dictate')}
           </button>
-          <button
-            onClick={closeMenu}
-            style={{ padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', color: '#E6E4E8', cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
-          >
-            <span>🌐</span> {t('menu.webSearch')}
+          <button onClick={closeMenu} className={css.menuItem}>
+            <span>{WEB_SEARCH_GLYPH}</span> {t('menu.webSearch')}
           </button>
           <button
             onClick={() => { setMenuOpen(false); actions.setSelectingElement(true) }}
-            style={{ padding: '8px 12px', textAlign: 'left', background: 'rgba(184, 83, 47, 0.15)', border: 'none', color: '#B8532F', fontWeight: 600, cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
+            className={clsx(css.menuItem, css.menuItemAccent)}
           >
-            <span>🎯</span> {t('menu.selectElement')}
+            <span>{SELECT_ELEMENT_GLYPH}</span> {t('menu.selectElement')}
           </button>
-          <div style={{ height: 1, background: '#36353C', margin: '4px 0' }} />
+          <div className={css.menuDivider} />
           <button
             onClick={() => { setMenuOpen(false); openConnectors() }}
-            style={{ padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', color: '#E6E4E8', cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
+            className={css.menuItem}
           >
-            <span>🔌</span> {t('menu.connectors')}
+            <span>{CONNECTORS_GLYPH}</span> {t('menu.connectors')}
           </button>
         </div>
       )}
 
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          background: 'rgba(43, 42, 48, 0.92)',
-          backdropFilter: 'blur(16px)',
-          borderRadius: 9999,
-          border: '1px solid #3A3940',
-          boxShadow: '0 12px 32px -4px rgba(0, 0, 0, 0.35)',
-          padding: '6px 10px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          width: 440,
-        }}
-      >
+      <form onSubmit={handleSubmit} className={css.form}>
         <button
           type="button"
           onClick={() => { setMenuOpen(!menuOpen) }}
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: '50%',
-            background: menuOpen ? '#B8532F' : '#36343C',
-            border: 'none',
-            color: '#FFFFFF',
-            fontSize: 16,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
+          className={clsx(css.menuButton, menuOpen && css.open)}
           title={t('menu.openActionMenu')}
         >
           +
@@ -136,31 +82,12 @@ export function DashboardToolbar({ actions, t }: DashboardToolbarProps) {
           value={text}
           onChange={(e) => { setText(e.target.value) }}
           placeholder={t('toolbar.composerPlaceholder')}
-          style={{
-            flex: 1,
-            background: 'transparent',
-            border: 'none',
-            outline: 'none',
-            color: '#E6E4E8',
-            fontSize: 14,
-          }}
+          className={css.input}
         />
 
         <button
           type="submit"
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: '50%',
-            background: text.trim() ? '#B8532F' : '#36343C',
-            border: 'none',
-            color: '#FFFFFF',
-            fontSize: 13,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: text.trim() ? 'pointer' : 'default',
-          }}
+          className={clsx(css.submit, text.trim() !== '' && css.ready)}
         >
           ↑
         </button>

@@ -1,0 +1,256 @@
+/* Dark window frame (agent and clone windows): graphite chrome on the Ketos
+ * palette. Placement (left/top/width/height/z-index) stays inline because it
+ * comes from the board store; everything painted lives here. */
+
+.window {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  border-radius: 18px;
+  background: var(--dsw-alias-bg-layer-1);
+  border: 0;
+  box-shadow: var(--dsw-elevation-panel);
+  user-select: none;
+}
+
+/* The focused window draws its hairline in the brand accent and lifts one
+   elevation tier. */
+.window.active {
+  --dsw-elevation-stroke-color: var(--dsw-alias-brand-primary);
+  box-shadow: var(--dsw-elevation-prominent);
+}
+
+/* 8-direction resize handles: invisible hit zones along the edges (6px) and
+   at the corners (14px). */
+.handle {
+  position: absolute;
+  z-index: 10;
+}
+
+.handleN {
+  top: -3px;
+  left: 14px;
+  right: 14px;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.handleS {
+  bottom: -3px;
+  left: 14px;
+  right: 14px;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.handleW {
+  left: -3px;
+  top: 14px;
+  bottom: 14px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.handleE {
+  right: -3px;
+  top: 14px;
+  bottom: 14px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.handleNw,
+.handleNe,
+.handleSw,
+.handleSe {
+  z-index: 11;
+  width: 14px;
+  height: 14px;
+}
+
+.handleNw {
+  top: -4px;
+  left: -4px;
+  cursor: nwse-resize;
+}
+
+.handleNe {
+  top: -4px;
+  right: -4px;
+  cursor: nesw-resize;
+}
+
+.handleSw {
+  bottom: -4px;
+  left: -4px;
+  cursor: nesw-resize;
+}
+
+.handleSe {
+  bottom: -4px;
+  right: -4px;
+  cursor: nwse-resize;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l1);
+  cursor: grab;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.traffic {
+  display: flex;
+  gap: 6px;
+}
+
+.trafficDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  corner-shape: round;
+  padding: 0;
+}
+
+.trafficClose {
+  background: var(--dsw-alias-state-error-primary);
+  border: none;
+  cursor: pointer;
+}
+
+.trafficMinimize {
+  background: var(--dsw-alias-state-warn-primary);
+}
+
+.trafficZoom {
+  background: var(--dsw-alias-state-success-tertiary);
+}
+
+.titlePill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  corner-shape: round;
+  background: var(--dsw-alias-bg-overlay);
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.title {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
+}
+
+.doneBadge {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--dsw-alias-state-success-secondary);
+  color: var(--dsw-alias-state-success-primary);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.learned {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+}
+
+/* The body scrolls inside elevated chrome, so the thumb rides the l2 pair
+   (ui-theme's scrollbar rebinding contract). */
+.body {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.composerWrap {
+  padding: 12px 16px;
+}
+
+.composer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: var(--dsw-specific-input-major);
+  border: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.composerInput {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-left: 8px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-bg-layer-1);
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-primary);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+/* Context capsule floating under the window in world coordinates. */
+.contextPill {
+  position: absolute;
+  bottom: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  corner-shape: round;
+  background: var(--dsw-alias-bg-overlay);
+  border: 0;
+  box-shadow: var(--dsw-elevation-soft);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.contextStrong {
+  color: var(--dsw-alias-label-primary);
+}
+
+.contextRing {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  corner-shape: round;
+  border: 2px solid var(--dsw-alias-brand-primary);
+  border-top-color: transparent;
+}

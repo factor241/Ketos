@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render } from '@testing-library/react'
 import { Minimap, type MinimapProps } from '../src/client/canvas/Minimap.tsx'
 import { DashboardCanvas, type DashboardCanvasProps } from '../src/client/canvas/DashboardCanvas.tsx'
+import minimapCss from '../src/client/canvas/Minimap.module.css'
+import canvasCss from '../src/client/canvas/DashboardCanvas.module.css'
 import type { BoardState } from '../src/client/store.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 
@@ -34,6 +36,13 @@ function canvasProps(
 }
 
 afterEach(() => { vi.restoreAllMocks() })
+
+/** Resolve a CSS Module class; a class the stylesheet must define fails loudly at the call site. */
+function classOf(classes: Record<string, string>, name: string): string {
+  const found = classes[name]
+  if (found === undefined) throw new Error(`class ${name} missing from the stylesheet`)
+  return found
+}
 
 const baseState: BoardState = {
   panX: 0,
@@ -86,9 +95,13 @@ describe('Minimap Component', () => {
     const rects = container.querySelectorAll('rect')
     // 2 windows + 1 camera frustum = 3 rects
     expect(rects.length).toBe(3)
-    // Agent rect uses terracotta fill (#B8532F); tool rect uses blue (#3266AD).
-    expect(rects[0]?.getAttribute('fill')).toBe('#B8532F')
-    expect(rects[1]?.getAttribute('fill')).toBe('#3266AD')
+    // The agent rect carries the brand fill class and the tool rect the business
+    // fill class; the actual colors live in tokens, not in this spec.
+    expect(rects[0]?.classList.contains(classOf(minimapCss, 'agent'))).toBe(true)
+    expect(rects[1]?.classList.contains(classOf(minimapCss, 'tool'))).toBe(true)
+    expect(rects[0]?.classList.contains(classOf(minimapCss, 'idle'))).toBe(false)
+    expect(rects[0]?.classList.contains(classOf(minimapCss, 'active'))).toBe(true)
+    expect(rects[2]?.classList.contains(classOf(minimapCss, 'frustum'))).toBe(true)
 
     // Projection math: the world-to-minimap transform and the camera frustum.
     // scale = min(200/1960, 140/1120); window 1 starts at (100, 100), the frustum at the view origin.
@@ -124,9 +137,14 @@ describe('DashboardCanvas Component', () => {
     )
 
     // The canvas surface and the transformed content surface both carry the canvas marker.
-    const surfaces = container.querySelectorAll('[data-surface="canvas"]')
+    const surfaces = container.querySelectorAll<HTMLElement>('[data-surface="canvas"]')
     expect(surfaces.length).toBe(2)
-    expect((surfaces[1] as HTMLElement).style.transform).toContain('scale(1.5)')
+    expect(surfaces[0]?.classList.contains(classOf(canvasCss, 'canvas'))).toBe(true)
+    expect(surfaces[1]?.classList.contains(classOf(canvasCss, 'surface'))).toBe(true)
+    // Zoom and pan reach the stylesheet as component-local custom properties.
+    expect(surfaces[0]?.style.getPropertyValue('--board-zoom')).toBe('1.5')
+    expect(surfaces[0]?.style.getPropertyValue('--board-pan-x')).toBe('40px')
+    expect(surfaces[0]?.style.getPropertyValue('--board-canvas-grid')).toBe('36px')
     expect(container.querySelector('[data-testid="windows-layer"]')).not.toBeNull()
 
     // The canvas publishes its measured box and renders the declared window layer.

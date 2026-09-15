@@ -49,8 +49,4 @@ export const ru = {
   'tool.webSearchDesc': 'DuckDuckGo / корпоративный поисковый прокси',
   'tool.inspectorName': 'Инспектор браузера',
   'tool.inspectorDesc': 'Захват DOM, выбор элементов',
-  'tool.temporalName': 'Оркестрация Temporal',
-  'tool.temporalDesc': 'Длительные макропроцессы',
-  'tool.mcpName': 'Внешний MCP: Twitter/X',
-  'tool.mcpDesc': 'Интеграция чтения и публикации',
 } satisfies Record<BoardKey, string>

@@ -1,0 +1,100 @@
+/* Left floating dock: one circular row per open window plus the board
+ * controls, on the dark Ketos chrome. */
+
+.rail {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 8px;
+  border-radius: 26px;
+  background: var(--dsw-alias-bg-layer-2);
+  border: 0;
+  box-shadow: var(--dsw-elevation-prominent);
+  z-index: 100;
+  user-select: none;
+}
+
+.row {
+  position: relative;
+}
+
+.windowButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-button-floating-fill);
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-primary-inverted);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.windowButton.active {
+  background: var(--dsw-alias-brand-primary);
+  border: 2px solid var(--dsw-alias-label-primary-inverted);
+}
+
+.tooltip {
+  position: absolute;
+  left: 48px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-overlay);
+  border: 0;
+  box-shadow: var(--dsw-elevation-panel);
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 200;
+}
+
+.divider {
+  width: 24px;
+  height: 0.5px;
+  margin: 4px 0;
+  background: var(--dsw-alias-border-l2);
+}
+
+.addButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-button-floating-fill);
+  border: 0.5px dashed var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-primary);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-button-floating-fill);
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  cursor: pointer;
+}

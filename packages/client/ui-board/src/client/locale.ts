@@ -48,10 +48,6 @@ export const zh = {
   'tool.webSearchDesc': 'DuckDuckGo / 企业搜索代理',
   'tool.inspectorName': '浏览器检查器',
   'tool.inspectorDesc': 'DOM 捕获、元素选择',
-  'tool.temporalName': 'Temporal 编排',
-  'tool.temporalDesc': '长时运行的宏工作流',
-  'tool.mcpName': '外部 MCP：Twitter/X',
-  'tool.mcpDesc': '读取/发布集成',
 } satisfies Record<string, string>
 
 /** Board dictionary key union. */
@@ -110,8 +106,4 @@ export const en = {
   'tool.webSearchDesc': 'DuckDuckGo / Enterprise Search Proxy',
   'tool.inspectorName': 'Browser Inspector',
   'tool.inspectorDesc': 'DOM capture, element selection',
-  'tool.temporalName': 'Temporal Orchestration',
-  'tool.temporalDesc': 'Long-running macro workflows',
-  'tool.mcpName': 'External MCP: Twitter/X',
-  'tool.mcpDesc': 'Read/post integration',
 } satisfies Record<BoardKey, string>

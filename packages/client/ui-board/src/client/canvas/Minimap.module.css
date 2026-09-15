@@ -1,0 +1,49 @@
+/* Bottom-right interactive minimap: a translucent board-colored card with one
+ * rect per window and the camera frustum. Window geometry is projected by the
+ * component; the rect fills and frustum colors are semantic tokens. */
+
+.minimap {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--dsw-alias-bg-base) 85%, transparent);
+  backdrop-filter: blur(12px);
+  border: 0;
+  box-shadow: var(--dsw-elevation-panel);
+  overflow: hidden;
+  z-index: 100;
+  user-select: none;
+}
+
+.svg {
+  display: block;
+  cursor: crosshair;
+}
+
+.rect {
+  cursor: pointer;
+}
+
+.agent {
+  fill: var(--dsw-alias-brand-primary);
+}
+
+.tool {
+  fill: var(--dsw-alias-state-business-primary);
+}
+
+.active {
+  opacity: 0.9;
+}
+
+.idle {
+  opacity: 0.5;
+}
+
+.frustum {
+  fill: color-mix(in srgb, var(--dsw-alias-brand-primary) 8%, transparent);
+  stroke: var(--dsw-alias-brand-primary);
+  stroke-width: 1.5;
+  pointer-events: none;
+}

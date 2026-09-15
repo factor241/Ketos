@@ -1,0 +1,42 @@
+/* Element-selection overlay: the dashed canvas frame and the instruction
+ * capsule shown while the user picks a window or canvas element. */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  border: 3px dashed var(--dsw-alias-brand-primary);
+  pointer-events: none;
+  z-index: 500;
+}
+
+.pill {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 18px;
+  border-radius: 9999px;
+  corner-shape: round;
+  background: var(--dsw-alias-brand-primary);
+  color: var(--dsw-alias-label-primary-inverted);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--dsw-alias-brand-primary) 40%, transparent);
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: auto;
+}
+
+.cancel {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-bg-mask-2);
+  border: none;
+  color: var(--dsw-alias-label-primary-inverted);
+  font-size: 12px;
+  cursor: pointer;
+}

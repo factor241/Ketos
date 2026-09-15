@@ -1,0 +1,116 @@
+/* Center floating Omnibox with its Action Menu, on the dark Ketos chrome. */
+
+.omnibar {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 100;
+  user-select: none;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+  margin-bottom: 10px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--dsw-alias-bg-layer-3);
+  border: 0;
+  box-shadow: var(--dsw-elevation-panel);
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+}
+
+.menuItem {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* The element-inspector entry is the menu's brand action. */
+.menuItemAccent {
+  background: color-mix(in srgb, var(--dsw-alias-brand-primary) 15%, transparent);
+  color: var(--dsw-alias-brand-primary);
+  font-weight: 600;
+}
+
+.menuDivider {
+  height: 0.5px;
+  margin: 4px 0;
+  background: var(--dsw-alias-border-l1);
+}
+
+.form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 440px;
+  padding: 6px 10px;
+  border-radius: 9999px;
+  corner-shape: round;
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 92%, transparent);
+  backdrop-filter: blur(16px);
+  border: 0;
+  box-shadow: var(--dsw-elevation-prominent);
+}
+
+.menuButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-button-floating-fill);
+  border: none;
+  color: var(--dsw-alias-label-primary-inverted);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.menuButton.open {
+  background: var(--dsw-alias-brand-primary);
+}
+
+.input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+}
+
+.submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-button-floating-fill);
+  border: none;
+  color: var(--dsw-alias-label-primary-inverted);
+  font-size: 13px;
+  cursor: default;
+}
+
+.submit.ready {
+  background: var(--dsw-alias-brand-primary);
+  cursor: pointer;
+}

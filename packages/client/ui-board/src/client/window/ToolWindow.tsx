@@ -1,18 +1,33 @@
 /**
  * Light window frame (connectors, settings, dashboard, and task windows) with
  * 8-direction resize. The tab strip selects which `board.window.body` occupant
- * fills the frame.
+ * fills the frame. The `data-board-surface` marker hands the frame to the
+ * ui-theme brand layer's light palette rebind.
  */
 import React, { useCallback } from 'react'
+import clsx from 'clsx'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WindowBodyKind } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
 import { finishBoardPointerGesture } from './pointer-cleanup.ts'
+import css from './ToolWindow.module.css'
 
 export type ToolWindowProps =
   PropsRuntime<'board.window'>
   & PropsStore<BoardStoreHandle>
   & PropsLocale<'board'>
+
+/** The 8 resize directions paired with their handle classes. */
+const RESIZE_HANDLES = [
+  ['n', css.handleN],
+  ['s', css.handleS],
+  ['w', css.handleW],
+  ['e', css.handleE],
+  ['nw', css.handleNw],
+  ['ne', css.handleNe],
+  ['sw', css.handleSw],
+  ['se', css.handleSe],
+] as const
 
 export function ToolWindow({ window: cardWindow, renderBody, useStore, actions, t }: ToolWindowProps) {
   const zoom = useStore(s => s.zoom)
@@ -98,84 +113,52 @@ export function ToolWindow({ window: cardWindow, renderBody, useStore, actions, 
     globalThis.addEventListener('pointerup', onPointerUp)
   }
 
-  const tabStyle = (tab: WindowBodyKind) => ({
-    padding: '4px 8px',
-    fontSize: 12,
-    borderRadius: 6,
-    border: 'none',
-    background: activeTab === tab ? '#F5EEE6' : 'transparent',
-    color: activeTab === tab ? '#B8532F' : '#787570',
-    fontWeight: 500,
-    cursor: 'pointer',
-  })
-
   return (
     <div
       data-board-window={cardWindow.kind}
+      data-board-surface="light"
+      className={clsx(css.window, isActive && css.active)}
       onPointerDown={() => { actions.focusWindow(cardWindow.id) }}
       style={{
-        position: 'absolute',
         left: cardWindow.x,
         top: cardWindow.y,
         width: cardWindow.width,
         height: cardWindow.height,
         zIndex: cardWindow.zIndex,
-        background: '#FFFFFF',
-        borderRadius: 18,
-        border: isActive ? '1px solid #B8532F' : '1px solid #E8E6E1',
-        boxShadow: isActive
-          ? '0 20px 48px -8px rgba(0, 0, 0, 0.12), 0 6px 16px -4px rgba(0, 0, 0, 0.06)'
-          : '0 16px 36px -6px rgba(0, 0, 0, 0.06), 0 4px 12px -2px rgba(0, 0, 0, 0.03)',
-        display: 'flex',
-        flexDirection: 'column',
-        userSelect: 'none',
-        overflow: 'hidden',
       }}
     >
-      <div onPointerDown={createResizeHandler('n')} style={{ position: 'absolute', top: -3, left: 14, right: 14, height: 6, cursor: 'ns-resize', zIndex: 10 }} />
-      <div onPointerDown={createResizeHandler('s')} style={{ position: 'absolute', bottom: -3, left: 14, right: 14, height: 6, cursor: 'ns-resize', zIndex: 10 }} />
-      <div onPointerDown={createResizeHandler('w')} style={{ position: 'absolute', left: -3, top: 14, bottom: 14, width: 6, cursor: 'ew-resize', zIndex: 10 }} />
-      <div onPointerDown={createResizeHandler('e')} style={{ position: 'absolute', right: -3, top: 14, bottom: 14, width: 6, cursor: 'ew-resize', zIndex: 10 }} />
-      <div onPointerDown={createResizeHandler('nw')} style={{ position: 'absolute', top: -4, left: -4, width: 14, height: 14, cursor: 'nwse-resize', zIndex: 11 }} />
-      <div onPointerDown={createResizeHandler('ne')} style={{ position: 'absolute', top: -4, right: -4, width: 14, height: 14, cursor: 'nesw-resize', zIndex: 11 }} />
-      <div onPointerDown={createResizeHandler('sw')} style={{ position: 'absolute', bottom: -4, left: -4, width: 14, height: 14, cursor: 'nesw-resize', zIndex: 11 }} />
-      <div onPointerDown={createResizeHandler('se')} style={{ position: 'absolute', bottom: -4, right: -4, width: 14, height: 14, cursor: 'nwse-resize', zIndex: 11 }} />
+      {RESIZE_HANDLES.map(([direction, handleClass]) => (
+        <div
+          key={direction}
+          onPointerDown={createResizeHandler(direction)}
+          className={clsx(css.handle, handleClass)}
+        />
+      ))}
 
-      <div
-        onPointerDown={handleHeaderPointerDown}
-        style={{
-          padding: '12px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid #F0EEEA',
-          background: '#FAFAF8',
-          cursor: 'grab',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ display: 'flex', gap: 6 }}>
+      <div onPointerDown={handleHeaderPointerDown} className={css.header}>
+        <div className={css.headerLeft}>
+          <div className={css.traffic}>
             <button
               onClick={() => { actions.closeWindow(cardWindow.id) }}
-              style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF5F56', border: 'none', padding: 0, cursor: 'pointer' }}
+              className={clsx(css.trafficDot, css.trafficClose)}
               title={t('window.close')}
             />
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FFBD2E' }} />
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#27C93F' }} />
+            <div className={clsx(css.trafficDot, css.trafficMinimize)} />
+            <div className={clsx(css.trafficDot, css.trafficZoom)} />
           </div>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#1C1B1F', marginLeft: 8 }}>{cardWindow.title}</span>
+          <span className={css.title}>{cardWindow.title}</span>
         </div>
         {showTabs && (
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div className={css.tabs}>
             <button
               onClick={() => { actions.setWindowBodyKind(cardWindow.id, 'connectors') }}
-              style={tabStyle('connectors')}
+              className={clsx(css.tab, activeTab === 'connectors' && css.active)}
             >
               {t('tool.tabConnectors')}
             </button>
             <button
               onClick={() => { actions.setWindowBodyKind(cardWindow.id, 'settings') }}
-              style={tabStyle('settings')}
+              className={clsx(css.tab, activeTab === 'settings' && css.active)}
             >
               {t('tool.tabSettings')}
             </button>
@@ -183,7 +166,7 @@ export function ToolWindow({ window: cardWindow, renderBody, useStore, actions, 
         )}
       </div>
 
-      <div style={{ flex: 1, padding: 16, overflowY: 'auto', fontSize: 13, color: '#1C1B1F' }}>
+      <div className={css.body}>
         {renderBody(cardWindow)}
       </div>
     </div>

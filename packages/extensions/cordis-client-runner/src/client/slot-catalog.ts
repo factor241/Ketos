@@ -161,7 +161,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'board.minimap\', () => ctx.slots.register(\n      { name: \'board.minimap\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-board/src/client/contract/slots.ts:80',
+    source: 'packages/client/ui-board/src/client/contract/slots.ts:98',
   },
   {
     key: 'board.omnibar',
@@ -189,14 +189,14 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'board.omnibar\', () => ctx.slots.register(\n      { name: \'board.omnibar\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-board/src/client/contract/slots.ts:82',
+    source: 'packages/client/ui-board/src/client/contract/slots.ts:100',
   },
   {
     key: 'board.window',
     kind: 'keyed',
     scope: 'root',
-    summary: 'Window container for a single board card; keyed by `WindowKind`.',
-    doc: 'Window container for a single board card; keyed by `WindowKind`.',
+    summary: 'Window container for a single board card.',
+    doc: 'Window container for a single board card. The owner share is the same for\nevery kind; the keyed table is what closes the dispatch domain to\n`WindowKind`.',
     registerOptions: [
       {
         name: 'key',
@@ -205,8 +205,13 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
         doc: 'Your cell key: the entry renders where the owner dispatches this exact key. Registering an already-occupied key replaces that occupant.',
       },
     ],
-    ownerProps: [],
-    ownerPropsReferences: [],
+    ownerProps: [
+      '/**\n * Owner props of one keyed `board.window` slot instance.\n * @param window - the window state the frame renders.\n * @param renderBody - body dispatcher bound to the declaring windows layer.\n */\nexport interface BoardWindowOwnerProps {\n  window: BoardWindowState\n  renderBody: RenderWindowBody\n}',
+    ],
+    ownerPropsReferences: [
+      'BoardWindowState',
+      'RenderWindowBody',
+    ],
     standardProps: [
       'useResource: UseResource',
       'useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>',
@@ -229,14 +234,14 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'board.window\', () => ctx.slots.register(\n      { name: \'board.window\', key: \'<one key the owner dispatches>\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-board/src/client/contract/slots.ts:76',
+    source: 'packages/client/ui-board/src/client/contract/slots.ts:80',
   },
   {
     key: 'board.window.body',
     kind: 'keyed',
     scope: 'root',
-    summary: 'Window content inside one board card; keyed by `WindowBodyKind`, declared by the windows layer.',
-    doc: 'Window content inside one board card; keyed by `WindowBodyKind`, declared by the windows layer.',
+    summary: 'Window content inside one board card, declared by the windows layer.',
+    doc: 'Window content inside one board card, declared by the windows layer. The\nowner share is the same for every body kind; the keyed table is what\ncloses the dispatch domain to `WindowBodyKind`.',
     registerOptions: [
       {
         name: 'key',
@@ -245,8 +250,12 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
         doc: 'Your cell key: the entry renders where the owner dispatches this exact key. Registering an already-occupied key replaces that occupant.',
       },
     ],
-    ownerProps: [],
-    ownerPropsReferences: [],
+    ownerProps: [
+      '/**\n * Owner props of one keyed `board.window.body` slot instance.\n * @param window - the window state whose `bodyKind` selected this occupant.\n */\nexport interface BoardWindowBodyOwnerProps {\n  window: BoardWindowState\n}',
+    ],
+    ownerPropsReferences: [
+      'BoardWindowState',
+    ],
     standardProps: [
       'useResource: UseResource',
       'useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>',
@@ -266,7 +275,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'board.window.body\', () => ctx.slots.register(\n      { name: \'board.window.body\', key: \'<one key the owner dispatches>\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-board/src/client/contract/slots.ts:78',
+    source: 'packages/client/ui-board/src/client/contract/slots.ts:91',
   },
   {
     key: 'board.windows',

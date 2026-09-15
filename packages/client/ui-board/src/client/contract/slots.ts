@@ -72,10 +72,28 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'board.dock': { kind: 'single'; scope: 'root' }
     /** Multi-window layer inside the canvas transform; renders the keyed window slots. */
     'board.windows': { kind: 'single'; scope: 'root' }
-    /** Window container for a single board card; keyed by `WindowKind`. */
-    'board.window': { kind: 'keyed'; scope: 'root'; keyProps: { [Key in WindowKind]: BoardWindowOwnerProps } }
-    /** Window content inside one board card; keyed by `WindowBodyKind`, declared by the windows layer. */
-    'board.window.body': { kind: 'keyed'; scope: 'root'; keyProps: { [Key in WindowBodyKind]: BoardWindowBodyOwnerProps } }
+    /**
+     * Window container for a single board card. The owner share is the same for
+     * every kind; the keyed table is what closes the dispatch domain to
+     * `WindowKind`.
+     */
+    'board.window': {
+      kind: 'keyed'
+      scope: 'root'
+      owner: BoardWindowOwnerProps
+      keyProps: { [Key in WindowKind]: BoardWindowOwnerProps }
+    }
+    /**
+     * Window content inside one board card, declared by the windows layer. The
+     * owner share is the same for every body kind; the keyed table is what
+     * closes the dispatch domain to `WindowBodyKind`.
+     */
+    'board.window.body': {
+      kind: 'keyed'
+      scope: 'root'
+      owner: BoardWindowBodyOwnerProps
+      keyProps: { [Key in WindowBodyKind]: BoardWindowBodyOwnerProps }
+    }
     /** Bottom-right interactive SVG minimap. */
     'board.minimap': { kind: 'single'; scope: 'root' }
     /** Floating center omnibox. */

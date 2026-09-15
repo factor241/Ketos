@@ -19,7 +19,7 @@ One `apply` composes the whole board through slot registration, and every key in
 - The `board.windows` occupant (`BoardWindowLayer`) maps `windowOrder` and renders the keyed `board.window` per window with `entryKey: window.kind`.
 - Window frames are registered once per `WindowKind` (`agent` and `clone` → `AgentCard`, `connectors`/`settings`/`dashboard`/`tasks` → `ToolWindow`); the instance travels in the owner share, so two windows of one type render from one registration.
 - `board.window.body` is keyed by `WindowBodyKind` and ships `conversation` (the conversation lane's seat), `connectors`, and `settings` (the tool window's panes). Switching a window's `bodyKind` — the tool window's tab strip calls `setWindowBodyKind` — swaps the rendered occupant.
-- The keyed key domains are the exported `WindowKind`/`WindowBodyKind` unions through mapped `keyProps` tables, so registering or dispatching an unknown key is a compile error rather than a blank cell.
+- The keyed key domains are the exported `WindowKind`/`WindowBodyKind` unions through mapped `keyProps` tables, so registering or dispatching an unknown key is a compile error rather than a blank cell. The window instance and the body dispatcher are the same for every key and ride the owner share; the keyed tables exist to close the dispatch domain and say which keys are taken.
 - One `dsh-client-store` handle is created in `apply` and declared by every layer and frame registration, so all of them read and write one instance through the framework `useStore`/`actions` seats. `setViewport`, `openWindow`, `centerOnWindow`, and `setWindowBodyKind` join the draft action table.
 - Components stay ctx-free: the dock, omnibar, minimap, frames, and bodies read state through `useStore` and mutate through `actions`; the shared window-opening policy (templates, id minting, placement) lives in `open-window.ts` and `store.ts`, which both dock and omnibar import.
 
@@ -43,7 +43,7 @@ Later stages add window types and window contents without touching the canvas: a
 
 The layers own what they draw: the canvas measures itself and publishes `setViewport`, the dock and omnibar open windows through one helper, and the minimap centers the view with `centerOnWindow` — the store, not a component, holds the placement and centering math.
 
-Trade-offs accepted: frames for kinds whose body has no occupant yet (`clone`, `dashboard`, `tasks`) render an empty body region, because no UI creates those windows before their stages; and the body dispatcher sits in the owner share of a key-agnostic seat rather than in `keyProps`, which would have implied key-dependent props.
+Trade-offs accepted: frames for kinds whose body has no occupant yet (`clone`, `dashboard`, `tasks`) render an empty body region, because no UI creates those windows before their stages; and each keyed seat declares its share twice — once as the common `owner` and once in the mapped `keyProps` table — because the catalog's lexical scan reads owner props from `owner` while the closed key domain requires the keyed table.
 
 Two defects found while moving the gesture code remain out of scope and are tracked: board gesture listeners registered on `globalThis` survive an unmount mid-drag (`ketos-0s0`), and the 8-direction resize algorithm is duplicated in both frames with min-size guards that only the store enforces (`ketos-4k3`).
 

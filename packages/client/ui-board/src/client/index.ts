@@ -41,7 +41,7 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-board: dictionaries')
   const t = ctx.locale.bind(NS)
 
-  // 1. Board main panel: declares the floating layers it renders.
+  // 1. Board main panel.
   ctx.slots.inject('main', () => ctx.slots.register({
     name: 'main',
     key: 'board',
@@ -55,7 +55,7 @@ export function apply(ctx: ClientContext): void {
     },
   }, BoardRoot))
 
-  // 2. Canvas layer: declares the window layer it renders inside the transform.
+  // 2. Canvas layer.
   ctx.slots.inject('board.canvas', () => ctx.slots.register({
     name: 'board.canvas',
     store: boardStore,
@@ -83,7 +83,7 @@ export function apply(ctx: ClientContext): void {
     yield ctx.slots.register({ name: 'board.window', key: 'tasks', store: boardStore, locale: NS }, ToolWindow)
   })
 
-  // 5. Default window bodies; `conversation` is the conversation lane's seat.
+  // 5. Default window bodies.
   ctx.slots.inject('board.window.body', function* () {
     yield ctx.slots.register({ name: 'board.window.body', key: 'conversation', locale: NS }, ConversationBody)
     yield ctx.slots.register({ name: 'board.window.body', key: 'connectors', locale: NS }, ToolWindowBody)

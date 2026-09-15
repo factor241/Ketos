@@ -4,13 +4,30 @@ import { describe, expect, it } from 'vitest'
 import { createBoardStore } from '../src/client/store.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 
+/** A window state literal with the fields a placement test does not vary. */
+function makeWindow(overrides: Partial<BoardWindowState> & Pick<BoardWindowState, 'id'>): BoardWindowState {
+  return {
+    kind: 'agent',
+    bodyKind: 'conversation',
+    title: 'Agent 1',
+    x: 0,
+    y: 0,
+    width: 400,
+    height: 500,
+    zIndex: 10,
+    ...overrides,
+  }
+}
+
 describe('createBoardStore', () => {
-  it('initializes with default pan, zoom, and empty windows', () => {
+  it('initializes with default pan, zoom, viewport, and empty windows', () => {
     const { store } = createBoardStore().create()
     const snapshot = store.getSnapshot()
     expect(snapshot.panX).toBe(0)
     expect(snapshot.panY).toBe(0)
     expect(snapshot.zoom).toBe(1)
+    expect(snapshot.viewportWidth).toBe(1920)
+    expect(snapshot.viewportHeight).toBe(1080)
     expect(snapshot.windows).toEqual({})
     expect(snapshot.windowOrder).toEqual([])
     expect(snapshot.activeWindowId).toBeNull()
@@ -47,18 +64,16 @@ describe('createBoardStore', () => {
     expect(snap.panY).toBeCloseTo(90)
   })
 
+  it('records the viewport the canvas layer measures', () => {
+    const { store, actions } = createBoardStore().create()
+    actions.setViewport(1280, 720)
+    expect(store.getSnapshot().viewportWidth).toBe(1280)
+    expect(store.getSnapshot().viewportHeight).toBe(720)
+  })
+
   it('adds, moves, and snaps windows to 24px grid', () => {
     const { store, actions } = createBoardStore().create()
-    const win: BoardWindowState = {
-      id: 'win-1' as WindowId,
-      kind: 'agent',
-      title: 'Agent 1',
-      x: 100,
-      y: 100,
-      width: 400,
-      height: 500,
-      zIndex: 10,
-    }
+    const win = makeWindow({ id: 'win-1' as WindowId, x: 100, y: 100 })
 
     actions.addWindow(win)
     expect(store.getSnapshot().windows['win-1']).toEqual(win)
@@ -75,19 +90,52 @@ describe('createBoardStore', () => {
     expect(store.getSnapshot().windows['win-1']?.y).toBe(133)
   })
 
+  it('openWindow centers the window in the viewport and stacks it on top', () => {
+    const { store, actions } = createBoardStore().create()
+    actions.setViewport(1000, 800)
+
+    actions.openWindow({
+      id: 'open-1' as WindowId,
+      kind: 'connectors',
+      bodyKind: 'connectors',
+      title: 'Tools',
+      width: 400,
+      height: 200,
+    })
+
+    const snap = store.getSnapshot()
+    // Centered at zoom 1 with no pan: (1000/2 - 400/2, 800/2 - 200/2)
+    expect(snap.windows['open-1']?.x).toBe(300)
+    expect(snap.windows['open-1']?.y).toBe(300)
+    expect(snap.windows['open-1']?.zIndex).toBe(10)
+    expect(snap.activeWindowId).toBe('open-1')
+    expect(snap.windowOrder).toEqual(['open-1'])
+  })
+
+  it('openWindow places against the current pan and zoom', () => {
+    const { store, actions } = createBoardStore().create()
+    actions.setViewport(1000, 800)
+    actions.setPan(-200, -100)
+    actions.setZoom(2)
+
+    actions.openWindow({
+      id: 'open-2' as WindowId,
+      kind: 'agent',
+      bodyKind: 'conversation',
+      title: 'Agent',
+      width: 400,
+      height: 400,
+    })
+
+    const snap = store.getSnapshot()
+    // x = (200 + 1000/2 - 200) / 2, y = (100 + 800/2 - 200) / 2
+    expect(snap.windows['open-2']?.x).toBe(250)
+    expect(snap.windows['open-2']?.y).toBe(150)
+  })
+
   it('resizes windows with 24px snap and minimum bounds', () => {
     const { store, actions } = createBoardStore().create()
-    const win: BoardWindowState = {
-      id: 'win-1' as WindowId,
-      kind: 'agent',
-      title: 'Agent 1',
-      x: 0,
-      y: 0,
-      width: 400,
-      height: 500,
-      zIndex: 10,
-    }
-    actions.addWindow(win)
+    actions.addWindow(makeWindow({ id: 'win-1' as WindowId }))
 
     // Resize below minimum bounds (min 320x200)
     actions.resizeWindow('win-1' as WindowId, 100, 50, false)
@@ -100,10 +148,21 @@ describe('createBoardStore', () => {
     expect(store.getSnapshot().windows['win-1']?.height).toBe(600) // 24 * 25
   })
 
+  it('switches the body kind of one window and ignores unknown ids', () => {
+    const { store, actions } = createBoardStore().create()
+    actions.addWindow(makeWindow({ id: 'w1' as WindowId }))
+
+    actions.setWindowBodyKind('w1' as WindowId, 'settings')
+    expect(store.getSnapshot().windows['w1']?.bodyKind).toBe('settings')
+
+    actions.setWindowBodyKind('missing' as WindowId, 'clone-memory')
+    expect(store.getSnapshot().windows['w1']?.bodyKind).toBe('settings')
+  })
+
   it('manages window focus and z-index ordering', () => {
     const { store, actions } = createBoardStore().create()
-    const win1: BoardWindowState = { id: 'w1' as WindowId, kind: 'agent', title: '1', x: 0, y: 0, width: 400, height: 400, zIndex: 10 }
-    const win2: BoardWindowState = { id: 'w2' as WindowId, kind: 'connectors', title: '2', x: 50, y: 50, width: 400, height: 400, zIndex: 11 }
+    const win1 = makeWindow({ id: 'w1' as WindowId, title: '1', x: 0, y: 0, width: 400, height: 400 })
+    const win2 = makeWindow({ id: 'w2' as WindowId, kind: 'connectors', bodyKind: 'connectors', title: '2', x: 50, y: 50, width: 400, height: 400, zIndex: 11 })
 
     actions.addWindow(win1)
     actions.addWindow(win2)
@@ -122,6 +181,23 @@ describe('createBoardStore', () => {
     const closedSnap = store.getSnapshot()
     expect(closedSnap.windows['w1']).toBeUndefined()
     expect(closedSnap.activeWindowId).toBe('w2')
+  })
+
+  it('centers the viewport on a window and raises it', () => {
+    const { store, actions } = createBoardStore().create()
+    actions.setViewport(1000, 800)
+    actions.addWindow(makeWindow({ id: 'w1' as WindowId, x: 400, y: 200, width: 400, height: 400 }))
+
+    actions.centerOnWindow('w1' as WindowId)
+
+    const snap = store.getSnapshot()
+    // Window center (600, 400) lands at the viewport center (500, 400): pan -100, 0.
+    expect(snap.panX).toBe(-100)
+    expect(snap.panY).toBe(0)
+    expect(snap.activeWindowId).toBe('w1')
+
+    actions.centerOnWindow('missing' as WindowId)
+    expect(store.getSnapshot().panX).toBe(-100)
   })
 
   it('toggles spatial element selection state', () => {

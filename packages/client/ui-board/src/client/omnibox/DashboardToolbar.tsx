@@ -2,30 +2,28 @@
  * Center floating Omnibox with Action Menu OpenSwarm-style.
  */
 import { useState, type FormEvent } from 'react'
-import type { BoardTranslate } from '../locale.ts'
+import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { BoardStoreHandle } from '../store.ts'
+import { openBoardWindow } from '../open-window.ts'
 
-export interface DashboardToolbarProps {
-  /** Locale seat resolving this omnibox's copy. */
-  t: BoardTranslate
-  onSendMessage: (text: string) => void
-  onStartElementSelection: () => void
-  onOpenConnectors: () => void
-}
+export type DashboardToolbarProps =
+  PropsRuntime<'board.omnibar'>
+  & PropsStore<BoardStoreHandle>
+  & PropsLocale<'board'>
 
-export function DashboardToolbar({
-  t,
-  onSendMessage,
-  onStartElementSelection,
-  onOpenConnectors,
-}: DashboardToolbarProps) {
+export function DashboardToolbar({ actions, t }: DashboardToolbarProps) {
   const [text, setText] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
     if (!text.trim()) return
-    onSendMessage(text)
+    // Prompt delivery lands with the conversation window stages.
     setText('')
+  }
+
+  const openConnectors = () => {
+    openBoardWindow(actions, 'connectors', t('canvas.connectorsTitle'))
   }
 
   // Attachment, dictation, and web-search entries only close the menu until their windows land.
@@ -81,14 +79,14 @@ export function DashboardToolbar({
             <span>🌐</span> {t('menu.webSearch')}
           </button>
           <button
-            onClick={() => { setMenuOpen(false); onStartElementSelection() }}
+            onClick={() => { setMenuOpen(false); actions.setSelectingElement(true) }}
             style={{ padding: '8px 12px', textAlign: 'left', background: 'rgba(184, 83, 47, 0.15)', border: 'none', color: '#B8532F', fontWeight: 600, cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
           >
             <span>🎯</span> {t('menu.selectElement')}
           </button>
           <div style={{ height: 1, background: '#36353C', margin: '4px 0' }} />
           <button
-            onClick={() => { setMenuOpen(false); onOpenConnectors() }}
+            onClick={() => { setMenuOpen(false); openConnectors() }}
             style={{ padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', color: '#E6E4E8', cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
           >
             <span>🔌</span> {t('menu.connectors')}

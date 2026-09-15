@@ -42,7 +42,7 @@ Status: implemented
 
 该可见变化由 replay golden 钉住：`snapshots/web/lifecycle-chrome/{hero,plan-active}.expected.md` 携带 `Global panels / Board` 行。
 
-继续保留、本处不修复的已知限制：窗口卡片仍是静态占位，布局不持久化，滚轮缩放会打印 `Unable to preventDefault inside passive event listener invocation`，因为 `onWheel` 是 React 的 passive 监听器（登记为 `ketos-3kf`，归视口手势工作），`board.*` 槽位在组合工作注册进去之前仍是仅声明。
+继续保留、本处不修复的已知限制：窗口卡片仍是静态占位，布局不持久化，滚轮缩放会打印 `Unable to preventDefault inside passive event listener invocation`，因为 `onWheel` 是 React 的 passive 监听器（登记为 `ketos-3kf`，归视口手势工作）。本记录留下的「仅声明」`board.*` 槽位已由[槽位组合记录](2026-09-15-ketos-board-slot-composition.zh.md)赋予归属并渲染。
 
 ## Related
 

@@ -67,7 +67,9 @@ describe('board plugin registration', () => {
     expect(panelEntry?.options.order).toBeUndefined()
     expect(panelEntry?.locale).toBe('board')
     expect(panelEntry?.store).toBeDefined()
-    expect(panelEntry?.children).toBeUndefined()
+    expect(Object.keys(panelEntry?.children ?? {})).toEqual([
+      'board.canvas', 'board.dock', 'board.omnibar', 'board.minimap',
+    ])
     expect(runtime.slots.entries('sidebar.panellist')[0]?.options.order).toBe(15)
 
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
@@ -82,6 +84,12 @@ describe('board plugin registration', () => {
     // The declarations belong to the root frame, so they survive the board fiber.
     expect(runtime.slots.spec('main')).toEqual({ kind: 'keyed', scope: 'root' })
     expect(runtime.slots.spec('sidebar.panellist')).toEqual({ kind: 'list', scope: 'root' })
+    // The board's own declarations collapse with the panel entry that made them.
+    expect(runtime.slots.spec('board.canvas')).toBeUndefined()
+    expect(runtime.slots.spec('board.windows')).toBeUndefined()
+    expect(runtime.slots.spec('board.window')).toBeUndefined()
+    expect(runtime.slots.spec('board.window.body')).toBeUndefined()
+    expect(runtime.slots.entries('board.window')).toEqual([])
     await waitFor(() => {
       expect(panel.container.querySelector('[data-surface="canvas"]')).toBeNull()
       expect(row.container.querySelector('svg')).toBeNull()
@@ -101,6 +109,11 @@ describe('board plugin registration', () => {
     })
     expect(runtime.slots.entries('main').map(entry => entry.options.key)).toEqual(['board'])
     expect(runtime.slots.entries('sidebar.panellist').map(entry => entry.options.id)).toEqual(['board'])
+    // The deferred path registers the whole cascade, not only the panel entry.
+    expect(runtime.slots.entriesOfSlot('board.canvas')).toHaveLength(1)
+    expect(runtime.slots.entriesOfSlot('board.windows')).toHaveLength(1)
+    expect(runtime.slots.entries('board.window')).toHaveLength(6)
+    expect(runtime.slots.entries('board.window.body')).toHaveLength(3)
 
     runtime.root.release()
     expect(runtime.slots.entries('main')).toEqual([])

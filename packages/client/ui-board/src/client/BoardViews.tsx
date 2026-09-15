@@ -1,19 +1,43 @@
 /**
  * React entry views for the Spatial Board slot registrations.
  */
-import type { PropsLocale, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
-import type { createBoardStore } from './store.ts'
-import { DashboardCanvas } from './canvas/DashboardCanvas.tsx'
+import type { PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { BoardStoreHandle } from './store.ts'
+import { ElementSelectionOverlay } from './ElementSelectionOverlay.tsx'
 
-/** Props of the board main-panel body: store share + locale `t` seat. */
-export type BoardRootProps = PropsStore<ReturnType<typeof createBoardStore>> & PropsLocale<'board'>
+/** Props of the board main-panel body: the child render share, the store share, and the locale seat. */
+export type BoardRootProps =
+  PropsRuntime<'main'>
+  & PropsRenderSlots<'board.canvas' | 'board.dock' | 'board.omnibar' | 'board.minimap'>
+  & PropsStore<BoardStoreHandle>
+  & PropsLocale<'board'>
 
-export function BoardRoot(props: BoardRootProps) {
-  const state = props.useStore(s => s)
-  return <DashboardCanvas t={props.t} state={state} actions={props.actions} />
+export function BoardRoot({ renderSlot, useStore, actions, t }: BoardRootProps) {
+  const selecting = useStore(s => s.isSelectingElement)
+  return (
+    <div
+      data-surface="board"
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+      }}
+    >
+      {renderSlot('board.canvas', {})}
+      {renderSlot('board.dock', {})}
+      {renderSlot('board.omnibar', {})}
+      {renderSlot('board.minimap', {})}
+      <ElementSelectionOverlay
+        t={t}
+        active={selecting}
+        onCancel={() => { actions.setSelectingElement(false) }}
+      />
+    </div>
+  )
 }
 
-export function BoardIcon({ size, active }: { size: number; active?: boolean }) {
+export function BoardIcon({ size, active }: PropsRuntime<'sidebar.panellist'>) {
   return (
     <svg
       width={size}

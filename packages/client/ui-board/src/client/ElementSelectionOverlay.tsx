@@ -2,7 +2,7 @@
  * Spatial Element Inspector Overlay OpenSwarm-style.
  */
 import { useEffect } from 'react'
-import type { BoardTranslate } from '../locale.ts'
+import type { BoardTranslate } from './locale.ts'
 
 export interface ElementSelectionOverlayProps {
   /** Locale seat resolving this overlay's copy. */

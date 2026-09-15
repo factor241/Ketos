@@ -42,7 +42,7 @@ The board reaches the browser through the same path as every upstream UI plugin:
 
 The visible change is pinned by the replay goldens: `snapshots/web/lifecycle-chrome/{hero,plan-active}.expected.md` carry the `Global panels / Board` row.
 
-Known limits carried forward, not fixed here: window cards stay static placeholders, the layout is not persisted, wheel zoom logs `Unable to preventDefault inside passive event listener invocation` because `onWheel` is a React passive listener (tracked as `ketos-3kf` under the viewport-gesture work), and the `board.*` slots stay declared-only until the composition work registers into them.
+Known limits carried forward, not fixed here: window cards stay static placeholders, the layout is not persisted, and wheel zoom logs `Unable to preventDefault inside passive event listener invocation` because `onWheel` is a React passive listener (tracked as `ketos-3kf` under the viewport-gesture work). The `board.*` slots this note left declared-only are owned and rendered by the [slot-composition note](2026-09-15-ketos-board-slot-composition.md).
 
 ## Related
 

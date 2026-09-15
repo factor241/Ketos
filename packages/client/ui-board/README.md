@@ -31,12 +31,12 @@ Open the bot panel through the board icon in the sidebar panel list; the canvas 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-**Runtime invariant:** No companion is published. The panel entry registers the `main` slot with the single engine store; the store's disposer proves removal, independently observable through the board.* slot declarations.
+**Runtime invariant:** No companion is published. The panel entry registers the `main` slot with the single engine store and declares the layers it renders; the entry's disposal proves removal, independently observable through the `board.*` slot declarations.
 
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-One registration surface: `apply` registers the `main` panel entry (with the shared board store) and the `sidebar.panellist` icon; the contract module additionally declares the `board.*` slot set (`board.canvas`, `board.dock`, `board.windows`, `board.window`, `board.minimap`, `board.omnibar`) so later composition can place these regions as slots instead of the built-in assembly. Board state is one `dsh-client-store` engine store declared at the panel entry — pan, zoom, window map, z-order, and the element-selection flag — with pure draft actions (`setPan`, `setZoom`, `zoomTowardPointer`, `addWindow`, `moveWindow`, `resizeWindow`, `focusWindow`, `closeWindow`, `setSelectingElement`). Everything the canvas reads arrives through the store's framework `useStore` seat; components hold no subscriptions of their own. Visible copy is locale-owned: `apply` registers the `board` namespace dictionaries through `ctx.locale` and the panel entry declares the namespace, which puts the typed `t` seat on `BoardRoot` and threads localized strings down as props.
+One registration surface: `apply` composes the board as slots. The `main` panel entry declares `board.canvas`, `board.dock`, `board.omnibar`, and `board.minimap` and renders them through `renderSlot`; the canvas occupant declares `board.windows`; the window layer declares the keyed `board.window` (one registration per window type — the instance travels in owner props, so one occupant serves every window of its type) and the keyed `board.window.body` (one registration per body kind) and hands each frame the body dispatcher; the same `apply` registers the `sidebar.panellist` icon. The keyed keys are the `WindowKind` and `WindowBodyKind` unions, so a registration for an unknown key is a compile error. Board state is one `dsh-client-store` engine store declared at the panel entry — pan, zoom, viewport box, window map, z-order, and the element-selection flag — with pure draft actions (`setPan`, `setZoom`, `zoomTowardPointer`, `setViewport`, `addWindow`, `openWindow`, `moveWindow`, `resizeWindow`, `setWindowBodyKind`, `focusWindow`, `centerOnWindow`, `closeWindow`, `setSelectingElement`). Every layer and frame reads that same handle through the framework `useStore` seat; components hold no subscriptions of their own. Visible copy is locale-owned: `apply` registers the `board` namespace dictionaries through `ctx.locale` and each copy-bearing entry declares the namespace, which puts the typed `t` seat on its component.
 
 </details>
 
@@ -64,9 +64,10 @@ No effect; the board adds nothing to any model request and consumes no session-l
 
 These limits are current package constraints.
 
-- **Window cards are static placeholders** — `AgentCard` and `ToolWindow` render their own fixed local content; the contract's `sessionId`, `status`, and `contextUsed` fields are not populated from live Sessions, so agent windows are not yet bound to running agents.
+- **The conversation body is a static placeholder** — the `conversation` body renders the window's status line and the fixed opening message; the contract's `sessionId`, `status`, and `contextUsed` fields are not populated from live Sessions, so agent windows are not yet bound to running agents.
 - **Per-window preset selection is pending** — an agent window has no UI to choose its agent preset or model; every window shows the same fixed card content until that selection model lands.
-- **The built-in assembly bypasses the declared slot set** — the current assembly renders `DashboardCanvas` directly in the `main` panel; the `board.*` slots exist as contract for follow-up composition and are unused.
+- **Window types without a body occupant render an empty body** — `apply` registers all six `WindowKind` frames, while `board.window.body` ships `conversation`, `connectors`, and `settings`; no UI creates clone, dashboard, or task windows yet, and the stages that do register their bodies.
+- **The frame body dispatcher is an owner prop** — the windows layer is the single declarer of `board.window.body` (the slot core allows one declarer per key), so it passes each frame a `renderBody` callback instead of a `renderSlot` seat of its own.
 - **The layout is session-only** — `apply` creates the board store without a persist key, so pan, zoom, and window arrangement reset on page reload.
 - **Board chrome actions are not wired** — the omnibox send and the action-menu attach, dictation, and web-search entries only close the menu; they do not yet reach Sessions, files, or the Web capability.
 - **The palette is theme-independent** — components paint literal colors instead of `--dsw-*` semantic tokens, so the board keeps its own light palette under a dark application theme until the token migration.

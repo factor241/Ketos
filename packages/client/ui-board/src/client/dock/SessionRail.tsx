@@ -2,29 +2,31 @@
  * Left floating rail for active sessions/windows OpenSwarm-style.
  */
 import { useState } from 'react'
-import type { BoardState } from '../store.ts'
-import type { WindowId } from '../contract/slots.ts'
-import type { BoardTranslate } from '../locale.ts'
+import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { BoardStoreHandle } from '../store.ts'
+import { openBoardWindow } from '../open-window.ts'
 
-export interface SessionRailProps {
-  /** Locale seat resolving this rail's copy. */
-  t: BoardTranslate
-  state: BoardState
-  onSelectWindow: (id: WindowId) => void
-  onAddAgent: () => void
-  onAddTools: () => void
-  onResetView: () => void
-}
+export type SessionRailProps =
+  PropsRuntime<'board.dock'>
+  & PropsStore<BoardStoreHandle>
+  & PropsLocale<'board'>
 
-export function SessionRail({
-  t,
-  state,
-  onSelectWindow,
-  onAddAgent,
-  onAddTools,
-  onResetView,
-}: SessionRailProps) {
+export function SessionRail({ useStore, actions, t }: SessionRailProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const windowOrder = useStore(s => s.windowOrder)
+  const windows = useStore(s => s.windows)
+  const activeWindowId = useStore(s => s.activeWindowId)
+
+  const openAgent = () => {
+    openBoardWindow(actions, 'agent', t('canvas.agentTitle', { n: windowOrder.length + 1 }), {
+      status: 'idle',
+      statusText: t('canvas.agentStatusOnline'),
+    })
+  }
+
+  const openConnectors = () => {
+    openBoardWindow(actions, 'connectors', t('canvas.connectorsTitle'))
+  }
 
   return (
     <div
@@ -46,10 +48,10 @@ export function SessionRail({
         userSelect: 'none',
       }}
     >
-      {state.windowOrder.map((id) => {
-        const win = state.windows[id as string]
+      {windowOrder.map((id) => {
+        const win = windows[id as string]
         if (!win) return null
-        const isActive = id === state.activeWindowId
+        const isActive = id === activeWindowId
         const isHovered = hoveredId === id
         const isAgent = win.kind === 'agent'
 
@@ -61,7 +63,7 @@ export function SessionRail({
             onMouseLeave={() => { setHoveredId(null) }}
           >
             <button
-              onClick={() => { onSelectWindow(id) }}
+              onClick={() => { actions.centerOnWindow(id) }}
               style={{
                 width: 38,
                 height: 38,
@@ -111,7 +113,7 @@ export function SessionRail({
       <div style={{ width: 24, height: 1, background: '#3A3940', margin: '4px 0' }} />
 
       <button
-        onClick={onAddAgent}
+        onClick={openAgent}
         style={{
           width: 36,
           height: 36,
@@ -131,7 +133,7 @@ export function SessionRail({
       </button>
 
       <button
-        onClick={onAddTools}
+        onClick={openConnectors}
         style={{
           width: 36,
           height: 36,
@@ -151,7 +153,10 @@ export function SessionRail({
       </button>
 
       <button
-        onClick={onResetView}
+        onClick={() => {
+          actions.setPan(0, 0)
+          actions.setZoom(1)
+        }}
         style={{
           width: 36,
           height: 36,

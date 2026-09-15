@@ -31,12 +31,12 @@ board 是 dsh 网页客户端的一个空间化主面板：一块 `OpenSwarm` �
 <a id="understand-the-implementation"></a>
 ## 理解实现
 
-**Runtime invariant:** 无已发布的 companion。面板条目把 `main` 槽位连同唯一的 engine store 一起注册；store 的 disposer 证明移除，同时可通过 `board.*` 槽位声明独立观察。
+**Runtime invariant:** 无已发布的 companion。面板条目把 `main` 槽位连同唯一的 engine store 一起注册，并声明它渲染的各个层；条目的销毁证明移除，同时可通过 `board.*` 槽位声明独立观察。
 
 <details>
 <summary>实现细节 — 点击展开</summary>
 
-唯一的注册面：`apply` 注册 `main` 面板条目（携带共享 board store）与 `sidebar.panellist` 图标；contract 模块另声明 `board.*` 槽位集（`board.canvas`、`board.dock`、`board.windows`、`board.window`、`board.minimap`、`board.omnibar`），供后续组合把这些区域改为槽位而不是内置装配。board 状态是一个在面板条目上声明的 `dsh-client-store` engine store——平移、缩放、窗口映射、z 序与元素选择标志——配合纯 draft action（`setPan`、`setZoom`、`zoomTowardPointer`、`addWindow`、`moveWindow`、`resizeWindow`、`focusWindow`、`closeWindow`、`setSelectingElement`）。画布读取的所有内容都来自 store 的框架 `useStore` 席位；组件自身不持有任何订阅。可见文案由 locale 接管：`apply` 通过 `ctx.locale` 注册 `board` 命名空间词典，面板条目声明该命名空间，从而在 `BoardRoot` 上放置类型化的 `t` 席位并把本地化字符串以 props 逐层下传。
+唯一的注册面：`apply` 以槽位方式组合看板。`main` 面板条目声明 `board.canvas`、`board.dock`、`board.omnibar`、`board.minimap` 并通过 `renderSlot` 渲染它们；canvas occupant 声明 `board.windows`；窗口层声明 keyed 的 `board.window`（每个窗口类型一份注册——实例经由 owner props 传入，因此一个 occupant 服务该类型的全部窗口）与 keyed 的 `board.window.body`（每种 body kind 一份注册），并把 body 分发器交给每个窗口外框；同一个 `apply` 还注册 `sidebar.panellist` 图标。keyed 的键就是 `WindowKind` 与 `WindowBodyKind` 联合类型，因此为未知键注册是编译错误。board 状态是一个在面板条目上声明的 `dsh-client-store` engine store——平移、缩放、视口盒、窗口映射、z 序与元素选择标志——配合纯 draft action（`setPan`、`setZoom`、`zoomTowardPointer`、`setViewport`、`addWindow`、`openWindow`、`moveWindow`、`resizeWindow`、`setWindowBodyKind`、`focusWindow`、`centerOnWindow`、`closeWindow`、`setSelectingElement`）。每个层与外框都通过框架 `useStore` 席位读取同一个 handle；组件自身不持有任何订阅。可见文案由 locale 接管：`apply` 通过 `ctx.locale` 注册 `board` 命名空间词典，每个承载文案的条目声明该命名空间，从而在其组件上放置类型化的 `t` 席位。
 
 </details>
 
@@ -66,9 +66,10 @@ board 是 dsh 网页客户端的一个空间化主面板：一块 `OpenSwarm` �
 
 这些限制属于当前包的约束。
 
-- **窗口卡片是静态占位** —— `AgentCard` 与 `ToolWindow` 渲染各自固定的本地内容；contract 中的 `sessionId`、`status` 与 `contextUsed` 字段尚未从真实 Session 填充，agent 窗口尚未绑定到运行中的 agent。
+- **对话 body 是静态占位** —— `conversation` body 渲染窗口的状态行与固定开场消息；contract 中的 `sessionId`、`status` 与 `contextUsed` 字段尚未从真实 Session 填充，agent 窗口尚未绑定到运行中的 agent。
 - **每窗口预设选择待实现** —— agent 窗口没有选择其 agent 预设或模型的 UI；在该选择模型落地前，每个窗口只显示同一份固定卡片内容。
-- **内置装配绕过已声明的槽位集** —— 当前装配直接在 `main` 面板中渲染 `DashboardCanvas`；`board.*` 槽位仅作为后续组合的 contract，尚未使用。
+- **没有 body occupant 的窗口类型渲染空 body** —— `apply` 注册全部六种 `WindowKind` 外框，而 `board.window.body` 只提供 `conversation`、`connectors`、`settings`；当前没有 UI 创建 clone、dashboard 或 task 窗口，创建它们的阶段会注册各自的 body。
+- **外框的 body 分发器是 owner prop** —— 窗口层是 `board.window.body` 的唯一声明者（槽位核心允许每个键只有一个声明者），因此它向每个外框传入 `renderBody` 回调，而不是外框自己的 `renderSlot` 席位。
 - **布局仅限会话** —— `apply` 创建 board store 时不带 persist key，因此平移、缩放与窗口排列在页面刷新后重置。
 - **看板外框动作尚未接线** —— omnibox 的发送与操作菜单中的附件、听写、网页搜索条目只会关闭菜单；它们尚未接入 Session、文件或 Web 能力。
 - **配色与主题无关** —— 组件使用字面颜色而非 `--dsw-*` 语义 token，因此在深色应用主题下看板仍保持自己的浅色配色，直到 token 迁移完成。

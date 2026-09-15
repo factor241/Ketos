@@ -45,6 +45,10 @@
 
 1. `pnpm run verify-module-graph` — красный: `docs/module-graph.md`, `docs/module-graph.zh.md` и `docs/module-graph.i18n.yaml` не содержали пакет `client-ui-board`, добавленный в рабочее пространство импортом базы (`bbe514e`); документ не перегенерировался с импорта upstream (`f5d8f1e`). Проблема базовая, не регрессия этапа 2: гейт не входит в агрегат `doc-sync` (`scripts/run-gates.ts`, `docSyncLeafGates`), поэтому ни приёмка этапа 1, ни прогон `doc-sync` этапа 2 его не выполняли, а локальная лестница проверок этапа 1 ограничивалась `doc-sync`/`hygiene`/`constraints`. Документ перегенерирован (`pnpm run gen-module-graph`), `verify-module-graph` зелёный; до этапа 2 гейт запускается явно в проверках этапа (и остаётся в CI-семействе static-гейтов).
 
+## Найдено на этапе 3
+
+1. `pnpm run verify-client-domain-graph` — красный на базе: 25 нарушений в `ui-sidebar-documentpreview` (21) и `ui-conversation` (4): домены импортируют соседние домены, код старше гейта (импорт upstream). Гейт входит только в `check-all`/`ci-static` (`scripts/run-gates.ts`), не в `doc-sync`, поэтому приёмки этапов 1–2 его не выполняли. Этап 3 снял собственные шесть нарушений `ui-board` — canvas больше не импортирует домены window/dock/omnibox/inspector, а `BoardViews.tsx` не импортирует домены; в выводе гейта строк `ui-board` нет. Остальные 25 — базовая проблема, перенесена задачей `ketos-bmz`.
+
 ## Проверочные команды
 
 ```sh

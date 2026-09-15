@@ -1,41 +1,25 @@
 /**
- * Dark Agent Card with 8-direction resize and OpenSwarm styling.
+ * Dark window frame (agent and clone windows) with 8-direction resize.
  */
-import React, { useCallback, useRef } from 'react'
-import type { BoardWindowState, WindowId } from '../contract/slots.ts'
-import type { BoardTranslate } from '../locale.ts'
+import React, { useCallback } from 'react'
+import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { BoardStoreHandle } from '../store.ts'
 import { finishBoardPointerGesture } from './pointer-cleanup.ts'
 
-export interface AgentCardProps {
-  /** Locale seat resolving this card's copy. */
-  t: BoardTranslate
-  cardWindow: BoardWindowState
-  zoom: number
-  isActive: boolean
-  onFocus: (id: WindowId) => void
-  onMove: (id: WindowId, x: number, y: number, snap: boolean) => void
-  onResize: (id: WindowId, width: number, height: number, snap: boolean) => void
-  onClose: (id: WindowId) => void
-  onActionMenuClick?: (id: WindowId) => void
-}
+export type AgentCardProps =
+  PropsRuntime<'board.window'>
+  & PropsStore<BoardStoreHandle>
+  & PropsLocale<'board'>
 
-export function AgentCard({
-  t,
-  cardWindow,
-  zoom,
-  isActive,
-  onFocus,
-  onMove,
-  onResize,
-  onClose,
-  onActionMenuClick,
-}: AgentCardProps) {
-  const cardRef = useRef<HTMLDivElement>(null)
+export function AgentCard({ window: cardWindow, renderBody, useStore, actions, t }: AgentCardProps) {
+  const zoom = useStore(s => s.zoom)
+  const isActive = useStore(s => s.activeWindowId === cardWindow.id)
 
   const handleHeaderPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest('button')) return
-    e.currentTarget.setPointerCapture(e.pointerId)
-    onFocus(cardWindow.id)
+    const target = e.currentTarget
+    target.setPointerCapture(e.pointerId)
+    actions.focusWindow(cardWindow.id)
 
     const startClientX = e.clientX
     const startClientY = e.clientY
@@ -46,21 +30,22 @@ export function AgentCard({
       const dx = (moveEvt.clientX - startClientX) / zoom
       const dy = (moveEvt.clientY - startClientY) / zoom
       const snap = !moveEvt.shiftKey
-      onMove(cardWindow.id, startX + dx, startY + dy, snap)
+      actions.moveWindow(cardWindow.id, startX + dx, startY + dy, snap)
     }
 
     const onPointerUp = (upEvt: PointerEvent) => {
-      finishBoardPointerGesture(e.currentTarget, upEvt, onPointerMove, onPointerUp)
+      finishBoardPointerGesture(target, upEvt, onPointerMove, onPointerUp)
     }
 
     globalThis.addEventListener('pointermove', onPointerMove)
     globalThis.addEventListener('pointerup', onPointerUp)
-  }, [cardWindow.id, cardWindow.x, cardWindow.y, zoom, onFocus, onMove])
+  }, [cardWindow.id, cardWindow.x, cardWindow.y, zoom, actions])
 
   const createResizeHandler = (direction: string) => (e: React.PointerEvent<HTMLDivElement>) => {
     e.stopPropagation()
-    e.currentTarget.setPointerCapture(e.pointerId)
-    onFocus(cardWindow.id)
+    const target = e.currentTarget
+    target.setPointerCapture(e.pointerId)
+    actions.focusWindow(cardWindow.id)
 
     const startClientX = e.clientX
     const startClientY = e.clientY
@@ -91,17 +76,17 @@ export function AgentCard({
       }
 
       if (nextW >= 320) {
-        if (direction.includes('w')) onMove(cardWindow.id, nextX, cardWindow.y, snap)
-        onResize(cardWindow.id, nextW, nextH, snap)
+        if (direction.includes('w')) actions.moveWindow(cardWindow.id, nextX, cardWindow.y, snap)
+        actions.resizeWindow(cardWindow.id, nextW, nextH, snap)
       }
       if (nextH >= 200) {
-        if (direction.includes('n')) onMove(cardWindow.id, cardWindow.x, nextY, snap)
-        onResize(cardWindow.id, nextW, nextH, snap)
+        if (direction.includes('n')) actions.moveWindow(cardWindow.id, cardWindow.x, nextY, snap)
+        actions.resizeWindow(cardWindow.id, nextW, nextH, snap)
       }
     }
 
     const onPointerUp = (upEvt: PointerEvent) => {
-      finishBoardPointerGesture(e.currentTarget, upEvt, onPointerMove, onPointerUp)
+      finishBoardPointerGesture(target, upEvt, onPointerMove, onPointerUp)
     }
 
     globalThis.addEventListener('pointermove', onPointerMove)
@@ -112,8 +97,8 @@ export function AgentCard({
 
   return (
     <div
-      ref={cardRef}
-      onPointerDown={() => { onFocus(cardWindow.id) }}
+      data-board-window={cardWindow.kind}
+      onPointerDown={() => { actions.focusWindow(cardWindow.id) }}
       style={{
         position: 'absolute',
         left: cardWindow.x,
@@ -156,7 +141,7 @@ export function AgentCard({
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ display: 'flex', gap: 6 }}>
             <button
-              onClick={() => { onClose(cardWindow.id) }}
+              onClick={() => { actions.closeWindow(cardWindow.id) }}
               style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF5F56', border: 'none', padding: 0, cursor: 'pointer' }}
               title={t('window.close')}
             />
@@ -200,12 +185,7 @@ export function AgentCard({
           lineHeight: 1.5,
         }}
       >
-        <div style={{ color: '#8F8E94', marginBottom: 8, fontSize: 12 }}>
-          {cardWindow.statusText ?? t('agent.statusReady')}
-        </div>
-        <div style={{ background: '#222126', borderRadius: 10, padding: '12px', border: '1px solid #323037' }}>
-          {t('agent.greeting')}
-        </div>
+        {renderBody(cardWindow)}
       </div>
 
       <div style={{ padding: '12px 16px' }}>
@@ -233,7 +213,7 @@ export function AgentCard({
             }}
           />
           <button
-            onClick={() => onActionMenuClick?.(cardWindow.id)}
+            onClick={() => { actions.setSelectingElement(true) }}
             style={{
               width: 26,
               height: 26,

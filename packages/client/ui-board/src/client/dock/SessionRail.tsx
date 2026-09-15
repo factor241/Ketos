@@ -30,6 +30,7 @@ export function SessionRail({ useStore, actions, t }: SessionRailProps) {
 
   return (
     <div
+      data-board-layer="dock"
       style={{
         position: 'absolute',
         left: 20,

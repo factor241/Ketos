@@ -64,6 +64,22 @@ describe('createBoardStore', () => {
     expect(snap.panY).toBeCloseTo(90)
   })
 
+  it('zooms out toward the pointer and keeps pan when the clamp holds the zoom', () => {
+    const { store, actions } = createBoardStore().create()
+    actions.setPan(100, 100)
+    actions.zoomTowardPointer(1, 200, 200)
+    expect(store.getSnapshot().zoom).toBeCloseTo(0.9)
+    // T_new = P - (P - T_old) * (S_new / S_old) = 200 - (200 - 100) * 0.9
+    expect(store.getSnapshot().panX).toBeCloseTo(110)
+
+    // At the lower clamp the zoom cannot move, so the pan must stay untouched.
+    actions.setZoom(0.2)
+    actions.setPan(100, 100)
+    actions.zoomTowardPointer(1, 200, 200)
+    expect(store.getSnapshot().zoom).toBe(0.2)
+    expect(store.getSnapshot().panX).toBe(100)
+  })
+
   it('records the viewport the canvas layer measures', () => {
     const { store, actions } = createBoardStore().create()
     actions.setViewport(1280, 720)
@@ -198,6 +214,28 @@ describe('createBoardStore', () => {
 
     actions.centerOnWindow('missing' as WindowId)
     expect(store.getSnapshot().panX).toBe(-100)
+  })
+
+  it('ignores window operations for unknown ids', () => {
+    const { store, actions } = createBoardStore().create()
+    const before = store.getSnapshot()
+
+    actions.moveWindow('missing' as WindowId, 10, 10, false)
+    actions.resizeWindow('missing' as WindowId, 10, 10, false)
+    actions.closeWindow('missing' as WindowId)
+    actions.focusWindow('missing' as WindowId)
+
+    expect(store.getSnapshot()).toStrictEqual(before)
+  })
+
+  it('keeps the active window when a different window closes', () => {
+    const { store, actions } = createBoardStore().create()
+    actions.addWindow(makeWindow({ id: 'w1' as WindowId }))
+    actions.addWindow(makeWindow({ id: 'w2' as WindowId }))
+
+    actions.closeWindow('w1' as WindowId)
+    expect(store.getSnapshot().activeWindowId).toBe('w2')
+    expect(store.getSnapshot().windowOrder).toEqual(['w2'])
   })
 
   it('toggles spatial element selection state', () => {

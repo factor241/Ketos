@@ -97,6 +97,7 @@ export function Minimap({ useStore, actions }: MinimapProps) {
 
   return (
     <div
+      data-board-layer="minimap"
       style={{
         position: 'absolute',
         bottom: 24,

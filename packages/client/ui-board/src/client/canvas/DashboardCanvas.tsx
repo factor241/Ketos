@@ -77,6 +77,7 @@ export function DashboardCanvas({ renderSlot, useStore, actions }: DashboardCanv
   return (
     <div
       ref={containerRef}
+      data-board-layer="canvas"
       data-surface="canvas"
       onPointerDown={handlePointerDown}
       onWheel={handleWheel}

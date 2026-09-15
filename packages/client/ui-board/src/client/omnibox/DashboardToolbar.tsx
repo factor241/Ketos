@@ -31,6 +31,7 @@ export function DashboardToolbar({ actions, t }: DashboardToolbarProps) {
 
   return (
     <div
+      data-board-layer="omnibar"
       style={{
         position: 'absolute',
         bottom: 24,

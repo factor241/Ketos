@@ -22,7 +22,7 @@ Status: implemented
 
 看板只声明它读取的 Cordis 服务——`slots` 与 `locale`——不再等待 `layout`：`ctx.layout.selectPanel(id)` 是侧栏外壳的调用，而不是看板的。`dsh.client.inject` 清单保留信息性的 `ui-layout` 边，因为看板注册进去的 `main` 声明属于该包。
 
-`tests/apply.client.spec.tsx` 在生产 `SlotTestRuntime` 上钉住注册行为：两条占用者及其元数据（`order` 15、声明的 `locale`、store 句柄、无 `children`），面板尺寸的画布盒与按 owner 给定尺寸渲染的图标，行标签通过包字典解析出 `Board`/`看板`，销毁时移除条目及其 DOM 而 frame 持有的声明保留，以及延迟路径——看板先于槽位声明应用，并在声明到达时完成注册。
+`tests/apply.client.spec.tsx` 在生产 `SlotTestRuntime` 上钉住注册行为：两条占用者及其元数据（`order` 15、声明的 `locale`、store 句柄、无 `children`），面板尺寸的画布盒与按 owner 给定尺寸渲染的图标，行标签通过包字典解析出 `Board`/`看板`，销毁时移除条目及其 DOM 而 frame 持有的声明保留，以及延迟路径——看板先于槽位声明应用，并在声明到达时完成注册。`tests/roster.client.spec.ts` 补上 real-composition 层：web-app bundle 名册必须声明该行（`webApp.closure`），且通过 `createClientTest` 启动该名册必须产生两条占用者——正是会在缺少 `cordis.patch.yml` 行时失败的检查。
 
 接线令两个死面变为在线，因此移除而不是保留：`src/client/tokens.css`——一个全局 `:root` 表，其 33 个 `--board-*` 属性没有任何读取者，且构建工具在启动时把它注入 `document.head`——被删除；omnibox 与操作菜单中的四个 `alert()` 占位成为 no-op，因为一个为并未发生的发送报告 "Message sent" 的阻塞对话框比无响应控件更糟。两条限制都记录在包 README 中。
 

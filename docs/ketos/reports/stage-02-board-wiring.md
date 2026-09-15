@@ -18,7 +18,7 @@
 
 ## 3. Критерии приёмки этапа
 
-- [x] Иконка и панель доски видны в web-профиле — `pnpm ketos web`, русский интерфейс: строка «Доска» в «Глобальные панели», клик рендерит холст, rail/Omnibox/миникарта в области `main`. Доказательство: `.playwright-mcp/stage-02-gif/board-in-web-profile.gif` — записан с дерева `f774753` (чистый worktree), сервер `pnpm ketos web --no-open --port 3180` на scratch-доме `/tmp/ketos-gif-home`, реальный UI без вызовов модели; интервал 10.0–20.8 с источника, скорость 1.4×, финальная задержка 3 с (bundled encoder `record-browser-gif`).
+- [x] Иконка и панель доски видны в web-профиле — `pnpm ketos web`, русский интерфейс: строка «Доска» в «Глобальные панели», клик рендерит холст, rail/Omnibox/миникарта в области `main`. Доказательство: `.playwright-mcp/stage-02-gif/board-in-web-profile.gif` — перезаписан с дерева `f944353` (чистый worktree, сборка `f944353`), сервер `pnpm ketos web --no-open --port 3180` на scratch-доме `/tmp/ketos-gif-home`, реальный UI без вызовов модели; интервал 10.0–20.8 с источника, скорость 1.4×, финальная задержка 3 с (bundled encoder `record-browser-gif`).
 - [x] `verify-cordis-config`, `verify-client-packages`, README/JSDoc-гейты зелёные — 143 config file; 52 client packages; `doc-sync` 34/34 (включая `verify-package-readme-summaries`, `verify-package-readme-limitations`, `verify-package-readme-model-experience`, `verify-export-jsdoc`, `verify-translation-pairing` для пары Agent Note и трёх затронутых README).
 - [x] Smoke-тест регистрации зелёный — `pnpm exec vitest run packages/client/ui-board/tests` — 3 файла, 13 тестов passed (9 прежних + 4 новых): регистрации и метаданные (`order`, `locale`, `store`, отсутствие `children`), рендер панельного бокса холста и иконки, label из словаря (`Board`/`看板`), снятие регистраций и DOM при dispose при сохранении деклараций, отложенный путь `slots.inject` (mount до объявления слотов). Обратная проверка: возврат `position: absolute` в `DashboardCanvas` роняет тест.
 - [x] Загрузка доски через дев-цикл этапа 1 подтверждена — `pnpm run dev:web` + `pnpm ketos web`: правка `DashboardCanvas.tsx` дала `[@deepseek-ai/dsh-client-ui-board/client] Rebuilt in 27ms`, живая страница показала пробное значение **без перезагрузки** (`performance.getEntriesByType('navigation').length === 1`), после возврата пробы значение вернулось тем же путём; проба удалена, `git diff` её не содержит.
@@ -62,7 +62,7 @@
 | `pnpm run typecheck && pnpm run lint` и `pnpm run constraints` | зелёные (exit 0) |
 | `pnpm ketos web` | 200; «Доска» в сайдбаре; холст в `main` (280,0,920×1010); панель не перекрывает сайдбар; `style[data-plugin-css*="ui-board"]` отсутствует; клик по «Действие меню» → attach-file больше не открывает диалог; 0 ошибок консоли |
 | `pnpm ketos web --dump-config \| grep ui-board` | строка `- id: ui-board` из манифеста бандла |
-| GIF-запись доски (`record-browser-gif`) | `.playwright-mcp/stage-02-gif/board-in-web-profile.gif`, 1200×750, 10.7 с, 107 кадров, 1.8 МБ; источники рядом (webm, storyboard, QA-кадры) |
+| GIF-запись доски (`record-browser-gif`) | `.playwright-mcp/stage-02-gif/board-in-web-profile.gif`, 1200×750, 10.7 с, 107 кадров, 1.9 МБ; источники рядом (webm, storyboard, QA-кадры) |
 
 ## 6. Следующий шаг
 

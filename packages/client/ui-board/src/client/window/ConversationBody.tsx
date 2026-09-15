@@ -1,6 +1,6 @@
 /**
- * Body of a dark window: the agent status line and the opening message. This
- * is the stage-6 seam where the real conversation lane mounts.
+ * Body of a dark window: the agent status line and the opening message. The
+ * conversation lane mounts here.
  */
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 

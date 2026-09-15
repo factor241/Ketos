@@ -41,7 +41,6 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-board: dictionaries')
   const t = ctx.locale.bind(NS)
 
-  // 1. Board main panel.
   ctx.slots.inject('main', () => ctx.slots.register({
     name: 'main',
     key: 'board',
@@ -55,7 +54,6 @@ export function apply(ctx: ClientContext): void {
     },
   }, BoardRoot))
 
-  // 2. Canvas layer.
   ctx.slots.inject('board.canvas', () => ctx.slots.register({
     name: 'board.canvas',
     store: boardStore,
@@ -73,7 +71,7 @@ export function apply(ctx: ClientContext): void {
     },
   }, BoardWindowLayer))
 
-  // 4. Window frames: one registration per window type, not per window.
+  // Window frames: one registration per window type, not per window.
   ctx.slots.inject('board.window', function* () {
     yield ctx.slots.register({ name: 'board.window', key: 'agent', store: boardStore, locale: NS }, AgentCard)
     yield ctx.slots.register({ name: 'board.window', key: 'clone', store: boardStore, locale: NS }, AgentCard)
@@ -83,14 +81,12 @@ export function apply(ctx: ClientContext): void {
     yield ctx.slots.register({ name: 'board.window', key: 'tasks', store: boardStore, locale: NS }, ToolWindow)
   })
 
-  // 5. Default window bodies.
   ctx.slots.inject('board.window.body', function* () {
     yield ctx.slots.register({ name: 'board.window.body', key: 'conversation', locale: NS }, ConversationBody)
     yield ctx.slots.register({ name: 'board.window.body', key: 'connectors', locale: NS }, ToolWindowBody)
     yield ctx.slots.register({ name: 'board.window.body', key: 'settings', locale: NS }, ToolWindowBody)
   })
 
-  // 6. Floating layers.
   ctx.slots.inject('board.dock', () => ctx.slots.register({
     name: 'board.dock',
     store: boardStore,
@@ -108,7 +104,7 @@ export function apply(ctx: ClientContext): void {
     store: boardStore,
   }, Minimap))
 
-  // 7. Icon in sidebar panel list (thunked label follows the active locale)
+  // Sidebar panel-list icon (thunked label follows the active locale)
   ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
     name: 'sidebar.panellist',
     id: 'board',

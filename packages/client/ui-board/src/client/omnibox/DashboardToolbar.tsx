@@ -18,7 +18,7 @@ export function DashboardToolbar({ actions, t }: DashboardToolbarProps) {
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
     if (!text.trim()) return
-    // Prompt delivery lands with the conversation window stages.
+    // Submit clears the field; prompt delivery is not implemented.
     setText('')
   }
 
@@ -26,7 +26,7 @@ export function DashboardToolbar({ actions, t }: DashboardToolbarProps) {
     openBoardWindow(actions, 'connectors', t('canvas.connectorsTitle'))
   }
 
-  // Attachment, dictation, and web-search entries only close the menu until their windows land.
+  // Attach, dictation, and web search close the menu without reaching their capabilities.
   const closeMenu = () => { setMenuOpen(false) }
 
   return (

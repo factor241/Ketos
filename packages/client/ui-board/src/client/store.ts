@@ -47,9 +47,9 @@ export const BOARD_WINDOW_TEMPLATES = {
 } as const satisfies Record<string, Pick<BoardWindowState, 'kind' | 'bodyKind' | 'width' | 'height'>>
 
 /**
- * Mint an id for one board window. Board window ids are board-local identities,
- * unique per window and never derived from the type or position.
- * @param kind - window category the id is namespaced by.
+ * Mint an id for one board window. The id is a board-local identity unique per
+ * window; the kind is a readable prefix, not part of the identity.
+ * @param kind - window category the id is prefixed with.
  * @returns the fresh window id.
  */
 export function mintWindowId(kind: WindowKind): WindowId {

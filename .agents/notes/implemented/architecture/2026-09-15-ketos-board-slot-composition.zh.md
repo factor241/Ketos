@@ -12,20 +12,20 @@ Status: implemented
 
 ## Decision
 
-一个 `apply` 通过槽位注册组合整个看板，`SlotMap` 中的每个键都恰好有一个声明者和至少一个渲染点：
+一个 `apply` 通过槽位注册组合整个看板，`SlotMap` 中每个 `board.*` 键都恰好有一个声明者和至少一个渲染点：
 
 - `main`/`board` 条目（BoardRoot）声明 `board.canvas`、`board.dock`、`board.omnibar`、`board.minimap`，并通过 `renderSlot` 渲染全部四个。
 - `board.canvas` 的 occupant（`DashboardCanvas`）保留平移、滚轮缩放、点阵网格、变换面与视口测量，并声明 `board.windows`，在变换层内渲染它。
 - `board.windows` 的 occupant（`BoardWindowLayer`）遍历 `windowOrder`，为每个窗口以 `entryKey: window.kind` 渲染 keyed 的 `board.window`。
 - 窗口外框按 `WindowKind` 各注册一次（`agent` 与 `clone` → `AgentCard`，`connectors`/`settings`/`dashboard`/`tasks` → `ToolWindow`）；实例经由 owner share 传入，因此同一类型的多个窗口由一个注册渲染。
 - `board.window.body` 以 `WindowBodyKind` 为键，提供 `conversation`（对话通道的席位）、`connectors`、`settings`（工具窗口的各窗格）。切换窗口的 `bodyKind`——工具窗口的标签栏调用 `setWindowBodyKind`——即切换所渲染的 occupant。
-- keyed 的键域是通过映射 `keyProps` 表导出的 `WindowKind`/`WindowBodyKind` 联合类型，因此注册或分发未知键是编译错误，而不是空白单元格。窗口实例与 body 分发器对每个键都相同，走 owner share；keyed 表的作用是封闭分发域并标明已被占用的键。
+- keyed 的键域是通过映射 `keyProps` 表导出的 `WindowKind`/`WindowBodyKind` 联合类型，因此注册或分发未知键是编译错误，而不是空白单元格。窗口实例与 body 分发器对每个键都相同，走 owner share；keyed 表封闭分发域，而目录的 occupant 列表报告这些允许键中哪些已被占用。
 - `apply` 中创建一个 `dsh-client-store` handle，并由每个层与外框注册声明，使所有组件通过框架 `useStore`/`actions` 席位读写同一个实例。`setViewport`、`openWindow`、`centerOnWindow`、`setWindowBodyKind` 加入 draft action 表。
 - 组件保持无 ctx：dock、omnibar、minimap 与外框通过 `useStore` 读状态、通过 `actions` 变更；窗口 body 从 owner share 读取自己的窗口实例，自身不持有 store 席位。共享的窗口打开策略（模板、id 生成、摆放）位于 `open-window.ts` 与 `store.ts`，dock 与 omnibar 都从这里引入。
 
 一个约束迫使实现偏离阶段计划字面上的级联。`SlotCore.register` 对每个子键只允许一个声明者，因此六个 `board.window` 注册无法各自声明 `board.window.body`（«occupant `board.window` … объявляет keyed `board.window.body`»）。窗口层是唯一的声明者，其 `children` 携带 body 席位；每个外框在 owner share 中收到 `renderBody(window)` 分发器，并在内容区域位置调用它。这与 ui-chat 的 `ChatNodeOwnerProps['renderMessageImages']` 是同一种「槽位支撑的渲染器」形态；内容仍经由槽位机制渲染，而外框因为没有声明 children 也就没有 `renderSlot` 席位。
 
-选择遮罩从 `src/client/inspector/ElementSelectionContext.tsx` 移到顶层的 `src/client/ElementSelectionOverlay.tsx`：board root 在浮动层之上渲染它，且不再有顶层文件 import 任何域。这两项改动之后，`verify-client-domain-graph` 不再报告 `ui-board`（在该基线中该门禁仍因无关的上游包而红）。
+选择遮罩位于顶层的 `src/client/ElementSelectionOverlay.tsx`，由 board root 在浮动层之上渲染；不再有顶层非装配文件 import 任何域，因此 `verify-client-domain-graph` 不报告任何 `ui-board` 违规（该门禁仍因记录在 [`docs/ketos/baseline-issues.md`](../../../../docs/ketos/baseline-issues.md) 的无关上游包而红）。
 
 ## Alternatives considered
 
@@ -35,11 +35,11 @@ Status: implemented
 - **在窗口层中把 body 渲染在框架旁边。** 否决：body 属于外框的框体内部（背景、内边距、滚动容器），只有外框拥有它。
 - **通过 owner props 传入渲染好的 `ReactNode` body，而不是分发器。** 否决：owner props 不得携带 ReactNode 内容；分发器让 body 槽位保持为唯一分发点，且声明只有一个 owner。
 - **在本阶段就把真实对话通道交给 conversation body。** 否决：对话通道是阶段 6 的解剖工作；本阶段只固定它将挂载的接缝。
-- **把 `addWindow` 保留为唯一的窗口 action。** 保留，并在其旁新增 `openWindow`：摆放与 id 生成属于 store（依赖视口与平移），而 `addWindow` 仍是 store 测试驱动的显式状态路径。
+- **在新增 `openWindow` 的同时保留 `addWindow`。** 两者都已发布：摆放与 id 生成属于 store（依赖视口与平移），而 `addWindow` 仍是 store 测试驱动的显式状态路径。
 
 ## Consequences
 
-后续阶段无需触碰 canvas 即可新增窗口类型与窗口内容：新的 `WindowKind` 外框是一次 `ctx.slots.inject('board.window', …)` 注册，新的 body 是 `apply` body 表中的一行，而客户端槽位目录会报告已被占用的键（`agent, clone, connectors, dashboard, settings, tasks` / `connectors, conversation, settings`）。
+后续阶段无需触碰 canvas 即可新增窗口类型与窗口内容：新的 `WindowKind` 外框是一次 `ctx.slots.inject('board.window', …)` 注册，新的 body 是 `board.window.body` 注册中的一行 `yield`，而客户端槽位目录会报告已被占用的键（`agent, clone, connectors, dashboard, settings, tasks` / `connectors, conversation, settings`）。
 
 各层拥有自己所绘制的内容：canvas 自行测量并发布 `setViewport`，dock 与 omnibar 经由同一个 helper 打开窗口，minimap 用 `centerOnWindow` 居中视图——摆放与居中的数学在 store 中，而不在组件里。
 
@@ -47,7 +47,7 @@ Status: implemented
 
 移动手势代码时发现的两个缺陷仍在范围之外并被登记：注册在 `globalThis` 上的看板手势监听器在拖拽中途卸载后仍然存活（`ketos-0s0`），以及两个外框重复了八方向缩放算法，其最小尺寸守卫只由 store 兜底（`ketos-4k3`）。
 
-验证：`tests/slots.client.spec.tsx` 固定级联、每个层唯一的活渲染点、实例路由（两个 agent 窗口经由一个注册）、按 `window.kind` 与 `bodyKind` 的分发（把任一分发键钉成常量都会使内容断言失败）、跨组件切换 body、经外框关闭窗口、开关循环后账本与 DOM 持平、重新 apply 不产生重复、以及 `board.dispose()` 的完全收回；`tests/roster.client.spec.ts` 走 client-hmr 的真实 Loader 重建路径，并要求重建后贡献集完全一致。`tests/apply.client.spec.tsx` 保留延迟声明路径。删除一个 `children` 键、把某个分发键钉成常量、或从某个层删除一处 `renderSlot` 调用，都会使这些 spec 失败。
+验证：`tests/slots.client.spec.tsx` 固定级联、每个层唯一的活渲染点、实例路由（两个 agent 窗口经由一个注册）、按 `window.kind` 与 `bodyKind` 的分发（把任一分发键钉成常量都会使内容断言失败）、跨组件切换 body、经外框关闭窗口、开关循环后账本与 DOM 持平、重新 apply 不产生重复、以及 `board.dispose()` 的完全收回；`tests/roster.client.spec.ts` 走 client-hmr 的真实 Loader 重建路径，并要求重建后贡献集完全一致。`tests/apply.client.spec.tsx` 保留延迟声明路径，`tests/open-window.client.spec.ts` 覆盖外框自身打开的窗口模板，`tests/inspector.client.spec.tsx` 覆盖选择遮罩，`tests/canvas.client.spec.tsx` 固定迷你地图投影与视口测量。删除一个 `children` 键、把某个分发键钉成常量、或从某个层删除一处 `renderSlot` 调用，都会使这些 spec 失败。
 
 ## Related
 

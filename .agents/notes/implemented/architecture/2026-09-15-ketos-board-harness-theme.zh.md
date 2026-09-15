@@ -42,7 +42,7 @@ Status: implemented
 
 ## Related
 
-- [看板调色板曾是限定范围的品牌层](../archived/architecture/2026-09-15-ketos-board-brand-theme.md) —— 被取代的决定及其被否决的备选方案。
+- [看板调色板曾是限定范围的品牌层](../../archived/architecture/2026-09-15-ketos-board-brand-theme.md) —— 被取代的决定及其被否决的备选方案。
 - [看板槽位组合](2026-09-15-ketos-board-slot-composition.zh.md) —— 本样式层所渲染的组合。
 - [`packages/client/ui-primitives/README.md`](../../../../packages/client/ui-primitives/README.zh.md) —— 外框现在据以组合的目录。
 - [`packages/client/ui-dockkit/README.md`](../../../../packages/client/ui-dockkit/README.zh.md) —— 「`brand-primary` 是墨色而非强调色」的平台规则。

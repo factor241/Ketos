@@ -42,7 +42,7 @@ Verification: `packages/client/ui-board` has no hex/rgba literal and no emoji gl
 
 ## Related
 
-- [The board palette was a scoped brand layer](../archived/architecture/2026-09-15-ketos-board-brand-theme.md) — the superseded decision and its rejected alternatives.
+- [The board palette was a scoped brand layer](../../archived/architecture/2026-09-15-ketos-board-brand-theme.md) — the superseded decision and its rejected alternatives.
 - [Board slot composition](2026-09-15-ketos-board-slot-composition.md) — the composition this styling renders through.
 - [`packages/client/ui-primitives/README.md`](../../../../packages/client/ui-primitives/README.md) — the catalog the chrome now composes from.
 - [`packages/client/ui-dockkit/README.md`](../../../../packages/client/ui-dockkit/README.md) — the platform rule that `brand-primary` is ink, not accent.

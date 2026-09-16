@@ -69,11 +69,11 @@ export function panelWidthFor(available: number, requested: number): number {
  * @returns the presentation to use.
  */
 export function panelPresentation(window: BoardWindowState, view: PanelView, width: number): PanelPresentation {
-  // The right side comes first: the board's dock hugs the canvas's left edge and
-  // the minimap its bottom-right corner, so the frame's right centre stays free
-  // for the panel and its resize handle.
-  if (view.right - (window.x + window.width) >= width) return { kind: 'beside', side: 'right' }
+  // The left side comes first — the side the app's own lists live on — and the
+  // board's dock and minimap stand down while a panel is open so its outer edge
+  // and resize handle stay reachable.
   if (window.x - view.left >= width) return { kind: 'beside', side: 'left' }
+  if (view.right - (window.x + window.width) >= width) return { kind: 'beside', side: 'right' }
   return { kind: 'overlay' }
 }
 
@@ -90,8 +90,8 @@ export function windowedPanelRect(window: BoardWindowState, view: PanelView, wid
   if (presentation.kind === 'overlay') {
     return { left: window.x, top: window.y, width, height: window.height }
   }
-  if (presentation.side === 'right') return { left: window.x + window.width, top: window.y, width, height: window.height }
-  return { left: window.x - width, top: window.y, width, height: window.height }
+  if (presentation.side === 'left') return { left: window.x - width, top: window.y, width, height: window.height }
+  return { left: window.x + window.width, top: window.y, width, height: window.height }
 }
 
 /**

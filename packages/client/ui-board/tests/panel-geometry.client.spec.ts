@@ -40,13 +40,13 @@ describe('panelWidthFor', () => {
 describe('windowedPanelRect', () => {
   it('places the panel flush beside the frame at the window height', () => {
     const rect = windowedPanelRect(WINDOW, VIEW, 320)
-    expect(rect).toEqual({ left: WINDOW.x + WINDOW.width, top: WINDOW.y, width: 320, height: WINDOW.height })
+    expect(rect).toEqual({ left: WINDOW.x - 320, top: WINDOW.y, width: 320, height: WINDOW.height })
   })
 
-  it('takes the left edge when the right side leaves the visible panel', () => {
-    const rect = windowedPanelRect({ ...WINDOW, x: 1380 }, VIEW, 320)
-    expect(rect.left).toBe(1380 - 320)
-    expect(panelPresentation({ ...WINDOW, x: 1380 }, VIEW, 320)).toEqual({ kind: 'beside', side: 'left' })
+  it('takes the right edge when the left side leaves the visible panel', () => {
+    const rect = windowedPanelRect({ ...WINDOW, x: 40 }, VIEW, 320)
+    expect(rect.left).toBe(40 + WINDOW.width)
+    expect(panelPresentation({ ...WINDOW, x: 40 }, VIEW, 320)).toEqual({ kind: 'beside', side: 'right' })
   })
 
   it('rides inside the window when neither side has room', () => {
@@ -58,13 +58,13 @@ describe('windowedPanelRect', () => {
 
 describe('railRect', () => {
   it('centres the compact rail on the frame edge it opens from', () => {
-    expect(railRect(WINDOW, 'right')).toEqual({
-      left: WINDOW.x + WINDOW.width,
+    expect(railRect(WINDOW, 'left')).toEqual({
+      left: WINDOW.x - PANEL_RAIL_WIDTH,
       top: WINDOW.y + (WINDOW.height - PANEL_RAIL_HEIGHT) / 2,
       width: PANEL_RAIL_WIDTH,
       height: PANEL_RAIL_HEIGHT,
     })
-    expect(railRect(WINDOW, 'left').left).toBe(WINDOW.x - PANEL_RAIL_WIDTH)
+    expect(railRect(WINDOW, 'right').left).toBe(WINDOW.x + WINDOW.width)
   })
 })
 

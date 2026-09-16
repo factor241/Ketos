@@ -12,7 +12,7 @@ Status: implemented
 
 **面板是外框的伴随层，而不是第二个窗口。** `board.window.panel` 是与 `board.window` 并列的 keyed 槽位，用同一个 `WindowKind` 作键；窗口层在同一个 fragment 内、外框之前渲染它，因此同层级叠加加 DOM 顺序保证每个外框都在自己的面板之上、面板又在画布之上。面板自身不带 `z-index`，有自己的 `data-board-panel` 属性，并在关闭状态下保持挂载，使打开与关闭共用一次 transform 过渡（`--ds-transition-duration-slow`、`--ds-ease-in-out`，在 `prefers-reduced-motion` 下禁用）。
 
-**几何是窗口矩形的函数。** `window/panel-geometry.ts` 用世界单位从 `BoardWindowState` 推导矩形：打开的面板取存储宽度（默认 300px，钳制在 260–420px 之间，且不超过外框留出的空间），以外框自身的高度立在它右缘之旁——右缘无空间时改用左缘，两侧都没有时置于窗口内左缘、外框之上——折叠导轨则是同一边缘居中的 44×170px 条带。全屏态把面板停靠在看板面板左缘并占满高度。由于面板位于被变换的画布表面内部，拖动、缩放、平移与缩放画布都无需面板写任何代码，外缘的宽度拖拽也像其他外框手势一样按世界单位读取。
+**几何是窗口矩形的函数。** `window/panel-geometry.ts` 用世界单位从 `BoardWindowState` 推导矩形：打开的面板取存储宽度（默认 300px，钳制在 260–420px 之间，且不超过外框留出的空间），以外框自身的高度立在它左缘之旁——左缘无空间时改用右缘，两侧都没有时置于窗口内左缘、外框之上——折叠导轨则是同一边缘居中的 44×170px 条带。全屏态把面板停靠在看板面板左缘并占满高度。由于面板位于被变换的画布表面内部，拖动、缩放、平移与缩放画布都无需面板写任何代码，外缘的宽度拖拽也像其他外框手势一样按世界单位读取。
 
 **面板可调宽度且始终一键可开。** 宽度存放在看板 store（`panelWidth`，由 `setPanelWidth` 钳制），外缘带 8px 的拖拽条；`panelCollapsed` 把它折回导轨，导轨上的按钮再次展开面板，而面板的标题栏承载收起它的按钮。这些都不影响外框标题栏里的聊天按钮——它仍是第二种入口。
 
@@ -20,7 +20,7 @@ Status: implemented
 
 **选择聊天会让窗口重新绑定。** `BoardSessionBridge` 把创建路径拆成 `create`（创建后切换）与共用的 `switchTo`/`attach`，并暴露 `bind(windowId, sessionId)`——先对照会话列表校验，再像全新挂载一样释放并重新订阅——以及针对 `sessions.create({ workspaceId })` 或某个目录的 `createChat(windowId, target)`。窗口的 `useWindowSession` 通道现在携带 `sessionId`，因此面板能标出窗口正在显示的聊天。面板通过注入面的 `hooks` 隔间（`useSessionList`、`useWorkspaceList`）读取会话与工作区列表，而不是依赖全局标准 prop，从而把看板对 `ctx.workspaces` 的依赖显式写进它的 inject 列表。
 
-**面板是窗口的管理界面。** 项目可重命名、重排（拖动行或使用行菜单的移动命令）与删除，经由 `ctx.workspaces.rename/insertBefore/delete`；标题栏的文件夹浏览器通过 `uiWorkspace.listDirectory` 每次列出一层、通过 `createDirectory` 创建嵌套文件夹，并通过 `workspaces.create` 注册选中的目录。聊天可复用或新建（`startChat`）、重命名（`session.rename`）、分支（`sessions.fork` 并带 `increaseTitle`，子会话绑定到窗口）、归档（`workspaces.archiveSession`）、重排（`workspaces.insertSessionBefore`），并可按标题或目录搜索；分组（按项目或单一列表）与排序（手动或按更新时间）与面板宽度一同存放在看板 store。面板打开时小地图让位：它属于看板 chrome，否则它的角落会压在面板行之上。
+**面板是窗口的管理界面。** 项目可重命名、重排（拖动行或使用行菜单的移动命令）与删除，经由 `ctx.workspaces.rename/insertBefore/delete`；标题栏的文件夹浏览器通过 `uiWorkspace.listDirectory` 每次列出一层、通过 `createDirectory` 创建嵌套文件夹，并通过 `workspaces.create` 注册选中的目录。聊天可复用或新建（`startChat`）、重命名（`session.rename`）、分支（`sessions.fork` 并带 `increaseTitle`，子会话绑定到窗口）、归档（`workspaces.archiveSession`）、重排（`workspaces.insertSessionBefore`），并可按标题或目录搜索；分组（按项目或单一列表）与排序（手动或按更新时间）与面板宽度一同存放在看板 store。面板打开时 dock 与小地图让位：它们属于看板 chrome，否则它们的条带会压住面板外缘与缩放手柄。
 
 **列表模型归看板所有。** `window/chat-list-model.ts` 推导面板需要的分组：成员关系取自工作区自身的 `sessionIds`，排除子代理与已归档行，空白会话只对正在显示它的窗口可见，按更新时间倒序，未分组一档放在最后。侧栏自己的树推导留在原地——特性插件不能导入另一个插件的值，而看板需要的规则只有十几行。
 

@@ -15,14 +15,15 @@ export type BoardRootProps =
 
 export function BoardRoot({ renderSlot, useStore, actions, t }: BoardRootProps) {
   const selecting = useStore(s => s.isSelectingElement)
-  // A fullscreen window fills the panel, so its chrome stands down; an open
-  // chats panel is a management surface the minimap would otherwise overlap.
+  // A fullscreen window fills the panel, so its chrome stands down. An open
+  // chats panel is a management surface: the dock and minimap would otherwise
+  // cover its outer edge and resize handle.
   const fullscreen = useStore(s => s.fullscreenWindowId !== null)
   const panelOpen = useStore(s => s.panelWindowId !== null)
   return (
     <div data-surface="board" className={css.root}>
       {renderSlot('board.canvas', {})}
-      {!fullscreen && renderSlot('board.dock', {})}
+      {!fullscreen && !panelOpen && renderSlot('board.dock', {})}
       {!fullscreen && renderSlot('board.omnibar', {})}
       {!fullscreen && !panelOpen && renderSlot('board.minimap', {})}
       <ElementSelectionOverlay

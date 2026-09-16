@@ -269,10 +269,10 @@ describe('board slot composition', () => {
     const window = board.store.getSnapshot().windows['a1'] as BoardWindowState
     const width = panelWidthFor(window.width, board.store.getSnapshot().panelWidth)
     expect(shown.getAttribute('data-board-panel')).toBe('beside')
-    expect(shown.getAttribute('data-board-panel-side')).toBe('right')
+    expect(shown.getAttribute('data-board-panel-side')).toBe('left')
     expect(shown.getAttribute('data-board-panel-open')).toBe('')
     // The panel stands beside the frame at the stored width and the window height.
-    expect(shown.style.left).toBe(`${String(window.x + window.width)}px`)
+    expect(shown.style.left).toBe(`${String(window.x - width)}px`)
     expect(shown.style.top).toBe(`${String(window.y)}px`)
     expect(shown.style.width).toBe(`${String(width)}px`)
     expect(shown.style.height).toBe(`${String(window.height)}px`)
@@ -291,10 +291,10 @@ describe('board slot composition', () => {
     // window share may have capped below the stored value.
     const beforeDrag = panelWidthFor(window.width, board.store.getSnapshot().panelWidth)
     fireEvent.pointerDown(handle, { clientX: 200, pointerId: 7 })
-    // The panel rides the frame's right edge, so dragging right widens it. The
+    // The panel rides the frame's left edge, so dragging left widens it. The
     // gesture listens on the global; drive it with plain events carrying the
     // pointer coordinates (jsdom ships no PointerEvent constructor).
-    for (const [type, clientX] of [['pointermove', 240], ['pointerup', 240]] as const) {
+    for (const [type, clientX] of [['pointermove', 160], ['pointerup', 160]] as const) {
       const event = new Event(type)
       Object.assign(event, { clientX, pointerId: 7 })
       globalThis.dispatchEvent(event)

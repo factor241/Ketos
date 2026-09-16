@@ -1,0 +1,48 @@
+# Agent Note: Board windows own Harness sessions and rebuild the chat composer
+
+Status: implemented
+
+English | [中文](2026-09-16-ketos-board-window-sessions.zh.md)
+
+## Problem
+
+Stage 4 shipped a board whose agent window was a picture of a chat: a static greeting body, a text field with no submit path, and tags naming a "learned" count no one produced. The user asked for the window to carry the real chat — a send button first, then the full capability set the main conversation composer exposes (working directory, agent preset, permission preset, model and reasoning effort, `/` commands, `@` mentions, attachments, queue and steer, stop).
+
+The main composer cannot be reused. `conversation.composer.bar` is a single-occupancy cell declared by `main.conversation`, the renderer binds every session-scope slot to `adapter.current` (= `sessions.list.current`), no render-time binding override exists (`RenderOpts` has no session parameter), and a feature plugin may not runtime-import another feature plugin's values. The master plan reached the same conclusion for its own stage 9 ("Полный `ChatView` переиспользовать нельзя … схемы подмены scope у слотов нет"). The board therefore has to rebuild the composer over the same services — and it needs per-window reactivity that the root-scope slots it owns do not get for free.
+
+## Decision
+
+**One apply-side bridge owns the session.** `packages/client/ui-board/src/client/session-bridge.ts` keeps the `windowId → sessionId` map, runs `sessions.create()` → `sessions.open(id)` → `binding(id)` on the window's first use, and subscribes to the session face (`running`) and the conversation target (`uiConversation.binding(id).target('chat')`). Everything the window renders is republished into one identity-stable channel per window (`{ status, running, error, chat }`), so components subscribe to a single observable each and the store carries no session data.
+
+**One keyed hook serves every window.** `board.window.body` gained an injected face with `keyedHooks: { windowSession }` — a key-to-observable resolver — plus plain callbacks (`ensureWindowSession`, `sendPrompt`, `cancelPrompt`, `loadOlderTurns`, `openInMainPanel`). The body registration keeps its per-`bodyKind` key and its owner props; the window id is the key argument of `useWindowSession(windowId)`, so the registrar count does not grow with the window count. This is the sanctioned observables path: the plugin never hands a source to a component, and the component never calls `useSyncExternalStore`.
+
+**The composer is board-owned and complete.** `ComposerBar` rebuilds the reference bar inside the window: the working-directory and agent-preset chips (both switch only while the session is blank), the `+` action menu over the host command catalog plus the board's own image-attachment entry, the `/` command popup with hints and descriptions, `@` mention rows from `remote.fileReferences.list` and `remote.sessionReferenceResolver.candidates`, the permission chip (full access behind `RiskConfirmation`), the model chip with its effort submenu over `ctx.modelDirectories`, the plan chip, the context ring from the `contextPressure` projection, the goal/todo/queue strips, and Send/Stop with queue-or-steer. Markdown renders through the shared `MarkdownText`; the lane folds `legacy.nodes` into user/assistant prose and one-line tool rows, and `Open in the main panel` (`sessions.open` + `layout.selectPanel(null)`) stays the escape hatch. The mock copy and the fields it lived in (`status`, `statusText`, `contextUsed`, `sessionId` on `BoardWindowState`) are deleted rather than left unused.
+
+**The bridge also carries the control plane.** Session-list rows (cwd, blank, agent preset), the permissions/plan/todos/goal/contextPressure projections, the model directory, the command catalog, the preset roster (localized through the shared `@deepseek-ai/dsh-agent-presets/display` fold), and the conversation block reason are all subscribed once per window and republished into the same channel, so the bar renders plain data and every mutation goes back through an injected callback (`selectPermission` → `/permission`, `exitPlanMode` → `/plan off`, `runCommand`, `updateQueueItem`, `goalAction`, `pickWorkspace` → `uiWorkspace.pickDirectory()` + re-created session, `selectModel`).
+
+**Focus changes the current session.** Opening or focusing a window calls `sessions.open(id)`, because the live event stream exists only for the session selected as current; that global side effect is accepted deliberately (the plan records the same trade-off). Closing a window does not delete its session.
+
+## Alternatives considered
+
+- **Register one body per window instance.** Rejected: it would turn the keyed `WindowBodyKind` domain into window ids, growing the registrar count with every window and moving instance data into the slot key domain that owner props already cover.
+- **Render the real `InputBar`/`ChatView` in the window.** Rejected by the framework rules above; the only sanctioned way to reach them is navigation, which the window now offers as an explicit action.
+- **Put the chat snapshot in the board store.** Rejected: business data belongs to the object layer; a store would also copy large snapshots on every chunk.
+- **Let components subscribe to `binding(id).target('chat')` directly.** Rejected: business components hold no subscription machinery, and the bridge's single subscription per window is cheaper than per-render observers.
+- **Keep the previous mock lane until the composer is complete.** Rejected: the user asked for the send path first, and a real (if reduced) lane is what makes the composer's states meaningful.
+- **Reuse the real submission pipeline (`beginSubmission` echo, submission policy setting).** Deferred: the board sends with plain `session.prompt` and does not read the `ui-conversation` preference, so Enter queues and Cmd/Ctrl+Enter steers; the pending-echo UI arrives with the attachment/queue work.
+- **Reuse `ui-attachment`'s component or the conversation attachments face.** Rejected: `ComposerAttachments` and the draft registry are package internals (the published `IConversation` face carries no draft verbs), so the board keeps image attachments in component state and sends them as inline prompt parts; non-image files need the upload capability and stay out of scope.
+- **Reuse `ui-commands`' menu or its client contributions.** Rejected: a second registrant cannot claim `/` on the shared trigger source or re-register a host command, so the board reads `remote.commands.list()` and owns its menu copy while execution still goes through `SessionFace.command`.
+- **Import `displayPermissionPreset`/`presetDisplayText`.** Split by policy: `presetDisplayText` is an inline-safe shared fold and is imported; the permission label helper is a feature-plugin value, so the board owns the three preset labels in its dictionary.
+
+## Consequences
+
+An agent window is a real chat with the reference composer's control set: it owns a session, streams answers, sends, steers, stops, switches permissions and models, runs slash commands, attaches images, and hands off to the main panel. The lane is deliberately thinner than the main transcript — no approval or question UI (navigation instead, as the plan prescribes), tool results collapse to a name plus a failure marker, non-image attachments and editor-style mention chips are deferred, and the composer holds its own Enter-queues/Cmd-steers policy. The session double in tests must be pre-added because `TestSessions.add()` stabilizes through `act`, which would nest act scopes when called from the window's mount effect; production `create()` is a remote round-trip.
+
+Verification: `packages/client/ui-board/tests/conversation-body.client.spec.tsx` covers the creation state, the failure state, lane rows, streaming, send, steer, stop, Shift+Enter, and the three affordances; `tests/slots.client.spec.tsx` covers the body swap and the frame dispatch with the session bench; `tests/fixtures.client.ts` provides the bench (locale, sessions double, conversation target, layout) and `apply.client.spec.tsx` uses it for the registration paths. `pnpm run test:gui` is green.
+
+## Related
+
+- [Board slot composition](2026-09-15-ketos-board-slot-composition.md) — the cascade this bridge hangs off.
+- [The board draws with the shared Harness theme and controls](2026-09-15-ketos-board-harness-theme.md) — the palette and chrome this chat renders through.
+- [`docs/subsystems/conversation.md`](../../../../docs/subsystems/conversation.md) — the conversation assembly the `target('chat')` snapshot comes from.
+- [`packages/client/AGENTS.md`](../../../../packages/client/AGENTS.md) — the inject-hooks and subscription rules this follows.

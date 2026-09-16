@@ -8,7 +8,11 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { createBoardStore } from './store.ts'
+import { BoardSessionBridge } from './session-bridge.ts'
+import type { BoardWindowInjected, WindowId } from './contract/slots.ts'
 import { BoardRoot, BoardIcon } from './BoardViews.tsx'
 import { DashboardCanvas } from './canvas/DashboardCanvas.tsx'
 import { BoardWindowLayer } from './canvas/BoardWindowLayer.tsx'
@@ -20,13 +24,20 @@ import { SessionRail } from './dock/SessionRail.tsx'
 import { DashboardToolbar } from './omnibox/DashboardToolbar.tsx'
 import { NS, en, zh } from './locale.ts'
 
-export type { WindowId, WindowKind, WindowBodyKind, BoardWindowState } from './contract/slots.ts'
+export type {
+  BoardWindowInjected, BoardWindowSessionState,
+  WindowId, WindowKind, WindowBodyKind, BoardWindowState,
+} from './contract/slots.ts'
 export type { BoardKey } from './locale.ts'
 export { createBoardStore } from './store.ts'
 export type { BoardState, BoardStoreHandle, OpenWindowSpec } from './store.ts'
 
-/** Services required by the board plugin: slot registration and copy. */
-export const inject = ['slots', 'locale']
+/** Services required by the board plugin: slots, copy, and the session domain. */
+export const inject = [
+  'slots', 'locale', 'layout', 'sessions', 'uiConversation', 'modelDirectories',
+  'remote', 'remote.commands', 'remote.agentPresets', 'remote.goals',
+  'remote.fileReferences', 'remote.sessionReferenceResolver',
+]
 
 /**
  * Register the board main panel, its sidebar panel-list entry, and the
@@ -39,6 +50,28 @@ export function apply(ctx: ClientContext): void {
   // Dictionary registration + bound `t` for the registration-time sidebar label.
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-board: dictionaries')
   const t = ctx.locale.bind(NS)
+
+  // Window sessions: one bridge per plugin fiber, one channel per window.
+  const bridge = new BoardSessionBridge(ctx)
+  ctx.effect(() => () => { bridge.dispose() }, 'ui-board: window session bridge')
+  const windowSession = (key: string) => bridge.channel(key as WindowId)
+  const injected = (): BoardWindowInjected => ({
+    keyedHooks: { windowSession },
+    ensureWindowSession: (windowId) => { bridge.ensure(windowId) },
+    sendPrompt: (windowId, text, mode, images) => { bridge.send(windowId, text, mode, images) },
+    cancelPrompt: (windowId) => { bridge.cancel(windowId) },
+    loadOlderTurns: (windowId) => { bridge.loadOlder(windowId) },
+    openInMainPanel: (windowId) => { bridge.openInMainPanel(windowId) },
+    selectAgentPreset: (windowId, presetId) => { bridge.selectAgentPreset(windowId, presetId) },
+    selectPermission: (windowId, presetId) => { bridge.selectPermission(windowId, presetId) },
+    selectModel: (windowId, selection) => { bridge.selectModel(windowId, selection) },
+    exitPlanMode: (windowId) => { bridge.exitPlanMode(windowId) },
+    runCommand: (windowId, line) => { bridge.runCommand(windowId, line) },
+    updateQueueItem: (windowId, itemId, action) => { bridge.updateQueueItem(windowId, itemId, action) },
+    goalAction: (windowId, action) => { bridge.goalAction(windowId, action) },
+    pickWorkspace: (windowId) => { bridge.pickWorkspace(windowId) },
+    loadMentions: (windowId, query, signal) => bridge.loadMentions(windowId, query, signal),
+  })
 
   ctx.slots.inject('main', () => ctx.slots.register({
     name: 'main',
@@ -84,7 +117,13 @@ export function apply(ctx: ClientContext): void {
   // tool or settings content, and the stages that own those surfaces register
   // their own bodies.
   ctx.slots.inject('board.window.body', function* () {
-    yield ctx.slots.register({ name: 'board.window.body', key: 'conversation', locale: NS }, ConversationBody)
+    yield ctx.slots.register({
+      name: 'board.window.body',
+      key: 'conversation',
+      store: boardStore,
+      locale: NS,
+      inject: injected,
+    }, ConversationBody)
   })
 
   ctx.slots.inject('board.dock', () => ctx.slots.register({

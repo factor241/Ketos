@@ -33,10 +33,7 @@ export function SessionRail({ useStore, actions, t }: SessionRailProps) {
   const activeWindowId = useStore(s => s.activeWindowId)
 
   const openAgent = () => {
-    openBoardWindow(actions, 'agent', t('canvas.agentTitle', { n: windowOrder.length + 1 }), {
-      status: 'idle',
-      statusText: t('canvas.agentStatusOnline'),
-    })
+    openBoardWindow(actions, 'agent', t('canvas.agentTitle', { n: windowOrder.length + 1 }))
   }
 
   return (

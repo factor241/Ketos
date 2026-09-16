@@ -3,7 +3,7 @@
  */
 import React, { useCallback } from 'react'
 import clsx from 'clsx'
-import { IconCloseOutline16, IconPlusOutline16, Tag, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCloseOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
 import { finishBoardPointerGesture } from './pointer-cleanup.ts'
@@ -108,8 +108,6 @@ export function AgentCard({ window: cardWindow, renderBody, useStore, actions, t
     globalThis.addEventListener('pointerup', onPointerUp)
   }
 
-  const contextUsed = cardWindow.contextUsed ?? { usedTokens: 32900, maxTokens: 200000, percent: 16.4 }
-
   return (
     <div
       data-board-window={cardWindow.kind}
@@ -145,42 +143,10 @@ export function AgentCard({ window: cardWindow, renderBody, useStore, actions, t
           </Tooltip>
           <span className={css.title}>{cardWindow.title}</span>
         </div>
-
-        <div className={css.headerMeta}>
-          <Tag tone="success">{t('agent.doneBadge')}</Tag>
-          <Tag tone="neutral">{t('agent.learnedCount')}</Tag>
-        </div>
       </div>
 
       <div className={css.body}>
         {renderBody(cardWindow)}
-      </div>
-
-      <div className={css.composerWrap}>
-        <div className={css.composer}>
-          <input
-            type="text"
-            placeholder={t('agent.composerPlaceholder')}
-            className={css.composerInput}
-          />
-          <Tooltip label={t('agent.actionMenu')} side="top">
-            <button
-              type="button"
-              onClick={() => { actions.setSelectingElement(true) }}
-              className={css.actionButton}
-              aria-label={t('agent.actionMenu')}
-            >
-              <IconPlusOutline16 />
-            </button>
-          </Tooltip>
-        </div>
-      </div>
-
-      <div className={css.contextPill}>
-        <div className={css.contextRing} />
-        <span>
-          <strong className={css.contextStrong}>{contextUsed.percent}%</strong> · {t('agent.contextUsed', { used: (contextUsed.usedTokens / 1000).toFixed(1), max: (contextUsed.maxTokens / 1000).toFixed(1) })}
-        </span>
       </div>
     </div>
   )

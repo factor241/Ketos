@@ -1,0 +1,390 @@
+/* Window composer: the reference chat bar rebuilt for a floating window.
+ * Context chips sit above the card, the card holds attachments, the text and
+ * the tool row, and the dock strips (goal, todo, queue) stack above it. */
+
+.strips {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px 0;
+}
+
+.strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+
+.stripTitle {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
+}
+
+.stripText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stripAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  corner-shape: round;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.stripAction:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.stripList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stripItem {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todoDone {
+  color: var(--dsw-alias-label-tertiary);
+  text-decoration: line-through;
+}
+
+.todoActive {
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.composerWrap {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px 12px;
+}
+
+/* Context row: the session's working directory and agent preset. */
+.contextRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 3px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.chip:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.chip:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.chipLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chipIcon {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 20px;
+  background: var(--dsw-specific-input-major);
+  border: 0;
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
+  box-shadow: var(--dsw-elevation-soft);
+}
+
+.card:focus-within {
+  --dsw-elevation-stroke-color: var(--dsw-alias-state-business-primary);
+}
+
+.attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.attachment {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.attachmentImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.attachmentRemove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  corner-shape: round;
+  border: none;
+  background: var(--dsw-alias-bg-mask-1);
+  color: var(--dsw-alias-label-primary-inverted);
+  cursor: pointer;
+}
+
+.input {
+  width: 100%;
+  max-height: 160px;
+  min-height: 44px;
+  padding: 4px 2px;
+  background: transparent;
+  border: none;
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  outline: none;
+  resize: none;
+}
+
+.toolRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.toolRowSpacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.roundButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  corner-shape: round;
+  border: none;
+  background: var(--dsw-specific-selector);
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.roundButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+}
+
+.roundButton.ghost {
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.roundButton.ghost:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  corner-shape: round;
+  border: none;
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+  color: var(--dsw-alias-label-tertiary);
+  cursor: default;
+}
+
+.primary.ready {
+  background: var(--dsw-alias-button-info-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+  cursor: pointer;
+}
+
+.primary.ready:hover {
+  background: var(--dsw-alias-button-info-hover);
+}
+
+.stop {
+  background: var(--dsw-alias-state-error-primary);
+  color: var(--dsw-alias-label-primary-inverted);
+  cursor: pointer;
+}
+
+/* Context occupancy ring: the percent rides the ring, the numbers the title. */
+.context {
+  display: flex;
+  align-items: center;
+  flex: none;
+  padding: 0 2px;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  cursor: default;
+}
+
+.ring {
+  width: 20px;
+  height: 20px;
+  transform: rotate(-90deg);
+}
+
+.ringTrack {
+  stroke: var(--dsw-alias-border-l2);
+  fill: none;
+  stroke-width: 2.5;
+}
+
+.ringValue {
+  stroke: var(--dsw-alias-state-business-primary);
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.blocked {
+  padding: 0 2px;
+  color: var(--dsw-alias-state-warn-primary);
+  font-size: 12px;
+}
+
+/* Slash-command and mention popups sit above the card. */
+.popup {
+  display: flex;
+  flex-direction: column;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--dsw-specific-menu);
+  border: 0;
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  box-shadow: var(--dsw-elevation-prominent);
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.popupSection {
+  padding: 6px 8px 2px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+}
+
+.popupRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.popupRow:hover,
+.popupRow.active {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.popupName {
+  flex: none;
+  font-weight: 500;
+}
+
+.popupHint {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.popupDescription {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.popupEmpty {
+  padding: 8px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+}
+
+/* Hidden file input behind the attachment entry. */
+.fileInput {
+  display: none;
+}

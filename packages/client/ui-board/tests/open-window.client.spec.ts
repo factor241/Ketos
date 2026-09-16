@@ -11,9 +11,9 @@ function recorder() {
 }
 
 describe('openBoardWindow', () => {
-  it('opens the template with a fresh id, its title, and the optional status', () => {
+  it('opens the template with a fresh id, its title, and its geometry', () => {
     const { openWindow, actions } = recorder()
-    openBoardWindow(actions, 'agent', 'Agent #1', { status: 'idle', statusText: 'online' })
+    openBoardWindow(actions, 'agent', 'Agent #1')
 
     expect(openWindow).toHaveBeenCalledOnce()
     const spec = openWindow.mock.calls[0]?.[0]
@@ -23,13 +23,11 @@ describe('openBoardWindow', () => {
       width: 480,
       height: 560,
       title: 'Agent #1',
-      status: 'idle',
-      statusText: 'online',
     })
     expect(spec?.id).toMatch(/^agent-/)
   })
 
-  it('mints a distinct id per window and omits a status the caller did not pass', () => {
+  it('mints a distinct id per window', () => {
     const { openWindow, actions } = recorder()
     openBoardWindow(actions, 'agent', 'Agent #1')
     openBoardWindow(actions, 'agent', 'Agent #2')

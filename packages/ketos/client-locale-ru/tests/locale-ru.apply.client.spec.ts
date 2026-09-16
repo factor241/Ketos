@@ -189,7 +189,7 @@ describe('ketos ru language pack', () => {
       await vi.waitFor(() => { expect(b.locale().getLocale().active).toBe('ru') })
       // The board namespace is translated too: the Ketos canvas copy has no ru fallback gap.
       expect(b.locale().bind(BOARD_NS)('sidebar.panel')).toBe('Доска')
-      expect(b.locale().bind(BOARD_NS)('agent.contextUsed', { used: '32.9', max: '200.0' })).toContain('32.9')
+      expect(b.locale().bind(BOARD_NS)('agent.composerPlaceholder')).toBe('Спросите агента...')
     })
   })
 

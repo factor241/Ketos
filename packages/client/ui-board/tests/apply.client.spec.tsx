@@ -1,13 +1,11 @@
 // @vitest-environment jsdom
 /** Board registration smoke: the plugin occupies the `board` panel and sidebar row and withdraws both on dispose. */
-import type { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { act, cleanup, waitFor } from '@testing-library/react'
-import { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
-import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
+import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import canvasCss from '../src/client/canvas/DashboardCanvas.module.css'
-import { apply, inject } from '../src/client/index.ts'
+import { createBoardBench } from './fixtures.client.ts'
 
 const runtimes = new Set<SlotTestRuntime>()
 
@@ -43,30 +41,15 @@ function classOf(classes: Record<string, string>, name: string): string {
 
 /** Bench with the services the board injects; pass `declareSlots` false to declare the occupied slots after the plugin mounts. */
 async function bench(declareSlots = true) {
-  const runtime = await SlotTestRuntime.create()
-  runtimes.add(runtime)
-  const locale = new LocaleRuntime(runtime.ctx)
-  locale.setLocale('en')
-  await runtime.mount({
-    inject: ['slots'],
-    apply(ctx: Context) {
-      ctx.provide('locale', locale)
-      ctx.slots.installLocale(locale)
-    },
-  })
-  if (declareSlots) {
-    await runtime.declare({
-      main: { kind: 'keyed', scope: 'root' },
-      'sidebar.panellist': { kind: 'list', scope: 'root' },
-    })
-  }
-  return { runtime, locale }
+  const prepared = await createBoardBench({ declareSlots })
+  runtimes.add(prepared.runtime)
+  return prepared
 }
 
 describe('board plugin registration', () => {
   it('occupies the board panel and sidebar row with its metadata, then withdraws both on dispose', async () => {
-    const { runtime } = await bench()
-    const board = await runtime.mount({ inject: [...inject], apply })
+    const { runtime, mountBoard } = await bench()
+    const board = await mountBoard()
 
     expect(runtime.slots.entries('main').map(entry => entry.options.key)).toEqual(['board'])
     expect(runtime.slots.entries('sidebar.panellist').map(entry => entry.options.id)).toEqual(['board'])
@@ -105,8 +88,9 @@ describe('board plugin registration', () => {
   })
 
   it('registers once the occupied slots are declared, and drops the entries when the declaration collapses', async () => {
-    const { runtime } = await bench(false)
-    const board = await runtime.mount({ inject: [...inject], apply })
+    const prepared = await bench(false)
+    const { runtime } = prepared
+    const board = await prepared.mountBoard()
 
     expect(runtime.slots.entries('main')).toEqual([])
     expect(runtime.slots.entries('sidebar.panellist')).toEqual([])
@@ -132,8 +116,8 @@ describe('board plugin registration', () => {
   })
 
   it('renders the panel-sized canvas and the panel icon at the owner size', async () => {
-    const { runtime } = await bench()
-    await runtime.mount({ inject: [...inject], apply })
+    const { runtime, mountBoard } = await bench()
+    await mountBoard()
 
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
     // The board root frames the floating layers; the canvas occupant fills it.
@@ -149,8 +133,8 @@ describe('board plugin registration', () => {
   })
 
   it('resolves the panel-row label through the board dictionary and follows the active locale', async () => {
-    const { runtime, locale } = await bench()
-    await runtime.mount({ inject: [...inject], apply })
+    const { runtime, locale, mountBoard } = await bench()
+    await mountBoard()
 
     const [row] = runtime.slots.entries('sidebar.panellist')
     expect(resolveSlotLabel(row?.options.label)).toBe('Board')

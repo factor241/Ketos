@@ -1,15 +1,112 @@
-/* Conversation body of a window: the status line and the opening message
- * card, painted as an inset panel of the window surface. */
+/* Window body: the session lane and its composer. The lane scrolls; the
+ * composer card follows the conversation composer recipe (input fill, soft
+ * elevation tier drawing the stroke). */
 
-.status {
-  margin-bottom: 8px;
+.body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.lane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  overflow-y: auto;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.loadOlder {
+  align-self: center;
+  padding: 2px 10px;
+  border: none;
+  border-radius: 9999px;
+  corner-shape: round;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.loadOlder:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.statusLine {
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
 }
 
-.greeting {
-  padding: 12px;
+.noticeError {
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 12px;
+}
+
+.message {
+  padding: 10px 12px;
   border-radius: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.user {
+  background: var(--dsw-alias-markdown-tag);
+}
+
+.assistant {
   background: var(--dsw-alias-bg-layer-1);
   border: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.streaming {
+  opacity: 0.85;
+}
+
+.tool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+
+.toolFailed {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+/* Lane tail actions: open in the main panel and jump back to the newest turn. */
+.laneTail {
+  position: absolute;
+  top: 46px;
+  right: 14px;
+  display: flex;
+  gap: 6px;
+}
+
+.laneAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  corner-shape: round;
+  border: none;
+  background: var(--dsw-alias-button-floating-fill);
+  color: var(--dsw-alias-label-secondary);
+  box-shadow: var(--dsw-elevation-panel);
+  cursor: pointer;
+}
+
+.laneAction:hover {
+  color: var(--dsw-alias-label-primary);
 }

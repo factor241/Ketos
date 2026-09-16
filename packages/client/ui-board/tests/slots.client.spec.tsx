@@ -4,14 +4,12 @@
  * dispatch per type, the keyed window-body seat, open-close cycles, and
  * disposal with the plugin fiber.
  */
-import type { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent } from '@testing-library/react'
-import { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
-import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
-import { apply, inject } from '../src/client/index.ts'
+import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { createBoardStore } from '../src/client/store.ts'
 import type { WindowId } from '../src/client/contract/slots.ts'
+import { createBoardBench } from './fixtures.client.ts'
 
 /** The live board store instance the renderer resolves for the board's registrations. */
 type BoardInstance = ReturnType<ReturnType<typeof createBoardStore>['create']>
@@ -29,23 +27,10 @@ afterEach(async () => {
 
 /** Bench with the services the board injects and the slots it occupies declared. */
 async function bench() {
-  const runtime = await SlotTestRuntime.create()
-  runtimes.add(runtime)
-  const locale = new LocaleRuntime(runtime.ctx)
-  locale.setLocale('en')
-  await runtime.mount({
-    inject: ['slots'],
-    apply(ctx: Context) {
-      ctx.provide('locale', locale)
-      ctx.slots.installLocale(locale)
-    },
-  })
-  await runtime.declare({
-    main: { kind: 'keyed', scope: 'root' },
-    'sidebar.panellist': { kind: 'list', scope: 'root' },
-  })
-  const board = await runtime.mount({ inject: [...inject], apply })
-  return { runtime, board }
+  const prepared = await createBoardBench({ session: { prompt: () => Promise.resolve({ ok: true, value: { accepted: true } }) } })
+  runtimes.add(prepared.runtime)
+  const board = await prepared.mountBoard()
+  return { runtime: prepared.runtime, board, chat: prepared.chat, mountBoard: prepared.mountBoard }
 }
 
 /** The window state literal the composition tests vary. */
@@ -126,12 +111,13 @@ describe('board slot composition', () => {
     await runtime.flush()
 
     // Each frame renders its own component: only the agent frame carries the
-    // composer, so a frame dispatched to the wrong occupant fails these assertions.
+    // session composer, so a frame dispatched to the wrong occupant fails these assertions.
     const agentFrame = panel.container.querySelector('[data-board-window="agent"]')
     const toolFrame = panel.container.querySelector('[data-board-window="connectors"]')
-    expect(agentFrame?.querySelector('input[placeholder="Ask agent anything..."]')).not.toBeNull()
-    expect(toolFrame?.querySelector('input[placeholder="Ask agent anything..."]')).toBeNull()
-    expect(toolFrame?.querySelector('input')).toBeNull()
+    expect(agentFrame?.querySelector('textarea')).not.toBeNull()
+    expect(agentFrame?.querySelector('button[aria-label="Send"]')).not.toBeNull()
+    expect(toolFrame?.querySelector('textarea')).toBeNull()
+    expect(toolFrame?.querySelector('button[aria-label="Send"]')).toBeNull()
     expect(toolFrame?.textContent).toContain('Tools')
     expect(agentFrame?.textContent).toContain('First agent')
   })
@@ -142,22 +128,21 @@ describe('board slot composition', () => {
     const board = runtime.storeOf('board.dock') as BoardInstance
 
     act(() => {
-      board.actions.openWindow(windowState({
-        id: 'a1' as WindowId, statusText: 'All routine tasks completed.',
-      }))
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId }))
     })
     await runtime.flush()
-    expect(panel.view.getByText(/autonomous AI expert twin/)).not.toBeNull()
+    expect(panel.container.querySelector('textarea')).not.toBeNull()
+    expect(panel.view.getByText('Write a message to start.')).not.toBeNull()
 
     // An unoccupied body kind renders the frame with an empty content region.
     act(() => { board.actions.setWindowBodyKind('a1' as WindowId, 'connectors') })
     await runtime.flush()
-    expect(panel.view.queryByText(/autonomous AI expert twin/)).toBeNull()
+    expect(panel.container.querySelector('textarea')).toBeNull()
     expect(panel.container.querySelector('[data-board-window="agent"]')).not.toBeNull()
 
     act(() => { board.actions.setWindowBodyKind('a1' as WindowId, 'conversation') })
     await runtime.flush()
-    expect(panel.view.getByText(/autonomous AI expert twin/)).not.toBeNull()
+    expect(panel.container.querySelector('textarea')).not.toBeNull()
   })
 
   it('renders the conversation body for an agent window and nothing for an unoccupied body kind', async () => {
@@ -166,10 +151,7 @@ describe('board slot composition', () => {
     const board = runtime.storeOf('board.dock') as BoardInstance
 
     act(() => {
-      board.actions.openWindow(windowState({
-        id: 'a1' as WindowId,
-        statusText: 'All routine tasks completed.',
-      }))
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId }))
       board.actions.openWindow(windowState({
         id: 'c1' as WindowId,
         kind: 'clone',
@@ -179,14 +161,13 @@ describe('board slot composition', () => {
     })
     await runtime.flush()
 
-    expect(panel.view.getByText('All routine tasks completed.')).not.toBeNull()
-    expect(panel.view.getByText(/autonomous AI expert twin/)).not.toBeNull()
+    expect(panel.container.querySelector('textarea')).not.toBeNull()
 
     // A body kind without an occupant renders the frame with an empty body region.
     const cloneFrame = panel.container.querySelector('[data-board-window="clone"]')
     expect(cloneFrame).not.toBeNull()
     expect(cloneFrame?.textContent).toContain('Clone memory')
-    expect(cloneFrame?.textContent).not.toContain('autonomous AI expert twin')
+    expect(cloneFrame?.querySelector('textarea')).toBeNull()
   })
 
   it('closes a window through its frame and removes it from the layer', async () => {
@@ -242,7 +223,7 @@ describe('board slot composition', () => {
   })
 
   it('re-applies without duplicating registrations and renders again', async () => {
-    const { runtime, board } = await bench()
+    const { runtime, board, mountBoard } = await bench()
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
     await board.dispose()
     // The first mount's DOM must be gone before the rebuild, or the render assertion below is stale.
@@ -250,7 +231,7 @@ describe('board slot composition', () => {
       expect(panel.container.querySelector('[data-surface="canvas"]')).toBeNull()
     })
 
-    const second = await runtime.mount({ inject: [...inject], apply })
+    const second = await mountBoard()
     try {
       expect(runtime.slots.entries('main').map(entry => entry.options.key)).toEqual(['board'])
       expect(runtime.slots.entriesOfSlot('board.canvas')).toHaveLength(1)

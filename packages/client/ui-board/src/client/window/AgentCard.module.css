@@ -110,11 +110,6 @@
   min-width: 0;
 }
 
-.headerMeta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
 
 /* Round icon control in the chrome idiom: 28px circle, secondary ink, hover
    fill (the settings header and dockkit strip recipe). */
@@ -159,82 +154,11 @@
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
-.composerWrap {
-  padding: 12px 16px;
-}
 
 /* The composer card follows the conversation composer recipe: the input fill,
    no border, and the soft elevation tier drawing the stroke. */
-.composer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  border-radius: 22px;
-  background: var(--dsw-specific-input-major);
-  border: 0;
-  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
-  box-shadow: var(--dsw-elevation-soft);
-}
 
-.composerInput {
-  width: 100%;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--dsw-alias-label-primary);
-  font-size: 13px;
-}
 
-.actionButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: 28px;
-  height: 28px;
-  margin-left: 8px;
-  border-radius: 50%;
-  corner-shape: round;
-  border: none;
-  background: var(--dsw-specific-selector);
-  color: var(--dsw-alias-label-primary);
-  cursor: pointer;
-}
 
-.actionButton:hover {
-  background: var(--dsw-alias-interactive-bg-hover-solid);
-}
 
 /* Context capsule floating under the window in world coordinates. */
-.contextPill {
-  position: absolute;
-  bottom: -32px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  border-radius: 9999px;
-  corner-shape: round;
-  background: var(--dsw-alias-bg-layer-3);
-  border: 0;
-  box-shadow: var(--dsw-elevation-panel);
-  color: var(--dsw-alias-label-secondary);
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.contextStrong {
-  color: var(--dsw-alias-label-primary);
-}
-
-.contextRing {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  corner-shape: round;
-  border: 2px solid var(--dsw-alias-state-business-primary);
-  border-top-color: transparent;
-}

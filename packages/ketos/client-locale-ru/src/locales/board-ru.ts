@@ -53,6 +53,8 @@ export const ru = {
   'panel.orderManual': 'Вручную',
   'panel.orderUpdated': 'По обновлению',
   'panel.chooseFolder': 'Выбор папки',
+  'panel.browseUnavailable': 'Просмотр папок недоступен',
+  'panel.pickFolder': 'Выбрать папку в системе…',
   'panel.newFolder': 'Новая папка',
   'panel.useFolder': 'Использовать эту папку',
   'panel.loading': 'Читаем…',

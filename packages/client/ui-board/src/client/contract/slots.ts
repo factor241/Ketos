@@ -224,6 +224,11 @@ export interface BoardWindowInjected {
   listDirectory: (path?: string) => Promise<BoardDirectoryListing>
   /** Create one directory inside a parent and return its path. */
   createDirectory: (path: string, name: string) => Promise<string>
+  /**
+   * Pick one directory through the host's chooser — the native OS dialog when
+   * the boot picked that interaction, the browse flow otherwise.
+   */
+  pickDirectory: () => Promise<string | null>
   /** Switch the agent preset of the window's still-blank session. */
   selectAgentPreset: (windowId: WindowId, presetId: string) => void
   /** Switch the permission preset of the window's session. */

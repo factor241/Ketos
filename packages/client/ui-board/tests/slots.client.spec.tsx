@@ -509,6 +509,38 @@ describe('board slot composition', () => {
     expect(runtime.workspaces.calls.some(call => call.method === 'create' && (call.args[0] as { path: string }).path === '/work')).toBe(true)
   })
 
+  it('falls back to the host chooser when no browse picker is mounted', async () => {
+    let picked = 0
+    const prepared = await createBoardBench({
+      uiWorkspace: {
+        listDirectory: async () => { throw new Error('directory browsing is not available') },
+        pickDirectory: async () => { picked += 1; return '/work' },
+      },
+    })
+    runtimes.add(prepared.runtime)
+    const { runtime } = prepared
+    const created = await runtime.sessions.add({ id: 'session-1', summary: { cwd: '/work/one' } })
+    runtime.sessions.stubCreate(async () => created)
+    await prepared.mountBoard()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
+    await runtime.flush()
+
+    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('button[aria-label="Add a folder…"]') as Element)
+    await runtime.flush()
+
+    // A host whose boot mounted the native picker serves no listing: the level
+    // states that and offers the chooser instead of a dead browser.
+    expect(panel.view.getByText('Folder browsing is unavailable')).not.toBeNull()
+    fireEvent.click(panel.view.getByText('Choose a folder in the system…'))
+    await runtime.flush()
+    expect(picked).toBe(1)
+    expect(runtime.workspaces.calls.some(call => call.method === 'create' && (call.args[0] as { path: string }).path === '/work')).toBe(true)
+  })
+
   it('keeps the ledger, DOM, and store flat across open-close cycles', async () => {
     const { runtime } = await bench()
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })

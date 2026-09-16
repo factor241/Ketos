@@ -80,6 +80,7 @@ export function apply(ctx: ClientContext): void {
     reorderWorkspace: (workspaceId, beforeWorkspaceId) => bridge.reorderWorkspace(workspaceId, beforeWorkspaceId),
     listDirectory: path => bridge.listDirectory(path),
     createDirectory: (path, name) => bridge.createDirectory(path, name),
+    pickDirectory: () => bridge.pickDirectory(),
     selectAgentPreset: (windowId, presetId) => { bridge.selectAgentPreset(windowId, presetId) },
     selectPermission: (windowId, presetId) => { bridge.selectPermission(windowId, presetId) },
     selectModel: (windowId, selection) => { bridge.selectModel(windowId, selection) },

@@ -624,6 +624,14 @@ export class BoardSessionBridge {
     return await this.ctx.uiWorkspace.createDirectory(path, name)
   }
 
+  /**
+   * Pick one directory through the host's chooser.
+   * @returns the picked path, or null when the dialog was dismissed.
+   */
+  async pickDirectory(): Promise<string | null> {
+    return await this.ctx.uiWorkspace.pickDirectory()
+  }
+
   /** Create a chat from a target and point the window at it. */
   private async createChatTarget(windowId: WindowId, target: BoardChatTarget): Promise<void> {
     const sessionId = await this.ctx.sessions.create(target)

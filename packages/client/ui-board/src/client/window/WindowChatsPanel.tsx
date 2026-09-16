@@ -62,7 +62,7 @@ export function WindowChatsPanel({
   window: cardWindow, useStore, actions, useSessionList, useWorkspaceList, useWindowSession,
   bindSession, createChat, startChat, renameChat, forkChat, archiveChat, reorderChat,
   createWorkspace, renameWorkspace, deleteWorkspace, reorderWorkspace,
-  listDirectory, createDirectory, t,
+  listDirectory, createDirectory, pickDirectory, t,
 }: WindowChatsPanelProps) {
   const mounted = useStore(s => s.panelWindowId === cardWindow.id)
   const collapsed = useStore(s => s.panelCollapsed)
@@ -495,6 +495,7 @@ export function WindowChatsPanel({
               t={t}
               listDirectory={listDirectory}
               createDirectory={createDirectory}
+              pickDirectory={pickDirectory}
               useFolder={(path) => { void createWorkspace(path).then(() => { setLevel({ kind: 'projects' }) }).catch(report) }}
             />
           )}
@@ -595,27 +596,38 @@ export function WindowChatsPanel({
   )
 }
 
-/** The compact folder browser the panel registers a workspace with. */
-function FolderBrowser({ t, listDirectory, createDirectory, useFolder }: {
+/**
+ * The compact folder browser the panel registers a workspace with. Hosts whose
+ * boot mounted the native picker serve no directory listing, so a failed load
+ * falls back to that host chooser instead of leaving the level unusable.
+ */
+function FolderBrowser({ t, listDirectory, createDirectory, pickDirectory, useFolder }: {
   readonly t: WindowChatsPanelProps['t']
   readonly listDirectory: (path?: string) => Promise<BoardDirectoryListing>
   readonly createDirectory: (path: string, name: string) => Promise<string>
+  readonly pickDirectory: () => Promise<string | null>
   readonly useFolder: (path: string) => void
 }): ReactNode {
   const [listing, setListing] = useState<BoardDirectoryListing | null>(null)
   const [folderName, setFolderName] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [browseFailed, setBrowseFailed] = useState(false)
 
   const load = useCallback((path?: string) => {
     void listDirectory(path).then((next) => {
       setListing(next)
-      setError(null)
-    }).catch((failure: unknown) => {
-      setError(failure instanceof Error ? failure.message : String(failure))
+      setBrowseFailed(false)
+    }).catch(() => {
+      setBrowseFailed(true)
     })
   }, [listDirectory])
 
   useEffect(() => { load() }, [load])
+
+  const pickInSystem = (): void => {
+    void pickDirectory().then((path) => {
+      if (path !== null) useFolder(path)
+    })
+  }
 
   const createFolder = (): void => {
     const name = (folderName ?? '').trim()
@@ -623,13 +635,22 @@ function FolderBrowser({ t, listDirectory, createDirectory, useFolder }: {
     void createDirectory(listing.path, name).then((path) => {
       setFolderName(null)
       load(path)
-    }).catch((failure: unknown) => {
-      setError(failure instanceof Error ? failure.message : String(failure))
+    }).catch(() => {
+      setBrowseFailed(true)
     })
   }
 
   if (listing === null) {
-    return <div className={css.rowMeta}>{error ?? t('panel.loading')}</div>
+    return (
+      <>
+        <div className={css.rowMeta}>{browseFailed ? t('panel.browseUnavailable') : t('panel.loading')}</div>
+        {browseFailed && (
+          <button type="button" data-row-action="" className={css.confirmAction} onClick={pickInSystem}>
+            {t('panel.pickFolder')}
+          </button>
+        )}
+      </>
+    )
   }
 
   return (
@@ -647,7 +668,7 @@ function FolderBrowser({ t, listDirectory, createDirectory, useFolder }: {
           </button>
         ))}
       </div>
-      {error !== null && <div className={css.rowMeta}>{error}</div>}
+      {browseFailed && <div className={css.rowMeta}>{t('panel.browseUnavailable')}</div>}
       <div className={css.groupRow}>
         <button type="button" data-row-action="" className={css.row} onClick={() => { setFolderName('') }}>
           <span className={css.rowIcon}><IconProjectAddOutline16 /></span>

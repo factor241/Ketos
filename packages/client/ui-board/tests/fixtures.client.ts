@@ -26,6 +26,18 @@ export const t: BoardTranslate = (key, params) => {
 
 /** Options of one board bench. */
 export interface BoardBenchOptions {
+  /** Directory verbs the panel's folder browser calls; omitted keeps them inert. */
+  readonly uiWorkspace?: {
+    readonly pickDirectory?: () => Promise<string | null>
+    readonly listDirectory?: (path?: string) => Promise<{
+      path: string
+      home: string
+      crumbs: readonly { name: string; path: string }[]
+      entries: readonly { name: string; path: string; hidden: boolean }[]
+      truncated: boolean
+    }>
+    readonly createDirectory?: (path: string, name: string) => Promise<string>
+  }
   /** Declare the occupied slots before the caller mounts the board (default true). */
   declareSlots?: boolean
   /** Session verb overrides grafted onto the fixture session the bridge creates. */
@@ -97,6 +109,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     pickDirectory: async () => null,
     listDirectory: async () => ({ path: '', home: '', crumbs: [], entries: [], truncated: false }),
     createDirectory: async () => '',
+    ...options.uiWorkspace,
   } as never)
   runtime.ctx.provide('uiConversation', {
     binding: (source: string) => ({

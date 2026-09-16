@@ -57,6 +57,8 @@ const baseState: BoardState = {
   panelWindowId: null,
   panelCollapsed: true,
   panelWidth: 300,
+  panelGroupBy: 'workspace',
+  panelOrderBy: 'updated',
   isSelectingElement: false,
 }
 

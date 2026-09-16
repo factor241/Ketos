@@ -4,6 +4,7 @@
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
 import type { BoardWindowState, WindowBodyKind, WindowId, WindowKind } from './contract/slots.ts'
 import { PANEL_DEFAULT_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH } from './window/panel-geometry.ts'
+import type { BoardPanelGroupBy, BoardPanelOrderBy } from './window/chat-list-model.ts'
 
 /** Store handle handed to every board registration; one live root-scope instance backs them all. */
 export type BoardStoreHandle = EngineStoreHandle<BoardState, BoardActions>
@@ -29,6 +30,8 @@ type BoardActions = {
   closeWindowPanel: (draft: BoardState) => void
   setPanelCollapsed: (draft: BoardState, collapsed: boolean) => void
   setPanelWidth: (draft: BoardState, width: number) => void
+  setPanelGroupBy: (draft: BoardState, groupBy: BoardPanelGroupBy) => void
+  setPanelOrderBy: (draft: BoardState, orderBy: BoardPanelOrderBy) => void
   closeWindow: (draft: BoardState, id: WindowId) => void
   setSelectingElement: (draft: BoardState, selecting: boolean) => void
 }
@@ -59,6 +62,10 @@ export interface BoardState {
   panelCollapsed: boolean
   /** Width the user last dragged the chats panel to. */
   panelWidth: number
+  /** How the chats panel arranges its list. */
+  panelGroupBy: BoardPanelGroupBy
+  /** How the chats panel orders chats inside a group. */
+  panelOrderBy: BoardPanelOrderBy
   isSelectingElement: boolean
 }
 
@@ -176,6 +183,8 @@ export function createBoardStore(opts?: { persist?: string }): BoardStoreHandle 
       panelWindowId: null,
       panelCollapsed: true,
       panelWidth: PANEL_DEFAULT_WIDTH,
+      panelGroupBy: 'workspace',
+      panelOrderBy: 'updated',
       isSelectingElement: false,
     }),
     actions: {
@@ -258,6 +267,12 @@ export function createBoardStore(opts?: { persist?: string }): BoardStoreHandle 
       },
       setPanelWidth: (draft, width) => {
         draft.panelWidth = Math.min(PANEL_MAX_WIDTH, Math.max(PANEL_MIN_WIDTH, Math.round(width)))
+      },
+      setPanelGroupBy: (draft, groupBy) => {
+        draft.panelGroupBy = groupBy
+      },
+      setPanelOrderBy: (draft, orderBy) => {
+        draft.panelOrderBy = orderBy
       },
       closeWindow: (draft, id) => {
         // Immer draft: removing the window entry on close; WindowId is

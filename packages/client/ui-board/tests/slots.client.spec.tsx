@@ -5,7 +5,7 @@
  * disposal with the plugin fiber.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { createBoardStore } from '../src/client/store.ts'
 import { panelWidthFor } from '../src/client/window/panel-geometry.ts'
@@ -367,6 +367,146 @@ describe('board slot composition', () => {
     // The window's session is the picked chat: the panel marks that row current.
     expect(panel.container.querySelector('[data-board-chat-current]')?.textContent).toContain('Second chat')
     expect(runtime.sessions.calls.some(call => call.method === 'open' && call.args[0] === 'chat-2')).toBe(true)
+  })
+
+  it('manages projects from the panel: rename, reorder, delete', async () => {
+    const prepared = await createBoardBench()
+    runtimes.add(prepared.runtime)
+    const { runtime } = prepared
+    await runtime.workspaces.update((draft) => {
+      draft.items = [
+        {
+          workspaceId: 'ws-1' as never,
+          path: '/work/one',
+          title: 'One',
+          sessionIds: [],
+          createdAt: '2026-09-16T00:00:00.000Z',
+          updatedAt: '2026-09-16T00:00:00.000Z',
+        },
+        {
+          workspaceId: 'ws-2' as never,
+          path: '/work/two',
+          title: 'Two',
+          sessionIds: ['chat-2' as never],
+          createdAt: '2026-09-16T00:00:00.000Z',
+          updatedAt: '2026-09-16T00:00:00.000Z',
+        },
+      ]
+    })
+    const created = await runtime.sessions.add({ id: 'session-1', summary: { cwd: '/work/one' } })
+    runtime.sessions.stubCreate(async () => created)
+    await runtime.sessions.add({ id: 'chat-2', summary: { displayTitle: 'Second chat', cwd: '/work/two' } })
+    await prepared.mountBoard()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
+    await runtime.flush()
+
+    // Rename the first project through its row menu.
+    const rows = () => [...panel.container.querySelectorAll('[data-row-key^="project:"]')] as HTMLElement[]
+    const firstMenu = rows()[0]?.parentElement?.querySelector('button[aria-label="More actions"]')
+    fireEvent.click(firstMenu as Element)
+    await runtime.flush()
+    fireEvent.click(screen.getByText('Rename'))
+    await runtime.flush()
+    const input = panel.container.querySelector('[data-board-row-edit="rename"] input') as HTMLInputElement
+    fireEvent.change(input, { target: { value: 'Renamed' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await runtime.flush()
+    expect(runtime.workspaces.calls.some(call => call.method === 'rename' && call.args[1] === 'Renamed')).toBe(true)
+
+    // Move it down, then delete the second project with the confirm step.
+    fireEvent.click(rows()[0]?.parentElement?.querySelector('button[aria-label="More actions"]') as Element)
+    await runtime.flush()
+    fireEvent.click(screen.getByText('Move down'))
+    await runtime.flush()
+    expect(runtime.workspaces.calls.some(call => call.method === 'insertBefore')).toBe(true)
+
+    const second = panel.container.querySelector('[data-row-key="project:ws-2"]')?.parentElement
+    fireEvent.click(second?.querySelector('button[aria-label="More actions"]') as Element)
+    await runtime.flush()
+    fireEvent.click(screen.getByText('Delete project'))
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-row-edit="confirm"]')).not.toBeNull()
+    fireEvent.click(screen.getByText('Confirm'))
+    await runtime.flush()
+    expect(runtime.workspaces.calls.some(call => call.method === 'delete' && call.args[0] === 'ws-2')).toBe(true)
+  })
+
+  it('branches and archives a chat from the panel', async () => {
+    const prepared = await createBoardBench()
+    runtimes.add(prepared.runtime)
+    const { runtime } = prepared
+    const created = await runtime.sessions.add({ id: 'session-1', summary: { cwd: '/work/one' } })
+    runtime.sessions.stubCreate(async () => created)
+    await runtime.sessions.add({ id: 'chat-2', summary: { displayTitle: 'Second chat', cwd: '/work/two' } })
+    await runtime.workspaces.update((draft) => {
+      draft.items = [{
+        workspaceId: 'ws-1' as never,
+        path: '/work/two',
+        title: 'Two',
+        sessionIds: ['chat-2' as never],
+        createdAt: '2026-09-16T00:00:00.000Z',
+        updatedAt: '2026-09-16T00:00:00.000Z',
+      }]
+    })
+    await prepared.mountBoard()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
+    await runtime.flush()
+
+    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    await runtime.flush()
+    fireEvent.click(panel.view.getByText('Two'))
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('button[aria-label="More actions"]') as Element)
+    await runtime.flush()
+    fireEvent.click(screen.getByText('Branch'))
+    await runtime.flush()
+    expect(runtime.sessions.calls.some(call => call.method === 'fork')).toBe(true)
+
+    fireEvent.click(panel.container.querySelector('button[aria-label="More actions"]') as Element)
+    await runtime.flush()
+    fireEvent.click(screen.getByText('Archive chat'))
+    await runtime.flush()
+    fireEvent.click(screen.getByText('Confirm'))
+    await runtime.flush()
+    expect(runtime.workspaces.calls.some(call => call.method === 'archiveSession')).toBe(true)
+  })
+
+  it('registers a folder through the panel folder browser', async () => {
+    const listing = {
+      path: '/work',
+      home: '/home',
+      crumbs: [{ name: '', path: '/' }, { name: 'work', path: '/work' }],
+      entries: [{ name: 'ketos', path: '/work/ketos', hidden: false }],
+      truncated: false,
+    }
+    const prepared = await createBoardBench({
+      uiWorkspace: {
+        listDirectory: async () => listing,
+        createDirectory: async () => '/work/ketos',
+      },
+    })
+    runtimes.add(prepared.runtime)
+    const { runtime } = prepared
+    const created = await runtime.sessions.add({ id: 'session-1', summary: { cwd: '/work/one' } })
+    runtime.sessions.stubCreate(async () => created)
+    await prepared.mountBoard()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
+    await runtime.flush()
+
+    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('button[aria-label="Add a folder…"]') as Element)
+    await runtime.flush()
+    expect(panel.view.getByText('ketos')).not.toBeNull()
+    fireEvent.click(panel.view.getByText('Use this folder'))
+    await runtime.flush()
+    expect(runtime.workspaces.calls.some(call => call.method === 'create' && (call.args[0] as { path: string }).path === '/work')).toBe(true)
   })
 
   it('keeps the ledger, DOM, and store flat across open-close cycles', async () => {

@@ -20,6 +20,8 @@ Status: implemented
 
 **选择聊天会让窗口重新绑定。** `BoardSessionBridge` 把创建路径拆成 `create`（创建后切换）与共用的 `switchTo`/`attach`，并暴露 `bind(windowId, sessionId)`——先对照会话列表校验，再像全新挂载一样释放并重新订阅——以及针对 `sessions.create({ workspaceId })` 或某个目录的 `createChat(windowId, target)`。窗口的 `useWindowSession` 通道现在携带 `sessionId`，因此面板能标出窗口正在显示的聊天。面板通过注入面的 `hooks` 隔间（`useSessionList`、`useWorkspaceList`）读取会话与工作区列表，而不是依赖全局标准 prop，从而把看板对 `ctx.workspaces` 的依赖显式写进它的 inject 列表。
 
+**面板是窗口的管理界面。** 项目可重命名、重排（拖动行或使用行菜单的移动命令）与删除，经由 `ctx.workspaces.rename/insertBefore/delete`；标题栏的文件夹浏览器通过 `uiWorkspace.listDirectory` 每次列出一层、通过 `createDirectory` 创建嵌套文件夹，并通过 `workspaces.create` 注册选中的目录。聊天可复用或新建（`startChat`）、重命名（`session.rename`）、分支（`sessions.fork` 并带 `increaseTitle`，子会话绑定到窗口）、归档（`workspaces.archiveSession`）、重排（`workspaces.insertSessionBefore`），并可按标题或目录搜索；分组（按项目或单一列表）与排序（手动或按更新时间）与面板宽度一同存放在看板 store。面板打开时小地图让位：它属于看板 chrome，否则它的角落会压在面板行之上。
+
 **列表模型归看板所有。** `window/chat-list-model.ts` 推导面板需要的分组：成员关系取自工作区自身的 `sessionIds`，排除子代理与已归档行，空白会话只对正在显示它的窗口可见，按更新时间倒序，未分组一档放在最后。侧栏自己的树推导留在原地——特性插件不能导入另一个插件的值，而看板需要的规则只有十几行。
 
 ## Alternatives considered

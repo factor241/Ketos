@@ -41,11 +41,15 @@ export function AgentCard({ window: cardWindow, renderBody, useStore, actions, t
   const dockedWidth = isPanelOpen && !panelCollapsed ? panelWidthFor(viewportWidth, panelWidth) : 0
 
   // Escape closes the chats panel first and leaves fullscreen second: one
-  // handler owns the key so the two modes never fight over it.
+  // handler owns the key so the two modes never fight over it. An open menu or
+  // a focused editor keeps the key for itself.
   useEffect(() => {
     if (!isFullscreen && !isPanelOpen) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
+      if (document.querySelector('[role="menu"]') !== null) return
+      const target = e.target as HTMLElement | null
+      if (target !== null && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return
       if (isPanelOpen) actions.closeWindowPanel()
       else actions.exitFullscreen()
     }

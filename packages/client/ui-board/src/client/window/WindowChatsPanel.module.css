@@ -185,6 +185,150 @@
   color: var(--dsw-alias-label-primary);
 }
 
+.actionActive {
+  background: var(--dsw-alias-interactive-bg-active);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* A row and its trailing menu trigger share one line. */
+.groupRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.groupRow > .row {
+  flex: 1;
+}
+
+.rowAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.groupRow:hover .rowAction,
+.rowAction:focus-visible {
+  opacity: 1;
+}
+
+.rowAction:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The row a drag would drop onto. */
+.dropTarget {
+  box-shadow: inset 0 0 0 0.5px var(--dsw-alias-state-business-primary);
+}
+
+.flip {
+  transform: rotate(180deg);
+}
+
+/* The portal anchor: an empty box that takes no part in layout. */
+.anchor {
+  display: none;
+}
+
+.editRow,
+.searchRow {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-row);
+  min-width: 0;
+  margin: 0 6px 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--dsw-specific-input-major);
+  border: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: var(--board-font-label);
+  outline: none;
+}
+
+.confirmRow {
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-row);
+  min-width: 0;
+}
+
+.confirmAction {
+  flex: none;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 8px;
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: var(--board-font-label);
+  cursor: pointer;
+}
+
+.confirmAction:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.errorRow {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-row);
+  min-width: 0;
+  margin: 0 6px 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--dsw-alias-interactive-bg-hover-danger);
+  color: var(--dsw-alias-state-error-primary);
+  font-size: var(--board-font-label);
+}
+
+.crumbs {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 2px 6px;
+}
+
+.crumb {
+  padding: 2px 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-family: inherit;
+  font-size: var(--board-font-hint);
+  cursor: pointer;
+}
+
+.crumb:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
 .list {
   flex: 1;
   min-height: 0;

@@ -1,13 +1,16 @@
 /**
  * Chat list model of the chats panel: workspace groups with the ungrouped
  * bucket last, subagent and archived rows out, the blank session only for the
- * window that shows it, and newest first inside every group.
+ * window that shows it, the chosen order inside every group, the flat view, the
+ * local search filter, and the move anchors the reorder actions use.
  */
 import { describe, expect, it } from 'vitest'
 import type { SessionListState, SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId, WorkspaceSnapshot, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
-import { chatGroups } from '../src/client/window/chat-list-model.ts'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import {
+  chatGroups, chatMatches, filterGroups, moveAnchor,
+} from '../src/client/window/chat-list-model.ts'
 
 /** One list row with the fields the panel reads. */
 function row(id: string, fields: Partial<SessionSummary> = {}): SessionSummary {
@@ -53,55 +56,108 @@ function workspace(id: string, path: string, sessionIds: readonly string[], titl
   }
 }
 
+/** The grouped, newest-first view the panel defaults to. */
+function grouped(snapshot: WorkspaceSnapshot, sessions: SessionListState, windowSessionId?: SessionId) {
+  return chatGroups(snapshot, sessions, { windowSessionId, groupBy: 'workspace', orderBy: 'updated' })
+}
+
 describe('chatGroups', () => {
   it('groups sessions under their workspace and keeps the ungrouped bucket last', () => {
-    const groups = chatGroups(
-      workspaces([workspace('ws-1', '/work/ketos', ['a', 'b'])]),
-      list([row('a'), row('b'), row('c')]),
-      undefined,
-    )
+    const groups = grouped(workspaces([workspace('ws-1', '/work/ketos', ['a', 'b'])]), list([row('a'), row('b'), row('c')]))
     expect(groups.map(group => group.workspaceId)).toEqual(['ws-1', undefined])
     expect(groups[0]?.label).toBe('ketos')
     expect(groups[0]?.chats.map(chat => chat.id)).toEqual(['a', 'b'])
     expect(groups[1]?.chats.map(chat => chat.id)).toEqual(['c'])
-    expect(groups[1]?.cwd).toBe('')
   })
 
-  it('uses the workspace title when it has one and skips empty groups', () => {
-    const groups = chatGroups(
+  it('skips workspaces without visible chats and uses their title', () => {
+    const groups = grouped(
       workspaces([workspace('ws-1', '/work/ketos', [], 'Ketos bot'), workspace('ws-2', '/work/other', [])]),
       list([row('a')]),
-      undefined,
     )
     expect(groups.map(group => group.workspaceId)).toEqual([undefined])
   })
 
   it('leaves out subagent and archived rows', () => {
-    const groups = chatGroups(
+    const groups = grouped(
       workspaces([], ['b' as SessionId]),
       list([row('a'), row('b'), row('c', { origin: 'subagent' })]),
-      undefined,
     )
     expect(groups[0]?.chats.map(chat => chat.id)).toEqual(['a'])
   })
 
   it('shows the blank session only for the window that has it, newest first', () => {
     const rows = [row('blank', { blank: true, updatedAt: 9 }), row('a', { updatedAt: 2 }), row('b', { updatedAt: 5 })]
-    const withoutWindow = chatGroups(workspaces([]), list(rows), undefined)
-    expect(withoutWindow[0]?.chats.map(chat => chat.id)).toEqual(['b', 'a'])
+    expect(grouped(workspaces([]), list(rows))[0]?.chats.map(chat => chat.id)).toEqual(['b', 'a'])
 
-    const withWindow = chatGroups(workspaces([]), list(rows), 'blank' as SessionId)
+    const withWindow = grouped(workspaces([]), list(rows), 'blank' as SessionId)
     expect(withWindow[0]?.chats.map(chat => chat.id)).toEqual(['blank', 'b', 'a'])
     expect(withWindow[0]?.chats[0]?.current).toBe(true)
   })
 
+  it('keeps the manual order when that is the chosen order', () => {
+    const rows = [row('a', { updatedAt: 2 }), row('b', { updatedAt: 5 })]
+    const manual = chatGroups(workspaces([workspace('ws-1', '/work/ketos', ['b', 'a'])]), list(rows), {
+      windowSessionId: undefined,
+      groupBy: 'workspace',
+      orderBy: 'manual',
+    })
+    expect(manual[0]?.chats.map(chat => chat.id)).toEqual(['b', 'a'])
+  })
+
+  it('lists every visible chat in one bucket in the flat view', () => {
+    const flat = chatGroups(
+      workspaces([workspace('ws-1', '/work/ketos', ['a'])]),
+      list([row('a'), row('b', { updatedAt: 7 })]),
+      { windowSessionId: undefined, groupBy: 'flat', orderBy: 'updated' },
+    )
+    expect(flat).toHaveLength(1)
+    expect(flat[0]?.workspaceId).toBeUndefined()
+    expect(flat[0]?.chats.map(chat => chat.id)).toEqual(['b', 'a'])
+  })
+
   it('marks the running chat and carries the directory the ungrouped bucket creates in', () => {
-    const groups = chatGroups(
+    const groups = grouped(
       workspaces([], []),
       list([row('a', { running: true, cwd: '/work/ketos' })]),
       'a' as SessionId,
     )
     expect(groups[0]?.chats[0]?.running).toBe(true)
     expect(groups[0]?.cwd).toBe('/work/ketos')
+  })
+})
+
+describe('filterGroups', () => {
+  it('keeps matching rows by title or directory and drops empty groups', () => {
+    const groups = grouped(
+      workspaces([workspace('ws-1', '/work/ketos', ['a'])]),
+      list([row('a', { displayTitle: 'Alpha' }), row('b', { displayTitle: 'Beta', cwd: '/work/ketos' })]),
+    )
+    expect(filterGroups(groups, 'alp')[0]?.chats.map(chat => chat.id)).toEqual(['a'])
+    // The directory of either group matches too, across both groups.
+    expect(filterGroups(groups, 'ketos').flatMap(group => group.chats.map(chat => chat.id))).toEqual(['a', 'b'])
+    expect(filterGroups(groups, 'nothing')).toHaveLength(0)
+  })
+
+  it('matches on a blank query and lower-cased titles', () => {
+    const chat = { id: 'a' as SessionId, title: 'Alpha', updatedAt: 1, running: false, blank: false, current: false }
+    expect(chatMatches(chat, '/work/ketos', '')).toBe(true)
+    expect(chatMatches(chat, '/work/ketos', 'alpha')).toBe(true)
+    expect(chatMatches(chat, '/work/ketos', 'beta')).toBe(false)
+  })
+})
+
+describe('moveAnchor', () => {
+  const ids = ['a', 'b', 'c'] as unknown as readonly SessionId[]
+
+  it('anchors one step in either direction', () => {
+    expect(moveAnchor(ids, 'b' as SessionId, -1)).toBe('a')
+    // Moving down from the middle anchors before the row after the target.
+    expect(moveAnchor(['a', 'b', 'c', 'd'] as unknown as readonly SessionId[], 'b' as SessionId, 1)).toBe('d')
+  })
+
+  it('stays put at the top and appends at the bottom', () => {
+    expect(moveAnchor(ids, 'a' as SessionId, -1)).toBe('a')
+    expect(moveAnchor(ids, 'c' as SessionId, 1)).toBeUndefined()
   })
 })

@@ -26,10 +26,11 @@ import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { ImageMediaType } from '@deepseek-ai/dsh-attachment'
 import { presetDisplayText } from '@deepseek-ai/dsh-agent-presets/display'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
+import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { PromptContentPart } from '@deepseek-ai/dsh-api-session-controller/types'
 import type {
-  BoardChatTarget, BoardCommandRow, BoardDraftImage, BoardEffortOption, BoardGoalState, BoardMentionRow,
+  BoardChatTarget, BoardCommandRow, BoardDirectoryListing, BoardDraftImage, BoardEffortOption, BoardGoalState, BoardMentionRow,
   BoardModelState, BoardPermissionOption, BoardPresetOption, BoardPromptMode, BoardQueueRow,
   BoardTodoRow, BoardWindowSessionState, WindowId,
 } from './contract/slots.ts'
@@ -498,6 +499,136 @@ export class BoardSessionBridge {
     } catch (error) {
       this.fail(windowId, error)
     }
+  }
+
+  /**
+   * Start a chat in a workspace, reusing its blank session when it has one, and
+   * point the window at it.
+   * @param windowId - window identity.
+   * @param workspaceId - workspace to run the chat in; omitted uses the window's own directory.
+   */
+  async startChat(windowId: WindowId, workspaceId?: WorkspaceId): Promise<void> {
+    if (workspaceId !== undefined) {
+      const workspace = this.ctx.workspaces.list.getSnapshot().items.find(item => item.workspaceId === workspaceId)
+      if (workspace === undefined) return
+      const blank = workspace.sessionIds.find((id) => {
+        const row = this.ctx.sessions.list.getSnapshot().byId[id]
+        return row?.blank === true
+      })
+      if (blank !== undefined) {
+        this.switchTo(windowId, blank)
+        return
+      }
+      await this.createChatTarget(windowId, { workspaceId })
+      return
+    }
+    const current = this.record(windowId).channel.getSnapshot().cwd
+    await this.createChatTarget(windowId, current === undefined ? {} : { cwd: current })
+  }
+
+  /**
+   * Rename one chat.
+   * @param sessionId - chat identity.
+   * @param title - new durable title.
+   */
+  async renameChat(sessionId: SessionId, title: string): Promise<void> {
+    await this.ctx.sessions.binding(sessionId)?.session.rename(title)
+  }
+
+  /**
+   * Branch one chat at its last completed turn and bind the window to the child.
+   * @param windowId - window identity.
+   * @param sessionId - chat to branch.
+   */
+  async forkChat(windowId: WindowId, sessionId: SessionId): Promise<void> {
+    const child = await this.ctx.sessions.fork({ sessionId, increaseTitle: true })
+    if (this.disposed) return
+    this.switchTo(windowId, child)
+  }
+
+  /**
+   * Archive one chat. The client exposes no unarchive.
+   * @param sessionId - chat identity.
+   */
+  async archiveChat(sessionId: SessionId): Promise<void> {
+    await this.ctx.workspaces.archiveSession(sessionId)
+  }
+
+  /**
+   * Move one chat inside its workspace's manual order.
+   * @param workspaceId - workspace the chat belongs to.
+   * @param sessionId - chat to move.
+   * @param beforeSessionId - chat it moves before; omitted appends.
+   */
+  async reorderChat(workspaceId: WorkspaceId, sessionId: SessionId, beforeSessionId?: SessionId): Promise<void> {
+    await this.ctx.workspaces.insertSessionBefore(workspaceId, sessionId, beforeSessionId)
+  }
+
+  /**
+   * Register a workspace for one directory; an existing registration is reused.
+   * @param path - directory to register.
+   */
+  async createWorkspace(path: string): Promise<void> {
+    await this.ctx.workspaces.create({ path })
+  }
+
+  /**
+   * Rename one workspace.
+   * @param workspaceId - workspace identity.
+   * @param title - new display title.
+   */
+  async renameWorkspace(workspaceId: WorkspaceId, title: string): Promise<void> {
+    await this.ctx.workspaces.rename(workspaceId, title)
+  }
+
+  /**
+   * Delete one workspace registration; its chats and files stay untouched.
+   * @param workspaceId - workspace identity.
+   */
+  async deleteWorkspace(workspaceId: WorkspaceId): Promise<void> {
+    await this.ctx.workspaces.delete(workspaceId)
+  }
+
+  /**
+   * Move one workspace in the registry order.
+   * @param workspaceId - workspace to move.
+   * @param beforeWorkspaceId - workspace it moves before; omitted appends.
+   */
+  async reorderWorkspace(workspaceId: WorkspaceId, beforeWorkspaceId?: WorkspaceId): Promise<void> {
+    await this.ctx.workspaces.insertBefore(workspaceId, beforeWorkspaceId)
+  }
+
+  /**
+   * List one directory level for the panel's folder browser.
+   * @param path - directory to list; omitted lists the home directory.
+   * @returns the directory level, with the entries the panel renders.
+   */
+  async listDirectory(path?: string): Promise<BoardDirectoryListing> {
+    const listing = await this.ctx.uiWorkspace.listDirectory(path)
+    return {
+      path: listing.path,
+      home: listing.home,
+      crumbs: listing.crumbs.map(crumb => ({ name: crumb.name, path: crumb.path })),
+      entries: listing.entries.map(entry => ({ name: entry.name, path: entry.path, hidden: entry.hidden })),
+      truncated: listing.truncated,
+    }
+  }
+
+  /**
+   * Create one directory inside a parent.
+   * @param path - parent directory.
+   * @param name - single new folder name.
+   * @returns the created directory's path.
+   */
+  async createDirectory(path: string, name: string): Promise<string> {
+    return await this.ctx.uiWorkspace.createDirectory(path, name)
+  }
+
+  /** Create a chat from a target and point the window at it. */
+  private async createChatTarget(windowId: WindowId, target: BoardChatTarget): Promise<void> {
+    const sessionId = await this.ctx.sessions.create(target)
+    if (this.disposed) return
+    this.switchTo(windowId, sessionId)
   }
 
   /** Publish one failure onto the window's channel. */

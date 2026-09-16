@@ -21,6 +21,20 @@ export type WindowBodyKind = 'conversation' | 'connectors' | 'settings' | 'dashb
 /** One prompt mode the window composer dispatches. */
 export type BoardPromptMode = 'queue' | 'steer'
 
+/** One directory level the panel's folder browser shows. */
+export interface BoardDirectoryListing {
+  /** Absolute path of the listed directory. */
+  readonly path: string
+  /** The user's home directory, for path abbreviation. */
+  readonly home: string
+  /** Ancestor chain from the filesystem root to the listed directory, inclusive. */
+  readonly crumbs: readonly { readonly name: string; readonly path: string }[]
+  /** Direct child directories. */
+  readonly entries: readonly { readonly name: string; readonly path: string; readonly hidden: boolean }[]
+  /** Whether the host truncated the listing. */
+  readonly truncated: boolean
+}
+
 /** Where a chat the panel creates runs: a workspace, or a directory (or the default one). */
 export type BoardChatTarget = { readonly workspaceId: WorkspaceId } | { readonly cwd?: string }
 
@@ -188,6 +202,28 @@ export interface BoardWindowInjected {
   bindSession: (windowId: WindowId, sessionId: SessionId) => void
   /** Create a chat in a workspace or directory and bind the window to it. */
   createChat: (windowId: WindowId, target: BoardChatTarget) => void
+  /** Start a chat in a workspace, reusing its blank one, and bind the window to it. */
+  startChat: (windowId: WindowId, workspaceId?: WorkspaceId) => Promise<void>
+  /** Rename one chat. */
+  renameChat: (sessionId: SessionId, title: string) => Promise<void>
+  /** Branch one chat at its last completed turn and bind the window to the child. */
+  forkChat: (windowId: WindowId, sessionId: SessionId) => Promise<void>
+  /** Archive one chat; the client has no unarchive. */
+  archiveChat: (sessionId: SessionId) => Promise<void>
+  /** Move one chat inside its workspace. */
+  reorderChat: (workspaceId: WorkspaceId, sessionId: SessionId, beforeSessionId?: SessionId) => Promise<void>
+  /** Register a workspace for one directory. */
+  createWorkspace: (path: string) => Promise<void>
+  /** Rename one workspace. */
+  renameWorkspace: (workspaceId: WorkspaceId, title: string) => Promise<void>
+  /** Delete one workspace registration; its chats and files stay. */
+  deleteWorkspace: (workspaceId: WorkspaceId) => Promise<void>
+  /** Move one workspace before another, or to the end. */
+  reorderWorkspace: (workspaceId: WorkspaceId, beforeWorkspaceId?: WorkspaceId) => Promise<void>
+  /** List one directory level for the panel's folder browser. */
+  listDirectory: (path?: string) => Promise<BoardDirectoryListing>
+  /** Create one directory inside a parent and return its path. */
+  createDirectory: (path: string, name: string) => Promise<string>
   /** Switch the agent preset of the window's still-blank session. */
   selectAgentPreset: (windowId: WindowId, presetId: string) => void
   /** Switch the permission preset of the window's session. */

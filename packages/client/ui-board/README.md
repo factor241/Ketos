@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The board is a spatial main panel for the dsh web client: an infinite canvas where agent windows are placed, moved, resized, stacked, and closed. Each agent window is bound to its own Harness session and carries the full composer: the reference chat bar rebuilt for a floating window — working-directory and agent-preset chips, an action menu and slash commands, permission and model/effort chips, the context ring, image attachments, `@` mentions, and the goal, to-do, and queue strips. The user pans the canvas by dragging its background and zooms with the wheel toward the pointer position; a dock and an Omnibox add windows at the view center; a minimap in the corner mirrors the window layout. The plugin registers the board as the `board` main panel and its icon in the sidebar panel list, and it draws with the shared Harness theme and controls rather than a board-owned palette.
+The board is a spatial main panel for the dsh web client: an infinite canvas where agent windows are placed, moved, resized, stacked, and closed. Each window owns a Harness session and carries the full chat composer — working-directory and agent-preset chips, the action and slash menus, `@` mentions, permission and model chips, the context ring, image attachments, and the goal, to-do, and queue strips. A dock and an Omnibox open windows at the view center, and a minimap mirrors the layout. It registers the `board` main panel and its sidebar icon, drawing with the shared Harness theme.
 
 ## Table of Contents
 

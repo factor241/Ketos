@@ -8,7 +8,7 @@ import clsx from 'clsx'
 import { MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MarkdownLabels } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
-  IconCheckOutline14, IconChevronUpOutline14, IconFullscreenOutline16, IconWarningOutline16,
+  IconCheckOutline14, IconChevronUpOutline14, IconWarningOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { AssistantBlock, ChatSnapshot, ConversationNode } from '@deepseek-ai/dsh-client-ui-chat/client'
@@ -167,15 +167,6 @@ export function ConversationBody({
 
       {session !== undefined && session.status === 'ready' && (
         <div className={css.laneTail}>
-          <button
-            type="button"
-            className={css.laneAction}
-            onClick={() => { injected.openInMainPanel(cardWindow.id) }}
-            aria-label={t('conversation.openInMain')}
-            title={t('conversation.openInMain')}
-          >
-            <IconFullscreenOutline16 />
-          </button>
           {!atTail && (
             <button
               type="button"

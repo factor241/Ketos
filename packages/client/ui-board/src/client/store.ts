@@ -22,6 +22,8 @@ type BoardActions = {
   setWindowBodyKind: (draft: BoardState, id: WindowId, bodyKind: WindowBodyKind) => void
   focusWindow: (draft: BoardState, id: WindowId) => void
   centerOnWindow: (draft: BoardState, id: WindowId) => void
+  setWindowFullscreen: (draft: BoardState, id: WindowId) => void
+  exitFullscreen: (draft: BoardState) => void
   closeWindow: (draft: BoardState, id: WindowId) => void
   setSelectingElement: (draft: BoardState, selecting: boolean) => void
 }
@@ -37,6 +39,12 @@ export interface BoardState {
   windows: Record<string, BoardWindowState>
   windowOrder: WindowId[]
   activeWindowId: WindowId | null
+  /**
+   * The window filling the board panel, or null. A fullscreen window keeps its
+   * stored rectangle and its controls; the frames skip drag and resize while it
+   * is fullscreen, so the rectangle survives the mode.
+   */
+  fullscreenWindowId: WindowId | null
   isSelectingElement: boolean
 }
 
@@ -150,6 +158,7 @@ export function createBoardStore(opts?: { persist?: string }): BoardStoreHandle 
       windows: {},
       windowOrder: [],
       activeWindowId: null,
+      fullscreenWindowId: null,
       isSelectingElement: false,
     }),
     actions: {
@@ -210,11 +219,22 @@ export function createBoardStore(opts?: { persist?: string }): BoardStoreHandle 
         draft.panX = -(win.x + win.width / 2 - draft.viewportWidth / (2 * draft.zoom)) * draft.zoom
         draft.panY = -(win.y + win.height / 2 - draft.viewportHeight / (2 * draft.zoom)) * draft.zoom
       },
+      setWindowFullscreen: (draft, id) => {
+        if (!draft.windows[id as string]) return
+        draft.fullscreenWindowId = id
+        raiseWindow(draft, id)
+      },
+      exitFullscreen: (draft) => {
+        draft.fullscreenWindowId = null
+      },
       closeWindow: (draft, id) => {
         // Immer draft: removing the window entry on close; WindowId is
         // opaque, so the record key is only reachable dynamically.
         Reflect.deleteProperty(draft.windows, id)
         draft.windowOrder = draft.windowOrder.filter(wId => wId !== id)
+        if (draft.fullscreenWindowId === id) {
+          draft.fullscreenWindowId = null
+        }
         if (draft.activeWindowId === id) {
           draft.activeWindowId = draft.windowOrder[draft.windowOrder.length - 1] ?? null
         }

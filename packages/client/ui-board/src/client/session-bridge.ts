@@ -178,17 +178,6 @@ export class BoardSessionBridge {
   }
 
   /**
-   * Select the window's session and show the real conversation panel.
-   * @param windowId - window identity.
-   */
-  openInMainPanel(windowId: WindowId): void {
-    const sessionId = this.record(windowId).sessionId
-    if (sessionId === undefined) return
-    this.ctx.sessions.open(sessionId)
-    this.ctx.layout.selectPanel(null)
-  }
-
-  /**
    * Switch the agent preset of the window's still-blank session.
    * @param windowId - window identity.
    * @param presetId - roster preset id.

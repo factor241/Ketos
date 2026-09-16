@@ -1,13 +1,14 @@
 /**
  * Window frame (agent and clone windows) with 8-direction resize.
  */
-import React, { useCallback } from 'react'
+import React, { useCallback, useEffect } from 'react'
 import clsx from 'clsx'
-import { IconCloseOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCloseOutline16, IconFullscreenOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
 import { finishBoardPointerGesture } from './pointer-cleanup.ts'
 import { resizeStep, type ResizeDirection } from './resize.ts'
+import { ExitFullscreenGlyph } from './fullscreen-glyph.tsx'
 import css from './AgentCard.module.css'
 
 export type AgentCardProps =
@@ -30,8 +31,20 @@ const RESIZE_HANDLES = [
 export function AgentCard({ window: cardWindow, renderBody, useStore, actions, t }: AgentCardProps) {
   const zoom = useStore(s => s.zoom)
   const isActive = useStore(s => s.activeWindowId === cardWindow.id)
+  const isFullscreen = useStore(s => s.fullscreenWindowId === cardWindow.id)
+
+  // Escape leaves the mode; the header toggle does the same.
+  useEffect(() => {
+    if (!isFullscreen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') actions.exitFullscreen()
+    }
+    globalThis.addEventListener('keydown', onKeyDown)
+    return () => { globalThis.removeEventListener('keydown', onKeyDown) }
+  }, [isFullscreen, actions])
 
   const handleHeaderPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (isFullscreen) return
     if ((e.target as HTMLElement).closest('button')) return
     const target = e.currentTarget
     target.setPointerCapture(e.pointerId)
@@ -55,7 +68,7 @@ export function AgentCard({ window: cardWindow, renderBody, useStore, actions, t
 
     globalThis.addEventListener('pointermove', onPointerMove)
     globalThis.addEventListener('pointerup', onPointerUp)
-  }, [cardWindow.id, cardWindow.x, cardWindow.y, zoom, actions])
+  }, [cardWindow.id, cardWindow.x, cardWindow.y, zoom, isFullscreen, actions])
 
   const createResizeHandler = (direction: ResizeDirection) => (e: React.PointerEvent<HTMLDivElement>) => {
     e.stopPropagation()
@@ -96,17 +109,22 @@ export function AgentCard({ window: cardWindow, renderBody, useStore, actions, t
   return (
     <div
       data-board-window={cardWindow.kind}
-      className={clsx(css.window, isActive && css.active)}
+      data-board-fullscreen={isFullscreen ? '' : undefined}
+      className={clsx(css.window, isActive && css.active, isFullscreen && css.fullscreen)}
       onPointerDown={() => { actions.focusWindow(cardWindow.id) }}
-      style={{
-        left: cardWindow.x,
-        top: cardWindow.y,
-        width: cardWindow.width,
-        height: cardWindow.height,
-        zIndex: cardWindow.zIndex,
-      }}
+      style={isFullscreen
+        // The canvas drops its pan/zoom while a window is fullscreen, so the
+        // inset rectangle maps to the visible board panel.
+        ? { inset: 0, zIndex: 1000 }
+        : {
+          left: cardWindow.x,
+          top: cardWindow.y,
+          width: cardWindow.width,
+          height: cardWindow.height,
+          zIndex: cardWindow.zIndex,
+        }}
     >
-      {RESIZE_HANDLES.map(([direction, handleClass]) => (
+      {!isFullscreen && RESIZE_HANDLES.map(([direction, handleClass]) => (
         <div
           key={direction}
           onPointerDown={createResizeHandler(direction)}
@@ -120,13 +138,28 @@ export function AgentCard({ window: cardWindow, renderBody, useStore, actions, t
             <button
               type="button"
               onClick={() => { actions.closeWindow(cardWindow.id) }}
-              className={css.closeButton}
+              className={css.headerButton}
               aria-label={t('window.close')}
             >
               <IconCloseOutline16 />
             </button>
           </Tooltip>
           <span className={css.title}>{cardWindow.title}</span>
+        </div>
+        <div className={css.headerRight}>
+          <Tooltip label={t(isFullscreen ? 'window.exitFullscreen' : 'window.fullscreen')} side="bottom">
+            <button
+              type="button"
+              onClick={() => {
+                if (isFullscreen) actions.exitFullscreen()
+                else actions.setWindowFullscreen(cardWindow.id)
+              }}
+              className={css.headerButton}
+              aria-label={t(isFullscreen ? 'window.exitFullscreen' : 'window.fullscreen')}
+            >
+              {isFullscreen ? <ExitFullscreenGlyph /> : <IconFullscreenOutline16 />}
+            </button>
+          </Tooltip>
         </div>
       </div>
 

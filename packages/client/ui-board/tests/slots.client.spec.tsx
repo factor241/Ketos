@@ -192,6 +192,56 @@ describe('board slot composition', () => {
     expect(panel.view.getByText('Second agent')).not.toBeNull()
   })
 
+  it('fills the board panel with the fullscreen window and hides its neighbours and chrome', async () => {
+    const { runtime } = await bench()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+
+    act(() => {
+      board.actions.setPan(40, 40)
+      board.actions.setZoom(1.5)
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'First agent' }))
+      board.actions.openWindow(windowState({ id: 'a2' as WindowId, title: 'Second agent' }))
+    })
+    await runtime.flush()
+    expect(panel.container.querySelectorAll('[data-board-window="agent"]')).toHaveLength(2)
+
+    const frame = panel.container.querySelectorAll('[data-board-window="agent"]')[0] as HTMLElement
+    fireEvent.click(frame.querySelector('button[aria-label="Open fullscreen"]') as Element)
+    await runtime.flush()
+
+    const surface = panel.container.querySelectorAll('[data-surface="canvas"]')[0] as HTMLElement
+    const fullscreen = panel.container.querySelector('[data-board-fullscreen]') as HTMLElement
+    expect(fullscreen).not.toBeNull()
+    expect(fullscreen.style.inset).toBe('0px')
+    // The other frame stands down and the panel chrome leaves with it.
+    expect(panel.container.querySelectorAll('[data-board-window="agent"]')).toHaveLength(1)
+    for (const layer of ['dock', 'omnibar', 'minimap'] as const) {
+      expect(panel.container.querySelectorAll(`[data-board-layer="${layer}"]`)).toHaveLength(0)
+    }
+    // The surface drops its pan and zoom so the inset rectangle maps to the panel.
+    expect(surface.style.getPropertyValue('--board-pan-x')).toBe('0px')
+    expect(surface.style.getPropertyValue('--board-zoom')).toBe('1')
+
+    // Escape leaves the mode and the window returns to its stored geometry.
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await runtime.flush()
+    const restored = panel.container.querySelector('[data-board-window="agent"]') as HTMLElement
+    expect(panel.container.querySelector('[data-board-fullscreen]')).toBeNull()
+    expect(restored.style.inset).toBe('')
+    expect(restored.style.width).toBe(`${String(board.store.getSnapshot().windows['a1']?.width)}px`)
+    expect(panel.container.querySelectorAll('[data-board-window="agent"]')).toHaveLength(2)
+    expect(panel.container.querySelectorAll('[data-board-layer="dock"]')).toHaveLength(1)
+
+    // The header toggle closes the mode too.
+    fireEvent.click(panel.container.querySelector('button[aria-label="Open fullscreen"]') as Element)
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-fullscreen]')).not.toBeNull()
+    fireEvent.click(panel.container.querySelector('button[aria-label="Exit fullscreen"]') as Element)
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-fullscreen]')).toBeNull()
+  })
+
   it('keeps the ledger, DOM, and store flat across open-close cycles', async () => {
     const { runtime } = await bench()
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })

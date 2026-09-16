@@ -110,10 +110,17 @@
   min-width: 0;
 }
 
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-window);
+  flex: none;
+}
+
 
 /* Round icon control in the chrome idiom: the window's control circle,
    secondary ink, hover fill (the settings header and dockkit strip recipe). */
-.closeButton {
+.headerButton {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -127,7 +134,7 @@
   cursor: pointer;
 }
 
-.closeButton:hover {
+.headerButton:hover {
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);
 }
@@ -160,5 +167,12 @@
 
 
 
+
+/* Fullscreen: the frame fills the board panel, so it squares off and drops the
+   floating elevation (nothing floats above it). */
+.window.fullscreen {
+  border-radius: 0;
+  box-shadow: none;
+}
 
 /* Context capsule floating under the window in world coordinates. */

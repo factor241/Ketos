@@ -106,7 +106,7 @@
   min-width: 0;
 }
 
-.closeButton {
+.headerButton {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -120,7 +120,7 @@
   cursor: pointer;
 }
 
-.closeButton:hover {
+.headerButton:hover {
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);
 }

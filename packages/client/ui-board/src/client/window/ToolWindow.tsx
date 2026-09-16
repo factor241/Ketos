@@ -122,7 +122,7 @@ export function ToolWindow({ window: cardWindow, renderBody, useStore, actions, 
             <button
               type="button"
               onClick={() => { actions.closeWindow(cardWindow.id) }}
-              className={css.closeButton}
+              className={css.headerButton}
               aria-label={t('window.close')}
             >
               <IconCloseOutline16 />

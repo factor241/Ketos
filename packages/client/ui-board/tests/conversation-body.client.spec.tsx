@@ -68,7 +68,6 @@ function bodyProps(
     sendPrompt: vi.fn(),
     cancelPrompt: vi.fn(),
     loadOlderTurns: vi.fn(),
-    openInMainPanel: vi.fn(),
     selectAgentPreset: vi.fn(),
     selectPermission: vi.fn(),
     selectModel: vi.fn(),
@@ -208,18 +207,15 @@ describe('ConversationBody', () => {
     expect(container.contains(list)).toBe(false)
   })
 
-  it('offers the load-older and main-panel affordances', () => {
+  it('offers the load-older and jump-to-latest affordances', () => {
     const loadOlderTurns = vi.fn()
-    const openInMainPanel = vi.fn()
     const chat = chatSnapshot([USER_NODE])
-    const { getByText, container } = render(
-      <ConversationBody {...bodyProps(ready(chat), { loadOlderTurns, openInMainPanel })} />,
-    )
+    const { getByText, container } = render(<ConversationBody {...bodyProps(ready(chat), { loadOlderTurns })} />)
     fireEvent.click(getByText('Load earlier turns'))
     expect(loadOlderTurns).toHaveBeenCalledWith('a1')
 
-    fireEvent.click(container.querySelector('button[aria-label="Open in the main panel"]') as Element)
-    expect(openInMainPanel).toHaveBeenCalledWith('a1')
+    // The lane tail holds no fullscreen control; the window header owns it.
+    expect(container.querySelector('button[aria-label="Open fullscreen"]')).toBeNull()
   })
 
   it('shows the permission and plan chips and switches the permission preset', () => {

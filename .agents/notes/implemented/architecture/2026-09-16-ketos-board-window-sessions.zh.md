@@ -14,9 +14,9 @@ Status: implemented
 
 **一个 apply 侧的桥拥有会话。** `packages/client/ui-board/src/client/session-bridge.ts` 保存 `windowId → sessionId` 映射，在窗口首次使用时执行 `sessions.create()` → `sessions.open(id)` → `binding(id)`，并订阅会话面（`running`）与对话目标（`uiConversation.binding(id).target('chat')`）。窗口渲染的一切都重新发布到每窗口一个身份稳定的 channel（`{ status, running, error, chat }`），因此组件各自只订阅一个 observable，store 不承载任何会话数据。
 
-**一个 keyed hook 服务所有窗口。** `board.window.body` 获得带 `keyedHooks: { windowSession }`（键到 observable 的解析器）的注入面，以及普通回调（`ensureWindowSession`、`sendPrompt`、`cancelPrompt`、`loadOlderTurns`、`openInMainPanel`）。body 注册保留其按 `bodyKind` 的键与 owner props；窗口 id 是 `useWindowSession(windowId)` 的键参数，因此注册数量不随窗口数量增长。这是被认可的 observable 路径：插件绝不把源交给组件，组件也绝不调用 `useSyncExternalStore`。
+**一个 keyed hook 服务所有窗口。** `board.window.body` 获得带 `keyedHooks: { windowSession }`（键到 observable 的解析器）的注入面，以及普通回调（`ensureWindowSession`、`sendPrompt`、`cancelPrompt`、`loadOlderTurns`）。body 注册保留其按 `bodyKind` 的键与 owner props；窗口 id 是 `useWindowSession(windowId)` 的键参数，因此注册数量不随窗口数量增长。这是被认可的 observable 路径：插件绝不把源交给组件，组件也绝不调用 `useSyncExternalStore`。
 
-**Composer 由看板拥有且完整。** `ComposerBar` 在窗口内重建了参考聊天栏：工作目录与 agent 预设芯片（两者仅在会话为空时可切换）、基于宿主命令目录的 `+` 操作菜单加上看板自有的图片附件条目、带参数提示与描述的 `/` 命令弹层、来自 `remote.fileReferences.list` 与 `remote.sessionReferenceResolver.candidates` 的 `@` 提及行、权限芯片（完全访问走 `RiskConfirmation`）、基于 `ctx.modelDirectories` 且带推理等级子菜单的模型芯片、计划芯片、来自 `contextPressure` 投影的上下文圆环、目标/待办/队列条，以及带排队或引导的发送/停止。Markdown 通过共享的 `MarkdownText` 渲染；车道把 `legacy.nodes` 折叠为用户／assistant 正文与单行工具行，`Open in the main panel`（`sessions.open` + `layout.selectPanel(null)`）仍是逃生口。模拟文案及其栖身字段（`BoardWindowState` 上的 `status`、`statusText`、`contextUsed`、`sessionId`）被删除，而不是留着不用。
+**Composer 由看板拥有且完整。** `ComposerBar` 在窗口内重建了参考聊天栏：工作目录与 agent 预设芯片（两者仅在会话为空时可切换）、基于宿主命令目录的 `+` 操作菜单加上看板自有的图片附件条目、带参数提示与描述的 `/` 命令弹层、来自 `remote.fileReferences.list` 与 `remote.sessionReferenceResolver.candidates` 的 `@` 提及行、权限芯片（完全访问走 `RiskConfirmation`）、基于 `ctx.modelDirectories` 且带推理等级子菜单的模型芯片、计划芯片、来自 `contextPressure` 投影的上下文圆环、目标/待办/队列条，以及带排队或引导的发送/停止。Markdown 通过共享的 `MarkdownText` 渲染；车道把 `legacy.nodes` 折叠为用户／assistant 正文与单行工具行，标题栏的全屏开关就地放大窗口（[note](2026-09-16-ketos-board-window-fullscreen.zh.md)），不再导航离开。模拟文案及其栖身字段（`BoardWindowState` 上的 `status`、`statusText`、`contextUsed`、`sessionId`）被删除，而不是留着不用。
 
 **桥同时承载控制面。** 会话列表行（cwd、blank、agent 预设）、permissions/plan/todos/goal/contextPressure 投影、模型目录、命令目录、预设名册（经共享的 `@deepseek-ai/dsh-agent-presets/display` 折叠本地化）以及对话阻塞原因，都按窗口订阅一次并重新发布到同一 channel，因此栏只渲染普通数据，每次变更都经注入回调返回（`selectPermission` → `/permission`、`exitPlanMode` → `/plan off`、`runCommand`、`updateQueueItem`、`goalAction`、`pickWorkspace` → `uiWorkspace.pickDirectory()` + 重新创建会话、`selectModel`）。
 
@@ -31,7 +31,7 @@ Status: implemented
 ## Alternatives considered
 
 - **为每个窗口实例注册一个 body。** 否决：这会把 keyed 的 `WindowBodyKind` 域变成窗口 id，使注册数量随窗口数增长，并把实例数据搬进 owner props 已经覆盖的槽位键域。
-- **在窗口内渲染真正的 `InputBar`/`ChatView`。** 被上述框架规则否决；到达它们的唯一受认可方式是导航，而窗口现在把导航作为显式动作提供。
+- **在窗口内渲染真正的 `InputBar`/`ChatView`。** 被上述框架规则否决；到达它们的受认可方式是通过侧栏会话列表导航，而窗口自身的动作是全屏（[note](2026-09-16-ketos-board-window-fullscreen.zh.md)）。
 - **把聊天快照放进看板 store。** 否决：业务数据属于对象层；store 还会在每个 chunk 上复制大快照。
 - **让组件直接订阅 `binding(id).target('chat')`。** 否决：业务组件不持有订阅机制，而桥的每窗口一个订阅比每次渲染的观察者更便宜。
 - **在 composer 完成前保留旧的模拟车道。** 否决：用户要求先要发送路径，而真实（即使精简）的车道正是让 composer 各状态有意义的前提。
@@ -46,7 +46,7 @@ Status: implemented
 
 agent 窗口成为真正的聊天：它拥有会话，能流式接收回答、发送、引导、停止，并可移交给主面板。车道刻意比主转录更薄——没有确认或提问 UI（按计划改为导航）、没有附件、模型、权限或预设控件，工具结果折叠为名称加失败标记。测试中的会话替身必须预先添加，因为 `TestSessions.add()` 通过 `act` 稳定状态，而从窗口的挂载 effect 调用会嵌套 act 作用域；生产环境中的 `create()` 是一次远程往返。
 
-验证：`packages/client/ui-board/tests/resize.client.spec.ts` 固定边/角的几何与下限，`tests/store.client.spec.ts` 固定吸附与钳制变换，脚本化的布局审计在 552×648、1056×720、1056×960 三种尺寸下打开全部弹层实机驱动窗口——任何尺寸都没有横向溢出，发送/麦克风/工具栏控件都在窗口内，菜单都在视口内。`packages/client/ui-board/tests/conversation-body.client.spec.tsx` 覆盖创建状态、失败状态、车道行、流式文本、发送、引导、停止、Shift+Enter、portal 菜单、无引擎时禁用的麦克风与三个入口；`tests/slots.client.spec.tsx` 用会话 bench 覆盖 body 切换与外框分发；`tests/fixtures.client.ts` 提供 bench（locale、sessions 替身、对话目标、layout），`apply.client.spec.tsx` 用它覆盖注册路径。`pnpm run test:gui` 为绿。
+验证：`packages/client/ui-board/tests/resize.client.spec.ts` 固定边/角的几何与下限，`tests/store.client.spec.ts` 固定吸附与钳制变换，脚本化的布局审计在 552×648、1056×720、1056×960 三种尺寸下打开全部弹层实机驱动窗口——任何尺寸都没有横向溢出，发送/麦克风/工具栏控件都在窗口内，菜单都在视口内。`packages/client/ui-board/tests/conversation-body.client.spec.tsx` 覆盖创建状态、失败状态、车道行、流式文本、发送、引导、停止、Shift+Enter、portal 菜单、无引擎时禁用的麦克风与车道的入口；`tests/slots.client.spec.tsx` 用会话 bench 覆盖 body 切换与外框分发；`tests/fixtures.client.ts` 提供 bench（locale、sessions 替身、对话目标），`apply.client.spec.tsx` 用它覆盖注册路径。`pnpm run test:gui` 为绿。
 
 ## Related
 

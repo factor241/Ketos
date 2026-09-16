@@ -15,6 +15,7 @@ export type BoardWindowLayerProps =
 export function BoardWindowLayer({ renderSlot, useStore }: BoardWindowLayerProps) {
   const windowOrder = useStore(s => s.windowOrder)
   const windows = useStore(s => s.windows)
+  const fullscreenWindowId = useStore(s => s.fullscreenWindowId)
   const renderBody = (window: BoardWindowState) =>
     renderSlot('board.window.body', { window }, { entryKey: window.bodyKind })
 
@@ -23,6 +24,8 @@ export function BoardWindowLayer({ renderSlot, useStore }: BoardWindowLayerProps
       {windowOrder.map((id) => {
         const window = windows[id as string]
         if (!window) return null
+        // Fullscreen covers the canvas; the other frames stand down with it.
+        if (fullscreenWindowId !== null && window.id !== fullscreenWindowId) return null
         return (
           <Fragment key={window.id}>
             {renderSlot('board.window', { window, renderBody }, { entryKey: window.kind })}

@@ -23,6 +23,7 @@ export function DashboardCanvas({ renderSlot, useStore, actions }: DashboardCanv
   const panY = useStore(s => s.panY)
   const zoom = useStore(s => s.zoom)
   const isSelectingElement = useStore(s => s.isSelectingElement)
+  const isFullscreen = useStore(s => s.fullscreenWindowId !== null)
 
   // Publish the canvas box: window placement and the minimap frustum measure against it.
   useEffect(() => {
@@ -70,26 +71,32 @@ export function DashboardCanvas({ renderSlot, useStore, actions }: DashboardCanv
     globalThis.addEventListener('pointerup', onPointerUp)
   }, [panX, panY, actions])
 
-  // Wheel zoom toward pointer
+  // Wheel zoom toward pointer; a fullscreen window owns the wheel so its lane
+  // and popups scroll normally.
   const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    if (isFullscreen) return
     e.preventDefault()
     const rect = containerRef.current?.getBoundingClientRect()
     if (!rect) return
     const pointerX = e.clientX - rect.left
     const pointerY = e.clientY - rect.top
     actions.zoomTowardPointer(e.deltaY, pointerX, pointerY)
-  }, [actions])
+  }, [isFullscreen, actions])
 
-  // Grid geometry follows the live zoom; the dot grid paints from these variables.
-  const grid = 24 * zoom
+  // Grid geometry follows the live zoom; the dot grid paints from these
+  // variables. A fullscreen window fills the panel, so the surface drops its
+  // pan and zoom under it and the frame's inset rectangle maps to the visible
+  // canvas instead of world units.
+  const view = isFullscreen ? { panX: 0, panY: 0, zoom: 1 } : { panX, panY, zoom }
+  const grid = 24 * view.zoom
   const gridStyle = {
-    '--board-grid-dot-radius': `${Math.max(1, 1.5 * zoom)}px`,
+    '--board-grid-dot-radius': `${Math.max(1, 1.5 * view.zoom)}px`,
     '--board-grid-size': `${grid}px`,
-    '--board-grid-x': `${panX % grid}px`,
-    '--board-grid-y': `${panY % grid}px`,
-    '--board-pan-x': `${panX}px`,
-    '--board-pan-y': `${panY}px`,
-    '--board-zoom': zoom,
+    '--board-grid-x': `${view.panX % grid}px`,
+    '--board-grid-y': `${view.panY % grid}px`,
+    '--board-pan-x': `${view.panX}px`,
+    '--board-pan-y': `${view.panY}px`,
+    '--board-zoom': view.zoom,
   } as React.CSSProperties
 
   return (

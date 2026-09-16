@@ -77,7 +77,6 @@
     "conversation.empty",
     "conversation.error",
     "conversation.loadOlder",
-    "conversation.openInMain",
     "conversation.scrollBottom",
     "conversation.toolFailed",
     "cwd.choose",
@@ -135,7 +134,9 @@
     "voice.start",
     "voice.stop",
     "voice.unsupported",
-    "window.close"
+    "window.close",
+    "window.exitFullscreen",
+    "window.fullscreen"
   ],
   "chat": [
     "chat.deepDiving",

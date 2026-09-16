@@ -169,8 +169,6 @@ export interface BoardWindowInjected {
   cancelPrompt: (windowId: WindowId) => void
   /** Load older turns into the window's lane. */
   loadOlderTurns: (windowId: WindowId) => void
-  /** Show the window's session in the main conversation panel. */
-  openInMainPanel: (windowId: WindowId) => void
   /** Switch the agent preset of the window's still-blank session. */
   selectAgentPreset: (windowId: WindowId, presetId: string) => void
   /** Switch the permission preset of the window's session. */

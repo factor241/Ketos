@@ -1,6 +1,6 @@
 /**
  * Board test bench: the client test runtime plus the services the board
- * injects (locale, sessions, the conversation binding, layout). The board
+ * injects (locale, sessions, the conversation binding). The board
  * itself is mounted by the caller so deferred-declaration paths stay testable.
  */
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
@@ -96,7 +96,6 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
       target: (name: string) => name === 'chat' ? targetFor(source) : undefined,
     }),
   } as never)
-  runtime.ctx.provide('layout', { selectPanel: () => {} } as never)
   // Remote and model-directory doubles: the bridge reads presets, commands,
   // mentions, and the model catalog through them when a window gets a session.
   const modelStore = createSnapshotStore<{

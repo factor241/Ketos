@@ -34,7 +34,7 @@ export type { BoardState, BoardStoreHandle, OpenWindowSpec } from './store.ts'
 
 /** Services required by the board plugin: slots, copy, and the session domain. */
 export const inject = [
-  'slots', 'locale', 'layout', 'sessions', 'uiConversation', 'modelDirectories',
+  'slots', 'locale', 'sessions', 'uiConversation', 'modelDirectories',
   'remote', 'remote.commands', 'remote.agentPresets', 'remote.goals',
   'remote.fileReferences', 'remote.sessionReferenceResolver',
 ]
@@ -61,7 +61,6 @@ export function apply(ctx: ClientContext): void {
     sendPrompt: (windowId, text, mode, images) => { bridge.send(windowId, text, mode, images) },
     cancelPrompt: (windowId) => { bridge.cancel(windowId) },
     loadOlderTurns: (windowId) => { bridge.loadOlder(windowId) },
-    openInMainPanel: (windowId) => { bridge.openInMainPanel(windowId) },
     selectAgentPreset: (windowId, presetId) => { bridge.selectAgentPreset(windowId, presetId) },
     selectPermission: (windowId, presetId) => { bridge.selectPermission(windowId, presetId) },
     selectModel: (windowId, selection) => { bridge.selectModel(windowId, selection) },

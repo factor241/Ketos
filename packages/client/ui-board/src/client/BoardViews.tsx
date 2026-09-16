@@ -15,12 +15,14 @@ export type BoardRootProps =
 
 export function BoardRoot({ renderSlot, useStore, actions, t }: BoardRootProps) {
   const selecting = useStore(s => s.isSelectingElement)
+  // A fullscreen window fills the panel, so its chrome stands down.
+  const fullscreen = useStore(s => s.fullscreenWindowId !== null)
   return (
     <div data-surface="board" className={css.root}>
       {renderSlot('board.canvas', {})}
-      {renderSlot('board.dock', {})}
-      {renderSlot('board.omnibar', {})}
-      {renderSlot('board.minimap', {})}
+      {!fullscreen && renderSlot('board.dock', {})}
+      {!fullscreen && renderSlot('board.omnibar', {})}
+      {!fullscreen && renderSlot('board.minimap', {})}
       <ElementSelectionOverlay
         t={t}
         active={selecting}

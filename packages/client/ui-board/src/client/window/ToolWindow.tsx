@@ -9,6 +9,7 @@ import { IconCloseOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitiv
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
 import { finishBoardPointerGesture } from './pointer-cleanup.ts'
+import { resizeStep, type ResizeDirection } from './resize.ts'
 import css from './ToolWindow.module.css'
 
 export type ToolWindowProps =
@@ -26,7 +27,7 @@ const RESIZE_HANDLES = [
   ['ne', css.handleNe],
   ['sw', css.handleSw],
   ['se', css.handleSe],
-] as const
+] as const satisfies readonly (readonly [ResizeDirection, string | undefined])[]
 
 export function ToolWindow({ window: cardWindow, renderBody, useStore, actions, t }: ToolWindowProps) {
   const zoom = useStore(s => s.zoom)
@@ -58,48 +59,32 @@ export function ToolWindow({ window: cardWindow, renderBody, useStore, actions, 
     globalThis.addEventListener('pointerup', onPointerUp)
   }, [cardWindow.id, cardWindow.x, cardWindow.y, zoom, actions])
 
-  const createResizeHandler = (direction: string) => (e: React.PointerEvent<HTMLDivElement>) => {
+  const createResizeHandler = (direction: ResizeDirection) => (e: React.PointerEvent<HTMLDivElement>) => {
     e.stopPropagation()
     const target = e.currentTarget
     target.setPointerCapture(e.pointerId)
     actions.focusWindow(cardWindow.id)
 
+    const start = {
+      x: cardWindow.x,
+      y: cardWindow.y,
+      width: cardWindow.width,
+      height: cardWindow.height,
+    }
     const startClientX = e.clientX
     const startClientY = e.clientY
-    const startW = cardWindow.width
-    const startH = cardWindow.height
-    const startX = cardWindow.x
-    const startY = cardWindow.y
 
     const onPointerMove = (moveEvt: PointerEvent) => {
       const dx = (moveEvt.clientX - startClientX) / zoom
       const dy = (moveEvt.clientY - startClientY) / zoom
       const snap = !moveEvt.shiftKey
-
-      let nextW = startW
-      let nextH = startH
-      let nextX = startX
-      let nextY = startY
-
-      if (direction.includes('e')) nextW = startW + dx
-      if (direction.includes('s')) nextH = startH + dy
-      if (direction.includes('w')) {
-        nextW = startW - dx
-        nextX = startX + dx
+      // The step already snapped and clamped to the minimum; the store's
+      // actions re-apply the same rules idempotently.
+      const next = resizeStep(direction, start, dx, dy, snap)
+      if (next.x !== start.x || next.y !== start.y) {
+        actions.moveWindow(cardWindow.id, next.x, next.y, false)
       }
-      if (direction.includes('n')) {
-        nextH = startH - dy
-        nextY = startY + dy
-      }
-
-      if (nextW >= 320) {
-        if (direction.includes('w')) actions.moveWindow(cardWindow.id, nextX, cardWindow.y, snap)
-        actions.resizeWindow(cardWindow.id, nextW, nextH, snap)
-      }
-      if (nextH >= 200) {
-        if (direction.includes('n')) actions.moveWindow(cardWindow.id, cardWindow.x, nextY, snap)
-        actions.resizeWindow(cardWindow.id, nextW, nextH, snap)
-      }
+      actions.resizeWindow(cardWindow.id, next.width, next.height, false)
     }
 
     const onPointerUp = (upEvt: PointerEvent) => {

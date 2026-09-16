@@ -183,6 +183,31 @@ describe('ConversationBody', () => {
     expect(sendPrompt).not.toHaveBeenCalled()
   })
 
+  it('keeps the voice control disabled when the engine has no recognition API', () => {
+    const { container } = render(<ConversationBody {...bodyProps(ready(chatSnapshot()))} />)
+    const mic = container.querySelector('button[aria-label="Start dictation"]')
+    expect(mic).not.toBeNull()
+    // jsdom exposes no SpeechRecognition: the control must not pretend to listen.
+    expect((mic as HTMLButtonElement).disabled).toBe(true)
+    expect(mic?.getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('renders the permission menu through the body portal, not inside the window', () => {
+    const state: BoardWindowSessionState = {
+      ...ready(chatSnapshot()),
+      permission: 'workspace-write',
+      permissions: [{ id: 'read-only', dangerous: false }, { id: 'workspace-write', dangerous: false }],
+    }
+    const { container } = render(<ConversationBody {...bodyProps(state)} />)
+    expect(document.querySelector('[role="menu"]')).toBeNull()
+
+    fireEvent.click(container.querySelector('button[aria-label="Permission preset"]') as Element)
+    const list = document.querySelector('[role="menu"]')
+    expect(list).not.toBeNull()
+    // Portal: the list lives outside the composer subtree.
+    expect(container.contains(list)).toBe(false)
+  })
+
   it('offers the load-older and main-panel affordances', () => {
     const loadOlderTurns = vi.fn()
     const openInMainPanel = vi.fn()

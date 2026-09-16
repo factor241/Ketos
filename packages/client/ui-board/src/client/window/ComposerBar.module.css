@@ -1,6 +1,12 @@
 /* Window composer: the reference chat bar rebuilt for a floating window.
  * Context chips sit above the card, the card holds attachments, the text and
- * the tool row, and the dock strips (goal, todo, queue) stack above it. */
+ * the tool row, and the dock strips (goal, todo, queue) stack above it.
+ *
+ * Width discipline: every row is a wrapping flex line whose children may
+ * shrink to zero (min-width: 0), so the card never exceeds the window and the
+ * send button never leaves it. The card declares an inline-size container and
+ * the rules below it drop labels and split the tool row as the window narrows;
+ * the last group (model, context, send) is always visible. */
 
 .strips {
   flex: none;
@@ -14,6 +20,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
   padding: 6px 10px;
   border-radius: 12px;
   background: var(--dsw-alias-bg-layer-1);
@@ -23,6 +30,7 @@
 }
 
 .stripTitle {
+  flex: none;
   color: var(--dsw-alias-label-primary);
   font-weight: 500;
 }
@@ -55,47 +63,29 @@
   color: var(--dsw-alias-label-primary);
 }
 
-.stripList {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.stripItem {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.todoDone {
-  color: var(--dsw-alias-label-tertiary);
-  text-decoration: line-through;
-}
-
-.todoActive {
-  color: var(--dsw-alias-state-business-primary);
-}
-
 .composerWrap {
   flex: none;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
   padding: 8px 12px 12px;
 }
 
 /* Context row: the session's working directory and agent preset. */
 .contextRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
   min-width: 0;
+  overflow: hidden;
+}
+
+/* Menu anchors: the portal positions from the trigger rect, so the in-place
+   anchor element is an empty box and must not take part in layout. */
+.anchor {
+  display: none;
 }
 
 .chip {
@@ -124,7 +114,26 @@
   opacity: 0.6;
 }
 
+/* The path chip and the preset chip share the row; each may shrink, the path
+   taking the larger share. */
+.cwdChip {
+  flex: 0 1 auto;
+  max-width: 65%;
+}
+
+.presetChip {
+  flex: 0 1 auto;
+  max-width: 45%;
+}
+
+.permissionChip,
+.modelChip,
+.planChip {
+  flex: 0 1 auto;
+}
+
 .chipLabel {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -140,12 +149,14 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
   padding: 8px 10px;
   border-radius: 20px;
   background: var(--dsw-specific-input-major);
   border: 0;
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
   box-shadow: var(--dsw-elevation-soft);
+  container-type: inline-size;
 }
 
 .card:focus-within {
@@ -156,10 +167,13 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  max-height: 120px;
+  overflow-y: auto;
 }
 
 .attachment {
   position: relative;
+  flex: none;
   width: 56px;
   height: 56px;
   border-radius: 10px;
@@ -194,7 +208,8 @@
 
 .input {
   width: 100%;
-  max-height: 160px;
+  min-width: 0;
+  max-height: min(160px, 30vh);
   min-height: 44px;
   padding: 4px 2px;
   background: transparent;
@@ -207,16 +222,40 @@
   resize: none;
 }
 
+.blocked {
+  min-width: 0;
+  padding: 0 2px;
+  color: var(--dsw-alias-state-warn-primary);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+/* Tool row: a wrapping line. The leading group holds the actions and the
+   mode chips; the trailing group (context, model, send/stop) is pinned to the
+   right and never shrinks below its controls. */
 .toolRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  justify-content: space-between;
+  gap: 6px;
   min-width: 0;
 }
 
-.toolRowSpacer {
-  flex: 1;
+.toolGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
+  overflow: hidden;
+}
+
+.trailing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  margin-left: auto;
 }
 
 .roundButton {
@@ -234,7 +273,7 @@
   cursor: pointer;
 }
 
-.roundButton:hover {
+.roundButton:hover:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-hover-solid);
 }
 
@@ -243,9 +282,30 @@
   color: var(--dsw-alias-label-secondary);
 }
 
-.roundButton.ghost:hover {
+.roundButton.ghost:hover:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);
+}
+
+.roundButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Listening: the mic rides the brand fill so the active session is obvious. */
+.roundButton.listening {
+  background: var(--dsw-alias-brand-primary);
+  color: var(--dsw-alias-label-primary-inverted);
+  animation: listening-pulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes listening-pulse {
+  from { opacity: 0.7; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roundButton.listening { animation: none; }
 }
 
 .primary {
@@ -311,12 +371,6 @@
   stroke-linecap: round;
 }
 
-.blocked {
-  padding: 0 2px;
-  color: var(--dsw-alias-state-warn-primary);
-  font-size: 12px;
-}
-
 /* Slash-command and mention popups sit above the card. */
 .popup {
   display: flex;
@@ -333,16 +387,11 @@
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
-.popupSection {
-  padding: 6px 8px 2px;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
-}
-
 .popupRow {
   display: flex;
   align-items: baseline;
   gap: 8px;
+  min-width: 0;
   padding: 6px 8px;
   border: none;
   border-radius: 8px;
@@ -387,4 +436,48 @@
 /* Hidden file input behind the attachment entry. */
 .fileInput {
   display: none;
+}
+
+/* Compact configurations, measured against the card's own width.
+   - <= 430px: the tool row splits into two lines; the trailing group keeps the
+     right edge on its own line so send/stop is always visible.
+   - <= 360px: the mode chips drop their labels (icons + tooltips remain) and
+     the effort label leaves the model chip.
+   - <= 320px: the context ring hides; the mode chips become icon-only. */
+@container (max-width: 430px) {
+  .toolRow {
+    justify-content: flex-end;
+    row-gap: 8px;
+  }
+
+  .toolGroup {
+    flex: 1 1 100%;
+  }
+
+  .trailing {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+  }
+}
+
+@container (max-width: 360px) {
+  .permissionChip .chipLabel,
+  .planChip .chipLabel,
+  .effortLabel {
+    display: none;
+  }
+
+  .cwdChip {
+    max-width: 100%;
+  }
+
+  .presetChip {
+    max-width: 100%;
+  }
+}
+
+@container (max-width: 320px) {
+  .context {
+    display: none;
+  }
 }

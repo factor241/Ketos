@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest'
-import { createBoardStore } from '../src/client/store.ts'
+import { clampWindowSize, createBoardStore, MIN_WINDOW_SIZE, snapPosition } from '../src/client/store.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 
 /** A window state literal with the fields a placement test does not vary. */
@@ -149,19 +149,34 @@ describe('createBoardStore', () => {
     expect(snap.windows['open-2']?.y).toBe(150)
   })
 
-  it('resizes windows with 24px snap and minimum bounds', () => {
+  it('resizes windows with 24px snap and the default chat size as the floor', () => {
     const { store, actions } = createBoardStore().create()
     actions.addWindow(makeWindow({ id: 'win-1' as WindowId }))
 
-    // Resize below minimum bounds (min 320x200)
+    // The floor is the size the window is created with, not a smaller guess.
+    expect(MIN_WINDOW_SIZE).toEqual({ width: 480, height: 560 })
     actions.resizeWindow('win-1' as WindowId, 100, 50, false)
-    expect(store.getSnapshot().windows['win-1']?.width).toBe(320)
-    expect(store.getSnapshot().windows['win-1']?.height).toBe(200)
+    expect(store.getSnapshot().windows['win-1']?.width).toBe(MIN_WINDOW_SIZE.width)
+    expect(store.getSnapshot().windows['win-1']?.height).toBe(MIN_WINDOW_SIZE.height)
 
-    // Resize with snap
-    actions.resizeWindow('win-1' as WindowId, 485, 602, true)
-    expect(store.getSnapshot().windows['win-1']?.width).toBe(480) // 24 * 20
-    expect(store.getSnapshot().windows['win-1']?.height).toBe(600) // 24 * 25
+    // Snapping never lands below the floor either (24 * 23 = 552 < 560).
+    actions.resizeWindow('win-1' as WindowId, 485, 552, true)
+    expect(store.getSnapshot().windows['win-1']?.width).toBe(480)
+    expect(store.getSnapshot().windows['win-1']?.height).toBe(560)
+
+    // Growth is unbounded.
+    actions.resizeWindow('win-1' as WindowId, 1000, 900, false)
+    expect(store.getSnapshot().windows['win-1']?.width).toBe(1000)
+    expect(store.getSnapshot().windows['win-1']?.height).toBe(900)
+  })
+
+  it('rounds positions and sizes to the grid only when snapping is on', () => {
+    expect(snapPosition(125, true)).toBe(120)
+    expect(snapPosition(125, false)).toBe(125)
+    expect(snapPosition(-13, true)).toBe(-24)
+    expect(clampWindowSize(1000, 900, true)).toEqual({ width: 1008, height: 912 })
+    expect(clampWindowSize(100, 100, true)).toEqual({ width: 480, height: 560 })
+    expect(clampWindowSize(100, 100, false)).toEqual({ width: 480, height: 560 })
   })
 
   it('switches the body kind of one window and ignores unknown ids', () => {

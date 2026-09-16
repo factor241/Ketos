@@ -20,6 +20,10 @@ Status: implemented
 
 **桥同时承载控制面。** 会话列表行（cwd、blank、agent 预设）、permissions/plan/todos/goal/contextPressure 投影、模型目录、命令目录、预设名册（经共享的 `@deepseek-ai/dsh-agent-presets/display` 折叠本地化）以及对话阻塞原因，都按窗口订阅一次并重新发布到同一 channel，因此栏只渲染普通数据，每次变更都经注入回调返回（`selectPermission` → `/permission`、`exitPlanMode` → `/plan off`、`runCommand`、`updateQueueItem`、`goalAction`、`pickWorkspace` → `uiWorkspace.pickDirectory()` + 重新创建会话、`selectModel`）。
 
+**窗口的下限是它的默认尺寸，角手柄按比例缩放。** `store.ts` 拥有最小值（agent 模板的 480×560）以及吸附与钳制变换；`window/resize.ts` 把拖拽转换为矩形：边手柄只移动它命名的那条轴，角手柄按主导系数同时缩放两轴并以对角为锚点，任何路径都不会把窗口缩到下限之下。外框只保留手势接线，这也顺带移除了重复的缩放算法。
+
+**Composer 会适配窗口。** 卡片是 inline-size 容器：低于 430px 时工具栏分行并把尾部组（上下文、模型、发送/停止）固定在自己一行的右端，低于 360px 时模式芯片去掉文字，低于 320px 时隐藏上下文圆环；每一行都是可换行且子元素 `min-width: 0` 的 flex 行，车道从不横向滚动。弹层通过共享 `Menu` 的 portal 依据触发元素矩形渲染，选择空间更大的一侧，并在视口中线之后改为末端对齐；菜单打开时其提示（tooltip）让位。麦克风按钮（共享图标集中没有，因此由看板自绘字形）在引擎提供浏览器自带语音识别时把语音写入草稿，否则保持禁用。
+
 **聚焦会改变当前会话。** 打开或聚焦窗口会调用 `sessions.open(id)`，因为实时事件流只存在于被选为当前的会话；这一全局副作用是有意接受的（计划记录了同样的取舍）。关闭窗口不会删除其会话。
 
 ## Alternatives considered
@@ -29,8 +33,10 @@ Status: implemented
 - **把聊天快照放进看板 store。** 否决：业务数据属于对象层；store 还会在每个 chunk 上复制大快照。
 - **让组件直接订阅 `binding(id).target('chat')`。** 否决：业务组件不持有订阅机制，而桥的每窗口一个订阅比每次渲染的观察者更便宜。
 - **在 composer 完成前保留旧的模拟车道。** 否决：用户要求先要发送路径，而真实（即使精简）的车道正是让 composer 各状态有意义的前提。
+- **把窗口钳制在可见画布内，而不是默认尺寸。** 否决：看板画布是无限的，窗口合理地延伸到视口之外；浮动 dock、Omnibox 与小地图仍可能盖住某个手柄，这一点被记录跟踪，而不是用缩小画布来解决。
 - **复用真正的提交管线（`beginSubmission` 回显、提交偏好设置）。** 暂缓：看板用普通 `session.prompt` 发送，也不读取 `ui-conversation` 的偏好，因此 Enter 排队、Cmd/Ctrl+Enter 引导；待回显 UI 随附件／队列工作一起到来。
 - **复用 `ui-attachment` 的组件或对话附件面。** 否决：`ComposerAttachments` 与草稿注册表是包内部实现（公开的 `IConversation` 面不含草稿动词），因此看板在组件状态中保存图片附件并以行内提示片段发送；非图片文件需要上传能力，暂不在范围内。
+- **采用 `ui-commands`/`ui-conversation` 的不可见标记来实现紧凑。** 否决：基于卡片自身宽度的容器查询正是参考 composer 自己的做法（它的工具栏声明 `container-type: inline-size` 与 `flex-wrap`），并且把规则留在拥有这些标记的组件旁边。
 - **复用 `ui-commands` 的菜单或其客户端贡献。** 否决：第二个注册者无法在共享触发源上占用 `/`，也无法重复注册宿主命令，因此看板读取 `remote.commands.list()` 并自持菜单文案，执行仍走 `SessionFace.command`。
 - **引入 `displayPermissionPreset`/`presetDisplayText`。** 按政策区分：`presetDisplayText` 是可内联的共享折叠，直接引入；权限标签助手属于 feature 插件的值，因此看板在自己的词典中拥有三个预设标签。
 
@@ -38,7 +44,7 @@ Status: implemented
 
 agent 窗口成为真正的聊天：它拥有会话，能流式接收回答、发送、引导、停止，并可移交给主面板。车道刻意比主转录更薄——没有确认或提问 UI（按计划改为导航）、没有附件、模型、权限或预设控件，工具结果折叠为名称加失败标记。测试中的会话替身必须预先添加，因为 `TestSessions.add()` 通过 `act` 稳定状态，而从窗口的挂载 effect 调用会嵌套 act 作用域；生产环境中的 `create()` 是一次远程往返。
 
-验证：`packages/client/ui-board/tests/conversation-body.client.spec.tsx` 覆盖创建状态、失败状态、车道行、流式文本、发送、引导、停止、Shift+Enter 与三个入口；`tests/slots.client.spec.tsx` 用会话 bench 覆盖 body 切换与外框分发；`tests/fixtures.client.ts` 提供 bench（locale、sessions 替身、对话目标、layout），`apply.client.spec.tsx` 用它覆盖注册路径。`pnpm run test:gui` 为绿。
+验证：`packages/client/ui-board/tests/resize.client.spec.ts` 固定边/角的几何与下限，`tests/store.client.spec.ts` 固定吸附与钳制变换，脚本化的布局审计在 480×560、1056×720、1056×960 三种尺寸下打开全部弹层实机驱动窗口——任何尺寸都没有横向溢出，发送/麦克风/工具栏控件都在窗口内，菜单都在视口内。`packages/client/ui-board/tests/conversation-body.client.spec.tsx` 覆盖创建状态、失败状态、车道行、流式文本、发送、引导、停止、Shift+Enter、portal 菜单、无引擎时禁用的麦克风与三个入口；`tests/slots.client.spec.tsx` 用会话 bench 覆盖 body 切换与外框分发；`tests/fixtures.client.ts` 提供 bench（locale、sessions 替身、对话目标、layout），`apply.client.spec.tsx` 用它覆盖注册路径。`pnpm run test:gui` 为绿。
 
 ## Related
 

@@ -4,9 +4,12 @@
  * It renders the context chips (working directory, agent preset), the card
  * (image attachments, text, tool row), the dock strips (goal, todo, queue),
  * the slash-command and `@` mention popups, and the full-access risk gate.
- * Every value comes from the injected per-window session state; every action
- * goes back through the injected callbacks — the component holds only the
- * draft, its images, and which menu is open.
+ * Every popover opens through the shared `Menu` portal so nothing is clipped
+ * by the window and the lists stay above the tooltips; the layout follows the
+ * card's own width through container queries so no row can push the send
+ * button out of the window. Every value comes from the injected per-window
+ * session state; every action goes back through the injected callbacks — the
+ * component holds only the draft, its images, and which menu is open.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from 'react'
 import clsx from 'clsx'
@@ -34,7 +37,18 @@ import type {
   BoardWindowSessionState, WindowId,
 } from '../contract/slots.ts'
 import type { BoardTranslate } from '../locale.ts'
+import { MicGlyph, useDictation } from './dictation.tsx'
 import css from './ComposerBar.module.css'
+
+/** The popover kinds the bar owns; one is open at a time. */
+type MenuKind = 'actions' | 'cwd' | 'preset' | 'permission' | 'model'
+
+/** One open popover: which trigger owns it and where it is placed. */
+interface OpenMenu {
+  readonly kind: MenuKind
+  readonly side: 'top' | 'bottom'
+  readonly align: 'start' | 'end'
+}
 
 /** The permission chip's label per preset id. */
 function permissionLabel(t: BoardTranslate, id: string): string {
@@ -50,6 +64,7 @@ function permissionLabel(t: BoardTranslate, id: string): string {
 function commandLabel(t: BoardTranslate, name: string): string {
   switch (name) {
     case 'file': return t('command.file')
+    case 'voice': return t('command.voice')
     case 'goal': return t('command.goal')
     case 'plan': return t('command.plan')
     case 'feedback': return t('command.feedback')
@@ -96,16 +111,44 @@ export interface ComposerBarProps {
 export function ComposerBar({ windowId, session, t, injected, onSent }: ComposerBarProps) {
   const [draft, setDraft] = useState('')
   const [images, setImages] = useState<readonly BoardDraftImage[]>([])
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [cwdOpen, setCwdOpen] = useState(false)
-  const [presetOpen, setPresetOpen] = useState(false)
-  const [permissionOpen, setPermissionOpen] = useState(false)
-  const [modelOpen, setModelOpen] = useState(false)
+  const [menu, setMenu] = useState<OpenMenu | null>(null)
   const [fullAccessOpen, setFullAccessOpen] = useState(false)
   const [acknowledged, setAcknowledged] = useState(false)
   const [mentions, setMentions] = useState<readonly BoardMentionRow[]>([])
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+  const cardRef = useRef<HTMLFormElement>(null)
+  const actionsAnchor = useRef<HTMLButtonElement>(null)
+  const cwdAnchor = useRef<HTMLButtonElement>(null)
+  const presetAnchor = useRef<HTMLButtonElement>(null)
+  const permissionAnchor = useRef<HTMLButtonElement>(null)
+  const modelAnchor = useRef<HTMLButtonElement>(null)
+
+  /**
+   * Open one popover, or close it when its own trigger is clicked again. The
+   * placement follows the trigger's position: the side with more room wins and
+   * a trigger past the middle of the viewport aligns its list to the end.
+   */
+  const openMenu = useCallback((kind: MenuKind, trigger: HTMLElement | null): void => {
+    setMenu((current) => {
+      if (current?.kind === kind) return null
+      const rect = trigger?.getBoundingClientRect() ?? cardRef.current?.getBoundingClientRect()
+      if (rect === undefined) return { kind, side: 'top', align: 'start' }
+      return {
+        kind,
+        side: rect.top >= window.innerHeight - rect.bottom ? 'top' : 'bottom',
+        align: rect.left > window.innerWidth / 2 ? 'end' : 'start',
+      }
+    })
+  }, [])
+  const closeMenu = useCallback(() => { setMenu(null) }, [])
+  const isOpen = (kind: MenuKind): boolean => menu?.kind === kind
+  const sideOf = (kind: MenuKind): 'top' | 'bottom' => menu?.kind === kind ? menu.side : 'top'
+  const alignOf = (kind: MenuKind): 'start' | 'end' => menu?.kind === kind ? menu.align : 'start'
+
+  const dictation = useDictation((text) => {
+    setDraft(current => current === '' ? text : `${current} ${text}`)
+  })
 
   const ready = session?.status === 'ready'
   const running = session?.running === true
@@ -145,8 +188,10 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
     injected.sendPrompt(windowId, text, running ? mode : 'queue', images)
     setDraft('')
     setImages([])
-    setMenuOpen(false)
+    closeMenu()
     setMentionQuery(null)
+    // Sending ends dictation: the transcript belongs to the message it fed.
+    dictation.stop()
     onSent()
   }
 
@@ -157,7 +202,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): void => {
     if (e.key === 'Escape') {
-      setMenuOpen(false)
+      closeMenu()
       setMentionQuery(null)
       return
     }
@@ -174,7 +219,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
     } else {
       setDraft(`/${name} `)
     }
-    setMenuOpen(false)
+    closeMenu()
   }
 
   const pickMention = (row: BoardMentionRow): void => {
@@ -212,9 +257,10 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
     const add = ['goal', 'plan', 'feedback'].filter(name => rows.some(row => row.name === name))
     const commands = ['compact', 'permission', 'model', 'export'].filter(name => rows.some(row => row.name === name))
     const entries: MenuEntry[] = []
-    // The attachment entry is board-owned (inline images), not a host command.
+    // Attachment and dictation entries are board-owned, not host commands.
     entries.push({ type: 'label', id: 'add', text: t('command.section.add') })
     entries.push({ id: 'file', label: commandLabel(t, 'file'), icon: <IconPaperclipOutline16 /> })
+    entries.push({ id: 'voice', label: commandLabel(t, 'voice'), icon: <MicGlyph /> })
     for (const name of add) entries.push(build(name))
     if (commands.length > 0) {
       entries.push({ type: 'separator', id: 'sep' })
@@ -256,10 +302,11 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
   const todoDone = (session?.todos ?? []).filter(todo => todo.status === 'completed').length
   const todoActive = (session?.todos ?? []).filter(todo => todo.status === 'in_progress').length
   const todoPending = (session?.todos ?? []).filter(todo => todo.status === 'pending').length
+  const hasStrips = session?.goal !== undefined || (session?.todos.length ?? 0) > 0 || (session?.queue.length ?? 0) > 0
 
   return (
     <div className={css.composerWrap}>
-      {(session?.goal !== undefined || (session?.todos.length ?? 0) > 0 || (session?.queue.length ?? 0) > 0) && (
+      {hasStrips && (
         <div className={css.strips}>
           {session?.goal !== undefined && (
             <div className={css.strip}>
@@ -322,12 +369,13 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
       )}
 
       <div className={css.contextRow}>
-        <Tooltip label={session?.cwd ?? t('cwd.none')} side="top">
+        <Tooltip label={session?.cwd ?? t('cwd.none')} side="top" disabled={isOpen('cwd')}>
           <button
+            ref={cwdAnchor}
             type="button"
-            className={css.chip}
+            className={clsx(css.chip, css.cwdChip)}
             disabled={!(session?.blank ?? false)}
-            onClick={() => { setCwdOpen(!cwdOpen) }}
+            onClick={() => { openMenu('cwd', cwdAnchor.current) }}
             aria-label={t('cwd.choose')}
           >
             <span className={css.chipIcon}><IconFolderOpen16 /></span>
@@ -336,21 +384,25 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
           </button>
         </Tooltip>
         <Menu
-          open={cwdOpen}
-          align="start"
+          portal
+          open={isOpen('cwd')}
+          side={sideOf('cwd')}
+          align={alignOf('cwd')}
           selection="fill"
-          anchor={<span />}
+          anchor={<span className={css.anchor} />}
+          getAnchorRect={() => cwdAnchor.current?.getBoundingClientRect() ?? null}
           items={[{ id: 'pick', label: t('cwd.pick'), icon: <IconFolderOpen16 /> }]}
-          onSelect={() => { setCwdOpen(false); injected.pickWorkspace(windowId) }}
-          onClose={() => { setCwdOpen(false) }}
+          onSelect={() => { closeMenu(); injected.pickWorkspace(windowId) }}
+          onClose={closeMenu}
         />
 
-        <Tooltip label={t('preset.hint')} side="top">
+        <Tooltip label={t('preset.hint')} side="top" disabled={isOpen('preset')}>
           <button
+            ref={presetAnchor}
             type="button"
-            className={css.chip}
+            className={clsx(css.chip, css.presetChip)}
             disabled={!(session?.blank ?? false) || (session?.presets.length ?? 0) === 0}
-            onClick={() => { setPresetOpen(!presetOpen) }}
+            onClick={() => { openMenu('preset', presetAnchor.current) }}
             aria-label={t('preset.aria')}
           >
             <span className={css.chipIcon}><IconBranchOutline16 /></span>
@@ -363,13 +415,16 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
           </button>
         </Tooltip>
         <Menu
-          open={presetOpen}
-          align="start"
+          portal
+          open={isOpen('preset')}
+          side={sideOf('preset')}
+          align={alignOf('preset')}
           selection="fill"
-          anchor={<span />}
+          anchor={<span className={css.anchor} />}
+          getAnchorRect={() => presetAnchor.current?.getBoundingClientRect() ?? null}
           items={presetItems}
-          onSelect={(id) => { setPresetOpen(false); injected.selectAgentPreset(windowId, id) }}
-          onClose={() => { setPresetOpen(false) }}
+          onSelect={(id) => { closeMenu(); injected.selectAgentPreset(windowId, id) }}
+          onClose={closeMenu}
         />
       </div>
 
@@ -397,7 +452,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
         </div>
       )}
 
-      <form className={css.card} onSubmit={handleSubmit} data-composer-card="">
+      <form ref={cardRef} className={css.card} onSubmit={handleSubmit} data-composer-card="">
         {images.length > 0 && (
           <div className={css.attachments}>
             {images.map(image => (
@@ -432,189 +487,219 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
         {blocked !== undefined && <div className={css.blocked}>{blocked}</div>}
 
         <div className={css.toolRow}>
-          <Menu
-            open={menuOpen}
-            side="top"
-            align="start"
-            selection="fill"
-            anchor={(
-              <Tooltip label={t('composer.actions')} side="top">
-                <button
-                  type="button"
-                  className={css.roundButton}
-                  onClick={() => { setMenuOpen(!menuOpen) }}
-                  aria-label={t('composer.actions')}
-                >
-                  +
-                </button>
-              </Tooltip>
-            )}
-            items={menuItems}
-            onSelect={(id) => {
-              setMenuOpen(false)
-              if (id === 'file') {
-                fileInput.current?.click()
-                return
-              }
-              pickCommand(id)
-            }}
-            onClose={() => { setMenuOpen(false) }}
-          />
-          <input
-            ref={fileInput}
-            className={css.fileInput}
-            type="file"
-            accept="image/*"
-            multiple
-            aria-label={t('attachment.pick')}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => {
-              addImages([...(e.target.files ?? [])])
-              e.target.value = ''
-            }}
-          />
+          <div className={css.toolGroup}>
+            <Menu
+              portal
+              open={isOpen('actions')}
+              side={sideOf('actions')}
+              align={alignOf('actions')}
+              selection="fill"
+              anchor={(
+                <Tooltip label={t('composer.actions')} side="top" disabled={isOpen('actions')}>
+                  <button
+                    ref={actionsAnchor}
+                    type="button"
+                    className={css.roundButton}
+                    onClick={() => { openMenu('actions', actionsAnchor.current) }}
+                    aria-label={t('composer.actions')}
+                  >
+                    +
+                  </button>
+                </Tooltip>
+              )}
+              items={menuItems}
+              onSelect={(id) => {
+                closeMenu()
+                if (id === 'file') {
+                  fileInput.current?.click()
+                  return
+                }
+                if (id === 'voice') {
+                  dictation.toggle()
+                  return
+                }
+                pickCommand(id)
+              }}
+              onClose={closeMenu}
+            />
+            <input
+              ref={fileInput}
+              className={css.fileInput}
+              type="file"
+              accept="image/*"
+              multiple
+              aria-label={t('attachment.pick')}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                addImages([...(e.target.files ?? [])])
+                e.target.value = ''
+              }}
+            />
 
-          {(session?.permissions.length ?? 0) > 0 && (
-            <>
-              <Menu
-                open={permissionOpen}
-                side="top"
-                align="start"
-                selection="fill"
-                anchor={(
-                  <Tooltip label={t('permission.aria')} side="top">
-                    <button
-                      type="button"
-                      className={css.chip}
-                      onClick={() => { setPermissionOpen(!permissionOpen) }}
-                      aria-label={t('permission.aria')}
-                    >
-                      <span className={css.chipIcon}><IconShieldOutline16 /></span>
-                      <span className={css.chipLabel}>
-                        {permissionLabel(t, session?.permission ?? '')}
-                      </span>
-                      <span className={css.chipIcon}><IconChevronDownOutline14 /></span>
-                    </button>
-                  </Tooltip>
-                )}
-                items={(session?.permissions ?? []).map(option => ({ id: option.id, label: permissionLabel(t, option.id) }))}
-                onSelect={(id) => {
-                  setPermissionOpen(false)
-                  const option = session?.permissions.find(entry => entry.id === id)
-                  if (option?.dangerous === true) {
-                    setAcknowledged(false)
-                    setFullAccessOpen(true)
-                    return
-                  }
-                  injected.selectPermission(windowId, id)
-                }}
-                onClose={() => { setPermissionOpen(false) }}
-              />
-            </>
-          )}
-
-          {session?.plan === true && (
-            <Tooltip label={t('plan.exit')} side="top">
+            <Tooltip
+              label={dictation.supported
+                ? (dictation.listening ? t('voice.stop') : t('voice.start'))
+                : t('voice.unsupported')}
+              side="top"
+            >
               <button
                 type="button"
-                className={css.chip}
-                onClick={() => { injected.exitPlanMode(windowId) }}
-                aria-label={t('plan.exit')}
+                className={clsx(css.roundButton, css.ghost, dictation.listening && css.listening)}
+                disabled={!dictation.supported}
+                aria-pressed={dictation.listening}
+                aria-label={t('voice.start')}
+                onClick={dictation.toggle}
               >
-                <span className={css.chipIcon}><IconChecklistOutline14 /></span>
-                <span className={css.chipLabel}>{t('plan.active')}</span>
+                <MicGlyph />
               </button>
             </Tooltip>
-          )}
 
-          <span className={css.toolRowSpacer} />
+            {(session?.permissions.length ?? 0) > 0 && (
+              <>
+                <Tooltip label={t('permission.aria')} side="top" disabled={isOpen('permission')}>
+                  <button
+                    ref={permissionAnchor}
+                    type="button"
+                    className={clsx(css.chip, css.permissionChip)}
+                    onClick={() => { openMenu('permission', permissionAnchor.current) }}
+                    aria-label={t('permission.aria')}
+                  >
+                    <span className={css.chipIcon}><IconShieldOutline16 /></span>
+                    <span className={css.chipLabel}>
+                      {permissionLabel(t, session?.permission ?? '')}
+                    </span>
+                    <span className={css.chipIcon}><IconChevronDownOutline14 /></span>
+                  </button>
+                </Tooltip>
+                <Menu
+                  portal
+                  open={isOpen('permission')}
+                  side={sideOf('permission')}
+                  align={alignOf('permission')}
+                  selection="fill"
+                  anchor={<span className={css.anchor} />}
+                  getAnchorRect={() => permissionAnchor.current?.getBoundingClientRect() ?? null}
+                  items={(session?.permissions ?? []).map(option => ({ id: option.id, label: permissionLabel(t, option.id) }))}
+                  onSelect={(id) => {
+                    closeMenu()
+                    const option = session?.permissions.find(entry => entry.id === id)
+                    if (option?.dangerous === true) {
+                      setAcknowledged(false)
+                      setFullAccessOpen(true)
+                      return
+                    }
+                    injected.selectPermission(windowId, id)
+                  }}
+                  onClose={closeMenu}
+                />
+              </>
+            )}
 
-          {session?.context !== undefined && (
-            <Tooltip label={t('context.aria', { percent: String(session.context.percent) })} side="top">
-              <span className={css.context}>
-                <svg className={css.ring} viewBox="0 0 20 20" aria-hidden="true">
-                  <circle className={css.ringTrack} cx="10" cy="10" r={RING_RADIUS} />
-                  <circle
-                    className={css.ringValue}
-                    cx="10"
-                    cy="10"
-                    r={RING_RADIUS}
-                    strokeDasharray={`${RING_CIRCUMFERENCE * session.context.percent / 100} ${RING_CIRCUMFERENCE}`}
-                  />
-                </svg>
-                <span>{session.context.percent}%</span>
-              </span>
+            {session?.plan === true && (
+              <Tooltip label={t('plan.exit')} side="top">
+                <button
+                  type="button"
+                  className={clsx(css.chip, css.planChip)}
+                  onClick={() => { injected.exitPlanMode(windowId) }}
+                  aria-label={t('plan.exit')}
+                >
+                  <span className={css.chipIcon}><IconChecklistOutline14 /></span>
+                  <span className={css.chipLabel}>{t('plan.active')}</span>
+                </button>
+              </Tooltip>
+            )}
+          </div>
+
+          <div className={css.trailing}>
+            {session?.context !== undefined && (
+              <Tooltip label={t('context.aria', { percent: String(session.context.percent) })} side="top">
+                <span className={css.context}>
+                  <svg className={css.ring} viewBox="0 0 20 20" aria-hidden="true">
+                    <circle className={css.ringTrack} cx="10" cy="10" r={RING_RADIUS} />
+                    <circle
+                      className={css.ringValue}
+                      cx="10"
+                      cy="10"
+                      r={RING_RADIUS}
+                      strokeDasharray={`${RING_CIRCUMFERENCE * session.context.percent / 100} ${RING_CIRCUMFERENCE}`}
+                    />
+                  </svg>
+                  <span>{session.context.percent}%</span>
+                </span>
+              </Tooltip>
+            )}
+
+            <Tooltip label={t('model.aria')} side="top" disabled={isOpen('model')}>
+              <button
+                ref={modelAnchor}
+                type="button"
+                className={clsx(css.chip, css.modelChip)}
+                onClick={() => { openMenu('model', modelAnchor.current) }}
+                aria-label={t('model.aria')}
+              >
+                <span className={css.chipLabel}>
+                  {session?.model.modelName ?? session?.model.model
+                    ?? (session?.model.loading === true ? t('model.loading') : t('model.none'))}
+                </span>
+                {session?.model.effortName !== undefined && (
+                  <span className={clsx(css.chipLabel, css.effortLabel)}>{session.model.effortName}</span>
+                )}
+                <span className={css.chipIcon}><IconChevronDownOutline14 /></span>
+              </button>
             </Tooltip>
-          )}
+            <Menu
+              portal
+              open={isOpen('model')}
+              side={sideOf('model')}
+              align={alignOf('model')}
+              selection="fill"
+              anchor={<span className={css.anchor} />}
+              getAnchorRect={() => modelAnchor.current?.getBoundingClientRect() ?? null}
+              items={modelItems}
+              onSelect={(id) => {
+                closeMenu()
+                if (id.startsWith('model:')) {
+                  const [, provider, model] = id.split(':')
+                  if (provider === undefined || model === undefined) return
+                  injected.selectModel(windowId, { provider, model })
+                  return
+                }
+                if (id.startsWith('effort:')) {
+                  const effort = id.slice('effort:'.length)
+                  const provider = session?.model.provider
+                  const model = session?.model.model
+                  if (provider === undefined || model === undefined) return
+                  injected.selectModel(windowId, { provider, model, reasoningEffort: effort })
+                }
+              }}
+              onClose={closeMenu}
+            />
 
-          <Menu
-            open={modelOpen}
-            side="top"
-            align="end"
-            selection="fill"
-            anchor={(
-              <Tooltip label={t('model.aria')} side="top">
-                <button
-                  type="button"
-                  className={css.chip}
-                  onClick={() => { setModelOpen(!modelOpen) }}
-                  aria-label={t('model.aria')}
-                >
-                  <span className={css.chipLabel}>
-                    {session?.model.modelName ?? session?.model.model
-                      ?? (session?.model.loading === true ? t('model.loading') : t('model.none'))}
-                  </span>
-                  {session?.model.effortName !== undefined && (
-                    <span className={css.chipLabel}>{session.model.effortName}</span>
-                  )}
-                  <span className={css.chipIcon}><IconChevronDownOutline14 /></span>
-                </button>
-              </Tooltip>
-            )}
-            items={modelItems}
-            onSelect={(id) => {
-              setModelOpen(false)
-              if (id.startsWith('model:')) {
-                const [, provider, model] = id.split(':')
-                if (provider === undefined || model === undefined) return
-                injected.selectModel(windowId, { provider, model })
-                return
-              }
-              if (id.startsWith('effort:')) {
-                const effort = id.slice('effort:'.length)
-                const provider = session?.model.provider
-                const model = session?.model.model
-                if (provider === undefined || model === undefined) return
-                injected.selectModel(windowId, { provider, model, reasoningEffort: effort })
-              }
-            }}
-            onClose={() => { setModelOpen(false) }}
-          />
-
-          {running
-            ? (
-              <Tooltip label={t('agent.stop')} side="top">
-                <button
-                  type="button"
-                  className={clsx(css.primary, css.stop)}
-                  onClick={() => { injected.cancelPrompt(windowId) }}
-                  aria-label={t('agent.stop')}
-                >
-                  <IconStopFill16 />
-                </button>
-              </Tooltip>
-            )
-            : (
-              <Tooltip label={t('menu.send')} side="top">
-                <button
-                  type="submit"
-                  className={clsx(css.primary, canSend && css.ready)}
-                  disabled={!canSend}
-                  aria-label={t('menu.send')}
-                >
-                  <IconSendOutline16 />
-                </button>
-              </Tooltip>
-            )}
+            {running
+              ? (
+                <Tooltip label={t('agent.stop')} side="top">
+                  <button
+                    type="button"
+                    className={clsx(css.primary, css.stop)}
+                    onClick={() => { injected.cancelPrompt(windowId) }}
+                    aria-label={t('agent.stop')}
+                  >
+                    <IconStopFill16 />
+                  </button>
+                </Tooltip>
+              )
+              : (
+                <Tooltip label={t('menu.send')} side="top">
+                  <button
+                    type="submit"
+                    className={clsx(css.primary, canSend && css.ready)}
+                    disabled={!canSend}
+                    aria-label={t('menu.send')}
+                  >
+                    <IconSendOutline16 />
+                  </button>
+                </Tooltip>
+              )}
+          </div>
         </div>
       </form>
 

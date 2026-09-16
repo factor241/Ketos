@@ -46,6 +46,50 @@ export const BOARD_WINDOW_TEMPLATES = {
 } as const satisfies Record<string, Pick<BoardWindowState, 'kind' | 'bodyKind' | 'width' | 'height'>>
 
 /**
+ * The smallest window the board opens: the default chat size. A window never
+ * shrinks below it — the composer's rows cannot lay out in less — and grows
+ * freely in width, height, or proportionally.
+ */
+export const MIN_WINDOW_SIZE = {
+  width: BOARD_WINDOW_TEMPLATES.agent.width,
+  height: BOARD_WINDOW_TEMPLATES.agent.height,
+} as const
+
+/** Grid step the snap rounds to while dragging without Shift. */
+const GRID_STEP = 24
+
+/**
+ * Snap one position component to the board grid.
+ * @param value - world coordinate.
+ * @param snap - whether grid snapping is on.
+ * @returns the rounded coordinate.
+ */
+export function snapPosition(value: number, snap: boolean): number {
+  return snap ? Math.round(value / GRID_STEP) * GRID_STEP : Math.round(value)
+}
+
+/**
+ * Apply grid snapping and the minimum-size floor to one requested window size.
+ * The floor is applied after snapping, so a snapped value can never land below
+ * the layout's minimum.
+ * @param width - requested width in world units.
+ * @param height - requested height in world units.
+ * @param snap - whether grid snapping is on.
+ * @returns the size the window takes.
+ */
+export function clampWindowSize(
+  width: number,
+  height: number,
+  snap: boolean,
+): { width: number; height: number } {
+  const snapped = (value: number): number => snapPosition(value, snap)
+  return {
+    width: Math.max(MIN_WINDOW_SIZE.width, snapped(width)),
+    height: Math.max(MIN_WINDOW_SIZE.height, snapped(height)),
+  }
+}
+
+/**
  * Mint an id for one board window. The id is a board-local identity unique per
  * window; the kind is a readable prefix, not part of the identity.
  * @param kind - window category the id is prefixed with.
@@ -137,18 +181,15 @@ export function createBoardStore(opts?: { persist?: string }): BoardStoreHandle 
       moveWindow: (draft, id, x, y, snap) => {
         const win = draft.windows[id as string]
         if (!win) return
-        win.x = snap ? Math.round(x / 24) * 24 : Math.round(x)
-        win.y = snap ? Math.round(y / 24) * 24 : Math.round(y)
+        win.x = snapPosition(x, snap)
+        win.y = snapPosition(y, snap)
       },
       resizeWindow: (draft, id, width, height, snap) => {
         const win = draft.windows[id as string]
         if (!win) return
-        const minW = 320
-        const minH = 200
-        const w = Math.max(minW, width)
-        const h = Math.max(minH, height)
-        win.width = snap ? Math.round(w / 24) * 24 : Math.round(w)
-        win.height = snap ? Math.round(h / 24) * 24 : Math.round(h)
+        const size = clampWindowSize(width, height, snap)
+        win.width = size.width
+        win.height = size.height
       },
       setWindowBodyKind: (draft, id, bodyKind) => {
         const win = draft.windows[id as string]

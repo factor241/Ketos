@@ -69,6 +69,7 @@
     "command.plan.description",
     "command.section.add",
     "command.section.commands",
+    "command.voice",
     "composer.actions",
     "composer.placeholder",
     "context.aria",
@@ -131,6 +132,9 @@
     "todo.counts",
     "todo.title",
     "toolbar.composerPlaceholder",
+    "voice.start",
+    "voice.stop",
+    "voice.unsupported",
     "window.close"
   ],
   "chat": [

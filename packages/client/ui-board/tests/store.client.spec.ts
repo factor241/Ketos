@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest'
-import { clampWindowSize, createBoardStore, MIN_WINDOW_SIZE, snapPosition } from '../src/client/store.ts'
+import { MIN_WINDOW_SIZE, clampWindowSize, createBoardStore, snapPosition } from '../src/client/store.ts'
+import { PANEL_DEFAULT_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH } from '../src/client/window/panel-geometry.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 
 /** A window state literal with the fields a placement test does not vary. */
@@ -265,6 +266,29 @@ describe('createBoardStore', () => {
 
     actions.openWindowPanel('missing' as WindowId)
     expect(store.getSnapshot().panelWindowId).toBeNull()
+  })
+
+  it('opens the chats panel expanded, keeps its width in range, and collapses it', () => {
+    const { store, actions } = createBoardStore().create()
+    actions.addWindow(makeWindow({ id: 'w1' as WindowId }))
+    expect(store.getSnapshot().panelCollapsed).toBe(true)
+    expect(store.getSnapshot().panelWidth).toBe(PANEL_DEFAULT_WIDTH)
+
+    actions.openWindowPanel('w1' as WindowId)
+    expect(store.getSnapshot().panelCollapsed).toBe(false)
+
+    // The dragged width never leaves the readable range.
+    actions.setPanelWidth(PANEL_MAX_WIDTH + 200)
+    expect(store.getSnapshot().panelWidth).toBe(PANEL_MAX_WIDTH)
+    actions.setPanelWidth(PANEL_MIN_WIDTH - 200)
+    expect(store.getSnapshot().panelWidth).toBe(PANEL_MIN_WIDTH)
+
+    actions.setPanelCollapsed(true)
+    expect(store.getSnapshot().panelCollapsed).toBe(true)
+    actions.openWindowPanel('w1' as WindowId)
+    expect(store.getSnapshot().panelCollapsed).toBe(false)
+    actions.closeWindowPanel()
+    expect(store.getSnapshot().panelCollapsed).toBe(true)
   })
 
   it('centers the viewport on a window and raises it', () => {

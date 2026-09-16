@@ -55,6 +55,8 @@ const baseState: BoardState = {
   activeWindowId: null,
   fullscreenWindowId: null,
   panelWindowId: null,
+  panelCollapsed: true,
+  panelWidth: 300,
   isSelectingElement: false,
 }
 

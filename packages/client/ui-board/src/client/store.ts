@@ -3,6 +3,7 @@
  */
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
 import type { BoardWindowState, WindowBodyKind, WindowId, WindowKind } from './contract/slots.ts'
+import { PANEL_DEFAULT_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH } from './window/panel-geometry.ts'
 
 /** Store handle handed to every board registration; one live root-scope instance backs them all. */
 export type BoardStoreHandle = EngineStoreHandle<BoardState, BoardActions>
@@ -26,6 +27,8 @@ type BoardActions = {
   exitFullscreen: (draft: BoardState) => void
   openWindowPanel: (draft: BoardState, id: WindowId) => void
   closeWindowPanel: (draft: BoardState) => void
+  setPanelCollapsed: (draft: BoardState, collapsed: boolean) => void
+  setPanelWidth: (draft: BoardState, width: number) => void
   closeWindow: (draft: BoardState, id: WindowId) => void
   setSelectingElement: (draft: BoardState, selecting: boolean) => void
 }
@@ -52,6 +55,10 @@ export interface BoardState {
    * time; it keeps the window's stored rectangle and only decorates it.
    */
   panelWindowId: WindowId | null
+  /** Whether the window's chats panel is collapsed to its rail. */
+  panelCollapsed: boolean
+  /** Width the user last dragged the chats panel to. */
+  panelWidth: number
   isSelectingElement: boolean
 }
 
@@ -167,6 +174,8 @@ export function createBoardStore(opts?: { persist?: string }): BoardStoreHandle 
       activeWindowId: null,
       fullscreenWindowId: null,
       panelWindowId: null,
+      panelCollapsed: true,
+      panelWidth: PANEL_DEFAULT_WIDTH,
       isSelectingElement: false,
     }),
     actions: {
@@ -238,9 +247,17 @@ export function createBoardStore(opts?: { persist?: string }): BoardStoreHandle 
       openWindowPanel: (draft, id) => {
         if (!draft.windows[id as string]) return
         draft.panelWindowId = id
+        draft.panelCollapsed = false
       },
       closeWindowPanel: (draft) => {
         draft.panelWindowId = null
+        draft.panelCollapsed = true
+      },
+      setPanelCollapsed: (draft, collapsed) => {
+        draft.panelCollapsed = collapsed
+      },
+      setPanelWidth: (draft, width) => {
+        draft.panelWidth = Math.min(PANEL_MAX_WIDTH, Math.max(PANEL_MIN_WIDTH, Math.round(width)))
       },
       closeWindow: (draft, id) => {
         // Immer draft: removing the window entry on close; WindowId is

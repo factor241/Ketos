@@ -245,37 +245,72 @@ describe('board slot composition', () => {
     expect(panel.container.querySelector('[data-board-fullscreen]')).toBeNull()
   })
 
-  it('tucks the chats panel under its frame and docks it in fullscreen', async () => {
+  it('keeps a rail for every chat window, opens the panel beside the frame, and docks it in fullscreen', async () => {
     const { runtime } = await bench()
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
     const board = runtime.storeOf('board.dock') as BoardInstance
 
     act(() => {
-      board.actions.setViewport(1000, 800)
+      // Room on both sides of the centred window, so the panel takes its own column.
+      board.actions.setViewport(1400, 900)
       board.actions.openWindow(windowState({ id: 'a1' as WindowId }))
     })
     await runtime.flush()
 
-    // The panel stays mounted closed for every chat window.
+    // The rail keeps the panel one click away while the panel itself is hidden.
+    const rail = panel.container.querySelector('[data-board-panel-rail]') as HTMLElement
+    expect(rail).not.toBeNull()
     const hidden = panel.container.querySelector('[data-board-panel]') as HTMLElement
-    expect(hidden).not.toBeNull()
     expect(hidden.getAttribute('data-board-panel-open')).toBeNull()
 
-    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
     await runtime.flush()
     const shown = panel.container.querySelector('[data-board-panel]') as HTMLElement
     const window = board.store.getSnapshot().windows['a1'] as BoardWindowState
-    expect(shown.getAttribute('data-board-panel')).toBe('tucked')
+    const width = panelWidthFor(window.width, board.store.getSnapshot().panelWidth)
+    expect(shown.getAttribute('data-board-panel')).toBe('beside')
+    expect(shown.getAttribute('data-board-panel-side')).toBe('right')
     expect(shown.getAttribute('data-board-panel-open')).toBe('')
-    // The panel takes its share of the window and tucks its right side under the frame.
-    expect(shown.style.width).toBe(`${String(panelWidthFor(window.width))}px`)
-    expect(shown.style.height).toBe(`${String(window.height * 0.92)}px`)
-    const frame = panel.container.querySelector('[data-board-window="agent"]') as HTMLElement
-    expect(shown.compareDocumentPosition(frame) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    // No z-index of its own: every frame paints above the panel.
+    // The panel stands beside the frame at the stored width and the window height.
+    expect(shown.style.left).toBe(`${String(window.x + window.width)}px`)
+    expect(shown.style.top).toBe(`${String(window.y)}px`)
+    expect(shown.style.width).toBe(`${String(width)}px`)
+    expect(shown.style.height).toBe(`${String(window.height)}px`)
     expect(shown.style.zIndex).toBe('')
 
+    // Dragging the outer edge resizes the panel by the world-unit delta.
+    const handle = panel.container.querySelector('[aria-label="Resize the chats panel"]') as HTMLElement
+    // jsdom implements no pointer capture at all; the gesture only needs its deltas.
+    Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', {
+      value: () => {},
+      configurable: true,
+      writable: true,
+    })
+    act(() => { board.actions.setPanelWidth(320) })
+    // The gesture starts from the width the panel actually shows, which the
+    // window share may have capped below the stored value.
+    const beforeDrag = panelWidthFor(window.width, board.store.getSnapshot().panelWidth)
+    fireEvent.pointerDown(handle, { clientX: 200, pointerId: 7 })
+    // The panel rides the frame's right edge, so dragging right widens it. The
+    // gesture listens on the global; drive it with plain events carrying the
+    // pointer coordinates (jsdom ships no PointerEvent constructor).
+    for (const [type, clientX] of [['pointermove', 240], ['pointerup', 240]] as const) {
+      const event = new Event(type)
+      Object.assign(event, { clientX, pointerId: 7 })
+      globalThis.dispatchEvent(event)
+    }
+    expect(board.store.getSnapshot().panelWidth).toBe(beforeDrag + 40)
+    Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
+
+    // The collapse control lives in the panel's own header.
+    fireEvent.click(panel.container.querySelector('button[aria-label="Collapse the chats panel"]') as Element)
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-panel-open]')).toBeNull()
+    expect(panel.container.querySelector('[data-board-panel-rail]')).not.toBeNull()
+
     // Escape closes the panel first and leaves the window alone.
+    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    await runtime.flush()
     fireEvent.keyDown(document, { key: 'Escape' })
     await runtime.flush()
     expect(panel.container.querySelector('[data-board-panel-open]')).toBeNull()
@@ -286,12 +321,14 @@ describe('board slot composition', () => {
     fireEvent.click(panel.container.querySelector('button[aria-label="Open fullscreen"]') as Element)
     await runtime.flush()
     const docked = panel.container.querySelector('[data-board-panel]') as HTMLElement
-    const dockedWidth = panelWidthFor(1000)
+    const dockedWidth = panelWidthFor(1400, board.store.getSnapshot().panelWidth)
     expect(docked.getAttribute('data-board-panel')).toBe('docked')
     expect(docked.style.left).toBe('0px')
     expect(docked.style.top).toBe('0px')
-    expect(docked.style.height).toBe('800px')
+    expect(docked.style.height).toBe('900px')
     expect(docked.style.width).toBe(`${String(dockedWidth)}px`)
+    // The rail stands down while the panel is docked.
+    expect(panel.container.querySelector('[data-board-panel-rail]')).toBeNull()
     const fullscreen = panel.container.querySelector('[data-board-fullscreen]') as HTMLElement
     expect(fullscreen.style.inset).toBe(`0 0 0 ${String(dockedWidth)}px`)
   })

@@ -1,7 +1,7 @@
-/* Chats panel of one board window. Windowed it is a compact layer tucked under
- * the frame's left edge; docked (fullscreen) it becomes the plain sidebar of a
- * normal chat layout. It is a sibling rendered before the frame and carries no
- * z-index, so every frame paints above it. */
+/* Chats panel of one board window. It is a layer of its own beside the frame:
+ * collapsed a rail hugs the frame's left edge, open a resizable column slides
+ * out of that edge. Fullscreen docks it as the plain sidebar of a normal chat
+ * layout. Depth ladder: canvas → panel → panel rows. */
 
 .panel {
   position: absolute;
@@ -16,20 +16,29 @@
   color: var(--dsw-alias-label-primary);
   font-size: var(--board-font-label);
   user-select: none;
-  /* Closed: hidden behind the frame (windowed) or past the board panel edge (docked). */
+  /* Closed: hidden behind the frame's own edge (or past the board panel edge). */
   transform: translateX(var(--board-panel-hidden-x, 100%));
   visibility: hidden;
   transition:
     transform var(--ds-transition-duration-slow) var(--ds-ease-in-out),
     visibility 0s linear var(--ds-transition-duration-slow);
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.panel[data-board-panel='beside'][data-board-panel-side='left'],
+.panel[data-board-panel='overlay'] {
+  --board-panel-hidden-x: 100%;
+}
+
+.panel[data-board-panel='beside'][data-board-panel-side='right'] {
+  --board-panel-hidden-x: -100%;
 }
 
 .panel[data-board-panel='docked'] {
   border-radius: 0;
   --board-panel-hidden-x: -100%;
   border-right: 0.5px solid var(--dsw-alias-border-l1);
-  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
-  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
 .panel[data-board-panel-open] {
@@ -40,9 +49,74 @@
 
 @media (prefers-reduced-motion: reduce) {
   .panel,
-  .panel[data-board-panel-open] {
+  .panel[data-board-panel-open],
+  .rail {
     transition: none;
   }
+}
+
+/* Collapsed rail: the compact element that keeps the panel one click away. */
+.rail {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 20px;
+  background: var(--dsw-alias-bg-layer-2);
+  border: 0;
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
+  box-shadow: var(--dsw-elevation-panel);
+  color: var(--dsw-alias-label-secondary);
+  user-select: none;
+  transition: opacity var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+.railButton {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  corner-shape: round;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.railButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The rail's four controls plus padding and gaps equal its 178px rect. */
+.rail > * {
+  flex: none;
+}
+
+/* Resize: an invisible hit strip on the panel's outer edge. */
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  z-index: 1;
+  cursor: ew-resize;
+}
+
+.resizeLeft {
+  left: 0;
+}
+
+.resizeRight {
+  right: 0;
 }
 
 .header {
@@ -52,24 +126,6 @@
   gap: var(--board-gap-row);
   min-width: 0;
   padding: 10px 10px 6px;
-}
-
-/* Windowed: the tucked share of the panel hides under the frame, so the content
-   keeps inside the strip that protrudes beside it. */
-.panel[data-board-panel='windowed'][data-board-panel-side='left'] .header {
-  padding-right: calc(30% + 6px);
-}
-
-.panel[data-board-panel='windowed'][data-board-panel-side='left'] .list {
-  padding-right: calc(30% + 2px);
-}
-
-.panel[data-board-panel='windowed'][data-board-panel-side='right'] .header {
-  padding-left: calc(30% + 6px);
-}
-
-.panel[data-board-panel='windowed'][data-board-panel-side='right'] .list {
-  padding-left: calc(30% + 2px);
 }
 
 .title {
@@ -162,7 +218,7 @@
 }
 
 .row.current {
-  background: var(--dsw-specific-selector);
+  background: var(--dsw-alias-interactive-bg-active);
 }
 
 .rowIcon {

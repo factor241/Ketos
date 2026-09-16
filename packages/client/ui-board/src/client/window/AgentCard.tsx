@@ -35,8 +35,10 @@ export function AgentCard({ window: cardWindow, renderBody, useStore, actions, t
   const isFullscreen = useStore(s => s.fullscreenWindowId === cardWindow.id)
   const isPanelOpen = useStore(s => s.panelWindowId === cardWindow.id)
   const viewportWidth = useStore(s => s.viewportWidth)
+  const panelWidth = useStore(s => s.panelWidth)
+  const panelCollapsed = useStore(s => s.panelCollapsed)
   // Fullscreen docks the chats panel and gives up its width to the chat column.
-  const dockedWidth = isPanelOpen ? panelWidthFor(viewportWidth) : 0
+  const dockedWidth = isPanelOpen && !panelCollapsed ? panelWidthFor(viewportWidth, panelWidth) : 0
 
   // Escape closes the chats panel first and leaves fullscreen second: one
   // handler owns the key so the two modes never fight over it.

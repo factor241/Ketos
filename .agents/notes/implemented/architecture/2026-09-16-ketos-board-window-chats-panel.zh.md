@@ -37,10 +37,10 @@ Status: implemented
 
 窗口无需离开看板即可到达每个项目的每个聊天，被重新绑定的窗口保留自己的矩形、标题与面板状态。代价：重新绑定后窗口标题仍显示打开时的名字；选择聊天会让该会话成为整个客户端的当前会话（会话控制器只提供这一条选择轴）；每个聊天窗口持有两个共享快照订阅；管理操作仍留在应用侧栏。
 
-验证：`tests/panel-geometry.client.spec.ts` 固定钳制、掖入矩形与停靠矩形；`tests/chat-list.client.spec.ts` 固定分组、子代理/归档/空白过滤、排序与未分组一档；`tests/store.client.spec.ts` 固定同时只开一个面板以及关闭窗口时的重置；`tests/slots.client.spec.tsx` 固定关闭时仍挂载的面板、标题栏开关、它写入的几何、面板先于外框的顺序、没有 z-index、Escape 先关面板再退全屏、面板打开时的停靠 inset，以及在面板里选中聊天后窗口目录芯片随之切换。
+验证：`tests/panel-geometry.client.spec.ts` 固定钳制、掖入矩形与停靠矩形；`tests/chat-list.client.spec.ts` 固定分组、子代理/归档/空白过滤、排序与未分组一档；`tests/store.client.spec.ts` 固定同时只开一个面板以及关闭窗口时的重置；`tests/slots.client.spec.tsx` 固定关闭时仍挂载的面板、标题栏开关、它写入的几何、面板先于外框的顺序、没有 z-index、Escape 先关面板再退全屏、面板打开时的停靠 inset，以及在面板里选中聊天后该聊天成为窗口的会话。
 
 ## Related
 
-- [Board windows own Harness sessions and rebuild the chat composer](2026-09-16-ketos-board-window-sessions.zh.md) —— 该面板重新绑定的桥，以及跟随它的 composer 目录芯片。
+- [Board windows own Harness sessions and rebuild the chat composer](2026-09-16-ketos-board-window-sessions.zh.md) —— 该面板重新绑定的桥，以及以 agent 预设为唯一设置芯片的 composer；窗口的工作目录在该面板中选择与管理。
 - [Board windows fill the panel in fullscreen instead of handing off to the main panel](2026-09-16-ketos-board-window-fullscreen.zh.md) —— 面板停靠进入的模式。
 - [`packages/client/ui-board/README.md`](../../../../packages/client/ui-board/README.zh.md) —— 该面板新增的交互与限制。

@@ -7,15 +7,15 @@ import { describe, expect, it } from 'vitest'
 import { isProportional, resizeStep, type WindowRect } from '../src/client/window/resize.ts'
 import { MIN_WINDOW_SIZE } from '../src/client/store.ts'
 
-const START: WindowRect = { x: 240, y: 120, width: 480, height: 560 }
+const START: WindowRect = { x: 240, y: 120, width: 552, height: 648 }
 
 describe('resizeStep', () => {
   it('moves one axis for edge drags and keeps the opposite edge fixed', () => {
-    expect(resizeStep('e', START, 100, 40, false)).toEqual({ x: 240, y: 120, width: 580, height: 560 })
-    expect(resizeStep('s', START, 40, 100, false)).toEqual({ x: 240, y: 120, width: 480, height: 660 })
+    expect(resizeStep('e', START, 100, 40, false)).toEqual({ x: 240, y: 120, width: 652, height: 648 })
+    expect(resizeStep('s', START, 40, 100, false)).toEqual({ x: 240, y: 120, width: 552, height: 748 })
     // West and north drags move the origin so the opposite edge stays put.
-    expect(resizeStep('w', START, -100, 0, false)).toEqual({ x: 140, y: 120, width: 580, height: 560 })
-    expect(resizeStep('n', START, 0, -100, false)).toEqual({ x: 240, y: 20, width: 480, height: 660 })
+    expect(resizeStep('w', START, -100, 0, false)).toEqual({ x: 140, y: 120, width: 652, height: 648 })
+    expect(resizeStep('n', START, 0, -100, false)).toEqual({ x: 240, y: 20, width: 552, height: 748 })
   })
 
   it('clamps every direction to the default chat size', () => {
@@ -27,17 +27,17 @@ describe('resizeStep', () => {
   })
 
   it('scales both axes by the dominant factor for corner drags', () => {
-    const grown = resizeStep('se', START, 240, 0, false)
-    expect(grown.width).toBe(720)
-    expect(grown.height).toBe(840)
+    const grown = resizeStep('se', START, 230, 0, false)
+    expect(grown.width).toBe(782)
+    expect(grown.height).toBe(918)
     expect(grown.width / grown.height).toBeCloseTo(START.width / START.height, 5)
     // The opposite corner is the anchor.
     expect(grown.x).toBe(START.x)
     expect(grown.y).toBe(START.y)
 
-    const anchored = resizeStep('nw', START, -240, 0, false)
-    expect(anchored.width).toBe(720)
-    expect(anchored.height).toBe(840)
+    const anchored = resizeStep('nw', START, -230, 0, false)
+    expect(anchored.width).toBe(782)
+    expect(anchored.height).toBe(918)
     expect(anchored.x + anchored.width).toBe(START.x + START.width)
     expect(anchored.y + anchored.height).toBe(START.y + START.height)
   })

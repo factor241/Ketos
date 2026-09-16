@@ -154,15 +154,15 @@ describe('createBoardStore', () => {
     actions.addWindow(makeWindow({ id: 'win-1' as WindowId }))
 
     // The floor is the size the window is created with, not a smaller guess.
-    expect(MIN_WINDOW_SIZE).toEqual({ width: 480, height: 560 })
+    expect(MIN_WINDOW_SIZE).toEqual({ width: 552, height: 648 })
     actions.resizeWindow('win-1' as WindowId, 100, 50, false)
     expect(store.getSnapshot().windows['win-1']?.width).toBe(MIN_WINDOW_SIZE.width)
     expect(store.getSnapshot().windows['win-1']?.height).toBe(MIN_WINDOW_SIZE.height)
 
-    // Snapping never lands below the floor either (24 * 23 = 552 < 560).
+    // Snapping never lands below the floor either (24 * 23 = 552 < 648).
     actions.resizeWindow('win-1' as WindowId, 485, 552, true)
-    expect(store.getSnapshot().windows['win-1']?.width).toBe(480)
-    expect(store.getSnapshot().windows['win-1']?.height).toBe(560)
+    expect(store.getSnapshot().windows['win-1']?.width).toBe(552)
+    expect(store.getSnapshot().windows['win-1']?.height).toBe(648)
 
     // Growth is unbounded.
     actions.resizeWindow('win-1' as WindowId, 1000, 900, false)
@@ -175,8 +175,8 @@ describe('createBoardStore', () => {
     expect(snapPosition(125, false)).toBe(125)
     expect(snapPosition(-13, true)).toBe(-24)
     expect(clampWindowSize(1000, 900, true)).toEqual({ width: 1008, height: 912 })
-    expect(clampWindowSize(100, 100, true)).toEqual({ width: 480, height: 560 })
-    expect(clampWindowSize(100, 100, false)).toEqual({ width: 480, height: 560 })
+    expect(clampWindowSize(100, 100, true)).toEqual({ width: 552, height: 648 })
+    expect(clampWindowSize(100, 100, false)).toEqual({ width: 552, height: 648 })
   })
 
   it('switches the body kind of one window and ignores unknown ids', () => {

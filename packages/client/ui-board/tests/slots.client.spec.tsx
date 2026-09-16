@@ -39,8 +39,8 @@ function windowState(overrides: Partial<Parameters<BoardInstance['actions']['ope
     kind: 'agent' as const,
     bodyKind: 'conversation' as const,
     title: 'Agent',
-    width: 480,
-    height: 560,
+    width: 552,
+    height: 648,
     ...overrides,
   }
 }

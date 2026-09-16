@@ -20,9 +20,11 @@ Status: implemented
 
 **桥同时承载控制面。** 会话列表行（cwd、blank、agent 预设）、permissions/plan/todos/goal/contextPressure 投影、模型目录、命令目录、预设名册（经共享的 `@deepseek-ai/dsh-agent-presets/display` 折叠本地化）以及对话阻塞原因，都按窗口订阅一次并重新发布到同一 channel，因此栏只渲染普通数据，每次变更都经注入回调返回（`selectPermission` → `/permission`、`exitPlanMode` → `/plan off`、`runCommand`、`updateQueueItem`、`goalAction`、`pickWorkspace` → `uiWorkspace.pickDirectory()` + 重新创建会话、`selectModel`）。
 
-**窗口的下限是它的默认尺寸，角手柄按比例缩放。** `store.ts` 拥有最小值（agent 模板的 480×560）以及吸附与钳制变换；`window/resize.ts` 把拖拽转换为矩形：边手柄只移动它命名的那条轴，角手柄按主导系数同时缩放两轴并以对角为锚点，任何路径都不会把窗口缩到下限之下。外框只保留手势接线，这也顺带移除了重复的缩放算法。
+**窗口的下限是它的默认尺寸，角手柄按比例缩放。** `store.ts` 拥有最小值（agent 模板的 552×648）以及吸附与钳制变换；`window/resize.ts` 把拖拽转换为矩形：边手柄只移动它命名的那条轴，角手柄按主导系数同时缩放两轴并以对角为锚点，任何路径都不会把窗口缩到下限之下。外框只保留手势接线，这也顺带移除了重复的缩放算法。
 
-**Composer 会适配窗口。** 卡片是 inline-size 容器：低于 430px 时工具栏分行并把尾部组（上下文、模型、发送/停止）固定在自己一行的右端，低于 360px 时模式芯片去掉文字，低于 320px 时隐藏上下文圆环；每一行都是可换行且子元素 `min-width: 0` 的 flex 行，车道从不横向滚动。弹层通过共享 `Menu` 的 portal 依据触发元素矩形渲染，选择空间更大的一侧，并在视口中线之后改为末端对齐；菜单打开时其提示（tooltip）让位。麦克风按钮（共享图标集中没有，因此由看板自绘字形）在引擎提供浏览器自带语音识别时把语音写入草稿，否则保持禁用。
+**Composer 会适配窗口。** 卡片是 inline-size 容器：低于 495px 时工具栏分行并把尾部组（上下文、模型、发送/停止）固定在自己一行的右端，低于 415px 时模式芯片去掉文字，低于 370px 时隐藏上下文圆环；每一行都是可换行且子元素 `min-width: 0` 的 flex 行，车道从不横向滚动。弹层通过共享 `Menu` 的 portal 依据触发元素矩形渲染，选择空间更大的一侧，并在视口中线之后改为末端对齐；菜单打开时其提示（tooltip）让位。麦克风按钮（共享图标集中没有，因此由看板自绘字形）在引擎提供浏览器自带语音识别时把语音写入草稿，否则保持禁用。
+
+**窗口整体比应用放大一档。** `BoardViews.module.css` 在看板根节点上声明一组度量（`--board-font-title/body/content/label/hint`、`--board-line-input`，头部/窗口/车道/卡片内边距，两档间距，以及控件、车道控件、小控件与发送按钮尺寸）；每个窗口模块都读取它，因此外框、车道与 composer 一同变大，只有一次性尺寸保留字面量。默认窗口是该缩放下基础设计的 480×560 并对齐 24px 网格：552×648。dock、Omnibox、小地图以及 portal 的 `Menu`/`Tooltip` 保持应用尺寸；助手 Markdown 保持应用的正文字号设置，因为共享的 Markdown 表面读取 `body` 上的主题阶梯——两者都记录在包 README 中。
 
 **聚焦会改变当前会话。** 打开或聚焦窗口会调用 `sessions.open(id)`，因为实时事件流只存在于被选为当前的会话；这一全局副作用是有意接受的（计划记录了同样的取舍）。关闭窗口不会删除其会话。
 
@@ -44,7 +46,7 @@ Status: implemented
 
 agent 窗口成为真正的聊天：它拥有会话，能流式接收回答、发送、引导、停止，并可移交给主面板。车道刻意比主转录更薄——没有确认或提问 UI（按计划改为导航）、没有附件、模型、权限或预设控件，工具结果折叠为名称加失败标记。测试中的会话替身必须预先添加，因为 `TestSessions.add()` 通过 `act` 稳定状态，而从窗口的挂载 effect 调用会嵌套 act 作用域；生产环境中的 `create()` 是一次远程往返。
 
-验证：`packages/client/ui-board/tests/resize.client.spec.ts` 固定边/角的几何与下限，`tests/store.client.spec.ts` 固定吸附与钳制变换，脚本化的布局审计在 480×560、1056×720、1056×960 三种尺寸下打开全部弹层实机驱动窗口——任何尺寸都没有横向溢出，发送/麦克风/工具栏控件都在窗口内，菜单都在视口内。`packages/client/ui-board/tests/conversation-body.client.spec.tsx` 覆盖创建状态、失败状态、车道行、流式文本、发送、引导、停止、Shift+Enter、portal 菜单、无引擎时禁用的麦克风与三个入口；`tests/slots.client.spec.tsx` 用会话 bench 覆盖 body 切换与外框分发；`tests/fixtures.client.ts` 提供 bench（locale、sessions 替身、对话目标、layout），`apply.client.spec.tsx` 用它覆盖注册路径。`pnpm run test:gui` 为绿。
+验证：`packages/client/ui-board/tests/resize.client.spec.ts` 固定边/角的几何与下限，`tests/store.client.spec.ts` 固定吸附与钳制变换，脚本化的布局审计在 552×648、1056×720、1056×960 三种尺寸下打开全部弹层实机驱动窗口——任何尺寸都没有横向溢出，发送/麦克风/工具栏控件都在窗口内，菜单都在视口内。`packages/client/ui-board/tests/conversation-body.client.spec.tsx` 覆盖创建状态、失败状态、车道行、流式文本、发送、引导、停止、Shift+Enter、portal 菜单、无引擎时禁用的麦克风与三个入口；`tests/slots.client.spec.tsx` 用会话 bench 覆盖 body 切换与外框分发；`tests/fixtures.client.ts` 提供 bench（locale、sessions 替身、对话目标、layout），`apply.client.spec.tsx` 用它覆盖注册路径。`pnpm run test:gui` 为绿。
 
 ## Related
 

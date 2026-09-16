@@ -1,11 +1,35 @@
 /* Board root: the frame that stacks the floating layers. The board consumes
- * the shared theme directly — no brand override layer, no scoped class hook. */
+ * the shared theme directly — no brand override layer — and owns one local
+ * scale for the window UI. */
 
 .root {
   position: relative;
   width: 100%;
   height: 100%;
   overflow: hidden;
+
+  /* Window UI scale: a floating window renders one step above the base design
+     (13-14px text, 28px controls, 16px body padding) so its chat stays readable
+     beside the app's 14px content axis. The frames, lanes, and composer read
+     these; the dock, omnibar, and minimap keep the app's sizes, and portalled
+     primitives (Menu, Tooltip) keep the app's sizes too. */
+  --board-font-title: 15px;
+  --board-font-body: 16px;
+  --board-font-content: 15px;
+  --board-font-label: 14px;
+  --board-font-hint: 13px;
+  --board-line-input: 22px;
+  --board-pad-header: 12px 14px;
+  --board-pad-window: 18px;
+  --board-pad-lane: 16px 18px;
+  --board-pad-card: 10px 12px;
+  --board-gap-window: 9px;
+  --board-gap-row: 8px;
+  --board-control: 32px;
+  --board-control-lane: 30px;
+  --board-control-small: 26px;
+  --board-control-send: 36px;
+  --board-chip-pad: 4px 10px;
 }
 
 .icon {

@@ -21,8 +21,8 @@ const CARD: BoardWindowState = {
   title: 'Agent #1',
   x: 0,
   y: 0,
-  width: 480,
-  height: 560,
+  width: 552,
+  height: 648,
   zIndex: 10,
 }
 

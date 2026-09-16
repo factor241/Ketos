@@ -97,8 +97,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: var(--board-gap-window);
+  padding: var(--board-pad-header);
   border-bottom: 0.5px solid var(--dsw-alias-border-l1);
   cursor: grab;
 }
@@ -106,19 +106,19 @@
 .headerLeft {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--board-gap-window);
   min-width: 0;
 }
 
 
-/* Round icon control in the chrome idiom: 28px circle, secondary ink, hover
-   fill (the settings header and dockkit strip recipe). */
+/* Round icon control in the chrome idiom: the window's control circle,
+   secondary ink, hover fill (the settings header and dockkit strip recipe). */
 .closeButton {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: var(--board-control);
+  height: var(--board-control);
   border-radius: 50%;
   corner-shape: round;
   border: none;
@@ -135,7 +135,7 @@
 .title {
   overflow: hidden;
   color: var(--dsw-alias-label-primary);
-  font-size: 13px;
+  font-size: var(--board-font-title);
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -145,10 +145,10 @@
    (ui-theme's scrollbar rebinding contract). */
 .body {
   flex: 1;
-  padding: 16px;
+  padding: var(--board-pad-window);
   overflow-y: auto;
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
+  font-size: var(--board-font-body);
   line-height: 1.5;
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);

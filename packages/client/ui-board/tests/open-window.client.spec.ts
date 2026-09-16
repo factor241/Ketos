@@ -20,8 +20,8 @@ describe('openBoardWindow', () => {
     expect(spec).toMatchObject({
       kind: 'agent',
       bodyKind: 'conversation',
-      width: 480,
-      height: 560,
+      width: 552,
+      height: 648,
       title: 'Agent #1',
     })
     expect(spec?.id).toMatch(/^agent-/)
@@ -34,7 +34,7 @@ describe('openBoardWindow', () => {
 
     const [first, second] = openWindow.mock.calls.map(call => call[0])
     expect(first?.id).not.toBe(second?.id)
-    expect(first).toMatchObject({ kind: 'agent', bodyKind: 'conversation', width: 480, height: 560 })
+    expect(first).toMatchObject({ kind: 'agent', bodyKind: 'conversation', width: 552, height: 648 })
     expect(first).not.toHaveProperty('status')
     expect(first).not.toHaveProperty('statusText')
   })

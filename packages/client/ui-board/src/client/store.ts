@@ -40,9 +40,13 @@ export interface BoardState {
   isSelectingElement: boolean
 }
 
-/** Size and body of the windows the board's own chrome opens. */
+/**
+ * Size and body of the windows the board's own chrome opens. The chat window
+ * takes 552×648: the base design's 480×560 grown with the window UI scale and
+ * kept on the 24px grid.
+ */
 export const BOARD_WINDOW_TEMPLATES = {
-  agent: { kind: 'agent', bodyKind: 'conversation', width: 480, height: 560 },
+  agent: { kind: 'agent', bodyKind: 'conversation', width: 552, height: 648 },
 } as const satisfies Record<string, Pick<BoardWindowState, 'kind' | 'bodyKind' | 'width' | 'height'>>
 
 /**

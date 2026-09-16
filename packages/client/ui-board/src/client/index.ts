@@ -19,7 +19,7 @@ import { DashboardCanvas } from './canvas/DashboardCanvas.tsx'
 import { BoardWindowLayer } from './canvas/BoardWindowLayer.tsx'
 import { Minimap } from './canvas/Minimap.tsx'
 import { AgentCard } from './window/AgentCard.tsx'
-import { ToolWindow } from './window/ToolWindow.tsx'
+import { WindowFrame } from './window/WindowFrame.tsx'
 import { ConversationBody } from './window/ConversationBody.tsx'
 import { SessionRail } from './dock/SessionRail.tsx'
 import { DashboardToolbar } from './omnibox/DashboardToolbar.tsx'
@@ -126,10 +126,10 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('board.window', function* () {
     yield ctx.slots.register({ name: 'board.window', key: 'agent', store: boardStore, locale: NS }, AgentCard)
     yield ctx.slots.register({ name: 'board.window', key: 'clone', store: boardStore, locale: NS }, AgentCard)
-    yield ctx.slots.register({ name: 'board.window', key: 'connectors', store: boardStore, locale: NS }, ToolWindow)
-    yield ctx.slots.register({ name: 'board.window', key: 'settings', store: boardStore, locale: NS }, ToolWindow)
-    yield ctx.slots.register({ name: 'board.window', key: 'dashboard', store: boardStore, locale: NS }, ToolWindow)
-    yield ctx.slots.register({ name: 'board.window', key: 'tasks', store: boardStore, locale: NS }, ToolWindow)
+    yield ctx.slots.register({ name: 'board.window', key: 'connectors', store: boardStore, locale: NS }, WindowFrame)
+    yield ctx.slots.register({ name: 'board.window', key: 'settings', store: boardStore, locale: NS }, WindowFrame)
+    yield ctx.slots.register({ name: 'board.window', key: 'dashboard', store: boardStore, locale: NS }, WindowFrame)
+    yield ctx.slots.register({ name: 'board.window', key: 'tasks', store: boardStore, locale: NS }, WindowFrame)
   })
 
   // Chats panel: one occupant serves every chat window, like the frame table.

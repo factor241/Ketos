@@ -1,13 +1,14 @@
-/* Window frame (agent and clone windows): the theme's floating-panel recipe —
- * layer-2 fill, no border, the elevation hairline carrying the stroke, and the
- * focused state rebinding that stroke to the business accent. Placement
- * (left/top/width/height/z-index) stays inline because it comes from the board
- * store; everything painted lives here. */
+/* Shared board window frame: the theme's floating-panel recipe — layer-2 fill,
+ * no border, the elevation hairline carrying the stroke, and the focused state
+ * rebinding that stroke to the business accent. Placement (left/top/width/
+ * height/z-index) stays inline because it comes from the board store;
+ * everything painted lives here. */
 
 .window {
   position: absolute;
   display: flex;
   flex-direction: column;
+  /* Handles and the panel ride the frame's edge, so the frame never clips. */
   overflow: visible;
   border-radius: 20px;
   background: var(--dsw-alias-bg-layer-2);
@@ -117,7 +118,6 @@
   flex: none;
 }
 
-
 /* Round icon control in the chrome idiom: the window's control circle,
    secondary ink, hover fill (the settings header and dockkit strip recipe). */
 .headerButton {
@@ -155,18 +155,11 @@
   padding: var(--board-pad-window);
   overflow-y: auto;
   color: var(--dsw-alias-label-primary);
-  font-size: var(--board-font-body);
+  font-size: var(--board-font-content);
   line-height: 1.5;
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
-
-
-/* The composer card follows the conversation composer recipe: the input fill,
-   no border, and the soft elevation tier drawing the stroke. */
-
-
-
 
 /* Fullscreen: the frame fills the board panel, so it squares off and drops the
    floating elevation (nothing floats above it). */
@@ -174,5 +167,3 @@
   border-radius: 0;
   box-shadow: none;
 }
-
-/* Context capsule floating under the window in world coordinates. */

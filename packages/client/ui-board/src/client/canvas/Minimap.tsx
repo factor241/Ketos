@@ -56,37 +56,29 @@ export function Minimap({ useStore, actions }: MinimapProps) {
   const frustumW = Math.max(8, (viewportWidth / zoom) * scale)
   const frustumH = Math.max(8, (viewportHeight / zoom) * scale)
 
+  // Click or drag on the map recentres the viewport on the pointer's world
+  // point; both gestures translate one pointer position through the same map
+  // transform, so they share the pan step.
+  const panFromPointer = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const targetWorldX = toWorldX(e.clientX - rect.left)
+    const targetWorldY = toWorldY(e.clientY - rect.top)
+    actions.setPan(
+      -(targetWorldX - (viewportWidth / (2 * zoom))) * zoom,
+      -(targetWorldY - (viewportHeight / (2 * zoom))) * zoom,
+    )
+  }, [zoom, viewportWidth, viewportHeight, minX, minY, scale, actions])
+
   const handlePointerDown = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId)
     isDraggingRef.current = true
-
-    const rect = e.currentTarget.getBoundingClientRect()
-    const clickMx = e.clientX - rect.left
-    const clickMy = e.clientY - rect.top
-
-    const targetWorldX = toWorldX(clickMx)
-    const targetWorldY = toWorldY(clickMy)
-
-    actions.setPan(
-      -(targetWorldX - (viewportWidth / (2 * zoom))) * zoom,
-      -(targetWorldY - (viewportHeight / (2 * zoom))) * zoom,
-    )
-  }, [zoom, viewportWidth, viewportHeight, minX, minY, scale, actions])
+    panFromPointer(e)
+  }, [panFromPointer])
 
   const handlePointerMove = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     if (!isDraggingRef.current) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    const clickMx = e.clientX - rect.left
-    const clickMy = e.clientY - rect.top
-
-    const targetWorldX = toWorldX(clickMx)
-    const targetWorldY = toWorldY(clickMy)
-
-    actions.setPan(
-      -(targetWorldX - (viewportWidth / (2 * zoom))) * zoom,
-      -(targetWorldY - (viewportHeight / (2 * zoom))) * zoom,
-    )
-  }, [zoom, viewportWidth, viewportHeight, minX, minY, scale, actions])
+    panFromPointer(e)
+  }, [panFromPointer])
 
   const handlePointerUp = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     isDraggingRef.current = false

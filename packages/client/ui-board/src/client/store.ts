@@ -24,6 +24,8 @@ type BoardActions = {
   centerOnWindow: (draft: BoardState, id: WindowId) => void
   setWindowFullscreen: (draft: BoardState, id: WindowId) => void
   exitFullscreen: (draft: BoardState) => void
+  openWindowPanel: (draft: BoardState, id: WindowId) => void
+  closeWindowPanel: (draft: BoardState) => void
   closeWindow: (draft: BoardState, id: WindowId) => void
   setSelectingElement: (draft: BoardState, selecting: boolean) => void
 }
@@ -45,6 +47,11 @@ export interface BoardState {
    * is fullscreen, so the rectangle survives the mode.
    */
   fullscreenWindowId: WindowId | null
+  /**
+   * The window whose chats panel is open, or null. One panel is open at a
+   * time; it keeps the window's stored rectangle and only decorates it.
+   */
+  panelWindowId: WindowId | null
   isSelectingElement: boolean
 }
 
@@ -159,6 +166,7 @@ export function createBoardStore(opts?: { persist?: string }): BoardStoreHandle 
       windowOrder: [],
       activeWindowId: null,
       fullscreenWindowId: null,
+      panelWindowId: null,
       isSelectingElement: false,
     }),
     actions: {
@@ -227,6 +235,13 @@ export function createBoardStore(opts?: { persist?: string }): BoardStoreHandle 
       exitFullscreen: (draft) => {
         draft.fullscreenWindowId = null
       },
+      openWindowPanel: (draft, id) => {
+        if (!draft.windows[id as string]) return
+        draft.panelWindowId = id
+      },
+      closeWindowPanel: (draft) => {
+        draft.panelWindowId = null
+      },
       closeWindow: (draft, id) => {
         // Immer draft: removing the window entry on close; WindowId is
         // opaque, so the record key is only reachable dynamically.
@@ -234,6 +249,9 @@ export function createBoardStore(opts?: { persist?: string }): BoardStoreHandle 
         draft.windowOrder = draft.windowOrder.filter(wId => wId !== id)
         if (draft.fullscreenWindowId === id) {
           draft.fullscreenWindowId = null
+        }
+        if (draft.panelWindowId === id) {
+          draft.panelWindowId = null
         }
         if (draft.activeWindowId === id) {
           draft.activeWindowId = draft.windowOrder[draft.windowOrder.length - 1] ?? null

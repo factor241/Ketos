@@ -14,7 +14,7 @@ Status: implemented
 
 **一个 apply 侧的桥拥有会话。** `packages/client/ui-board/src/client/session-bridge.ts` 保存 `windowId → sessionId` 映射，在窗口首次使用时执行 `sessions.create()` → `sessions.open(id)` → `binding(id)`，并订阅会话面（`running`）与对话目标（`uiConversation.binding(id).target('chat')`）。窗口渲染的一切都重新发布到每窗口一个身份稳定的 channel（`{ status, running, error, chat }`），因此组件各自只订阅一个 observable，store 不承载任何会话数据。
 
-**一个 keyed hook 服务所有窗口。** `board.window.body` 获得带 `keyedHooks: { windowSession }`（键到 observable 的解析器）的注入面，以及普通回调（`ensureWindowSession`、`sendPrompt`、`cancelPrompt`、`loadOlderTurns`）。body 注册保留其按 `bodyKind` 的键与 owner props；窗口 id 是 `useWindowSession(windowId)` 的键参数，因此注册数量不随窗口数量增长。这是被认可的 observable 路径：插件绝不把源交给组件，组件也绝不调用 `useSyncExternalStore`。
+**一个 keyed hook 服务所有窗口。** `board.window.body` 获得带 `keyedHooks: { windowSession }`（键到 observable 的解析器）的注入面，以及普通回调（`ensureWindowSession`、`sendPrompt`、`cancelPrompt`、`loadOlderTurns`，以及面板的 `bindSession`/`createChat`，见[聊天面板笔记](2026-09-16-ketos-board-window-chats-panel.zh.md)）。body 注册保留其按 `bodyKind` 的键与 owner props；窗口 id 是 `useWindowSession(windowId)` 的键参数，因此注册数量不随窗口数量增长。这是被认可的 observable 路径：插件绝不把源交给组件，组件也绝不调用 `useSyncExternalStore`。
 
 **Composer 由看板拥有且完整。** `ComposerBar` 在窗口内重建了参考聊天栏：工作目录与 agent 预设芯片（两者仅在会话为空时可切换）、基于宿主命令目录的 `+` 操作菜单加上看板自有的图片附件条目、带参数提示与描述的 `/` 命令弹层、来自 `remote.fileReferences.list` 与 `remote.sessionReferenceResolver.candidates` 的 `@` 提及行、权限芯片（完全访问走 `RiskConfirmation`）、基于 `ctx.modelDirectories` 且带推理等级子菜单的模型芯片、计划芯片、来自 `contextPressure` 投影的上下文圆环、目标/待办/队列条，以及带排队或引导的发送/停止。Markdown 通过共享的 `MarkdownText` 渲染；车道把 `legacy.nodes` 折叠为用户／assistant 正文与单行工具行，标题栏的全屏开关就地放大窗口（[note](2026-09-16-ketos-board-window-fullscreen.zh.md)），不再导航离开。模拟文案及其栖身字段（`BoardWindowState` 上的 `status`、`statusText`、`contextUsed`、`sessionId`）被删除，而不是留着不用。
 

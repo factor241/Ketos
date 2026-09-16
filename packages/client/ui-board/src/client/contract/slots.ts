@@ -4,7 +4,10 @@
 import type { ReactNode } from 'react'
 import type { Branded } from '@deepseek-ai/dsh-brand'
 import type { ChatSnapshot } from '@deepseek-ai/dsh-client-ui-chat/client'
-import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
+import type { HostObservable, InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
+import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { WorkspaceId, WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
 
 /** Session-wide identity of one board window. */
 export type WindowId = Branded<'BoardWindowId'>
@@ -17,6 +20,9 @@ export type WindowBodyKind = 'conversation' | 'connectors' | 'settings' | 'dashb
 
 /** One prompt mode the window composer dispatches. */
 export type BoardPromptMode = 'queue' | 'steer'
+
+/** Where a chat the panel creates runs: a workspace, or a directory (or the default one). */
+export type BoardChatTarget = { readonly workspaceId: WorkspaceId } | { readonly cwd?: string }
 
 /** One image attached to the window draft, already encoded for the prompt. */
 export interface BoardDraftImage {
@@ -123,6 +129,8 @@ export interface BoardWindowSessionState {
   readonly error?: string | undefined
   /** Assembled chat snapshot, absent until the chat view builder publishes. */
   readonly chat?: ChatSnapshot | undefined
+  /** The session the window is bound to, absent until one exists. */
+  readonly sessionId?: SessionId | undefined
   /** Session working directory, as the list row reports it. */
   readonly cwd?: string | undefined
   /** Whether the session has not started its first turn (setup switches allowed). */
@@ -161,6 +169,13 @@ export interface BoardWindowInjected {
     /** Per-window session state; the key is the window id. */
     windowSession: (key: string) => HostObservable<BoardWindowSessionState> | undefined
   }
+  /** Sources the chats panel lists projects and chats from. */
+  hooks: {
+    /** Every session the client knows, with the working directory each one runs in. */
+    sessionList: HostObservable<SessionListState>
+    /** Workspaces (project folders) and the sessions attached to them. */
+    workspaceList: HostObservable<WorkspaceSnapshot>
+  }
   /** Create the window's session on first use; idempotent. */
   ensureWindowSession: (windowId: WindowId) => void
   /** Send one prompt into the window's session, with optional inline images. */
@@ -169,6 +184,10 @@ export interface BoardWindowInjected {
   cancelPrompt: (windowId: WindowId) => void
   /** Load older turns into the window's lane. */
   loadOlderTurns: (windowId: WindowId) => void
+  /** Point the window at an existing session, replacing its current chat. */
+  bindSession: (windowId: WindowId, sessionId: SessionId) => void
+  /** Create a chat in a workspace or directory and bind the window to it. */
+  createChat: (windowId: WindowId, target: BoardChatTarget) => void
   /** Switch the agent preset of the window's still-blank session. */
   selectAgentPreset: (windowId: WindowId, presetId: string) => void
   /** Switch the permission preset of the window's session. */
@@ -189,6 +208,9 @@ export interface BoardWindowInjected {
   loadMentions: (windowId: WindowId, query: string, signal: AbortSignal) => Promise<readonly BoardMentionRow[]>
 }
 
+
+/** The inject face a board component receives: callbacks verbatim, hook sources bound. */
+export type BoardWindowInjectProps = InjectFace<BoardWindowInjected>
 
 /**
  * Layout fields for one window on the board canvas.
@@ -224,6 +246,11 @@ export type RenderWindowBody = (window: BoardWindowState) => ReactNode
 export interface BoardWindowOwnerProps {
   window: BoardWindowState
   renderBody: RenderWindowBody
+}
+
+/** Owner props of one window's chats panel: the same window share the frame gets. */
+export interface BoardWindowPanelOwnerProps {
+  window: BoardWindowState
 }
 
 /**
@@ -263,6 +290,16 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
       scope: 'root'
       owner: BoardWindowBodyOwnerProps
       keyProps: { [Key in WindowBodyKind]: BoardWindowBodyOwnerProps }
+    }
+    /**
+     * Chats panel of one board card: a companion layer the frame's own fullscreen
+     * toggle expands. The keyed table closes the dispatch domain to `WindowKind`.
+     */
+    'board.window.panel': {
+      kind: 'keyed'
+      scope: 'root'
+      owner: BoardWindowPanelOwnerProps
+      keyProps: { [Key in WindowKind]: BoardWindowPanelOwnerProps }
     }
     /** Bottom-right interactive SVG minimap. */
     'board.minimap': { kind: 'single'; scope: 'root' }

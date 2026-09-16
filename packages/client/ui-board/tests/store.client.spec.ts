@@ -244,6 +244,29 @@ describe('createBoardStore', () => {
     expect(store.getSnapshot().fullscreenWindowId).toBeNull()
   })
 
+  it('opens one chats panel at a time and clears it with its window', () => {
+    const { store, actions } = createBoardStore().create()
+    actions.addWindow(makeWindow({ id: 'w1' as WindowId }))
+    actions.addWindow(makeWindow({ id: 'w2' as WindowId, kind: 'connectors', bodyKind: 'connectors', title: '2' }))
+    expect(store.getSnapshot().panelWindowId).toBeNull()
+
+    actions.openWindowPanel('w1' as WindowId)
+    expect(store.getSnapshot().panelWindowId).toBe('w1')
+    // Only one panel is open at a time.
+    actions.openWindowPanel('w2' as WindowId)
+    expect(store.getSnapshot().panelWindowId).toBe('w2')
+
+    actions.closeWindowPanel()
+    expect(store.getSnapshot().panelWindowId).toBeNull()
+
+    actions.openWindowPanel('w1' as WindowId)
+    actions.closeWindow('w1' as WindowId)
+    expect(store.getSnapshot().panelWindowId).toBeNull()
+
+    actions.openWindowPanel('missing' as WindowId)
+    expect(store.getSnapshot().panelWindowId).toBeNull()
+  })
+
   it('centers the viewport on a window and raises it', () => {
     const { store, actions } = createBoardStore().create()
     actions.setViewport(1000, 800)

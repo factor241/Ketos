@@ -33,7 +33,7 @@ import {
   type MenuItem,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
-  BoardDraftImage, BoardMentionRow, BoardPromptMode, BoardWindowInjected,
+  BoardDraftImage, BoardMentionRow, BoardPromptMode, BoardWindowInjectProps,
   BoardWindowSessionState, WindowId,
 } from '../contract/slots.ts'
 import type { BoardTranslate } from '../locale.ts'
@@ -104,7 +104,7 @@ export interface ComposerBarProps {
   /** Locale seat of the board namespace. */
   t: BoardTranslate
   /** Apply-side commands and lookups. */
-  injected: Omit<BoardWindowInjected, 'keyedHooks' | 'ensureWindowSession'>
+  injected: Omit<BoardWindowInjectProps, 'useWindowSession'>
   /** Callback handed to the lane so the bar can grow the transcript first. */
   onSent: () => void
 }

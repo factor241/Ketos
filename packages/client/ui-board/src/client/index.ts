@@ -10,6 +10,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { createBoardStore } from './store.ts'
 import { BoardSessionBridge } from './session-bridge.ts'
 import type { BoardWindowInjected, WindowId } from './contract/slots.ts'
@@ -22,6 +23,7 @@ import { ToolWindow } from './window/ToolWindow.tsx'
 import { ConversationBody } from './window/ConversationBody.tsx'
 import { SessionRail } from './dock/SessionRail.tsx'
 import { DashboardToolbar } from './omnibox/DashboardToolbar.tsx'
+import { WindowChatsPanel } from './window/WindowChatsPanel.tsx'
 import { NS, en, zh } from './locale.ts'
 
 export type {
@@ -34,7 +36,7 @@ export type { BoardState, BoardStoreHandle, OpenWindowSpec } from './store.ts'
 
 /** Services required by the board plugin: slots, copy, and the session domain. */
 export const inject = [
-  'slots', 'locale', 'sessions', 'uiConversation', 'modelDirectories',
+  'slots', 'locale', 'sessions', 'workspaces', 'uiConversation', 'modelDirectories',
   'remote', 'remote.commands', 'remote.agentPresets', 'remote.goals',
   'remote.fileReferences', 'remote.sessionReferenceResolver',
 ]
@@ -57,10 +59,16 @@ export function apply(ctx: ClientContext): void {
   const windowSession = (key: string) => bridge.channel(key as WindowId)
   const injected = (): BoardWindowInjected => ({
     keyedHooks: { windowSession },
+    hooks: {
+      sessionList: ctx.sessions.list,
+      workspaceList: ctx.workspaces.list,
+    },
     ensureWindowSession: (windowId) => { bridge.ensure(windowId) },
     sendPrompt: (windowId, text, mode, images) => { bridge.send(windowId, text, mode, images) },
     cancelPrompt: (windowId) => { bridge.cancel(windowId) },
     loadOlderTurns: (windowId) => { bridge.loadOlder(windowId) },
+    bindSession: (windowId, sessionId) => { bridge.bind(windowId, sessionId) },
+    createChat: (windowId, target) => { bridge.createChat(windowId, target) },
     selectAgentPreset: (windowId, presetId) => { bridge.selectAgentPreset(windowId, presetId) },
     selectPermission: (windowId, presetId) => { bridge.selectPermission(windowId, presetId) },
     selectModel: (windowId, selection) => { bridge.selectModel(windowId, selection) },
@@ -99,6 +107,7 @@ export function apply(ctx: ClientContext): void {
     children: {
       'board.window': { kind: 'keyed', scope: 'root' },
       'board.window.body': { kind: 'keyed', scope: 'root' },
+      'board.window.panel': { kind: 'keyed', scope: 'root' },
     },
   }, BoardWindowLayer))
 
@@ -110,6 +119,12 @@ export function apply(ctx: ClientContext): void {
     yield ctx.slots.register({ name: 'board.window', key: 'settings', store: boardStore, locale: NS }, ToolWindow)
     yield ctx.slots.register({ name: 'board.window', key: 'dashboard', store: boardStore, locale: NS }, ToolWindow)
     yield ctx.slots.register({ name: 'board.window', key: 'tasks', store: boardStore, locale: NS }, ToolWindow)
+  })
+
+  // Chats panel: one occupant serves every chat window, like the frame table.
+  ctx.slots.inject('board.window.panel', function* () {
+    yield ctx.slots.register({ name: 'board.window.panel', key: 'agent', store: boardStore, locale: NS, inject: injected }, WindowChatsPanel)
+    yield ctx.slots.register({ name: 'board.window.panel', key: 'clone', store: boardStore, locale: NS, inject: injected }, WindowChatsPanel)
   })
 
   // Only the conversation body ships today: no board window presents mock

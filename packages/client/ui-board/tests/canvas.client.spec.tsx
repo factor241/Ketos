@@ -54,6 +54,7 @@ const baseState: BoardState = {
   windowOrder: [],
   activeWindowId: null,
   fullscreenWindowId: null,
+  panelWindowId: null,
   isSelectingElement: false,
 }
 

@@ -55,6 +55,9 @@
     },
     {
       "path": "../../llm/llm"
+    },
+    {
+      "path": "../../api/workspace-controller/tsconfig.client.json"
     }
   ]
 }

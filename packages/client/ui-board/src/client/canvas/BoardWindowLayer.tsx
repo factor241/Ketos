@@ -9,7 +9,7 @@ import type { BoardWindowState } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
 
 export type BoardWindowLayerProps =
-  PropsRenderSlots<'board.window' | 'board.window.body'>
+  PropsRenderSlots<'board.window' | 'board.window.body' | 'board.window.panel'>
   & PropsStore<BoardStoreHandle>
 
 export function BoardWindowLayer({ renderSlot, useStore }: BoardWindowLayerProps) {
@@ -28,6 +28,9 @@ export function BoardWindowLayer({ renderSlot, useStore }: BoardWindowLayerProps
         if (fullscreenWindowId !== null && window.id !== fullscreenWindowId) return null
         return (
           <Fragment key={window.id}>
+            {/* The chats panel is a companion under the frame: same layer order,
+                earlier in the DOM, so the frame always paints above it. */}
+            {renderSlot('board.window.panel', { window }, { entryKey: window.kind })}
             {renderSlot('board.window', { window, renderBody }, { entryKey: window.kind })}
           </Fragment>
         )

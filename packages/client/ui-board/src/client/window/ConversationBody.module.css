@@ -10,6 +10,13 @@
   height: 100%;
 }
 
+/* Fullscreen: the chat reads as a centred column beside the docked panel. */
+.body.centered {
+  width: 100%;
+  max-width: 768px;
+  margin-inline: auto;
+}
+
 .lane {
   flex: 1;
   min-height: 0;

@@ -29,7 +29,7 @@ import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { PromptContentPart } from '@deepseek-ai/dsh-api-session-controller/types'
 import type {
-  BoardCommandRow, BoardDraftImage, BoardEffortOption, BoardGoalState, BoardMentionRow,
+  BoardChatTarget, BoardCommandRow, BoardDraftImage, BoardEffortOption, BoardGoalState, BoardMentionRow,
   BoardModelState, BoardPermissionOption, BoardPresetOption, BoardPromptMode, BoardQueueRow,
   BoardTodoRow, BoardWindowSessionState, WindowId,
 } from './contract/slots.ts'
@@ -355,16 +355,62 @@ export class BoardSessionBridge {
   }
 
   private async create(windowId: WindowId, cwd?: string): Promise<void> {
-    const record = this.record(windowId)
-    const channel = record.channel
     try {
       const sessionId = await this.ctx.sessions.create(cwd === undefined ? undefined : { cwd })
       if (this.disposed) return
-      record.sessionId = sessionId
+      this.switchTo(windowId, sessionId)
+    } catch (error) {
+      this.fail(windowId, error)
+    }
+  }
+
+  /**
+   * Point the window at an addressable session; a session the list does not
+   * know is ignored, like every other unknown-id window operation.
+   * @param windowId - window identity.
+   * @param sessionId - listed or addressed session id.
+   */
+  bind(windowId: WindowId, sessionId: SessionId): void {
+    if (this.disposed) return
+    if (this.record(windowId).sessionId === sessionId) return
+    if (this.ctx.sessions.list.getSnapshot().byId[sessionId] === undefined) return
+    this.switchTo(windowId, sessionId)
+  }
+
+  /**
+   * Create a chat and bind the window to it.
+   * @param windowId - window identity.
+   * @param target - the workspace the chat joins, or the directory it runs in.
+   */
+  createChat(windowId: WindowId, target: BoardChatTarget): void {
+    void this.ctx.sessions.create(target).then((sessionId) => {
+      if (this.disposed) return
+      this.switchTo(windowId, sessionId)
+    }).catch((error: unknown) => { this.fail(windowId, error) })
+  }
+
+  /** Release the current binding and attach the window to the given session. */
+  private switchTo(windowId: WindowId, sessionId: SessionId): void {
+    const record = this.record(windowId)
+    record.releaseSession()
+    record.releaseSession = () => {}
+    record.sessionId = sessionId
+    this.attach(windowId, sessionId)
+  }
+
+  /**
+   * Subscribe the window to a session: its chat target, session snapshot,
+   * projections, and list row, plus the session-adjacent state (presets,
+   * permissions, model directory, commands, and the conversation block).
+   */
+  private attach(windowId: WindowId, sessionId: SessionId): void {
+    const record = this.record(windowId)
+    const channel = record.channel
+    try {
       // The live event stream exists only for the session opened as current.
       this.ctx.sessions.open(sessionId)
       const owner = this.ctx.sessions.binding(sessionId)
-      if (owner === undefined) throw new Error(`board: session "${sessionId}" is not addressable after create`)
+      if (owner === undefined) throw new Error(`board: session "${sessionId}" is not addressable when the window attaches`)
       const chat = this.ctx.uiConversation.binding(sessionId).target('chat')
       const { session } = owner
       const { projections } = session
@@ -389,6 +435,7 @@ export class BoardSessionBridge {
           running: session.getSnapshot().running,
           error: undefined,
           chat: chat.getSnapshot(),
+          sessionId,
           cwd: row?.cwd,
           blank: row?.blank ?? true,
           presetId: typeof row?.projectionValues?.agentPreset === 'string' ? row.projectionValues.agentPreset : undefined,
@@ -449,13 +496,19 @@ export class BoardSessionBridge {
       }
       republish()
     } catch (error) {
-      channel.publish({
-        ...channel.getSnapshot(),
-        status: 'error',
-        running: false,
-        error: error instanceof Error ? error.message : String(error),
-      })
+      this.fail(windowId, error)
     }
+  }
+
+  /** Publish one failure onto the window's channel. */
+  private fail(windowId: WindowId, error: unknown): void {
+    const channel = this.record(windowId).channel
+    channel.publish({
+      ...channel.getSnapshot(),
+      status: 'error',
+      running: false,
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 
   private permissionRows(projections: { faceOf(key: string): ObservableSnapshot<unknown> }): readonly BoardPermissionOption[] {

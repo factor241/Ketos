@@ -30,6 +30,7 @@
       "inject": [
         "@deepseek-ai/dsh-api-remotes",
         "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-api-workspace-controller",
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-chat",
         "@deepseek-ai/dsh-client-ui-conversation",
@@ -75,7 +76,8 @@
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.0",
     "clsx": "^2.0.0",
-    "react": "^18.2.0"
+    "react": "^18.2.0",
+    "@deepseek-ai/dsh-api-workspace-controller": "workspace:^"
   },
   "files": [
     "lib/index.js",

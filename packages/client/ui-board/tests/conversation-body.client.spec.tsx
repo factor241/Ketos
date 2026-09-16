@@ -63,6 +63,10 @@ function bodyProps(
   return {
     window: CARD,
     t,
+    // The body reads the window modes from the store; the stub answers the two
+    // flags each render asks for.
+    useStore: (selector: (state: { fullscreenWindowId: null; panelWindowId: null }) => unknown) =>
+      selector({ fullscreenWindowId: null, panelWindowId: null }),
     useWindowSession: () => session,
     ensureWindowSession: vi.fn(),
     sendPrompt: vi.fn(),

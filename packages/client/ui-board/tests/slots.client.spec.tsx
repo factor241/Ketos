@@ -8,7 +8,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent } from '@testing-library/react'
 import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { createBoardStore } from '../src/client/store.ts'
-import type { WindowId } from '../src/client/contract/slots.ts'
+import { panelWidthFor } from '../src/client/window/panel-geometry.ts'
+import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 import { createBoardBench } from './fixtures.client.ts'
 
 /** The live board store instance the renderer resolves for the board's registrations. */
@@ -63,6 +64,7 @@ describe('board slot composition', () => {
     expect(runtime.slots.entries('board.windows')[0]?.children).toEqual({
       'board.window': { kind: 'keyed', scope: 'root' },
       'board.window.body': { kind: 'keyed', scope: 'root' },
+      'board.window.panel': { kind: 'keyed', scope: 'root' },
     })
     expect(runtime.slots.spec('board.window')).toEqual({ kind: 'keyed', scope: 'root' })
     expect(runtime.slots.spec('board.window.body')).toEqual({ kind: 'keyed', scope: 'root' })
@@ -213,7 +215,8 @@ describe('board slot composition', () => {
     const surface = panel.container.querySelectorAll('[data-surface="canvas"]')[0] as HTMLElement
     const fullscreen = panel.container.querySelector('[data-board-fullscreen]') as HTMLElement
     expect(fullscreen).not.toBeNull()
-    expect(fullscreen.style.inset).toBe('0px')
+    // No panel open: the frame keeps the whole board panel.
+    expect(fullscreen.style.inset).toBe('0 0 0 0px')
     // The other frame stands down and the panel chrome leaves with it.
     expect(panel.container.querySelectorAll('[data-board-window="agent"]')).toHaveLength(1)
     for (const layer of ['dock', 'omnibar', 'minimap'] as const) {
@@ -240,6 +243,94 @@ describe('board slot composition', () => {
     fireEvent.click(panel.container.querySelector('button[aria-label="Exit fullscreen"]') as Element)
     await runtime.flush()
     expect(panel.container.querySelector('[data-board-fullscreen]')).toBeNull()
+  })
+
+  it('tucks the chats panel under its frame and docks it in fullscreen', async () => {
+    const { runtime } = await bench()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+
+    act(() => {
+      board.actions.setViewport(1000, 800)
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId }))
+    })
+    await runtime.flush()
+
+    // The panel stays mounted closed for every chat window.
+    const hidden = panel.container.querySelector('[data-board-panel]') as HTMLElement
+    expect(hidden).not.toBeNull()
+    expect(hidden.getAttribute('data-board-panel-open')).toBeNull()
+
+    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    await runtime.flush()
+    const shown = panel.container.querySelector('[data-board-panel]') as HTMLElement
+    const window = board.store.getSnapshot().windows['a1'] as BoardWindowState
+    expect(shown.getAttribute('data-board-panel')).toBe('tucked')
+    expect(shown.getAttribute('data-board-panel-open')).toBe('')
+    // The panel takes its share of the window and tucks its right side under the frame.
+    expect(shown.style.width).toBe(`${String(panelWidthFor(window.width))}px`)
+    expect(shown.style.height).toBe(`${String(window.height * 0.92)}px`)
+    const frame = panel.container.querySelector('[data-board-window="agent"]') as HTMLElement
+    expect(shown.compareDocumentPosition(frame) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // No z-index of its own: every frame paints above the panel.
+    expect(shown.style.zIndex).toBe('')
+
+    // Escape closes the panel first and leaves the window alone.
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-panel-open]')).toBeNull()
+    expect(panel.container.querySelector('[data-board-window="agent"]')).not.toBeNull()
+
+    // Fullscreen docks it to the board panel and gives its width to the chat.
+    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    fireEvent.click(panel.container.querySelector('button[aria-label="Open fullscreen"]') as Element)
+    await runtime.flush()
+    const docked = panel.container.querySelector('[data-board-panel]') as HTMLElement
+    const dockedWidth = panelWidthFor(1000)
+    expect(docked.getAttribute('data-board-panel')).toBe('docked')
+    expect(docked.style.left).toBe('0px')
+    expect(docked.style.top).toBe('0px')
+    expect(docked.style.height).toBe('800px')
+    expect(docked.style.width).toBe(`${String(dockedWidth)}px`)
+    const fullscreen = panel.container.querySelector('[data-board-fullscreen]') as HTMLElement
+    expect(fullscreen.style.inset).toBe(`0 0 0 ${String(dockedWidth)}px`)
+  })
+
+  it('points the window at the chat picked in its panel', async () => {
+    const prepared = await createBoardBench()
+    runtimes.add(prepared.runtime)
+    const { runtime } = prepared
+    const created = await runtime.sessions.add({ id: 'session-1', summary: { cwd: '/work/one' } })
+    runtime.sessions.stubCreate(async () => created)
+    await runtime.sessions.add({ id: 'chat-2', summary: { displayTitle: 'Second chat', cwd: '/work/two' } })
+    await runtime.workspaces.update((draft) => {
+      draft.items = [{
+        workspaceId: 'ws-1' as never,
+        path: '/work/two',
+        title: 'Two',
+        sessionIds: ['chat-2' as never],
+        createdAt: '2026-09-16T00:00:00.000Z',
+        updatedAt: '2026-09-16T00:00:00.000Z',
+      }]
+    })
+    await prepared.mountBoard()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
+    await runtime.flush()
+    expect(panel.view.getByText('/work/one')).not.toBeNull()
+
+    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    await runtime.flush()
+    fireEvent.click(panel.view.getByText('Two'))
+    await runtime.flush()
+    fireEvent.click(panel.view.getByText('Second chat'))
+    await runtime.flush()
+
+    // The window's session is the picked chat: its directory reaches the composer chip.
+    expect(panel.view.getByText('/work/two')).not.toBeNull()
+    expect(runtime.sessions.calls.some(call => call.method === 'open' && call.args[0] === 'chat-2')).toBe(true)
   })
 
   it('keeps the ledger, DOM, and store flat across open-close cycles', async () => {

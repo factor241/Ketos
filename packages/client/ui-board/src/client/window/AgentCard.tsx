@@ -3,12 +3,13 @@
  */
 import React, { useCallback, useEffect } from 'react'
 import clsx from 'clsx'
-import { IconCloseOutline16, IconFullscreenOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCloseOutline16, IconFullscreenOutline16, IconPanelLeftOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
 import { finishBoardPointerGesture } from './pointer-cleanup.ts'
 import { resizeStep, type ResizeDirection } from './resize.ts'
 import { ExitFullscreenGlyph } from './fullscreen-glyph.tsx'
+import { panelWidthFor } from './panel-geometry.ts'
 import css from './AgentCard.module.css'
 
 export type AgentCardProps =
@@ -32,16 +33,23 @@ export function AgentCard({ window: cardWindow, renderBody, useStore, actions, t
   const zoom = useStore(s => s.zoom)
   const isActive = useStore(s => s.activeWindowId === cardWindow.id)
   const isFullscreen = useStore(s => s.fullscreenWindowId === cardWindow.id)
+  const isPanelOpen = useStore(s => s.panelWindowId === cardWindow.id)
+  const viewportWidth = useStore(s => s.viewportWidth)
+  // Fullscreen docks the chats panel and gives up its width to the chat column.
+  const dockedWidth = isPanelOpen ? panelWidthFor(viewportWidth) : 0
 
-  // Escape leaves the mode; the header toggle does the same.
+  // Escape closes the chats panel first and leaves fullscreen second: one
+  // handler owns the key so the two modes never fight over it.
   useEffect(() => {
-    if (!isFullscreen) return
+    if (!isFullscreen && !isPanelOpen) return
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') actions.exitFullscreen()
+      if (e.key !== 'Escape') return
+      if (isPanelOpen) actions.closeWindowPanel()
+      else actions.exitFullscreen()
     }
     globalThis.addEventListener('keydown', onKeyDown)
     return () => { globalThis.removeEventListener('keydown', onKeyDown) }
-  }, [isFullscreen, actions])
+  }, [isFullscreen, isPanelOpen, actions])
 
   const handleHeaderPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (isFullscreen) return
@@ -114,8 +122,9 @@ export function AgentCard({ window: cardWindow, renderBody, useStore, actions, t
       onPointerDown={() => { actions.focusWindow(cardWindow.id) }}
       style={isFullscreen
         // The canvas drops its pan/zoom while a window is fullscreen, so the
-        // inset rectangle maps to the visible board panel.
-        ? { inset: 0, zIndex: 1000 }
+        // inset rectangle maps to the visible board panel; an open chats panel
+        // docks along its left edge and takes that width from the chat.
+        ? { inset: `0 0 0 ${String(dockedWidth)}px`, zIndex: 1000 }
         : {
           left: cardWindow.x,
           top: cardWindow.y,
@@ -142,6 +151,20 @@ export function AgentCard({ window: cardWindow, renderBody, useStore, actions, t
               aria-label={t('window.close')}
             >
               <IconCloseOutline16 />
+            </button>
+          </Tooltip>
+          <Tooltip label={t('window.chats')} side="bottom">
+            <button
+              type="button"
+              onClick={() => {
+                if (isPanelOpen) actions.closeWindowPanel()
+                else actions.openWindowPanel(cardWindow.id)
+              }}
+              className={css.headerButton}
+              aria-label={t('window.chats')}
+              aria-expanded={isPanelOpen}
+            >
+              <IconPanelLeftOutline16 />
             </button>
           </Tooltip>
           <span className={css.title}>{cardWindow.title}</span>

@@ -83,8 +83,10 @@ function laneRows(chat: ChatSnapshot): readonly LaneRow[] {
 }
 
 export function ConversationBody({
-  window: cardWindow, t, useWindowSession, ensureWindowSession, ...injected
+  window: cardWindow, t, useStore, useWindowSession, ...injected
 }: ConversationBodyProps) {
+  // `injected` stays whole for the composer; the window creation callback rides it.
+  const ensureWindowSession = injected.ensureWindowSession
   const session = useWindowSession(cardWindow.id)
   const laneRef = useRef<HTMLDivElement>(null)
   const [atTail, setAtTail] = useState(true)
@@ -109,6 +111,10 @@ export function ConversationBody({
     footnotes: t('markdown.footnotes'),
   }), [t])
 
+  // Fullscreen keeps a normal chat layout: the lane and composer ride a centred
+  // column beside the docked chats panel.
+  const isFullscreen = useStore(s => s.fullscreenWindowId === cardWindow.id)
+
   const handleScroll = (): void => {
     const lane = laneRef.current
     if (lane === null) return
@@ -116,7 +122,7 @@ export function ConversationBody({
   }
 
   return (
-    <div className={css.body}>
+    <div className={clsx(css.body, isFullscreen && css.centered)}>
       <div ref={laneRef} className={css.lane} onScroll={handleScroll}>
         {ready && rows.length > 0 && (
           <button

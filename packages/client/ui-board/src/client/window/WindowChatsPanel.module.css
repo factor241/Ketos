@@ -1,0 +1,197 @@
+/* Chats panel of one board window. Windowed it is a compact layer tucked under
+ * the frame's left edge; docked (fullscreen) it becomes the plain sidebar of a
+ * normal chat layout. It is a sibling rendered before the frame and carries no
+ * z-index, so every frame paints above it. */
+
+.panel {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--dsw-alias-bg-layer-2);
+  border: 0;
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
+  box-shadow: var(--dsw-elevation-panel);
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--board-font-label);
+  user-select: none;
+  /* Closed: hidden behind the frame (windowed) or past the board panel edge (docked). */
+  transform: translateX(var(--board-panel-hidden-x, 100%));
+  visibility: hidden;
+  transition:
+    transform var(--ds-transition-duration-slow) var(--ds-ease-in-out),
+    visibility 0s linear var(--ds-transition-duration-slow);
+}
+
+.panel[data-board-panel='docked'] {
+  border-radius: 0;
+  --board-panel-hidden-x: -100%;
+  border-right: 0.5px solid var(--dsw-alias-border-l1);
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.panel[data-board-panel-open] {
+  transform: none;
+  visibility: visible;
+  transition: transform var(--ds-transition-duration-slow) var(--ds-ease-in-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .panel[data-board-panel-open] {
+    transition: none;
+  }
+}
+
+.header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-row);
+  min-width: 0;
+  padding: 10px 10px 6px;
+}
+
+/* Windowed: the tucked share of the panel hides under the frame, so the content
+   keeps inside the strip that protrudes beside it. */
+.panel[data-board-panel='windowed'][data-board-panel-side='left'] .header {
+  padding-right: calc(30% + 6px);
+}
+
+.panel[data-board-panel='windowed'][data-board-panel-side='left'] .list {
+  padding-right: calc(30% + 2px);
+}
+
+.panel[data-board-panel='windowed'][data-board-panel-side='right'] .header {
+  padding-left: calc(30% + 6px);
+}
+
+.panel[data-board-panel='windowed'][data-board-panel-side='right'] .list {
+  padding-left: calc(30% + 2px);
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The project header doubles as the way back to the project list. */
+.back {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 2px 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: var(--board-font-label);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.back:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.backGlyph {
+  flex: none;
+  transform: rotate(180deg);
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--board-control-small);
+  height: var(--board-control-small);
+  border: none;
+  border-radius: 50%;
+  corner-shape: round;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.action:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.list {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 6px 8px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-row);
+  flex: none;
+  min-width: 0;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: var(--board-font-label);
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.row.current {
+  background: var(--dsw-specific-selector);
+}
+
+.rowIcon {
+  display: flex;
+  align-items: center;
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowMeta {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--board-font-hint);
+}
+
+/* Running marker: the dot the app sidebar shows beside a live chat. */
+.dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-state-business-primary);
+}

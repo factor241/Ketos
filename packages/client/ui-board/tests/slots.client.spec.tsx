@@ -319,7 +319,6 @@ describe('board slot composition', () => {
 
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
     await runtime.flush()
-    expect(panel.view.getByText('/work/one')).not.toBeNull()
 
     fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
     await runtime.flush()
@@ -328,8 +327,8 @@ describe('board slot composition', () => {
     fireEvent.click(panel.view.getByText('Second chat'))
     await runtime.flush()
 
-    // The window's session is the picked chat: its directory reaches the composer chip.
-    expect(panel.view.getByText('/work/two')).not.toBeNull()
+    // The window's session is the picked chat: the panel marks that row current.
+    expect(panel.container.querySelector('[data-board-chat-current]')?.textContent).toContain('Second chat')
     expect(runtime.sessions.calls.some(call => call.method === 'open' && call.args[0] === 'chat-2')).toBe(true)
   })
 

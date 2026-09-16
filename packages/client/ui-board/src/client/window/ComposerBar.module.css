@@ -72,14 +72,12 @@
   padding: 10px 14px 14px;
 }
 
-/* Context row: the session's working directory and agent preset share one
-   line — the path takes the left, the preset keeps the right — and never wrap,
-   so the two chips stay in one plane at every window width. */
+/* Context row: the session's setup chips (the agent preset today; the folder
+   moved to the window's chats panel) sit on one line and never wrap. */
 .contextRow {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  justify-content: space-between;
   gap: 6px;
   min-width: 0;
   overflow: hidden;
@@ -117,17 +115,9 @@
   opacity: 0.6;
 }
 
-/* The path chip takes the space the preset leaves; the shorter preset chip
-   stays at the right edge and shrinks only after the path. */
-.cwdChip {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
 .presetChip {
   flex: 0 1 auto;
   min-width: 0;
-  margin-left: auto;
 }
 
 .permissionChip,

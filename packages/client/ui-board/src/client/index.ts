@@ -36,7 +36,7 @@ export type { BoardState, BoardStoreHandle, OpenWindowSpec } from './store.ts'
 
 /** Services required by the board plugin: slots, copy, and the session domain. */
 export const inject = [
-  'slots', 'locale', 'sessions', 'workspaces', 'uiConversation', 'modelDirectories',
+  'slots', 'locale', 'sessions', 'workspaces', 'uiWorkspace', 'uiConversation', 'modelDirectories',
   'remote', 'remote.commands', 'remote.agentPresets', 'remote.goals',
   'remote.fileReferences', 'remote.sessionReferenceResolver',
 ]

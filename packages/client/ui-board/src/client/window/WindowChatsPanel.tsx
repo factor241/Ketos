@@ -8,7 +8,8 @@
 import { useMemo, useState } from 'react'
 import clsx from 'clsx'
 import {
-  IconChevronRightOutline14, IconFolderOpen16, IconNewChatOutline16, relativeTime,
+  IconChevronRightOutline14, IconFolderOpen16, IconNewChatOutline16, IconProjectAddOutline16,
+  relativeTime,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
@@ -37,7 +38,7 @@ function ageLabel(updatedAt: number, t: WindowChatsPanelProps['t']): string {
 
 export function WindowChatsPanel({
   window: cardWindow, useStore, useSessionList, useWorkspaceList, useWindowSession,
-  bindSession, createChat, t,
+  bindSession, createChat, pickWorkspace, t,
 }: WindowChatsPanelProps) {
   const open = useStore(s => s.panelWindowId === cardWindow.id)
   const fullscreen = useStore(s => s.fullscreenWindowId === cardWindow.id)
@@ -90,7 +91,19 @@ export function WindowChatsPanel({
     >
       <div className={css.header}>
         {project === undefined
-          ? <span className={css.title}>{t('panel.projects')}</span>
+          ? (
+            <>
+              <span className={css.title}>{t('panel.projects')}</span>
+              <button
+                type="button"
+                className={css.action}
+                aria-label={t('panel.addFolder')}
+                onClick={() => { pickWorkspace(cardWindow.id) }}
+              >
+                <IconProjectAddOutline16 />
+              </button>
+            </>
+          )
           : (
             <button type="button" className={css.back} onClick={() => { setLevel({ kind: 'projects' }) }}>
               <IconChevronRightOutline14 className={css.backGlyph} />
@@ -122,6 +135,7 @@ export function WindowChatsPanel({
             <button
               key={chat.id}
               type="button"
+              data-board-chat-current={chat.current ? '' : undefined}
               className={clsx(css.row, chat.current && css.current)}
               onClick={() => { bindSession(cardWindow.id, chat.id) }}
             >

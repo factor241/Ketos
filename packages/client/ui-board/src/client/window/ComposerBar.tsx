@@ -18,7 +18,6 @@ import {
   IconChecklistOutline14,
   IconChevronDownOutline14,
   IconCloseOutline16,
-  IconFolderOpen16,
   IconGoalOutline16,
   IconPaperclipOutline16,
   IconQueueOutline14,
@@ -38,11 +37,10 @@ import type {
 } from '../contract/slots.ts'
 import type { BoardTranslate } from '../locale.ts'
 import { MicGlyph, useDictation } from './dictation.tsx'
-import { useElidedPath } from './path-label.ts'
 import css from './ComposerBar.module.css'
 
 /** The popover kinds the bar owns; one is open at a time. */
-type MenuKind = 'actions' | 'cwd' | 'preset' | 'permission' | 'model'
+type MenuKind = 'actions' | 'preset' | 'permission' | 'model'
 
 /** One open popover: which trigger owns it and where it is placed. */
 interface OpenMenu {
@@ -120,9 +118,6 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
   const fileInput = useRef<HTMLInputElement>(null)
   const cardRef = useRef<HTMLFormElement>(null)
   const actionsAnchor = useRef<HTMLButtonElement>(null)
-  const cwdAnchor = useRef<HTMLButtonElement>(null)
-  const cwdLabelRef = useRef<HTMLSpanElement>(null)
-  const cwdLabel = useElidedPath(cwdLabelRef, session?.cwd ?? '')
   const presetAnchor = useRef<HTMLButtonElement>(null)
   const permissionAnchor = useRef<HTMLButtonElement>(null)
   const modelAnchor = useRef<HTMLButtonElement>(null)
@@ -372,35 +367,6 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
       )}
 
       <div className={css.contextRow}>
-        <Tooltip label={session?.cwd ?? t('cwd.none')} side="top" disabled={isOpen('cwd')}>
-          <button
-            ref={cwdAnchor}
-            type="button"
-            className={clsx(css.chip, css.cwdChip)}
-            disabled={!(session?.blank ?? false)}
-            onClick={() => { openMenu('cwd', cwdAnchor.current) }}
-            aria-label={t('cwd.choose')}
-          >
-            <span className={css.chipIcon}><IconFolderOpen16 /></span>
-            <span ref={cwdLabelRef} className={css.chipLabel}>
-              {session?.cwd === undefined ? t('cwd.choose') : cwdLabel}
-            </span>
-            <span className={css.chipIcon}><IconChevronDownOutline14 /></span>
-          </button>
-        </Tooltip>
-        <Menu
-          portal
-          open={isOpen('cwd')}
-          side={sideOf('cwd')}
-          align={alignOf('cwd')}
-          selection="fill"
-          anchor={<span className={css.anchor} />}
-          getAnchorRect={() => cwdAnchor.current?.getBoundingClientRect() ?? null}
-          items={[{ id: 'pick', label: t('cwd.pick'), icon: <IconFolderOpen16 /> }]}
-          onSelect={() => { closeMenu(); injected.pickWorkspace(windowId) }}
-          onClose={closeMenu}
-        />
-
         <Tooltip label={t('preset.hint')} side="top" disabled={isOpen('preset')}>
           <button
             ref={presetAnchor}

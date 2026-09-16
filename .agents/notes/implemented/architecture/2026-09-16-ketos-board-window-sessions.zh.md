@@ -16,7 +16,7 @@ Status: implemented
 
 **一个 keyed hook 服务所有窗口。** `board.window.body` 获得带 `keyedHooks: { windowSession }`（键到 observable 的解析器）的注入面，以及普通回调（`ensureWindowSession`、`sendPrompt`、`cancelPrompt`、`loadOlderTurns`，以及面板的 `bindSession`/`createChat`，见[聊天面板笔记](2026-09-16-ketos-board-window-chats-panel.zh.md)）。body 注册保留其按 `bodyKind` 的键与 owner props；窗口 id 是 `useWindowSession(windowId)` 的键参数，因此注册数量不随窗口数量增长。这是被认可的 observable 路径：插件绝不把源交给组件，组件也绝不调用 `useSyncExternalStore`。
 
-**Composer 由看板拥有且完整。** `ComposerBar` 在窗口内重建了参考聊天栏：工作目录与 agent 预设芯片（两者仅在会话为空时可切换）、基于宿主命令目录的 `+` 操作菜单加上看板自有的图片附件条目、带参数提示与描述的 `/` 命令弹层、来自 `remote.fileReferences.list` 与 `remote.sessionReferenceResolver.candidates` 的 `@` 提及行、权限芯片（完全访问走 `RiskConfirmation`）、基于 `ctx.modelDirectories` 且带推理等级子菜单的模型芯片、计划芯片、来自 `contextPressure` 投影的上下文圆环、目标/待办/队列条，以及带排队或引导的发送/停止。Markdown 通过共享的 `MarkdownText` 渲染；车道把 `legacy.nodes` 折叠为用户／assistant 正文与单行工具行，标题栏的全屏开关就地放大窗口（[note](2026-09-16-ketos-board-window-fullscreen.zh.md)），不再导航离开。模拟文案及其栖身字段（`BoardWindowState` 上的 `status`、`statusText`、`contextUsed`、`sessionId`）被删除，而不是留着不用。
+**Composer 由看板拥有且完整。** `ComposerBar` 在窗口内重建了参考聊天栏：agent 预设芯片（仅在会话为空时可切换；工作目录已移入窗口的聊天面板）、基于宿主命令目录的 `+` 操作菜单加上看板自有的图片附件条目、带参数提示与描述的 `/` 命令弹层、来自 `remote.fileReferences.list` 与 `remote.sessionReferenceResolver.candidates` 的 `@` 提及行、权限芯片（完全访问走 `RiskConfirmation`）、基于 `ctx.modelDirectories` 且带推理等级子菜单的模型芯片、计划芯片、来自 `contextPressure` 投影的上下文圆环、目标/待办/队列条，以及带排队或引导的发送/停止。Markdown 通过共享的 `MarkdownText` 渲染；车道把 `legacy.nodes` 折叠为用户／assistant 正文与单行工具行，标题栏的全屏开关就地放大窗口（[note](2026-09-16-ketos-board-window-fullscreen.zh.md)），不再导航离开。模拟文案及其栖身字段（`BoardWindowState` 上的 `status`、`statusText`、`contextUsed`、`sessionId`）被删除，而不是留着不用。
 
 **桥同时承载控制面。** 会话列表行（cwd、blank、agent 预设）、permissions/plan/todos/goal/contextPressure 投影、模型目录、命令目录、预设名册（经共享的 `@deepseek-ai/dsh-agent-presets/display` 折叠本地化）以及对话阻塞原因，都按窗口订阅一次并重新发布到同一 channel，因此栏只渲染普通数据，每次变更都经注入回调返回（`selectPermission` → `/permission`、`exitPlanMode` → `/plan off`、`runCommand`、`updateQueueItem`、`goalAction`、`pickWorkspace` → `uiWorkspace.pickDirectory()` + 重新创建会话、`selectModel`）。
 
@@ -24,7 +24,7 @@ Status: implemented
 
 **Composer 会适配窗口。** 卡片是 inline-size 容器：低于 545px 时工具栏分行并把尾部组（上下文、模型、发送/停止）固定在自己一行的右端，低于 455px 时模式芯片去掉文字，低于 405px 时隐藏上下文圆环；每一行都是可换行且子元素 `min-width: 0` 的 flex 行，车道从不横向滚动。弹层通过共享 `Menu` 的 portal 依据触发元素矩形渲染，选择空间更大的一侧，并在视口中线之后改为末端对齐；菜单打开时其提示（tooltip）让位。麦克风按钮（共享图标集中没有，因此由看板自绘字形）在引擎提供浏览器自带语音识别时把语音写入草稿，否则保持禁用。
 
-**上下文行始终只有一行。** 工作目录芯片与 agent 预设芯片绝不换行：路径芯片占据预设芯片留下的空间，预设芯片守住右端，因此两者在任何宽度下都处于同一平面。路径标签在中间省略——头部标记先于尾部片段消失，项目名最后才让位——其预算来自芯片自身盒子的测量（`window/path-label.ts`），完整路径仍在提示气泡中。
+**Composer 只保留预设芯片。** 工作目录已从 composer 移入窗口的聊天面板：面板中的文件夹动作会采用选中的目录，并把窗口仍然空白的聊天在其中重新创建；上下文行仍以单行承载 agent 预设。
 
 **窗口整体比应用放大一档。** `BoardViews.module.css` 在看板根节点上声明一组度量（`--board-font-title/body/content/label/hint`、`--board-line-input`，头部/窗口/车道/卡片内边距，两档间距，以及控件、车道控件、小控件与发送按钮尺寸）；每个窗口模块都读取它，因此外框、车道与 composer 一同变大，只有一次性尺寸保留字面量。默认窗口是该缩放下基础设计的 480×560 并对齐 24px 网格：552×648。dock、Omnibox、小地图以及 portal 的 `Menu`/`Tooltip` 保持应用尺寸；助手 Markdown 保持应用的正文字号设置，因为共享的 Markdown 表面读取 `body` 上的主题阶梯——两者都记录在包 README 中。
 

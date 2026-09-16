@@ -91,6 +91,13 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     }
     return target
   }
+  // The board declares the uiWorkspace service for its panel actions; the
+  // directory verbs stay inert until a test stubs them.
+  runtime.ctx.provide('uiWorkspace', {
+    pickDirectory: async () => null,
+    listDirectory: async () => ({ path: '', home: '', crumbs: [], entries: [], truncated: false }),
+    createDirectory: async () => '',
+  } as never)
   runtime.ctx.provide('uiConversation', {
     binding: (source: string) => ({
       target: (name: string) => name === 'chat' ? targetFor(source) : undefined,

@@ -38,6 +38,7 @@ import type {
 } from '../contract/slots.ts'
 import type { BoardTranslate } from '../locale.ts'
 import { MicGlyph, useDictation } from './dictation.tsx'
+import { useElidedPath } from './path-label.ts'
 import css from './ComposerBar.module.css'
 
 /** The popover kinds the bar owns; one is open at a time. */
@@ -120,6 +121,8 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
   const cardRef = useRef<HTMLFormElement>(null)
   const actionsAnchor = useRef<HTMLButtonElement>(null)
   const cwdAnchor = useRef<HTMLButtonElement>(null)
+  const cwdLabelRef = useRef<HTMLSpanElement>(null)
+  const cwdLabel = useElidedPath(cwdLabelRef, session?.cwd ?? '')
   const presetAnchor = useRef<HTMLButtonElement>(null)
   const permissionAnchor = useRef<HTMLButtonElement>(null)
   const modelAnchor = useRef<HTMLButtonElement>(null)
@@ -379,7 +382,9 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
             aria-label={t('cwd.choose')}
           >
             <span className={css.chipIcon}><IconFolderOpen16 /></span>
-            <span className={css.chipLabel}>{session?.cwd ?? t('cwd.choose')}</span>
+            <span ref={cwdLabelRef} className={css.chipLabel}>
+              {session?.cwd === undefined ? t('cwd.choose') : cwdLabel}
+            </span>
             <span className={css.chipIcon}><IconChevronDownOutline14 /></span>
           </button>
         </Tooltip>

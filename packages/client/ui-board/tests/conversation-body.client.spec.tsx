@@ -191,6 +191,14 @@ describe('ConversationBody', () => {
     expect(mic?.getAttribute('aria-pressed')).toBe('false')
   })
 
+  it('renders the working-directory chip with the session path', () => {
+    const cwd = '/Volumes/Projects/Ketos bot.worktrees/stage-04'
+    const { getByText } = render(<ConversationBody {...bodyProps({ ...ready(chatSnapshot()), cwd })} />)
+    // The label is elided against a measured chip width; jsdom reports none, so
+    // the full path renders and the live elision is covered by the layout audit.
+    expect(getByText(cwd)).not.toBeNull()
+  })
+
   it('renders the permission menu through the body portal, not inside the window', () => {
     const state: BoardWindowSessionState = {
       ...ready(chatSnapshot()),

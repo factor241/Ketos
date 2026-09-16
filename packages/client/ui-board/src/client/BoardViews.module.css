@@ -8,17 +8,17 @@
   height: 100%;
   overflow: hidden;
 
-  /* Window UI scale: a floating window renders one step above the base design
+  /* Window UI scale: a floating window renders above the base design
      (13-14px text, 28px controls, 16px body padding) so its chat stays readable
      beside the app's 14px content axis. The frames, lanes, and composer read
      these; the dock, omnibar, and minimap keep the app's sizes, and portalled
      primitives (Menu, Tooltip) keep the app's sizes too. */
-  --board-font-title: 15px;
-  --board-font-body: 16px;
-  --board-font-content: 15px;
-  --board-font-label: 14px;
-  --board-font-hint: 13px;
-  --board-line-input: 22px;
+  --board-font-title: 17px;
+  --board-font-body: 18px;
+  --board-font-content: 17px;
+  --board-font-label: 15px;
+  --board-font-hint: 14px;
+  --board-line-input: 24px;
   --board-pad-header: 12px 14px;
   --board-pad-window: 18px;
   --board-pad-lane: 16px 18px;

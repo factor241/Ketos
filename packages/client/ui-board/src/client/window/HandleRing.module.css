@@ -1,0 +1,49 @@
+/**
+ * Screen-space resize ring of the active window (see HandleRing.tsx). The
+ * layer itself takes no pointer events; each handle strip does, so the chrome
+ * and the canvas under the empty ring stay fully interactive.
+ */
+
+.ring {
+  position: absolute;
+  inset: 0;
+  z-index: 150;
+  pointer-events: none;
+}
+
+.handle {
+  position: absolute;
+  pointer-events: auto;
+}
+
+.n {
+  cursor: ns-resize;
+}
+
+.s {
+  cursor: ns-resize;
+}
+
+.w {
+  cursor: ew-resize;
+}
+
+.e {
+  cursor: ew-resize;
+}
+
+.nw {
+  cursor: nwse-resize;
+}
+
+.ne {
+  cursor: nesw-resize;
+}
+
+.sw {
+  cursor: nesw-resize;
+}
+
+.se {
+  cursor: nwse-resize;
+}

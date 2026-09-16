@@ -7,6 +7,11 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
+  /* One stacking context for the whole board: the window band, the floating
+     chrome (100), the selection overlay (500), and the fullscreen layer (1000)
+     stay inside the board box, so shell-level overlays above the box keep
+     painting and hit-testing above every board layer. */
+  isolation: isolate;
 
   /* Window UI scale: a floating window renders above the base design
      (13-14px text, 28px controls, 16px body padding) so its chat stays readable

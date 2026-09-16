@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /** Canvas layer and minimap: store-driven reads, the window-layer seat, and minimap projection. */
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render } from '@testing-library/react'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render } from '@testing-library/react'
 import { Minimap, type MinimapProps } from '../src/client/canvas/Minimap.tsx'
 import { DashboardCanvas, type DashboardCanvasProps } from '../src/client/canvas/DashboardCanvas.tsx'
 import minimapCss from '../src/client/canvas/Minimap.module.css'
@@ -35,7 +35,7 @@ function canvasProps(
   }
 }
 
-afterEach(() => { vi.restoreAllMocks() })
+afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 /** Resolve a CSS Module class; a class the stylesheet must define fails loudly at the call site. */
 function classOf(classes: Record<string, string>, name: string): string {
@@ -130,6 +130,12 @@ describe('Minimap Component', () => {
 })
 
 describe('DashboardCanvas Component', () => {
+  // jsdom implements no pointer capture; the pan gesture only needs its deltas.
+  beforeAll(() => {
+    Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { value: () => {}, configurable: true, writable: true })
+    Object.defineProperty(HTMLElement.prototype, 'releasePointerCapture', { value: () => {}, configurable: true, writable: true })
+  })
+
   it('renders the transformed canvas surface and the window-layer seat', () => {
     // jsdom has no layout: pin the measured box so the published viewport is the production read.
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1000)
@@ -142,11 +148,14 @@ describe('DashboardCanvas Component', () => {
       <DashboardCanvas {...canvasProps(state, actions, renderSlot)} />,
     )
 
-    // The canvas surface and the transformed content surface both carry the canvas marker.
+    // The canvas root and its transformed content layer carry distinct markers,
+    // so a strict locator never binds two nodes.
     const surfaces = container.querySelectorAll<HTMLElement>('[data-surface="canvas"]')
-    expect(surfaces.length).toBe(2)
+    const layers = container.querySelectorAll<HTMLElement>('[data-surface="canvas-layer"]')
+    expect(surfaces.length).toBe(1)
+    expect(layers.length).toBe(1)
     expect(surfaces[0]?.classList.contains(classOf(canvasCss, 'canvas'))).toBe(true)
-    expect(surfaces[1]?.classList.contains(classOf(canvasCss, 'surface'))).toBe(true)
+    expect(layers[0]?.classList.contains(classOf(canvasCss, 'surface'))).toBe(true)
     // Zoom and pan reach the stylesheet as component-local custom properties.
     expect(surfaces[0]?.style.getPropertyValue('--board-zoom')).toBe('1.5')
     expect(surfaces[0]?.style.getPropertyValue('--board-pan-x')).toBe('40px')
@@ -158,13 +167,50 @@ describe('DashboardCanvas Component', () => {
     expect(renderSlot).toHaveBeenCalledWith('board.windows', {})
   })
 
-  it('dispatches wheel zoom toward the pointer position', () => {
-    const actions = { setViewport: vi.fn(), setPan: vi.fn(), zoomTowardPointer: vi.fn() } as unknown as DashboardCanvasProps['actions']
+  it('pans from the bare canvas and finishes the gesture through the shared cleanup', () => {
+    const setPan = vi.fn<(x: number, y: number) => void>()
+    const actions = { setViewport: vi.fn(), setPan, zoomTowardPointer: vi.fn() } as unknown as DashboardCanvasProps['actions']
     const { container } = render(
-      <DashboardCanvas {...canvasProps(baseState, actions, vi.fn(() => null))} />,
+      <DashboardCanvas {...canvasProps({ ...baseState, panX: 30, panY: -20 }, actions, vi.fn(() => null))} />,
     )
+    const canvas = container.querySelector('[data-surface="canvas"]') as HTMLElement
+    const surface = container.querySelector('[data-surface="canvas-layer"]') as HTMLElement
 
-    fireEvent.wheel(container.querySelector('[data-surface="canvas"]') as Element, { deltaY: -100, clientX: 120, clientY: 80 })
-    expect(actions.zoomTowardPointer).toHaveBeenCalledWith(-100, 120, 80)
+    fireEvent.pointerDown(surface, { pointerId: 7, clientX: 100, clientY: 100, button: 0 })
+    fireEvent.pointerMove(window, { pointerId: 7, clientX: 140, clientY: 90 })
+    expect(setPan).toHaveBeenCalledWith(70, -30)
+
+    // A cancelled gesture releases the pointer and stops listening.
+    fireEvent.pointerCancel(window, { pointerId: 7 })
+    setPan.mockClear()
+    fireEvent.pointerMove(window, { pointerId: 7, clientX: 500, clientY: 500 })
+    expect(setPan).not.toHaveBeenCalled()
+
+    // A pointer down on the canvas root still pans; the chrome is not the canvas.
+    fireEvent.pointerDown(canvas, { pointerId: 8, clientX: 10, clientY: 10, button: 0 })
+    fireEvent.pointerMove(window, { pointerId: 8, clientX: 20, clientY: 20 })
+    expect(setPan).toHaveBeenCalledWith(40, -10)
   })
+
+  it('pans with Space held over a window and resets the viewport with Ctrl/Cmd+0', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1000)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(800)
+    const actions = { setViewport: vi.fn(), setPan: vi.fn(), setZoom: vi.fn(), zoomTowardPointer: vi.fn() } as unknown as DashboardCanvasProps['actions']
+    const { container } = render(
+      <DashboardCanvas {...canvasProps({ ...baseState, panX: 5 }, actions, vi.fn(() => null))} />,
+    )
+    const canvas = container.querySelector('[data-surface="canvas"]') as HTMLElement
+    fireEvent.pointerEnter(canvas)
+    fireEvent.keyDown(window, { code: 'Space' })
+    fireEvent.pointerDown(canvas, { pointerId: 3, clientX: 50, clientY: 50, button: 0 })
+    fireEvent.pointerMove(window, { pointerId: 3, clientX: 90, clientY: 70 })
+    expect(actions.setPan).toHaveBeenCalledWith(45, 20)
+    fireEvent.pointerUp(window, { pointerId: 3 })
+    fireEvent.keyUp(window, { code: 'Space' })
+
+    fireEvent.keyDown(window, { key: '0', metaKey: true })
+    expect(actions.setPan).toHaveBeenCalledWith(0, 0)
+    expect(actions.setZoom).toHaveBeenCalledWith(1)
+  })
+
 })

@@ -11,6 +11,13 @@
   align-items: center;
   gap: 12px;
   padding: 12px 8px;
+  /* One row per window: past the panel's height the rail scrolls instead of
+     clipping its rows and controls beyond the viewport. The thumb rides the l2
+     pair (ui-theme's scrollbar rebinding contract for elevated surfaces). */
+  max-height: calc(100% - 48px);
+  overflow-y: auto;
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   border-radius: 20px;
   background: var(--dsw-alias-bg-layer-2);
   border: 0;

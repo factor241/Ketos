@@ -6,7 +6,7 @@
  * window at whichever chat is picked. In fullscreen it docks to the board
  * panel's left edge and the chat keeps a centred column beside it.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import clsx from 'clsx'
 import {
@@ -21,11 +21,12 @@ import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/clie
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { BoardDirectoryListing, BoardWindowInjected } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
+import { isWindowHidden } from '../canvas/culling.ts'
+import { useBoardPointerGesture } from '../pointer-gesture.ts'
 import { chatGroups, filterGroups, moveAnchor } from './chat-list-model.ts'
 import {
   dockedPanelRect, panelPresentation, panelWidthFor, railRect, windowedPanelRect,
 } from './panel-geometry.ts'
-import { finishBoardPointerGesture } from './pointer-cleanup.ts'
 import css from './WindowChatsPanel.module.css'
 
 export type WindowChatsPanelProps =
@@ -52,13 +53,16 @@ type RowMenuTarget = { readonly kind: 'project' | 'chat'; readonly id: string }
 /** The row a drag is hovering, as a data-row key. */
 type DropKey = string | null
 
+/** Inert selector equality: a collapsed panel ignores every store change. */
+const alwaysEqual = (): boolean => true
+
 /** Relative age of one chat row, in the board's short units. */
 function ageLabel(updatedAt: number, t: WindowChatsPanelProps['t']): string {
   const { unit, n } = relativeTime(updatedAt, Date.now())
   return unit === 'now' ? t('time.now') : t(`time.${unit}`, { n })
 }
 
-export function WindowChatsPanel({
+function WindowChatsPanelView({
   window: cardWindow, useStore, actions, useSessionList, useWorkspaceList, useWindowSession,
   bindSession, createChat, startChat, renameChat, forkChat, archiveChat, reorderChat,
   createWorkspace, renameWorkspace, deleteWorkspace, reorderWorkspace,
@@ -70,10 +74,14 @@ export function WindowChatsPanel({
   const groupBy = useStore(s => s.panelGroupBy)
   const orderBy = useStore(s => s.panelOrderBy)
   const fullscreen = useStore(s => s.fullscreenWindowId === cardWindow.id)
-  const viewportWidth = useStore(s => s.viewportWidth)
-  const viewportHeight = useStore(s => s.viewportHeight)
-  const panX = useStore(s => s.panX)
-  const zoom = useStore(s => s.zoom)
+  const hidden = useStore(s => isWindowHidden(s, cardWindow))
+  const open = mounted && !collapsed
+  const { panX, zoom, width: viewportWidth, height: viewportHeight } = useStore(
+    // Geometry only while the panel is open: a collapsed rail does not follow
+    // the view transform, so panning and zooming the canvas never re-render it.
+    s => ({ panX: s.panX, zoom: s.zoom, width: s.viewportWidth, height: s.viewportHeight }),
+    open ? undefined : alwaysEqual,
+  )
   const sessionList = useSessionList(s => s)
   const workspaceList = useWorkspaceList(s => s)
   const session = useWindowSession(cardWindow.id)
@@ -108,7 +116,8 @@ export function WindowChatsPanel({
     ? dockedPanelRect(viewportWidth, viewportHeight, width)
     : windowedPanelRect(cardWindow, view, width)
   const rail = railRect(cardWindow, side)
-  const open = mounted && !collapsed
+
+  const startGesture = useBoardPointerGesture()
 
   const report = useCallback((failure: unknown): void => {
     setError(failure instanceof Error ? failure.message : String(failure))
@@ -133,15 +142,12 @@ export function WindowChatsPanel({
     const startX = e.clientX
     const startWidth = width
     const outward = side === 'left' ? -1 : 1
-    const onPointerMove = (moveEvt: PointerEvent) => {
-      const delta = (moveEvt.clientX - startX) / zoom
-      actions.setPanelWidth(startWidth + delta * outward)
-    }
-    const onPointerUp = (upEvt: PointerEvent) => {
-      finishBoardPointerGesture(target, upEvt, onPointerMove, onPointerUp)
-    }
-    globalThis.addEventListener('pointermove', onPointerMove)
-    globalThis.addEventListener('pointerup', onPointerUp)
+    startGesture(target, e.pointerId, {
+      move: (moveEvt) => {
+        const delta = (moveEvt.clientX - startX) / zoom
+        actions.setPanelWidth(startWidth + delta * outward)
+      },
+    })
   }
 
   /** The data-row key of the row under a point. */
@@ -155,32 +161,30 @@ export function WindowChatsPanel({
     const startX = e.clientX
     const startY = e.clientY
     dragged.current = false
-    const onPointerMove = (moveEvt: PointerEvent) => {
-      if (!dragged.current && Math.abs(moveEvt.clientX - startX) + Math.abs(moveEvt.clientY - startY) < 5) return
-      dragged.current = true
-      const key = keyAt(moveEvt.clientX, moveEvt.clientY)
-      setDrop(key === `${kind}:${id}` ? null : key)
-    }
-    const onPointerUp = (upEvt: PointerEvent) => {
-      globalThis.removeEventListener('pointermove', onPointerMove)
-      globalThis.removeEventListener('pointerup', onPointerUp)
-      setDrop(null)
-      if (!dragged.current) return
-      const key = keyAt(upEvt.clientX, upEvt.clientY)
-      if (key === null || key === `${kind}:${id}`) return
-      const [targetKind, ...rest] = key.split(':')
-      const targetId = rest.join(':')
-      if (targetKind !== kind) return
-      if (kind === 'project') {
-        void reorderWorkspace(id as WorkspaceId, targetId as WorkspaceId).catch(report)
-        return
-      }
-      const groupId = project?.workspaceId
-      if (groupId === undefined) return
-      void reorderChat(groupId, id as SessionId, targetId as SessionId).catch(report)
-    }
-    globalThis.addEventListener('pointermove', onPointerMove)
-    globalThis.addEventListener('pointerup', onPointerUp)
+    startGesture(e.currentTarget, e.pointerId, {
+      move: (moveEvt) => {
+        if (!dragged.current && Math.abs(moveEvt.clientX - startX) + Math.abs(moveEvt.clientY - startY) < 5) return
+        dragged.current = true
+        const key = keyAt(moveEvt.clientX, moveEvt.clientY)
+        setDrop(key === `${kind}:${id}` ? null : key)
+      },
+      end: (upEvt) => {
+        setDrop(null)
+        if (upEvt === null || !dragged.current) return
+        const key = keyAt(upEvt.clientX, upEvt.clientY)
+        if (key === null || key === `${kind}:${id}`) return
+        const [targetKind, ...rest] = key.split(':')
+        const targetId = rest.join(':')
+        if (targetKind !== kind) return
+        if (kind === 'project') {
+          void reorderWorkspace(id as WorkspaceId, targetId as WorkspaceId).catch(report)
+          return
+        }
+        const groupId = project?.workspaceId
+        if (groupId === undefined) return
+        void reorderChat(groupId, id as SessionId, targetId as SessionId).catch(report)
+      },
+    })
   }
 
   /** Consume the click a finished drag leaves on its row. */
@@ -310,7 +314,8 @@ export function WindowChatsPanel({
       {!fullscreen && !open && (
         <div
           data-board-panel-rail=""
-          className={css.rail}
+          data-board-culled={hidden ? '' : undefined}
+          className={clsx(css.rail, hidden && css.hidden)}
           style={{ left: rail.left, top: rail.top, width: rail.width, height: rail.height }}
         >
           {railButton(t('panel.expand'), <IconPanelLeftOutline16 />, () => { actions.openWindowPanel(cardWindow.id) })}
@@ -334,8 +339,9 @@ export function WindowChatsPanel({
         data-board-panel={presentation.kind}
         data-board-panel-side={presentation.kind === 'beside' ? side : undefined}
         data-board-panel-open={open ? '' : undefined}
+        data-board-culled={hidden ? '' : undefined}
         aria-hidden={!open || undefined}
-        className={css.panel}
+        className={clsx(css.panel, hidden && css.hidden)}
         style={{
           left: rect.left,
           top: rect.top,
@@ -704,3 +710,10 @@ function FolderBrowser({ t, listDirectory, createDirectory, pickDirectory, useFo
     </>
   )
 }
+
+/**
+ * The panel, memoized on its props: the window object and the injected face
+ * are stable between store changes that do not touch this window, so another
+ * window's move or raise does not re-render this panel.
+ */
+export const WindowChatsPanel = memo(WindowChatsPanelView)

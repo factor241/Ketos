@@ -1,0 +1,52 @@
+# Agent Note: Board gestures, culling, and the window-manager budgets
+
+Status: implemented
+
+English | [中文](2026-09-17-ketos-board-gestures-culling.zh.md)
+
+## Problem
+
+Stage 4 shipped the board's window model but left the engine's weak points: drag and resize listeners registered inside `pointerdown` survived an unmount mid-gesture; the wheel handler was React's passive `onWheel`, so every zoom logged a `preventDefault` error and a wheel over a window lane zoomed instead of scrolling it; the viewport was measured only at mount and `window.resize`, so collapsing the sidebar skewed the minimap frustum and `centerOnWindow`; the canvas carried `data-surface="canvas"` twice; nothing culled off-screen windows; every frame re-rendered on each zoom because it read `zoom` itself; and a window edge under the floating chrome left its resize handle unreachable by pointer. The stage's budget is ≥ 55 FPS at 20 windows (target 60) while panning and zooming with the chats panel open.
+
+## Decision
+
+**One owner per pointer gesture.** `client/pointer-gesture.ts` exposes `startBoardPointerGesture(element, pointerId, handlers)` — it registers the global `pointermove`/`pointerup`/`pointercancel` listeners, releases the capture, and is idempotent — plus the `useBoardPointerGesture()` hook, which ends the live gesture when its component unmounts or starts a new one. The canvas pan, the header drag, the window resize (shared by the frame handles and the ring), the panel resize, and the panel row reorder all go through it, so no path can leave a listener or a capture behind.
+
+**Wheel ownership follows the surface.** The board root registers one non-passive `wheel` listener (`canvas/wheel-zoom.ts` decides which target it owns): a wheel inside a window or its chats panel keeps its own scrolling, and a wheel on the canvas or on the floating chrome — which sits beside the canvas, not inside it — zooms toward the pointer through `zoomTowardPointer`. Fullscreen keeps the whole event for the lane.
+
+**Keyboard navigation is board-local and editor-aware.** Space arms panning from anywhere on the board — including over a window, where the capture phase takes the pointer before the frame's own gesture — and middle-button drag pans everywhere. `Ctrl/Cmd+0` resets pan and zoom instead of the browser's page zoom. Both defer to a focused input, textarea, or contenteditable (`editing-target.ts`), and Space only arms while the pointer is over the board, so other panels keep the key.
+
+**The canvas measures itself.** A `ResizeObserver` on the canvas container replaced the mount/`window.resize` pair and is the single owner of `viewportWidth/Height`; `jsdom` implements none, so the unit lane keeps the mount-time read.
+
+**Windows hide; they do not unmount.** `canvas/culling.ts` decides visibility from pan, zoom, the viewport, and a 480px world-unit margin, and `isWindowHidden` also hides the neighbours of a fullscreen window. The frame and the chats panel take `content-visibility: hidden` through their own class and `data-board-culled`, keeping lane, draft, attachments, and panel state — the stage-4 rule that fullscreen renders only its own frame is superseded by the same hide-not-unmount rule. `BoardWindowLayer` no longer skips frames, and its `renderBody` dispatcher is one stable callback so the memoized frame and panel re-render only for their own window.
+
+**The zoom read lives where the gesture starts.** `WindowFrame` and `WindowChatsPanel` are memoized and subscribe to no pan or zoom: the header drag and each resize handle are leaf components that read `zoom` themselves, and the chats panel gates its geometry subscription while collapsed (a rail does not follow the view transform). Raising a window writes only that window's `zIndex`; the store's z-band is capped at `WINDOW_Z_MAX` (99, below the chrome's 100 and the overlay's 500) and renormalizes by paint order when it is exhausted, so the snapshot's other window objects keep their identity and their frames bail out of re-rendering.
+
+**The chrome keeps its pointer; the active window's handles rise above it.** The first attempt let each floating layer fade and drop pointer events while the active window's resize ring met its measured box (`chromeYields`). The live audit rejected it: a window parked at the left edge disarmed the dock entirely, so switching windows or adding one became impossible. Instead `window/HandleRing.tsx` draws the active window's eight handles in the board root above the chrome (z-index 150, below the element-selection overlay at 500) from the same `translate(pan) scale(zoom)` projection the canvas applies, and each handle starts the shared resize gesture. Non-active windows keep the frame handles they always had; the ring stands down with fullscreen and culled windows.
+
+**A closed window releases its bridge record.** `BoardSessionBridge.release(windowId)` drops the window's channel and session subscriptions, and `BoardWindowLayer` calls it for every id that leaves the open set. The session itself stays alive and listed; a window id that comes back starts from a fresh record. The layer also keeps the dock usable when the stack outgrows the panel: the rail scrolls (`max-height: calc(100% - 48px)`) instead of clipping its rows and controls beyond the viewport.
+
+**The board root contains its own stacking context.** `isolation: isolate` on the root keeps the window band, the chrome (100), the selection overlay (500), and the fullscreen layer (1000) inside the board box, so a shell-level overlay above the box paints and hit-tests above every board layer (`ketos-jdb`).
+
+## Alternatives considered
+
+- **Chrome yields the pointer to the window's edge (implemented, then removed).** Letting the dock, omnibar, and minimap fade and disarm while the active window's edge band met their measured box fixed handle reachability but broke the chrome's own purpose: with a window snapped to the left edge the dock could not be clicked at all, which the audit caught as an un-clickable window row. The handle ring keeps both reachable and needs no measurement.
+- **Unmount culled windows.** Rejected: it drops the composer draft, attachments, and panel level, which the stage's own risk list names as the failure to avoid.
+- **Clamp windows out of the chrome strips.** Rejected: the strips are panel-fixed while windows live in world coordinates, so panning or zooming moves windows under the chrome anyway; a clamp that survives would have to fight every pan frame.
+- **Raise the whole active window above the chrome.** Rejected: it would paint the frame's body over the dock and minimap, inverting the documented ladder for the one window the user is working with.
+- **Batch store notifications per frame.** Deferred, not needed: pointer events already arrive at frame pace, and React 18 batches the move/resize pair within one gesture handler; `dsh-client-store`'s `raf` flush stays an engine option rather than a board requirement.
+- **Keep `visibility: hidden` instead of `content-visibility: hidden`.** Rejected for the heavier variant: both preserve state, and `content-visibility` also skips layout and paint of the subtree, which is the point of culling.
+- **Give the whole window band an unbounded `10 + index` z-index and rely on DOM order past the cap.** Rejected: the band must never reach the chrome or the overlay, so the store caps and renormalizes instead of clamping values into ties at the top.
+
+## Consequences
+
+Every gesture now has one lifecycle owner, the wheel no longer logs or swallows lane scrolling, the minimap and placement math follow the real panel box, and 20 windows stay at 60 FPS while panning and zooming (headless Chromium, 1440×900: 59.9 FPS pan, 59.6 zoom, 59.9 with all 20 visible, worst frame 27.7ms; the pre-change baseline was 59.9/59.6/59.9 with an 36.2ms worst frame and no culling). The measurements and method live in `docs/ketos/perf-baseline.md`. What it gives up: handles of a non-active window under the chrome still need a click on that window first (the ring follows the active window); the dock scrolls once the stack exceeds the panel height instead of showing every row at once; and the culling margin is a fixed world constant rather than a function of the window size.
+
+Verification: `tests/pointer-gesture.client.spec.tsx` (cancel, disposal, unmount, gesture replacement), `tests/wheel-zoom.client.spec.ts` and the composition spec's wheel case (lane versus canvas versus chrome), `tests/canvas.client.spec.tsx` (pan from bare canvas, Space+drag, `Ctrl/Cmd+0`, distinct surface markers, culling helper), `tests/culling.client.spec.ts`, `tests/store.client.spec.ts` (the >90-window band), `tests/session-bridge.client.spec.ts` (release keeps the session), and `tests/slots.client.spec.tsx` (culled draft survival, the ring above the dock, the ring's resize, empty-canvas click keeps the active window, one Escape action per press).
+
+## Related
+
+- [Board windows own Harness sessions and rebuild the chat composer](2026-09-16-ketos-board-window-sessions.md) — the bridge whose records now follow the open set.
+- [Board windows fill the panel in fullscreen instead of handing off to the main panel](2026-09-16-ketos-board-window-fullscreen.md) — updated: fullscreen hides its neighbours instead of unmounting them.
+- [`packages/client/ui-board/README.md`](../../../../packages/client/ui-board/README.md) — the interactions and limitations this stage updates.
+- Beads records closed by this stage: `ketos-0s0` (listeners surviving an unmount mid-drag), `ketos-3kf` (passive wheel listener error), `ketos-zz0` (wheel swallowing lane scrolling), `ketos-e9s` (wheel over the chrome no longer zooming), `ketos-tmd` (stale viewport box), `ketos-0da` (duplicated `data-surface` marker), `ketos-d3a` (resize handles under the chrome), and `ketos-jdb` (board chrome above the frame overlay layer).

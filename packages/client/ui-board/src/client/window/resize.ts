@@ -10,6 +10,9 @@ import { clampWindowSize } from '../store.ts'
 /** The 8 resize directions the frame exposes: edges first, then corners. */
 export type ResizeDirection = 'n' | 's' | 'e' | 'w' | 'nw' | 'ne' | 'sw' | 'se'
 
+/** Every resize direction, edges first. */
+export const RESIZE_DIRECTIONS = ['n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se'] as const satisfies readonly ResizeDirection[]
+
 /** Corner directions, which scale both axes by one factor. */
 const CORNERS: ReadonlySet<ResizeDirection> = new Set(['nw', 'ne', 'sw', 'se'])
 

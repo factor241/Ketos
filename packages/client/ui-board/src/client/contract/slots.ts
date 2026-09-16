@@ -192,6 +192,11 @@ export interface BoardWindowInjected {
   }
   /** Create the window's session on first use; idempotent. */
   ensureWindowSession: (windowId: WindowId) => void
+  /**
+   * Drop one window's bridge record when the window closes: its channel and
+   * session subscriptions go, while the session itself stays alive and listed.
+   */
+  releaseWindow: (windowId: WindowId) => void
   /** Send one prompt into the window's session, with optional inline images. */
   sendPrompt: (windowId: WindowId, text: string, mode: BoardPromptMode, images?: readonly BoardDraftImage[]) => void
   /** Cancel the window's running turn. */

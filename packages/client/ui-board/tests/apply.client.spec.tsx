@@ -123,7 +123,7 @@ describe('board plugin registration', () => {
     // The board root frames the floating layers; the canvas occupant fills it.
     const surface = htmlElement(panel.container, '[data-surface="canvas"]')
     expect(surface.classList.contains(classOf(canvasCss, 'canvas'))).toBe(true)
-    expect(htmlElement(surface, '[data-surface="canvas"]').classList.contains(classOf(canvasCss, 'surface'))).toBe(true)
+    expect(htmlElement(surface, '[data-surface="canvas-layer"]').classList.contains(classOf(canvasCss, 'surface'))).toBe(true)
     expect(surface.style.getPropertyValue('--board-zoom')).toBe('1')
 
     const row = runtime.renderSlot('sidebar.panellist', { size: 18, active: false }, { only: 'board' })

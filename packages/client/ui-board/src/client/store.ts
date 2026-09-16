@@ -92,6 +92,18 @@ export const MIN_WINDOW_SIZE = {
 const GRID_STEP = 24
 
 /**
+ * Bottom of the window z-index band. Windows paint above the canvas grid and
+ * below every floating layer of the board: the chrome (dock, omnibar, minimap)
+ * sits at 100, the element-selection overlay at 500, and the fullscreen frame
+ * and an overlay chats panel at 1000. The band tops out below the chrome, so a
+ * window can never paint over it however many windows are open.
+ */
+export const WINDOW_Z_BASE = 10
+
+/** Top of the window z-index band; the chrome above it starts at 100. */
+export const WINDOW_Z_MAX = 99
+
+/**
  * Snap one position component to the board grid.
  * @param value - world coordinate.
  * @param snap - whether grid snapping is on.
@@ -141,6 +153,29 @@ function placeWindow(draft: BoardState, width: number, height: number): { x: num
   }
 }
 
+/** The highest z-index among the windows other than `except`. */
+function topWindowZ(draft: BoardState, except: WindowId): number {
+  let top = WINDOW_Z_BASE - 1
+  for (const [key, window] of Object.entries(draft.windows)) {
+    if (key === except) continue
+    top = Math.max(top, window.zIndex)
+  }
+  return top
+}
+
+/**
+ * Rewrite every window's z-index from the current paint order. The band is
+ * finite so windows never reach the floating chrome above it; past the last
+ * distinct slot (more than {@link WINDOW_Z_MAX} windows) windows share the top
+ * value and DOM order — window order — keeps the stack exact.
+ */
+function renormalizeWindowZ(draft: BoardState): void {
+  draft.windowOrder.forEach((wId, idx) => {
+    const window = draft.windows[wId as string]
+    if (window) window.zIndex = Math.min(WINDOW_Z_BASE + idx, WINDOW_Z_MAX)
+  })
+}
+
 /** Insert one window on top of the stack and make it active. */
 function insertWindow(draft: BoardState, window: BoardWindowState): void {
   draft.windows[window.id as string] = window
@@ -150,16 +185,25 @@ function insertWindow(draft: BoardState, window: BoardWindowState): void {
   draft.activeWindowId = window.id
 }
 
-/** Raise one window to the top of the z-order and make it active. */
+/**
+ * Raise one window to the top of the z-order and make it active. Only the
+ * raised window's z-index moves — focusing is not a re-layout of the stack —
+ * and when the band is exhausted the whole band is renormalized in the current
+ * order instead of overflowing into the chrome above it.
+ */
 function raiseWindow(draft: BoardState, id: WindowId): void {
-  if (!draft.windows[id as string]) return
+  const window = draft.windows[id as string]
+  if (!window) return
   draft.activeWindowId = id
   draft.windowOrder = draft.windowOrder.filter(wId => wId !== id)
   draft.windowOrder.push(id)
-  draft.windowOrder.forEach((wId, idx) => {
-    const w = draft.windows[wId as string]
-    if (w) w.zIndex = 10 + idx
-  })
+  const top = topWindowZ(draft, id)
+  if (window.zIndex > top) return
+  if (top >= WINDOW_Z_MAX) {
+    renormalizeWindowZ(draft)
+    return
+  }
+  window.zIndex = top + 1
 }
 
 /**
@@ -214,8 +258,15 @@ export function createBoardStore(opts?: { persist?: string }): BoardStoreHandle 
         insertWindow(draft, {
           ...spec,
           ...placeWindow(draft, spec.width, spec.height),
-          zIndex: 10 + draft.windowOrder.length,
+          // Seeded at the band top and then placed above the current stack;
+          // renaming the whole band keeps a crowded board exact.
+          zIndex: WINDOW_Z_MAX,
         })
+        const placed = draft.windows[spec.id as string]
+        if (!placed) return
+        const top = topWindowZ(draft, spec.id)
+        if (top >= WINDOW_Z_MAX) renormalizeWindowZ(draft)
+        else placed.zIndex = top + 1
       },
       moveWindow: (draft, id, x, y, snap) => {
         const win = draft.windows[id as string]

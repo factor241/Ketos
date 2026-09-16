@@ -167,3 +167,9 @@
   border-radius: 0;
   box-shadow: none;
 }
+
+/* Culled (off the visible canvas) or hidden behind a fullscreen neighbour: the
+   frame keeps its DOM and state and stops painting. */
+.window.hidden {
+  content-visibility: hidden;
+}

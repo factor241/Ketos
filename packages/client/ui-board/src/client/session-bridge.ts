@@ -335,6 +335,29 @@ export class BoardSessionBridge {
     this.creating.clear()
   }
 
+  /**
+   * Drop one window's bridge record when the window closes: its session
+   * subscriptions and channel listeners go with it, while the session itself
+   * stays alive and listed. A window that comes back (same id) starts from a
+   * fresh record.
+   * @param windowId - the closed window's identity.
+   */
+  release(windowId: WindowId): void {
+    const record = this.windows.get(windowId)
+    if (record === undefined) return
+    record.releaseSession()
+    this.windows.delete(windowId)
+    this.creating.delete(windowId)
+  }
+
+  /**
+   * The windows the bridge currently holds a record for.
+   * @returns the open window ids in insertion order.
+   */
+  windowIds(): readonly WindowId[] {
+    return [...this.windows.keys()]
+  }
+
   private record(windowId: WindowId): WindowRecord {
     let record = this.windows.get(windowId)
     if (record === undefined) {

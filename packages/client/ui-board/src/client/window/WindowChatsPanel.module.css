@@ -395,3 +395,9 @@
   corner-shape: round;
   background: var(--dsw-alias-state-business-primary);
 }
+
+/* Culled (off the visible canvas) or hidden behind a fullscreen neighbour: the
+   panel keeps its DOM and state and stops painting. */
+.hidden {
+  content-visibility: hidden;
+}

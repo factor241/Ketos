@@ -3,29 +3,41 @@
  * header drag, the eight resize handles, and the optional chats-panel and
  * fullscreen controls. A kind differs only in which of those two controls it
  * offers and in the `board.window.body` occupant its `renderBody` dispatches.
+ *
+ * The two gestures live in leaf components that read the canvas zoom
+ * themselves, so a pan or zoom re-renders the handle strips and the header —
+ * never the window body. The frame is memoized on the window object and the
+ * body dispatcher, so raising another window leaves it alone.
  */
-import React, { useCallback, useEffect } from 'react'
+import React, { memo, useCallback, useEffect, type ReactNode } from 'react'
 import clsx from 'clsx'
 import { IconCloseOutline16, IconFullscreenOutline16, IconPanelLeftOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
-import { finishBoardPointerGesture } from './pointer-cleanup.ts'
-import { resizeStep, type ResizeDirection } from './resize.ts'
+import type { BoardWindowState } from '../contract/slots.ts'
+import { isWindowHidden } from '../canvas/culling.ts'
+import { isBoardEditingTarget } from '../editing-target.ts'
+import { useBoardPointerGesture } from '../pointer-gesture.ts'
+import { startWindowResizeGesture } from './resize-gesture.ts'
+import { RESIZE_DIRECTIONS, type ResizeDirection } from './resize.ts'
 import { ExitFullscreenGlyph } from './fullscreen-glyph.tsx'
 import { panelWidthFor } from './panel-geometry.ts'
 import css from './WindowFrame.module.css'
 
+/** Handle class per direction: the frame's border strips and corners. */
+const HANDLE_CLASSES = {
+  n: css.handleN,
+  s: css.handleS,
+  w: css.handleW,
+  e: css.handleE,
+  nw: css.handleNw,
+  ne: css.handleNe,
+  sw: css.handleSw,
+  se: css.handleSe,
+} as const satisfies Record<ResizeDirection, string | undefined>
+
 /** The eight resize directions paired with their handle classes. */
-const RESIZE_HANDLES = [
-  ['n', css.handleN],
-  ['s', css.handleS],
-  ['w', css.handleW],
-  ['e', css.handleE],
-  ['nw', css.handleNw],
-  ['ne', css.handleNe],
-  ['sw', css.handleSw],
-  ['se', css.handleSe],
-] as const satisfies readonly (readonly [ResizeDirection, string | undefined])[]
+const RESIZE_HANDLES = RESIZE_DIRECTIONS.map(direction => [direction, HANDLE_CLASSES[direction]] as const)
 
 /**
  * Chrome a window kind offers beyond close and drag. A kind without a feature
@@ -44,14 +56,75 @@ export type WindowFrameProps =
   & PropsLocale<'board'>
   & { readonly features?: WindowFrameFeatures }
 
-export function WindowFrame({ window: cardWindow, renderBody, useStore, actions, t, features }: WindowFrameProps) {
+/** Shared face of the two gesture leaves inside a frame. */
+interface FrameGestureProps {
+  readonly window: BoardWindowState
+  readonly useStore: PropsStore<BoardStoreHandle>['useStore']
+  readonly actions: PropsStore<BoardStoreHandle>['actions']
+}
+
+/** Header strip: drag-to-move, with the zoom read where the gesture starts. */
+function WindowHeaderDrag({
+  window: cardWindow, useStore, actions, disabled, children,
+}: FrameGestureProps & { readonly disabled: boolean; readonly children: ReactNode }) {
   const zoom = useStore(s => s.zoom)
+  const startGesture = useBoardPointerGesture()
+
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (disabled) return
+    if ((e.target as HTMLElement).closest('button') !== null) return
+    const target = e.currentTarget
+    target.setPointerCapture(e.pointerId)
+    actions.focusWindow(cardWindow.id)
+
+    const startClientX = e.clientX
+    const startClientY = e.clientY
+    const startX = cardWindow.x
+    const startY = cardWindow.y
+
+    startGesture(target, e.pointerId, {
+      move: (moveEvt) => {
+        const dx = (moveEvt.clientX - startClientX) / zoom
+        const dy = (moveEvt.clientY - startClientY) / zoom
+        actions.moveWindow(cardWindow.id, startX + dx, startY + dy, !moveEvt.shiftKey)
+      },
+    })
+  }, [cardWindow.id, cardWindow.x, cardWindow.y, zoom, disabled, actions, startGesture])
+
+  return <div onPointerDown={handlePointerDown} className={css.header}>{children}</div>
+}
+
+/** One resize handle: it owns the gesture and the zoom read for that gesture. */
+function WindowResizeHandle({
+  window: cardWindow, useStore, actions, direction, className,
+}: FrameGestureProps & { readonly direction: ResizeDirection; readonly className: string | undefined }) {
+  const zoom = useStore(s => s.zoom)
+  const startGesture = useBoardPointerGesture()
+
+  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    startWindowResizeGesture({
+      event,
+      window: cardWindow,
+      direction,
+      zoom,
+      actions,
+      start: (element, pointerId, handlers) => { startGesture(element, pointerId, handlers) },
+    })
+  }, [cardWindow, direction, zoom, actions, startGesture])
+
+  return <div data-board-handle={direction} onPointerDown={handlePointerDown} className={clsx(css.handle, className)} />
+}
+
+function WindowFrameView({ window: cardWindow, renderBody, useStore, actions, t, features }: WindowFrameProps) {
   const isActive = useStore(s => s.activeWindowId === cardWindow.id)
   const fullscreenWindowId = useStore(s => s.fullscreenWindowId)
   const panelWindowId = useStore(s => s.panelWindowId)
   const viewportWidth = useStore(s => s.viewportWidth)
   const panelWidth = useStore(s => s.panelWidth)
   const panelCollapsed = useStore(s => s.panelCollapsed)
+  // Culled and fullscreen-hidden windows stay mounted: their lane, draft,
+  // attachments, and panel keep their state and return unchanged.
+  const hidden = useStore(s => isWindowHidden(s, cardWindow))
   const isFullscreen = features?.fullscreen === true && fullscreenWindowId === cardWindow.id
   const isPanelOpen = features?.panel === true && panelWindowId === cardWindow.id
   // Fullscreen docks the chats panel and gives up its width to the chat column.
@@ -65,8 +138,7 @@ export function WindowFrame({ window: cardWindow, renderBody, useStore, actions,
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       if (document.querySelector('[role="menu"]') !== null) return
-      const target = e.target as HTMLElement | null
-      if (target !== null && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return
+      if (isBoardEditingTarget(e.target)) return
       if (isPanelOpen) actions.closeWindowPanel()
       else actions.exitFullscreen()
     }
@@ -74,74 +146,13 @@ export function WindowFrame({ window: cardWindow, renderBody, useStore, actions,
     return () => { globalThis.removeEventListener('keydown', onKeyDown) }
   }, [isFullscreen, isPanelOpen, actions])
 
-  const handleHeaderPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (isFullscreen) return
-    if ((e.target as HTMLElement).closest('button')) return
-    const target = e.currentTarget
-    target.setPointerCapture(e.pointerId)
-    actions.focusWindow(cardWindow.id)
-
-    const startClientX = e.clientX
-    const startClientY = e.clientY
-    const startX = cardWindow.x
-    const startY = cardWindow.y
-
-    const onPointerMove = (moveEvt: PointerEvent) => {
-      const dx = (moveEvt.clientX - startClientX) / zoom
-      const dy = (moveEvt.clientY - startClientY) / zoom
-      const snap = !moveEvt.shiftKey
-      actions.moveWindow(cardWindow.id, startX + dx, startY + dy, snap)
-    }
-
-    const onPointerUp = (upEvt: PointerEvent) => {
-      finishBoardPointerGesture(target, upEvt, onPointerMove, onPointerUp)
-    }
-
-    globalThis.addEventListener('pointermove', onPointerMove)
-    globalThis.addEventListener('pointerup', onPointerUp)
-  }, [cardWindow.id, cardWindow.x, cardWindow.y, zoom, isFullscreen, actions])
-
-  const createResizeHandler = (direction: ResizeDirection) => (e: React.PointerEvent<HTMLDivElement>) => {
-    e.stopPropagation()
-    const target = e.currentTarget
-    target.setPointerCapture(e.pointerId)
-    actions.focusWindow(cardWindow.id)
-
-    const start = {
-      x: cardWindow.x,
-      y: cardWindow.y,
-      width: cardWindow.width,
-      height: cardWindow.height,
-    }
-    const startClientX = e.clientX
-    const startClientY = e.clientY
-
-    const onPointerMove = (moveEvt: PointerEvent) => {
-      const dx = (moveEvt.clientX - startClientX) / zoom
-      const dy = (moveEvt.clientY - startClientY) / zoom
-      const snap = !moveEvt.shiftKey
-      // The step already snapped and clamped to the minimum; the store's
-      // actions re-apply the same rules idempotently.
-      const next = resizeStep(direction, start, dx, dy, snap)
-      if (next.x !== start.x || next.y !== start.y) {
-        actions.moveWindow(cardWindow.id, next.x, next.y, false)
-      }
-      actions.resizeWindow(cardWindow.id, next.width, next.height, false)
-    }
-
-    const onPointerUp = (upEvt: PointerEvent) => {
-      finishBoardPointerGesture(target, upEvt, onPointerMove, onPointerUp)
-    }
-
-    globalThis.addEventListener('pointermove', onPointerMove)
-    globalThis.addEventListener('pointerup', onPointerUp)
-  }
-
   return (
     <div
       data-board-window={cardWindow.kind}
+      data-board-window-id={cardWindow.id}
       data-board-fullscreen={isFullscreen ? '' : undefined}
-      className={clsx(css.window, isActive && css.active, isFullscreen && css.fullscreen)}
+      data-board-culled={hidden ? '' : undefined}
+      className={clsx(css.window, isActive && css.active, isFullscreen && css.fullscreen, hidden && css.hidden)}
       onPointerDown={() => { actions.focusWindow(cardWindow.id) }}
       style={isFullscreen
         // The canvas drops its pan/zoom while a window is fullscreen, so the
@@ -157,14 +168,22 @@ export function WindowFrame({ window: cardWindow, renderBody, useStore, actions,
         }}
     >
       {!isFullscreen && RESIZE_HANDLES.map(([direction, handleClass]) => (
-        <div
+        <WindowResizeHandle
           key={direction}
-          onPointerDown={createResizeHandler(direction)}
-          className={clsx(css.handle, handleClass)}
+          window={cardWindow}
+          useStore={useStore}
+          actions={actions}
+          direction={direction}
+          className={handleClass}
         />
       ))}
 
-      <div onPointerDown={handleHeaderPointerDown} className={css.header}>
+      <WindowHeaderDrag
+        window={cardWindow}
+        useStore={useStore}
+        actions={actions}
+        disabled={isFullscreen}
+      >
         <div className={css.headerLeft}>
           <Tooltip label={t('window.close')} side="bottom">
             <button
@@ -211,7 +230,7 @@ export function WindowFrame({ window: cardWindow, renderBody, useStore, actions,
             </Tooltip>
           </div>
         )}
-      </div>
+      </WindowHeaderDrag>
 
       <div className={css.body}>
         {renderBody(cardWindow)}
@@ -219,3 +238,10 @@ export function WindowFrame({ window: cardWindow, renderBody, useStore, actions,
     </div>
   )
 }
+
+/**
+ * The frame, memoized on its props: the window object and the body dispatcher
+ * are stable between store changes that do not touch this window, so raising,
+ * culling, or moving another window does not re-render this one.
+ */
+export const WindowFrame = memo(WindowFrameView)

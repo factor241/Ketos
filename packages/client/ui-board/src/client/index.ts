@@ -64,6 +64,7 @@ export function apply(ctx: ClientContext): void {
       workspaceList: ctx.workspaces.list,
     },
     ensureWindowSession: (windowId) => { bridge.ensure(windowId) },
+    releaseWindow: (windowId) => { bridge.release(windowId) },
     sendPrompt: (windowId, text, mode, images) => { bridge.send(windowId, text, mode, images) },
     cancelPrompt: (windowId) => { bridge.cancel(windowId) },
     loadOlderTurns: (windowId) => { bridge.loadOlder(windowId) },
@@ -116,6 +117,7 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('board.windows', () => ctx.slots.register({
     name: 'board.windows',
     store: boardStore,
+    inject: injected,
     children: {
       'board.window': { kind: 'keyed', scope: 'root' },
       'board.window.body': { kind: 'keyed', scope: 'root' },

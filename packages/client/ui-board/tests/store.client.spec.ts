@@ -200,13 +200,21 @@ describe('createBoardStore', () => {
     actions.addWindow(win2)
     expect(store.getSnapshot().activeWindowId).toBe('w2')
 
-    // Focus win1
+    const untouched = store.getSnapshot().windows['w2']
+    // Focus win1: only the raised window moves in the z band.
     actions.focusWindow('w1' as WindowId)
     const snap = store.getSnapshot()
+    // The other window keeps its state identity, so its frame bails out of re-rendering.
+    expect(snap.windows['w2']).toBe(untouched)
     expect(snap.activeWindowId).toBe('w1')
     expect(snap.windowOrder).toEqual(['w2', 'w1'])
-    expect(snap.windows['w1']?.zIndex).toBe(11)
-    expect(snap.windows['w2']?.zIndex).toBe(10)
+    expect(snap.windows['w1']?.zIndex).toBeGreaterThan(snap.windows['w2']?.zIndex ?? 0)
+    expect(snap.windows['w2']?.zIndex).toBe(11)
+
+    // Raising the window that is already on top changes nothing.
+    const top = snap.windows['w1']?.zIndex
+    actions.focusWindow('w1' as WindowId)
+    expect(store.getSnapshot().windows['w1']?.zIndex).toBe(top)
 
     // Close win1
     actions.closeWindow('w1' as WindowId)
@@ -328,6 +336,26 @@ describe('createBoardStore', () => {
     actions.closeWindow('w1' as WindowId)
     expect(store.getSnapshot().activeWindowId).toBe('w2')
     expect(store.getSnapshot().windowOrder).toEqual(['w2'])
+  })
+
+  it('keeps more than 90 windows inside the z band below the floating chrome', () => {
+    const { store, actions } = createBoardStore().create()
+    for (let index = 0; index < 95; index += 1) {
+      actions.addWindow(makeWindow({ id: `w${String(index)}` as WindowId }))
+    }
+    // Every window starts in the band, and repeated raises renormalize the
+    // band instead of walking past the chrome and overlay above it.
+    for (let index = 0; index < 95; index += 1) {
+      actions.focusWindow(`w${String(index)}` as WindowId)
+    }
+    const snap = store.getSnapshot()
+    const zs = Object.values(snap.windows).map(win => win.zIndex)
+    expect(Math.max(...zs)).toBeLessThan(100)
+    expect(Math.min(...zs)).toBeGreaterThanOrEqual(10)
+    // The focused window is the last in paint order and carries the band top.
+    expect(snap.activeWindowId).toBe('w94')
+    expect(snap.windows['w94']?.zIndex).toBe(Math.max(...zs))
+    expect(snap.windowOrder.at(-1)).toBe('w94')
   })
 
   it('toggles spatial element selection state', () => {

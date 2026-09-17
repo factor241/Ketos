@@ -8,9 +8,13 @@
  * that ladder inside the board box, so an app-level overlay above the box
  * stays above every board layer instead of losing hit-testing to the chrome.
  */
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import clsx from 'clsx'
 import type { BoardStoreHandle } from './store.ts'
+import { isBoardEditingTarget } from './editing-target.ts'
+import { useBoardPointerGesture } from './pointer-gesture.ts'
+import { startBoardPanGesture } from './canvas/pan-gesture.ts'
 import { ElementSelectionOverlay } from './ElementSelectionOverlay.tsx'
 import { HandleRing } from './window/HandleRing.tsx'
 import { wheelZoomsBoard } from './canvas/wheel-zoom.ts'
@@ -25,12 +29,19 @@ export type BoardRootProps =
 
 export function BoardRoot({ renderSlot, useStore, actions, t }: BoardRootProps) {
   const rootRef = useRef<HTMLDivElement>(null)
+  const pointerInsideRef = useRef(false)
+  const spaceRef = useRef(false)
+  const [panArmed, setPanArmed] = useState(false)
+  const startGesture = useBoardPointerGesture()
+  const panX = useStore(s => s.panX)
+  const panY = useStore(s => s.panY)
   const selecting = useStore(s => s.isSelectingElement)
   // A fullscreen window fills the panel, so its chrome stands down. An open
   // chats panel is a management surface: the dock and minimap would otherwise
   // cover its outer edge and resize handle.
   const fullscreen = useStore(s => s.fullscreenWindowId !== null)
-  const panelOpen = useStore(s => s.panelWindowId !== null)
+  // A collapsed panel is only its rail, so the dock and minimap come back.
+  const panelOpen = useStore(s => s.panelWindowId !== null && !s.panelCollapsed)
 
   // Wheel zoom toward the pointer. React's `onWheel` is a passive listener,
   // so zooming logs a preventDefault error through it; a native non-passive
@@ -49,8 +60,57 @@ export function BoardRoot({ renderSlot, useStore, actions, t }: BoardRootProps) 
     return () => { root.removeEventListener('wheel', onWheel) }
   }, [fullscreen, actions])
 
+  // Space arms panning while the pointer is over the board — including over a
+  // window, whose own gesture then stands down for the capture phase — and a
+  // focused editor keeps the key. Ctrl/Cmd+0 resets the view instead of the
+  // browser's page zoom.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if ((event.metaKey || event.ctrlKey) && event.key === '0') {
+        event.preventDefault()
+        actions.setPan(0, 0)
+        actions.setZoom(1)
+        return
+      }
+      if (event.code !== 'Space' || event.repeat || !pointerInsideRef.current) return
+      if (isBoardEditingTarget(event.target)) return
+      spaceRef.current = true
+      setPanArmed(true)
+      event.preventDefault()
+    }
+    const onKeyUp = (event: KeyboardEvent): void => {
+      if (event.code !== 'Space') return
+      spaceRef.current = false
+      setPanArmed(false)
+    }
+    globalThis.addEventListener('keydown', onKeyDown)
+    globalThis.addEventListener('keyup', onKeyUp)
+    return () => {
+      globalThis.removeEventListener('keydown', onKeyDown)
+      globalThis.removeEventListener('keyup', onKeyUp)
+    }
+  }, [actions])
+
+  // Space or the middle button pans from anywhere on the board, the floating
+  // chrome included: the capture phase takes the pointer before a window's own
+  // gesture or a chrome control can claim it.
+  const handlePointerDownCapture = (e: React.PointerEvent<HTMLDivElement>): void => {
+    if (!spaceRef.current && e.button !== 1) return
+    if (isBoardEditingTarget(e.target)) return
+    e.preventDefault()
+    e.stopPropagation()
+    startBoardPanGesture({ event: e, panX, panY, actions, start: startGesture })
+  }
+
   return (
-    <div ref={rootRef} data-surface="board" className={css.root}>
+    <div
+      ref={rootRef}
+      data-surface="board"
+      onPointerEnter={() => { pointerInsideRef.current = true }}
+      onPointerLeave={() => { pointerInsideRef.current = false }}
+      onPointerDownCapture={handlePointerDownCapture}
+      className={clsx(css.root, panArmed && css.panArmed)}
+    >
       {renderSlot('board.canvas', {})}
       {!fullscreen && !panelOpen && renderSlot('board.dock', {})}
       {!fullscreen && renderSlot('board.omnibar', {})}

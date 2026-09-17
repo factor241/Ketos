@@ -102,6 +102,7 @@ export function Minimap({ useStore, actions }: MinimapProps) {
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
       >
         {Object.values(windows).map((win) => {
           const wx = toMiniX(win.x)

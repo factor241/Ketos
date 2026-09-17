@@ -176,13 +176,21 @@ function renormalizeWindowZ(draft: BoardState): void {
   })
 }
 
-/** Insert one window on top of the stack and make it active. */
+/**
+ * Insert one window on top of the stack and make it active. The stored z-index
+ * is clamped into the band whatever the caller passed, so no insertion path —
+ * including a restored layout — can place a window over the floating chrome.
+ */
 function insertWindow(draft: BoardState, window: BoardWindowState): void {
-  draft.windows[window.id as string] = window
-  if (!draft.windowOrder.includes(window.id)) {
-    draft.windowOrder.push(window.id)
+  const placed: BoardWindowState = {
+    ...window,
+    zIndex: Math.min(Math.max(window.zIndex, WINDOW_Z_BASE), WINDOW_Z_MAX),
   }
-  draft.activeWindowId = window.id
+  draft.windows[placed.id as string] = placed
+  if (!draft.windowOrder.includes(placed.id)) {
+    draft.windowOrder.push(placed.id)
+  }
+  draft.activeWindowId = placed.id
 }
 
 /**
@@ -255,9 +263,13 @@ export function createBoardStore(opts?: { persist?: string }): BoardStoreHandle 
         insertWindow(draft, window)
       },
       openWindow: (draft, spec) => {
+        // Every window kind opens at its template size or above: the floor is
+        // the composer's minimum, applied to tool windows as well.
+        const size = clampWindowSize(spec.width, spec.height, false)
         insertWindow(draft, {
           ...spec,
-          ...placeWindow(draft, spec.width, spec.height),
+          ...size,
+          ...placeWindow(draft, size.width, size.height),
           // Seeded at the band top and then placed above the current stack;
           // renaming the whole band keeps a crowded board exact.
           zIndex: WINDOW_Z_MAX,

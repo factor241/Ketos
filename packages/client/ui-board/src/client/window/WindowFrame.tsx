@@ -125,15 +125,19 @@ function WindowFrameView({ window: cardWindow, renderBody, useStore, actions, t,
   // Culled and fullscreen-hidden windows stay mounted: their lane, draft,
   // attachments, and panel keep their state and return unchanged.
   const hidden = useStore(s => isWindowHidden(s, cardWindow))
+  const isSelectingElement = useStore(s => s.isSelectingElement)
   const isFullscreen = features?.fullscreen === true && fullscreenWindowId === cardWindow.id
-  const isPanelOpen = features?.panel === true && panelWindowId === cardWindow.id
+  // A collapsed panel is a rail: it takes no width, and Escape leaves it alone.
+  const isPanelOpen = features?.panel === true && panelWindowId === cardWindow.id && !panelCollapsed
   // Fullscreen docks the chats panel and gives up its width to the chat column.
-  const dockedWidth = isPanelOpen && !panelCollapsed ? panelWidthFor(viewportWidth, panelWidth) : 0
+  const dockedWidth = isPanelOpen ? panelWidthFor(viewportWidth, panelWidth) : 0
 
   // Escape closes the chats panel first and leaves fullscreen second: one
-  // handler owns the key so the two modes never fight over it. An open menu or
-  // a focused editor keeps the key for itself.
+  // handler owns the key so the two modes never fight over it. The board's
+  // ladder is menu -> editor -> selection overlay -> panel -> fullscreen, so
+  // this handler stands down while the selection overlay is active.
   useEffect(() => {
+    if (isSelectingElement) return
     if (!isFullscreen && !isPanelOpen) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
@@ -144,7 +148,7 @@ function WindowFrameView({ window: cardWindow, renderBody, useStore, actions, t,
     }
     globalThis.addEventListener('keydown', onKeyDown)
     return () => { globalThis.removeEventListener('keydown', onKeyDown) }
-  }, [isFullscreen, isPanelOpen, actions])
+  }, [isSelectingElement, isFullscreen, isPanelOpen, actions])
 
   return (
     <div

@@ -168,9 +168,12 @@ function WindowChatsPanelView({
         const key = keyAt(moveEvt.clientX, moveEvt.clientY)
         setDrop(key === `${kind}:${id}` ? null : key)
       },
-      end: (upEvt) => {
+      end: (endEvt) => {
         setDrop(null)
-        if (upEvt === null || !dragged.current) return
+        // Only a real pointerup commits: a pointercancel is the browser taking
+        // the gesture back, and the drop target under a cancel means nothing.
+        if (endEvt === null || endEvt.type !== 'pointerup' || !dragged.current) return
+        const upEvt = endEvt
         const key = keyAt(upEvt.clientX, upEvt.clientY)
         if (key === null || key === `${kind}:${id}`) return
         const [targetKind, ...rest] = key.split(':')

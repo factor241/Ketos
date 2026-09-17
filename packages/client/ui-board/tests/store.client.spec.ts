@@ -107,10 +107,11 @@ describe('createBoardStore', () => {
     expect(store.getSnapshot().windows['win-1']?.y).toBe(133)
   })
 
-  it('openWindow centers the window in the viewport and stacks it on top', () => {
+  it('openWindow centers the window in the viewport, floors its size, and stacks it on top', () => {
     const { store, actions } = createBoardStore().create()
     actions.setViewport(1000, 800)
 
+    // A tool-sized request still opens at the floor: every kind shares it.
     actions.openWindow({
       id: 'open-1' as WindowId,
       kind: 'connectors',
@@ -121,9 +122,11 @@ describe('createBoardStore', () => {
     })
 
     const snap = store.getSnapshot()
-    // Centered at zoom 1 with no pan: (1000/2 - 400/2, 800/2 - 200/2)
-    expect(snap.windows['open-1']?.x).toBe(300)
-    expect(snap.windows['open-1']?.y).toBe(300)
+    expect(snap.windows['open-1']?.width).toBe(MIN_WINDOW_SIZE.width)
+    expect(snap.windows['open-1']?.height).toBe(MIN_WINDOW_SIZE.height)
+    // Centered at zoom 1 with no pan: (1000/2 - 552/2, 800/2 - 648/2)
+    expect(snap.windows['open-1']?.x).toBe(224)
+    expect(snap.windows['open-1']?.y).toBe(76)
     expect(snap.windows['open-1']?.zIndex).toBe(10)
     expect(snap.activeWindowId).toBe('open-1')
     expect(snap.windowOrder).toEqual(['open-1'])
@@ -145,9 +148,18 @@ describe('createBoardStore', () => {
     })
 
     const snap = store.getSnapshot()
-    // x = (200 + 1000/2 - 200) / 2, y = (100 + 800/2 - 200) / 2
-    expect(snap.windows['open-2']?.x).toBe(250)
-    expect(snap.windows['open-2']?.y).toBe(150)
+    // Floored to 552x648: x = (200 + 1000/2 - 276) / 2, y = (100 + 800/2 - 324) / 2
+    expect(snap.windows['open-2']?.x).toBe(212)
+    expect(snap.windows['open-2']?.y).toBe(88)
+  })
+
+  it('clamps every insertion into the window band, whatever z the caller passes', () => {
+    const { store, actions } = createBoardStore().create()
+    // A restored layout or a test caller can pass any z; the store owns the band.
+    actions.addWindow(makeWindow({ id: 'w1' as WindowId, zIndex: 1000 }))
+    expect(store.getSnapshot().windows['w1']?.zIndex).toBe(99)
+    actions.addWindow(makeWindow({ id: 'w2' as WindowId, zIndex: -5 }))
+    expect(store.getSnapshot().windows['w2']?.zIndex).toBe(10)
   })
 
   it('resizes windows with 24px snap and the default chat size as the floor', () => {

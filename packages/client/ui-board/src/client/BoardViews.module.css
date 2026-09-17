@@ -10,7 +10,10 @@
   /* One stacking context for the whole board: the window band, the floating
      chrome (100), the selection overlay (500), and the fullscreen layer (1000)
      stay inside the board box, so shell-level overlays above the box keep
-     painting and hit-testing above every board layer. */
+     painting and hit-testing above every board layer. NOTE: the frames and the
+     chats panel live inside the canvas transform, so their z-index values order
+     them within that subtree; the chrome (root-level, 100) paints above the
+     panel's overlay presentation. */
   isolation: isolate;
 
   /* Window UI scale: a floating window renders above the base design
@@ -38,4 +41,9 @@
 
 .icon {
   stroke: currentColor;
+}
+
+/* Space arms panning from anywhere on the board, chrome included. */
+.panArmed {
+  cursor: grab;
 }

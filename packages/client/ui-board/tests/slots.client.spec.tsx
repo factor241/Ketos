@@ -813,6 +813,154 @@ describe('board slot composition', () => {
     Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
   })
 
+  it('pans with Space over the chrome and over a window, and with the middle button on the ring', async () => {
+    const { runtime } = await bench()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { value: () => {}, configurable: true, writable: true })
+
+    act(() => {
+      board.actions.setViewport(1200, 900)
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'Agent' }))
+    })
+    await runtime.flush()
+    const root = panel.container.querySelector('[data-surface="board"]') as HTMLElement
+    const dock = panel.container.querySelector('[data-board-layer="dock"]') as HTMLElement
+
+    const drag = (
+      target: Element,
+      pointerId: number,
+      button: number,
+      from: { x: number; y: number },
+      to: { x: number; y: number },
+    ) => {
+      fireEvent.pointerDown(target, { pointerId, button, clientX: from.x, clientY: from.y })
+      for (const type of ['pointermove', 'pointerup'] as const) {
+        const event = new Event(type)
+        Object.assign(event, { clientX: to.x, clientY: to.y, pointerId, button })
+        window.dispatchEvent(event)
+      }
+    }
+
+    // Space arms from the root, so the floating chrome pans too.
+    fireEvent.pointerEnter(root)
+    fireEvent.keyDown(window, { code: 'Space' })
+    drag(dock, 41, 0, { x: 300, y: 400 }, { x: 360, y: 440 })
+    expect(board.store.getSnapshot().panX).toBe(60)
+    fireEvent.keyUp(window, { code: 'Space' })
+
+    // A middle-button drag on a ring handle pans instead of resizing.
+    const before = board.store.getSnapshot()
+    drag(panel.container.querySelector('[data-board-handle-ring] [data-board-handle="e"]') as Element, 42, 1, { x: 500, y: 300 }, { x: 540, y: 320 })
+    expect(board.store.getSnapshot().panX).toBe(before.panX + 40)
+    expect(board.store.getSnapshot().windows['a1']?.width).toBe(before.windows['a1']?.width)
+    Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
+  })
+
+  it('gives Escape one action per press across the selection overlay and the chats panel', async () => {
+    const { runtime } = await bench()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'Agent' })) })
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    act(() => { board.actions.setSelectingElement(true) })
+    await runtime.flush()
+    expect(panel.container.querySelector('[class*="overlay"]')).not.toBeNull()
+
+    // First press: the selection mode, and only it.
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await runtime.flush()
+    expect(board.store.getSnapshot().isSelectingElement).toBe(false)
+    expect(board.store.getSnapshot().panelWindowId).toBe('a1')
+
+    // Second press: the panel, and only it.
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await runtime.flush()
+    expect(board.store.getSnapshot().panelWindowId).toBeNull()
+    expect(board.store.getSnapshot().windows['a1']).toBeDefined()
+  })
+
+  it('brings the dock and minimap back when the chats panel collapses to its rail', async () => {
+    const { runtime } = await bench()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+
+    act(() => {
+      board.actions.setViewport(1200, 900)
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'Agent' }))
+    })
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    await runtime.flush()
+    expect(panel.container.querySelectorAll('[data-board-layer="dock"]')).toHaveLength(0)
+
+    fireEvent.click(panel.container.querySelector('button[aria-label="Collapse the chats panel"]') as Element)
+    await runtime.flush()
+    expect(panel.container.querySelectorAll('[data-board-layer="dock"]')).toHaveLength(1)
+    expect(panel.container.querySelectorAll('[data-board-layer="minimap"]')).toHaveLength(1)
+    expect(panel.container.querySelector('[data-board-panel-rail]')).not.toBeNull()
+
+    // In fullscreen a collapsed panel takes no Escape: the mode leaves at once.
+    fireEvent.click(panel.container.querySelector('button[aria-label="Open fullscreen"]') as Element)
+    await runtime.flush()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-fullscreen]')).toBeNull()
+  })
+
+  it('commits a panel row reorder only on a completed drag', async () => {
+    const prepared = await createBoardBench()
+    runtimes.add(prepared.runtime)
+    const { runtime } = prepared
+    await runtime.workspaces.update((draft) => {
+      draft.items = [1, 2, 3].map(n => ({
+        workspaceId: `ws-${String(n)}` as never,
+        path: `/work/${String(n)}`,
+        title: `P${String(n)}`,
+        sessionIds: [`chat-${String(n)}` as never],
+        createdAt: '2026-09-16T00:00:00.000Z',
+        updatedAt: '2026-09-16T00:00:00.000Z',
+      }))
+    })
+    for (const n of [1, 2, 3]) {
+      await runtime.sessions.add({ id: `chat-${String(n)}`, summary: { displayTitle: `C${String(n)}`, cwd: `/work/${String(n)}` } })
+    }
+    await prepared.mountBoard()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'Agent' })) })
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    await runtime.flush()
+
+    const rows = [...panel.container.querySelectorAll('[data-row-key^="project:"]')] as HTMLElement[]
+    const from = rows[0] as HTMLElement
+    const to = rows[2] as HTMLElement
+    // jsdom lays nothing out, so the gesture carries its own coordinates: the
+    // target row comes from the patched hit test.
+    Object.defineProperty(document, 'elementFromPoint', { value: () => to, configurable: true })
+    const gesture = (lastType: 'pointerup' | 'pointercancel') => {
+      fireEvent.pointerDown(from, { pointerId: 51, clientX: 10, clientY: 10 })
+      for (const type of ['pointermove', lastType] as const) {
+        const event = new Event(type)
+        Object.assign(event, { clientX: 10, clientY: 90, pointerId: 51 })
+        window.dispatchEvent(event)
+      }
+    }
+
+    // An aborted drag (pointercancel) leaves the order alone.
+    gesture('pointercancel')
+    expect(runtime.workspaces.calls.some(call => call.method === 'insertBefore')).toBe(false)
+
+    // A completed drag commits through the same service the menu uses.
+    gesture('pointerup')
+    expect(runtime.workspaces.calls.some(call => call.method === 'insertBefore')).toBe(true)
+    // Drop the own property so the prototype's implementation is visible again.
+    Reflect.deleteProperty(document, 'elementFromPoint')
+  })
+
   it('re-applies without duplicating registrations and renders again', async () => {
     const { runtime, board, mountBoard } = await bench()
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })

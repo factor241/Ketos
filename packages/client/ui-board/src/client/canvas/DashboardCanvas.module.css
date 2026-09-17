@@ -26,11 +26,6 @@
   cursor: crosshair;
 }
 
-/* Space arms panning from anywhere on the board; the cursor announces it. */
-.panArmed {
-  cursor: grab;
-}
-
 .surface {
   position: absolute;
   inset: 0;

@@ -77,7 +77,7 @@ export function HandleRing({ useStore, actions }: HandleRingProps) {
   )
   if (cardWindow === undefined || box === null) return null
   return (
-    <div data-board-handle-ring="" className={css.ring}>
+    <div data-board-handle-ring="" data-board-ring-window={cardWindow.id} className={css.ring}>
       {edges.map(([direction, className, rect]) => (
         <RingHandle
           key={direction}

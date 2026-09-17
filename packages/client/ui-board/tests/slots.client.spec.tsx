@@ -10,7 +10,10 @@ import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { createBoardStore } from '../src/client/store.ts'
 import { panelWidthFor } from '../src/client/window/panel-geometry.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
-import { createBoardBench } from './fixtures.client.ts'
+import { chatSnapshot, createBoardBench } from './fixtures.client.ts'
+import railCss from '../src/client/dock/SessionRail.module.css'
+import minimapCss from '../src/client/canvas/Minimap.module.css'
+import type { ConversationNode } from '@deepseek-ai/dsh-client-ui-chat/client'
 
 /** The live board store instance the renderer resolves for the board's registrations. */
 type BoardInstance = ReturnType<ReturnType<typeof createBoardStore>['create']>
@@ -959,6 +962,229 @@ describe('board slot composition', () => {
     expect(runtime.workspaces.calls.some(call => call.method === 'insertBefore')).toBe(true)
     // Drop the own property so the prototype's implementation is visible again.
     Reflect.deleteProperty(document, 'elementFromPoint')
+  })
+
+  it('ends every frame gesture when its window closes mid-drag', async () => {
+    const { runtime } = await bench()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { value: () => {}, configurable: true, writable: true })
+    const move = vi.fn(board.actions.moveWindow)
+    board.actions.moveWindow = move
+    const resize = vi.fn(board.actions.resizeWindow)
+    board.actions.resizeWindow = resize
+
+    const open = async (id: string, title: string) => {
+      act(() => { board.actions.openWindow(windowState({ id: id as WindowId, title })) })
+      await runtime.flush()
+      return panel.container.querySelector(`[data-board-window-id="${id}"]`) as HTMLElement
+    }
+    /** Start a drag and hand back its move step. */
+    const start = (target: Element, pointerId: number) => {
+      fireEvent.pointerDown(target, { pointerId, clientX: 100, clientY: 100 })
+      return (x: number, y: number) => {
+        const event = new Event('pointermove')
+        Object.assign(event, { clientX: x, clientY: y, pointerId })
+        window.dispatchEvent(event)
+      }
+    }
+    const close = async (frame: HTMLElement) => {
+      fireEvent.click(frame.querySelector('button[aria-label="Close"]') as Element)
+      await runtime.flush()
+    }
+
+    // Header drag.
+    let frame = await open('a1', 'Agent 1')
+    let step = start(frame.querySelector('[class*="header"]') as Element, 61)
+    step(200, 200)
+    expect(move).toHaveBeenCalledTimes(1)
+    await close(frame)
+    step(300, 300)
+    expect(move).toHaveBeenCalledTimes(1)
+
+    // Frame handle.
+    frame = await open('a2', 'Agent 2')
+    step = start(frame.querySelector('[data-board-handle="e"]') as Element, 62)
+    step(200, 100)
+    expect(resize).toHaveBeenCalled()
+    const resizesBeforeClose = resize.mock.calls.length
+    await close(frame)
+    step(300, 100)
+    expect(resize.mock.calls.length).toBe(resizesBeforeClose)
+
+    // Ring handle of the active window.
+    frame = await open('a3', 'Agent 3')
+    const ring = panel.container.querySelector('[data-board-handle-ring] [data-board-handle="e"]') as Element
+    step = start(ring, 63)
+    step(200, 100)
+    expect(resize.mock.calls.length).toBeGreaterThan(resizesBeforeClose)
+    const resizesBeforeRingClose = resize.mock.calls.length
+    await close(frame)
+    step(300, 100)
+    expect(resize.mock.calls.length).toBe(resizesBeforeRingClose)
+    Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
+  })
+
+  it('ends every panel gesture when its window closes mid-drag', async () => {
+    const prepared = await createBoardBench()
+    runtimes.add(prepared.runtime)
+    const { runtime } = prepared
+    await runtime.workspaces.update((draft) => {
+      draft.items = [1, 2].map(n => ({
+        workspaceId: `ws-${String(n)}` as never,
+        path: `/work/${String(n)}`,
+        title: `P${String(n)}`,
+        sessionIds: [`chat-${String(n)}` as never],
+        createdAt: '2026-09-16T00:00:00.000Z',
+        updatedAt: '2026-09-16T00:00:00.000Z',
+      }))
+    })
+    for (const n of [1, 2]) {
+      await runtime.sessions.add({ id: `chat-${String(n)}`, summary: { displayTitle: `C${String(n)}`, cwd: `/work/${String(n)}` } })
+    }
+    await prepared.mountBoard()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { value: () => {}, configurable: true, writable: true })
+    act(() => {
+      board.actions.setViewport(1200, 900)
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'Agent' }))
+    })
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    await runtime.flush()
+    const windowFrame = panel.container.querySelector('[data-board-window-id="a1"]') as HTMLElement
+
+    const step = (pointerId: number, x: number, y: number) => {
+      const event = new Event('pointermove')
+      Object.assign(event, { clientX: x, clientY: y, pointerId })
+      window.dispatchEvent(event)
+    }
+
+    // Panel resize.
+    const setWidth = vi.fn(board.actions.setPanelWidth)
+    board.actions.setPanelWidth = setWidth
+    fireEvent.pointerDown(panel.container.querySelector('[aria-label="Resize the chats panel"]') as Element, {
+      pointerId: 71, clientX: 200, clientY: 300,
+    })
+    step(71, 160, 300)
+    expect(setWidth).toHaveBeenCalled()
+    const widthCalls = setWidth.mock.calls.length
+    fireEvent.click(windowFrame.querySelector('button[aria-label="Close"]') as Element)
+    await runtime.flush()
+    step(71, 120, 300)
+    expect(setWidth.mock.calls.length).toBe(widthCalls)
+
+    // Row drag: a pointerup after the window closed must not commit.
+    act(() => { board.actions.openWindow(windowState({ id: 'a2' as WindowId, title: 'Agent 2' })) })
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    await runtime.flush()
+    const rows = [...panel.container.querySelectorAll('[data-row-key^="project:"]')] as HTMLElement[]
+    Object.defineProperty(document, 'elementFromPoint', { value: () => rows[1], configurable: true })
+    fireEvent.pointerDown(rows[0] as Element, { pointerId: 72, clientX: 10, clientY: 10 })
+    step(72, 10, 90)
+    fireEvent.click(panel.container.querySelector('[data-board-window-id="a2"] button[aria-label="Close"]') as Element)
+    await runtime.flush()
+    const up = new Event('pointerup')
+    Object.assign(up, { clientX: 10, clientY: 90, pointerId: 72 })
+    window.dispatchEvent(up)
+    expect(runtime.workspaces.calls.some(call => call.method === 'insertBefore')).toBe(false)
+    Reflect.deleteProperty(document, 'elementFromPoint')
+    Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
+  })
+
+  it('marks the focused window in the dock and on the minimap alike', async () => {
+    const { runtime } = await bench()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    act(() => {
+      board.actions.setViewport(1200, 900)
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'First' }))
+      board.actions.openWindow(windowState({ id: 'a2' as WindowId, title: 'Second' }))
+    })
+    await runtime.flush()
+    const dockRowOf = (title: string) =>
+      panel.container.querySelector(`[data-board-layer="dock"] button[aria-label="${title}"]`) as HTMLElement
+    const minimapRects = () => [...panel.container.querySelectorAll('[data-board-layer="minimap"] rect[class*="rect"]')]
+    // The stylesheets define both classes; a rename must fail the test loudly.
+    const railActive = railCss.active as string
+    const minimapActive = minimapCss.active as string
+
+    act(() => { board.actions.focusWindow('a1' as WindowId) })
+    await runtime.flush()
+    expect(dockRowOf('First').classList.contains(railActive)).toBe(true)
+    expect(dockRowOf('Second').classList.contains(railActive)).toBe(false)
+    expect(minimapRects()[0]?.classList.contains(minimapActive)).toBe(true)
+    expect(minimapRects()[1]?.classList.contains(minimapActive)).toBe(false)
+
+    act(() => { board.actions.focusWindow('a2' as WindowId) })
+    await runtime.flush()
+    expect(dockRowOf('Second').classList.contains(railActive)).toBe(true)
+    expect(minimapRects()[1]?.classList.contains(minimapActive)).toBe(true)
+  })
+
+  it('keeps the panel level, its search, and the lane across culling', async () => {
+    const prepared = await createBoardBench()
+    runtimes.add(prepared.runtime)
+    const { runtime } = prepared
+    await runtime.workspaces.update((draft) => {
+      draft.items = [{
+        workspaceId: 'ws-1' as never,
+        path: '/work/one',
+        title: 'One',
+        sessionIds: ['chat-1' as never],
+        createdAt: '2026-09-16T00:00:00.000Z',
+        updatedAt: '2026-09-16T00:00:00.000Z',
+      }]
+    })
+    const created = await runtime.sessions.add({ id: 'chat-1', summary: { displayTitle: 'Chat one', cwd: '/work/one' } })
+    runtime.sessions.stubCreate(async () => created)
+    await prepared.mountBoard()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    const userNode: ConversationNode = {
+      kind: 'user',
+      seq: 1,
+      time: 0,
+      content: [{ type: 'text', text: 'сообщение в ленте' }],
+      source: undefined,
+    }
+
+    act(() => {
+      board.actions.setViewport(1200, 900)
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'Agent' }))
+    })
+    await runtime.flush()
+    prepared.chat.set(chatSnapshot([userNode]))
+    await runtime.flush()
+    expect(panel.container.textContent).toContain('сообщение в ленте')
+
+    // Panel state: the projects level with an active search filter.
+    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('button[aria-label="Search chats"]') as Element)
+    const search = panel.container.querySelector('[data-board-row-edit="search"] input') as HTMLInputElement
+    fireEvent.change(search, { target: { value: 'One' } })
+    await runtime.flush()
+
+    act(() => { board.actions.setPan(-6000, -6000) })
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-panel][data-board-culled]')).not.toBeNull()
+    act(() => { board.actions.setPan(0, 0) })
+    await runtime.flush()
+    expect((panel.container.querySelector('[data-board-row-edit="search"] input') as HTMLInputElement).value).toBe('One')
+    expect(panel.container.textContent).toContain('сообщение в ленте')
+
+    // The chats level survives a culling round trip too.
+    fireEvent.click(panel.view.getByText('One'))
+    await runtime.flush()
+    expect(panel.container.textContent).toContain('Chat one')
+    act(() => { board.actions.setPan(-6000, -6000) })
+    await runtime.flush()
+    act(() => { board.actions.setPan(0, 0) })
+    await runtime.flush()
+    expect(panel.container.textContent).toContain('Chat one')
   })
 
   it('re-applies without duplicating registrations and renders again', async () => {

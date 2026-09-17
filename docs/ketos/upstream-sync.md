@@ -55,6 +55,14 @@ git merge --no-ff <тег> -m "Merge upstream <тег> into main"
    git tag ketos-merged-<тег>
    ```
 
+## Локальные форк-изменения поведения (не брендинг)
+
+Эти правки живут в upstream-файлах и при приёмке релиза проверяются как ожидаемые конфликты: если апстрим-версия файла не содержит эквивалента, правку нужно перенести поверх (и обновить запись).
+
+| Файл | Правка | Зачем | Проверка |
+|---|---|---|---|
+| `packages/client/ui-primitives/src/Tooltip.tsx` | Пока пузырь видим, движение указателя за пределами якоря снимает hover и скрывает пузырь (`pointermove` на `document`, фаза захвата) | Якорь, уехавший из-под неподвижного указателя (смена режима окна, перекладка раскладки), не получает `mouseleave`, и пузырь оставался навсегда — живой репро на кнопке полного экрана (`ketos-6kt`) | `packages/client/ui-primitives/tests/tooltip.client.spec.tsx` — «hides the bubble when its anchor relocates under a still pointer» (падает без правки), «keeps the bubble while the pointer moves inside the anchor» |
+
 ## Правило
 
 - Upstream-приёмка никогда не двигает внутренние идентификаторы (`@deepseek-ai/*`, `DSH_*`, профили, `dsh.*`-поля) — это и есть совместимость форка (решение 6).

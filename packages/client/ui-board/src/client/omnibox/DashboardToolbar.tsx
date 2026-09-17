@@ -59,6 +59,7 @@ export function DashboardToolbar({ actions, t }: DashboardToolbarProps) {
             <Tooltip label={t('menu.openActionMenu')} side="top">
               <button
                 type="button"
+                data-board-action="omnibar-action-menu"
                 onClick={() => { setMenuOpen(!menuOpen) }}
                 className={clsx(css.menuButton, menuOpen && css.open)}
                 aria-label={t('menu.openActionMenu')}

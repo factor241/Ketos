@@ -374,6 +374,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
             className={clsx(css.chip, css.presetChip)}
             disabled={!(session?.blank ?? false) || (session?.presets.length ?? 0) === 0}
             onClick={() => { openMenu('preset', presetAnchor.current) }}
+            data-board-action="composer-preset"
             aria-label={t('preset.aria')}
           >
             <span className={css.chipIcon}><IconBranchOutline16 /></span>
@@ -472,6 +473,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
                     type="button"
                     className={css.roundButton}
                     onClick={() => { openMenu('actions', actionsAnchor.current) }}
+                    data-board-action="composer-actions"
                     aria-label={t('composer.actions')}
                   >
                     +
@@ -517,6 +519,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
                 className={clsx(css.roundButton, css.ghost, dictation.listening && css.listening)}
                 disabled={!dictation.supported}
                 aria-pressed={dictation.listening}
+                data-board-action="composer-dictate"
                 aria-label={t('voice.start')}
                 onClick={dictation.toggle}
               >
@@ -532,6 +535,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
                     type="button"
                     className={clsx(css.chip, css.permissionChip)}
                     onClick={() => { openMenu('permission', permissionAnchor.current) }}
+                    data-board-action="composer-permission"
                     aria-label={t('permission.aria')}
                   >
                     <span className={css.chipIcon}><IconShieldOutline16 /></span>
@@ -605,6 +609,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
                 type="button"
                 className={clsx(css.chip, css.modelChip)}
                 onClick={() => { openMenu('model', modelAnchor.current) }}
+                data-board-action="composer-model"
                 aria-label={t('model.aria')}
               >
                 <span className={css.chipLabel}>
@@ -652,6 +657,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
                     type="button"
                     className={clsx(css.primary, css.stop)}
                     onClick={() => { injected.cancelPrompt(windowId) }}
+                    data-board-action="composer-stop"
                     aria-label={t('agent.stop')}
                   >
                     <IconStopFill16 />
@@ -664,6 +670,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
                     type="submit"
                     className={clsx(css.primary, canSend && css.ready)}
                     disabled={!canSend}
+                    data-board-action="composer-send"
                     aria-label={t('menu.send')}
                   >
                     <IconSendOutline16 />

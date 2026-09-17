@@ -48,6 +48,7 @@ export function SessionRail({ useStore, actions, t }: SessionRailProps) {
             <Tooltip label={win.title} side="right" delayMs={300}>
               <button
                 type="button"
+                data-board-dock-row=""
                 onClick={() => { actions.centerOnWindow(id) }}
                 className={clsx(css.windowButton, isActive && css.active)}
                 aria-label={win.title}
@@ -64,6 +65,7 @@ export function SessionRail({ useStore, actions, t }: SessionRailProps) {
       <Tooltip label={t('rail.addAgent')} side="right" delayMs={300}>
         <button
           type="button"
+          data-board-action="dock-add-agent"
           onClick={openAgent}
           className={css.addButton}
           aria-label={t('rail.addAgent')}
@@ -75,6 +77,7 @@ export function SessionRail({ useStore, actions, t }: SessionRailProps) {
       <Tooltip label={t('rail.resetView')} side="right" delayMs={300}>
         <button
           type="button"
+          data-board-action="dock-reset-view"
           onClick={() => {
             actions.setPan(0, 0)
             actions.setZoom(1)

@@ -304,9 +304,9 @@ function WindowChatsPanelView({
     createChat(cardWindow.id, project.cwd === '' ? {} : { cwd: project.cwd })
   }
 
-  const railButton = (label: string, icon: ReactNode, onClick: () => void): ReactNode => (
+  const railButton = (label: string, icon: ReactNode, onClick: () => void, action: string): ReactNode => (
     <Tooltip label={label} side="right">
-      <button type="button" className={css.railButton} aria-label={label} onClick={onClick}>
+      <button type="button" data-board-action={action} className={css.railButton} aria-label={label} onClick={onClick}>
         {icon}
       </button>
     </Tooltip>
@@ -321,20 +321,20 @@ function WindowChatsPanelView({
           className={clsx(css.rail, hidden && css.hidden)}
           style={{ left: rail.left, top: rail.top, width: rail.width, height: rail.height }}
         >
-          {railButton(t('panel.expand'), <IconPanelLeftOutline16 />, () => { actions.openWindowPanel(cardWindow.id) })}
+          {railButton(t('panel.expand'), <IconPanelLeftOutline16 />, () => { actions.openWindowPanel(cardWindow.id) }, 'panel-rail-expand')}
           {railButton(t('panel.newChat'), <IconNewChatOutline16 />, () => {
             actions.openWindowPanel(cardWindow.id)
             setLevel({ kind: 'projects' })
             void startChat(cardWindow.id).catch(report)
-          })}
+          }, 'panel-rail-new-chat')}
           {railButton(t('panel.addFolder'), <IconProjectAddOutline16 />, () => {
             actions.openWindowPanel(cardWindow.id)
             setLevel({ kind: 'browse' })
-          })}
+          }, 'panel-rail-add-folder')}
           {railButton(t('panel.search'), <IconSearchOutline16 />, () => {
             actions.openWindowPanel(cardWindow.id)
             setSearchOpen(true)
-          })}
+          }, 'panel-rail-search')}
         </div>
       )}
 
@@ -354,6 +354,7 @@ function WindowChatsPanelView({
         }}
       >
         <div
+          data-board-action="panel-resize"
           className={clsx(css.resizeHandle, side === 'left' ? css.resizeLeft : css.resizeRight)}
           onPointerDown={startResize}
           role="separator"
@@ -367,6 +368,7 @@ function WindowChatsPanelView({
               <button
                 type="button"
                 data-row-action=""
+                data-board-action="panel-search"
                 className={clsx(css.action, searchOpen && css.actionActive)}
                 aria-label={t('panel.search')}
                 aria-expanded={searchOpen}
@@ -391,6 +393,7 @@ function WindowChatsPanelView({
               <button
                 type="button"
                 data-row-action=""
+                data-board-action="panel-add-folder"
                 className={css.action}
                 aria-label={t('panel.addFolder')}
                 onClick={() => { setLevel({ kind: 'browse' }) }}
@@ -424,6 +427,7 @@ function WindowChatsPanelView({
             <button
               type="button"
               data-row-action=""
+              data-board-action="panel-collapse"
               className={css.action}
               aria-label={t('panel.collapse')}
               onClick={() => { actions.setPanelCollapsed(true) }}

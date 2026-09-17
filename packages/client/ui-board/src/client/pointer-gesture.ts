@@ -19,8 +19,10 @@ export interface BoardGestureHandlers {
 
 /**
  * Track one pointer gesture on an element that already captured the pointer.
- * The returned disposer is idempotent; calling it from an unmount effect ends
- * the gesture exactly like a pointercancel would.
+ * Events from any other pointer are ignored, so a second finger's move cannot
+ * drive the gesture nor its lift end it. The returned disposer is idempotent;
+ * calling it from an unmount effect ends the gesture exactly like a
+ * pointercancel would.
  * @param element - element holding the pointer capture.
  * @param pointerId - captured pointer id.
  * @param handlers - move/end callbacks of this gesture.
@@ -45,9 +47,18 @@ export function startBoardPointerGesture(
     }
     handlers.end?.(event)
   }
-  const onMove = (event: PointerEvent): void => { handlers.move?.(event) }
-  const onUp = (event: PointerEvent): void => { finish(event) }
-  const onCancel = (event: PointerEvent): void => { finish(event) }
+  const onMove = (event: PointerEvent): void => {
+    if (event.pointerId !== pointerId) return
+    handlers.move?.(event)
+  }
+  const onUp = (event: PointerEvent): void => {
+    if (event.pointerId !== pointerId) return
+    finish(event)
+  }
+  const onCancel = (event: PointerEvent): void => {
+    if (event.pointerId !== pointerId) return
+    finish(event)
+  }
 
   globalThis.addEventListener('pointermove', onMove)
   globalThis.addEventListener('pointerup', onUp)

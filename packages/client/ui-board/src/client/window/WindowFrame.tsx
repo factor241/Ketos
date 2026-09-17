@@ -1,7 +1,9 @@
 /**
  * Shared frame for every board window kind: the floating-panel chrome, the
  * header drag, the eight resize handles, and the optional chats-panel and
- * fullscreen controls. A kind differs only in which of those two controls it
+ * fullscreen controls. Board controls automation drives carry a stable
+ * `data-board-action` id next to their localized label, so live audits address
+ * them whatever the active locale. A kind differs only in which of those two controls it
  * offers and in the `board.window.body` occupant its `renderBody` dispatches.
  *
  * The two gestures live in leaf components that read the canvas zoom
@@ -192,6 +194,7 @@ function WindowFrameView({ window: cardWindow, renderBody, useStore, actions, t,
           <Tooltip label={t('window.close')} side="bottom">
             <button
               type="button"
+              data-board-action="window-close"
               onClick={() => { actions.closeWindow(cardWindow.id) }}
               className={css.headerButton}
               aria-label={t('window.close')}
@@ -203,6 +206,7 @@ function WindowFrameView({ window: cardWindow, renderBody, useStore, actions, t,
             <Tooltip label={t('window.chats')} side="bottom">
               <button
                 type="button"
+                data-board-action="window-chats"
                 onClick={() => {
                   if (isPanelOpen) actions.closeWindowPanel()
                   else actions.openWindowPanel(cardWindow.id)
@@ -222,6 +226,7 @@ function WindowFrameView({ window: cardWindow, renderBody, useStore, actions, t,
             <Tooltip label={t(isFullscreen ? 'window.exitFullscreen' : 'window.fullscreen')} side="bottom">
               <button
                 type="button"
+                data-board-action="window-fullscreen"
                 onClick={() => {
                   if (isFullscreen) actions.exitFullscreen()
                   else actions.setWindowFullscreen(cardWindow.id)

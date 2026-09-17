@@ -54,6 +54,26 @@ describe('startBoardPointerGesture', () => {
     expect(move).not.toHaveBeenCalled()
   })
 
+  it('ignores events from any other pointer while the gesture is live', () => {
+    const { node } = element()
+    const move = vi.fn()
+    const end = vi.fn()
+    startBoardPointerGesture(node, 21, { move, end })
+
+    // A second finger's move and lift reach nothing.
+    fireEvent.pointerMove(window, { pointerId: 22, clientX: 10 })
+    fireEvent.pointerUp(window, { pointerId: 22 })
+    fireEvent.pointerCancel(window, { pointerId: 22 })
+    expect(move).not.toHaveBeenCalled()
+    expect(end).not.toHaveBeenCalled()
+
+    // The owning pointer still drives and ends the same gesture.
+    fireEvent.pointerMove(window, { pointerId: 21, clientX: 30 })
+    fireEvent.pointerUp(window, { pointerId: 21 })
+    expect(move).toHaveBeenCalledTimes(1)
+    expect(end).toHaveBeenCalledWith(expect.objectContaining({ pointerId: 21 }))
+  })
+
   it('finishes once when disposed twice, and reports disposal as a null end', () => {
     const { node } = element()
     const end = vi.fn()

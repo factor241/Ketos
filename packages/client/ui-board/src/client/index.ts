@@ -34,9 +34,10 @@ export type { BoardKey } from './locale.ts'
 export { createBoardStore } from './store.ts'
 export type { BoardState, BoardStoreHandle, OpenWindowSpec } from './store.ts'
 
-/** Services required by the board plugin: slots, copy, and the session domain. */
+/** Services required by the board plugin: slots, copy, uploads, and the session domain. */
 export const inject = [
   'slots', 'locale', 'sessions', 'workspaces', 'uiWorkspace', 'uiConversation', 'modelDirectories',
+  'fileUpload',
   'remote', 'remote.commands', 'remote.agentPresets', 'remote.goals',
   'remote.fileReferences', 'remote.sessionReferenceResolver',
 ]
@@ -65,7 +66,7 @@ export function apply(ctx: ClientContext): void {
     },
     ensureWindowSession: (windowId) => { bridge.ensure(windowId) },
     releaseWindow: (windowId) => { bridge.release(windowId) },
-    sendPrompt: (windowId, text, mode, images) => { bridge.send(windowId, text, mode, images) },
+    sendPrompt: (windowId, text, mode, images, files) => { bridge.send(windowId, text, mode, images, files) },
     cancelPrompt: (windowId) => { bridge.cancel(windowId) },
     loadOlderTurns: (windowId) => { bridge.loadOlder(windowId) },
     bindSession: (windowId, sessionId) => { bridge.bind(windowId, sessionId) },
@@ -87,9 +88,10 @@ export function apply(ctx: ClientContext): void {
     selectModel: (windowId, selection) => { bridge.selectModel(windowId, selection) },
     exitPlanMode: (windowId) => { bridge.exitPlanMode(windowId) },
     runCommand: (windowId, line) => { bridge.runCommand(windowId, line) },
+    executeCommand: (windowId, line, images, files) => { bridge.executeCommand(windowId, line, images, files) },
+    uploadFile: (windowId, name, bytes) => bridge.uploadFile(windowId, name, bytes),
     updateQueueItem: (windowId, itemId, action) => { bridge.updateQueueItem(windowId, itemId, action) },
     goalAction: (windowId, action) => { bridge.goalAction(windowId, action) },
-    pickWorkspace: (windowId) => { bridge.pickWorkspace(windowId) },
     loadMentions: (windowId, query, signal) => bridge.loadMentions(windowId, query, signal),
   })
 
@@ -125,14 +127,16 @@ export function apply(ctx: ClientContext): void {
     },
   }, BoardWindowLayer))
 
-  // Window frames: one registration per window type, not per window.
+  // Window frames: one registration per window type, not per window. Every frame
+  // reads its window's channel for the chat title; the header rename and the
+  // body dispatcher ride the same inject face.
   ctx.slots.inject('board.window', function* () {
-    yield ctx.slots.register({ name: 'board.window', key: 'agent', store: boardStore, locale: NS }, AgentCard)
-    yield ctx.slots.register({ name: 'board.window', key: 'clone', store: boardStore, locale: NS }, AgentCard)
-    yield ctx.slots.register({ name: 'board.window', key: 'connectors', store: boardStore, locale: NS }, WindowFrame)
-    yield ctx.slots.register({ name: 'board.window', key: 'settings', store: boardStore, locale: NS }, WindowFrame)
-    yield ctx.slots.register({ name: 'board.window', key: 'dashboard', store: boardStore, locale: NS }, WindowFrame)
-    yield ctx.slots.register({ name: 'board.window', key: 'tasks', store: boardStore, locale: NS }, WindowFrame)
+    yield ctx.slots.register({ name: 'board.window', key: 'agent', store: boardStore, locale: NS, inject: injected }, AgentCard)
+    yield ctx.slots.register({ name: 'board.window', key: 'clone', store: boardStore, locale: NS, inject: injected }, AgentCard)
+    yield ctx.slots.register({ name: 'board.window', key: 'connectors', store: boardStore, locale: NS, inject: injected }, WindowFrame)
+    yield ctx.slots.register({ name: 'board.window', key: 'settings', store: boardStore, locale: NS, inject: injected }, WindowFrame)
+    yield ctx.slots.register({ name: 'board.window', key: 'dashboard', store: boardStore, locale: NS, inject: injected }, WindowFrame)
+    yield ctx.slots.register({ name: 'board.window', key: 'tasks', store: boardStore, locale: NS, inject: injected }, WindowFrame)
   })
 
   // Chats panel: one occupant serves every chat window, like the frame table.
@@ -158,6 +162,7 @@ export function apply(ctx: ClientContext): void {
     name: 'board.dock',
     store: boardStore,
     locale: NS,
+    inject: injected,
   }, SessionRail))
 
   ctx.slots.inject('board.omnibar', () => ctx.slots.register({

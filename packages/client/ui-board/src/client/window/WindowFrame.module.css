@@ -139,13 +139,50 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* The name is the rename trigger: a text-weight button that takes the header's
+   remaining width, so a long chat title elides instead of pushing the controls. */
+.titleButton {
+  display: block;
+  min-width: 0;
+  flex: 0 1 auto;
+  /* The ellipsis must clip here: the inner span keeps its full min-content
+     width, and without this the header overflows the frame on long names. */
+  overflow: hidden;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: text;
+}
+
+.titleButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
 .title {
+  display: block;
   overflow: hidden;
   color: var(--dsw-alias-label-primary);
   font-size: var(--board-font-title);
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* In-place rename editor: same metrics as the title, sized by the header. */
+.titleInput {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 2px 6px;
+  border: 0.5px solid var(--dsw-alias-state-business-primary);
+  border-radius: 8px;
+  background: var(--dsw-specific-input-major);
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: var(--board-font-title);
+  font-weight: 500;
+  outline: none;
 }
 
 /* The body scrolls inside elevated chrome, so the thumb rides the l2 pair

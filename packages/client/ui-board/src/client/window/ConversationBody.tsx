@@ -1,20 +1,21 @@
 /**
  * Body of a window: the Harness session lane plus the full composer bar. The
- * lane renders the window session's assembled chat snapshot; the composer bar
- * carries the context chips, tool row, dock strips, and command menus.
+ * lane renders the window session's assembled chat snapshot and its states —
+ * creating, creation failure, empty, turn failure, running, and earlier-turn
+ * loading — through dictionary lines, and follows the tail only while the user
+ * stays there. Earlier turns prepend without moving the reader's position.
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MarkdownLabels } from '@deepseek-ai/dsh-client-ui-primitives'
-import {
-  IconCheckOutline14, IconChevronUpOutline14, IconWarningOutline16,
-} from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconChevronUpOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { AssistantBlock, ChatSnapshot, ConversationNode } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { BoardWindowInjected } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
 import { ComposerBar } from './ComposerBar.tsx'
+import { ToolRow } from './ToolRow.tsx'
 import css from './ConversationBody.module.css'
 
 export type ConversationBodyProps =
@@ -26,7 +27,7 @@ export type ConversationBodyProps =
 /** One lane row the body renders; kinds outside the lane's scope are skipped. */
 type LaneRow =
   | { readonly key: string; readonly kind: 'user' | 'assistant'; readonly text: string }
-  | { readonly key: string; readonly kind: 'tool'; readonly name: string; readonly failed: boolean }
+  | { readonly key: string; readonly kind: 'tool'; readonly name: string; readonly failed: boolean; readonly unavailable: boolean }
 
 /** Text of one content-block list; non-text blocks carry no lane text yet. */
 function contentText(blocks: readonly { type: string; text?: string }[]): string {
@@ -72,6 +73,9 @@ function laneRows(chat: ChatSnapshot): readonly LaneRow[] {
           kind: 'tool',
           name: node.call?.name ?? node.callId,
           failed: node.isError,
+          // A result whose call was truncated out of the loaded window has no
+          // name to show and offers the repeat control instead.
+          unavailable: node.call === null,
         })
         break
       default:
@@ -90,6 +94,9 @@ export function ConversationBody({
   const session = useWindowSession(cardWindow.id)
   const laneRef = useRef<HTMLDivElement>(null)
   const [atTail, setAtTail] = useState(true)
+  // Scroll height captured when earlier turns are requested; the next lane
+  // change re-anchors the reader instead of letting the prepend jump the view.
+  const anchorRef = useRef<number | null>(null)
 
   // The window owns its session: create it once, on first mount.
   useEffect(() => {
@@ -98,13 +105,29 @@ export function ConversationBody({
 
   const rows = useMemo(() => session?.chat === undefined ? [] : laneRows(session.chat), [session?.chat])
   const streaming = assistantText(session?.chat?.legacy.partial?.blocks ?? [])
+  const runningCalls = session?.runningCalls ?? []
   const ready = session?.status === 'ready'
+  const hasRows = rows.length > 0 || runningCalls.length > 0 || streaming !== ''
+
+  // Earlier turns prepend: content growth first restores the reader's offset,
+  // so the added height moves the scrollbar rather than the reading position.
+  // Only the transcript's own identity may consume the anchor: a channel
+  // republish for loadingOlder or progress arrives without new rows, and
+  // consuming the anchor there would let the prepend jump after all.
+  useLayoutEffect(() => {
+    const lane = laneRef.current
+    const anchor = anchorRef.current
+    if (lane === null || anchor === null) return
+    lane.scrollTop += lane.scrollHeight - anchor
+    anchorRef.current = null
+  }, [rows, streaming])
 
   // Follow the tail while the lane grows and the user has not scrolled away.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const lane = laneRef.current
-    if (lane !== null && atTail) lane.scrollTop = lane.scrollHeight
-  }, [rows.length, streaming, atTail])
+    if (lane === null || !atTail || anchorRef.current !== null) return
+    lane.scrollTop = lane.scrollHeight
+  }, [rows, streaming, runningCalls, atTail])
 
   const markdownLabels = useMemo<MarkdownLabels>(() => ({
     code: { copyLabel: t('markdown.copy'), copiedLabel: t('markdown.copied') },
@@ -121,35 +144,58 @@ export function ConversationBody({
     setAtTail(lane.scrollHeight - lane.scrollTop - lane.clientHeight < 24)
   }
 
+  const loadOlder = (): void => {
+    const lane = laneRef.current
+    if (lane !== null) {
+      anchorRef.current = lane.scrollHeight
+      setAtTail(false)
+    }
+    injected.loadOlderTurns(cardWindow.id)
+  }
+
+  const jumpToLatest = (): void => {
+    const lane = laneRef.current
+    if (lane !== null) lane.scrollTop = lane.scrollHeight
+    anchorRef.current = null
+    setAtTail(true)
+  }
+
   return (
     <div className={clsx(css.body, isFullscreen && css.centered)}>
-      <div ref={laneRef} className={css.lane} onScroll={handleScroll}>
-        {ready && rows.length > 0 && (
+      <div ref={laneRef} className={css.lane} onScroll={handleScroll} data-board-lane="">
+        {ready && session.hasMore && (
           <button
             type="button"
             className={css.loadOlder}
-            onClick={() => { injected.loadOlderTurns(cardWindow.id) }}
+            disabled={session.loadingOlder}
+            onClick={loadOlder}
+            data-board-action="lane-load-older"
           >
-            {t('conversation.loadOlder')}
+            {t(session.loadingOlder ? 'conversation.loadingOlder' : 'conversation.loadOlder')}
           </button>
         )}
         {session?.status === 'pending' && (
-          <div className={css.statusLine}>{t('conversation.creating')}</div>
+          <div className={css.statusLine} data-board-lane-state="creating">{t('conversation.creating')}</div>
         )}
         {session?.status === 'error' && (
-          <div className={css.noticeError}>{t('conversation.error')}: {session.error}</div>
+          <div className={css.noticeError} data-board-lane-state="creation-error">
+            {t('conversation.error')}: {session.error}
+          </div>
         )}
-        {ready && rows.length === 0 && streaming === '' && (
-          <div className={css.statusLine}>{t('conversation.empty')}</div>
+        {ready && !hasRows && !session.running && (
+          <div className={css.statusLine} data-board-lane-state="empty">{t('conversation.empty')}</div>
         )}
 
         {rows.map(row => row.kind === 'tool'
           ? (
-            <div key={row.key} className={clsx(css.tool, row.failed && css.toolFailed)}>
-              {row.failed ? <IconWarningOutline16 /> : <IconCheckOutline14 />}
-              <span>{row.name}</span>
-              {row.failed && <span>{t('conversation.toolFailed')}</span>}
-            </div>
+            <ToolRow
+              key={row.key}
+              name={row.name}
+              failed={row.failed}
+              unavailable={row.unavailable}
+              t={t}
+              onRepeat={loadOlder}
+            />
           )
           : (
             <div key={row.key} className={clsx(css.message, row.kind === 'user' ? css.user : css.assistant)}>
@@ -159,15 +205,28 @@ export function ConversationBody({
             </div>
           ))}
 
+        {runningCalls.map(call => (
+          <ToolRow key={`running-${call.id}`} name={call.name} failed={false} running t={t} />
+        ))}
+
         {streaming !== '' && (
           <div className={clsx(css.message, css.assistant, css.streaming)}>
             <MarkdownText text={streaming} streaming labels={markdownLabels} />
           </div>
         )}
 
-        {session?.running === true && <div className={css.statusLine}>{t('agent.statusRunning')}</div>}
-        {session?.error !== undefined && session.status === 'ready' && (
-          <div className={css.noticeError}>{session.error}</div>
+        {session?.running === true && (
+          <div className={css.statusLine} data-board-lane-state="running">{t('agent.statusRunning')}</div>
+        )}
+        {session?.turnError !== undefined && (
+          <div className={css.noticeError} data-board-lane-state="turn-error">
+            {t('conversation.turnFailed')}: {session.turnError}
+          </div>
+        )}
+        {session?.promptError !== undefined && (
+          <div className={css.noticeError} data-board-lane-state="prompt-error">
+            {t('conversation.sendFailed')}: {session.promptError}
+          </div>
         )}
       </div>
 
@@ -177,11 +236,7 @@ export function ConversationBody({
             <button
               type="button"
               className={css.laneAction}
-              onClick={() => {
-                const lane = laneRef.current
-                if (lane !== null) lane.scrollTop = lane.scrollHeight
-                setAtTail(true)
-              }}
+              onClick={jumpToLatest}
               aria-label={t('conversation.scrollBottom')}
               title={t('conversation.scrollBottom')}
             >
@@ -196,11 +251,7 @@ export function ConversationBody({
         session={session}
         t={t}
         injected={injected}
-        onSent={() => {
-          setAtTail(true)
-          const lane = laneRef.current
-          if (lane !== null) lane.scrollTop = lane.scrollHeight
-        }}
+        onSent={jumpToLatest}
       />
     </div>
   )

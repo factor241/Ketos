@@ -22,6 +22,7 @@ type BoardActions = {
   moveWindow: (draft: BoardState, id: WindowId, x: number, y: number, snap: boolean) => void
   resizeWindow: (draft: BoardState, id: WindowId, width: number, height: number, snap: boolean) => void
   setWindowBodyKind: (draft: BoardState, id: WindowId, bodyKind: WindowBodyKind) => void
+  setWindowCustomTitle: (draft: BoardState, id: WindowId, title: string | undefined) => void
   focusWindow: (draft: BoardState, id: WindowId) => void
   centerOnWindow: (draft: BoardState, id: WindowId) => void
   setWindowFullscreen: (draft: BoardState, id: WindowId) => void
@@ -132,6 +133,21 @@ export function clampWindowSize(
     width: Math.max(MIN_WINDOW_SIZE.width, snapped(width)),
     height: Math.max(MIN_WINDOW_SIZE.height, snapped(height)),
   }
+}
+
+/**
+ * The ordinal the next window takes: one past the highest ordinal in the
+ * layout. Closing a window therefore never recycles a name the stack still
+ * shows, and the ordinal is board-scoped rather than per-kind.
+ * @param windows - the board's window map.
+ * @returns the next ordinal.
+ */
+export function nextWindowOrdinal(windows: Record<string, BoardWindowState>): number {
+  let highest = 0
+  for (const window of Object.values(windows)) {
+    if (window.ordinal > highest) highest = window.ordinal
+  }
+  return highest + 1
 }
 
 /**
@@ -297,6 +313,13 @@ export function createBoardStore(opts?: { persist?: string }): BoardStoreHandle 
         const win = draft.windows[id as string]
         if (!win) return
         win.bodyKind = bodyKind
+      },
+      setWindowCustomTitle: (draft, id, title) => {
+        const win = draft.windows[id as string]
+        if (!win) return
+        const trimmed = title?.trim() ?? ''
+        if (trimmed === '') delete win.customTitle
+        else win.customTitle = trimmed
       },
       focusWindow: (draft, id) => {
         raiseWindow(draft, id)

@@ -21,6 +21,37 @@ export type WindowBodyKind = 'conversation' | 'connectors' | 'settings' | 'dashb
 /** One prompt mode the window composer dispatches. */
 export type BoardPromptMode = 'queue' | 'steer'
 
+/** One tool call running now: the lane shows it until its result is logged. */
+export interface BoardRunningCall {
+  readonly id: string
+  readonly name: string
+}
+
+/** Image admission limits the window composer enforces, as the host projects them. */
+export interface BoardImageLimits {
+  readonly maxImageBytes: number
+  readonly maxImagesPerMessage: number
+  readonly maxMessageImageBytes: number
+  readonly mediaTypes: readonly string[]
+}
+
+/** One non-image file the draft holds while its background upload settles. */
+export interface BoardDraftFile {
+  readonly id: string
+  readonly name: string
+  readonly status: 'uploading' | 'ready' | 'error'
+  /** Staged receipt the prompt sends once the upload is ready. */
+  readonly receiptId?: string
+  /** Failure text of the last upload attempt. */
+  readonly error?: string
+}
+
+/** Outcome of one background file upload: the staged receipt or a failure. */
+export interface BoardUploadResult {
+  readonly receiptId?: string
+  readonly error?: string
+}
+
 /** One directory level the panel's folder browser shows. */
 export interface BoardDirectoryListing {
   /** Absolute path of the listed directory. */
@@ -139,16 +170,30 @@ export interface BoardWindowSessionState {
   readonly status: 'pending' | 'ready' | 'error'
   /** Whether the session has a running turn. */
   readonly running: boolean
-  /** Failure text from session creation or the last refused prompt. */
+  /** Failure text from session creation. */
   readonly error?: string | undefined
+  /** Failure text from the last refused prompt or command. */
+  readonly promptError?: string | undefined
+  /** Failure text of the last turn the agent aborted. */
+  readonly turnError?: string | undefined
   /** Assembled chat snapshot, absent until the chat view builder publishes. */
   readonly chat?: ChatSnapshot | undefined
   /** The session the window is bound to, absent until one exists. */
   readonly sessionId?: SessionId | undefined
+  /** Chat title the session list reports; the frame falls back to the window name. */
+  readonly displayTitle?: string | undefined
   /** Session working directory, as the list row reports it. */
   readonly cwd?: string | undefined
   /** Whether the session has not started its first turn (setup switches allowed). */
   readonly blank: boolean
+  /** Whether the host window still holds turns before the loaded window. */
+  readonly hasMore: boolean
+  /** Whether an older-turns page is in flight. */
+  readonly loadingOlder: boolean
+  /** Tool calls running now, in transcript order. */
+  readonly runningCalls: readonly BoardRunningCall[]
+  /** Image admission limits, absent when the host composes no attachment service. */
+  readonly imageLimits?: BoardImageLimits | undefined
   /** Agent preset in force, and the roster the chip can switch to. */
   readonly presetId?: string | undefined
   readonly presets: readonly BoardPresetOption[]
@@ -169,6 +214,8 @@ export interface BoardWindowSessionState {
   readonly commands: readonly BoardCommandRow[]
   /** Reason the composer is inert, when the conversation reports a block. */
   readonly blocked?: string | undefined
+  /** Failure text of the last slash-command line the composer executed. */
+  readonly commandError?: string | undefined
   /** Context occupancy, absent until the provider reports both figures. */
   readonly context?: { readonly percent: number; readonly usedTokens: number; readonly window: number } | undefined
 }
@@ -197,8 +244,14 @@ export interface BoardWindowInjected {
    * session subscriptions go, while the session itself stays alive and listed.
    */
   releaseWindow: (windowId: WindowId) => void
-  /** Send one prompt into the window's session, with optional inline images. */
-  sendPrompt: (windowId: WindowId, text: string, mode: BoardPromptMode, images?: readonly BoardDraftImage[]) => void
+  /** Send one prompt into the window's session, with optional inline images and staged file receipts. */
+  sendPrompt: (
+    windowId: WindowId,
+    text: string,
+    mode: BoardPromptMode,
+    images?: readonly BoardDraftImage[],
+    files?: readonly string[],
+  ) => void
   /** Cancel the window's running turn. */
   cancelPrompt: (windowId: WindowId) => void
   /** Load older turns into the window's lane. */
@@ -244,12 +297,29 @@ export interface BoardWindowInjected {
   exitPlanMode: (windowId: WindowId) => void
   /** Run one slash-command line against the window's session. */
   runCommand: (windowId: WindowId, line: string) => void
+  /**
+   * Execute one slash-command line, arguments included, and report its outcome
+   * on the window channel; the composer shows the failure until the next send.
+   * The draft's images and staged file receipts ride along, so a command that
+   * accepts attachments receives them and one that does not is refused by the
+   * host with its own reason.
+   */
+  executeCommand: (
+    windowId: WindowId,
+    line: string,
+    images?: readonly BoardDraftImage[],
+    files?: readonly string[],
+  ) => void
+  /**
+   * Stage one non-image file for the window's session through the background
+   * upload service.
+   * @returns the staged receipt, or the failure text.
+   */
+  uploadFile: (windowId: WindowId, name: string, bytes: Uint8Array<ArrayBuffer>) => Promise<BoardUploadResult>
   /** Edit, remove, or steer one queued message. */
   updateQueueItem: (windowId: WindowId, itemId: string, action: 'remove' | 'steer') => void
   /** Pause, resume, or clear the window session's goal. */
   goalAction: (windowId: WindowId, action: 'pause' | 'resume' | 'clear') => void
-  /** Adopt a picked directory: a blank session is re-created in it. */
-  pickWorkspace: (windowId: WindowId) => void
   /** Resolve `@` mention candidates for the draft's query. */
   loadMentions: (windowId: WindowId, query: string, signal: AbortSignal) => Promise<readonly BoardMentionRow[]>
 }
@@ -269,7 +339,17 @@ export interface BoardWindowState {
   kind: WindowKind
   /** Body presented inside the frame; switching it swaps the rendered content. */
   bodyKind: WindowBodyKind
-  title: string
+  /**
+   * User-given window name. While set it overrides the chat title, so a renamed
+   * window keeps the name the user chose; an empty value clears it.
+   */
+  customTitle?: string
+  /**
+   * Ordinal of the window among its kind, fixed at opening. The frame names the
+   * template fallback from it at render time, so the window keeps its name
+   * through locale switches instead of freezing the locale it opened in.
+   */
+  ordinal: number
   x: number
   y: number
   width: number

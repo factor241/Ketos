@@ -42,7 +42,7 @@ function windowState(overrides: Partial<Parameters<BoardInstance['actions']['ope
   return {
     kind: 'agent' as const,
     bodyKind: 'conversation' as const,
-    title: 'Agent',
+    ordinal: 1,
     width: 552,
     height: 648,
     ...overrides,
@@ -108,9 +108,9 @@ describe('board slot composition', () => {
     const board = runtime.storeOf('board.dock') as BoardInstance
 
     act(() => {
-      board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'First agent' }))
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'First agent' }))
       board.actions.openWindow(windowState({
-        id: 't1' as WindowId, kind: 'connectors', bodyKind: 'connectors', title: 'Tools', width: 520, height: 480,
+        id: 't1' as WindowId, kind: 'connectors', bodyKind: 'connectors', ordinal: 2, customTitle: 'Tools', width: 520, height: 480,
       }))
     })
     await runtime.flush()
@@ -167,7 +167,8 @@ describe('board slot composition', () => {
         id: 'c1' as WindowId,
         kind: 'clone',
         bodyKind: 'clone-memory',
-        title: 'Clone memory',
+        ordinal: 3,
+        customTitle: 'Clone memory',
       }))
     })
     await runtime.flush()
@@ -187,8 +188,8 @@ describe('board slot composition', () => {
     const board = runtime.storeOf('board.dock') as BoardInstance
 
     act(() => {
-      board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'First agent' }))
-      board.actions.openWindow(windowState({ id: 'a2' as WindowId, title: 'Second agent' }))
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'First agent' }))
+      board.actions.openWindow(windowState({ id: 'a2' as WindowId, customTitle: 'Second agent' }))
     })
     await runtime.flush()
     expect(panel.container.querySelectorAll('[data-board-window="agent"]')).toHaveLength(2)
@@ -211,8 +212,8 @@ describe('board slot composition', () => {
     act(() => {
       board.actions.setPan(40, 40)
       board.actions.setZoom(1.5)
-      board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'First agent' }))
-      board.actions.openWindow(windowState({ id: 'a2' as WindowId, title: 'Second agent' }))
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'First agent' }))
+      board.actions.openWindow(windowState({ id: 'a2' as WindowId, customTitle: 'Second agent' }))
     })
     await runtime.flush()
     expect(panel.container.querySelectorAll('[data-board-window="agent"]')).toHaveLength(2)
@@ -563,7 +564,7 @@ describe('board slot composition', () => {
       act(() => {
         board.actions.openWindow(windowState({ id: `a${String(cycle)}` as WindowId }))
         board.actions.openWindow(windowState({
-          id: `t${String(cycle)}` as WindowId, kind: 'connectors', bodyKind: 'connectors', title: 'Tools',
+          id: `t${String(cycle)}` as WindowId, kind: 'connectors', bodyKind: 'connectors', ordinal: 2, customTitle: 'Tools',
         }))
       })
       await runtime.flush()
@@ -595,7 +596,7 @@ describe('board slot composition', () => {
 
     act(() => {
       board.actions.setViewport(1200, 900)
-      board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'Agent' }))
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' }))
     })
     await runtime.flush()
     fireEvent.change(panel.container.querySelector('textarea') as Element, { target: { value: 'draft' } })
@@ -620,13 +621,15 @@ describe('board slot composition', () => {
 
     act(() => {
       board.actions.setViewport(1200, 900)
-      board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'Agent' }))
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' }))
       board.actions.moveWindow('a1' as WindowId, 24, 200, false)
     })
     await runtime.flush()
 
     // The ring projects the window border into panel pixels: the eight handles
-    // sit on it, above the chrome (the board root renders it after the layers).
+    // sit outside the frame, above the chrome (the board root renders it after
+    // the layers). Sitting outside keeps the scaled header's controls clickable
+    // at a zoomed-out canvas.
     const ring = panel.container.querySelector('[data-board-handle-ring]') as HTMLElement
     expect(ring).not.toBeNull()
     const handles = [...ring.querySelectorAll('[data-board-handle]')] as HTMLElement[]
@@ -634,8 +637,11 @@ describe('board slot composition', () => {
       'n', 's', 'w', 'e', 'nw', 'ne', 'sw', 'se',
     ])
     const east = ring.querySelector('[data-board-handle="e"]') as HTMLElement
-    expect(east.style.left).toBe('573px')
+    expect(east.style.left).toBe('576px')
     expect(east.style.top).toBe('214px')
+    const northWest = ring.querySelector('[data-board-handle="nw"]') as HTMLElement
+    expect(northWest.style.left).toBe('10px')
+    expect(northWest.style.top).toBe('186px')
     const rootChildren = [...(panel.container.querySelector('[data-surface="board"]') as HTMLElement).children]
     expect(rootChildren.indexOf(ring)).toBeGreaterThan(rootChildren.findIndex(node => node.getAttribute('data-board-layer') === 'dock'))
 
@@ -663,8 +669,8 @@ describe('board slot composition', () => {
     Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { value: () => {}, configurable: true, writable: true })
 
     act(() => {
-      board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'First' }))
-      board.actions.openWindow(windowState({ id: 'a2' as WindowId, title: 'Second' }))
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'First' }))
+      board.actions.openWindow(windowState({ id: 'a2' as WindowId, customTitle: 'Second' }))
     })
     await runtime.flush()
     act(() => { board.actions.focusWindow('a1' as WindowId) })
@@ -686,7 +692,7 @@ describe('board slot composition', () => {
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
     const board = runtime.storeOf('board.dock') as BoardInstance
 
-    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'Agent' })) })
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
     fireEvent.click(panel.container.querySelector('button[aria-label="Open fullscreen"]') as Element)
@@ -724,7 +730,7 @@ describe('board slot composition', () => {
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
     const board = runtime.storeOf('board.dock') as BoardInstance
 
-    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'Agent' })) })
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
     await runtime.flush()
 
     fireEvent.wheel(panel.container.querySelector('[data-surface="canvas"]') as Element, { deltaY: -100, clientX: 100, clientY: 100 })
@@ -747,7 +753,7 @@ describe('board slot composition', () => {
 
     act(() => {
       board.actions.setViewport(1200, 900)
-      board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'Agent' }))
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' }))
     })
     await runtime.flush()
     const frame = panel.container.querySelector('[data-board-window="agent"]') as HTMLElement
@@ -824,7 +830,7 @@ describe('board slot composition', () => {
 
     act(() => {
       board.actions.setViewport(1200, 900)
-      board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'Agent' }))
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' }))
     })
     await runtime.flush()
     const root = panel.container.querySelector('[data-surface="board"]') as HTMLElement
@@ -865,7 +871,7 @@ describe('board slot composition', () => {
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
     const board = runtime.storeOf('board.dock') as BoardInstance
 
-    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'Agent' })) })
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
     act(() => { board.actions.setSelectingElement(true) })
@@ -892,7 +898,7 @@ describe('board slot composition', () => {
 
     act(() => {
       board.actions.setViewport(1200, 900)
-      board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'Agent' }))
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' }))
     })
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
@@ -933,7 +939,7 @@ describe('board slot composition', () => {
     await prepared.mountBoard()
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
     const board = runtime.storeOf('board.dock') as BoardInstance
-    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'Agent' })) })
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
     await runtime.flush()
@@ -975,7 +981,7 @@ describe('board slot composition', () => {
     board.actions.resizeWindow = resize
 
     const open = async (id: string, title: string) => {
-      act(() => { board.actions.openWindow(windowState({ id: id as WindowId, title })) })
+      act(() => { board.actions.openWindow(windowState({ id: id as WindowId, customTitle: title })) })
       await runtime.flush()
       return panel.container.querySelector(`[data-board-window-id="${id}"]`) as HTMLElement
     }
@@ -1048,7 +1054,7 @@ describe('board slot composition', () => {
     Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { value: () => {}, configurable: true, writable: true })
     act(() => {
       board.actions.setViewport(1200, 900)
-      board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'Agent' }))
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' }))
     })
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
@@ -1076,7 +1082,7 @@ describe('board slot composition', () => {
     expect(setWidth.mock.calls.length).toBe(widthCalls)
 
     // Row drag: a pointerup after the window closed must not commit.
-    act(() => { board.actions.openWindow(windowState({ id: 'a2' as WindowId, title: 'Agent 2' })) })
+    act(() => { board.actions.openWindow(windowState({ id: 'a2' as WindowId, customTitle: 'Agent 2' })) })
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
     await runtime.flush()
@@ -1100,8 +1106,8 @@ describe('board slot composition', () => {
     const board = runtime.storeOf('board.dock') as BoardInstance
     act(() => {
       board.actions.setViewport(1200, 900)
-      board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'First' }))
-      board.actions.openWindow(windowState({ id: 'a2' as WindowId, title: 'Second' }))
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'First' }))
+      board.actions.openWindow(windowState({ id: 'a2' as WindowId, customTitle: 'Second' }))
     })
     await runtime.flush()
     const dockRowOf = (title: string) =>
@@ -1153,7 +1159,7 @@ describe('board slot composition', () => {
 
     act(() => {
       board.actions.setViewport(1200, 900)
-      board.actions.openWindow(windowState({ id: 'a1' as WindowId, title: 'Agent' }))
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' }))
     })
     await runtime.flush()
     prepared.chat.set(chatSnapshot([userNode]))

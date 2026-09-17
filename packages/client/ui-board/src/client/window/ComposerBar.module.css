@@ -64,12 +64,34 @@
 }
 
 .composerWrap {
+  position: relative;
   flex: none;
   display: flex;
   flex-direction: column;
   gap: var(--board-gap-row);
   min-width: 0;
   padding: 10px 14px 14px;
+}
+
+/* A file drag is over the composer: outline the drop target and name the
+   action. The hint is a decoration, so it never takes pointer events. */
+.composerWrap.dropActive .card {
+  outline: 1.5px dashed var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+.dropHint {
+  position: absolute;
+  inset: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  background: var(--dsw-alias-bg-mask-1);
+  color: var(--dsw-alias-label-primary-inverted);
+  font-size: var(--board-font-label);
+  pointer-events: none;
+  z-index: 1;
 }
 
 /* Context row: the session's setup chips (the agent preset today; the folder
@@ -203,6 +225,59 @@
   cursor: pointer;
 }
 
+/* Non-image attachment chip: name, upload status, retry, remove. */
+.fileChip {
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-row);
+  max-width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-hint);
+}
+
+.fileChipError {
+  border-color: var(--dsw-alias-state-error-primary);
+}
+
+.fileName {
+  min-width: 0;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-primary);
+}
+
+.fileStatus {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.fileAction {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-family: inherit;
+  font-size: var(--board-font-hint);
+  cursor: pointer;
+}
+
+.fileAction:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
 .input {
   width: 100%;
   min-width: 0;
@@ -223,6 +298,15 @@
   min-width: 0;
   padding: 0 2px;
   color: var(--dsw-alias-state-warn-primary);
+  font-size: var(--board-font-label);
+  overflow-wrap: anywhere;
+}
+
+/* Attachment-limit and command refusals: the same slot above the tool row. */
+.intakeError {
+  min-width: 0;
+  padding: 0 2px;
+  color: var(--dsw-alias-state-error-primary);
   font-size: var(--board-font-label);
   overflow-wrap: anywhere;
 }

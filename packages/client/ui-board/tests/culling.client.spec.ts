@@ -12,7 +12,7 @@ const WINDOW: BoardWindowState = {
   id: 'w1' as WindowId,
   kind: 'agent',
   bodyKind: 'conversation',
-  title: 'Agent',
+  ordinal: 1,
   x: 0,
   y: 0,
   width: 552,

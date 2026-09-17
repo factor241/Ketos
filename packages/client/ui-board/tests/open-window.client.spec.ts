@@ -11,9 +11,9 @@ function recorder() {
 }
 
 describe('openBoardWindow', () => {
-  it('opens the template with a fresh id, its title, and its geometry', () => {
+  it('opens the template with a fresh id, its ordinal, and its geometry', () => {
     const { openWindow, actions } = recorder()
-    openBoardWindow(actions, 'agent', 'Agent #1')
+    openBoardWindow(actions, 'agent', 1)
 
     expect(openWindow).toHaveBeenCalledOnce()
     const spec = openWindow.mock.calls[0]?.[0]
@@ -22,15 +22,15 @@ describe('openBoardWindow', () => {
       bodyKind: 'conversation',
       width: 552,
       height: 648,
-      title: 'Agent #1',
+      ordinal: 1,
     })
     expect(spec?.id).toMatch(/^agent-/)
   })
 
   it('mints a distinct id per window', () => {
     const { openWindow, actions } = recorder()
-    openBoardWindow(actions, 'agent', 'Agent #1')
-    openBoardWindow(actions, 'agent', 'Agent #2')
+    openBoardWindow(actions, 'agent', 1)
+    openBoardWindow(actions, 'agent', 2)
 
     const [first, second] = openWindow.mock.calls.map(call => call[0])
     expect(first?.id).not.toBe(second?.id)

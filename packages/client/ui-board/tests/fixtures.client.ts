@@ -9,7 +9,9 @@ import type { Context } from '@deepseek-ai/cordis'
 import { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import type { ChatSnapshot, ConversationNode } from '@deepseek-ai/dsh-client-ui-chat/client'
-import type {} from '@deepseek-ai/dsh-api-session-controller/client'
+import type { BoardWindowSessionState } from '../src/client/contract/slots.ts'
+import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { apply, inject } from '../src/client/index.ts'
 import { en, type BoardTranslate } from '../src/client/locale.ts'
 
@@ -42,6 +44,13 @@ export interface BoardBenchOptions {
   declareSlots?: boolean
   /** Session verb overrides grafted onto the fixture session the bridge creates. */
   session?: Record<string, unknown>
+  /** List-row overrides of the fixture session, e.g. its display title. */
+  sessionSummary?: Partial<Omit<SessionSummary, 'id'>>
+  /** Background upload service overrides; the default stages every file as `receipt-1`. */
+  fileUpload?: {
+    readonly available?: boolean
+    readonly upload?: (sessionId: SessionId, ...args: unknown[]) => Promise<unknown>
+  }
 }
 
 /** One prepared bench: the runtime, its services, and the board mount. */
@@ -72,6 +81,30 @@ export function chatSnapshot(
     navigation: { items: () => [] },
     timeline: { turnOrder: [], turns: new Map() },
     legacy: { nodes, turnTimings: new Map(), turnEnds: new Map(), partial, runningCalls: [] },
+  }
+}
+
+/** One ready-session channel state over the supplied chat snapshot. */
+export function sessionState(
+  chat: ChatSnapshot | undefined,
+  overrides: Partial<BoardWindowSessionState> = {},
+): BoardWindowSessionState {
+  return {
+    status: 'ready',
+    running: false,
+    blank: true,
+    hasMore: false,
+    loadingOlder: false,
+    runningCalls: [],
+    presets: [],
+    permissions: [],
+    plan: false,
+    queue: [],
+    todos: [],
+    model: { efforts: [], groups: [], loading: false },
+    commands: [],
+    chat,
+    ...overrides,
   }
 }
 
@@ -136,7 +169,10 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
   runtime.ctx.provide('modelDirectories', modelDirectories as never)
   const remote = {
     agentPresets: { list: async () => ({ ok: true as const, value: { presets: [], authorable: false, modeSelectionEnabled: false } }) },
-    commands: { list: async () => ({ ok: true as const, value: [] }) },
+    commands: {
+      list: async () => ({ ok: true as const, value: [] }),
+      execute: async () => ({ ok: true as const, value: undefined }),
+    },
     fileReferences: { list: async () => ({ ok: true as const, value: [] }) },
     sessionReferenceResolver: { candidates: async () => ({ ok: true as const, value: [] }) },
     goals: {
@@ -146,6 +182,13 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     },
   }
   runtime.ctx.provide('remote', remote as never)
+  // Background uploads: the runtime's stub is replaced with one that stages a
+  // receipt the prompt can carry, so file intake works unless a test opts out.
+  runtime.fileUpload.available = options.fileUpload?.available ?? true
+  runtime.fileUpload.upload = options.fileUpload?.upload ?? (async () => ({
+    ok: true as const,
+    value: { receiptId: 'receipt-1', file: { id: 'file-1', name: 'file' } },
+  }))
   for (const name of ['remote.commands', 'remote.agentPresets', 'remote.goals', 'remote.fileReferences', 'remote.sessionReferenceResolver']) {
     runtime.ctx.provide(name, {} as never)
   }
@@ -154,7 +197,11 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     // Pre-add the fixture session: the double's add() stabilizes through act,
     // and calling it from the window's mount effect would nest act scopes.
     // Production create() is a remote round-trip with no act involvement.
-    const sessionId = await runtime.sessions.add({ id: 'session-1', session: options.session })
+    const sessionId = await runtime.sessions.add({
+      id: 'session-1',
+      session: options.session,
+      ...(options.sessionSummary === undefined ? {} : { summary: options.sessionSummary }),
+    })
     runtime.sessions.stubCreate(async () => sessionId)
   }
   if (options.declareSlots !== false) {

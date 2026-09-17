@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * Window conversation body: the session lifecycle copy, the lane rows, the
- * composer's send/stop/steer paths, and the navigation affordances. The
+ * Window conversation body: the session lifecycle copy, the lane states and
+ * rows, the composer's send/stop/steer paths, and the scroll behavior. The
  * component renders from injected props only — the bridge's observables stay
  * behind the keyed hook, which the props stub supplies directly.
  */
@@ -18,7 +18,7 @@ const CARD: BoardWindowState = {
   id: 'a1' as WindowId,
   kind: 'agent',
   bodyKind: 'conversation',
-  title: 'Agent #1',
+  ordinal: 1,
   x: 0,
   y: 0,
   width: 552,
@@ -55,6 +55,19 @@ const TOOL_NODE: ConversationNode = {
   subCalls: [],
 }
 
+/** A tool result whose call row was truncated out of the loaded window. */
+const ORPHAN_TOOL_NODE: ConversationNode = {
+  kind: 'tool-result',
+  seq: 4,
+  time: 0,
+  callId: 'call-orphan',
+  call: null,
+  callTime: null,
+  content: [],
+  isError: false,
+  subCalls: [],
+}
+
 /** Props stub: the keyed session hook answers with the supplied state. */
 function bodyProps(
   session: BoardWindowSessionState | undefined,
@@ -77,6 +90,8 @@ function bodyProps(
     selectModel: vi.fn(),
     exitPlanMode: vi.fn(),
     runCommand: vi.fn(),
+    executeCommand: vi.fn(),
+    uploadFile: vi.fn(),
     updateQueueItem: vi.fn(),
     goalAction: vi.fn(),
     loadMentions: () => Promise.resolve([]),
@@ -90,6 +105,9 @@ function ready(chat: ChatSnapshot | undefined, running = false): BoardWindowSess
     status: 'ready',
     running,
     blank: true,
+    hasMore: false,
+    loadingOlder: false,
+    runningCalls: [],
     presets: [],
     permissions: [],
     plan: false,
@@ -99,6 +117,15 @@ function ready(chat: ChatSnapshot | undefined, running = false): BoardWindowSess
     commands: [],
     chat,
   }
+}
+
+/** Give one lane element controllable scroll geometry for behavior assertions. */
+function laneGeometry(lane: Element, initialHeight: number): { setHeight: (value: number) => void } {
+  let height = initialHeight
+  Object.defineProperty(lane, 'scrollHeight', { configurable: true, get: () => height })
+  Object.defineProperty(lane, 'clientHeight', { configurable: true, get: () => 0 })
+  Object.defineProperty(lane, 'scrollTop', { configurable: true, writable: true, value: 0 })
+  return { setHeight: (value: number) => { height = value } }
 }
 
 describe('ConversationBody', () => {
@@ -136,6 +163,52 @@ describe('ConversationBody', () => {
     expect(getByText('Печатаю…')).not.toBeNull()
   })
 
+  it('shows the turn failure with its server text', () => {
+    const state: BoardWindowSessionState = { ...ready(chatSnapshot([USER_NODE])), turnError: 'provider exploded' }
+    const { getByText, container } = render(<ConversationBody {...bodyProps(state)} />)
+    expect(getByText(/Turn failed/)).not.toBeNull()
+    expect(getByText(/provider exploded/)).not.toBeNull()
+    expect(container.querySelector('[data-board-lane-state="turn-error"]')).not.toBeNull()
+  })
+
+  it('shows the refused prompt with its server text', () => {
+    const state: BoardWindowSessionState = { ...ready(chatSnapshot()), promptError: 'session/busy: refused' }
+    const { getByText, container } = render(<ConversationBody {...bodyProps(state)} />)
+    expect(getByText(/The message was not sent/)).not.toBeNull()
+    expect(container.querySelector('[data-board-lane-state="prompt-error"]')).not.toBeNull()
+  })
+
+  it('renders a running tool call with its marker', () => {
+    const state: BoardWindowSessionState = {
+      ...ready(chatSnapshot([USER_NODE]), true),
+      runningCalls: [{ id: 'call-9', name: 'bash' }],
+    }
+    const { getByText, container } = render(<ConversationBody {...bodyProps(state)} />)
+    expect(getByText('bash')).not.toBeNull()
+    expect(getByText('running')).not.toBeNull()
+    expect(container.querySelector('[data-board-tool="running"]')).not.toBeNull()
+  })
+
+  it('marks a failed tool result with its localized note', () => {
+    const failed: ConversationNode = { ...TOOL_NODE, isError: true }
+    const { getByText, container } = render(<ConversationBody {...bodyProps(ready(chatSnapshot([failed])))} />)
+    expect(getByText('bash')).not.toBeNull()
+    expect(getByText('failed')).not.toBeNull()
+    expect(container.querySelector('[data-board-tool="failed"]')).not.toBeNull()
+  })
+
+  it('marks an unavailable tool result and repeats the earlier turns', () => {
+    const loadOlderTurns = vi.fn()
+    const state: BoardWindowSessionState = { ...ready(chatSnapshot([ORPHAN_TOOL_NODE])), hasMore: true }
+    const { getByText, container } = render(
+      <ConversationBody {...bodyProps(state, { loadOlderTurns })} />,
+    )
+    expect(getByText('result unavailable')).not.toBeNull()
+    fireEvent.click(getByText('Request again'))
+    expect(loadOlderTurns).toHaveBeenCalledWith('a1')
+    expect(container.querySelector('[data-board-tool="done"]')).not.toBeNull()
+  })
+
   it('sends the draft on submit and clears it', () => {
     const sendPrompt = vi.fn()
     const { container } = render(
@@ -148,7 +221,7 @@ describe('ConversationBody', () => {
     fireEvent.change(input, { target: { value: '  сделай отчёт  ' } })
     fireEvent.submit(container.querySelector('form') as HTMLFormElement)
 
-    expect(sendPrompt).toHaveBeenCalledWith('a1', 'сделай отчёт', 'queue', [])
+    expect(sendPrompt).toHaveBeenCalledWith('a1', 'сделай отчёт', 'queue', [], [])
     expect(input.value).toBe('')
   })
 
@@ -166,7 +239,7 @@ describe('ConversationBody', () => {
     const input = container.querySelector('textarea') as HTMLTextAreaElement
     fireEvent.change(input, { target: { value: 'стоп-кран' } })
     fireEvent.keyDown(input, { key: 'Enter', metaKey: true })
-    expect(sendPrompt).toHaveBeenCalledWith('a1', 'стоп-кран', 'steer', [])
+    expect(sendPrompt).toHaveBeenCalledWith('a1', 'стоп-кран', 'steer', [], [])
   })
 
   it('keeps Shift+Enter as a newline and ignores empty drafts', () => {
@@ -213,12 +286,67 @@ describe('ConversationBody', () => {
   it('offers the load-older and jump-to-latest affordances', () => {
     const loadOlderTurns = vi.fn()
     const chat = chatSnapshot([USER_NODE])
-    const { getByText, container } = render(<ConversationBody {...bodyProps(ready(chat), { loadOlderTurns })} />)
+    const state: BoardWindowSessionState = { ...ready(chat), hasMore: true }
+    const { getByText, container } = render(<ConversationBody {...bodyProps(state, { loadOlderTurns })} />)
     fireEvent.click(getByText('Load earlier turns'))
     expect(loadOlderTurns).toHaveBeenCalledWith('a1')
 
     // The lane tail holds no fullscreen control; the window header owns it.
     expect(container.querySelector('button[aria-label="Open fullscreen"]')).toBeNull()
+  })
+
+  it('disables the load-older control while a page is in flight', () => {
+    const state: BoardWindowSessionState = { ...ready(chatSnapshot([USER_NODE])), hasMore: true, loadingOlder: true }
+    const { getByText } = render(<ConversationBody {...bodyProps(state)} />)
+    const control = getByText('Loading earlier turns…') as HTMLButtonElement
+    expect(control.disabled).toBe(true)
+  })
+
+  it('follows the tail while the reader stays there and stops when they scroll away', () => {
+    const first = ready(chatSnapshot([USER_NODE]))
+    const { container, rerender } = render(<ConversationBody {...bodyProps(first)} />)
+    const lane = container.querySelector('[data-board-lane]') as HTMLElement
+    const geometry = laneGeometry(lane, 1000)
+    lane.scrollTop = 1000
+
+    // The reader is at the tail: new content keeps the view pinned.
+    geometry.setHeight(1200)
+    rerender(<ConversationBody {...bodyProps(ready(chatSnapshot([USER_NODE, ASSISTANT_NODE])))} />)
+    expect(lane.scrollTop).toBe(1200)
+
+    // Scrolling away stops the follow: the growing lane leaves the offset alone.
+    lane.scrollTop = 100
+    fireEvent.scroll(lane)
+    geometry.setHeight(1600)
+    rerender(<ConversationBody {...bodyProps(ready(chatSnapshot([USER_NODE, ASSISTANT_NODE, TOOL_NODE])))} />)
+    expect(lane.scrollTop).toBe(100)
+
+    // The jump control returns and re-pins the view.
+    fireEvent.click(container.querySelector('button[aria-label="Jump to the latest"]') as Element)
+    expect(lane.scrollTop).toBe(1600)
+  })
+
+  it('keeps the reader position when earlier turns are prepended', () => {
+    const loadOlderTurns = vi.fn()
+    const state: BoardWindowSessionState = { ...ready(chatSnapshot([ASSISTANT_NODE])), hasMore: true }
+    const { container, rerender } = render(<ConversationBody {...bodyProps(state, { loadOlderTurns })} />)
+    const lane = container.querySelector('[data-board-lane]') as HTMLElement
+    const geometry = laneGeometry(lane, 1000)
+    lane.scrollTop = 400
+
+    fireEvent.click(container.querySelector('[data-board-action="lane-load-older"]') as Element)
+    expect(loadOlderTurns).toHaveBeenCalledWith('a1')
+
+    // Channel republishes for loadingOlder and running calls arrive without new
+    // transcript rows; they must not consume the anchor before the page lands.
+    rerender(<ConversationBody {...bodyProps({ ...state, loadingOlder: true, runningCalls: [{ id: 'c1', name: 'bash' }] }, { loadOlderTurns })} />)
+
+    // The prepended page grows the lane above the reader: the offset shifts by
+    // the added height instead of jumping to the end.
+    geometry.setHeight(1300)
+    const grown: BoardWindowSessionState = { ...state, chat: chatSnapshot([USER_NODE, ASSISTANT_NODE]) }
+    rerender(<ConversationBody {...bodyProps(grown, { loadOlderTurns })} />)
+    expect(lane.scrollTop).toBe(700)
   })
 
   it('shows the permission and plan chips and switches the permission preset', () => {

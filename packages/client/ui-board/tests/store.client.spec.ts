@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest'
-import { MIN_WINDOW_SIZE, clampWindowSize, createBoardStore, snapPosition } from '../src/client/store.ts'
+import { MIN_WINDOW_SIZE, clampWindowSize, createBoardStore, nextWindowOrdinal, snapPosition } from '../src/client/store.ts'
 import { PANEL_DEFAULT_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH } from '../src/client/window/panel-geometry.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 
@@ -10,7 +10,7 @@ function makeWindow(overrides: Partial<BoardWindowState> & Pick<BoardWindowState
   return {
     kind: 'agent',
     bodyKind: 'conversation',
-    title: 'Agent 1',
+    ordinal: 1,
     x: 0,
     y: 0,
     width: 400,
@@ -19,6 +19,19 @@ function makeWindow(overrides: Partial<BoardWindowState> & Pick<BoardWindowState
     ...overrides,
   }
 }
+
+describe('nextWindowOrdinal', () => {
+  it('never recycles an ordinal the open stack still shows', () => {
+    const { actions, store } = createBoardStore().create()
+    actions.addWindow(makeWindow({ id: 'w1' as WindowId, ordinal: 1 }))
+    actions.addWindow(makeWindow({ id: 'w2' as WindowId, ordinal: 2 }))
+    expect(nextWindowOrdinal(store.getSnapshot().windows)).toBe(3)
+
+    // Closing the first window leaves ordinal 2 in the stack.
+    actions.closeWindow('w1' as WindowId)
+    expect(nextWindowOrdinal(store.getSnapshot().windows)).toBe(3)
+  })
+})
 
 describe('createBoardStore', () => {
   it('initializes with default pan, zoom, viewport, and empty windows', () => {
@@ -116,7 +129,7 @@ describe('createBoardStore', () => {
       id: 'open-1' as WindowId,
       kind: 'connectors',
       bodyKind: 'connectors',
-      title: 'Tools',
+      ordinal: 1,
       width: 400,
       height: 200,
     })
@@ -142,7 +155,7 @@ describe('createBoardStore', () => {
       id: 'open-2' as WindowId,
       kind: 'agent',
       bodyKind: 'conversation',
-      title: 'Agent',
+      ordinal: 1,
       width: 400,
       height: 400,
     })
@@ -205,8 +218,8 @@ describe('createBoardStore', () => {
 
   it('manages window focus and z-index ordering', () => {
     const { store, actions } = createBoardStore().create()
-    const win1 = makeWindow({ id: 'w1' as WindowId, title: '1', x: 0, y: 0, width: 400, height: 400 })
-    const win2 = makeWindow({ id: 'w2' as WindowId, kind: 'connectors', bodyKind: 'connectors', title: '2', x: 50, y: 50, width: 400, height: 400, zIndex: 11 })
+    const win1 = makeWindow({ id: 'w1' as WindowId, customTitle: '1', x: 0, y: 0, width: 400, height: 400 })
+    const win2 = makeWindow({ id: 'w2' as WindowId, kind: 'connectors', bodyKind: 'connectors', customTitle: '2', x: 50, y: 50, width: 400, height: 400, zIndex: 11 })
 
     actions.addWindow(win1)
     actions.addWindow(win2)
@@ -239,7 +252,7 @@ describe('createBoardStore', () => {
     const { store, actions } = createBoardStore().create()
     const win = makeWindow({ id: 'w1' as WindowId, x: 96, y: 120, width: 600, height: 720, zIndex: 10 })
     actions.addWindow(win)
-    actions.addWindow(makeWindow({ id: 'w2' as WindowId, kind: 'connectors', bodyKind: 'connectors', title: '2' }))
+    actions.addWindow(makeWindow({ id: 'w2' as WindowId, kind: 'connectors', bodyKind: 'connectors', customTitle: '2' }))
     expect(store.getSnapshot().fullscreenWindowId).toBeNull()
 
     actions.setWindowFullscreen('w1' as WindowId)
@@ -268,7 +281,7 @@ describe('createBoardStore', () => {
   it('opens one chats panel at a time and clears it with its window', () => {
     const { store, actions } = createBoardStore().create()
     actions.addWindow(makeWindow({ id: 'w1' as WindowId }))
-    actions.addWindow(makeWindow({ id: 'w2' as WindowId, kind: 'connectors', bodyKind: 'connectors', title: '2' }))
+    actions.addWindow(makeWindow({ id: 'w2' as WindowId, kind: 'connectors', bodyKind: 'connectors', customTitle: '2' }))
     expect(store.getSnapshot().panelWindowId).toBeNull()
 
     actions.openWindowPanel('w1' as WindowId)

@@ -31,6 +31,26 @@
   position: relative;
 }
 
+/* The dock is a narrow rail: the rename editor floats beside the row instead of
+   widening it, so the stack never reflows while a name is edited. */
+.rowInput {
+  position: absolute;
+  left: 46px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 180px;
+  padding: 6px 8px;
+  border: 0.5px solid var(--dsw-alias-state-business-primary);
+  border-radius: 8px;
+  background: var(--dsw-specific-input-major);
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  z-index: 1;
+  user-select: text;
+}
+
 .windowButton {
   display: flex;
   align-items: center;

@@ -11,8 +11,8 @@
  *   permissions/plan/todos/goal/contextPressure projections, the model
  *   directory, the slash-command catalog, and the conversation block reason;
  * - composer commands: prompt, cancel, load-older, queue edits, preset and
- *   permission switches, model selection, plan exit, goal verbs, workspace
- *   picking, and `@` mention discovery.
+ *   permission switches, model selection, plan exit, goal verbs, command
+ *   execution, file staging, and `@` mention discovery.
  *
  * All of it is republished into one identity-stable channel per window; the
  * registrations expose that channel as the keyed `useWindowSession(windowId)`
@@ -21,18 +21,21 @@
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
+import type {} from '@deepseek-ai/dsh-client-file-upload/client'
 import type {} from '@deepseek-ai/dsh-client-ui-model-selection/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
-import type { ImageMediaType } from '@deepseek-ai/dsh-attachment'
+import type { ImageAttachmentLimits, ImageMediaType } from '@deepseek-ai/dsh-attachment'
 import { presetDisplayText } from '@deepseek-ai/dsh-agent-presets/display'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { PromptContentPart } from '@deepseek-ai/dsh-api-session-controller/types'
+import { NS } from './locale.ts'
+import type { BoardTranslate } from './locale.ts'
 import type {
-  BoardChatTarget, BoardCommandRow, BoardDirectoryListing, BoardDraftImage, BoardEffortOption, BoardGoalState, BoardMentionRow,
-  BoardModelState, BoardPermissionOption, BoardPresetOption, BoardPromptMode, BoardQueueRow,
-  BoardTodoRow, BoardWindowSessionState, WindowId,
+  BoardChatTarget, BoardCommandRow, BoardDirectoryListing, BoardDraftImage, BoardEffortOption, BoardGoalState,
+  BoardMentionRow, BoardModelState, BoardPermissionOption, BoardPresetOption, BoardPromptMode, BoardQueueRow,
+  BoardTodoRow, BoardUploadResult, BoardWindowSessionState, WindowId,
 } from './contract/slots.ts'
 
 /** The three permission presets the window chip offers, in switch order. */
@@ -51,6 +54,9 @@ function emptyState(): BoardWindowSessionState {
     status: 'pending',
     running: false,
     blank: true,
+    hasMore: false,
+    loadingOlder: false,
+    runningCalls: [],
     presets: [],
     permissions: [],
     plan: false,
@@ -143,8 +149,15 @@ export class BoardSessionBridge {
    * @param text - prompt text as typed.
    * @param mode - queue a turn or steer the running one.
    * @param images - inline images carried with the prompt.
+   * @param files - staged file receipts carried with the prompt.
    */
-  send(windowId: WindowId, text: string, mode: BoardPromptMode, images: readonly BoardDraftImage[] = []): void {
+  send(
+    windowId: WindowId,
+    text: string,
+    mode: BoardPromptMode,
+    images: readonly BoardDraftImage[] = [],
+    files: readonly string[] = [],
+  ): void {
     const session = this.sessionFace(windowId)
     if (session === undefined) return
     const content: PromptContentPart[] = [{ type: 'text', text }]
@@ -156,10 +169,91 @@ export class BoardSessionBridge {
         name: image.name,
       })
     }
+    for (const receiptId of files) {
+      content.push({ type: 'file', receiptId: receiptId as never })
+    }
+    this.patch(windowId, { promptError: undefined, commandError: undefined })
     void session.prompt(content, mode).then((result) => {
       if (result.ok) return
-      this.patch(windowId, { error: `${result.error.code}: ${result.error.message}` })
+      this.patch(windowId, { promptError: this.failureText(result.error) })
     })
+  }
+
+  /**
+   * Execute one slash-command line, arguments included, and publish its outcome
+   * on the window channel. An unmatched line reports the unknown command; a
+   * handler refusal reports its own text.
+   * @param windowId - window identity.
+   * @param line - full command line, leading slash included.
+   * @param images - inline images carried with the command.
+   * @param files - staged file receipts carried with the command.
+   */
+  executeCommand(
+    windowId: WindowId,
+    line: string,
+    images: readonly BoardDraftImage[] = [],
+    files: readonly string[] = [],
+  ): void {
+    const sessionId = this.windows.get(windowId)?.sessionId
+    if (sessionId === undefined) return
+    const attachments = [
+      ...images.map(image => ({
+        type: 'image' as const,
+        mediaType: image.mediaType as ImageMediaType,
+        data: image.data,
+        name: image.name,
+      })),
+      ...files.map(receiptId => ({ type: 'file' as const, receiptId: receiptId as never })),
+    ]
+    this.patch(windowId, { commandError: undefined, promptError: undefined })
+    void this.ctx.remote.commands.execute(sessionId, line, attachments).then((result) => {
+      if (!result.ok) {
+        this.patch(windowId, { commandError: this.failureText(result.error) })
+        return
+      }
+      if (result.value === undefined) {
+        this.patch(windowId, { commandError: this.t('command.unknown', { name: line.trim().split(/\s/, 1)[0] ?? line }) })
+        return
+      }
+      this.patch(windowId, { commandError: result.value.result.kind === 'error' ? result.value.result.text : undefined })
+    }).catch((error: unknown) => {
+      this.patch(windowId, { commandError: error instanceof Error ? error.message : String(error) })
+    })
+  }
+
+  /**
+   * Stage one non-image file for the window's session through the background
+   * upload service; the prompt later carries its receipt.
+   * @param windowId - window identity.
+   * @param name - display name of the file.
+   * @param bytes - exact file bytes.
+   * @returns the staged receipt, or the failure text.
+   */
+  async uploadFile(windowId: WindowId, name: string, bytes: Uint8Array<ArrayBuffer>): Promise<BoardUploadResult> {
+    const sessionId = this.windows.get(windowId)?.sessionId
+    if (sessionId === undefined) return { error: this.t('attachment.noSession') }
+    if (!this.ctx.fileUpload.available) return { error: this.t('attachment.unsupported') }
+    try {
+      // The blob body takes the host's background upload carrier, like the main
+      // composer's file intake.
+      const result = await this.ctx.fileUpload.upload(sessionId, new Blob([bytes]), name)
+      if (!result.ok) return { error: this.failureText(result.error) }
+      return { receiptId: result.value.receiptId }
+    } catch (error) {
+      // The carrier rejects when the upload route is down; the composer keeps
+      // the chip and offers a retry.
+      return { error: error instanceof Error ? error.message : String(error) }
+    }
+  }
+
+  /** Board-namespace copy for failures the bridge produces itself. */
+  private t(key: Parameters<BoardTranslate>[0], params?: Record<string, unknown>): string {
+    return this.ctx.locale.bind(NS)(key, params)
+  }
+
+  /** One-line rendering of a remote failure. */
+  private failureText(error: { code: string; message: string }): string {
+    return `${error.code}: ${error.message}`
   }
 
   /**
@@ -188,7 +282,7 @@ export class BoardSessionBridge {
     if (sessionId === undefined) return
     void this.ctx.remote.agentPresets.select(sessionId, presetId).then((result) => {
       if (result.ok) return
-      this.patch(windowId, { error: `${result.error.code}: ${result.error.message}` })
+      this.patch(windowId, { promptError: this.failureText(result.error) })
     })
   }
 
@@ -210,7 +304,7 @@ export class BoardSessionBridge {
     const sessionId = this.record(windowId).sessionId
     if (sessionId === undefined) return
     void this.ctx.modelDirectories.directoryFor(sessionId).select(selection).catch((error: unknown) => {
-      this.patch(windowId, { error: error instanceof Error ? error.message : String(error) })
+      this.patch(windowId, { promptError: error instanceof Error ? error.message : String(error) })
     })
   }
 
@@ -265,26 +359,6 @@ export class BoardSessionBridge {
     void (action === 'pause' ? goals.pause(sessionId, ref)
       : action === 'resume' ? goals.resume(sessionId, ref)
         : goals.clear(sessionId, ref))
-  }
-
-  /**
-   * Adopt a picked directory: a blank session is re-created in it, and the
-   * window is rebound to the new session. A started session keeps its cwd.
-   * @param windowId - window identity.
-   */
-  pickWorkspace(windowId: WindowId): void {
-    const record = this.record(windowId)
-    if (record.sessionId === undefined || this.disposed) return
-    const current = record.channel.getSnapshot()
-    if (!current.blank) return
-    void this.ctx.uiWorkspace.pickDirectory().then((path) => {
-      if (path === null || this.disposed) return
-      record.releaseSession()
-      delete record.sessionId
-      void this.create(windowId, path)
-    }).catch((error: unknown) => {
-      this.patch(windowId, { error: error instanceof Error ? error.message : String(error) })
-    })
   }
 
   /**
@@ -374,13 +448,16 @@ export class BoardSessionBridge {
   }
 
   private patch(windowId: WindowId, patch: Partial<BoardWindowSessionState>): void {
-    const channel = this.record(windowId).channel
-    channel.publish({ ...channel.getSnapshot(), ...patch })
+    // A window that closed mid-flight (an upload settling, a command returning)
+    // must not bring its record back: the publish is dropped.
+    const record = this.windows.get(windowId)
+    if (record === undefined) return
+    record.channel.publish({ ...record.channel.getSnapshot(), ...patch })
   }
 
-  private async create(windowId: WindowId, cwd?: string): Promise<void> {
+  private async create(windowId: WindowId): Promise<void> {
     try {
-      const sessionId = await this.ctx.sessions.create(cwd === undefined ? undefined : { cwd })
+      const sessionId = await this.ctx.sessions.create()
       if (this.disposed) return
       this.switchTo(windowId, sessionId)
     } catch (error) {
@@ -440,6 +517,7 @@ export class BoardSessionBridge {
       const { projections } = session
 
       const republish = (): void => {
+        const snapshot = session.getSnapshot()
         const row = this.ctx.sessions.list.getSnapshot().byId[sessionId]
         const permissions = projections.faceOf('permissions').getSnapshot() as
           | { currentValue: string } | undefined
@@ -449,19 +527,34 @@ export class BoardSessionBridge {
           | { goal: { objective: string; phase: BoardGoalState['phase'] } } | null | undefined
         const pressure = projections.faceOf('contextPressure').getSnapshot() as
           | { pressureTokens?: number; projectedTokens?: number; contextWindow?: number } | undefined
+        const limits = projections.faceOf('imageLimits').getSnapshot() as ImageAttachmentLimits | null | undefined
         const used = pressure?.projectedTokens ?? pressure?.pressureTokens
-        const queue: BoardQueueRow[] = session.getSnapshot().queue
+        const queue: BoardQueueRow[] = snapshot.queue
           .filter(item => item.placement === 'queued')
           .map(item => ({ id: String(item.id), preview: item.preview }))
         channel.publish({
           ...channel.getSnapshot(),
           status: 'ready',
-          running: session.getSnapshot().running,
+          running: snapshot.running,
           error: undefined,
+          turnError: snapshot.lastAgentError ?? undefined,
+          promptError: snapshot.promptError === null
+            ? undefined
+            : this.failureText(snapshot.promptError.error),
           chat: chat.getSnapshot(),
           sessionId,
+          displayTitle: row?.displayTitle,
           cwd: row?.cwd,
           blank: row?.blank ?? true,
+          hasMore: snapshot.hasMore,
+          loadingOlder: snapshot.loadingOlder,
+          runningCalls: chat.getSnapshot()?.legacy.runningCalls.map(call => ({ id: call.callId, name: call.name })) ?? [],
+          imageLimits: limits == null ? undefined : {
+            maxImageBytes: limits.maxImageBytes,
+            maxImagesPerMessage: limits.maxImagesPerMessage,
+            maxMessageImageBytes: limits.maxMessageImageBytes,
+            mediaTypes: limits.mediaTypes,
+          },
           presetId: typeof row?.projectionValues?.agentPreset === 'string' ? row.projectionValues.agentPreset : undefined,
           permission: permissions?.currentValue,
           plan: plan?.active ?? false,
@@ -491,6 +584,7 @@ export class BoardSessionBridge {
       listen(projections.faceOf('todos'))
       listen(projections.faceOf('goal'))
       listen(projections.faceOf('contextPressure'))
+      listen(projections.faceOf('imageLimits'))
       listen(this.ctx.sessions.list)
       record.releaseSession = () => {
         for (const dispose of disposers) dispose()
@@ -686,7 +780,7 @@ export class BoardSessionBridge {
       if (this.presetRoster === undefined) {
         const result = await this.ctx.remote.agentPresets.list()
         if (!result.ok) {
-          this.patch(windowId, { error: `${result.error.code}: ${result.error.message}` })
+          this.patch(windowId, { promptError: this.failureText(result.error) })
           return
         }
         const presetT = this.ctx.locale.bind('settings.agentPreset')
@@ -702,7 +796,7 @@ export class BoardSessionBridge {
       this.patch(windowId, { presets: this.presetRoster })
     } catch (error) {
       // A deployment without the preset remote keeps the chip empty.
-      this.patch(windowId, { error: error instanceof Error ? error.message : String(error) })
+      this.patch(windowId, { promptError: error instanceof Error ? error.message : String(error) })
     }
   }
 

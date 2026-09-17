@@ -94,22 +94,24 @@ export function HandleRing({ useStore, actions }: HandleRingProps) {
 }
 
 /**
- * The eight handle rectangles around one window box: edge strips (6px) along
- * the borders, corner squares (14px) at their ends — the frame's own handle
- * geometry in panel pixels.
+ * The eight handle rectangles outside one window box: edge strips (6 screen px)
+ * along the borders and corner squares (14 screen px) at their ends. The ring
+ * stays fully outside the frame, unlike the frame's own half-in handles: it is
+ * screen-space, so at a zoomed-out canvas an inward strip would cover the
+ * frame's controls, whose scaled height can fall under the strip's thickness.
  * @param box - the window's box in panel pixels.
  * @returns direction, cursor class, and rectangle of each handle.
  */
 function ringEdges(box: ScreenBox): readonly (readonly [ResizeDirection, string | undefined, ScreenBox])[] {
   const { left, top, right, bottom } = box
   return [
-    ['n', css.n, { left: left + 14, top: top - 3, right: right - 14, bottom: top + 3 }],
-    ['s', css.s, { left: left + 14, top: bottom - 3, right: right - 14, bottom: bottom + 3 }],
-    ['w', css.w, { left: left - 3, top: top + 14, right: left + 3, bottom: bottom - 14 }],
-    ['e', css.e, { left: right - 3, top: top + 14, right: right + 3, bottom: bottom - 14 }],
-    ['nw', css.nw, { left: left - 4, top: top - 4, right: left + 10, bottom: top + 10 }],
-    ['ne', css.ne, { left: right - 10, top: top - 4, right: right + 4, bottom: top + 10 }],
-    ['sw', css.sw, { left: left - 4, top: bottom - 10, right: left + 10, bottom: bottom + 4 }],
-    ['se', css.se, { left: right - 10, top: bottom - 10, right: right + 4, bottom: bottom + 4 }],
+    ['n', css.n, { left: left + 14, top: top - 6, right: right - 14, bottom: top }],
+    ['s', css.s, { left: left + 14, top: bottom, right: right - 14, bottom: bottom + 6 }],
+    ['w', css.w, { left: left - 6, top: top + 14, right: left, bottom: bottom - 14 }],
+    ['e', css.e, { left: right, top: top + 14, right: right + 6, bottom: bottom - 14 }],
+    ['nw', css.nw, { left: left - 14, top: top - 14, right: left, bottom: top }],
+    ['ne', css.ne, { left: right, top: top - 14, right: right + 14, bottom: top }],
+    ['sw', css.sw, { left: left - 14, top: bottom, right: left, bottom: bottom + 14 }],
+    ['se', css.se, { left: right, top: bottom, right: right + 14, bottom: bottom + 14 }],
   ]
 }

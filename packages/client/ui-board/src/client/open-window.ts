@@ -12,17 +12,17 @@ export type BoardActions = PropsStore<BoardStoreHandle>['actions']
  * Open one of the board's own window templates on top of the stack.
  * @param actions - the shared board store's action face.
  * @param template - template to open from {@link BOARD_WINDOW_TEMPLATES}.
- * @param title - localized window title.
+ * @param ordinal - launch ordinal the localized template name is built from.
  */
 export function openBoardWindow(
   actions: BoardActions,
   template: keyof typeof BOARD_WINDOW_TEMPLATES,
-  title: string,
+  ordinal: number,
 ): void {
   const spec = BOARD_WINDOW_TEMPLATES[template]
   actions.openWindow({
     id: mintWindowId(spec.kind),
     ...spec,
-    title,
+    ordinal,
   })
 }

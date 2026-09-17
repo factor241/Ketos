@@ -21,6 +21,9 @@
       "path": "../ui-layout"
     },
     {
+      "path": "../file-upload/tsconfig.client.json"
+    },
+    {
       "path": "../ui-conversation"
     },
     {

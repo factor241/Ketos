@@ -1,17 +1,22 @@
 /**
  * Window composer: the reference chat bar rebuilt for a floating window.
  *
- * It renders the context chips (working directory, agent preset), the card
- * (image attachments, text, tool row), the dock strips (goal, todo, queue),
- * the slash-command and `@` mention popups, and the full-access risk gate.
- * Every popover opens through the shared `Menu` portal so nothing is clipped
- * by the window and the lists stay above the tooltips; the layout follows the
- * card's own width through container queries so no row can push the send
- * button out of the window. Every value comes from the injected per-window
- * session state; every action goes back through the injected callbacks — the
- * component holds only the draft, its images, and which menu is open.
+ * It renders the context chips (agent preset, permission, plan), the card
+ * (image and file attachments, text, tool row), the dock strips (goal, todo,
+ * queue), the slash-command and `@` mention popups, and the full-access risk
+ * gate. Every popover opens through the shared `Menu` portal so nothing is
+ * clipped by the window and the lists stay above the tooltips; the layout
+ * follows the card's own width through container queries so no row can push
+ * the send button out of the window. Every value comes from the injected
+ * per-window session state; every action goes back through the injected
+ * callbacks — the component holds only the draft, its attachments, and which
+ * menu is open.
+ *
+ * Submission follows the board's own policy (documented in the package
+ * README): plain Enter queues or sends, Cmd/Ctrl+Enter steers the running
+ * turn, and the bar reads no submission-preference setting.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent, type KeyboardEvent } from 'react'
 import clsx from 'clsx'
 import {
   IconBranchOutline16,
@@ -32,7 +37,7 @@ import {
   type MenuItem,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
-  BoardDraftImage, BoardMentionRow, BoardPromptMode, BoardWindowInjectProps,
+  BoardCommandRow, BoardDraftFile, BoardDraftImage, BoardMentionRow, BoardPromptMode, BoardWindowInjectProps,
   BoardWindowSessionState, WindowId,
 } from '../contract/slots.ts'
 import type { BoardTranslate } from '../locale.ts'
@@ -41,6 +46,16 @@ import css from './ComposerBar.module.css'
 
 /** The popover kinds the bar owns; one is open at a time. */
 type MenuKind = 'actions' | 'preset' | 'permission' | 'model'
+
+/** The board-owned palette entries the host registry does not carry. */
+const BUILTIN_COMMANDS = ['file', 'model'] as const
+
+/** Localized status line of one draft file chip. */
+const FILE_STATUS_KEYS = {
+  uploading: 'attachment.uploading',
+  ready: 'attachment.ready',
+  error: 'attachment.error',
+} as const satisfies Record<BoardDraftFile['status'], string>
 
 /** One open popover: which trigger owns it and where it is placed. */
 interface OpenMenu {
@@ -90,6 +105,29 @@ function commandDescription(t: BoardTranslate, name: string, fallback: string): 
   }
 }
 
+/** The mention kind's localized label. */
+function mentionKindLabel(t: BoardTranslate, kind: BoardMentionRow['kind']): string {
+  switch (kind) {
+    case 'file': return t('mention.kind.file')
+    case 'directory': return t('mention.kind.directory')
+    case 'session': return t('mention.kind.session')
+  }
+}
+
+/** The command name a draft addresses, when it leads with one. */
+function leadingCommand(text: string): string | null {
+  const match = /^\/([a-z][a-z0-9_-]*)(?=\s|$)/i.exec(text)
+  return match?.[1]?.toLowerCase() ?? null
+}
+
+/** Human byte size for the attachment-limit messages: one decimal at most. */
+function sizeText(t: BoardTranslate, bytes: number): string {
+  const round = (value: number): number => Math.round(value * 10) / 10
+  if (bytes >= 1024 * 1024) return t('size.megabytes', { value: String(round(bytes / (1024 * 1024))) })
+  if (bytes >= 1024) return t('size.kilobytes', { value: String(round(bytes / 1024)) })
+  return t('size.bytes', { value: String(bytes) })
+}
+
 /** Context ring geometry. */
 const RING_RADIUS = 8
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
@@ -110,17 +148,26 @@ export interface ComposerBarProps {
 export function ComposerBar({ windowId, session, t, injected, onSent }: ComposerBarProps) {
   const [draft, setDraft] = useState('')
   const [images, setImages] = useState<readonly BoardDraftImage[]>([])
+  const [files, setFiles] = useState<readonly BoardDraftFile[]>([])
+  const [intakeError, setIntakeError] = useState<string | null>(null)
+  const [dragActive, setDragActive] = useState(false)
   const [menu, setMenu] = useState<OpenMenu | null>(null)
   const [fullAccessOpen, setFullAccessOpen] = useState(false)
   const [acknowledged, setAcknowledged] = useState(false)
   const [mentions, setMentions] = useState<readonly BoardMentionRow[]>([])
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  // Escape dismisses the command palette for the current draft; the next edit
+  // brings it back, so the menu never traps the keyboard.
+  const [commandsDismissed, setCommandsDismissed] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const cardRef = useRef<HTMLFormElement>(null)
   const actionsAnchor = useRef<HTMLButtonElement>(null)
   const presetAnchor = useRef<HTMLButtonElement>(null)
   const permissionAnchor = useRef<HTMLButtonElement>(null)
   const modelAnchor = useRef<HTMLButtonElement>(null)
+  // Source files of non-image chips, kept for retry after a failed upload.
+  const fileSources = useRef(new Map<string, File>())
+  const dragDepth = useRef(0)
 
   /**
    * Open one popover, or close it when its own trigger is clicked again. The
@@ -151,16 +198,25 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
   const ready = session?.status === 'ready'
   const running = session?.running === true
   const blocked = session?.blocked
-  const canSend = ready && blocked === undefined && (draft.trim() !== '' || images.length > 0)
+  const uploading = files.some(file => file.status === 'uploading')
+  const readyFiles = files.filter(file => file.status === 'ready' && file.receiptId !== undefined)
+  const hasDraft = draft.trim() !== '' || images.length > 0 || readyFiles.length > 0
+  const canSend = ready && blocked === undefined && !uploading && hasDraft
+  const canAcceptDrop = ready && blocked === undefined
 
-  const slashQuery = /\/([a-z0-9-]*)$/i.exec(draft)
+  const slashQuery = commandsDismissed ? null : /\/([a-z0-9-]*)$/i.exec(draft)
   const slashRows = useMemo(() => {
     if (slashQuery === null) return []
     const query = (slashQuery[1] ?? '').toLowerCase()
-    const rows = session?.commands ?? []
+    const builtins: BoardCommandRow[] = BUILTIN_COMMANDS.map(name => ({
+      name,
+      description: commandDescription(t, name, ''),
+    }))
+    const host = (session?.commands ?? []).filter(row => !BUILTIN_COMMANDS.includes(row.name as typeof BUILTIN_COMMANDS[number]))
+    const rows = [...builtins, ...host]
     const filtered = query === '' ? rows : rows.filter(row => row.name.startsWith(query))
     return filtered.slice(0, 12)
-  }, [slashQuery, session?.commands])
+  }, [slashQuery, session?.commands, t])
 
   // Mention discovery: one lookup per query, cancelled when the draft moves on.
   useEffect(() => {
@@ -180,16 +236,48 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
     setMentionQuery(tail === null ? null : (tail[1] ?? ''))
   }, [])
 
-  const submit = (mode: BoardPromptMode): void => {
-    const text = draft.trim()
-    if (!canSend) return
-    injected.sendPrompt(windowId, text, running ? mode : 'queue', images)
+  const clearDraft = (): void => {
     setDraft('')
     setImages([])
+    setFiles([])
+    setIntakeError(null)
+    fileSources.current.clear()
     closeMenu()
     setMentionQuery(null)
     // Sending ends dictation: the transcript belongs to the message it fed.
     dictation.stop()
+  }
+
+  const submit = (mode: BoardPromptMode): void => {
+    const text = draft.trim()
+    if (!canSend) return
+    const name = leadingCommand(text)
+    if (name === 'file') {
+      fileInput.current?.click()
+      clearDraft()
+      return
+    }
+    if (name === 'model') {
+      clearDraft()
+      openMenu('model', modelAnchor.current)
+      return
+    }
+    const command = name === null ? undefined : session.commands.find(row => row.name === name)
+
+    if (command !== undefined) {
+      injected.executeCommand(windowId, text, images, readyFiles.map(file => file.receiptId as string))
+      clearDraft()
+      onSent()
+      return
+    }
+    injected.sendPrompt(
+      windowId,
+      text,
+      running ? mode : 'queue',
+      images,
+      readyFiles.map(file => file.receiptId as string),
+    )
+    clearDraft()
     onSent()
   }
 
@@ -202,6 +290,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
     if (e.key === 'Escape') {
       closeMenu()
       setMentionQuery(null)
+      setCommandsDismissed(true)
       return
     }
     if (e.key !== 'Enter' || e.shiftKey) return
@@ -210,14 +299,24 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
   }
 
   const pickCommand = (name: string): void => {
+    closeMenu()
+    if (name === 'file') {
+      fileInput.current?.click()
+      setDraft('')
+      return
+    }
+    if (name === 'model') {
+      setDraft('')
+      openMenu('model', modelAnchor.current)
+      return
+    }
     const row = session?.commands.find(entry => entry.name === name)
     if (row?.hint === undefined) {
-      injected.runCommand(windowId, `/${name}`)
-      setDraft('')
+      injected.executeCommand(windowId, `/${name}`, images, readyFiles.map(file => file.receiptId as string))
+      clearDraft()
     } else {
       setDraft(`/${name} `)
     }
-    closeMenu()
   }
 
   const pickMention = (row: BoardMentionRow): void => {
@@ -225,9 +324,71 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
     setMentionQuery(null)
   }
 
-  const addImages = (files: readonly File[]): void => {
-    for (const file of files) {
-      if (!file.type.startsWith('image/')) continue
+  /** Stage one non-image file through the background upload service. */
+  const stageFile = useCallback(async (file: File, existingId?: string): Promise<void> => {
+    const id = existingId ?? `${file.name}:${file.size}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 6)}`
+    fileSources.current.set(id, file)
+    setFiles(current => existingId === undefined
+      ? [...current, { id, name: file.name, status: 'uploading' }]
+      : current.map(item => item.id === existingId ? { ...item, status: 'uploading' as const } : item))
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      const result = await injected.uploadFile(windowId, file.name, bytes)
+      setFiles(current => current.map(item => item.id === id
+        ? result.receiptId !== undefined
+          ? { ...item, status: 'ready' as const, receiptId: result.receiptId }
+          : { ...item, status: 'error' as const, error: result.error ?? t('attachment.error') }
+        : item))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      setFiles(current => current.map(item => item.id === id ? { ...item, status: 'error' as const, error: message } : item))
+    }
+  }, [injected, t, windowId])
+
+  /** Retry one failed upload from its retained source file. */
+  const retryFile = (id: string): void => {
+    const source = fileSources.current.get(id)
+    if (source === undefined) return
+    void stageFile(source, id)
+  }
+
+  const removeFile = (id: string): void => {
+    fileSources.current.delete(id)
+    setFiles(current => current.filter(item => item.id !== id))
+  }
+
+  /**
+   * Intake one picked, pasted, or dropped batch. Image attachments obey the
+   * projected limits as a whole batch — a batch that would break one is refused
+   * with the localized reason and never enters the rail — while other files
+   * carry no client-side limit and upload as soon as they arrive.
+   */
+  const intake = (incoming: readonly File[]): void => {
+    if (incoming.length === 0) return
+    const limits = session?.imageLimits
+    // The projected media types own the split where the host exposes them: an
+    // image type outside the list stages like any other file.
+    const isImage = (file: File): boolean =>
+      limits === undefined ? file.type.startsWith('image/') : limits.mediaTypes.includes(file.type)
+    const imageFiles = incoming.filter(isImage)
+    const otherFiles = incoming.filter(file => !isImage(file))
+    if (limits !== undefined && imageFiles.length > 0) {
+      if (images.length + imageFiles.length > limits.maxImagesPerMessage) {
+        setIntakeError(t('image.tooMany', { count: String(limits.maxImagesPerMessage) }))
+        return
+      }
+      if (imageFiles.some(file => file.size > limits.maxImageBytes)) {
+        setIntakeError(t('image.fileTooLarge', { size: sizeText(t, limits.maxImageBytes) }))
+        return
+      }
+      const total = imagesBytes(images) + imageFiles.reduce((sum, file) => sum + file.size, 0)
+      if (total > limits.maxMessageImageBytes) {
+        setIntakeError(t('image.totalTooLarge', { size: sizeText(t, limits.maxMessageImageBytes) }))
+        return
+      }
+    }
+    setIntakeError(null)
+    for (const file of imageFiles) {
       const reader = new FileReader()
       reader.addEventListener('load', () => {
         const url = typeof reader.result === 'string' ? reader.result : ''
@@ -243,6 +404,33 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
       })
       reader.readAsDataURL(file)
     }
+    for (const file of otherFiles) void stageFile(file)
+  }
+
+  const handleDragEnter = (e: DragEvent<HTMLDivElement>): void => {
+    if (!e.dataTransfer.types.includes('Files')) return
+    e.preventDefault()
+    dragDepth.current += 1
+    setDragActive(true)
+  }
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>): void => {
+    if (!e.dataTransfer.types.includes('Files')) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = canAcceptDrop ? 'copy' : 'none'
+  }
+
+  const handleDragLeave = (): void => {
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setDragActive(false)
+  }
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>): void => {
+    e.preventDefault()
+    dragDepth.current = 0
+    setDragActive(false)
+    if (!canAcceptDrop) return
+    intake([...e.dataTransfer.files])
   }
 
   const menuItems: readonly MenuEntry[] = useMemo(() => {
@@ -255,7 +443,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
     const add = ['goal', 'plan', 'feedback'].filter(name => rows.some(row => row.name === name))
     const commands = ['compact', 'permission', 'model', 'export'].filter(name => rows.some(row => row.name === name))
     const entries: MenuEntry[] = []
-    // Attachment and dictation entries are board-owned, not host commands.
+    // Attachment, dictation, and model entries are board-owned, not host commands.
     entries.push({ type: 'label', id: 'add', text: t('command.section.add') })
     entries.push({ id: 'file', label: commandLabel(t, 'file'), icon: <IconPaperclipOutline16 /> })
     entries.push({ id: 'voice', label: commandLabel(t, 'voice'), icon: <MicGlyph /> })
@@ -303,7 +491,17 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
   const hasStrips = session?.goal !== undefined || (session?.todos.length ?? 0) > 0 || (session?.queue.length ?? 0) > 0
 
   return (
-    <div className={css.composerWrap}>
+    <div
+      className={clsx(css.composerWrap, dragActive && css.dropActive)}
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {dragActive && (
+        <div className={css.dropHint} data-board-drop-hint="">{t('attachment.drop')}</div>
+      )}
+
       {hasStrips && (
         <div className={css.strips}>
           {session?.goal !== undefined && (
@@ -406,7 +604,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
           {mentions.map(row => (
             <button key={row.id} type="button" role="option" className={css.popupRow} onClick={() => { pickMention(row) }}>
               <span className={css.popupName}>{row.label}</span>
-              <span className={css.popupHint}>{row.kind}</span>
+              <span className={css.popupHint}>{mentionKindLabel(t, row.kind)}</span>
             </button>
           ))}
         </div>
@@ -425,7 +623,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
       )}
 
       <form ref={cardRef} className={css.card} onSubmit={handleSubmit} data-composer-card="">
-        {images.length > 0 && (
+        {(images.length > 0 || files.length > 0) && (
           <div className={css.attachments}>
             {images.map(image => (
               <div key={image.id} className={css.attachment}>
@@ -440,6 +638,36 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
                 </button>
               </div>
             ))}
+            {files.map(file => (
+              <div
+                key={file.id}
+                className={clsx(css.fileChip, file.status === 'error' && css.fileChipError)}
+                data-board-file={file.status}
+                title={file.error}
+              >
+                <IconPaperclipOutline16 />
+                <span className={css.fileName}>{file.name}</span>
+                <span className={css.fileStatus}>{t(FILE_STATUS_KEYS[file.status])}</span>
+                {file.status === 'error' && (
+                  <button
+                    type="button"
+                    className={css.fileAction}
+                    aria-label={t('attachment.retry')}
+                    onClick={() => { retryFile(file.id) }}
+                  >
+                    {t('attachment.retry')}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={css.fileAction}
+                  aria-label={t('attachment.remove', { name: file.name })}
+                  onClick={() => { removeFile(file.id) }}
+                >
+                  <IconCloseOutline16 />
+                </button>
+              </div>
+            ))}
           </div>
         )}
 
@@ -449,14 +677,39 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
           rows={2}
           placeholder={t('composer.placeholder')}
           aria-label={t('composer.placeholder')}
+          data-board-action="composer-input"
           onChange={(e: ChangeEvent<HTMLTextAreaElement>) => {
             setDraft(e.target.value)
+            setCommandsDismissed(false)
             trackMention(e.target.value)
           }}
           onKeyDown={handleKeyDown}
+          onPaste={(e) => {
+            const pasted = [...e.clipboardData.items]
+              .filter(item => item.kind === 'file')
+              .map(item => item.getAsFile())
+              .filter((file): file is File => file !== null)
+            if (pasted.length === 0) return
+            intake(pasted)
+            // A mixed clipboard keeps its text: the files are staged and the
+            // browser inserts the text as usual.
+            if (e.clipboardData.getData('text/plain') === '') e.preventDefault()
+          }}
         />
 
-        {blocked !== undefined && <div className={css.blocked}>{blocked}</div>}
+        {blocked !== undefined && (
+          <div className={css.blocked} data-board-blocked={blocked}>
+            {t('conversation.blocked')}: {blocked}
+          </div>
+        )}
+        {intakeError !== null && (
+          <div className={css.intakeError} data-board-attachment-error="">{intakeError}</div>
+        )}
+        {session?.commandError !== undefined && (
+          <div className={css.intakeError} data-board-command-error="">
+            {t('command.failed')}: {session.commandError}
+          </div>
+        )}
 
         <div className={css.toolRow}>
           <div className={css.toolGroup}>
@@ -483,10 +736,6 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
               items={menuItems}
               onSelect={(id) => {
                 closeMenu()
-                if (id === 'file') {
-                  fileInput.current?.click()
-                  return
-                }
                 if (id === 'voice') {
                   dictation.toggle()
                   return
@@ -499,11 +748,10 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
               ref={fileInput}
               className={css.fileInput}
               type="file"
-              accept="image/*"
               multiple
               aria-label={t('attachment.pick')}
               onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                addImages([...(e.target.files ?? [])])
+                intake([...(e.target.files ?? [])])
                 e.target.value = ''
               }}
             />
@@ -699,4 +947,9 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
       />
     </div>
   )
+}
+
+/** Total byte size of the draft's image attachments, decoded from their base64 payloads. */
+function imagesBytes(images: readonly BoardDraftImage[]): number {
+  return images.reduce((sum, image) => sum + image.data.length * 3 / 4, 0)
 }

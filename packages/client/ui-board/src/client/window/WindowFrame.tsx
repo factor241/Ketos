@@ -11,12 +11,13 @@
  * never the window body. The frame is memoized on the window object and the
  * body dispatcher, so raising another window leaves it alone.
  */
-import React, { memo, useCallback, useEffect, type ReactNode } from 'react'
+import React, { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import { IconCloseOutline16, IconFullscreenOutline16, IconPanelLeftOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
-import type { BoardWindowState } from '../contract/slots.ts'
+import type { BoardWindowInjected, BoardWindowState } from '../contract/slots.ts'
+import type { BoardTranslate } from '../locale.ts'
 import { isWindowHidden } from '../canvas/culling.ts'
 import { isBoardEditingTarget } from '../editing-target.ts'
 import { useBoardPointerGesture } from '../pointer-gesture.ts'
@@ -24,6 +25,7 @@ import { startWindowResizeGesture } from './resize-gesture.ts'
 import { RESIZE_DIRECTIONS, type ResizeDirection } from './resize.ts'
 import { ExitFullscreenGlyph } from './fullscreen-glyph.tsx'
 import { panelWidthFor } from './panel-geometry.ts'
+import { windowTitle } from './window-title.ts'
 import css from './WindowFrame.module.css'
 
 /** Handle class per direction: the frame's border strips and corners. */
@@ -56,6 +58,7 @@ export type WindowFrameProps =
   PropsRuntime<'board.window'>
   & PropsStore<BoardStoreHandle>
   & PropsLocale<'board'>
+  & InjectFace<BoardWindowInjected>
   & { readonly features?: WindowFrameFeatures }
 
 /** Shared face of the two gesture leaves inside a frame. */
@@ -74,7 +77,7 @@ function WindowHeaderDrag({
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (disabled) return
-    if ((e.target as HTMLElement).closest('button') !== null) return
+    if ((e.target as HTMLElement).closest('button, input, textarea') !== null) return
     const target = e.currentTarget
     target.setPointerCapture(e.pointerId)
     actions.focusWindow(cardWindow.id)
@@ -117,7 +120,82 @@ function WindowResizeHandle({
   return <div data-board-handle={direction} onPointerDown={handlePointerDown} className={clsx(css.handle, className)} />
 }
 
-function WindowFrameView({ window: cardWindow, renderBody, useStore, actions, t, features }: WindowFrameProps) {
+interface WindowTitleControlProps {
+  readonly window: BoardWindowState
+  readonly t: BoardTranslate
+  readonly actions: PropsStore<BoardStoreHandle>['actions']
+  readonly useWindowSession: InjectFace<BoardWindowInjected>['useWindowSession']
+}
+
+/**
+ * Header name of one window: the only subscriber to the window channel in the
+ * frame. It keeps a streamed chunk from re-rendering the frame's chrome and
+ * handles, and it owns the in-place rename editor.
+ */
+function WindowTitleControl({ window: cardWindow, t, actions, useWindowSession }: WindowTitleControlProps) {
+  const session = useWindowSession(cardWindow.id)
+  const title = windowTitle(t, cardWindow, session?.displayTitle)
+  const [renameDraft, setRenameDraft] = useState<string | null>(null)
+  // Escape unmounts the input, and the node's blur must not commit the draft.
+  const renameCancelled = useRef(false)
+
+  const commitRename = (value: string): void => {
+    actions.setWindowCustomTitle(cardWindow.id, value)
+    setRenameDraft(null)
+  }
+
+  if (renameDraft !== null) {
+    return (
+      <input
+        className={css.titleInput}
+        value={renameDraft}
+        autoFocus
+        aria-label={t('window.rename')}
+        data-board-action="window-title-input"
+        onChange={(e) => { setRenameDraft(e.target.value) }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            commitRename(renameDraft)
+          } else if (e.key === 'Escape') {
+            e.preventDefault()
+            renameCancelled.current = true
+            setRenameDraft(null)
+          }
+        }}
+        onBlur={() => {
+          if (renameCancelled.current) {
+            renameCancelled.current = false
+            setRenameDraft(null)
+            return
+          }
+          commitRename(renameDraft)
+        }}
+      />
+    )
+  }
+  return (
+    <Tooltip label={t('window.rename')} side="bottom">
+      <button
+        type="button"
+        data-board-action="window-rename"
+        data-board-title={title}
+        className={css.titleButton}
+        aria-label={title}
+        onClick={() => {
+          renameCancelled.current = false
+          setRenameDraft(cardWindow.customTitle ?? '')
+        }}
+      >
+        <span className={css.title}>{title}</span>
+      </button>
+    </Tooltip>
+  )
+}
+
+function WindowFrameView({
+  window: cardWindow, renderBody, useStore, actions, t, features, useWindowSession,
+}: WindowFrameProps) {
   const isActive = useStore(s => s.activeWindowId === cardWindow.id)
   const fullscreenWindowId = useStore(s => s.fullscreenWindowId)
   const panelWindowId = useStore(s => s.panelWindowId)
@@ -219,7 +297,12 @@ function WindowFrameView({ window: cardWindow, renderBody, useStore, actions, t,
               </button>
             </Tooltip>
           )}
-          <span className={css.title}>{cardWindow.title}</span>
+          <WindowTitleControl
+            window={cardWindow}
+            t={t}
+            actions={actions}
+            useWindowSession={useWindowSession}
+          />
         </div>
         {features?.fullscreen === true && (
           <div className={css.headerRight}>

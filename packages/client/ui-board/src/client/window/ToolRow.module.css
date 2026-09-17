@@ -1,0 +1,64 @@
+/* Tool line of the window lane: one row per call, settled or running. */
+
+.tool {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-window);
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-label);
+}
+
+.toolFailed {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.toolName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolNote {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* Running marker: a small pulsing dot, motion-free under reduced motion. */
+.runningDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-state-business-primary);
+  animation: tool-running 1s ease-in-out infinite alternate;
+}
+
+@keyframes tool-running {
+  from { opacity: 0.35; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .runningDot { animation: none; }
+}
+
+.repeat {
+  flex: none;
+  padding: 2px 8px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 9999px;
+  corner-shape: round;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-family: inherit;
+  font-size: var(--board-font-hint);
+  cursor: pointer;
+}
+
+.repeat:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}

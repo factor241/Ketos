@@ -411,7 +411,7 @@ function WindowChatsPanelView({
                 </span>
               </button>
               {project !== undefined && (
-                <button type="button" data-row-action="" className={css.action} aria-label={t('panel.newChat')} onClick={newChat}>
+                <button type="button" data-row-action="" data-board-action="panel-new-chat" className={css.action} aria-label={t('panel.newChat')} onClick={newChat}>
                   <IconNewChatOutline16 />
                 </button>
               )}
@@ -533,6 +533,7 @@ function WindowChatsPanelView({
                 <button
                   type="button"
                   data-row-action=""
+                  data-board-action="panel-project-menu"
                   className={css.rowAction}
                   aria-label={t('panel.rowMenu')}
                   onClick={(e) => { menuAnchor.current = e.currentTarget; setRowMenu({ kind: 'project', id: group.workspaceId as string }) }}
@@ -563,6 +564,7 @@ function WindowChatsPanelView({
               <button
                 type="button"
                 data-row-action=""
+                data-board-action="panel-row-menu"
                 className={css.rowAction}
                 aria-label={t('panel.rowMenu')}
                 onClick={(e) => { menuAnchor.current = e.currentTarget; setRowMenu({ kind: 'chat', id: chat.id }) }}

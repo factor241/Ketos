@@ -107,30 +107,42 @@ describe('board slot composition', () => {
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
     const board = runtime.storeOf('board.dock') as BoardInstance
 
+    const toolKinds = ['connectors', 'settings', 'dashboard', 'tasks'] as const
     act(() => {
       board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'First agent' }))
-      board.actions.openWindow(windowState({
-        id: 't1' as WindowId, kind: 'connectors', bodyKind: 'connectors', ordinal: 2, customTitle: 'Tools', width: 520, height: 480,
-      }))
+      for (const [index, kind] of toolKinds.entries()) {
+        board.actions.openWindow(windowState({
+          id: `t${String(index)}` as WindowId,
+          kind,
+          bodyKind: kind,
+          ordinal: index + 2,
+          customTitle: `Tool ${kind}`,
+          width: 520,
+          height: 480,
+        }))
+      }
     })
     await runtime.flush()
 
     // Each frame renders its own component: only the agent frame carries the
     // session composer, so a frame dispatched to the wrong occupant fails these assertions.
     const agentFrame = panel.container.querySelector('[data-board-window="agent"]')
-    const toolFrame = panel.container.querySelector('[data-board-window="connectors"]')
     expect(agentFrame?.querySelector('textarea')).not.toBeNull()
     expect(agentFrame?.querySelector('button[aria-label="Send"]')).not.toBeNull()
-    expect(toolFrame?.querySelector('textarea')).toBeNull()
-    expect(toolFrame?.querySelector('button[aria-label="Send"]')).toBeNull()
-    expect(toolFrame?.textContent).toContain('Tools')
     expect(agentFrame?.textContent).toContain('First agent')
-    // Tool windows keep the shared frame without the chat-only controls, so the
-    // panel and fullscreen modes never apply to them.
-    expect(toolFrame?.querySelector('button[aria-label="Chats"]')).toBeNull()
-    expect(toolFrame?.querySelector('button[aria-label="Open fullscreen"]')).toBeNull()
+    // Every tool kind keeps the shared frame without the chat-only controls, so
+    // the panel and fullscreen modes never apply to them.
     expect(agentFrame?.querySelector('button[aria-label="Chats"]')).not.toBeNull()
     expect(agentFrame?.querySelector('button[aria-label="Open fullscreen"]')).not.toBeNull()
+    for (const kind of toolKinds) {
+      const toolFrame = panel.container.querySelector(`[data-board-window="${kind}"]`)
+      expect(toolFrame).not.toBeNull()
+      expect(toolFrame?.textContent).toContain(`Tool ${kind}`)
+      expect(toolFrame?.querySelector('textarea')).toBeNull()
+      expect(toolFrame?.querySelector('button[aria-label="Send"]')).toBeNull()
+      expect(toolFrame?.querySelector('button[aria-label="Chats"]')).toBeNull()
+      expect(toolFrame?.querySelector('button[aria-label="Open fullscreen"]')).toBeNull()
+    }
   })
 
   it('swaps the body occupant when bodyKind changes', async () => {

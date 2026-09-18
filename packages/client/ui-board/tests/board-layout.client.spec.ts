@@ -1,7 +1,7 @@
 /** Layout document capture and repair: broken documents never reach the store. */
 import { describe, expect, it } from 'vitest'
 import {
-  BOARD_LAYOUT_COORD_LIMIT, BOARD_LAYOUT_MAX_WINDOWS, BOARD_SETTINGS_VERSION, BOARD_ZOOM_MAX,
+  BOARD_LAYOUT_COORD_LIMIT, BOARD_LAYOUT_MAX_WINDOWS, BOARD_SETTINGS_VERSION, BOARD_ZOOM_MAX, BOARD_ZOOM_MIN,
 } from '../src/board-settings.ts'
 import { captureBoardLayout, sanitizeBoardLayout } from '../src/client/board-layout.ts'
 import { createBoardStore, MIN_WINDOW_SIZE, WINDOW_Z_BASE } from '../src/client/store.ts'
@@ -172,6 +172,7 @@ describe('sanitizeBoardLayout', () => {
       panelOrderBy: 'updated',
     })
     expect(firstWindow(layout)).toMatchObject({ x: BOARD_LAYOUT_COORD_LIMIT, y: -BOARD_LAYOUT_COORD_LIMIT })
+    expect(sanitizeBoardLayout(document({ zoom: BOARD_ZOOM_MIN / 2 }))?.zoom).toBe(BOARD_ZOOM_MIN)
   })
 
   it('renormalizes the paint order from windowOrder and drops dangling windows', () => {
@@ -228,5 +229,20 @@ describe('sanitizeBoardLayout', () => {
     const restored = sanitizeBoardLayout(captured)
     expect(restored).toEqual(captured)
     expect(restored?.windows).toHaveLength(20)
+
+    // The restore path itself: a second store adopts the repaired document
+    // with every window, its order, its z-band, and the panel state intact.
+    const target = createBoardStore().create()
+    if (restored === undefined) throw new Error('the captured layout must sanitize')
+    target.actions.hydrate(restored)
+    const state = target.getSnapshot()
+    expect(Object.keys(state.windows)).toHaveLength(20)
+    expect(state.windowOrder).toHaveLength(20)
+    expect(state.windowOrder[0]).toBe('agent-0')
+    expect(state.windowOrder[19]).toBe('agent-19')
+    expect(state.windows['agent-19']?.zIndex).toBe(WINDOW_Z_BASE + 19)
+    expect(state.activeWindowId).toBe('agent-19')
+    expect(state.panelWindowId).toBe('agent-19')
+    expect(state.panelCollapsed).toBe(false)
   })
 })

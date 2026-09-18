@@ -89,33 +89,33 @@ function describeValue(namespaces: SettingsNamespaceView[], writable = true): Se
 /** A writable, ready mirror with no namespaces: writes pass and nothing is adopted. */
 const EMPTY_VIEW: SettingsDescribeValue = { writable: true, hasDocument: true, namespaces: [] }
 
-/** Signature of the settings update double. */
-type UpdateSignature = (
+/** Signature of the settings replace double. */
+type ReplaceSignature = (
   ns: string,
-  patch: Record<string, unknown>,
+  section: Record<string, unknown>,
   revision: number | undefined,
 ) => Promise<RemoteResult<SettingsNamespaceView>>
 
-/** One update double over the settings namespace. */
-type UpdateDouble = ReturnType<typeof vi.fn<UpdateSignature>>
+/** One replace double over the settings namespace. */
+type ReplaceDouble = ReturnType<typeof vi.fn<ReplaceSignature>>
 
 /** A persistence bench over the real store and the mirror double. */
 function bench(view: SettingsDescribeValue = EMPTY_VIEW): {
   instance: BoardStoreInstance
   persistence: BoardLayoutPersistence
   settings: SettingsScopeDouble
-  update: UpdateDouble
+  replace: ReplaceDouble
 } {
   const ctx = new Context()
   const instance = createBoardStore().create()
   const settings = createSettingsScopeDouble(view)
-  const update: UpdateDouble = vi.fn(async (
+  const replace: ReplaceDouble = vi.fn(async (
     _ns: string,
-    _patch: Record<string, unknown>,
+    _section: Record<string, unknown>,
     _revision: number | undefined,
   ) => ok(namespaceView()))
-  new TestRemote(ctx, { settings: { update } })
-  return { instance, persistence: new BoardLayoutPersistence(ctx, settings.face, instance), settings, update }
+  new TestRemote(ctx, { settings: { replace } })
+  return { instance, persistence: new BoardLayoutPersistence(ctx, settings.face, instance), settings, replace }
 }
 
 /** Cache the supplied document under the supplied revision, with optional bindings. */
@@ -153,7 +153,7 @@ describe('board layout cache', () => {
   })
 
   it('keeps working when the first-frame cache cannot be written', async () => {
-    const { instance, persistence, update } = bench()
+    const { instance, persistence, replace } = bench()
     vi.useFakeTimers()
     persistence.start()
     const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
@@ -162,7 +162,7 @@ describe('board layout cache', () => {
     try {
       instance.actions.setPan(1, 2)
       await vi.advanceTimersByTimeAsync(600)
-      expect(update).toHaveBeenCalledTimes(1)
+      expect(replace).toHaveBeenCalledTimes(1)
       expect(readBoardLayoutCache()).toBeUndefined()
     } finally {
       setItem.mockRestore()
@@ -187,7 +187,7 @@ describe('board settings bindings', () => {
   })
 
   it('adopts the server bindings through the adopt listener and writes both halves in one patch', async () => {
-    const { persistence, update } = bench(describeValue([
+    const { persistence, replace } = bench(describeValue([
       namespaceView({
         revision: 2,
         user: { ...layout() as object, bindings: { 'agent-1': 'session-1' } },
@@ -203,45 +203,60 @@ describe('board settings bindings', () => {
     persistence.writeBindings({ 'agent-1': 'session-2' })
     await vi.advanceTimersByTimeAsync(600)
 
-    expect(update).toHaveBeenCalledTimes(1)
-    expect(update.mock.calls[0]?.[1]).toMatchObject({ panX: 10, bindings: { 'agent-1': 'session-2' } })
-    expect(update.mock.calls[0]?.[2]).toBe(2)
+    expect(replace).toHaveBeenCalledTimes(1)
+    expect(replace.mock.calls[0]?.[1]).toMatchObject({ panX: 10, bindings: { 'agent-1': 'session-2' } })
+    expect(replace.mock.calls[0]?.[2]).toBe(2)
   })
 
   it('writes the live bindings map along with a later layout gesture', async () => {
-    const { instance, persistence, update } = bench()
+    const { instance, persistence, replace } = bench()
     vi.useFakeTimers()
     persistence.start()
 
     persistence.writeBindings({ 'agent-1': 'session-1' })
     await vi.advanceTimersByTimeAsync(600)
-    expect(update).toHaveBeenCalledTimes(1)
+    expect(replace).toHaveBeenCalledTimes(1)
 
     instance.actions.setPan(7, 8)
     await vi.advanceTimersByTimeAsync(1_100)
-    expect(update).toHaveBeenCalledTimes(2)
-    expect(update.mock.calls[1]?.[1]).toMatchObject({ panX: 7, bindings: { 'agent-1': 'session-1' } })
+    expect(replace).toHaveBeenCalledTimes(2)
+    expect(replace.mock.calls[1]?.[1]).toMatchObject({ panX: 7, bindings: { 'agent-1': 'session-1' } })
+  })
+
+  it('writes the whole section so a dropped pair leaves the stored map', async () => {
+    const { persistence, replace } = bench()
+    vi.useFakeTimers()
+    persistence.start()
+
+    persistence.writeBindings({ 'agent-1': 'session-1', 'agent-2': 'session-2' })
+    await vi.advanceTimersByTimeAsync(600)
+    persistence.writeBindings({ 'agent-1': 'session-1' })
+    await vi.advanceTimersByTimeAsync(1_100)
+
+    expect(replace).toHaveBeenCalledTimes(2)
+    const section = replace.mock.calls[1]?.[1] as { bindings: Record<string, string> }
+    expect(section.bindings).toEqual({ 'agent-1': 'session-1' })
   })
 
   it('does not rewrite an unchanged bindings map', async () => {
-    const { persistence, update } = bench()
+    const { persistence, replace } = bench()
     vi.useFakeTimers()
     persistence.start()
 
     persistence.writeBindings({ 'agent-1': 'session-1' })
     await vi.advanceTimersByTimeAsync(1_100)
-    expect(update).toHaveBeenCalledTimes(1)
+    expect(replace).toHaveBeenCalledTimes(1)
 
     persistence.writeBindings({ 'agent-1': 'session-1' })
     await vi.advanceTimersByTimeAsync(1_100)
-    expect(update).toHaveBeenCalledTimes(1)
+    expect(replace).toHaveBeenCalledTimes(1)
   })
 })
 
 describe('board layout adoption from the mirror', () => {
   it('adopts a server document ahead of the cache and reuses its revision', async () => {
     seedCache(1, layout({ zoom: 1 }))
-    const { instance, persistence, settings, update } = bench(describeValue([
+    const { instance, persistence, settings, replace } = bench(describeValue([
       namespaceView({ revision: 3, user: layout({ zoom: 1.75 }) }),
     ]))
     persistence.hydrateFromCache()
@@ -253,8 +268,8 @@ describe('board layout adoption from the mirror', () => {
     vi.useFakeTimers()
     instance.actions.setPan(1, 2)
     await vi.advanceTimersByTimeAsync(1_100)
-    expect(update).toHaveBeenCalledTimes(1)
-    expect(update.mock.calls[0]?.[2]).toBe(3)
+    expect(replace).toHaveBeenCalledTimes(1)
+    expect(replace.mock.calls[0]?.[2]).toBe(3)
     expect(settings.accepted).toHaveLength(1)
   })
 
@@ -293,7 +308,7 @@ describe('board layout adoption from the mirror', () => {
 
   it('pushes the cached layout back when the server lags a lost write', async () => {
     seedCache(5, layout({ zoom: 1.5 }))
-    const { instance, persistence, update } = bench(describeValue([
+    const { instance, persistence, replace } = bench(describeValue([
       namespaceView({ revision: 2, user: layout({ zoom: 0.5 }) }),
     ]))
     persistence.hydrateFromCache()
@@ -303,9 +318,9 @@ describe('board layout adoption from the mirror', () => {
     await vi.advanceTimersByTimeAsync(1_000)
 
     expect(instance.getSnapshot().zoom).toBe(1.5)
-    expect(update).toHaveBeenCalledTimes(1)
-    expect(update.mock.calls[0]?.[1]).toMatchObject({ zoom: 1.5 })
-    expect(update.mock.calls[0]?.[2]).toBe(2)
+    expect(replace).toHaveBeenCalledTimes(1)
+    expect(replace.mock.calls[0]?.[1]).toMatchObject({ zoom: 1.5 })
+    expect(replace.mock.calls[0]?.[2]).toBe(2)
   })
 
   it('ignores a server document the sanitizer cannot adopt', () => {
@@ -320,7 +335,7 @@ describe('board layout adoption from the mirror', () => {
   })
 
   it('never adopts or writes while the mirror stays unavailable', async () => {
-    const { instance, persistence, settings, update } = bench()
+    const { instance, persistence, settings, replace } = bench()
     settings.setUnavailable()
     vi.useFakeTimers()
     persistence.start()
@@ -329,24 +344,24 @@ describe('board layout adoption from the mirror', () => {
     await vi.advanceTimersByTimeAsync(2_000)
 
     expect(instance.getSnapshot().panX).toBe(1)
-    expect(update).not.toHaveBeenCalled()
+    expect(replace).not.toHaveBeenCalled()
   })
 
   it('never writes when the provider is read-only', async () => {
-    const { instance, persistence, update } = bench(describeValue([], false))
+    const { instance, persistence, replace } = bench(describeValue([], false))
     vi.useFakeTimers()
     persistence.start()
 
     instance.actions.setPan(1, 2)
     await vi.advanceTimersByTimeAsync(2_000)
 
-    expect(update).not.toHaveBeenCalled()
+    expect(replace).not.toHaveBeenCalled()
   })
 })
 
 describe('board layout writes', () => {
   it('coalesces two changes within 100ms into one write of the final document', async () => {
-    const { instance, persistence, update } = bench()
+    const { instance, persistence, replace } = bench()
     vi.useFakeTimers()
     persistence.start()
 
@@ -355,30 +370,30 @@ describe('board layout writes', () => {
     instance.actions.setPan(2, 2)
     await vi.advanceTimersByTimeAsync(600)
 
-    expect(update).toHaveBeenCalledTimes(1)
-    expect(update.mock.calls[0]?.[1]).toMatchObject({ panX: 2, panY: 2 })
+    expect(replace).toHaveBeenCalledTimes(1)
+    expect(replace.mock.calls[0]?.[1]).toMatchObject({ panX: 2, panY: 2 })
   })
 
   it('never writes twice inside one second', async () => {
-    const { instance, persistence, update } = bench()
+    const { instance, persistence, replace } = bench()
     vi.useFakeTimers()
     persistence.start()
 
     instance.actions.setPan(1, 1)
     await vi.advanceTimersByTimeAsync(600)
-    expect(update).toHaveBeenCalledTimes(1)
+    expect(replace).toHaveBeenCalledTimes(1)
 
     await vi.advanceTimersByTimeAsync(100)
     instance.actions.setPan(2, 2)
     await vi.advanceTimersByTimeAsync(800)
-    expect(update).toHaveBeenCalledTimes(1)
+    expect(replace).toHaveBeenCalledTimes(1)
 
     await vi.advanceTimersByTimeAsync(200)
-    expect(update).toHaveBeenCalledTimes(2)
+    expect(replace).toHaveBeenCalledTimes(2)
   })
 
   it('skips a write when the layout did not move the document', async () => {
-    const { instance, persistence, update } = bench()
+    const { instance, persistence, replace } = bench()
     vi.useFakeTimers()
     persistence.start()
 
@@ -386,12 +401,12 @@ describe('board layout writes', () => {
     instance.actions.setViewport(800, 600)
     await vi.advanceTimersByTimeAsync(1_100)
 
-    expect(update).not.toHaveBeenCalled()
+    expect(replace).not.toHaveBeenCalled()
   })
 
   it('stores the accepted document and its revision in the first-frame cache', async () => {
-    const { instance, persistence, settings, update } = bench(describeValue([namespaceView({ revision: 2 })]))
-    update.mockResolvedValue(ok(namespaceView({ revision: 4 })))
+    const { instance, persistence, settings, replace } = bench(describeValue([namespaceView({ revision: 2 })]))
+    replace.mockResolvedValue(ok(namespaceView({ revision: 4 })))
     vi.useFakeTimers()
     persistence.start()
 
@@ -404,7 +419,7 @@ describe('board layout writes', () => {
   })
 
   it('caps the persisted document at the restore limit', async () => {
-    const { instance, persistence, update } = bench()
+    const { instance, persistence, replace } = bench()
     for (let index = 0; index < BOARD_LAYOUT_MAX_WINDOWS + 3; index += 1) {
       instance.actions.openWindow({
         id: `agent-${index}` as WindowId,
@@ -421,13 +436,13 @@ describe('board layout writes', () => {
     instance.actions.setPan(1, 1)
     await vi.advanceTimersByTimeAsync(600)
 
-    const patch = update.mock.calls[0]?.[1]
+    const patch = replace.mock.calls[0]?.[1]
     expect(patch?.['windows']).toHaveLength(BOARD_LAYOUT_MAX_WINDOWS)
   })
 
   it('retries a conflict once at the revision the conflict reported', async () => {
-    const { instance, persistence, settings, update } = bench(describeValue([namespaceView({ revision: 0 })]))
-    update
+    const { instance, persistence, settings, replace } = bench(describeValue([namespaceView({ revision: 0 })]))
+    replace
       .mockResolvedValueOnce({
         ok: false,
         error: new RemoteError('settings/conflict', 'stale write', {
@@ -441,17 +456,17 @@ describe('board layout writes', () => {
     instance.actions.setPan(3, 3)
     await vi.advanceTimersByTimeAsync(600)
 
-    expect(update).toHaveBeenCalledTimes(2)
-    expect(update.mock.calls[0]?.[2]).toBe(0)
-    expect(update.mock.calls[1]?.[2]).toBe(9)
-    expect(update.mock.calls[1]?.[1]).toMatchObject({ panX: 3 })
+    expect(replace).toHaveBeenCalledTimes(2)
+    expect(replace.mock.calls[0]?.[2]).toBe(0)
+    expect(replace.mock.calls[1]?.[2]).toBe(9)
+    expect(replace.mock.calls[1]?.[1]).toMatchObject({ panX: 3 })
     expect(readBoardLayoutCache()).toMatchObject({ revision: 10 })
     expect(settings.accepted).toHaveLength(1)
   })
 
   it('keeps the layout local when a write is refused or the transport throws', async () => {
-    const { instance, persistence, update } = bench()
-    update
+    const { instance, persistence, replace } = bench()
+    replace
       .mockResolvedValueOnce({
         ok: false,
         error: new RemoteError('settings/rejected', 'read-only provider', { ns: BOARD_SETTINGS_NAMESPACE }),
@@ -468,13 +483,13 @@ describe('board layout writes', () => {
     instance.actions.setPan(3, 3)
     await vi.advanceTimersByTimeAsync(1_100)
 
-    expect(update).toHaveBeenCalledTimes(3)
+    expect(replace).toHaveBeenCalledTimes(3)
     expect(instance.getSnapshot().panX).toBe(3)
     expect(readBoardLayoutCache()).toMatchObject({ revision: 6 })
   })
 
   it('drops the pending write on dispose and stops following the store', async () => {
-    const { instance, persistence, update } = bench()
+    const { instance, persistence, replace } = bench()
     vi.useFakeTimers()
     persistence.start()
 
@@ -484,21 +499,21 @@ describe('board layout writes', () => {
     instance.actions.setPan(2, 2)
     await vi.advanceTimersByTimeAsync(2_000)
 
-    expect(update).not.toHaveBeenCalled()
+    expect(replace).not.toHaveBeenCalled()
   })
 })
 
 describe('board apply persistence', () => {
   it('hydrates the shared instance from the mirror and writes a gesture back', async () => {
     const described = namespaceView({ revision: 5, user: layout({ zoom: 1.25 }) })
-    const update = vi.fn(async (
+    const replace = vi.fn(async (
       _ns: string,
       _patch: Record<string, unknown>,
       _revision: number | undefined,
     ) => ok(namespaceView({ revision: 6 })))
     const { runtime, mountBoard } = await createBoardBench({
       settingsView: describeValue([described]),
-      remoteSettings: { update },
+      remoteSettings: { replace },
     })
     runtimes.add(runtime)
     await mountBoard()
@@ -511,8 +526,8 @@ describe('board apply persistence', () => {
     expect(instance.getSnapshot().windowOrder).toEqual(['agent-1'])
 
     instance.actions.setPan(30, 40)
-    await vi.waitFor(() => { expect(update).toHaveBeenCalledTimes(1) }, { timeout: 2_000 })
-    expect(update.mock.calls[0]?.[2]).toBe(5)
+    await vi.waitFor(() => { expect(replace).toHaveBeenCalledTimes(1) }, { timeout: 2_000 })
+    expect(replace.mock.calls[0]?.[2]).toBe(5)
     expect(readBoardLayoutCache()?.settings.panX).toBe(30)
   })
 

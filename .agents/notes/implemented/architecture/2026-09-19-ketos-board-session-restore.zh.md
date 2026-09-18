@@ -10,7 +10,7 @@ Status: implemented
 
 ## Decision
 
-**bindings 映射是已存 `ui-board` 分节的另一半。** `BoardSettings`（schema 版本 1）在布局文档旁携带 `bindings: Record<windowId, sessionId>`。布局捕获仍不包含该映射——`captureBoardLayout` 只捕获 store，不懂会话——而 `BoardLayoutPersistence` 是唯一写入者，会把 bridge 的实时映射合并进每一次分节补丁，因此布局手势与会话变更不可能通过两个 revision-CAS 写入者相互竞争。`writeBindings` 替换映射并调度与布局相同的防抖、最小间隔、冲突重试写入，首帧缓存也往返携带两半。
+**bindings 映射是已存 `ui-board` 分节的另一半。** `BoardSettings`（schema 版本 1）在布局文档旁携带 `bindings: Record<windowId, sessionId>`。布局捕获仍不包含该映射——`captureBoardLayout` 只捕获 store，不懂会话——而 `BoardLayoutPersistence` 是唯一写入者，会发送完整分节（捕获的布局加上 bridge 的实时映射），因此布局手势与会话变更不可能通过两个 revision-CAS 写入者相互竞争。这次写入使用 `remote.settings.replace` 而非 `update`：settings 服务会深度合并 update 补丁，只有整节写入才能删除窗口关闭后的配对。`writeBindings` 替换映射并调度与布局相同的防抖、最小间隔、冲突重试写入，首帧缓存也往返携带两半。
 
 **bridge 拥有实时映射，且只在离散事件上持久化。** `BoardSessionBridge.bindings()` 从记录派生映射；`switchTo`（创建、重绑、分支）与 `release`（窗口关闭）把它交给持久化钩子。帧从不写入。dispose 不写任何东西：卸载插件不是关闭。
 

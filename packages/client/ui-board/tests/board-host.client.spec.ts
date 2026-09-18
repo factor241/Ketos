@@ -79,6 +79,18 @@ describe('ui-board host half', () => {
     })
     await expect(ctx.settings.update(BOARD_SETTINGS_NAMESPACE, { bindings: { 'agent-1': 7 } })).rejects.toThrow()
 
+    // The board writes the complete section with `replace`, because only a
+    // wholesale write can drop a pair whose window closed: `update` deep-merges
+    // and would keep every bindings key the section ever held.
+    await ctx.settings.replace(BOARD_SETTINGS_NAMESPACE, {
+      ...layout(),
+      bindings: { 'agent-1': 'session-1', 'agent-2': 'session-2' },
+    })
+    await ctx.settings.replace(BOARD_SETTINGS_NAMESPACE, { ...layout(), bindings: {} })
+    expect(
+      (ctx.settings.get(BOARD_SETTINGS_NAMESPACE) as { bindings: Record<string, string> }).bindings,
+    ).toEqual({})
+
     await expect(ctx.settings.update(BOARD_SETTINGS_NAMESPACE, { zoom: 5 })).rejects.toThrow()
     await expect(ctx.settings.update(BOARD_SETTINGS_NAMESPACE, { version: 2 })).rejects.toThrow()
     await expect(ctx.settings.update(BOARD_SETTINGS_NAMESPACE, {

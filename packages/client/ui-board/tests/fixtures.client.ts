@@ -57,11 +57,11 @@ export interface BoardBenchOptions {
     readonly available?: boolean
     readonly upload?: (sessionId: SessionId, ...args: unknown[]) => Promise<unknown>
   }
-  /** Settings namespace doubles; the default update accepts any document. */
+  /** Settings namespace doubles; the default replace accepts any section. */
   remoteSettings?: {
-    readonly update?: (
+    readonly replace?: (
       ns: string,
-      patch: Record<string, unknown>,
+      section: Record<string, unknown>,
       expectedRevision: number | undefined,
     ) => Promise<RemoteResult<SettingsNamespaceView>>
   }
@@ -247,7 +247,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     revision: 0,
   })
   const settings = {
-    update: options.remoteSettings?.update
+    replace: options.remoteSettings?.replace
       ?? (async () => ({ ok: true as const, value: emptyView() })),
   }
   const settingsScope = createSettingsScopeDouble(options.settingsView)

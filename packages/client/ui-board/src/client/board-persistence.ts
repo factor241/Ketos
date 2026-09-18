@@ -243,7 +243,13 @@ export class BoardLayoutPersistence {
     await this.writeDocument({ ...layout, bindings: this.bindings }, serializedLayout, serializedBindings, revision, false)
   }
 
-  /** One settings write, with one retry at the revision the conflict reported. */
+  /**
+   * One settings write, with one retry at the revision the conflict reported.
+   * The write replaces the section rather than merging a patch: the board owns
+   * the whole `ui-board` namespace and every section field, and only `replace`
+   * can drop a pair whose window closed (`update` deep-merges and would keep
+   * every key the bindings map ever held).
+   */
   private async writeDocument(
     settings: BoardSettings,
     serializedLayout: string,
@@ -253,7 +259,7 @@ export class BoardLayoutPersistence {
   ): Promise<void> {
     let response
     try {
-      response = await this.ctx.remote.settings.update(
+      response = await this.ctx.remote.settings.replace(
         BOARD_SETTINGS_NAMESPACE,
         settings,
         revision,
@@ -261,7 +267,7 @@ export class BoardLayoutPersistence {
     } catch (error) {
       // A transport failure only loses this attempt: the store keeps the
       // layout, the next change schedules another write.
-      console.warn('ui-board: layout write failed', error)
+      console.warn('ui-board: settings write failed', error)
       return
     }
     if (this.disposed) return
@@ -279,6 +285,6 @@ export class BoardLayoutPersistence {
       await this.writeDocument(settings, serializedLayout, serializedBindings, response.error.details.actual, true)
       return
     }
-    console.warn(`ui-board: layout write refused (${response.error.code}): ${response.error.message}`)
+    console.warn(`ui-board: settings write refused (${response.error.code}): ${response.error.message}`)
   }
 }

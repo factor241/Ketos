@@ -54,14 +54,18 @@ const STATUS_KEY = {
 
 /**
  * Resolve one window's status from its session channel: a session that does
- * not exist yet reads `idle`, a failed creation or turn reads `error` before a
- * running turn does, and any other ready session reads `ready`.
+ * not exist yet or is still restoring reads `idle`, a failed creation, turn, or
+ * vanished session reads `error` before a running turn does, and any other
+ * ready session reads `ready`.
  * @param session - the window's channel state, or absence when it has none.
  * @returns the status the row shows.
  */
 function dockStatus(session: BoardWindowSessionState | undefined): DockStatus {
-  if (session === undefined || session.status === 'pending') return 'idle'
-  if (session.status === 'error' || session.turnError !== undefined || session.promptError !== undefined) return 'error'
+  if (session === undefined || session.status === 'pending' || session.status === 'restoring') return 'idle'
+  if (
+    session.status === 'error' || session.status === 'missing'
+    || session.turnError !== undefined || session.promptError !== undefined
+  ) return 'error'
   if (session.running) return 'running'
   return 'ready'
 }

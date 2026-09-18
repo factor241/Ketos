@@ -8,7 +8,7 @@ import {
   BOARD_LAYOUT_COORD_LIMIT, BOARD_LAYOUT_MAX_WINDOWS, BOARD_PANEL_GROUP_BYS, BOARD_PANEL_ORDER_BYS,
   BOARD_SETTINGS_VERSION, BOARD_WINDOW_BODY_KINDS, BOARD_WINDOW_KINDS, BOARD_ZOOM_MAX, BOARD_ZOOM_MIN,
   BoardSettingsSchema, PANEL_DEFAULT_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH,
-  type BoardLayoutDocument, type BoardLayoutWindow, type BoardSettings,
+  type BoardLayoutDocument, type BoardLayoutWindow, type BoardSettings, type BoardSettingsBindings,
 } from '../board-settings.ts'
 import type { WindowId } from './contract/slots.ts'
 import { MIN_WINDOW_SIZE, WINDOW_Z_BASE, WINDOW_Z_MAX, type BoardState } from './store.ts'
@@ -110,13 +110,35 @@ export function captureBoardLayout(state: BoardState): BoardLayoutDocument {
 }
 
 /**
+ * Keep the session bindings of the windows the repaired layout keeps: the map
+ * only names windows that exist, and a bindable target is a non-empty string.
+ * This is the startup reconciliation of the map against the layout — an entry
+ * for a window the layout no longer holds can never be restored.
+ * @param raw - the stored bindings value.
+ * @param kept - ids of the windows the repaired layout keeps.
+ * @returns the surviving window → session map.
+ */
+function sanitizeBindings(raw: unknown, kept: ReadonlySet<string>): BoardSettingsBindings {
+  if (!isRecord(raw)) return {}
+  const bindings: BoardSettingsBindings = {}
+  for (const [windowId, sessionId] of Object.entries(raw)) {
+    if (!kept.has(windowId)) continue
+    const target = identity(sessionId)
+    if (target === undefined) continue
+    bindings[windowId] = target
+  }
+  return bindings
+}
+
+/**
  * Repair one stored layout: drop windows of unknown kind or body kind, drop
  * duplicate identities, repair sizes and out-of-range numbers, renormalize the
- * paint order, and bound the restore. A document of another version is
- * ignored whole, and the repaired candidate must still satisfy the settings
- * schema before the board adopts it.
+ * paint order, bound the restore, and reconcile the session bindings with the
+ * kept windows. A document of another version is ignored whole, and the
+ * repaired candidate must still satisfy the settings schema before the board
+ * adopts it.
  * @param raw - the wire value read from settings or the first-frame cache.
- * @returns the repaired stored section (bindings defaulted), or undefined when the value cannot be adopted.
+ * @returns the repaired stored section, or undefined when the value cannot be adopted.
  */
 export function sanitizeBoardLayout(raw: unknown): BoardSettings | undefined {
   if (!isRecord(raw)) return undefined
@@ -155,9 +177,7 @@ export function sanitizeBoardLayout(raw: unknown): BoardSettings | undefined {
   const panelWindowId = panel !== undefined && kept.has(panel) ? panel : undefined
   const candidate: BoardSettings = {
     version: BOARD_SETTINGS_VERSION,
-    // The session bindings belong to the bridge; the layout candidate carries
-    // none and the schema's default resolves the map for the adopted section.
-    bindings: {},
+    bindings: sanitizeBindings(raw.bindings, kept),
     panX: bounded(raw.panX, 0, -BOARD_LAYOUT_COORD_LIMIT, BOARD_LAYOUT_COORD_LIMIT),
     panY: bounded(raw.panY, 0, -BOARD_LAYOUT_COORD_LIMIT, BOARD_LAYOUT_COORD_LIMIT),
     zoom: bounded(raw.zoom, 1, BOARD_ZOOM_MIN, BOARD_ZOOM_MAX),

@@ -7,6 +7,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render } from '@testing-library/react'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { ConversationBody, type ConversationBodyProps } from '../src/client/window/ConversationBody.tsx'
 import type { BoardWindowSessionState, BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 import { chatSnapshot, t } from './fixtures.client.ts'
@@ -138,6 +139,40 @@ describe('ConversationBody', () => {
     const ensureWindowSession = vi.fn()
     render(<ConversationBody {...bodyProps(undefined, { ensureWindowSession })} />)
     expect(ensureWindowSession).toHaveBeenCalledWith('a1')
+  })
+
+  it('shows the restoring state while a stored binding waits for the session list', () => {
+    const { getByText, container } = render(
+      <ConversationBody {...bodyProps({ ...ready(undefined), status: 'restoring' })} />,
+    )
+    expect(getByText('Restoring the session…')).not.toBeNull()
+    expect(container.querySelector('[data-board-lane-state="restoring"]')).not.toBeNull()
+  })
+
+  it('offers create and choose-chat actions when the bound session is missing', () => {
+    const startChat = vi.fn(() => Promise.resolve())
+    const openWindowPanel = vi.fn()
+    const state: BoardWindowSessionState = {
+      ...ready(undefined),
+      status: 'missing',
+      sessionId: 'gone' as SessionId,
+      cwd: '/work/project',
+    }
+    const { getByText, container } = render(
+      <ConversationBody {...bodyProps(state, {
+        startChat,
+        actions: { consumeComposerIntent: vi.fn(), openWindowPanel },
+      })} />,
+    )
+
+    expect(getByText('This session no longer exists')).not.toBeNull()
+    expect(container.querySelector('[data-board-lane-state="session-missing"]')).not.toBeNull()
+
+    fireEvent.click(getByText('New session'))
+    expect(startChat).toHaveBeenCalledWith('a1')
+
+    fireEvent.click(getByText('Choose a chat'))
+    expect(openWindowPanel).toHaveBeenCalledWith('a1')
   })
 
   it('shows the creation state before the session exists', () => {

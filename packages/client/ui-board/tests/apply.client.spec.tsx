@@ -132,6 +132,52 @@ describe('board plugin registration', () => {
     expect(icon.getAttribute('height')).toBe('18')
   })
 
+  it('restores each stored window session from the adopted settings section', async () => {
+    const prepared = await createBoardBench({
+      session: { prompt: () => Promise.resolve({ ok: true, value: { accepted: true } }) },
+      extraSessions: [{ id: 'session-2', displayTitle: 'Second chat' }],
+      settingsView: {
+        writable: true,
+        hasDocument: true,
+        namespaces: [{
+          ns: 'ui-board',
+          schema: {},
+          value: {},
+          applies: 'live',
+          secrets: [],
+          revision: 3,
+          user: {
+            version: 1,
+            panX: 0,
+            panY: 0,
+            zoom: 1,
+            bindings: { 'agent-1': 'session-1', 'agent-2': 'session-2' },
+            windows: [
+              { id: 'agent-1', kind: 'agent', bodyKind: 'conversation', ordinal: 1, x: 24, y: 24, width: 552, height: 648, zIndex: 10 },
+              { id: 'agent-2', kind: 'agent', bodyKind: 'conversation', ordinal: 2, x: 624, y: 24, width: 552, height: 648, zIndex: 11 },
+            ],
+            windowOrder: ['agent-1', 'agent-2'],
+            activeWindowId: 'agent-1',
+            panelWindowId: '',
+            panelCollapsed: true,
+            panelWidth: 300,
+            panelGroupBy: 'workspace',
+            panelOrderBy: 'updated',
+          },
+        }],
+      },
+    })
+    runtimes.add(prepared.runtime)
+
+    await prepared.mountBoard()
+    await prepared.runtime.flush()
+
+    // Both restored windows reached their sessions before any window mounted.
+    expect(prepared.runtime.sessions.calls
+      .filter(call => call.method === 'open')
+      .map(call => call.args[0])).toEqual(['session-1', 'session-2'])
+  })
+
   it('resolves the panel-row label through the board dictionary and follows the active locale', async () => {
     const { runtime, locale, mountBoard } = await bench()
     await mountBoard()

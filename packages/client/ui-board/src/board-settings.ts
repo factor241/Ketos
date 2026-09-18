@@ -110,10 +110,9 @@ export type BoardLayoutDocument = BoardLayout & {
 
 /**
  * Window → session bindings the session bridge maintains for restored windows
- * (written on discrete events: creation, rebind, close). The layout capture
- * never includes the map: a settings write merges its patch over the stored
- * section, so a map the bridge wrote survives every layout gesture, and only
- * the stage-9 restore path reads it.
+ * (written on discrete events: creation, rebind, close). The persistence layer
+ * merges the bridge's live map into every section write, so a layout gesture
+ * carries the current map with it; only the restore path reads it back.
  */
 export type BoardSettingsBindings = Record<string, string>
 

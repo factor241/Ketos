@@ -17,6 +17,7 @@ import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { createBoardStore, type BoardStoreHandle } from './store.ts'
 import { BoardLayoutPersistence } from './board-persistence.ts'
 import { BoardSessionBridge } from './session-bridge.ts'
+import { resolveChatWindow } from './open-window.ts'
 import type { BoardWindowInjected, WindowId } from './contract/slots.ts'
 import { BoardRoot, BoardIcon } from './BoardViews.tsx'
 import { DashboardCanvas } from './canvas/DashboardCanvas.tsx'
@@ -61,22 +62,33 @@ export function apply(ctx: ClientContext): void {
   // The shared describe mirror is the one settings reader in the browser; the
   // board derives from it so startup costs no extra settings/describe call.
   const persistence = new BoardLayoutPersistence(ctx, ctx.settingsScope.describe(), instance)
+
+  // Window sessions: one bridge per plugin fiber, one channel per window. The
+  // bridge's bindings map is the second half of the stored settings section.
+  const bridge = new BoardSessionBridge(ctx, {
+    persistBindings: (bindings) => { persistence.writeBindings(bindings) },
+  })
+  ctx.effect(() => () => { bridge.dispose() }, 'ui-board: window session bridge')
+
+  // Restore: every adopted section — the first-frame cache before the first
+  // render, the server document when the mirror answers — hands its bindings
+  // to the bridge, which points the restored windows at their sessions.
+  persistence.onAdopt((settings) => {
+    bridge.restore(settings.bindings, Object.keys(instance.getSnapshot().windows) as WindowId[])
+  })
   persistence.hydrateFromCache()
 
   // Dictionary registration + bound `t` for the registration-time sidebar label.
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-board: dictionaries')
   const t = ctx.locale.bind(NS)
 
-  // Durable layout: follow the store, write it back debounced under the
-  // settings revision, and adopt the server document once the mirror answers.
+  // Durable settings: follow the store and the bindings, write them back
+  // debounced under the settings revision, and adopt the server section once
+  // the mirror answers.
   ctx.effect(() => {
     persistence.start()
     return () => { persistence.dispose() }
-  }, 'ui-board: layout persistence')
-
-  // Window sessions: one bridge per plugin fiber, one channel per window.
-  const bridge = new BoardSessionBridge(ctx)
-  ctx.effect(() => () => { bridge.dispose() }, 'ui-board: window session bridge')
+  }, 'ui-board: settings persistence')
   const windowSession = (key: string) => bridge.channel(key as WindowId)
   const injected = (): BoardWindowInjected => ({
     keyedHooks: { windowSession },
@@ -86,10 +98,30 @@ export function apply(ctx: ClientContext): void {
     },
     ensureWindowSession: (windowId) => { bridge.ensure(windowId) },
     releaseWindow: (windowId) => { bridge.release(windowId) },
+    bindSession: (windowId, sessionId) => {
+      const outcome = bridge.bind(windowId, sessionId)
+      // One session, one window: a chat another window shows is not rebound
+      // here; that window comes forward instead.
+      if (outcome.kind === 'duplicate') instance.actions.centerOnWindow(outcome.windowId)
+      return outcome
+    },
+    openChat: (sessionId) => {
+      const holder = bridge.windowFor(sessionId)
+      if (holder !== undefined) {
+        instance.actions.centerOnWindow(holder)
+        return { kind: 'duplicate', windowId: holder }
+      }
+      // A chat the list no longer holds must not open a window of its own.
+      if (ctx.sessions.list.getSnapshot().byId[sessionId] === undefined) return { kind: 'unknown' }
+      const state = instance.getSnapshot()
+      const target = resolveChatWindow(instance.actions, state.windows, state.activeWindowId)
+      const outcome = bridge.bind(target, sessionId)
+      if (outcome.kind !== 'unknown') instance.actions.centerOnWindow(target)
+      return outcome
+    },
     sendPrompt: (windowId, text, mode, images, files) => { bridge.send(windowId, text, mode, images, files) },
     cancelPrompt: (windowId) => { bridge.cancel(windowId) },
     loadOlderTurns: (windowId) => { bridge.loadOlder(windowId) },
-    bindSession: (windowId, sessionId) => { bridge.bind(windowId, sessionId) },
     createChat: (windowId, target) => { bridge.createChat(windowId, target) },
     startChat: (windowId, workspaceId) => bridge.startChat(windowId, workspaceId),
     renameChat: (sessionId, title) => bridge.renameChat(sessionId, title),

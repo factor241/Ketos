@@ -37,6 +37,21 @@ async function bench() {
   return { runtime: prepared.runtime, panel, board, prompt }
 }
 
+/** Bench whose fixture chat is a settled chat with a directory to list. */
+async function chatBench() {
+  const prompt = vi.fn((_content: unknown, _mode: string) =>
+    Promise.resolve({ ok: true as const, value: { accepted: true } }))
+  const prepared = await createBoardBench({
+    session: { prompt },
+    sessionSummary: { displayTitle: 'Warehouse report', cwd: '/work/warehouse' },
+  })
+  runtimes.add(prepared.runtime)
+  await prepared.mountBoard()
+  const panel = prepared.runtime.renderSlot('main', {}, { entryKey: 'board' })
+  const board = prepared.runtime.storeOf('board.dock') as BoardInstance
+  return { runtime: prepared.runtime, panel, board, prompt }
+}
+
 /** One agent window spec the store opens directly. */
 function agentWindow(id: WindowId): Omit<BoardWindowState, 'x' | 'y' | 'zIndex'> {
   return { id, kind: 'agent', bodyKind: 'conversation', ordinal: 1, width: 552, height: 648 }
@@ -131,6 +146,32 @@ describe('board omnibox', () => {
     )
     await runtime.flush()
     expect(board.store.getSnapshot().composerIntents).toEqual([])
+  })
+
+  it('lists recent chats with their directory and reopens one under the duplicate rule', async () => {
+    const { runtime, panel, board } = await chatBench()
+
+    openActionMenu(panel)
+    expect(screen.getByText(t('menu.recentChats'))).not.toBeNull()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Warehouse report · warehouse' }))
+    await runtime.flush()
+
+    const state = board.store.getSnapshot()
+    expect(state.windowOrder).toHaveLength(1)
+    expect(Object.values(state.windows)[0]).toMatchObject({ kind: 'agent', bodyKind: 'conversation' })
+    expect(runtime.sessions.calls.filter(call => call.method === 'open').map(call => call.args[0]))
+      .toEqual(['session-1'])
+
+    // The same chat selected again comes forward instead of opening twice.
+    const opened = state.windowOrder[0]
+    act(() => { board.actions.setPan(100, 100) })
+    openActionMenu(panel)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Warehouse report · warehouse' }))
+    await runtime.flush()
+
+    expect(board.store.getSnapshot().windowOrder).toEqual([opened])
+    expect(board.store.getSnapshot().panX).not.toBe(100)
+    expect(runtime.sessions.calls.filter(call => call.method === 'open')).toHaveLength(1)
   })
 
   it('renders the open menu through the portal, outside the board panel', async () => {

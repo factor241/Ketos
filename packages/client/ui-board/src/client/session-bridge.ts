@@ -17,7 +17,15 @@
  * All of it is republished into one identity-stable channel per window; the
  * registrations expose that channel as the keyed `useWindowSession(windowId)`
  * hook plus plain callbacks, and components never touch an observable.
- * Subscriptions live for the plugin fiber's lifetime.
+ *
+ * The window → session map is durable: the bridge hands it to its apply-side
+ * sink on discrete events (creation, rebind, close) and adopts the stored map
+ * back through `restore`, which reconciles every pair against the layout and
+ * the session list. `sessions.list` is the authority for a bound session's
+ * life — a window waits in `restoring`, reports `missing` when its chat is
+ * gone, and reattaches when the chat returns — and one session belongs to one
+ * window, which `bind` reports so the calling surface can bring the holding
+ * window forward instead. Subscriptions live for the plugin fiber's lifetime.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
@@ -30,12 +38,13 @@ import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { PromptContentPart } from '@deepseek-ai/dsh-api-session-controller/types'
+import type { BoardSettingsBindings } from '../board-settings.ts'
 import { NS } from './locale.ts'
 import type { BoardTranslate } from './locale.ts'
 import type {
-  BoardChatTarget, BoardCommandRow, BoardDirectoryListing, BoardDraftImage, BoardEffortOption, BoardGoalState,
-  BoardMentionRow, BoardModelState, BoardPermissionOption, BoardPresetOption, BoardPromptMode, BoardQueueRow,
-  BoardTodoRow, BoardUploadResult, BoardWindowSessionState, WindowId,
+  BoardBindOutcome, BoardChatTarget, BoardCommandRow, BoardDirectoryListing, BoardDraftImage, BoardEffortOption,
+  BoardGoalState, BoardMentionRow, BoardModelState, BoardPermissionOption, BoardPresetOption, BoardPromptMode,
+  BoardQueueRow, BoardTodoRow, BoardUploadResult, BoardWindowSessionState, WindowId,
 } from './contract/slots.ts'
 
 /** The three permission presets the window chip offers, in switch order. */
@@ -95,9 +104,26 @@ function createChannel(): WindowSessionChannel {
 /** One window's mutable bridge record. */
 interface WindowRecord {
   readonly channel: WindowSessionChannel
+  /**
+   * The session the window shows, or the one a restore wants it to show: a
+   * missing session keeps its id so the window can reattach when it returns.
+   */
   sessionId?: SessionId
+  /** Whether the session subscriptions of {@link releaseSession} are live. */
+  attached: boolean
+  /** Whether an attach pass is mid-flight, so a list notification cannot re-enter it. */
+  attaching: boolean
   /** Release the subscriptions that belong to the current session. */
   releaseSession: () => void
+}
+
+/** Apply-side hooks of one bridge: the durable sink of the bindings map. */
+export interface BoardSessionBridgeHooks {
+  /**
+   * Store the current window → session map. Called on discrete events only —
+   * creation, rebind, close — never on a frame.
+   */
+  persistBindings?: (bindings: BoardSettingsBindings) => void
 }
 
 /**
@@ -111,15 +137,21 @@ export class BoardSessionBridge {
   private readonly windows = new Map<WindowId, WindowRecord>()
   private readonly pending = new Map<WindowId, Promise<void>>()
   private readonly disposers = new Set<() => void>()
+  private readonly hooks: BoardSessionBridgeHooks
   private presetRoster: readonly BoardPresetOption[] | undefined
   private disposed = false
 
   /**
    * @param ctx - client root context; the bridge reads the session,
    * conversation, model-directory, and remote services from it.
+   * @param hooks - apply-side sink for the durable bindings map.
    */
-  constructor(ctx: ClientContext) {
+  constructor(ctx: ClientContext, hooks: BoardSessionBridgeHooks = {}) {
     this.ctx = ctx
+    this.hooks = hooks
+    // The session list is the source of truth: a bound session that leaves it
+    // puts its window into the missing state, and one that returns reattaches.
+    this.disposers.add(ctx.sessions.list.subscribe(() => { this.reconcile() }))
   }
 
   /**
@@ -156,7 +188,9 @@ export class BoardSessionBridge {
     let pending = this.pending.get(windowId)
     if (pending === undefined) {
       pending = this.create(windowId).finally(() => {
-        this.pending.delete(windowId)
+        // A window released and reopened mid-creation has a newer pending
+        // entry; only the promise that owns the slot may clear it.
+        if (this.pending.get(windowId) === pending) this.pending.delete(windowId)
       })
       this.pending.set(windowId, pending)
     }
@@ -182,7 +216,11 @@ export class BoardSessionBridge {
     this.patch(windowId, { promptError: undefined, commandError: undefined })
     void this.whenReady(windowId).then(() => {
       const session = this.sessionFace(windowId)
-      if (session === undefined) return
+      if (session === undefined) {
+        // A missing or still-restoring session must not swallow the prompt.
+        this.patch(windowId, { promptError: this.t('conversation.noSession') })
+        return
+      }
       const content: PromptContentPart[] = [{ type: 'text', text }]
       for (const image of images) {
         content.push({
@@ -445,6 +483,9 @@ export class BoardSessionBridge {
     record.releaseSession()
     this.windows.delete(windowId)
     this.pending.delete(windowId)
+    // Closing a window drops its pair: the session stays alive and listed, the
+    // stored map stops naming a window the layout no longer holds.
+    this.persistBindings()
   }
 
   /**
@@ -458,16 +499,16 @@ export class BoardSessionBridge {
   private record(windowId: WindowId): WindowRecord {
     let record = this.windows.get(windowId)
     if (record === undefined) {
-      record = { channel: createChannel(), releaseSession: () => {} }
+      record = { channel: createChannel(), attached: false, attaching: false, releaseSession: () => {} }
       this.windows.set(windowId, record)
     }
     return record
   }
 
   private sessionFace(windowId: WindowId) {
-    const sessionId = this.record(windowId).sessionId
-    if (sessionId === undefined) return undefined
-    return this.ctx.sessions.binding(sessionId)?.session
+    const record = this.record(windowId)
+    if (record.sessionId === undefined || !record.attached) return undefined
+    return this.ctx.sessions.binding(record.sessionId)?.session
   }
 
   private patch(windowId: WindowId, patch: Partial<BoardWindowSessionState>): void {
@@ -478,30 +519,116 @@ export class BoardSessionBridge {
     record.channel.publish({ ...record.channel.getSnapshot(), ...patch })
   }
 
+  /**
+   * Adopt the stored window → session map for the windows the layout restored:
+   * every pair whose session a window already shows is left alone, a pair whose
+   * window lost its session is repointed, and a pair the map holds twice keeps
+   * only its first window (one session, one window). Windows without a pair are
+   * untouched — their body creates a session as usual. The map is then
+   * reconciled against the session list: a listed session attaches now, and a
+   * pending or missing one attaches when the list answers.
+   * @param bindings - the stored map.
+   * @param windowIds - the windows the layout currently holds.
+   */
+  restore(bindings: BoardSettingsBindings, windowIds: readonly WindowId[]): void {
+    if (this.disposed) return
+    const claimed = new Map<SessionId, WindowId>()
+    const wanted: BoardSettingsBindings = {}
+    let changed = false
+    for (const windowId of windowIds) {
+      const target = bindings[windowId as string]
+      if (target === undefined || target === '') {
+        changed = true
+        continue
+      }
+      const sessionId = target as SessionId
+      if (claimed.has(sessionId)) {
+        // The stored map can name one session twice; the first window keeps
+        // it, and the later one becomes an ordinary unbound window.
+        changed = true
+        continue
+      }
+      claimed.set(sessionId, windowId)
+      wanted[windowId as string] = target
+      const record = this.record(windowId)
+      if (record.sessionId === sessionId) continue
+      record.releaseSession()
+      record.releaseSession = () => {}
+      record.sessionId = sessionId
+      this.resetState(windowId, 'restoring')
+      changed = true
+    }
+    // Stale pairs (the window is gone) and duplicates leave the map here; a
+    // window missing from the layout never reaches the bridge's records.
+    if (changed || Object.keys(bindings).length !== Object.keys(wanted).length) this.persistBindings()
+    this.reconcile()
+  }
+
+  /**
+   * The window currently showing one session, when the bridge holds one.
+   * @param sessionId - session identity.
+   * @returns the window id, or undefined when no open window shows the session.
+   */
+  windowFor(sessionId: SessionId): WindowId | undefined {
+    for (const [windowId, record] of this.windows) {
+      if (record.sessionId === sessionId) return windowId
+    }
+    return undefined
+  }
+
+  /**
+   * The current window → session map, the exact value the persistence layer
+   * stores. A missing session keeps its pair so the window can reattach.
+   * @returns the map of every window with a session.
+   */
+  bindings(): BoardSettingsBindings {
+    const bindings: BoardSettingsBindings = {}
+    for (const [windowId, record] of this.windows) {
+      if (record.sessionId !== undefined) bindings[windowId] = record.sessionId
+    }
+    return bindings
+  }
+
   private async create(windowId: WindowId): Promise<void> {
+    const record = this.record(windowId)
+    const before = record.sessionId
     try {
       const sessionId = await this.ctx.sessions.create()
       if (this.disposed) return
-      // A window closed while its session was being created must not come back:
-      // the window layer released the record, and the bridge stays released.
-      if (!this.windows.has(windowId)) return
+      // A creation that settles late must not clobber a newer gesture: the
+      // window may have closed (the record is gone) or its chat may have
+      // moved on (a bind, or a recovery the user started meanwhile).
+      if (this.windows.get(windowId) !== record || record.sessionId !== before) return
       this.switchTo(windowId, sessionId)
     } catch (error) {
+      if (this.windows.get(windowId) !== record) return
       this.fail(windowId, error)
     }
   }
 
   /**
    * Point the window at an addressable session; a session the list does not
-   * know is ignored, like every other unknown-id window operation.
+   * know reports `unknown`, and a session another window already shows is not
+   * rebound — the caller focuses that window instead.
    * @param windowId - window identity.
    * @param sessionId - listed or addressed session id.
+   * @returns what the bind did, for the calling surface to act on.
    */
-  bind(windowId: WindowId, sessionId: SessionId): void {
-    if (this.disposed) return
-    if (this.record(windowId).sessionId === sessionId) return
-    if (this.ctx.sessions.list.getSnapshot().byId[sessionId] === undefined) return
+  bind(windowId: WindowId, sessionId: SessionId): BoardBindOutcome {
+    if (this.disposed) return { kind: 'unknown' }
+    const record = this.record(windowId)
+    if (record.sessionId === sessionId) {
+      // The user's own gesture retries an attach that failed earlier.
+      if (!record.attached && this.ctx.sessions.list.getSnapshot().byId[sessionId] !== undefined) {
+        this.attach(windowId, sessionId)
+      }
+      return { kind: 'same' }
+    }
+    if (this.ctx.sessions.list.getSnapshot().byId[sessionId] === undefined) return { kind: 'unknown' }
+    const holder = this.windowFor(sessionId)
+    if (holder !== undefined) return { kind: 'duplicate', windowId: holder }
     this.switchTo(windowId, sessionId)
+    return { kind: 'bound' }
   }
 
   /**
@@ -510,10 +637,17 @@ export class BoardSessionBridge {
    * @param target - the workspace the chat joins, or the directory it runs in.
    */
   createChat(windowId: WindowId, target: BoardChatTarget): void {
+    const record = this.record(windowId)
+    const before = record.sessionId
     void this.ctx.sessions.create(target).then((sessionId) => {
       if (this.disposed) return
+      // A late creation never resurrects a closed window or replaces a chat
+      // the window moved to while the request was in flight.
+      if (this.windows.get(windowId) !== record || record.sessionId !== before) return
       this.switchTo(windowId, sessionId)
-    }).catch((error: unknown) => { this.fail(windowId, error) })
+    }).catch((error: unknown) => {
+      if (this.windows.get(windowId) === record) this.fail(windowId, error)
+    })
   }
 
   /** Release the current binding and attach the window to the given session. */
@@ -523,6 +657,64 @@ export class BoardSessionBridge {
     record.releaseSession = () => {}
     record.sessionId = sessionId
     this.attach(windowId, sessionId)
+    this.persistBindings()
+  }
+
+  /** Hand the current map to the apply-side sink; nothing is written when the bridge is closing. */
+  private persistBindings(): void {
+    if (this.disposed) return
+    this.hooks.persistBindings?.(this.bindings())
+  }
+
+  /**
+   * Put one bound window into a session-less state: the subscriptions are
+   * already gone, the last title and directory stay for the frame and the
+   * "create" action, and everything derived from the dead session is cleared.
+   * @param windowId - window identity.
+   * @param status - `restoring` while the list has not answered, `missing` once it has.
+   */
+  private resetState(windowId: WindowId, status: 'restoring' | 'missing'): void {
+    const record = this.record(windowId)
+    const previous = record.channel.getSnapshot()
+    // Repeated reconciles of an unchanged bound window republish nothing.
+    if (previous.status === status && previous.sessionId === record.sessionId) return
+    // The last title and directory describe the session the window still
+    // wants; a rebind to another session drops them with the old chat.
+    const sameTarget = previous.sessionId === record.sessionId
+    record.channel.publish({
+      ...emptyState(),
+      status,
+      // The record owns the wanted session: a restored window names its chat
+      // even when the list has not confirmed it yet.
+      ...(record.sessionId === undefined ? {} : { sessionId: record.sessionId }),
+      ...(sameTarget && previous.displayTitle !== undefined ? { displayTitle: previous.displayTitle } : {}),
+      ...(sameTarget && previous.cwd !== undefined ? { cwd: previous.cwd } : {}),
+    })
+  }
+
+  /**
+   * Reconcile every bound window against the session list snapshot: a listed
+   * session attaches (or stays attached), a pending list defers, and a session
+   * the ready list no longer holds moves its window to `missing`. The list is
+   * the authority, so a session that returns reattaches on a later pass.
+   */
+  private reconcile(): void {
+    if (this.disposed) return
+    const list = this.ctx.sessions.list.getSnapshot()
+    for (const [windowId, record] of this.windows) {
+      const sessionId = record.sessionId
+      if (sessionId === undefined || record.attaching) continue
+      if (list.byId[sessionId] !== undefined) {
+        if (!record.attached) this.attach(windowId, sessionId)
+        continue
+      }
+      if (list.phase === 'pending') {
+        this.resetState(windowId, 'restoring')
+        continue
+      }
+      if (record.attached) record.releaseSession()
+      this.resetState(windowId, 'missing')
+    }
   }
 
   /**
@@ -533,6 +725,7 @@ export class BoardSessionBridge {
   private attach(windowId: WindowId, sessionId: SessionId): void {
     const record = this.record(windowId)
     const channel = record.channel
+    record.attaching = true
     try {
       // The live event stream exists only for the session opened as current.
       this.ctx.sessions.open(sessionId)
@@ -613,15 +806,18 @@ export class BoardSessionBridge {
       listen(projections.faceOf('imageLimits'))
       listen(this.ctx.sessions.list)
       record.releaseSession = () => {
+        record.attached = false
         for (const dispose of disposers) dispose()
         disposers.length = 0
       }
+      record.attached = true
 
       // Presets, permission rows, the model directory, commands, and the
       // conversation block are session-adjacent state fetched once per window.
+      // The permissions projection already rides the republish listeners above;
+      // only its row table needs its own fold.
       void this.syncPresets(windowId)
       this.patch(windowId, { permissions: this.permissionRows(projections) })
-      listen(projections.faceOf('permissions'))
       disposers.push(projections.faceOf('permissions').subscribe(() => {
         this.patch(windowId, { permissions: this.permissionRows(projections) })
       }))
@@ -640,7 +836,10 @@ export class BoardSessionBridge {
       }
       republish()
     } catch (error) {
+      record.attached = false
       this.fail(windowId, error)
+    } finally {
+      record.attaching = false
     }
   }
 
@@ -654,9 +853,13 @@ export class BoardSessionBridge {
     if (workspaceId !== undefined) {
       const workspace = this.ctx.workspaces.list.getSnapshot().items.find(item => item.workspaceId === workspaceId)
       if (workspace === undefined) return
+      // The project's reusable empty session is reused only while no other
+      // window shows it: one session, one window, even for a blank chat.
       const blank = workspace.sessionIds.find((id) => {
         const row = this.ctx.sessions.list.getSnapshot().byId[id]
-        return row?.blank === true
+        if (row?.blank !== true) return false
+        const holder = this.windowFor(id)
+        return holder === undefined || holder === windowId
       })
       if (blank !== undefined) {
         this.switchTo(windowId, blank)
@@ -684,8 +887,10 @@ export class BoardSessionBridge {
    * @param sessionId - chat to branch.
    */
   async forkChat(windowId: WindowId, sessionId: SessionId): Promise<void> {
+    const record = this.record(windowId)
     const child = await this.ctx.sessions.fork({ sessionId, increaseTitle: true })
     if (this.disposed) return
+    if (this.windows.get(windowId) !== record || record.sessionId !== sessionId) return
     this.switchTo(windowId, child)
   }
 
@@ -777,8 +982,11 @@ export class BoardSessionBridge {
 
   /** Create a chat from a target and point the window at it. */
   private async createChatTarget(windowId: WindowId, target: BoardChatTarget): Promise<void> {
+    const record = this.record(windowId)
+    const before = record.sessionId
     const sessionId = await this.ctx.sessions.create(target)
     if (this.disposed) return
+    if (this.windows.get(windowId) !== record || record.sessionId !== before) return
     this.switchTo(windowId, sessionId)
   }
 

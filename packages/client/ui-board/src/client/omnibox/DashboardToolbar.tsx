@@ -5,7 +5,7 @@
  * entries open real board windows, and capability entries either reach their
  * board-local target or state why the MVP has none.
  */
-import { useCallback, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useMemo, useRef, useState, type FormEvent } from 'react'
 import clsx from 'clsx'
 import {
   IconAgentPresetOutline16,
@@ -20,13 +20,18 @@ import {
   type MenuEntry,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { BoardWindowInjected } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
 import { nextWindowOrdinal } from '../store.ts'
 import { menuPlacement, type MenuPlacement } from '../menu-placement.ts'
 import { openBoardWindow, resolveChatWindow } from '../open-window.ts'
+import { folderName, recentChats } from '../window/chat-list-model.ts'
 import { useDictation } from '../window/dictation.tsx'
 import css from './DashboardToolbar.module.css'
+
+/** Most recent chats the Omnibox menu offers. */
+const RECENT_CHAT_LIMIT = 6
 
 export type DashboardToolbarProps =
   PropsRuntime<'board.omnibar'>
@@ -34,13 +39,21 @@ export type DashboardToolbarProps =
   & PropsLocale<'board'>
   & InjectFace<BoardWindowInjected>
 
-export function DashboardToolbar({ useStore, actions, t, sendPrompt }: DashboardToolbarProps) {
+export function DashboardToolbar({
+  useStore, actions, t, sendPrompt, openChat, useSessionList, useWorkspaceList,
+}: DashboardToolbarProps) {
   const [text, setText] = useState('')
   const [notice, setNotice] = useState<string | null>(null)
   const [menu, setMenu] = useState<MenuPlacement | null>(null)
   const menuAnchor = useRef<HTMLButtonElement>(null)
   const windows = useStore(s => s.windows)
   const activeWindowId = useStore(s => s.activeWindowId)
+  const sessionList = useSessionList(s => s)
+  const workspaceList = useWorkspaceList(s => s)
+  const recent = useMemo(
+    () => recentChats(sessionList, workspaceList, RECENT_CHAT_LIMIT),
+    [sessionList, workspaceList],
+  )
 
   const dictation = useDictation((transcript) => {
     setText(current => current === '' ? transcript : `${current} ${transcript}`)
@@ -101,6 +114,14 @@ export function DashboardToolbar({ useStore, actions, t, sendPrompt }: Dashboard
       case 'selectElement':
         actions.setSelectingElement(true)
         return
+      default:
+        if (id.startsWith('recent:')) {
+          // The recent list follows the same duplicate rule as the chats panel:
+          // an already open chat focuses its window instead of opening twice.
+          const outcome = openChat(id.slice('recent:'.length) as SessionId)
+          if (outcome.kind === 'unknown') setNotice(t('panel.chatGone'))
+        }
+        return
     }
   }
 
@@ -112,6 +133,14 @@ export function DashboardToolbar({ useStore, actions, t, sendPrompt }: Dashboard
     { id: 'open:clone', label: t('menu.open.clone'), icon: <IconAgentPresetOutline16 /> },
     { id: 'open:dashboard', label: t('menu.open.dashboard'), icon: <IconBrowseOutline16 /> },
     { id: 'open:tasks', label: t('menu.open.tasks'), icon: <IconBrowseOutline16 /> },
+    ...(recent.length === 0 ? [] : [
+      { type: 'separator', id: 'separator.recent' },
+      { type: 'label', id: 'group.recentChats', text: t('menu.recentChats') },
+      ...recent.map(row => ({
+        id: `recent:${row.id}`,
+        label: row.cwd === undefined || row.cwd === '' ? row.title : `${row.title} · ${folderName(row.cwd)}`,
+      })),
+    ] satisfies readonly MenuEntry[]),
     { type: 'separator', id: 'separator.capabilities' },
     { id: 'attachFile', label: t('menu.attachFile'), icon: <IconPaperclipOutline16 /> },
     { id: 'dictate', label: t('menu.dictate'), icon: <IconSparkle16 /> },

@@ -60,6 +60,29 @@
   font-size: var(--board-font-label);
 }
 
+/* Missing session: the notice carries the two ways out — a fresh session in
+ * the last known directory, or the chats panel to pick a listed one. */
+.missingActions {
+  display: flex;
+  gap: var(--board-gap-row);
+  margin-top: 8px;
+}
+
+.missingActions button {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 8px;
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: var(--board-font-label);
+  cursor: pointer;
+}
+
+.missingActions button:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
 .message {
   min-width: 0;
   max-width: 100%;

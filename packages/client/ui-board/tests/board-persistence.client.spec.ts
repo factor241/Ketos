@@ -7,9 +7,11 @@ import type {
 } from '@deepseek-ai/dsh-api-remotes/client'
 import { RemoteError, TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
-import { BOARD_SETTINGS_NAMESPACE, BOARD_SETTINGS_VERSION, BOARD_LAYOUT_MAX_WINDOWS } from '../src/board-settings.ts'
 import {
-  BoardLayoutPersistence, BOARD_LAYOUT_CACHE_KEY, readBoardLayoutCache,
+  BOARD_SETTINGS_NAMESPACE, BOARD_SETTINGS_VERSION, BOARD_LAYOUT_MAX_WINDOWS, type BoardSettings,
+} from '../src/board-settings.ts'
+import {
+  BoardLayoutPersistence, BOARD_LAYOUT_CACHE_KEY, readBoardLayoutCache, writeBoardLayoutCache,
 } from '../src/client/board-persistence.ts'
 import { createBoardStore, WINDOW_Z_BASE, type BoardStoreHandle, type BoardStoreInstance } from '../src/client/store.ts'
 import type { WindowId } from '../src/client/contract/slots.ts'
@@ -116,9 +118,9 @@ function bench(view: SettingsDescribeValue = EMPTY_VIEW): {
   return { instance, persistence: new BoardLayoutPersistence(ctx, settings.face, instance), settings, update }
 }
 
-/** Cache the supplied document under the supplied revision. */
-function seedCache(revision: number, cached: Json): void {
-  localStorage.setItem(BOARD_LAYOUT_CACHE_KEY, JSON.stringify({ revision, layout: cached }))
+/** Cache the supplied document under the supplied revision, with optional bindings. */
+function seedCache(revision: number, cached: Json, bindings: Json = {}): void {
+  localStorage.setItem(BOARD_LAYOUT_CACHE_KEY, JSON.stringify({ revision, layout: cached, bindings }))
 }
 
 describe('board layout cache', () => {
@@ -165,6 +167,74 @@ describe('board layout cache', () => {
     } finally {
       setItem.mockRestore()
     }
+  })
+})
+
+describe('board settings bindings', () => {
+  it('carries the bindings through the cache round-trip beside the layout', () => {
+    const settings = { ...(layout() as unknown as BoardSettings), bindings: { 'agent-1': 'session-7' } }
+    writeBoardLayoutCache(4, settings)
+
+    const cached = readBoardLayoutCache()
+    expect(cached).toMatchObject({ revision: 4 })
+    expect(cached?.settings.bindings).toEqual({ 'agent-1': 'session-7' })
+    expect(cached?.settings.panX).toBe(10)
+  })
+
+  it('drops a cached binding for a window the layout no longer holds', () => {
+    seedCache(4, layout(), { ghost: 'session-7', 'agent-1': 'session-1' })
+    expect(readBoardLayoutCache()?.settings.bindings).toEqual({ 'agent-1': 'session-1' })
+  })
+
+  it('adopts the server bindings through the adopt listener and writes both halves in one patch', async () => {
+    const { persistence, update } = bench(describeValue([
+      namespaceView({
+        revision: 2,
+        user: { ...layout() as object, bindings: { 'agent-1': 'session-1' } },
+      }),
+    ]))
+    const adopted = vi.fn()
+    persistence.onAdopt(adopted)
+    vi.useFakeTimers()
+
+    persistence.start()
+    expect(adopted).toHaveBeenCalledWith(expect.objectContaining({ bindings: { 'agent-1': 'session-1' } }))
+
+    persistence.writeBindings({ 'agent-1': 'session-2' })
+    await vi.advanceTimersByTimeAsync(600)
+
+    expect(update).toHaveBeenCalledTimes(1)
+    expect(update.mock.calls[0]?.[1]).toMatchObject({ panX: 10, bindings: { 'agent-1': 'session-2' } })
+    expect(update.mock.calls[0]?.[2]).toBe(2)
+  })
+
+  it('writes the live bindings map along with a later layout gesture', async () => {
+    const { instance, persistence, update } = bench()
+    vi.useFakeTimers()
+    persistence.start()
+
+    persistence.writeBindings({ 'agent-1': 'session-1' })
+    await vi.advanceTimersByTimeAsync(600)
+    expect(update).toHaveBeenCalledTimes(1)
+
+    instance.actions.setPan(7, 8)
+    await vi.advanceTimersByTimeAsync(1_100)
+    expect(update).toHaveBeenCalledTimes(2)
+    expect(update.mock.calls[1]?.[1]).toMatchObject({ panX: 7, bindings: { 'agent-1': 'session-1' } })
+  })
+
+  it('does not rewrite an unchanged bindings map', async () => {
+    const { persistence, update } = bench()
+    vi.useFakeTimers()
+    persistence.start()
+
+    persistence.writeBindings({ 'agent-1': 'session-1' })
+    await vi.advanceTimersByTimeAsync(1_100)
+    expect(update).toHaveBeenCalledTimes(1)
+
+    persistence.writeBindings({ 'agent-1': 'session-1' })
+    await vi.advanceTimersByTimeAsync(1_100)
+    expect(update).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -329,7 +399,7 @@ describe('board layout writes', () => {
     await vi.advanceTimersByTimeAsync(600)
 
     expect(readBoardLayoutCache()).toMatchObject({ revision: 4 })
-    expect(readBoardLayoutCache()?.layout.panX).toBe(5)
+    expect(readBoardLayoutCache()?.settings.panX).toBe(5)
     expect(settings.accepted[0]?.revision).toBe(4)
   })
 
@@ -443,7 +513,7 @@ describe('board apply persistence', () => {
     instance.actions.setPan(30, 40)
     await vi.waitFor(() => { expect(update).toHaveBeenCalledTimes(1) }, { timeout: 2_000 })
     expect(update.mock.calls[0]?.[2]).toBe(5)
-    expect(readBoardLayoutCache()?.layout.panX).toBe(30)
+    expect(readBoardLayoutCache()?.settings.panX).toBe(30)
   })
 
   it('derives from the shared mirror instead of reading settings itself', async () => {

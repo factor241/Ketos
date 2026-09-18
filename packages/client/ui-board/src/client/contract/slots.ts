@@ -164,10 +164,24 @@ export interface BoardMentionRow {
   readonly kind: 'file' | 'directory' | 'session'
 }
 
+/**
+ * Outcome of pointing a window at a listed chat, reported so each surface can
+ * act on the duplicate rule and on a row that outlived its session.
+ */
+export type BoardBindOutcome =
+  | { readonly kind: 'bound' }
+  | { readonly kind: 'same' }
+  | { readonly kind: 'duplicate'; readonly windowId: WindowId }
+  | { readonly kind: 'unknown' }
+
 /** Lane-facing state of one board window's Harness session. */
 export interface BoardWindowSessionState {
-  /** `pending` until the session exists, `error` when creation failed. */
-  readonly status: 'pending' | 'ready' | 'error'
+  /**
+   * `pending` until the session exists and `error` when creation failed;
+   * `restoring` while a restored binding waits for the session list, and
+   * `missing` when the bound session left the list.
+   */
+  readonly status: 'pending' | 'restoring' | 'missing' | 'ready' | 'error'
   /** Whether the session has a running turn. */
   readonly running: boolean
   /** Failure text from session creation. */
@@ -256,8 +270,17 @@ export interface BoardWindowInjected {
   cancelPrompt: (windowId: WindowId) => void
   /** Load older turns into the window's lane. */
   loadOlderTurns: (windowId: WindowId) => void
-  /** Point the window at an existing session, replacing its current chat. */
-  bindSession: (windowId: WindowId, sessionId: SessionId) => void
+  /**
+   * Point the window at an existing session, replacing its current chat. A
+   * chat another window already shows focuses that window instead (the
+   * duplicate rule); an id the list does not know reports `unknown`.
+   */
+  bindSession: (windowId: WindowId, sessionId: SessionId) => BoardBindOutcome
+  /**
+   * Open one listed chat on the board: focus the window already showing it, or
+   * point the active chat window (a fresh one when none is addressed) at it.
+   */
+  openChat: (sessionId: SessionId) => BoardBindOutcome
   /** Create a chat in a workspace or directory and bind the window to it. */
   createChat: (windowId: WindowId, target: BoardChatTarget) => void
   /** Start a chat in a workspace, reusing its blank one, and bind the window to it. */

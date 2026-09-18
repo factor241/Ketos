@@ -44,10 +44,51 @@ interface ChatGroupOptions {
   readonly orderBy: BoardPanelOrderBy
 }
 
-/** Folder name of a path, or the path itself when it has no separator. */
-function folderName(path: string): string {
+/**
+ * Folder name of a path, or the path itself when it has no separator.
+ * @param path - directory path to name.
+ * @returns the last path segment, or the whole path without a separator.
+ */
+export function folderName(path: string): string {
   const parts = path.split(/[\\/]/).filter(part => part !== '')
   return parts[parts.length - 1] ?? path
+}
+
+/** One recent chat the Omnibox lists and can reopen. */
+export interface BoardRecentChat {
+  readonly id: SessionId
+  readonly title: string
+  /** Directory the chat runs in, absent when the host reports none. */
+  readonly cwd?: string | undefined
+  readonly running: boolean
+}
+
+/**
+ * The newest chats the Omnibox offers: subagent rows, archived chats, and
+ * empty sessions stay out, and the most recently updated wins.
+ * @param sessions - session list snapshot.
+ * @param workspaces - workspace list snapshot, for the archived ids.
+ * @param limit - most rows to return.
+ * @returns recent chats, newest first.
+ */
+export function recentChats(
+  sessions: SessionListState,
+  workspaces: WorkspaceSnapshot,
+  limit: number,
+): readonly BoardRecentChat[] {
+  const archived = new Set<string>(workspaces.archivedSessionIds)
+  const rows: BoardRecentChat[] = []
+  for (const id of sessions.ids) {
+    const summary: SessionSummary | undefined = sessions.byId[id]
+    if (summary === undefined || summary.origin === 'subagent' || archived.has(summary.id) || summary.blank) continue
+    rows.push({
+      id: summary.id,
+      title: summary.displayTitle,
+      ...(summary.cwd === undefined ? {} : { cwd: summary.cwd }),
+      running: summary.running,
+    })
+  }
+  return rows.sort((left, right) => (sessions.byId[right.id]?.updatedAt ?? 0) - (sessions.byId[left.id]?.updatedAt ?? 0)).slice(0, limit)
 }
 
 /** The rows one listed id set holds, in the requested order. */

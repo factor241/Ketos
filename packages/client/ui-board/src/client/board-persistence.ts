@@ -1,15 +1,20 @@
 /**
- * Durable layout transport of the board: the first-frame cache read from
- * localStorage, the server document seen through the shared settings describe
- * mirror, and the debounced revision-checked write path. Every subscription and
- * timer lives here in the plugin's apply; components only write the store.
+ * Durable settings transport of the board: the first-frame cache read from
+ * localStorage, the server section seen through the shared settings describe
+ * mirror, and the debounced revision-checked write path. The section carries
+ * both halves the board persists — the layout document the store owns and the
+ * window → session bindings the session bridge owns — so one writer keeps the
+ * revision and the merge discipline. Every subscription and timer lives here in
+ * the plugin's apply; components only write the store.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: the ctx.settingsScope Context merge and the mirror face the board
 // derives from (the shared describe reader; cross-plugin collaboration goes
 // through the service, never a value import).
 import type { SettingsDescribeFace } from '@deepseek-ai/dsh-client-ui-settings/client'
-import { BOARD_SETTINGS_NAMESPACE, type BoardLayoutDocument } from '../board-settings.ts'
+import {
+  BOARD_SETTINGS_NAMESPACE, type BoardLayoutDocument, type BoardSettings, type BoardSettingsBindings,
+} from '../board-settings.ts'
 import { captureBoardLayout, sanitizeBoardLayout } from './board-layout.ts'
 import type { BoardStoreInstance } from './store.ts'
 
@@ -22,17 +27,19 @@ export const BOARD_LAYOUT_WRITE_DEBOUNCE_MS = 600
 /** Floor between two settings writes, so discrete gestures stay at most one write per second. */
 export const BOARD_LAYOUT_WRITE_MIN_INTERVAL_MS = 1000
 
-/** Cached document plus the settings revision it was written under. */
+/** Cached stored section plus the settings revision it was written under. */
 interface BoardLayoutCache {
   /** Namespace revision the write answered with. */
   revision: number
-  /** The document that write stored. */
-  layout: BoardLayoutDocument
+  /** The repaired section that write stored. */
+  settings: BoardSettings
 }
 
 /**
  * Read the first-frame cache; unreadable or unsanitizable entries are ignored.
- * @returns the cached document and revision, or undefined without a usable entry.
+ * A cache written before the bindings existed holds none, which the repair
+ * resolves to the empty map.
+ * @returns the cached section and revision, or undefined without a usable entry.
  */
 export function readBoardLayoutCache(): BoardLayoutCache | undefined {
   if (typeof localStorage === 'undefined') return undefined
@@ -41,11 +48,11 @@ export function readBoardLayoutCache(): BoardLayoutCache | undefined {
     if (raw === null) return undefined
     const parsed: unknown = JSON.parse(raw)
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return undefined
-    const { revision, layout } = parsed as { revision?: unknown; layout?: unknown }
+    const { revision, layout, bindings } = parsed as { revision?: unknown; layout?: unknown; bindings?: unknown }
     if (typeof revision !== 'number' || !Number.isInteger(revision) || revision < 0) return undefined
-    const sanitized = sanitizeBoardLayout(layout)
-    if (sanitized === undefined) return undefined
-    return { revision, layout: sanitized }
+    const repaired = sanitizeBoardLayout({ ...(typeof layout === 'object' && layout !== null ? layout : {}), bindings })
+    if (repaired === undefined) return undefined
+    return { revision, settings: repaired }
   } catch (error) {
     console.warn('ui-board: ignoring the unreadable layout cache', error)
     return undefined
@@ -53,35 +60,40 @@ export function readBoardLayoutCache(): BoardLayoutCache | undefined {
 }
 
 /**
- * Store one document in the first-frame cache; storage failures only drop the cache.
+ * Store one accepted section in the first-frame cache; storage failures only drop the cache.
  * @param revision - namespace revision the write answered with.
- * @param layout - the accepted document.
+ * @param settings - the accepted layout and bindings.
  */
-export function writeBoardLayoutCache(revision: number, layout: BoardLayoutDocument): void {
+export function writeBoardLayoutCache(revision: number, settings: BoardSettings): void {
   if (typeof localStorage === 'undefined') return
   try {
-    localStorage.setItem(BOARD_LAYOUT_CACHE_KEY, JSON.stringify({ revision, layout }))
+    const { bindings, ...layout } = settings
+    localStorage.setItem(BOARD_LAYOUT_CACHE_KEY, JSON.stringify({ revision, layout, bindings }))
   } catch (error) {
     console.warn('ui-board: layout cache write failed', error)
   }
 }
 
-/** Identity comparison of two documents: capture builds the same key order every time. */
-function serialize(layout: BoardLayoutDocument): string {
-  return JSON.stringify(layout)
+/** Identity comparison of two documents or maps: both build the same key order every time. */
+function serialize(value: BoardLayoutDocument | BoardSettingsBindings): string {
+  return JSON.stringify(value)
 }
 
 /**
- * Layout persistence of one board plugin fiber. The class owns the store
- * subscription, the mirror subscription, the debounce timer, and the last
- * written document; {@link dispose} leaves no listener or timer behind. Reads
- * and writes derive from the shared settings mirror, so the board adds no
- * `settings.describe` read of its own and inherits the client's loopback
- * persistence policy (a mirror that stays `unavailable` never writes).
+ * Settings persistence of one board plugin fiber. The class owns the store
+ * subscription, the mirror subscription, the debounce timer, the live bindings
+ * map, and the last written section; {@link dispose} leaves no listener or
+ * timer behind. Reads and writes derive from the shared settings mirror, so the
+ * board adds no `settings.describe` read of its own and inherits the client's
+ * loopback persistence policy (a mirror that stays `unavailable` never writes).
  */
 export class BoardLayoutPersistence {
-  /** Serialized form of the last document the server accepted (or the cache holds). */
-  private lastDocument: string | undefined
+  /** Serialized form of the last layout the server accepted (or the cache holds). */
+  private lastLayout: string | undefined
+  /** Serialized form of the last bindings map the server accepted (or the cache holds). */
+  private lastBindings: string | undefined
+  /** The window → session map to write; the session bridge owns its content. */
+  private bindings: BoardSettingsBindings = {}
   /** Revision the adopted cache was written under; undefined when no cache was adopted. */
   private cacheRevision: number | undefined
   /** Whether the one startup adoption of the server document already ran. */
@@ -89,6 +101,8 @@ export class BoardLayoutPersistence {
   private timer: ReturnType<typeof setTimeout> | undefined
   private unsubscribeStore: (() => void) | undefined
   private unsubscribeScope: (() => void) | undefined
+  /** Consumer told about every adopted section; the session bridge restores from it. */
+  private adoptListener: ((settings: BoardSettings) => void) | undefined
   /** Serialized write chain, so an in-flight write never overlaps the next. */
   private tail: Promise<void> = Promise.resolve()
   private lastWriteAt = 0
@@ -106,16 +120,41 @@ export class BoardLayoutPersistence {
   ) {}
 
   /**
-   * Adopt the cached layout synchronously, before the first render. The cache
-   * is the same document the server stores, so hydration is a plain replace;
+   * Register the one consumer of adopted sections. The callback runs on every
+   * adoption — the first-frame cache read and the server document — so the
+   * session bridge can restore its window → session map from either.
+   * @param listener - called with the repaired section the board just adopted.
+   */
+  onAdopt(listener: (settings: BoardSettings) => void): void {
+    this.adoptListener = listener
+  }
+
+  /**
+   * Adopt the cached section synchronously, before the first render. The cache
+   * is the same section the server stores, so hydration is a plain replace;
    * a missing or unreadable cache leaves the store's initial state.
    */
   hydrateFromCache(): void {
     const cached = readBoardLayoutCache()
     if (cached === undefined) return
-    this.instance.actions.hydrate(cached.layout)
+    const { bindings, ...layout } = cached.settings
+    this.instance.actions.hydrate(layout)
     this.cacheRevision = cached.revision
-    this.lastDocument = serialize(cached.layout)
+    this.lastLayout = serialize(layout)
+    this.bindings = bindings
+    this.lastBindings = serialize(bindings)
+    this.adoptListener?.(cached.settings)
+  }
+
+  /**
+   * Replace the bindings map the bridge owns and schedule its write. Called on
+   * the bridge's discrete events — creation, rebind, close — never per frame.
+   * @param bindings - the complete current window → session map.
+   */
+  writeBindings(bindings: BoardSettingsBindings): void {
+    if (this.disposed) return
+    this.bindings = bindings
+    this.scheduleWrite()
   }
 
   /**
@@ -130,7 +169,8 @@ export class BoardLayoutPersistence {
    * inside the debounce).
    */
   start(): void {
-    this.lastDocument ??= serialize(captureBoardLayout(this.instance.getSnapshot()))
+    this.lastLayout ??= serialize(captureBoardLayout(this.instance.getSnapshot()))
+    this.lastBindings ??= serialize(this.bindings)
     this.unsubscribeStore = this.instance.subscribe(() => { this.scheduleWrite() })
     this.unsubscribeScope = this.describeFace.subscribe(() => { this.adoptServerLayout() })
     this.adoptServerLayout()
@@ -149,7 +189,7 @@ export class BoardLayoutPersistence {
     }
   }
 
-  /** Adopt the server document once the mirror holds a ready answer with the namespace. */
+  /** Adopt the server section once the mirror holds a ready answer with the namespace. */
   private adoptServerLayout(): void {
     if (this.disposed || this.serverChecked) return
     const snapshot = this.describeFace.getSnapshot()
@@ -158,15 +198,19 @@ export class BoardLayoutPersistence {
     if (view === undefined) return
     this.serverChecked = true
     if (view.user === undefined) return
-    const layout = sanitizeBoardLayout(view.user)
-    if (layout === undefined) return
+    const settings = sanitizeBoardLayout(view.user)
+    if (settings === undefined) return
     if (this.cacheRevision === undefined || view.revision > this.cacheRevision) {
+      const { bindings, ...layout } = settings
       this.instance.actions.hydrate(layout)
-      this.lastDocument = serialize(layout)
-      // The adopted document is what the next first frame should paint.
-      writeBoardLayoutCache(view.revision, layout)
+      this.lastLayout = serialize(layout)
+      this.bindings = bindings
+      this.lastBindings = serialize(bindings)
+      // The adopted section is what the next first frame should paint.
+      writeBoardLayoutCache(view.revision, settings)
+      this.adoptListener?.(settings)
     } else if (view.revision < this.cacheRevision) {
-      this.lastDocument = undefined
+      this.lastLayout = undefined
       this.scheduleWrite()
     }
   }
@@ -183,7 +227,7 @@ export class BoardLayoutPersistence {
     }, delay)
   }
 
-  /** Write the current document when the mirror is writable and the document moved. */
+  /** Write the current section when the mirror is writable and either half moved. */
   private async writeCurrent(): Promise<void> {
     if (this.disposed) return
     const snapshot = this.describeFace.getSnapshot()
@@ -191,17 +235,19 @@ export class BoardLayoutPersistence {
     // unavailable and never writes, and the board still paints its cache.
     if (snapshot.status !== 'ready' || snapshot.view?.writable !== true) return
     const layout = captureBoardLayout(this.instance.getSnapshot())
-    const serialized = serialize(layout)
-    if (serialized === this.lastDocument) return
+    const serializedLayout = serialize(layout)
+    const serializedBindings = serialize(this.bindings)
+    if (serializedLayout === this.lastLayout && serializedBindings === this.lastBindings) return
     this.lastWriteAt = Date.now()
     const revision = snapshot.view.namespaces.find(entry => entry.ns === BOARD_SETTINGS_NAMESPACE)?.revision
-    await this.writeDocument(layout, serialized, revision, false)
+    await this.writeDocument({ ...layout, bindings: this.bindings }, serializedLayout, serializedBindings, revision, false)
   }
 
   /** One settings write, with one retry at the revision the conflict reported. */
   private async writeDocument(
-    layout: BoardLayoutDocument,
-    serialized: string,
+    settings: BoardSettings,
+    serializedLayout: string,
+    serializedBindings: string,
     revision: number | undefined,
     retried: boolean,
   ): Promise<void> {
@@ -209,7 +255,7 @@ export class BoardLayoutPersistence {
     try {
       response = await this.ctx.remote.settings.update(
         BOARD_SETTINGS_NAMESPACE,
-        layout,
+        settings,
         revision,
       )
     } catch (error) {
@@ -221,15 +267,16 @@ export class BoardLayoutPersistence {
     if (this.disposed) return
     if (response.ok) {
       this.describeFace.acceptView(response.value)
-      this.lastDocument = serialized
-      writeBoardLayoutCache(response.value.revision, layout)
+      this.lastLayout = serializedLayout
+      this.lastBindings = serializedBindings
+      writeBoardLayoutCache(response.value.revision, settings)
       return
     }
     if (response.error.code === 'settings/conflict' && !retried) {
       // Last-writer-wins over another tab is deliberate: the layout belongs to
       // the user's latest gesture, and the revision the conflict reports is
       // the re-read that makes the retry land instead of conflicting forever.
-      await this.writeDocument(layout, serialized, response.error.details.actual, true)
+      await this.writeDocument(settings, serializedLayout, serializedBindings, response.error.details.actual, true)
       return
     }
     console.warn(`ui-board: layout write refused (${response.error.code}): ${response.error.message}`)

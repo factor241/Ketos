@@ -94,6 +94,7 @@ export function ConversationBody({
   const session = useWindowSession(cardWindow.id)
   const laneRef = useRef<HTMLDivElement>(null)
   const [atTail, setAtTail] = useState(true)
+  const [actionError, setActionError] = useState<string | null>(null)
   // Scroll anchor captured when earlier turns are requested: the lane height at
   // that moment plus the transcript's leading row. Only a changed leading row
   // means a page was actually prepended — growth below the reader (streaming,
@@ -162,6 +163,13 @@ export function ConversationBody({
     setAtTail(true)
   }
 
+  const createSession = (): void => {
+    setActionError(null)
+    void injected.startChat(cardWindow.id).catch((failure: unknown) => {
+      setActionError(failure instanceof Error ? failure.message : String(failure))
+    })
+  }
+
   return (
     <div className={clsx(css.body, isFullscreen && css.centered)}>
       <div ref={laneRef} className={css.lane} onScroll={handleScroll} data-board-lane="">
@@ -179,9 +187,34 @@ export function ConversationBody({
         {session?.status === 'pending' && (
           <div className={css.statusLine} data-board-lane-state="creating">{t('conversation.creating')}</div>
         )}
+        {session?.status === 'restoring' && (
+          <div className={css.statusLine} data-board-lane-state="restoring">{t('conversation.restoring')}</div>
+        )}
         {session?.status === 'error' && (
           <div className={css.noticeError} data-board-lane-state="creation-error">
             {t('conversation.error')}: {session.error}
+          </div>
+        )}
+        {session?.status === 'missing' && (
+          <div className={css.noticeError} data-board-lane-state="session-missing">
+            <span>{t('conversation.sessionMissing')}</span>
+            <div className={css.missingActions}>
+              <button
+                type="button"
+                data-board-action="lane-create-session"
+                onClick={createSession}
+              >
+                {t('conversation.createSession')}
+              </button>
+              <button
+                type="button"
+                data-board-action="lane-choose-chat"
+                onClick={() => { actions.openWindowPanel(cardWindow.id) }}
+              >
+                {t('conversation.chooseChat')}
+              </button>
+            </div>
+            {actionError !== null && <div>{actionError}</div>}
           </div>
         )}
         {ready && !hasRows && !session.running && (

@@ -554,7 +554,9 @@ function WindowChatsPanelView({
                 onPointerDown={(e) => { startRowDrag('chat', chat.id, e) }}
                 onClick={() => {
                   if (dragClickGuard()) return
-                  bindSession(cardWindow.id, chat.id)
+                  setError(null)
+                  const outcome = bindSession(cardWindow.id, chat.id)
+                  if (outcome.kind === 'unknown') setError(t('panel.chatGone'))
                 }}
               >
                 <span className={css.rowText}>{chat.blank ? t('panel.newChatTitle') : chat.title}</span>

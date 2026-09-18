@@ -109,7 +109,7 @@ interface WindowRecord {
 export class BoardSessionBridge {
   private readonly ctx: ClientContext
   private readonly windows = new Map<WindowId, WindowRecord>()
-  private readonly creating = new Set<WindowId>()
+  private readonly pending = new Map<WindowId, Promise<void>>()
   private readonly disposers = new Set<() => void>()
   private presetRoster: readonly BoardPresetOption[] | undefined
   private disposed = false
@@ -138,13 +138,34 @@ export class BoardSessionBridge {
    * @param windowId - window identity.
    */
   ensure(windowId: WindowId): void {
-    if (this.disposed || this.record(windowId).sessionId !== undefined || this.creating.has(windowId)) return
-    this.creating.add(windowId)
-    void this.create(windowId)
+    void this.whenReady(windowId)
   }
 
   /**
-   * Send one prompt into the window's session.
+   * Resolve once the window has a session, creating it when it does not. The
+   * board chrome opens a window and sends in the same gesture, before the new
+   * composer mounts, so delivery waits on this instead of racing the mount.
+   * Creation failure settles too (the channel carries the error), so a caller
+   * never hangs on an unreachable host.
+   * @param windowId - window identity.
+   * @returns a promise settling when the window has a session or its creation failed.
+   */
+  whenReady(windowId: WindowId): Promise<void> {
+    if (this.disposed) return Promise.resolve()
+    if (this.record(windowId).sessionId !== undefined) return Promise.resolve()
+    let pending = this.pending.get(windowId)
+    if (pending === undefined) {
+      pending = this.create(windowId).finally(() => {
+        this.pending.delete(windowId)
+      })
+      this.pending.set(windowId, pending)
+    }
+    return pending
+  }
+
+  /**
+   * Send one prompt into the window's session, waiting for the session when the
+   * window was just opened and its composer has not created it yet.
    * @param windowId - window identity.
    * @param text - prompt text as typed.
    * @param mode - queue a turn or steer the running one.
@@ -158,24 +179,26 @@ export class BoardSessionBridge {
     images: readonly BoardDraftImage[] = [],
     files: readonly string[] = [],
   ): void {
-    const session = this.sessionFace(windowId)
-    if (session === undefined) return
-    const content: PromptContentPart[] = [{ type: 'text', text }]
-    for (const image of images) {
-      content.push({
-        type: 'image',
-        mediaType: image.mediaType as ImageMediaType,
-        data: image.data,
-        name: image.name,
-      })
-    }
-    for (const receiptId of files) {
-      content.push({ type: 'file', receiptId: receiptId as never })
-    }
     this.patch(windowId, { promptError: undefined, commandError: undefined })
-    void session.prompt(content, mode).then((result) => {
-      if (result.ok) return
-      this.patch(windowId, { promptError: this.failureText(result.error) })
+    void this.whenReady(windowId).then(() => {
+      const session = this.sessionFace(windowId)
+      if (session === undefined) return
+      const content: PromptContentPart[] = [{ type: 'text', text }]
+      for (const image of images) {
+        content.push({
+          type: 'image',
+          mediaType: image.mediaType as ImageMediaType,
+          data: image.data,
+          name: image.name,
+        })
+      }
+      for (const receiptId of files) {
+        content.push({ type: 'file', receiptId: receiptId as never })
+      }
+      return session.prompt(content, mode).then((result) => {
+        if (result.ok) return
+        this.patch(windowId, { promptError: this.failureText(result.error) })
+      })
     })
   }
 
@@ -406,7 +429,7 @@ export class BoardSessionBridge {
     for (const dispose of this.disposers) dispose()
     this.disposers.clear()
     this.windows.clear()
-    this.creating.clear()
+    this.pending.clear()
   }
 
   /**
@@ -421,7 +444,7 @@ export class BoardSessionBridge {
     if (record === undefined) return
     record.releaseSession()
     this.windows.delete(windowId)
-    this.creating.delete(windowId)
+    this.pending.delete(windowId)
   }
 
   /**
@@ -459,6 +482,9 @@ export class BoardSessionBridge {
     try {
       const sessionId = await this.ctx.sessions.create()
       if (this.disposed) return
+      // A window closed while its session was being created must not come back:
+      // the window layer released the record, and the bridge stays released.
+      if (!this.windows.has(windowId)) return
       this.switchTo(windowId, sessionId)
     } catch (error) {
       this.fail(windowId, error)

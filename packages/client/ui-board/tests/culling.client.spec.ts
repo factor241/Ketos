@@ -37,6 +37,8 @@ function state(overrides: Partial<BoardState> = {}): BoardState {
     panelGroupBy: 'workspace',
     panelOrderBy: 'updated',
     isSelectingElement: false,
+    composerIntents: [],
+    composerIntentSeq: 0,
     ...overrides,
   }
 }

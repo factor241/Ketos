@@ -12,6 +12,23 @@ export type BoardStoreHandle = EngineStoreHandle<BoardState, BoardActions>
 /** A window the board opens from its own chrome: everything except the placement it computes. */
 export type OpenWindowSpec = Omit<BoardWindowState, 'x' | 'y' | 'zIndex'>
 
+/**
+ * One command the board chrome pushes into a window's composer, consumed where
+ * it lands: the inspector appends a captured-element chip, the Omnibox's attach
+ * entry opens the composer's file picker. The queue is view state, not session
+ * data — nothing here reaches the host until the user sends the draft.
+ */
+export interface ComposerIntent {
+  /** Monotonic identity; consuming removes exactly one queued command. */
+  readonly id: number
+  /** The window whose composer consumes this command. */
+  readonly windowId: WindowId
+  /** Text appended to the composer's draft (the inspector chip). */
+  readonly text?: string
+  /** Whether the composer opens its file picker. */
+  readonly pickFiles?: boolean
+}
+
 type BoardActions = {
   setPan: (draft: BoardState, panX: number, panY: number) => void
   setZoom: (draft: BoardState, zoom: number) => void
@@ -35,6 +52,8 @@ type BoardActions = {
   setPanelOrderBy: (draft: BoardState, orderBy: BoardPanelOrderBy) => void
   closeWindow: (draft: BoardState, id: WindowId) => void
   setSelectingElement: (draft: BoardState, selecting: boolean) => void
+  pushComposerIntent: (draft: BoardState, windowId: WindowId, intent: { text?: string; pickFiles?: boolean }) => void
+  consumeComposerIntent: (draft: BoardState, id: number) => void
 }
 
 /** Pan, zoom, window, and selection state of the board canvas. */
@@ -68,15 +87,25 @@ export interface BoardState {
   /** How the chats panel orders chats inside a group. */
   panelOrderBy: BoardPanelOrderBy
   isSelectingElement: boolean
+  /** Composer commands waiting for their window's composer to pick them up. */
+  composerIntents: ComposerIntent[]
+  /** Monotonic source of composer-intent identities. */
+  composerIntentSeq: number
 }
 
 /**
  * Size and body of the windows the board's own chrome opens. The chat window
  * takes 552×648: the base design's 480×560 grown with the window UI scale and
- * kept on the 24px grid.
+ * kept on the 24px grid. Tool windows start larger — the frame is shared, so
+ * only their template size differs — and every size stays on the same grid and
+ * above {@link MIN_WINDOW_SIZE}.
  */
 export const BOARD_WINDOW_TEMPLATES = {
   agent: { kind: 'agent', bodyKind: 'conversation', width: 552, height: 648 },
+  connectors: { kind: 'connectors', bodyKind: 'connectors', width: 648, height: 768 },
+  settings: { kind: 'settings', bodyKind: 'settings', width: 648, height: 768 },
+  dashboard: { kind: 'dashboard', bodyKind: 'dashboard', width: 768, height: 768 },
+  tasks: { kind: 'tasks', bodyKind: 'tasks', width: 648, height: 768 },
 } as const satisfies Record<string, Pick<BoardWindowState, 'kind' | 'bodyKind' | 'width' | 'height'>>
 
 /**
@@ -254,6 +283,8 @@ export function createBoardStore(opts?: { persist?: string }): BoardStoreHandle 
       panelGroupBy: 'workspace',
       panelOrderBy: 'updated',
       isSelectingElement: false,
+      composerIntents: [],
+      composerIntentSeq: 0,
     }),
     actions: {
       setPan: (draft, panX, panY) => {
@@ -365,6 +396,9 @@ export function createBoardStore(opts?: { persist?: string }): BoardStoreHandle 
         // opaque, so the record key is only reachable dynamically.
         Reflect.deleteProperty(draft.windows, id)
         draft.windowOrder = draft.windowOrder.filter(wId => wId !== id)
+        // A queued composer command for the closed window can never land: its
+        // composer is gone, so the queue must not grow with orphans.
+        draft.composerIntents = draft.composerIntents.filter(intent => intent.windowId !== id)
         if (draft.fullscreenWindowId === id) {
           draft.fullscreenWindowId = null
         }
@@ -377,6 +411,13 @@ export function createBoardStore(opts?: { persist?: string }): BoardStoreHandle 
       },
       setSelectingElement: (draft, selecting) => {
         draft.isSelectingElement = selecting
+      },
+      pushComposerIntent: (draft, windowId, intent) => {
+        draft.composerIntentSeq += 1
+        draft.composerIntents.push({ id: draft.composerIntentSeq, windowId, ...intent })
+      },
+      consumeComposerIntent: (draft, id) => {
+        draft.composerIntents = draft.composerIntents.filter(intent => intent.id !== id)
       },
     },
   })

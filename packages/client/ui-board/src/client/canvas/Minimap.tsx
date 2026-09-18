@@ -3,19 +3,20 @@
  */
 import { useCallback, useRef } from 'react'
 import clsx from 'clsx'
-import type { PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
 import css from './Minimap.module.css'
 
 export type MinimapProps =
   PropsRuntime<'board.minimap'>
   & PropsStore<BoardStoreHandle>
+  & PropsLocale<'board'>
 
 const MINIMAP_WIDTH = 200
 const MINIMAP_HEIGHT = 140
 const PADDING = 20
 
-export function Minimap({ useStore, actions }: MinimapProps) {
+export function Minimap({ useStore, actions, t }: MinimapProps) {
   const isDraggingRef = useRef(false)
   const panX = useStore(s => s.panX)
   const panY = useStore(s => s.panY)
@@ -92,7 +93,10 @@ export function Minimap({ useStore, actions }: MinimapProps) {
   return (
     <div
       data-board-layer="minimap"
+      data-board-minimap=""
       className={css.minimap}
+      role="img"
+      aria-label={t('minimap.aria')}
       style={{ width: MINIMAP_WIDTH, height: MINIMAP_HEIGHT }}
     >
       <svg
@@ -114,6 +118,7 @@ export function Minimap({ useStore, actions }: MinimapProps) {
           return (
             <rect
               key={win.id}
+              data-board-rect={win.kind}
               x={wx}
               y={wy}
               width={ww}

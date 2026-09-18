@@ -36,10 +36,13 @@ import {
   type MenuEntry,
   type MenuItem,
 } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type {
   BoardCommandRow, BoardDraftFile, BoardDraftImage, BoardMentionRow, BoardPromptMode, BoardWindowInjectProps,
   BoardWindowSessionState, WindowId,
 } from '../contract/slots.ts'
+import type { BoardStoreHandle } from '../store.ts'
+import { menuPlacement } from '../menu-placement.ts'
 import type { BoardTranslate } from '../locale.ts'
 import { MicGlyph, useDictation } from './dictation.tsx'
 import css from './ComposerBar.module.css'
@@ -143,9 +146,13 @@ export interface ComposerBarProps {
   injected: Omit<BoardWindowInjectProps, 'useWindowSession'>
   /** Callback handed to the lane so the bar can grow the transcript first. */
   onSent: () => void
+  /** Board store's read seat: the queued composer intents. */
+  useStore: PropsStore<BoardStoreHandle>['useStore']
+  /** Board store's action seat: consuming one queued composer intent. */
+  actions: PropsStore<BoardStoreHandle>['actions']
 }
 
-export function ComposerBar({ windowId, session, t, injected, onSent }: ComposerBarProps) {
+export function ComposerBar({ windowId, session, t, injected, onSent, useStore, actions }: ComposerBarProps) {
   const [draft, setDraft] = useState('')
   const [images, setImages] = useState<readonly BoardDraftImage[]>([])
   const [files, setFiles] = useState<readonly BoardDraftFile[]>([])
@@ -177,13 +184,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
   const openMenu = useCallback((kind: MenuKind, trigger: HTMLElement | null): void => {
     setMenu((current) => {
       if (current?.kind === kind) return null
-      const rect = trigger?.getBoundingClientRect() ?? cardRef.current?.getBoundingClientRect()
-      if (rect === undefined) return { kind, side: 'top', align: 'start' }
-      return {
-        kind,
-        side: rect.top >= window.innerHeight - rect.bottom ? 'top' : 'bottom',
-        align: rect.left > window.innerWidth / 2 ? 'end' : 'start',
-      }
+      return { kind, ...menuPlacement(trigger ?? cardRef.current) }
     })
   }, [])
   const closeMenu = useCallback(() => { setMenu(null) }, [])
@@ -203,6 +204,24 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
   const hasDraft = draft.trim() !== '' || images.length > 0 || readyFiles.length > 0
   const canSend = ready && blocked === undefined && !uploading && hasDraft
   const canAcceptDrop = ready && blocked === undefined
+  const intents = useStore(s => s.composerIntents)
+
+  // Board chrome commands land here: text is appended to the draft (the
+  // inspector's element chip), `pickFiles` opens the file picker (the
+  // Omnibox's attach entry). A `pickFiles` command whose session cannot take
+  // attachments yet waits unconsumed for the next pass.
+  useEffect(() => {
+    for (const intent of intents) {
+      if (intent.windowId !== windowId) continue
+      if (intent.pickFiles === true && !canAcceptDrop) continue
+      if (intent.pickFiles === true) fileInput.current?.click()
+      const text = intent.text
+      if (text !== undefined) {
+        setDraft(current => current === '' ? text : `${current} ${text}`)
+      }
+      actions.consumeComposerIntent(intent.id)
+    }
+  }, [intents, windowId, canAcceptDrop, actions])
 
   const slashQuery = commandsDismissed ? null : /\/([a-z0-9-]*)$/i.exec(draft)
   const slashRows = useMemo(() => {

@@ -87,7 +87,7 @@ function laneRows(chat: ChatSnapshot): readonly LaneRow[] {
 }
 
 export function ConversationBody({
-  window: cardWindow, t, useStore, useWindowSession, ...injected
+  window: cardWindow, t, useStore, actions, useWindowSession, ...injected
 }: ConversationBodyProps) {
   // `injected` stays whole for the composer; the window creation callback rides it.
   const ensureWindowSession = injected.ensureWindowSession
@@ -254,6 +254,8 @@ export function ConversationBody({
         t={t}
         injected={injected}
         onSent={jumpToLatest}
+        useStore={useStore}
+        actions={actions}
       />
     </div>
   )

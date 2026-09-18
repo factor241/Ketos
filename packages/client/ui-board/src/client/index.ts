@@ -169,11 +169,13 @@ export function apply(ctx: ClientContext): void {
     name: 'board.omnibar',
     store: boardStore,
     locale: NS,
+    inject: injected,
   }, DashboardToolbar))
 
   ctx.slots.inject('board.minimap', () => ctx.slots.register({
     name: 'board.minimap',
     store: boardStore,
+    locale: NS,
   }, Minimap))
 
   // Sidebar panel-list icon (thunked label follows the active locale)

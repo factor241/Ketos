@@ -76,10 +76,15 @@ function bodyProps(
   return {
     window: CARD,
     t,
-    // The body reads the window modes from the store; the stub answers the two
-    // flags each render asks for.
-    useStore: (selector: (state: { fullscreenWindowId: null; panelWindowId: null }) => unknown) =>
-      selector({ fullscreenWindowId: null, panelWindowId: null }),
+    // The body and its composer read the window modes and the intent queue
+    // from the store; the stub answers every selector they ask for.
+    useStore: (selector: (state: {
+      fullscreenWindowId: null
+      panelWindowId: null
+      composerIntents: readonly never[]
+    }) => unknown) =>
+      selector({ fullscreenWindowId: null, panelWindowId: null, composerIntents: [] }),
+    actions: { consumeComposerIntent: vi.fn() },
     useWindowSession: () => session,
     ensureWindowSession: vi.fn(),
     sendPrompt: vi.fn(),

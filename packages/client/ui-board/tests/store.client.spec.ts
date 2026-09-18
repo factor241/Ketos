@@ -390,4 +390,31 @@ describe('createBoardStore', () => {
     actions.setSelectingElement(false)
     expect(store.getSnapshot().isSelectingElement).toBe(false)
   })
+
+  it('queues, consumes, and drops composer intents with their window', () => {
+    const { store, actions } = createBoardStore().create()
+    actions.addWindow(makeWindow({ id: 'w1' as WindowId }))
+    actions.addWindow(makeWindow({ id: 'w2' as WindowId }))
+
+    actions.pushComposerIntent('w1' as WindowId, { text: 'chip one' })
+    actions.pushComposerIntent('w2' as WindowId, { pickFiles: true })
+    const queued = store.getSnapshot().composerIntents
+    expect(queued).toHaveLength(2)
+    expect(queued[0]?.id).toBe(1)
+    expect(queued[1]?.id).toBe(2)
+    expect(queued[1]?.pickFiles).toBe(true)
+
+    // Consuming removes exactly the addressed command.
+    actions.consumeComposerIntent(queued[0]?.id ?? 0)
+    expect(store.getSnapshot().composerIntents).toEqual([
+      expect.objectContaining({ windowId: 'w2', pickFiles: true }),
+    ])
+
+    // Closing a window drops its pending command; the other window's stays.
+    actions.pushComposerIntent('w1' as WindowId, { text: 'chip two' })
+    actions.closeWindow('w1' as WindowId)
+    expect(store.getSnapshot().composerIntents).toEqual([
+      expect.objectContaining({ windowId: 'w2' }),
+    ])
+  })
 })

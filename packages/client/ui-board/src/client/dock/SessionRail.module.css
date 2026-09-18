@@ -52,6 +52,7 @@
 }
 
 .windowButton {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -75,6 +76,28 @@
 .windowButton.active {
   background: var(--dsw-alias-markdown-tag);
   color: var(--dsw-alias-label-primary);
+}
+
+/* The status dot overlays the button's lower-right corner: the glyph keeps the
+   row's identity and the dot reads as an accent over it. */
+.statusDot {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  display: flex;
+}
+
+/* Two-line close row in the row menu: the action and what it leaves behind. */
+.menuItem {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.menuHint {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 16px;
 }
 
 .divider {

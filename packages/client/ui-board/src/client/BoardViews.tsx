@@ -4,9 +4,12 @@
  * The root owns the board's layer ladder: the canvas grid and its windows
  * (z-index 10–99, see `WINDOW_Z_MAX`), the floating chrome — dock, omnibar,
  * minimap — at 100, the element-selection overlay at 500, and the fullscreen
- * frame (with an overlay chats panel) at 1000. `isolation: isolate` contains
- * that ladder inside the board box, so an app-level overlay above the box
- * stays above every board layer instead of losing hit-testing to the chrome.
+ * frame (with an overlay chats panel) at 1000. An expanded chats panel and a
+ * fullscreen window stand the floating chrome down, so no root-level layer can
+ * cover the panel's edge or the fullscreen frame. `isolation: isolate`
+ * contains that ladder inside the board box, so an app-level overlay above the
+ * box stays above every board layer instead of losing hit-testing to the
+ * chrome.
  */
 import { useEffect, useRef, useState } from 'react'
 import type { PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
@@ -15,6 +18,8 @@ import type { BoardStoreHandle } from './store.ts'
 import { isBoardEditingTarget } from './editing-target.ts'
 import { useBoardPointerGesture } from './pointer-gesture.ts'
 import { startBoardPanGesture } from './canvas/pan-gesture.ts'
+import { describeElement } from './element-capture.ts'
+import { resolveChatWindow } from './open-window.ts'
 import { ElementSelectionOverlay } from './ElementSelectionOverlay.tsx'
 import { HandleRing } from './window/HandleRing.tsx'
 import { wheelZoomsBoard } from './canvas/wheel-zoom.ts'
@@ -36,11 +41,14 @@ export function BoardRoot({ renderSlot, useStore, actions, t }: BoardRootProps) 
   const panX = useStore(s => s.panX)
   const panY = useStore(s => s.panY)
   const selecting = useStore(s => s.isSelectingElement)
+  const windows = useStore(s => s.windows)
+  const activeWindowId = useStore(s => s.activeWindowId)
   // A fullscreen window fills the panel, so its chrome stands down. An open
-  // chats panel is a management surface: the dock and minimap would otherwise
-  // cover its outer edge and resize handle.
+  // chats panel is a management surface: the floating chrome would otherwise
+  // cover its outer edge, its resize handle, or (in the overlay presentation)
+  // the window's own bottom edge.
   const fullscreen = useStore(s => s.fullscreenWindowId !== null)
-  // A collapsed panel is only its rail, so the dock and minimap come back.
+  // A collapsed panel is only its rail, so the chrome comes back.
   const panelOpen = useStore(s => s.panelWindowId !== null && !s.panelCollapsed)
 
   // Wheel zoom toward the pointer. React's `onWheel` is a passive listener,
@@ -102,6 +110,18 @@ export function BoardRoot({ renderSlot, useStore, actions, t }: BoardRootProps) 
     startBoardPanGesture({ event: e, panX, panY, actions, start: startGesture })
   }
 
+  // A picked element becomes one localized chip in the addressed chat window's
+  // draft; the same rule as the Omnibox opens an agent window when the active
+  // window is not a chat. The mode ends with the pick.
+  const handlePick = (element: Element): void => {
+    const capture = describeElement(element)
+    const target = resolveChatWindow(actions, windows, activeWindowId)
+    actions.pushComposerIntent(target, {
+      text: t('inspector.chip', { description: capture.description, selector: capture.selector }),
+    })
+    actions.setSelectingElement(false)
+  }
+
   return (
     <div
       ref={rootRef}
@@ -113,7 +133,7 @@ export function BoardRoot({ renderSlot, useStore, actions, t }: BoardRootProps) 
     >
       {renderSlot('board.canvas', {})}
       {!fullscreen && !panelOpen && renderSlot('board.dock', {})}
-      {!fullscreen && renderSlot('board.omnibar', {})}
+      {!fullscreen && !panelOpen && renderSlot('board.omnibar', {})}
       {!fullscreen && !panelOpen && renderSlot('board.minimap', {})}
       {/* The active window's handle ring rides above the chrome, so a resize
           handle stays grabbable when its window edge sits under a floating
@@ -123,6 +143,7 @@ export function BoardRoot({ renderSlot, useStore, actions, t }: BoardRootProps) 
         t={t}
         active={selecting}
         onCancel={() => { actions.setSelectingElement(false) }}
+        onPick={handlePick}
       />
     </div>
   )

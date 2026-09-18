@@ -129,7 +129,7 @@ describe('window title', () => {
     act(() => { store.actions.openWindow({ id: 'a1' as WindowId, kind: 'agent', bodyKind: 'conversation', ordinal: 4, width: 552, height: 648 }) })
     await prepared.runtime.flush()
 
-    const row = panel.container.querySelector('[data-board-action="dock-rename"]') as Element
+    const row = panel.container.querySelector('[data-board-action="dock-row"]') as Element
     expect(row.getAttribute('data-board-title')).toBe('Chat one')
     fireEvent.doubleClick(row)
     const input = panel.container.querySelector('[data-board-action="dock-title-input"]') as HTMLInputElement
@@ -137,7 +137,7 @@ describe('window title', () => {
     fireEvent.keyDown(input, { key: 'Enter' })
 
     expect(headerTitle(panel)).toBe('Док-имя')
-    expect((panel.container.querySelector('[data-board-action="dock-rename"]') as Element).getAttribute('data-board-title')).toBe('Док-имя')
+    expect((panel.container.querySelector('[data-board-action="dock-row"]') as Element).getAttribute('data-board-title')).toBe('Док-имя')
   })
 
   it('re-localizes the template fallback when the locale changes', async () => {

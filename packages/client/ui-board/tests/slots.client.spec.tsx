@@ -878,7 +878,7 @@ describe('board slot composition', () => {
     Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
   })
 
-  it('gives Escape one action per press across the selection overlay and the chats panel', async () => {
+  it('gives Escape one action per press across the menu, selection overlay, and chats panel', async () => {
     const { runtime } = await bench()
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
     const board = runtime.storeOf('board.dock') as BoardInstance
@@ -886,17 +886,29 @@ describe('board slot composition', () => {
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    // A menu opened before the overlay still owns the first press; the overlay
+    // itself would claim a click made while it is up (that is its pick). The
+    // panel stands the floating chrome down, so the menu here is the window
+    // composer's own action menu.
+    fireEvent.click(panel.container.querySelector('[data-board-action="composer-actions"]') as Element)
+    await runtime.flush()
     act(() => { board.actions.setSelectingElement(true) })
     await runtime.flush()
     expect(panel.container.querySelector('[class*="overlay"]')).not.toBeNull()
+    expect(document.querySelector('[role="menu"]')).not.toBeNull()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await runtime.flush()
+    expect(document.querySelector('[role="menu"]')).toBeNull()
+    expect(board.store.getSnapshot().isSelectingElement).toBe(true)
+    expect(board.store.getSnapshot().panelWindowId).toBe('a1')
 
-    // First press: the selection mode, and only it.
+    // Next press: the selection mode, and only it.
     fireEvent.keyDown(document, { key: 'Escape' })
     await runtime.flush()
     expect(board.store.getSnapshot().isSelectingElement).toBe(false)
     expect(board.store.getSnapshot().panelWindowId).toBe('a1')
 
-    // Second press: the panel, and only it.
+    // Next press: the panel, and only it.
     fireEvent.keyDown(document, { key: 'Escape' })
     await runtime.flush()
     expect(board.store.getSnapshot().panelWindowId).toBeNull()
@@ -939,12 +951,17 @@ describe('board slot composition', () => {
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
     await runtime.flush()
-    expect(panel.container.querySelectorAll('[data-board-layer="dock"]')).toHaveLength(0)
+    // The expanded panel is a management surface: the whole floating chrome
+    // stands down so nothing covers its edge, handle, or the window's bottom.
+    for (const layer of ['dock', 'omnibar', 'minimap'] as const) {
+      expect(panel.container.querySelectorAll(`[data-board-layer="${layer}"]`)).toHaveLength(0)
+    }
 
     fireEvent.click(panel.container.querySelector('button[aria-label="Collapse the chats panel"]') as Element)
     await runtime.flush()
     expect(panel.container.querySelectorAll('[data-board-layer="dock"]')).toHaveLength(1)
     expect(panel.container.querySelectorAll('[data-board-layer="minimap"]')).toHaveLength(1)
+    expect(panel.container.querySelectorAll('[data-board-layer="omnibar"]')).toHaveLength(1)
     expect(panel.container.querySelector('[data-board-panel-rail]')).not.toBeNull()
 
     // In fullscreen a collapsed panel takes no Escape: the mode leaves at once.
@@ -1147,7 +1164,7 @@ describe('board slot composition', () => {
     })
     await runtime.flush()
     const dockRowOf = (title: string) =>
-      panel.container.querySelector(`[data-board-layer="dock"] button[aria-label="${title}"]`) as HTMLElement
+      panel.container.querySelector(`[data-board-layer="dock"] [data-board-action="dock-row"][data-board-title="${title}"]`) as HTMLElement
     const minimapRects = () => [...panel.container.querySelectorAll('[data-board-layer="minimap"] rect[class*="rect"]')]
     // The stylesheets define both classes; a rename must fail the test loudly.
     const railActive = railCss.active as string

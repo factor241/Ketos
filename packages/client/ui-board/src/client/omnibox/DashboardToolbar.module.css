@@ -14,6 +14,22 @@
   user-select: none;
 }
 
+/* Unavailable-capability line above the form; the same soft elevation tier as
+ * the input fill keeps it readable over the canvas. */
+.notice {
+  max-width: 440px;
+  margin-bottom: 8px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: var(--dsw-specific-input-major);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
+  box-shadow: var(--dsw-elevation-soft);
+}
+
 .form {
   display: flex;
   align-items: center;

@@ -6,8 +6,10 @@
  * renders from injected props only.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
+import { useSyncExternalStore } from 'react'
 import { ComposerBar, type ComposerBarProps } from '../src/client/window/ComposerBar.tsx'
+import { createBoardStore, type BoardState } from '../src/client/store.ts'
 import type { BoardWindowInjectProps, BoardWindowSessionState, WindowId } from '../src/client/contract/slots.ts'
 import { sessionState, t } from './fixtures.client.ts'
 
@@ -66,15 +68,22 @@ function renderComposer(
   onSent = vi.fn(),
 ) {
   const injected = injectedStub(overrides)
+  const instance = createBoardStore().create()
   const props = {
     windowId: WINDOW,
     session,
     t,
     injected,
     onSent,
+    actions: instance.actions,
+    useStore: <S,>(selector: (state: BoardState) => S): S =>
+      useSyncExternalStore(
+        onChange => instance.subscribe(onChange),
+        () => selector(instance.getSnapshot()),
+      ),
   } as unknown as ComposerBarProps
   const utils = render(<ComposerBar {...props} />)
-  return { ...utils, injected, onSent }
+  return { ...utils, injected, onSent, instance }
 }
 
 const textarea = (container: HTMLElement): HTMLTextAreaElement =>
@@ -260,6 +269,57 @@ describe('ComposerBar attachments', () => {
       },
     })
     await waitFor(() => { expect(container.querySelector('[data-board-file="ready"]')).not.toBeNull() })
+  })
+})
+
+describe('ComposerBar composer intents', () => {
+  it('appends a queued text intent to an empty and a filled draft, consuming it', () => {
+    const { container, instance } = renderComposer(sessionState(undefined))
+    const input = textarea(container)
+
+    act(() => {
+      instance.actions.pushComposerIntent(WINDOW, { text: 'Board element: x | selector: y' })
+    })
+    expect(input.value).toBe('Board element: x | selector: y')
+    expect(instance.getSnapshot().composerIntents).toHaveLength(0)
+
+    fireEvent.change(input, { target: { value: 'existing' } })
+    act(() => {
+      instance.actions.pushComposerIntent(WINDOW, { text: 'Board element: z' })
+    })
+    expect(input.value).toBe('existing Board element: z')
+    expect(instance.getSnapshot().composerIntents).toHaveLength(0)
+  })
+
+  it('ignores and keeps an intent addressed to another window', () => {
+    const { container, instance } = renderComposer(sessionState(undefined))
+    act(() => {
+      instance.actions.pushComposerIntent('b2' as WindowId, { text: 'other window' })
+    })
+    expect(textarea(container).value).toBe('')
+    expect(instance.getSnapshot().composerIntents).toHaveLength(1)
+  })
+
+  it('opens the file picker for a pick-files intent when the session is ready', () => {
+    const click = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => {})
+    const { instance } = renderComposer(sessionState(undefined))
+    act(() => {
+      instance.actions.pushComposerIntent(WINDOW, { pickFiles: true })
+    })
+    expect(click).toHaveBeenCalledOnce()
+    expect(instance.getSnapshot().composerIntents).toHaveLength(0)
+    click.mockRestore()
+  })
+
+  it('keeps a pick-files intent queued while the session cannot accept files', () => {
+    const click = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => {})
+    const { instance } = renderComposer(sessionState(undefined, { status: 'pending' }))
+    act(() => {
+      instance.actions.pushComposerIntent(WINDOW, { pickFiles: true })
+    })
+    expect(click).not.toHaveBeenCalled()
+    expect(instance.getSnapshot().composerIntents).toHaveLength(1)
+    click.mockRestore()
   })
 })
 

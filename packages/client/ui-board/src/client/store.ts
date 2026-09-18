@@ -1,13 +1,18 @@
 /**
  * Spatial multi-window board store.
  */
-import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
+import { defineStore, type EngineStoreHandle, type EngineStoreInstance } from '@deepseek-ai/dsh-client-store'
+import {
+  BOARD_ZOOM_MAX, BOARD_ZOOM_MIN, PANEL_DEFAULT_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH,
+  type BoardLayoutDocument, type BoardPanelGroupBy, type BoardPanelOrderBy,
+} from '../board-settings.ts'
 import type { BoardWindowState, WindowBodyKind, WindowId, WindowKind } from './contract/slots.ts'
-import { PANEL_DEFAULT_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH } from './window/panel-geometry.ts'
-import type { BoardPanelGroupBy, BoardPanelOrderBy } from './window/chat-list-model.ts'
 
 /** Store handle handed to every board registration; one live root-scope instance backs them all. */
 export type BoardStoreHandle = EngineStoreHandle<BoardState, BoardActions>
+
+/** The board's live engine instance: the shared state and baked action face. */
+export type BoardStoreInstance = EngineStoreInstance<BoardState, BoardActions>
 
 /** A window the board opens from its own chrome: everything except the placement it computes. */
 export type OpenWindowSpec = Omit<BoardWindowState, 'x' | 'y' | 'zIndex'>
@@ -51,6 +56,7 @@ type BoardActions = {
   setPanelGroupBy: (draft: BoardState, groupBy: BoardPanelGroupBy) => void
   setPanelOrderBy: (draft: BoardState, orderBy: BoardPanelOrderBy) => void
   closeWindow: (draft: BoardState, id: WindowId) => void
+  hydrate: (draft: BoardState, layout: BoardLayoutDocument) => void
   setSelectingElement: (draft: BoardState, selecting: boolean) => void
   pushComposerIntent: (draft: BoardState, windowId: WindowId, intent: { text?: string; pickFiles?: boolean }) => void
   consumeComposerIntent: (draft: BoardState, id: number) => void
@@ -260,13 +266,13 @@ function raiseWindow(draft: BoardState, id: WindowId): void {
 }
 
 /**
- * Create the board canvas view store handle.
- * @param opts - persist key naming the localStorage entry backing the layout; omitted keeps the layout session-only.
+ * Create the board canvas view store handle. Durable layout is the settings
+ * namespace's document (see `board-persistence.ts`); the store itself keeps no
+ * localStorage copy, so transient interaction state never outlives a reload.
  * @returns a handle instantiated once per scope by the renderer's store seat.
  */
-export function createBoardStore(opts?: { persist?: string }): BoardStoreHandle {
+export function createBoardStore(): BoardStoreHandle {
   return defineStore({
-    ...(opts?.persist ? { persist: opts.persist } : {}),
     init: (): BoardState => ({
       panX: 0,
       panY: 0,
@@ -292,11 +298,11 @@ export function createBoardStore(opts?: { persist?: string }): BoardStoreHandle 
         draft.panY = panY
       },
       setZoom: (draft, zoom) => {
-        draft.zoom = Math.min(2.0, Math.max(0.2, zoom))
+        draft.zoom = Math.min(BOARD_ZOOM_MAX, Math.max(BOARD_ZOOM_MIN, zoom))
       },
       zoomTowardPointer: (draft, delta, pointerX, pointerY) => {
         const factor = delta < 0 ? 1.1 : 0.9
-        const newZoom = Math.min(2.0, Math.max(0.2, draft.zoom * factor))
+        const newZoom = Math.min(BOARD_ZOOM_MAX, Math.max(BOARD_ZOOM_MIN, draft.zoom * factor))
         if (newZoom === draft.zoom) return
         draft.panX = pointerX - (pointerX - draft.panX) * (newZoom / draft.zoom)
         draft.panY = pointerY - (pointerY - draft.panY) * (newZoom / draft.zoom)
@@ -408,6 +414,27 @@ export function createBoardStore(opts?: { persist?: string }): BoardStoreHandle 
         if (draft.activeWindowId === id) {
           draft.activeWindowId = draft.windowOrder[draft.windowOrder.length - 1] ?? null
         }
+      },
+      hydrate: (draft, layout) => {
+        // Only the stored layout fields move: transient interaction state
+        // (selection, queued composer commands) and the measured viewport box
+        // belong to the running session. Fullscreen is deliberately not stored,
+        // so an adopted layout always leaves it.
+        draft.panX = layout.panX
+        draft.panY = layout.panY
+        draft.zoom = layout.zoom
+        draft.windows = Object.fromEntries(layout.windows.map(window => [
+          window.id,
+          { ...window, id: window.id as WindowId },
+        ]))
+        draft.windowOrder = layout.windowOrder as WindowId[]
+        draft.activeWindowId = layout.activeWindowId === '' ? null : layout.activeWindowId as WindowId
+        draft.fullscreenWindowId = null
+        draft.panelWindowId = layout.panelWindowId === '' ? null : layout.panelWindowId as WindowId
+        draft.panelCollapsed = layout.panelCollapsed
+        draft.panelWidth = layout.panelWidth
+        draft.panelGroupBy = layout.panelGroupBy
+        draft.panelOrderBy = layout.panelOrderBy
       },
       setSelectingElement: (draft, selecting) => {
         draft.isSelectingElement = selecting

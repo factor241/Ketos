@@ -7,15 +7,12 @@
  * dragged, resized, or the canvas pans and zooms.
  */
 import type { BoardWindowState } from '../contract/slots.ts'
+// The panel width bounds are part of the durable layout contract (the settings
+// schema validates them), so they live with the layout schema and are
+// re-exported here for the geometry's consumers.
+import { PANEL_MAX_WIDTH, PANEL_MIN_WIDTH } from '../../board-settings.ts'
 
-/** Smallest readable panel width, whichever mode is active. */
-export const PANEL_MIN_WIDTH = 260
-
-/** Largest panel width, so a wide window keeps its chat dominant. */
-export const PANEL_MAX_WIDTH = 420
-
-/** Width a window opens its panel with before the user resizes it. */
-export const PANEL_DEFAULT_WIDTH = 300
+export { PANEL_DEFAULT_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH } from '../../board-settings.ts'
 
 /** Share of the window width the panel never exceeds, before the caps apply. */
 const PANEL_WINDOW_SHARE_MAX = 0.45

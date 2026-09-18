@@ -8,10 +8,14 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+// Type-only: the ctx.settingsScope merge and the shared describe mirror the
+// layout persistence reads through.
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
-import { createBoardStore } from './store.ts'
+import { createBoardStore, type BoardStoreHandle } from './store.ts'
+import { BoardLayoutPersistence } from './board-persistence.ts'
 import { BoardSessionBridge } from './session-bridge.ts'
 import type { BoardWindowInjected, WindowId } from './contract/slots.ts'
 import { BoardRoot, BoardIcon } from './BoardViews.tsx'
@@ -32,13 +36,13 @@ export type {
 } from './contract/slots.ts'
 export type { BoardKey } from './locale.ts'
 export { createBoardStore } from './store.ts'
-export type { BoardState, BoardStoreHandle, OpenWindowSpec } from './store.ts'
+export type { BoardState, BoardStoreHandle, BoardStoreInstance, OpenWindowSpec } from './store.ts'
 
-/** Services required by the board plugin: slots, copy, uploads, and the session domain. */
+/** Services required by the board plugin: slots, copy, uploads, settings, and the session domain. */
 export const inject = [
   'slots', 'locale', 'sessions', 'workspaces', 'uiWorkspace', 'uiConversation', 'modelDirectories',
-  'fileUpload',
-  'remote', 'remote.commands', 'remote.agentPresets', 'remote.goals',
+  'fileUpload', 'settingsScope',
+  'remote', 'remote.settings', 'remote.commands', 'remote.agentPresets', 'remote.goals',
   'remote.fileReferences', 'remote.sessionReferenceResolver',
 ]
 
@@ -48,11 +52,27 @@ export const inject = [
  * @param ctx - Client root context.
  */
 export function apply(ctx: ClientContext): void {
-  const boardStore = createBoardStore()
+  // One live instance backs every registration: the handle handed to the slot
+  // seat answers every create() with the same instance, so the persistence
+  // layer and the components observe one store.
+  const handle = createBoardStore()
+  const instance = handle.create()
+  const boardStore: BoardStoreHandle = { ...handle, create: () => instance }
+  // The shared describe mirror is the one settings reader in the browser; the
+  // board derives from it so startup costs no extra settings/describe call.
+  const persistence = new BoardLayoutPersistence(ctx, ctx.settingsScope.describe(), instance)
+  persistence.hydrateFromCache()
 
   // Dictionary registration + bound `t` for the registration-time sidebar label.
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-board: dictionaries')
   const t = ctx.locale.bind(NS)
+
+  // Durable layout: follow the store, write it back debounced under the
+  // settings revision, and adopt the server document once the mirror answers.
+  ctx.effect(() => {
+    persistence.start()
+    return () => { persistence.dispose() }
+  }, 'ui-board: layout persistence')
 
   // Window sessions: one bridge per plugin fiber, one channel per window.
   const bridge = new BoardSessionBridge(ctx)

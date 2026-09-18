@@ -9,12 +9,12 @@
 import type { SessionListState, SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId, WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
+// The grouping and ordering modes are part of the durable layout contract (the
+// settings schema validates them), so they live with the layout schema and are
+// re-exported here for the list model's consumers.
+import type { BoardPanelGroupBy, BoardPanelOrderBy } from '../../board-settings.ts'
 
-/** How the panel arranges its list. */
-export type BoardPanelGroupBy = 'workspace' | 'flat'
-
-/** How the panel orders chats inside a group. */
-export type BoardPanelOrderBy = 'manual' | 'updated'
+export type { BoardPanelGroupBy, BoardPanelOrderBy } from '../../board-settings.ts'
 
 /** One chat row inside a project. */
 export interface BoardChatRow {

@@ -6,8 +6,12 @@
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { ObservableSnapshot, SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { Context } from '@deepseek-ai/cordis'
+import type {
+  RemoteResult, SettingsDescribeValue, SettingsNamespaceView,
+} from '@deepseek-ai/dsh-api-remotes/client'
 import { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
+import type { SettingsDescribeFace, SettingsMirrorSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { ChatSnapshot, ConversationNode } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { BoardWindowSessionState } from '../src/client/contract/slots.ts'
 import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
@@ -53,6 +57,16 @@ export interface BoardBenchOptions {
     readonly available?: boolean
     readonly upload?: (sessionId: SessionId, ...args: unknown[]) => Promise<unknown>
   }
+  /** Settings namespace doubles; the default update accepts any document. */
+  remoteSettings?: {
+    readonly update?: (
+      ns: string,
+      patch: Record<string, unknown>,
+      expectedRevision: number | undefined,
+    ) => Promise<RemoteResult<SettingsNamespaceView>>
+  }
+  /** View the shared describe mirror holds before the board mounts; omitted starts idle. */
+  readonly settingsView?: SettingsDescribeValue
 }
 
 /** One prepared bench: the runtime, its services, and the board mount. */
@@ -62,8 +76,63 @@ export interface BoardBench {
   locale: LocaleRuntime
   /** The chat target observable the bridge subscribes to for the created session. */
   chat: SnapshotStore<ChatSnapshot | undefined>
+  /** The describe mirror double backing `ctx.settingsScope`. */
+  settings: SettingsScopeDouble
   /** Mount the board plugin on the prepared runtime. */
   mountBoard: () => Promise<{ dispose: () => Promise<void> }>
+}
+
+/** Settings describe mirror double the bench installs as the `settingsScope` service. */
+export interface SettingsScopeDouble {
+  /** The mirror read/fold face the board derives from. */
+  readonly face: SettingsDescribeFace
+  /**
+   * Replace the held view; undefined clears it back to no answer.
+   * @param view - the describe answer the mirror should serve next.
+   */
+  setView(view: SettingsDescribeValue | undefined): void
+  /** Publish the terminal non-loopback state: no read, no write, no adoption. */
+  setUnavailable(): void
+  /** Namespace views folded through `acceptView`, in order. */
+  readonly accepted: readonly SettingsNamespaceView[]
+}
+
+/**
+ * Build a settings describe mirror double: a snapshot store with the same
+ * read/fold surface as the shared mirror, plus direct scripting for tests.
+ * @param view - view held before any ensure; omitted starts the mirror idle.
+ * @returns the double, its face, and the accepted-view log.
+ */
+export function createSettingsScopeDouble(view?: SettingsDescribeValue): SettingsScopeDouble {
+  const store = createSnapshotStore<SettingsMirrorSnapshot>({
+    status: view === undefined ? 'idle' : 'ready',
+    view,
+    error: null,
+  })
+  const accepted: SettingsNamespaceView[] = []
+  return {
+    face: {
+      getSnapshot: () => store.getSnapshot(),
+      subscribe: fn => store.subscribe(fn),
+      ensure: async () => {},
+      acceptView: (next) => {
+        accepted.push(next)
+        const before = store.getSnapshot()
+        if (before.view === undefined) return
+        const namespaces = before.view.namespaces.some(row => row.ns === next.ns)
+          ? before.view.namespaces.map(row => row.ns === next.ns ? next : row)
+          : [...before.view.namespaces, next]
+        store.set({ ...before, view: { ...before.view, namespaces } })
+      },
+    },
+    setView: (next) => {
+      store.set({ status: next === undefined ? 'idle' : 'ready', view: next, error: null })
+    },
+    setUnavailable: () => {
+      store.set({ status: 'unavailable', view: undefined, error: null })
+    },
+    accepted,
+  }
 }
 
 /** An empty assembled chat snapshot with the lane fields the body reads. */
@@ -169,7 +238,22 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     }),
   }
   runtime.ctx.provide('modelDirectories', modelDirectories as never)
+  const emptyView = (): SettingsNamespaceView => ({
+    ns: 'ui-board',
+    schema: {},
+    value: {},
+    applies: 'live',
+    secrets: [],
+    revision: 0,
+  })
+  const settings = {
+    update: options.remoteSettings?.update
+      ?? (async () => ({ ok: true as const, value: emptyView() })),
+  }
+  const settingsScope = createSettingsScopeDouble(options.settingsView)
+  runtime.ctx.provide('settingsScope', { describe: () => settingsScope.face } as never)
   const remote = {
+    settings,
     agentPresets: { list: async () => ({ ok: true as const, value: { presets: [], authorable: false, modeSelectionEnabled: false } }) },
     commands: {
       list: async () => ({ ok: true as const, value: [] }),
@@ -191,6 +275,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     ok: true as const,
     value: { receiptId: 'receipt-1', file: { id: 'file-1', name: 'file' } },
   }))
+  runtime.ctx.provide('remote.settings', settings as never)
   for (const name of ['remote.commands', 'remote.agentPresets', 'remote.goals', 'remote.fileReferences', 'remote.sessionReferenceResolver']) {
     runtime.ctx.provide(name, {} as never)
   }
@@ -223,6 +308,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     runtime,
     locale,
     chat,
+    settings: settingsScope,
     mountBoard: () => runtime.mount({ inject: [...inject], apply }),
   }
 }

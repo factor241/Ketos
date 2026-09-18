@@ -95,6 +95,20 @@ describe('BoardSessionBridge', () => {
     expect(channel.getSnapshot().displayTitle).toBe('Отчёт по складу')
   })
 
+  it('republishes the chat title when the window rebinds to another session', async () => {
+    const { prepared, bridge } = await bench()
+    const windowId = 'a1' as WindowId
+    const channel = bridge.channel(windowId)
+    bridge.ensure(windowId)
+    await prepared.runtime.flush()
+
+    const second = await prepared.runtime.sessions.add({ id: 'session-2', summary: { displayTitle: 'Second chat' } })
+    bridge.bind(windowId, second)
+    await prepared.runtime.flush()
+    expect(channel.getSnapshot().sessionId).toBe(second)
+    expect(channel.getSnapshot().displayTitle).toBe('Second chat')
+  })
+
   it('publishes the lane history flags and the running calls', async () => {
     const { prepared, bridge } = await bench()
     const windowId = 'a1' as WindowId
@@ -145,6 +159,24 @@ describe('BoardSessionBridge', () => {
 
     execute.mockResolvedValueOnce({ ok: true, value: { commandId: 'c2', result: { kind: 'success' } } })
     bridge.executeCommand(windowId, '/compact')
+    await prepared.runtime.flush()
+    expect(channel.getSnapshot().commandError).toBeUndefined()
+  })
+
+  it('clears a command failure when the next prompt is sent', async () => {
+    const { prepared, bridge } = await bench()
+    const windowId = 'a1' as WindowId
+    const channel = bridge.channel(windowId)
+    bridge.ensure(windowId)
+    await prepared.runtime.flush()
+
+    const execute = vi.fn(async () => ({ ok: true as const, value: undefined }))
+    ;(prepared.runtime.ctx.remote as unknown as { commands: { execute: unknown } }).commands.execute = execute
+    bridge.executeCommand(windowId, '/missing')
+    await prepared.runtime.flush()
+    expect(channel.getSnapshot().commandError).toBeDefined()
+
+    bridge.send(windowId, 'привет', 'queue')
     await prepared.runtime.flush()
     expect(channel.getSnapshot().commandError).toBeUndefined()
   })

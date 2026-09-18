@@ -891,6 +891,30 @@ describe('board slot composition', () => {
     expect(board.store.getSnapshot().windows['a1']).toBeDefined()
   })
 
+  it('lets the palette keep Escape while the chats panel is open', async () => {
+    const { runtime } = await bench()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-panel][data-board-panel-open]')).not.toBeNull()
+
+    const input = panel.container.querySelector('textarea') as HTMLTextAreaElement
+    fireEvent.change(input, { target: { value: '/fi' } })
+    const row = panel.container.querySelector('[role="listbox"] [role="option"]') as Element
+    expect(row).not.toBeNull()
+    fireEvent.keyDown(row, { key: 'Escape' })
+    await runtime.flush()
+
+    // Escape dismissed the palette only: the chats panel is still open.
+    expect(panel.container.querySelector('[role="listbox"]')).toBeNull()
+    expect(panel.container.querySelector('[data-board-panel][data-board-panel-open]')).not.toBeNull()
+    expect(input.value).toBe('/fi')
+  })
+
   it('brings the dock and minimap back when the chats panel collapses to its rail', async () => {
     const { runtime } = await bench()
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })

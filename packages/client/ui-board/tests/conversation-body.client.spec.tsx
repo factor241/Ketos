@@ -178,7 +178,7 @@ describe('ConversationBody', () => {
     expect(container.querySelector('[data-board-lane-state="prompt-error"]')).not.toBeNull()
   })
 
-  it('renders a running tool call with its marker', () => {
+  it('renders a running tool call with its marker and the running state line', () => {
     const state: BoardWindowSessionState = {
       ...ready(chatSnapshot([USER_NODE]), true),
       runningCalls: [{ id: 'call-9', name: 'bash' }],
@@ -187,6 +187,20 @@ describe('ConversationBody', () => {
     expect(getByText('bash')).not.toBeNull()
     expect(getByText('running')).not.toBeNull()
     expect(container.querySelector('[data-board-tool="running"]')).not.toBeNull()
+    expect(container.querySelector('[data-board-lane-state="running"]')).not.toBeNull()
+  })
+
+  it('marks the empty, creating, and creation-failure lane states', () => {
+    const empty = render(<ConversationBody {...bodyProps(ready(chatSnapshot()))} />)
+    expect(empty.container.querySelector('[data-board-lane-state="empty"]')).not.toBeNull()
+    empty.unmount()
+
+    const creating = render(<ConversationBody {...bodyProps({ ...ready(undefined), status: 'pending' })} />)
+    expect(creating.container.querySelector('[data-board-lane-state="creating"]')).not.toBeNull()
+    creating.unmount()
+
+    const failed = render(<ConversationBody {...bodyProps({ ...ready(undefined), status: 'error', error: 'boom' })} />)
+    expect(failed.container.querySelector('[data-board-lane-state="creation-error"]')).not.toBeNull()
   })
 
   it('marks a failed tool result with its localized note', () => {
@@ -207,6 +221,13 @@ describe('ConversationBody', () => {
     fireEvent.click(getByText('Request again'))
     expect(loadOlderTurns).toHaveBeenCalledWith('a1')
     expect(container.querySelector('[data-board-tool="done"]')).not.toBeNull()
+  })
+
+  it('offers no repeat for an unavailable result when no earlier page remains', () => {
+    const state: BoardWindowSessionState = { ...ready(chatSnapshot([ORPHAN_TOOL_NODE])), hasMore: false }
+    const { getByText, queryByText } = render(<ConversationBody {...bodyProps(state)} />)
+    expect(getByText('result unavailable')).not.toBeNull()
+    expect(queryByText('Request again')).toBeNull()
   })
 
   it('sends the draft on submit and clears it', () => {
@@ -340,6 +361,16 @@ describe('ConversationBody', () => {
     // Channel republishes for loadingOlder and running calls arrive without new
     // transcript rows; they must not consume the anchor before the page lands.
     rerender(<ConversationBody {...bodyProps({ ...state, loadingOlder: true, runningCalls: [{ id: 'c1', name: 'bash' }] }, { loadOlderTurns })} />)
+
+    // A streamed chunk grows the lane *below* the reader: the same leading row
+    // means nothing was prepended, so the anchor must survive this too.
+    geometry.setHeight(1100)
+    const streamed: BoardWindowSessionState = {
+      ...state,
+      chat: chatSnapshot([ASSISTANT_NODE], { turn: 1, step: 2, blocks: [{ kind: 'text', text: 'Печатаю…' }] }),
+    }
+    rerender(<ConversationBody {...bodyProps(streamed, { loadOlderTurns })} />)
+    expect(lane.scrollTop).toBe(400)
 
     // The prepended page grows the lane above the reader: the offset shifts by
     // the added height instead of jumping to the end.

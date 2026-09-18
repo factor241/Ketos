@@ -94,9 +94,11 @@ export function ConversationBody({
   const session = useWindowSession(cardWindow.id)
   const laneRef = useRef<HTMLDivElement>(null)
   const [atTail, setAtTail] = useState(true)
-  // Scroll height captured when earlier turns are requested; the next lane
-  // change re-anchors the reader instead of letting the prepend jump the view.
-  const anchorRef = useRef<number | null>(null)
+  // Scroll anchor captured when earlier turns are requested: the lane height at
+  // that moment plus the transcript's leading row. Only a changed leading row
+  // means a page was actually prepended — growth below the reader (streaming,
+  // running calls, any other chat republish) must not consume the anchor.
+  const anchorRef = useRef<{ height: number; firstKey: string | null } | null>(null)
 
   // The window owns its session: create it once, on first mount.
   useEffect(() => {
@@ -109,16 +111,16 @@ export function ConversationBody({
   const ready = session?.status === 'ready'
   const hasRows = rows.length > 0 || runningCalls.length > 0 || streaming !== ''
 
-  // Earlier turns prepend: content growth first restores the reader's offset,
-  // so the added height moves the scrollbar rather than the reading position.
-  // Only the transcript's own identity may consume the anchor: a channel
-  // republish for loadingOlder or progress arrives without new rows, and
-  // consuming the anchor there would let the prepend jump after all.
+  // Earlier turns prepend: the added height above the reader moves the scrollbar,
+  // not the reading position. The anchor is consumed only once the transcript's
+  // leading row changes, so a chunk or a running call landing below the reader
+  // in the meantime leaves it intact.
   useLayoutEffect(() => {
     const lane = laneRef.current
     const anchor = anchorRef.current
     if (lane === null || anchor === null) return
-    lane.scrollTop += lane.scrollHeight - anchor
+    if ((rows[0]?.key ?? null) === anchor.firstKey) return
+    lane.scrollTop += lane.scrollHeight - anchor.height
     anchorRef.current = null
   }, [rows, streaming])
 
@@ -147,7 +149,7 @@ export function ConversationBody({
   const loadOlder = (): void => {
     const lane = laneRef.current
     if (lane !== null) {
-      anchorRef.current = lane.scrollHeight
+      anchorRef.current = { height: lane.scrollHeight, firstKey: rows[0]?.key ?? null }
       setAtTail(false)
     }
     injected.loadOlderTurns(cardWindow.id)
@@ -194,7 +196,7 @@ export function ConversationBody({
               failed={row.failed}
               unavailable={row.unavailable}
               t={t}
-              onRepeat={loadOlder}
+              onRepeat={session?.hasMore === true ? loadOlder : undefined}
             />
           )
           : (

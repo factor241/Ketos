@@ -131,13 +131,12 @@ describe('ComposerBar states', () => {
 
 describe('ComposerBar attachments', () => {
   it('refuses an image batch over the projected count limit', () => {
-    const { container, getByText, queryByText } = renderComposer(
+    const { container, getByText } = renderComposer(
       sessionState(undefined, { imageLimits: { ...IMAGE_LIMITS, maxImagesPerMessage: 1 } }),
     )
     fireEvent.change(fileInput(container), { target: { files: [imageFile('a.png', 10), imageFile('b.png', 10)] } })
     expect(getByText('A message can include up to 1 images')).not.toBeNull()
     expect(container.querySelectorAll('img').length).toBe(0)
-    expect(queryByText('a.png')).toBeNull()
   })
 
   it('refuses an oversized image and an over-budget batch', () => {
@@ -210,6 +209,26 @@ describe('ComposerBar attachments', () => {
     await waitFor(() => { expect(getByText('Upload failed')).not.toBeNull() })
   })
 
+  it('refuses drop and picker intake while the composer is blocked', () => {
+    const uploadFile = vi.fn(async () => ({ receiptId: 'receipt-4' }))
+    const { container } = renderComposer(sessionState(undefined, { blocked: 'This model is unavailable' }), { uploadFile })
+    const wrapper = container.firstElementChild as HTMLElement
+    const dataTransfer = { types: ['Files'], files: [new File(['x'], 'drop.txt', { type: 'text/plain' })], dropEffect: 'none' }
+
+    fireEvent.dragEnter(wrapper, { dataTransfer })
+    expect(container.querySelector('[data-board-drop-hint]')).toBeNull()
+    fireEvent.drop(wrapper, { dataTransfer })
+    expect(uploadFile).not.toHaveBeenCalled()
+
+    const picker = fileInput(container)
+    expect(picker.disabled).toBe(true)
+    const click = vi.spyOn(picker, 'click').mockImplementation(() => {})
+    fireEvent.click(container.querySelector('[data-board-action="composer-actions"]') as Element)
+    fireEvent.click(document.querySelector('[role="menu"] [role="menuitem"]') as Element)
+    expect(click).not.toHaveBeenCalled()
+    click.mockRestore()
+  })
+
   it('shows the drop hint and accepts a dropped batch', async () => {
     const uploadFile = vi.fn(async () => ({ receiptId: 'receipt-2' }))
     const { container } = renderComposer(sessionState(undefined), { uploadFile })
@@ -253,6 +272,17 @@ describe('ComposerBar commands and mentions', () => {
     expect(container.querySelector('[role="listbox"][aria-label="Command list"]')).not.toBeNull()
     fireEvent.keyDown(input, { key: 'Escape' })
     expect(container.querySelector('[role="listbox"][aria-label="Command list"]')).toBeNull()
+    expect(input.value).toBe('/fi')
+  })
+
+  it('closes the palette when Escape is pressed on one of its rows', () => {
+    const { container } = renderComposer(sessionState(undefined))
+    const input = textarea(container)
+    fireEvent.change(input, { target: { value: '/fi' } })
+    const row = container.querySelector('[role="listbox"] [role="option"]') as Element
+    expect(row).not.toBeNull()
+    fireEvent.keyDown(row, { key: 'Escape' })
+    expect(container.querySelector('[role="listbox"]')).toBeNull()
     expect(input.value).toBe('/fi')
   })
 

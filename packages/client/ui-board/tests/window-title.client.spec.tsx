@@ -25,10 +25,15 @@ afterEach(async () => {
 })
 
 /** Bench with a live window and the fixture session the window binds to. */
-async function bench(options: { readonly displayTitle?: string; readonly failCreate?: boolean } = {}) {
+async function bench(options: {
+  readonly displayTitle?: string
+  readonly failCreate?: boolean
+  readonly extraSessions?: readonly { readonly id: string; readonly displayTitle: string }[]
+} = {}) {
   const prepared = await createBoardBench({
     session: { prompt: () => Promise.resolve({ ok: true, value: { accepted: true } }) },
     ...(options.displayTitle === undefined ? {} : { sessionSummary: { displayTitle: options.displayTitle } }),
+    ...(options.extraSessions === undefined ? {} : { extraSessions: options.extraSessions }),
   })
   runtimes.add(prepared.runtime)
   if (options.failCreate === true) {
@@ -58,6 +63,27 @@ describe('window title', () => {
     await prepared.runtime.sessions.updateSummary(sessionId, { displayTitle: 'Renamed chat' })
     await prepared.runtime.flush()
     expect(headerTitle(panel)).toBe('Renamed chat')
+  })
+
+  it('follows a rebind to another chat through the chats panel', async () => {
+    const { prepared, panel, store } = await bench({
+      displayTitle: 'Chat one',
+      extraSessions: [{ id: 'session-2', displayTitle: 'Chat two' }],
+    })
+    act(() => { store.actions.openWindow({ id: 'a1' as WindowId, kind: 'agent', bodyKind: 'conversation', ordinal: 4, width: 552, height: 648 }) })
+    await prepared.runtime.flush()
+    expect(headerTitle(panel)).toBe('Chat one')
+
+    // The real user path: open the window's chats panel, drill into the
+    // ungrouped project, and pick the other chat.
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-chats"]') as Element)
+    await prepared.runtime.flush()
+    fireEvent.click(panel.view.getByText('Ungrouped'))
+    await prepared.runtime.flush()
+    fireEvent.click(panel.view.getByText('Chat two'))
+    await prepared.runtime.flush()
+    await prepared.runtime.flush()
+    expect(headerTitle(panel)).toBe('Chat two')
   })
 
   it('keeps a user rename over the chat title and clears back to it', async () => {

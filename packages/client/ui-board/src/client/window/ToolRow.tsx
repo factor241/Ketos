@@ -21,7 +21,7 @@ export interface ToolRowProps {
   /** Locale seat of the board namespace. */
   readonly t: BoardTranslate
   /** Request the earlier turns again, so an unavailable result can be recovered. */
-  readonly onRepeat?: () => void
+  readonly onRepeat?: (() => void) | undefined
 }
 
 export function ToolRow({ name, failed, unavailable = false, running = false, t, onRepeat }: ToolRowProps) {

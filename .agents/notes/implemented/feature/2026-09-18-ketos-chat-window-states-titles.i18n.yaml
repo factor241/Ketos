@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-18-ketos-chat-window-states-titles.md
-2026-09-18-ketos-chat-window-states-titles.md: 5d0e8eca2a5c69ba96da8d9c00fcf518c2072339
-2026-09-18-ketos-chat-window-states-titles.zh.md: ea1963de23be32ddd8b1363ebf3219ad74ce6191
+2026-09-18-ketos-chat-window-states-titles.md: dd70a522de210d56f29e63e4332b7665eac3c627
+2026-09-18-ketos-chat-window-states-titles.zh.md: e3081557f56370307c97b5146d218a758a4652db

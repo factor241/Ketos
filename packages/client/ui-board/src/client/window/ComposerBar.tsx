@@ -253,7 +253,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
     if (!canSend) return
     const name = leadingCommand(text)
     if (name === 'file') {
-      fileInput.current?.click()
+      if (canAcceptDrop) fileInput.current?.click()
       clearDraft()
       return
     }
@@ -301,7 +301,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
   const pickCommand = (name: string): void => {
     closeMenu()
     if (name === 'file') {
-      fileInput.current?.click()
+      if (canAcceptDrop) fileInput.current?.click()
       setDraft('')
       return
     }
@@ -322,6 +322,20 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
   const pickMention = (row: BoardMentionRow): void => {
     setDraft(current => `${current.replace(/@[^\s@]*$/, '')}${row.insert} `)
     setMentionQuery(null)
+  }
+
+  /**
+   * Escape pressed on a focused palette row closes the palette and stops there:
+   * the board's Escape ladder would otherwise close the chats panel (or leave
+   * fullscreen) while the row the reader is on stays open.
+   */
+  const dismissOnEscape = (e: KeyboardEvent<HTMLDivElement>): void => {
+    if (e.key !== 'Escape') return
+    e.preventDefault()
+    e.stopPropagation()
+    closeMenu()
+    setMentionQuery(null)
+    setCommandsDismissed(true)
   }
 
   /** Stage one non-image file through the background upload service. */
@@ -410,6 +424,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
   const handleDragEnter = (e: DragEvent<HTMLDivElement>): void => {
     if (!e.dataTransfer.types.includes('Files')) return
     e.preventDefault()
+    if (!canAcceptDrop) return
     dragDepth.current += 1
     setDragActive(true)
   }
@@ -599,7 +614,12 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
       </div>
 
       {mentionQuery !== null && (
-        <div className={css.popup} role="listbox" aria-label={t('mention.aria')}>
+        <div
+          className={css.popup}
+          role="listbox"
+          aria-label={t('mention.aria')}
+          onKeyDown={dismissOnEscape}
+        >
           {mentions.length === 0 && <div className={css.popupEmpty}>{t('mention.empty')}</div>}
           {mentions.map(row => (
             <button key={row.id} type="button" role="option" className={css.popupRow} onClick={() => { pickMention(row) }}>
@@ -611,7 +631,12 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
       )}
 
       {slashRows.length > 0 && mentionQuery === null && (
-        <div className={css.popup} role="listbox" aria-label={t('command.menuAria')}>
+        <div
+          className={css.popup}
+          role="listbox"
+          aria-label={t('command.menuAria')}
+          onKeyDown={dismissOnEscape}
+        >
           {slashRows.map(row => (
             <button key={row.name} type="button" role="option" className={css.popupRow} onClick={() => { pickCommand(row.name) }}>
               <span className={css.popupName}>{commandLabel(t, row.name)}</span>
@@ -749,6 +774,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
               className={css.fileInput}
               type="file"
               multiple
+              disabled={!canAcceptDrop}
               aria-label={t('attachment.pick')}
               onChange={(e: ChangeEvent<HTMLInputElement>) => {
                 intake([...(e.target.files ?? [])])

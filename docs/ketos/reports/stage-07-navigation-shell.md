@@ -46,7 +46,7 @@
 |---|---|
 | `pnpm exec vitest run packages/client/ui-board/tests` | зелёный; 22 файла, 207 passed (было 169 после этапа 6) |
 | `pnpm exec vitest run packages/ketos/client-locale-ru` | зелёный; 11 passed |
-| `pnpm run test:gui` | зелёный; 400 файлов, 5634 passed, 1 skipped |
+| `pnpm run test:gui` | зелёный; 400 файлов, 5635 passed, 1 skipped |
 | `DSH_SNAPSHOT=replay pnpm run test:web` | зелёный; 101 файл, 359 passed, 15 skipped, расхождений нет |
 | `pnpm run typecheck` | зелёный; 0 ошибок TS |
 | `pnpm run lint` | зелёный (после правки `@stylistic(arrow-parens)` в `DashboardToolbar.tsx`) |

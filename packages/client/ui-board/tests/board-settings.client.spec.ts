@@ -2,12 +2,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   BOARD_LAYOUT_MAX_WINDOWS, BOARD_SETTINGS_NAMESPACE, BOARD_SETTINGS_VERSION, BOARD_ZOOM_MAX, BOARD_ZOOM_MIN,
-  BoardSettingsSchema, type BoardLayoutDocument,
+  BoardSettingsSchema, type BoardLayoutDocument, type BoardSettings,
 } from '../src/board-settings.ts'
 
 /** Parse one raw document through the schema, as the settings boundary does. */
-function parse(raw: unknown): BoardLayoutDocument {
-  return BoardSettingsSchema(raw as BoardLayoutDocument)
+function parse(raw: unknown): BoardSettings {
+  return BoardSettingsSchema(raw as BoardSettings)
 }
 
 /** One valid stored window. */
@@ -58,6 +58,7 @@ describe('board settings schema', () => {
       panY: 0,
       zoom: 1,
       windows: [],
+      bindings: {},
       windowOrder: [],
       activeWindowId: '',
       panelWindowId: '',
@@ -66,6 +67,14 @@ describe('board settings schema', () => {
       panelGroupBy: 'workspace',
       panelOrderBy: 'updated',
     })
+  })
+
+  it('accepts and defaults the session bindings map', () => {
+    expect(parse({}).bindings).toEqual({})
+    expect(parse(document({ bindings: { 'agent-1': 'session-1' } })).bindings)
+      .toEqual({ 'agent-1': 'session-1' })
+    expect(() => parse(document({ bindings: { 'agent-1': 7 } }))).toThrow()
+    expect(() => parse(document({ bindings: 'not a map' }))).toThrow()
   })
 
   it('accepts a complete layout document', () => {

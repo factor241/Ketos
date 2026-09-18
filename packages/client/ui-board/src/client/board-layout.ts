@@ -8,7 +8,7 @@ import {
   BOARD_LAYOUT_COORD_LIMIT, BOARD_LAYOUT_MAX_WINDOWS, BOARD_PANEL_GROUP_BYS, BOARD_PANEL_ORDER_BYS,
   BOARD_SETTINGS_VERSION, BOARD_WINDOW_BODY_KINDS, BOARD_WINDOW_KINDS, BOARD_ZOOM_MAX, BOARD_ZOOM_MIN,
   BoardSettingsSchema, PANEL_DEFAULT_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH,
-  type BoardLayoutDocument, type BoardLayoutWindow,
+  type BoardLayoutDocument, type BoardLayoutWindow, type BoardSettings,
 } from '../board-settings.ts'
 import type { WindowId } from './contract/slots.ts'
 import { MIN_WINDOW_SIZE, WINDOW_Z_BASE, WINDOW_Z_MAX, type BoardState } from './store.ts'
@@ -116,9 +116,9 @@ export function captureBoardLayout(state: BoardState): BoardLayoutDocument {
  * ignored whole, and the repaired candidate must still satisfy the settings
  * schema before the board adopts it.
  * @param raw - the wire value read from settings or the first-frame cache.
- * @returns the repaired document, or undefined when the value cannot be adopted.
+ * @returns the repaired stored section (bindings defaulted), or undefined when the value cannot be adopted.
  */
-export function sanitizeBoardLayout(raw: unknown): BoardLayoutDocument | undefined {
+export function sanitizeBoardLayout(raw: unknown): BoardSettings | undefined {
   if (!isRecord(raw)) return undefined
   if (raw.version !== BOARD_SETTINGS_VERSION) {
     console.warn(`ui-board: ignoring a stored layout of version ${String(raw.version)}`)
@@ -153,8 +153,11 @@ export function sanitizeBoardLayout(raw: unknown): BoardLayoutDocument | undefin
   const active = identity(raw.activeWindowId)
   const panel = identity(raw.panelWindowId)
   const panelWindowId = panel !== undefined && kept.has(panel) ? panel : undefined
-  const candidate: BoardLayoutDocument = {
+  const candidate: BoardSettings = {
     version: BOARD_SETTINGS_VERSION,
+    // The session bindings belong to the bridge; the layout candidate carries
+    // none and the schema's default resolves the map for the adopted section.
+    bindings: {},
     panX: bounded(raw.panX, 0, -BOARD_LAYOUT_COORD_LIMIT, BOARD_LAYOUT_COORD_LIMIT),
     panY: bounded(raw.panY, 0, -BOARD_LAYOUT_COORD_LIMIT, BOARD_LAYOUT_COORD_LIMIT),
     zoom: bounded(raw.zoom, 1, BOARD_ZOOM_MIN, BOARD_ZOOM_MAX),

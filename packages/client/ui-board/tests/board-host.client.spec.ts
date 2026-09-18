@@ -62,11 +62,22 @@ describe('ui-board host half', () => {
       panX: 0,
       zoom: 1,
       windows: [],
+      bindings: {},
     })
 
     await ctx.settings.update(BOARD_SETTINGS_NAMESPACE, layout())
     expect(ctx.settings.get(BOARD_SETTINGS_NAMESPACE)).toMatchObject({ panX: 24, zoom: 1.25 })
     expect((ctx.settings.get(BOARD_SETTINGS_NAMESPACE) as BoardLayoutDocument).windows).toHaveLength(1)
+
+    // The bridge's map and the board's layout writes share one section: a
+    // layout update merges and must leave the bindings the bridge wrote.
+    await ctx.settings.update(BOARD_SETTINGS_NAMESPACE, { bindings: { 'agent-1': 'session-1' } })
+    await ctx.settings.update(BOARD_SETTINGS_NAMESPACE, layout({ panX: 48 }))
+    expect(ctx.settings.get(BOARD_SETTINGS_NAMESPACE)).toMatchObject({
+      panX: 48,
+      bindings: { 'agent-1': 'session-1' },
+    })
+    await expect(ctx.settings.update(BOARD_SETTINGS_NAMESPACE, { bindings: { 'agent-1': 7 } })).rejects.toThrow()
 
     await expect(ctx.settings.update(BOARD_SETTINGS_NAMESPACE, { zoom: 5 })).rejects.toThrow()
     await expect(ctx.settings.update(BOARD_SETTINGS_NAMESPACE, { version: 2 })).rejects.toThrow()

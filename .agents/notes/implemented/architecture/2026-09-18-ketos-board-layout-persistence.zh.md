@@ -10,7 +10,7 @@ Status: implemented
 
 ## Decision
 
-**持久布局就是 `ui-board` settings 命名空间。** `src/board-settings.ts` 拥有命名空间名、`version: 1`、恢复上限与 schemastery schema；host 半部通过 `ctx.inject(['settings'], (settingsCtx) => settingsCtx.settings.register(...))` 注册它，与 `ui-theme` 完全一样。schema 为每个字段提供默认值，因此没有用户分节时命名空间也能解析。文档携带 `panX`、`panY`、`zoom`、`windows[]`（`id`、`kind`、`bodyKind`、`ordinal`、可选的 `customTitle`、`x`、`y`、`width`、`height`、`zIndex`）、`windowOrder`、`activeWindowId` 以及聊天面板状态（`panelWindowId`、`panelCollapsed`、`panelWidth`、`panelGroupBy`、`panelOrderBy`）。`viewportWidth/Height` 缺省，因为画布自行测量它们；`fullscreenWindowId` 缺省，因为全屏属于会话模态。可空身份以 `''` 传递，因为 schemastery 无法通过对象 schema 物化 `null` 默认值；`''` 表示没有窗口。
+**持久布局就是 `ui-board` settings 命名空间。** `src/board-settings.ts` 拥有命名空间名、`version: 1`、恢复上限与 schemastery schema；host 半部通过 `ctx.inject(['settings'], (settingsCtx) => settingsCtx.settings.register(...))` 注册它，与 `ui-theme` 完全一样。schema 为每个字段提供默认值，因此没有用户分节时命名空间也能解析。文档携带 `panX`、`panY`、`zoom`、`windows[]`（`id`、`kind`、`bodyKind`、`ordinal`、可选的 `customTitle`、`x`、`y`、`width`、`height`、`zIndex`）、`bindings`（会话桥在离散事件——创建、重绑、关闭——上写入的窗口 → 会话映射，供阶段 9 恢复使用）、`windowOrder`、`activeWindowId` 以及聊天面板状态（`panelWindowId`、`panelCollapsed`、`panelWidth`、`panelGroupBy`、`panelOrderBy`）。布局捕获绝不包含 `bindings`：settings 写入会把补丁合并到已存分节之上，因此桥写入的映射能在每次布局手势之后保留。`viewportWidth/Height` 缺省，因为画布自行测量它们；`fullscreenWindowId` 缺省，因为全屏属于会话模态。可空身份以 `''` 传递，因为 schemastery 无法通过对象 schema 物化 `null` 默认值；`''` 表示没有窗口。
 
 **一个 store 实例同时支撑渲染器与持久化层。** `apply` 构建 handle、创建一个实例，并把 `{ ...handle, create: () => instance }` 传给每个 `register` 调用，而持久化层直接作用于该实例。渲染器的 store 席位按 handle 为实例建键，否则会从同一个 handle 自行铸造出另一个实例，因此正是这个包装让组件看得见 `instance.actions.hydrate()`。
 

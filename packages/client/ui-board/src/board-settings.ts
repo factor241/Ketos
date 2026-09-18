@@ -108,6 +108,20 @@ export type BoardLayoutDocument = BoardLayout & {
   version: typeof BOARD_SETTINGS_VERSION
 }
 
+/**
+ * Window → session bindings the session bridge maintains for restored windows
+ * (written on discrete events: creation, rebind, close). The layout capture
+ * never includes the map: a settings write merges its patch over the stored
+ * section, so a map the bridge wrote survives every layout gesture, and only
+ * the stage-9 restore path reads it.
+ */
+export type BoardSettingsBindings = Record<string, string>
+
+/** Complete stored settings section: the durable layout plus the session bindings. */
+export type BoardSettings = BoardLayoutDocument & {
+  bindings: BoardSettingsBindings
+}
+
 /** One stored window: structurally complete, with ranges the restore clamps. */
 const BoardLayoutWindowSchema = z.object({
   id: z.string().required(),
@@ -128,12 +142,13 @@ const BoardLayoutWindowSchema = z.object({
  * section rejects the write (and is ignored with a warning when read from a
  * hand-edited document).
  */
-export const BoardSettingsSchema: z<BoardLayoutDocument> = z.object({
+export const BoardSettingsSchema: z<BoardSettings> = z.object({
   version: z.const(BOARD_SETTINGS_VERSION).default(BOARD_SETTINGS_VERSION),
   panX: z.number().min(-BOARD_LAYOUT_COORD_LIMIT).max(BOARD_LAYOUT_COORD_LIMIT).default(0),
   panY: z.number().min(-BOARD_LAYOUT_COORD_LIMIT).max(BOARD_LAYOUT_COORD_LIMIT).default(0),
   zoom: z.number().min(BOARD_ZOOM_MIN).max(BOARD_ZOOM_MAX).default(1),
   windows: z.array(BoardLayoutWindowSchema).max(BOARD_LAYOUT_MAX_WINDOWS).default([]),
+  bindings: z.dict(z.string()).default({}),
   windowOrder: z.array(z.string()).default([]),
   activeWindowId: z.string().default(''),
   panelWindowId: z.string().default(''),

@@ -227,7 +227,9 @@ describe('sanitizeBoardLayout', () => {
     instance.actions.openWindowPanel('agent-19' as WindowId)
     const captured = captureBoardLayout(instance.getSnapshot())
     const restored = sanitizeBoardLayout(captured)
-    expect(restored).toEqual(captured)
+    // Sanitize resolves the full stored section; the capture is the layout
+    // patch and deliberately carries no session bindings.
+    expect(restored).toEqual({ ...captured, bindings: {} })
     expect(restored?.windows).toHaveLength(20)
 
     // The restore path itself: a second store adopts the repaired document

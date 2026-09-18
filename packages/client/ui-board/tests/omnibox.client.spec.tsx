@@ -93,6 +93,18 @@ describe('board omnibox', () => {
     expect(prompt).not.toHaveBeenCalled()
   })
 
+  it('states dictation is unsupported instead of closing silently', async () => {
+    const { runtime, panel } = await bench()
+    // jsdom exposes no SpeechRecognition, so the entry must report that.
+    openActionMenu(panel)
+    fireEvent.click(screen.getByRole('menuitem', { name: t('menu.dictate') }))
+    await runtime.flush()
+
+    expect(panel.container.querySelector('[data-board-omnibar-notice]')?.textContent)
+      .toBe(t('voice.unsupported'))
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
   it('opens a connectors window from the menu', async () => {
     const { runtime, panel, board } = await bench()
 

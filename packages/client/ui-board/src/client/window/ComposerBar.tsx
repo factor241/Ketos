@@ -350,7 +350,9 @@ export function ComposerBar({ windowId, session, t, injected, onSent }: Composer
       const result = await injected.uploadFile(windowId, file.name, bytes)
       setFiles(current => current.map(item => item.id === id
         ? result.receiptId !== undefined
-          ? { ...item, status: 'ready' as const, receiptId: result.receiptId }
+          // A ready chip carries no failure text: a retry that succeeded must
+          // drop the previous attempt's error rather than keep it as a title.
+          ? { id: item.id, name: item.name, status: 'ready' as const, receiptId: result.receiptId }
           : { ...item, status: 'error' as const, error: result.error ?? t('attachment.error') }
         : item))
     } catch (error) {

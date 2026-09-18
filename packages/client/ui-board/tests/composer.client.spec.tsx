@@ -200,6 +200,8 @@ describe('ComposerBar attachments', () => {
     fireEvent.click(getByText('Retry'))
     await waitFor(() => { expect(container.querySelector('[data-board-file="ready"]')).not.toBeNull() })
     expect(uploadFile).toHaveBeenCalledTimes(2)
+    // The successful retry dropped the previous attempt's failure text.
+    expect(container.querySelector('[data-board-file="ready"]')?.getAttribute('title')).toBeNull()
   })
 
   it('reports an unavailable upload service', async () => {

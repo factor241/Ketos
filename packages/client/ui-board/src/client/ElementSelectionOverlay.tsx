@@ -51,6 +51,9 @@ export function ElementSelectionOverlay({
       const target = e.target
       if (!(target instanceof Element)) return
       if (pillRef.current?.contains(target) === true) return
+      // Only the board is under inspection: a click on the app's own chrome
+      // (the sidebar, a dialog) keeps its normal meaning.
+      if (document.querySelector('[data-surface="board"]')?.contains(target) !== true) return
       // An open menu owns the click, like it owns Escape: the pick stands by.
       if (document.querySelector('[role="menu"]') !== null) return
       e.preventDefault()

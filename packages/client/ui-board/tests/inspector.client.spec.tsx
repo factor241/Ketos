@@ -43,10 +43,10 @@ describe('ElementSelectionOverlay', () => {
     const onCancel = vi.fn()
     const onSiblingClick = vi.fn()
     render(
-      <>
+      <div data-surface="board">
         <ElementSelectionOverlay t={t} active onCancel={onCancel} onPick={onPick} />
         <button type="button" onClick={onSiblingClick}>Underlying</button>
-      </>,
+      </div>,
     )
     const sibling = screen.getByRole('button', { name: 'Underlying' })
     // The suppressed default action is what keeps the control inert.
@@ -59,6 +59,22 @@ describe('ElementSelectionOverlay', () => {
     // A click whose target is not an element cannot address an element.
     onPick.mockClear()
     globalThis.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(onPick).not.toHaveBeenCalled()
+  })
+
+  it('leaves clicks outside the board to the app chrome', () => {
+    const onPick = vi.fn()
+    const onSidebarClick = vi.fn()
+    render(
+      <>
+        <div data-surface="board"><ElementSelectionOverlay t={t} active onCancel={vi.fn()} onPick={onPick} /></div>
+        <button type="button" onClick={onSidebarClick}>Sidebar entry</button>
+      </>,
+    )
+    const sidebar = screen.getByRole('button', { name: 'Sidebar entry' })
+    fireEvent.click(sidebar)
+
+    expect(onSidebarClick).toHaveBeenCalledOnce()
     expect(onPick).not.toHaveBeenCalled()
   })
 

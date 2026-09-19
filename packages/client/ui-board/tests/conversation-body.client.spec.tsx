@@ -205,6 +205,31 @@ describe('ConversationBody', () => {
     expect(getByText('Печатаю…')).not.toBeNull()
   })
 
+  it('replaces the streaming partial on completion and clears it on cancel', () => {
+    const partial = { turn: 1, step: 2, blocks: [{ kind: 'text' as const, text: 'Печатаю…' }] }
+    const streaming: BoardWindowSessionState = {
+      ...ready(chatSnapshot([USER_NODE, ASSISTANT_NODE], partial), true),
+    }
+    const { container, queryByText, rerender } = render(<ConversationBody {...bodyProps(streaming)} />)
+    expect(container.querySelector('[data-board-streaming]')?.textContent).toContain('Печатаю…')
+
+    // Completion: the durable assistant row replaces the partial and the turn stops.
+    rerender(<ConversationBody {...bodyProps(ready(chatSnapshot([USER_NODE, ASSISTANT_NODE])))} />)
+    expect(container.querySelector('[data-board-streaming]')).toBeNull()
+    expect(container.querySelectorAll('[data-board-message="assistant"]')).toHaveLength(1)
+    expect(container.querySelector('button[aria-label="Stop"]')).toBeNull()
+
+    // Cancellation: the aborted turn drops its partial and the composer returns to sending.
+    const cancelled: BoardWindowSessionState = { ...ready(chatSnapshot([USER_NODE], partial), true) }
+    rerender(<ConversationBody {...bodyProps(cancelled)} />)
+    expect(container.querySelector('[data-board-streaming]')?.textContent).toContain('Печатаю…')
+    rerender(<ConversationBody {...bodyProps(ready(chatSnapshot([USER_NODE])))} />)
+    expect(container.querySelector('[data-board-streaming]')).toBeNull()
+    expect(container.querySelector('[data-board-lane-state="running"]')).toBeNull()
+    expect(queryByText('Печатаю…')).toBeNull()
+    expect(container.querySelector('button[aria-label="Send"]')).not.toBeNull()
+  })
+
   it('shows the turn failure with its server text', () => {
     const state: BoardWindowSessionState = { ...ready(chatSnapshot([USER_NODE])), turnError: 'provider exploded' }
     const { getByText, container } = render(<ConversationBody {...bodyProps(state)} />)
@@ -422,6 +447,31 @@ describe('ConversationBody', () => {
     expect(lane.scrollTop).toBe(700)
   })
 
+  it('absorbs the load-earlier affordance leaving the lane after the last page', () => {
+    const loadOlderTurns = vi.fn()
+    const state: BoardWindowSessionState = { ...ready(chatSnapshot([ASSISTANT_NODE])), hasMore: true }
+    const { container, rerender } = render(<ConversationBody {...bodyProps(state, { loadOlderTurns })} />)
+    const lane = container.querySelector('[data-board-lane]') as HTMLElement
+    const geometry = laneGeometry(lane, 1000)
+    lane.scrollTop = 500
+
+    fireEvent.click(container.querySelector('[data-board-action="lane-load-older"]') as Element)
+    geometry.setHeight(1400)
+    const grown: BoardWindowSessionState = {
+      ...state,
+      hasMore: false,
+      chat: chatSnapshot([USER_NODE, ASSISTANT_NODE]),
+    }
+    rerender(<ConversationBody {...bodyProps(grown, { loadOlderTurns })} />)
+    expect(lane.scrollTop).toBe(900)
+
+    // The exhausted history drops the button above the reader: the shrink moves
+    // the scrollbar back by exactly the affordance's height.
+    geometry.setHeight(1368)
+    rerender(<ConversationBody {...bodyProps(grown, { loadOlderTurns })} />)
+    expect(lane.scrollTop).toBe(868)
+  })
+
   it('shows the permission and plan chips and switches the permission preset', () => {
     const selectPermission = vi.fn()
     const state: BoardWindowSessionState = {
@@ -586,18 +636,21 @@ describe('ConversationBody echoes, steering, and turn failures', () => {
 
   it('keeps committed rows mounted while a chunk streams', () => {
     const { container, rerender } = render(
-      <ConversationBody {...bodyProps(ready(chatSnapshot([USER_NODE, ASSISTANT_NODE])))} />,
+      <ConversationBody {...bodyProps(ready(chatSnapshot([USER_NODE, ASSISTANT_NODE, TOOL_NODE])))} />,
     )
     const committed = container.querySelector('[data-board-message="assistant"]')
+    const settledTool = container.querySelector('[data-board-tool="done"]')
     expect(committed).not.toBeNull()
+    expect(settledTool).not.toBeNull()
 
     const streamed = chatSnapshot(
-      [USER_NODE, ASSISTANT_NODE],
+      [USER_NODE, ASSISTANT_NODE, TOOL_NODE],
       { turn: 1, step: 2, blocks: [{ kind: 'text', text: 'Печатаю…' }] },
     )
     rerender(<ConversationBody {...bodyProps(ready(streamed))} />)
-    // The streamed chunk renders beside the unchanged row, never remounts it.
+    // The streamed chunk renders beside the unchanged rows, never remounts them.
     expect(container.querySelector('[data-board-message="assistant"]')).toBe(committed)
+    expect(container.querySelector('[data-board-tool="done"]')).toBe(settledTool)
     expect(container.querySelectorAll('[data-board-message="assistant"]')).toHaveLength(2)
     expect(container.querySelector('[data-board-streaming]')?.textContent).toContain('Печатаю…')
   })

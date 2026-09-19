@@ -22,7 +22,7 @@ Status: implemented
 
 **回合失败是一张卡片。** 持久的 `turn-error` 节点渲染为一张卡片，携带本地化标题、已知错误码（`AUTH`）拥有的本地化文案、位于可展开详情之后的净化提供方消息与错误码，以及在该失败回合的提示仍在已加载窗口时重发它的重试操作。通道的通用 latest-agent-error 行只在转录尚未携带该失败时渲染——位于转录尾部的持久失败就是它自己的卡片，因此两者绝不会把同一个失败报告两次。
 
-**流式保持已提交行挂载，历史保持读者位置。** 车道行是以原始 props（kind、text、labels）为参数的 memo 叶子，因此一次分块重发布只重渲染流式部分；行按事件 `seq` 去重，因此重复某事件的历史页无法重复一行。预置补偿是一次 JS 写入（`scrollTop += scrollHeight - anchor.height`，仅当前导行确实变化时才消费），并且车道禁用浏览器原生滚动锚定（`overflow-anchor: none`），否则浏览器会把同一调整再应用一次，把读者推过他们原本持有的页面。跟随尾部的规则不变：读者停留在距底部 24px 以内时车道跟随，一旦滚开就不再改动偏移。
+**流式保持已提交行挂载，历史保持读者位置。** 车道行是以原始 props（kind、text、labels）为参数的 memo 叶子，因此一次分块重发布只重渲染流式部分；行按事件 `seq` 去重，因此重复某事件的历史页无法重复一行。预置补偿是一次 JS 写入（`scrollTop += scrollHeight - anchor.height`，只由真正的预置或读者上方内容的收缩推动——历史耗尽时「加载更早的对话」控件离开车道即属后者），并且车道禁用浏览器原生滚动锚定（`overflow-anchor: none`），否则浏览器会把同一调整再应用一次，把读者推过他们原本持有的页面。跟随尾部的规则不变：读者停留在距底部 24px 以内时车道跟随，一旦滚开就不再改动偏移。
 
 ## Alternatives considered
 
@@ -39,7 +39,7 @@ Status: implemented
 
 窗口现在在对话的整个循环上与主面板一致：即时回声、流式文本、带编辑/移除/插队的同步队列条、保留排队工作的取消，以及每个失败一张本地化卡片。接受的代价：队列编辑只替换该行的文本（其他内容块被宿主的非空纯文本替换规则丢弃）；队列条的图片缩略图通过会话范围的对话缓存解析，读取失败的图片保留占位符；重试操作排队一个新的回合而不是原地重试，因为客户端没有暴露回合重试 API；车道仍只渲染散文、steering、工具名与回合失败——压缩检查点、模型重试与输出令牌上限保留各自既有表面，工具卡片归阶段 12。看板模型芯片仍为空，因为窗口会话的模型选择投影尚未物化；宿主的默认模型仍驱动每个回合，而该表面属于阶段 11。
 
-验证：`tests/composer.client.spec.tsx`（每次提交一个提示且乐观清空、被拒草稿的文本与芯片恢复、已输入文本的保留、卸载中止、队列条的附件/编辑/移除/插队/禁用插队/队列错误），`tests/conversation-body.client.spec.tsx`（回声渲染与按 `rpcId` 退休、回声附件、待定/队列/持久 steering、带详情与重试的 turn-error 卡片、本地化 AUTH 文案、失败行去重、重复 seq 去重、跨分块的已提交行身份、车道与 composer 的运行状态一致、滚开后的流式偏移），`tests/session-bridge.client.spec.ts`（回声注册与请求身份、拒绝与载体放弃、带附件与 rpcId 去重的队列/pending 投影、wire 编辑翻译、queue-error 发布与清除、排队图片解析、取消保留队列），以及实机审计 `.playwright-mcp/stage-10-gif/audit/audit.json`（9 项检查，`ok: true`，针对带 OpenAI 兼容 SSE 桩的实机 `pnpm ketos web`；本阶段发现并修复两个缺陷：编辑的 wire 形状与双重滚动补偿）。
+验证：`tests/composer.client.spec.tsx`（每次提交一个提示且乐观清空、被拒草稿的文本与芯片恢复、已输入文本的保留、卸载中止、队列条的附件/编辑/移除/插队/禁用插队/队列错误），`tests/conversation-body.client.spec.tsx`（回声渲染与按 `rpcId` 退休、回声附件、待定/队列/持久 steering、带详情与重试的 turn-error 卡片、本地化 AUTH 文案、失败行去重、重复 seq 去重、跨分块的已提交行身份、车道与 composer 的运行状态一致、滚开后的流式偏移），`tests/session-bridge.client.spec.ts`（回声注册与请求身份、拒绝与载体放弃、带附件与 rpcId 去重的队列/pending 投影、wire 编辑翻译、queue-error 发布与清除、排队图片解析、取消保留队列），以及实机审计 `.playwright-mcp/stage-10-gif/audit/audit.json`（9 项检查，`ok: true`，针对带 OpenAI 兼容 SSE 桩的实机 `pnpm ketos web`；本阶段发现并修复四个缺陷：编辑的 wire 形状、双重滚动补偿、错误卡片布局，以及历史控件的收缩）。
 
 ## Related
 

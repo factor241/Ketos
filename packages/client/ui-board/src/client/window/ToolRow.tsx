@@ -2,8 +2,10 @@
  * One tool line in the window lane: the call name, its outcome marker, and the
  * repeat control an unavailable result offers. The lane owns the row's place in
  * the transcript; the stages that replace this line with full tool cards keep
- * the same props, so the lane itself needs no change.
+ * the same props, so the lane itself needs no change. Memoized so a streamed
+ * chunk republishes the lane without touching settled tool rows.
  */
+import { memo } from 'react'
 import clsx from 'clsx'
 import { IconCheckOutline14, IconWarningOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { BoardTranslate } from '../locale.ts'
@@ -24,7 +26,7 @@ export interface ToolRowProps {
   readonly onRepeat?: (() => void) | undefined
 }
 
-export function ToolRow({ name, failed, unavailable = false, running = false, t, onRepeat }: ToolRowProps) {
+export const ToolRow = memo(function ToolRow({ name, failed, unavailable = false, running = false, t, onRepeat }: ToolRowProps) {
   return (
     <div
       className={clsx(css.tool, failed && css.toolFailed)}
@@ -44,4 +46,4 @@ export function ToolRow({ name, failed, unavailable = false, running = false, t,
       )}
     </div>
   )
-}
+})

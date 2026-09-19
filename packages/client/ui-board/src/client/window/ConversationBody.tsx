@@ -291,17 +291,26 @@ export function ConversationBody({
   )
 
   // Earlier turns prepend: the added height above the reader moves the scrollbar,
-  // not the reading position. The anchor is consumed only once the transcript's
-  // leading row changes, so a chunk or a running call landing below the reader
-  // in the meantime leaves it intact.
+  // not the reading position. The baseline moves only with the leading row (an
+  // actual prepend) or with a shrink above the reader — the load-earlier
+  // affordance leaving the lane once the last page arrives. Growth below the
+  // reader (streaming, running calls, any other republish) never touches it.
   useLayoutEffect(() => {
     const lane = laneRef.current
     const anchor = anchorRef.current
     if (lane === null || anchor === null) return
-    if ((rows[0]?.key ?? null) === anchor.firstKey) return
-    lane.scrollTop += lane.scrollHeight - anchor.height
-    anchorRef.current = null
-  }, [rows, streaming])
+    const leading = rows[0]?.key ?? null
+    if (leading !== anchor.firstKey) {
+      lane.scrollTop += lane.scrollHeight - anchor.height
+      anchor.firstKey = leading
+      anchor.height = lane.scrollHeight
+      return
+    }
+    if (lane.scrollHeight < anchor.height) {
+      lane.scrollTop -= anchor.height - lane.scrollHeight
+      anchor.height = lane.scrollHeight
+    }
+  })
 
   // Follow the tail while the lane grows and the user has not scrolled away.
   useLayoutEffect(() => {

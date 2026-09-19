@@ -55,6 +55,7 @@ type BoardActions = {
   setPanelWidth: (draft: BoardState, width: number) => void
   setPanelGroupBy: (draft: BoardState, groupBy: BoardPanelGroupBy) => void
   setPanelOrderBy: (draft: BoardState, orderBy: BoardPanelOrderBy) => void
+  setDefaultPreset: (draft: BoardState, presetId: string) => void
   closeWindow: (draft: BoardState, id: WindowId) => void
   hydrate: (draft: BoardState, layout: BoardLayoutDocument) => void
   setSelectingElement: (draft: BoardState, selecting: boolean) => void
@@ -92,6 +93,8 @@ export interface BoardState {
   panelGroupBy: BoardPanelGroupBy
   /** How the chats panel orders chats inside a group. */
   panelOrderBy: BoardPanelOrderBy
+  /** Agent preset new windows start with, or '' when the deployment default composes them. */
+  defaultPreset: string
   isSelectingElement: boolean
   /** Composer commands waiting for their window's composer to pick them up. */
   composerIntents: ComposerIntent[]
@@ -288,6 +291,7 @@ export function createBoardStore(): BoardStoreHandle {
       panelWidth: PANEL_DEFAULT_WIDTH,
       panelGroupBy: 'workspace',
       panelOrderBy: 'updated',
+      defaultPreset: '',
       isSelectingElement: false,
       composerIntents: [],
       composerIntentSeq: 0,
@@ -394,6 +398,9 @@ export function createBoardStore(): BoardStoreHandle {
       setPanelGroupBy: (draft, groupBy) => {
         draft.panelGroupBy = groupBy
       },
+      setDefaultPreset: (draft, presetId) => {
+        draft.defaultPreset = presetId
+      },
       setPanelOrderBy: (draft, orderBy) => {
         draft.panelOrderBy = orderBy
       },
@@ -435,6 +442,7 @@ export function createBoardStore(): BoardStoreHandle {
         draft.panelWidth = layout.panelWidth
         draft.panelGroupBy = layout.panelGroupBy
         draft.panelOrderBy = layout.panelOrderBy
+        draft.defaultPreset = layout.defaultPreset
       },
       setSelectingElement: (draft, selecting) => {
         draft.isSelectingElement = selecting

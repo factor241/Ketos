@@ -628,3 +628,118 @@ describe('ComposerBar commands and mentions', () => {
     expect(container.querySelector('[data-board-command-error]')).not.toBeNull()
   })
 })
+
+describe('ComposerBar preset and model semantics', () => {
+  const DEFAULT_PRESET = {
+    id: 'standard',
+    name: 'Standard',
+    isDefault: true,
+  }
+  const BROKEN_PRESET = {
+    id: 'broken-one',
+    name: 'Broken one',
+    broken: 'composition failed to load',
+  }
+
+  it('hides the preset chip when the deployment disables visible selection', () => {
+    const state = sessionState(undefined, {
+      presetId: 'standard',
+      presets: [DEFAULT_PRESET],
+      presetPickerEnabled: false,
+    })
+    const { container } = renderComposer(state)
+    expect(container.querySelector('[data-board-action="composer-preset"]')).toBeNull()
+  })
+
+  it('offers only composable presets and renders the refusal line', () => {
+    const state = sessionState(undefined, {
+      presetId: 'standard',
+      presets: [DEFAULT_PRESET, BROKEN_PRESET],
+      presetError: 'The session has already started',
+    })
+    const { container, getByText, queryByText } = renderComposer(state)
+    expect(container.querySelector('[data-board-preset-error]')).not.toBeNull()
+    expect(getByText(/Could not switch the preset/)).not.toBeNull()
+
+    fireEvent.click(container.querySelector('[data-board-action="composer-preset"]') as Element)
+    const menu = document.querySelector('[role="menu"]')
+    expect(menu?.textContent).toContain('Standard')
+    // A preset that cannot compose a session is never offered.
+    expect(menu?.textContent).not.toContain('Broken one')
+    expect(queryByText('Broken one')).toBeNull()
+  })
+
+  it('keeps the preset inert on a started session and names the reason', () => {
+    const state = sessionState(undefined, {
+      blank: false,
+      presetId: 'standard',
+      presets: [DEFAULT_PRESET],
+    })
+    const { container } = renderComposer(state)
+    const chip = container.querySelector('[data-board-action="composer-preset"]') as HTMLButtonElement
+    expect(chip.disabled).toBe(true)
+    fireEvent.mouseEnter(chip)
+    expect(
+      document.querySelector('[role="tooltip"]')?.textContent
+      ?? 'Create a new session to change its preset',
+    ).toMatch(/new session/)
+  })
+
+  it('names the model, the effort, and the system-default effect in the chip tooltip', () => {
+    const state = sessionState(undefined, {
+      model: {
+        provider: 'deepseek-official',
+        model: 'deepseek-flash',
+        modelName: 'DeepSeek-V41-Flash',
+        effort: 'high',
+        effortName: 'High',
+        efforts: [{ id: 'high', name: 'High' }],
+        groups: [],
+        loading: false,
+      },
+    })
+    const { container } = renderComposer(state)
+    const chip = container.querySelector('[data-board-action="composer-model"]') as HTMLButtonElement
+    fireEvent.mouseEnter(chip)
+    const tooltip = document.querySelector('[role="tooltip"]')?.textContent ?? ''
+    expect(tooltip).toContain('DeepSeek-V41-Flash')
+    expect(tooltip).toContain('High')
+    expect(tooltip).toMatch(/system default/)
+  })
+
+  it('shows a model catalog failure inside the model menu and keeps the window usable', () => {
+    const state = sessionState(undefined, {
+      model: { efforts: [], groups: [], loading: false, error: 'gateway/internal: catalog down' },
+    })
+    const { container, getByText } = renderComposer(state)
+    fireEvent.click(container.querySelector('[data-board-action="composer-model"]') as Element)
+    expect(getByText(/The model catalog failed to load/)).not.toBeNull()
+    expect(getByText(/catalog down/)).not.toBeNull()
+    // The composer still accepts a draft.
+    fireEvent.change(textarea(container), { target: { value: 'привет' } })
+    expect((container.querySelector('button[aria-label="Send"]') as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('switches only the model when a model is picked, never the preset', () => {
+    const selectModel = vi.fn()
+    const selectAgentPreset = vi.fn()
+    const state = sessionState(undefined, {
+      presetId: 'standard',
+      presets: [DEFAULT_PRESET],
+      model: {
+        provider: 'deepseek-official',
+        model: 'deepseek-flash',
+        modelName: 'DeepSeek-V41-Flash',
+        efforts: [{ id: 'high', name: 'High' }],
+        groups: [{ id: 'deepseek-official', name: 'DeepSeek', models: [{ id: 'deepseek-v4-pro', name: 'DeepSeek-V4-Pro' }] }],
+        loading: false,
+      },
+    })
+    const { container, getByText } = renderComposer(state, { selectModel, selectAgentPreset })
+    fireEvent.click(container.querySelector('[data-board-action="composer-model"]') as Element)
+    fireEvent.click(getByText('Model'))
+    fireEvent.click(getByText('DeepSeek-V4-Pro'))
+    expect(selectModel).toHaveBeenCalledWith(WINDOW, { provider: 'deepseek-official', model: 'deepseek-v4-pro' })
+    expect(selectAgentPreset).not.toHaveBeenCalled()
+  })
+})

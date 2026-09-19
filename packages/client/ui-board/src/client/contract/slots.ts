@@ -101,6 +101,10 @@ export interface BoardPresetOption {
   readonly name: string
   /** One sentence on what the preset is for. */
   readonly description?: string
+  /** Why the preset cannot compose a session; such a row is never offered. */
+  readonly broken?: string
+  /** Whether the deployment composes this preset for a session naming none. */
+  readonly isDefault?: boolean
 }
 
 /** One permission preset row the window's chip can switch to. */
@@ -123,6 +127,14 @@ export type BoardQueueAttachment =
     readonly name: string
     readonly bytes: number
   }
+
+/** Deployment preset roster as the board chrome offers it at window creation. */
+export interface BoardPresetRoster {
+  /** Presets the deployment supplies; broken rows are already dropped. */
+  readonly presets: readonly BoardPresetOption[]
+  /** Whether the deployment allows visible preset selection for unnamed sessions. */
+  readonly pickerEnabled: boolean
+}
 
 /** One queued message row the window renders above the composer. */
 export interface BoardQueueRow {
@@ -260,6 +272,10 @@ export interface BoardWindowSessionState {
   /** Agent preset in force, and the roster the chip can switch to. */
   readonly presetId?: string | undefined
   readonly presets: readonly BoardPresetOption[]
+  /** Whether the deployment allows visible preset selection for unnamed sessions. */
+  readonly presetPickerEnabled: boolean
+  /** Localized failure of the last attempt to switch the preset. */
+  readonly presetError?: string | undefined
   /** Permission preset in force and the switchable rows. */
   readonly permission?: string | undefined
   readonly permissions: readonly BoardPermissionOption[]
@@ -303,6 +319,11 @@ export interface BoardWindowInjected {
     sessionList: HostObservable<SessionListState>
     /** Workspaces (project folders) and the sessions attached to them. */
     workspaceList: HostObservable<WorkspaceSnapshot>
+    /**
+     * Deployment preset roster the board chrome offers at window creation,
+     * with the policy flag for visible preset selection.
+     */
+    agentPresetRoster: HostObservable<BoardPresetRoster>
   }
   /** Create the window's session on first use; idempotent. */
   ensureWindowSession: (windowId: WindowId) => void

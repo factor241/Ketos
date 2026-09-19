@@ -57,6 +57,11 @@ export interface BoardBenchOptions {
     readonly available?: boolean
     readonly upload?: (sessionId: SessionId, ...args: unknown[]) => Promise<unknown>
   }
+  /** Preset roster double; the default answers an empty roster with selection enabled. */
+  readonly agentPresets?: {
+    readonly list?: () => Promise<unknown>
+    readonly select?: (sessionId: SessionId, presetId: string) => Promise<unknown>
+  }
   /** Settings namespace doubles; the default replace accepts any section. */
   remoteSettings?: {
     readonly replace?: (
@@ -168,6 +173,7 @@ export function sessionState(
     loadingOlder: false,
     runningCalls: [],
     presets: [],
+    presetPickerEnabled: true,
     permissions: [],
     plan: false,
     queue: [],
@@ -256,7 +262,11 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
   runtime.ctx.provide('settingsScope', { describe: () => settingsScope.face } as never)
   const remote = {
     settings,
-    agentPresets: { list: async () => ({ ok: true as const, value: { presets: [], authorable: false, modeSelectionEnabled: false } }) },
+    agentPresets: {
+      list: options.agentPresets?.list
+        ?? (async () => ({ ok: true as const, value: { presets: [], authorable: false, modeSelectionEnabled: true } })),
+      select: options.agentPresets?.select ?? (async () => ({ ok: true as const, value: undefined })),
+    },
     commands: {
       list: async () => ({ ok: true as const, value: [] }),
       execute: async () => ({ ok: true as const, value: undefined }),
@@ -278,7 +288,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     value: { receiptId: 'receipt-1', file: { id: 'file-1', name: 'file' } },
   }))
   runtime.ctx.provide('remote.settings', settings as never)
-  for (const name of ['remote.commands', 'remote.agentPresets', 'remote.goals', 'remote.fileReferences', 'remote.sessionReferenceResolver']) {
+  for (const name of ['remote.commands', 'remote.agentPresets', 'remote.goals', 'remote.fileReferences', 'remote.sessionReferenceResolver', 'remote.session']) {
     runtime.ctx.provide(name, {} as never)
   }
 

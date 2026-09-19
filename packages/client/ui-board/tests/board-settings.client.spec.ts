@@ -66,6 +66,7 @@ describe('board settings schema', () => {
       panelWidth: 300,
       panelGroupBy: 'workspace',
       panelOrderBy: 'updated',
+      defaultPreset: '',
     })
   })
 

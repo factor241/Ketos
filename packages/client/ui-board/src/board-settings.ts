@@ -101,6 +101,8 @@ export type BoardLayout = {
   panelGroupBy: BoardPanelGroupBy
   /** How the chats panel ordered chats inside a group. */
   panelOrderBy: BoardPanelOrderBy
+  /** Agent preset new windows start with, or '' when the deployment default composes them. */
+  defaultPreset: string
 }
 
 /** Complete stored layout document; `version` gates the restore. */
@@ -155,4 +157,5 @@ export const BoardSettingsSchema: z<BoardSettings> = z.object({
   panelWidth: z.number().min(PANEL_MIN_WIDTH).max(PANEL_MAX_WIDTH).default(PANEL_DEFAULT_WIDTH),
   panelGroupBy: z.union([...BOARD_PANEL_GROUP_BYS]).default('workspace'),
   panelOrderBy: z.union([...BOARD_PANEL_ORDER_BYS]).default('updated'),
+  defaultPreset: z.string().default(''),
 })

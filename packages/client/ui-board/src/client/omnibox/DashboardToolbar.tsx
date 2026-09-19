@@ -10,6 +10,7 @@ import clsx from 'clsx'
 import {
   IconAgentPresetOutline16,
   IconBrowseOutline16,
+  IconChecklistOutline14,
   IconGlobeOutline14,
   IconInspectOutline12,
   IconPaperclipOutline16,
@@ -40,7 +41,7 @@ export type DashboardToolbarProps =
   & InjectFace<BoardWindowInjected>
 
 export function DashboardToolbar({
-  useStore, actions, t, sendPrompt, openChat, useSessionList, useWorkspaceList,
+  useStore, actions, t, sendPrompt, openChat, useSessionList, useWorkspaceList, useAgentPresetRoster,
 }: DashboardToolbarProps) {
   const [text, setText] = useState('')
   const [notice, setNotice] = useState<string | null>(null)
@@ -50,6 +51,7 @@ export function DashboardToolbar({
   const activeWindowId = useStore(s => s.activeWindowId)
   const sessionList = useSessionList(s => s)
   const workspaceList = useWorkspaceList(s => s)
+  const presetRoster = useAgentPresetRoster(s => s)
   const recent = useMemo(
     () => recentChats(sessionList, workspaceList, RECENT_CHAT_LIMIT),
     [sessionList, workspaceList],
@@ -115,6 +117,13 @@ export function DashboardToolbar({
         actions.setSelectingElement(true)
         return
       default:
+        if (id.startsWith('preset:')) {
+          // The quick choice at creation: remember the pick, then open the
+          // window; its session is created with this preset by the bridge.
+          actions.setDefaultPreset(id.slice('preset:'.length))
+          openBoardWindow(actions, 'agent', nextWindowOrdinal(windows))
+          return
+        }
         if (id.startsWith('recent:')) {
           // The recent list follows the same duplicate rule as the chats panel:
           // an already open chat focuses its window instead of opening twice.
@@ -128,6 +137,18 @@ export function DashboardToolbar({
   const menuItems: readonly MenuEntry[] = [
     { type: 'label', id: 'group.newWindow', text: t('menu.newWindow') },
     { id: 'open:agent', label: t('menu.open.agent'), icon: <IconAgentPresetOutline16 /> },
+    ...(presetRoster.pickerEnabled && presetRoster.presets.length > 0
+      ? [{
+        id: 'preset',
+        label: t('menu.preset'),
+        icon: <IconAgentPresetOutline16 />,
+        submenu: presetRoster.presets.map(preset => ({
+          id: `preset:${preset.id}`,
+          label: preset.name,
+          ...(preset.isDefault === true ? { icon: <IconChecklistOutline14 /> } : {}),
+        })),
+      }] satisfies readonly MenuEntry[]
+      : []),
     { id: 'open:connectors', label: t('menu.open.connectors'), icon: <IconBrowseOutline16 /> },
     { id: 'open:settings', label: t('menu.open.settings'), icon: <IconBrowseOutline16 /> },
     { id: 'open:clone', label: t('menu.open.clone'), icon: <IconAgentPresetOutline16 /> },

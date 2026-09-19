@@ -586,6 +586,18 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
     return entries
   }, [session?.commands, t])
 
+  // A broken preset cannot compose a session, so the menu never offers it; it
+  // stays in the roster only so a current preset still resolves its label.
+  const presetItems: readonly MenuEntry[] = useMemo(
+    () => (session?.presets ?? [])
+      .filter(preset => preset.broken === undefined)
+      .map(preset => ({ id: preset.id, label: preset.name })),
+    [session?.presets],
+  )
+  const presetPickerVisible = (session?.presetPickerEnabled ?? true) && (session?.presets.length ?? 0) > 0
+
+  // The catalog failure belongs in the model menu, where the user goes to fix
+  // it; the chip keeps showing whatever selection is in force.
   const modelItems: readonly MenuEntry[] = useMemo(() => {
     const state = session?.model
     if (state === undefined) return []
@@ -605,15 +617,23 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
       ...(state.effort === effort.id ? { icon: <IconChecklistOutline14 /> } : {}),
     }))
     return [
+      ...(state.error === undefined
+        ? []
+        : [{ type: 'label', id: 'modelError', text: `${t('model.error')}: ${state.error}` }] satisfies readonly MenuEntry[]),
       { id: 'model', label: t('model.menu'), submenu: modelRows },
       { id: 'effort', label: t('model.effort'), submenu: effortRows },
     ]
   }, [session?.model, t])
 
-  const presetItems: readonly MenuEntry[] = useMemo(
-    () => (session?.presets ?? []).map(preset => ({ id: preset.id, label: preset.name })),
-    [session?.presets],
-  )
+  // The model tooltip names the selection in force and states the system-default
+  // side effect of switching, so the chip never surprises the user.
+  const modelName = session?.model.modelName ?? session?.model.model
+  const effortName = session?.model.effortName ?? session?.model.effort
+  const modelTooltip = modelName === undefined
+    ? t('model.hint.none')
+    : effortName === undefined
+      ? t('model.hintPlain', { model: modelName })
+      : t('model.hint', { model: modelName, effort: effortName })
 
   const todoDone = (session?.todos ?? []).filter(todo => todo.status === 'completed').length
   const todoActive = (session?.todos ?? []).filter(todo => todo.status === 'in_progress').length
@@ -825,37 +845,43 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
       )}
 
       <div className={css.contextRow}>
-        <Tooltip label={t('preset.hint')} side="top" disabled={isOpen('preset')}>
-          <button
-            ref={presetAnchor}
-            type="button"
-            className={clsx(css.chip, css.presetChip)}
-            disabled={!(session?.blank ?? false) || (session?.presets.length ?? 0) === 0}
-            onClick={() => { openMenu('preset', presetAnchor.current) }}
-            data-board-action="composer-preset"
-            aria-label={t('preset.aria')}
-          >
-            <span className={css.chipIcon}><IconBranchOutline16 /></span>
-            <span className={css.chipLabel}>
-              {(session?.presets ?? []).find(preset => preset.id === session?.presetId)?.name
-                ?? ((session?.presets.length ?? 0) === 0 ? t('preset.none') : session?.presetId)
-                ?? t('preset.none')}
-            </span>
-            <span className={css.chipIcon}><IconChevronDownOutline14 /></span>
-          </button>
-        </Tooltip>
-        <Menu
-          portal
-          open={isOpen('preset')}
-          side={sideOf('preset')}
-          align={alignOf('preset')}
-          selection="fill"
-          anchor={<span className={css.anchor} />}
-          getAnchorRect={() => presetAnchor.current?.getBoundingClientRect() ?? null}
-          items={presetItems}
-          onSelect={(id) => { closeMenu(); injected.selectAgentPreset(windowId, id) }}
-          onClose={closeMenu}
-        />
+        {/* The deployment can disable visible preset selection for new
+            sessions; the chip then has nothing honest to offer. */}
+        {presetPickerVisible && (
+          <>
+            <Tooltip label={t('preset.hint')} side="top" disabled={isOpen('preset')}>
+              <button
+                ref={presetAnchor}
+                type="button"
+                className={clsx(css.chip, css.presetChip)}
+                disabled={!(session?.blank ?? false)}
+                onClick={() => { openMenu('preset', presetAnchor.current) }}
+                data-board-action="composer-preset"
+                aria-label={t('preset.aria')}
+              >
+                <span className={css.chipIcon}><IconBranchOutline16 /></span>
+                <span className={css.chipLabel}>
+                  {(session?.presets ?? []).find(preset => preset.id === session?.presetId)?.name
+                    ?? session?.presetId
+                    ?? t('preset.none')}
+                </span>
+                <span className={css.chipIcon}><IconChevronDownOutline14 /></span>
+              </button>
+            </Tooltip>
+            <Menu
+              portal
+              open={isOpen('preset')}
+              side={sideOf('preset')}
+              align={alignOf('preset')}
+              selection="fill"
+              anchor={<span className={css.anchor} />}
+              getAnchorRect={() => presetAnchor.current?.getBoundingClientRect() ?? null}
+              items={presetItems}
+              onSelect={(id) => { closeMenu(); injected.selectAgentPreset(windowId, id) }}
+              onClose={closeMenu}
+            />
+          </>
+        )}
       </div>
 
       {mentionQuery !== null && (
@@ -978,6 +1004,11 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
         {session?.commandError !== undefined && (
           <div className={css.intakeError} data-board-command-error="">
             {t('command.failed')}: {session.commandError}
+          </div>
+        )}
+        {session?.presetError !== undefined && (
+          <div className={css.intakeError} data-board-preset-error="">
+            {t('preset.failed')}: {session.presetError}
           </div>
         )}
 
@@ -1122,7 +1153,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
               </Tooltip>
             )}
 
-            <Tooltip label={t('model.aria')} side="top" disabled={isOpen('model')}>
+            <Tooltip label={modelTooltip} side="top" disabled={isOpen('model')}>
               <button
                 ref={modelAnchor}
                 type="button"

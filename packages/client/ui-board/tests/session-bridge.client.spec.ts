@@ -753,3 +753,127 @@ describe('BoardSessionBridge submissions and queue projections', () => {
     }])
   })
 })
+
+describe('BoardSessionBridge preset lifecycle', () => {
+  // User-trust rows carry their own copy, so the roster mapping is asserted
+  // without a locale dictionary; shipped presets route through the display
+  // fold, which the agent-preset package tests own.
+  const ROSTER = {
+    presets: [
+      { id: 'standard', trust: 'user', isDefault: true, name: 'Standard', description: 'The standard preset' },
+      { id: 'ptc', trust: 'user', isDefault: false, name: 'PTC mode', description: 'The PTC preset' },
+      { id: 'broken-one', trust: 'user', isDefault: false, name: 'Broken one', broken: 'composition failed to load' },
+    ],
+    authorable: true,
+    modeSelectionEnabled: true,
+  }
+
+  /** Bench with a configurable roster, a selected-preset spy, and a blank window session. */
+  async function presetBench(options: {
+    blank?: boolean
+    select?: (sessionId: unknown, presetId: string) => Promise<unknown>
+    roster?: unknown
+  } = {}) {
+    const select = vi.fn(options.select ?? (async () => ({ ok: true as const, value: undefined })))
+    const prepared = await createBoardBench({
+      session: { prompt: () => Promise.resolve({ ok: true, value: { accepted: true } }) },
+      sessionSummary: { blank: options.blank ?? true },
+      agentPresets: {
+        list: async () => ({ ok: true as const, value: options.roster ?? ROSTER }),
+        select,
+      },
+    })
+    runtimes.add(prepared.runtime)
+    prepared.runtime.ctx.locale.register(NS, { zh, en })
+    return { prepared, select }
+  }
+
+  it('applies the remembered default preset to a freshly created session', async () => {
+    const { prepared, select } = await presetBench()
+    const bridge = new BoardSessionBridge(prepared.runtime.ctx, { defaultPreset: () => 'ptc' })
+    const windowId = 'a1' as WindowId
+    const channel = bridge.channel(windowId)
+    bridge.ensure(windowId)
+    await prepared.runtime.flush()
+
+    const sessionId = channel.getSnapshot().sessionId
+    expect(sessionId).toBeDefined()
+    expect(select).toHaveBeenCalledWith(sessionId, 'ptc')
+  })
+
+  it('leaves the deployment composition alone when no default is remembered', async () => {
+    const { prepared, select } = await presetBench()
+    const bridge = new BoardSessionBridge(prepared.runtime.ctx, { defaultPreset: () => '' })
+    bridge.ensure('a1' as WindowId)
+    await prepared.runtime.flush()
+    expect(select).not.toHaveBeenCalled()
+  })
+
+  it('remembers the preset a user picks on a blank session', async () => {
+    const { prepared } = await presetBench()
+    const rememberPreset = vi.fn()
+    const bridge = new BoardSessionBridge(prepared.runtime.ctx, { rememberPreset })
+    const windowId = 'a1' as WindowId
+    bridge.ensure(windowId)
+    await prepared.runtime.flush()
+
+    bridge.selectAgentPreset(windowId, 'ptc')
+    await prepared.runtime.flush()
+    expect(rememberPreset).toHaveBeenCalledWith('ptc')
+    expect(bridge.channel(windowId).getSnapshot().presetError).toBeUndefined()
+  })
+
+  it('maps a locked refusal to its localized reason and clears it on the next pick', async () => {
+    const { prepared } = await presetBench({
+      select: async () => ({
+        ok: false as const,
+        error: { code: 'agent-preset/locked', message: 'conversation started' },
+      }),
+    })
+    const bridge = new BoardSessionBridge(prepared.runtime.ctx)
+    const windowId = 'a1' as WindowId
+    const channel = bridge.channel(windowId)
+    bridge.ensure(windowId)
+    await prepared.runtime.flush()
+
+    bridge.selectAgentPreset(windowId, 'ptc')
+    await prepared.runtime.flush()
+    expect(channel.getSnapshot().presetError)
+      .toBe('The session has already started; create a new session to change its preset.')
+
+    const { prepared: accepting } = await presetBench()
+    const second = new BoardSessionBridge(accepting.runtime.ctx)
+    const secondWindow = 'a2' as WindowId
+    const secondChannel = second.channel(secondWindow)
+    second.ensure(secondWindow)
+    await accepting.runtime.flush()
+    second.selectAgentPreset(secondWindow, 'ptc')
+    await accepting.runtime.flush()
+    expect(secondChannel.getSnapshot().presetError).toBeUndefined()
+  })
+
+  it('publishes broken rows, the deployment default, and the picker policy', async () => {
+    const { prepared } = await presetBench({ roster: { ...ROSTER, modeSelectionEnabled: false } })
+    const bridge = new BoardSessionBridge(prepared.runtime.ctx)
+    const windowId = 'a1' as WindowId
+    const channel = bridge.channel(windowId)
+    bridge.ensure(windowId)
+    await prepared.runtime.flush()
+
+    const state = channel.getSnapshot()
+    expect(state.presetPickerEnabled).toBe(false)
+    expect(state.presets).toEqual([
+      { id: 'standard', name: 'Standard', description: 'The standard preset', isDefault: true },
+      { id: 'ptc', name: 'PTC mode', description: 'The PTC preset' },
+      { id: 'broken-one', name: 'Broken one', broken: 'composition failed to load' },
+    ])
+  })
+
+  it('does not apply the default preset to a session that already started', async () => {
+    const { prepared, select } = await presetBench({ blank: false })
+    const bridge = new BoardSessionBridge(prepared.runtime.ctx, { defaultPreset: () => 'ptc' })
+    bridge.ensure('a1' as WindowId)
+    await prepared.runtime.flush()
+    expect(select).not.toHaveBeenCalled()
+  })
+})

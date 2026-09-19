@@ -96,6 +96,7 @@ function emptyState(): BoardWindowSessionState {
     loadingOlder: false,
     runningCalls: [],
     presets: [],
+    presetPickerEnabled: true,
     permissions: [],
     plan: false,
     queue: [],
@@ -154,6 +155,13 @@ export interface BoardSessionBridgeHooks {
    * creation, rebind, close — never on a frame.
    */
   persistBindings?: (bindings: BoardSettingsBindings) => void
+  /**
+   * Agent preset a freshly created window session starts with, or '' when the
+   * deployment default composes it. Read at every creation.
+   */
+  defaultPreset?: () => string
+  /** Remember one preset the user chose on a blank session as the new default. */
+  rememberPreset?: (presetId: string) => void
 }
 
 /**
@@ -168,7 +176,6 @@ export class BoardSessionBridge {
   private readonly pending = new Map<WindowId, Promise<void>>()
   private readonly disposers = new Set<() => void>()
   private readonly hooks: BoardSessionBridgeHooks
-  private presetRoster: readonly BoardPresetOption[] | undefined
   private disposed = false
 
   /**
@@ -399,17 +406,57 @@ export class BoardSessionBridge {
   }
 
   /**
-   * Switch the agent preset of the window's still-blank session.
+   * Switch the agent preset of the window's still-blank session. A host
+   * refusal maps to the localized reason its code carries, and a successful
+   * pick becomes the remembered default for new windows.
    * @param windowId - window identity.
    * @param presetId - roster preset id.
    */
   selectAgentPreset(windowId: WindowId, presetId: string): void {
     const sessionId = this.record(windowId).sessionId
     if (sessionId === undefined) return
+    this.patch(windowId, { presetError: undefined })
+    void this.ctx.remote.agentPresets.select(sessionId, presetId).then((result) => {
+      if (result.ok) {
+        this.hooks.rememberPreset?.(presetId)
+        return
+      }
+      this.patch(windowId, { presetError: this.presetFailureText(result.error) })
+    }).catch((error: unknown) => {
+      this.patch(windowId, { presetError: error instanceof Error ? error.message : String(error) })
+    })
+  }
+
+  /**
+   * Apply the remembered default preset to a freshly created blank session;
+   * a refusal is reported like an explicit pick, because a saved default the
+   * host no longer accepts is worth saying out loud.
+   * @param windowId - window identity.
+   * @param sessionId - the just-created session.
+   */
+  private applyDefaultPreset(windowId: WindowId, sessionId: SessionId): void {
+    const presetId = this.hooks.defaultPreset?.() ?? ''
+    if (presetId === '') return
+    const row = this.ctx.sessions.list.getSnapshot().byId[sessionId]
+    if (row?.blank !== true) return
+    if (row.projectionValues?.agentPreset === presetId) return
     void this.ctx.remote.agentPresets.select(sessionId, presetId).then((result) => {
       if (result.ok) return
-      this.patch(windowId, { promptError: this.failureText(result.error) })
+      this.patch(windowId, { presetError: this.presetFailureText(result.error) })
+    }).catch((error: unknown) => {
+      this.patch(windowId, { presetError: error instanceof Error ? error.message : String(error) })
     })
+  }
+
+  /** Localized reason of one refused preset switch; an unknown code stays verbatim. */
+  private presetFailureText(error: { code: string; message: string }): string {
+    switch (error.code) {
+      case 'agent-preset/locked': return this.t('preset.reason.locked')
+      case 'agent-preset/not-found': return this.t('preset.reason.notFound')
+      case 'agent-preset/invalid':
+      case 'agent-preset/read-only': return this.t('preset.reason.invalid', { reason: error.message })
+      default: return this.failureText(error)
+    }
   }
 
   /**
@@ -690,6 +737,7 @@ export class BoardSessionBridge {
       // moved on (a bind, or a recovery the user started meanwhile).
       if (this.windows.get(windowId) !== record || record.sessionId !== before) return
       this.switchTo(windowId, sessionId)
+      this.applyDefaultPreset(windowId, sessionId)
     } catch (error) {
       if (this.windows.get(windowId) !== record) return
       this.fail(windowId, error)
@@ -1105,6 +1153,7 @@ export class BoardSessionBridge {
     if (this.disposed) return
     if (this.windows.get(windowId) !== record || record.sessionId !== before) return
     this.switchTo(windowId, sessionId)
+    this.applyDefaultPreset(windowId, sessionId)
   }
 
   /** Publish one failure onto the window's channel. */
@@ -1126,28 +1175,41 @@ export class BoardSessionBridge {
       .map(id => ({ id, dangerous: id === FULL_ACCESS_PRESET }))
   }
 
+  /**
+   * Publish the preset roster for one window. The roster is read per attach —
+   * it is small and a deployment can change its roots at any time, so a
+   * process-lifetime cache would keep offering rows that no longer exist.
+   * Broken rows stay in the list (a current preset still resolves its label)
+   * and the component hides them from the menu; the picker flag follows the
+   * deployment policy.
+   */
   private async syncPresets(windowId: WindowId): Promise<void> {
     try {
-      if (this.presetRoster === undefined) {
-        const result = await this.ctx.remote.agentPresets.list()
-        if (!result.ok) {
-          this.patch(windowId, { promptError: this.failureText(result.error) })
-          return
-        }
-        const presetT = this.ctx.locale.bind('settings.agentPreset')
-        this.presetRoster = result.value.presets.map((row) => {
-          const display = presetDisplayText(row, presetT)
-          return {
-            id: row.id,
-            name: display.name,
-            ...(display.description === undefined ? {} : { description: display.description }),
-          }
-        })
+      const result = await this.ctx.remote.agentPresets.list()
+      if (!result.ok) {
+        this.patch(windowId, { presetError: this.failureText(result.error) })
+        return
       }
-      this.patch(windowId, { presets: this.presetRoster })
-    } catch (error) {
-      // A deployment without the preset remote keeps the chip empty.
-      this.patch(windowId, { promptError: error instanceof Error ? error.message : String(error) })
+      const presetT = this.ctx.locale.bind('settings.agentPreset')
+      const presets: BoardPresetOption[] = result.value.presets.map((row) => {
+        const display = presetDisplayText(row, presetT)
+        return {
+          id: row.id,
+          name: display.name,
+          ...(display.description === undefined ? {} : { description: display.description }),
+          ...(row.broken === undefined ? {} : { broken: row.broken }),
+          ...(row.isDefault ? { isDefault: true } : {}),
+        }
+      })
+      this.patch(windowId, {
+        presets,
+        presetPickerEnabled: result.value.modeSelectionEnabled,
+        presetError: undefined,
+      })
+    } catch {
+      // A deployment without the preset remote hides the chip instead of
+      // leaving a control that cannot act.
+      this.patch(windowId, { presets: [], presetPickerEnabled: false })
     }
   }
 

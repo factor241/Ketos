@@ -187,3 +187,61 @@ describe('board omnibox', () => {
     expect(document.querySelector('[role="menu"]')).not.toBeNull()
   })
 })
+
+describe('board omnibox preset pick at creation', () => {
+  it('offers the roster, remembers the pick, and opens the window with it', async () => {
+    const prompt = vi.fn(() => Promise.resolve({ ok: true as const, value: { accepted: true } }))
+    const prepared = await createBoardBench({
+      session: { prompt },
+      agentPresets: {
+        list: async () => ({
+          ok: true as const,
+          value: {
+            presets: [
+              { id: 'standard', trust: 'user', isDefault: true, name: 'Standard' },
+              { id: 'ptc', trust: 'user', isDefault: false, name: 'PTC mode' },
+            ],
+            authorable: true,
+            modeSelectionEnabled: true,
+          },
+        }),
+      },
+    })
+    runtimes.add(prepared.runtime)
+    await prepared.mountBoard()
+    const panel = prepared.runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = prepared.runtime.storeOf('board.dock') as BoardInstance
+
+    openActionMenu(panel)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Preset' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'PTC mode' }))
+
+    // The pick becomes the remembered default and the window follows.
+    expect(board.store.getSnapshot().defaultPreset).toBe('ptc')
+    expect(board.store.getSnapshot().windowOrder).toHaveLength(1)
+  })
+
+  it('keeps the plain agent entry when the deployment disables preset selection', async () => {
+    const prompt = vi.fn(() => Promise.resolve({ ok: true as const, value: { accepted: true } }))
+    const prepared = await createBoardBench({
+      session: { prompt },
+      agentPresets: {
+        list: async () => ({
+          ok: true as const,
+          value: {
+            presets: [{ id: 'standard', trust: 'user', isDefault: true, name: 'Standard' }],
+            authorable: true,
+            modeSelectionEnabled: false,
+          },
+        }),
+      },
+    })
+    runtimes.add(prepared.runtime)
+    await prepared.mountBoard()
+    const panel = prepared.runtime.renderSlot('main', {}, { entryKey: 'board' })
+
+    openActionMenu(panel)
+    expect(screen.queryByRole('menuitem', { name: 'Preset' })).toBeNull()
+    expect(screen.getByRole('menuitem', { name: t('menu.open.agent') })).not.toBeNull()
+  })
+})

@@ -248,3 +248,24 @@ describe('sanitizeBoardLayout', () => {
     expect(state.panelCollapsed).toBe(false)
   })
 })
+
+describe('defaultPreset round trip', () => {
+  it('captures the store default and repairs a stored value', () => {
+    const instance = createBoardStore().create()
+    instance.actions.setDefaultPreset('ptc')
+    expect(captureBoardLayout(instance.getSnapshot()).defaultPreset).toBe('ptc')
+
+    expect(sanitizeBoardLayout(document({ defaultPreset: '  ptc  ' }))?.defaultPreset).toBe('ptc')
+    // A non-string value falls back to the deployment default (empty).
+    expect(sanitizeBoardLayout(document({ defaultPreset: 42 }))?.defaultPreset).toBe('')
+    expect(sanitizeBoardLayout(document())?.defaultPreset).toBe('')
+  })
+
+  it('hydrates the default preset from a stored document', () => {
+    const instance = createBoardStore().create()
+    const layout = sanitizeBoardLayout(document({ defaultPreset: 'ptc' }))
+    if (layout === undefined) throw new Error('document did not sanitize')
+    instance.actions.hydrate(layout)
+    expect(instance.getSnapshot().defaultPreset).toBe('ptc')
+  })
+})

@@ -106,6 +106,7 @@ export function captureBoardLayout(state: BoardState): BoardLayoutDocument {
     panelWidth: state.panelWidth,
     panelGroupBy: state.panelGroupBy,
     panelOrderBy: state.panelOrderBy,
+    defaultPreset: state.defaultPreset,
   }
 }
 
@@ -191,6 +192,7 @@ export function sanitizeBoardLayout(raw: unknown): BoardSettings | undefined {
     panelWidth: bounded(raw.panelWidth, PANEL_DEFAULT_WIDTH, PANEL_MIN_WIDTH, PANEL_MAX_WIDTH),
     panelGroupBy: memberOf(raw.panelGroupBy, BOARD_PANEL_GROUP_BYS) ?? 'workspace',
     panelOrderBy: memberOf(raw.panelOrderBy, BOARD_PANEL_ORDER_BYS) ?? 'updated',
+    defaultPreset: typeof raw.defaultPreset === 'string' ? raw.defaultPreset.trim() : '',
   }
   try {
     return BoardSettingsSchema(candidate)

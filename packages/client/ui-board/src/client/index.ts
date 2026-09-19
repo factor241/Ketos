@@ -14,11 +14,13 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import { presetDisplayText } from '@deepseek-ai/dsh-agent-presets/display'
 import { createBoardStore, type BoardStoreHandle } from './store.ts'
 import { BoardLayoutPersistence } from './board-persistence.ts'
 import { BoardSessionBridge } from './session-bridge.ts'
 import { resolveChatWindow } from './open-window.ts'
-import type { BoardWindowInjected, WindowId } from './contract/slots.ts'
+import type { BoardPresetRoster, BoardWindowInjected, WindowId } from './contract/slots.ts'
 import { BoardRoot, BoardIcon } from './BoardViews.tsx'
 import { DashboardCanvas } from './canvas/DashboardCanvas.tsx'
 import { BoardWindowLayer } from './canvas/BoardWindowLayer.tsx'
@@ -45,6 +47,10 @@ export const inject = [
   'fileUpload', 'settingsScope',
   'remote', 'remote.settings', 'remote.commands', 'remote.agentPresets', 'remote.goals',
   'remote.fileReferences', 'remote.sessionReferenceResolver',
+  // The per-session model directory resolves the host catalog through the
+  // caller's context (ui-model-selection tracks the caller), so the board must
+  // declare the namespace it makes the service read.
+  'remote.session',
 ]
 
 /**
@@ -67,7 +73,37 @@ export function apply(ctx: ClientContext): void {
   // bridge's bindings map is the second half of the stored settings section.
   const bridge = new BoardSessionBridge(ctx, {
     persistBindings: (bindings) => { persistence.writeBindings(bindings) },
+    defaultPreset: () => instance.getSnapshot().defaultPreset,
+    rememberPreset: (presetId) => { instance.actions.setDefaultPreset(presetId) },
   })
+
+  // Deployment preset roster for the board chrome's window-creation entries.
+  // Read once at apply through the same display fold the window chip uses; a
+  // failed read leaves the roster empty (the plain creation entries remain).
+  const presetRoster = createSnapshotStore<BoardPresetRoster>({ presets: [], pickerEnabled: false })
+  void (async () => {
+    try {
+      const result = await ctx.remote.agentPresets.list()
+      if (!result.ok) return
+      const presetT = ctx.locale.bind('settings.agentPreset')
+      presetRoster.set({
+        presets: result.value.presets
+          .filter(row => row.broken === undefined)
+          .map((row) => {
+            const display = presetDisplayText(row, presetT)
+            return {
+              id: row.id,
+              name: display.name,
+              ...(display.description === undefined ? {} : { description: display.description }),
+              ...(row.isDefault ? { isDefault: true } : {}),
+            }
+          }),
+        pickerEnabled: result.value.modeSelectionEnabled,
+      })
+    } catch {
+      // A deployment without the preset remote keeps the plain creation entries.
+    }
+  })()
   ctx.effect(() => () => { bridge.dispose() }, 'ui-board: window session bridge')
 
   // Restore: every adopted section — the first-frame cache before the first
@@ -95,6 +131,7 @@ export function apply(ctx: ClientContext): void {
     hooks: {
       sessionList: ctx.sessions.list,
       workspaceList: ctx.workspaces.list,
+      agentPresetRoster: presetRoster,
     },
     ensureWindowSession: (windowId) => { bridge.ensure(windowId) },
     releaseWindow: (windowId) => { bridge.release(windowId) },

@@ -116,6 +116,7 @@ function ready(chat: ChatSnapshot | undefined, running = false): BoardWindowSess
     loadingOlder: false,
     runningCalls: [],
     presets: [],
+    presetPickerEnabled: true,
     permissions: [],
     plan: false,
     queue: [],

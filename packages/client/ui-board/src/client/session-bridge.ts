@@ -32,7 +32,8 @@ import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-file-upload/client'
 import type {} from '@deepseek-ai/dsh-client-ui-model-selection/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
-import type { ImageAttachmentLimits, ImageMediaType } from '@deepseek-ai/dsh-attachment'
+import type { FileAttachmentRef, ImageAttachmentRef, ImageAttachmentLimits, ImageMediaType } from '@deepseek-ai/dsh-attachment'
+import type { PendingSubmissionAttachment, QueuedMessage } from '@deepseek-ai/dsh-api-session-controller/client'
 import { presetDisplayText } from '@deepseek-ai/dsh-agent-presets/display'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
@@ -43,8 +44,9 @@ import { NS } from './locale.ts'
 import type { BoardTranslate } from './locale.ts'
 import type {
   BoardBindOutcome, BoardChatTarget, BoardCommandRow, BoardDirectoryListing, BoardDraftImage, BoardEffortOption,
-  BoardGoalState, BoardMentionRow, BoardModelState, BoardPermissionOption, BoardPresetOption, BoardPromptMode,
-  BoardQueueRow, BoardTodoRow, BoardUploadResult, BoardWindowSessionState, WindowId,
+  BoardGoalState, BoardMentionRow, BoardModelState, BoardPendingRow, BoardPermissionOption, BoardPresetOption,
+  BoardPromptFile, BoardPromptMode, BoardQueueAction, BoardQueueAttachment, BoardQueueRow, BoardTodoRow,
+  BoardUploadResult, BoardWindowSessionState, WindowId,
 } from './contract/slots.ts'
 
 /** The three permission presets the window chip offers, in switch order. */
@@ -52,6 +54,33 @@ const PERMISSION_PRESETS = ['read-only', 'workspace-write', 'danger-full-access'
 
 /** Editor-visible preset that requires the risk confirmation. */
 const FULL_ACCESS_PRESET = 'danger-full-access'
+
+/** The two queue placements the window renders; a context occurrence never reaches the strip. */
+function queuePlacement(item: QueuedMessage): 'queued' | 'steering' | null {
+  return item.placement === 'queued' || item.placement === 'steering' ? item.placement : null
+}
+
+/**
+ * Durable attachments one queue occurrence carries. Queue frames are wire data
+ * despite their typed face, so a block without a reference is skipped rather
+ * than trusted.
+ * @param content - the occurrence's wire content blocks.
+ * @returns the attachments in block order.
+ */
+function queueAttachments(content: QueuedMessage['content']): readonly BoardQueueAttachment[] {
+  const attachments: BoardQueueAttachment[] = []
+  for (const block of content) {
+    if (block.type === 'image') {
+      const { attachment } = block as { attachment?: ImageAttachmentRef }
+      if (attachment !== undefined) attachments.push({ kind: 'image', attachment })
+    }
+    if (block.type === 'file') {
+      const { attachment } = block as { attachment?: FileAttachmentRef }
+      if (attachment !== undefined) attachments.push({ kind: 'file', name: attachment.name, bytes: attachment.bytes })
+    }
+  }
+  return attachments
+}
 
 /** The built-in command rows the composer menu adds in its own order. */
 const ADD_SECTION = ['file', 'goal', 'plan', 'feedback'] as const
@@ -70,6 +99,7 @@ function emptyState(): BoardWindowSessionState {
     permissions: [],
     plan: false,
     queue: [],
+    pending: [],
     todos: [],
     model: { efforts: [], groups: [], loading: false },
     commands: [],
@@ -199,45 +229,80 @@ export class BoardSessionBridge {
 
   /**
    * Send one prompt into the window's session, waiting for the session when the
-   * window was just opened and its composer has not created it yet.
+   * window was just opened and its composer has not created it yet. A local
+   * submission echo is registered before the prompt call — the lane renders it
+   * while the admission round-trip runs — and a refused prompt retires the echo
+   * by its request identity; the promise then settles with the outcome so the
+   * caller can return the refused draft.
    * @param windowId - window identity.
    * @param text - prompt text as typed.
    * @param mode - queue a turn or steer the running one.
    * @param images - inline images carried with the prompt.
-   * @param files - staged file receipts carried with the prompt.
+   * @param files - staged file receipts and their durable references.
+   * @param signal - optional caller cancellation for the complete admission round-trip.
+   * @returns whether the host accepted the prompt.
    */
-  send(
+  async send(
     windowId: WindowId,
     text: string,
     mode: BoardPromptMode,
     images: readonly BoardDraftImage[] = [],
-    files: readonly string[] = [],
-  ): void {
-    this.patch(windowId, { promptError: undefined, commandError: undefined })
-    void this.whenReady(windowId).then(() => {
-      const session = this.sessionFace(windowId)
-      if (session === undefined) {
-        // A missing or still-restoring session must not swallow the prompt.
-        this.patch(windowId, { promptError: this.t('conversation.noSession') })
-        return
-      }
-      const content: PromptContentPart[] = [{ type: 'text', text }]
-      for (const image of images) {
-        content.push({
-          type: 'image',
-          mediaType: image.mediaType as ImageMediaType,
-          data: image.data,
-          name: image.name,
-        })
-      }
-      for (const receiptId of files) {
-        content.push({ type: 'file', receiptId: receiptId as never })
-      }
-      return session.prompt(content, mode).then((result) => {
-        if (result.ok) return
-        this.patch(windowId, { promptError: this.failureText(result.error) })
+    files: readonly BoardPromptFile[] = [],
+    signal?: AbortSignal,
+  ): Promise<boolean> {
+    this.patch(windowId, { promptError: undefined, commandError: undefined, queueError: undefined })
+    await this.whenReady(windowId)
+    const session = this.sessionFace(windowId)
+    if (session === undefined) {
+      // A missing or still-restoring session must not swallow the prompt.
+      this.patch(windowId, { promptError: this.t('conversation.noSession') })
+      return false
+    }
+    const content: PromptContentPart[] = [{ type: 'text', text }]
+    for (const image of images) {
+      content.push({
+        type: 'image',
+        mediaType: image.mediaType as ImageMediaType,
+        data: image.data,
+        name: image.name,
       })
+    }
+    for (const file of files) {
+      content.push({ type: 'file', receiptId: file.receiptId as never })
+    }
+    const submission = session.beginSubmission({
+      mode,
+      text,
+      attachments: this.pendingAttachments(images, files),
     })
+    try {
+      const result = await session.prompt(content, mode, signal, submission.requestId)
+      return result.ok
+    } catch (error) {
+      // A carrier rejection reaches no settlement of its own: the echo is
+      // abandoned here so a refused prompt never leaves a phantom message.
+      submission.abandon()
+      this.patch(windowId, { promptError: error instanceof Error ? error.message : String(error) })
+      return false
+    }
+  }
+
+  /** Echo attachments of one submission: image previews and durable file references. */
+  private pendingAttachments(
+    images: readonly BoardDraftImage[],
+    files: readonly BoardPromptFile[],
+  ): readonly PendingSubmissionAttachment[] {
+    const attachments: PendingSubmissionAttachment[] = images.map(image => ({
+      type: 'image',
+      value: {
+        previewUrl: image.preview,
+        ...(image.name === '' ? {} : { name: image.name }),
+      },
+    }))
+    for (const file of files) {
+      if (file.file !== undefined) attachments.push({ type: 'file', value: file.file })
+    }
+    return attachments
   }
 
   /**
@@ -253,7 +318,7 @@ export class BoardSessionBridge {
     windowId: WindowId,
     line: string,
     images: readonly BoardDraftImage[] = [],
-    files: readonly string[] = [],
+    files: readonly BoardPromptFile[] = [],
   ): void {
     const sessionId = this.windows.get(windowId)?.sessionId
     if (sessionId === undefined) return
@@ -264,7 +329,7 @@ export class BoardSessionBridge {
         data: image.data,
         name: image.name,
       })),
-      ...files.map(receiptId => ({ type: 'file' as const, receiptId: receiptId as never })),
+      ...files.map(file => ({ type: 'file' as const, receiptId: file.receiptId as never })),
     ]
     this.patch(windowId, { commandError: undefined, promptError: undefined })
     void this.ctx.remote.commands.execute(sessionId, line, attachments).then((result) => {
@@ -288,7 +353,7 @@ export class BoardSessionBridge {
    * @param windowId - window identity.
    * @param name - display name of the file.
    * @param bytes - exact file bytes.
-   * @returns the staged receipt, or the failure text.
+   * @returns the staged receipt and durable reference, or the failure text.
    */
   async uploadFile(windowId: WindowId, name: string, bytes: Uint8Array<ArrayBuffer>): Promise<BoardUploadResult> {
     const sessionId = this.windows.get(windowId)?.sessionId
@@ -299,7 +364,7 @@ export class BoardSessionBridge {
       // composer's file intake.
       const result = await this.ctx.fileUpload.upload(sessionId, new Blob([bytes]), name)
       if (!result.ok) return { error: this.failureText(result.error) }
-      return { receiptId: result.value.receiptId }
+      return { receiptId: result.value.receiptId, file: result.value.file }
     } catch (error) {
       // The carrier rejects when the upload route is down; the composer keeps
       // the chip and offers a retry.
@@ -391,15 +456,40 @@ export class BoardSessionBridge {
   }
 
   /**
-   * Remove or steer one queued message.
+   * Apply one edit, remove, or steer action to a still-pending queued
+   * occurrence. The board's text-shaped edit becomes the wire's content-block
+   * replacement here; a refusal lands on the window channel as `queueError` so
+   * the strip can explain itself.
    * @param windowId - window identity.
    * @param itemId - queued occurrence identity.
-   * @param action - requested mutation.
+   * @param action - requested queue mutation.
    */
-  updateQueueItem(windowId: WindowId, itemId: string, action: 'remove' | 'steer'): void {
+  updateQueueItem(windowId: WindowId, itemId: string, action: BoardQueueAction): void {
     const session = this.sessionFace(windowId)
     if (session === undefined) return
-    void session.updateQueue(itemId as never, { kind: action })
+    this.patch(windowId, { queueError: undefined })
+    const wire = action.kind === 'edit'
+      ? { kind: 'edit' as const, content: [{ type: 'text' as const, text: action.text }] }
+      : action
+    void session.updateQueue(itemId as never, wire).then((result) => {
+      if (result.ok) return
+      this.patch(windowId, { queueError: this.failureText(result.error) })
+    }).catch((error: unknown) => {
+      this.patch(windowId, { queueError: error instanceof Error ? error.message : String(error) })
+    })
+  }
+
+  /**
+   * Resolve one durable queued image into a browser URL through the
+   * conversation service's session-scoped cache.
+   * @param windowId - window identity.
+   * @param attachment - durable image reference carried by the queue row.
+   * @returns the URL; rejects when the image cannot be read.
+   */
+  async loadQueueImage(windowId: WindowId, attachment: ImageAttachmentRef): Promise<string> {
+    const sessionId = this.windows.get(windowId)?.sessionId
+    if (sessionId === undefined) throw new Error('board: the window has no session')
+    return await this.ctx.uiConversation.imageUrl(sessionId, attachment)
   }
 
   /**
@@ -748,9 +838,35 @@ export class BoardSessionBridge {
           | { pressureTokens?: number; projectedTokens?: number; contextWindow?: number } | undefined
         const limits = projections.faceOf('imageLimits').getSnapshot() as ImageAttachmentLimits | null | undefined
         const used = pressure?.projectedTokens ?? pressure?.pressureTokens
-        const queue: BoardQueueRow[] = snapshot.queue
-          .filter(item => item.placement === 'queued')
-          .map(item => ({ id: String(item.id), preview: item.preview }))
+        const queue: BoardQueueRow[] = snapshot.queue.flatMap((item) => {
+          const placement = queuePlacement(item)
+          return placement === null ? [] : [{
+            id: String(item.id),
+            preview: item.preview,
+            text: item.text,
+            placement,
+            attachments: queueAttachments(item.content),
+          }]
+        })
+        // An echo whose occurrence already arrived stays with the durable row or
+        // the lane's steering bubble; the advertised identity (rpcId) closes the
+        // overlap for every placement.
+        const admitted = new Set(snapshot.queue.flatMap(item => item.rpcId === undefined ? [] : [item.rpcId]))
+        const pending: BoardPendingRow[] = snapshot.pendingSubmissions
+          .filter(submission => !admitted.has(submission.requestId))
+          .map(submission => ({
+            id: submission.requestId,
+            placement: submission.placement,
+            text: submission.text,
+            images: submission.attachments.flatMap((attachment, index) => attachment.type === 'image'
+              ? [{
+                id: `${submission.requestId}:${index}`,
+                preview: attachment.value.previewUrl,
+                ...(attachment.value.name === undefined ? {} : { name: attachment.value.name }),
+              }]
+              : []),
+            files: submission.attachments.flatMap(attachment => attachment.type === 'file' ? [attachment.value.name] : []),
+          }))
         channel.publish({
           ...channel.getSnapshot(),
           status: 'ready',
@@ -784,6 +900,7 @@ export class BoardSessionBridge {
             activation: 'armed',
           },
           queue,
+          pending,
           context: used === undefined || pressure?.contextWindow === undefined ? undefined : {
             percent: Math.min(100, Math.round(used / pressure.contextWindow * 100)),
             usedTokens: used,

@@ -75,7 +75,9 @@ describe('board omnibox', () => {
     expect(input.value).toBe('')
 
     await runtime.flush()
-    expect(prompt).toHaveBeenCalledWith([{ type: 'text', text: 'hello omnibox' }], 'queue')
+    expect(prompt).toHaveBeenCalledWith(
+      [{ type: 'text', text: 'hello omnibox' }], 'queue', undefined, expect.anything(),
+    )
   })
 
   it('opens a new agent window when no chat window is active and sends there', async () => {
@@ -91,7 +93,9 @@ describe('board omnibox', () => {
     const opened = Object.values(state.windows)
     expect(opened).toHaveLength(1)
     expect(opened[0]).toMatchObject({ kind: 'agent', bodyKind: 'conversation' })
-    expect(prompt).toHaveBeenCalledWith([{ type: 'text', text: 'cold start' }], 'queue')
+    expect(prompt).toHaveBeenCalledWith(
+      [{ type: 'text', text: 'cold start' }], 'queue', undefined, expect.anything(),
+    )
   })
 
   it('states the host-side web capability is unavailable without acting', async () => {

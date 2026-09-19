@@ -26,6 +26,10 @@
   padding: var(--board-pad-lane);
   overflow-x: hidden;
   overflow-y: auto;
+  /* The prepend compensation is one JS write; the browser's native scroll
+   * anchoring would apply the same adjustment a second time and push the
+   * reader past the page they were holding. */
+  overflow-anchor: none;
   color: var(--dsw-alias-label-primary);
   font-size: var(--board-font-content);
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
@@ -58,6 +62,67 @@
 .noticeError {
   color: var(--dsw-alias-state-error-primary);
   font-size: var(--board-font-label);
+}
+
+/* Durable turn failure: a card that carries its own detail and repeat actions
+ * instead of a bare line, so one failure is never shown twice. */
+.turnError {
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 0.5px solid var(--dsw-alias-state-error-primary);
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--board-font-label);
+}
+
+.turnErrorHead {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--board-gap-window);
+  min-width: 0;
+}
+
+.turnErrorTitle {
+  flex: none;
+  color: var(--dsw-alias-state-error-primary);
+  font-weight: 500;
+}
+
+/* The actions sit at the row's end; the message keeps a line of its own below. */
+.turnErrorGap {
+  flex: 1;
+}
+
+.turnErrorText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.turnErrorAction {
+  flex: none;
+  padding: 2px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-family: inherit;
+  font-size: var(--board-font-hint);
+  cursor: pointer;
+}
+
+.turnErrorAction:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.turnErrorDetail {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 0.5px solid var(--dsw-alias-border-l1);
+  color: var(--dsw-alias-label-secondary);
+  overflow-wrap: anywhere;
 }
 
 /* Missing session: the notice carries the two ways out — a fresh session in
@@ -94,6 +159,29 @@
 
 .user {
   background: var(--dsw-alias-markdown-tag);
+}
+
+/* Echo attachments: the draft's image previews and staged-file names travel
+ * with the optimistic bubble until the durable message replaces it. */
+.echoAttachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.echoThumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.echoFiles {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-hint);
 }
 
 .assistant {

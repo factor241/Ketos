@@ -31,7 +31,7 @@ function injectedStub(overrides: Partial<BoardWindowInjectProps> = {}): Omit<Boa
     hooks: {},
     ensureWindowSession: vi.fn(),
     releaseWindow: vi.fn(),
-    sendPrompt: vi.fn(),
+    sendPrompt: vi.fn(async () => true),
     cancelPrompt: vi.fn(),
     loadOlderTurns: vi.fn(),
     bindSession: vi.fn(),
@@ -56,6 +56,7 @@ function injectedStub(overrides: Partial<BoardWindowInjectProps> = {}): Omit<Boa
     executeCommand: vi.fn(),
     uploadFile: vi.fn(),
     updateQueueItem: vi.fn(),
+    loadQueueImage: vi.fn(async () => ''),
     goalAction: vi.fn(),
     loadMentions: vi.fn(async () => []),
     ...overrides,
@@ -158,7 +159,7 @@ describe('ComposerBar attachments', () => {
   })
 
   it('accepts an image within the limits and sends it inline', async () => {
-    const sendPrompt = vi.fn()
+    const sendPrompt = vi.fn(async () => true)
     const { container } = renderComposer(
       sessionState(undefined, { imageLimits: IMAGE_LIMITS }),
       { sendPrompt },
@@ -182,7 +183,7 @@ describe('ComposerBar attachments', () => {
 
   it('stages a non-image file and sends its receipt', async () => {
     const uploadFile = vi.fn(async () => ({ receiptId: 'receipt-7' }))
-    const sendPrompt = vi.fn()
+    const sendPrompt = vi.fn(async () => true)
     const { container, getByText } = renderComposer(sessionState(undefined), { uploadFile, sendPrompt })
 
     fireEvent.change(fileInput(container), { target: { files: [new File(['отчёт'], 'report.pdf', { type: 'application/pdf' })] } })
@@ -194,7 +195,9 @@ describe('ComposerBar attachments', () => {
 
     fireEvent.change(textarea(container), { target: { value: 'смотри файл' } })
     fireEvent.submit(container.querySelector('form') as HTMLFormElement)
-    expect(sendPrompt).toHaveBeenCalledWith(WINDOW, 'смотри файл', 'queue', [], ['receipt-7'])
+    expect(sendPrompt).toHaveBeenCalledWith(
+      WINDOW, 'смотри файл', 'queue', [], [{ receiptId: 'receipt-7' }], expect.any(AbortSignal),
+    )
   })
 
   it('shows an upload failure and retries it into ready', async () => {
@@ -323,6 +326,182 @@ describe('ComposerBar composer intents', () => {
   })
 })
 
+describe('ComposerBar submission', () => {
+  it('clears the draft exactly once and sends a single prompt per submit', async () => {
+    let settle: (accepted: boolean) => void = () => {}
+    const sendPrompt = vi.fn(() => new Promise<boolean>((resolve) => { settle = resolve }))
+    const { container } = renderComposer(sessionState(undefined), { sendPrompt })
+    const input = textarea(container)
+
+    fireEvent.change(input, { target: { value: '  сделай отчёт  ' } })
+    fireEvent.submit(container.querySelector('form') as HTMLFormElement)
+
+    // The echo owns the message from here: the draft clears optimistically so
+    // the next turn can be queued without waiting for the host round-trip.
+    expect(sendPrompt).toHaveBeenCalledOnce()
+    expect(sendPrompt).toHaveBeenCalledWith(
+      WINDOW, 'сделай отчёт', 'queue', [], [], expect.any(AbortSignal),
+    )
+    expect(input.value).toBe('')
+    fireEvent.submit(container.querySelector('form') as HTMLFormElement)
+    expect(sendPrompt).toHaveBeenCalledOnce()
+
+    await act(async () => { settle(true) })
+    expect(input.value).toBe('')
+  })
+
+  it('returns the refused draft and its attachments to an untouched composer', async () => {
+    let settle: (accepted: boolean) => void = () => {}
+    const sendPrompt = vi.fn(() => new Promise<boolean>((resolve) => { settle = resolve }))
+    const uploadFile = vi.fn(async () => ({ receiptId: 'receipt-7' }))
+    const { container, getByText } = renderComposer(sessionState(undefined), { sendPrompt, uploadFile })
+
+    fireEvent.change(fileInput(container), { target: { files: [new File(['x'], 'report.pdf', { type: 'application/pdf' })] } })
+    await waitFor(() => { expect(getByText('Ready')).not.toBeNull() })
+    const input = textarea(container)
+    fireEvent.change(input, { target: { value: 'смотри файл' } })
+    fireEvent.submit(container.querySelector('form') as HTMLFormElement)
+    expect(input.value).toBe('')
+    expect(container.querySelector('[data-board-file]')).toBeNull()
+
+    await act(async () => { settle(false) })
+    expect(input.value).toBe('смотри файл')
+    expect(container.querySelector('[data-board-file="ready"]')).not.toBeNull()
+    // The returned chip keeps its retry source: a second send carries the receipt.
+    fireEvent.submit(container.querySelector('form') as HTMLFormElement)
+    expect(sendPrompt).toHaveBeenLastCalledWith(
+      WINDOW, 'смотри файл', 'queue', [], [{ receiptId: 'receipt-7' }], expect.any(AbortSignal),
+    )
+  })
+
+  it('keeps text typed after a submission and appends the refused draft', async () => {
+    let settle: (accepted: boolean) => void = () => {}
+    const sendPrompt = vi.fn(() => new Promise<boolean>((resolve) => { settle = resolve }))
+    const { container } = renderComposer(sessionState(undefined), { sendPrompt })
+    const input = textarea(container)
+
+    fireEvent.change(input, { target: { value: 'старое' } })
+    fireEvent.submit(container.querySelector('form') as HTMLFormElement)
+    fireEvent.change(input, { target: { value: 'новое' } })
+
+    await act(async () => { settle(false) })
+    // Nothing is lost and nothing is overwritten: the newer text stays first.
+    expect(input.value).toBe('новое\n\nстарое')
+  })
+
+  it('aborts an in-flight admission when the composer unmounts', () => {
+    const sendPrompt = vi.fn(() => new Promise<boolean>(() => {}))
+    const { container, unmount } = renderComposer(sessionState(undefined), { sendPrompt })
+    const input = textarea(container)
+    fireEvent.change(input, { target: { value: 'в полёте' } })
+    fireEvent.submit(container.querySelector('form') as HTMLFormElement)
+
+    const signal = (sendPrompt.mock.calls[0] as unknown[] | undefined)?.[5] as AbortSignal | undefined
+    expect(signal?.aborted).toBe(false)
+    unmount()
+    expect(signal?.aborted).toBe(true)
+  })
+})
+
+describe('ComposerBar queue strip', () => {
+  const IMAGE_REF = {
+    attachmentId: 'img-1' as never,
+    mediaType: 'image/png',
+    bytes: 128,
+    width: 8,
+    height: 8,
+  } as const
+
+  /** One ready-session state whose queue holds three occurrences. */
+  function queuedSession(running = false): BoardWindowSessionState {
+    return sessionState(undefined, {
+      running,
+      queue: [
+        {
+          id: 'q1',
+          preview: 'поправь отчёт',
+          text: 'поправь отчёт',
+          placement: 'queued',
+          attachments: [{ kind: 'file', name: 'report.pdf', bytes: 2048 }],
+        },
+        {
+          id: 'q2',
+          preview: 'картинка',
+          text: null,
+          placement: 'queued',
+          attachments: [{ kind: 'image', attachment: IMAGE_REF }],
+        },
+        { id: 'q3', preview: 'уже в ходу', text: 'уже в ходу', placement: 'steering', attachments: [] },
+      ],
+      pending: [{
+        id: 'echo-1',
+        placement: 'queued',
+        text: 'ещё не принято',
+        images: [],
+        files: ['notes.txt'],
+      }],
+    })
+  }
+
+  it('lists queued occurrences with attachments and marks the pending echo', async () => {
+    const loadQueueImage = vi.fn(async () => 'blob:queued-image')
+    const { container, getByText, queryByText } = renderComposer(queuedSession(), { loadQueueImage })
+
+    expect(container.querySelectorAll('[data-board-queue-state="queued"]')).toHaveLength(2)
+    // Steering rides the lane, never the strip.
+    expect(queryByText('уже в ходу')).toBeNull()
+    expect(container.querySelectorAll('[data-board-queue-state="sending"]')).toHaveLength(1)
+    expect(getByText('ещё не принято')).not.toBeNull()
+    expect(getByText('Sending…')).not.toBeNull()
+    expect(getByText('report.pdf')).not.toBeNull()
+    expect(getByText('2.0KB')).not.toBeNull()
+    expect(loadQueueImage).toHaveBeenCalledWith(WINDOW, IMAGE_REF)
+    await waitFor(() => { expect(container.querySelector('img[src="blob:queued-image"]')).not.toBeNull() })
+  })
+
+  it('edits one queued occurrence through the inject action', () => {
+    const updateQueueItem = vi.fn()
+    const { container, getByText } = renderComposer(queuedSession(), { updateQueueItem })
+
+    const rows = container.querySelectorAll('[data-board-queue-row]')
+    fireEvent.click(rows[0]?.querySelector('[data-board-action="queue-edit"]') as Element)
+    const editor = container.querySelector('[data-board-action="queue-edit-input"]') as HTMLInputElement
+    expect(editor.value).toBe('поправь отчёт')
+    fireEvent.change(editor, { target: { value: 'поправь отчёт срочно' } })
+    fireEvent.click(container.querySelector('[data-board-action="queue-edit-save"]') as Element)
+
+    expect(updateQueueItem).toHaveBeenCalledWith(WINDOW, 'q1', { kind: 'edit', text: 'поправь отчёт срочно' })
+    expect(container.querySelector('[data-board-action="queue-edit-input"]')).toBeNull()
+    // A row without editable text disables its edit control.
+    const editButtons = container.querySelectorAll('[data-board-action="queue-edit"]')
+    expect((editButtons[1] as HTMLButtonElement).disabled).toBe(true)
+    expect(getByText('поправь отчёт')).not.toBeNull()
+  })
+
+  it('removes and steers through the inject action, steering only while running', () => {
+    const updateQueueItem = vi.fn()
+    const idle = renderComposer(queuedSession(false), { updateQueueItem })
+    const idleRows = idle.container.querySelectorAll('[data-board-queue-row]')
+    fireEvent.click(idleRows[0]?.querySelector('[data-board-action="queue-remove"]') as Element)
+    expect(updateQueueItem).toHaveBeenCalledWith(WINDOW, 'q1', { kind: 'remove' })
+    expect((idleRows[0]?.querySelector('[data-board-action="queue-steer"]') as HTMLButtonElement).disabled).toBe(true)
+    idle.unmount()
+
+    const running = renderComposer(queuedSession(true), { updateQueueItem })
+    const runningRows = running.container.querySelectorAll('[data-board-queue-row]')
+    fireEvent.click(runningRows[0]?.querySelector('[data-board-action="queue-steer"]') as Element)
+    expect(updateQueueItem).toHaveBeenCalledWith(WINDOW, 'q1', { kind: 'steer' })
+  })
+
+  it('reports a refused queue mutation in the strip', () => {
+    const state = sessionState(undefined, { queueError: 'session/queue-item-not-found: gone' })
+    const { container, getByText } = renderComposer(state)
+    expect(container.querySelector('[data-board-queue-error]')).not.toBeNull()
+    expect(getByText(/The queue change failed/)).not.toBeNull()
+    expect(getByText(/session\/queue-item-not-found: gone/)).not.toBeNull()
+  })
+})
+
 describe('ComposerBar commands and mentions', () => {
   it('closes the slash menu on Escape and keeps the draft', () => {
     const { container } = renderComposer(sessionState(undefined))
@@ -350,7 +529,7 @@ describe('ComposerBar commands and mentions', () => {
 
   it('executes a command with its arguments instead of prompting', () => {
     const executeCommand = vi.fn()
-    const sendPrompt = vi.fn()
+    const sendPrompt = vi.fn(async () => true)
     const { container } = renderComposer(
       sessionState(undefined, { commands: [{ name: 'goal', description: 'Set the goal', hint: 'objective' }] }),
       { executeCommand, sendPrompt },
@@ -398,7 +577,7 @@ describe('ComposerBar commands and mentions', () => {
     const input = textarea(container)
     fireEvent.change(input, { target: { value: '/goal ship it' } })
     fireEvent.keyDown(input, { key: 'Enter' })
-    expect(executeCommand).toHaveBeenCalledWith(WINDOW, '/goal ship it', [], ['receipt-5'])
+    expect(executeCommand).toHaveBeenCalledWith(WINDOW, '/goal ship it', [], [{ receiptId: 'receipt-5' }])
   })
 
   it('opens the model menu for the board-owned /model command', () => {

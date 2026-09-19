@@ -2,6 +2,7 @@
  * Spatial multi-window board slot contract.
  */
 import type { ReactNode } from 'react'
+import type { FileAttachmentRef, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { Branded } from '@deepseek-ai/dsh-brand'
 import type { ChatSnapshot } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { HostObservable, InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
@@ -42,13 +43,24 @@ export interface BoardDraftFile {
   readonly status: 'uploading' | 'ready' | 'error'
   /** Staged receipt the prompt sends once the upload is ready. */
   readonly receiptId?: string
+  /** Durable reference the local echo shows beside the receipt; absent when the host's answer omitted it. */
+  readonly file?: FileAttachmentRef
   /** Failure text of the last upload attempt. */
   readonly error?: string
+}
+
+/** One staged file a prompt or command carries: the host receipt plus its durable reference. */
+export interface BoardPromptFile {
+  /** Receipt the prompt content references. */
+  readonly receiptId: string
+  /** Durable reference the local echo shows; absent when the upload answer omitted it. */
+  readonly file?: FileAttachmentRef
 }
 
 /** Outcome of one background file upload: the staged receipt or a failure. */
 export interface BoardUploadResult {
   readonly receiptId?: string
+  readonly file?: FileAttachmentRef
   readonly error?: string
 }
 
@@ -99,11 +111,48 @@ export interface BoardPermissionOption {
   readonly dangerous: boolean
 }
 
+/** One attachment a still-pending queue occurrence carries. */
+export type BoardQueueAttachment =
+  | {
+    readonly kind: 'image'
+    /** Durable reference the strip resolves to a preview through the injected `loadQueueImage`. */
+    readonly attachment: ImageAttachmentRef
+  }
+  | {
+    readonly kind: 'file'
+    readonly name: string
+    readonly bytes: number
+  }
+
 /** One queued message row the window renders above the composer. */
 export interface BoardQueueRow {
   readonly id: string
   readonly preview: string
+  /** Editable plain text of the row; null when the occurrence carries no single text block. */
+  readonly text: string | null
+  /** `queued` waits its turn; `steering` is already dispatched into the running turn. */
+  readonly placement: 'queued' | 'steering'
+  /** Durable attachments the occurrence carries, in content order. */
+  readonly attachments: readonly BoardQueueAttachment[]
 }
+
+/** One local prompt-submission echo the lane or the queue strip shows before durable admission. */
+export interface BoardPendingRow {
+  /** The prompt RPC identity the echo was minted with. */
+  readonly id: string
+  readonly placement: 'transcript' | 'queued' | 'steering'
+  readonly text: string
+  /** Browser previews of the echo's images, in prompt order. */
+  readonly images: readonly { readonly id: string; readonly preview: string; readonly name?: string }[]
+  /** Display names of the echo's staged files, in prompt order. */
+  readonly files: readonly string[]
+}
+
+/** One mutation the queue strip applies to a still-pending occurrence. */
+export type BoardQueueAction =
+  | { readonly kind: 'remove' }
+  | { readonly kind: 'steer' }
+  | { readonly kind: 'edit'; readonly text: string }
 
 /** One goal row the window renders above the composer. */
 export interface BoardGoalState {
@@ -216,8 +265,10 @@ export interface BoardWindowSessionState {
   readonly permissions: readonly BoardPermissionOption[]
   /** Plan mode in force. */
   readonly plan: boolean
-  /** Queued messages waiting behind the running turn. */
+  /** Queued and steering occurrences waiting on the running turn. */
   readonly queue: readonly BoardQueueRow[]
+  /** Local submission echoes not yet observed as durable events or queue rows. */
+  readonly pending: readonly BoardPendingRow[]
   /** The goal in force, when one exists. */
   readonly goal?: BoardGoalState | undefined
   /** The agent's current to-do list. */
@@ -230,6 +281,8 @@ export interface BoardWindowSessionState {
   readonly blocked?: string | undefined
   /** Failure text of the last slash-command line the composer executed. */
   readonly commandError?: string | undefined
+  /** Failure text of the last queue mutation the host refused. */
+  readonly queueError?: string | undefined
   /** Context occupancy, absent until the provider reports both figures. */
   readonly context?: { readonly percent: number; readonly usedTokens: number; readonly window: number } | undefined
 }
@@ -258,15 +311,29 @@ export interface BoardWindowInjected {
    * session subscriptions go, while the session itself stays alive and listed.
    */
   releaseWindow: (windowId: WindowId) => void
-  /** Send one prompt into the window's session, with optional inline images and staged file receipts. */
+  /**
+   * Send one prompt into the window's session, with optional inline images and
+   * staged file receipts. The bridge registers a local submission echo before
+   * the host admission round-trip, so the lane shows the message immediately;
+   * the promise settles with whether the host accepted it, so a refused prompt
+   * can return its draft.
+   * @param windowId - window identity.
+   * @param text - prompt text as typed.
+   * @param mode - queue a turn or steer the running one.
+   * @param images - inline images carried with the prompt.
+   * @param files - staged file receipts and their durable references.
+   * @param signal - optional cancellation for the complete admission round-trip.
+   * @returns whether the host accepted the prompt (an echo retires itself on refusal).
+   */
   sendPrompt: (
     windowId: WindowId,
     text: string,
     mode: BoardPromptMode,
     images?: readonly BoardDraftImage[],
-    files?: readonly string[],
-  ) => void
-  /** Cancel the window's running turn. */
+    files?: readonly BoardPromptFile[],
+    signal?: AbortSignal,
+  ) => Promise<boolean>
+  /** Cancel the window's running turn. Queued work survives and resumes after it. */
   cancelPrompt: (windowId: WindowId) => void
   /** Load older turns into the window's lane. */
   loadOlderTurns: (windowId: WindowId) => void
@@ -331,16 +398,28 @@ export interface BoardWindowInjected {
     windowId: WindowId,
     line: string,
     images?: readonly BoardDraftImage[],
-    files?: readonly string[],
+    files?: readonly BoardPromptFile[],
   ) => void
   /**
    * Stage one non-image file for the window's session through the background
    * upload service.
-   * @returns the staged receipt, or the failure text.
+   * @returns the staged receipt and durable reference, or the failure text.
    */
   uploadFile: (windowId: WindowId, name: string, bytes: Uint8Array<ArrayBuffer>) => Promise<BoardUploadResult>
-  /** Edit, remove, or steer one queued message. */
-  updateQueueItem: (windowId: WindowId, itemId: string, action: 'remove' | 'steer') => void
+  /**
+   * Apply one edit, remove, or steer action to a still-pending queued occurrence.
+   * @param windowId - window identity.
+   * @param itemId - queued occurrence identity.
+   * @param action - requested queue mutation.
+   */
+  updateQueueItem: (windowId: WindowId, itemId: string, action: BoardQueueAction) => void
+  /**
+   * Resolve one durable queued image into a browser URL for the strip's thumbnail.
+   * @param windowId - window identity.
+   * @param attachment - durable image reference carried by the queue row.
+   * @returns the session-scoped URL; rejects when the image cannot be read.
+   */
+  loadQueueImage: (windowId: WindowId, attachment: ImageAttachmentRef) => Promise<string>
   /** Pause, resume, or clear the window session's goal. */
   goalAction: (windowId: WindowId, action: 'pause' | 'resume' | 'clear') => void
   /** Resolve `@` mention candidates for the draft's query. */

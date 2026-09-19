@@ -201,7 +201,7 @@ describe('BoardSessionBridge', () => {
     await prepared.runtime.flush()
     expect(channel.getSnapshot().commandError).toBeDefined()
 
-    bridge.send(windowId, 'привет', 'queue')
+    void bridge.send(windowId, 'привет', 'queue')
     await prepared.runtime.flush()
     expect(channel.getSnapshot().commandError).toBeUndefined()
   })
@@ -529,5 +529,227 @@ describe('BoardSessionBridge', () => {
     // session, and reopening never leaks a second record or subscription.
     expect(createdSessions(prepared)).toHaveLength(6)
     expect(prepared.runtime.sessions.list.getSnapshot().ids).toContain(sessionId)
+  })
+})
+
+describe('BoardSessionBridge submissions and queue projections', () => {
+  /** Bench whose session face observes the echo registration and prompt call. */
+  async function sendBench(prompt: (...args: unknown[]) => unknown) {
+    const abandon = vi.fn()
+    const beginSubmission = vi.fn(() => ({ requestId: 'request-1' as never, abandon }))
+    const prepared = await createBoardBench({ session: { beginSubmission, prompt } })
+    runtimes.add(prepared.runtime)
+    prepared.runtime.ctx.locale.register(NS, { zh, en })
+    const bridge = new BoardSessionBridge(prepared.runtime.ctx)
+    const windowId = 'a1' as WindowId
+    const channel = bridge.channel(windowId)
+    bridge.ensure(windowId)
+    await prepared.runtime.flush()
+    const sessionId = channel.getSnapshot().sessionId
+    if (sessionId === undefined) throw new Error('missing session id')
+    return { prepared, bridge, windowId, channel, sessionId, beginSubmission, abandon }
+  }
+
+  it('registers a local echo before the prompt and reports acceptance', async () => {
+    const prompt = vi.fn(async () => ({ ok: true as const, value: { accepted: true as const } }))
+    const { bridge, windowId, channel, beginSubmission } = await sendBench(prompt)
+
+    const accepted = await bridge.send(windowId, 'привет', 'queue', [], [{
+      receiptId: 'receipt-1',
+      file: { attachmentId: 'a1' as never, name: 'report.pdf', bytes: 2048 },
+    }])
+
+    expect(accepted).toBe(true)
+    expect(beginSubmission).toHaveBeenCalledWith({
+      mode: 'queue',
+      text: 'привет',
+      attachments: [{ type: 'file', value: { attachmentId: 'a1', name: 'report.pdf', bytes: 2048 } }],
+    })
+    expect(prompt).toHaveBeenCalledWith(
+      [{ type: 'text', text: 'привет' }, { type: 'file', receiptId: 'receipt-1' }], 'queue', undefined, 'request-1',
+    )
+    expect(channel.getSnapshot().promptError).toBeUndefined()
+  })
+
+  it('reports a host refusal and abandons the echo when the carrier rejects', async () => {
+    const refusal = vi.fn(async () => ({ ok: false as const, error: { code: 'session/busy', message: 'refused' } }))
+    const { bridge, windowId, beginSubmission } = await sendBench(refusal)
+
+    await expect(bridge.send(windowId, 'первое', 'queue')).resolves.toBe(false)
+    expect(beginSubmission).toHaveBeenLastCalledWith(expect.objectContaining({ text: 'первое' }))
+
+    const carrier = vi.fn(() => Promise.reject(new Error('transport down')))
+    const rejected = await sendBench(carrier)
+    await expect(rejected.bridge.send(rejected.windowId, 'второе', 'queue')).resolves.toBe(false)
+    expect(rejected.abandon).toHaveBeenCalledOnce()
+    expect(rejected.channel.getSnapshot().promptError).toBe('transport down')
+  })
+
+  it('projects queued occurrences with text and attachments, and echoes without one', async () => {
+    const { prepared, channel, sessionId } = await sendBench(
+      async () => ({ ok: true as const, value: { accepted: true as const } }),
+    )
+    await prepared.runtime.sessions.updateSessionSnapshot(sessionId, (draft) => {
+      draft.queue = [
+        {
+          id: 'q1' as never,
+          messageId: 'm1' as never,
+          placement: 'queued',
+          rpcId: 'request-admitted' as never,
+          content: [
+            { type: 'text', text: 'потом поправь отчёт' },
+            { type: 'file', attachment: { attachmentId: 'f1' as never, name: 'report.pdf', bytes: 4096 } },
+          ],
+          preview: 'потом поправь отчёт',
+          text: 'потом поправь отчёт',
+        },
+        {
+          id: 'q2' as never,
+          messageId: 'm2' as never,
+          placement: 'steering',
+          content: [{ type: 'text', text: 'корректировка' }],
+          preview: 'корректировка',
+          text: 'корректировка',
+        },
+      ]
+      draft.pendingSubmissions = [
+        {
+          requestId: 'request-admitted' as never,
+          placement: 'queued',
+          time: 1,
+          text: 'потом поправь отчёт',
+          attachments: [],
+        },
+        {
+          requestId: 'request-pending' as never,
+          placement: 'queued',
+          time: 2,
+          text: 'ещё одно',
+          attachments: [{ type: 'image', value: { previewUrl: 'data:image/png;base64,AAAA', name: 'shot.png' } }],
+        },
+      ]
+    })
+    await prepared.runtime.flush()
+
+    expect(channel.getSnapshot().queue).toEqual([
+      {
+        id: 'q1',
+        preview: 'потом поправь отчёт',
+        text: 'потом поправь отчёт',
+        placement: 'queued',
+        attachments: [{ kind: 'file', name: 'report.pdf', bytes: 4096 }],
+      },
+      {
+        id: 'q2',
+        preview: 'корректировка',
+        text: 'корректировка',
+        placement: 'steering',
+        attachments: [],
+      },
+    ])
+    // The admitted echo retires with its occurrence; the pending one stays.
+    expect(channel.getSnapshot().pending).toEqual([{
+      id: 'request-pending',
+      placement: 'queued',
+      text: 'ещё одно',
+      images: [{ id: 'request-pending:0', preview: 'data:image/png;base64,AAAA', name: 'shot.png' }],
+      files: [],
+    }])
+  })
+
+  it('forwards queue edits and resolves queued images through the conversation service', async () => {
+    const updateQueue = vi.fn(async () => ({ ok: true as const, value: { accepted: true as const } }))
+    const beginSubmission = vi.fn(() => ({ requestId: 'request-1' as never, abandon: vi.fn() }))
+    const prepared = await createBoardBench({
+      session: { beginSubmission, prompt: async () => ({ ok: true as const, value: { accepted: true as const } }), updateQueue },
+    })
+    runtimes.add(prepared.runtime)
+    prepared.runtime.ctx.locale.register(NS, { zh, en })
+    const bridge = new BoardSessionBridge(prepared.runtime.ctx)
+    const windowId = 'a1' as WindowId
+    bridge.ensure(windowId)
+    await prepared.runtime.flush()
+
+    bridge.updateQueueItem(windowId, 'q1', { kind: 'edit', text: 'новый текст' })
+    await prepared.runtime.flush()
+    // The board's text-shaped edit becomes the wire's content replacement.
+    expect(updateQueue).toHaveBeenCalledWith('q1', { kind: 'edit', content: [{ type: 'text', text: 'новый текст' }] })
+
+    bridge.updateQueueItem(windowId, 'q1', { kind: 'remove' })
+    await prepared.runtime.flush()
+    expect(updateQueue).toHaveBeenLastCalledWith('q1', { kind: 'remove' })
+
+    await expect(bridge.loadQueueImage(windowId, { attachmentId: 'img-1' } as never))
+      .resolves.toBe('blob:board-image-1')
+    await expect(bridge.loadQueueImage('missing' as WindowId, { attachmentId: 'img-1' } as never))
+      .rejects.toThrow('no session')
+  })
+
+  it('publishes a refused queue mutation and clears it on the next attempt', async () => {
+    const updateQueue = vi.fn()
+      .mockResolvedValueOnce({ ok: false as const, error: { code: 'session/queue-item-not-found', message: 'gone' } })
+      .mockResolvedValueOnce({ ok: true as const, value: { accepted: true as const } })
+    const beginSubmission = vi.fn(() => ({ requestId: 'request-1' as never, abandon: vi.fn() }))
+    const prepared = await createBoardBench({
+      session: { beginSubmission, prompt: async () => ({ ok: true as const, value: { accepted: true as const } }), updateQueue },
+    })
+    runtimes.add(prepared.runtime)
+    prepared.runtime.ctx.locale.register(NS, { zh, en })
+    const bridge = new BoardSessionBridge(prepared.runtime.ctx)
+    const windowId = 'a1' as WindowId
+    const channel = bridge.channel(windowId)
+    bridge.ensure(windowId)
+    await prepared.runtime.flush()
+
+    bridge.updateQueueItem(windowId, 'q1', { kind: 'steer' })
+    await prepared.runtime.flush()
+    expect(channel.getSnapshot().queueError).toBe('session/queue-item-not-found: gone')
+
+    bridge.updateQueueItem(windowId, 'q1', { kind: 'remove' })
+    await prepared.runtime.flush()
+    expect(channel.getSnapshot().queueError).toBeUndefined()
+  })
+
+  it('cancels the running turn without touching the queue projection', async () => {
+    const cancel = vi.fn(async () => ({ ok: true as const, value: { accepted: true as const } }))
+    const beginSubmission = vi.fn(() => ({ requestId: 'request-1' as never, abandon: vi.fn() }))
+    const prepared = await createBoardBench({
+      session: { beginSubmission, prompt: async () => ({ ok: true as const, value: { accepted: true as const } }), cancel },
+    })
+    runtimes.add(prepared.runtime)
+    prepared.runtime.ctx.locale.register(NS, { zh, en })
+    const bridge = new BoardSessionBridge(prepared.runtime.ctx)
+    const windowId = 'a1' as WindowId
+    const channel = bridge.channel(windowId)
+    bridge.ensure(windowId)
+    await prepared.runtime.flush()
+    const sessionId = channel.getSnapshot().sessionId
+    if (sessionId === undefined) throw new Error('missing session id')
+    await prepared.runtime.sessions.updateSessionSnapshot(sessionId, (draft) => {
+      draft.running = true
+      draft.queue = [{
+        id: 'q1' as never,
+        messageId: 'm1' as never,
+        placement: 'queued',
+        content: [{ type: 'text', text: 'дождётся хода' }],
+        preview: 'дождётся хода',
+        text: 'дождётся хода',
+      }]
+    })
+    await prepared.runtime.flush()
+
+    bridge.cancel(windowId)
+    await prepared.runtime.flush()
+
+    // The rule is the host's: cancel stops the turn, queued work stays and
+    // resumes; the window keeps publishing the queue it never mutated.
+    expect(cancel).toHaveBeenCalledOnce()
+    expect(channel.getSnapshot().queue).toEqual([{
+      id: 'q1',
+      preview: 'дождётся хода',
+      text: 'дождётся хода',
+      placement: 'queued',
+      attachments: [],
+    }])
   })
 })

@@ -171,6 +171,7 @@ export function sessionState(
     permissions: [],
     plan: false,
     queue: [],
+    pending: [],
     todos: [],
     model: { efforts: [], groups: [], loading: false },
     commands: [],
@@ -219,6 +220,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     binding: (source: string) => ({
       target: (name: string) => name === 'chat' ? targetFor(source) : undefined,
     }),
+    imageUrl: async () => 'blob:board-image-1',
   } as never)
   // Remote and model-directory doubles: the bridge reads presets, commands,
   // mentions, and the model catalog through them when a window gets a session.

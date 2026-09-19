@@ -88,7 +88,7 @@ function bodyProps(
     actions: { consumeComposerIntent: vi.fn() },
     useWindowSession: () => session,
     ensureWindowSession: vi.fn(),
-    sendPrompt: vi.fn(),
+    sendPrompt: vi.fn(async () => true),
     cancelPrompt: vi.fn(),
     loadOlderTurns: vi.fn(),
     selectAgentPreset: vi.fn(),
@@ -99,6 +99,7 @@ function bodyProps(
     executeCommand: vi.fn(),
     uploadFile: vi.fn(),
     updateQueueItem: vi.fn(),
+    loadQueueImage: vi.fn(async () => ''),
     goalAction: vi.fn(),
     loadMentions: () => Promise.resolve([]),
     ...overrides,
@@ -118,6 +119,7 @@ function ready(chat: ChatSnapshot | undefined, running = false): BoardWindowSess
     permissions: [],
     plan: false,
     queue: [],
+    pending: [],
     todos: [],
     model: { efforts: [], groups: [], loading: false },
     commands: [],
@@ -271,7 +273,7 @@ describe('ConversationBody', () => {
   })
 
   it('sends the draft on submit and clears it', () => {
-    const sendPrompt = vi.fn()
+    const sendPrompt = vi.fn(async () => true)
     const { container } = render(
       <ConversationBody {...bodyProps(ready(chatSnapshot()), { sendPrompt })} />,
     )
@@ -282,12 +284,12 @@ describe('ConversationBody', () => {
     fireEvent.change(input, { target: { value: '  сделай отчёт  ' } })
     fireEvent.submit(container.querySelector('form') as HTMLFormElement)
 
-    expect(sendPrompt).toHaveBeenCalledWith('a1', 'сделай отчёт', 'queue', [], [])
+    expect(sendPrompt).toHaveBeenCalledWith('a1', 'сделай отчёт', 'queue', [], [], expect.any(AbortSignal))
     expect(input.value).toBe('')
   })
 
   it('steers the running turn on the accelerated gesture and cancels through Stop', () => {
-    const sendPrompt = vi.fn()
+    const sendPrompt = vi.fn(async () => true)
     const cancelPrompt = vi.fn()
     const { container } = render(
       <ConversationBody {...bodyProps(ready(chatSnapshot(), true), { sendPrompt, cancelPrompt })} />,
@@ -300,11 +302,11 @@ describe('ConversationBody', () => {
     const input = container.querySelector('textarea') as HTMLTextAreaElement
     fireEvent.change(input, { target: { value: 'стоп-кран' } })
     fireEvent.keyDown(input, { key: 'Enter', metaKey: true })
-    expect(sendPrompt).toHaveBeenCalledWith('a1', 'стоп-кран', 'steer', [], [])
+    expect(sendPrompt).toHaveBeenCalledWith('a1', 'стоп-кран', 'steer', [], [], expect.any(AbortSignal))
   })
 
   it('keeps Shift+Enter as a newline and ignores empty drafts', () => {
-    const sendPrompt = vi.fn()
+    const sendPrompt = vi.fn(async () => true)
     const { container } = render(
       <ConversationBody {...bodyProps(ready(chatSnapshot()), { sendPrompt })} />,
     )
@@ -444,11 +446,198 @@ describe('ConversationBody', () => {
     const state: BoardWindowSessionState = {
       ...ready(chatSnapshot()),
       context: { percent: 42, usedTokens: 42_000, window: 100_000 },
-      queue: [{ id: 'q1', preview: 'Позже поправь отчёт' }],
+      queue: [{ id: 'q1', preview: 'Позже поправь отчёт', text: 'Позже поправь отчёт', placement: 'queued', attachments: [] }],
     }
     const { getByText, getAllByText } = render(<ConversationBody {...bodyProps(state)} />)
     expect(getByText('42%')).not.toBeNull()
     expect(getByText('1 queued messages')).not.toBeNull()
     expect(getAllByText('Позже поправь отчёт').length).toBeGreaterThan(0)
+  })
+})
+
+describe('ConversationBody echoes, steering, and turn failures', () => {
+  const ECHO: BoardWindowSessionState['pending'][number] = {
+    id: 'echo-1',
+    placement: 'transcript',
+    text: 'отправлено сейчас',
+    images: [{ id: 'i1', preview: 'data:image/png;base64,AAAA', name: 'shot.png' }],
+    files: ['report.pdf'],
+  }
+
+  it('renders a local echo with its attachments and hides it once its durable node arrives', () => {
+    const pending: BoardWindowSessionState = { ...ready(chatSnapshot()), pending: [ECHO] }
+    const { container, queryByText, rerender } = render(<ConversationBody {...bodyProps(pending)} />)
+    expect(container.querySelector('[data-board-submission-echo]')).not.toBeNull()
+    expect(queryByText('отправлено сейчас')).not.toBeNull()
+    expect(container.querySelector('img[src="data:image/png;base64,AAAA"]')).not.toBeNull()
+    expect(container.querySelector('[data-board-submission-echo]')?.textContent).toContain('report.pdf')
+
+    // The durable user/message arrives with the same rpcId: exactly one copy stays.
+    const durable: ConversationNode = {
+      ...USER_NODE,
+      time: 5,
+      content: [{ type: 'text', text: 'отправлено сейчас' }],
+      source: { kind: 'user', rpcId: 'echo-1' },
+    }
+    rerender(<ConversationBody {...bodyProps({ ...ready(chatSnapshot([durable])), pending: [ECHO] })} />)
+    expect(container.querySelector('[data-board-submission-echo]')).toBeNull()
+    expect(container.querySelectorAll('[data-board-message="user"]')).toHaveLength(1)
+  })
+
+  it('renders pending steering, queued steering, and durable steering rows in the lane', () => {
+    const steeringNode: ConversationNode = {
+      kind: 'steering',
+      seq: 7,
+      time: 0,
+      messageId: 'm7' as never,
+      content: [{ type: 'text', text: 'durable steering' }],
+      source: undefined,
+    }
+    const state: BoardWindowSessionState = {
+      ...ready(chatSnapshot([steeringNode])),
+      pending: [{ id: 's1', placement: 'steering', text: 'pending steering', images: [], files: [] }],
+      queue: [{ id: 'q9', preview: 'host steering', text: 'host steering', placement: 'steering', attachments: [] }],
+    }
+    const { getByText } = render(<ConversationBody {...bodyProps(state)} />)
+
+    expect(getByText('pending steering').closest('[data-board-pending-steering]')).not.toBeNull()
+    expect(getByText('host steering').closest('[data-board-steering]')).not.toBeNull()
+    expect(getByText('durable steering').closest('[data-board-message="steering"]')).not.toBeNull()
+  })
+
+  it('renders a durable turn failure as a card with its detail and repeat action', () => {
+    const sendPrompt = vi.fn(async () => true)
+    const failure: ConversationNode = {
+      kind: 'turn-error',
+      seq: 5,
+      time: 0,
+      turn: 1,
+      step: 1,
+      message: 'provider exploded',
+      code: 'PROVIDER_ERROR',
+    }
+    const state: BoardWindowSessionState = { ...ready(chatSnapshot([USER_NODE, failure])) }
+    const { container, getByText, queryByText } = render(
+      <ConversationBody {...bodyProps(state, { sendPrompt })} />,
+    )
+
+    expect(container.querySelector('[data-board-turn-error="PROVIDER_ERROR"]')).not.toBeNull()
+    expect(getByText('provider exploded')).not.toBeNull()
+    expect(queryByText('Error code: PROVIDER_ERROR')).toBeNull()
+
+    fireEvent.click(container.querySelector('[data-board-action="turn-error-details"]') as Element)
+    expect(getByText('Error code: PROVIDER_ERROR')).not.toBeNull()
+
+    fireEvent.click(container.querySelector('[data-board-action="turn-error-repeat"]') as Element)
+    expect(sendPrompt).toHaveBeenCalledWith('a1', 'привет', 'queue')
+  })
+
+  it('does not repeat the generic turn failure line under its own card', () => {
+    const failure: ConversationNode = {
+      kind: 'turn-error',
+      seq: 5,
+      time: 0,
+      turn: 1,
+      step: 1,
+      message: '',
+      code: 'AUTH',
+    }
+    const covered: BoardWindowSessionState = {
+      ...ready(chatSnapshot([USER_NODE, failure])),
+      turnError: 'stub authentication refused',
+    }
+    const first = render(<ConversationBody {...bodyProps(covered)} />)
+    expect(first.container.querySelector('[data-board-turn-error]')).not.toBeNull()
+    expect(first.container.querySelectorAll('[data-board-lane-state="turn-error"]')).toHaveLength(1)
+    first.unmount()
+
+    // An agent failure the transcript does not carry still gets its line.
+    const uncovered: BoardWindowSessionState = { ...ready(chatSnapshot([])), turnError: 'background failure' }
+    const second = render(<ConversationBody {...bodyProps(uncovered)} />)
+    expect(second.getByText(/background failure/)).not.toBeNull()
+    expect(second.container.querySelector('[data-board-lane-state="turn-error"]')).not.toBeNull()
+  })
+
+  it('localizes the authentication failure and keeps the raw text as detail', () => {
+    const failure: ConversationNode = {
+      kind: 'turn-error',
+      seq: 5,
+      time: 0,
+      turn: 1,
+      step: 1,
+      message: 'raw provider text',
+      code: 'AUTH',
+    }
+    const { container, getByText } = render(
+      <ConversationBody {...bodyProps(ready(chatSnapshot([failure])))} />,
+    )
+    expect(getByText('Authentication failed; check the model credentials for this session.')).not.toBeNull()
+    fireEvent.click(container.querySelector('[data-board-action="turn-error-details"]') as Element)
+    expect(getByText('raw provider text')).not.toBeNull()
+    expect(getByText('Error code: AUTH')).not.toBeNull()
+  })
+
+  it('never doubles a transcript row whose event repeats in a history page', () => {
+    const repeated = [USER_NODE, ASSISTANT_NODE, USER_NODE]
+    const { container } = render(<ConversationBody {...bodyProps(ready(chatSnapshot(repeated)))} />)
+    expect(container.querySelectorAll('[data-board-message="user"]')).toHaveLength(1)
+    expect(container.querySelectorAll('[data-board-message="assistant"]')).toHaveLength(1)
+  })
+
+  it('keeps committed rows mounted while a chunk streams', () => {
+    const { container, rerender } = render(
+      <ConversationBody {...bodyProps(ready(chatSnapshot([USER_NODE, ASSISTANT_NODE])))} />,
+    )
+    const committed = container.querySelector('[data-board-message="assistant"]')
+    expect(committed).not.toBeNull()
+
+    const streamed = chatSnapshot(
+      [USER_NODE, ASSISTANT_NODE],
+      { turn: 1, step: 2, blocks: [{ kind: 'text', text: 'Печатаю…' }] },
+    )
+    rerender(<ConversationBody {...bodyProps(ready(streamed))} />)
+    // The streamed chunk renders beside the unchanged row, never remounts it.
+    expect(container.querySelector('[data-board-message="assistant"]')).toBe(committed)
+    expect(container.querySelectorAll('[data-board-message="assistant"]')).toHaveLength(2)
+    expect(container.querySelector('[data-board-streaming]')?.textContent).toContain('Печатаю…')
+  })
+
+  it('agrees on the running state across the lane and the composer', () => {
+    const running = render(<ConversationBody {...bodyProps(ready(chatSnapshot([USER_NODE]), true))} />)
+    expect(running.container.querySelector('[data-board-lane-state="running"]')).not.toBeNull()
+    expect(running.container.querySelector('button[aria-label="Stop"]')).not.toBeNull()
+    expect(running.container.querySelector('button[aria-label="Send"]')).toBeNull()
+    running.unmount()
+
+    const idle = render(<ConversationBody {...bodyProps(ready(chatSnapshot([USER_NODE])))} />)
+    expect(idle.container.querySelector('[data-board-lane-state="running"]')).toBeNull()
+    expect(idle.container.querySelector('button[aria-label="Send"]')).not.toBeNull()
+    expect(idle.container.querySelector('button[aria-label="Stop"]')).toBeNull()
+  })
+})
+
+describe('ConversationBody streaming scroll', () => {
+  it('does not move a reader who scrolled away while a long partial streams', () => {
+    const state = ready(chatSnapshot([USER_NODE]))
+    const { container, rerender } = render(<ConversationBody {...bodyProps(state)} />)
+    const lane = container.querySelector('[data-board-lane]') as HTMLElement
+    const geometry = laneGeometry(lane, 1000)
+    lane.scrollTop = 120
+    fireEvent.scroll(lane)
+
+    // A long code partial grows the lane below the reader: the offset stays put.
+    geometry.setHeight(2400)
+    const partial = {
+      turn: 1,
+      step: 1,
+      blocks: [{ kind: 'text' as const, text: '```ts\nconst a = 1\n'.repeat(40) }],
+    }
+    rerender(<ConversationBody {...bodyProps({ ...state, chat: chatSnapshot([USER_NODE], partial) })} />)
+    expect(lane.scrollTop).toBe(120)
+    expect(container.querySelector('[data-board-streaming]')).not.toBeNull()
+
+    // Jumping to the latest re-pins the tail.
+    fireEvent.click(container.querySelector('button[aria-label="Jump to the latest"]') as Element)
+    expect(lane.scrollTop).toBe(2400)
   })
 })

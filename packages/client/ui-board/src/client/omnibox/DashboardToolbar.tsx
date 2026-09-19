@@ -71,7 +71,7 @@ export function DashboardToolbar({
     const value = text.trim()
     if (value === '') return
     const target = resolveChatWindow(actions, windows, activeWindowId)
-    sendPrompt(target, value, 'queue')
+    void sendPrompt(target, value, 'queue')
     setText('')
     setNotice(null)
   }

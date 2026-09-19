@@ -119,7 +119,8 @@ export function apply(ctx: ClientContext): void {
       if (outcome.kind !== 'unknown') instance.actions.centerOnWindow(target)
       return outcome
     },
-    sendPrompt: (windowId, text, mode, images, files) => { bridge.send(windowId, text, mode, images, files) },
+    sendPrompt: (windowId, text, mode, images, files, signal) =>
+      bridge.send(windowId, text, mode, images, files, signal),
     cancelPrompt: (windowId) => { bridge.cancel(windowId) },
     loadOlderTurns: (windowId) => { bridge.loadOlder(windowId) },
     createChat: (windowId, target) => { bridge.createChat(windowId, target) },
@@ -143,6 +144,7 @@ export function apply(ctx: ClientContext): void {
     executeCommand: (windowId, line, images, files) => { bridge.executeCommand(windowId, line, images, files) },
     uploadFile: (windowId, name, bytes) => bridge.uploadFile(windowId, name, bytes),
     updateQueueItem: (windowId, itemId, action) => { bridge.updateQueueItem(windowId, itemId, action) },
+    loadQueueImage: (windowId, attachment) => bridge.loadQueueImage(windowId, attachment),
     goalAction: (windowId, action) => { bridge.goalAction(windowId, action) },
     loadMentions: (windowId, query, signal) => bridge.loadMentions(windowId, query, signal),
   })

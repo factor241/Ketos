@@ -63,6 +63,71 @@
   color: var(--dsw-alias-label-primary);
 }
 
+.stripInput {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+}
+
+.stripAttachments {
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-window);
+  flex: none;
+  min-width: 0;
+}
+
+.stripFile {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 160px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.stripFileName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stripFileSize {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* Durable queued images: a fixed thumbnail so republished rows keep their size. */
+.queueThumb {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--dsw-alias-bg-layer-3);
+}
+
+.stripStatus {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* A local echo awaiting its durable occurrence reads as the same strip, dimmed. */
+.stripEcho {
+  border-style: dashed;
+}
+
+/* A refused queue mutation names itself instead of failing silently. */
+.stripError {
+  border-color: var(--dsw-alias-state-error-primary);
+  color: var(--dsw-alias-state-error-primary);
+}
+
 .composerWrap {
   position: relative;
   flex: none;

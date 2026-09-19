@@ -18,18 +18,25 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent, type KeyboardEvent } from 'react'
 import clsx from 'clsx'
+import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import {
+  FileTypeIcon,
+  fileSizeText,
   IconBranchOutline16,
   IconChecklistOutline14,
+  IconCheckOutline16,
   IconChevronDownOutline14,
   IconCloseOutline16,
+  IconEditOutline16,
   IconGoalOutline16,
   IconPaperclipOutline16,
   IconQueueOutline14,
+  IconSendOutline14,
   IconSendOutline16,
   IconShieldOutline16,
   IconSparkle16,
   IconStopFill16,
+  IconTrashOutline16,
   Menu,
   RiskConfirmation,
   Tooltip,
@@ -38,8 +45,8 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type {
-  BoardCommandRow, BoardDraftFile, BoardDraftImage, BoardMentionRow, BoardPromptMode, BoardWindowInjectProps,
-  BoardWindowSessionState, WindowId,
+  BoardCommandRow, BoardDraftFile, BoardDraftImage, BoardMentionRow, BoardPromptFile, BoardPromptMode,
+  BoardWindowInjectProps, BoardWindowSessionState, WindowId,
 } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
 import { menuPlacement } from '../menu-placement.ts'
@@ -65,6 +72,40 @@ interface OpenMenu {
   readonly kind: MenuKind
   readonly side: 'top' | 'bottom'
   readonly align: 'start' | 'end'
+}
+
+/** One submission's draft, captured so a refused prompt can return it. */
+interface OutgoingDraft {
+  readonly text: string
+  readonly images: readonly BoardDraftImage[]
+  readonly files: readonly BoardDraftFile[]
+}
+
+/**
+ * One durable queued image rendered as a fixed-size thumbnail. The read is
+ * keyed by the attachment identity, so republished queue rows never restart it,
+ * and a failure keeps the empty placeholder (the transcript surfaces reads).
+ */
+function QueueThumb({ windowId, attachment, loadImage, label }: {
+  readonly windowId: WindowId
+  readonly attachment: ImageAttachmentRef
+  readonly loadImage: BoardWindowInjectProps['loadQueueImage']
+  readonly label: string
+}) {
+  const [url, setUrl] = useState<string | null>(null)
+  const latest = useRef(attachment)
+  latest.current = attachment
+  useEffect(() => {
+    let alive = true
+    void loadImage(windowId, latest.current).then(
+      (resolved) => { if (alive) setUrl(resolved) },
+      () => { /* placeholder retained; the durable transcript surfaces read errors */ },
+    )
+    return () => { alive = false }
+  }, [windowId, attachment.attachmentId, loadImage])
+  return url === null
+    ? <span className={css.queueThumb} aria-hidden="true" />
+    : <img className={css.queueThumb} src={url} alt={label} />
 }
 
 /** The permission chip's label per preset id. */
@@ -163,6 +204,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
   const [acknowledged, setAcknowledged] = useState(false)
   const [mentions, setMentions] = useState<readonly BoardMentionRow[]>([])
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const [queueEdit, setQueueEdit] = useState<{ readonly id: string; readonly text: string } | null>(null)
   // Escape dismisses the command palette for the current draft; the next edit
   // brings it back, so the menu never traps the keyboard.
   const [commandsDismissed, setCommandsDismissed] = useState(false)
@@ -175,6 +217,13 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
   // Source files of non-image chips, kept for retry after a failed upload.
   const fileSources = useRef(new Map<string, File>())
   const dragDepth = useRef(0)
+  // Admission round-trips still in flight; the composer's unmount cancels them.
+  const inflight = useRef(new Set<AbortController>())
+
+  useEffect(() => () => {
+    for (const controller of inflight.current) controller.abort()
+    inflight.current.clear()
+  }, [])
 
   /**
    * Open one popover, or close it when its own trigger is clicked again. The
@@ -255,16 +304,33 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
     setMentionQuery(tail === null ? null : (tail[1] ?? ''))
   }, [])
 
-  const clearDraft = (): void => {
+  /** Clear every visible draft field; staged file sources stay until their send settles. */
+  const resetDraftState = (): void => {
     setDraft('')
     setImages([])
     setFiles([])
     setIntakeError(null)
-    fileSources.current.clear()
     closeMenu()
     setMentionQuery(null)
     // Sending ends dictation: the transcript belongs to the message it fed.
     dictation.stop()
+  }
+
+  const clearDraft = (): void => {
+    resetDraftState()
+    fileSources.current.clear()
+  }
+
+  /**
+   * Return a refused submission to the composer. An untouched composer gets the
+   * draft back verbatim; one the user has typed into keeps its text and gains
+   * the refused message as a new paragraph, so a refusal never loses or
+   * overwrites what the user wrote. Chips already present are not duplicated.
+   */
+  const restoreDraft = (outgoing: OutgoingDraft): void => {
+    setDraft(current => current === '' ? outgoing.text : `${current}\n\n${outgoing.text}`)
+    setImages(current => [...current, ...outgoing.images.filter(image => !current.some(held => held.id === image.id))])
+    setFiles(current => [...current, ...outgoing.files.filter(file => !current.some(held => held.id === file.id))])
   }
 
   const submit = (mode: BoardPromptMode): void => {
@@ -282,21 +348,34 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
       return
     }
     const command = name === null ? undefined : session.commands.find(row => row.name === name)
+    const outgoing: OutgoingDraft = { text, images, files: readyFiles }
+    const promptFiles: BoardPromptFile[] = readyFiles.map(file => ({
+      receiptId: file.receiptId as string,
+      ...(file.file === undefined ? {} : { file: file.file }),
+    }))
 
     if (command !== undefined) {
-      injected.executeCommand(windowId, text, images, readyFiles.map(file => file.receiptId as string))
+      injected.executeCommand(windowId, text, images, promptFiles)
       clearDraft()
       onSent()
       return
     }
-    injected.sendPrompt(
-      windowId,
-      text,
-      running ? mode : 'queue',
-      images,
-      readyFiles.map(file => file.receiptId as string),
-    )
-    clearDraft()
+    // The echo appears in the lane at once (the bridge registers it before the
+    // admission round-trip); the draft clears optimistically so the next
+    // message queues without waiting, and a refusal returns it exactly once.
+    const controller = new AbortController()
+    inflight.current.add(controller)
+    void injected.sendPrompt(windowId, text, running ? mode : 'queue', images, promptFiles, controller.signal)
+      .then((accepted) => {
+        if (!accepted) {
+          restoreDraft(outgoing)
+          return
+        }
+        // An accepted send owns its staged bytes: the retry sources go with it.
+        for (const file of outgoing.files) fileSources.current.delete(file.id)
+      }, () => { restoreDraft(outgoing) })
+      .finally(() => { inflight.current.delete(controller) })
+    resetDraftState()
     onSent()
   }
 
@@ -304,6 +383,18 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
     e.preventDefault()
     submit('queue')
   }
+
+  /** Commit one in-place queue edit; an empty or disappeared row ends the edit. */
+  const saveQueueEdit = (): void => {
+    if (queueEdit === null || queueEdit.text.trim() === '') return
+    injected.updateQueueItem(windowId, queueEdit.id, { kind: 'edit', text: queueEdit.text })
+    setQueueEdit(null)
+  }
+
+  // A row the host consumed (steered, removed, dispatched) ends its edit too.
+  useEffect(() => {
+    if (queueEdit !== null && !(session?.queue ?? []).some(row => row.id === queueEdit.id)) setQueueEdit(null)
+  }, [queueEdit, session?.queue])
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): void => {
     if (e.key === 'Escape') {
@@ -331,7 +422,10 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
     }
     const row = session?.commands.find(entry => entry.name === name)
     if (row?.hint === undefined) {
-      injected.executeCommand(windowId, `/${name}`, images, readyFiles.map(file => file.receiptId as string))
+      injected.executeCommand(windowId, `/${name}`, images, readyFiles.map(file => ({
+        receiptId: file.receiptId as string,
+        ...(file.file === undefined ? {} : { file: file.file }),
+      })))
       clearDraft()
     } else {
       setDraft(`/${name} `)
@@ -524,7 +618,14 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
   const todoDone = (session?.todos ?? []).filter(todo => todo.status === 'completed').length
   const todoActive = (session?.todos ?? []).filter(todo => todo.status === 'in_progress').length
   const todoPending = (session?.todos ?? []).filter(todo => todo.status === 'pending').length
-  const hasStrips = session?.goal !== undefined || (session?.todos.length ?? 0) > 0 || (session?.queue.length ?? 0) > 0
+  // The strip owns the queued surface: durable occurrences wait their turn, and
+  // local echoes fill the gap until their occurrence arrives. Steering rides the
+  // lane instead, as its pending bubble and then its durable transcript node.
+  const queueRows = (session?.queue ?? []).filter(row => row.placement === 'queued')
+  const queuedEchoes = (session?.pending ?? []).filter(row => row.placement === 'queued')
+  const queueCount = queueRows.length + queuedEchoes.length
+  const hasStrips = session?.goal !== undefined || (session?.todos.length ?? 0) > 0 || queueCount > 0
+    || session?.queueError !== undefined
 
   return (
     <div
@@ -576,27 +677,150 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
               </span>
             </div>
           )}
-          {(session?.queue.length ?? 0) > 0 && (
+          {queueCount > 0 && (
             <div className={css.strip}>
               <IconQueueOutline14 />
-              <span className={css.stripTitle}>{t('queue.count', { n: String(session?.queue.length ?? 0) })}</span>
+              <span className={css.stripTitle}>{t('queue.count', { n: String(queueCount) })}</span>
             </div>
           )}
-          {(session?.queue ?? []).map(row => (
-            <div key={row.id} className={css.strip}>
-              <span className={css.stripText}>{row.preview}</span>
-              <Tooltip label={t('queue.steer')} side="top">
-                <button type="button" className={css.stripAction} aria-label={t('queue.steer')} onClick={() => { injected.updateQueueItem(windowId, row.id, 'steer') }}>
-                  <IconQueueOutline14 />
-                </button>
-              </Tooltip>
-              <Tooltip label={t('queue.remove')} side="top">
-                <button type="button" className={css.stripAction} aria-label={t('queue.remove')} onClick={() => { injected.updateQueueItem(windowId, row.id, 'remove') }}>
-                  <IconCloseOutline16 />
-                </button>
-              </Tooltip>
+          {queueRows.map(row => (
+            <div key={row.id} className={css.strip} data-board-queue-row="" data-board-queue-state="queued">
+              {queueEdit?.id === row.id
+                ? (
+                  <>
+                    <input
+                      autoFocus
+                      className={css.stripInput}
+                      aria-label={t('queue.edit')}
+                      value={queueEdit.text}
+                      data-board-action="queue-edit-input"
+                      onChange={(e) => { setQueueEdit({ id: row.id, text: e.target.value }) }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          e.preventDefault()
+                          setQueueEdit(null)
+                          return
+                        }
+                        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                          e.preventDefault()
+                          saveQueueEdit()
+                        }
+                      }}
+                    />
+                    <Tooltip label={t('queue.save')} side="top">
+                      <button
+                        type="button"
+                        className={css.stripAction}
+                        aria-label={t('queue.save')}
+                        data-board-action="queue-edit-save"
+                        disabled={queueEdit.text.trim() === ''}
+                        onClick={saveQueueEdit}
+                      >
+                        <IconCheckOutline16 size={14} />
+                      </button>
+                    </Tooltip>
+                    <Tooltip label={t('queue.cancelEdit')} side="top">
+                      <button
+                        type="button"
+                        className={css.stripAction}
+                        aria-label={t('queue.cancelEdit')}
+                        data-board-action="queue-edit-cancel"
+                        onClick={() => { setQueueEdit(null) }}
+                      >
+                        <IconCloseOutline16 />
+                      </button>
+                    </Tooltip>
+                  </>
+                )
+                : (
+                  <>
+                    {row.attachments.length > 0 && (
+                      <span className={css.stripAttachments}>
+                        {row.attachments.map((attachment, index) => attachment.kind === 'image'
+                          ? (
+                            <QueueThumb
+                              key={`${attachment.attachment.attachmentId}:${index}`}
+                              windowId={windowId}
+                              attachment={attachment.attachment}
+                              loadImage={injected.loadQueueImage}
+                              label={t('queue.image')}
+                            />
+                          )
+                          : (
+                            <span key={`${attachment.name}:${index}`} className={css.stripFile} title={attachment.name}>
+                              <FileTypeIcon path={attachment.name} size={14} />
+                              <span className={css.stripFileName}>{attachment.name}</span>
+                              <span className={css.stripFileSize}>{fileSizeText(attachment.bytes)}</span>
+                            </span>
+                          ))}
+                      </span>
+                    )}
+                    <span className={css.stripText}>{row.preview}</span>
+                    <Tooltip label={t('queue.edit')} side="top" disabled={row.text === null}>
+                      <button
+                        type="button"
+                        className={css.stripAction}
+                        aria-label={t('queue.edit')}
+                        data-board-action="queue-edit"
+                        title={row.text === null ? t('queue.edit.unsupported') : undefined}
+                        disabled={row.text === null}
+                        onClick={() => { if (row.text !== null) setQueueEdit({ id: row.id, text: row.text }) }}
+                      >
+                        <IconEditOutline16 size={14} />
+                      </button>
+                    </Tooltip>
+                    <Tooltip label={t('queue.remove')} side="top">
+                      <button
+                        type="button"
+                        className={css.stripAction}
+                        aria-label={t('queue.remove')}
+                        data-board-action="queue-remove"
+                        onClick={() => { injected.updateQueueItem(windowId, row.id, { kind: 'remove' }) }}
+                      >
+                        <IconTrashOutline16 size={14} />
+                      </button>
+                    </Tooltip>
+                    <Tooltip label={running ? t('queue.steer') : t('queue.steer.unavailable')} side="top" disabled={running}>
+                      <button
+                        type="button"
+                        className={css.stripAction}
+                        aria-label={t('queue.steer')}
+                        data-board-action="queue-steer"
+                        disabled={!running}
+                        onClick={() => { injected.updateQueueItem(windowId, row.id, { kind: 'steer' }) }}
+                      >
+                        <IconSendOutline14 />
+                      </button>
+                    </Tooltip>
+                  </>
+                )}
             </div>
           ))}
+          {queuedEchoes.map(row => (
+            <div key={row.id} className={clsx(css.strip, css.stripEcho)} data-board-queue-row="" data-board-queue-state="sending">
+              <IconQueueOutline14 />
+              {row.images.length > 0 && (
+                <span className={css.stripAttachments}>
+                  {row.images.map(image => (
+                    <img key={image.id} className={css.queueThumb} src={image.preview} alt={image.name ?? t('queue.image')} />
+                  ))}
+                </span>
+              )}
+              {row.files.map(name => (
+                <span key={name} className={css.stripFile} title={name}>
+                  <FileTypeIcon path={name} size={14} />
+                  <span className={css.stripFileName}>{name}</span>
+                </span>
+              ))}
+              <span className={css.stripText}>{row.text}</span>
+              <span className={css.stripStatus} role="status">{t('queue.sending')}</span>
+            </div>
+          ))}
+          {session?.queueError !== undefined && (
+            <div className={clsx(css.strip, css.stripError)} data-board-queue-error="">
+              {t('queue.failed')}: {session.queueError}
+            </div>
+          )}
         </div>
       )}
 

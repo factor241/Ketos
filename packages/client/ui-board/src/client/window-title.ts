@@ -5,8 +5,8 @@
  * ordinal, so it follows the active locale instead of freezing the locale the
  * window opened in.
  */
-import type { BoardWindowState, WindowKind } from '../contract/slots.ts'
-import type { BoardTranslate } from '../locale.ts'
+import type { BoardWindowState, WindowKind } from './contract/slots.ts'
+import type { BoardTranslate } from './locale.ts'
 
 /** Template label key of one window kind. */
 const TEMPLATE_KEYS = {

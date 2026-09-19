@@ -20,7 +20,7 @@ Status: implemented
 
 **桥同时承载控制面。** 会话列表行（cwd、blank、agent 预设）、permissions/plan/todos/goal/contextPressure 投影、模型目录、命令目录、预设名册（经共享的 `@deepseek-ai/dsh-agent-presets/display` 折叠本地化）以及对话阻塞原因，都按窗口订阅一次并重新发布到同一 channel，因此栏只渲染普通数据，每次变更都经注入回调返回（`selectPermission` → `/permission`、`exitPlanMode` → `/plan off`、`runCommand`、`executeCommand` → 带草稿参数与附件的 `remote.commands.execute`、`uploadFile` → `ctx.fileUpload.upload`、`updateQueueItem`、`goalAction`、`selectModel`）。
 
-**窗口的下限是它的默认尺寸，角手柄按比例缩放。** `store.ts` 拥有最小值（agent 模板的 552×648）以及吸附与钳制变换；`window/resize.ts` 把拖拽转换为矩形：边手柄只移动它命名的那条轴，角手柄按主导系数同时缩放两轴并以对角为锚点，任何路径都不会把窗口缩到下限之下。一个 `window/WindowFrame.tsx` 承载这些接线，以及所有类型共用的 chrome（关闭、拖动、标题、手柄），并用 `features` 标记只属于 agent 与 clone 窗口的两个控件（聊天面板、全屏）；因此一种窗口类型只是一行注册，而不是第二套外框：`index.ts` 为 `agent`/`clone` 注册 `AgentCard`（带两个特性的外框），工具类型直接注册 `WindowFrame` 本身，从而移除了两套外框此前的重复 chrome 与缩放手势代码。
+**窗口的下限是它的默认尺寸，角手柄按比例缩放。** `store.ts` 拥有最小值（agent 模板的 552×648）以及吸附与钳制变换；`resize.ts` 把拖拽转换为矩形：边手柄只移动它命名的那条轴，角手柄按主导系数同时缩放两轴并以对角为锚点，任何路径都不会把窗口缩到下限之下。一个 `window/WindowFrame.tsx` 承载这些接线，以及所有类型共用的 chrome（关闭、拖动、标题、手柄），并用 `features` 标记只属于 agent 与 clone 窗口的两个控件（聊天面板、全屏）；因此一种窗口类型只是一行注册，而不是第二套外框：`index.ts` 为 `agent`/`clone` 注册 `AgentCard`（带两个特性的外框），工具类型直接注册 `WindowFrame` 本身，从而移除了两套外框此前的重复 chrome 与缩放手势代码。
 
 **Composer 会适配窗口。** 卡片是 inline-size 容器：低于 545px 时工具栏分行并把尾部组（上下文、模型、发送/停止）固定在自己一行的右端，低于 455px 时模式芯片去掉文字，低于 405px 时隐藏上下文圆环；每一行都是可换行且子元素 `min-width: 0` 的 flex 行，车道从不横向滚动。弹层通过共享 `Menu` 的 portal 依据触发元素矩形渲染，选择空间更大的一侧，并在视口中线之后改为末端对齐；菜单打开时其提示（tooltip）让位。麦克风按钮（共享图标集中没有，因此由看板自绘字形）在引擎提供浏览器自带语音识别时把语音写入草稿，否则保持禁用。
 

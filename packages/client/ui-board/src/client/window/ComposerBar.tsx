@@ -51,7 +51,7 @@ import type {
 import type { BoardStoreHandle } from '../store.ts'
 import { menuPlacement } from '../menu-placement.ts'
 import type { BoardTranslate } from '../locale.ts'
-import { MicGlyph, useDictation } from './dictation.tsx'
+import { MicGlyph, useDictation } from '../dictation.tsx'
 import css from './ComposerBar.module.css'
 
 /** The popover kinds the bar owns; one is open at a time. */

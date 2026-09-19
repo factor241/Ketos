@@ -10,7 +10,7 @@ import type { WorkspaceId, WorkspaceSnapshot, WorkspaceView } from '@deepseek-ai
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import {
   chatGroups, chatMatches, filterGroups, moveAnchor,
-} from '../src/client/window/chat-list-model.ts'
+} from '../src/client/chat-list-model.ts'
 
 /** One list row with the fields the panel reads. */
 function row(id: string, fields: Partial<SessionSummary> = {}): SessionSummary {

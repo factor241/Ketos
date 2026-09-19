@@ -22,7 +22,7 @@ Status: implemented
 
 **面板是窗口的管理界面。** 项目可重命名、重排（拖动行或使用行菜单的移动命令）与删除，经由 `ctx.workspaces.rename/insertBefore/delete`；标题栏的文件夹浏览器通过 `uiWorkspace.listDirectory` 每次列出一层、通过 `createDirectory` 创建嵌套文件夹，并通过 `workspaces.create` 注册选中的目录。聊天可复用或新建（`startChat`）、重命名（`session.rename`）、分支（`sessions.fork` 并带 `increaseTitle`，子会话绑定到窗口）、归档（`workspaces.archiveSession`）、重排（`workspaces.insertSessionBefore`），并可按标题或目录搜索；分组（按项目或单一列表）与排序（手动或按更新时间）与面板宽度一同存放在看板 store。面板打开时 dock 与小地图让位：它们属于看板 chrome，否则它们的条带会压住面板外缘与缩放手柄。文件夹层只读取 browse 选择器的动词，因此启动时挂载原生选择器的宿主（`dsh-host-directory-picker-auto` 在本地 macOS/Windows 回环绑定下解析为 `native`）没有目录列表：该层会说明这一点，并把选择交给 `uiWorkspace.pickDirectory()`——两种选择器共同提供的唯一动词——并注册它返回的目录。
 
-**列表模型归看板所有。** `window/chat-list-model.ts` 推导面板需要的分组：成员关系取自工作区自身的 `sessionIds`，排除子代理与已归档行，空白会话只对正在显示它的窗口可见，按更新时间倒序，未分组一档放在最后。侧栏自己的树推导留在原地——特性插件不能导入另一个插件的值，而看板需要的规则只有十几行。
+**列表模型归看板所有。** `chat-list-model.ts` 推导面板需要的分组：成员关系取自工作区自身的 `sessionIds`，排除子代理与已归档行，空白会话只对正在显示它的窗口可见，按更新时间倒序，未分组一档放在最后。侧栏自己的树推导留在原地——特性插件不能导入另一个插件的值，而看板需要的规则只有十几行。
 
 ## Alternatives considered
 

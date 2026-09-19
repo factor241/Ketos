@@ -13,19 +13,18 @@
  */
 import React, { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
-import { IconCloseOutline16, IconFullscreenOutline16, IconPanelLeftOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCloseOutline16, IconExitFullscreenOutline16, IconFullscreenOutline16, IconPanelLeftOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
 import type { BoardWindowInjected, BoardWindowState } from '../contract/slots.ts'
 import type { BoardTranslate } from '../locale.ts'
-import { isWindowHidden } from '../canvas/culling.ts'
+import { isWindowHidden } from '../culling.ts'
 import { isBoardEditingTarget } from '../editing-target.ts'
 import { useBoardPointerGesture } from '../pointer-gesture.ts'
-import { startWindowResizeGesture } from './resize-gesture.ts'
-import { RESIZE_DIRECTIONS, type ResizeDirection } from './resize.ts'
-import { ExitFullscreenGlyph } from './fullscreen-glyph.tsx'
+import { startWindowResizeGesture } from '../resize-gesture.ts'
+import { RESIZE_DIRECTIONS, type ResizeDirection } from '../resize.ts'
 import { panelWidthFor } from './panel-geometry.ts'
-import { windowTitle } from './window-title.ts'
+import { windowTitle } from '../window-title.ts'
 import css from './WindowFrame.module.css'
 
 /** Handle class per direction: the frame's border strips and corners. */
@@ -317,7 +316,7 @@ function WindowFrameView({
                 className={css.headerButton}
                 aria-label={t(isFullscreen ? 'window.exitFullscreen' : 'window.fullscreen')}
               >
-                {isFullscreen ? <ExitFullscreenGlyph /> : <IconFullscreenOutline16 />}
+                {isFullscreen ? <IconExitFullscreenOutline16 /> : <IconFullscreenOutline16 />}
               </button>
             </Tooltip>
           </div>

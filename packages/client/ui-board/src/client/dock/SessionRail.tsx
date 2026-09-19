@@ -24,7 +24,7 @@ import type { BoardTranslate } from '../locale.ts'
 import { nextWindowOrdinal, type BoardStoreHandle } from '../store.ts'
 import { menuPlacement, type MenuPlacement } from '../menu-placement.ts'
 import { openBoardWindow, type BoardActions } from '../open-window.ts'
-import { windowTitle } from '../window/window-title.ts'
+import { windowTitle } from '../window-title.ts'
 import css from './SessionRail.module.css'
 
 export type SessionRailProps =

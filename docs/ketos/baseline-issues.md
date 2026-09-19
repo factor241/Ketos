@@ -49,6 +49,8 @@
 
 1. `pnpm run verify-client-domain-graph` — красный на базе: 25 нарушений в `ui-sidebar-documentpreview` (21) и `ui-conversation` (4): домены импортируют соседние домены, код старше гейта (импорт upstream). Гейт входит только в `check-all`/`ci-static` (`scripts/run-gates.ts`), не в `doc-sync`, поэтому приёмки этапов 1–2 его не выполняли. Этап 3 снял собственные шесть нарушений `ui-board` — canvas больше не импортирует домены window/dock/omnibox/inspector, а `BoardViews.tsx` не импортирует домены; в выводе гейта строк `ui-board` нет. Остальные 25 — базовая проблема, перенесена задачей `ketos-bmz`.
 
+   Закрыто 19.09.2026 (этап 11, задача `ketos-bmz`): у гейта появился локальный список `UPSTREAM_LAYOUT_EXCEPTIONS` с точными счётчиками (4 и 21) и однострочным обоснованием на пакет; совпадение только точное, поэтому новое нарушение в upstream-пакете валит гейт как нарушение, а исправленное — как устаревшее исключение. Десять нарушений `ui-board`, накопленных этапами 5–10, сняты переносом кросс-доменных общих модулей в верхний слой `src/client/`, который гейт разрешает импортировать любому домену (решение — Agent Note [2026-09-19-client-domain-graph-upstream-exceptions](../../.agents/notes/implemented/process/2026-09-19-client-domain-graph-upstream-exceptions.md)); `pnpm run verify-client-domain-graph` зелёный.
+
 ## Проверочные команды
 
 ```sh

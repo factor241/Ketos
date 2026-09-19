@@ -26,8 +26,8 @@ import type { BoardStoreHandle } from '../store.ts'
 import { nextWindowOrdinal } from '../store.ts'
 import { menuPlacement, type MenuPlacement } from '../menu-placement.ts'
 import { openBoardWindow, resolveChatWindow } from '../open-window.ts'
-import { folderName, recentChats } from '../window/chat-list-model.ts'
-import { useDictation } from '../window/dictation.tsx'
+import { folderName, recentChats } from '../chat-list-model.ts'
+import { useDictation } from '../dictation.tsx'
 import css from './DashboardToolbar.module.css'
 
 /** Most recent chats the Omnibox menu offers. */

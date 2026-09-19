@@ -4,8 +4,8 @@
  * follow the screen delta, so both paths pan identically.
  */
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import type { BoardGestureHandlers } from '../pointer-gesture.ts'
-import type { BoardActions } from '../open-window.ts'
+import type { BoardGestureHandlers } from './pointer-gesture.ts'
+import type { BoardActions } from './open-window.ts'
 
 /** Everything one pan gesture reads at pointerdown. */
 export interface BoardPanGesture {

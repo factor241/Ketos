@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-ketos-board-gestures-culling.md
-2026-09-17-ketos-board-gestures-culling.md: 1e624927a51c02a37650d3679d1723bbc27c57fa
-2026-09-17-ketos-board-gestures-culling.zh.md: 1eec391b1d2bf9dacdbc4631c05cb02502fc606d
+2026-09-17-ketos-board-gestures-culling.md: 7e34ea6e820e0d8811f3073d4fc804a69cbcb9f3
+2026-09-17-ketos-board-gestures-culling.zh.md: 7011d464b88e88c18f79642a43193379ca2e420f

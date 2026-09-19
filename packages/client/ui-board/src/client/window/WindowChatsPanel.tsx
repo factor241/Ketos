@@ -21,9 +21,9 @@ import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/clie
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { BoardDirectoryListing, BoardWindowInjected } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
-import { isWindowHidden } from '../canvas/culling.ts'
+import { isWindowHidden } from '../culling.ts'
 import { useBoardPointerGesture } from '../pointer-gesture.ts'
-import { chatGroups, filterGroups, moveAnchor } from './chat-list-model.ts'
+import { chatGroups, filterGroups, moveAnchor } from '../chat-list-model.ts'
 import {
   dockedPanelRect, panelPresentation, panelWidthFor, railRect, windowedPanelRect,
 } from './panel-geometry.ts'

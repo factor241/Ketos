@@ -5,7 +5,7 @@
  * the floating chrome.
  */
 import { describe, expect, it } from 'vitest'
-import { windowScreenRect } from '../src/client/canvas/window-screen.ts'
+import { windowScreenRect } from '../src/client/window-screen.ts'
 import type { BoardState } from '../src/client/store.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 

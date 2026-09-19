@@ -10,7 +10,7 @@ import clsx from 'clsx'
 import type { PropsRenderSlots, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
 import { useBoardPointerGesture } from '../pointer-gesture.ts'
-import { startBoardPanGesture } from './pan-gesture.ts'
+import { startBoardPanGesture } from '../pan-gesture.ts'
 import css from './DashboardCanvas.module.css'
 
 export type DashboardCanvasProps =

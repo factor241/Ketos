@@ -4,9 +4,9 @@
  * `resizeStep` with the canvas zoom divided out of every delta.
  */
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import type { BoardWindowState } from '../contract/slots.ts'
-import type { BoardGestureHandlers } from '../pointer-gesture.ts'
-import type { BoardActions } from '../open-window.ts'
+import type { BoardWindowState } from './contract/slots.ts'
+import type { BoardGestureHandlers } from './pointer-gesture.ts'
+import type { BoardActions } from './open-window.ts'
 import { resizeStep, type ResizeDirection } from './resize.ts'
 
 /** Everything one resize gesture reads at pointerdown. */

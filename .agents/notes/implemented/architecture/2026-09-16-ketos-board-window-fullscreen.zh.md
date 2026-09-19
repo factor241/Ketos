@@ -12,9 +12,9 @@ Status: implemented
 
 **模式由看板 store 拥有。** `BoardState.fullscreenWindowId` 保存铺满面板的窗口或 null；`setWindowFullscreen(id)` 记录它并提升该窗口，`exitFullscreen()` 清除它，`closeWindow` 在关闭的正是该全屏窗口时清除它。模式开启期间窗口存储的 `x/y/width/height` 仍是权威值，因此退出时会恢复用户排布的那一矩形。
 
-**画布在全屏窗口之下撤掉自身的变换。** 放在画布表面内部的 `inset: 0` 外框否则会随 `--board-zoom` 缩放并处于世界坐标中。模式开启时 `DashboardCanvas` 发布恒等的平移与缩放，外框以顶层 `zIndex` 渲染 `inset: 0`；其他外框保持挂载但被隐藏（`canvas/culling.ts` 的 `isWindowHidden`，以 `content-visibility: hidden` 应用），因此它们的车道、草稿与聊天面板状态在该模式下存活；`BoardRoot` 不再渲染 `board.dock`、`board.omnibar` 与 `board.minimap`，当前窗口的手柄环也随之让位；外框的 `.fullscreen` 类把圆角改为直角并去掉浮层投影，缩放手柄消失，标题栏拖动不再生效。滚轮缩放让位，使车道与其弹层能正常滚动。Escape 与标题栏按钮都能退出该模式。
+**画布在全屏窗口之下撤掉自身的变换。** 放在画布表面内部的 `inset: 0` 外框否则会随 `--board-zoom` 缩放并处于世界坐标中。模式开启时 `DashboardCanvas` 发布恒等的平移与缩放，外框以顶层 `zIndex` 渲染 `inset: 0`；其他外框保持挂载但被隐藏（`culling.ts` 的 `isWindowHidden`，以 `content-visibility: hidden` 应用），因此它们的车道、草稿与聊天面板状态在该模式下存活；`BoardRoot` 不再渲染 `board.dock`、`board.omnibar` 与 `board.minimap`，当前窗口的手柄环也随之让位；外框的 `.fullscreen` 类把圆角改为直角并去掉浮层投影，缩放手柄消失，标题栏拖动不再生效。滚轮缩放让位，使车道与其弹层能正常滚动。Escape 与标题栏按钮都能退出该模式。
 
-**该模式是一次 store 状态转换，而非注入回调。** `openInMainPanel` 成员已从 `BoardWindowInjected`、桥与插件的 `inject` 列表中移除，`layout` 服务一并移除；标题栏承载该开关，标签为 `window.fullscreen` 与 `window.exitFullscreen`。共享图标集只有外扩描边字形，因此恢复字形由看板自绘（`window/fullscreen-glyph.tsx`）；工具窗口只保留关闭控件，因为它们的正文随各自负责的阶段交付。
+**该模式是一次 store 状态转换，而非注入回调。** `openInMainPanel` 成员已从 `BoardWindowInjected`、桥与插件的 `inject` 列表中移除，`layout` 服务一并移除；标题栏承载该开关，标签为 `window.fullscreen` 与 `window.exitFullscreen`。共享图标集提供全屏展开/恢复字形对（`IconFullscreenOutline16` 与 `IconExitFullscreenOutline16`），标题栏开关直接使用它们；工具窗口只保留关闭控件，因为它们的正文随各自负责的阶段交付。
 
 ## Alternatives considered
 

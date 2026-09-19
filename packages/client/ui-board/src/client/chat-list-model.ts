@@ -12,9 +12,9 @@ import type { WorkspaceId, WorkspaceSnapshot } from '@deepseek-ai/dsh-api-worksp
 // The grouping and ordering modes are part of the durable layout contract (the
 // settings schema validates them), so they live with the layout schema and are
 // re-exported here for the list model's consumers.
-import type { BoardPanelGroupBy, BoardPanelOrderBy } from '../../board-settings.ts'
+import type { BoardPanelGroupBy, BoardPanelOrderBy } from '../board-settings.ts'
 
-export type { BoardPanelGroupBy, BoardPanelOrderBy } from '../../board-settings.ts'
+export type { BoardPanelGroupBy, BoardPanelOrderBy } from '../board-settings.ts'
 
 /** One chat row inside a project. */
 export interface BoardChatRow {

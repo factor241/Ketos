@@ -3,8 +3,8 @@
  * view is hidden with CSS, never unmounted — its lane, draft, attachments, and
  * chats panel keep their state and return unchanged.
  */
-import type { BoardState } from '../store.ts'
-import type { BoardWindowState } from '../contract/slots.ts'
+import type { BoardState } from './store.ts'
+import type { BoardWindowState } from './contract/slots.ts'
 
 /**
  * How far beyond the visible canvas a window keeps rendering, in world units.

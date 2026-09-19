@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /** Wheel priority: which board surface owns a wheel event. */
 import { describe, expect, it } from 'vitest'
-import { wheelZoomsBoard } from '../src/client/canvas/wheel-zoom.ts'
+import { wheelZoomsBoard } from '../src/client/wheel-zoom.ts'
 
 describe('wheelZoomsBoard', () => {
   it('takes events from the canvas and from the floating chrome', () => {

@@ -5,7 +5,7 @@
  * (unless Shift is held) and clamps to the store's minimum size, which is the
  * size the window is created with.
  */
-import { clampWindowSize } from '../store.ts'
+import { clampWindowSize } from './store.ts'
 
 /** The 8 resize directions the frame exposes: edges first, then corners. */
 export type ResizeDirection = 'n' | 's' | 'e' | 'w' | 'nw' | 'ne' | 'sw' | 'se'

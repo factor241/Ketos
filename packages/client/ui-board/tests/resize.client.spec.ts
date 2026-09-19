@@ -4,7 +4,7 @@
  * lands below the window floor, and a diagonal drag never shrinks the window.
  */
 import { describe, expect, it } from 'vitest'
-import { isProportional, resizeStep, type WindowRect } from '../src/client/window/resize.ts'
+import { isProportional, resizeStep, type WindowRect } from '../src/client/resize.ts'
 import { MIN_WINDOW_SIZE } from '../src/client/store.ts'
 
 const START: WindowRect = { x: 240, y: 120, width: 552, height: 648 }

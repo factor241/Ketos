@@ -12,7 +12,7 @@ Status: implemented
 
 **每个指针手势只有一个归属。** `client/pointer-gesture.ts` 暴露 `startBoardPointerGesture(element, pointerId, handlers)`——它注册全局 `pointermove`/`pointerup`/`pointercancel` 监听器、释放指针捕获，且可重复调用——以及 `useBoardPointerGesture()` 钩子：组件卸载或开启新手势时结束当前手势。画布平移、标题栏拖动、窗口缩放（外框手柄与手柄环共用）、面板缩放与面板行重排都经过它，因此没有路径会留下监听器或捕获。
 
-**wheel 归属跟随表面。** 看板根节点注册唯一的非被动 `wheel` 监听器（由 `canvas/wheel-zoom.ts` 判定它拥有哪些目标）：窗口或其聊天面板内部的滚轮保留自身滚动，落在画布或浮动浮层——浮层位于画布旁边而非内部——上的滚轮则通过 `zoomTowardPointer` 以指针为中心缩放。全屏把整个事件留给车道。
+**wheel 归属跟随表面。** 看板根节点注册唯一的非被动 `wheel` 监听器（由 `wheel-zoom.ts` 判定它拥有哪些目标）：窗口或其聊天面板内部的滚轮保留自身滚动，落在画布或浮动浮层——浮层位于画布旁边而非内部——上的滚轮则通过 `zoomTowardPointer` 以指针为中心缩放。全屏把整个事件留给车道。
 
 **键盘导航属于看板自身，并让位于编辑器。** 看板根节点在指针位于看板上时武装 Space，并持有捕获阶段的平移，因此按住 Space 拖动或用中键拖动可在看板内任意位置平移——浮动浮层同样有效；中键拖动缩放手柄时执行平移而非缩放，因为根节点先于外框或手柄环取得指针。`Ctrl/Cmd+0` 重置平移与缩放，而不是浏览器的页面缩放。两者都让位于聚焦的 input、textarea 或 contenteditable（`editing-target.ts`），且 Space 只在指针位于看板上时才武装，因此其他面板保留该键。全屏窗口保持恒等变换：没有任何平移路径会写入被隐藏的偏移，退出该模式即恢复用户安排的视图。
 
@@ -20,11 +20,11 @@ Status: implemented
 
 **画布自行测量。** 画布容器上的 `ResizeObserver` 取代了挂载／`window.resize` 组合，成为 `viewportWidth/Height` 的唯一归属；`jsdom` 不实现它，因此单元测试通道保留挂载时的读取。
 
-**窗口隐藏，而非卸载。** `canvas/culling.ts` 依据平移、缩放、视口与 480 世界单位的边距判定可见性，`isWindowHidden` 还会隐藏全屏窗口的邻居。外框与聊天面板通过各自的类与 `data-board-culled` 采用 `content-visibility: hidden`，从而保留车道、草稿、附件与面板状态——阶段 4 关于「全屏只渲染自身窗口」的规则被同一「隐藏而不卸载」规则取代。`BoardWindowLayer` 不再跳过外框，其 `renderBody` 分发器是单一稳定回调，因此被记忆化的外框与面板只会因自身窗口而重渲染。
+**窗口隐藏，而非卸载。** `culling.ts` 依据平移、缩放、视口与 480 世界单位的边距判定可见性，`isWindowHidden` 还会隐藏全屏窗口的邻居。外框与聊天面板通过各自的类与 `data-board-culled` 采用 `content-visibility: hidden`，从而保留车道、草稿、附件与面板状态——阶段 4 关于「全屏只渲染自身窗口」的规则被同一「隐藏而不卸载」规则取代。`BoardWindowLayer` 不再跳过外框，其 `renderBody` 分发器是单一稳定回调，因此被记忆化的外框与面板只会因自身窗口而重渲染。
 
 **缩放读取位于手势开始之处。** `WindowFrame` 与 `WindowChatsPanel` 被记忆化，且不订阅任何平移或缩放：标题栏拖动与每个缩放手柄都是自行读取 `zoom` 的叶子组件，聊天面板在折叠时关闭几何订阅（导轨不跟随视图变换）。提起窗口只写入该窗口的 `zIndex`；store 的 z 区间上限为 `WINDOW_Z_MAX`（99，低于浮层的 100 与覆盖层的 500），并在区间耗尽时按绘制顺序重新归一，因此快照中其他窗口对象保持身份，其外框也跳过重渲染。
 
-**浮层保留自己的指针；当前窗口的手柄升到其上。** 第一次尝试是让每个浮动层在当前窗口的缩放环与其测量盒相遇时淡出并交出指针事件（`chromeYields`）。实机审计否决了它：停在左缘的窗口会让 dock 完全失效，从而无法切换窗口或新增窗口。改为由 `window/HandleRing.tsx` 在看板根节点、浮层之上（z-index 150，低于 500 的元素选择覆盖层）绘制当前窗口的八个手柄，使用与画布相同的 `translate(pan) scale(zoom)` 投影，每个手柄都启动共享的缩放手势。非当前窗口保留既有外框手柄；全屏与被裁剪的窗口让手柄环一同让位。
+**浮层保留自己的指针；当前窗口的手柄升到其上。** 第一次尝试是让每个浮动层在当前窗口的缩放环与其测量盒相遇时淡出并交出指针事件（`chromeYields`）。实机审计否决了它：停在左缘的窗口会让 dock 完全失效，从而无法切换窗口或新增窗口。改为由 `HandleRing.tsx` 在看板根节点、浮层之上（z-index 150，低于 500 的元素选择覆盖层）绘制当前窗口的八个手柄，使用与画布相同的 `translate(pan) scale(zoom)` 投影，每个手柄都启动共享的缩放手势。非当前窗口保留既有外框手柄；全屏与被裁剪的窗口让手柄环一同让位。
 
 **store 在每次插入时同时拥有区间与下限。** `insertWindow` 把调用方传入的任何 `zIndex` 夹进 `[WINDOW_Z_BASE, WINDOW_Z_MAX]`，因此恢复或播种的布局无法画到浮层之上；`openWindow` 把请求的尺寸夹到 `MIN_WINDOW_SIZE`，因此每种窗口（包括工具窗口）都以 composer 的下限打开。
 

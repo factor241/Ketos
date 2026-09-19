@@ -4,7 +4,7 @@
  * unmounted, so its lane, draft, attachments, and panel keep their state.
  */
 import { describe, expect, it } from 'vitest'
-import { CULL_MARGIN, isWindowHidden, isWindowVisible } from '../src/client/canvas/culling.ts'
+import { CULL_MARGIN, isWindowHidden, isWindowVisible } from '../src/client/culling.ts'
 import type { BoardState } from '../src/client/store.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 

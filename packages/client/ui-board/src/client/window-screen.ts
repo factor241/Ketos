@@ -4,8 +4,8 @@
  * the panel's top-left; the handle ring uses the same transform, so a resize
  * affordance stays over the window's border at any zoom.
  */
-import type { BoardState } from '../store.ts'
-import type { BoardWindowState } from '../contract/slots.ts'
+import type { BoardState } from './store.ts'
+import type { BoardWindowState } from './contract/slots.ts'
 
 /** One rectangle in board-panel pixels. */
 export interface ScreenBox {

@@ -75,16 +75,23 @@ export function apply(ctx: ClientContext): void {
     persistBindings: (bindings) => { persistence.writeBindings(bindings) },
     defaultPreset: () => instance.getSnapshot().defaultPreset,
     rememberPreset: (presetId) => { instance.actions.setDefaultPreset(presetId) },
+    presetPickerEnabled: () => presetPickerPolicy,
   })
 
   // Deployment preset roster for the board chrome's window-creation entries.
   // Read once at apply through the same display fold the window chip uses; a
   // failed read leaves the roster empty (the plain creation entries remain).
   const presetRoster = createSnapshotStore<BoardPresetRoster>({ presets: [], pickerEnabled: false })
-  void (async () => {
+  /** Latest deployment policy, undefined until a roster read answers. */
+  let presetPickerPolicy: boolean | undefined
+  // The creation roster is read once at apply and again whenever the chrome's
+  // menu opens: roots can change between menu visits, and a stale row would
+  // store a default the host no longer composes.
+  const loadPresetRoster = async (): Promise<void> => {
     try {
       const result = await ctx.remote.agentPresets.list()
       if (!result.ok) return
+      presetPickerPolicy = result.value.modeSelectionEnabled
       const presetT = ctx.locale.bind('settings.agentPreset')
       presetRoster.set({
         presets: result.value.presets
@@ -103,7 +110,13 @@ export function apply(ctx: ClientContext): void {
     } catch {
       // A deployment without the preset remote keeps the plain creation entries.
     }
-  })()
+  }
+  void loadPresetRoster()
+  // Preset roots live in the settings document: re-read the roster when it
+  // changes, so a policy toggle is known before the next window is created.
+  // The returned disposer must survive until the plugin fiber disposes.
+  const stopRosterRefresh = ctx.remote.$on('settings/document-updated', () => { void loadPresetRoster() })
+  ctx.effect(() => () => { stopRosterRefresh() }, 'ui-board: preset roster refresh')
   ctx.effect(() => () => { bridge.dispose() }, 'ui-board: window session bridge')
 
   // Restore: every adopted section — the first-frame cache before the first
@@ -134,6 +147,7 @@ export function apply(ctx: ClientContext): void {
       agentPresetRoster: presetRoster,
     },
     ensureWindowSession: (windowId) => { bridge.ensure(windowId) },
+    refreshAgentPresets: () => { void loadPresetRoster() },
     releaseWindow: (windowId) => { bridge.release(windowId) },
     bindSession: (windowId, sessionId) => {
       const outcome = bridge.bind(windowId, sessionId)

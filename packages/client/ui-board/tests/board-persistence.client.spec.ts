@@ -64,6 +64,7 @@ function layout(overrides: Record<string, Json> = {}): Json {
     panelWidth: 300,
     panelGroupBy: 'workspace',
     panelOrderBy: 'updated',
+    defaultPreset: 'ptc',
   }
   return { ...base, ...overrides }
 }
@@ -236,6 +237,25 @@ describe('board settings bindings', () => {
     expect(replace).toHaveBeenCalledTimes(2)
     const section = replace.mock.calls[1]?.[1] as { bindings: Record<string, string> }
     expect(section.bindings).toEqual({ 'agent-1': 'session-1' })
+  })
+
+  it('carries the default preset through the write and the adoption', async () => {
+    const { instance, persistence, replace } = bench()
+    vi.useFakeTimers()
+    persistence.start()
+
+    instance.actions.setDefaultPreset('ptc')
+    await vi.advanceTimersByTimeAsync(1_100)
+    const section = replace.mock.calls[0]?.[1] as { defaultPreset: string }
+    expect(section.defaultPreset).toBe('ptc')
+    vi.useRealTimers()
+  })
+
+  it('adopts the stored default preset from the mirror', async () => {
+    seedCache(3, layout({ defaultPreset: 'ptc' }))
+    const { instance, persistence } = bench()
+    persistence.hydrateFromCache()
+    expect(instance.getSnapshot().defaultPreset).toBe('ptc')
   })
 
   it('does not rewrite an unchanged bindings map', async () => {

@@ -679,10 +679,9 @@ describe('ComposerBar preset and model semantics', () => {
     const chip = container.querySelector('[data-board-action="composer-preset"]') as HTMLButtonElement
     expect(chip.disabled).toBe(true)
     fireEvent.mouseEnter(chip)
-    expect(
-      document.querySelector('[role="tooltip"]')?.textContent
-      ?? 'Create a new session to change its preset',
-    ).toMatch(/new session/)
+    const tooltip = document.querySelector('[role="tooltip"]')?.textContent ?? ''
+    expect(tooltip).not.toBe('')
+    expect(tooltip).toMatch(/new session/)
   })
 
   it('names the model, the effort, and the system-default effect in the chip tooltip', () => {
@@ -720,10 +719,50 @@ describe('ComposerBar preset and model semantics', () => {
     expect((container.querySelector('button[aria-label="Send"]') as HTMLButtonElement).disabled).toBe(false)
   })
 
+  it('switches the preset through the inject face when a roster row is picked', () => {
+    const selectAgentPreset = vi.fn()
+    const state = sessionState(undefined, {
+      presetId: 'standard',
+      presets: [DEFAULT_PRESET, { id: 'ptc', name: 'PTC mode' }],
+    })
+    const { container, getByText } = renderComposer(state, { selectAgentPreset })
+    fireEvent.click(container.querySelector('[data-board-action="composer-preset"]') as Element)
+    fireEvent.click(getByText('PTC mode'))
+    expect(selectAgentPreset).toHaveBeenCalledWith(WINDOW, 'ptc')
+  })
+
+  it('submits the reasoning effort together with the current model', () => {
+    const selectModel = vi.fn()
+    const state = sessionState(undefined, {
+      model: {
+        provider: 'deepseek-official',
+        model: 'deepseek-flash',
+        modelName: 'DeepSeek-V41-Flash',
+        effort: 'high',
+        effortName: 'High',
+        efforts: [{ id: 'high', name: 'High' }, { id: 'max', name: 'Max' }],
+        groups: [],
+        loading: false,
+      },
+    })
+    const { container, getByText } = renderComposer(state, { selectModel })
+    fireEvent.click(container.querySelector('[data-board-action="composer-model"]') as Element)
+    fireEvent.click(getByText('Reasoning effort'))
+    fireEvent.click(getByText('Max'))
+    expect(selectModel).toHaveBeenCalledWith(WINDOW, {
+      provider: 'deepseek-official',
+      model: 'deepseek-flash',
+      reasoningEffort: 'max',
+    })
+  })
+
   it('switches only the model when a model is picked, never the preset', () => {
     const selectModel = vi.fn()
     const selectAgentPreset = vi.fn()
+    // A session that already started: the model stays switchable while the
+    // preset is fixed, so a pick here must not touch the composition.
     const state = sessionState(undefined, {
+      blank: false,
       presetId: 'standard',
       presets: [DEFAULT_PRESET],
       model: {

@@ -42,6 +42,7 @@ export type DashboardToolbarProps =
 
 export function DashboardToolbar({
   useStore, actions, t, sendPrompt, openChat, useSessionList, useWorkspaceList, useAgentPresetRoster,
+  refreshAgentPresets,
 }: DashboardToolbarProps) {
   const [text, setText] = useState('')
   const [notice, setNotice] = useState<string | null>(null)
@@ -64,8 +65,11 @@ export function DashboardToolbar({
   // The portal positions from the trigger rect, so the side and alignment read
   // the trigger's viewport position once and the list tracks it afterwards.
   const openMenu = useCallback((trigger: HTMLElement | null): void => {
+    // Refresh the roster on every open, so a preset the host added or removed
+    // since the last visit is offered or dropped rather than stored stale.
+    refreshAgentPresets()
     setMenu(current => current !== null ? null : menuPlacement(trigger))
-  }, [])
+  }, [refreshAgentPresets])
   const closeMenu = useCallback(() => { setMenu(null) }, [])
 
   const handleSubmit = (e: FormEvent): void => {

@@ -799,6 +799,32 @@ describe('BoardSessionBridge preset lifecycle', () => {
     const sessionId = channel.getSnapshot().sessionId
     expect(sessionId).toBeDefined()
     expect(select).toHaveBeenCalledWith(sessionId, 'ptc')
+    // One creation, one application: a second create site must not race it.
+    expect(select).toHaveBeenCalledTimes(1)
+  })
+
+  it('applies the remembered default when the panel creates a chat', async () => {
+    const { prepared, select } = await presetBench()
+    const bridge = new BoardSessionBridge(prepared.runtime.ctx, { defaultPreset: () => 'ptc' })
+    const windowId = 'a1' as WindowId
+    const channel = bridge.channel(windowId)
+    bridge.createChat(windowId, {})
+    await prepared.runtime.flush()
+
+    const sessionId = channel.getSnapshot().sessionId
+    expect(sessionId).toBeDefined()
+    expect(select).toHaveBeenCalledWith(sessionId, 'ptc')
+  })
+
+  it('suppresses the remembered default when the deployment disables visible selection', async () => {
+    const { prepared, select } = await presetBench()
+    const bridge = new BoardSessionBridge(prepared.runtime.ctx, {
+      defaultPreset: () => 'ptc',
+      presetPickerEnabled: () => false,
+    })
+    bridge.ensure('a1' as WindowId)
+    await prepared.runtime.flush()
+    expect(select).not.toHaveBeenCalled()
   })
 
   it('leaves the deployment composition alone when no default is remembered', async () => {
@@ -824,11 +850,11 @@ describe('BoardSessionBridge preset lifecycle', () => {
   })
 
   it('maps a locked refusal to its localized reason and clears it on the next pick', async () => {
+    let refuse = true
     const { prepared } = await presetBench({
-      select: async () => ({
-        ok: false as const,
-        error: { code: 'agent-preset/locked', message: 'conversation started' },
-      }),
+      select: async () => refuse
+        ? { ok: false as const, error: { code: 'agent-preset/locked', message: 'conversation started' } }
+        : { ok: true as const, value: undefined },
     })
     const bridge = new BoardSessionBridge(prepared.runtime.ctx)
     const windowId = 'a1' as WindowId
@@ -841,15 +867,58 @@ describe('BoardSessionBridge preset lifecycle', () => {
     expect(channel.getSnapshot().presetError)
       .toBe('The session has already started; create a new session to change its preset.')
 
-    const { prepared: accepting } = await presetBench()
-    const second = new BoardSessionBridge(accepting.runtime.ctx)
-    const secondWindow = 'a2' as WindowId
-    const secondChannel = second.channel(secondWindow)
-    second.ensure(secondWindow)
-    await accepting.runtime.flush()
-    second.selectAgentPreset(secondWindow, 'ptc')
-    await accepting.runtime.flush()
-    expect(secondChannel.getSnapshot().presetError).toBeUndefined()
+    // The same channel clears the reason on the next successful pick.
+    refuse = false
+    bridge.selectAgentPreset(windowId, 'ptc')
+    await prepared.runtime.flush()
+    expect(channel.getSnapshot().presetError).toBeUndefined()
+  })
+
+  it('maps the remaining refusal codes to their localized reasons', async () => {
+    const cases = [
+      ['agent-preset/not-found', 'gone', 'That preset no longer exists.'],
+      ['agent-preset/invalid', 'composition rejected', 'That preset cannot be applied: composition rejected'],
+      ['agent-preset/read-only', 'ships with the deployment', 'That preset cannot be applied: ships with the deployment'],
+      ['gateway/internal', 'carrier down', 'gateway/internal: carrier down'],
+    ] as const
+    for (const [code, message, expected] of cases) {
+      const { prepared } = await presetBench({
+        select: async () => ({ ok: false as const, error: { code, message } }),
+      })
+      const bridge = new BoardSessionBridge(prepared.runtime.ctx)
+      const windowId = 'a1' as WindowId
+      const channel = bridge.channel(windowId)
+      bridge.ensure(windowId)
+      await prepared.runtime.flush()
+      bridge.selectAgentPreset(windowId, 'ptc')
+      await prepared.runtime.flush()
+      expect(channel.getSnapshot().presetError, code).toBe(expected)
+    }
+  })
+
+  it('does not clear a refusal when the roster lands afterwards', async () => {
+    let releaseRoster: ((value: unknown) => void) | undefined
+    const rosterGate = new Promise((resolve) => { releaseRoster = resolve })
+    const { prepared } = await presetBench({
+      select: async () => ({
+        ok: false as const,
+        error: { code: 'agent-preset/locked', message: 'conversation started' },
+      }),
+    })
+    // Re-point the roster list at a deferred answer: the attach's read is in
+    // flight while the refused default lands.
+    ;(prepared.runtime.ctx.remote as unknown as { agentPresets: { list: unknown } }).agentPresets.list =
+      async () => await rosterGate
+    const bridge = new BoardSessionBridge(prepared.runtime.ctx, { defaultPreset: () => 'ptc' })
+    const windowId = 'a1' as WindowId
+    const channel = bridge.channel(windowId)
+    bridge.ensure(windowId)
+    await prepared.runtime.flush()
+    expect(channel.getSnapshot().presetError).toBeDefined()
+
+    releaseRoster?.({ ok: true, value: { presets: [], authorable: false, modeSelectionEnabled: true } })
+    await prepared.runtime.flush()
+    expect(channel.getSnapshot().presetError).toBeDefined()
   })
 
   it('publishes broken rows, the deployment default, and the picker policy', async () => {

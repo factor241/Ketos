@@ -12,9 +12,9 @@ Status: implemented
 
 **看板声明 `remote.session`，因为模型目录通过调用方上下文读取宿主目录。** `ModelDirectoryResolver.directoryFor(sessionId)` 在调用方上下文追踪器之后运行，因此每会话的 `ModelDirectory` 只有在调用插件的 inject 声明了该命名空间时才能解析 `remote.session.modelCatalog()`。把 `remote.session` 加入看板的 inject 列表后，窗口目录会发布目录分组、当前选择与推理等级表，芯片显示实际生效的模型。这也解释了失败为何不可见：bridge 把异常收进 `model.error`，而没有任何地方渲染它。模型菜单现在把该错误作为独立一行显示，窗口保持可用——目录故障是菜单级状态，不是 composer 阻塞。
 
-**看板记住自己的预设默认值。** `defaultPreset` 是 `ui-board` settings 段的一个字段（schema、store、capture、repair），bridge 在创建窗口或聊天的新会话时应用它：一个 `create → select` 对，受会话仍为空白以及选择已匹配两个条件保护。每一次成功的选择——composer 芯片或 Omnibox 的创建子菜单——都通过同一字段被记住，因此最后一次选择成为下一个窗口的默认值，并随布局在重载后保留。宿主拒绝的默认值会像显式选择一样被报告，而不是静默忽略：部署可能已经移除了用户记得选择的预设。
+**看板记住自己的预设默认值。** `defaultPreset` 是 `ui-board` settings 段的一个字段（schema、store、capture、repair），bridge 在创建窗口或聊天的新会话时应用它：一个 `create → select` 对，受会话仍为空白、选择已匹配、以及部署的选择策略三个条件保护——settings 文档变化时会刷新应用侧策略，因此用户一旦关闭可见预设选择，记住的选择会在文档生效的那一刻停止组合。每一次成功的选择——composer 芯片或 Omnibox 的创建子菜单——都通过同一字段被记住，因此最后一次选择成为下一个窗口的默认值，并随布局在重载后保留。宿主拒绝的默认值会像显式选择一样被报告，而不是静默忽略：部署可能已经移除了用户记得选择的预设。
 
-**名册每次 attach 重新读取，并携带其策略。** bridge 不再进程级缓存名册：部署随时可以改变其根，过期名册会提供无法再组合的行。行在窗口通道中保留宿主的 `broken` 原因与 `isDefault` 标记——当前预设仍能解析其标签——而 composer 菜单与 Omnibox 创建子菜单绝不提供 broken 行。名册的 `modeSelectionEnabled` 策略门控可见选择：为 false 时窗口隐藏预设芯片，Omnibox 去掉其「预设」条目，因为无法行动的控件比没有更糟。
+**名册每次 attach 重新读取，并携带其策略。** bridge 不再进程级缓存名册：部署随时可以改变其根，过期名册会提供无法再组合的行，因此每次 attach 都重新读取，而看板 chrome 在创建菜单打开时也会重新读取自己的副本。行在窗口通道中保留宿主的 `broken` 原因与 `isDefault` 标记——当前预设仍能解析其标签——而 composer 菜单与 Omnibox 创建子菜单绝不提供 broken 行。名册的 `modeSelectionEnabled` 策略门控可见选择：为 false 时窗口隐藏预设芯片，Omnibox 去掉其「预设」条目，因为无法行动的控件比没有更糟。
 
 **预设拒绝按错误码本地化，模型芯片说明其副作用。** `agent-preset/locked` 渲染为「新建会话以切换预设」的原因，`agent-preset/not-found` 渲染为预设不存在，`agent-preset/invalid` 与 `agent-preset/read-only` 携带宿主自身的原因，未知码保持原文；该行显示在 composer 下方、紧邻引发它的芯片，并在下次选择时清除。模型芯片的提示说明当前生效的模型与推理等级，并指出切换会保存为新会话的系统默认值，使芯片的作用范围诚实；选择模型只调用 `selectModel`，因此生效的预设绝不会在用户不知情时改变。
 

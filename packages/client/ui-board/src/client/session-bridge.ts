@@ -162,6 +162,12 @@ export interface BoardSessionBridgeHooks {
   defaultPreset?: () => string
   /** Remember one preset the user chose on a blank session as the new default. */
   rememberPreset?: (presetId: string) => void
+  /**
+   * Deployment preset-selection policy known before a window is created, or
+   * undefined while no roster has answered. Only an explicit false suppresses
+   * the automatic default; absence keeps the last per-window read in charge.
+   */
+  presetPickerEnabled?: () => boolean | undefined
 }
 
 /**
@@ -176,6 +182,11 @@ export class BoardSessionBridge {
   private readonly pending = new Map<WindowId, Promise<void>>()
   private readonly disposers = new Set<() => void>()
   private readonly hooks: BoardSessionBridgeHooks
+  /**
+   * Deployment policy from the last roster read; true until one answers, so a
+   * slow host never suppresses the remembered default by absence.
+   */
+  private presetPickerEnabled = true
   private disposed = false
 
   /**
@@ -437,6 +448,12 @@ export class BoardSessionBridge {
   private applyDefaultPreset(windowId: WindowId, sessionId: SessionId): void {
     const presetId = this.hooks.defaultPreset?.() ?? ''
     if (presetId === '') return
+    // The deployment's policy wins over a remembered pick: with visible
+    // selection disabled the host composes the deployment default, and a stale
+    // user choice must not silently compose a different session. The apply-side
+    // policy is authoritative when known (it predates this window); a per-window
+    // roster read covers deployments without that hook.
+    if (this.hooks.presetPickerEnabled?.() === false || !this.presetPickerEnabled) return
     const row = this.ctx.sessions.list.getSnapshot().byId[sessionId]
     if (row?.blank !== true) return
     if (row.projectionValues?.agentPreset === presetId) return
@@ -783,6 +800,7 @@ export class BoardSessionBridge {
       // the window moved to while the request was in flight.
       if (this.windows.get(windowId) !== record || record.sessionId !== before) return
       this.switchTo(windowId, sessionId)
+      this.applyDefaultPreset(windowId, sessionId)
     }).catch((error: unknown) => {
       if (this.windows.get(windowId) === record) this.fail(windowId, error)
     })
@@ -1187,7 +1205,10 @@ export class BoardSessionBridge {
     try {
       const result = await this.ctx.remote.agentPresets.list()
       if (!result.ok) {
-        this.patch(windowId, { presetError: this.failureText(result.error) })
+        // A roster the host refuses is an absent surface, not a failed switch:
+        // hiding the chip is honest, a "could not switch the preset" line is not.
+        this.presetPickerEnabled = false
+        this.patch(windowId, { presets: [], presetPickerEnabled: false })
         return
       }
       const presetT = this.ctx.locale.bind('settings.agentPreset')
@@ -1201,14 +1222,17 @@ export class BoardSessionBridge {
           ...(row.isDefault ? { isDefault: true } : {}),
         }
       })
+      this.presetPickerEnabled = result.value.modeSelectionEnabled
+      // A concurrent automatic apply may have just published a refusal; the
+      // roster landing is not an acknowledgement of it.
       this.patch(windowId, {
         presets,
         presetPickerEnabled: result.value.modeSelectionEnabled,
-        presetError: undefined,
       })
     } catch {
       // A deployment without the preset remote hides the chip instead of
       // leaving a control that cannot act.
+      this.presetPickerEnabled = false
       this.patch(windowId, { presets: [], presetPickerEnabled: false })
     }
   }

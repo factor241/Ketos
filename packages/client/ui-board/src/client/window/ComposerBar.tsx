@@ -849,24 +849,29 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
             sessions; the chip then has nothing honest to offer. */}
         {presetPickerVisible && (
           <>
+            {/* The hint must stay visible while the chip is disabled (a
+                started session), and a disabled button fires no mouse events:
+                the span wrapper owns the tooltip anchor. */}
             <Tooltip label={t('preset.hint')} side="top" disabled={isOpen('preset')}>
-              <button
-                ref={presetAnchor}
-                type="button"
-                className={clsx(css.chip, css.presetChip)}
-                disabled={!(session?.blank ?? false)}
-                onClick={() => { openMenu('preset', presetAnchor.current) }}
-                data-board-action="composer-preset"
-                aria-label={t('preset.aria')}
-              >
-                <span className={css.chipIcon}><IconBranchOutline16 /></span>
-                <span className={css.chipLabel}>
-                  {(session?.presets ?? []).find(preset => preset.id === session?.presetId)?.name
-                    ?? session?.presetId
-                    ?? t('preset.none')}
-                </span>
-                <span className={css.chipIcon}><IconChevronDownOutline14 /></span>
-              </button>
+              <span className={css.chipAnchor}>
+                <button
+                  ref={presetAnchor}
+                  type="button"
+                  className={clsx(css.chip, css.presetChip)}
+                  disabled={!(session?.blank ?? false)}
+                  onClick={() => { openMenu('preset', presetAnchor.current) }}
+                  data-board-action="composer-preset"
+                  aria-label={t('preset.aria')}
+                >
+                  <span className={css.chipIcon}><IconBranchOutline16 /></span>
+                  <span className={css.chipLabel}>
+                    {(session?.presets ?? []).find(preset => preset.id === session?.presetId)?.name
+                      ?? session?.presetId
+                      ?? t('preset.none')}
+                  </span>
+                  <span className={css.chipIcon}><IconChevronDownOutline14 /></span>
+                </button>
+              </span>
             </Tooltip>
             <Menu
               portal

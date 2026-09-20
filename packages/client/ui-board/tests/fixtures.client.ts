@@ -261,6 +261,8 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
   const settingsScope = createSettingsScopeDouble(options.settingsView)
   runtime.ctx.provide('settingsScope', { describe: () => settingsScope.face } as never)
   const remote = {
+    // Remote change events: the board subscribes for settings-driven refreshes.
+    $on: () => () => {},
     settings,
     agentPresets: {
       list: options.agentPresets?.list

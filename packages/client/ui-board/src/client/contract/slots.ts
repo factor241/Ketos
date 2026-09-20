@@ -328,6 +328,11 @@ export interface BoardWindowInjected {
   /** Create the window's session on first use; idempotent. */
   ensureWindowSession: (windowId: WindowId) => void
   /**
+   * Re-read the deployment preset roster the board chrome's creation entries
+   * offer, so a menu opened after a host roster change shows the current rows.
+   */
+  refreshAgentPresets: () => void
+  /**
    * Drop one window's bridge record when the window closes: its channel and
    * session subscriptions go, while the session itself stays alive and listed.
    */

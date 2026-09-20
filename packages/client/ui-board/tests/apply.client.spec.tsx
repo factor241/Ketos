@@ -6,6 +6,7 @@ import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import canvasCss from '../src/client/canvas/DashboardCanvas.module.css'
 import { createBoardBench } from './fixtures.client.ts'
+import { inject } from '../src/client/index.ts'
 
 const runtimes = new Set<SlotTestRuntime>()
 
@@ -187,5 +188,14 @@ describe('board plugin registration', () => {
 
     act(() => { locale.setLocale('zh') })
     expect(resolveSlotLabel(runtime.slots.entries('sidebar.panellist')[0]?.options.label)).toBe('看板')
+  })
+})
+
+describe('board apply services', () => {
+  it('declares the session remote namespace the model directory reads through', () => {
+    // ui-model-selection resolves the host model catalog through the caller's
+    // context: without this declaration the window's model directory fails and
+    // the chip stays empty (the defect stage 10 recorded and stage 11 fixed).
+    expect(inject).toContain('remote.session')
   })
 })

@@ -13,16 +13,19 @@
  */
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
+import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import { MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MarkdownLabels } from '@deepseek-ai/dsh-client-ui-primitives'
 import { IconChevronUpOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
-import type { AssistantBlock, ChatSnapshot, ConversationNode } from '@deepseek-ai/dsh-client-ui-chat/client'
+import type {
+  AssistantBlock, ChatSnapshot, ConversationNode, ToolResultNode,
+} from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { BoardPendingRow, BoardWindowInjected } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
 import type { BoardTranslate } from '../locale.ts'
 import { ComposerBar } from './ComposerBar.tsx'
-import { ToolRow } from './ToolRow.tsx'
+import { ToolCard } from './ToolCard.tsx'
 import css from './ConversationBody.module.css'
 
 export type ConversationBodyProps =
@@ -34,7 +37,7 @@ export type ConversationBodyProps =
 /** One lane row the body renders; kinds outside the lane's scope are skipped. */
 type LaneRow =
   | { readonly key: string; readonly kind: 'user' | 'steering' | 'assistant'; readonly text: string }
-  | { readonly key: string; readonly kind: 'tool'; readonly name: string; readonly failed: boolean; readonly unavailable: boolean }
+  | { readonly key: string; readonly kind: 'tool'; readonly node: ToolResultNode }
   | {
     readonly key: string
     readonly kind: 'turn-error'
@@ -95,15 +98,7 @@ function laneRows(chat: ChatSnapshot): readonly LaneRow[] {
         break
       }
       case 'tool-result':
-        rows.push({
-          key: `tool-${String(node.seq)}`,
-          kind: 'tool',
-          name: node.call?.name ?? node.callId,
-          failed: node.isError,
-          // A result whose call was truncated out of the loaded window has no
-          // name to show and offers the repeat control instead.
-          unavailable: node.call === null,
-        })
+        rows.push({ key: `tool-${String(node.seq)}`, kind: 'tool', node })
         break
       case 'turn-error':
         rows.push({
@@ -245,12 +240,40 @@ const TurnErrorCard = memo(function TurnErrorCard({ message, code, prompt, t, on
   )
 })
 
+/**
+ * Localized title of one pending interaction the window banners: the kind the
+ * answering domain publishes, with a generic line for a kind this stage does
+ * not know.
+ * @param t - board locale seat.
+ * @param kind - `SessionPendingInteraction.kind` of the pending value.
+ * @returns the banner title for the active locale.
+ */
+function pendingTitle(t: BoardTranslate, kind: string): string {
+  switch (kind) {
+    case 'approval':
+      return t('pending.approval')
+    case 'question':
+      return t('pending.question')
+    case 'plan-review':
+      return t('pending.planReview')
+    default:
+      return t('pending.other')
+  }
+}
+
 export function ConversationBody({
-  window: cardWindow, t, useStore, actions, useWindowSession, ...injected
+  window: cardWindow, t, useStore, actions, useWindowSession, useSessionPendingInteraction, ...injected
 }: ConversationBodyProps) {
   // `injected` stays whole for the composer; the window creation callback rides it.
   const ensureWindowSession = injected.ensureWindowSession
   const session = useWindowSession(cardWindow.id)
+  const sessionId = session?.sessionId
+  // The pending approval or question of the window's session, owned by the root
+  // pending-interaction source; the window only reads it and navigates to the
+  // main panel, where the answering composer lives.
+  const pending = useSessionPendingInteraction(
+    snapshot => sessionId === undefined ? undefined : snapshot.get(sessionId),
+  )
   const laneRef = useRef<HTMLDivElement>(null)
   const [atTail, setAtTail] = useState(true)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -275,7 +298,7 @@ export function ConversationBody({
   const pendingLane = (session?.pending ?? []).filter(row => row.placement !== 'queued' && !observed.has(row.id))
   const steeringQueue = (session?.queue ?? []).filter(row => row.placement === 'steering')
   const streaming = assistantText(session?.chat?.legacy.partial?.blocks ?? [])
-  const runningCalls = session?.runningCalls ?? []
+  const runningCalls = session?.chat?.legacy.runningCalls ?? []
   const ready = session?.status === 'ready'
   const hasRows = rows.length > 0 || runningCalls.length > 0 || streaming !== ''
     || pendingLane.length > 0 || steeringQueue.length > 0
@@ -354,6 +377,13 @@ export function ConversationBody({
     void injected.sendPrompt(cardWindow.id, prompt, 'queue')
   }, [injected, cardWindow.id])
 
+  // Durable result images resolve through the window's session-authorized
+  // loader, so an image card never handles authorization itself.
+  const loadToolImage = useCallback(
+    (attachment: ImageAttachmentRef): Promise<string> => injected.loadQueueImage(cardWindow.id, attachment),
+    [injected, cardWindow.id],
+  )
+
   const createSession = (): void => {
     setActionError(null)
     void injected.startChat(cardWindow.id).catch((failure: unknown) => {
@@ -416,13 +446,13 @@ export function ConversationBody({
           switch (row.kind) {
             case 'tool':
               return (
-                <ToolRow
+                <ToolCard
                   key={row.key}
-                  name={row.name}
-                  failed={row.failed}
-                  unavailable={row.unavailable}
+                  node={row.node}
                   t={t}
-                  onRepeat={session?.hasMore === true ? loadOlder : undefined}
+                  canRepeat={session?.hasMore === true}
+                  onRepeat={loadOlder}
+                  loadImage={loadToolImage}
                 />
               )
             case 'turn-error':
@@ -455,7 +485,7 @@ export function ConversationBody({
         ))}
 
         {runningCalls.map(call => (
-          <ToolRow key={`running-${call.id}`} name={call.name} failed={false} running t={t} />
+          <ToolCard key={`running-${call.callId}`} node={call} t={t} loadImage={loadToolImage} />
         ))}
 
         {streaming !== '' && (
@@ -495,9 +525,27 @@ export function ConversationBody({
         </div>
       )}
 
+      {pending !== undefined && (
+        <div className={css.pending} data-board-pending={pending.kind}>
+          <span className={css.pendingText}>{pendingTitle(t, pending.kind)}</span>
+          <button
+            type="button"
+            className={css.pendingAction}
+            data-board-action="pending-open-main"
+            onClick={() => { injected.openInMainPanel(cardWindow.id) }}
+          >
+            {t('pending.open')}
+          </button>
+        </div>
+      )}
+
       <ComposerBar
         windowId={cardWindow.id}
-        session={session}
+        // While an approval or question waits in the main panel, the window's
+        // composer stays inert and names the banner as its reason.
+        session={pending === undefined || session === undefined
+          ? session
+          : { ...session, blocked: pendingTitle(t, pending.kind) }}
         t={t}
         injected={injected}
         onSent={jumpToLatest}

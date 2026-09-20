@@ -94,7 +94,6 @@ function emptyState(): BoardWindowSessionState {
     blank: true,
     hasMore: false,
     loadingOlder: false,
-    runningCalls: [],
     presets: [],
     presetPickerEnabled: true,
     permissions: [],
@@ -719,6 +718,15 @@ export class BoardSessionBridge {
   }
 
   /**
+   * The session one window currently shows, when the bridge holds one.
+   * @param windowId - window identity.
+   * @returns the bound session id, or undefined while the window has no session.
+   */
+  sessionFor(windowId: WindowId): SessionId | undefined {
+    return this.windows.get(windowId)?.sessionId
+  }
+
+  /**
    * The window currently showing one session, when the bridge holds one.
    * @param sessionId - session identity.
    * @returns the window id, or undefined when no open window shows the session.
@@ -949,7 +957,6 @@ export class BoardSessionBridge {
           blank: row?.blank ?? true,
           hasMore: snapshot.hasMore,
           loadingOlder: snapshot.loadingOlder,
-          runningCalls: chat.getSnapshot()?.legacy.runningCalls.map(call => ({ id: call.callId, name: call.name })) ?? [],
           imageLimits: limits == null ? undefined : {
             maxImageBytes: limits.maxImageBytes,
             maxImagesPerMessage: limits.maxImagesPerMessage,

@@ -68,6 +68,8 @@ const baseState: BoardState = {
   isSelectingElement: false,
   composerIntents: [],
   composerIntentSeq: 0,
+  returnWindowId: null,
+  highlightWindowId: null,
 }
 
 describe('Minimap Component', () => {

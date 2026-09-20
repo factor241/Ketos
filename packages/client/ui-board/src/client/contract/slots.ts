@@ -5,10 +5,14 @@ import type { ReactNode } from 'react'
 import type { FileAttachmentRef, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { Branded } from '@deepseek-ai/dsh-brand'
 import type { ChatSnapshot } from '@deepseek-ai/dsh-client-ui-chat/client'
+import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { HostObservable, InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId, WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
+
+/** Main-panel key the board registers; the sidebar's panel list selects it by this id. */
+export const BOARD_PANEL_ID = 'board' as MainPanelId
 
 /** Session-wide identity of one board window. */
 export type WindowId = Branded<'BoardWindowId'>
@@ -21,12 +25,6 @@ export type WindowBodyKind = 'conversation' | 'connectors' | 'settings' | 'dashb
 
 /** One prompt mode the window composer dispatches. */
 export type BoardPromptMode = 'queue' | 'steer'
-
-/** One tool call running now: the lane shows it until its result is logged. */
-export interface BoardRunningCall {
-  readonly id: string
-  readonly name: string
-}
 
 /** Image admission limits the window composer enforces, as the host projects them. */
 export interface BoardImageLimits {
@@ -265,8 +263,6 @@ export interface BoardWindowSessionState {
   readonly hasMore: boolean
   /** Whether an older-turns page is in flight. */
   readonly loadingOlder: boolean
-  /** Tool calls running now, in transcript order. */
-  readonly runningCalls: readonly BoardRunningCall[]
   /** Image admission limits, absent when the host composes no attachment service. */
   readonly imageLimits?: BoardImageLimits | undefined
   /** Agent preset in force, and the roster the chip can switch to. */
@@ -361,6 +357,14 @@ export interface BoardWindowInjected {
   ) => Promise<boolean>
   /** Cancel the window's running turn. Queued work survives and resumes after it. */
   cancelPrompt: (windowId: WindowId) => void
+  /**
+   * Show the window's session in the main panel: select it and return the main
+   * area to the Conversation, then arm the board to bring the window forward
+   * and highlight it when its panel becomes visible again. The lane uses this
+   * for a pending approval or question, whose answering UI lives in the main
+   * panel's composer.
+   */
+  openInMainPanel: (windowId: WindowId) => void
   /** Load older turns into the window's lane. */
   loadOlderTurns: (windowId: WindowId) => void
   /**

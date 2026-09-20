@@ -196,6 +196,7 @@ function WindowFrameView({
   window: cardWindow, renderBody, useStore, actions, t, features, useWindowSession,
 }: WindowFrameProps) {
   const isActive = useStore(s => s.activeWindowId === cardWindow.id)
+  const returned = useStore(s => s.highlightWindowId === cardWindow.id)
   const fullscreenWindowId = useStore(s => s.fullscreenWindowId)
   const panelWindowId = useStore(s => s.panelWindowId)
   const viewportWidth = useStore(s => s.viewportWidth)
@@ -235,7 +236,7 @@ function WindowFrameView({
       data-board-window-id={cardWindow.id}
       data-board-fullscreen={isFullscreen ? '' : undefined}
       data-board-culled={hidden ? '' : undefined}
-      className={clsx(css.window, isActive && css.active, isFullscreen && css.fullscreen, hidden && css.hidden)}
+      className={clsx(css.window, isActive && css.active, returned && css.returned, isFullscreen && css.fullscreen, hidden && css.hidden)}
       onPointerDown={() => { actions.focusWindow(cardWindow.id) }}
       style={isFullscreen
         // The canvas drops its pan/zoom while a window is fullscreen, so the

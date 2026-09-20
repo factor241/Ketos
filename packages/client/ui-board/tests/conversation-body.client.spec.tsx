@@ -11,7 +11,8 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { ConversationBody, type ConversationBodyProps } from '../src/client/window/ConversationBody.tsx'
 import type { BoardWindowSessionState, BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 import { chatSnapshot, t } from './fixtures.client.ts'
-import type { ChatSnapshot, ConversationNode } from '@deepseek-ai/dsh-client-ui-chat/client'
+import type { ChatSnapshot, ConversationNode, RunningToolCall } from '@deepseek-ai/dsh-client-ui-chat/client'
+import type { SessionPendingInteractionSnapshot } from '@deepseek-ai/dsh-client-ui-session/client'
 
 afterEach(() => { cleanup() })
 
@@ -49,10 +50,20 @@ const TOOL_NODE: ConversationNode = {
   seq: 3,
   time: 0,
   callId: 'call-1',
-  call: { name: 'bash', argsRaw: '{}' },
+  call: { name: 'bash', argsRaw: '{"command":"ls"}' },
   callTime: 0,
-  content: [],
+  content: [{ type: 'text', text: 'README.md\n[exit code: 0]' }],
   isError: false,
+  subCalls: [],
+}
+
+const RUNNING_CALL: RunningToolCall = {
+  callId: 'call-9',
+  name: 'bash',
+  argsRaw: '{"command":"sleep 5"}',
+  turn: 1,
+  step: 1,
+  time: 0,
   subCalls: [],
 }
 
@@ -69,14 +80,19 @@ const ORPHAN_TOOL_NODE: ConversationNode = {
   subCalls: [],
 }
 
-/** Props stub: the keyed session hook answers with the supplied state. */
+/**
+ * Props stub: the keyed session hook answers with the supplied state and the
+ * root pending-interaction source answers with the supplied map.
+ */
 function bodyProps(
   session: BoardWindowSessionState | undefined,
   overrides: Partial<Record<string, unknown>> = {},
+  pending: SessionPendingInteractionSnapshot = new Map(),
 ): ConversationBodyProps {
   return {
     window: CARD,
     t,
+    useSessionPendingInteraction: (selector: (snapshot: SessionPendingInteractionSnapshot) => unknown) => selector(pending),
     // The body and its composer read the window modes and the intent queue
     // from the store; the stub answers every selector they ask for.
     useStore: (selector: (state: {
@@ -114,7 +130,6 @@ function ready(chat: ChatSnapshot | undefined, running = false): BoardWindowSess
     blank: true,
     hasMore: false,
     loadingOlder: false,
-    runningCalls: [],
     presets: [],
     presetPickerEnabled: true,
     permissions: [],
@@ -202,7 +217,7 @@ describe('ConversationBody', () => {
     const { getByText } = render(<ConversationBody {...bodyProps(ready(chat))} />)
     expect(getByText('привет')).not.toBeNull()
     expect(getByText('Привет! Чем помочь?')).not.toBeNull()
-    expect(getByText('bash')).not.toBeNull()
+    expect(getByText('README.md')).not.toBeNull()
     expect(getByText('Печатаю…')).not.toBeNull()
   })
 
@@ -246,16 +261,84 @@ describe('ConversationBody', () => {
     expect(container.querySelector('[data-board-lane-state="prompt-error"]')).not.toBeNull()
   })
 
-  it('renders a running tool call with its marker and the running state line', () => {
+  it('renders a running tool call as its running card', () => {
     const state: BoardWindowSessionState = {
-      ...ready(chatSnapshot([USER_NODE]), true),
-      runningCalls: [{ id: 'call-9', name: 'bash' }],
+      ...ready(chatSnapshot([USER_NODE], null, [RUNNING_CALL]), true),
     }
-    const { getByText, container } = render(<ConversationBody {...bodyProps(state)} />)
-    expect(getByText('bash')).not.toBeNull()
-    expect(getByText('running')).not.toBeNull()
+    const { container } = render(<ConversationBody {...bodyProps(state)} />)
     expect(container.querySelector('[data-board-tool="running"]')).not.toBeNull()
+    expect(container.querySelector('[data-board-tool-status="running"]')?.textContent).toContain('running')
     expect(container.querySelector('[data-board-lane-state="running"]')).not.toBeNull()
+  })
+
+  it('replaces a running call with its stopped card when the turn is cancelled', () => {
+    const runningState: BoardWindowSessionState = {
+      ...ready(chatSnapshot([USER_NODE], null, [RUNNING_CALL]), true),
+    }
+    const { container, rerender } = render(<ConversationBody {...bodyProps(runningState)} />)
+    expect(container.querySelector('[data-board-tool="running"]')).not.toBeNull()
+
+    // Cancellation settles the call as an interrupted result; its card turns
+    // from the running state into the stopped state without remounting the lane.
+    const stopped: ConversationNode = {
+      kind: 'tool-result',
+      seq: 3,
+      time: 1,
+      callId: 'call-9',
+      call: { name: 'bash', argsRaw: '{"command":"sleep 5"}' },
+      callTime: 0,
+      content: [],
+      isError: true,
+      error: { name: 'Interrupted', code: 'interrupted' },
+      subCalls: [],
+    }
+    rerender(<ConversationBody {...bodyProps(ready(chatSnapshot([USER_NODE, stopped])))} />)
+    expect(container.querySelector('[data-board-tool-status="stopped"]')).not.toBeNull()
+    expect(container.querySelector('[data-board-tool="running"]')).toBeNull()
+  })
+
+  it('banners a pending approval, blocks the composer, and navigates to the main panel', () => {
+    const openInMainPanel = vi.fn()
+    const sessionId = 'session-1' as SessionId
+    const pending = new Map([
+      [sessionId, { key: 'approval:1', kind: 'approval', sessionId }],
+    ]) as unknown as SessionPendingInteractionSnapshot
+    const state: BoardWindowSessionState = { ...ready(chatSnapshot()), sessionId }
+    const { getByText, container } = render(
+      <ConversationBody {...bodyProps(state, { openInMainPanel }, pending)} />,
+    )
+    expect(getByText('Confirmation required')).not.toBeNull()
+    expect(getByText('Composer is blocked: Confirmation required')).not.toBeNull()
+    expect(container.querySelector('[data-board-pending="approval"]')).not.toBeNull()
+    fireEvent.click(getByText('Open in the main panel'))
+    expect(openInMainPanel).toHaveBeenCalledWith('a1')
+  })
+
+  it('names each pending kind and leaves the composer free when none is pending', () => {
+    const sessionId = 'session-1' as SessionId
+    const titles: readonly [string, string][] = [
+      ['question', 'Answer required'],
+      ['plan-review', 'Plan review required'],
+      ['mystery', 'Action required'],
+    ]
+    for (const [kind, title] of titles) {
+      const pending = new Map([
+        [sessionId, { key: `${kind}:1`, kind, sessionId }],
+      ]) as unknown as SessionPendingInteractionSnapshot
+      const state: BoardWindowSessionState = { ...ready(chatSnapshot()), sessionId }
+      const rendered = render(<ConversationBody {...bodyProps(state, {}, pending)} />)
+      expect(rendered.getByText(title)).not.toBeNull()
+      rendered.unmount()
+    }
+
+    // A pending interaction of another session never banners this window.
+    const other = new Map([
+      ['someone-else' as SessionId, { key: 'approval:2', kind: 'approval', sessionId: 'someone-else' as SessionId }],
+    ]) as unknown as SessionPendingInteractionSnapshot
+    const state: BoardWindowSessionState = { ...ready(chatSnapshot()), sessionId }
+    const rendered = render(<ConversationBody {...bodyProps(state, {}, other)} />)
+    expect(rendered.queryByText('Confirmation required')).toBeNull()
+    expect(rendered.container.querySelector('[data-board-pending]')).toBeNull()
   })
 
   it('marks the empty, creating, and creation-failure lane states', () => {
@@ -271,12 +354,19 @@ describe('ConversationBody', () => {
     expect(failed.container.querySelector('[data-board-lane-state="creation-error"]')).not.toBeNull()
   })
 
-  it('marks a failed tool result with its localized note', () => {
-    const failed: ConversationNode = { ...TOOL_NODE, isError: true }
+  it('marks a failed tool result with its localized note and detail', () => {
+    const failed: ConversationNode = {
+      ...TOOL_NODE,
+      isError: true,
+      error: { name: 'ToolError', code: 'ENOENT' },
+      content: [{ type: 'text', text: 'no such file' }],
+    }
     const { getByText, container } = render(<ConversationBody {...bodyProps(ready(chatSnapshot([failed])))} />)
-    expect(getByText('bash')).not.toBeNull()
     expect(getByText('failed')).not.toBeNull()
+    expect(getByText('ToolError')).not.toBeNull()
+    expect(getByText('no such file')).not.toBeNull()
     expect(container.querySelector('[data-board-tool="failed"]')).not.toBeNull()
+    expect(container.querySelector('[data-board-tool-error="ENOENT"]')).not.toBeNull()
   })
 
   it('marks an unavailable tool result and repeats the earlier turns', () => {
@@ -428,7 +518,7 @@ describe('ConversationBody', () => {
 
     // Channel republishes for loadingOlder and running calls arrive without new
     // transcript rows; they must not consume the anchor before the page lands.
-    rerender(<ConversationBody {...bodyProps({ ...state, loadingOlder: true, runningCalls: [{ id: 'c1', name: 'bash' }] }, { loadOlderTurns })} />)
+    rerender(<ConversationBody {...bodyProps({ ...state, loadingOlder: true }, { loadOlderTurns })} />)
 
     // A streamed chunk grows the lane *below* the reader: the same leading row
     // means nothing was prepended, so the anchor must survive this too.

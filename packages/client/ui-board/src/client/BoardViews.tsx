@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import clsx from 'clsx'
 import type { BoardStoreHandle } from './store.ts'
+import { BOARD_PANEL_ID } from './contract/slots.ts'
 import { isBoardEditingTarget } from './editing-target.ts'
 import { useBoardPointerGesture } from './pointer-gesture.ts'
 import { startBoardPanGesture } from './pan-gesture.ts'
@@ -32,7 +33,10 @@ export type BoardRootProps =
   & PropsStore<BoardStoreHandle>
   & PropsLocale<'board'>
 
-export function BoardRoot({ renderSlot, useStore, actions, t }: BoardRootProps) {
+/** How long the window the user returns to stays highlighted. */
+const RETURN_HIGHLIGHT_MS = 1600
+
+export function BoardRoot({ renderSlot, useStore, actions, t, usePanelInfo }: BoardRootProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const pointerInsideRef = useRef(false)
   const spaceRef = useRef(false)
@@ -50,6 +54,20 @@ export function BoardRoot({ renderSlot, useStore, actions, t }: BoardRootProps) 
   const fullscreen = useStore(s => s.fullscreenWindowId !== null)
   // A collapsed panel is only its rail, so the chrome comes back.
   const panelOpen = useStore(s => s.panelWindowId !== null && !s.panelCollapsed)
+  const activePanelId = usePanelInfo(info => info.activePanelId)
+  const returnWindowId = useStore(s => s.returnWindowId)
+
+  // The lane sends the user to the main panel for a pending approval or
+  // question; when the board panel comes back, the window they left from is
+  // brought forward and highlighted briefly, so the return trip has a target.
+  useEffect(() => {
+    if (returnWindowId === null || activePanelId !== BOARD_PANEL_ID) return
+    actions.centerOnWindow(returnWindowId)
+    actions.clearReturnWindow()
+    actions.setHighlightWindow(returnWindowId)
+    const timer = window.setTimeout(() => { actions.setHighlightWindow(null) }, RETURN_HIGHLIGHT_MS)
+    return () => { window.clearTimeout(timer) }
+  }, [returnWindowId, activePanelId, actions])
 
   // Wheel zoom toward the pointer. React's `onWheel` is a passive listener,
   // so zooming logs a preventDefault error through it; a native non-passive

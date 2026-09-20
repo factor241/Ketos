@@ -61,6 +61,9 @@ type BoardActions = {
   setSelectingElement: (draft: BoardState, selecting: boolean) => void
   pushComposerIntent: (draft: BoardState, windowId: WindowId, intent: { text?: string; pickFiles?: boolean }) => void
   consumeComposerIntent: (draft: BoardState, id: number) => void
+  expectReturnWindow: (draft: BoardState, id: WindowId) => void
+  clearReturnWindow: (draft: BoardState) => void
+  setHighlightWindow: (draft: BoardState, id: WindowId | null) => void
 }
 
 /** Pan, zoom, window, and selection state of the board canvas. */
@@ -100,6 +103,14 @@ export interface BoardState {
   composerIntents: ComposerIntent[]
   /** Monotonic source of composer-intent identities. */
   composerIntentSeq: number
+  /**
+   * Window the board must bring forward when its panel next becomes visible,
+   * or null. Set when the lane sends the user to the main panel for a pending
+   * approval or question; the board centres and highlights the window on return.
+   */
+  returnWindowId: WindowId | null
+  /** Window flashing the return highlight, or null. Transient view state. */
+  highlightWindowId: WindowId | null
 }
 
 /**
@@ -295,6 +306,8 @@ export function createBoardStore(): BoardStoreHandle {
       isSelectingElement: false,
       composerIntents: [],
       composerIntentSeq: 0,
+      returnWindowId: null,
+      highlightWindowId: null,
     }),
     actions: {
       setPan: (draft, panX, panY) => {
@@ -453,6 +466,16 @@ export function createBoardStore(): BoardStoreHandle {
       },
       consumeComposerIntent: (draft, id) => {
         draft.composerIntents = draft.composerIntents.filter(intent => intent.id !== id)
+      },
+      expectReturnWindow: (draft, id) => {
+        if (!draft.windows[id as string]) return
+        draft.returnWindowId = id
+      },
+      clearReturnWindow: (draft) => {
+        draft.returnWindowId = null
+      },
+      setHighlightWindow: (draft, id) => {
+        draft.highlightWindowId = id === null || draft.windows[id as string] ? id : null
       },
     },
   })

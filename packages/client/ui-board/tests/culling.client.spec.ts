@@ -40,6 +40,8 @@ function state(overrides: Partial<BoardState> = {}): BoardState {
     isSelectingElement: false,
     composerIntents: [],
     composerIntentSeq: 0,
+    returnWindowId: null,
+    highlightWindowId: null,
     ...overrides,
   }
 }

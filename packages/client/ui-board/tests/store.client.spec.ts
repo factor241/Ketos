@@ -391,6 +391,28 @@ describe('createBoardStore', () => {
     expect(store.getSnapshot().isSelectingElement).toBe(false)
   })
 
+  it('arms and clears the return highlight for an existing window only', () => {
+    const { store, actions } = createBoardStore().create()
+    actions.addWindow(makeWindow({ id: 'w1' as WindowId }))
+
+    actions.expectReturnWindow('w1' as WindowId)
+    expect(store.getSnapshot().returnWindowId).toBe('w1')
+    // A window the board no longer holds cannot be returned to.
+    actions.expectReturnWindow('gone' as WindowId)
+    expect(store.getSnapshot().returnWindowId).toBe('w1')
+    actions.clearReturnWindow()
+    expect(store.getSnapshot().returnWindowId).toBeNull()
+
+    actions.setHighlightWindow('w1' as WindowId)
+    expect(store.getSnapshot().highlightWindowId).toBe('w1')
+    // A stale id never highlights, and null always clears.
+    actions.setHighlightWindow('gone' as WindowId)
+    expect(store.getSnapshot().highlightWindowId).toBeNull()
+    actions.setHighlightWindow('w1' as WindowId)
+    actions.setHighlightWindow(null)
+    expect(store.getSnapshot().highlightWindowId).toBeNull()
+  })
+
   it('queues, consumes, and drops composer intents with their window', () => {
     const { store, actions } = createBoardStore().create()
     actions.addWindow(makeWindow({ id: 'w1' as WindowId }))

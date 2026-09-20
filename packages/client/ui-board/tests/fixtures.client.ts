@@ -34,6 +34,7 @@ export const t: BoardTranslate = (key, params) => {
 export interface BoardBenchOptions {
   /** Directory verbs the panel's folder browser calls; omitted keeps them inert. */
   readonly uiWorkspace?: {
+    readonly openSession?: (sessionId: SessionId) => void
     readonly pickDirectory?: () => Promise<string | null>
     readonly listDirectory?: (path?: string) => Promise<{
       path: string
@@ -144,6 +145,7 @@ export function createSettingsScopeDouble(view?: SettingsDescribeValue): Setting
 export function chatSnapshot(
   nodes: readonly ConversationNode[] = [],
   partial: ChatSnapshot['legacy']['partial'] = null,
+  runningCalls: ChatSnapshot['legacy']['runningCalls'] = [],
 ): ChatSnapshot {
   return {
     order: [],
@@ -156,7 +158,7 @@ export function chatSnapshot(
     locations: { getTurn: () => [], getStep: () => [] },
     navigation: { items: () => [] },
     timeline: { turnOrder: [], turns: new Map() },
-    legacy: { nodes, turnTimings: new Map(), turnEnds: new Map(), partial, runningCalls: [] },
+    legacy: { nodes, turnTimings: new Map(), turnEnds: new Map(), partial, runningCalls },
   }
 }
 
@@ -171,7 +173,6 @@ export function sessionState(
     blank: true,
     hasMore: false,
     loadingOlder: false,
-    runningCalls: [],
     presets: [],
     presetPickerEnabled: true,
     permissions: [],

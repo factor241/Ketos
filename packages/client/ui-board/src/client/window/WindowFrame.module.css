@@ -22,6 +22,25 @@
   --dsw-elevation-stroke-color: var(--dsw-alias-state-business-primary);
 }
 
+/* A window the board was asked to bring forward after a main-panel detour
+   flashes its primary ring once; reduced motion keeps the static ring for the
+   same short window instead. */
+.window.returned {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+  animation: window-return 1.6s ease-out 1;
+}
+
+@keyframes window-return {
+  0% { outline-color: transparent; }
+  20%, 60% { outline-color: var(--dsw-alias-state-business-primary); }
+  100% { outline-color: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .window.returned { animation: none; }
+}
+
 /* 8-direction resize handles: invisible hit zones along the edges (6px) and
    at the corners (14px). */
 .handle {

@@ -10,6 +10,8 @@ import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { createBoardStore } from '../src/client/store.ts'
 import { panelWidthFor } from '../src/client/window/panel-geometry.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
+import { BOARD_PANEL_ID } from '../src/client/contract/slots.ts'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { chatSnapshot, createBoardBench } from './fixtures.client.ts'
 import railCss from '../src/client/dock/SessionRail.module.css'
 import minimapCss from '../src/client/canvas/Minimap.module.css'
@@ -1268,6 +1270,58 @@ describe('board slot composition', () => {
     } finally {
       await second.dispose()
     }
+  })
+
+  it('navigates to the main panel for a pending approval and brings the window forward on return', async () => {
+    const openSession = vi.fn()
+    const prepared = await createBoardBench({ uiWorkspace: { openSession } })
+    runtimes.add(prepared.runtime)
+    const { runtime } = prepared
+    const created = await runtime.sessions.add({ id: 'session-1' })
+    runtime.sessions.stubCreate(async () => created)
+    await prepared.mountBoard()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    act(() => { board.actions.setViewport(1600, 900) })
+    act(() => {
+      board.actions.addWindow({
+        ...windowState({ id: 'a1' as WindowId }),
+        x: 3000,
+        y: 2000,
+        zIndex: 10,
+      })
+    })
+    await runtime.flush()
+    // The window owns a session by now, so the pending flag has a session to target.
+    const registerPending = runtime.ctx.uiSession.registerPendingInteraction<{
+      readonly key: string
+      readonly kind: string
+      readonly sessionId: SessionId
+    }>(() => 0)
+    const releasePending = registerPending(
+      { key: 'approval:1', kind: 'approval', sessionId: created },
+      async () => {},
+    )
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-pending="approval"]')).not.toBeNull()
+    fireEvent.click(panel.view.getByText('Open in the main panel'))
+    await runtime.flush()
+
+    // The main panel shows the session, and the board remembers the window.
+    expect(openSession).toHaveBeenCalledWith(created)
+    expect(board.getSnapshot().returnWindowId).toBe('a1')
+
+    // The board panel comes back: the window is centred, active, and highlighted.
+    act(() => { runtime.panelInfo.set({ activePanelId: null }) })
+    act(() => { runtime.panelInfo.set({ activePanelId: BOARD_PANEL_ID }) })
+    await runtime.flush()
+    expect(board.getSnapshot().returnWindowId).toBeNull()
+    expect(board.getSnapshot().highlightWindowId).toBe('a1')
+    expect(board.getSnapshot().activeWindowId).toBe('a1')
+    // Centre of a 552x648 window at (3000, 2000) inside a 1600x900 viewport.
+    expect(board.getSnapshot().panX).toBe(-(3000 + 552 / 2 - 1600 / 2))
+    expect(board.getSnapshot().panY).toBe(-(2000 + 648 / 2 - 900 / 2))
+    releasePending()
   })
 
   it('withdraws every board contribution with the plugin fiber', async () => {

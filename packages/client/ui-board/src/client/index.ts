@@ -174,6 +174,15 @@ export function apply(ctx: ClientContext): void {
       bridge.send(windowId, text, mode, images, files, signal),
     cancelPrompt: (windowId) => { bridge.cancel(windowId) },
     loadOlderTurns: (windowId) => { bridge.loadOlder(windowId) },
+    openInMainPanel: (windowId) => {
+      const sessionId = bridge.sessionFor(windowId)
+      if (sessionId === undefined) return
+      // The answering UI (approval, question) lives in the main panel's
+      // composer; the board remembers the window so returning to the panel
+      // brings it forward and highlights it.
+      ctx.uiWorkspace.openSession(sessionId)
+      instance.actions.expectReturnWindow(windowId)
+    },
     createChat: (windowId, target) => { bridge.createChat(windowId, target) },
     startChat: (windowId, workspaceId) => bridge.startChat(windowId, workspaceId),
     renameChat: (sessionId, title) => bridge.renameChat(sessionId, title),

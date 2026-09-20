@@ -1,5 +1,8 @@
 /** Workspace command implementation and stable Remote failure mapping. */
 
+import { realpath } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import { isAbsolute, relative, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Workspace } from '@deepseek-ai/dsh-workspace'
 import {
@@ -39,6 +42,48 @@ export class WorkspaceCommands {
   create(request: WorkspaceCreateRequest): Promise<WorkspaceCreateValue> {
     return this.enqueue(async () => {
       try {
+        const target = resolve(request.path)
+        const rawRoots = [
+          ...(process.env.DSH_HOME ? [resolve(process.env.DSH_HOME)] : []),
+          resolve(homedir(), '.ketos'),
+          resolve(homedir(), '.dsh'),
+        ]
+        const forbiddenRoots = new Set<string>()
+        for (const dir of rawRoots) {
+          forbiddenRoots.add(dir)
+          try {
+            const realDir = await realpath(dir)
+            forbiddenRoots.add(realDir)
+          } catch {
+            // Uncreated home directories are checked via their lexical paths.
+          }
+        }
+        const isForbidden = (candidate: string): boolean =>
+          Array.from(forbiddenRoots).some((dir) => {
+            const rel = relative(dir, candidate)
+            return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))
+          })
+
+        if (isForbidden(target)) {
+          throw new RemoteError(
+            'workspace/invalid-path',
+            `cannot create a Workspace inside Ketos home directory "${request.path}"`,
+            { path: request.path },
+          )
+        }
+        try {
+          const realTarget = await realpath(target)
+          if (isForbidden(realTarget)) {
+            throw new RemoteError(
+              'workspace/invalid-path',
+              `cannot create a Workspace inside Ketos home directory "${request.path}"`,
+              { path: request.path },
+            )
+          }
+        } catch (error) {
+          if (remoteErrorOf(error) !== undefined) throw error
+        }
+
         const existing = await this.ctx.workspaceRegistry.resolveByPath(request.path)
         if (existing !== undefined) {
           return { workspace: workspaceView(existing), created: false }

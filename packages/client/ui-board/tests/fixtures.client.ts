@@ -71,6 +71,11 @@ export interface BoardBenchOptions {
       expectedRevision: number | undefined,
     ) => Promise<RemoteResult<SettingsNamespaceView>>
   }
+  /** Remote session verb overrides. */
+  readonly remoteSession?: {
+    readonly canOpenWorkspacePath?: () => Promise<RemoteResult<boolean>>
+    readonly openWorkspacePath?: (req: { path: string; action?: 'reveal' }) => Promise<RemoteResult<{ opened: boolean }>>
+  }
   /** View the shared describe mirror holds before the board mounts; omitted starts idle. */
   readonly settingsView?: SettingsDescribeValue
 }
@@ -280,6 +285,12 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
       pause: async () => ({ ok: true as const, value: undefined }),
       resume: async () => ({ ok: true as const, value: undefined }),
       clear: async () => ({ ok: true as const, value: undefined }),
+    },
+    session: {
+      canOpenWorkspacePath: options.remoteSession?.canOpenWorkspacePath
+        ?? (async () => ({ ok: true as const, value: true })),
+      openWorkspacePath: options.remoteSession?.openWorkspacePath
+        ?? (async () => ({ ok: true as const, value: { opened: true } })),
     },
   }
   runtime.ctx.provide('remote', remote as never)

@@ -196,6 +196,8 @@ export function apply(ctx: ClientContext): void {
     listDirectory: path => bridge.listDirectory(path),
     createDirectory: (path, name) => bridge.createDirectory(path, name),
     pickDirectory: () => bridge.pickDirectory(),
+    canOpenWorkspacePath: () => bridge.canOpenWorkspacePath(),
+    openWorkspacePath: (path, action) => bridge.openWorkspacePath(path, action),
     selectAgentPreset: (windowId, presetId) => { bridge.selectAgentPreset(windowId, presetId) },
     selectPermission: (windowId, presetId) => { bridge.selectPermission(windowId, presetId) },
     selectModel: (windowId, selection) => { bridge.selectModel(windowId, selection) },

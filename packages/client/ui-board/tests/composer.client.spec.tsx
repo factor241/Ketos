@@ -781,4 +781,18 @@ describe('ComposerBar preset and model semantics', () => {
     expect(selectModel).toHaveBeenCalledWith(WINDOW, { provider: 'deepseek-official', model: 'deepseek-v4-pro' })
     expect(selectAgentPreset).not.toHaveBeenCalled()
   })
+
+  it('never renders a folder or workspace chip, keeping directory management exclusively in chats panel', () => {
+    const state = sessionState(undefined, {
+      blank: true,
+      presetId: 'standard',
+      presets: [DEFAULT_PRESET],
+    })
+    const { container } = renderComposer(state)
+    expect(container.querySelector('[data-board-action="composer-preset"]')).not.toBeNull()
+    expect(container.querySelector('[data-board-action*="folder"]')).toBeNull()
+    expect(container.querySelector('[data-board-action*="workspace"]')).toBeNull()
+    expect(container.querySelector('[data-board-action*="cwd"]')).toBeNull()
+    expect(container.querySelector('[data-board-action*="path"]')).toBeNull()
+  })
 })

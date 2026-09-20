@@ -26,6 +26,7 @@ import type { BoardStoreHandle } from '../store.ts'
 import type { BoardTranslate } from '../locale.ts'
 import { ComposerBar } from './ComposerBar.tsx'
 import { ToolCard } from './ToolCard.tsx'
+import { sessionArtifacts } from './artifacts-model.ts'
 import css from './ConversationBody.module.css'
 
 export type ConversationBodyProps =
@@ -289,6 +290,7 @@ export function ConversationBody({
   }, [ensureWindowSession, cardWindow.id])
 
   const rows = useMemo(() => session?.chat === undefined ? [] : laneRows(session.chat), [session?.chat])
+  const artifacts = useMemo(() => sessionArtifacts(session?.chat), [session?.chat])
   const rowsRef = useRef(rows)
   rowsRef.current = rows
   const observed = useMemo(
@@ -535,6 +537,23 @@ export function ConversationBody({
             onClick={() => { injected.openInMainPanel(cardWindow.id) }}
           >
             {t('pending.open')}
+          </button>
+        </div>
+      )}
+
+      {artifacts.length > 0 && (
+        <div className={css.artifactsStrip} data-board-artifacts-strip="">
+          <button
+            type="button"
+            className={css.artifactsStripToggle}
+            data-board-action="artifacts-strip-toggle"
+            aria-label={t('artifacts.count', { n: artifacts.length })}
+            onClick={() => {
+              actions.openWindowPanel(cardWindow.id, 'artifacts')
+            }}
+          >
+            <span className={css.artifactsStripBadge}>{artifacts.length}</span>
+            <span className={css.artifactsStripText}>{t('artifacts.count', { n: artifacts.length })}</span>
           </button>
         </div>
       )}

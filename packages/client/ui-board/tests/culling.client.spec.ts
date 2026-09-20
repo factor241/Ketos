@@ -33,6 +33,7 @@ function state(overrides: Partial<BoardState> = {}): BoardState {
     fullscreenWindowId: null,
     panelWindowId: null,
     panelCollapsed: true,
+    panelTab: 'chats',
     panelWidth: 300,
     panelGroupBy: 'workspace',
     panelOrderBy: 'updated',

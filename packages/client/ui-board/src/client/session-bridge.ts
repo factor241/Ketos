@@ -1170,6 +1170,34 @@ export class BoardSessionBridge {
     return await this.ctx.uiWorkspace.pickDirectory()
   }
 
+  /**
+   * Check whether the host can open or reveal workspace or file paths.
+   * @returns true when native opening is available.
+   */
+  async canOpenWorkspacePath(): Promise<boolean> {
+    try {
+      const response = await this.ctx.remote.session.canOpenWorkspacePath()
+      return response.ok ? response.value : false
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Open or reveal one path on the host desktop.
+   * @param path - file or workspace directory path.
+   * @param action - reveal in file manager or open default app.
+   */
+  async openWorkspacePath(path: string, action?: 'reveal'): Promise<void> {
+    const response = await this.ctx.remote.session.openWorkspacePath({
+      path,
+      ...(action !== undefined ? { action } : {}),
+    })
+    if (!response.ok) {
+      throw new Error(response.error.message)
+    }
+  }
+
   /** Create a chat from a target and point the window at it. */
   private async createChatTarget(windowId: WindowId, target: BoardChatTarget): Promise<void> {
     const record = this.record(windowId)

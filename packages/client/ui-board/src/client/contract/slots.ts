@@ -407,6 +407,10 @@ export interface BoardWindowInjected {
    * the boot picked that interaction, the browse flow otherwise.
    */
   pickDirectory: () => Promise<string | null>
+  /** Whether the host environment can reveal/open a workspace or file path. */
+  canOpenWorkspacePath: () => Promise<boolean>
+  /** Open or reveal one workspace or file path in the host's file manager / system app. */
+  openWorkspacePath: (path: string, action?: 'reveal') => Promise<void>
   /** Switch the agent preset of the window's still-blank session. */
   selectAgentPreset: (windowId: WindowId, presetId: string) => void
   /** Switch the permission preset of the window's session. */

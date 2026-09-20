@@ -20,8 +20,8 @@ const PANEL_WINDOW_SHARE_MAX = 0.45
 /** Collapsed rail width: a compact strip holding four controls. */
 export const PANEL_RAIL_WIDTH = 44
 
-/** Collapsed rail height: four 36px controls, their gaps, and the rail's padding. */
-export const PANEL_RAIL_HEIGHT = 170
+/** Collapsed rail height: five 36px controls, their gaps, and the rail's padding. */
+export const PANEL_RAIL_HEIGHT = 212
 
 /** Largest chat column width in the fullscreen presentation. */
 export const FULLSCREEN_CHAT_MAX_WIDTH = 768

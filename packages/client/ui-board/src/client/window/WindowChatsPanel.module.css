@@ -401,3 +401,138 @@
 .hidden {
   content-visibility: hidden;
 }
+
+.projectPathRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px;
+  gap: 8px;
+  font-size: var(--board-font-hint);
+  color: var(--dsw-alias-label-tertiary);
+  border-bottom: 0.5px solid var(--dsw-alias-border-l1);
+  min-height: 28px;
+  box-sizing: border-box;
+}
+
+.projectPathText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+.projectPathActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+.pathAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.pathAction:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.tabBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 4px;
+}
+
+.tabBadge {
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--dsw-alias-border-l1);
+  font-size: 11px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.artifactsEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--board-font-label);
+}
+
+.artifactsList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.artifactRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: var(--dsw-alias-label-primary);
+}
+
+.artifactRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.artifactIcon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.artifactBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.artifactPath {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--board-font-label);
+}
+
+.artifactMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.artifactTime {
+  font-size: var(--board-font-hint);
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.artifactActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}

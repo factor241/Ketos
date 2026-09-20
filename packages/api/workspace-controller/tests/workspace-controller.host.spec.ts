@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -116,6 +116,31 @@ describe('WorkspaceController commands', () => {
       .rejects.toMatchObject({ code: 'workspace/name-conflict' })
     await expect(controller.delete({ workspaceId: 'missing' as WorkspaceId }))
       .rejects.toMatchObject({ code: 'workspace/not-found' })
+  })
+
+  it('rejects paths inside Ketos or DSH home', async () => {
+    const { controller, root } = await harness()
+    const ketosHome = stageDir(root, '.ketos')
+    const ketosSubdir = stageDir(ketosHome, 'project')
+    const symlinkToKetos = join(root, 'symlink-ketos')
+    symlinkSync(ketosHome, symlinkToKetos)
+    process.env.DSH_HOME = ketosHome
+    try {
+      await expect(controller.create({ path: ketosHome })).rejects.toMatchObject({
+        code: 'workspace/invalid-path',
+        details: { path: ketosHome },
+      })
+      await expect(controller.create({ path: ketosSubdir })).rejects.toMatchObject({
+        code: 'workspace/invalid-path',
+        details: { path: ketosSubdir },
+      })
+      await expect(controller.create({ path: symlinkToKetos })).rejects.toMatchObject({
+        code: 'workspace/invalid-path',
+        details: { path: symlinkToKetos },
+      })
+    } finally {
+      delete process.env.DSH_HOME
+    }
   })
 
   it('preserves Remote failures and propagates unexpected registry failures', async () => {

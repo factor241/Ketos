@@ -49,8 +49,9 @@ type BoardActions = {
   centerOnWindow: (draft: BoardState, id: WindowId) => void
   setWindowFullscreen: (draft: BoardState, id: WindowId) => void
   exitFullscreen: (draft: BoardState) => void
-  openWindowPanel: (draft: BoardState, id: WindowId) => void
+  openWindowPanel: (draft: BoardState, id: WindowId, tab?: 'chats' | 'artifacts') => void
   closeWindowPanel: (draft: BoardState) => void
+  setPanelTab: (draft: BoardState, tab: 'chats' | 'artifacts') => void
   setPanelCollapsed: (draft: BoardState, collapsed: boolean) => void
   setPanelWidth: (draft: BoardState, width: number) => void
   setPanelGroupBy: (draft: BoardState, groupBy: BoardPanelGroupBy) => void
@@ -90,6 +91,8 @@ export interface BoardState {
   panelWindowId: WindowId | null
   /** Whether the window's chats panel is collapsed to its rail. */
   panelCollapsed: boolean
+  /** Active tab in the chats panel: chats list or artifacts list. */
+  panelTab: 'chats' | 'artifacts'
   /** Width the user last dragged the chats panel to. */
   panelWidth: number
   /** How the chats panel arranges its list. */
@@ -299,6 +302,7 @@ export function createBoardStore(): BoardStoreHandle {
       fullscreenWindowId: null,
       panelWindowId: null,
       panelCollapsed: true,
+      panelTab: 'chats',
       panelWidth: PANEL_DEFAULT_WIDTH,
       panelGroupBy: 'workspace',
       panelOrderBy: 'updated',
@@ -393,14 +397,18 @@ export function createBoardStore(): BoardStoreHandle {
       exitFullscreen: (draft) => {
         draft.fullscreenWindowId = null
       },
-      openWindowPanel: (draft, id) => {
+      openWindowPanel: (draft, id, tab) => {
         if (!draft.windows[id as string]) return
         draft.panelWindowId = id
         draft.panelCollapsed = false
+        if (tab !== undefined) draft.panelTab = tab
       },
       closeWindowPanel: (draft) => {
         draft.panelWindowId = null
         draft.panelCollapsed = true
+      },
+      setPanelTab: (draft, tab) => {
+        draft.panelTab = tab
       },
       setPanelCollapsed: (draft, collapsed) => {
         draft.panelCollapsed = collapsed
@@ -456,6 +464,7 @@ export function createBoardStore(): BoardStoreHandle {
         draft.panelGroupBy = layout.panelGroupBy
         draft.panelOrderBy = layout.panelOrderBy
         draft.defaultPreset = layout.defaultPreset
+        draft.panelTab = 'chats'
       },
       setSelectingElement: (draft, selecting) => {
         draft.isSelectingElement = selecting

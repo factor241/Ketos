@@ -10,10 +10,11 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  IconArchiveOutline20, IconBranchOutline16, IconChevronRightOutline14,
-  IconCloseOutline16, IconEditOutline16, IconEllipsisOutline16, IconFolderOpen16,
-  IconNewChatOutline16, IconPanelLeftOutline16, IconPersonalizationOutline16, IconProjectAddOutline16,
-  IconSearchOutline16, IconTrashOutline16, Menu, Tooltip, relativeTime,
+  FileTypeIcon, IconArchiveOutline20, IconBranchOutline16, IconCheckOutline16,
+  IconChevronRightOutline14, IconCloseOutline16, IconCopyOutline16, IconEditOutline16,
+  IconEllipsisOutline16, IconFolderOpen16, IconNewChatOutline16, IconPanelLeftOutline16,
+  IconPersonalizationOutline16, IconProjectAddOutline16, IconSearchOutline16,
+  IconTrashOutline16, Menu, Pill, Tag, Tooltip, relativeTime, writeClipboard,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
@@ -24,6 +25,8 @@ import type { BoardStoreHandle } from '../store.ts'
 import { isWindowHidden } from '../culling.ts'
 import { useBoardPointerGesture } from '../pointer-gesture.ts'
 import { chatGroups, filterGroups, moveAnchor } from '../chat-list-model.ts'
+import { sessionArtifacts } from './artifacts-model.ts'
+import { validateWorkspacePath } from './path-validation.ts'
 import {
   dockedPanelRect, panelPresentation, panelWidthFor, railRect, windowedPanelRect,
 } from './panel-geometry.ts'
@@ -45,6 +48,7 @@ type PanelLevel =
 type RowEdit =
   | { readonly step: 'rename'; readonly kind: 'project' | 'chat'; readonly id: string; readonly value: string }
   | { readonly step: 'confirm'; readonly kind: 'project' | 'chat'; readonly id: string }
+  | { readonly step: 'confirm-path'; readonly kind: 'path'; readonly path: string; readonly warning: string }
   | null
 
 /** The row whose menu is open. */
@@ -66,10 +70,11 @@ function WindowChatsPanelView({
   window: cardWindow, useStore, actions, useSessionList, useWorkspaceList, useWindowSession,
   bindSession, createChat, startChat, renameChat, forkChat, archiveChat, reorderChat,
   createWorkspace, renameWorkspace, deleteWorkspace, reorderWorkspace,
-  listDirectory, createDirectory, pickDirectory, t,
+  listDirectory, createDirectory, pickDirectory, canOpenWorkspacePath, openWorkspacePath, t,
 }: WindowChatsPanelProps) {
   const mounted = useStore(s => s.panelWindowId === cardWindow.id)
   const collapsed = useStore(s => s.panelCollapsed)
+  const panelTab = useStore(s => s.panelTab)
   const requestedWidth = useStore(s => s.panelWidth)
   const groupBy = useStore(s => s.panelGroupBy)
   const orderBy = useStore(s => s.panelOrderBy)
@@ -93,9 +98,19 @@ function WindowChatsPanelView({
   const [viewOpen, setViewOpen] = useState(false)
   const [drop, setDrop] = useState<DropKey>(null)
   const [error, setError] = useState<string | null>(null)
+  const [copiedArtifact, setCopiedArtifact] = useState<string | null>(null)
+  const [pathCopied, setPathCopied] = useState(false)
+  const [canOpenPath, setCanOpenPath] = useState(false)
+  const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pathTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const menuAnchor = useRef<HTMLButtonElement | null>(null)
   const viewAnchor = useRef<HTMLButtonElement | null>(null)
   const dragged = useRef(false)
+
+  useEffect(() => () => {
+    if (copiedTimeoutRef.current !== null) clearTimeout(copiedTimeoutRef.current)
+    if (pathTimeoutRef.current !== null) clearTimeout(pathTimeoutRef.current)
+  }, [])
 
   const windowSessionId = session?.sessionId
   const groups = useMemo(
@@ -105,6 +120,38 @@ function WindowChatsPanelView({
   const project = level.kind === 'chats'
     ? groups.find(group => group.workspaceId === level.workspaceId)
     : undefined
+
+  const artifacts = useMemo(() => sessionArtifacts(session?.chat), [session?.chat])
+  const projectPath = useMemo(() => {
+    if (level.kind !== 'chats') return null
+    if (project?.cwd && project.cwd !== '') return project.cwd
+    const item = workspaceList.items.find(w => w.workspaceId === level.workspaceId)
+    return item?.path ?? null
+  }, [level, project, workspaceList])
+
+  useEffect(() => {
+    let alive = true
+    void canOpenWorkspacePath().then((avail) => {
+      if (alive && avail) setCanOpenPath(true)
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [canOpenWorkspacePath])
+
+  const activeWorkspaceId = useMemo(() => {
+    if (!windowSessionId) return undefined
+    for (const group of groups) {
+      if (group.chats.some(c => c.id === windowSessionId)) {
+        return group.workspaceId
+      }
+    }
+    return undefined
+  }, [groups, windowSessionId])
+
+  useEffect(() => {
+    if (panelTab === 'artifacts' && level.kind === 'projects') {
+      setLevel({ kind: 'chats', workspaceId: activeWorkspaceId })
+    }
+  }, [panelTab, level.kind, activeWorkspaceId])
 
   const view = { left: -panX / zoom, right: (-panX + viewportWidth) / zoom }
   const width = panelWidthFor(fullscreen ? viewportWidth : cardWindow.width, requestedWidth)
@@ -122,6 +169,36 @@ function WindowChatsPanelView({
   const report = useCallback((failure: unknown): void => {
     setError(failure instanceof Error ? failure.message : String(failure))
   }, [])
+
+  const copyPath = useCallback(() => {
+    if (!projectPath) return
+    if (pathTimeoutRef.current !== null) clearTimeout(pathTimeoutRef.current)
+    void writeClipboard(projectPath).then(() => {
+      setPathCopied(true)
+      pathTimeoutRef.current = setTimeout(() => {
+        setPathCopied(false)
+        pathTimeoutRef.current = null
+      }, 1500)
+    })
+  }, [projectPath])
+
+  const openFolder = useCallback(() => {
+    if (!projectPath) return
+    void openWorkspacePath(projectPath).catch(report)
+  }, [projectPath, openWorkspacePath, report])
+
+  const handleSelectFolder = (path: string, home?: string): void => {
+    const res = validateWorkspacePath(path, { hostHome: home, t })
+    if (res.kind === 'rejected') {
+      setError(res.error)
+      return
+    }
+    if (res.kind === 'warning') {
+      setEdit({ step: 'confirm-path', kind: 'path', path, warning: res.warning })
+      return
+    }
+    void createWorkspace(path).then(() => { setLevel({ kind: 'projects' }) }).catch(report)
+  }
 
   useEffect(() => {
     if (!open) {
@@ -285,7 +362,12 @@ function WindowChatsPanelView({
   const confirm = (): void => {
     const current = edit
     setEdit(null)
-    if (current === null || current.step !== 'confirm') return
+    if (current === null) return
+    if (current.step === 'confirm-path') {
+      void createWorkspace(current.path).then(() => { setLevel({ kind: 'projects' }) }).catch(report)
+      return
+    }
+    if (current.step !== 'confirm') return
     if (current.kind === 'project') {
       const workspaceId = current.id as WorkspaceId
       if (level.kind === 'chats' && level.workspaceId === workspaceId) setLevel({ kind: 'projects' })
@@ -331,6 +413,10 @@ function WindowChatsPanelView({
             actions.openWindowPanel(cardWindow.id)
             setLevel({ kind: 'browse' })
           }, 'panel-rail-add-folder')}
+          {railButton(t('panel.railArtifacts'), <FileTypeIcon path="artifacts.txt" size={16} />, () => {
+            actions.openWindowPanel(cardWindow.id, 'artifacts')
+            setLevel({ kind: 'chats', workspaceId: activeWorkspaceId })
+          }, 'panel-rail-artifacts')}
           {railButton(t('panel.search'), <IconSearchOutline16 />, () => {
             actions.openWindowPanel(cardWindow.id)
             setSearchOpen(true)
@@ -404,7 +490,15 @@ function WindowChatsPanelView({
           )}
           {level.kind === 'chats' && (
             <>
-              <button type="button" data-row-action="" className={css.back} onClick={() => { setLevel({ kind: 'projects' }) }}>
+              <button
+                type="button"
+                data-row-action=""
+                className={css.back}
+                onClick={() => {
+                  setLevel({ kind: 'projects' })
+                  actions.setPanelTab('chats')
+                }}
+              >
                 <IconChevronRightOutline14 className={css.backGlyph} />
                 <span className={css.title}>
                   {project === undefined || project.label === '' ? t('panel.ungrouped') : project.label}
@@ -502,6 +596,61 @@ function WindowChatsPanelView({
           </div>
         )}
 
+        {level.kind === 'chats' && projectPath !== null && (
+          <div className={css.projectPathRow} data-board-project-path={projectPath}>
+            <span className={css.projectPathText} title={projectPath}>{projectPath}</span>
+            <div className={css.projectPathActions}>
+              <Tooltip label={pathCopied ? t('panel.pathCopied') : t('panel.copyPath')} side="bottom">
+                <button
+                  type="button"
+                  data-row-action=""
+                  data-board-action="panel-copy-path"
+                  className={css.pathAction}
+                  aria-label={t('panel.copyPath')}
+                  onClick={copyPath}
+                >
+                  {pathCopied ? <IconCheckOutline16 /> : <IconCopyOutline16 />}
+                </button>
+              </Tooltip>
+              {canOpenPath && (
+                <Tooltip label={t('panel.openFolder')} side="bottom">
+                  <button
+                    type="button"
+                    data-row-action=""
+                    data-board-action="panel-open-folder"
+                    className={css.pathAction}
+                    aria-label={t('panel.openFolder')}
+                    onClick={openFolder}
+                  >
+                    <IconFolderOpen16 />
+                  </button>
+                </Tooltip>
+              )}
+            </div>
+          </div>
+        )}
+
+        {level.kind === 'chats' && (
+          <div className={css.tabBar}>
+            <Pill
+              active={panelTab === 'chats'}
+              data-board-tab="chats"
+              onClick={() => { actions.setPanelTab('chats') }}
+            >
+              {t('artifacts.tabChats')}
+              <span className={css.tabBadge}>{project?.chats.length ?? 0}</span>
+            </Pill>
+            <Pill
+              active={panelTab === 'artifacts'}
+              data-board-tab="artifacts"
+              onClick={() => { actions.setPanelTab('artifacts') }}
+            >
+              {t('artifacts.tabArtifacts')}
+              {artifacts.length > 0 && <span className={css.tabBadge}>{artifacts.length}</span>}
+            </Pill>
+          </div>
+        )}
+
         <div className={css.list}>
           {level.kind === 'browse' && (
             <FolderBrowser
@@ -509,7 +658,7 @@ function WindowChatsPanelView({
               listDirectory={listDirectory}
               createDirectory={createDirectory}
               pickDirectory={pickDirectory}
-              useFolder={(path) => { void createWorkspace(path).then(() => { setLevel({ kind: 'projects' }) }).catch(report) }}
+              useFolder={handleSelectFolder}
             />
           )}
 
@@ -544,7 +693,7 @@ function WindowChatsPanelView({
             </div>
           ))}
 
-          {level.kind === 'chats' && project?.chats.map(chat => (
+          {level.kind === 'chats' && panelTab === 'chats' && project?.chats.map(chat => (
             <div key={chat.id} className={css.groupRow}>
               <button
                 type="button"
@@ -575,6 +724,83 @@ function WindowChatsPanelView({
               </button>
             </div>
           ))}
+
+          {level.kind === 'chats' && panelTab === 'artifacts' && (
+            artifacts.length === 0 ? (
+              <div className={css.artifactsEmpty} data-board-artifacts-empty="">
+                {t('artifacts.empty')}
+              </div>
+            ) : (
+              <div className={css.artifactsList} data-board-artifacts-list="">
+                {artifacts.map((artifact) => {
+                  const isCopied = copiedArtifact === artifact.path
+                  const kindLabel = t(`artifacts.${artifact.kind}`)
+                  const kindTone = artifact.kind === 'created' ? 'success' : artifact.kind === 'modified' ? 'warning' : 'neutral'
+                  return (
+                    <div key={artifact.path} className={css.artifactRow} data-board-artifact={artifact.path}>
+                      <div className={css.artifactIcon}>
+                        <FileTypeIcon path={artifact.path} size={20} />
+                      </div>
+                      <div className={css.artifactBody}>
+                        <span className={css.artifactPath} title={artifact.path}>
+                          {artifact.path}
+                        </span>
+                        <div className={css.artifactMeta}>
+                          <span data-board-artifact-kind={artifact.kind}>
+                            <Tag tone={kindTone}>
+                              {kindLabel}
+                            </Tag>
+                          </span>
+                          <span className={css.artifactTime}>
+                            {ageLabel(artifact.time, t)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className={css.artifactActions}>
+                        <Tooltip label={isCopied ? t('artifacts.copied') : t('artifacts.copy')} side="bottom">
+                          <button
+                            type="button"
+                            data-row-action=""
+                            data-board-action="artifact-copy-path"
+                            className={css.pathAction}
+                            aria-label={t('artifacts.copy')}
+                            onClick={() => {
+                              if (copiedTimeoutRef.current !== null) clearTimeout(copiedTimeoutRef.current)
+                              void writeClipboard(artifact.path).then(() => {
+                                setCopiedArtifact(artifact.path)
+                                copiedTimeoutRef.current = setTimeout(() => {
+                                  setCopiedArtifact(curr => (curr === artifact.path ? null : curr))
+                                  copiedTimeoutRef.current = null
+                                }, 1500)
+                              })
+                            }}
+                          >
+                            {isCopied ? <IconCheckOutline16 /> : <IconCopyOutline16 />}
+                          </button>
+                        </Tooltip>
+                        {canOpenPath && (
+                          <Tooltip label={t('artifacts.reveal')} side="bottom">
+                            <button
+                              type="button"
+                              data-row-action=""
+                              data-board-action="artifact-reveal"
+                              className={css.pathAction}
+                              aria-label={t('artifacts.reveal')}
+                              onClick={() => {
+                                void openWorkspacePath(artifact.path, 'reveal').catch(report)
+                              }}
+                            >
+                              <IconFolderOpen16 />
+                            </button>
+                          </Tooltip>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          )}
         </div>
 
         {edit !== null && (
@@ -593,19 +819,43 @@ function WindowChatsPanelView({
                   }}
                 />
               )
-              : (
-                <>
-                  <span className={css.rowText}>
-                    {edit.kind === 'project' ? t('panel.deleteFolderConfirm') : t('panel.archiveConfirm')}
-                  </span>
-                  <button type="button" data-row-action="" className={css.confirmAction} onClick={confirm}>
-                    {t('panel.confirm')}
-                  </button>
-                  <button type="button" data-row-action="" className={css.confirmAction} onClick={() => { setEdit(null) }}>
-                    {t('panel.cancel')}
-                  </button>
-                </>
-              )}
+              : edit.step === 'confirm-path'
+                ? (
+                  <>
+                    <span className={css.rowText}>{edit.warning}</span>
+                    <button
+                      type="button"
+                      data-row-action=""
+                      data-board-action="panel-confirm-path"
+                      className={css.confirmAction}
+                      onClick={confirm}
+                    >
+                      {t('panel.confirm')}
+                    </button>
+                    <button
+                      type="button"
+                      data-row-action=""
+                      data-board-action="panel-cancel-path"
+                      className={css.confirmAction}
+                      onClick={() => { setEdit(null) }}
+                    >
+                      {t('panel.cancel')}
+                    </button>
+                  </>
+                )
+                : (
+                  <>
+                    <span className={css.rowText}>
+                      {edit.kind === 'project' ? t('panel.deleteFolderConfirm') : t('panel.archiveConfirm')}
+                    </span>
+                    <button type="button" data-row-action="" className={css.confirmAction} onClick={confirm}>
+                      {t('panel.confirm')}
+                    </button>
+                    <button type="button" data-row-action="" className={css.confirmAction} onClick={() => { setEdit(null) }}>
+                      {t('panel.cancel')}
+                    </button>
+                  </>
+                )}
           </div>
         )}
       </div>
@@ -623,7 +873,7 @@ function FolderBrowser({ t, listDirectory, createDirectory, pickDirectory, useFo
   readonly listDirectory: (path?: string) => Promise<BoardDirectoryListing>
   readonly createDirectory: (path: string, name: string) => Promise<string>
   readonly pickDirectory: () => Promise<string | null>
-  readonly useFolder: (path: string) => void
+  readonly useFolder: (path: string, home?: string) => void
 }): ReactNode {
   const [listing, setListing] = useState<BoardDirectoryListing | null>(null)
   const [folderName, setFolderName] = useState<string | null>(null)
@@ -642,7 +892,7 @@ function FolderBrowser({ t, listDirectory, createDirectory, pickDirectory, useFo
 
   const pickInSystem = (): void => {
     void pickDirectory().then((path) => {
-      if (path !== null) useFolder(path)
+      if (path !== null) useFolder(path, listing?.home)
     })
   }
 
@@ -662,7 +912,13 @@ function FolderBrowser({ t, listDirectory, createDirectory, pickDirectory, useFo
       <>
         <div className={css.rowMeta}>{browseFailed ? t('panel.browseUnavailable') : t('panel.loading')}</div>
         {browseFailed && (
-          <button type="button" data-row-action="" className={css.confirmAction} onClick={pickInSystem}>
+          <button
+            type="button"
+            data-row-action=""
+            data-board-action="panel-pick-system"
+            className={css.confirmAction}
+            onClick={pickInSystem}
+          >
             {t('panel.pickFolder')}
           </button>
         )}
@@ -678,6 +934,8 @@ function FolderBrowser({ t, listDirectory, createDirectory, pickDirectory, useFo
             key={crumb.path}
             type="button"
             data-row-action=""
+            data-board-action="panel-crumb"
+            data-board-crumb-path={crumb.path}
             className={css.crumb}
             onClick={() => { load(crumb.path) }}
           >
@@ -715,7 +973,13 @@ function FolderBrowser({ t, listDirectory, createDirectory, pickDirectory, useFo
           </button>
         </div>
       ))}
-      <button type="button" data-row-action="" className={css.confirmAction} onClick={() => { useFolder(listing.path) }}>
+      <button
+        type="button"
+        data-row-action=""
+        data-board-action="panel-use-folder"
+        className={css.confirmAction}
+        onClick={() => { useFolder(listing.path, listing.home) }}
+      >
         {t('panel.useFolder')}
       </button>
     </>

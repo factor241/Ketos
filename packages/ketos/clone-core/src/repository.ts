@@ -10,39 +10,65 @@
 
 import type { DatabaseSync } from 'node:sqlite'
 import { brandString } from '@deepseek-ai/dsh-brand'
+import { HarnessError } from '@deepseek-ai/dsh-llm'
 import { randomUUID } from 'node:crypto'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {
-  CloneCreateInput, CloneId, CloneRecord, CloneSessionBinding, CloneStatus, CloneUpdatePatch,
+  CloneBindingRole, CloneCreateInput, CloneDraftFields, CloneId, CloneRecord, CloneSessionBinding,
+  CloneStatus, CloneUpdatePatch,
 } from './types.ts'
 
-/** A clone that the caller asked for and the database does not hold. */
-export class CloneNotFoundError extends Error {
-  /** Stable wire code the route reports. */
-  readonly code = 'ketos/clone-not-found'
-
+/**
+ * A clone that the caller asked for and the database does not hold. Extending
+ * {@link HarnessError} makes the code survive into a tool result as well as
+ * into the route's answer.
+ */
+export class CloneNotFoundError extends HarnessError {
   /**
    * @param id - the clone identity that is absent.
    */
   constructor(id: string) {
-    super(`clone ${id} does not exist`)
-    this.name = 'CloneNotFoundError'
+    super(`clone ${id} does not exist`, 'ketos/clone-not-found')
+  }
+}
+
+/**
+ * A session that asked for clone data without a clone binding. Extending
+ * {@link HarnessError} makes the interview tool's refusal carry this code into
+ * the durable tool result.
+ */
+export class CloneSessionNotBoundError extends HarnessError {
+  /**
+   * @param sessionId - the unbound session identity.
+   */
+  constructor(sessionId: string) {
+    super(`session ${sessionId} is not bound to a clone`, 'ketos/not-a-clone-session')
+  }
+}
+
+/**
+ * A session that tried to save a profile for a clone that is not interviewing,
+ * for example after the person confirmed the profile the session was drafting.
+ */
+export class CloneNotInterviewingError extends HarnessError {
+  /**
+   * @param id - the clone identity whose status moved.
+   * @param status - the status that made the save inapplicable.
+   */
+  constructor(id: string, status: CloneStatus) {
+    super(`clone ${id} is ${status}, not interviewing`, 'ketos/clone-not-interviewing')
   }
 }
 
 /** A clone whose stored revision differs from the caller's expected revision. */
-export class CloneConflictError extends Error {
-  /** Stable wire code the route reports. */
-  readonly code = 'ketos/clone-conflict'
-
+export class CloneConflictError extends HarnessError {
   /**
    * @param id - the clone identity that moved.
    * @param expected - the revision the caller held.
    * @param actual - the revision stored.
    */
   constructor(id: string, expected: number, actual: number) {
-    super(`clone ${id} is at revision ${String(actual)}, not ${String(expected)}`)
-    this.name = 'CloneConflictError'
+    super(`clone ${id} is at revision ${String(actual)}, not ${String(expected)}`, 'ketos/clone-conflict')
   }
 }
 
@@ -71,7 +97,25 @@ interface CloneSessionRow {
 }
 
 /** The only statuses the stored `status` column decodes to and the wire accepts. */
-export const CLONE_STATUSES = ['draft', 'active', 'archived'] as const satisfies readonly CloneStatus[]
+export const CLONE_STATUSES = ['draft', 'interviewing', 'ready'] as const satisfies readonly CloneStatus[]
+
+/** The only binding roles the stored `role` column decodes to and the wire accepts. */
+export const CLONE_BINDING_ROLES = ['main', 'interview'] as const satisfies readonly CloneBindingRole[]
+
+/**
+ * Longest authored value each profile field accepts. The route enforces these
+ * bounds on the wire and the interview tool enforces them before its write:
+ * the model's tool schema can express neither `maxLength` nor `maxItems`, so
+ * the store is the one place both writers pass through.
+ */
+export const CLONE_TEXT_LIMITS = {
+  role: 120,
+  description: 500,
+  persona: 20_000,
+  methodology: 20_000,
+  skillCount: 100,
+  skill: 200,
+} as const
 
 /** Update-patch field to stored column, in the order the statements bind them. */
 const PATCH_COLUMNS = [
@@ -83,6 +127,32 @@ const PATCH_COLUMNS = [
   ['preferredModel', 'preferred_model'],
   ['status', 'status'],
 ] as const satisfies readonly (readonly [keyof CloneUpdatePatch, string])[]
+
+/**
+ * Refuse a draft whose fields exceed the columns' documented bounds. The live
+ * route validates the same numbers; this guard is for the model-facing tool,
+ * whose JSON schema cannot carry length or item limits.
+ * @param fields - the complete authored profile.
+ */
+function requireDraftBounds(fields: CloneDraftFields): void {
+  const bounded: ReadonlyArray<readonly [string, string, number]> = [
+    ['role', fields.role, CLONE_TEXT_LIMITS.role],
+    ['description', fields.description, CLONE_TEXT_LIMITS.description],
+    ['persona', fields.persona, CLONE_TEXT_LIMITS.persona],
+    ['methodology', fields.methodology, CLONE_TEXT_LIMITS.methodology],
+  ]
+  for (const [name, value, max] of bounded) {
+    if (value.length > max) throw new HarnessError(`${name} exceeds ${String(max)} characters`, 'ketos/invalid-draft')
+  }
+  if (fields.skills.length > CLONE_TEXT_LIMITS.skillCount) {
+    throw new HarnessError(`skills exceeds ${String(CLONE_TEXT_LIMITS.skillCount)} entries`, 'ketos/invalid-draft')
+  }
+  for (const skill of fields.skills) {
+    if (skill.length > CLONE_TEXT_LIMITS.skill) {
+      throw new HarnessError(`a skill name exceeds ${String(CLONE_TEXT_LIMITS.skill)} characters`, 'ketos/invalid-draft')
+    }
+  }
+}
 
 /** Current time as the ISO-8601 UTC string every timestamp column stores. */
 function nowIso(): string {
@@ -109,6 +179,14 @@ function parseStatus(id: string, value: string): CloneStatus {
   return value as CloneStatus
 }
 
+/** Decode the stored binding role. */
+function parseBindingRole(sessionId: string, value: string): CloneBindingRole {
+  if (!(CLONE_BINDING_ROLES as readonly string[]).includes(value)) {
+    throw new Error(`clone session ${sessionId}: unknown role ${JSON.stringify(value)}`)
+  }
+  return value as CloneBindingRole
+}
+
 /** Decode one stored clone row. */
 function toRecord(row: CloneRow): CloneRecord {
   return {
@@ -132,7 +210,7 @@ function toBinding(row: CloneSessionRow): CloneSessionBinding {
   return {
     sessionId: brandString<SessionId>(row.session_id),
     cloneId: brandString<CloneId>(row.clone_id),
-    role: row.role,
+    role: parseBindingRole(row.session_id, row.role),
     createdAt: row.created_at,
   }
 }
@@ -218,6 +296,10 @@ export class CloneRepository {
       assignments.push(`${column} = ?`)
       values.push(value)
     }
+    if (patch.skills !== undefined) {
+      assignments.push('skills_json = ?')
+      values.push(JSON.stringify(patch.skills))
+    }
     if (assignments.length === 0) throw new Error('clone update: the patch selects no field')
     const result = this.db.prepare(`
       UPDATE clones SET ${assignments.join(', ')}, revision = revision + 1, updated_at = ?
@@ -276,7 +358,7 @@ export class CloneRepository {
    * @returns the stored binding.
    * @throws CloneNotFoundError when the clone does not exist.
    */
-  bindSession(input: { cloneId: CloneId; sessionId: SessionId; role?: string }): CloneSessionBinding {
+  bindSession(input: { cloneId: CloneId; sessionId: SessionId; role?: CloneBindingRole }): CloneSessionBinding {
     const clone = this.getClone(input.cloneId)
     if (clone === undefined) throw new CloneNotFoundError(input.cloneId)
     const role = input.role ?? 'main'
@@ -300,5 +382,43 @@ export class CloneRepository {
       'SELECT * FROM clone_sessions WHERE clone_id = ? ORDER BY rowid DESC',
     ).all(cloneId) as unknown as CloneSessionRow[]
     return rows.map(toBinding)
+  }
+
+  /**
+   * The clone one session works for.
+   * @param sessionId - session identity to look up.
+   * @returns the stored binding, or undefined when the session has no clone.
+   */
+  bindingFor(sessionId: SessionId): CloneSessionBinding | undefined {
+    const row = this.db.prepare(
+      'SELECT * FROM clone_sessions WHERE session_id = ?',
+    ).get(sessionId) as unknown as CloneSessionRow | undefined
+    return row === undefined ? undefined : toBinding(row)
+  }
+
+  /**
+   * Replace the authored profile of the clone bound to one session and mark the
+   * clone `ready`, in one revision-checked update. The expected revision is the
+   * one read in this call, so a user save that landed earlier is already part of
+   * the new record, and the write still refuses a clone another writer moved
+   * between the read and the update.
+   * @param sessionId - the interviewing session whose clone receives the profile.
+   * @param fields - the complete authored profile the interview collected.
+   * @returns the saved record.
+   * @throws CloneSessionNotBoundError when the session has no clone binding.
+   * @throws CloneNotFoundError when the bound clone does not exist.
+   * @throws CloneConflictError when the stored revision moved during the call.
+   */
+  saveDraft(sessionId: SessionId, fields: CloneDraftFields): CloneRecord {
+    const binding = this.bindingFor(sessionId)
+    if (binding === undefined || binding.role !== 'interview') throw new CloneSessionNotBoundError(sessionId)
+    requireDraftBounds(fields)
+    const clone = this.getClone(binding.cloneId)
+    if (clone === undefined) throw new CloneNotFoundError(binding.cloneId)
+    // The mode is enforced where the write happens, not only by the interview
+    // scope's lifetime: a profile the person confirmed meanwhile must not be
+    // overwritten by the agent that was drafting it.
+    if (clone.status !== 'interviewing') throw new CloneNotInterviewingError(binding.cloneId, clone.status)
+    return this.updateClone(binding.cloneId, { ...fields, status: 'ready' }, clone.revision)
   }
 }

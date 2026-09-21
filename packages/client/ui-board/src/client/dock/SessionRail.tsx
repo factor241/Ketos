@@ -106,7 +106,8 @@ interface DockRowProps {
  */
 function DockRow({ window: win, active, actions, t, useWindowSession, useCloneList }: DockRowProps) {
   const session = useWindowSession(win.id)
-  // A clone window has no session to name it: the clone it edits does.
+  // A clone window is named by the record it edits, not by the interview
+  // session running inside it.
   const clone = useCloneList(roster => win.cloneId === undefined
     ? undefined
     : roster.clones.find(entry => entry.id === win.cloneId))

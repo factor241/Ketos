@@ -71,6 +71,7 @@ const baseState: BoardState = {
   composerIntentSeq: 0,
   returnWindowId: null,
   highlightWindowId: null,
+  cloneEdits: {},
 }
 
 describe('Minimap Component', () => {

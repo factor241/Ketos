@@ -11,7 +11,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 
 /** Schema version this build produces; stored in `PRAGMA user_version`. */
-export const CLONE_CORE_SCHEMA_VERSION = 1
+export const CLONE_CORE_SCHEMA_VERSION = 2
 
 /** `application_id` marking a database as this package's own ("KTCL"). */
 export const CLONE_CORE_APPLICATION_ID = 0x4b54434c
@@ -48,8 +48,19 @@ const stepV1: MigrationStep = (db) => {
   db.exec('CREATE INDEX clone_sessions_clone_id ON clone_sessions (clone_id)')
 }
 
+/**
+ * Version 2: the lifecycle narrowed to `draft` → `interviewing` → `ready`, the
+ * statuses the interview stage owns. Records written under the earlier
+ * speculative pair keep their authored fields: an in-use record is a confirmed
+ * profile (`ready`), an archived one returns to `draft` and can be interviewed.
+ */
+const stepV2: MigrationStep = (db) => {
+  db.exec("UPDATE clones SET status = 'ready' WHERE status = 'active'")
+  db.exec("UPDATE clones SET status = 'draft' WHERE status = 'archived'")
+}
+
 /** Ordered forward-only steps; entry `n - 1` produces version `n`. */
-export const CLONE_CORE_MIGRATION_STEPS: readonly MigrationStep[] = [stepV1]
+export const CLONE_CORE_MIGRATION_STEPS: readonly MigrationStep[] = [stepV1, stepV2]
 
 /**
  * Apply every step between the database's stamped version and `currentVersion`,

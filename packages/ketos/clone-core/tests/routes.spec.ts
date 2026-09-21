@@ -56,17 +56,17 @@ describe('clone route operations', () => {
   it('creates, reads, updates, and deletes one clone with revision CAS', async () => {
     const { post } = await fixture()
     const created = await body<CloneAnswerResponse>(await post({
-      op: 'create', name: 'Анна', role: 'Аналитик', description: 'Разбор', preferredModel: 'deepseek-chat', skills: ['sql'], status: 'active',
+      op: 'create', name: 'Анна', role: 'Аналитик', description: 'Разбор', preferredModel: 'deepseek-chat', skills: ['sql'], status: 'interviewing',
     }))
-    expect(created.clone).toMatchObject({ name: 'Анна', preferredModel: 'deepseek-chat', skills: ['sql'], status: 'active', revision: 1 })
+    expect(created.clone).toMatchObject({ name: 'Анна', preferredModel: 'deepseek-chat', skills: ['sql'], status: 'interviewing', revision: 1 })
 
     const fetched = await body<CloneAnswerResponse>(await post({ op: 'get', id: created.clone.id }))
     expect(fetched.clone).toEqual(created.clone)
 
     const updated = await body<CloneAnswerResponse>(await post({
-      op: 'update', id: created.clone.id, revision: 1, patch: { name: 'Анна П.', preferredModel: null },
+      op: 'update', id: created.clone.id, revision: 1, patch: { name: 'Анна П.', preferredModel: null, skills: ['sql', 'анализ'] },
     }))
-    expect(updated.clone).toMatchObject({ name: 'Анна П.', preferredModel: null, revision: 2 })
+    expect(updated.clone).toMatchObject({ name: 'Анна П.', preferredModel: null, skills: ['sql', 'анализ'], revision: 2 })
 
     expect(await body(await post({ op: 'delete', id: created.clone.id, revision: 2 }))).toEqual({ ok: true, id: created.clone.id })
     expect((await post({ op: 'get', id: created.clone.id })).status).toBe(404)
@@ -75,8 +75,8 @@ describe('clone route operations', () => {
   it('binds a session to a clone and lists the bindings', async () => {
     const { post } = await fixture()
     const created = await body<CloneAnswerResponse>(await post({ op: 'create', name: 'Анна', role: 'Аналитик' }))
-    const bound = await post({ op: 'bindSession', cloneId: created.clone.id, sessionId: 'session-1', role: 'main' })
-    expect(await body(bound)).toMatchObject({ ok: true, binding: { sessionId: 'session-1', role: 'main' } })
+    const bound = await post({ op: 'bindSession', cloneId: created.clone.id, sessionId: 'session-1', role: 'interview' })
+    expect(await body(bound)).toMatchObject({ ok: true, binding: { sessionId: 'session-1', role: 'interview' } })
     expect(await body(await post({ op: 'listSessions', cloneId: created.clone.id }))).toMatchObject({
       ok: true,
       sessions: [{ sessionId: 'session-1' }],
@@ -144,6 +144,9 @@ describe('clone route failures', () => {
       { op: 'update', id: 'x', revision: 1, patch: { name: '   ' } },
       { op: 'bindSession', cloneId: 'x' },
       { op: 'bindSession', cloneId: 'x', sessionId: 'y', role: '' },
+      { op: 'bindSession', cloneId: 'x', sessionId: 'y', role: 'task' },
+      { op: 'update', id: 'x', revision: 1, patch: { status: 'active' } },
+      { op: 'update', id: 'x', revision: 1, patch: { skills: 'sql' } },
       { op: 'listSessions', cloneId: 'x', extra: 1 },
     ]
     for (const request of rejected) {
@@ -163,6 +166,38 @@ describe('clone route failures', () => {
     const response = await get()
     expect(response.status).toBe(500)
     expect(await response.text()).toBe('clone request failed')
+  })
+
+  it('reports a mutation to the interview coordinator once it committed', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-clone-mutated-'))
+    cleanups.push(() => rm(root, { recursive: true, force: true }))
+    const database = new CloneDatabase(join(root, 'clones.db'))
+    const ctx = new Context()
+    cleanups.push(() => ctx.fiber.dispose())
+    const connection = new HostConnectionService(ctx, [], {} as BrowserAuth)
+    let mutations = 0
+    const fiber = ctx.plugin({
+      inject: ['connection'],
+      apply: (scope) => { registerCloneRoutes(scope, database, () => { mutations += 1 }) },
+    })
+    await fiber
+    cleanups.push(() => fiber.dispose())
+    const handler = connection.createSharedFetchHandler('/api')
+    const post = async (body: unknown): Promise<Response> => handler.fetch(new Request(
+      `http://localhost${CLONES_PATH}`,
+      { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json' } },
+    ))
+    // Reads and refused writes notify nothing; accepted writes notify once each.
+    await handler.fetch(new Request(`http://localhost${CLONES_PATH}`))
+    expect(mutations).toBe(0)
+    await post({ op: 'get', id: 'missing' })
+    expect(mutations).toBe(0)
+    const created = await body<CloneAnswerResponse>(await post({ op: 'create', name: 'Анна', role: 'Аналитик' }))
+    expect(mutations).toBe(1)
+    await post({ op: 'bindSession', cloneId: created.clone.id, sessionId: 'session-1', role: 'interview' })
+    expect(mutations).toBe(2)
+    await post({ op: 'update', id: created.clone.id, revision: 1, patch: { status: 'ready' } })
+    expect(mutations).toBe(3)
   })
 
   it('withdraws the route when its fiber disposes', async () => {

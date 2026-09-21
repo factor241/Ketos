@@ -73,4 +73,15 @@ describe('resolveChatWindow', () => {
     expect(openWindow).toHaveBeenCalledOnce()
     expect(openWindow.mock.calls[0]?.[0]).toMatchObject({ kind: 'agent', bodyKind: 'conversation' })
   })
+
+  it('addresses a clone window that presents a conversation', () => {
+    const { openWindow, actions } = recorder()
+    // A clone window showing its interview session is a conversation: the
+    // gesture acts on it instead of opening another window.
+    const interviewing = { id: 'clone-1', kind: 'clone', bodyKind: 'conversation' }
+
+    expect(resolveChatWindow(actions, { 'clone-1': { ...interviewing } as never }, 'clone-1' as WindowId))
+      .toBe('clone-1')
+    expect(openWindow).not.toHaveBeenCalled()
+  })
 })

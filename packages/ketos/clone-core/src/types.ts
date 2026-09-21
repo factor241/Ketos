@@ -12,10 +12,12 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 export type CloneId = Branded<'CloneId'>
 
 /**
- * Lifecycle status of a clone. The editor sets it; nothing else reads it yet,
- * and the stages that create clone sessions own how they treat each value.
+ * Lifecycle status of a clone. A clone is `draft` when it is created by hand,
+ * `interviewing` while an interview session is filling its profile, and `ready`
+ * once a profile has been saved; only `interviewing` composes the interview
+ * prompt section and tool into a clone session.
  */
-export type CloneStatus = 'draft' | 'active' | 'archived'
+export type CloneStatus = 'draft' | 'interviewing' | 'ready'
 
 /** Fields the model-facing methodologist and persona of a clone carry today. */
 export interface CloneRecord {
@@ -85,19 +87,36 @@ export interface CloneUpdatePatch {
   readonly persona?: string
   readonly methodology?: string
   readonly preferredModel?: string | null
+  readonly skills?: readonly string[]
   readonly status?: CloneStatus
 }
+
+/**
+ * The authored profile the interview tool writes: the personas and working
+ * fields the interviewer collected, kept separate from transport-level patches
+ * because the tool always replaces all of them and marks the clone `ready`.
+ */
+export interface CloneDraftFields {
+  readonly role: string
+  readonly description: string
+  readonly persona: string
+  readonly methodology: string
+  readonly skills: readonly string[]
+}
+
+/**
+ * Why a session is bound to a clone: `main` for a working session, `interview`
+ * for the bootstrap interview the interview mode is derived from.
+ */
+export type CloneBindingRole = 'main' | 'interview'
 
 /** One session bound to a clone. */
 export interface CloneSessionBinding {
   /** Harness session the clone owns. */
   readonly sessionId: SessionId
   readonly cloneId: CloneId
-  /**
-   * Why the session exists: `main` for the session the editor creates, and the
-   * value the stage that creates another kind of clone session owns.
-   */
-  readonly role: string
+  /** Why the session exists; a missing role means `main`. */
+  readonly role: CloneBindingRole
   /** ISO-8601 UTC creation time of the binding. */
   readonly createdAt: string
 }

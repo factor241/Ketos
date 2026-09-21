@@ -29,7 +29,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /** Whether a decoded value is one of the stored lifecycle statuses. */
 function isStatus(value: unknown): value is CloneStatus {
-  return value === 'draft' || value === 'active' || value === 'archived'
+  return value === 'draft' || value === 'interviewing' || value === 'ready'
 }
 
 /** Decode one stored clone record, refusing anything the host does not promise. */

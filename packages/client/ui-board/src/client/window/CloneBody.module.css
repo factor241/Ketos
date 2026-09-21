@@ -131,6 +131,29 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+/* Pending agent revision: the row carries its own apply action, so it lays out
+   as a wrapped row instead of the single-line banners above. */
+.noticeAgent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Mark beside one field label: the stored value of this field moved since the
+   user last adopted the record. */
+.agentBadge {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
 .actions {
   display: flex;
   align-items: center;

@@ -195,7 +195,7 @@ export interface BoardModelGroup {
 }
 
 /** Lifecycle status rows the clone editor offers, in display order. */
-export const CLONE_STATUS_ROWS = ['draft', 'active', 'archived'] as const
+export const CLONE_STATUS_ROWS = ['draft', 'interviewing', 'ready'] as const
 
 /** One selectable model route of the clone editor's preferred-model picker. */
 export interface CloneModelOption {
@@ -228,7 +228,7 @@ export type CloneSaveOutcome = 'saved' | 'conflict' | 'missing' | 'failed'
 /** What one clone deletion did, for the form's notice. */
 export type CloneDeleteOutcome = 'deleted' | 'conflict' | 'missing' | 'failed'
 
-/** What creating a clone session did. */
+/** What starting a clone interview did. */
 export type CloneSessionOutcome = 'started' | 'failed'
 
 /**
@@ -532,10 +532,14 @@ export interface BoardWindowInjected {
   /** Read the sessions bound to one clone, newest first. */
   loadCloneSessions: (cloneId: CloneId) => Promise<readonly CloneSessionBinding[]>
   /**
-   * Create a session for one clone, bind it to the clone, apply the clone's
-   * preferred model, and open the chat window showing it.
+   * Start the bootstrap interview of one clone: create a session, mark the
+   * clone `interviewing`, bind the session with the interview role, show it in
+   * the clone window's interview body, and apply the clone's preferred model.
+   * @param clone - the record the interview drafts.
+   * @param windowId - the clone window that hosts the interview.
+   * @returns whether the interview session started.
    */
-  startCloneSession: (clone: CloneDto) => Promise<CloneSessionOutcome>
+  startCloneInterview: (clone: CloneDto, windowId: WindowId) => Promise<CloneSessionOutcome>
 }
 
 

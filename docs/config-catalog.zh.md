@@ -3444,7 +3444,7 @@ export interface Config {
 
 ## `@ketos/clone-core`
 
-Requires: `connection`
+Requires: `connection` · `agents` · `sessionProjections` · `tools` · `systemPrompt`
 
 ```ts config-catalog
 /** Deployment configuration of the clone domain. */
@@ -3458,7 +3458,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/ketos/clone-core/src/index.ts:23`](../packages/ketos/clone-core/src/index.ts)
+来源：[`packages/ketos/clone-core/src/index.ts:32`](../packages/ketos/clone-core/src/index.ts)
 
 ## 无配置的可加载插件
 

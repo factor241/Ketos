@@ -25,6 +25,7 @@ import { startWindowResizeGesture } from '../resize-gesture.ts'
 import { RESIZE_DIRECTIONS, type ResizeDirection } from '../resize.ts'
 import { panelWidthFor } from './panel-geometry.ts'
 import { windowTitle } from '../window-title.ts'
+import { CloneWindowBar } from './CloneWindowBar.tsx'
 import css from './WindowFrame.module.css'
 
 /** Handle class per direction: the frame's border strips and corners. */
@@ -134,7 +135,8 @@ interface WindowTitleControlProps {
  */
 function WindowTitleControl({ window: cardWindow, t, actions, useWindowSession, useCloneList }: WindowTitleControlProps) {
   const session = useWindowSession(cardWindow.id)
-  // A clone window has no session to name it: the clone it edits does.
+  // A clone window is named by the record it edits, not by the interview
+  // session running inside it.
   const clone = useCloneList(roster => cardWindow.cloneId === undefined
     ? undefined
     : roster.clones.find(entry => entry.id === cardWindow.cloneId))
@@ -198,7 +200,7 @@ function WindowTitleControl({ window: cardWindow, t, actions, useWindowSession, 
 }
 
 function WindowFrameView({
-  window: cardWindow, renderBody, useStore, actions, t, features, useWindowSession, useCloneList,
+  window: cardWindow, renderBody, useStore, actions, t, features, useWindowSession, useCloneList, refreshClones,
 }: WindowFrameProps) {
   const isActive = useStore(s => s.activeWindowId === cardWindow.id)
   const returned = useStore(s => s.highlightWindowId === cardWindow.id)
@@ -329,6 +331,19 @@ function WindowFrameView({
           </div>
         )}
       </WindowHeaderDrag>
+
+      {/* The clone window's tab bar and interview status; it owns the window
+          channel subscription so a streamed chunk never re-renders the frame. */}
+      {cardWindow.kind === 'clone' && (
+        <CloneWindowBar
+          window={cardWindow}
+          actions={actions}
+          t={t}
+          useWindowSession={useWindowSession}
+          useCloneList={useCloneList}
+          refreshClones={refreshClones}
+        />
+      )}
 
       <div className={css.body}>
         {renderBody(cardWindow)}

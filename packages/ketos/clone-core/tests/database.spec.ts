@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { CloneDatabase, openDatabase } from '../src/db.ts'
 import { CloneRepository } from '../src/repository.ts'
-import { CLONE_CORE_APPLICATION_ID, CLONE_CORE_SCHEMA_VERSION, runMigrations } from '../src/schema.ts'
+import { CLONE_CORE_APPLICATION_ID, CLONE_CORE_SCHEMA_VERSION, migrate, runMigrations } from '../src/schema.ts'
 
 const cleanups: Array<() => unknown> = []
 afterEach(async () => {
@@ -65,6 +65,15 @@ describe('clones.db open sequence', () => {
     await expect(openDatabase(path)).rejects.toThrow(/belongs to another application/u)
   })
 
+  it('adopts a version 1 file and stamps it at the current version', async () => {
+    const root = await temporaryDirectory()
+    const path = join(root, 'clones.db')
+    const db = await openDatabase(path)
+    db.exec('PRAGMA user_version = 1')
+    db.close()
+    expect((await pragmas(path)).userVersion).toBe(CLONE_CORE_SCHEMA_VERSION)
+  })
+
   it('refuses a schema version newer than this build', async () => {
     const root = await temporaryDirectory()
     const path = join(root, 'clones.db')
@@ -88,6 +97,9 @@ describe('forward-only migration runner', () => {
     cleanups.push(() => { db.close() })
     const repository = new CloneRepository(db)
     const created = repository.createClone({ name: 'Борис', role: 'Юрист' })
+    // The file ships at the current version; the synthetic steps exercise the
+    // runner from an older stamp.
+    db.exec('PRAGMA user_version = 1')
     const applied: string[] = []
     runMigrations(db, [
       () => { applied.push('v1') },
@@ -113,6 +125,7 @@ describe('forward-only migration runner', () => {
     cleanups.push(() => { db.close() })
     const repository = new CloneRepository(db)
     const created = repository.createClone({ name: 'Борис', role: 'Юрист' })
+    db.exec('PRAGMA user_version = 1')
     expect(() => {
       runMigrations(db, [
         () => { throw new Error('step one is unreachable at version 1') },
@@ -125,6 +138,23 @@ describe('forward-only migration runner', () => {
     const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all()
     expect(tables).toEqual([{ name: 'clone_sessions' }, { name: 'clones' }])
     expect(repository.getClone(created.id)?.name).toBe('Борис')
+  })
+
+  it('normalizes the earlier status pair when a version 1 file is adopted', async () => {
+    const db = await openDatabase(':memory:')
+    cleanups.push(() => { db.close() })
+    const repository = new CloneRepository(db)
+    const active = repository.createClone({ name: 'Вера', role: 'Аналитик' })
+    const archived = repository.createClone({ name: 'Борис', role: 'Юрист' })
+    // Values only the superseded lifecycle could store; the v2 step is the one
+    // under test, so the stamp is rewound to v1 first.
+    db.prepare('UPDATE clones SET status = ? WHERE id = ?').run('active', active.id)
+    db.prepare('UPDATE clones SET status = ? WHERE id = ?').run('archived', archived.id)
+    db.exec('PRAGMA user_version = 1')
+    migrate(db)
+    expect(repository.getClone(active.id)?.status).toBe('ready')
+    expect(repository.getClone(archived.id)?.status).toBe('draft')
+    expect(repository.listClones().map(clone => clone.name)).toEqual(['Борис', 'Вера'])
   })
 
   it('refuses a step list that cannot reach the current version', async () => {

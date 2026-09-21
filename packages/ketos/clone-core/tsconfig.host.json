@@ -8,6 +8,7 @@
   "files": [
     "src/db.ts",
     "src/index.ts",
+    "src/interview.ts",
     "src/repository.ts",
     "src/routes.ts",
     "src/schema.ts",
@@ -24,7 +25,22 @@
       "path": "../../client/connection/tsconfig.host.json"
     },
     {
+      "path": "../../core/agent"
+    },
+    {
       "path": "../../core/session"
+    },
+    {
+      "path": "../../core/system-prompt"
+    },
+    {
+      "path": "../../core/tools"
+    },
+    {
+      "path": "../../llm/llm"
+    },
+    {
+      "path": "../../session/session-projection"
     },
     {
       "path": "../../util/brand"

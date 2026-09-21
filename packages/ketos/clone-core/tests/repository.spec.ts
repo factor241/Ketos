@@ -3,7 +3,9 @@ import { brandString } from '@deepseek-ai/dsh-brand'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { afterEach, describe, expect, it } from 'vitest'
 import { openDatabase } from '../src/db.ts'
-import { CloneConflictError, CloneNotFoundError, CloneRepository } from '../src/repository.ts'
+import {
+  CloneConflictError, CloneNotFoundError, CloneNotInterviewingError, CloneRepository, CloneSessionNotBoundError,
+} from '../src/repository.ts'
 import type { CloneId } from '../src/types.ts'
 
 const cleanups: Array<() => unknown> = []
@@ -61,7 +63,7 @@ describe('clone records', () => {
       methodology: 'Сначала факты',
       preferredModel: 'deepseek-chat',
       skills: ['договоры'],
-      status: 'active',
+      status: 'ready',
     })
     expect(second).toMatchObject({
       description: 'Договорная работа',
@@ -69,7 +71,7 @@ describe('clone records', () => {
       methodology: 'Сначала факты',
       preferredModel: 'deepseek-chat',
       skills: ['договоры'],
-      status: 'active',
+      status: 'ready',
     })
     expect(repository.listClones().map(clone => clone.id)).toEqual([second.id, first.id])
     expect(repository.getClone('missing' as CloneId)).toBeUndefined()
@@ -78,12 +80,20 @@ describe('clone records', () => {
   it('applies an update patch, bumps the revision, and moves updatedAt', async () => {
     const repository = await fixture()
     const clone = repository.createClone(MINIMAL)
-    const updated = repository.updateClone(clone.id, { name: 'Анна П.', status: 'active', preferredModel: null }, 1)
-    expect(updated).toMatchObject({ name: 'Анна П.', role: 'Аналитик', status: 'active', revision: 2 })
+    const updated = repository.updateClone(clone.id, { name: 'Анна П.', status: 'interviewing', preferredModel: null }, 1)
+    expect(updated).toMatchObject({ name: 'Анна П.', role: 'Аналитик', status: 'interviewing', revision: 2 })
     expect(updated.createdAt).toBe(clone.createdAt)
     expect(updated.updatedAt).toMatch(ISO_UTC)
     expect(Date.parse(updated.updatedAt)).toBeGreaterThanOrEqual(Date.parse(clone.updatedAt))
     expect(repository.getClone(clone.id)).toEqual(updated)
+  })
+
+  it('replaces the skill list through a patch', async () => {
+    const repository = await fixture()
+    const clone = repository.createClone({ ...MINIMAL, skills: ['старое'] })
+    const updated = repository.updateClone(clone.id, { skills: ['договоры', 'анализ'] }, 1)
+    expect(updated.skills).toEqual(['договоры', 'анализ'])
+    expect(repository.getClone(clone.id)?.skills).toEqual(['договоры', 'анализ'])
   })
 
   it('refuses a stale revision and a patch that selects no field', async () => {
@@ -104,7 +114,7 @@ describe('clone records', () => {
     repository.bindSession({ cloneId: clone.id, sessionId: sid('session-1') })
     expect(() => repository.deleteClone(clone.id, 9)).toThrow(CloneConflictError)
     expect(repository.getClone(clone.id)).toBeDefined()
-    repository.updateClone(clone.id, { status: 'archived' }, 1)
+    repository.updateClone(clone.id, { status: 'ready' }, 1)
     expect(repository.deleteClone(clone.id, 2)).toBe(clone.id)
     expect(repository.getClone(clone.id)).toBeUndefined()
     expect(repository.listSessions(clone.id)).toEqual([])
@@ -128,11 +138,108 @@ describe('clone session bindings', () => {
     const first = repository.createClone(MINIMAL)
     const second = repository.createClone({ name: 'Борис', role: 'Юрист' })
     repository.bindSession({ cloneId: first.id, sessionId: sid('session-1') })
-    repository.bindSession({ cloneId: second.id, sessionId: sid('session-1'), role: 'task' })
+    repository.bindSession({ cloneId: second.id, sessionId: sid('session-1'), role: 'interview' })
     expect(repository.listSessions(first.id)).toEqual([])
-    expect(repository.listSessions(second.id)).toMatchObject([{ sessionId: sid('session-1'), role: 'task' }])
+    expect(repository.listSessions(second.id)).toMatchObject([{ sessionId: sid('session-1'), role: 'interview' }])
     expect(() => repository.bindSession({ cloneId: 'missing' as CloneId, sessionId: sid('session-2') })).toThrow(CloneNotFoundError)
     expect(repository.listSessions('missing' as CloneId)).toEqual([])
+  })
+})
+
+describe('interview drafts', () => {
+  it('finds the clone of a bound session and nothing for an unbound one', async () => {
+    const repository = await fixture()
+    const clone = repository.createClone(MINIMAL)
+    repository.bindSession({ cloneId: clone.id, sessionId: sid('session-1'), role: 'interview' })
+    expect(repository.bindingFor(sid('session-1'))).toMatchObject({ cloneId: clone.id, role: 'interview' })
+    expect(repository.bindingFor(sid('session-2'))).toBeUndefined()
+  })
+
+  it('writes the authored profile of the bound clone and marks it ready', async () => {
+    const repository = await fixture()
+    const clone = repository.createClone(MINIMAL)
+    repository.updateClone(clone.id, { status: 'interviewing' }, 1)
+    repository.bindSession({ cloneId: clone.id, sessionId: sid('session-1'), role: 'interview' })
+    const saved = repository.saveDraft(sid('session-1'), {
+      role: 'Старший аналитик',
+      description: 'Разбирает требования',
+      persona: 'Спокойная и точная',
+      methodology: 'Сначала факты, потом гипотезы',
+      skills: ['анализ', 'интервью'],
+    })
+    expect(saved).toMatchObject({
+      id: clone.id,
+      role: 'Старший аналитик',
+      description: 'Разбирает требования',
+      persona: 'Спокойная и точная',
+      methodology: 'Сначала факты, потом гипотезы',
+      skills: ['анализ', 'интервью'],
+      status: 'ready',
+      revision: 3,
+    })
+    expect(repository.getClone(clone.id)).toEqual(saved)
+  })
+
+  it('refuses a draft whose clone already left the interview', async () => {
+    const repository = await fixture()
+    const clone = repository.createClone(MINIMAL)
+    repository.updateClone(clone.id, { status: 'interviewing' }, 1)
+    repository.bindSession({ cloneId: clone.id, sessionId: sid('session-1'), role: 'interview' })
+    // The person confirmed the profile from the form; the agent's later save
+    // must not overwrite it.
+    repository.updateClone(clone.id, { status: 'ready' }, 2)
+    expect(() => repository.saveDraft(sid('session-1'), {
+      role: 'роль', description: 'описание', persona: 'персона', methodology: 'метод', skills: [],
+    })).toThrow(CloneNotInterviewingError)
+  })
+
+  it('refuses a draft from a working session and one that exceeds the field bounds', async () => {
+    const repository = await fixture()
+    const clone = repository.createClone(MINIMAL)
+    repository.updateClone(clone.id, { status: 'interviewing' }, 1)
+    repository.bindSession({ cloneId: clone.id, sessionId: sid('session-1'), role: 'main' })
+    expect(() => repository.saveDraft(sid('session-1'), {
+      role: 'роль', description: 'описание', persona: 'персона', methodology: 'метод', skills: [],
+    })).toThrow(CloneSessionNotBoundError)
+    repository.bindSession({ cloneId: clone.id, sessionId: sid('session-1'), role: 'interview' })
+    expect(() => repository.saveDraft(sid('session-1'), {
+      role: 'роль',
+      description: 'описание',
+      persona: 'персона',
+      methodology: 'x'.repeat(20_001),
+      skills: [],
+    })).toThrow(/methodology exceeds/u)
+    expect(() => repository.saveDraft(sid('session-1'), {
+      role: 'роль', description: 'описание', persona: 'персона', methodology: 'метод', skills: [''],
+    })).not.toThrow()
+  })
+
+  it('refuses a draft from a session that is not bound to a clone', async () => {
+    const repository = await fixture()
+    repository.createClone(MINIMAL)
+    const refusal = (() => {
+      try {
+        return repository.saveDraft(sid('stranger'), {
+          role: 'роль', description: 'описание', persona: 'персона', methodology: 'метод', skills: [],
+        })
+      } catch (error: unknown) { return error }
+    })()
+    expect(refusal).toBeInstanceOf(CloneSessionNotBoundError)
+    expect((refusal as CloneSessionNotBoundError).code).toBe('ketos/not-a-clone-session')
+  })
+
+  it('refuses a draft whose bound clone disappeared', async () => {
+    const db = await openDatabase(':memory:')
+    cleanups.push(() => { db.close() })
+    const repository = new CloneRepository(db)
+    const clone = repository.createClone(MINIMAL)
+    repository.bindSession({ cloneId: clone.id, sessionId: sid('session-1'), role: 'interview' })
+    // Simulates a database whose binding outlived its clone (the shipped
+    // delete removes both in one transaction).
+    db.prepare('DELETE FROM clones WHERE id = ?').run(clone.id)
+    expect(() => repository.saveDraft(sid('session-1'), {
+      role: 'роль', description: 'описание', persona: 'персона', methodology: 'метод', skills: [],
+    })).toThrow(CloneNotFoundError)
   })
 })
 
@@ -148,5 +255,15 @@ describe('durable decoding', () => {
     expect(() => repository.getClone(clone.id)).toThrow(/array of strings/u)
     db.prepare('UPDATE clones SET skills_json = ? WHERE id = ?').run('not json', clone.id)
     expect(() => repository.getClone(clone.id)).toThrow()
+  })
+
+  it('refuses a hand-edited binding role instead of surfacing it', async () => {
+    const db = await openDatabase(':memory:')
+    cleanups.push(() => { db.close() })
+    const repository = new CloneRepository(db)
+    const clone = repository.createClone(MINIMAL)
+    repository.bindSession({ cloneId: clone.id, sessionId: sid('session-1') })
+    db.prepare('UPDATE clone_sessions SET role = ? WHERE session_id = ?').run('broken', 'session-1')
+    expect(() => repository.bindingFor(sid('session-1'))).toThrow(/unknown role/u)
   })
 })

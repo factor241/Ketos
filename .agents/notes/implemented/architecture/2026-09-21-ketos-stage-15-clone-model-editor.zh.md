@@ -12,13 +12,13 @@ Status: implemented
 
 **`@ketos/clone-core` 拥有 `$DSH_HOME/clones.db` 及其只进式 schema 运行器。** 领域 KV 栈被否决：`storage-domain`/`storage-sqlite` 存储经过校验的文档，并拒绝任何不是由它们写入的 `user_version`，因此一个在第 17、19 阶段按步骤增长的 schema 无法安放其中。`src/schema.ts` 持有有序的步骤列表——第 `n - 1` 项产出 `user_version` `n`——`migrate` 在一趟中补齐所有缺失步骤，并给新文件打上 `application_id` `KTCL`。只有外来的 `application_id`、更新的 `user_version`，或不是 SQLite 的文件会被拒绝；没有回滚，也不能降级。父目录以 `0700` 创建，缺失文件以 `0600` 创建，且每次读取都会解码它找到的持久化值，因此手工改过的 `status` 或 `skills_json` 会直接报错，而不会进入 UI。
 
-**数据库惰性打开。** `apply` 注册路由并持有一个惰性句柄；`node:sqlite` 的导入与文件打开发生在首次请求时。构建后的 CLI 冒烟测试断言随附组合启动时没有 `ExperimentalWarning: SQLite`，因此在挂载时急切打开会让每个从不触碰克隆的部署都挂在该闸门上。
+**数据库惰性打开。** `apply` 注册路由并持有一个惰性句柄；`node:sqlite` 的导入与文件打开发生在首次请求时——访谈阶段把它扩展到首个恢复的会话，而该会话可能属于某个克隆。构建后的 CLI 冒烟测试断言随附组合启动时没有 `ExperimentalWarning: SQLite`，因此在挂载时急切打开会让每个从不触碰克隆的部署都挂在该闸门上。
 
 **域由一条精确 Fetch 路由承载，JSON 手工校验。** `/api/ketos.clones` 通过 `ctx.connection.fetch` 注册（`GET` 列出，`POST` 携带 `op`），因为精确路由先于 Typert 网关匹配，而克隆 API 仍在演进——代码生成的 remote 域会把逐字段的 wire 契约冻结。路由在打开数据库之前自行校验每个字段（未知字段、超长文本、空名称或空角色、非整数修订号、未知 `op`），并应答 `400 ketos/invalid`、`404 ketos/clone-not-found` 或 `409 ketos/clone-conflict`；意外的内部故障以 `500` 加纯文本正文应答，客户端不会把它读作领域错误码。浏览器与宿主通过包的 `./types` 子路径共享 `src/types.ts`，浏览器代码以 type-only 方式导入它。
 
 **写入按修订号校验，删除克隆会一并移除其绑定。** 仅当存储的 `revision` 仍等于调用方读到的值时，`update` 与 `delete` 才会生效——该守卫是各写入语句的一部分，因此没有写入方能插入检查与写入之间——不匹配时应答 `ketos/clone-conflict` 并保持记录不变。迁移步骤与其版本戳在同一事务中提交，因此崩溃或步骤失败只会让文件停留在先前版本，不留下需要重放的半成品 DDL；打开失败也不会被缓存，下一次请求会重试。`deleteClone` 在一个事务中删除克隆及其 `clone_sessions` 行，因为克隆已不在的绑定永远无法解析；会话本身作为普通会话留在会话存储中。
 
-**克隆 UI 留在 `ui-board` 之内。** 窗口状态新增可选的 branded `cloneId`，由布局文档持久化，因此恢复的克隆窗口会重新打开对应的克隆；`BOARD_WINDOW_TEMPLATES.clone` 与 `board.window.body` 的 `clone` 键注册编辑器主体，外框与 dock 行在用户重命名之前以克隆的名字命名窗口。克隆窗口编辑的是卡片而非聊天：`resolveChatWindow` 不再把它当作聊天目标，面板中会创建会话的动作改为打开聊天窗口，因此没有任何手势会把克隆窗口永远无法显示的会话绑定到它。修订号在存在未保存草稿时移动，只会重定基准修订号——用户的文本得以保留，下次保存会把它应用到更新的记录之上——而没有未保存修改的表单则跟随存储记录。名册通过 inject 的 `hooks` 隔间（`cloneList`）发布，这是注册方自有响应式事实的既定通道，所有变更都经由新的 inject face 回调；dock 的克隆迷你面板、Omnibox 的「新建克隆」条目与「克隆」一节，以及编辑器读取同一个来源。创建克隆会话是一次 apply 侧操作：`sessions.create()`、`bridge.adopt(windowId, sessionId)`（绑定并应用记住的默认预设）、通过 `bridge.selectModel` 应用存储的模型路由，以及在路由上 `bindSession`；会话在自己的聊天窗口中打开。模型选择同时保存为 `agent-default-model` 系统默认值——即 `packages/client/ui-board/README.md` 已记录的既有副作用；本阶段按计划接受它。
+**克隆 UI 留在 `ui-board` 之内。** 窗口状态新增可选的 branded `cloneId`，由布局文档持久化，因此恢复的克隆窗口会重新打开对应的克隆；`BOARD_WINDOW_TEMPLATES.clone` 与 `board.window.body` 的 `clone` 键注册编辑器主体，外框与 dock 行在用户重命名之前以克隆的名字命名窗口。克隆窗口编辑卡片，并在其访谈开始后把该访谈承载在窗口自己的对话主体中：`resolveChatWindow` 恰好在它呈现对话时把它当作聊天目标，因此没有任何手势会绑定窗口无法显示的会话。修订号在存在未保存草稿时移动，只会重定基准修订号——用户的文本得以保留，下次保存会把它应用到更新的记录之上——而没有未保存修改的表单则跟随存储记录。名册通过 inject 的 `hooks` 隔间（`cloneList`）发布，这是注册方自有响应式事实的既定通道，所有变更都经由新的 inject face 回调；dock 的克隆迷你面板、Omnibox 的「新建克隆」条目与「克隆」一节，以及编辑器读取同一个来源。创建克隆会话是一次 apply 侧操作：`sessions.create()`、在路由上以绑定的角色 `bindSession`、`bridge.adopt(windowId, sessionId)`（绑定并应用记住的默认预设），以及通过 `bridge.selectModel` 应用存储的模型路由；访谈阶段随后把该会话移入克隆窗口的访谈主体，而不是它自己的聊天窗口。模型选择同时保存为 `agent-default-model` 系统默认值——即 `packages/client/ui-board/README.md` 已记录的既有副作用；本阶段按计划接受它。
 
 **首选模型以 `provider/model` 路由存储。** 编辑器的选择器提供部署的模型目录与「部署默认」，把选择存入记录的 `preferred_model` 列，`parseModelRoute` 在第一个分隔符处拆分——提供方 id 不含斜杠，因此包含斜杠的模型 id 保持完整。
 
@@ -45,3 +45,4 @@ Verification: `packages/ketos/clone-core/tests/database.spec.ts` 覆盖仅属主
 - [Ketos MVP engineering policy (fork scope, coverage exceptions, process)](../process/2026-09-15-ketos-mvp-engineering-policy.zh.md) —— 本包消费的 `packages/ketos/clone-*/src/**` 覆盖例外。
 - [`packages/ketos/clone-core/README.md`](../../../../packages/ketos/clone-core/README.zh.md) —— 路由表、schema 与包的局限。
 - [`packages/client/ui-board/README.md`](../../../../packages/client/ui-board/README.zh.md) —— 克隆窗口、dock 迷你面板与模型默认值副作用。
+- [The clone interview is a per-agent scope derived from stored bindings and hosted by the clone window](2026-09-21-ketos-stage-16-clone-interview.zh.md) —— 消费此 `clone_sessions` 绑定并改变克隆窗口所显示内容的阶段。

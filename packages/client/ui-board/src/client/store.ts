@@ -3,6 +3,7 @@
  */
 import { defineStore, type EngineStoreHandle, type EngineStoreInstance } from '@deepseek-ai/dsh-client-store'
 import type { CloneId } from '@ketos/clone-core/types'
+import type { CloneEdit } from './clone-draft.ts'
 import {
   BOARD_ZOOM_MAX, BOARD_ZOOM_MIN, PANEL_DEFAULT_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH,
   type BoardLayoutDocument, type BoardPanelGroupBy, type BoardPanelOrderBy,
@@ -45,6 +46,7 @@ type BoardActions = {
   moveWindow: (draft: BoardState, id: WindowId, x: number, y: number, snap: boolean) => void
   resizeWindow: (draft: BoardState, id: WindowId, width: number, height: number, snap: boolean) => void
   setWindowBodyKind: (draft: BoardState, id: WindowId, bodyKind: WindowBodyKind) => void
+  setCloneEdit: (draft: BoardState, cloneId: CloneId, edit: CloneEdit | undefined) => void
   setWindowCustomTitle: (draft: BoardState, id: WindowId, title: string | undefined) => void
   focusWindow: (draft: BoardState, id: WindowId) => void
   centerOnWindow: (draft: BoardState, id: WindowId) => void
@@ -115,6 +117,13 @@ export interface BoardState {
   returnWindowId: WindowId | null
   /** Window flashing the return highlight, or null. Transient view state. */
   highlightWindowId: WindowId | null
+  /**
+   * Unsaved editor state per clone. It lives here, not in the clone body, so
+   * switching the window between its profile and interview bodies — or any
+   * remount — keeps the user's text and the fields the agent rewrote. The
+   * layout document does not carry it: a reload starts from the stored record.
+   */
+  cloneEdits: Record<string, CloneEdit>
 }
 
 /**
@@ -314,6 +323,7 @@ export function createBoardStore(): BoardStoreHandle {
       composerIntentSeq: 0,
       returnWindowId: null,
       highlightWindowId: null,
+      cloneEdits: {},
     }),
     actions: {
       setPan: (draft, panX, panY) => {
@@ -374,6 +384,11 @@ export function createBoardStore(): BoardStoreHandle {
         if (!win) return
         win.bodyKind = bodyKind
       },
+      setCloneEdit: (draft, cloneId, edit) => {
+        // Immer draft: the branded id is an opaque record key.
+        if (edit === undefined) Reflect.deleteProperty(draft.cloneEdits, cloneId)
+        else draft.cloneEdits[cloneId] = edit
+      },
       setWindowCustomTitle: (draft, id, title) => {
         const win = draft.windows[id as string]
         if (!win) return
@@ -428,6 +443,11 @@ export function createBoardStore(): BoardStoreHandle {
         draft.panelOrderBy = orderBy
       },
       closeWindow: (draft, id) => {
+        // A closed clone window takes its unsaved draft with it: the window is
+        // the only surface that edits the record, so nothing should keep a
+        // copy of what the user abandoned.
+        const closing = draft.windows[id as string]
+        if (closing?.cloneId !== undefined) Reflect.deleteProperty(draft.cloneEdits, closing.cloneId)
         // Immer draft: removing the window entry on close; WindowId is
         // opaque, so the record key is only reachable dynamically.
         Reflect.deleteProperty(draft.windows, id)

@@ -1,5 +1,5 @@
 ---
-description: "The Ketos clone domain host package: clones.db, its forward-only schema, the revision-CAS repository, and the /api/ketos.clones Fetch route the board's clone windows call."
+description: "The Ketos clone domain host package: clones.db, its forward-only schema, the revision-CAS repository, the /api/ketos.clones Fetch route the board's clone windows call, and the interview mode that drafts a clone profile."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@ketos/clone-core` owns the Ketos clone domain. A clone is a stored record — name, role, summary, persona, methodology, preferred model route, skills, status — plus the sessions bound to it; this package is the only writer of that data: one `node:sqlite` database at `$DSH_HOME/clones.db`, a forward-only schema runner, a repository whose updates and deletes apply only under the revision the caller read, and the exact `/api/ketos.clones` Fetch route the board's clone window reads and writes. It is host-side only and contributes no prompt section, tool, or session event yet.
+`@ketos/clone-core` owns the Ketos clone domain. A clone is a stored record — name, role, summary, persona, methodology, preferred model route, skills, status — plus the sessions bound to it; this package is its only writer: one `node:sqlite` database at `$DSH_HOME/clones.db`, a forward-only schema runner, a repository whose updates and deletes apply only under the revision the caller read, and the exact `/api/ketos.clones` Fetch route the board's clone window reads and writes. It also owns the interview that drafts a profile: one bound, `interviewing` session gets an interviewer prompt and a draft-save tool in that agent scope.
 
 ## Table of Contents
 
@@ -57,12 +57,17 @@ The package has no browser bundle: `packages/client/ui-board` talks to the route
 
 Failures answer HTTP status plus `{ ok: false, error }`: `400` `ketos/invalid`, `404` `ketos/clone-not-found`, `409` `ketos/clone-conflict`. The body is validated field by field at the route, and validation runs before the database is opened, so a malformed request never creates the file. An unexpected internal failure (for example a database that cannot be opened) answers `500` with a plain-text body and no code, so a client never reads it as a domain code.
 
+`patch` accepts `name`, `role`, `description`, `persona`, `methodology`, `preferredModel`, `skills`, and `status`; `status` is one of `draft`, `interviewing`, `ready`, and `role` in a binding is one of `main`, `interview`. Every accepted write notifies the package's interview coordinator, which re-derives the interview mode of every live top-level agent.
+
 ### Observable behavior
 
-- **Opening is lazy.** The profile mounts the plugin and registers the route, but `node:sqlite` is imported and the file is opened on the first route call, so a process that never touches clones never prints Node's SQLite experimental warning at startup.
-- **The file is owner-only.** The parent directory is created `0700` and a missing database file `0600`; an existing file keeps its modes. The database runs in WAL mode with `application_id` `KTCL` and `user_version` `1`.
+- **Opening is lazy.** The profile mounts the plugin and registers the route, but `node:sqlite` is imported and the file is opened on the first clone request or the first restored session — a session restored from disk may be an interview, so it has to be looked up. A process whose chats are all fresh and never touch a clone never opens the file.
+- **The file is owner-only.** The parent directory is created `0700` and a missing database file `0600`; an existing file keeps its modes. The database runs in WAL mode with `application_id` `KTCL` and `user_version` `2`.
+- **A clone has three lifecycle statuses.** `draft` is a record created by hand, `interviewing` is a clone whose profile an interview session is drafting, and `ready` is a profile saved and awaiting the person's review. Only `interviewing` composes the interview mode.
 - **Foreign databases are refused.** An `application_id` stamped by another application, a `user_version` newer than this build, or a file that is not a SQLite database all reject at open instead of being rewritten. An empty SQLite file with no stamps is adopted.
 - **Writes are revision-checked.** `update` and `delete` apply only while the stored `revision` still equals the one the caller read; otherwise the answer is `ketos/clone-conflict` and the stored record is untouched. A session binds to at most one clone, and the newest binding of a session wins.
+- **The interview opens itself once.** When a session enters the mode, the package queues one kickoff message through `agent.followup` with the source kind `ketos-clone-interview`. The pending inbox and the durable session log are the authority: a kickoff still waiting for its turn, or one already logged, suppresses a second; a kickoff a cancelled turn dropped is queued again, and a restarted process reads both from the log.
+- **The profile save ends the mode.** `clone_draft_save` writes the profile it was given over the bound clone, marks the clone `ready`, and the coordinator withdraws the section and the tool. The write enforces the mode itself: a session without an `interview` binding is refused with `ketos/not-a-clone-session`, a clone that already left `interviewing` (for example a profile the person confirmed first) with `ketos/clone-not-interviewing`, and a profile whose fields exceed the documented bounds with `ketos/invalid-draft`; none of them writes anything.
 
 -----
 
@@ -74,7 +79,11 @@ Failures answer HTTP status plus `{ ok: false, error }`: `400` `ketos/invalid`, 
 
 ### Schema
 
-`clones` stores one row per clone; `clone_sessions` stores one row per bound session with an index on `clone_id`. Both are STRICT tables, timestamps are ISO-8601 UTC strings, and every read decodes the durable value it finds — an unknown `status` or a `skills_json` that is not an array of strings fails loud instead of surfacing a broken clone in the UI.
+`clones` stores one row per clone; `clone_sessions` stores one row per bound session with an index on `clone_id`. Both are STRICT tables, timestamps are ISO-8601 UTC strings, and every read decodes the durable value it finds — an unknown `status`, binding role, or a `skills_json` that is not an array of strings fails loud instead of surfacing a broken clone in the UI. The version `2` step normalizes the superseded speculative status pair (`active` to `ready`, `archived` to `draft`) without touching any other field.
+
+### Interview mode
+
+`src/interview.ts` owns the mode. Its coordinator listens to `agent/created`, `agent/session-start`, and `agent/disposed`, and the route's mutation notification, then reads the two stored facts — the binding role and the clone's status — and reconciles one per-agent scope: `agent.ctx.inject(['tools', 'systemPrompt'], …)` registers `clone_draft_save` and the `clone:interview` section, so both live and die with that agent and never enter the global registries. Reconciliations are chained per agent, so overlapping triggers cannot install the mode twice, and the kickoff projection makes the opening turn exactly once per session even across a process restart.
 
 ### Forward-only runner
 
@@ -87,8 +96,9 @@ Failures answer HTTP status plus `{ ok: false, error }`: `400` `ketos/invalid`, 
 | [`src/index.ts`](src/index.ts) | Plugin entry: `name`/`inject`/`Config`/`apply`, the lazily opened database, and its disposal |
 | [`src/db.ts`](src/db.ts) | Owner-only file creation, the open sequence, and the lazy handle the plugin shares |
 | [`src/schema.ts`](src/schema.ts) | Identity and version stamps, the ordered migration steps, and the runner |
-| [`src/repository.ts`](src/repository.ts) | Prepared-statement CRUD with revision CAS and the session bindings |
+| [`src/repository.ts`](src/repository.ts) | Prepared-statement CRUD with revision CAS, the session bindings, and the interview profile save |
 | [`src/routes.ts`](src/routes.ts) | The exact Fetch route, its manual body validation, and its error codes |
+| [`src/interview.ts`](src/interview.ts) | Interview mode: the coordinator, the `clone:interview` section text, the `clone_draft_save` tool, the kickoff message source, and the kickoff projection |
 | [`src/types.ts`](src/types.ts) | The stored record, the wire DTO, the request inputs, and the error codes; the module browser code imports type-only |
 | — | No runtime invariant companion is published: the package's relations are open-time identity checks and per-request route behavior, both covered by package specs, and there is no continuously observable in-process relation to publish. |
 
@@ -112,15 +122,29 @@ Failures answer HTTP status plus `{ ok: false, error }`: `400` `ketos/invalid`, 
 
 #### What the model sees
 
-Nothing yet. The package registers no prompt section, tool, schema, or session event, and a clone's persona, methodology, and skills stay host data in `clones.db` until the stages that compose them into an agent's system prompt.
+Nothing. A clone's persona, methodology, and skills stay host data in `clones.db` until the stages that compose them into an agent's system prompt, and an ordinary session never sees a clone at all.
 
 #### Token effect
 
-Zero tokens in every live request.
+Zero tokens in every ordinary request.
 
 #### KV Cache effect
 
-None; the package never touches a live request prefix.
+None; the package never touches an ordinary session's request prefix.
+
+### The interview session
+
+#### What the model sees
+
+The interviewing agent's system prompt carries the `clone:interview` section: the instruction to interview the person one question at a time, the checklist of topics (responsibilities, regulations, data sources, communication style, quality criteria, reference cases, prohibitions), and the instruction to finish by calling `clone_draft_save` once with the complete profile. The tool is registered only in that agent's scope, its result names the saved clone and revision, and the opening stimulus arrives as a user-role message whose source kind is `ketos-clone-interview` and whose transcript row is the collapsed notice "Clone interview started".
+
+#### Token effect
+
+The section is about 260 tokens and rides every request of an interview session; the tool schema adds its arguments to that session's tool catalog. No other session and no other request carries either.
+
+#### KV Cache effect
+
+The section text is static, so the request prefix stays byte-identical between turns and the cache holds; only tool results and ordinary messages grow the suffix. Withdrawing the mode at `ready` removes the section from the next assembly, which is a new prefix by design.
 
 ## Known Limitations and Deferred Work
 
@@ -128,7 +152,9 @@ None; the package never touches a live request prefix.
 
 - **Tasks and memory tables are absent** — `clone_tasks` and `memories` are steps 2 and 3 of the same runner, added by the autonomous-task and memory stages; until then the database holds clone records and session bindings only.
 - **The route is hand-validated, not generated** — there is no Typert codegen for the clone domain (the API is still moving), so the browser and the host share `src/types.ts` by hand and the route validates every field itself.
-- **`skills` is stored but unused** — the field round-trips through the record and the wire; no editor control, tool, or prompt consumes it before the methodology/skills stage.
+- **`skills` is stored but unused** — the interview tool writes the names the person listed and they round-trip through the record and the wire, but no editor control or prompt consumes them before the methodology/skills stage.
+- **Interview progress is the status, not a checklist** — the package reports `interviewing` and the transcript; it does not track which topics were covered, and the stage that owns progress can add a checklist without changing the mode.
+- **The kickoff is queued once per session** — the pending inbox and the session log are the authority; a kickoff that a hard kill left pending is claimed on resume instead of being queued twice, and one that never reached either is queued again rather than leaving the session waiting silently.
 - **The preferred model is applied through the browser's model selection** — creating a clone session selects the stored route through `remote.session.selectModel`, which also saves the choice as the `agent-default-model` system default; `packages/client/ui-board/README.md` owns the product-facing statement of that side effect.
 - **Deleting a clone removes its session bindings** — the sessions themselves stay in the session store as ordinary sessions; nothing unbinds a session any other way.
 - **No rollbacks and no downgrade** — a database written by a newer build rejects at open; recovering means using the newer build or deleting the file.
@@ -139,6 +165,6 @@ None; the package never touches a live request prefix.
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-Inspect a live database with `sqlite3 "$DSH_HOME/clones.db" '.schema'`; the default home of the Ketos CLI is `~/.ketos`. Run the package specs with `pnpm exec vitest run packages/ketos/clone-core/tests`, and the real-composition boot with the same command (`tests/composition.spec.ts` mounts the row through a Loader and a recording connection service).
+Inspect a live database with `sqlite3 "$DSH_HOME/clones.db" '.schema'`; the default home of the Ketos CLI is `~/.ketos`. Run the package specs with `pnpm exec vitest run packages/ketos/clone-core/tests`: `tests/composition.spec.ts` mounts the row through a real Loader beside the agent stack and drives the whole interview path (install, kickoff, save, withdrawal) with a scripted model.
 
 </details>

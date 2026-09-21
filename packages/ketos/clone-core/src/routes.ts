@@ -11,11 +11,11 @@ import { brandString } from '@deepseek-ai/dsh-brand'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { CloneDatabase } from './db.ts'
-import { CloneConflictError, CloneNotFoundError, CLONE_STATUSES } from './repository.ts'
+import { CloneConflictError, CloneNotFoundError, CLONE_BINDING_ROLES, CLONE_STATUSES } from './repository.ts'
 import type {
-  CloneAnswerResponse, CloneBindingResponse, CloneCreateInput, CloneDeletedResponse, CloneErrorCode,
-  CloneFailureResponse, CloneId, CloneListResponse, CloneRecord, CloneSessionsResponse, CloneStatus,
-  CloneSuccessResponse, CloneUpdatePatch,
+  CloneAnswerResponse, CloneBindingResponse, CloneBindingRole, CloneCreateInput, CloneDeletedResponse,
+  CloneErrorCode, CloneFailureResponse, CloneId, CloneListResponse, CloneRecord, CloneSessionsResponse,
+  CloneStatus, CloneSuccessResponse, CloneUpdatePatch,
 } from './types.ts'
 
 /** Exact Fetch route path owning the clone domain. */
@@ -46,6 +46,11 @@ const FIELDS = {
   bindSession: ['op', 'cloneId', 'sessionId', 'role'],
   listSessions: ['op', 'cloneId'],
 } as const
+
+/** Every field a patch may replace, so a typo is a rejected request. */
+const PATCH_FIELDS = [
+  'name', 'role', 'description', 'persona', 'methodology', 'preferredModel', 'skills', 'status',
+] as const
 
 /** A request body the route refuses; mapped to 400 `ketos/invalid`. */
 class InvalidBody extends Error {
@@ -149,37 +154,58 @@ function requiredRevision(source: Record<string, unknown>): number {
   return value
 }
 
-/** A binding role: absent (`main`), or a short label bounded by the column. */
-function optionalBindingRole(source: Record<string, unknown>): string | undefined {
+/** A binding role: absent (`main`), or one of the roles the table stores. */
+function optionalBindingRole(source: Record<string, unknown>): CloneBindingRole | undefined {
   const value = source['role']
   if (value === undefined) return undefined
-  if (typeof value !== 'string' || value.trim() === '') throw new InvalidBody('role must be a non-empty string')
-  if (value.length > LIMITS.bindingRole) {
-    throw new InvalidBody(`role exceeds ${String(LIMITS.bindingRole)} characters`)
+  if (typeof value !== 'string' || !(CLONE_BINDING_ROLES as readonly string[]).includes(value)) {
+    throw new InvalidBody(`role must be one of ${CLONE_BINDING_ROLES.join(', ')}`)
   }
-  return value
+  return value as CloneBindingRole
 }
 
-/** Build the update patch from validated fields; an empty patch is refused. */
-function parsePatch(source: Record<string, unknown>): CloneUpdatePatch {
-  rejectUnknownFields(source, ['name', 'role', 'description', 'persona', 'methodology', 'preferredModel', 'status'])
-  const name = optionalText(source, 'name', LIMITS.name)?.trim()
-  if (name === '') throw new InvalidBody('name must not be empty')
-  const role = optionalText(source, 'role', LIMITS.role)?.trim()
-  if (role === '') throw new InvalidBody('role must not be empty')
+/**
+ * The authored fields beyond name and role, decoded for both `create` and
+ * `update`: absent stays absent, so the caller can tell "keep the stored value"
+ * from "replace it with an empty one".
+ * @param source - decoded request body.
+ * @returns the present fields, ready to spread into an input or a patch.
+ */
+function authoredFields(source: Record<string, unknown>): {
+  description?: string
+  persona?: string
+  methodology?: string
+  preferredModel?: string | null
+  skills?: string[]
+  status?: CloneStatus
+} {
   const description = optionalText(source, 'description', LIMITS.description)
   const persona = optionalText(source, 'persona', LIMITS.persona)
   const methodology = optionalText(source, 'methodology', LIMITS.methodology)
   const preferredModel = optionalModel(source)
+  const skills = optionalSkills(source)
   const status = optionalStatus(source)
-  const patch: CloneUpdatePatch = {
-    ...(name === undefined ? {} : { name }),
-    ...(role === undefined ? {} : { role }),
+  return {
     ...(description === undefined ? {} : { description }),
     ...(persona === undefined ? {} : { persona }),
     ...(methodology === undefined ? {} : { methodology }),
     ...(preferredModel === undefined ? {} : { preferredModel }),
+    ...(skills === undefined ? {} : { skills }),
     ...(status === undefined ? {} : { status }),
+  }
+}
+
+/** Build the update patch from validated fields; an empty patch is refused. */
+function parsePatch(source: Record<string, unknown>): CloneUpdatePatch {
+  rejectUnknownFields(source, PATCH_FIELDS)
+  const name = optionalText(source, 'name', LIMITS.name)?.trim()
+  if (name === '') throw new InvalidBody('name must not be empty')
+  const role = optionalText(source, 'role', LIMITS.role)?.trim()
+  if (role === '') throw new InvalidBody('role must not be empty')
+  const patch: CloneUpdatePatch = {
+    ...(name === undefined ? {} : { name }),
+    ...(role === undefined ? {} : { role }),
+    ...authoredFields(source),
   }
   if (Object.keys(patch).length === 0) throw new InvalidBody('patch must set at least one field')
   return patch
@@ -206,21 +232,10 @@ function toDto(record: CloneRecord): CloneAnswerResponse['clone'] {
 /** The `create` body decoded into the repository input. */
 function parseCreate(source: Record<string, unknown>): CloneCreateInput {
   rejectUnknownFields(source, FIELDS.create)
-  const description = optionalText(source, 'description', LIMITS.description)
-  const persona = optionalText(source, 'persona', LIMITS.persona)
-  const methodology = optionalText(source, 'methodology', LIMITS.methodology)
-  const preferredModel = optionalModel(source)
-  const skills = optionalSkills(source)
-  const status = optionalStatus(source)
   return {
     name: requiredText(source, 'name', LIMITS.name),
     role: requiredText(source, 'role', LIMITS.role),
-    ...(description === undefined ? {} : { description }),
-    ...(persona === undefined ? {} : { persona }),
-    ...(methodology === undefined ? {} : { methodology }),
-    ...(preferredModel === undefined ? {} : { preferredModel }),
-    ...(skills === undefined ? {} : { skills }),
-    ...(status === undefined ? {} : { status }),
+    ...authoredFields(source),
   }
 }
 
@@ -232,7 +247,11 @@ function parseCreate(source: Record<string, unknown>): CloneCreateInput {
  * @param database - the plugin's lazily opened clone database.
  * @returns the response for the browser.
  */
-async function dispatch(source: Record<string, unknown>, database: CloneDatabase): Promise<Response> {
+async function dispatch(
+  source: Record<string, unknown>,
+  database: CloneDatabase,
+  onMutated: (() => void) | undefined,
+): Promise<Response> {
   const op = source['op']
   switch (op) {
     case 'list': {
@@ -250,6 +269,7 @@ async function dispatch(source: Record<string, unknown>, database: CloneDatabase
     case 'create': {
       const input = parseCreate(source)
       const clone = (await database.repository()).createClone(input)
+      onMutated?.()
       return ok({ ok: true, clone: toDto(clone) } satisfies CloneAnswerResponse)
     }
     case 'update': {
@@ -258,6 +278,7 @@ async function dispatch(source: Record<string, unknown>, database: CloneDatabase
       const revision = requiredRevision(source)
       const patch = parsePatch(record(source['patch'], 'patch must be an object'))
       const clone = (await database.repository()).updateClone(id, patch, revision)
+      onMutated?.()
       return ok({ ok: true, clone: toDto(clone) } satisfies CloneAnswerResponse)
     }
     case 'delete': {
@@ -266,6 +287,7 @@ async function dispatch(source: Record<string, unknown>, database: CloneDatabase
       const revision = requiredRevision(source)
       const repository = await database.repository()
       repository.deleteClone(id, revision)
+      onMutated?.()
       return ok({ ok: true, id } satisfies CloneDeletedResponse)
     }
     case 'bindSession': {
@@ -278,6 +300,7 @@ async function dispatch(source: Record<string, unknown>, database: CloneDatabase
         sessionId,
         ...(role === undefined ? {} : { role }),
       })
+      onMutated?.()
       return ok({ ok: true, binding } satisfies CloneBindingResponse)
     }
     case 'listSessions': {
@@ -297,9 +320,14 @@ async function dispatch(source: Record<string, unknown>, database: CloneDatabase
  * and anything else answers 500 without echoing the failure text.
  * @param request - authenticated request from the shared API channel.
  * @param database - the plugin's lazily opened clone database.
+ * @param onMutated - called after a request changed a clone or a binding.
  * @returns the response for the browser.
  */
-export async function handleCloneRequest(request: Request, database: CloneDatabase): Promise<Response> {
+export async function handleCloneRequest(
+  request: Request,
+  database: CloneDatabase,
+  onMutated?: () => void,
+): Promise<Response> {
   try {
     if (request.method === 'GET') {
       const clones = (await database.repository()).listClones().map(toDto)
@@ -311,7 +339,7 @@ export async function handleCloneRequest(request: Request, database: CloneDataba
     } catch {
       throw new InvalidBody('body must be JSON')
     }
-    return await dispatch(record(body, 'body must be a JSON object'), database)
+    return await dispatch(record(body, 'body must be a JSON object'), database, onMutated)
   } catch (error: unknown) {
     if (error instanceof InvalidBody) return fail(400, 'ketos/invalid')
     if (error instanceof CloneNotFoundError) return fail(404, 'ketos/clone-not-found')
@@ -326,12 +354,25 @@ export async function handleCloneRequest(request: Request, database: CloneDataba
  * withdraws the route.
  * @param ctx - context carrying `connection`.
  * @param database - the plugin's clone database.
+ * @param onMutated - called after a request changed a clone or a binding, so
+ * consumers deriving state from stored clones re-read it. Its failure is
+ * contained: the write already committed, so it must not change the answer.
  */
-export function registerCloneRoutes(ctx: Context, database: CloneDatabase): void {
+export function registerCloneRoutes(
+  ctx: Context,
+  database: CloneDatabase,
+  onMutated?: () => void,
+): void {
   ctx.connection.fetch.register({
     path: CLONES_PATH,
     methods: ['GET', 'POST'],
     requestBody: 'buffered',
-    fetch: request => handleCloneRequest(request, database),
+    fetch: request => handleCloneRequest(request, database, () => {
+      try {
+        onMutated?.()
+      } catch (error: unknown) {
+        ctx.logger.warn(`ketos-clone-core: mutation notification failed: ${String(error)}`)
+      }
+    }),
   })
 }

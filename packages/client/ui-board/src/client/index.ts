@@ -175,6 +175,10 @@ export function apply(ctx: ClientContext): void {
 
   /** Open the editor of one clone, focusing the window that already edits it. */
   const openClone = (cloneId: CloneId): void => {
+    // The form follows the roster, so it must be current before the window
+    // shows it: a clone whose interview finished in another window opens with
+    // the profile the agent saved, not the revision the last read left behind.
+    refreshClones()
     const holder = cloneWindow(cloneId)
     if (holder !== undefined) {
       instance.actions.centerOnWindow(holder)
@@ -339,18 +343,67 @@ export function apply(ctx: ClientContext): void {
       const result = await listCloneSessions(cloneId)
       return result.ok ? result.value : []
     },
-    startCloneSession: async (clone: CloneDto) => {
+    startCloneInterview: async (clone: CloneDto, windowId: WindowId) => {
       try {
+        // The clone must be `interviewing` before anything else happens: the
+        // host derives the interview mode from the status and the binding pair,
+        // and the status write is the step that fails on a record the user
+        // edited meanwhile (the roster revision guards it). Doing it first also
+        // means a refusal leaves no half-started interview behind: no session
+        // was created and no binding was written yet.
+        const marked = await updateCloneRequest(clone.id, { status: 'interviewing' }, clone.revision)
+        if (!marked.ok) {
+          refreshClones()
+          return 'failed'
+        }
         const sessionId = await ctx.sessions.create()
-        // Bind before the chat window exists: a refused binding leaves the
-        // session as a plain listed chat instead of a window whose session is
-        // not the clone's.
-        const bound = await bindSessionToClone(clone.id, sessionId)
-        if (!bound.ok) return 'failed'
-        const windowId = openBoardWindow(instance.actions, 'agent', nextWindowOrdinal(instance.getSnapshot().windows))
-        bridge.adopt(windowId, sessionId)
+        // Bind with the interview role before the window shows the session: the
+        // bridge adopts only a listed, unclaimed session, and the window must
+        // never present an interview the clone's record does not own.
+        const bound = await bindSessionToClone(clone.id, sessionId, 'interview')
+        if (!bound.ok) {
+          // A clone that stayed `interviewing` without a session would invite a
+          // second start on top of a record nothing owns; give the status back
+          // to what it was, under the revision this gesture wrote.
+          await updateCloneRequest(clone.id, { status: clone.status }, marked.value.revision)
+          refreshClones()
+          return 'failed'
+        }
+        // The window may have closed while the requests were in flight; the
+        // bridge would resurrect its record and adopt a session nothing shows.
+        if (instance.getSnapshot().windows[windowId as string] === undefined) {
+          refreshClones()
+          return 'failed'
+        }
+        const outcome = bridge.adopt(windowId, sessionId)
+        if (outcome.kind === 'duplicate') {
+          // One session belongs to one window: the clone window keeps editing
+          // its card and the window already holding the session comes forward.
+          instance.actions.centerOnWindow(outcome.windowId)
+          return 'failed'
+        }
+        if (outcome.kind === 'unknown') {
+          refreshClones()
+          return 'failed'
+        }
         const route = clone.preferredModel === null ? undefined : parseModelRoute(clone.preferredModel)
         if (route !== undefined) bridge.selectModel(windowId, route)
+        // The status write is the user's own gesture, so the form must not show
+        // it as a revision the agent made: re-base the stored status it holds.
+        const edit = instance.getSnapshot().cloneEdits[clone.id]
+        if (edit !== undefined) {
+          instance.actions.setCloneEdit(clone.id, {
+            ...edit,
+            draft: { ...edit.draft, status: 'interviewing' },
+            base: { ...edit.base, status: 'interviewing' },
+            revision: marked.value.revision,
+          })
+        }
+        // The interview runs as a conversation: the clone window shows the
+        // session's lane instead of the card while the profile is drafted.
+        instance.actions.setWindowBodyKind(windowId, 'conversation')
+        instance.actions.centerOnWindow(windowId)
+        refreshClones()
         return 'started'
       } catch {
         return 'failed'

@@ -43,6 +43,7 @@ function state(overrides: Partial<BoardState> = {}): BoardState {
     composerIntentSeq: 0,
     returnWindowId: null,
     highlightWindowId: null,
+    cloneEdits: {},
     ...overrides,
   }
 }

@@ -524,6 +524,28 @@
   stroke-linecap: round;
 }
 
+/* Ring states: warning and critical tint both the arc and the percent so the
+   reading is visible without hovering; empty dims the track and shows "—". */
+.ringWarning {
+  color: var(--dsw-alias-state-warn-label);
+}
+
+.ringWarning .ringValue {
+  stroke: var(--dsw-alias-state-warn-primary);
+}
+
+.ringCritical {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.ringCritical .ringValue {
+  stroke: var(--dsw-alias-state-error-primary);
+}
+
+.ringEmpty .ringTrack {
+  stroke: var(--dsw-alias-border-l1);
+}
+
 /* Slash-command and mention popups sit above the card. */
 .popup {
   display: flex;

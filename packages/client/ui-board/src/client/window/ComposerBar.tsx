@@ -49,6 +49,7 @@ import type {
   BoardWindowInjectProps, BoardWindowSessionState, WindowId,
 } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
+import { contextReading, contextRingState, type ContextRingState } from '../context-ring.ts'
 import { menuPlacement } from '../menu-placement.ts'
 import type { BoardTranslate } from '../locale.ts'
 import { MicGlyph, useDictation } from '../dictation.tsx'
@@ -175,6 +176,14 @@ function sizeText(t: BoardTranslate, bytes: number): string {
 /** Context ring geometry. */
 const RING_RADIUS = 8
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
+
+/** Ring modifier class per state; the normal rung keeps the base stroke. */
+const CONTEXT_STATE_CLASS = {
+  empty: css.ringEmpty,
+  normal: undefined,
+  warning: css.ringWarning,
+  critical: css.ringCritical,
+} as const satisfies Record<ContextRingState, string | undefined>
 
 export interface ComposerBarProps {
   /** Window the bar belongs to. */
@@ -646,6 +655,12 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
   const queueCount = queueRows.length + queuedEchoes.length
   const hasStrips = session?.goal !== undefined || (session?.todos.length ?? 0) > 0 || queueCount > 0
     || session?.queueError !== undefined
+
+  // The context ring reads the bridge's occupancy figures: an empty ladder rung
+  // before the first provider report, then normal/warning/critical with the
+  // `% · used / window` tooltip (units shorten to K/M through the dictionary).
+  const contextState = contextRingState(session?.context)
+  const contextLabel = contextReading(session?.context, t)
 
   return (
     <div
@@ -1140,9 +1155,13 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
           </div>
 
           <div className={css.trailing}>
-            {session?.context !== undefined && (
-              <Tooltip label={t('context.aria', { percent: String(session.context.percent) })} side="top">
-                <span className={css.context}>
+            {session !== undefined && (
+              <Tooltip label={contextLabel} side="top">
+                <span
+                  className={clsx(css.context, CONTEXT_STATE_CLASS[contextState])}
+                  data-board-context-state={contextState}
+                  aria-label={contextLabel}
+                >
                   <svg className={css.ring} viewBox="0 0 20 20" aria-hidden="true">
                     <circle className={css.ringTrack} cx="10" cy="10" r={RING_RADIUS} />
                     <circle
@@ -1150,10 +1169,10 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                       cx="10"
                       cy="10"
                       r={RING_RADIUS}
-                      strokeDasharray={`${RING_CIRCUMFERENCE * session.context.percent / 100} ${RING_CIRCUMFERENCE}`}
+                      strokeDasharray={`${RING_CIRCUMFERENCE * (session.context?.percent ?? 0) / 100} ${RING_CIRCUMFERENCE}`}
                     />
                   </svg>
-                  <span>{session.context.percent}%</span>
+                  <span>{session.context === undefined ? t('context.emptyMark') : `${session.context.percent}%`}</span>
                 </span>
               </Tooltip>
             )}

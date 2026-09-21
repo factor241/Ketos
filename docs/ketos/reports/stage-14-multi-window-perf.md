@@ -1,0 +1,54 @@
+# Отчёт этапа 14. Мультиоконность, статусы и производительность
+
+> Заполнен по шаблону [stage-report-template.md](../stage-report-template.md). Ветка `stage-14-multi-window-perf`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-14` (от принятой ветки этапа 13 `stage-13-workdir-artifacts`; базовый коммит `fc6b144`). План этапа — `ketos_v7_master_plan/stage-14-multi-window-perf.md` (ревизия 17); задачи — Beads `ketos-5v2.15.1`–`ketos-5v2.15.4`, эпик `ketos-5v2.15`.
+
+## 1. Итог этапа
+
+Доска подтверждена на десяти одновременно открытых сессиях: пять параллельных стримов получают ответы без взаимных помех и потери кадров, кольцо контекста в композере показывает реальный расход модели во всех состояниях (пусто, норма, warning > 80%, critical > 95%) с подсказкой `% · used / window` и компактными единицами, заголовки и док корректны при десяти окнах и переименовании из панели «Чаты», а 30 циклов открытия-закрытия окон разных типов не оставляют роста подписок, записей моста, таймеров и DOM. Лимит MVP «≤ 20 живых (open) сессий» записан в Known Limitations пакета. Решение этапа — Agent Note [2026-09-21-ketos-stage-14-multi-window-perf.md](../../../.agents/notes/implemented/architecture/2026-09-21-ketos-stage-14-multi-window-perf.md).
+
+## 2. Подэтапы
+
+| Подэтап | Задача Beads | Статус | Подтверждение |
+|---|---|---|---|
+| 14.1 Стресс 10 сессий | `ketos-5v2.15.1` | выполнен | Живой аудит `.playwright-mcp/stage-14-multi-window-perf/audit.mjs`: 10 окон, 5 параллельных стримов через локальный стаб-провайдер (`stub-model-server.mjs`, `DEEPSEEK_BASE_URL`), FPS-счётчик `requestAnimationFrame`, `worstFrameMs`, `longtask`-обсервер, безголовый Chromium 1440×900. Вердикты `audit/audit-A|B|C.json`: 22/22 `ok: true` каждый. Числа — 59.8–60.1 FPS панорамирование/зум, худший кадр 30.8–33.7 мс, открытие окна 30.6–49.0 мс, 0 длинных задач, 0 ошибок консоли/хоста, 5/5 ответов без crosstalk; записаны в `docs/ketos/perf-baseline.md` (раздел «10 сессий»). Поведение (изоляция потоков, отказ одного стрима, отсутствие остатка в мосте) закреплено `tests/stress-sessions.client.spec.tsx` |
+| 14.2 Кольцо контекста: состояния, единицы, согласованность | `ketos-5v2.15.2` | выполнен | Новый чистый модуль `src/client/context-ring.ts` (`contextFigures`/`contextRingState`/`contextReading`/`compactTokens`); `session-bridge.ts` публикует его результат; `ComposerBar.tsx` рендерит `data-board-context-state` (`empty`/`normal`/`warning`/`critical`), «—» до первого отчёта и подсказку `% · used / window` (ключи `context.tooltip`, `context.empty`, `context.emptyMark`, `context.thousand`, `context.million` в zh/en и `board-ru.ts`); CSS-модификаторы `ringWarning`/`ringCritical`/`ringEmpty` на семантических токенах. Живой аудит подтвердил `normal` 0% (`0% · 240 / 1M`), `warning` 85% (`85% · 850K / 1M`), `critical` 96% (`96% · 960K / 1M`) и `empty` с «—» в непрошенных окнах; пробник `probe-ring-narrow.mjs` — видимость кольца при 488px и скрытие при 380/180px. Тесты — `tests/context-ring.client.spec.ts` (формула против `contextOccupancy` ui-conversation, лестница 80/95, единицы, чтение) и `tests/conversation-body.client.spec.tsx` (четыре состояния, обновление не двигает ленту) |
+| 14.3 Заголовки и док | `ketos-5v2.15.3` | выполнен | Существующие 6.3/7.1 не дублировались: добавлены проверки стресс-сценария в `tests/window-title.client.spec.tsx` — десять окон дают десять уникальных заголовков в хедере и доке со статусом `ready`; переименование чата из панели «Чаты» доходит до `session.rename` обрезанным значением и заголовок с доком следуют за списком; отказ `rename` показывается в панели и старый заголовок сохраняется; пустой (пробельный) displayTitle даёт шаблонный fallback |
+| 14.4 Ресурсы и утечки | `ketos-5v2.15.4` | выполнен | Ревизия владения: все Map/подписки/таймеры имеют disposer (`BoardLayoutPersistence.dispose`, `BoardSessionBridge.dispose/release`, `ctx.effect` в `apply`); вычистка производного состояния при уходе сессии из списка уже реализована (`resetState` → `missing`/`restoring`, `session-bridge.client.spec.ts`); новый `tests/leaks.client.spec.tsx` — 30 циклов по всем шести типам окон с fullscreen и панелью «Чаты»: store/DOM/слоты на базовой линии, счётчики слушателей сессии и проекций возвращаются к нулю после `release`, подписка на список не растёт, мёртвые каналы не публикуют, ни один таймер не переживает прогон; лимит «≤ 20 живых сессий» добавлен в Known Limitations `README.md` и `README.zh.md` |
+
+## 3. Критерии приёмки этапа
+
+- [x] 10 сессий живут одновременно — аудит открыл 10 окон с 10 отдельными сессиями (`ctx.sessions.open` на каждую), 5 из них одновременно стримили; 5/5 получили ответ.
+- [x] ContextRing реален — значения совпадают с формулой `ContextMeter` (тест против `contextOccupancy`), три живых состояния и пустое состояние подтверждены аудитом.
+- [x] Заголовки корректны — десять уникальных заголовков в хедере и доке; rename из панели, отказ rename и fallback покрыты тестами.
+- [x] Утечек нет — 30 циклов create/close: нет роста Map, подписок, слотов, DOM и таймеров; закрытие окна не удаляет сессию.
+- [x] Метрики записаны — `docs/ketos/perf-baseline.md`, раздел «10 сессий (этап 14)», с методом, таблицей, выводом и ограничениями; машинные артефакты — `audit/audit.json` и `audit-A|B|C.json`.
+- [x] Тесты зелёные — `pnpm run test:gui`, `DSH_SNAPSHOT=replay pnpm run test:web`, `typecheck`, `lint`, `duplication`, `hygiene`, `doc-sync` (см. §5).
+- [x] Лимит MVP записан — Known Limitations `packages/client/ui-board/README.md` и `README.zh.md`.
+
+## 4. Отклонения
+
+- **Порог 405px проверен пробником, а не основным аудитом.** План относит пороги и зум к этапу 6.5 (`ketos-5v2.7.5`); чтобы не оставлять критерий 14.2 без живого подтверждения, добавлен `.playwright-mcp/stage-14-multi-window-perf/probe-ring-narrow.mjs`: при карточке 488px кольцо видимо, при 380px и 180px (полноэкран с докнутой панелью «Чаты» на вьюпортах 800/560) скрыто, переполнения нет — `audit/ring-narrow.json`, `ok: true` (7/7 проверок).
+- **Замеры сняты на локальном стаб-провайдере.** Ключа внешнего API нет, поэтому 5 потоков стримились через локальный OpenAI-совместимый SSE-стаб; это исключает вариативность провайдера и не измеряет «первый токен ≤ 400 мс» (бюджет этапа 6). Ограничение зафиксировано в `perf-baseline.md`.
+- **«Задержка ввода» измерена косвенно.** Аудит фиксирует время принятия отправки (600.6 мс на пять промптов) и отзывчивость кадров, а не клавиатурную latency; формулировка бюджета §II.4 не уточняет метод, и это отражено в ограничениях.
+- **Покрытие `ui-board` — исключение MVP-форка.** По политике MVP (`Agent Note 2026-09-15-ketos-mvp-engineering-policy`) per-file 100% для `ui-board/src` не применяется; новые исходники (`context-ring.ts`) покрыты поведенческими тестами.
+- **GIF не записывался.** Видимое изменение кольца подтверждено живым аудитом и скриншотами `.playwright-mcp/stage-14-multi-window-perf/audit/{A,B,C}/*.png`; PR с видимым GUI в рамках процесса этапа не создавался, GIF-требование относится к PR.
+
+## 5. Проверки
+
+| Команда | Результат |
+|---|---|
+| `pnpm exec vitest run packages/client/ui-board/tests packages/ketos/client-locale-ru/tests` | зелёный; 34 файла, 436 тестов |
+| `pnpm run test:gui` | зелёный; 411 файлов, 5856 passed, 1 skipped |
+| `DSH_SNAPSHOT=replay pnpm run test:web` | зелёный; 101 файл passed, 1 skipped, 359 passed, 15 skipped |
+| `pnpm run typecheck` | зелёный; 0 ошибок TS (host + client) |
+| `pnpm run lint` | зелёный; 0 ошибок oxlint |
+| `pnpm run duplication` | зелёный; 0 клонов на 1777 файлах |
+| `pnpm run hygiene` | зелёный; 16 гейтов passed, 0 failed |
+| `pnpm run doc-sync` | зелёный; 34 гейта passed, 0 failed |
+| `pnpm run test:docs` | зелёный; 16 гейтов passed, 0 failed |
+| Живой аудит 14.1 (три прохода) | `audit-verdict-A|B|C.json`: 22/22 проверок `ok: true` в каждом; FPS ≥ 55, ошибок 0 |
+| Пробник узкого окна 14.2 | `audit/ring-narrow.json`: `ok: true`, 7/7 проверок (кольцо видимо при 488px, скрыто при 380/180px) |
+
+## 6. Следующий шаг
+
+После подтверждения приёмки пользователем: закрытие эпика `ketos-5v2.15` в Beads, создание и подготовка ветки и worktree этапа 15 (`stage-15-clone-core` или эквивалент по плану) от принятой ветки `stage-14-multi-window-perf`. Открытые вопросы к следующим этапам: при появлении реального ключа внешнего API имеет смысл повторить стресс-сценарий с настоящим провайдером и зафиксировать «первый токен ≤ 400 мс» (бюджет этапа 6); этап 6.5 при желании может включить узкий столбец кольца в свой общий аудит — отдельный пробник уже даёт ему опорную точку.

@@ -42,6 +42,7 @@ import type { PromptContentPart } from '@deepseek-ai/dsh-api-session-controller/
 import type { BoardSettingsBindings } from '../board-settings.ts'
 import { NS } from './locale.ts'
 import type { BoardTranslate } from './locale.ts'
+import { contextFigures, type ContextPressureFigures } from './context-ring.ts'
 import type {
   BoardBindOutcome, BoardChatTarget, BoardCommandRow, BoardDirectoryListing, BoardDraftImage, BoardEffortOption,
   BoardGoalState, BoardMentionRow, BoardModelState, BoardPendingRow, BoardPermissionOption, BoardPresetOption,
@@ -909,9 +910,8 @@ export class BoardSessionBridge {
         const goal = projections.faceOf('goal').getSnapshot() as
           | { goal: { objective: string; phase: BoardGoalState['phase'] } } | null | undefined
         const pressure = projections.faceOf('contextPressure').getSnapshot() as
-          | { pressureTokens?: number; projectedTokens?: number; contextWindow?: number } | undefined
+          | ContextPressureFigures | undefined
         const limits = projections.faceOf('imageLimits').getSnapshot() as ImageAttachmentLimits | null | undefined
-        const used = pressure?.projectedTokens ?? pressure?.pressureTokens
         const queue: BoardQueueRow[] = snapshot.queue.flatMap((item) => {
           const placement = queuePlacement(item)
           return placement === null ? [] : [{
@@ -974,11 +974,7 @@ export class BoardSessionBridge {
           },
           queue,
           pending,
-          context: used === undefined || pressure?.contextWindow === undefined ? undefined : {
-            percent: Math.min(100, Math.round(used / pressure.contextWindow * 100)),
-            usedTokens: used,
-            window: pressure.contextWindow,
-          },
+          context: contextFigures(pressure),
         })
       }
 

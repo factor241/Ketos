@@ -594,6 +594,61 @@ describe('ConversationBody', () => {
     expect(getByText('1 queued messages')).not.toBeNull()
     expect(getAllByText('Позже поправь отчёт').length).toBeGreaterThan(0)
   })
+
+  it('ladders the context ring through empty, normal, warning, and critical', () => {
+    const { container, rerender } = render(<ConversationBody {...bodyProps(ready(chatSnapshot()))} />)
+    const ring = (): HTMLElement => {
+      const element = container.querySelector<HTMLElement>('[data-board-context-state]')
+      expect(element).not.toBeNull()
+      return element as HTMLElement
+    }
+    // No provider report yet: the ring keeps its place with the empty mark.
+    expect(ring().getAttribute('data-board-context-state')).toBe('empty')
+    expect(ring().textContent).toBe('—')
+    expect(ring().getAttribute('aria-label')).toBe(t('context.empty'))
+
+    const reading = (percent: number): void => {
+      rerender(
+        <ConversationBody
+          {...bodyProps({ ...ready(chatSnapshot()), context: { percent, usedTokens: percent * 1_000, window: 100_000 } })}
+        />,
+      )
+    }
+    reading(42)
+    expect(ring().getAttribute('data-board-context-state')).toBe('normal')
+    expect(ring().textContent).toBe('42%')
+    expect(ring().getAttribute('aria-label')).toBe('42% · 42K / 100K')
+
+    reading(81)
+    expect(ring().getAttribute('data-board-context-state')).toBe('warning')
+    reading(96)
+    expect(ring().getAttribute('data-board-context-state')).toBe('critical')
+    expect(ring().getAttribute('aria-label')).toBe('96% · 96K / 100K')
+  })
+
+  it('updates the context reading without disturbing the transcript lane', () => {
+    const chat = chatSnapshot([USER_NODE, ASSISTANT_NODE])
+    const { container, rerender } = render(
+      <ConversationBody {...bodyProps({ ...ready(chat), context: { percent: 10, usedTokens: 10_000, window: 100_000 } })} />,
+    )
+    const lane = container.querySelector('[data-board-lane]') as HTMLElement
+    const laneGeometry = { scrollHeight: 400, clientHeight: 100, scrollTop: 120 }
+    for (const [property, value] of Object.entries(laneGeometry)) {
+      Object.defineProperty(lane, property, { configurable: true, writable: true, value })
+    }
+    // The reader has scrolled away from the tail; the tail-follow rule is off.
+    fireEvent.scroll(lane)
+    const message = container.querySelector('[data-board-message="assistant"]')
+
+    rerender(
+      <ConversationBody {...bodyProps({ ...ready(chat), context: { percent: 90, usedTokens: 90_000, window: 100_000 } })} />,
+    )
+    // The same row node stays in place and the reader's scroll offset survives
+    // the republish: the ring is the only thing that moved.
+    expect(container.querySelector('[data-board-message="assistant"]')).toBe(message)
+    expect(lane.scrollTop).toBe(120)
+    expect(container.querySelector('[data-board-context-state]')?.getAttribute('data-board-context-state')).toBe('warning')
+  })
 })
 
 describe('ConversationBody echoes, steering, and turn failures', () => {

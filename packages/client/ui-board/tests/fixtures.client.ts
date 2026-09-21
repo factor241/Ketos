@@ -52,7 +52,7 @@ export interface BoardBenchOptions {
   /** List-row overrides of the fixture session, e.g. its display title. */
   sessionSummary?: Partial<Omit<SessionSummary, 'id'>>
   /** Additional listed chats a test can rebind a window to. */
-  extraSessions?: readonly { readonly id: string; readonly displayTitle: string }[]
+  extraSessions?: readonly { readonly id: string; readonly displayTitle: string; readonly session?: Record<string, unknown> }[]
   /** Background upload service overrides; the default stages every file as `receipt-1`. */
   fileUpload?: {
     readonly available?: boolean
@@ -78,6 +78,10 @@ export interface BoardBenchOptions {
   }
   /** View the shared describe mirror holds before the board mounts; omitted starts idle. */
   readonly settingsView?: SettingsDescribeValue
+  /** Per-session chat target resolver; if omitted, defaults to the bench's shared chat store. */
+  readonly chatTargetFor?: (sessionId: string) => ObservableSnapshot<ChatSnapshot | undefined>
+  /** Custom session creation behavior overriding the default stub. */
+  readonly createSession?: (opts?: unknown) => Promise<SessionId>
 }
 
 /** One prepared bench: the runtime, its services, and the board mount. */
@@ -213,6 +217,9 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
   const chat = createSnapshotStore<ChatSnapshot | undefined>(undefined)
   const chats = new Map<string, ObservableSnapshot<ChatSnapshot | undefined>>()
   const targetFor = (sessionId: string): ObservableSnapshot<ChatSnapshot | undefined> => {
+    if (options.chatTargetFor !== undefined) {
+      return options.chatTargetFor(sessionId)
+    }
     let target = chats.get(sessionId)
     if (target === undefined) {
       target = chat
@@ -320,9 +327,12 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
   for (const extra of options.extraSessions ?? []) {
     await runtime.sessions.add({
       id: extra.id,
-      ...(options.session === undefined ? {} : { session: options.session }),
+      session: extra.session ?? options.session ?? {},
       summary: { displayTitle: extra.displayTitle },
     }, { current: false })
+  }
+  if (options.createSession !== undefined) {
+    runtime.sessions.stubCreate(options.createSession)
   }
   if (options.declareSlots !== false) {
     await runtime.declare({

@@ -5,8 +5,9 @@
  * when the locale changes instead of freezing the locale it opened in.
  */
 import { afterEach, describe, expect, it } from 'vitest'
-import { act, cleanup, fireEvent } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { createBoardStore } from '../src/client/store.ts'
 import type { WindowId } from '../src/client/contract/slots.ts'
 import { createBoardBench } from './fixtures.client.ts'
@@ -162,5 +163,130 @@ describe('window title', () => {
     act(() => { store.actions.openWindow({ id: 'a1' as WindowId, kind: 'agent', bodyKind: 'conversation', ordinal: 2, width: 552, height: 648 }) })
     await prepared.runtime.flush()
     expect(headerTitle(panel)).toBe('Agent #2')
+  })
+
+  it('falls back to the template name when the chat title is blank', async () => {
+    const { prepared, panel, store } = await bench({ displayTitle: '   ' })
+    act(() => { store.actions.openWindow({ id: 'a1' as WindowId, kind: 'agent', bodyKind: 'conversation', ordinal: 3, width: 552, height: 648 }) })
+    await prepared.runtime.flush()
+    expect(headerTitle(panel)).toBe('Agent #3')
+  })
+
+  it('renames the chat from the chats panel through session.rename and follows the list', async () => {
+    const renamed: string[] = []
+    const holder: { runtime?: SlotTestRuntime } = {}
+    const prepared = await createBoardBench({
+      session: {
+        prompt: () => Promise.resolve({ ok: true, value: { accepted: true } }),
+        rename: async (title: string) => {
+          renamed.push(title)
+          // The host writes `session/title`; the list row republishes from it.
+          holder.runtime?.sessions.list.update((draft) => {
+            const row = draft.byId['session-1' as SessionId]
+            if (row !== undefined) draft.byId['session-1' as SessionId] = { ...row, displayTitle: title }
+          })
+        },
+      },
+      sessionSummary: { displayTitle: 'Chat one' },
+    })
+    holder.runtime = prepared.runtime
+    runtimes.add(prepared.runtime)
+    await prepared.mountBoard()
+    const panel = prepared.runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const store = prepared.runtime.storeOf('board.dock') as BoardInstance
+    act(() => { store.actions.openWindow({ id: 'a1' as WindowId, kind: 'agent', bodyKind: 'conversation', ordinal: 4, width: 552, height: 648 }) })
+    await prepared.runtime.flush()
+    expect(headerTitle(panel)).toBe('Chat one')
+
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-chats"]') as Element)
+    await prepared.runtime.flush()
+    fireEvent.click(panel.view.getByText('Ungrouped'))
+    await prepared.runtime.flush()
+    fireEvent.click(panel.container.querySelector('[data-board-action="panel-row-menu"]') as Element)
+    await prepared.runtime.flush()
+    fireEvent.click(screen.getByText('Rename'))
+    await prepared.runtime.flush()
+    const input = panel.container.querySelector('[data-board-row-edit="rename"] input') as HTMLInputElement
+    fireEvent.change(input, { target: { value: '  Склад  ' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await prepared.runtime.flush()
+
+    // The trimmed title reaches the session; the header and the dock row follow.
+    expect(renamed).toEqual(['Склад'])
+    expect(headerTitle(panel)).toBe('Склад')
+    // The dock stands down while the chats panel is open; close it to read the row.
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-chats"]') as Element)
+    await prepared.runtime.flush()
+    expect((panel.container.querySelector('[data-board-action="dock-row"]') as Element).getAttribute('data-board-title')).toBe('Склад')
+  })
+
+  it('surfaces a refused chat rename in the panel and keeps the old title', async () => {
+    const prepared = await createBoardBench({
+      session: {
+        prompt: () => Promise.resolve({ ok: true, value: { accepted: true } }),
+        rename: async () => { throw new Error('host refused the rename') },
+      },
+      sessionSummary: { displayTitle: 'Chat one' },
+    })
+    runtimes.add(prepared.runtime)
+    await prepared.mountBoard()
+    const panel = prepared.runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const store = prepared.runtime.storeOf('board.dock') as BoardInstance
+    act(() => { store.actions.openWindow({ id: 'a1' as WindowId, kind: 'agent', bodyKind: 'conversation', ordinal: 4, width: 552, height: 648 }) })
+    await prepared.runtime.flush()
+
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-chats"]') as Element)
+    await prepared.runtime.flush()
+    fireEvent.click(panel.view.getByText('Ungrouped'))
+    await prepared.runtime.flush()
+    fireEvent.click(panel.container.querySelector('[data-board-action="panel-row-menu"]') as Element)
+    await prepared.runtime.flush()
+    fireEvent.click(screen.getByText('Rename'))
+    await prepared.runtime.flush()
+    const input = panel.container.querySelector('[data-board-row-edit="rename"] input') as HTMLInputElement
+    fireEvent.change(input, { target: { value: 'Не выйдет' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await prepared.runtime.flush()
+
+    expect(panel.view.getByText('host refused the rename')).not.toBeNull()
+    expect(headerTitle(panel)).toBe('Chat one')
+  })
+
+  it('keeps ten windows distinct in the headers and the dock', async () => {
+    let created = 0
+    const prepared = await createBoardBench({
+      session: { prompt: () => Promise.resolve({ ok: true, value: { accepted: true } }) },
+      sessionSummary: { displayTitle: 'Chat 1' },
+      extraSessions: Array.from({ length: 9 }, (_, index) => ({
+        id: `session-${index + 2}`,
+        displayTitle: `Chat ${index + 2}`,
+      })),
+      createSession: async () => {
+        created += 1
+        return `session-${created}` as SessionId
+      },
+    })
+    runtimes.add(prepared.runtime)
+    await prepared.mountBoard()
+    const panel = prepared.runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const store = prepared.runtime.storeOf('board.dock') as BoardInstance
+    act(() => {
+      for (let index = 1; index <= 10; index += 1) {
+        store.actions.openWindow({ id: `w${index}` as WindowId, kind: 'agent', bodyKind: 'conversation', ordinal: index, width: 552, height: 648 })
+      }
+    })
+    await prepared.runtime.flush()
+    await prepared.runtime.flush()
+
+    for (let index = 1; index <= 10; index += 1) {
+      const header = panel.container.querySelector(`[data-board-window-id="w${index}"] [data-board-action="window-rename"]`)
+      expect(header?.getAttribute('data-board-title')).toBe(`Chat ${index}`)
+    }
+    const rows = [...panel.container.querySelectorAll('[data-board-dock-row]')]
+    expect(rows).toHaveLength(10)
+    expect(rows.map(row => row.getAttribute('data-board-title'))).toEqual(
+      Array.from({ length: 10 }, (_, index) => `Chat ${index + 1}`),
+    )
+    expect(rows.map(row => row.getAttribute('data-board-status'))).toEqual(Array.from({ length: 10 }, () => 'ready'))
   })
 })

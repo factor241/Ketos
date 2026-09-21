@@ -224,53 +224,66 @@ function parseCreate(source: Record<string, unknown>): CloneCreateInput {
   }
 }
 
-/** Dispatch one decoded operation against the repository. */
+/**
+ * Dispatch one decoded operation against the repository. Every field is parsed
+ * before the database is touched, so a malformed request is refused without
+ * opening (or creating) the file.
+ * @param source - decoded request body.
+ * @param database - the plugin's lazily opened clone database.
+ * @returns the response for the browser.
+ */
 async function dispatch(source: Record<string, unknown>, database: CloneDatabase): Promise<Response> {
   const op = source['op']
-  const repository = await database.repository()
   switch (op) {
     case 'list': {
       rejectUnknownFields(source, FIELDS.list)
-      const clones = repository.listClones().map(toDto)
+      const clones = (await database.repository()).listClones().map(toDto)
       return ok({ ok: true, clones } satisfies CloneListResponse)
     }
     case 'get': {
       rejectUnknownFields(source, FIELDS.get)
-      const clone = repository.getClone(requiredText(source, 'id', LIMITS.id) as CloneId)
+      const id = requiredText(source, 'id', LIMITS.id) as CloneId
+      const clone = (await database.repository()).getClone(id)
       if (clone === undefined) return fail(404, 'ketos/clone-not-found')
       return ok({ ok: true, clone: toDto(clone) } satisfies CloneAnswerResponse)
     }
     case 'create': {
-      const clone = repository.createClone(parseCreate(source))
+      const input = parseCreate(source)
+      const clone = (await database.repository()).createClone(input)
       return ok({ ok: true, clone: toDto(clone) } satisfies CloneAnswerResponse)
     }
     case 'update': {
       rejectUnknownFields(source, FIELDS.update)
       const id = requiredText(source, 'id', LIMITS.id) as CloneId
       const revision = requiredRevision(source)
-      const clone = repository.updateClone(id, parsePatch(record(source['patch'], 'patch must be an object')), revision)
+      const patch = parsePatch(record(source['patch'], 'patch must be an object'))
+      const clone = (await database.repository()).updateClone(id, patch, revision)
       return ok({ ok: true, clone: toDto(clone) } satisfies CloneAnswerResponse)
     }
     case 'delete': {
       rejectUnknownFields(source, FIELDS.delete)
       const id = requiredText(source, 'id', LIMITS.id) as CloneId
       const revision = requiredRevision(source)
+      const repository = await database.repository()
       repository.deleteClone(id, revision)
       return ok({ ok: true, id } satisfies CloneDeletedResponse)
     }
     case 'bindSession': {
       rejectUnknownFields(source, FIELDS.bindSession)
       const role = optionalBindingRole(source)
-      const binding = repository.bindSession({
-        cloneId: requiredText(source, 'cloneId', LIMITS.id) as CloneId,
-        sessionId: brandString<SessionId>(requiredText(source, 'sessionId', LIMITS.sessionId)),
+      const cloneId = requiredText(source, 'cloneId', LIMITS.id) as CloneId
+      const sessionId = brandString<SessionId>(requiredText(source, 'sessionId', LIMITS.sessionId))
+      const binding = (await database.repository()).bindSession({
+        cloneId,
+        sessionId,
         ...(role === undefined ? {} : { role }),
       })
       return ok({ ok: true, binding } satisfies CloneBindingResponse)
     }
     case 'listSessions': {
       rejectUnknownFields(source, FIELDS.listSessions)
-      const sessions = repository.listSessions(requiredText(source, 'cloneId', LIMITS.id) as CloneId)
+      const cloneId = requiredText(source, 'cloneId', LIMITS.id) as CloneId
+      const sessions = (await database.repository()).listSessions(cloneId)
       return ok({ ok: true, sessions } satisfies CloneSessionsResponse)
     }
     default:

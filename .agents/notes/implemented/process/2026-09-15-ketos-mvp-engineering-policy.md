@@ -5,7 +5,7 @@ Status: implemented
 English | [中文](2026-09-15-ketos-mvp-engineering-policy.zh.md)
 ## Problem
 
-The upstream engineering gates — per-file 100% coverage on `packages/*/*/src` and an Agent Note for every non-trivial change — stay in force after the Ketos rebranding, while the MVP adds fork-local packages (`@ketos/*`), clone packages that do not exist yet, and raw board GUI that stages 2–4 rewrite. Without a recorded exception policy, every stage would re-decide whether per-file tests are owed to throwaway GUI or to unwritten packages. The stage-1 baseline showed the cost concretely: `packages/client/ui-board/src` fails per-file coverage across its components (0–50% on windows, toolbar, pointer cleanup), and a fork-wide blanket exemption would silently drop `@ketos/client-locale-ru`, which holds per-file 100%.
+The upstream engineering gates — per-file 100% coverage on `packages/*/*/src` and an Agent Note for every non-trivial change — stay in force after the Ketos rebranding, while the MVP adds fork-local packages (`@ketos/*`), clone packages whose behaviour suites replace per-file percentages, and raw board GUI that stages 2–4 rewrite. Without a recorded exception policy, every stage would re-decide whether per-file tests are owed to throwaway GUI or to unwritten packages. The stage-1 baseline showed the cost concretely: `packages/client/ui-board/src` fails per-file coverage across its components (0–50% on windows, toolbar, pointer cleanup), and a fork-wide blanket exemption would silently drop `@ketos/client-locale-ru`, which holds per-file 100%.
 
 ## Decision
 
@@ -14,7 +14,7 @@ Fork-local code keeps the upstream naming and packaging discipline: new Ketos pa
 Coverage exceptions are narrow, named config entries in `vitest.config.ts`, each carrying the `MVP-fork coverage policy` reason:
 
 - `packages/client/ui-board/src/**` — the raw board GUI is rewritten through stages 2–4; per-file coverage would pin throwaway components.
-- `packages/ketos/clone-*/src/**` — the clone packages arrive in stages 15–19; the glob is inert until then.
+- `packages/ketos/clone-*/src/**` — `@ketos/clone-core` is the first of the clone packages (the memory and task tables join its runner in later stages), and each covers the MVP test list — schema, CAS persistence, route boundaries — with its own suite rather than per-file percentages.
 - `packages/subprocess/subprocess-local/src/linux-execve.ts` and `packages/experimental/code-runtime-python/src/index.ts` — Linux-only sources (exec-ve, the `/proc/<pid>/stat` probe) excluded on non-Linux hosts; the Linux coverage lane keeps both gated.
 
 Every other path keeps per-file 100%, including `@ketos/client-locale-ru` and every package that imports the excluded ones; the ui-board glob covers that package's whole `src` tree. Exceptions are removed when the owning stages land their behaviour tests, reviewed at MVP acceptance (stage 20).

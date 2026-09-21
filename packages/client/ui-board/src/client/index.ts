@@ -149,16 +149,17 @@ export function apply(ctx: ClientContext): void {
   }, 'ui-board: settings persistence')
 
   // Clone roster: the /api/ketos.clones list the dock, the Omnibox, and the
-  // clone editor read. A failed read keeps the last published list, so a
-  // transient failure cannot empty the chrome; every mutation re-reads it.
+  // clone editor read. A failed read keeps the last published list and leaves
+  // the roster unloaded, so a transient failure reads as "still loading" with a
+  // retry rather than as a deleted clone; every mutation re-reads it.
   const cloneRoster = createSnapshotStore<BoardCloneRoster>({ clones: [], loaded: false })
+  /** Newest roster read; an older answer never overwrites a newer one. */
+  let cloneReadSeq = 0
   const refreshClones = (): void => {
+    const seq = ++cloneReadSeq
     void listClones().then((result) => {
-      // A failed read keeps the last published list, and marks the first
-      // attempt answered so a clone window does not read "missing" forever on
-      // a deployment that mounts no clone host package.
-      const clones = result.ok ? result.value : cloneRoster.getSnapshot().clones
-      cloneRoster.set({ clones, loaded: true })
+      if (seq !== cloneReadSeq || !result.ok) return
+      cloneRoster.set({ clones: result.value, loaded: true })
     })
   }
   refreshClones()
@@ -182,6 +183,18 @@ export function apply(ctx: ClientContext): void {
     openBoardWindow(instance.actions, 'clone', nextWindowOrdinal(instance.getSnapshot().windows), { cloneId })
   }
 
+  /**
+   * The window a chat gesture binds: the given window only while it renders a
+   * conversation. A clone window edits a card, so a panel gesture addressed to
+   * it (new chat, branch, row pick) opens a chat window instead of creating a
+   * session the clone window could never show.
+   */
+  const conversationWindow = (windowId: WindowId): WindowId => {
+    const state = instance.getSnapshot()
+    if (state.windows[windowId as string]?.bodyKind === 'conversation') return windowId
+    return openBoardWindow(instance.actions, 'agent', nextWindowOrdinal(state.windows))
+  }
+
   const windowSession = (key: string) => bridge.channel(key as WindowId)
   const injected = (): BoardWindowInjected => ({
     keyedHooks: { windowSession },
@@ -195,7 +208,7 @@ export function apply(ctx: ClientContext): void {
     refreshAgentPresets: () => { void loadPresetRoster() },
     releaseWindow: (windowId) => { bridge.release(windowId) },
     bindSession: (windowId, sessionId) => {
-      const outcome = bridge.bind(windowId, sessionId)
+      const outcome = bridge.bind(conversationWindow(windowId), sessionId)
       // One session, one window: a chat another window shows is not rebound
       // here; that window comes forward instead.
       if (outcome.kind === 'duplicate') instance.actions.centerOnWindow(outcome.windowId)
@@ -228,10 +241,10 @@ export function apply(ctx: ClientContext): void {
       ctx.uiWorkspace.openSession(sessionId)
       instance.actions.expectReturnWindow(windowId)
     },
-    createChat: (windowId, target) => { bridge.createChat(windowId, target) },
-    startChat: (windowId, workspaceId) => bridge.startChat(windowId, workspaceId),
+    createChat: (windowId, target) => { bridge.createChat(conversationWindow(windowId), target) },
+    startChat: (windowId, workspaceId) => bridge.startChat(conversationWindow(windowId), workspaceId),
     renameChat: (sessionId, title) => bridge.renameChat(sessionId, title),
-    forkChat: (windowId, sessionId) => bridge.forkChat(windowId, sessionId),
+    forkChat: (windowId, sessionId) => bridge.forkChat(conversationWindow(windowId), sessionId),
     archiveChat: sessionId => bridge.archiveChat(sessionId),
     reorderChat: (workspaceId, sessionId, beforeSessionId) => bridge.reorderChat(workspaceId, sessionId, beforeSessionId),
     createWorkspace: path => bridge.createWorkspace(path),
@@ -255,12 +268,14 @@ export function apply(ctx: ClientContext): void {
     goalAction: (windowId, action) => { bridge.goalAction(windowId, action) },
     loadMentions: (windowId, query, signal) => bridge.loadMentions(windowId, query, signal),
     refreshClones,
-    createClone: () => {
-      void createCloneRequest({ name: t('clone.newName'), role: t('clone.newRole') }).then((result) => {
-        if (!result.ok) return
-        cloneRoster.set({ clones: [result.value, ...cloneRoster.getSnapshot().clones], loaded: true })
-        openClone(result.value.id)
-      })
+    createClone: async () => {
+      const result = await createCloneRequest({ name: t('clone.newName'), role: t('clone.newRole') })
+      if (!result.ok) return 'failed'
+      // Show the record immediately instead of waiting for the next read; the
+      // read generation guard keeps an older in-flight answer from replacing it.
+      cloneRoster.set({ clones: [result.value, ...cloneRoster.getSnapshot().clones], loaded: true })
+      openClone(result.value.id)
+      return 'created'
     },
     openClone,
     saveClone: async (cloneId: CloneId, patch: CloneUpdatePatch, revision: number) => {
@@ -288,7 +303,13 @@ export function apply(ctx: ClientContext): void {
           refreshClones()
           return 'conflict'
         }
-        return result.code === 'ketos/clone-not-found' ? 'missing' : 'failed'
+        if (result.code === 'ketos/clone-not-found') {
+          // Reconcile the roster so the editor stops showing a record the
+          // deployment no longer holds.
+          refreshClones()
+          return 'missing'
+        }
+        return 'failed'
       }
       refreshClones()
       // The window edits a record that no longer exists; closing it is the
@@ -321,12 +342,16 @@ export function apply(ctx: ClientContext): void {
     startCloneSession: async (clone: CloneDto) => {
       try {
         const sessionId = await ctx.sessions.create()
+        // Bind before the chat window exists: a refused binding leaves the
+        // session as a plain listed chat instead of a window whose session is
+        // not the clone's.
+        const bound = await bindSessionToClone(clone.id, sessionId)
+        if (!bound.ok) return 'failed'
         const windowId = openBoardWindow(instance.actions, 'agent', nextWindowOrdinal(instance.getSnapshot().windows))
         bridge.adopt(windowId, sessionId)
         const route = clone.preferredModel === null ? undefined : parseModelRoute(clone.preferredModel)
         if (route !== undefined) bridge.selectModel(windowId, route)
-        const bound = await bindSessionToClone(clone.id, sessionId)
-        return bound.ok ? 'started' : 'failed'
+        return 'started'
       } catch {
         return 'failed'
       }

@@ -102,9 +102,21 @@ export class CloneDatabase {
   }
 
   private async openRepository(): Promise<CloneRepository> {
-    this.opening ??= openDatabase(this.path)
-    const db = await this.opening
-    return new CloneRepository(db)
+    try {
+      this.opening ??= openDatabase(this.path)
+      const db = await this.opening
+      // Disposal may have won the race while the file was opening; the handle
+      // belongs to `dispose()` from here on, so no caller receives it.
+      if (this.disposed) throw new Error('clone database: already closed')
+      return new CloneRepository(db)
+    } catch (error: unknown) {
+      // A failed attempt is not cached: a transient lock, permission, or
+      // vanished-file failure would otherwise fail every later request until
+      // the process restarts. Concurrent callers still share one attempt.
+      this.opening = undefined
+      this.repositoryPromise = undefined
+      throw error
+    }
   }
 
   private async dispose(): Promise<void> {

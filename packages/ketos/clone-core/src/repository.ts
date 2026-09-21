@@ -235,7 +235,9 @@ export class CloneRepository {
 
   /**
    * Delete one clone and its session bindings. The delete applies only while
-   * the stored revision still equals `expectedRevision`.
+   * the stored revision still equals `expectedRevision`; the revision guard is
+   * part of the deleting statement, inside the transaction, so no writer can
+   * slip a newer revision between the check and the delete.
    * @param id - clone identity.
    * @param expectedRevision - revision the caller read.
    * @returns the removed identity.
@@ -243,16 +245,25 @@ export class CloneRepository {
    * @throws CloneConflictError when the stored revision differs.
    */
   deleteClone(id: CloneId, expectedRevision: number): CloneId {
-    const existing = this.getClone(id)
-    if (existing === undefined) throw new CloneNotFoundError(id)
-    if (existing.revision !== expectedRevision) throw new CloneConflictError(id, expectedRevision, existing.revision)
     this.db.exec('BEGIN IMMEDIATE')
     try {
+      const result = this.db.prepare('DELETE FROM clones WHERE id = ? AND revision = ?').run(id, expectedRevision)
+      if (result.changes === 0) {
+        // Reading inside the transaction keeps the classification of an
+        // unchanged revision exact.
+        const existing = this.getClone(id)
+        if (existing === undefined) throw new CloneNotFoundError(id)
+        throw new CloneConflictError(id, expectedRevision, existing.revision)
+      }
       this.db.prepare('DELETE FROM clone_sessions WHERE clone_id = ?').run(id)
-      this.db.prepare('DELETE FROM clones WHERE id = ?').run(id)
       this.db.exec('COMMIT')
-    } catch (error) {
-      this.db.exec('ROLLBACK')
+    } catch (error: unknown) {
+      try {
+        this.db.exec('ROLLBACK')
+      } catch {
+        // A failing statement may already have ended the transaction; the
+        // error that brought us here is the one worth reporting.
+      }
       throw error
     }
     return id

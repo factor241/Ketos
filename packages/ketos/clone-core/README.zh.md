@@ -55,7 +55,7 @@ kind: "package-reference"
 | `POST` | `{ op: 'bindSession', cloneId, sessionId, role? }` | `{ ok: true, binding }` |
 | `POST` | `{ op: 'listSessions', cloneId }` | `{ ok: true, sessions }` |
 
-失败应答为 HTTP 状态码加 `{ ok: false, error }`：`400` `ketos/invalid`、`404` `ketos/clone-not-found`、`409` `ketos/clone-conflict`。请求体在路由处逐字段校验，因为这里是 wire 边界：未知字段、超长文本、空名称或空角色、非整数修订号以及未知 `op` 一律拒绝，而不是被静默丢弃。
+失败应答为 HTTP 状态码加 `{ ok: false, error }`：`400` `ketos/invalid`、`404` `ketos/clone-not-found`、`409` `ketos/clone-conflict`。请求体在路由处逐字段校验，且校验先于数据库打开，因此畸形请求不会创建文件。意外的内部故障（例如数据库无法打开）以 `500` 加纯文本正文应答、不带错误码，客户端不会把它当作领域错误码。
 
 ### 可观察行为
 

@@ -97,15 +97,20 @@ interface DockRowProps {
   readonly actions: BoardActions
   readonly t: BoardTranslate
   readonly useWindowSession: InjectFace<BoardWindowInjected>['useWindowSession']
+  readonly useCloneList: InjectFace<BoardWindowInjected>['useCloneList']
 }
 
 /**
  * One window row: glyph with its status dot, center-or-focus click, in-place
  * rename on double click, and the context menu that renames or closes.
  */
-function DockRow({ window: win, active, actions, t, useWindowSession }: DockRowProps) {
+function DockRow({ window: win, active, actions, t, useWindowSession, useCloneList }: DockRowProps) {
   const session = useWindowSession(win.id)
-  const title = windowTitle(t, win, session?.displayTitle)
+  // A clone window has no session to name it: the clone it edits does.
+  const clone = useCloneList(roster => win.cloneId === undefined
+    ? undefined
+    : roster.clones.find(entry => entry.id === win.cloneId))
+  const title = windowTitle(t, win, session?.displayTitle, clone?.name)
   const status = dockStatus(session)
   const [draft, setDraft] = useState<string | null>(null)
   const [menu, setMenu] = useState<MenuPlacement | null>(null)
@@ -236,6 +241,7 @@ export function SessionRail({ useStore, actions, t, useWindowSession, useCloneLi
             actions={actions}
             t={t}
             useWindowSession={useWindowSession}
+            useCloneList={useCloneList}
           />
         )
       })}

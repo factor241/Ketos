@@ -5,7 +5,7 @@ Status: implemented
 [English](2026-09-15-ketos-mvp-engineering-policy.md) | 中文
 ## Problem
 
-上游工程闸门——`packages/*/*/src` 的逐文件 100% 覆盖，以及每个非平凡变更都要有 Agent Note——在 Ketos 改名后继续有效，而 MVP 又引入了 fork 本地包（`@ketos/*`）、尚不存在的 clone 包，以及阶段 2–4 会重写的原始看板 GUI。若没有书面例外政策，每个阶段都要重新决定：是否为一次性 GUI 或尚未编写的包补逐文件测试。阶段 1 的基线把代价具体化了：`packages/client/ui-board/src` 的组件逐文件覆盖不达标（窗口、工具栏、指针清理为 0–50%），而 fork 范围的笼统豁免会悄悄漏掉已保持逐文件 100% 的 `@ketos/client-locale-ru`。
+上游工程闸门——`packages/*/*/src` 的逐文件 100% 覆盖，以及每个非平凡变更都要有 Agent Note——在 Ketos 改名后继续有效，而 MVP 又引入了 fork 本地包（`@ketos/*`）、以自身测试套件取代逐文件百分比的 clone 包，以及阶段 2–4 会重写的原始看板 GUI。若没有书面例外政策，每个阶段都要重新决定：是否为一次性 GUI 或尚未编写的包补逐文件测试。阶段 1 的基线把代价具体化了：`packages/client/ui-board/src` 的组件逐文件覆盖不达标（窗口、工具栏、指针清理为 0–50%），而 fork 范围的笼统豁免会悄悄漏掉已保持逐文件 100% 的 `@ketos/client-locale-ru`。
 
 ## Decision
 
@@ -14,7 +14,7 @@ Fork 本地代码保持上游的命名与打包纪律：新的 Ketos 包位于 `
 覆盖例外是 `vitest.config.ts` 中狭窄、具名的配置项，每项都带 `MVP-fork coverage policy` 原因：
 
 - `packages/client/ui-board/src/**` —— 原始看板 GUI 会在阶段 2–4 中被重写；逐文件覆盖会钉死一次性组件。
-- `packages/ketos/clone-*/src/**` —— clone 包在阶段 15–19 才出现；在此之前该 glob 为空操作。
+- `packages/ketos/clone-*/src/**` —— `@ketos/clone-core` 是 clone 包中的第一个（记忆与任务表在后续阶段加入同一 runner），每个包都以自身测试套件覆盖 MVP 测试清单——schema、CAS 持久化、路由边界——而不是逐文件百分比。
 - `packages/subprocess/subprocess-local/src/linux-execve.ts` 与 `packages/experimental/code-runtime-python/src/index.ts` —— Linux 专属源码（exec-ve、`/proc/<pid>/stat` 探针），在非 Linux 主机上排除；Linux 覆盖通道仍对两者保持闸门。
 
 其他所有路径保持逐文件 100%，包括 `@ketos/client-locale-ru` 以及所有导入被排除包的那些包；ui-board 的 glob 覆盖该包的整个 `src` 树。当所属阶段落地其行为测试后移除例外，并在 MVP 验收（阶段 20）时复核。

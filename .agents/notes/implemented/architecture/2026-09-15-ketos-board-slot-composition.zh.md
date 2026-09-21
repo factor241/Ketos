@@ -17,8 +17,8 @@ Status: implemented
 - `main`/`board` 条目（BoardRoot）声明 `board.canvas`、`board.dock`、`board.omnibar`、`board.minimap`，并通过 `renderSlot` 渲染全部四个。
 - `board.canvas` 的 occupant（`DashboardCanvas`）保留平移、滚轮缩放、点阵网格、变换面与视口测量，并声明 `board.windows`，在变换层内渲染它。
 - `board.windows` 的 occupant（`BoardWindowLayer`）遍历 `windowOrder`，为每个窗口以 `entryKey: window.kind` 渲染 keyed 的 `board.window`。
-- 窗口外框按 `WindowKind` 各注册一次（`agent` 与 `clone` → `AgentCard`，`connectors`/`settings`/`dashboard`/`tasks` → `ToolWindow`）；实例经由 owner share 传入，因此同一类型的多个窗口由一个注册渲染。
-- `board.window.body` 以 `WindowBodyKind` 为键，提供 `conversation`（对话通道的席位）、`connectors`、`settings`（工具窗口的各窗格）。切换窗口的 `bodyKind`——工具窗口的标签栏调用 `setWindowBodyKind`——即切换所渲染的 occupant。
+- 窗口外框按 `WindowKind` 各注册一次（`agent` 与 `clone` → `AgentCard`，它额外提供聊天面板与全屏两个特性；`connectors`/`settings`/`dashboard`/`tasks` → `WindowFrame` 本身）；实例经由 owner share 传入，因此同一类型的多个窗口由一个注册渲染。
+- `board.window.body` 以 `WindowBodyKind` 为键，提供 `conversation`（agent 窗口的会话通道与 composer）与 `clone`（克隆卡片编辑器）；其余 body 类型渲染空区域。通过 store 的 `setWindowBodyKind` 切换窗口的 `bodyKind` 即切换所渲染的 occupant。
 - keyed 的键域是通过映射 `keyProps` 表导出的 `WindowKind`/`WindowBodyKind` 联合类型，因此注册或分发未知键是编译错误，而不是空白单元格。窗口实例与 body 分发器对每个键都相同，走 owner share；keyed 表封闭分发域，而目录的 occupant 列表报告这些允许键中哪些已被占用。
 - `apply` 中创建一个 `dsh-client-store` handle，并由每个层与外框注册声明，使所有组件通过框架 `useStore`/`actions` 席位读写同一个实例。`setViewport`、`openWindow`、`centerOnWindow`、`setWindowBodyKind` 加入 draft action 表。
 - 组件保持无 ctx：dock、omnibar、minimap 与外框通过 `useStore` 读状态、通过 `actions` 变更；窗口 body 从 owner share 读取自己的窗口实例，自身不持有 store 席位。共享的窗口打开策略（模板、id 生成、摆放）位于 `open-window.ts` 与 `store.ts`，dock 与 omnibar 都从这里引入。
@@ -43,7 +43,7 @@ Status: implemented
 
 各层拥有自己所绘制的内容：canvas 自行测量并发布 `setViewport`，dock 与 omnibar 经由同一个 helper 打开窗口，minimap 用 `centerOnWindow` 居中视图——摆放与居中的数学在 store 中，而不在组件里。
 
-接受的取舍：尚无 body occupant 的类型（`dashboard`、`tasks`）的外框会渲染空的 body 区域，因为在它们各自的阶段之前没有 UI 创建这些窗口；每个 keyed 席位把同一份 share 声明两次——一次作为公共 `owner`，一次在映射的 `keyProps` 表中——因为目录的词法扫描从 `owner` 读取 owner props，而封闭的键域需要 keyed 表。
+接受的取舍：尚无 body occupant 的类型（`connectors`、`dashboard`、`settings`、`tasks`）的外框会渲染空的 body 区域，因为拥有这些窗格的阶段尚未落地；每个 keyed 席位把同一份 share 声明两次——一次作为公共 `owner`，一次在映射的 `keyProps` 表中——因为目录的词法扫描从 `owner` 读取 owner props，而封闭的键域需要 keyed 表。
 
 移动手势代码时发现的两个缺陷仍在范围之外并被登记：注册在 `globalThis` 上的看板手势监听器在拖拽中途卸载后仍然存活（`ketos-0s0`），以及两个外框重复了八方向缩放算法，其最小尺寸守卫只由 store 兜底（`ketos-4k3`）。
 

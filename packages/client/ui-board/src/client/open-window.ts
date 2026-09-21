@@ -36,9 +36,11 @@ export function openBoardWindow(
 }
 
 /**
- * The chat window a board-chrome command acts on: the active window while it is
- * a chat window, otherwise a fresh agent window. Both the Omnibox's send and
- * the inspector's chip use this rule, so neither surface invents its own
+ * The chat window a board-chrome command acts on: the active window while it
+ * renders a conversation, otherwise a fresh agent window. A clone window edits
+ * a card, so a chat gesture addressed to it opens a chat window instead of
+ * creating a session the clone window could never show. Both the Omnibox's send
+ * and the inspector's chip use this rule, so neither surface invents its own
  * fallback.
  * @param actions - the shared board store's action face.
  * @param windows - the board's window map, for the ordinal and the active state.
@@ -51,6 +53,6 @@ export function resolveChatWindow(
   activeWindowId: WindowId | null,
 ): WindowId {
   const active = activeWindowId === null ? undefined : windows[activeWindowId as string]
-  if (active !== undefined && (active.kind === 'agent' || active.kind === 'clone')) return active.id
+  if (active !== undefined && active.bodyKind === 'conversation') return active.id
   return openBoardWindow(actions, 'agent', nextWindowOrdinal(windows))
 }

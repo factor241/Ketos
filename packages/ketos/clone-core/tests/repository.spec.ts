@@ -21,6 +21,9 @@ async function fixture(): Promise<CloneRepository> {
 
 const MINIMAL = { name: 'Анна', role: 'Аналитик' } as const
 
+/** The ISO-8601 UTC form every stored timestamp carries. */
+const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
+
 /** Branded session identity as the host route decodes it. */
 const sid = (value: string): SessionId => brandString<SessionId>(value)
 
@@ -40,7 +43,9 @@ describe('clone records', () => {
       status: 'draft',
       revision: 1,
     })
+    expect(clone.createdAt).toMatch(ISO_UTC)
     expect(Date.parse(clone.createdAt)).toBeGreaterThanOrEqual(before)
+    expect(Date.parse(clone.createdAt)).toBeLessThanOrEqual(Date.now())
     expect(clone.createdAt).toBe(clone.updatedAt)
     expect(repository.getClone(clone.id)).toEqual(clone)
   })
@@ -76,6 +81,7 @@ describe('clone records', () => {
     const updated = repository.updateClone(clone.id, { name: 'Анна П.', status: 'active', preferredModel: null }, 1)
     expect(updated).toMatchObject({ name: 'Анна П.', role: 'Аналитик', status: 'active', revision: 2 })
     expect(updated.createdAt).toBe(clone.createdAt)
+    expect(updated.updatedAt).toMatch(ISO_UTC)
     expect(Date.parse(updated.updatedAt)).toBeGreaterThanOrEqual(Date.parse(clone.updatedAt))
     expect(repository.getClone(clone.id)).toEqual(updated)
   })

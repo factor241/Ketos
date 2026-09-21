@@ -1,5 +1,5 @@
 /** The /api/ketos.clones route: every operation, every failure code, and disposal. */
-import { mkdtemp, mkdir, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -107,6 +107,17 @@ describe('clone route failures', () => {
     expect(conflict.status).toBe(409)
     expect(await body(conflict)).toEqual({ ok: false, error: 'ketos/clone-conflict' })
     expect((await post({ op: 'delete', id: created.clone.id, revision: 1 })).status).toBe(409)
+  })
+
+  it('answers 400 for every malformed request without opening the database', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-clone-invalid-'))
+    cleanups.push(() => rm(root, { recursive: true, force: true }))
+    const path = join(root, 'clones.db')
+    const { post } = await fixture(path)
+    expect((await post({ op: 'unknown' })).status).toBe(400)
+    // Validation runs before the lazy open, so a garbage request never creates
+    // the file.
+    await expect(stat(path)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
   it('answers 400 for every malformed request without touching the store', async () => {

@@ -132,6 +132,33 @@ describe('clone editor form', () => {
     await waitFor(() => { expect(document.querySelector('[data-board-clone-notice="missing"]')).not.toBeNull() })
   })
 
+  it('keeps unsaved edits when the stored revision moves and saves them on the next attempt', async () => {
+    const saveClone = vi.fn(async () => 'conflict' as const)
+    const { rerender } = render(<CloneBody {...cloneProps({ saveClone })} />)
+    await waitFor(() => { expect(value('name')).toBe('Анна') })
+    fireEvent.change(field('name'), { target: { value: 'Моя правка' } })
+    fireEvent.click(field('save'))
+    await waitFor(() => { expect(document.querySelector('[data-board-clone-notice="conflict"]')).not.toBeNull() })
+
+    // The other writer's record arrives; the draft must survive it and the
+    // next save must apply it over the newer revision.
+    rerender(<CloneBody {...cloneProps({ saveClone, clones: [{ ...CLONE, name: 'Чужая правка', revision: 4 }] })} />)
+    await waitFor(() => { expect(document.querySelector('[data-board-clone-revision="4"]')).not.toBeNull() })
+    expect(value('name')).toBe('Моя правка')
+    fireEvent.click(field('save'))
+    await waitFor(() => { expect(saveClone).toHaveBeenCalledTimes(2) })
+    expect(saveClone).toHaveBeenLastCalledWith('clone-1', expect.objectContaining({ name: 'Моя правка' }), 4)
+  })
+
+  it('asks for a fresh confirmation when the record moved under a delete', async () => {
+    const deleteClone = vi.fn(async () => 'conflict' as const)
+    render(<CloneBody {...cloneProps({ deleteClone })} />)
+    await waitFor(() => { expect(value('name')).toBe('Анна') })
+    fireEvent.click(field('delete'))
+    fireEvent.click(field('delete.confirm'))
+    await waitFor(() => { expect(document.querySelector('[data-board-clone-notice="delete-conflict"]')).not.toBeNull() })
+  })
+
   it('deletes only after the confirmation step and reports an unreachable host', async () => {
     const deleteClone = vi.fn(async () => 'deleted' as const)
     render(<CloneBody {...cloneProps({ deleteClone })} />)
@@ -183,10 +210,23 @@ describe('clone editor form', () => {
     expect(document.querySelector('[data-board-clone-editor]')).toBeNull()
   })
 
-  it('waits for the first roster answer instead of reporting a missing clone', () => {
-    render(<CloneBody {...cloneProps({ clones: [], cloneRosterLoaded: false })} />)
+  it('waits for the first roster answer and retries instead of reporting a missing clone', () => {
+    const refreshClones = vi.fn()
+    render(<CloneBody {...cloneProps({ clones: [], cloneRosterLoaded: false, refreshClones })} />)
     expect(document.querySelector('[data-board-clone-missing]')).toBeNull()
     expect(document.querySelector('[data-board-clone-loading]')).not.toBeNull()
+    fireEvent.click(field('retry'))
+    expect(refreshClones).toHaveBeenCalledTimes(1)
+  })
+
+  it('caps every field at the bounds the route enforces', async () => {
+    render(<CloneBody {...cloneProps()} />)
+    await waitFor(() => { expect(value('name')).toBe('Анна') })
+    expect(field('name').getAttribute('maxlength')).toBe('120')
+    expect(field('role').getAttribute('maxlength')).toBe('120')
+    expect(field('description').getAttribute('maxlength')).toBe('500')
+    expect(field('persona').getAttribute('maxlength')).toBe('20000')
+    expect(field('methodology').getAttribute('maxlength')).toBe('20000')
   })
 })
 

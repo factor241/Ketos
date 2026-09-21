@@ -219,6 +219,9 @@ export interface BoardCloneRoster {
   readonly loaded: boolean
 }
 
+/** What creating a clone did. */
+export type CloneCreateOutcome = 'created' | 'failed'
+
 /** What one clone save did, for the form's notice. */
 export type CloneSaveOutcome = 'saved' | 'conflict' | 'missing' | 'failed'
 
@@ -502,8 +505,11 @@ export interface BoardWindowInjected {
   loadMentions: (windowId: WindowId, query: string, signal: AbortSignal) => Promise<readonly BoardMentionRow[]>
   /** Re-read the clone roster; a failed read keeps the last list it published. */
   refreshClones: () => void
-  /** Create a clone with a fresh default name and open its editor window. */
-  createClone: () => void
+  /**
+   * Create a clone with a fresh default name and open its editor window.
+   * @returns whether the record was created, for the calling surface's notice.
+   */
+  createClone: () => Promise<CloneCreateOutcome>
   /** Open the editor window of one clone, focusing the window that already edits it. */
   openClone: (cloneId: CloneId) => void
   /**

@@ -99,7 +99,7 @@ export function DashboardToolbar({
         openBoardWindow(actions, 'settings', nextWindowOrdinal(windows))
         return
       case 'open:clone':
-        createClone()
+        void createClone().then((created) => { if (created === 'failed') setNotice(t('clone.failed')) })
         return
       case 'open:dashboard':
         setNotice(t('menu.unavailable.dashboard'))

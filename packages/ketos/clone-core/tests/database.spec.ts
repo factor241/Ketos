@@ -1,5 +1,5 @@
 /** clones.db opens owner-only, stamps its identity and version, and refuses foreign files. */
-import { mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -108,6 +108,25 @@ describe('forward-only migration runner', () => {
     expect(notes.notes).toBe('')
   })
 
+  it('rolls back a migration whose step fails, keeping the database at its version', async () => {
+    const db = await openDatabase(':memory:')
+    cleanups.push(() => { db.close() })
+    const repository = new CloneRepository(db)
+    const created = repository.createClone({ name: 'Борис', role: 'Юрист' })
+    expect(() => {
+      runMigrations(db, [
+        () => { throw new Error('step one is unreachable at version 1') },
+        (migrating) => { migrating.exec('CREATE TABLE clone_skills (clone_id TEXT NOT NULL, skill TEXT NOT NULL) STRICT') },
+        () => { throw new Error('the second step fails after the first applied') },
+      ], 3)
+    }).toThrow('the second step fails')
+    const { user_version: version } = db.prepare('PRAGMA user_version').get() as { user_version: number }
+    expect(version).toBe(1)
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all()
+    expect(tables).toEqual([{ name: 'clone_sessions' }, { name: 'clones' }])
+    expect(repository.getClone(created.id)?.name).toBe('Борис')
+  })
+
   it('refuses a step list that cannot reach the current version', async () => {
     const db = await openDatabase(':memory:')
     cleanups.push(() => { db.close() })
@@ -141,12 +160,27 @@ describe('lazy database owner', () => {
     expect((await reopened.repository()).getClone(created.id)?.name).toBe('Вера')
   })
 
-  it('closes a database whose first open is still in flight', async () => {
+  it('refuses a repository whose open a concurrent close took over', async () => {
     const root = await temporaryDirectory()
     const database = new CloneDatabase(join(root, 'clones.db'))
     const pending = database.repository()
     await database.close()
-    await expect(pending).resolves.toBeInstanceOf(CloneRepository)
+    // The handle belongs to the disposal from here on: the caller must not
+    // receive a repository over a closed database.
+    await expect(pending).rejects.toThrow(/already closed/u)
     await expect(database.repository()).rejects.toThrow(/already closed/u)
+  })
+
+  it('retries an open that failed instead of caching the failure', async () => {
+    const root = await temporaryDirectory()
+    const path = join(root, 'clones.db')
+    const database = new CloneDatabase(path)
+    await mkdir(path)
+    await expect(database.repository()).rejects.toThrow()
+    // Clearing the obstruction must be enough; no restart is needed.
+    await rm(path, { recursive: true, force: true })
+    const repository = await database.repository()
+    expect(repository.listClones()).toEqual([])
+    await database.close()
   })
 })

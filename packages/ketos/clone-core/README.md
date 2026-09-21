@@ -55,7 +55,7 @@ The package has no browser bundle: `packages/client/ui-board` talks to the route
 | `POST` | `{ op: 'bindSession', cloneId, sessionId, role? }` | `{ ok: true, binding }` |
 | `POST` | `{ op: 'listSessions', cloneId }` | `{ ok: true, sessions }` |
 
-Failures answer HTTP status plus `{ ok: false, error }`: `400` `ketos/invalid`, `404` `ketos/clone-not-found`, `409` `ketos/clone-conflict`. The body is validated field by field at the route, because this is a wire boundary: unknown fields, over-long text, an empty name or role, a non-integer revision, and an unknown `op` all reject rather than being dropped.
+Failures answer HTTP status plus `{ ok: false, error }`: `400` `ketos/invalid`, `404` `ketos/clone-not-found`, `409` `ketos/clone-conflict`. The body is validated field by field at the route, and validation runs before the database is opened, so a malformed request never creates the file. An unexpected internal failure (for example a database that cannot be opened) answers `500` with a plain-text body and no code, so a client never reads it as a domain code.
 
 ### Observable behavior
 

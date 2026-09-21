@@ -53,8 +53,9 @@ export const CLONE_CORE_MIGRATION_STEPS: readonly MigrationStep[] = [stepV1]
 
 /**
  * Apply every step between the database's stamped version and `currentVersion`,
- * in order and in one pass, then stamp `currentVersion`. Steps are idempotent
- * only through this version check — a step that already ran is never repeated.
+ * in order and in one pass, then stamp `currentVersion`. The steps and the
+ * stamp commit as one transaction, so a crash or a failing step leaves the file
+ * at its previous version with no half-applied DDL to replay.
  * @param db - open database handle.
  * @param steps - ordered steps, one per version.
  * @param currentVersion - version this build produces.
@@ -68,12 +69,24 @@ export function runMigrations(
     throw new Error(`clone database: ${String(currentVersion)} schema versions need ${String(steps.length)} migration steps`)
   }
   const { user_version: onDisk } = db.prepare('PRAGMA user_version').get() as { user_version: number }
-  for (let version = onDisk; version < currentVersion; version++) {
-    const step = steps[version]
-    if (step === undefined) throw new Error(`clone database: no migration step for version ${String(version + 1)}`)
-    step(db)
+  db.exec('BEGIN IMMEDIATE')
+  try {
+    for (let version = onDisk; version < currentVersion; version++) {
+      const step = steps[version]
+      if (step === undefined) throw new Error(`clone database: no migration step for version ${String(version + 1)}`)
+      step(db)
+    }
+    if (onDisk !== currentVersion) db.exec(`PRAGMA user_version = ${String(currentVersion)}`)
+    db.exec('COMMIT')
+  } catch (error: unknown) {
+    try {
+      db.exec('ROLLBACK')
+    } catch {
+      // A failing statement may already have ended the transaction; the error
+      // that brought us here is the one worth reporting.
+    }
+    throw error
   }
-  if (onDisk !== currentVersion) db.exec(`PRAGMA user_version = ${String(currentVersion)}`)
 }
 
 /**

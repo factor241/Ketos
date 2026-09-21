@@ -86,6 +86,8 @@ export interface BoardBenchOptions {
   readonly modelDirectory?: {
     /** Catalog load behavior; a rejecting load exercises late failures. */
     readonly load?: () => Promise<unknown>
+    /** Selection spy; the default accepts every selection. */
+    readonly select?: (selection: { provider: string; model: string; reasoningEffort?: string }) => Promise<void>
   }
 }
 
@@ -260,7 +262,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     directoryFor: () => ({
       store: modelStore,
       load: options.modelDirectory?.load ?? (async () => modelStore.getSnapshot()),
-      select: async () => {},
+      select: options.modelDirectory?.select ?? (async () => {}),
     }),
   }
   runtime.ctx.provide('modelDirectories', modelDirectories as never)

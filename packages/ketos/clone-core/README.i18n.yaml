@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/ketos/clone-core/README.md
-README.md: 333ad0dd7ed0369750045f779da41edcb9028fc8
-README.zh.md: 47f6e5415bd86829728f31b2ea82699832104332
+README.md: 1afb49c6a749425eadb00af7e40ed2deb35bf104
+README.zh.md: 732faacf8558486132b6c98dc4055e230b110bc9

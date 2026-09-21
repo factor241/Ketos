@@ -1158,6 +1158,10 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
             {session !== undefined && (
               <Tooltip label={contextLabel} side="top">
                 <span
+                  // `role="img"` lets the reading name the graphic for assistive
+                  // tech; the tab stop makes the tooltip reachable without a mouse.
+                  role="img"
+                  tabIndex={0}
                   className={clsx(css.context, CONTEXT_STATE_CLASS[contextState])}
                   data-board-context-state={contextState}
                   aria-label={contextLabel}

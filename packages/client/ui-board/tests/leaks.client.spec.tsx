@@ -125,7 +125,10 @@ describe('board resource discipline', () => {
         await runtime.flush()
       }
 
-      // The board is back to its empty state and the ledger never grew.
+      // The board is back to its empty state. Slot registrations are per window
+      // kind (one occupant each), so they cannot grow per window; fiber disposal
+      // is covered by the apply registration spec.
+
       expect(store.store.getSnapshot().windows).toEqual({})
       expect(panel.container.querySelectorAll('[data-board-window]')).toHaveLength(0)
       expect(panel.container.querySelectorAll('[data-board-dock-row]')).toHaveLength(0)
@@ -164,18 +167,27 @@ describe('board resource discipline', () => {
     const sessionId = channel.getSnapshot().sessionId
     if (sessionId === undefined) throw new Error('missing session id')
 
-    // Count listeners on the same sources the bridge attaches to; the fixture
-    // faces are identity-stable, so the counts see every attach and release.
+    // Count listeners on every source the bridge attaches to; the fixture faces
+    // are identity-stable, so the counts see every attach and release. The two
+    // state races below would also leave a listener behind.
     const session = prepared.runtime.ctx.sessions.binding(sessionId)?.session
     if (session === undefined) throw new Error('missing session face')
-    const sessionListeners = countSubscriptions(session)
-    const permissionListeners = countSubscriptions(session.projections.faceOf('permissions'))
-    const listListeners = countSubscriptions(prepared.runtime.ctx.sessions.list)
-    const baseline = {
-      session: sessionListeners(),
-      permissions: permissionListeners(),
-      list: listListeners(),
+    const chat = prepared.runtime.ctx.uiConversation.binding(sessionId).target('chat')
+    if (chat === undefined) throw new Error('missing chat target')
+    const directory = prepared.runtime.ctx.modelDirectories.directoryFor(sessionId)
+    const attachListeners = {
+      chat: countSubscriptions(chat),
+      session: countSubscriptions(session),
+      directory: countSubscriptions(directory.store),
+      permissions: countSubscriptions(session.projections.faceOf('permissions')),
+      plan: countSubscriptions(session.projections.faceOf('plan')),
+      todos: countSubscriptions(session.projections.faceOf('todos')),
+      goal: countSubscriptions(session.projections.faceOf('goal')),
+      contextPressure: countSubscriptions(session.projections.faceOf('contextPressure')),
+      imageLimits: countSubscriptions(session.projections.faceOf('imageLimits')),
     }
+    const listListeners = countSubscriptions(prepared.runtime.ctx.sessions.list)
+    const baseline = listListeners()
 
     const deadChannels = [channel]
     for (let cycle = 0; cycle < CYCLES; cycle += 1) {
@@ -203,12 +215,40 @@ describe('board resource discipline', () => {
     await prepared.runtime.flush()
     for (const { channel: dead, snapshot } of frozen) expect(dead.getSnapshot()).toBe(snapshot)
 
-    // Only the bridge's own list subscription and the fixture session's
-    // snapshot listener outside the bridge remain: attach/release is balanced.
-    expect(sessionListeners()).toBe(0)
-    expect(permissionListeners()).toBe(0)
-    expect(listListeners()).toBe(baseline.list)
+    // Every per-window source is back to zero listeners and the bridge's own
+    // list subscription is the only one that remains: attach/release is balanced.
+    expect(Object.fromEntries(Object.entries(attachListeners).map(([name, count]) => [name, count()]))).toEqual({
+      chat: 0, session: 0, directory: 0, permissions: 0, plan: 0, todos: 0, goal: 0, contextPressure: 0, imageLimits: 0,
+    })
+    expect(listListeners()).toBe(baseline)
 
+    bridge.dispose()
+  })
+
+  it('drops a window whose model directory load fails after the window closed', async () => {
+    let failLoad: (error: unknown) => void = () => {}
+    const load = new Promise((_resolve, reject) => { failLoad = reject })
+    const prepared = await createBoardBench({
+      session: { prompt: () => Promise.resolve({ ok: true, value: { accepted: true } }) },
+      modelDirectory: { load: () => load },
+    })
+    runtimes.add(prepared.runtime)
+    prepared.runtime.ctx.locale.register(NS, { zh, en })
+    const bridge = new BoardSessionBridge(prepared.runtime.ctx)
+    const windowId = 'a1' as WindowId
+    bridge.ensure(windowId)
+    await prepared.runtime.flush()
+
+    // The window closes while its model directory is still loading; the settled
+    // failure must not recreate the released record or publish onto it.
+    const dead = bridge.channel(windowId)
+    const frozen = dead.getSnapshot()
+    bridge.release(windowId)
+    failLoad(new Error('catalog unreachable'))
+    await prepared.runtime.flush()
+
+    expect(bridge.windowIds()).toEqual([])
+    expect(dead.getSnapshot()).toBe(frozen)
     bridge.dispose()
   })
 })

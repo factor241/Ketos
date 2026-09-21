@@ -68,6 +68,8 @@ describe('ring reading', () => {
     expect(compactTokens(1_000, t)).toBe('1K')
     expect(compactTokens(4_500, t)).toBe('4.5K')
     expect(compactTokens(99_999, t)).toBe('100K')
+    expect(compactTokens(999_499, t)).toBe('999K')
+    expect(compactTokens(999_999, t)).toBe('1M')
     expect(compactTokens(1_000_000, t)).toBe('1M')
     expect(compactTokens(2_500_000, t)).toBe('2.5M')
   })

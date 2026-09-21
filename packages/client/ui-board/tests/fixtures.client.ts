@@ -82,6 +82,11 @@ export interface BoardBenchOptions {
   readonly chatTargetFor?: (sessionId: string) => ObservableSnapshot<ChatSnapshot | undefined>
   /** Custom session creation behavior overriding the default stub. */
   readonly createSession?: (opts?: unknown) => Promise<SessionId>
+  /** Model directory behavior overrides; the default store never fails. */
+  readonly modelDirectory?: {
+    /** Catalog load behavior; a rejecting load exercises late failures. */
+    readonly load?: () => Promise<unknown>
+  }
 }
 
 /** One prepared bench: the runtime, its services, and the board mount. */
@@ -254,7 +259,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
   const modelDirectories = {
     directoryFor: () => ({
       store: modelStore,
-      load: async () => modelStore.getSnapshot(),
+      load: options.modelDirectory?.load ?? (async () => modelStore.getSnapshot()),
       select: async () => {},
     }),
   }

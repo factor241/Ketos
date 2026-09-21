@@ -71,7 +71,11 @@ export function compactTokens(value: number, t: BoardTranslate): string {
     ? String(Math.round(candidate))
     : String(Math.round(candidate * 10) / 10)
   if (value < 1_000) return String(value)
-  if (value < 1_000_000) return t('context.thousand', { value: scaled(value / 1_000) })
+  // A count whose rounded thousands reach 1000 reads as millions, so 999 999
+  // renders as `1M` rather than the misleading `1000K`.
+  if (value < 1_000_000 && Math.round(value / 1_000) < 1_000) {
+    return t('context.thousand', { value: scaled(value / 1_000) })
+  }
   return t('context.million', { value: scaled(value / 1_000_000) })
 }
 

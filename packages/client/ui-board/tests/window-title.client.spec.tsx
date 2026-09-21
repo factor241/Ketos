@@ -278,6 +278,12 @@ describe('window title', () => {
     await prepared.runtime.flush()
     await prepared.runtime.flush()
 
+    // One window runs a turn and one carries a turn failure: each dock row
+    // reports its own session's status, not a shared default.
+    await prepared.runtime.sessions.updateSessionSnapshot('session-3', (draft) => { draft.running = true })
+    await prepared.runtime.sessions.updateSessionSnapshot('session-5', (draft) => { draft.lastAgentError = 'gateway failed' })
+    await prepared.runtime.flush()
+
     for (let index = 1; index <= 10; index += 1) {
       const header = panel.container.querySelector(`[data-board-window-id="w${index}"] [data-board-action="window-rename"]`)
       expect(header?.getAttribute('data-board-title')).toBe(`Chat ${index}`)
@@ -287,6 +293,8 @@ describe('window title', () => {
     expect(rows.map(row => row.getAttribute('data-board-title'))).toEqual(
       Array.from({ length: 10 }, (_, index) => `Chat ${index + 1}`),
     )
-    expect(rows.map(row => row.getAttribute('data-board-status'))).toEqual(Array.from({ length: 10 }, () => 'ready'))
+    expect(rows.map(row => row.getAttribute('data-board-status'))).toEqual(
+      Array.from({ length: 10 }, (_, index) => index === 2 ? 'running' : index === 4 ? 'error' : 'ready'),
+    )
   })
 })

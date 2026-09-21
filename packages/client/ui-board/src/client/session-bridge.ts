@@ -650,6 +650,20 @@ export class BoardSessionBridge {
     return [...this.windows.keys()]
   }
 
+  /**
+   * Whether one live window record still owns the session an async operation
+   * started against: a released window (its record is gone) and a rebound one
+   * (its session moved) both fail the check, so a late settle publishes nothing
+   * and never recreates a record the board already dropped.
+   * @param record - the record the operation captured.
+   * @param windowId - window identity.
+   * @param sessionId - session the operation started against.
+   * @returns whether the record is still current for that session.
+   */
+  private owns(record: WindowRecord, windowId: WindowId, sessionId: SessionId | undefined): boolean {
+    return this.windows.get(windowId) === record && record.sessionId === sessionId
+  }
+
   private record(windowId: WindowId): WindowRecord {
     let record = this.windows.get(windowId)
     if (record === undefined) {
@@ -761,11 +775,11 @@ export class BoardSessionBridge {
       // A creation that settles late must not clobber a newer gesture: the
       // window may have closed (the record is gone) or its chat may have
       // moved on (a bind, or a recovery the user started meanwhile).
-      if (this.windows.get(windowId) !== record || record.sessionId !== before) return
+      if (!this.owns(record, windowId, before)) return
       this.switchTo(windowId, sessionId)
       this.applyDefaultPreset(windowId, sessionId)
     } catch (error) {
-      if (this.windows.get(windowId) !== record) return
+      if (!this.owns(record, windowId, before)) return
       this.fail(windowId, error)
     }
   }
@@ -807,11 +821,11 @@ export class BoardSessionBridge {
       if (this.disposed) return
       // A late creation never resurrects a closed window or replaces a chat
       // the window moved to while the request was in flight.
-      if (this.windows.get(windowId) !== record || record.sessionId !== before) return
+      if (!this.owns(record, windowId, before)) return
       this.switchTo(windowId, sessionId)
       this.applyDefaultPreset(windowId, sessionId)
     }).catch((error: unknown) => {
-      if (this.windows.get(windowId) === record) this.fail(windowId, error)
+      if (this.owns(record, windowId, before)) this.fail(windowId, error)
     })
   }
 
@@ -1076,7 +1090,7 @@ export class BoardSessionBridge {
     const record = this.record(windowId)
     const child = await this.ctx.sessions.fork({ sessionId, increaseTitle: true })
     if (this.disposed) return
-    if (this.windows.get(windowId) !== record || record.sessionId !== sessionId) return
+    if (!this.owns(record, windowId, sessionId)) return
     this.switchTo(windowId, child)
   }
 
@@ -1200,7 +1214,7 @@ export class BoardSessionBridge {
     const before = record.sessionId
     const sessionId = await this.ctx.sessions.create(target)
     if (this.disposed) return
-    if (this.windows.get(windowId) !== record || record.sessionId !== before) return
+    if (!this.owns(record, windowId, before)) return
     this.switchTo(windowId, sessionId)
     this.applyDefaultPreset(windowId, sessionId)
   }
@@ -1269,7 +1283,9 @@ export class BoardSessionBridge {
   }
 
   private async syncModel(windowId: WindowId, sessionId: SessionId): Promise<void> {
-    this.patch(windowId, { model: { ...this.record(windowId).channel.getSnapshot().model, loading: true } })
+    const record = this.record(windowId)
+    const before = record.sessionId
+    this.patch(windowId, { model: { ...record.channel.getSnapshot().model, loading: true } })
     try {
       const directory = this.ctx.modelDirectories.directoryFor(sessionId)
       const publish = (): void => {
@@ -1300,16 +1316,19 @@ export class BoardSessionBridge {
         }
         this.patch(windowId, { model: next })
       }
-      const record = this.record(windowId)
       record.releaseSession = (() => {
         const previous = record.releaseSession
         const dispose = directory.store.subscribe(publish)
         return () => { dispose(); previous() }
       })()
       await directory.load()
+      // A window closed or rebound while the directory loaded must not receive
+      // the settled state, and a settled failure must not resurrect its record.
+      if (!this.owns(record, windowId, before)) return
       publish()
     } catch (error) {
-      const model = this.record(windowId).channel.getSnapshot().model
+      if (!this.owns(record, windowId, before)) return
+      const model = record.channel.getSnapshot().model
       this.patch(windowId, {
         model: {
           ...model,

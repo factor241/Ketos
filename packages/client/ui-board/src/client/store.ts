@@ -46,7 +46,7 @@ type BoardActions = {
   moveWindow: (draft: BoardState, id: WindowId, x: number, y: number, snap: boolean) => void
   resizeWindow: (draft: BoardState, id: WindowId, width: number, height: number, snap: boolean) => void
   setWindowBodyKind: (draft: BoardState, id: WindowId, bodyKind: WindowBodyKind) => void
-  setCloneEdit: (draft: BoardState, cloneId: CloneId, edit: CloneEdit | undefined) => void
+  setCloneEdit: (draft: BoardState, windowId: WindowId, cloneId: CloneId, edit: CloneEdit | undefined) => void
   setWindowCustomTitle: (draft: BoardState, id: WindowId, title: string | undefined) => void
   focusWindow: (draft: BoardState, id: WindowId) => void
   centerOnWindow: (draft: BoardState, id: WindowId) => void
@@ -384,7 +384,10 @@ export function createBoardStore(): BoardStoreHandle {
         if (!win) return
         win.bodyKind = bodyKind
       },
-      setCloneEdit: (draft, cloneId, edit) => {
+      setCloneEdit: (draft, windowId, cloneId, edit) => {
+        // A closed window owns no draft: its collapse already deleted the
+        // entry, and a write still in flight must not resurrect it.
+        if (draft.windows[windowId as string] === undefined) return
         // Immer draft: the branded id is an opaque record key.
         if (edit === undefined) Reflect.deleteProperty(draft.cloneEdits, cloneId)
         else draft.cloneEdits[cloneId] = edit

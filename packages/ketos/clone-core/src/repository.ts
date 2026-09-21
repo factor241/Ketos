@@ -103,10 +103,10 @@ export const CLONE_STATUSES = ['draft', 'interviewing', 'ready'] as const satisf
 export const CLONE_BINDING_ROLES = ['main', 'interview'] as const satisfies readonly CloneBindingRole[]
 
 /**
- * Longest authored value each profile field accepts. The route enforces these
- * bounds on the wire and the interview tool enforces them before its write:
- * the model's tool schema can express neither `maxLength` nor `maxItems`, so
- * the store is the one place both writers pass through.
+ * Longest authored value each profile field accepts, and the only source of
+ * these numbers: the route validates them on the wire and the interview tool
+ * validates them before its write, because a tool schema can express neither
+ * `maxLength` nor `maxItems`.
  */
 export const CLONE_TEXT_LIMITS = {
   role: 120,
@@ -129,9 +129,11 @@ const PATCH_COLUMNS = [
 ] as const satisfies readonly (readonly [keyof CloneUpdatePatch, string])[]
 
 /**
- * Refuse a draft whose fields exceed the columns' documented bounds. The live
- * route validates the same numbers; this guard is for the model-facing tool,
- * whose JSON schema cannot carry length or item limits.
+ * Refuse a draft whose required fields are empty or whose values exceed the
+ * columns' documented bounds. The live route validates the same numbers; this
+ * guard is for the model-facing tool, whose JSON schema cannot carry
+ * `minLength`, `maxLength`, or `maxItems`. A profile the person is asked to
+ * confirm must carry its four authored lines.
  * @param fields - the complete authored profile.
  */
 function requireDraftBounds(fields: CloneDraftFields): void {
@@ -142,6 +144,7 @@ function requireDraftBounds(fields: CloneDraftFields): void {
     ['methodology', fields.methodology, CLONE_TEXT_LIMITS.methodology],
   ]
   for (const [name, value, max] of bounded) {
+    if (value.trim() === '') throw new HarnessError(`${name} must not be empty`, 'ketos/invalid-draft')
     if (value.length > max) throw new HarnessError(`${name} exceeds ${String(max)} characters`, 'ketos/invalid-draft')
   }
   if (fields.skills.length > CLONE_TEXT_LIMITS.skillCount) {

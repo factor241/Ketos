@@ -225,6 +225,13 @@ export class CloneInterviewCoordinator {
    */
   private readonly opened = new Set<SessionId>()
   /**
+   * Sessions whose kickoff this coordinator queued and has not yet seen
+   * logged. Between the driver claiming the message and appending it to the
+   * log no durable or pending record carries the kickoff, and a stored change
+   * landing in that window would otherwise queue a second one.
+   */
+  private readonly queued = new Set<SessionId>()
+  /**
    * Whether clone data is relevant to this process at all. Nothing reads the
    * database until a clone request or a restored session makes it relevant, so
    * a deployment whose chats never touch a clone never opens `clones.db`.
@@ -247,6 +254,7 @@ export class CloneInterviewCoordinator {
     this.ctx.on('session/event', (session, event) => {
       if (event.type === 'user/message' && event.data.source.kind === CLONE_INTERVIEW_SOURCE) {
         this.opened.add(session.id)
+        this.queued.delete(session.id)
       }
     })
     this.ctx.on('agent/created', ({ agent }) => { this.request(agent) })
@@ -259,8 +267,9 @@ export class CloneInterviewCoordinator {
     this.ctx.on('agent/disposed', ({ agent }) => {
       this.installed.delete(agent)
       // A later resume materializes the projection from the full log, so the
-      // live set may drop the id with the agent that carried it.
+      // live sets may drop the id with the agent that carried it.
       this.opened.delete(agent.id)
+      this.queued.delete(agent.id)
       const chain = this.chains.get(agent)
       if (chain === undefined) return
       // The chain settles on its own; dropping the entry here is what keeps a
@@ -270,6 +279,10 @@ export class CloneInterviewCoordinator {
       })
     })
     this.ctx.effect(() => () => { this.close() }, 'ketos-clone-core: interview scopes')
+    // An agent that already exists at mount (a configured profile agent) may
+    // belong to a clone; a fresh process has none, so the database stays shut.
+    if (this.ctx.agents.roots().length > 0) this.touchesClones = true
+    void this.resync()
   }
 
   /**
@@ -383,10 +396,24 @@ export class CloneInterviewCoordinator {
   /** Queue the opening turn unless this session already had one. */
   private open(agent: Agent): void {
     if (this.opened.has(agent.id)) return
-    // A kickoff the driver has not claimed yet is already authoritative: the
-    // durable inbox restored it after a restart, and a cancelled turn dropped
-    // it, so asking the inbox is also what makes a cancelled interview reopen.
-    if (agent.inbox.nextTurn.some(message => message.source.kind === CLONE_INTERVIEW_SOURCE)) return
+    const pending = agent.inbox.nextTurn.find(message => message.source.kind === CLONE_INTERVIEW_SOURCE)
+    if (pending !== undefined) {
+      // The message survived a restart, but a turn never claimed it: queuing it
+      // again is what wakes the driver, and reusing the same message cannot
+      // duplicate the kickoff.
+      if (agent.status === 'idle') {
+        agent.inbox.remove(pending.id)
+        agent.followup(pending)
+      }
+      return
+    }
+    if (this.queued.has(agent.id)) {
+      // Neither pending nor logged: either the driver claimed it and is opening
+      // the turn, or a cancelled turn dropped it. A running agent means the
+      // claim already happened.
+      if (agent.status === 'running') return
+      this.queued.delete(agent.id)
+    }
     const state = this.ctx.sessionProjections.stateOf(agent.session, CLONE_KICKOFF_PROJECTION)
     /* v8 ignore next -- start() registers the projection before any agent exists. */
     if (state === undefined) return
@@ -394,6 +421,7 @@ export class CloneInterviewCoordinator {
       this.opened.add(agent.id)
       return
     }
+    this.queued.add(agent.id)
     agent.followup(createUserMessage({
       content: [{ type: 'text', text: KICKOFF_TEXT }],
       source: {

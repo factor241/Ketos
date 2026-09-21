@@ -11,7 +11,9 @@ import { brandString } from '@deepseek-ai/dsh-brand'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { CloneDatabase } from './db.ts'
-import { CloneConflictError, CloneNotFoundError, CLONE_BINDING_ROLES, CLONE_STATUSES } from './repository.ts'
+import {
+  CloneConflictError, CloneNotFoundError, CLONE_BINDING_ROLES, CLONE_STATUSES, CLONE_TEXT_LIMITS,
+} from './repository.ts'
 import type {
   CloneAnswerResponse, CloneBindingResponse, CloneBindingRole, CloneCreateInput, CloneDeletedResponse,
   CloneErrorCode, CloneFailureResponse, CloneId, CloneListResponse, CloneRecord, CloneSessionsResponse,
@@ -25,15 +27,10 @@ export const CLONES_PATH = '/api/ketos.clones'
 const LIMITS = {
   id: 200,
   name: 120,
-  role: 120,
-  description: 500,
-  persona: 20_000,
-  methodology: 20_000,
   preferredModel: 200,
   sessionId: 200,
   bindingRole: 32,
-  skills: 100,
-  skill: 200,
+  ...CLONE_TEXT_LIMITS,
 } as const
 
 /** Every field each operation accepts, so a typo is a rejected request. */
@@ -135,7 +132,7 @@ function optionalSkills(source: Record<string, unknown>): string[] | undefined {
   const value = source['skills']
   if (value === undefined) return undefined
   if (!Array.isArray(value)) throw new InvalidBody('skills must be an array')
-  if (value.length > LIMITS.skills) throw new InvalidBody(`skills exceeds ${String(LIMITS.skills)} entries`)
+  if (value.length > LIMITS.skillCount) throw new InvalidBody(`skills exceeds ${String(LIMITS.skillCount)} entries`)
   return value.map((entry: unknown): string => {
     if (typeof entry !== 'string') throw new InvalidBody('skills must hold strings')
     if (entry.length > LIMITS.skill) {

@@ -82,6 +82,10 @@ export function CloneWindowBar({
     previousStatus.current = status
   }, [clone?.status, sessionId])
 
+  // The notice belongs to the view it was raised on, whoever switches it: the
+  // bar's own tabs and the form's bound-session row both change the body.
+  useEffect(() => { setReview(false) }, [cardWindow.bodyKind])
+
   const interviewing = clone?.status === 'interviewing' && sessionId !== undefined
   const bodyKind = cardWindow.bodyKind
 

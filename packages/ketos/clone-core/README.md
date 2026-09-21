@@ -66,8 +66,8 @@ Failures answer HTTP status plus `{ ok: false, error }`: `400` `ketos/invalid`, 
 - **A clone has three lifecycle statuses.** `draft` is a record created by hand, `interviewing` is a clone whose profile an interview session is drafting, and `ready` is a profile saved and awaiting the person's review. Only `interviewing` composes the interview mode.
 - **Foreign databases are refused.** An `application_id` stamped by another application, a `user_version` newer than this build, or a file that is not a SQLite database all reject at open instead of being rewritten. An empty SQLite file with no stamps is adopted.
 - **Writes are revision-checked.** `update` and `delete` apply only while the stored `revision` still equals the one the caller read; otherwise the answer is `ketos/clone-conflict` and the stored record is untouched. A session binds to at most one clone, and the newest binding of a session wins.
-- **The interview opens itself once.** When a session enters the mode, the package queues one kickoff message through `agent.followup` with the source kind `ketos-clone-interview`. The pending inbox and the durable session log are the authority: a kickoff still waiting for its turn, or one already logged, suppresses a second; a kickoff a cancelled turn dropped is queued again, and a restarted process reads both from the log.
-- **The profile save ends the mode.** `clone_draft_save` writes the profile it was given over the bound clone, marks the clone `ready`, and the coordinator withdraws the section and the tool. The write enforces the mode itself: a session without an `interview` binding is refused with `ketos/not-a-clone-session`, a clone that already left `interviewing` (for example a profile the person confirmed first) with `ketos/clone-not-interviewing`, and a profile whose fields exceed the documented bounds with `ketos/invalid-draft`; none of them writes anything.
+- **The interview opens itself once.** When a session enters the mode, the package queues one kickoff message through `agent.followup` with the source kind `ketos-clone-interview`. The pending inbox, the queued latch, and the durable session log together answer whether a kickoff exists: one waiting for its turn or already logged suppresses a second — including in the window between the driver claiming the message and appending it to the log — while a kickoff a cancelled turn dropped is queued again. A restart that left the message pending has it claimed on resume, and the same message is reused, so a restored session cannot be interviewed twice.
+- **The profile save ends the mode.** `clone_draft_save` writes the profile it was given over the bound clone, marks the clone `ready`, and the coordinator withdraws the section and the tool. The write enforces the mode itself: a session without an `interview` binding is refused with `ketos/not-a-clone-session`, a clone that already left `interviewing` (for example a profile the person confirmed first) with `ketos/clone-not-interviewing`, and a profile that leaves a required line empty or exceeds the documented bounds with `ketos/invalid-draft`; none of them writes anything.
 
 -----
 
@@ -87,7 +87,7 @@ Failures answer HTTP status plus `{ ok: false, error }`: `400` `ketos/invalid`, 
 
 ### Forward-only runner
 
-`src/schema.ts` owns the ordered step list: entry `n - 1` produces `user_version` `n`, and `migrate` applies every missing step in one pass before stamping the current version. There are no rollbacks and no data loss; a newer stored version is refused, never downgraded. `clone_tasks` and the memory tables join the list as steps 2 and 3 in their own stages.
+`src/schema.ts` owns the ordered step list: entry `n - 1` produces `user_version` `n`, and `migrate` applies every missing step in one pass before stamping the current version. There are no rollbacks and no data loss; a newer stored version is refused, never downgraded. `clone_tasks` and the memory tables join the list as steps 3 and 4 in their own stages.
 
 ### Source map
 
@@ -140,7 +140,7 @@ The interviewing agent's system prompt carries the `clone:interview` section: th
 
 #### Token effect
 
-The section is about 260 tokens and rides every request of an interview session; the tool schema adds its arguments to that session's tool catalog. No other session and no other request carries either.
+The section is about 320 tokens and rides every request of an interview session; the tool schema adds its arguments to that session's tool catalog. No other session and no other request carries either.
 
 #### KV Cache effect
 

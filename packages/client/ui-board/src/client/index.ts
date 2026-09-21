@@ -17,6 +17,7 @@ import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { presetDisplayText } from '@deepseek-ai/dsh-agent-presets/display'
 import type { CloneDto, CloneId, CloneSessionBinding, CloneUpdatePatch } from '@ketos/clone-core/types'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { createBoardStore, nextWindowOrdinal, type BoardStoreHandle } from './store.ts'
 import { BoardLayoutPersistence } from './board-persistence.ts'
 import { BoardSessionBridge } from './session-bridge.ts'
@@ -212,9 +213,20 @@ export function apply(ctx: ClientContext): void {
     refreshAgentPresets: () => { void loadPresetRoster() },
     releaseWindow: (windowId) => { bridge.release(windowId) },
     bindSession: (windowId, sessionId) => {
+      // A session a window already shows is never bound twice, and the holder
+      // comes forward; asking the bridge first also keeps a pick of the clone
+      // window's own interview from minting an empty agent window on the way.
+      const holder = bridge.windowFor(sessionId)
+      if (holder !== undefined) {
+        instance.actions.centerOnWindow(holder)
+        // A clone window holding its interview must present it, or the pick
+        // would land on the card editor with nothing to show.
+        if (instance.getSnapshot().windows[holder as string]?.kind === 'clone') {
+          instance.actions.setWindowBodyKind(holder, 'conversation')
+        }
+        return { kind: 'duplicate', windowId: holder }
+      }
       const outcome = bridge.bind(conversationWindow(windowId), sessionId)
-      // One session, one window: a chat another window shows is not rebound
-      // here; that window comes forward instead.
       if (outcome.kind === 'duplicate') instance.actions.centerOnWindow(outcome.windowId)
       return outcome
     },
@@ -344,6 +356,13 @@ export function apply(ctx: ClientContext): void {
       return result.ok ? result.value : []
     },
     startCloneInterview: async (clone: CloneDto, windowId: WindowId) => {
+      /** Give the status back after a start step failed under it. */
+      const restoreStatus = async (revision: number): Promise<void> => {
+        // The rollback is best effort: a conflict means another writer moved
+        // the record, and the roster re-read is what the form acts on.
+        await updateCloneRequest(clone.id, { status: clone.status }, revision).catch(() => undefined)
+        refreshClones()
+      }
       try {
         // The clone must be `interviewing` before anything else happens: the
         // host derives the interview mode from the status and the binding pair,
@@ -356,17 +375,23 @@ export function apply(ctx: ClientContext): void {
           refreshClones()
           return 'failed'
         }
-        const sessionId = await ctx.sessions.create()
+        let sessionId: SessionId
+        try {
+          sessionId = await ctx.sessions.create()
+        } catch (error: unknown) {
+          // Nothing was created and nothing was bound, so the clone must not
+          // stay `interviewing` on the strength of this failed gesture.
+          await restoreStatus(marked.value.revision)
+          throw error
+        }
         // Bind with the interview role before the window shows the session: the
         // bridge adopts only a listed, unclaimed session, and the window must
         // never present an interview the clone's record does not own.
         const bound = await bindSessionToClone(clone.id, sessionId, 'interview')
         if (!bound.ok) {
           // A clone that stayed `interviewing` without a session would invite a
-          // second start on top of a record nothing owns; give the status back
-          // to what it was, under the revision this gesture wrote.
-          await updateCloneRequest(clone.id, { status: clone.status }, marked.value.revision)
-          refreshClones()
+          // second start on top of a record nothing owns.
+          await restoreStatus(marked.value.revision)
           return 'failed'
         }
         // The window may have closed while the requests were in flight; the
@@ -392,7 +417,7 @@ export function apply(ctx: ClientContext): void {
         // it as a revision the agent made: re-base the stored status it holds.
         const edit = instance.getSnapshot().cloneEdits[clone.id]
         if (edit !== undefined) {
-          instance.actions.setCloneEdit(clone.id, {
+          instance.actions.setCloneEdit(windowId, clone.id, {
             ...edit,
             draft: { ...edit.draft, status: 'interviewing' },
             base: { ...edit.base, status: 'interviewing' },

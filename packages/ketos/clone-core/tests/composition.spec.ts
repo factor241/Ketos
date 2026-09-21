@@ -15,7 +15,7 @@ import Include from '@deepseek-ai/cordis-plugin-include'
 import { assembleContextFor } from '@deepseek-ai/dsh-agent'
 import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness } from '@deepseek-ai/dsh-agent-loop-testkit'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
-import { ToolCallId } from '@deepseek-ai/dsh-llm'
+import { ToolCallId, createUserMessage } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import * as CloneCore from '@ketos/clone-core'
@@ -260,6 +260,41 @@ describe('clone interview over the shipped composition', () => {
     })
   })
 
+  it('queues one kickoff even when a stored change lands while the turn opens', async () => {
+    // Between the driver claiming the kickoff and appending it to the log no
+    // record carries it; a mutation there must not queue a second one.
+    const { ctx, routes } = await boot()
+    const route = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Первый вопрос')]))
+    const gate = Promise.withResolvers<undefined>()
+    let held = false
+    ctx.on('agent/pre-step', async (_payload, next) => {
+      if (!held) {
+        held = true
+        await gate.promise
+      }
+      return await next()
+    })
+    const created = answered(await request(route, { op: 'create', name: 'Анна', role: 'Аналитик' }))
+    await request(route, { op: 'update', id: created.clone.id, revision: 1, patch: { status: 'interviewing' } })
+    await request(route, {
+      op: 'bindSession', cloneId: created.clone.id, sessionId: 'interview-gap', role: 'interview',
+    })
+
+    const agent = await ctx.agentLoop.create(SessionId('interview-gap'), { provider: 'mock', model: 'mock' })
+    const opens = (): number => agent.session.snapshotEvents().filter(event => event.type === 'user/message'
+      && event.data.source.kind === 'ketos-clone-interview').length
+    await vi.waitFor(() => { expect(agent.inbox.nextTurn).toHaveLength(0) })
+    expect(opens()).toBe(0)
+
+    // The stored change arrives while the claimed message is still unlogged.
+    await request(route, { op: 'update', id: created.clone.id, revision: 2, patch: { description: 'Разбор' } })
+    gate.resolve(undefined)
+    await vi.waitFor(() => { expect(opens()).toBe(1) })
+    await new Promise((resolve) => { setTimeout(resolve, 20) })
+    expect(opens()).toBe(1)
+  })
+
   it('refuses the profile tool when its session lost the clone binding', async () => {
     const { ctx, routes, path } = await boot()
     const route = routes.get(CLONES_PATH) as ConnectionFetchRoute
@@ -285,5 +320,57 @@ describe('clone interview over the shipped composition', () => {
     })
     expect(refused.isError).toBe(true)
     expect(refused.error?.info?.code).toBe('ketos/not-a-clone-session')
+  })
+
+  it('records the invalid-draft code for a profile the store refuses', async () => {
+    const { ctx, routes } = await boot()
+    const route = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Первый вопрос')]))
+    const created = answered(await request(route, { op: 'create', name: 'Анна', role: 'Аналитик' }))
+    await request(route, { op: 'update', id: created.clone.id, revision: 1, patch: { status: 'interviewing' } })
+    await request(route, {
+      op: 'bindSession', cloneId: created.clone.id, sessionId: 'interview-bounds', role: 'interview',
+    })
+    const agent = await ctx.agentLoop.create(SessionId('interview-bounds'), { provider: 'mock', model: 'mock' })
+    await vi.waitFor(() => { expect(ctx.tools.get('clone_draft_save', agent)).toBeDefined() })
+
+    const refused = await ctx.tools.execute({
+      callId: ToolCallId('call-bounds'),
+      name: 'clone_draft_save',
+      arguments: {
+        role: '  ',
+        description: 'описание',
+        persona: 'персона',
+        methodology: 'метод',
+        skills: [],
+      },
+      agent,
+      signal: new AbortController().signal,
+    })
+    expect(refused.isError).toBe(true)
+    expect(refused.error?.info?.code).toBe('ketos/invalid-draft')
+    // The refusal wrote nothing: the clone is still interviewing.
+    expect(answered(await request(route, { op: 'get', id: created.clone.id })).clone.status).toBe('interviewing')
+  })
+
+  it('keeps the assembled interview prompt identical between turns', async () => {
+    const { ctx, routes } = await boot()
+    const route = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Первый вопрос')]))
+    const created = answered(await request(route, { op: 'create', name: 'Анна', role: 'Аналитик' }))
+    await request(route, { op: 'update', id: created.clone.id, revision: 1, patch: { status: 'interviewing' } })
+    await request(route, {
+      op: 'bindSession', cloneId: created.clone.id, sessionId: 'interview-prompt', role: 'interview',
+    })
+    const agent = await ctx.agentLoop.create(SessionId('interview-prompt'), { provider: 'mock', model: 'mock' })
+    await vi.waitFor(async () => {
+      const assembly = await ctx.systemPrompt.assemble(assembleContextFor(agent))
+      expect(assembly.sections.map(section => section.name)).toContain(CLONE_INTERVIEW_SECTION)
+    })
+    const before = renderPrompt(await ctx.systemPrompt.assemble(assembleContextFor(agent)))
+    agent.followup(createUserMessage({ content: [{ type: 'text', text: 'Я аналитик' }], source: { kind: 'user' } }))
+    await vi.waitFor(() => { expect(agent.status).toBe('idle') })
+    const after = renderPrompt(await ctx.systemPrompt.assemble(assembleContextFor(agent)))
+    expect(after).toBe(before)
   })
 })

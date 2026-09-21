@@ -105,7 +105,7 @@ export function CloneBody({
   /** Replace this clone's editor state, or drop it with the clone. */
   const writeEdit = (next: CloneEdit | undefined): void => {
     if (cloneId === undefined) return
-    actions.setCloneEdit(cloneId, next)
+    actions.setCloneEdit(cardWindow.id, cloneId, next)
   }
 
   // Follow the stored record. A clean form takes the stored values and marks
@@ -197,13 +197,21 @@ export function CloneBody({
     setBusy(false)
     if (outcome === 'saved') {
       // This write is the user's own, so the stored record that follows is not
-      // an agent revision: adopting it as the base keeps the marks honest. Any
-      // text typed while the request ran stays in the draft; the next save
-      // applies it over the revision the route accepted.
-      const live = editsRef.current[cloneId]
-      writeEdit(live === undefined || sameDraft(live.draft, saved)
-        ? { draft: saved, base: saved, revision: editor.revision, agentFields: [] }
-        : { ...live, base: saved, agentFields: [] })
+      // an agent revision: the accepted snapshot becomes the base and the
+      // revision is the one the route minted, which keeps the form from reading
+      // its own save as a pending agent draft. Text typed while the request ran
+      // stays in the draft.
+      const current = editsRef.current[cloneId]
+      const accepted: CloneEdit = { draft: saved, base: saved, revision: editor.revision + 1, agentFields: [] }
+      if (current === undefined || sameDraft(current.draft, saved)) {
+        writeEdit(accepted)
+      } else {
+        // The user typed while the request ran: the accepted snapshot becomes
+        // the base, the draft keeps their newer text, and the pending agent
+        // revision this save superseded is dropped.
+        const { incoming: _superseded, ...rest } = current
+        writeEdit({ ...rest, base: saved, revision: editor.revision + 1, agentFields: [] })
+      }
     }
     // Success needs no banner: the revision indicator moves and the drawer of
     // notices stays reserved for what the user must act on.

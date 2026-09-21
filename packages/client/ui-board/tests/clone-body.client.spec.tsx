@@ -56,8 +56,11 @@ function cloneProps(overrides: Partial<Record<string, unknown>> = {}): CloneBody
   const clones = (overrides['clones'] as readonly CloneDto[] | undefined) ?? [CLONE]
   const instance = (overrides['instance'] as ReturnType<ReturnType<typeof createBoardStore>['create']> | undefined)
     ?? createBoardStore().create()
+  const card = { ...CARD, ...(overrides['window'] as Partial<BoardWindowState> | undefined) }
+  // The store owns the window's draft entry, so the window has to exist there.
+  if (instance.getSnapshot().windows[card.id as string] === undefined) instance.actions.addWindow(card)
   return {
-    window: { ...CARD, ...(overrides['window'] as Partial<BoardWindowState> | undefined) },
+    window: card,
     actions: overrides['actions'] ?? instance.actions,
     useStore: <S,>(selector: (state: BoardState) => S): S => useSyncExternalStore(
       onChange => instance.subscribe(onChange),
@@ -219,7 +222,9 @@ describe('clone editor form', () => {
     fireEvent.click(screen.getByText('Ready'))
     fireEvent.click(field('save'))
     await waitFor(() => { expect(saveClone).toHaveBeenCalledTimes(2) })
-    expect(saveClone).toHaveBeenLastCalledWith('clone-1', expect.objectContaining({ status: 'ready' }), 3)
+    // The accepted save minted revision 4, and the form carries it without
+    // waiting for the roster read.
+    expect(saveClone).toHaveBeenLastCalledWith('clone-1', expect.objectContaining({ status: 'ready' }), 4)
   })
 
   it('adopts a clean newer revision and marks exactly the fields that moved', async () => {
@@ -261,6 +266,32 @@ describe('clone editor form', () => {
     // Editing a marked field takes it over: the mark retires with the edit.
     fireEvent.change(field('persona'), { target: { value: 'Моя персона' } })
     expect(document.querySelector('[data-board-clone-agent-field="persona"]')).toBeNull()
+  })
+
+  it('keeps text typed while a save runs and raises no phantom agent revision', async () => {
+    const deferred = Promise.withResolvers<'saved'>()
+    const saveClone = vi.fn(async () => await deferred.promise)
+    const instance = createBoardStore().create()
+    const { rerender } = render(<CloneBody {...cloneProps({ saveClone, instance })} />)
+    await waitFor(() => { expect(value('name')).toBe('Анна') })
+    fireEvent.change(field('name'), { target: { value: 'Анна П.' } })
+    fireEvent.click(field('save'))
+    // The user keeps typing while the route works.
+    fireEvent.change(field('description'), { target: { value: 'Пока идёт сохранение' } })
+    deferred.resolve('saved')
+    await waitFor(() => { expect(saveClone).toHaveBeenCalledTimes(1) })
+
+    // The stored record the accepted save produced is the user's own: it must
+    // become the base, not a pending agent revision that discards newer text.
+    rerender(<CloneBody {...cloneProps({
+      saveClone,
+      instance,
+      clones: [{ ...CLONE, name: 'Анна П.', revision: 4 }],
+    })} />)
+    await waitFor(() => { expect(document.querySelector('[data-board-clone-revision="4"]')).not.toBeNull() })
+    expect(value('description')).toBe('Пока идёт сохранение')
+    expect(document.querySelector('[data-board-clone-notice="agent"]')).toBeNull()
+    expect(document.querySelectorAll('[data-board-clone-agent-field]')).toHaveLength(0)
   })
 
   it('does not mark the user\'s own save as an agent revision', async () => {

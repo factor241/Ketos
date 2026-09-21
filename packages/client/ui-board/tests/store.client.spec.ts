@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import { MIN_WINDOW_SIZE, clampWindowSize, createBoardStore, nextWindowOrdinal, snapPosition } from '../src/client/store.ts'
 import { PANEL_DEFAULT_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH } from '../src/client/window/panel-geometry.ts'
+import type { CloneId } from '@ketos/clone-core/types'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 
 /** A window state literal with the fields a placement test does not vary. */
@@ -19,6 +20,33 @@ function makeWindow(overrides: Partial<BoardWindowState> & Pick<BoardWindowState
     ...overrides,
   }
 }
+
+describe('clone editor drafts', () => {
+  const draft = {
+    draft: { name: 'Анна', role: 'Аналитик', description: '', persona: '', methodology: '', preferredModel: null, status: 'draft' as const },
+    base: { name: 'Анна', role: 'Аналитик', description: '', persona: '', methodology: '', preferredModel: null, status: 'draft' as const },
+    revision: 1,
+    agentFields: [],
+  }
+
+  it('keeps a draft while its window lives and drops it when the window closes', () => {
+    const { actions, store } = createBoardStore().create()
+    actions.addWindow(makeWindow({ id: 'w1' as WindowId, kind: 'clone', bodyKind: 'clone', cloneId: 'clone-1' as CloneId }))
+    actions.setCloneEdit('w1' as WindowId, 'clone-1' as CloneId, draft)
+    expect(store.getSnapshot().cloneEdits['clone-1']).toBeDefined()
+
+    // A write that arrives after the window closed must not resurrect it.
+    actions.setCloneEdit('missing' as WindowId, 'clone-2' as CloneId, draft)
+    expect(store.getSnapshot().cloneEdits['clone-2']).toBeUndefined()
+
+    actions.setCloneEdit('w1' as WindowId, 'clone-1' as CloneId, undefined)
+    expect(store.getSnapshot().cloneEdits['clone-1']).toBeUndefined()
+
+    actions.setCloneEdit('w1' as WindowId, 'clone-1' as CloneId, draft)
+    actions.closeWindow('w1' as WindowId)
+    expect(store.getSnapshot().cloneEdits['clone-1']).toBeUndefined()
+  })
+})
 
 describe('nextWindowOrdinal', () => {
   it('never recycles an ordinal the open stack still shows', () => {

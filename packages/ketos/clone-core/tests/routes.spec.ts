@@ -200,6 +200,36 @@ describe('clone route failures', () => {
     expect(mutations).toBe(3)
   })
 
+  it('answers the committed write even when the notification throws', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-clone-notify-'))
+    cleanups.push(() => rm(root, { recursive: true, force: true }))
+    const database = new CloneDatabase(join(root, 'clones.db'))
+    const ctx = new Context()
+    cleanups.push(() => ctx.fiber.dispose())
+    const connection = new HostConnectionService(ctx, [], {} as BrowserAuth)
+    const fiber = ctx.plugin({
+      inject: ['connection'],
+      apply: (scope) => {
+        registerCloneRoutes(scope, database, () => { throw new Error('the observer is gone') })
+      },
+    })
+    await fiber
+    cleanups.push(() => fiber.dispose())
+    const handler = connection.createSharedFetchHandler('/api')
+    const response = await handler.fetch(new Request(`http://localhost${CLONES_PATH}`, {
+      method: 'POST',
+      body: JSON.stringify({ op: 'create', name: 'Анна', role: 'Аналитик' }),
+      headers: { 'content-type': 'application/json' },
+    }))
+    // The write committed before the notification ran, so its failure must not
+    // change the answer.
+    expect(response.status).toBe(200)
+    expect((await body<CloneAnswerResponse>(response)).clone.name).toBe('Анна')
+    expect((await body<CloneListResponse>(await handler.fetch(new Request(
+      `http://localhost${CLONES_PATH}`,
+    )))).clones).toHaveLength(1)
+  })
+
   it('withdraws the route when its fiber disposes', async () => {
     const { fiber, get, handler } = await fixture()
     expect((await get()).status).toBe(200)

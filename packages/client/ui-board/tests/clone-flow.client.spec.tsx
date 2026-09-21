@@ -213,9 +213,15 @@ describe('clone roster in the board chrome', () => {
     expect(panel.container.querySelector('[data-board-clone-notice="agent"]')).toBeNull()
   })
 
-  it('reports a refused start without creating a session or binding one', async () => {
+  it('reports a refused start before a session is created or bound', async () => {
     const server = stubCloneRoute([CLONE])
-    const { panel, field, windowsOfKind } = await mounted()
+    let created = 0
+    const { panel, field, windowsOfKind } = await mounted({
+      createSession: async () => {
+        created += 1
+        return `session-${String(created)}` as SessionId
+      },
+    })
     await waitFor(() => { expect(panel.container.querySelector('[data-board-clone-row="clone-1"]')).not.toBeNull() })
     act(() => {
       fireEvent.click(panel.container.querySelector('[data-board-clone-row="clone-1"]') as Element)
@@ -228,9 +234,65 @@ describe('clone roster in the board chrome', () => {
     })
     // The status write is the first step: a refusal leaves no session behind.
     await waitFor(() => { expect(panel.container.querySelector('[data-board-clone-notice="failed"]')).not.toBeNull() })
+    expect(created).toBe(0)
     expect(server.calls.some(call => call.op === 'bindSession')).toBe(false)
     expect(windowsOfKind('agent')).toBe(0)
     expect(server.clones[0]?.status).toBe('draft')
+  })
+
+  it('rolls the status back when the binding is refused', async () => {
+    const server = stubCloneRoute([CLONE])
+    const { panel, field } = await mounted()
+    await waitFor(() => { expect(panel.container.querySelector('[data-board-clone-row="clone-1"]')).not.toBeNull() })
+    act(() => {
+      fireEvent.click(panel.container.querySelector('[data-board-clone-row="clone-1"]') as Element)
+    })
+    await waitFor(() => { expect(field('interview')).not.toBeNull() })
+
+    server.refuse = 'bindSession'
+    act(() => {
+      fireEvent.click(field('interview') as Element)
+    })
+    // The status the gesture wrote is given back, so the clone does not stay
+    // interviewing without a session.
+    await waitFor(() => { expect(panel.container.querySelector('[data-board-clone-notice="failed"]')).not.toBeNull() })
+    expect(server.clones[0]?.status).toBe('draft')
+    expect(server.calls.filter(call => call.op === 'update')).toHaveLength(2)
+  })
+
+  it('presents the interview in the clone window instead of opening a stray chat', async () => {
+    stubCloneRoute([CLONE])
+    const { runtime, panel, cloneWindow, field, windowsOfKind } = await mounted({
+      sessionSummary: { displayTitle: 'Интервью' },
+    })
+    await waitFor(() => { expect(panel.container.querySelector('[data-board-clone-row="clone-1"]')).not.toBeNull() })
+    act(() => {
+      fireEvent.click(panel.container.querySelector('[data-board-clone-row="clone-1"]') as Element)
+    })
+    await waitFor(() => { expect(field('interview')).not.toBeNull() })
+    act(() => {
+      fireEvent.click(field('interview') as Element)
+    })
+    await waitFor(() => { expect(cloneWindow()?.bodyKind).toBe('conversation') })
+    act(() => {
+      fireEvent.click(panel.container.querySelector('[data-board-clone-tab="profile"]') as Element)
+    })
+    await waitFor(() => { expect(field('name')).not.toBeNull() })
+
+    // Picking the window's own interview from the chats panel must show it in
+    // this window rather than minting an empty agent window on the way.
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-chats"]') as Element)
+    await runtime.flush()
+    const ungrouped = panel.view.queryByText('Ungrouped')
+    if (ungrouped !== null) {
+      fireEvent.click(ungrouped)
+      await runtime.flush()
+    }
+    fireEvent.click(panel.view.getByText('Интервью'))
+    await runtime.flush()
+    await runtime.flush()
+    expect(cloneWindow()?.bodyKind).toBe('conversation')
+    expect(windowsOfKind('agent')).toBe(0)
   })
 
   it('creates a clone from the Action Menu and opens its editor', async () => {

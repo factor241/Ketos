@@ -48,12 +48,14 @@ function sanitizeWindow(raw: unknown): BoardLayoutWindow | undefined {
   const bodyKind = memberOf(raw.bodyKind, BOARD_WINDOW_BODY_KINDS)
   if (id === undefined || kind === undefined || bodyKind === undefined) return undefined
   const title = typeof raw.customTitle === 'string' ? raw.customTitle.trim() : ''
+  const cloneId = identity(raw.cloneId)
   return {
     id,
     kind,
     bodyKind,
     ordinal: Math.max(1, Math.trunc(finite(raw.ordinal, 1))),
     ...(title === '' ? {} : { customTitle: title }),
+    ...(cloneId === undefined ? {} : { cloneId }),
     x: bounded(raw.x, 0, -BOARD_LAYOUT_COORD_LIMIT, BOARD_LAYOUT_COORD_LIMIT),
     y: bounded(raw.y, 0, -BOARD_LAYOUT_COORD_LIMIT, BOARD_LAYOUT_COORD_LIMIT),
     // A negative size is a corrupted value, not an orientation: repair it to
@@ -85,6 +87,7 @@ export function captureBoardLayout(state: BoardState): BoardLayoutDocument {
       bodyKind: window.bodyKind,
       ordinal: window.ordinal,
       ...(window.customTitle === undefined ? {} : { customTitle: window.customTitle }),
+      ...(window.cloneId === undefined ? {} : { cloneId: window.cloneId }),
       x: window.x,
       y: window.y,
       width: window.width,

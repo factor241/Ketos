@@ -204,10 +204,11 @@ function DockRow({ window: win, active, actions, t, useWindowSession }: DockRowP
   )
 }
 
-export function SessionRail({ useStore, actions, t, useWindowSession }: SessionRailProps) {
+export function SessionRail({ useStore, actions, t, useWindowSession, useCloneList, openClone }: SessionRailProps) {
   const windowOrder = useStore(s => s.windowOrder)
   const windows = useStore(s => s.windows)
   const activeWindowId = useStore(s => s.activeWindowId)
+  const clones = useCloneList(roster => roster.clones)
   const [addMenu, setAddMenu] = useState<MenuPlacement | null>(null)
   const addRef = useRef<HTMLButtonElement>(null)
 
@@ -289,6 +290,28 @@ export function SessionRail({ useStore, actions, t, useWindowSession }: SessionR
           <IconFullscreenOutline16 />
         </button>
       </Tooltip>
+
+      {/* Clone mini-panel: one compact row per stored clone, opening (or
+          focusing) the window that edits it. The roster is host data; the
+          section is absent while the deployment stores no clone. */}
+      {clones.length > 0 && (
+        <>
+          <div className={css.divider} />
+          {clones.map(clone => (
+            <Tooltip key={clone.id} label={`${clone.name} · ${clone.role}`} side="right" delayMs={300}>
+              <button
+                type="button"
+                className={css.cloneButton}
+                data-board-clone-row={clone.id}
+                aria-label={t('rail.openClone', { name: clone.name })}
+                onClick={() => { openClone(clone.id) }}
+              >
+                <IconAgentPresetOutline16 />
+              </button>
+            </Tooltip>
+          ))}
+        </>
+      )}
     </div>
   )
 }

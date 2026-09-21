@@ -51,6 +51,7 @@
     "@deepseek-ai/dsh-client-hmr": "workspace:^",
     "@deepseek-ai/dsh-client-locale": "workspace:^",
     "@ketos/client-locale-ru": "workspace:^",
+    "@ketos/clone-core": "workspace:^",
     "@deepseek-ai/dsh-client-modules": "workspace:^",
     "@deepseek-ai/dsh-client-resources": "workspace:^",
     "@deepseek-ai/dsh-client-ui-agent-preset": "workspace:^",

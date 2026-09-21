@@ -64,6 +64,9 @@
     },
     {
       "path": "../ui-settings"
+    },
+    {
+      "path": "../../ketos/clone-core/tsconfig.client.json"
     }
   ]
 }

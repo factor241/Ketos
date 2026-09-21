@@ -15,12 +15,14 @@ export type BoardActions = PropsStore<BoardStoreHandle>['actions']
  * @param actions - the shared board store's action face.
  * @param template - template to open from {@link BOARD_WINDOW_TEMPLATES}.
  * @param ordinal - launch ordinal the localized template name is built from.
+ * @param extra - template-independent window fields, such as the clone a clone window edits.
  * @returns the minted identity of the opened window.
  */
 export function openBoardWindow(
   actions: BoardActions,
   template: keyof typeof BOARD_WINDOW_TEMPLATES,
   ordinal: number,
+  extra: Partial<Pick<BoardWindowState, 'cloneId'>> = {},
 ): WindowId {
   const spec = BOARD_WINDOW_TEMPLATES[template]
   const id = mintWindowId(spec.kind)
@@ -28,6 +30,7 @@ export function openBoardWindow(
     id,
     ...spec,
     ordinal,
+    ...extra,
   })
   return id
 }

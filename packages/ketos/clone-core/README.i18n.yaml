@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/ketos/clone-core/README.md
+README.md: 333ad0dd7ed0369750045f779da41edcb9028fc8
+README.zh.md: 47f6e5415bd86829728f31b2ea82699832104332

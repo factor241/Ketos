@@ -6,6 +6,7 @@ import {
 import { captureBoardLayout, sanitizeBoardLayout } from '../src/client/board-layout.ts'
 import { createBoardStore, MIN_WINDOW_SIZE, WINDOW_Z_BASE } from '../src/client/store.ts'
 import type { BoardLayoutWindow } from '../src/board-settings.ts'
+import type { CloneId } from '@ketos/clone-core/types'
 import type { WindowId } from '../src/client/contract/slots.ts'
 
 /** One wire window, overridable field by field. */
@@ -87,6 +88,25 @@ describe('captureBoardLayout', () => {
     expect(layout.windows[0]).toMatchObject({ id: 'agent-1', kind: 'agent', ordinal: 1 })
   })
 
+  it('captures the clone a clone window edits and restores it branded', () => {
+    const instance = createBoardStore().create()
+    instance.actions.openWindow({
+      id: 'clone-1' as WindowId,
+      kind: 'clone',
+      bodyKind: 'clone',
+      cloneId: 'clone-1' as CloneId,
+      ordinal: 1,
+      width: 648,
+      height: 768,
+    })
+    const captured = captureBoardLayout(instance.getSnapshot()).windows[0]
+    expect(captured).toMatchObject({ kind: 'clone', bodyKind: 'clone', cloneId: 'clone-1' })
+
+    const repaired = sanitizeBoardLayout(document({ windows: [captured], windowOrder: ['clone-1'] }))
+    instance.actions.hydrate(repaired as ReturnType<typeof sanitizeBoardLayout> & object)
+    expect(instance.getSnapshot().windows['clone-1']?.cloneId).toBe('clone-1')
+  })
+
   it('captures a custom title only while one is set', () => {
     const instance = createBoardStore().create()
     instance.actions.addWindow({
@@ -111,6 +131,17 @@ describe('sanitizeBoardLayout', () => {
     const layout = sanitizeBoardLayout(document())
     expect(layout).toMatchObject({ panX: 12, panY: -34, zoom: 1.5, activeWindowId: 'agent-1' })
     expect(firstWindow(layout)).toMatchObject({ x: 24, y: 48, width: 552, height: 648 })
+  })
+
+  it('keeps a clone id only while it is a non-empty string', () => {
+    const kept = sanitizeBoardLayout(document({
+      windows: [window({ kind: 'clone', bodyKind: 'clone', cloneId: 'clone-1' })],
+    }))
+    expect(firstWindow(kept)).toMatchObject({ cloneId: 'clone-1' })
+    const dropped = sanitizeBoardLayout(document({
+      windows: [window({ kind: 'clone', bodyKind: 'clone', cloneId: '' })],
+    }))
+    expect(firstWindow(dropped)).not.toHaveProperty('cloneId')
   })
 
   it('ignores a document of another version or a non-document value', () => {

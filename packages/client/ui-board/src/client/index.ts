@@ -16,11 +16,19 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { presetDisplayText } from '@deepseek-ai/dsh-agent-presets/display'
-import { createBoardStore, type BoardStoreHandle } from './store.ts'
+import type { CloneDto, CloneId, CloneSessionBinding, CloneUpdatePatch } from '@ketos/clone-core/types'
+import { createBoardStore, nextWindowOrdinal, type BoardStoreHandle } from './store.ts'
 import { BoardLayoutPersistence } from './board-persistence.ts'
 import { BoardSessionBridge } from './session-bridge.ts'
-import { resolveChatWindow } from './open-window.ts'
-import type { BoardPresetRoster, BoardWindowInjected, WindowId } from './contract/slots.ts'
+import { openBoardWindow, resolveChatWindow } from './open-window.ts'
+import {
+  bindSessionToClone, createClone as createCloneRequest, deleteClone as deleteCloneRequest,
+  listCloneSessions, listClones, updateClone as updateCloneRequest,
+} from './clone-api.ts'
+import { parseModelRoute } from './clone-model.ts'
+import type {
+  BoardCloneRoster, BoardPresetRoster, BoardWindowInjected, CloneModelOption, WindowId,
+} from './contract/slots.ts'
 import { BoardRoot, BoardIcon } from './BoardViews.tsx'
 import { DashboardCanvas } from './canvas/DashboardCanvas.tsx'
 import { BoardWindowLayer } from './canvas/BoardWindowLayer.tsx'
@@ -28,6 +36,7 @@ import { Minimap } from './canvas/Minimap.tsx'
 import { AgentCard } from './window/AgentCard.tsx'
 import { WindowFrame } from './window/WindowFrame.tsx'
 import { ConversationBody } from './window/ConversationBody.tsx'
+import { CloneBody } from './window/CloneBody.tsx'
 import { SessionRail } from './dock/SessionRail.tsx'
 import { DashboardToolbar } from './omnibox/DashboardToolbar.tsx'
 import { WindowChatsPanel } from './window/WindowChatsPanel.tsx'
@@ -138,6 +147,41 @@ export function apply(ctx: ClientContext): void {
     persistence.start()
     return () => { persistence.dispose() }
   }, 'ui-board: settings persistence')
+
+  // Clone roster: the /api/ketos.clones list the dock, the Omnibox, and the
+  // clone editor read. A failed read keeps the last published list, so a
+  // transient failure cannot empty the chrome; every mutation re-reads it.
+  const cloneRoster = createSnapshotStore<BoardCloneRoster>({ clones: [], loaded: false })
+  const refreshClones = (): void => {
+    void listClones().then((result) => {
+      // A failed read keeps the last published list, and marks the first
+      // attempt answered so a clone window does not read "missing" forever on
+      // a deployment that mounts no clone host package.
+      const clones = result.ok ? result.value : cloneRoster.getSnapshot().clones
+      cloneRoster.set({ clones, loaded: true })
+    })
+  }
+  refreshClones()
+
+  /** The window already editing one clone, in paint order, if any. */
+  const cloneWindow = (cloneId: CloneId): WindowId | undefined => {
+    const state = instance.getSnapshot()
+    for (const id of state.windowOrder) {
+      if (state.windows[id as string]?.cloneId === cloneId) return id
+    }
+    return undefined
+  }
+
+  /** Open the editor of one clone, focusing the window that already edits it. */
+  const openClone = (cloneId: CloneId): void => {
+    const holder = cloneWindow(cloneId)
+    if (holder !== undefined) {
+      instance.actions.centerOnWindow(holder)
+      return
+    }
+    openBoardWindow(instance.actions, 'clone', nextWindowOrdinal(instance.getSnapshot().windows), { cloneId })
+  }
+
   const windowSession = (key: string) => bridge.channel(key as WindowId)
   const injected = (): BoardWindowInjected => ({
     keyedHooks: { windowSession },
@@ -145,6 +189,7 @@ export function apply(ctx: ClientContext): void {
       sessionList: ctx.sessions.list,
       workspaceList: ctx.workspaces.list,
       agentPresetRoster: presetRoster,
+      cloneList: cloneRoster,
     },
     ensureWindowSession: (windowId) => { bridge.ensure(windowId) },
     refreshAgentPresets: () => { void loadPresetRoster() },
@@ -209,6 +254,83 @@ export function apply(ctx: ClientContext): void {
     loadQueueImage: (windowId, attachment) => bridge.loadQueueImage(windowId, attachment),
     goalAction: (windowId, action) => { bridge.goalAction(windowId, action) },
     loadMentions: (windowId, query, signal) => bridge.loadMentions(windowId, query, signal),
+    refreshClones,
+    createClone: () => {
+      void createCloneRequest({ name: t('clone.newName'), role: t('clone.newRole') }).then((result) => {
+        if (!result.ok) return
+        cloneRoster.set({ clones: [result.value, ...cloneRoster.getSnapshot().clones], loaded: true })
+        openClone(result.value.id)
+      })
+    },
+    openClone,
+    saveClone: async (cloneId: CloneId, patch: CloneUpdatePatch, revision: number) => {
+      const result = await updateCloneRequest(cloneId, patch, revision)
+      if (result.ok) {
+        refreshClones()
+        return 'saved'
+      }
+      if (result.code === 'ketos/clone-conflict') {
+        // The stored record moved; re-read it so the form's next save carries
+        // the current revision and the banner can name what happened.
+        refreshClones()
+        return 'conflict'
+      }
+      if (result.code === 'ketos/clone-not-found') {
+        refreshClones()
+        return 'missing'
+      }
+      return 'failed'
+    },
+    deleteClone: async (cloneId: CloneId, revision: number) => {
+      const result = await deleteCloneRequest(cloneId, revision)
+      if (!result.ok) {
+        if (result.code === 'ketos/clone-conflict') {
+          refreshClones()
+          return 'conflict'
+        }
+        return result.code === 'ketos/clone-not-found' ? 'missing' : 'failed'
+      }
+      refreshClones()
+      // The window edits a record that no longer exists; closing it is the
+      // honest outcome, and its unsaved draft goes with the clone.
+      for (const id of instance.getSnapshot().windowOrder) {
+        if (instance.getSnapshot().windows[id as string]?.cloneId === cloneId) instance.actions.closeWindow(id)
+      }
+      return 'deleted'
+    },
+    loadCloneModels: async (): Promise<readonly CloneModelOption[]> => {
+      try {
+        const result = await ctx.remote.session.modelCatalog()
+        if (!result.ok) return []
+        return result.value.groups.flatMap(group => group.models.map(model => ({
+          provider: group.id,
+          providerName: group.name,
+          model: model.id,
+          name: model.name,
+        })))
+      } catch {
+        // A deployment without the model catalog keeps the picker empty: the
+        // clone simply carries no preferred model.
+        return []
+      }
+    },
+    loadCloneSessions: async (cloneId: CloneId): Promise<readonly CloneSessionBinding[]> => {
+      const result = await listCloneSessions(cloneId)
+      return result.ok ? result.value : []
+    },
+    startCloneSession: async (clone: CloneDto) => {
+      try {
+        const sessionId = await ctx.sessions.create()
+        const windowId = openBoardWindow(instance.actions, 'agent', nextWindowOrdinal(instance.getSnapshot().windows))
+        bridge.adopt(windowId, sessionId)
+        const route = clone.preferredModel === null ? undefined : parseModelRoute(clone.preferredModel)
+        if (route !== undefined) bridge.selectModel(windowId, route)
+        const bound = await bindSessionToClone(clone.id, sessionId)
+        return bound.ok ? 'started' : 'failed'
+      } catch {
+        return 'failed'
+      }
+    },
   })
 
   ctx.slots.inject('main', () => ctx.slots.register({
@@ -261,9 +383,8 @@ export function apply(ctx: ClientContext): void {
     yield ctx.slots.register({ name: 'board.window.panel', key: 'clone', store: boardStore, locale: NS, inject: injected }, WindowChatsPanel)
   })
 
-  // Only the conversation body ships today: no board window presents mock
-  // tool or settings content, and the stages that own those surfaces register
-  // their own bodies.
+  // The conversation body serves every chat window; the clone body is the
+  // clone card editor inside a clone window.
   ctx.slots.inject('board.window.body', function* () {
     yield ctx.slots.register({
       name: 'board.window.body',
@@ -272,6 +393,13 @@ export function apply(ctx: ClientContext): void {
       locale: NS,
       inject: injected,
     }, ConversationBody)
+    yield ctx.slots.register({
+      name: 'board.window.body',
+      key: 'clone',
+      store: boardStore,
+      locale: NS,
+      inject: injected,
+    }, CloneBody)
   })
 
   ctx.slots.inject('board.dock', () => ctx.slots.register({

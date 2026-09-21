@@ -80,7 +80,7 @@ describe('board slot composition', () => {
       'agent', 'clone', 'connectors', 'settings', 'dashboard', 'tasks',
     ])
     expect(runtime.slots.entries('board.window.body').map(entry => entry.options.key)).toEqual([
-      'conversation',
+      'conversation', 'clone',
     ])
 
     expect(runtime.slots.entries('sidebar.panellist').map(entry => entry.options.id)).toEqual(['board'])
@@ -595,7 +595,7 @@ describe('board slot composition', () => {
     expect(runtime.slots.entriesOfSlot('board.canvas')).toHaveLength(1)
     expect(runtime.slots.entriesOfSlot('board.windows')).toHaveLength(1)
     expect(runtime.slots.entries('board.window')).toHaveLength(6)
-    expect(runtime.slots.entries('board.window.body')).toHaveLength(1)
+    expect(runtime.slots.entries('board.window.body')).toHaveLength(2)
   })
 
   it('culls a window that leaves the visible canvas and keeps its draft', async () => {
@@ -1263,7 +1263,7 @@ describe('board slot composition', () => {
       expect(runtime.slots.entriesOfSlot('board.canvas')).toHaveLength(1)
       expect(runtime.slots.entriesOfSlot('board.windows')).toHaveLength(1)
       expect(runtime.slots.entries('board.window')).toHaveLength(6)
-      expect(runtime.slots.entries('board.window.body')).toHaveLength(1)
+      expect(runtime.slots.entries('board.window.body')).toHaveLength(2)
       await vi.waitFor(() => {
         expect(panel.container.querySelector('[data-surface="canvas"]')).not.toBeNull()
       })

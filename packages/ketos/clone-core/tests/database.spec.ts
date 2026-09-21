@@ -1,0 +1,152 @@
+/** clones.db opens owner-only, stamps its identity and version, and refuses foreign files. */
+import { mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, describe, expect, it } from 'vitest'
+import { CloneDatabase, openDatabase } from '../src/db.ts'
+import { CloneRepository } from '../src/repository.ts'
+import { CLONE_CORE_APPLICATION_ID, CLONE_CORE_SCHEMA_VERSION, runMigrations } from '../src/schema.ts'
+
+const cleanups: Array<() => unknown> = []
+afterEach(async () => {
+  for (const cleanup of cleanups.reverse()) await cleanup()
+  cleanups.length = 0
+})
+
+/** Fresh temporary directory that the running test owns. */
+async function temporaryDirectory(): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-clone-core-'))
+  cleanups.push(() => rm(root, { recursive: true, force: true }))
+  return root
+}
+
+/** Pragmas of one database file, read through a throwaway handle. */
+async function pragmas(path: string): Promise<{ applicationId: number; userVersion: number; journalMode: string }> {
+  const db = await openDatabase(path)
+  cleanups.push(() => { db.close() })
+  const { application_id: applicationId } = db.prepare('PRAGMA application_id').get() as { application_id: number }
+  const { user_version: userVersion } = db.prepare('PRAGMA user_version').get() as { user_version: number }
+  const { journal_mode: journalMode } = db.prepare('PRAGMA journal_mode').get() as { journal_mode: string }
+  return { applicationId, userVersion, journalMode }
+}
+
+describe('clones.db open sequence', () => {
+  it('creates the directory 0700 and the file 0600, and stamps identity, version, and WAL', async () => {
+    const root = await temporaryDirectory()
+    const path = join(root, 'home', 'clones.db')
+    const db = await openDatabase(path)
+    expect((await stat(join(root, 'home'))).mode & 0o777).toBe(0o700)
+    expect((await stat(path)).mode & 0o777).toBe(0o600)
+    db.close()
+    expect(await pragmas(path)).toEqual({
+      applicationId: CLONE_CORE_APPLICATION_ID,
+      userVersion: CLONE_CORE_SCHEMA_VERSION,
+      journalMode: 'wal',
+    })
+  })
+
+  it('keeps its records across a close and reopen', async () => {
+    const root = await temporaryDirectory()
+    const path = join(root, 'clones.db')
+    const first = await openDatabase(path)
+    const created = new CloneRepository(first).createClone({ name: 'Анна', role: 'Аналитик' })
+    first.close()
+    const second = await openDatabase(path)
+    expect(new CloneRepository(second).getClone(created.id)).toMatchObject({ name: 'Анна', revision: 1 })
+    second.close()
+  })
+
+  it('refuses a database stamped for another application', async () => {
+    const root = await temporaryDirectory()
+    const path = join(root, 'clones.db')
+    const db = await openDatabase(path)
+    db.exec('PRAGMA application_id = 0x1234')
+    db.close()
+    await expect(openDatabase(path)).rejects.toThrow(/belongs to another application/u)
+  })
+
+  it('refuses a schema version newer than this build', async () => {
+    const root = await temporaryDirectory()
+    const path = join(root, 'clones.db')
+    const db = await openDatabase(path)
+    db.exec(`PRAGMA user_version = ${String(CLONE_CORE_SCHEMA_VERSION + 1)}`)
+    db.close()
+    await expect(openDatabase(path)).rejects.toThrow(/newer than this build/u)
+  })
+
+  it('refuses a file that is not a SQLite database', async () => {
+    const root = await temporaryDirectory()
+    const path = join(root, 'clones.db')
+    await writeFile(path, 'not a database')
+    await expect(openDatabase(path)).rejects.toThrow()
+  })
+})
+
+describe('forward-only migration runner', () => {
+  it('applies every missing step in order and preserves existing rows', async () => {
+    const db = await openDatabase(':memory:')
+    cleanups.push(() => { db.close() })
+    const repository = new CloneRepository(db)
+    const created = repository.createClone({ name: 'Борис', role: 'Юрист' })
+    const applied: string[] = []
+    runMigrations(db, [
+      () => { applied.push('v1') },
+      (migrating) => {
+        applied.push('v2')
+        migrating.exec('ALTER TABLE clones ADD COLUMN notes TEXT NOT NULL DEFAULT \'\'')
+      },
+      (migrating) => {
+        applied.push('v3')
+        migrating.exec('CREATE TABLE clone_skills (clone_id TEXT NOT NULL, skill TEXT NOT NULL) STRICT')
+      },
+    ], 3)
+    const { user_version: version } = db.prepare('PRAGMA user_version').get() as { user_version: number }
+    expect(version).toBe(3)
+    expect(applied).toEqual(['v2', 'v3'])
+    expect(repository.getClone(created.id)).toMatchObject({ name: 'Борис', revision: 1 })
+    const notes = db.prepare('SELECT notes FROM clones WHERE id = ?').get(created.id) as { notes: string }
+    expect(notes.notes).toBe('')
+  })
+
+  it('refuses a step list that cannot reach the current version', async () => {
+    const db = await openDatabase(':memory:')
+    cleanups.push(() => { db.close() })
+    expect(() => { runMigrations(db, [], 1) }).toThrow(/need 0 migration steps/u)
+  })
+})
+
+describe('lazy database owner', () => {
+  it('does not touch the filesystem before the first repository call', async () => {
+    const root = await temporaryDirectory()
+    const path = join(root, 'clones.db')
+    const database = new CloneDatabase(path)
+    await expect(stat(path)).rejects.toMatchObject({ code: 'ENOENT' })
+    const repository = await database.repository()
+    expect(repository.listClones()).toEqual([])
+    expect((await stat(path)).mode & 0o777).toBe(0o600)
+    await database.close()
+  })
+
+  it('answers the same repository and closes idempotently', async () => {
+    const root = await temporaryDirectory()
+    const database = new CloneDatabase(join(root, 'clones.db'))
+    const first = await database.repository()
+    expect(await database.repository()).toBe(first)
+    const created = first.createClone({ name: 'Вера', role: 'Аналитик' })
+    await database.close()
+    await database.close()
+    await expect(database.repository()).rejects.toThrow(/already closed/u)
+    const reopened = new CloneDatabase(join(root, 'clones.db'))
+    cleanups.push(() => reopened.close())
+    expect((await reopened.repository()).getClone(created.id)?.name).toBe('Вера')
+  })
+
+  it('closes a database whose first open is still in flight', async () => {
+    const root = await temporaryDirectory()
+    const database = new CloneDatabase(join(root, 'clones.db'))
+    const pending = database.repository()
+    await database.close()
+    await expect(pending).resolves.toBeInstanceOf(CloneRepository)
+    await expect(database.repository()).rejects.toThrow(/already closed/u)
+  })
+})

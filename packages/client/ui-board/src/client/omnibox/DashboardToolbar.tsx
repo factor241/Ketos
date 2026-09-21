@@ -22,6 +22,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { CloneId } from '@ketos/clone-core/types'
 import type { BoardWindowInjected } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
 import { nextWindowOrdinal } from '../store.ts'
@@ -42,7 +43,7 @@ export type DashboardToolbarProps =
 
 export function DashboardToolbar({
   useStore, actions, t, sendPrompt, openChat, useSessionList, useWorkspaceList, useAgentPresetRoster,
-  refreshAgentPresets,
+  useCloneList, createClone, openClone, refreshAgentPresets, refreshClones,
 }: DashboardToolbarProps) {
   const [text, setText] = useState('')
   const [notice, setNotice] = useState<string | null>(null)
@@ -53,6 +54,7 @@ export function DashboardToolbar({
   const sessionList = useSessionList(s => s)
   const workspaceList = useWorkspaceList(s => s)
   const presetRoster = useAgentPresetRoster(s => s)
+  const clones = useCloneList(roster => roster.clones)
   const recent = useMemo(
     () => recentChats(sessionList, workspaceList, RECENT_CHAT_LIMIT),
     [sessionList, workspaceList],
@@ -65,11 +67,13 @@ export function DashboardToolbar({
   // The portal positions from the trigger rect, so the side and alignment read
   // the trigger's viewport position once and the list tracks it afterwards.
   const openMenu = useCallback((trigger: HTMLElement | null): void => {
-    // Refresh the roster on every open, so a preset the host added or removed
-    // since the last visit is offered or dropped rather than stored stale.
+    // Refresh the presets and the clone roster on every open, so a row the
+    // host added or removed since the last visit is offered or dropped rather
+    // than stored stale.
     refreshAgentPresets()
+    refreshClones()
     setMenu(current => current !== null ? null : menuPlacement(trigger))
-  }, [refreshAgentPresets])
+  }, [refreshAgentPresets, refreshClones])
   const closeMenu = useCallback(() => { setMenu(null) }, [])
 
   const handleSubmit = (e: FormEvent): void => {
@@ -95,7 +99,7 @@ export function DashboardToolbar({
         openBoardWindow(actions, 'settings', nextWindowOrdinal(windows))
         return
       case 'open:clone':
-        setNotice(t('menu.unavailable.clone'))
+        createClone()
         return
       case 'open:dashboard':
         setNotice(t('menu.unavailable.dashboard'))
@@ -128,6 +132,10 @@ export function DashboardToolbar({
           openBoardWindow(actions, 'agent', nextWindowOrdinal(windows))
           return
         }
+        if (id.startsWith('clone:')) {
+          openClone(id.slice('clone:'.length) as CloneId)
+          return
+        }
         if (id.startsWith('recent:')) {
           // The recent list follows the same duplicate rule as the chats panel:
           // an already open chat focuses its window instead of opening twice.
@@ -158,6 +166,15 @@ export function DashboardToolbar({
     { id: 'open:clone', label: t('menu.open.clone'), icon: <IconAgentPresetOutline16 /> },
     { id: 'open:dashboard', label: t('menu.open.dashboard'), icon: <IconBrowseOutline16 /> },
     { id: 'open:tasks', label: t('menu.open.tasks'), icon: <IconBrowseOutline16 /> },
+    ...(clones.length === 0 ? [] : [
+      { type: 'separator', id: 'separator.clones' },
+      { type: 'label', id: 'group.clones', text: t('menu.clones') },
+      ...clones.map(clone => ({
+        id: `clone:${clone.id}`,
+        label: clone.role === '' ? clone.name : `${clone.name} · ${clone.role}`,
+        icon: <IconAgentPresetOutline16 />,
+      })),
+    ] satisfies readonly MenuEntry[]),
     ...(recent.length === 0 ? [] : [
       { type: 'separator', id: 'separator.recent' },
       { type: 'label', id: 'group.recentChats', text: t('menu.recentChats') },

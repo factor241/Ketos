@@ -39,11 +39,11 @@ The selection overlay lives at the top-level `src/client/ElementSelectionOverlay
 
 ## Consequences
 
-Later stages add window types and window contents without touching the canvas: a new `WindowKind` frame is a `ctx.slots.inject('board.window', …)` registration, a new body is one `yield` line in the `board.window.body` registration, and the client slot catalog reports the taken keys (`agent, clone, connectors, dashboard, settings, tasks` / `connectors, conversation, settings`).
+Later stages add window types and window contents without touching the canvas: a new `WindowKind` frame is a `ctx.slots.inject('board.window', …)` registration, a new body is one `yield` line in the `board.window.body` registration, and the client slot catalog reports the taken keys (`agent, clone, connectors, dashboard, settings, tasks` / `clone, conversation`).
 
 The layers own what they draw: the canvas measures itself and publishes `setViewport`, the dock and omnibar open windows through one helper, and the minimap centers the view with `centerOnWindow` — the store, not a component, holds the placement and centering math.
 
-Trade-offs accepted: frames for kinds whose body has no occupant yet (`clone`, `dashboard`, `tasks`) render an empty body region, because no UI creates those windows before their stages; and each keyed seat declares its share twice — once as the common `owner` and once in the mapped `keyProps` table — because the catalog's lexical scan reads owner props from `owner` while the closed key domain requires the keyed table.
+Trade-offs accepted: frames for kinds whose body has no occupant yet (`dashboard`, `tasks`) render an empty body region, because no UI creates those windows before their stages; and each keyed seat declares its share twice — once as the common `owner` and once in the mapped `keyProps` table — because the catalog's lexical scan reads owner props from `owner` while the closed key domain requires the keyed table.
 
 Two defects found while moving the gesture code remain out of scope and are tracked: board gesture listeners registered on `globalThis` survive an unmount mid-drag (`ketos-0s0`), and the 8-direction resize algorithm is duplicated in both frames with min-size guards that only the store enforces (`ketos-4k3`).
 

@@ -26,6 +26,7 @@ kind: "package-group"
 | Package | 角色 |
 |---|---|
 | [`@ketos/client-locale-ru`](client-locale-ru/README.zh.md) | Web GUI 的俄语语言包：注册 `ru`，翻译共享、settings 与 board 词典，并在用户未保存 locale 偏好时应用 `ru` 默认值 |
+| [`@ketos/clone-core`](clone-core/README.zh.md) | 克隆领域：`clones.db`（仅属主可访问的 SQLite）、只进式 schema、以修订号做 CAS 的仓库，以及看板克隆窗口调用的 `/api/ketos.clones` Fetch 路由 |
 
 -----
 

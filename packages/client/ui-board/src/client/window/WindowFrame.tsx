@@ -124,6 +124,7 @@ interface WindowTitleControlProps {
   readonly t: BoardTranslate
   readonly actions: PropsStore<BoardStoreHandle>['actions']
   readonly useWindowSession: InjectFace<BoardWindowInjected>['useWindowSession']
+  readonly useCloneList: InjectFace<BoardWindowInjected>['useCloneList']
 }
 
 /**
@@ -131,9 +132,13 @@ interface WindowTitleControlProps {
  * frame. It keeps a streamed chunk from re-rendering the frame's chrome and
  * handles, and it owns the in-place rename editor.
  */
-function WindowTitleControl({ window: cardWindow, t, actions, useWindowSession }: WindowTitleControlProps) {
+function WindowTitleControl({ window: cardWindow, t, actions, useWindowSession, useCloneList }: WindowTitleControlProps) {
   const session = useWindowSession(cardWindow.id)
-  const title = windowTitle(t, cardWindow, session?.displayTitle)
+  // A clone window has no session to name it: the clone it edits does.
+  const clone = useCloneList(roster => cardWindow.cloneId === undefined
+    ? undefined
+    : roster.clones.find(entry => entry.id === cardWindow.cloneId))
+  const title = windowTitle(t, cardWindow, session?.displayTitle, clone?.name)
   const [renameDraft, setRenameDraft] = useState<string | null>(null)
   // Escape unmounts the input, and the node's blur must not commit the draft.
   const renameCancelled = useRef(false)
@@ -193,7 +198,7 @@ function WindowTitleControl({ window: cardWindow, t, actions, useWindowSession }
 }
 
 function WindowFrameView({
-  window: cardWindow, renderBody, useStore, actions, t, features, useWindowSession,
+  window: cardWindow, renderBody, useStore, actions, t, features, useWindowSession, useCloneList,
 }: WindowFrameProps) {
   const isActive = useStore(s => s.activeWindowId === cardWindow.id)
   const returned = useStore(s => s.highlightWindowId === cardWindow.id)
@@ -302,6 +307,7 @@ function WindowFrameView({
             t={t}
             actions={actions}
             useWindowSession={useWindowSession}
+            useCloneList={useCloneList}
           />
         </div>
         {features?.fullscreen === true && (

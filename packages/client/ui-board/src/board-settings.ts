@@ -69,6 +69,8 @@ export type BoardLayoutWindow = {
   ordinal: number
   /** User-given window name, absent while the frame uses the chat title. */
   customTitle?: string
+  /** Clone a clone window edits, absent for every other window. */
+  cloneId?: string
   x: number
   y: number
   width: number
@@ -130,6 +132,7 @@ const BoardLayoutWindowSchema = z.object({
   bodyKind: z.union([...BOARD_WINDOW_BODY_KINDS]).required(),
   ordinal: z.natural().default(1),
   customTitle: z.string(),
+  cloneId: z.string(),
   x: z.number().min(-BOARD_LAYOUT_COORD_LIMIT).max(BOARD_LAYOUT_COORD_LIMIT).required(),
   y: z.number().min(-BOARD_LAYOUT_COORD_LIMIT).max(BOARD_LAYOUT_COORD_LIMIT).required(),
   width: z.number().min(1).max(BOARD_LAYOUT_COORD_LIMIT).required(),

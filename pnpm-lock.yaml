@@ -1994,6 +1994,9 @@ importers:
       '@ketos/client-locale-ru':
         specifier: workspace:^
         version: link:../../ketos/client-locale-ru
+      '@ketos/clone-core':
+        specifier: workspace:^
+        version: link:../../ketos/clone-core
       commander:
         specifier: ^15.0.0
         version: 15.0.0
@@ -2447,6 +2450,9 @@ importers:
       '@deepseek-ai/dsh-settings':
         specifier: workspace:^
         version: link:../../settings/settings
+      '@ketos/clone-core':
+        specifier: workspace:^
+        version: link:../../ketos/clone-core
       '@types/react':
         specifier: ~18.3.1
         version: 18.3.31
@@ -7109,6 +7115,31 @@ importers:
       '@deepseek-ai/dsh-client-ui-settings':
         specifier: workspace:^
         version: link:../../client/ui-settings
+
+  packages/ketos/clone-core:
+    dependencies:
+      '@deepseek-ai/dsh-brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/cordis-plugin-include':
+        specifier: workspace:^
+        version: link:../../../vendor/include
+      '@deepseek-ai/cordis-plugin-loader':
+        specifier: workspace:^
+        version: link:../../../vendor/loader
+      '@deepseek-ai/dsh-client-connection':
+        specifier: workspace:^
+        version: link:../../client/connection
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:^
+        version: link:../../core/session
 
   packages/llm/deepseek-llm-api-extensions:
     devDependencies:

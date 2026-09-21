@@ -144,3 +144,25 @@
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);
 }
+
+/* Clone mini-panel rows: compact entries below the add control, one per stored
+   clone. They sit on the rail's own surface instead of a floating-button fill,
+   so a long roster reads as a list rather than more windows. */
+.cloneButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-button-floating-fill);
+  border: none;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.cloneButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+  color: var(--dsw-alias-label-primary);
+}

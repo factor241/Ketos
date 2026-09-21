@@ -39,11 +39,11 @@ Status: implemented
 
 ## Consequences
 
-后续阶段无需触碰 canvas 即可新增窗口类型与窗口内容：新的 `WindowKind` 外框是一次 `ctx.slots.inject('board.window', …)` 注册，新的 body 是 `board.window.body` 注册中的一行 `yield`，而客户端槽位目录会报告已被占用的键（`agent, clone, connectors, dashboard, settings, tasks` / `connectors, conversation, settings`）。
+后续阶段无需触碰 canvas 即可新增窗口类型与窗口内容：新的 `WindowKind` 外框是一次 `ctx.slots.inject('board.window', …)` 注册，新的 body 是 `board.window.body` 注册中的一行 `yield`，而客户端槽位目录会报告已被占用的键（`agent, clone, connectors, dashboard, settings, tasks` / `clone, conversation`）。
 
 各层拥有自己所绘制的内容：canvas 自行测量并发布 `setViewport`，dock 与 omnibar 经由同一个 helper 打开窗口，minimap 用 `centerOnWindow` 居中视图——摆放与居中的数学在 store 中，而不在组件里。
 
-接受的取舍：尚无 body occupant 的类型（`clone`、`dashboard`、`tasks`）的外框会渲染空的 body 区域，因为在它们各自的阶段之前没有 UI 创建这些窗口；每个 keyed 席位把同一份 share 声明两次——一次作为公共 `owner`，一次在映射的 `keyProps` 表中——因为目录的词法扫描从 `owner` 读取 owner props，而封闭的键域需要 keyed 表。
+接受的取舍：尚无 body occupant 的类型（`dashboard`、`tasks`）的外框会渲染空的 body 区域，因为在它们各自的阶段之前没有 UI 创建这些窗口；每个 keyed 席位把同一份 share 声明两次——一次作为公共 `owner`，一次在映射的 `keyProps` 表中——因为目录的词法扫描从 `owner` 读取 owner props，而封闭的键域需要 keyed 表。
 
 移动手势代码时发现的两个缺陷仍在范围之外并被登记：注册在 `globalThis` 上的看板手势监听器在拖拽中途卸载后仍然存活（`ketos-0s0`），以及两个外框重复了八方向缩放算法，其最小尺寸守卫只由 store 兜底（`ketos-4k3`）。
 

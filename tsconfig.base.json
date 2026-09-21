@@ -260,6 +260,10 @@
       "@deepseek-ai/dsh-session-log-export/client": ["./packages/session-query/session-log-export/src/client"],
       "@ketos/client-locale-ru": ["./packages/ketos/client-locale-ru/src"],
       "@ketos/client-locale-ru/client": ["./packages/ketos/client-locale-ru/src/client/index.ts"],
+      // The clone package's browser face is its type-only `./types` module; the
+      // bare alias resolves the Host plugin for tests and scripts.
+      "@ketos/clone-core": ["./packages/ketos/clone-core/src"],
+      "@ketos/clone-core/types": ["./packages/ketos/clone-core/src/types.ts"],
       // BEGIN generated package aliases — pnpm run gen-tsconfig-paths
       "@deepseek-ai/dsh-acp": ["./packages/acp/acp/src"],
       "@deepseek-ai/dsh-acp-app": ["./packages/bundle/acp-app/src"],

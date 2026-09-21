@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 /** The board's own window templates: the dock and omnibar open windows through one helper. */
 import { describe, expect, it, vi } from 'vitest'
+import type { CloneId } from '@ketos/clone-core/types'
 import { openBoardWindow, type BoardActions } from '../src/client/open-window.ts'
 import type { OpenWindowSpec } from '../src/client/store.ts'
 
@@ -25,6 +26,22 @@ describe('openBoardWindow', () => {
       ordinal: 1,
     })
     expect(spec?.id).toMatch(/^agent-/)
+  })
+
+  it('opens a clone window editing the named clone', () => {
+    const { openWindow, actions } = recorder()
+    openBoardWindow(actions, 'clone', 1, { cloneId: 'clone-1' as CloneId })
+
+    const spec = openWindow.mock.calls[0]?.[0]
+    expect(spec).toMatchObject({
+      kind: 'clone',
+      bodyKind: 'clone',
+      cloneId: 'clone-1',
+      width: 648,
+      height: 768,
+      ordinal: 1,
+    })
+    expect(spec?.id).toMatch(/^clone-/)
   })
 
   it('mints a distinct id per window', () => {

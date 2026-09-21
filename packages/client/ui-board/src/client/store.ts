@@ -2,6 +2,7 @@
  * Spatial multi-window board store.
  */
 import { defineStore, type EngineStoreHandle, type EngineStoreInstance } from '@deepseek-ai/dsh-client-store'
+import type { CloneId } from '@ketos/clone-core/types'
 import {
   BOARD_ZOOM_MAX, BOARD_ZOOM_MIN, PANEL_DEFAULT_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH,
   type BoardLayoutDocument, type BoardPanelGroupBy, type BoardPanelOrderBy,
@@ -128,6 +129,7 @@ export const BOARD_WINDOW_TEMPLATES = {
   connectors: { kind: 'connectors', bodyKind: 'connectors', width: 648, height: 768 },
   settings: { kind: 'settings', bodyKind: 'settings', width: 648, height: 768 },
   dashboard: { kind: 'dashboard', bodyKind: 'dashboard', width: 768, height: 768 },
+  clone: { kind: 'clone', bodyKind: 'clone', width: 648, height: 768 },
   tasks: { kind: 'tasks', bodyKind: 'tasks', width: 648, height: 768 },
 } as const satisfies Record<string, Pick<BoardWindowState, 'kind' | 'bodyKind' | 'width' | 'height'>>
 
@@ -451,10 +453,17 @@ export function createBoardStore(): BoardStoreHandle {
         draft.panX = layout.panX
         draft.panY = layout.panY
         draft.zoom = layout.zoom
-        draft.windows = Object.fromEntries(layout.windows.map(window => [
-          window.id,
-          { ...window, id: window.id as WindowId },
-        ]))
+        draft.windows = Object.fromEntries(layout.windows.map((window) => {
+          // The stored layout carries plain strings; the window state carries
+          // the branded clone identity the editor resolves its record by.
+          const { cloneId, ...rest } = window
+          const state: BoardWindowState = {
+            ...rest,
+            id: window.id as WindowId,
+            ...(cloneId === undefined ? {} : { cloneId: cloneId as CloneId }),
+          }
+          return [window.id, state]
+        }))
         draft.windowOrder = layout.windowOrder as WindowId[]
         draft.activeWindowId = layout.activeWindowId === '' ? null : layout.activeWindowId as WindowId
         draft.fullscreenWindowId = null

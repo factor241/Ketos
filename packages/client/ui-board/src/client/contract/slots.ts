@@ -4,6 +4,7 @@
 import type { ReactNode } from 'react'
 import type { FileAttachmentRef, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { Branded } from '@deepseek-ai/dsh-brand'
+import type { CloneDto, CloneId, CloneSessionBinding, CloneUpdatePatch } from '@ketos/clone-core/types'
 import type { ChatSnapshot } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { HostObservable, InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
@@ -193,7 +194,43 @@ export interface BoardModelGroup {
   }[]
 }
 
-/** The window's model directory view: current selection, catalog, and effort rows. */
+/** Lifecycle status rows the clone editor offers, in display order. */
+export const CLONE_STATUS_ROWS = ['draft', 'active', 'archived'] as const
+
+/** One selectable model route of the clone editor's preferred-model picker. */
+export interface CloneModelOption {
+  /** Provider that serves the route. */
+  readonly provider: string
+  /** Provider display name, for the menu's group label. */
+  readonly providerName: string
+  /** Model identity inside the provider. */
+  readonly model: string
+  /** Model display name. */
+  readonly name: string
+}
+
+/**
+ * Clone roster the board chrome lists: the clones the deployment stores, as the
+ * last `/api/ketos.clones` read reported them, and whether a read has answered.
+ */
+export interface BoardCloneRoster {
+  readonly clones: readonly CloneDto[]
+  /** Whether a read has answered; false while the first read is still in flight. */
+  readonly loaded: boolean
+}
+
+/** What one clone save did, for the form's notice. */
+export type CloneSaveOutcome = 'saved' | 'conflict' | 'missing' | 'failed'
+
+/** What one clone deletion did, for the form's notice. */
+export type CloneDeleteOutcome = 'deleted' | 'conflict' | 'missing' | 'failed'
+
+/** What creating a clone session did. */
+export type CloneSessionOutcome = 'started' | 'failed'
+
+/**
+ * The window's model directory view: current selection, catalog, and effort rows.
+ */
 export interface BoardModelState {
   readonly provider?: string
   readonly model?: string
@@ -320,6 +357,11 @@ export interface BoardWindowInjected {
      * with the policy flag for visible preset selection.
      */
     agentPresetRoster: HostObservable<BoardPresetRoster>
+    /**
+     * Clones the deployment stores, as the last `/api/ketos.clones` read
+     * reported them; empty and not yet loaded until that read answers.
+     */
+    cloneList: HostObservable<BoardCloneRoster>
   }
   /** Create the window's session on first use; idempotent. */
   ensureWindowSession: (windowId: WindowId) => void
@@ -458,6 +500,36 @@ export interface BoardWindowInjected {
   goalAction: (windowId: WindowId, action: 'pause' | 'resume' | 'clear') => void
   /** Resolve `@` mention candidates for the draft's query. */
   loadMentions: (windowId: WindowId, query: string, signal: AbortSignal) => Promise<readonly BoardMentionRow[]>
+  /** Re-read the clone roster; a failed read keeps the last list it published. */
+  refreshClones: () => void
+  /** Create a clone with a fresh default name and open its editor window. */
+  createClone: () => void
+  /** Open the editor window of one clone, focusing the window that already edits it. */
+  openClone: (cloneId: CloneId) => void
+  /**
+   * Replace the patch's fields on one clone.
+   * @param cloneId - clone identity.
+   * @param patch - fields to replace.
+   * @param revision - revision the form read.
+   * @returns what the save did, for the form's notice.
+   */
+  saveClone: (cloneId: CloneId, patch: CloneUpdatePatch, revision: number) => Promise<CloneSaveOutcome>
+  /**
+   * Delete one clone and close the windows that edit it.
+   * @param cloneId - clone identity.
+   * @param revision - revision the form read.
+   * @returns what the deletion did, for the form's notice.
+   */
+  deleteClone: (cloneId: CloneId, revision: number) => Promise<CloneDeleteOutcome>
+  /** Read the model routes the clone editor's preferred-model picker offers. */
+  loadCloneModels: () => Promise<readonly CloneModelOption[]>
+  /** Read the sessions bound to one clone, newest first. */
+  loadCloneSessions: (cloneId: CloneId) => Promise<readonly CloneSessionBinding[]>
+  /**
+   * Create a session for one clone, bind it to the clone, apply the clone's
+   * preferred model, and open the chat window showing it.
+   */
+  startCloneSession: (clone: CloneDto) => Promise<CloneSessionOutcome>
 }
 
 
@@ -475,6 +547,11 @@ export interface BoardWindowState {
   kind: WindowKind
   /** Body presented inside the frame; switching it swaps the rendered content. */
   bodyKind: WindowBodyKind
+  /**
+   * Clone the window edits, for a window opened on a clone record. Persisted
+   * with the layout, so a restored clone window reopens on its clone.
+   */
+  cloneId?: CloneId
   /**
    * User-given window name. While set it overrides the chat title, so a renamed
    * window keeps the name the user chose; an empty value clears it.

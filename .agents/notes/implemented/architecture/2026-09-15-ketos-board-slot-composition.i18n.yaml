@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-15-ketos-board-slot-composition.md
-2026-09-15-ketos-board-slot-composition.md: 93abcdce5fe08f503bd2e58dc15dc7b8361cb9a4
-2026-09-15-ketos-board-slot-composition.zh.md: 59d296dcb112ca4d245676dc39f93a5a1b7885b2
+2026-09-15-ketos-board-slot-composition.md: ed3e2d31a326b91be31c89b83b83000ae86cde34
+2026-09-15-ketos-board-slot-composition.zh.md: 588e0a666dfeaa26558711ac46ad28662a8fd8af

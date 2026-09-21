@@ -3438,6 +3438,26 @@ export interface Config {
 
 Source: [`packages/workflow/workflow-worker-thread/src/index.ts:32`](../packages/workflow/workflow-worker-thread/src/index.ts)
 
+<a id="ketosclone-core"></a>
+
+## `@ketos/clone-core`
+
+Requires: `connection`
+
+```ts config-catalog
+/** Deployment configuration of the clone domain. */
+export interface Config {
+  /**
+   * Path of the clone database file. The shipped web profile passes
+   * `dshHomePath('clones.db')`; the parent directory is created owner-only
+   * before the file is opened.
+   */
+  path: string
+}
+```
+
+Source: [`packages/ketos/clone-core/src/index.ts:23`](../packages/ketos/clone-core/src/index.ts)
+
 ## Loadable plugins with no config
 
 These load from a `cordis.yml` entry with no `config:` block; they declare no configuration API.

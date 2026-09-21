@@ -26,6 +26,7 @@ The ketos group owns the packages the Ketos fork adds on top of the upstream Dee
 | Package | Role |
 |---|---|
 | [`@ketos/client-locale-ru`](client-locale-ru/README.md) | Russian locale pack for the web GUI: registers `ru`, translates the shared, settings, and board vocabularies, and applies `ru` while the user has no stored locale preference |
+| [`@ketos/clone-core`](clone-core/README.md) | The clone domain: `clones.db` (owner-only SQLite), the forward-only schema, the revision-CAS repository, and the `/api/ketos.clones` Fetch route the board's clone window calls |
 
 -----
 

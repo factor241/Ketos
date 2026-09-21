@@ -810,6 +810,21 @@ export class BoardSessionBridge {
   }
 
   /**
+   * Adopt a session the caller created outside the bridge: point one window at
+   * it and apply the remembered default preset to the still-blank session. The
+   * clone editor creates a session for a clone and hands it over here, so the
+   * window opens on the clone's session instead of creating its own.
+   * @param windowId - window identity.
+   * @param sessionId - the session the caller created.
+   * @returns what the bind did, for the calling surface to act on.
+   */
+  adopt(windowId: WindowId, sessionId: SessionId): BoardBindOutcome {
+    const outcome = this.bind(windowId, sessionId)
+    if (outcome.kind === 'bound' || outcome.kind === 'same') this.applyDefaultPreset(windowId, sessionId)
+    return outcome
+  }
+
+  /**
    * Create a chat and bind the window to it.
    * @param windowId - window identity.
    * @param target - the workspace the chat joins, or the directory it runs in.

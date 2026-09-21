@@ -134,7 +134,7 @@ describe('board resource discipline', () => {
       expect(panel.container.querySelectorAll('[data-board-dock-row]')).toHaveLength(0)
       expect(panel.container.querySelectorAll('*').length).toBe(baselineNodes)
       expect(runtime.slots.entries('board.window')).toHaveLength(6)
-      expect(runtime.slots.entries('board.window.body')).toHaveLength(1)
+      expect(runtime.slots.entries('board.window.body')).toHaveLength(2)
       expect(runtime.slots.entries('board.window.panel')).toHaveLength(2)
 
       // Closing a window never deletes its session: the same chat is rebuilt

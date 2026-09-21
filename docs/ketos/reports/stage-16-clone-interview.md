@@ -104,11 +104,11 @@
 
 | Команда | Результат |
 |---|---|
-| `pnpm exec vitest run packages/ketos` | зелёный; 6 файлов, 60 тестов |
+| `pnpm exec vitest run packages/ketos` | зелёный; 6 файлов, 64 теста (из них 53 в clone-core) |
 | `pnpm exec vitest run packages/client/ui-board/tests` | зелёный; 36 файлов, 464 теста |
-| `pnpm run test:gui` | зелёный; 414 файлов, 5901 тест |
+| `pnpm run test:gui` | зелёный; 414 файлов, 5903 теста (1 skipped) |
 | `DSH_SNAPSHOT=replay pnpm run test:web` | зелёный |
-| `pnpm exec vitest run packages/client/ui-board/tests` | зелёный; 36 файлов, 470 тестов |
+| `pnpm exec vitest run packages/client/ui-board/tests` | зелёный; 36 файлов, 472 теста |
 | Живая проверка (собранный `ketos web`, Chrome; см. §3a) | 10/10 проверок `ok`, вердикт `audit-verdict.json`; два найденных дефекта закрыты |
 | `pnpm run typecheck` | зелёный |
 | `pnpm run lint` | зелёный |

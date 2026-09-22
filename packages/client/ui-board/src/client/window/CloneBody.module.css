@@ -169,6 +169,86 @@
   font-size: var(--board-font-hint);
 }
 
+.updated {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--board-font-hint);
+}
+
+/* Mark beside a methodology section chip: the section is present but empty or
+   absent from the draft. */
+.sectionMark {
+  margin-left: 4px;
+  color: var(--dsw-alias-label-dimmed);
+  font-size: var(--board-font-hint);
+}
+
+.skillForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skillList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skillRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.skillName {
+  flex: none;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--board-font-label);
+}
+
+.skillDescription {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-hint);
+}
+
+/* A skill with an empty description: it stays in the record but never reaches
+   the model catalog. */
+.skillWarning {
+  flex: 1;
+  min-width: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-hint);
+}
+
+.rowAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+
+.rowAction:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
 .sessions {
   display: flex;
   flex-direction: column;

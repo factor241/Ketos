@@ -5,7 +5,7 @@
  * user's text or the marks that say which fields the agent rewrote.
  * @module ui-board/clone-draft
  */
-import type { CloneDto, CloneStatus, CloneUpdatePatch } from '@ketos/clone-core/types'
+import type { CloneDto, CloneSkill, CloneStatus, CloneUpdatePatch } from '@ketos/clone-core/types'
 
 /** The editable fields of one clone. */
 export interface CloneDraft {
@@ -14,13 +14,14 @@ export interface CloneDraft {
   description: string
   persona: string
   methodology: string
+  skills: readonly CloneSkill[]
   preferredModel: string | null
   status: CloneStatus
 }
 
 /** Every editable field of one draft, in form order. */
 export const CLONE_FIELDS = [
-  'name', 'role', 'description', 'persona', 'methodology', 'preferredModel', 'status',
+  'name', 'role', 'description', 'persona', 'methodology', 'skills', 'preferredModel', 'status',
 ] as const satisfies readonly (keyof CloneDraft)[]
 
 /** One editable field of a clone. */
@@ -37,7 +38,17 @@ export const CLONE_LIMITS = {
   description: 500,
   persona: 20_000,
   methodology: 20_000,
+  skillName: 64,
+  skillDescription: 500,
+  skillInstructions: 20_000,
+  skillCount: 100,
 } as const
+
+/**
+ * Skill names the route accepts, mirrored from the host's `CLONE_SKILL_NAME`
+ * validation: lowercase kebab-case, the identity the skill registry uses.
+ */
+export const CLONE_SKILL_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 /**
  * One clone's editor state as the board store keeps it: the live draft, the
@@ -71,9 +82,31 @@ export function toDraft(clone: CloneDto): CloneDraft {
     description: clone.description,
     persona: clone.persona,
     methodology: clone.methodology,
+    skills: clone.skills.map(skill => ({ ...skill, name: skill.name.trim() })),
     preferredModel: clone.preferredModel,
     status: clone.status,
   }
+}
+
+/** Whether two skills carry the same name, description, and instructions. */
+function sameSkill(left: CloneSkill, right: CloneSkill): boolean {
+  return left.name === right.name
+    && left.description === right.description
+    && left.instructions === right.instructions
+}
+
+/** Whether two skill lists carry the same entries in the same order. */
+function sameSkills(left: readonly CloneSkill[], right: readonly CloneSkill[]): boolean {
+  if (left.length !== right.length) return false
+  return left.every((skill, index) => {
+    const other = right[index]
+    return other !== undefined && sameSkill(skill, other)
+  })
+}
+
+/** Whether two drafts agree on one editable field. */
+function sameField(field: CloneField, left: CloneDraft, right: CloneDraft): boolean {
+  return field === 'skills' ? sameSkills(left.skills, right.skills) : left[field] === right[field]
 }
 
 /**
@@ -83,7 +116,7 @@ export function toDraft(clone: CloneDto): CloneDraft {
  * @returns whether every editable field is equal.
  */
 export function sameDraft(left: CloneDraft, right: CloneDraft): boolean {
-  return CLONE_FIELDS.every(field => left[field] === right[field])
+  return CLONE_FIELDS.every(field => sameField(field, left, right))
 }
 
 /**
@@ -93,7 +126,7 @@ export function sameDraft(left: CloneDraft, right: CloneDraft): boolean {
  * @returns the names of the fields that moved.
  */
 export function changedFields(previous: CloneDraft, next: CloneDraft): readonly CloneField[] {
-  return CLONE_FIELDS.filter(field => previous[field] !== next[field])
+  return CLONE_FIELDS.filter(field => !sameField(field, previous, next))
 }
 
 /**
@@ -108,6 +141,11 @@ export function toPatch(draft: CloneDraft): CloneUpdatePatch {
     description: draft.description,
     persona: draft.persona,
     methodology: draft.methodology,
+    skills: draft.skills.map(skill => ({
+      name: skill.name.trim(),
+      description: skill.description,
+      instructions: skill.instructions,
+    })),
     preferredModel: draft.preferredModel,
     status: draft.status,
   }

@@ -8,13 +8,17 @@ import type { BrowserAuth } from '@deepseek-ai/dsh-client-connection/src/browser
 import { afterEach, describe, expect, it } from 'vitest'
 import { CloneDatabase } from '../src/db.ts'
 import { CLONES_PATH, registerCloneRoutes } from '../src/routes.ts'
-import type { CloneAnswerResponse, CloneListResponse } from '../src/types.ts'
+import type { CloneAnswerResponse, CloneListResponse, CloneSkill } from '../src/types.ts'
 
 const cleanups: Array<() => Promise<unknown>> = []
 afterEach(async () => {
   for (const cleanup of cleanups.reverse()) await cleanup()
   cleanups.length = 0
 })
+
+/** One wire skill with a description unless the test says otherwise. */
+const skill = (name: string, description = 'Что делает навык', instructions = ''): CloneSkill =>
+  ({ name, description, instructions })
 
 /** One booted route handler over a temporary database. */
 async function fixture(path?: string) {
@@ -56,20 +60,55 @@ describe('clone route operations', () => {
   it('creates, reads, updates, and deletes one clone with revision CAS', async () => {
     const { post } = await fixture()
     const created = await body<CloneAnswerResponse>(await post({
-      op: 'create', name: 'Анна', role: 'Аналитик', description: 'Разбор', preferredModel: 'deepseek-chat', skills: ['sql'], status: 'interviewing',
+      op: 'create',
+      name: 'Анна',
+      role: 'Аналитик',
+      description: 'Разбор',
+      preferredModel: 'deepseek-chat',
+      skills: [skill('sql', 'Запросы к базе')],
+      status: 'interviewing',
     }))
-    expect(created.clone).toMatchObject({ name: 'Анна', preferredModel: 'deepseek-chat', skills: ['sql'], status: 'interviewing', revision: 1 })
+    expect(created.clone).toMatchObject({
+      name: 'Анна',
+      preferredModel: 'deepseek-chat',
+      skills: [skill('sql', 'Запросы к базе')],
+      status: 'interviewing',
+      revision: 1,
+    })
 
     const fetched = await body<CloneAnswerResponse>(await post({ op: 'get', id: created.clone.id }))
     expect(fetched.clone).toEqual(created.clone)
 
     const updated = await body<CloneAnswerResponse>(await post({
-      op: 'update', id: created.clone.id, revision: 1, patch: { name: 'Анна П.', preferredModel: null, skills: ['sql', 'анализ'] },
+      op: 'update',
+      id: created.clone.id,
+      revision: 1,
+      patch: { name: 'Анна П.', preferredModel: null, skills: [skill('sql', 'Другие запросы'), skill('analiz')] },
     }))
-    expect(updated.clone).toMatchObject({ name: 'Анна П.', preferredModel: null, skills: ['sql', 'анализ'], revision: 2 })
+    expect(updated.clone).toMatchObject({
+      name: 'Анна П.',
+      preferredModel: null,
+      skills: [skill('sql', 'Другие запросы'), skill('analiz')],
+      revision: 2,
+    })
 
     expect(await body(await post({ op: 'delete', id: created.clone.id, revision: 2 }))).toEqual({ ok: true, id: created.clone.id })
     expect((await post({ op: 'get', id: created.clone.id })).status).toBe(404)
+  })
+
+  it('stores a skill with an empty description and instructions as a draft', async () => {
+    const { post } = await fixture()
+    const longest = 'a'.repeat(64)
+    const created = await body<CloneAnswerResponse>(await post({
+      op: 'create',
+      name: 'Анна',
+      role: 'Аналитик',
+      skills: [{ name: 'sql' }, { name: longest, description: 'На границе длины имени' }],
+    }))
+    expect(created.clone.skills).toEqual([
+      { name: 'sql', description: '', instructions: '' },
+      { name: longest, description: 'На границе длины имени', instructions: '' },
+    ])
   })
 
   it('binds a session to a clone and lists the bindings', async () => {
@@ -115,6 +154,22 @@ describe('clone route failures', () => {
     const path = join(root, 'clones.db')
     const { post } = await fixture(path)
     expect((await post({ op: 'unknown' })).status).toBe(400)
+    // Skills are validated on the wire, so a malformed list never reaches the
+    // lazy open either.
+    const malformed: unknown[] = [
+      { op: 'create', name: 'Анна', role: 'Аналитик', skills: [skill('Анализ')] },
+      { op: 'create', name: 'Анна', role: 'Аналитик', skills: [skill('sql', 'x'.repeat(501))] },
+      { op: 'create', name: 'Анна', role: 'Аналитик', skills: [skill('sql', 'описание', 'x'.repeat(20_001))] },
+      { op: 'create', name: 'Анна', role: 'Аналитик', skills: [skill('sql'), skill('sql')] },
+      { op: 'create', name: 'Анна', role: 'Аналитик', skills: [{ name: 'sql', extra: true }] },
+      { op: 'create', name: 'Анна', role: 'Аналитик', skills: [`${'a'.repeat(64)}-`] },
+      { op: 'create', name: 'Анна', role: 'Аналитик', skills: [skill('a'.repeat(65), 'Слишком длинное имя')] },
+    ]
+    for (const request of malformed) {
+      const response = await post(request)
+      expect(response.status, JSON.stringify(request)).toBe(400)
+      expect(await body(response)).toEqual({ ok: false, error: 'ketos/invalid' })
+    }
     // Validation runs before the lazy open, so a garbage request never creates
     // the file.
     await expect(stat(path)).rejects.toMatchObject({ code: 'ENOENT' })
@@ -134,6 +189,9 @@ describe('clone route failures', () => {
       { op: 'create', name: 'Анна', role: 'Аналитик', status: 'whatever' },
       { op: 'create', name: 'Анна', role: 'Аналитик', skills: 'sql' },
       { op: 'create', name: 'Анна', role: 'Аналитик', skills: [1] },
+      { op: 'create', name: 'Анна', role: 'Аналитик', skills: [{ name: 'SQL', description: 'x' }] },
+      { op: 'create', name: 'Анна', role: 'Аналитик', skills: [{ name: 'sql', description: 'x', notes: 'y' }] },
+      { op: 'create', name: 'Анна', role: 'Аналитик', skills: [{ name: 'sql', description: 7 }] },
       { op: 'create', name: 'Анна', role: 'Аналитик', description: 7 },
       { op: 'create', name: 'Анна', role: 'Аналитик', preferredModel: 7 },
       { op: 'update', id: 'x', revision: 1, patch: {} },

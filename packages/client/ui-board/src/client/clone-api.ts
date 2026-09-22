@@ -8,7 +8,8 @@
  * dependency on the host package.
  */
 import type {
-  CloneCreateInput, CloneDto, CloneErrorCode, CloneId, CloneSessionBinding, CloneStatus, CloneUpdatePatch,
+  CloneCreateInput, CloneDto, CloneErrorCode, CloneId, CloneSessionBinding, CloneSkill, CloneStatus,
+  CloneUpdatePatch,
 } from '@ketos/clone-core/types'
 
 /** Exact route the clone host package registers below `/api`. */
@@ -32,6 +33,14 @@ function isStatus(value: unknown): value is CloneStatus {
   return value === 'draft' || value === 'interviewing' || value === 'ready'
 }
 
+/** Whether a decoded value is one stored skill. */
+function isSkill(value: unknown): value is CloneSkill {
+  if (!isRecord(value)) return false
+  return typeof value.name === 'string'
+    && typeof value.description === 'string'
+    && typeof value.instructions === 'string'
+}
+
 /** Decode one stored clone record, refusing anything the host does not promise. */
 function isClone(value: unknown): value is CloneDto {
   if (!isRecord(value)) return false
@@ -42,7 +51,7 @@ function isClone(value: unknown): value is CloneDto {
     && typeof value.persona === 'string'
     && typeof value.methodology === 'string'
     && (value.preferredModel === null || typeof value.preferredModel === 'string')
-    && Array.isArray(value.skills) && value.skills.every(skill => typeof skill === 'string')
+    && Array.isArray(value.skills) && value.skills.every(isSkill)
     && isStatus(value.status)
     && typeof value.revision === 'number'
     && typeof value.createdAt === 'string'

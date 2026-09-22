@@ -23,8 +23,8 @@ function makeWindow(overrides: Partial<BoardWindowState> & Pick<BoardWindowState
 
 describe('clone editor drafts', () => {
   const draft = {
-    draft: { name: 'Анна', role: 'Аналитик', description: '', persona: '', methodology: '', preferredModel: null, status: 'draft' as const },
-    base: { name: 'Анна', role: 'Аналитик', description: '', persona: '', methodology: '', preferredModel: null, status: 'draft' as const },
+    draft: { name: 'Анна', role: 'Аналитик', description: '', persona: '', methodology: '', skills: [], preferredModel: null, status: 'draft' as const },
+    base: { name: 'Анна', role: 'Аналитик', description: '', persona: '', methodology: '', skills: [], preferredModel: null, status: 'draft' as const },
     revision: 1,
     agentFields: [],
   }

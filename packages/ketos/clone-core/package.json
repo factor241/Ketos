@@ -15,6 +15,10 @@
       "types": "./lib/types/types.d.ts",
       "default": "./lib/types/types.js"
     },
+    "./methodology": {
+      "types": "./lib/types/methodology.d.ts",
+      "default": "./lib/types/methodology.js"
+    },
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },
@@ -29,8 +33,14 @@
     "@deepseek-ai/dsh-agent": "workspace:^",
     "@deepseek-ai/dsh-llm": "workspace:^",
     "@deepseek-ai/dsh-session-projection": "workspace:^",
+    "@deepseek-ai/dsh-skill": "workspace:^",
     "@deepseek-ai/dsh-system-prompt": "workspace:^",
     "@deepseek-ai/dsh-tools": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-skill": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@deepseek-ai/dsh-brand": "workspace:^",
@@ -48,7 +58,9 @@
     "@deepseek-ai/dsh-llm": "workspace:^",
     "@deepseek-ai/dsh-session": "workspace:^",
     "@deepseek-ai/dsh-session-projection": "workspace:^",
+    "@deepseek-ai/dsh-skill": "workspace:^",
     "@deepseek-ai/dsh-system-prompt": "workspace:^",
+    "@deepseek-ai/dsh-tool-skill": "workspace:^",
     "@deepseek-ai/dsh-tools": "workspace:^"
   }
 }

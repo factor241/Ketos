@@ -8,9 +8,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
-import type { CloneDto, CloneId } from '@ketos/clone-core/types'
+import type { CloneDto, CloneId, CloneSkill } from '@ketos/clone-core/types'
+import { METHODOLOGY_TEMPLATE } from '@ketos/clone-core/methodology'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { createBoardStore } from '../src/client/store.ts'
+import { CLONE_LIMITS } from '../src/client/clone-draft.ts'
 import { CloneBody, type CloneBodyProps } from '../src/client/window/CloneBody.tsx'
 import type { BoardState } from '../src/client/store.ts'
 import type { BoardWindowState, CloneModelOption, WindowId } from '../src/client/contract/slots.ts'
@@ -50,6 +52,18 @@ const MODELS: readonly CloneModelOption[] = [
   { provider: 'deepseek', providerName: 'DeepSeek', model: 'deepseek-chat', name: 'DeepSeek Chat' },
   { provider: 'deepseek', providerName: 'DeepSeek', model: 'deepseek-reasoner', name: 'DeepSeek Reasoner' },
 ]
+
+const REPORT_SKILL: CloneSkill = {
+  name: 'weekly-report',
+  description: 'Собирает недельный отчёт',
+  instructions: 'Возьми цифры из трекера',
+}
+
+const DRAFT_SKILL: CloneSkill = {
+  name: 'draft-skill',
+  description: '',
+  instructions: 'Пока без описания',
+}
 
 /** Props stub: the window owner share, the board store, the roster hook, and the clone actions. */
 function cloneProps(overrides: Partial<Record<string, unknown>> = {}): CloneBodyProps {
@@ -95,6 +109,33 @@ function disabled(name: string): boolean {
   return (field(name) as HTMLButtonElement).disabled
 }
 
+/** The skill modal's field control by its data attribute. */
+function skillField(name: string): HTMLInputElement {
+  return document.querySelector(`[data-board-clone-skill="${name}"]`) as HTMLInputElement
+}
+
+/** The skills row-menu trigger of one draft skill. */
+function skillMenuButton(name: string): HTMLElement {
+  return document.querySelector(
+    `[data-board-clone-skill-row="${name}"] [data-board-clone-action="skill-menu"]`,
+  ) as HTMLElement
+}
+
+/** Click the skill modal's save action. */
+function saveSkill(): void {
+  fireEvent.click(document.querySelector('[data-board-clone-action="skill-save"]') as HTMLElement)
+}
+
+/** One methodology structure chip by its heading. */
+function methodologyChip(heading: string): HTMLElement {
+  return document.querySelector(`[data-board-clone-methodology-section="${heading}"]`) as HTMLElement
+}
+
+/** Click one skill row-menu action by its localized label. */
+async function clickSkillMenuAction(label: string): Promise<void> {
+  fireEvent.click(await screen.findByRole('menuitem', { name: label }))
+}
+
 describe('clone editor form', () => {
   it('seeds the form from the stored record and saves the edited card under its revision', async () => {
     const saveClone = vi.fn(async () => 'saved' as const)
@@ -116,6 +157,7 @@ describe('clone editor form', () => {
       description: 'Разбор требований',
       persona: 'Спокойная, точная',
       methodology: 'Сначала факты',
+      skills: [],
       preferredModel: 'deepseek/deepseek-chat',
       status: 'draft',
     }, 3)
@@ -332,6 +374,345 @@ describe('clone editor form', () => {
     expect(field('description').getAttribute('maxlength')).toBe('500')
     expect(field('persona').getAttribute('maxlength')).toBe('20000')
     expect(field('methodology').getAttribute('maxlength')).toBe('20000')
+  })
+})
+
+describe('clone methodology structure', () => {
+  it('marks the live methodology sections and lists the gaps', async () => {
+    const methodology = '## Принципы\n## Порядок работы\nСначала факты'
+    render(<CloneBody {...cloneProps({ clones: [{ ...CLONE, methodology }] })} />)
+    await waitFor(() => { expect(value('methodology')).toBe(methodology) })
+
+    expect(methodologyChip('Принципы').getAttribute('data-state')).toBe('empty')
+    expect(methodologyChip('Принципы').textContent).toContain('empty')
+    expect(methodologyChip('Порядок работы').getAttribute('data-state')).toBe('filled')
+    expect(methodologyChip('Критерии качества').getAttribute('data-state')).toBe('missing')
+    expect(methodologyChip('Критерии качества').textContent).toContain('missing')
+    expect(methodologyChip('Чего не делать').getAttribute('data-state')).toBe('missing')
+    expect(document.querySelector('[data-board-clone="methodology-gaps"]')?.textContent)
+      .toBe('Not filled: Принципы, Критерии качества, Чего не делать')
+    expect(field('methodology-template')).toBeNull()
+
+    fireEvent.change(field('methodology'), { target: { value: '## Принципы\nСначала факты\n## Порядок работы\nСначала факты' } })
+    expect(methodologyChip('Принципы').getAttribute('data-state')).toBe('filled')
+    expect(document.querySelector('[data-board-clone="methodology-gaps"]')?.textContent)
+      .toBe('Not filled: Критерии качества, Чего не делать')
+  })
+
+  it('offers the template only on a blank methodology and inserts it through the draft', async () => {
+    render(<CloneBody {...cloneProps({ clones: [{ ...CLONE, methodology: '## Принципы\nЧто-то' }] })} />)
+    await waitFor(() => { expect(value('methodology')).toBe('## Принципы\nЧто-то') })
+    expect(field('methodology-template')).toBeNull()
+
+    fireEvent.change(field('methodology'), { target: { value: '' } })
+    fireEvent.click(field('methodology-template'))
+    expect(value('methodology')).toBe(METHODOLOGY_TEMPLATE)
+    expect(methodologyChip('Принципы').getAttribute('data-state')).toBe('empty')
+    expect(methodologyChip('Критерии качества').getAttribute('data-state')).toBe('empty')
+  })
+})
+
+describe('clone skills', () => {
+  it('lists the stored skills and flags one without a description', async () => {
+    render(<CloneBody {...cloneProps({ clones: [{ ...CLONE, skills: [REPORT_SKILL, DRAFT_SKILL] }] })} />)
+    await waitFor(() => { expect(value('name')).toBe('Анна') })
+    expect(document.querySelector('[data-board-clone="skills"]')?.textContent).not.toContain('No skills yet.')
+
+    const report = document.querySelector('[data-board-clone-skill-row="weekly-report"]') as HTMLElement
+    expect(report.textContent).toContain('weekly-report')
+    expect(report.textContent).toContain('Собирает недельный отчёт')
+    expect(report.querySelector('[data-board-clone="skill-incomplete"]')).toBeNull()
+
+    const draft = document.querySelector('[data-board-clone-skill-row="draft-skill"]') as HTMLElement
+    expect(draft.querySelector('[data-board-clone="skill-incomplete"]')?.textContent)
+      .toBe('A skill without a description stays out of the model catalog')
+  })
+
+  it('adds a skill through the modal and sends the skill object in the patch', async () => {
+    const saveClone = vi.fn(async () => 'saved' as const)
+    render(<CloneBody {...cloneProps({ saveClone })} />)
+    await waitFor(() => { expect(value('name')).toBe('Анна') })
+    expect(document.querySelector('[data-board-clone="skills"]')?.textContent).toContain('No skills yet.')
+
+    fireEvent.click(field('skill-add'))
+    expect(skillField('name').getAttribute('maxlength')).toBe('64')
+    expect(skillField('description').getAttribute('maxlength')).toBe('500')
+    expect(skillField('instructions').getAttribute('maxlength')).toBe('20000')
+    fireEvent.change(skillField('name'), { target: { value: 'weekly-report' } })
+    fireEvent.change(skillField('description'), { target: { value: 'Собирает недельный отчёт' } })
+    fireEvent.change(skillField('instructions'), { target: { value: 'Возьми цифры из трекера' } })
+    saveSkill()
+    await waitFor(() => {
+      expect(document.querySelector('[data-board-clone-skill-row="weekly-report"]')).not.toBeNull()
+    })
+    expect(document.querySelector('[data-board-clone-skill="name"]')).toBeNull()
+
+    fireEvent.click(field('save'))
+    await waitFor(() => { expect(saveClone).toHaveBeenCalledTimes(1) })
+    expect(saveClone).toHaveBeenCalledWith('clone-1', expect.objectContaining({
+      skills: [{ name: 'weekly-report', description: 'Собирает недельный отчёт', instructions: 'Возьми цифры из трекера' }],
+    }), 3)
+  })
+
+  it('edits a skill through the row menu and sends the new description', async () => {
+    const saveClone = vi.fn(async () => 'saved' as const)
+    render(<CloneBody {...cloneProps({ saveClone, clones: [{ ...CLONE, skills: [REPORT_SKILL] }] })} />)
+    await waitFor(() => { expect(document.querySelector('[data-board-clone-skill-row="weekly-report"]')).not.toBeNull() })
+
+    fireEvent.click(skillMenuButton('weekly-report'))
+    await clickSkillMenuAction('Edit')
+    expect(skillField('name').value).toBe('weekly-report')
+    expect(skillField('description').value).toBe('Собирает недельный отчёт')
+    fireEvent.change(skillField('description'), { target: { value: 'Собирает отчёт за неделю' } })
+    saveSkill()
+    await waitFor(() => {
+      expect(document.querySelector('[data-board-clone-skill-row="weekly-report"]')?.textContent)
+        .toContain('Собирает отчёт за неделю')
+    })
+
+    fireEvent.click(field('save'))
+    await waitFor(() => { expect(saveClone).toHaveBeenCalledTimes(1) })
+    expect(saveClone).toHaveBeenCalledWith('clone-1', expect.objectContaining({
+      skills: [{
+        name: 'weekly-report',
+        description: 'Собирает отчёт за неделю',
+        instructions: 'Возьми цифры из трекера',
+      }],
+    }), 3)
+  })
+
+  it('refuses a duplicate skill name without adding a row', async () => {
+    render(<CloneBody {...cloneProps({ clones: [{ ...CLONE, skills: [REPORT_SKILL] }] })} />)
+    await waitFor(() => { expect(document.querySelector('[data-board-clone-skill-row="weekly-report"]')).not.toBeNull() })
+
+    fireEvent.click(field('skill-add'))
+    fireEvent.change(skillField('name'), { target: { value: 'weekly-report' } })
+    saveSkill()
+    await waitFor(() => {
+      expect(document.querySelector('[data-board-clone="skill-error"]')?.textContent)
+        .toBe('A skill with this name already exists')
+    })
+    expect(document.querySelectorAll('[data-board-clone-skill-row]')).toHaveLength(1)
+    expect(skillField('name')).not.toBeNull()
+    // Editing the name retires the refusal instead of leaving stale text.
+    fireEvent.change(skillField('name'), { target: { value: 'weekly-digest' } })
+    expect(document.querySelector('[data-board-clone="skill-error"]')).toBeNull()
+  })
+
+  it('refuses a blank or non-kebab skill name', async () => {
+    render(<CloneBody {...cloneProps()} />)
+    await waitFor(() => { expect(value('name')).toBe('Анна') })
+
+    fireEvent.click(field('skill-add'))
+    saveSkill()
+    await waitFor(() => {
+      expect(document.querySelector('[data-board-clone="skill-error"]')?.textContent)
+        .toBe('Name: lowercase letters, digits, and hyphens')
+    })
+    fireEvent.change(skillField('name'), { target: { value: 'Weekly Report' } })
+    saveSkill()
+    await waitFor(() => {
+      expect(document.querySelector('[data-board-clone="skill-error"]')?.textContent)
+        .toBe('Name: lowercase letters, digits, and hyphens')
+    })
+    expect(document.querySelector('[data-board-clone-skill-row]')).toBeNull()
+    expect(skillField('name')).not.toBeNull()
+  })
+
+  it('refuses a name past the stored length bound', async () => {
+    render(<CloneBody {...cloneProps()} />)
+    await waitFor(() => { expect(value('name')).toBe('Анна') })
+
+    fireEvent.click(field('skill-add'))
+    fireEvent.change(skillField('name'), { target: { value: 'a'.repeat(CLONE_LIMITS.skillName + 1) } })
+    saveSkill()
+    await waitFor(() => {
+      expect(document.querySelector('[data-board-clone="skill-error"]')?.textContent)
+        .toBe('Name: lowercase letters, digits, and hyphens')
+    })
+    expect(document.querySelector('[data-board-clone-skill-row]')).toBeNull()
+  })
+
+  it('refuses an addition past the skill-count limit', async () => {
+    const skills = Array.from({ length: CLONE_LIMITS.skillCount }, (_unused, index) => ({
+      name: `skill-${String(index)}`,
+      description: 'Описание',
+      instructions: 'Инструкции',
+    }))
+    render(<CloneBody {...cloneProps({ clones: [{ ...CLONE, skills }] })} />)
+    await waitFor(() => {
+      expect(document.querySelectorAll('[data-board-clone-skill-row]')).toHaveLength(CLONE_LIMITS.skillCount)
+    })
+
+    fireEvent.click(field('skill-add'))
+    fireEvent.change(skillField('name'), { target: { value: 'extra-skill' } })
+    saveSkill()
+    await waitFor(() => {
+      expect(document.querySelector('[data-board-clone="skill-error"]')?.textContent).toBe('At most 100 skills')
+    })
+    expect(document.querySelectorAll('[data-board-clone-skill-row]')).toHaveLength(CLONE_LIMITS.skillCount)
+    expect(document.querySelector('[data-board-clone-skill-row="extra-skill"]')).toBeNull()
+    expect(skillField('name')).not.toBeNull()
+  })
+
+  it('warns about a stored skill the host will refuse or leave unregistered', async () => {
+    const legacy: CloneSkill = { name: 'Проверка контрагента', description: 'Разбор', instructions: '' }
+    const duplicate: CloneSkill = { name: 'sql', description: 'Первый', instructions: '' }
+    const duplicateAgain: CloneSkill = { name: 'sql', description: 'Второй', instructions: '' }
+    const overlong: CloneSkill = { name: 'a'.repeat(CLONE_LIMITS.skillName + 1), description: 'Длинное', instructions: '' }
+    render(<CloneBody {...cloneProps({
+      clones: [{ ...CLONE, skills: [legacy, duplicate, duplicateAgain, overlong] }],
+    })} />)
+    await waitFor(() => { expect(value('name')).toBe('Анна') })
+
+    const bad = document.querySelector('[data-board-clone-skill-row="Проверка контрагента"]') as HTMLElement
+    expect(bad.querySelector('[data-board-clone="skill-invalid"]')?.textContent)
+      .toBe('Name: lowercase letters, digits, and hyphens')
+    const rows = document.querySelectorAll('[data-board-clone-skill-row="sql"]')
+    expect(rows).toHaveLength(2)
+    for (const row of rows) {
+      expect(row.querySelector('[data-board-clone="skill-invalid"]')?.textContent)
+        .toBe('A skill with this name already exists')
+    }
+    const long = document.querySelector(`[data-board-clone-skill-row="${'a'.repeat(CLONE_LIMITS.skillName + 1)}"]`) as HTMLElement
+    expect(long.querySelector('[data-board-clone="skill-invalid"]')?.textContent)
+      .toBe('Name: lowercase letters, digits, and hyphens')
+  })
+
+  it('trims a stored padded name in the draft so its own save marks nothing', async () => {
+    const padded: CloneSkill = { name: ' sql ', description: 'Разбор', instructions: '' }
+    const instance = createBoardStore().create()
+    const saveClone = vi.fn(async () => 'saved' as const)
+    const { rerender } = render(<CloneBody {...cloneProps({ instance, saveClone, clones: [{ ...CLONE, skills: [padded] }] })} />)
+    await waitFor(() => {
+      expect(document.querySelector('[data-board-clone-skill-row="sql"]')).not.toBeNull()
+    })
+
+    fireEvent.click(field('save'))
+    await waitFor(() => { expect(saveClone).toHaveBeenCalledTimes(1) })
+    expect(saveClone).toHaveBeenCalledWith('clone-1', expect.objectContaining({
+      skills: [{ name: 'sql', description: 'Разбор', instructions: '' }],
+    }), 3)
+
+    // The roster read returns the trimmed name the route stored; the user's own
+    // save must not look like an agent revision.
+    rerender(<CloneBody {...cloneProps({
+      instance,
+      saveClone,
+      clones: [{ ...CLONE, skills: [{ ...padded, name: 'sql' }], revision: 4 }],
+    })} />)
+    expect(document.querySelectorAll('[data-board-clone-agent-field]')).toHaveLength(0)
+    expect(document.querySelector('[data-board-clone-notice="agent"]')).toBeNull()
+  })
+
+  it('renames one of two duplicate stored skills without touching the other', async () => {
+    const first: CloneSkill = { name: 'sql', description: 'Первый', instructions: '' }
+    const second: CloneSkill = { name: 'sql', description: 'Второй', instructions: '' }
+    render(<CloneBody {...cloneProps({ clones: [{ ...CLONE, skills: [first, second] }] })} />)
+    await waitFor(() => { expect(document.querySelectorAll('[data-board-clone-skill-row="sql"]')).toHaveLength(2) })
+
+    const trigger = document.querySelectorAll('[data-board-clone-skill-row="sql"] [data-board-clone-action="skill-menu"]')[0] as HTMLElement
+    fireEvent.click(trigger)
+    await clickSkillMenuAction('Edit')
+    fireEvent.change(skillField('name'), { target: { value: 'sql-two' } })
+    saveSkill()
+    await waitFor(() => { expect(document.querySelector('[data-board-clone-skill-row="sql-two"]')).not.toBeNull() })
+    expect(document.querySelectorAll('[data-board-clone-skill-row="sql"]')).toHaveLength(1)
+    expect(document.querySelector('[data-board-clone-skill-row="sql"]')?.textContent).toContain('Второй')
+  })
+
+  it('resolves a row action against the live list a newer revision replaced', async () => {
+    const instance = createBoardStore().create()
+    const { rerender } = render(<CloneBody {...cloneProps({ instance, clones: [{ ...CLONE, skills: [REPORT_SKILL] }] })} />)
+    await waitFor(() => { expect(document.querySelector('[data-board-clone-skill-row="weekly-report"]')).not.toBeNull() })
+
+    fireEvent.click(skillMenuButton('weekly-report'))
+    // The agent's revision lands while the menu is open: the row the menu was
+    // opened on is gone, so the action must not hit whatever took its place.
+    rerender(<CloneBody {...cloneProps({
+      instance,
+      clones: [{ ...CLONE, skills: [DRAFT_SKILL], revision: 4 }],
+    })} />)
+    await waitFor(() => { expect(document.querySelector('[data-board-clone-skill-row="draft-skill"]')).not.toBeNull() })
+    await clickSkillMenuAction('Delete')
+    expect(document.querySelector('[data-board-clone-skill-row="draft-skill"]')).not.toBeNull()
+  })
+
+  it('deletes a skill through the row menu and the next save reflects it', async () => {
+    const saveClone = vi.fn(async () => 'saved' as const)
+    render(<CloneBody {...cloneProps({ saveClone, clones: [{ ...CLONE, skills: [REPORT_SKILL, DRAFT_SKILL] }] })} />)
+    await waitFor(() => { expect(document.querySelector('[data-board-clone-skill-row="weekly-report"]')).not.toBeNull() })
+
+    fireEvent.click(skillMenuButton('weekly-report'))
+    await clickSkillMenuAction('Delete')
+    await waitFor(() => { expect(document.querySelector('[data-board-clone-skill-row="weekly-report"]')).toBeNull() })
+    expect(document.querySelector('[data-board-clone-skill-row="draft-skill"]')).not.toBeNull()
+
+    fireEvent.click(field('save'))
+    await waitFor(() => { expect(saveClone).toHaveBeenCalledTimes(1) })
+    expect(saveClone).toHaveBeenCalledWith('clone-1', expect.objectContaining({
+      skills: [DRAFT_SKILL],
+    }), 3)
+  })
+
+  it('shows when the record was last updated beside its revision', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-09-23T06:00:00.000Z'))
+    try {
+      render(<CloneBody {...cloneProps()} />)
+      await waitFor(() => { expect(value('name')).toBe('Анна') })
+      // The fixture was updated 2026-09-21T00:00:00Z, two days before "now".
+      expect(document.querySelector('[data-board-clone-updated]')?.textContent).toBe('Updated 2d')
+    } finally {
+      now.mockRestore()
+    }
+  })
+
+  it('adopts the agent\'s skills with a clean draft and marks the field', async () => {
+    const instance = createBoardStore().create()
+    const { rerender } = render(<CloneBody {...cloneProps({ instance })} />)
+    await waitFor(() => { expect(value('name')).toBe('Анна') })
+
+    rerender(<CloneBody {...cloneProps({
+      instance,
+      clones: [{ ...CLONE, skills: [REPORT_SKILL], revision: 4 }],
+    })} />)
+    await waitFor(() => {
+      expect(document.querySelector('[data-board-clone-skill-row="weekly-report"]')?.textContent)
+        .toContain('Собирает недельный отчёт')
+    })
+    expect(document.querySelector('[data-board-clone-agent-field="skills"]')).not.toBeNull()
+    expect(document.querySelector('[data-board-clone-notice="agent"]')).toBeNull()
+  })
+
+  it('keeps edited skills over the agent\'s stored revision and applies it on request', async () => {
+    const instance = createBoardStore().create()
+    const { rerender } = render(<CloneBody {...cloneProps({ instance, clones: [{ ...CLONE, skills: [DRAFT_SKILL] }] })} />)
+    await waitFor(() => { expect(document.querySelector('[data-board-clone-skill-row="draft-skill"]')).not.toBeNull() })
+    fireEvent.click(skillMenuButton('draft-skill'))
+    await clickSkillMenuAction('Edit')
+    fireEvent.change(skillField('description'), { target: { value: 'Моё описание' } })
+    saveSkill()
+    await waitFor(() => {
+      expect(document.querySelector('[data-board-clone-skill-row="draft-skill"]')?.textContent)
+        .toContain('Моё описание')
+    })
+
+    rerender(<CloneBody {...cloneProps({
+      instance,
+      clones: [{ ...CLONE, skills: [REPORT_SKILL], revision: 4 }],
+    })} />)
+    await waitFor(() => { expect(document.querySelector('[data-board-clone-notice="agent"]')).not.toBeNull() })
+    // The typed description survives and the agent's list waits as a pending revision.
+    expect(document.querySelector('[data-board-clone-skill-row="draft-skill"]')?.textContent)
+      .toContain('Моё описание')
+    expect(document.querySelector('[data-board-clone-skill-row="weekly-report"]')).toBeNull()
+    expect(document.querySelector('[data-board-clone-agent-field="skills"]')).not.toBeNull()
+
+    fireEvent.click(field('apply-agent'))
+    await waitFor(() => {
+      expect(document.querySelector('[data-board-clone-skill-row="weekly-report"]')).not.toBeNull()
+    })
+    expect(document.querySelector('[data-board-clone-skill-row="draft-skill"]')).toBeNull()
   })
 })
 

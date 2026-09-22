@@ -5,8 +5,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { openDatabase } from '../src/db.ts'
 import {
   CloneConflictError, CloneNotFoundError, CloneNotInterviewingError, CloneRepository, CloneSessionNotBoundError,
+  CLONE_TEXT_LIMITS,
 } from '../src/repository.ts'
-import type { CloneId } from '../src/types.ts'
+import type { CloneId, CloneSkill } from '../src/types.ts'
 
 const cleanups: Array<() => unknown> = []
 afterEach(async () => {
@@ -22,6 +23,9 @@ async function fixture(): Promise<CloneRepository> {
 }
 
 const MINIMAL = { name: 'Анна', role: 'Аналитик' } as const
+
+/** One stored skill with a description unless the test says otherwise. */
+const skill = (name: string, description = '', instructions = ''): CloneSkill => ({ name, description, instructions })
 
 /** The ISO-8601 UTC form every stored timestamp carries. */
 const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
@@ -62,7 +66,7 @@ describe('clone records', () => {
       persona: 'Педантичный',
       methodology: 'Сначала факты',
       preferredModel: 'deepseek-chat',
-      skills: ['договоры'],
+      skills: [skill('dogovory', 'Договорная работа')],
       status: 'ready',
     })
     expect(second).toMatchObject({
@@ -70,7 +74,7 @@ describe('clone records', () => {
       persona: 'Педантичный',
       methodology: 'Сначала факты',
       preferredModel: 'deepseek-chat',
-      skills: ['договоры'],
+      skills: [skill('dogovory', 'Договорная работа')],
       status: 'ready',
     })
     expect(repository.listClones().map(clone => clone.id)).toEqual([second.id, first.id])
@@ -88,12 +92,29 @@ describe('clone records', () => {
     expect(repository.getClone(clone.id)).toEqual(updated)
   })
 
-  it('replaces the skill list through a patch', async () => {
+  it('round-trips skill objects through create and update', async () => {
     const repository = await fixture()
-    const clone = repository.createClone({ ...MINIMAL, skills: ['старое'] })
-    const updated = repository.updateClone(clone.id, { skills: ['договоры', 'анализ'] }, 1)
-    expect(updated.skills).toEqual(['договоры', 'анализ'])
-    expect(repository.getClone(clone.id)?.skills).toEqual(['договоры', 'анализ'])
+    const clone = repository.createClone({
+      ...MINIMAL,
+      skills: [skill('sql', 'Запросы к базе', 'Пиши SELECT по схеме')],
+    })
+    expect(clone.skills).toEqual([skill('sql', 'Запросы к базе', 'Пиши SELECT по схеме')])
+    const updated = repository.updateClone(clone.id, {
+      skills: [skill('dogovory', 'Договорная работа'), skill('analiz', 'Разбор требований', 'Сначала факты')],
+    }, 1)
+    expect(updated.skills).toEqual([
+      skill('dogovory', 'Договорная работа'),
+      skill('analiz', 'Разбор требований', 'Сначала факты'),
+    ])
+    expect(repository.getClone(clone.id)?.skills).toEqual(updated.skills)
+  })
+
+  it('bumps the revision on a skills-only patch', async () => {
+    const repository = await fixture()
+    const clone = repository.createClone({ ...MINIMAL, skills: [skill('sql', 'Запросы')] })
+    const updated = repository.updateClone(clone.id, { skills: [skill('sql', 'Другие запросы')] }, 1)
+    expect(updated.revision).toBe(2)
+    expect(updated.skills).toEqual([skill('sql', 'Другие запросы')])
   })
 
   it('refuses a stale revision and a patch that selects no field', async () => {
@@ -165,7 +186,7 @@ describe('interview drafts', () => {
       description: 'Разбирает требования',
       persona: 'Спокойная и точная',
       methodology: 'Сначала факты, потом гипотезы',
-      skills: ['анализ', 'интервью'],
+      skills: [skill('analiz', 'Разбор требований'), skill('intervyu', 'Интервью')],
     })
     expect(saved).toMatchObject({
       id: clone.id,
@@ -173,11 +194,64 @@ describe('interview drafts', () => {
       description: 'Разбирает требования',
       persona: 'Спокойная и точная',
       methodology: 'Сначала факты, потом гипотезы',
-      skills: ['анализ', 'интервью'],
+      skills: [skill('analiz', 'Разбор требований'), skill('intervyu', 'Интервью')],
       status: 'ready',
       revision: 3,
     })
     expect(repository.getClone(clone.id)).toEqual(saved)
+  })
+
+  it('merges the draft skills over the stored list by name', async () => {
+    const repository = await fixture()
+    const clone = repository.createClone({
+      ...MINIMAL,
+      skills: [skill('sql', 'Старое описание'), skill('otchety', 'Отчёты')],
+    })
+    repository.updateClone(clone.id, { status: 'interviewing' }, 1)
+    repository.bindSession({ cloneId: clone.id, sessionId: sid('session-1'), role: 'interview' })
+    const saved = repository.saveDraft(sid('session-1'), {
+      role: 'Старший аналитик',
+      description: 'Разбирает требования',
+      persona: 'Спокойная',
+      methodology: 'Сначала факты',
+      // `sql` is edited in place, `otchety` is not mentioned and survives,
+      // and `analiz` is new.
+      skills: [skill('sql', 'Новое описание', 'Пиши SELECT'), skill('analiz', 'Разбор требований')],
+    })
+    expect(saved.skills).toEqual([
+      skill('sql', 'Новое описание', 'Пиши SELECT'),
+      skill('otchety', 'Отчёты'),
+      skill('analiz', 'Разбор требований'),
+    ])
+    expect(repository.getClone(clone.id)?.skills).toEqual(saved.skills)
+  })
+
+  it('refuses a merge that would exceed the stored skill count', async () => {
+    const repository = await fixture()
+    const clone = repository.createClone({
+      ...MINIMAL,
+      skills: Array.from(
+        { length: CLONE_TEXT_LIMITS.skillCount },
+        (_unused, index) => skill(`stored-${String(index)}`, 'Сохранённый навык'),
+      ),
+    })
+    repository.updateClone(clone.id, { status: 'interviewing' }, 1)
+    repository.bindSession({ cloneId: clone.id, sessionId: sid('session-1'), role: 'interview' })
+    const refusal = (() => {
+      try {
+        return repository.saveDraft(sid('session-1'), {
+          role: 'роль',
+          description: 'описание',
+          persona: 'персона',
+          methodology: 'метод',
+          skills: [skill('novyy', 'Новый навык')],
+        })
+      } catch (error: unknown) {
+        return error
+      }
+    })()
+    expect(refusal).toMatchObject({ code: 'ketos/invalid-draft' })
+    expect(repository.getClone(clone.id)?.skills).toHaveLength(CLONE_TEXT_LIMITS.skillCount)
   })
 
   it('refuses a draft whose clone already left the interview', async () => {
@@ -209,9 +283,43 @@ describe('interview drafts', () => {
       methodology: 'x'.repeat(20_001),
       skills: [],
     })).toThrow(/methodology exceeds/u)
+    // An unauthored skill is a draft, not a malformed one: the interview may
+    // name a skill before the person describes it.
     expect(() => repository.saveDraft(sid('session-1'), {
-      role: 'роль', description: 'описание', persona: 'персона', methodology: 'метод', skills: [''],
+      role: 'роль',
+      description: 'описание',
+      persona: 'персона',
+      methodology: 'метод',
+      skills: [skill('analiz')],
     })).not.toThrow()
+  })
+
+  it('refuses a draft skill whose name or bounds leave the stored rules', async () => {
+    const repository = await fixture()
+    const clone = repository.createClone(MINIMAL)
+    repository.updateClone(clone.id, { status: 'interviewing' }, 1)
+    repository.bindSession({ cloneId: clone.id, sessionId: sid('session-1'), role: 'interview' })
+    const draft = (skills: readonly CloneSkill[]): (() => unknown) => () => repository.saveDraft(sid('session-1'), {
+      role: 'роль', description: 'описание', persona: 'персона', methodology: 'метод', skills,
+    })
+    const refusals: ReadonlyArray<readonly [string, readonly CloneSkill[]]> = [
+      ['a non-kebab name', [skill('Анализ')]],
+      ['an empty name', [skill('')]],
+      ['a duplicate name', [skill('sql', 'первый'), skill('sql', 'второй')]],
+      ['too many skills', Array.from(
+        { length: CLONE_TEXT_LIMITS.skillCount + 1 },
+        (_unused, index) => skill(`skill-${String(index)}`, 'описание'),
+      )],
+      ['an over-long name', [skill(`a${'b'.repeat(CLONE_TEXT_LIMITS.skillName)}`)]],
+      ['an over-long description', [skill('sql', 'x'.repeat(CLONE_TEXT_LIMITS.skillDescription + 1))]],
+      ['over-long instructions', [skill('sql', 'описание', 'x'.repeat(CLONE_TEXT_LIMITS.skillInstructions + 1))]],
+    ]
+    for (const [reason, skills] of refusals) {
+      const refusal = (() => { try { return draft(skills)() } catch (error: unknown) { return error } })()
+      expect(refusal, reason).toMatchObject({ code: 'ketos/invalid-draft' })
+    }
+    // The refusals wrote nothing: the clone is still interviewing.
+    expect(repository.getClone(clone.id)?.status).toBe('interviewing')
   })
 
   it('refuses a draft from a session that is not bound to a clone', async () => {
@@ -252,9 +360,30 @@ describe('durable decoding', () => {
     db.prepare('UPDATE clones SET status = ? WHERE id = ?').run('broken', clone.id)
     expect(() => repository.getClone(clone.id)).toThrow(/unknown status/u)
     db.prepare('UPDATE clones SET status = ?, skills_json = ? WHERE id = ?').run('draft', '{"a":1}', clone.id)
-    expect(() => repository.getClone(clone.id)).toThrow(/array of strings/u)
+    expect(() => repository.getClone(clone.id)).toThrow(/array of skill objects/u)
+    db.prepare('UPDATE clones SET skills_json = ? WHERE id = ?').run('["sql"]', clone.id)
+    expect(() => repository.getClone(clone.id)).toThrow(/array of skill objects/u)
+    db.prepare('UPDATE clones SET skills_json = ? WHERE id = ?').run('[{"name":"sql"}]', clone.id)
+    expect(() => repository.getClone(clone.id)).toThrow(/array of skill objects/u)
+    db.prepare('UPDATE clones SET skills_json = ? WHERE id = ?').run('[{"name":"sql","description":1,"instructions":""}]', clone.id)
+    expect(() => repository.getClone(clone.id)).toThrow(/array of skill objects/u)
     db.prepare('UPDATE clones SET skills_json = ? WHERE id = ?').run('not json', clone.id)
     expect(() => repository.getClone(clone.id)).toThrow()
+  })
+
+  it('reads a legacy name the registry would reject instead of refusing the record', async () => {
+    const db = await openDatabase(':memory:')
+    cleanups.push(() => { db.close() })
+    const repository = new CloneRepository(db)
+    const clone = repository.createClone(MINIMAL)
+    // A row written before the name grammar was enforced; the decode guard is a
+    // shape check, so the editor can still show the person what to fix.
+    db.prepare('UPDATE clones SET skills_json = ? WHERE id = ?').run(JSON.stringify([
+      { name: 'Договоры', description: 'Договорная работа', instructions: '' },
+    ]), clone.id)
+    expect(repository.getClone(clone.id)?.skills).toEqual([
+      { name: 'Договоры', description: 'Договорная работа', instructions: '' },
+    ])
   })
 
   it('refuses a hand-edited binding role instead of surfacing it', async () => {

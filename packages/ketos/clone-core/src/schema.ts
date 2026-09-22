@@ -3,15 +3,16 @@
  * database from being adopted, the ordered forward-only migration steps, and
  * the runner that brings an existing file up to the current version.
  *
- * The runner never drops or rewrites data: each step only adds what its version
- * needs, and an unknown (newer) version is refused instead of downgraded.
+ * The runner never drops data: a step adds what its version needs or rewrites
+ * one column's value into the shape that version stores, and an unknown
+ * (newer) version is refused instead of downgraded.
  * @module @ketos/clone-core/schema
  */
 
 import type { DatabaseSync } from 'node:sqlite'
 
 /** Schema version this build produces; stored in `PRAGMA user_version`. */
-export const CLONE_CORE_SCHEMA_VERSION = 3
+export const CLONE_CORE_SCHEMA_VERSION = 4
 
 /** `application_id` marking a database as this package's own ("KTCL"). */
 export const CLONE_CORE_APPLICATION_ID = 0x4b54434c
@@ -90,8 +91,35 @@ const stepV3: MigrationStep = (db) => {
   `)
 }
 
+/**
+ * Version 4: a stored skill carries a description and instructions beside its
+ * name. A legacy row holds a JSON array of names; each name becomes
+ * `{ name, description: '', instructions: '' }` in place, which preserves the
+ * order the person wrote and leaves the skill an unauthored draft until the
+ * editor fills it. A row already holding skill objects is left untouched, so
+ * the step never rewrites the new shape.
+ */
+const stepV4: MigrationStep = (db) => {
+  const rows = db.prepare('SELECT id, skills_json FROM clones').all() as unknown as
+    readonly { id: string; skills_json: string }[]
+  const rewrite = db.prepare('UPDATE clones SET skills_json = ? WHERE id = ?')
+  for (const row of rows) {
+    let value: unknown
+    try {
+      value = JSON.parse(row.skills_json)
+    } catch {
+      // Not JSON at all; the repository's decode guard reports it on the first
+      // read instead of failing the whole database open.
+      continue
+    }
+    if (!Array.isArray(value) || !value.every(entry => typeof entry === 'string')) continue
+    const skills = (value as readonly string[]).map(name => ({ name, description: '', instructions: '' }))
+    rewrite.run(JSON.stringify(skills), row.id)
+  }
+}
+
 /** Ordered forward-only steps; entry `n - 1` produces version `n`. */
-export const CLONE_CORE_MIGRATION_STEPS: readonly MigrationStep[] = [stepV1, stepV2, stepV3]
+export const CLONE_CORE_MIGRATION_STEPS: readonly MigrationStep[] = [stepV1, stepV2, stepV3, stepV4]
 
 /**
  * Apply every step between the database's stamped version and `currentVersion`,
@@ -110,9 +138,11 @@ export function runMigrations(
   if (steps.length < currentVersion) {
     throw new Error(`clone database: ${String(currentVersion)} schema versions need ${String(steps.length)} migration steps`)
   }
-  const { user_version: onDisk } = db.prepare('PRAGMA user_version').get() as { user_version: number }
   db.exec('BEGIN IMMEDIATE')
   try {
+    // Read the version under the write lock: a concurrent opener that committed
+    // between this call's entry and the transaction must not be re-migrated.
+    const { user_version: onDisk } = db.prepare('PRAGMA user_version').get() as { user_version: number }
     for (let version = onDisk; version < currentVersion; version++) {
       const step = steps[version]
       if (step === undefined) throw new Error(`clone database: no migration step for version ${String(version + 1)}`)
@@ -133,8 +163,10 @@ export function runMigrations(
 
 /**
  * Adopt an open database as `clones.db`: refuse a file stamped for another
- * application or written by a newer build, stamp a fresh file with this
- * build's identity, and apply every missing migration step.
+ * application or written by a newer build, apply every missing migration step,
+ * and stamp the adopted file with this build's identity. The identity stamp is
+ * written only after the migrations committed, so a step that fails on a
+ * foreign file leaves the file unlabelled instead of mislabelled.
  * @param db - open database handle.
  */
 export function migrate(db: DatabaseSync): void {
@@ -146,6 +178,6 @@ export function migrate(db: DatabaseSync): void {
   if (onDisk > CLONE_CORE_SCHEMA_VERSION) {
     throw new Error(`clone database: schema version ${String(onDisk)} is newer than this build (${String(CLONE_CORE_SCHEMA_VERSION)})`)
   }
-  if (applicationId === 0) db.exec(`PRAGMA application_id = ${String(CLONE_CORE_APPLICATION_ID)}`)
   runMigrations(db, CLONE_CORE_MIGRATION_STEPS, CLONE_CORE_SCHEMA_VERSION)
+  if (applicationId === 0) db.exec(`PRAGMA application_id = ${String(CLONE_CORE_APPLICATION_ID)}`)
 }

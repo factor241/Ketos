@@ -36,7 +36,11 @@ const CLONE: CloneDto = {
   persona: '',
   methodology: '',
   preferredModel: null,
-  skills: [],
+  skills: [{
+    name: 'weekly-report',
+    description: 'Собирает недельный отчёт',
+    instructions: 'Возьми цифры из трекера',
+  }],
   status: 'draft',
   revision: 1,
   createdAt: '2026-09-21T00:00:00.000Z',
@@ -384,6 +388,45 @@ describe('clone roster in the board chrome', () => {
       expect(panel.container.querySelector('[data-board-clone-revision="2"]')).not.toBeNull()
     })
     expect(windowsOfKind('clone')).toBe(1)
+  })
+
+  it('saves a skill authored in the editor as an object in the patch', async () => {
+    const server = stubCloneRoute([CLONE])
+    const { panel, field } = await mounted()
+    await waitFor(() => { expect(panel.container.querySelector('[data-board-clone-row="clone-1"]')).not.toBeNull() })
+    act(() => {
+      fireEvent.click(panel.container.querySelector('[data-board-clone-row="clone-1"]') as Element)
+    })
+    // The stored skill crossed the route as an object and renders as a row.
+    await waitFor(() => {
+      expect(panel.container.querySelector('[data-board-clone-skill-row="weekly-report"]')).not.toBeNull()
+    })
+
+    act(() => { fireEvent.click(field('skill-add') as Element) })
+    const skillField = (name: string): HTMLInputElement =>
+      document.querySelector(`[data-board-clone-skill="${name}"]`) as HTMLInputElement
+    fireEvent.change(skillField('name'), { target: { value: 'client-brief' } })
+    fireEvent.change(skillField('description'), { target: { value: 'Готовит бриф по клиенту' } })
+    fireEvent.change(skillField('instructions'), { target: { value: 'Собери факты из памяти клона' } })
+    act(() => {
+      fireEvent.click(document.querySelector('[data-board-clone-action="skill-save"]') as Element)
+    })
+    await waitFor(() => {
+      expect(panel.container.querySelector('[data-board-clone-skill-row="client-brief"]')).not.toBeNull()
+    })
+
+    fireEvent.click(field('save') as Element)
+    await waitFor(() => { expect(server.calls.some(call => call.op === 'update')).toBe(true) })
+    expect(bodyOf(server, 'update')).toMatchObject({
+      op: 'update',
+      id: 'clone-1',
+      patch: {
+        skills: [
+          { name: 'weekly-report', description: 'Собирает недельный отчёт', instructions: 'Возьми цифры из трекера' },
+          { name: 'client-brief', description: 'Готовит бриф по клиенту', instructions: 'Собери факты из памяти клона' },
+        ],
+      },
+    })
   })
 })
 

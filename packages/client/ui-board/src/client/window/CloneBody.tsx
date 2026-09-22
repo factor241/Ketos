@@ -14,15 +14,21 @@
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
-import { Button, Input, Menu, Pill, type MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
+import {
+  Button, IconEllipsisOutline16, Input, Menu, Modal, Pill, type MenuEntry,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
-import type { CloneSessionBinding, CloneStatus } from '@ketos/clone-core/types'
+import type { CloneSessionBinding, CloneSkill, CloneStatus } from '@ketos/clone-core/types'
+import {
+  METHODOLOGY_TEMPLATE, methodologyGaps, methodologySections,
+} from '@ketos/clone-core/methodology'
 import { CLONE_STATUS_ROWS, type BoardWindowInjected, type CloneModelOption } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
 import type { BoardTranslate } from '../locale.ts'
+import { relativeAge } from '../relative-age.ts'
 import { formatModelRoute } from '../clone-model.ts'
 import {
-  CLONE_LIMITS, changedFields, sameDraft, toDraft, toPatch,
+  CLONE_LIMITS, CLONE_SKILL_NAME_PATTERN, changedFields, sameDraft, toDraft, toPatch,
   type CloneDraft, type CloneEdit, type CloneField,
 } from '../clone-draft.ts'
 import css from './CloneBody.module.css'
@@ -42,6 +48,35 @@ const STATUS_KEYS = {
   interviewing: 'clone.status.interviewing',
   ready: 'clone.status.ready',
 } as const satisfies Record<CloneStatus, Parameters<BoardTranslate>[0]>
+
+/** Chip state of one canonical methodology section in the live draft. */
+type MethodologyState = 'filled' | 'empty' | 'missing'
+
+/** Why the skill modal refused to save. */
+type SkillError = 'name' | 'duplicate' | 'limit'
+
+/** Locale key of one skill-modal validation failure. */
+const SKILL_ERROR_KEYS = {
+  name: 'clone.skills.invalid.name',
+  duplicate: 'clone.skills.invalid.duplicate',
+  limit: 'clone.skills.invalid.limit',
+} as const satisfies Record<SkillError, Parameters<BoardTranslate>[0]>
+
+/** The fields the skill modal edits, with the entry it replaces while editing. */
+interface SkillModalState {
+  /** Name of the draft skill being edited; undefined while adding. */
+  readonly original: string | undefined
+  readonly name: string
+  readonly description: string
+  readonly instructions: string
+  /** The refusal the modal shows, or undefined while its fields are unrefused. */
+  readonly error: SkillError | undefined
+}
+
+/** Localized age of one clone's last update, in the board's short units. */
+function updatedLabel(updatedAt: string, t: BoardTranslate): string {
+  return t('clone.updated', { time: relativeAge(updatedAt, t) })
+}
 
 /** One field's "the agent changed this" badge, keyed by the field it marks. */
 function AgentMark({ field, t }: { readonly field: CloneField; readonly t: BoardTranslate }) {
@@ -90,7 +125,10 @@ export function CloneBody({
   const [sessions, setSessions] = useState<readonly CloneSessionBinding[]>([])
   const [sessionEpoch, setSessionEpoch] = useState(0)
   const [modelMenuOpen, setModelMenuOpen] = useState(false)
+  const [skillMenu, setSkillMenu] = useState<string | null>(null)
+  const [skillModal, setSkillModal] = useState<SkillModalState | undefined>(undefined)
   const modelAnchor = useRef<HTMLButtonElement>(null)
+  const skillAnchor = useRef<HTMLButtonElement | null>(null)
 
   const cloneId = cardWindow.cloneId
   const storedRevision = clone?.revision
@@ -165,6 +203,70 @@ export function CloneBody({
   /** The "agent changed this" badge of one field, when it is marked. */
   const mark = (field: CloneField): ReactNode =>
     editor !== undefined && editor.agentFields.includes(field) ? <AgentMark field={field} t={t} /> : null
+
+  /** The live draft's skills, shared by the row list and the modal. */
+  const skills = editor?.draft.skills ?? []
+
+  /** Open the skill modal on one draft skill, or on empty fields for a new one. */
+  const openSkillModal = (skill?: CloneSkill): void => {
+    setSkillMenu(null)
+    setSkillModal({
+      original: skill?.name,
+      name: skill?.name ?? '',
+      description: skill?.description ?? '',
+      instructions: skill?.instructions ?? '',
+      error: undefined,
+    })
+  }
+
+  /** Validate the modal's fields and apply them to the draft's skill list. */
+  const onSaveSkill = (): void => {
+    if (skillModal === undefined || editor === undefined) return
+    const name = skillModal.name.trim()
+    if (name === '' || name.length > CLONE_LIMITS.skillName || !CLONE_SKILL_NAME_PATTERN.test(name)) {
+      setSkillModal({ ...skillModal, error: 'name' })
+      return
+    }
+    if (editor.draft.skills.some(skill => skill.name.trim() === name && skill.name !== skillModal.original)) {
+      setSkillModal({ ...skillModal, error: 'duplicate' })
+      return
+    }
+    // The edited entry is addressed by the name it had when the modal opened:
+    // a revision that landed meanwhile may have moved or replaced list entries.
+    const at = skillModal.original === undefined
+      ? -1
+      : editor.draft.skills.findIndex(skill => skill.name === skillModal.original)
+    if (at === -1 && editor.draft.skills.length >= CLONE_LIMITS.skillCount) {
+      setSkillModal({ ...skillModal, error: 'limit' })
+      return
+    }
+    const skill: CloneSkill = {
+      name,
+      description: skillModal.description,
+      instructions: skillModal.instructions,
+    }
+    edit({
+      skills: at === -1
+        ? [...editor.draft.skills, skill]
+        : editor.draft.skills.map((entry, index) => (index === at ? skill : entry)),
+    })
+    setSkillModal(undefined)
+  }
+
+  /** Apply one row-menu action to the skill the menu was opened on. */
+  const onSkillMenuSelect = (id: string): void => {
+    const name = skillMenu
+    setSkillMenu(null)
+    if (name === null) return
+    const index = skills.findIndex(skill => skill.name === name)
+    if (index === -1) return
+    const skill = skills[index]
+    if (id === 'edit') {
+      openSkillModal(skill)
+      return
+    }
+    edit({ skills: skills.filter((_entry, at) => at !== index) })
+  }
 
   const modelItems: readonly MenuEntry[] = useMemo(() => [
     { id: 'clone-model:none', label: t('clone.model.none') },
@@ -271,6 +373,11 @@ export function CloneBody({
     )
   }
 
+  const methodology = editor?.draft.methodology ?? ''
+  const methodologyRows = methodologySections(methodology)
+  const methodologyMissing = methodologyGaps(methodology)
+  const methodologyBlank = methodology.trim() === ''
+
   return (
     <div className={css.body}>
       <div className={css.form} data-board-clone-editor="">
@@ -321,7 +428,7 @@ export function CloneBody({
           />
         </label>
 
-        <label className={css.field}>
+        <div className={css.field}>
           <span className={css.label}>{t('clone.methodology')}{mark('methodology')}</span>
           <textarea
             className={css.textarea}
@@ -332,7 +439,180 @@ export function CloneBody({
             placeholder={t('clone.methodology.placeholder')}
             onChange={(event) => { edit({ methodology: event.target.value }) }}
           />
-        </label>
+          <div className={css.row} data-board-clone="methodology-sections">
+            <span className={css.label}>{t('clone.methodology.sections')}</span>
+            {methodologyRows.map((section) => {
+              const state: MethodologyState = !section.present ? 'missing' : section.empty ? 'empty' : 'filled'
+              return (
+                <span
+                  key={section.heading}
+                  data-board-clone-methodology-section={section.heading}
+                  data-state={state}
+                >
+                  <Pill>
+                    {section.heading}
+                    {state !== 'filled' && (
+                      <span className={css.sectionMark}>
+                        {t(state === 'empty' ? 'clone.methodology.section.empty' : 'clone.methodology.section.missing')}
+                      </span>
+                    )}
+                  </Pill>
+                </span>
+              )
+            })}
+          </div>
+          {methodologyMissing.length > 0 && (
+            <span className={css.hint} data-board-clone="methodology-gaps">
+              {t('clone.methodology.gaps', { list: methodologyMissing.join(', ') })}
+            </span>
+          )}
+          {methodologyBlank && (
+            <div className={css.row}>
+              <Button
+                size="sm"
+                variant="ghost"
+                data-board-clone="methodology-template"
+                onClick={() => { edit({ methodology: METHODOLOGY_TEMPLATE }) }}
+              >
+                {t('clone.methodology.template')}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <div className={css.field}>
+          <span className={css.label}>{t('clone.skills')}{mark('skills')}</span>
+          <span className={css.hint}>{t('clone.skills.hint')}</span>
+          <div className={css.row}>
+            <Button
+              size="sm"
+              variant="outline"
+              data-board-clone="skill-add"
+              onClick={() => { openSkillModal() }}
+            >
+              {t('clone.skills.add')}
+            </Button>
+          </div>
+          <div className={css.skillList} data-board-clone="skills">
+            {skills.length === 0 && <span className={css.hint}>{t('clone.skills.empty')}</span>}
+            {skills.map((skill, index) => {
+              const name = skill.name.trim()
+              const invalid: SkillError | undefined = name === ''
+                || name.length > CLONE_LIMITS.skillName
+                || !CLONE_SKILL_NAME_PATTERN.test(name)
+                ? 'name'
+                : skills.some((entry, at) => at !== index && entry.name.trim() === name) ? 'duplicate' : undefined
+              return (
+                <div key={`${skill.name}:${String(index)}`} className={css.skillRow} data-board-clone-skill-row={skill.name}>
+                  <span className={css.skillName}>{skill.name}</span>
+                  {invalid !== undefined
+                    ? (
+                      <span className={css.skillWarning} data-board-clone="skill-invalid">
+                        {t(SKILL_ERROR_KEYS[invalid])}
+                      </span>
+                    )
+                    : skill.description.trim() === ''
+                      ? (
+                        <span className={css.skillWarning} data-board-clone="skill-incomplete">
+                          {t('clone.skills.incomplete')}
+                        </span>
+                      )
+                      : <span className={css.skillDescription}>{skill.description}</span>}
+                  <button
+                    type="button"
+                    className={css.rowAction}
+                    data-board-clone-action="skill-menu"
+                    aria-label={`${t('clone.skills.menu')}: ${skill.name}`}
+                    onClick={(event) => {
+                      skillAnchor.current = event.currentTarget
+                      setSkillMenu(skill.name)
+                    }}
+                  >
+                    <IconEllipsisOutline16 />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+          <Menu
+            portal
+            autoFocus
+            open={skillMenu !== null}
+            side="bottom"
+            align="end"
+            selection="fill"
+            anchor={<span className={css.anchor} />}
+            getAnchorRect={() => skillAnchor.current?.getBoundingClientRect() ?? null}
+            items={[
+              { id: 'edit', label: t('clone.skills.edit') },
+              { id: 'delete', label: t('clone.skills.delete'), danger: true },
+            ]}
+            onSelect={onSkillMenuSelect}
+            onClose={() => { setSkillMenu(null) }}
+          />
+        </div>
+
+        <Modal
+          open={skillModal !== undefined}
+          onClose={() => { setSkillModal(undefined) }}
+          title={skillModal?.original === undefined ? t('clone.skills.modal.add') : t('clone.skills.modal.edit')}
+          closeLabel={t('clone.cancel')}
+          footer={(
+            <>
+              <Button
+                variant="primary"
+                data-board-clone-action="skill-save"
+                onClick={onSaveSkill}
+              >
+                {t('clone.save')}
+              </Button>
+              <Button variant="outline" onClick={() => { setSkillModal(undefined) }}>
+                {t('clone.cancel')}
+              </Button>
+            </>
+          )}
+        >
+          {skillModal !== undefined && (
+            <div className={css.skillForm}>
+              <label className={css.field}>
+                <span className={css.label}>{t('clone.skills.name')}</span>
+                <Input
+                  value={skillModal.name}
+                  maxLength={CLONE_LIMITS.skillName}
+                  aria-label={t('clone.skills.name')}
+                  data-board-clone-skill="name"
+                  onChange={(event) => { setSkillModal({ ...skillModal, name: event.target.value, error: undefined }) }}
+                />
+              </label>
+              <label className={css.field}>
+                <span className={css.label}>{t('clone.skills.description')}</span>
+                <Input
+                  value={skillModal.description}
+                  maxLength={CLONE_LIMITS.skillDescription}
+                  aria-label={t('clone.skills.description')}
+                  data-board-clone-skill="description"
+                  onChange={(event) => { setSkillModal({ ...skillModal, description: event.target.value, error: undefined }) }}
+                />
+              </label>
+              <label className={css.field}>
+                <span className={css.label}>{t('clone.skills.instructions')}</span>
+                <textarea
+                  className={css.textarea}
+                  value={skillModal.instructions}
+                  maxLength={CLONE_LIMITS.skillInstructions}
+                  aria-label={t('clone.skills.instructions')}
+                  data-board-clone-skill="instructions"
+                  onChange={(event) => { setSkillModal({ ...skillModal, instructions: event.target.value, error: undefined }) }}
+                />
+              </label>
+              {skillModal.error !== undefined && (
+                <div className={clsx(css.notice, css.noticeError)} data-board-clone="skill-error">
+                  {t(SKILL_ERROR_KEYS[skillModal.error], { n: CLONE_LIMITS.skillCount })}
+                </div>
+              )}
+            </div>
+          )}
+        </Modal>
 
         <div className={css.field}>
           <span className={css.label}>{t('clone.model')}{mark('preferredModel')}</span>
@@ -449,6 +729,9 @@ export function CloneBody({
           )}
           <span className={css.revision} data-board-clone-revision={String(editor?.revision ?? clone.revision)}>
             {t('clone.revision', { n: String(editor?.revision ?? clone.revision) })}
+          </span>
+          <span className={css.updated} data-board-clone-updated="">
+            {updatedLabel(clone.updatedAt, t)}
           </span>
         </div>
 

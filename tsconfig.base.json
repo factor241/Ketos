@@ -264,6 +264,8 @@
       // bare alias resolves the Host plugin for tests and scripts.
       "@ketos/clone-core": ["./packages/ketos/clone-core/src"],
       "@ketos/clone-core/types": ["./packages/ketos/clone-core/src/types.ts"],
+      // The browser-safe methodology vocabulary the editor inlines.
+      "@ketos/clone-core/methodology": ["./packages/ketos/clone-core/src/methodology.ts"],
       // BEGIN generated package aliases — pnpm run gen-tsconfig-paths
       "@deepseek-ai/dsh-acp": ["./packages/acp/acp/src"],
       "@deepseek-ai/dsh-acp-app": ["./packages/bundle/acp-app/src"],

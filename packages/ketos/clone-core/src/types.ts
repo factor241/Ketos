@@ -19,6 +19,21 @@ export type CloneId = Branded<'CloneId'>
  */
 export type CloneStatus = 'draft' | 'interviewing' | 'ready'
 
+/**
+ * One personal skill of a clone: the registry identity the model invokes, the
+ * one-line routing description its catalog shows, and the instructions loaded
+ * when it is invoked. A skill whose description is empty stays in the record
+ * as a draft and never reaches the skill registry or the model catalog.
+ */
+export interface CloneSkill {
+  /** Kebab-case identifier accepted by the skill registry. */
+  readonly name: string
+  /** Short routing description; empty keeps the skill out of the model catalog. */
+  readonly description: string
+  /** Instructions the model receives when it invokes the skill. */
+  readonly instructions: string
+}
+
 /** Fields the model-facing methodologist and persona of a clone carry today. */
 export interface CloneRecord {
   /** Stable identity minted at creation. */
@@ -35,8 +50,8 @@ export interface CloneRecord {
   methodology: string
   /** Preferred model route for the clone's sessions, or null to use the deployment default. */
   preferredModel: string | null
-  /** Skill names the clone may use; empty until stage 18 authors them. */
-  skills: string[]
+  /** Personal skills the clone may invoke; empty until authored. */
+  skills: CloneSkill[]
   /** Lifecycle status shown in the editor. */
   status: CloneStatus
   /** Optimistic-concurrency revision; every accepted update increments it by one. */
@@ -60,7 +75,7 @@ export interface CloneDto {
   readonly persona: string
   readonly methodology: string
   readonly preferredModel: string | null
-  readonly skills: readonly string[]
+  readonly skills: readonly CloneSkill[]
   readonly status: CloneStatus
   readonly revision: number
   readonly createdAt: string
@@ -75,7 +90,7 @@ export interface CloneCreateInput {
   readonly persona?: string
   readonly methodology?: string
   readonly preferredModel?: string | null
-  readonly skills?: readonly string[]
+  readonly skills?: readonly CloneSkill[]
   readonly status?: CloneStatus
 }
 
@@ -87,7 +102,7 @@ export interface CloneUpdatePatch {
   readonly persona?: string
   readonly methodology?: string
   readonly preferredModel?: string | null
-  readonly skills?: readonly string[]
+  readonly skills?: readonly CloneSkill[]
   readonly status?: CloneStatus
 }
 
@@ -101,7 +116,8 @@ export interface CloneDraftFields {
   readonly description: string
   readonly persona: string
   readonly methodology: string
-  readonly skills: readonly string[]
+  /** Skills the interviewer proposed; the save merges them over the stored list by name. */
+  readonly skills: readonly CloneSkill[]
 }
 
 /**

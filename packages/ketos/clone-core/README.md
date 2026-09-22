@@ -1,5 +1,5 @@
 ---
-description: "The Ketos clone domain host package: clones.db, its forward-only schema, the revision-CAS repository and the FTS5 memory store, the /api/ketos.clones and /api/ketos.memory Fetch routes, and the clone session scope: profile, memory, and the interview that drafts a profile."
+description: "The Ketos clone domain host package: clones.db, its forward-only schema, the revision-CAS repository and the FTS5 memory store, the /api/ketos.clones and /api/ketos.memory Fetch routes, and the clone session scope: profile, skills, memory, and the interview that drafts a profile."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@ketos/clone-core` owns the Ketos clone domain. A clone is a stored record — name, role, summary, persona, methodology, preferred model route, skills, status — plus bound sessions and memories; this package is its only writer: one `node:sqlite` database at `$DSH_HOME/clones.db`, a forward-only schema runner, a revision-CAS repository, a memory store with an FTS5 index, and the `/api/ketos.clones` and `/api/ketos.memory` Fetch routes. It also owns the clone session scope a bound agent carries: the stable `clone:profile` section, the dynamic `clone:memory` snapshot with both memory tools, and — while the clone is `interviewing` — the interviewer instruction that drafts a profile.
+`@ketos/clone-core` owns the Ketos clone domain. A clone is a record — name, role, summary, persona, methodology, preferred model route, skills, status — plus bound sessions and memories; the package is the only writer: one `node:sqlite` database at `$DSH_HOME/clones.db`, a forward-only schema runner, a revision-CAS repository, an FTS5 memory store, and the `/api/ketos.clones` and `/api/ketos.memory` Fetch routes. It owns the methodology sections and the clone session scope: the `clone:profile` section, the bound agent's skills registered into its own skill registry, the `clone:memory` snapshot with both memory tools, and — while the clone is `interviewing` — the profile-drafting interviewer instruction.
 
 ## Table of Contents
 
@@ -40,7 +40,7 @@ The shipped `web` profile mounts the package through the `dsh-web-app` bundle pa
 | `memoryEntries` | `10` | Largest number of active memories the prompt snapshot lists (1–50). |
 | `memoryChars` | `8000` | Largest total length, in characters, of the prompt memory snapshot (1–32000). |
 
-The package has no browser bundle: `packages/client/ui-board` talks to the route with plain `fetch` and imports the `./types` module type-only, which keeps the clone window inside the existing board registrations instead of adding a client plugin row.
+The package has no browser bundle: `packages/client/ui-board` talks to the route with plain `fetch`, imports the `./types` module type-only, and inlines the browser-safe `./methodology` module into its own bundle, which keeps the clone window inside the existing board registrations instead of adding a client plugin row.
 
 ### The route
 
@@ -59,7 +59,7 @@ The package has no browser bundle: `packages/client/ui-board` talks to the route
 
 Failures answer HTTP status plus `{ ok: false, error }`: `400` `ketos/invalid`, `404` `ketos/clone-not-found`, `409` `ketos/clone-conflict`. The body is validated field by field at the route, and validation runs before the database is opened, so a malformed request never creates the file. An unexpected internal failure (for example a database that cannot be opened) answers `500` with a plain-text body and no code, so a client never reads it as a domain code.
 
-`patch` accepts `name`, `role`, `description`, `persona`, `methodology`, `preferredModel`, `skills`, and `status`; `status` is one of `draft`, `interviewing`, `ready`, and `role` in a binding is one of `main`, `interview`. Every accepted write notifies the clone session coordinator, which re-derives the scope of every live top-level agent and refreshes its profile text and memory snapshot.
+`patch` accepts `name`, `role`, `description`, `persona`, `methodology`, `preferredModel`, `skills`, and `status`; `status` is one of `draft`, `interviewing`, `ready`, and `role` in a binding is one of `main`, `interview`. Each skill is a `{ name, description, instructions }` object: the name is unique within the list and matches the skill registry's kebab-case grammar (`^[a-z0-9]+(?:-[a-z0-9]+)*$`, at most 64 characters), the description holds at most 500 characters, the instructions at most 20000, and the list at most 100 skills — the route validates all of it with the rest of the body, before the database opens. Every accepted write notifies the clone session coordinator, which re-derives the scope of every live top-level agent and refreshes its profile text and memory snapshot.
 
 ### The memory route
 
@@ -77,16 +77,17 @@ Failures answer `400` `ketos/invalid` and `404` `ketos/memory-not-found`. `patch
 ### Observable behavior
 
 - **Opening is lazy.** The profile mounts the plugin and registers the route, but `node:sqlite` is imported and the file is opened on the first clone request or the first restored session — a session restored from disk may be an interview, so it has to be looked up. A process whose chats are all fresh and never touch a clone never opens the file.
-- **The file is owner-only.** The parent directory is created `0700` and a missing database file `0600`; an existing file keeps its modes. The database runs in WAL mode with `application_id` `KTCL` and `user_version` `3`.
+- **The file is owner-only.** The parent directory is created `0700` and a missing database file `0600`; an existing file keeps its modes. The database runs in WAL mode with `application_id` `KTCL` and `user_version` `4`.
 - **A clone has three lifecycle statuses.** `draft` is a record created by hand, `interviewing` is a clone whose profile an interview session is drafting, and `ready` is a profile saved and awaiting the person's review. Only `interviewing` composes the interview mode.
 - **Foreign databases are refused.** An `application_id` stamped by another application, a `user_version` newer than this build, or a file that is not a SQLite database all reject at open instead of being rewritten. An empty SQLite file with no stamps is adopted.
 - **Writes are revision-checked.** `update` and `delete` apply only while the stored `revision` still equals the one the caller read; otherwise the answer is `ketos/clone-conflict` and the stored record is untouched. A session binds to at most one clone, and the newest binding of a session wins.
 - **The interview opens itself once.** When a session enters the mode, the package queues one kickoff message through `agent.followup` with the source kind `ketos-clone-interview`. The pending inbox, the queued latch, and the durable session log together answer whether a kickoff exists: one waiting for its turn or already logged suppresses a second — including in the window between the driver claiming the message and appending it to the log — while a kickoff a cancelled turn dropped is queued again. A restart that left the message pending has it claimed on resume, and the same message is reused, so a restored session cannot be interviewed twice.
-- **The profile save ends the mode.** `clone_draft_save` writes the profile it was given over the bound clone, marks the clone `ready`, and the coordinator withdraws the section and the tool. The write enforces the mode itself: a session without an `interview` binding is refused with `ketos/not-a-clone-session`, a clone that already left `interviewing` (for example a profile the person confirmed first) with `ketos/clone-not-interviewing`, and a profile that leaves a required line empty or exceeds the documented bounds with `ketos/invalid-draft`; none of them writes anything.
+- **The profile save ends the mode.** `clone_draft_save` writes the profile it was given over the bound clone: role, description, persona, and methodology replace the stored values, while the draft's skills merge into the stored list by name — a stored skill the draft does not name keeps its place, a same-name draft skill replaces it there, and a new name appends in draft order — and the clone turns `ready`; the coordinator withdraws the section and the tool. The write enforces the mode itself: a session without an `interview` binding is refused with `ketos/not-a-clone-session`, a clone that already left `interviewing` (for example a profile the person confirmed first) with `ketos/clone-not-interviewing`, and a profile that leaves a required line empty, repeats a skill name, breaks its grammar, or exceeds the documented bounds or the merged list cap with `ketos/invalid-draft`; none of them writes anything.
 - **Memory is one clone's own.** Every read is scoped by `clone_id`, so a clone never sees another clone's memory. `archived` memories stay out of search and out of the prompt snapshot until the person restores them.
 - **The FTS index is kept by the repository.** `memories_fts` is a standalone FTS5 table with no triggers and no external content; every write updates the table and the index inside one transaction, so only a hand-edited database can desynchronize them, and the package's reads join the index back to the table.
 - **Search matches quoted prefixes.** Every query token becomes one quoted FTS5 phrase with a trailing `*` (`"навык"*`), which keeps FTS5 syntax inert data and finds inflected Russian forms even though `unicode61` does no stemming. The package's benchmark searches ten thousand stored memories in well under 20 ms.
 - **The tools belong to the clone session.** `clone_memory_remember` and `clone_memory_search` are registered into the agent scope of a session bound to a clone, never globally; both re-check the binding at execution time and refuse with `ketos/not-a-clone-session` once it is gone.
+- **Personal skills register into the agent's own layer.** A bound agent's clone skills are registered as runtime skills in that agent's own skill-registry scope, each carrying its stored instructions and the name and description its catalog entry shows. A skill stays out of the registry while its name fails the registry grammar, exceeds the 64-character bound, or its description is empty, and a deployment that composes no skill registry leaves that scope pending without withholding the profile, the memory tools, or the interview mode.
 - **The profile is stable, the memory is dynamic.** The profile rides `systemPrompt.section` and the memory snapshot rides `systemPrompt.context`, so a new memory arrives as a durable runtime-context message on the next turn and never rewrites the request prefix; `memoryEntries` and `memoryChars` bound that snapshot, and deeper lookup is the search tool.
 - **The person's edits reach the agent.** An edit or deletion through `/api/ketos.memory` re-derives the agent's snapshot, so its next turn sees exactly what the person left in the memory window.
 
@@ -100,15 +101,19 @@ Failures answer `400` `ketos/invalid` and `404` `ketos/memory-not-found`. `patch
 
 ### Schema
 
-`clones` stores one row per clone; `clone_sessions` stores one row per bound session with an index on `clone_id`; `memories` stores one row per remembered fact with an index on `(clone_id, status)` and a standalone `memories_fts` FTS5 table over the content and tags. All three are STRICT tables, timestamps are ISO-8601 UTC strings, and every read decodes the durable value it finds — an unknown `status`, binding role, or memory status, or a `skills_json`/`tags` that is not an array of strings fails loud instead of surfacing a broken clone in the UI. The version `2` step normalizes the superseded speculative status pair (`active` to `ready`, `archived` to `draft`) without touching any other field; the version `3` step adds the memory table, its index, and its FTS5 table.
+`clones` stores one row per clone; `clone_sessions` stores one row per bound session with an index on `clone_id`; `memories` stores one row per remembered fact with an index on `(clone_id, status)` and a standalone `memories_fts` FTS5 table over the content and tags. All three are STRICT tables, timestamps are ISO-8601 UTC strings, and every read decodes the durable value it finds — an unknown `status`, binding role, or memory status, a `skills_json` that is not an array of skill objects, or a `tags` that is not an array of strings fails loud instead of surfacing a broken clone in the UI. The skill decode deliberately checks only the object fields, not the name grammar or uniqueness, so a database written before those rules stays readable. The version `2` step normalizes the superseded speculative status pair (`active` to `ready`, `archived` to `draft`) without touching any other field; the version `3` step adds the memory table, its index, and its FTS5 table; the version `4` step rewrites a legacy array of skill names into skill objects with an empty description and instructions, in the stored order.
 
 ### Clone session scope
 
-`src/session.ts` owns the scope. Its coordinator listens to `agent/created`, `agent/session-start`, `agent/disposed`, and both routes' mutation notification, then reads the stored binding and clone and reconciles one per-agent scope: `agent.ctx.inject(['tools', 'systemPrompt'], …)` registers the `clone:profile` section, the `clone:memory` context, and the two memory tools, and — while the binding role is `interview` and the clone is `interviewing` — the `clone:interview` section, `clone_draft_save`, and the kickoff that opens the interview exactly once. A profile edit or a memory write refreshes the mutable text the prompt providers read; a rebind or an interview-mode change disposes the scope and installs the correct one. Nothing enters the global registries, and reconciliations are chained per agent, so overlapping triggers cannot install the scope twice.
+`src/session.ts` owns the scope. Its coordinator listens to `agent/created`, `agent/session-start`, `agent/disposed`, and both routes' mutation notification, then reads the stored binding and clone and reconciles one per-agent scope: `agent.ctx.inject(['tools', 'systemPrompt'], …)` registers the `clone:profile` section, the `clone:memory` context, and the two memory tools, and — while the binding role is `interview` and the clone is `interviewing` — the `clone:interview` section, `clone_draft_save`, and the kickoff that opens the interview exactly once. A second scope on `agent.ctx.inject(['skills'], …)` registers every registerable stored skill as a runtime skill in that agent's own layer and disposes with the agent; it activates on its own, so a deployment without a skill registry leaves it pending without withholding any other clone contribution. A profile edit or a memory write refreshes the mutable text the prompt providers read; a rebind or an interview-mode change disposes both scopes and installs the correct one. Nothing enters the global registries, and reconciliations are chained per agent, so overlapping triggers cannot install the scope twice. The `clone:profile` section deliberately carries no skill names: the catalog the `skill` tool publishes is the one model-facing list of what the agent may load.
+
+### Methodology vocabulary
+
+`src/methodology.ts` is browser-safe by construction — no imports, no state — and owns the four canonical section headings (`Принципы`, `Порядок работы`, `Критерии качества`, `Чего не делать`), the template of those headings with empty bodies, and the pure parser over level-two headings. The interview instruction tells the interviewer to write exactly those four sections; the editor imports the module through the `./methodology` export to mark a section missing or empty, and a gap is a hint that never refuses a save. The profile injects the stored methodology markdown as it is.
 
 ### Forward-only runner
 
-`src/schema.ts` owns the ordered step list: entry `n - 1` produces `user_version` `n`, and `migrate` applies every missing step in one pass before stamping the current version. There are no rollbacks and no data loss; a newer stored version is refused, never downgraded. `clone_tasks` joins the list as step 4 in its own stage.
+`src/schema.ts` owns the ordered step list: entry `n - 1` produces `user_version` `n`, and `migrate` applies every missing step in one pass before stamping the current version. A step adds what its version needs or rewrites one column's stored value into that version's shape; there are no rollbacks and no stored value is dropped, and a newer stored version is refused, never downgraded. `clone_tasks` joins the list as a later step in its own stage.
 
 ### Source map
 
@@ -121,8 +126,9 @@ Failures answer `400` `ketos/invalid` and `404` `ketos/memory-not-found`. `patch
 | [`src/memory.ts`](src/memory.ts) | The memory repository, its FTS5 synchronization, the quoted-prefix MATCH expression, and the memory bounds |
 | [`src/memory-tools.ts`](src/memory-tools.ts) | The two memory tools and the snapshot text the prompt context renders |
 | [`src/memory-routes.ts`](src/memory-routes.ts) | The `/api/ketos.memory` route, its validation, and its error codes |
+| [`src/methodology.ts`](src/methodology.ts) | The canonical methodology headings, the template, and the gap parser the interview instruction and the editor share |
 | [`src/routes.ts`](src/routes.ts) | The `/api/ketos.clones` route, its manual body validation, and its error codes |
-| [`src/session.ts`](src/session.ts) | The clone session scope: the coordinator, the profile and interview section texts, the memory wiring, the kickoff message source, and the kickoff projection |
+| [`src/session.ts`](src/session.ts) | The clone session scope: the coordinator, the profile and interview section texts, the memory wiring, the runtime skill registration, the kickoff message source, and the kickoff projection |
 | [`src/transaction.ts`](src/transaction.ts) | The immediate-transaction wrapper the multi-statement writes share |
 | [`src/wire.ts`](src/wire.ts) | The shared route helpers: JSON answers, the `no-store` header, and the body-validation primitives |
 | [`src/types.ts`](src/types.ts) | The stored records, the wire DTOs, the request inputs, and the error codes; the module browser code imports type-only |
@@ -137,6 +143,7 @@ Failures answer `400` `ketos/invalid` and `404` `ketos/memory-not-found`. `patch
 
 - [Ketos package group](../README.md) — the fork's package conventions and roster.
 - Board clone window — the editor that reads and writes this route: [`packages/client/ui-board/src/client/window/CloneBody.tsx`](../../client/ui-board/src/client/window/CloneBody.tsx).
+- Skill registry and catalog: [`@deepseek-ai/dsh-skill`](../../skill/skill/README.md) owns the registry a clone's skills register into, and [`@deepseek-ai/dsh-tool-skill`](../../skill/tool-skill/README.md) owns the catalog that lists them to the model.
 - Sibling SQLite layouts: [`@deepseek-ai/dsh-storage-sqlite`](../../storage/storage-sqlite/README.md) and [`@deepseek-ai/dsh-session-query-sqlite`](../../session-query/session-query-sqlite/README.md) — each owns its own file identity and schema instead of sharing a medium helper.
 
 -----
@@ -162,25 +169,25 @@ None; the package never touches an ordinary session's request prefix.
 
 #### What the model sees
 
-A session bound to a clone carries the `clone:profile` section — the stored name, role, summary, persona, working method, and skill names, with the instruction to keep them in every reply — the `clone:memory` runtime-context snapshot listing the newest active memories with their ids and tags, and the `clone_memory_remember` and `clone_memory_search` tools. An interviewing session additionally carries the interview instruction and `clone_draft_save`.
+A session bound to a clone carries the `clone:profile` section — the stored name, role, summary, persona, and working method, with the instruction to keep them in every reply — the `clone:memory` runtime-context snapshot listing the newest active memories with their ids and tags, and the `clone_memory_remember` and `clone_memory_search` tools. The clone's registerable skills reach the model through the session catalog the `skill` tool publishes, one entry per skill carrying its name and description, and a `skill` call returns the stored instructions. An interviewing session additionally carries the interview instruction and `clone_draft_save`.
 
 #### Token effect
 
-The profile section is fixed for the clone's record; the memory snapshot adds at most `memoryChars` characters (default 8000, about 2000 tokens) and renders nothing while the clone remembers nothing; the two tool schemas add their arguments to that session's catalog. No other session carries any of them.
+The profile section is fixed for the clone's record; the memory snapshot adds at most `memoryChars` characters (default 8000, about 2000 tokens) and renders nothing while the clone remembers nothing; each registerable skill adds one catalog entry with its name and description (at most 100 skills); the two tool schemas add their arguments to that session's catalog. No other session carries any of them.
 
 #### KV Cache effect
 
-The profile section text changes only when the person edits the record, so the request prefix stays byte-identical between turns while the agent remembers; a memory write changes only the runtime-context message, so the cached prefix holds.
+The profile section text changes only when the person edits the record, so the request prefix stays byte-identical between turns while the agent remembers; a memory write changes only the runtime-context message, so the cached prefix holds; the skill catalog is published once and stays byte-identical while the agent lives, because its registered set is fixed for that agent's lifetime.
 
 ### The interview session
 
 #### What the model sees
 
-The interviewing agent's system prompt carries the `clone:interview` section: the instruction to interview the person one question at a time, the checklist of topics (responsibilities, regulations, data sources, communication style, quality criteria, reference cases, prohibitions), and the instruction to finish by calling `clone_draft_save` once with the complete profile. The tool is registered only in that agent's scope, its result names the saved clone and revision, and the opening stimulus arrives as a user-role message whose source kind is `ketos-clone-interview` and whose transcript row is the collapsed notice "Clone interview started".
+The interviewing agent's system prompt carries the `clone:interview` section: the instruction to interview the person one question at a time, the checklist of topics (responsibilities, regulations, data sources, communication style, quality criteria, reference cases, prohibitions), the instruction to write the methodology as exactly the four canonical sections (`## Принципы`, `## Порядок работы`, `## Критерии качества`, `## Чего не делать`), the instruction to give every skill a kebab-case name, a description, and instructions, and the instruction to finish by calling `clone_draft_save` once with the complete profile. The tool is registered only in that agent's scope, its result names the saved clone and revision, and the opening stimulus arrives as a user-role message whose source kind is `ketos-clone-interview` and whose transcript row is the collapsed notice "Clone interview started".
 
 #### Token effect
 
-The section is about 320 tokens and rides every request of an interview session; the tool schema adds its arguments to that session's tool catalog. No other session and no other request carries either.
+The section is about 360 tokens and rides every request of an interview session; the tool schema adds its arguments to that session's tool catalog. No other session and no other request carries either.
 
 #### KV Cache effect
 
@@ -190,9 +197,11 @@ The section text is static, so the request prefix stays byte-identical between t
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **`clone_tasks` is absent** — the autonomous-task stage adds it as step 4 of the same runner; until then the database holds clone records, session bindings, and memories.
+- **`clone_tasks` is absent** — the autonomous-task stage adds it as a later step of the same runner; until then the database holds clone records, session bindings, and memories.
 - **The route is hand-validated, not generated** — there is no Typert codegen for the clone domain (the API is still moving), so the browser and the host share `src/types.ts` by hand and the route validates every field itself.
-- **`skills` is stored but unused** — the interview tool writes the names the person listed and they round-trip through the record and the wire, but no editor control or prompt consumes them before the methodology/skills stage.
+- **A stored skill edit reaches a live agent only on reinstallation or recreation** — a bound agent registers its skill scope once, so a stored change refreshes the profile and memory text alone and the new set appears after the scope is reinstalled or the agent is recreated.
+- **A session is not pinned to a clone revision** — a live session sees profile and methodology edits on its next turn, and a session recreated later reads the stored record as it stands then; nothing replays the record a session started from.
+- **An unregisterable skill stays out of the model catalog** — a skill whose stored name fails the registry grammar, exceeds the 64-character bound, or whose description is empty stays in the record and out of the registry until the editor fixes it.
 - **Interview progress is the status, not a checklist** — the package reports `interviewing` and the transcript; it does not track which topics were covered, and the stage that owns progress can add a checklist without changing the mode.
 - **The kickoff is queued once per session** — the pending inbox and the session log are the authority; a kickoff that a hard kill left pending is claimed on resume instead of being queued twice, and one that never reached either is queued again rather than leaving the session waiting silently.
 - **The preferred model is applied through the browser's model selection** — creating a clone session selects the stored route through `remote.session.selectModel`, which also saves the choice as the `agent-default-model` system default; `packages/client/ui-board/README.md` owns the product-facing statement of that side effect.
@@ -209,6 +218,6 @@ The section text is static, so the request prefix stays byte-identical between t
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-Inspect a live database with `sqlite3 "$DSH_HOME/clones.db" '.schema'`; the default home of the Ketos CLI is `~/.ketos`. Run the package specs with `pnpm exec vitest run packages/ketos/clone-core/tests`: `tests/composition.spec.ts` mounts the row through a real Loader beside the agent stack and drives the whole path — interview install, kickoff, save, and withdrawal, the memory tools saving and finding a fact, the profile and memory injection, the snapshot refresh after a person's edit and after a deletion, and the scope withdrawal when the clone is deleted; `tests/memory.spec.ts` covers the memory store, its FTS synchronization, the clone isolation, and the ten-thousand-record search budget.
+Inspect a live database with `sqlite3 "$DSH_HOME/clones.db" '.schema'`; the default home of the Ketos CLI is `~/.ketos`. Run the package specs with `pnpm exec vitest run packages/ketos/clone-core/tests`: `tests/composition.spec.ts` mounts the row through a real Loader beside the agent stack and drives the whole path — interview install, kickoff, save, and withdrawal, the memory tools saving and finding a fact, the profile and memory injection, the skill registration and its catalog with the skip of an unregisterable skill and the recreation that refreshes a registered set, the snapshot refresh after a person's edit and after a deletion, and the scope withdrawal when the clone is deleted; `tests/memory.spec.ts` covers the memory store, its FTS synchronization, the clone isolation, and the ten-thousand-record search budget; `tests/methodology.spec.ts` covers the template, the section parser, and the gap list.
 
 </details>

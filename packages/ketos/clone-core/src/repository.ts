@@ -16,7 +16,7 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { inTransaction } from './transaction.ts'
 import type {
   CloneBindingRole, CloneCreateInput, CloneDraftFields, CloneId, CloneRecord, CloneSessionBinding,
-  CloneStatus, CloneUpdatePatch,
+  CloneSkill, CloneStatus, CloneUpdatePatch,
 } from './types.ts'
 
 /**
@@ -104,6 +104,16 @@ export const CLONE_STATUSES = ['draft', 'interviewing', 'ready'] as const satisf
 export const CLONE_BINDING_ROLES = ['main', 'interview'] as const satisfies readonly CloneBindingRole[]
 
 /**
+ * Name grammar every clone skill shares with the skill registry: lowercase
+ * latin letters and digits in hyphen-separated groups, the same grammar
+ * `isSkillName` enforces in `@deepseek-ai/dsh-skill`. The stored record may
+ * still carry a name this pattern rejects — a database written before this
+ * grammar was enforced — so the decode guard accepts it and the session scope
+ * leaves such a skill out of the registry instead.
+ */
+export const CLONE_SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+/**
  * Longest authored value each profile field accepts, and the only source of
  * these numbers: the route validates them on the wire and the interview tool
  * validates them before its write, because a tool schema can express neither
@@ -115,7 +125,9 @@ export const CLONE_TEXT_LIMITS = {
   persona: 20_000,
   methodology: 20_000,
   skillCount: 100,
-  skill: 200,
+  skillName: 64,
+  skillDescription: 500,
+  skillInstructions: 20_000,
 } as const
 
 /** Update-patch field to stored column, in the order the statements bind them. */
@@ -131,10 +143,12 @@ const PATCH_COLUMNS = [
 
 /**
  * Refuse a draft whose required fields are empty or whose values exceed the
- * columns' documented bounds. The live route validates the same numbers; this
- * guard is for the model-facing tool, whose JSON schema cannot carry
- * `minLength`, `maxLength`, or `maxItems`. A profile the person is asked to
- * confirm must carry its four authored lines.
+ * columns' documented bounds, and whose skills repeat a name. The live route
+ * validates the same numbers; this guard is for the model-facing tool, whose
+ * JSON schema cannot carry `minLength`, `maxLength`, `maxItems`, or a name
+ * pattern. A profile the person is asked to confirm must carry its four
+ * authored lines; a skill may still omit its description or instructions,
+ * because the draft may name a skill before authoring it.
  * @param fields - the complete authored profile.
  */
 function requireDraftBounds(fields: CloneDraftFields): void {
@@ -151,9 +165,29 @@ function requireDraftBounds(fields: CloneDraftFields): void {
   if (fields.skills.length > CLONE_TEXT_LIMITS.skillCount) {
     throw new HarnessError(`skills exceeds ${String(CLONE_TEXT_LIMITS.skillCount)} entries`, 'ketos/invalid-draft')
   }
+  const names = new Set<string>()
   for (const skill of fields.skills) {
-    if (skill.length > CLONE_TEXT_LIMITS.skill) {
-      throw new HarnessError(`a skill name exceeds ${String(CLONE_TEXT_LIMITS.skill)} characters`, 'ketos/invalid-draft')
+    if (!CLONE_SKILL_NAME.test(skill.name)) {
+      throw new HarnessError(`skill name ${JSON.stringify(skill.name)} is not kebab-case`, 'ketos/invalid-draft')
+    }
+    if (skill.name.length > CLONE_TEXT_LIMITS.skillName) {
+      throw new HarnessError(`a skill name exceeds ${String(CLONE_TEXT_LIMITS.skillName)} characters`, 'ketos/invalid-draft')
+    }
+    if (names.has(skill.name)) {
+      throw new HarnessError(`skill name ${JSON.stringify(skill.name)} is duplicated`, 'ketos/invalid-draft')
+    }
+    names.add(skill.name)
+    if (skill.description.length > CLONE_TEXT_LIMITS.skillDescription) {
+      throw new HarnessError(
+        `a skill description exceeds ${String(CLONE_TEXT_LIMITS.skillDescription)} characters`,
+        'ketos/invalid-draft',
+      )
+    }
+    if (skill.instructions.length > CLONE_TEXT_LIMITS.skillInstructions) {
+      throw new HarnessError(
+        `skill instructions exceed ${String(CLONE_TEXT_LIMITS.skillInstructions)} characters`,
+        'ketos/invalid-draft',
+      )
     }
   }
 }
@@ -163,14 +197,28 @@ function nowIso(): string {
   return new Date().toISOString()
 }
 
-/** Decode the stored skills document, refusing anything but an array of strings. */
-function parseSkills(id: string, json: string): string[] {
+/**
+ * Decode the stored skills document, refusing anything but an array of skill
+ * objects. The name grammar and uniqueness are deliberately not enforced here:
+ * a database written before this stage may hold names the editor flags and the
+ * session scope skips, and refusing to read them would hide the whole clone.
+ * @param id - clone identity, for the failure message.
+ * @param json - stored `skills_json` value.
+ * @returns the decoded skills in stored order.
+ */
+function parseSkills(id: string, json: string): CloneSkill[] {
   const value: unknown = JSON.parse(json)
-  if (!Array.isArray(value)) throw new Error(`clone ${id}: skills_json is not an array of strings`)
-  const skills: string[] = []
+  if (!Array.isArray(value)) throw new Error(`clone ${id}: skills_json is not an array of skill objects`)
+  const skills: CloneSkill[] = []
   for (const entry of value as readonly unknown[]) {
-    if (typeof entry !== 'string') throw new Error(`clone ${id}: skills_json is not an array of strings`)
-    skills.push(entry)
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+      throw new Error(`clone ${id}: skills_json is not an array of skill objects`)
+    }
+    const { name, description, instructions } = entry as Record<string, unknown>
+    if (typeof name !== 'string' || typeof description !== 'string' || typeof instructions !== 'string') {
+      throw new Error(`clone ${id}: skills_json is not an array of skill objects`)
+    }
+    skills.push({ name, description, instructions })
   }
   return skills
 }
@@ -217,6 +265,25 @@ function toBinding(row: CloneSessionRow): CloneSessionBinding {
     role: parseBindingRole(row.session_id, row.role),
     createdAt: row.created_at,
   }
+}
+
+/**
+ * Merge the skills a draft carries over the stored list by name: a stored
+ * skill the draft does not name keeps its place, a same-name draft skill
+ * replaces it there, and a skill the store does not hold appends in draft
+ * order.
+ * @param stored - the skills the clone already carries.
+ * @param incoming - the skills the draft supplies, with unique names.
+ * @returns the merged list.
+ */
+function mergeSkills(stored: readonly CloneSkill[], incoming: readonly CloneSkill[]): CloneSkill[] {
+  const edits = new Map(incoming.map(skill => [skill.name, skill]))
+  const merged = stored.map(skill => edits.get(skill.name) ?? skill)
+  const storedNames = new Set(stored.map(skill => skill.name))
+  for (const skill of incoming) {
+    if (!storedNames.has(skill.name)) merged.push(skill)
+  }
+  return merged
 }
 
 /** Create, read, update, and delete clone records and their session bindings. */
@@ -399,7 +466,9 @@ export class CloneRepository {
    * clone `ready`, in one revision-checked update. The expected revision is the
    * one read in this call, so a user save that landed earlier is already part of
    * the new record, and the write still refuses a clone another writer moved
-   * between the read and the update.
+   * between the read and the update. Skills merge over the stored list by name
+   * rather than replacing it, so a skill the person authored meanwhile survives
+   * an interview that did not mention it.
    * @param sessionId - the interviewing session whose clone receives the profile.
    * @param fields - the complete authored profile the interview collected.
    * @returns the saved record.
@@ -417,6 +486,13 @@ export class CloneRepository {
     // scope's lifetime: a profile the person confirmed meanwhile must not be
     // overwritten by the agent that was drafting it.
     if (clone.status !== 'interviewing') throw new CloneNotInterviewingError(binding.cloneId, clone.status)
-    return this.updateClone(binding.cloneId, { ...fields, status: 'ready' }, clone.revision)
+    const skills = mergeSkills(clone.skills, fields.skills)
+    if (skills.length > CLONE_TEXT_LIMITS.skillCount) {
+      throw new HarnessError(
+        `merged skills exceed ${String(CLONE_TEXT_LIMITS.skillCount)} entries`,
+        'ketos/invalid-draft',
+      )
+    }
+    return this.updateClone(binding.cloneId, { ...fields, skills, status: 'ready' }, clone.revision)
   }
 }

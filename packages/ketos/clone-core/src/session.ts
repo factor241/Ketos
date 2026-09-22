@@ -2,13 +2,14 @@
  * The clone session scope: everything clone-core composes into the agent of a
  * session bound to a clone.
  *
- * A session bound to a clone carries the clone's stable profile section, its
- * memory tools, and a dynamic memory snapshot; a session that is also
- * interviewing that clone additionally carries the interview instruction, the
- * `clone_draft_save` tool, and exactly one opening turn. Every contribution
- * lives in that one agent's scope — never in the global registries — so an
- * ordinary chat sees none of it. The scope ends when the agent is disposed or
- * the binding goes; the interview part ends when the profile is saved.
+ * A session bound to a clone carries the clone's stable profile section, the
+ * personal skills it may invoke, its memory tools, and a dynamic memory
+ * snapshot; a session that is also interviewing that clone additionally carries
+ * the interview instruction, the `clone_draft_save` tool, and exactly one
+ * opening turn. Every contribution lives in that one agent's scope — never in
+ * the global registries — so an ordinary chat sees none of it. The scope ends
+ * when the agent is disposed or the binding goes; the interview part ends when
+ * the profile is saved.
  *
  * @module @ketos/clone-core/session
  */
@@ -17,6 +18,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { ProjectionDefinition } from '@deepseek-ai/dsh-session-projection'
+import type {} from '@deepseek-ai/dsh-skill'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
 import { defineTool } from '@deepseek-ai/dsh-tools'
@@ -26,8 +28,9 @@ import type { CloneDatabase } from './db.ts'
 import { MEMORY_LIMITS, MemoryRepository } from './memory.ts'
 import type { FoundMemory, RememberArguments, RememberedMemory, SearchArguments } from './memory-tools.ts'
 import { cloneMemoryRememberTool, cloneMemorySearchTool, memorySnapshotText } from './memory-tools.ts'
-import type { CloneRecord, CloneBindingRole, CloneDraftFields, CloneId } from './types.ts'
-import { CloneSessionNotBoundError } from './repository.ts'
+import { METHODOLOGY_SECTIONS } from './methodology.ts'
+import type { CloneRecord, CloneBindingRole, CloneDraftFields, CloneId, CloneSkill } from './types.ts'
+import { CLONE_SKILL_NAME, CLONE_TEXT_LIMITS, CloneSessionNotBoundError } from './repository.ts'
 import type { CloneRepository } from './repository.ts'
 
 /**
@@ -88,10 +91,27 @@ export const CLONE_INTERVIEW_SOURCE = 'ketos-clone-interview'
 export const CLONE_KICKOFF_PROJECTION = 'ketos-clone-kickoff'
 
 /**
+ * Whether one stored skill may reach the skill registry: its name matches the
+ * registry's own grammar and its description is non-empty. Registration reads
+ * this decision, so a skill still being drafted stays in the record alone. A
+ * database written before the grammar was enforced may carry a name the
+ * registry cannot address.
+ * @param skill - the stored skill.
+ * @returns whether the skill is addressable and registrable.
+ */
+function registerableSkill(skill: CloneSkill): boolean {
+  return CLONE_SKILL_NAME.test(skill.name)
+    && skill.name.length <= CLONE_TEXT_LIMITS.skillName
+    && skill.description.trim() !== ''
+}
+
+/**
  * What the clone profile contributes to the clone's own requests: who it is,
  * how it works, and the instruction to stay in character. The text is built
  * from the stored record, so it carries no secret or PII the person did not
- * write into the profile themselves.
+ * write into the profile themselves. Skills are deliberately absent: the skill
+ * registry registers them into the agent's own layer, and the catalog the
+ * `skill` tool publishes is the one model-facing list of what it may invoke.
  * @param clone - the stored clone record.
  * @returns the profile section text.
  */
@@ -101,7 +121,6 @@ export function profileSectionText(clone: CloneRecord): string {
     ...clone.description.trim() === '' ? [] : [`Summary: ${clone.description}`],
     ...clone.persona.trim() === '' ? [] : [`Character, tone, and working style: ${clone.persona}`],
     ...clone.methodology.trim() === '' ? [] : [`Working method: ${clone.methodology}`],
-    ...clone.skills.length === 0 ? [] : [`Skills you may rely on: ${clone.skills.join(', ')}`],
     'Keep this role, character, and working method in every reply.',
   ]
   return lines.join('\n')
@@ -128,7 +147,9 @@ const INTERVIEW_INSTRUCTION = [
   '- reference cases that show the person\'s best work;',
   '- what the double must never do.',
   '',
-  'After 8 to 12 exchanges, or as soon as the person asks to finish, call the clone_draft_save tool once with the complete profile you gathered: the role, a one-line description, the persona (character, tone, and working style), the methodology (how the work is actually done), and a short list of skill names.',
+  'After 8 to 12 exchanges, or as soon as the person asks to finish, call the clone_draft_save tool once with the complete profile you gathered: the role, a one-line description, the persona (character, tone, and working style), the methodology (how the work is actually done), and the skills the clone may use.',
+  `Write the methodology as exactly these four sections, each under its own heading of two hashes and filled with the concrete content the person gave: ${METHODOLOGY_SECTIONS.map(heading => `## ${heading}`).join(', ')}.`,
+  'For every skill, supply a kebab-case name (lowercase latin letters, digits, and hyphens), a short description of what the skill is for, and instructions that say how to do it.',
   'Do not write the profile as JSON in your messages; the tool arguments carry it.',
   'If the person answers only part of the checklist, save what you have — a missing detail can be added later.',
 ].join('\n')
@@ -207,7 +228,7 @@ export function cloneDraftSaveTool(
     description: [
       'Save the completed profile draft of the clone this session is interviewing for.',
       'Call it once, when the checklist is covered or the person asks to finish.',
-      'It replaces the role, description, persona, methodology, and skills of the clone and marks the profile ready for the person\'s review.',
+      'It replaces the role, description, persona, and methodology of the clone, merges the skills into the clone\'s list by name, and marks the profile ready for the person\'s review.',
     ].join(' '),
     parameters: {
       role: {
@@ -233,8 +254,28 @@ export function cloneDraftSaveTool(
       skills: {
         type: 'array',
         required: true,
-        description: 'Short names of the skills the clone may use.',
-        items: { type: 'string' },
+        description: 'The skills the clone may use; an empty array when the interview found none.',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            name: {
+              type: 'string',
+              required: true,
+              description: 'Kebab-case skill name: lowercase latin letters, digits, and hyphens.',
+            },
+            description: {
+              type: 'string',
+              required: true,
+              description: 'One line that says what the skill is for.',
+            },
+            instructions: {
+              type: 'string',
+              required: true,
+              description: 'How to do it: the instructions the clone follows when it uses this skill.',
+            },
+          },
+        },
       },
     },
     output: {
@@ -275,8 +316,14 @@ interface BoundClone {
  * different clone or a different interview mode.
  */
 interface CloneScope {
-  /** The scope carrying the registrations. */
+  /** The scope carrying the tool and prompt registrations. */
   readonly scope: ReturnType<Context['inject']>
+  /**
+   * The separate scope carrying the skill registry registrations. It activates
+   * on its own, because a deployment without a skill registry must not
+   * withhold the profile, the tools, or the interview mode.
+   */
+  readonly skills: ReturnType<Context['inject']>
   /** Clone the scope was installed for. */
   readonly cloneId: CloneId
   /** Whether the interview section, tool, and kickoff are part of this scope. */
@@ -285,6 +332,11 @@ interface CloneScope {
   readonly profile: { text: string }
   /** Memory snapshot the context provider renders; replaced when memory changes. */
   readonly memory: { text: string }
+  /**
+   * Withdraw every registration this entry owns, both scopes together.
+   * @returns a promise settling when neither scope holds a registration.
+   */
+  dispose(): Promise<void>
 }
 
 /**
@@ -412,7 +464,7 @@ export class CloneSessionCoordinator {
    */
   private close(): void {
     this.disposed = true
-    for (const entry of this.installed.values()) void entry.scope.dispose()
+    for (const entry of this.installed.values()) void entry.dispose()
     this.installed.clear()
     this.chains.clear()
     this.opened.clear()
@@ -460,14 +512,14 @@ export class CloneSessionCoordinator {
     if (bound === undefined) {
       if (installed === undefined) return
       this.installed.delete(agent)
-      await installed.scope.dispose()
+      await installed.dispose()
       return
     }
     const interviewing = bound.role === 'interview' && bound.clone.status === 'interviewing'
     if (installed === undefined || installed.cloneId !== bound.clone.id || installed.interviewing !== interviewing) {
       if (installed !== undefined) {
         this.installed.delete(agent)
-        await installed.scope.dispose()
+        await installed.dispose()
       }
       const fresh = await this.install(agent, repository, memories, bound.clone, interviewing)
       if (fresh === undefined) return
@@ -528,13 +580,55 @@ export class CloneSessionCoordinator {
       }
     })
     await scope
-    // Disposal may have won the race while the scope was activating; the
-    // registrations belong to the disposal from here on.
+    // The critical scope activated; its optional skill part follows, and
+    // disposal may have won the race while the scope was activating, in which
+    // case the registrations belong to the disposal from here on.
+    const skills = this.registerSkills(agent, clone)
+    const entry: CloneScope = {
+      scope,
+      skills,
+      cloneId: clone.id,
+      interviewing,
+      profile,
+      memory,
+      dispose: () => Promise.all([scope.dispose(), skills.dispose()]).then(() => undefined),
+    }
     if (this.disposed) {
-      await scope.dispose()
+      await entry.dispose()
       return undefined
     }
-    return { scope, cloneId: clone.id, interviewing, profile, memory }
+    return entry
+  }
+
+  /**
+   * Register one clone's registerable skills into the agent's own registry
+   * layer, in a scope of their own that activates whenever a skill registry is
+   * reachable. A deployment without one leaves the scope pending; installation
+   * never waits for it, so a missing registry cannot withhold the profile, the
+   * tools, or the interview mode. Editing the stored skills reaches a live
+   * agent only when its scope is reinstalled or the agent is recreated: a
+   * stored change refreshes the profile and memory text alone.
+   * @param agent - the agent whose layer receives the skills.
+   * @param clone - the stored clone the scope was installed for.
+   * @returns the registration scope, which the caller owns and disposes.
+   */
+  private registerSkills(agent: Agent, clone: CloneRecord): ReturnType<Context['inject']> {
+    const skills = agent.ctx.inject(['skills'], (scoped) => {
+      for (const skill of clone.skills.filter(registerableSkill)) {
+        scoped.skills.register({
+          name: skill.name,
+          description: skill.description,
+          content: skill.instructions,
+          source: 'runtime',
+        })
+      }
+    })
+    // An unhandled rejection would take the process down; the registration is
+    // an optional part of the agent's composition, so its failure is a warning.
+    void Promise.resolve(skills).catch((error: unknown) => {
+      this.ctx.logger.warn(`ketos-clone-core: clone skill registration failed for agent "${agent.id}": ${String(error)}`)
+    })
+    return skills
   }
 
   /** Rebuild the profile text and the memory snapshot of one installed scope. */

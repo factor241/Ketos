@@ -11,6 +11,7 @@
     "src/memory-routes.ts",
     "src/memory-tools.ts",
     "src/memory.ts",
+    "src/methodology.ts",
     "src/repository.ts",
     "src/routes.ts",
     "src/schema.ts",
@@ -46,6 +47,9 @@
     },
     {
       "path": "../../session/session-projection"
+    },
+    {
+      "path": "../../skill/skill"
     },
     {
       "path": "../../util/brand"

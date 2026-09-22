@@ -10,7 +10,7 @@
  */
 import { useEffect, useState } from 'react'
 import clsx from 'clsx'
-import { Button, Input, Pill, relativeTime } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Input, Pill } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { MemoryDto, MemoryId, MemoryStatus } from '@ketos/clone-core/types'
 import {
@@ -18,6 +18,7 @@ import {
   type BoardWindowInjected, type MemoryFailureCode,
 } from '../contract/slots.ts'
 import type { BoardTranslate } from '../locale.ts'
+import { relativeAge } from '../relative-age.ts'
 import css from './CloneMemoryBody.module.css'
 
 export type CloneMemoryBodyProps =
@@ -42,9 +43,7 @@ interface MemoryEdit {
 
 /** Localized age of one memory's last update, in the board's short units. */
 function updatedLabel(updatedAt: string, t: BoardTranslate): string {
-  const { unit, n } = relativeTime(Date.parse(updatedAt), Date.now())
-  const age = unit === 'now' ? t('time.now') : t(`time.${unit}`, { n })
-  return t('clone.memory.updated', { time: age })
+  return t('clone.memory.updated', { time: relativeAge(updatedAt, t) })
 }
 
 /** Split the comma-separated tag draft into the tag list the host stores. */

@@ -8,7 +8,8 @@
  * @module @ketos/clone-core/wire
  */
 
-import type { CloneErrorCode, MemoryErrorCode } from './types.ts'
+import { CLONE_SKILL_NAME } from './repository.ts'
+import type { CloneErrorCode, CloneSkill, MemoryErrorCode } from './types.ts'
 
 /** Response headers for every answer: clone data is private and never cached. */
 export const NO_STORE = { 'cache-control': 'no-store' } as const
@@ -120,5 +121,52 @@ export function optionalStringList(
       throw new InvalidBody(`an entry of ${key} exceeds ${String(maxEntry)} characters`)
     }
     return entry
+  })
+}
+
+/** Fields one wire skill carries; anything else inside it is a typo. */
+const SKILL_FIELDS = ['name', 'description', 'instructions'] as const
+
+/**
+ * An optional bounded array of skill objects. Each entry carries exactly the
+ * fields a stored skill has: a kebab-case name inside the registry's grammar, a
+ * short description, and the instructions loaded on invocation. An absent
+ * description or instruction body stays an empty string, because a draft may
+ * name a skill before authoring it; a duplicate name is refused, because two
+ * entries would be two identities for one registry skill.
+ * @param source - decoded request body.
+ * @param key - field name.
+ * @param limits - longest accepted entry count and the per-field character bounds.
+ * @returns the skills, or undefined when the field is absent.
+ */
+export function optionalSkillList(
+  source: Record<string, unknown>,
+  key: string,
+  limits: {
+    readonly skillCount: number
+    readonly skillName: number
+    readonly skillDescription: number
+    readonly skillInstructions: number
+  },
+): CloneSkill[] | undefined {
+  const value = source[key]
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) throw new InvalidBody(`${key} must be an array`)
+  if (value.length > limits.skillCount) throw new InvalidBody(`${key} exceeds ${String(limits.skillCount)} entries`)
+  const names = new Set<string>()
+  return value.map((entry: unknown): CloneSkill => {
+    const skill = record(entry, `${key} must hold skill objects`)
+    rejectUnknownFields(skill, SKILL_FIELDS)
+    const name = requiredText(skill, 'name', limits.skillName)
+    if (!CLONE_SKILL_NAME.test(name)) {
+      throw new InvalidBody(`skill name ${JSON.stringify(name)} is not kebab-case`)
+    }
+    if (names.has(name)) throw new InvalidBody(`skill name ${JSON.stringify(name)} is duplicated`)
+    names.add(name)
+    return {
+      name,
+      description: optionalText(skill, 'description', limits.skillDescription) ?? '',
+      instructions: optionalText(skill, 'instructions', limits.skillInstructions) ?? '',
+    }
   })
 }

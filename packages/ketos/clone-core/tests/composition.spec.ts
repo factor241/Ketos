@@ -13,19 +13,23 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import { assembleContextFor } from '@deepseek-ai/dsh-agent'
+import type { Agent } from '@deepseek-ai/dsh-agent'
 import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness } from '@deepseek-ai/dsh-agent-loop-testkit'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
 import { ToolCallId, createUserMessage } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
+import SkillRegistry from '@deepseek-ai/dsh-skill'
 import { renderContextSections, renderPrompt } from '@deepseek-ai/dsh-system-prompt'
+import * as ToolSkill from '@deepseek-ai/dsh-tool-skill'
 import * as CloneCore from '@ketos/clone-core'
 import { MEMORY_PATH } from '../src/memory-routes.ts'
 import { CLONES_PATH } from '../src/routes.ts'
 import { openDatabase } from '../src/db.ts'
+import { CLONE_TEXT_LIMITS } from '../src/repository.ts'
 import {
   CLONE_INTERVIEW_SECTION, CLONE_MEMORY_CONTEXT, CLONE_PROFILE_SECTION,
 } from '../src/session.ts'
-import type { CloneAnswerResponse, MemoryListResponse } from '../src/types.ts'
+import type { CloneAnswerResponse, CloneSkill, MemoryListResponse } from '../src/types.ts'
 import { MockAdapter, textResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 
 /**
@@ -101,9 +105,14 @@ function answered(answer: Record<string, unknown>): CloneAnswerResponse {
  * connection service that records registered routes.
  * @param withPath - whether the row config carries the database path.
  * @param extraConfig - further row config fields, as literal YAML values.
+ * @param withSkills - whether the shipped skill registry and its loader tool are mounted beside it.
  * @returns the booted context, the recorded routes, and the database path.
  */
-async function boot(withPath = true, extraConfig: Record<string, string | number> = {}): Promise<Booted> {
+async function boot(
+  withPath = true,
+  extraConfig: Record<string, string | number> = {},
+  withSkills = false,
+): Promise<Booted> {
   root = await mkdtemp(join(tmpdir(), 'dsh-clone-loader-'))
   const path = join(root, 'clones.db')
   const configPath = join(root, 'cordis.yml')
@@ -115,6 +124,12 @@ async function boot(withPath = true, extraConfig: Record<string, string | number
         `    path: ${JSON.stringify(path)}`,
         ...Object.entries(extraConfig).map(([key, value]) => `    ${key}: ${JSON.stringify(value)}`),
       ]
+      : [],
+    // The shipped profile keeps the skill REGISTRY on the host plane and gives
+    // each agent the catalog and loader; both rows are what a clone session
+    // registers its own skills into.
+    ...withSkills
+      ? ["- name: '@deepseek-ai/dsh-skill'", "- name: '@deepseek-ai/dsh-tool-skill'"]
       : [],
     '',
   ].join('\n'))
@@ -131,6 +146,10 @@ async function boot(withPath = true, extraConfig: Record<string, string | number
   await ctx.plugin(Loader)
   ctx.loader.builtins.include = Include
   const modules = new Map<string, unknown>([['@ketos/clone-core', CloneCore]])
+  if (withSkills) {
+    modules.set('@deepseek-ai/dsh-skill', SkillRegistry)
+    modules.set('@deepseek-ai/dsh-tool-skill', ToolSkill)
+  }
   ctx.loader.internal = {
     version: 'v2',
     async import(specifier: string) {
@@ -141,6 +160,23 @@ async function boot(withPath = true, extraConfig: Record<string, string | number
   await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
   await ctx.loader.await()
   return { ctx, routes: connection.routes, withdrawn: connection.withdrawn, path }
+}
+
+/** One stored skill with a description unless the test says otherwise. */
+const skill = (name: string, description: string, instructions = ''): CloneSkill =>
+  ({ name, description, instructions })
+
+/**
+ * The skills one agent's catalog published, or undefined when it published none.
+ * @param agent - the agent whose durable log is read.
+ * @returns the entries of the first skill-catalog message, or undefined.
+ */
+function catalogEntries(agent: Agent): readonly { readonly name: string; readonly description: string }[] | undefined {
+  for (const event of agent.session.snapshotEvents()) {
+    if (event.type !== 'user/message' || event.data.source.kind !== 'skill-catalog') continue
+    return event.data.source.entries
+  }
+  return undefined
 }
 
 describe('clone package real Loader composition', () => {
@@ -233,7 +269,7 @@ describe('clone interview over the shipped composition', () => {
         description: 'Разбирает требования',
         persona: 'Спокойная и точная',
         methodology: 'Сначала факты, потом гипотезы',
-        skills: ['анализ', 'интервью'],
+        skills: [skill('analiz', 'Разбор требований'), skill('intervyu', 'Интервью')],
       },
       agent,
       signal: new AbortController().signal,
@@ -245,7 +281,7 @@ describe('clone interview over the shipped composition', () => {
       status: 'ready',
       role: 'Старший аналитик',
       persona: 'Спокойная и точная',
-      skills: ['анализ', 'интервью'],
+      skills: [skill('analiz', 'Разбор требований'), skill('intervyu', 'Интервью')],
       revision: 4,
     })
 
@@ -545,6 +581,9 @@ describe('clone profile and memory injection over the shipped composition', () =
       role: 'Аналитик',
       persona: 'Спокойная и точная',
       methodology: 'Сначала факты, потом гипотезы',
+      // The second skill is still a draft: its empty description keeps it out
+      // of the profile line and out of the registry.
+      skills: [skill('sql', 'Запросы к базе'), skill('draft-skill', '')],
     }))
     await request(cloneRoute, { op: 'bindSession', cloneId: created.clone.id, sessionId: 'clone-profile' })
     const agent = await ctx.agentLoop.create(SessionId('clone-profile'), { provider: 'mock', model: 'mock' })
@@ -556,6 +595,11 @@ describe('clone profile and memory injection over the shipped composition', () =
     expect(profile).toContain('You are the digital clone of Анна, working as Аналитик.')
     expect(profile).toContain('Character, tone, and working style: Спокойная и точная')
     expect(profile).toContain('Working method: Сначала факты, потом гипотезы')
+    // The profile carries no skill names: the registered catalog is the one
+    // model-facing list, so a draft that cannot register is absent everywhere.
+    expect(profile).not.toContain('Skills you may rely on')
+    expect(profile).not.toContain('sql')
+    expect(profile).not.toContain('draft-skill')
     // Nothing is remembered yet, so the dynamic snapshot renders nothing.
     const empty = await ctx.systemPrompt.assemble(assembleContextFor(agent))
     expect(renderContextSections(empty).map(context => context.name)).not.toContain(CLONE_MEMORY_CONTEXT)
@@ -648,5 +692,176 @@ describe('clone profile and memory injection over the shipped composition', () =
       expect(assembly.sections.map(section => section.name)).not.toContain(CLONE_PROFILE_SECTION)
       expect(ctx.tools.get('clone_memory_remember', agent)).toBeUndefined()
     })
+  })
+})
+
+describe('clone skills over the shipped composition', () => {
+  it('registers the clone skills into the bound agent and publishes them in the catalog', async () => {
+    const { ctx, routes } = await boot(true, {}, true)
+    const cloneRoute = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Привет')]))
+    const created = answered(await request(cloneRoute, {
+      op: 'create',
+      name: 'Анна',
+      role: 'Аналитик',
+      skills: [skill('sql', 'Запросы к базе', 'Пиши SELECT по схеме'), skill('otchety', 'Готовит отчёты')],
+    }))
+    await request(cloneRoute, { op: 'bindSession', cloneId: created.clone.id, sessionId: 'clone-skills' })
+    const agent = await ctx.agentLoop.create(SessionId('clone-skills'), { provider: 'mock', model: 'mock' })
+
+    await vi.waitFor(async () => {
+      expect(await ctx.skills.list({ scope: agent })).toMatchObject([
+        { name: 'otchety', description: 'Готовит отчёты', source: 'runtime' },
+        { name: 'sql', description: 'Запросы к базе', source: 'runtime' },
+      ])
+    })
+    // The instructions ride the definition, so invoking the skill loads them.
+    await expect(ctx.skills.get('sql', { scope: agent })).resolves.toMatchObject({
+      name: 'sql',
+      content: 'Пиши SELECT по схеме',
+    })
+
+    // The catalog the model reads on the next turn names each skill and its
+    // routing description.
+    agent.followup(createUserMessage({ content: [{ type: 'text', text: 'Привет' }], source: { kind: 'user' } }))
+    await vi.waitFor(() => { expect(agent.status).toBe('idle') })
+    expect(catalogEntries(agent)).toMatchObject([
+      { name: 'otchety', description: 'Готовит отчёты' },
+      { name: 'sql', description: 'Запросы к базе' },
+    ])
+  })
+
+  it('leaves a session without a clone binding without any clone skill', async () => {
+    const { ctx, routes } = await boot(true, {}, true)
+    const cloneRoute = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Привет')]))
+    const created = answered(await request(cloneRoute, {
+      op: 'create',
+      name: 'Анна',
+      role: 'Аналитик',
+      skills: [skill('sql', 'Запросы к базе')],
+    }))
+    await request(cloneRoute, { op: 'bindSession', cloneId: created.clone.id, sessionId: 'clone-bound' })
+    const bound = await ctx.agentLoop.create(SessionId('clone-bound'), { provider: 'mock', model: 'mock' })
+    await vi.waitFor(async () => {
+      expect((await ctx.skills.list({ scope: bound })).map(candidate => candidate.name)).toEqual(['sql'])
+    })
+
+    const plain = await ctx.agentLoop.create(SessionId('plain-session'), { provider: 'mock', model: 'mock' })
+    expect((await ctx.skills.list({ scope: plain })).map(candidate => candidate.name)).toEqual([])
+  })
+
+  it('withdraws the clone skills when the agent is disposed', async () => {
+    const { ctx, routes } = await boot(true, {}, true)
+    const cloneRoute = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Привет')]))
+    const created = answered(await request(cloneRoute, {
+      op: 'create',
+      name: 'Анна',
+      role: 'Аналитик',
+      skills: [skill('sql', 'Запросы к базе')],
+    }))
+    await request(cloneRoute, { op: 'bindSession', cloneId: created.clone.id, sessionId: 'clone-gone' })
+    const handle = await ctx.agents.create({
+      sessionId: SessionId('clone-gone'),
+      agentOptions: { provider: 'mock', model: 'mock' },
+    })
+    await vi.waitFor(async () => {
+      expect((await ctx.skills.list({ scope: handle.agent })).map(candidate => candidate.name)).toEqual(['sql'])
+    })
+
+    await handle.dispose()
+    expect((await ctx.skills.list({ scope: handle.agent })).map(candidate => candidate.name)).toEqual([])
+  })
+
+  it('skips a skill the registry cannot address while the profile still installs', async () => {
+    const { ctx, routes, path } = await boot(true, {}, true)
+    const cloneRoute = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Привет')]))
+    const created = answered(await request(cloneRoute, {
+      op: 'create',
+      name: 'Анна',
+      role: 'Аналитик',
+      methodology: 'Сначала факты',
+      skills: [skill('sql', 'Запросы к базе'), skill('draft-skill', '')],
+    }))
+    // A legacy name only a database written before the grammar can hold, beside
+    // a skill whose description the editor has not authored yet, a name past
+    // the wire length bound, and a name the registry cannot address.
+    const direct = await openDatabase(path)
+    direct.prepare('UPDATE clones SET skills_json = ? WHERE id = ?').run(JSON.stringify([
+      { name: 'sql', description: 'Запросы к базе', instructions: '' },
+      { name: 'draft-skill', description: '', instructions: '' },
+      { name: 'Договоры', description: 'Договорная работа', instructions: '' },
+      { name: 'a'.repeat(CLONE_TEXT_LIMITS.skillName + 1), description: 'Слишком длинное имя', instructions: '' },
+    ]), created.clone.id)
+    direct.close()
+    await request(cloneRoute, { op: 'bindSession', cloneId: created.clone.id, sessionId: 'clone-partial' })
+    const agent = await ctx.agentLoop.create(SessionId('clone-partial'), { provider: 'mock', model: 'mock' })
+
+    // The unusable skills are skipped, not the scope: the profile section, the
+    // memory tools, and the addressable skill all still install.
+    await vi.waitFor(async () => {
+      const assembly = await ctx.systemPrompt.assemble(assembleContextFor(agent))
+      expect(assembly.sections.map(section => section.name)).toContain(CLONE_PROFILE_SECTION)
+      expect(ctx.tools.get('clone_memory_remember', agent)).toBeDefined()
+    })
+    expect((await ctx.skills.list({ scope: agent })).map(candidate => candidate.name)).toEqual(['sql'])
+    const profile = renderPrompt(await ctx.systemPrompt.assemble(assembleContextFor(agent)))
+    expect(profile).not.toContain('Skills you may rely on')
+    expect(profile).not.toContain('draft-skill')
+    expect(profile).not.toContain('Договоры')
+    expect(profile).not.toContain('a'.repeat(CLONE_TEXT_LIMITS.skillName + 1))
+  })
+
+  it('recreates an agent for the same bound session after the clone is edited', async () => {
+    const { ctx, routes } = await boot(true, {}, true)
+    const cloneRoute = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Привет')]))
+    const created = answered(await request(cloneRoute, {
+      op: 'create',
+      name: 'Анна',
+      role: 'Аналитик',
+      methodology: '## Принципы\nСтарые принципы',
+      skills: [skill('sql', 'Запросы к базе')],
+    }))
+    await request(cloneRoute, { op: 'bindSession', cloneId: created.clone.id, sessionId: 'clone-recreated' })
+    const first = await ctx.agents.create({
+      sessionId: SessionId('clone-recreated'),
+      agentOptions: { provider: 'mock', model: 'mock' },
+    })
+    await vi.waitFor(async () => {
+      const profile = renderPrompt(await ctx.systemPrompt.assemble(assembleContextFor(first.agent)))
+      expect(profile).toContain('Старые принципы')
+    })
+    await first.dispose()
+
+    const edited = answered(await request(cloneRoute, {
+      op: 'update',
+      id: created.clone.id,
+      revision: created.clone.revision,
+      patch: {
+        methodology: '## Принципы\nНовые принципы',
+        skills: [skill('sql', 'Другие запросы', 'Пиши SELECT'), skill('analiz', 'Разбор требований')],
+      },
+    }))
+    expect(edited.clone.revision).toBe(created.clone.revision + 1)
+
+    // A new session for the same clone sees the new version, because the scope
+    // is derived from the stored record at installation.
+    const second = await ctx.agents.create({
+      sessionId: SessionId('clone-recreated'),
+      agentOptions: { provider: 'mock', model: 'mock' },
+    })
+    await vi.waitFor(async () => {
+      const profile = renderPrompt(await ctx.systemPrompt.assemble(assembleContextFor(second.agent)))
+      expect(profile).toContain('Новые принципы')
+      expect(profile).not.toContain('Старые принципы')
+    })
+    await vi.waitFor(async () => {
+      expect((await ctx.skills.list({ scope: second.agent })).map(candidate => candidate.name)).toEqual(['analiz', 'sql'])
+    })
+    await expect(ctx.skills.get('sql', { scope: second.agent })).resolves.toMatchObject({ content: 'Пиши SELECT' })
+    await second.dispose()
   })
 })

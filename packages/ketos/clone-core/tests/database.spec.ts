@@ -65,6 +65,23 @@ describe('clones.db open sequence', () => {
     await expect(openDatabase(path)).rejects.toThrow(/belongs to another application/u)
   })
 
+  it('leaves a foreign file unlabelled when a migration step fails on it', async () => {
+    const root = await temporaryDirectory()
+    const path = join(root, 'clones.db')
+    const { DatabaseSync } = await import('node:sqlite')
+    const foreign = new DatabaseSync(path)
+    // A foreign file that happens to collide with the first migration step.
+    foreign.exec('CREATE TABLE clones (id TEXT PRIMARY KEY)')
+    foreign.close()
+
+    await expect(openDatabase(path)).rejects.toThrow()
+    const check = new DatabaseSync(path)
+    const { application_id: applicationId } = check.prepare('PRAGMA application_id').get() as { application_id: number }
+    const { user_version: userVersion } = check.prepare('PRAGMA user_version').get() as { user_version: number }
+    check.close()
+    expect({ applicationId, userVersion }).toEqual({ applicationId: 0, userVersion: 0 })
+  })
+
   it('adopts a version 1 file and stamps it at the current version', async () => {
     const root = await temporaryDirectory()
     const path = join(root, 'clones.db')
@@ -88,6 +105,59 @@ describe('clones.db open sequence', () => {
     db.exec(`PRAGMA user_version = ${String(CLONE_CORE_SCHEMA_VERSION + 1)}`)
     db.close()
     await expect(openDatabase(path)).rejects.toThrow(/newer than this build/u)
+  })
+
+  it('rewrites a legacy skill name list into skill objects', async () => {
+    const root = await temporaryDirectory()
+    const path = join(root, 'clones.db')
+    const db = await openDatabase(path)
+    const repository = new CloneRepository(db)
+    const legacy = repository.createClone({ name: 'Анна', role: 'Аналитик' })
+    const modern = repository.createClone({ name: 'Борис', role: 'Юрист' })
+    // What a build before this stage stored: bare names, in the person's order.
+    db.prepare('UPDATE clones SET skills_json = ? WHERE id = ?').run(JSON.stringify(['sql', 'Договоры']), legacy.id)
+    db.prepare('UPDATE clones SET skills_json = ? WHERE id = ?').run(JSON.stringify([
+      { name: 'analiz', description: 'Разбор требований', instructions: 'Сначала факты' },
+    ]), modern.id)
+    // The schema shape is unchanged by v4, so rewinding the stamp is honest.
+    db.exec('PRAGMA user_version = 3')
+    db.close()
+
+    expect((await pragmas(path)).userVersion).toBe(CLONE_CORE_SCHEMA_VERSION)
+    const adopted = await openDatabase(path)
+    cleanups.push(() => { adopted.close() })
+    const records = new CloneRepository(adopted)
+    expect(records.getClone(legacy.id)?.skills).toEqual([
+      { name: 'sql', description: '', instructions: '' },
+      { name: 'Договоры', description: '', instructions: '' },
+    ])
+    // A row already holding skill objects is untouched.
+    expect(records.getClone(modern.id)?.skills).toEqual([
+      { name: 'analiz', description: 'Разбор требований', instructions: 'Сначала факты' },
+    ])
+    // The migration ran once; reopening the v4 file changes nothing.
+    const reopened = await openDatabase(path)
+    cleanups.push(() => { reopened.close() })
+    expect(new CloneRepository(reopened).getClone(legacy.id)?.skills).toEqual([
+      { name: 'sql', description: '', instructions: '' },
+      { name: 'Договоры', description: '', instructions: '' },
+    ])
+  })
+
+  it('keeps a row whose skills document is not JSON readable after the migration', async () => {
+    const root = await temporaryDirectory()
+    const path = join(root, 'clones.db')
+    const db = await openDatabase(path)
+    const repository = new CloneRepository(db)
+    const clone = repository.createClone({ name: 'Анна', role: 'Аналитик' })
+    db.prepare('UPDATE clones SET skills_json = ? WHERE id = ?').run('not json', clone.id)
+    db.exec('PRAGMA user_version = 3')
+    db.close()
+    // The step must not fail the whole database open on a hand-edited value;
+    // the repository's decode guard reports it on the first read instead.
+    const adopted = await openDatabase(path)
+    cleanups.push(() => { adopted.close() })
+    expect(() => new CloneRepository(adopted).getClone(clone.id)).toThrow()
   })
 
   it('refuses a file that is not a SQLite database', async () => {

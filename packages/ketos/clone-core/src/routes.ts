@@ -17,9 +17,11 @@ import {
 import type {
   CloneAnswerResponse, CloneBindingResponse, CloneBindingRole, CloneCreateInput, CloneDeletedResponse,
   CloneId, CloneListResponse, CloneRecord, CloneSessionsResponse,
-  CloneStatus, CloneUpdatePatch,
+  CloneSkill, CloneStatus, CloneUpdatePatch,
 } from './types.ts'
-import { fail, InvalidBody, NO_STORE, ok, optionalStringList, optionalText, record, rejectUnknownFields, requiredText } from './wire.ts'
+import {
+  fail, InvalidBody, NO_STORE, ok, optionalSkillList, optionalText, record, rejectUnknownFields, requiredText,
+} from './wire.ts'
 
 /** Exact Fetch route path owning the clone domain. */
 export const CLONES_PATH = '/api/ketos.clones'
@@ -72,9 +74,9 @@ function optionalStatus(source: Record<string, unknown>): CloneStatus | undefine
   return value as CloneStatus
 }
 
-/** Skills: absent, or a bounded array of bounded names. */
-function optionalSkills(source: Record<string, unknown>): string[] | undefined {
-  return optionalStringList(source, 'skills', LIMITS.skillCount, LIMITS.skill)
+/** Skills: absent, or a bounded array of validated skill objects. */
+function optionalSkills(source: Record<string, unknown>): CloneSkill[] | undefined {
+  return optionalSkillList(source, 'skills', LIMITS)
 }
 
 /** Revision: the concrete integer the caller read. */
@@ -108,7 +110,7 @@ function authoredFields(source: Record<string, unknown>): {
   persona?: string
   methodology?: string
   preferredModel?: string | null
-  skills?: string[]
+  skills?: CloneSkill[]
   status?: CloneStatus
 } {
   const description = optionalText(source, 'description', LIMITS.description)

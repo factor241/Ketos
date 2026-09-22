@@ -148,8 +148,10 @@ const PATCH_COLUMNS = [
  * JSON schema cannot carry `minLength`, `maxLength`, `maxItems`, or a name
  * pattern. A profile the person is asked to confirm must carry its four
  * authored lines; a skill may still omit its description or instructions,
- * because the draft may name a skill before authoring it.
- * @param fields - the complete authored profile.
+ * because the draft may name a skill before authoring it. The role and the
+ * skill names are the values the writer already trimmed, so both paths measure
+ * the same string the route stores.
+ * @param fields - the complete authored profile, with role and skill names trimmed.
  */
 function requireDraftBounds(fields: CloneDraftFields): void {
   const bounded: ReadonlyArray<readonly [string, string, number]> = [
@@ -479,20 +481,28 @@ export class CloneRepository {
   saveDraft(sessionId: SessionId, fields: CloneDraftFields): CloneRecord {
     const binding = this.bindingFor(sessionId)
     if (binding === undefined || binding.role !== 'interview') throw new CloneSessionNotBoundError(sessionId)
-    requireDraftBounds(fields)
+    // The route trims a required role and a skill name before it stores them;
+    // the tool path normalizes the same values first so both writers agree on
+    // what a stored profile holds.
+    const normalized: CloneDraftFields = {
+      ...fields,
+      role: fields.role.trim(),
+      skills: fields.skills.map(skill => ({ ...skill, name: skill.name.trim() })),
+    }
+    requireDraftBounds(normalized)
     const clone = this.getClone(binding.cloneId)
     if (clone === undefined) throw new CloneNotFoundError(binding.cloneId)
     // The mode is enforced where the write happens, not only by the interview
     // scope's lifetime: a profile the person confirmed meanwhile must not be
     // overwritten by the agent that was drafting it.
     if (clone.status !== 'interviewing') throw new CloneNotInterviewingError(binding.cloneId, clone.status)
-    const skills = mergeSkills(clone.skills, fields.skills)
+    const skills = mergeSkills(clone.skills, normalized.skills)
     if (skills.length > CLONE_TEXT_LIMITS.skillCount) {
       throw new HarnessError(
         `merged skills exceed ${String(CLONE_TEXT_LIMITS.skillCount)} entries`,
         'ketos/invalid-draft',
       )
     }
-    return this.updateClone(binding.cloneId, { ...fields, skills, status: 'ready' }, clone.revision)
+    return this.updateClone(binding.cloneId, { ...normalized, skills, status: 'ready' }, clone.revision)
   }
 }

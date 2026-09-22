@@ -254,6 +254,49 @@ describe('interview drafts', () => {
     expect(repository.getClone(clone.id)?.skills).toHaveLength(CLONE_TEXT_LIMITS.skillCount)
   })
 
+  it('accepts a merge that exactly fills the stored skill count', async () => {
+    const repository = await fixture()
+    const stored = Array.from(
+      { length: CLONE_TEXT_LIMITS.skillCount - 1 },
+      (_unused, index) => skill(`stored-${String(index)}`, 'Сохранённый навык'),
+    )
+    const clone = repository.createClone({ ...MINIMAL, skills: stored })
+    repository.updateClone(clone.id, { status: 'interviewing' }, 1)
+    repository.bindSession({ cloneId: clone.id, sessionId: sid('session-1'), role: 'interview' })
+    const saved = repository.saveDraft(sid('session-1'), {
+      role: 'роль',
+      description: 'описание',
+      persona: 'персона',
+      methodology: 'метод',
+      skills: [skill('novyy', 'Новый навык')],
+    })
+    expect(saved.skills).toHaveLength(CLONE_TEXT_LIMITS.skillCount)
+    expect(saved.skills[CLONE_TEXT_LIMITS.skillCount - 1]).toEqual(skill('novyy', 'Новый навык'))
+    expect(saved.status).toBe('ready')
+  })
+
+  it('stores the role and skill names the route would store', async () => {
+    const repository = await fixture()
+    const clone = repository.createClone({ ...MINIMAL, skills: [skill('sql', 'Старое описание')] })
+    repository.updateClone(clone.id, { status: 'interviewing' }, 1)
+    repository.bindSession({ cloneId: clone.id, sessionId: sid('session-1'), role: 'interview' })
+    const saved = repository.saveDraft(sid('session-1'), {
+      role: '  Старший аналитик  ',
+      description: 'описание',
+      persona: 'персона',
+      methodology: 'метод',
+      // The route trims both; the tool path must not store padding the next
+      // form save would send back trimmed.
+      skills: [skill('  sql  ', 'Новое описание'), skill('  analiz  ', 'Разбор требований')],
+    })
+    expect(saved.role).toBe('Старший аналитик')
+    expect(saved.skills).toEqual([
+      skill('sql', 'Новое описание'),
+      skill('analiz', 'Разбор требований'),
+    ])
+    expect(repository.getClone(clone.id)?.role).toBe('Старший аналитик')
+  })
+
   it('refuses a draft whose clone already left the interview', async () => {
     const repository = await fixture()
     const clone = repository.createClone(MINIMAL)

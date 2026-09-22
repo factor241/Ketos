@@ -154,8 +154,15 @@ function requireContent(content: string): string {
   return trimmed
 }
 
-/** Refuse a tag list the columns cannot hold, trimming every tag. */
-function normalizeTags(tags: readonly string[]): string[] {
+/**
+ * Refuse a tag list the columns cannot hold, trimming every tag. The route
+ * validates the same rules before it opens the database, so both callers share
+ * this function rather than restating the bounds.
+ * @param tags - caller-supplied tag list.
+ * @returns the trimmed tags.
+ * @throws MemoryInvalidError when a tag is empty, over-long, or not a single line.
+ */
+export function normalizeTags(tags: readonly string[]): string[] {
   if (tags.length > MEMORY_LIMITS.tagCount) {
     throw new MemoryInvalidError(`tags exceeds ${String(MEMORY_LIMITS.tagCount)} entries`)
   }
@@ -166,8 +173,12 @@ function normalizeTags(tags: readonly string[]): string[] {
       throw new MemoryInvalidError(`a tag exceeds ${String(MEMORY_LIMITS.tag)} characters`)
     }
     // A comma separates tags in the memory window's editor, so a stored tag
-    // carrying one could never round-trip through that form.
+    // carrying one could never round-trip through that form; the same editor
+    // is a single line, so a control character would be silently dropped.
     if (trimmed.includes(',')) throw new MemoryInvalidError('a tag must not contain a comma')
+    if (CONTROL_CHARACTER.test(trimmed)) {
+      throw new MemoryInvalidError('a tag must not contain control characters')
+    }
     return trimmed
   })
 }

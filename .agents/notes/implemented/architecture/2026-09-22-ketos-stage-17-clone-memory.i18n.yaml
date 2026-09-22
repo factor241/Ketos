@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-22-ketos-stage-17-clone-memory.md
-2026-09-22-ketos-stage-17-clone-memory.md: 50adbfee20ab7136f5b02bc9967f1314b9528504
-2026-09-22-ketos-stage-17-clone-memory.zh.md: a512fc0f84d0ae45ee816f46df58bf6092ccc309
+2026-09-22-ketos-stage-17-clone-memory.md: 3209906ee6cf455e23a48ac684de6c034825278c
+2026-09-22-ketos-stage-17-clone-memory.zh.md: 3313cb319aecbb134573f7fc89a8dd8c9096b43b

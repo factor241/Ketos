@@ -363,11 +363,11 @@ export function apply(ctx: ClientContext): void {
     },
     loadMemories: async (cloneId: CloneId, status?: MemoryStatus) => {
       const result = await listMemories(cloneId, status)
-      return result.ok ? { ok: true, memories: result.value } : { ok: false }
+      return result.ok ? { ok: true, memories: result.value } : { ok: false, code: result.code }
     },
     searchMemories: async (cloneId: CloneId, query: string, status?: MemoryStatus) => {
       const result = await searchMemories(cloneId, query, status)
-      return result.ok ? { ok: true, memories: result.value } : { ok: false }
+      return result.ok ? { ok: true, memories: result.value } : { ok: false, code: result.code }
     },
     saveMemory: async (id: MemoryId, patch: MemoryUpdatePatch) => {
       const result = await updateMemoryRequest(id, patch)

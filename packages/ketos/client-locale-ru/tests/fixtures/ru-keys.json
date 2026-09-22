@@ -102,6 +102,7 @@
     "clone.memory.loading",
     "clone.memory.search",
     "clone.memory.search.clear",
+    "clone.memory.search.invalid",
     "clone.memory.search.placeholder",
     "clone.memory.search.submit",
     "clone.memory.source",

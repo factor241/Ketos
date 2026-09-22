@@ -195,9 +195,12 @@ describe('board slot composition', () => {
     const cloneFrame = panel.container.querySelector('[data-board-window="clone"]')
     expect(cloneFrame).not.toBeNull()
     expect(cloneFrame?.textContent).toContain('Clone memory')
-    // The memory body occupies the clone frame's content region; a read that
-    // fails (this bench has no route) reports an empty memory, not an error.
+    // The memory body occupies the clone frame's content region; this bench has
+    // no route, so the refused read renders its own failure row rather than an
+    // empty memory.
     expect(cloneFrame?.querySelector('[data-board-memory-list]')).not.toBeNull()
+    expect(cloneFrame?.querySelector('[data-board-memory-notice="read"]')).not.toBeNull()
+    expect(cloneFrame?.querySelector('[data-board-memory-empty]')).toBeNull()
   })
 
   it('closes a window through its frame and removes it from the layer', async () => {

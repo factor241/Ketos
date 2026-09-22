@@ -165,7 +165,7 @@ describe('clone memory window states', () => {
   })
 
   it('reports a failed read instead of claiming an empty memory, and retries', async () => {
-    const loadMemories = vi.fn<() => Promise<MemoryReadOutcome>>(async () => ({ ok: false }))
+    const loadMemories = vi.fn<() => Promise<MemoryReadOutcome>>(async () => ({ ok: false, code: 'ketos/unreachable' }))
     render(<CloneMemoryBody {...memoryProps({ loadMemories })} />)
     await waitFor(() => { expect(screen.getByText('Could not read the memory.')).not.toBeNull() })
     // The empty copy belongs to an answered read, never to a refusal.
@@ -175,6 +175,54 @@ describe('clone memory window states', () => {
     fireEvent.click(control('retry'))
     await waitFor(() => { expect(screen.getByText('Факт')).not.toBeNull() })
     expect(screen.queryByText('Could not read the memory.')).toBeNull()
+  })
+
+  it('reports a refused search as refused, without a pointless retry', async () => {
+    const searchMemories = vi.fn(async () => ({ ok: false as const, code: 'ketos/invalid' as const }))
+    render(<CloneMemoryBody {...memoryProps({ searchMemories })} />)
+    await waitFor(() => { expect(document.querySelector('[data-board-memory-list]')).not.toBeNull() })
+
+    fireEvent.change(control('search'), { target: { value: '!!!' } })
+    fireEvent.click(control('search-submit'))
+    await waitFor(() => {
+      expect(screen.getByText('The search could not run: a query needs at least one letter or digit.')).not.toBeNull()
+    })
+    // The client refuses an unsearchable query before it reaches the route.
+    expect(searchMemories).not.toHaveBeenCalled()
+    expect(document.querySelector('[data-board-memory="retry"]')).toBeNull()
+    expect(screen.queryByText('Could not read the memory.')).toBeNull()
+  })
+
+  it('drops the previous filter rows and count when a read is refused', async () => {
+    const loadMemories = vi.fn<() => Promise<MemoryReadOutcome>>()
+      .mockResolvedValueOnce({ ok: true, memories: [memory('m1', 'Активный факт')] })
+      .mockResolvedValue({ ok: false, code: 'ketos/unreachable' })
+    render(<CloneMemoryBody {...memoryProps({ loadMemories })} />)
+    await waitFor(() => { expect(screen.getByText('Активный факт')).not.toBeNull() })
+
+    fireEvent.click(document.querySelector('[data-board-memory-filter="archived"]') as HTMLElement)
+    await waitFor(() => { expect(screen.getByText('Could not read the memory.')).not.toBeNull() })
+    expect(screen.queryByText('Активный факт')).toBeNull()
+    expect(document.querySelector('[data-board-memory-filter="archived"]')?.textContent).toBe('Archived')
+  })
+
+  it('disarms a delete confirmation when the view changes', async () => {
+    const loadMemories = vi.fn(async () => ({ ok: true as const, memories: [memory('m1', 'Факт')] }))
+    render(<CloneMemoryBody {...memoryProps({ loadMemories })} />)
+    await waitFor(() => { expect(screen.getByText('Факт')).not.toBeNull() })
+
+    fireEvent.click(control('delete'))
+    expect(control('delete.confirm')).not.toBeNull()
+    fireEvent.click(document.querySelector('[data-board-memory-filter="candidate"]') as HTMLElement)
+    await waitFor(() => { expect(document.querySelector('[data-board-memory="delete.confirm"]')).toBeNull() })
+    expect(document.querySelector('[data-board-memory="delete"]')).not.toBeNull()
+  })
+
+  it('renders duplicate stored tags without collapsing the row', async () => {
+    const loadMemories = vi.fn(async () => ({ ok: true as const, memories: [memory('m1', 'Факт', ['dup', 'dup'])] }))
+    const { container } = render(<CloneMemoryBody {...memoryProps({ loadMemories })} />)
+    await waitFor(() => { expect(screen.getByText('Факт')).not.toBeNull() })
+    expect(container.querySelectorAll('[data-board-memory-tags] span')).toHaveLength(2)
   })
 
   it('refuses tags outside the host bounds without asking the route', async () => {

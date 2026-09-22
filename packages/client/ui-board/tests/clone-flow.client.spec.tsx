@@ -57,6 +57,8 @@ interface CloneServer {
   readonly calls: CloneCall[]
   /** Operation the stub refuses, so a failure path can be exercised. */
   refuse?: string
+  /** Whether the memory stub refuses a search with `ketos/invalid`. */
+  refuseMemorySearch?: boolean
 }
 
 /** The decoded request body of one recorded call. */
@@ -153,6 +155,9 @@ function memoryAnswer(server: CloneServer, init?: RequestInit): Response {
         memories: server.memories.filter(memory => body['status'] === undefined || memory.status === body['status']),
       })
     case 'search':
+      if (server.refuseMemorySearch === true) {
+        return Response.json({ ok: false, error: 'ketos/invalid' }, { status: 400 })
+      }
       return Response.json({
         ok: true,
         memories: server.memories.filter(memory => memory.content.includes(String(body['query']))),
@@ -517,6 +522,29 @@ describe('clone interview', () => {
     act(() => { fireEvent.click(panel.container.querySelector('[data-board-memory="delete.confirm"]') as Element) })
     await waitFor(() => { expect(panel.container.textContent).toContain('Nothing in this status.') })
     expect(server.memories).toEqual([])
+  })
+
+  it('reports a refused memory search instead of an empty memory', async () => {
+    const server = stubCloneRoute([CLONE])
+    server.refuseMemorySearch = true
+    const { panel } = await mounted()
+    await waitFor(() => { expect(panel.container.querySelector('[data-board-clone-row="clone-1"]')).not.toBeNull() })
+    act(() => {
+      fireEvent.click(panel.container.querySelector('[data-board-clone-row="clone-1"]') as Element)
+    })
+    await waitFor(() => { expect(panel.container.querySelector('[data-board-clone-tab="memory"]')).not.toBeNull() })
+    act(() => { fireEvent.click(panel.container.querySelector('[data-board-clone-tab="memory"]') as Element) })
+    await waitFor(() => { expect(panel.container.querySelector('[data-board-memory-list]')).not.toBeNull() })
+
+    fireEvent.change(panel.container.querySelector('[data-board-memory="search"]') as HTMLInputElement, {
+      target: { value: 'навык' },
+    })
+    act(() => { fireEvent.click(panel.container.querySelector('[data-board-memory="search-submit"]') as Element) })
+    await waitFor(() => {
+      expect(panel.container.querySelector('[data-board-memory-notice="refused"]')).not.toBeNull()
+    })
+    expect(panel.container.querySelector('[data-board-memory-empty]')).toBeNull()
+    expect(bodyOf(server, 'memory:search')).toMatchObject({ query: 'навык' })
   })
 
   it('sends a prompt from a clone window on the profile body into a chat window of its own', async () => {

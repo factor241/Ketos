@@ -317,6 +317,7 @@ export const ru = {
   'clone.memory.search': 'Поиск по памяти',
   'clone.memory.search.placeholder': 'Искать сохранённые факты',
   'clone.memory.search.submit': 'Найти',
+  'clone.memory.search.invalid': 'Поиск не выполнен: в запросе нужна хотя бы одна буква или цифра.',
   'clone.memory.search.clear': 'Сбросить',
   'clone.memory.loading': 'Читаем память…',
   'clone.memory.empty.filtered': 'В этом статусе ничего нет.',

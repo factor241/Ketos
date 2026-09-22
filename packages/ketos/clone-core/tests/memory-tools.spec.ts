@@ -72,4 +72,13 @@ describe('memory snapshot text', () => {
       expect(memorySnapshotText(memories, budget).length).toBeLessThanOrEqual(budget)
     }
   })
+
+  it('keeps the omission hint when one entry and the hint fit a tight budget', () => {
+    const memories = [memory('m1', 'x'.repeat(300)), memory('m2', 'Второй факт')]
+    for (const budget of [430, 440, 445, 450, 455]) {
+      const text = memorySnapshotText(memories, budget)
+      expect(text.length, `budget ${String(budget)}`).toBeLessThanOrEqual(budget)
+      expect(text, `budget ${String(budget)}`).toContain('1 more memory is not shown')
+    }
+  })
 })

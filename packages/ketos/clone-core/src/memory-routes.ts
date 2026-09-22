@@ -13,7 +13,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import type { CloneDatabase } from './db.ts'
 import {
-  MEMORY_LIMITS, MEMORY_STATUSES, MemoryInvalidError, MemoryNotFoundError, memoryMatchExpression,
+  MEMORY_LIMITS, MEMORY_STATUSES, MemoryInvalidError, MemoryNotFoundError, memoryMatchExpression, normalizeTags,
 } from './memory.ts'
 import type {
   CloneId, MemoryAnswerResponse, MemoryDeletedResponse, MemoryDto, MemoryId, MemoryListResponse,
@@ -66,7 +66,10 @@ function parsePatch(source: Record<string, unknown>): MemoryUpdatePatch {
   rejectUnknownFields(source, PATCH_FIELDS)
   const content = optionalText(source, 'content', MEMORY_LIMITS.content)
   if (content !== undefined && content.trim() === '') throw new InvalidBody('content must not be empty')
-  const tags = optionalStringList(source, 'tags', MEMORY_LIMITS.tagCount, MEMORY_LIMITS.tag)
+  const listed = optionalStringList(source, 'tags', MEMORY_LIMITS.tagCount, MEMORY_LIMITS.tag)
+  // The store's tag rules run here too, before the database is opened, so a
+  // refused tag is a 400 that creates nothing.
+  const tags = listed === undefined ? undefined : normalizeTags(listed)
   const status = optionalMemoryStatus(source)
   const patch: MemoryUpdatePatch = {
     ...(content === undefined ? {} : { content }),

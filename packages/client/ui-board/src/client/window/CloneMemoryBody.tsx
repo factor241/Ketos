@@ -14,8 +14,8 @@ import { Button, Input, Pill, relativeTime } from '@deepseek-ai/dsh-client-ui-pr
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { MemoryDto, MemoryId, MemoryStatus } from '@ketos/clone-core/types'
 import {
-  MEMORY_CONTENT_LIMIT, MEMORY_STATUS_ROWS, MEMORY_TAG_COUNT_LIMIT, MEMORY_TAG_LIMIT,
-  type BoardWindowInjected,
+  MEMORY_CONTENT_LIMIT, MEMORY_QUERY_LIMIT, MEMORY_STATUS_ROWS, MEMORY_TAG_COUNT_LIMIT, MEMORY_TAG_LIMIT,
+  type BoardWindowInjected, type MemoryFailureCode,
 } from '../contract/slots.ts'
 import type { BoardTranslate } from '../locale.ts'
 import css from './CloneMemoryBody.module.css'
@@ -73,7 +73,7 @@ export function CloneMemoryBody({
   /** A refused mutation, shown until the next attempt. */
   const [notice, setNotice] = useState<'invalid' | 'failed' | undefined>(undefined)
   /** A read the route refused; the list must not read as an empty memory. */
-  const [readFailed, setReadFailed] = useState(false)
+  const [readFailure, setReadFailure] = useState<MemoryFailureCode | undefined>(undefined)
 
   // Re-read the list whenever the clone, the filter, the submitted query, or a
   // completed mutation changes it. The `live` guard keeps an older answer from
@@ -83,14 +83,23 @@ export function CloneMemoryBody({
     let live = true
     setLoading(true)
     const search = submitted.trim()
+    // A query with no letter or digit can never match; refusing it here keeps
+    // the person from retrying a request the route would answer 400.
+    if (search !== '' && !/[\p{L}\p{N}]/u.test(search)) {
+      setLoading(false)
+      setRows([])
+      setReadFailure('ketos/invalid')
+      return undefined
+    }
     const answered = search === ''
       ? loadMemories(cloneId, filter)
       : searchMemories(cloneId, search, filter)
     void answered.then((outcome) => {
       if (!live) return
       setLoading(false)
-      setReadFailed(!outcome.ok)
-      if (outcome.ok) setRows(outcome.memories)
+      setReadFailure(outcome.ok ? undefined : outcome.code)
+      // A refused read must not leave the previous filter's rows on screen.
+      setRows(outcome.ok ? outcome.memories : [])
     })
     return () => { live = false }
   }, [cloneId, filter, submitted, epoch, loadMemories, searchMemories])
@@ -160,7 +169,9 @@ export function CloneMemoryBody({
           {MEMORY_STATUS_ROWS.map((status) => {
             // The count belongs to the answered list of the active filter; while
             // a read is in flight the previous filter's count would be a lie.
-            const count = !loading && status === filter && submitted.trim() === '' ? rows.length : undefined
+            const count = !loading && readFailure === undefined && status === filter && submitted.trim() === ''
+              ? rows.length
+              : undefined
             return (
               <Pill
                 key={status}
@@ -169,6 +180,7 @@ export function CloneMemoryBody({
                 onClick={() => {
                   setFilter(status)
                   setEditing(undefined)
+                  setConfirming(undefined)
                   reload()
                 }}
               >
@@ -181,12 +193,14 @@ export function CloneMemoryBody({
             onSubmit={(event) => {
               event.preventDefault()
               setEditing(undefined)
+              setConfirming(undefined)
               setSubmitted(query)
               reload()
             }}
           >
             <Input
               value={query}
+              maxLength={MEMORY_QUERY_LIMIT}
               aria-label={t('clone.memory.search')}
               placeholder={t('clone.memory.search.placeholder')}
               data-board-memory="search"
@@ -221,7 +235,12 @@ export function CloneMemoryBody({
             {t('clone.memory.failed')}
           </div>
         )}
-        {readFailed && (
+        {readFailure === 'ketos/invalid' && (
+          <div className={clsx(css.notice, css.noticeError)} data-board-memory-notice="refused">
+            {t('clone.memory.search.invalid')}
+          </div>
+        )}
+        {readFailure !== undefined && readFailure !== 'ketos/invalid' && (
           <div className={clsx(css.notice, css.noticeError)} data-board-memory-notice="read">
             <span>{t('clone.memory.load.failed')}</span>
             <Button size="sm" variant="outline" data-board-memory="retry" onClick={reload}>
@@ -230,7 +249,7 @@ export function CloneMemoryBody({
           </div>
         )}
         {loading && <span className={css.hint} data-board-memory-loading="">{t('clone.memory.loading')}</span>}
-        {!loading && !readFailed && rows.length === 0 && (
+        {!loading && readFailure === undefined && rows.length === 0 && (
           <span className={css.hint} data-board-memory-empty="">
             {submitted.trim() === '' ? t('clone.memory.empty.filtered') : t('clone.memory.empty.search')}
           </span>
@@ -298,7 +317,9 @@ export function CloneMemoryBody({
 
               {memory.tags.length > 0 && (
                 <div className={css.tags} data-board-memory-tags={memory.tags.join(',')}>
-                  {memory.tags.map(tag => <span key={tag} className={css.tag}>{tag}</span>)}
+                  {memory.tags.map((tag, index) => (
+                    <span key={`${tag}-${String(index)}`} className={css.tag}>{tag}</span>
+                  ))}
                 </div>
               )}
 

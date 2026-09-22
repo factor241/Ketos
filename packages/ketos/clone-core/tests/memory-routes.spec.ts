@@ -182,6 +182,21 @@ describe('memory route operations', () => {
     await expect(stat(path)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
+  it('refuses a malformed tag without opening the database', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-memory-tag-'))
+    cleanups.push(() => rm(root, { recursive: true, force: true }))
+    const path = join(root, 'clones.db')
+    const f = await boot(path, false)
+    for (const patch of [{ tags: ['a,b'] }, { tags: ['   '] }, { tags: ['a\nb'] }, { tags: ['a\u0000b'] }]) {
+      const response = await f.post({ op: 'update', id: 'm1', patch })
+      expect(response.status, JSON.stringify(patch)).toBe(400)
+      expect(await body(response)).toEqual({ ok: false, error: 'ketos/invalid' })
+    }
+    // The store's tag rules run before the lazy open, so the answer is 400
+    // whether or not the named memory exists, and no file is created.
+    await expect(stat(path)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
   it('answers 500 without a code when the database cannot open', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-memory-broken-'))
     cleanups.push(() => rm(root, { recursive: true, force: true }))

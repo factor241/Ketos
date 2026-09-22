@@ -6,7 +6,7 @@ import type { FileAttachmentRef, ImageAttachmentRef } from '@deepseek-ai/dsh-att
 import type { Branded } from '@deepseek-ai/dsh-brand'
 import type {
   CloneDto, CloneId, CloneSessionBinding, CloneUpdatePatch,
-  MemoryDto, MemoryId, MemoryStatus, MemoryUpdatePatch,
+  MemoryDto, MemoryErrorCode, MemoryId, MemoryStatus, MemoryUpdatePatch,
 } from '@ketos/clone-core/types'
 import type { ChatSnapshot } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
@@ -212,6 +212,9 @@ export const MEMORY_TAG_COUNT_LIMIT = 50
 /** Longest one memory tag may be, as the host accepts it. */
 export const MEMORY_TAG_LIMIT = 100
 
+/** Longest memory search query the host accepts. */
+export const MEMORY_QUERY_LIMIT = 1000
+
 /** One selectable model route of the clone editor's preferred-model picker. */
 export interface CloneModelOption {
   /** Provider that serves the route. */
@@ -253,12 +256,18 @@ export type MemorySaveOutcome = 'saved' | 'invalid' | 'missing' | 'failed'
 export type MemoryDeleteOutcome = 'deleted' | 'missing' | 'failed'
 
 /**
- * Outcome of one memory read: the rows, or a failed read the body must report
+ * Failure of one memory request: the route's stable code, or `ketos/unreachable`
+ * for a transport, decoding, or unexpected-answer failure.
+ */
+export type MemoryFailureCode = MemoryErrorCode | 'ketos/unreachable'
+
+/**
+ * Outcome of one memory read: the rows, or the failure the body must report
  * instead of showing an empty memory the store never claimed.
  */
 export type MemoryReadOutcome =
   | { readonly ok: true; readonly memories: readonly MemoryDto[] }
-  | { readonly ok: false }
+  | { readonly ok: false; readonly code: MemoryFailureCode }
 
 /**
  * The window's model directory view: current selection, catalog, and effort rows.

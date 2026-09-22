@@ -8,14 +8,12 @@
  * dependency on the host package.
  */
 import type {
-  CloneId, MemoryDto, MemoryErrorCode, MemoryId, MemoryStatus, MemoryUpdatePatch,
+  CloneId, MemoryDto, MemoryId, MemoryStatus, MemoryUpdatePatch,
 } from '@ketos/clone-core/types'
+import type { MemoryFailureCode } from './contract/slots.ts'
 
 /** Exact route the clone host package registers below `/api`. */
 const MEMORY_PATH = '/api/ketos.memory'
-
-/** Failure of one memory request. */
-export type MemoryFailureCode = MemoryErrorCode | 'ketos/unreachable'
 
 /** Outcome of one memory request: the decoded value, or a stable failure code. */
 export type MemoryResult<T> =

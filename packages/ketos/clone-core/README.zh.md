@@ -72,7 +72,7 @@ kind: "package-reference"
 | `POST` | `{ op: 'update', id, patch }` | `{ ok: true, memory }` |
 | `POST` | `{ op: 'delete', id }` | `{ ok: true, id }` |
 
-失败应答为 `400` `ketos/invalid` 与 `404` `ketos/memory-not-found`。`patch` 接受 `content`（至多 4000 字符）、`tags`（至多 50 个标签、每个 100 字符，且不得含逗号——逗号是记忆窗口的分隔符）与 `status`（`active`、`candidate`、`archived`）；仓库拒绝同样的边界，因此绕过路由的工具会以完全相同的方式被拒绝为 `ketos/invalid-memory`。搜索查询必须至少含一个字母或数字，且不得含控制字符；路由在打开数据库之前构建 MATCH 表达式，因此被拒绝的查询绝不会创建文件。不带 `status` 的 `list` 返回所有状态；不带 `status` 的 `search` 返回除 `archived` 外的所有状态，显式指定 `status` 则限定结果。每次获准的写入都会通知克隆会话协调器，因此受影响 agent 的下一个轮次会带上该变更。
+失败应答为 `400` `ketos/invalid` 与 `404` `ketos/memory-not-found`。`patch` 接受 `content`（至多 4000 字符）、`tags`（至多 50 个单行标签、每个 100 字符，且不得含逗号——逗号是记忆窗口的分隔符）与 `status`（`active`、`candidate`、`archived`）；仓库拒绝同样的边界，因此绕过路由的工具会以完全相同的方式被拒绝为 `ketos/invalid-memory`。搜索查询必须至少含一个字母或数字，且不得含控制字符；路由在打开数据库之前构建 MATCH 表达式，因此被拒绝的查询绝不会创建文件。不带 `status` 的 `list` 返回所有状态；不带 `status` 的 `search` 返回除 `archived` 外的所有状态，显式指定 `status` 则限定结果。每次获准的写入都会通知克隆会话协调器，因此受影响 agent 的下一个轮次会带上该变更。
 
 ### 可观察行为
 

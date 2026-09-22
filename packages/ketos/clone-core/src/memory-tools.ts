@@ -231,15 +231,23 @@ export function memorySnapshotText(memories: readonly MemoryRecord[], maxChars: 
   // header the model cannot use.
   if (lines.length === 0) return ''
   let omitted = memories.length - lines.length
+  const hint = (count: number): string =>
+    `${String(count)} more ${count === 1 ? 'memory is' : 'memories are'} not shown; use clone_memory_search.`
   const rendered = (): string => [
     header,
     ...lines,
-    ...(omitted === 0 ? [] : [`${String(omitted)} more memories are not shown; use clone_memory_search.`]),
+    ...(omitted === 0 ? [] : [hint(omitted)]),
   ].join('\n')
   // The omission hint must fit as well: drop trailing entries until it does.
   while (omitted > 0 && rendered().length > maxChars && lines.length > 1) {
     lines.pop()
     omitted += 1
+  }
+  // With one entry left the hint still has to fit: shorten that entry rather
+  // than dropping the count of what the model cannot see.
+  if (omitted > 0 && rendered().length > maxChars) {
+    const room = maxChars - header.length - hint(omitted).length - 2
+    if (room >= 1) lines[0] = cutTo(lines[0] as string, room)
   }
   return cutTo(rendered(), maxChars)
 }

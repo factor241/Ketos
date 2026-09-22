@@ -69,9 +69,16 @@ describe('clones.db open sequence', () => {
     const root = await temporaryDirectory()
     const path = join(root, 'clones.db')
     const db = await openDatabase(path)
+    // Rewind to a genuine version 1 file: the store the later steps add must
+    // be absent, or adoption would re-run their DDL over existing tables.
+    db.exec('DROP TABLE memories_fts')
+    db.exec('DROP TABLE memories')
     db.exec('PRAGMA user_version = 1')
     db.close()
     expect((await pragmas(path)).userVersion).toBe(CLONE_CORE_SCHEMA_VERSION)
+    const adopted = await openDatabase(path)
+    cleanups.push(() => { adopted.close() })
+    expect(adopted.prepare("SELECT name FROM sqlite_master WHERE name = 'memories'").get()).toBeDefined()
   })
 
   it('refuses a schema version newer than this build', async () => {
@@ -135,8 +142,12 @@ describe('forward-only migration runner', () => {
     }).toThrow('the second step fails')
     const { user_version: version } = db.prepare('PRAGMA user_version').get() as { user_version: number }
     expect(version).toBe(1)
-    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all()
-    expect(tables).toEqual([{ name: 'clone_sessions' }, { name: 'clones' }])
+    const tables = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'memories_fts_%' ORDER BY name",
+    ).all()
+    expect(tables).toEqual([
+      { name: 'clone_sessions' }, { name: 'clones' }, { name: 'memories' }, { name: 'memories_fts' },
+    ])
     expect(repository.getClone(created.id)?.name).toBe('Борис')
   })
 
@@ -150,6 +161,10 @@ describe('forward-only migration runner', () => {
     // under test, so the stamp is rewound to v1 first.
     db.prepare('UPDATE clones SET status = ? WHERE id = ?').run('active', active.id)
     db.prepare('UPDATE clones SET status = ? WHERE id = ?').run('archived', archived.id)
+    // A version 1 file has neither the memory table nor its index; dropping
+    // both makes the rewind honest instead of re-running the v3 DDL.
+    db.exec('DROP TABLE memories_fts')
+    db.exec('DROP TABLE memories')
     db.exec('PRAGMA user_version = 1')
     migrate(db)
     expect(repository.getClone(active.id)?.status).toBe('ready')

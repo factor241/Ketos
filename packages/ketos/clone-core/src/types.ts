@@ -121,8 +121,71 @@ export interface CloneSessionBinding {
   readonly createdAt: string
 }
 
+/** Opaque identity of one memory record. */
+export type MemoryId = Branded<'MemoryId'>
+
+/**
+ * Lifecycle status of one memory. `active` memories are the clone's working
+ * knowledge and reach both search and the prompt snapshot; `candidate` marks a
+ * methodology insight awaiting the post-MVP quarantine pipeline and behaves
+ * like an active memory; `archived` leaves search and the snapshot until the
+ * person restores it.
+ */
+export type MemoryStatus = 'active' | 'candidate' | 'archived'
+
+/** One stored memory of a clone. */
+export interface MemoryRecord {
+  /** Stable identity minted at creation. */
+  readonly id: MemoryId
+  /** Clone the memory belongs to; memories never cross clones. */
+  readonly cloneId: CloneId
+  /** The remembered fact, insight, or preference. */
+  readonly content: string
+  /** Short labels the agent attached; empty until one is supplied. */
+  readonly tags: readonly string[]
+  /** Session the memory was learned in, or null when the person authored it. */
+  readonly sourceSessionId: SessionId | null
+  /** Lifecycle status shown in the memory window. */
+  readonly status: MemoryStatus
+  /** ISO-8601 UTC creation time. */
+  readonly createdAt: string
+  /** ISO-8601 UTC time of the last accepted update. */
+  readonly updatedAt: string
+}
+
+/** Fields a remember request supplies; every other field takes its stored default. */
+export interface MemoryCreateInput {
+  readonly cloneId: CloneId
+  readonly content: string
+  readonly tags?: readonly string[]
+  readonly sourceSessionId?: SessionId | null
+  readonly status?: MemoryStatus
+}
+
+/** Fields an update request may replace; at least one is required. */
+export interface MemoryUpdatePatch {
+  readonly content?: string
+  readonly tags?: readonly string[]
+  readonly status?: MemoryStatus
+}
+
+/** One memory as it crosses the `/api/ketos.memory` wire. */
+export interface MemoryDto {
+  readonly id: MemoryId
+  readonly cloneId: CloneId
+  readonly content: string
+  readonly tags: readonly string[]
+  readonly sourceSessionId: string | null
+  readonly status: MemoryStatus
+  readonly createdAt: string
+  readonly updatedAt: string
+}
+
 /** Failure codes the route reports in the JSON body. */
 export type CloneErrorCode = 'ketos/invalid' | 'ketos/clone-not-found' | 'ketos/clone-conflict'
+
+/** Failure codes the memory route reports in the JSON body. */
+export type MemoryErrorCode = 'ketos/invalid' | 'ketos/memory-not-found'
 
 /** Successful list answer to `list` (and to `GET`). */
 export interface CloneListResponse {
@@ -170,3 +233,30 @@ export type CloneSuccessResponse =
 
 /** Every answer the clone route sends. */
 export type CloneResponse = CloneSuccessResponse | CloneFailureResponse
+
+/** Successful answer to `list` and `search`: the matching memories. */
+export interface MemoryListResponse {
+  readonly ok: true
+  readonly memories: readonly MemoryDto[]
+}
+
+/** Successful answer to `update`: the updated memory. */
+export interface MemoryAnswerResponse {
+  readonly ok: true
+  readonly memory: MemoryDto
+}
+
+/** Successful answer to `delete`: the removed identity. */
+export interface MemoryDeletedResponse {
+  readonly ok: true
+  readonly id: MemoryId
+}
+
+/** Failure answer; `error` is the stable code, never a message to render. */
+export interface MemoryFailureResponse {
+  readonly ok: false
+  readonly error: MemoryErrorCode
+}
+
+/** Every answer the memory route sends. */
+export type MemoryResponse = MemoryListResponse | MemoryAnswerResponse | MemoryDeletedResponse | MemoryFailureResponse

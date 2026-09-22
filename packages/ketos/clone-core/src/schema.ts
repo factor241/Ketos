@@ -11,7 +11,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 
 /** Schema version this build produces; stored in `PRAGMA user_version`. */
-export const CLONE_CORE_SCHEMA_VERSION = 2
+export const CLONE_CORE_SCHEMA_VERSION = 3
 
 /** `application_id` marking a database as this package's own ("KTCL"). */
 export const CLONE_CORE_APPLICATION_ID = 0x4b54434c
@@ -59,8 +59,39 @@ const stepV2: MigrationStep = (db) => {
   db.exec("UPDATE clones SET status = 'draft' WHERE status = 'archived'")
 }
 
+/**
+ * Version 3: the clone memory. `memories_fts` is a standalone FTS5 index —
+ * no external content and no triggers — so the repository keeps the index in
+ * step with the table inside the same transaction as every write, and the
+ * index holds no state a hand-edited row could desynchronize silently.
+ */
+const stepV3: MigrationStep = (db) => {
+  db.exec(`
+    CREATE TABLE memories (
+      id                TEXT PRIMARY KEY,
+      clone_id          TEXT NOT NULL,
+      content           TEXT NOT NULL,
+      tags              TEXT NOT NULL DEFAULT '[]',
+      source_session_id TEXT,
+      status            TEXT NOT NULL DEFAULT 'active',
+      created_at        TEXT NOT NULL,
+      updated_at        TEXT NOT NULL
+    ) STRICT
+  `)
+  db.exec('CREATE INDEX memories_clone_status ON memories (clone_id, status)')
+  db.exec(`
+    CREATE VIRTUAL TABLE memories_fts USING fts5(
+      id UNINDEXED,
+      content,
+      tags,
+      clone_id UNINDEXED,
+      tokenize = 'unicode61'
+    )
+  `)
+}
+
 /** Ordered forward-only steps; entry `n - 1` produces version `n`. */
-export const CLONE_CORE_MIGRATION_STEPS: readonly MigrationStep[] = [stepV1, stepV2]
+export const CLONE_CORE_MIGRATION_STEPS: readonly MigrationStep[] = [stepV1, stepV2, stepV3]
 
 /**
  * Apply every step between the database's stamped version and `currentVersion`,

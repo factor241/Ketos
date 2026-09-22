@@ -3455,10 +3455,18 @@ export interface Config {
    * before the file is opened.
    */
   path: string
+  /**
+   * Largest number of active memories the prompt snapshot lists. The default
+   * suits a clone that remembers a handful of working facts; deeper lookup is
+   * the `clone_memory_search` tool.
+   */
+  memoryEntries?: number
+  /** Largest total length, in characters, of the prompt memory snapshot. */
+  memoryChars?: number
 }
 ```
 
-来源：[`packages/ketos/clone-core/src/index.ts:32`](../packages/ketos/clone-core/src/index.ts)
+来源：[`packages/ketos/clone-core/src/index.ts:36`](../packages/ketos/clone-core/src/index.ts)
 
 ## 无配置的可加载插件
 

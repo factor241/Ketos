@@ -8,7 +8,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
-import type { CloneDto, CloneId, CloneSessionBinding } from '@ketos/clone-core/types'
+import type { CloneDto, CloneId, CloneSessionBinding, MemoryDto } from '@ketos/clone-core/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { createBoardStore } from '../src/client/store.ts'
 import { createBoardBench, type BoardBenchOptions } from './fixtures.client.ts'
@@ -49,10 +49,11 @@ interface CloneCall {
   readonly body: Record<string, unknown>
 }
 
-/** The route stub's state: the stored clones, their bindings, and every recorded operation. */
+/** The route stub's state: the stored clones, their bindings, their memory, and every recorded operation. */
 interface CloneServer {
   readonly clones: CloneDto[]
   readonly bindings: CloneSessionBinding[]
+  readonly memories: MemoryDto[]
   readonly calls: CloneCall[]
   /** Operation the stub refuses, so a failure path can be exercised. */
   refuse?: string
@@ -72,8 +73,9 @@ function bodyOf(server: CloneServer, op: string): Record<string, unknown> {
  * @returns the stub's state.
  */
 function stubCloneRoute(initial: readonly CloneDto[]): CloneServer {
-  const server: CloneServer = { clones: [...initial], bindings: [], calls: [] }
-  vi.stubGlobal('fetch', vi.fn(async (_input: unknown, init?: RequestInit): Promise<Response> => {
+  const server: CloneServer = { clones: [...initial], bindings: [], memories: [], calls: [] }
+  vi.stubGlobal('fetch', vi.fn(async (input: unknown, init?: RequestInit): Promise<Response> => {
+    if (String(input) === '/api/ketos.memory') return memoryAnswer(server, init)
     const method = init?.method ?? 'GET'
     if (method === 'GET') return Response.json({ ok: true, clones: server.clones })
     const body = JSON.parse(typeof init?.body === 'string' ? init.body : '{}') as Record<string, unknown>
@@ -132,6 +134,45 @@ function stubCloneRoute(initial: readonly CloneDto[]): CloneServer {
     }
   }))
   return server
+}
+
+/**
+ * Answer one `/api/ketos.memory` request from the stub's memory store.
+ * @param server - the stub's state.
+ * @param init - the request's init, carrying the body.
+ * @returns the route's answer.
+ */
+function memoryAnswer(server: CloneServer, init?: RequestInit): Response {
+  const body = JSON.parse(typeof init?.body === 'string' ? init.body : '{}') as Record<string, unknown>
+  const op = String(body['op'])
+  server.calls.push({ op: `memory:${op}`, body })
+  switch (op) {
+    case 'list':
+      return Response.json({
+        ok: true,
+        memories: server.memories.filter(memory => body['status'] === undefined || memory.status === body['status']),
+      })
+    case 'search':
+      return Response.json({
+        ok: true,
+        memories: server.memories.filter(memory => memory.content.includes(String(body['query']))),
+      })
+    case 'update': {
+      const index = server.memories.findIndex(memory => memory.id === body['id'])
+      if (index === -1) return Response.json({ ok: false, error: 'ketos/memory-not-found' }, { status: 404 })
+      const updated = { ...server.memories[index] as MemoryDto, ...body['patch'] as object } as MemoryDto
+      server.memories[index] = updated
+      return Response.json({ ok: true, memory: updated })
+    }
+    case 'delete': {
+      const index = server.memories.findIndex(memory => memory.id === body['id'])
+      if (index === -1) return Response.json({ ok: false, error: 'ketos/memory-not-found' }, { status: 404 })
+      server.memories.splice(index, 1)
+      return Response.json({ ok: true, id: body['id'] })
+    }
+    default:
+      return Response.json({ ok: false, error: 'ketos/invalid' }, { status: 400 })
+  }
 }
 
 /** Mount the board, render its panel, and hand the runtime pieces to the test. */
@@ -416,6 +457,66 @@ describe('clone interview', () => {
     await waitFor(() => {
       expect(select).toHaveBeenCalledWith({ provider: 'deepseek', model: 'deepseek-reasoner' })
     })
+  })
+
+  it('opens the clone memory tab and lists, edits, and deletes through the memory route', async () => {
+    const server = stubCloneRoute([CLONE])
+    server.memories.push({
+      id: 'mem-1' as MemoryDto['id'],
+      cloneId: 'clone-1' as CloneId,
+      content: 'Любит короткие письма',
+      tags: ['стиль'],
+      sourceSessionId: 'session-1',
+      status: 'active',
+      createdAt: '2026-09-21T00:00:00.000Z',
+      updatedAt: '2026-09-21T00:00:00.000Z',
+    })
+    const { panel, cloneWindow } = await mounted()
+    await waitFor(() => { expect(panel.container.querySelector('[data-board-clone-row="clone-1"]')).not.toBeNull() })
+    act(() => {
+      fireEvent.click(panel.container.querySelector('[data-board-clone-row="clone-1"]') as Element)
+    })
+    const tab = (): Element | null => panel.container.querySelector('[data-board-clone-tab="memory"]')
+    await waitFor(() => { expect(tab()).not.toBeNull() })
+    act(() => { fireEvent.click(tab() as Element) })
+    expect(cloneWindow()?.bodyKind).toBe('clone-memory')
+
+    // The list is the clone's own memory, read through `/api/ketos.memory`.
+    await waitFor(() => { expect(panel.container.querySelector('[data-board-memory="mem-1"]')).not.toBeNull() })
+    expect(panel.container.textContent).toContain('Любит короткие письма')
+
+    // The person's edit reaches the route and the re-read shows the new text.
+    act(() => { fireEvent.click(panel.container.querySelector('[data-board-memory="edit"]') as Element) })
+    fireEvent.change(panel.container.querySelector('[data-board-memory="content"]') as HTMLTextAreaElement, {
+      target: { value: 'Любит короткие письма и точные цифры' },
+    })
+    act(() => { fireEvent.click(panel.container.querySelector('[data-board-memory="save"]') as Element) })
+    await waitFor(() => { expect(panel.container.textContent).toContain('Любит короткие письма и точные цифры') })
+    expect(bodyOf(server, 'memory:update')).toMatchObject({ id: 'mem-1' })
+
+    // The search gesture reaches the route with its query and status filter.
+    fireEvent.change(panel.container.querySelector('[data-board-memory="search"]') as HTMLInputElement, {
+      target: { value: 'точные' },
+    })
+    act(() => { fireEvent.click(panel.container.querySelector('[data-board-memory="search-submit"]') as Element) })
+    await waitFor(() => { expect(bodyOf(server, 'memory:search')).toBeDefined() })
+    expect(bodyOf(server, 'memory:search')).toMatchObject({
+      op: 'search',
+      cloneId: 'clone-1',
+      query: 'точные',
+      status: 'active',
+    })
+    expect(panel.container.textContent).toContain('Любит короткие письма и точные цифры')
+
+    // Clearing the search returns to the listing before the deletion.
+    act(() => { fireEvent.click(panel.container.querySelector('[data-board-memory="search-clear"]') as Element) })
+    await waitFor(() => { expect(panel.container.querySelector('[data-board-memory="search-clear"]')).toBeNull() })
+
+    // The confirmed delete removes the memory and the listing falls back to empty.
+    act(() => { fireEvent.click(panel.container.querySelector('[data-board-memory="delete"]') as Element) })
+    act(() => { fireEvent.click(panel.container.querySelector('[data-board-memory="delete.confirm"]') as Element) })
+    await waitFor(() => { expect(panel.container.textContent).toContain('Nothing in this status.') })
+    expect(server.memories).toEqual([])
   })
 
   it('sends a prompt from a clone window on the profile body into a chat window of its own', async () => {

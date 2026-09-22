@@ -13,6 +13,7 @@ import { brandString } from '@deepseek-ai/dsh-brand'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
 import { randomUUID } from 'node:crypto'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import { inTransaction } from './transaction.ts'
 import type {
   CloneBindingRole, CloneCreateInput, CloneDraftFields, CloneId, CloneRecord, CloneSessionBinding,
   CloneStatus, CloneUpdatePatch,
@@ -330,8 +331,7 @@ export class CloneRepository {
    * @throws CloneConflictError when the stored revision differs.
    */
   deleteClone(id: CloneId, expectedRevision: number): CloneId {
-    this.db.exec('BEGIN IMMEDIATE')
-    try {
+    inTransaction(this.db, () => {
       const result = this.db.prepare('DELETE FROM clones WHERE id = ? AND revision = ?').run(id, expectedRevision)
       if (result.changes === 0) {
         // Reading inside the transaction keeps the classification of an
@@ -341,16 +341,11 @@ export class CloneRepository {
         throw new CloneConflictError(id, expectedRevision, existing.revision)
       }
       this.db.prepare('DELETE FROM clone_sessions WHERE clone_id = ?').run(id)
-      this.db.exec('COMMIT')
-    } catch (error: unknown) {
-      try {
-        this.db.exec('ROLLBACK')
-      } catch {
-        // A failing statement may already have ended the transaction; the
-        // error that brought us here is the one worth reporting.
-      }
-      throw error
-    }
+      // A memory belongs to its clone; deleting the clone deletes its memory
+      // and the index rows, or the index would keep text nothing can reach.
+      this.db.prepare('DELETE FROM memories WHERE clone_id = ?').run(id)
+      this.db.prepare('DELETE FROM memories_fts WHERE clone_id = ?').run(id)
+    })
     return id
   }
 

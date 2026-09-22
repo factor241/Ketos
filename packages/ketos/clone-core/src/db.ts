@@ -12,6 +12,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 import { mkdir, open } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
+import { MemoryRepository } from './memory.ts'
 import { CloneRepository } from './repository.ts'
 import { migrate } from './schema.ts'
 
@@ -70,6 +71,7 @@ export class CloneDatabase {
   private readonly path: string
   private opening: Promise<DatabaseSync> | undefined
   private repositoryPromise: Promise<CloneRepository> | undefined
+  private memoryPromise: Promise<MemoryRepository> | undefined
   private closing: Promise<void> | undefined
   private disposed = false
 
@@ -81,13 +83,34 @@ export class CloneDatabase {
   }
 
   /**
-   * The repository over this database, opening the file on first use.
+   * The clone repository over this database, opening the file on first use.
    * @returns the shared repository instance.
    */
   repository(): Promise<CloneRepository> {
     if (this.disposed) return Promise.reject(new Error('clone database: already closed'))
-    this.repositoryPromise ??= this.openRepository()
+    this.repositoryPromise ??= this.openRepository().catch((error: unknown) => {
+      // A failed attempt is not cached: a transient lock, permission, or
+      // vanished-file failure would otherwise fail every later request until
+      // the process restarts. Concurrent callers still share one attempt.
+      this.repositoryPromise = undefined
+      throw error
+    })
     return this.repositoryPromise
+  }
+
+  /**
+   * The memory repository over the same database, opening the file on first
+   * use. Both repositories share one handle.
+   * @returns the shared repository instance.
+   */
+  memoryRepository(): Promise<MemoryRepository> {
+    if (this.disposed) return Promise.reject(new Error('clone database: already closed'))
+    this.memoryPromise ??= this.openMemoryRepository().catch((error: unknown) => {
+      // Same retry policy as {@link repository}: a failed open is not cached.
+      this.memoryPromise = undefined
+      throw error
+    })
+    return this.memoryPromise
   }
 
   /**
@@ -102,19 +125,27 @@ export class CloneDatabase {
   }
 
   private async openRepository(): Promise<CloneRepository> {
+    return new CloneRepository(await this.handle())
+  }
+
+  private async openMemoryRepository(): Promise<MemoryRepository> {
+    return new MemoryRepository(await this.handle())
+  }
+
+  /**
+   * The open handle, opening the file on first use. A failed open clears the
+   * shared attempt so the next call retries.
+   */
+  private async handle(): Promise<DatabaseSync> {
     try {
       this.opening ??= openDatabase(this.path)
       const db = await this.opening
       // Disposal may have won the race while the file was opening; the handle
       // belongs to `dispose()` from here on, so no caller receives it.
       if (this.disposed) throw new Error('clone database: already closed')
-      return new CloneRepository(db)
+      return db
     } catch (error: unknown) {
-      // A failed attempt is not cached: a transient lock, permission, or
-      // vanished-file failure would otherwise fail every later request until
-      // the process restarts. Concurrent callers still share one attempt.
       this.opening = undefined
-      this.repositoryPromise = undefined
       throw error
     }
   }
@@ -124,6 +155,7 @@ export class CloneDatabase {
     this.disposed = true
     this.opening = undefined
     this.repositoryPromise = undefined
+    this.memoryPromise = undefined
     if (opening === undefined) return
     let db: DatabaseSync
     try {

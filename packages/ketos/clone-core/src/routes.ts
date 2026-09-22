@@ -16,9 +16,10 @@ import {
 } from './repository.ts'
 import type {
   CloneAnswerResponse, CloneBindingResponse, CloneBindingRole, CloneCreateInput, CloneDeletedResponse,
-  CloneErrorCode, CloneFailureResponse, CloneId, CloneListResponse, CloneRecord, CloneSessionsResponse,
-  CloneStatus, CloneSuccessResponse, CloneUpdatePatch,
+  CloneId, CloneListResponse, CloneRecord, CloneSessionsResponse,
+  CloneStatus, CloneUpdatePatch,
 } from './types.ts'
+import { fail, InvalidBody, NO_STORE, ok, optionalStringList, optionalText, record, rejectUnknownFields, requiredText } from './wire.ts'
 
 /** Exact Fetch route path owning the clone domain. */
 export const CLONES_PATH = '/api/ketos.clones'
@@ -49,62 +50,6 @@ const PATCH_FIELDS = [
   'name', 'role', 'description', 'persona', 'methodology', 'preferredModel', 'skills', 'status',
 ] as const
 
-/** A request body the route refuses; mapped to 400 `ketos/invalid`. */
-class InvalidBody extends Error {
-  /**
-   * @param reason - what the request got wrong; for tests and logs, never for the browser.
-   */
-  constructor(reason: string) {
-    super(`invalid clone request: ${reason}`)
-    this.name = 'InvalidBody'
-  }
-}
-
-/** Response headers for every answer: clone data is private and never cached. */
-const NO_STORE = { 'cache-control': 'no-store' } as const
-
-/** A successful JSON answer. */
-function ok(response: CloneSuccessResponse): Response {
-  return Response.json(response, { headers: NO_STORE })
-}
-
-/** A failed JSON answer with one stable code. */
-function fail(status: number, error: CloneErrorCode): Response {
-  return Response.json({ ok: false, error } satisfies CloneFailureResponse, { status, headers: NO_STORE })
-}
-
-/** Narrow a decoded value to a JSON object. */
-function record(value: unknown, reason: string): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new InvalidBody(reason)
-  return value as Record<string, unknown>
-}
-
-/** Reject any field the operation does not accept. */
-function rejectUnknownFields(source: Record<string, unknown>, allowed: readonly string[]): void {
-  for (const key of Object.keys(source)) {
-    if (!allowed.includes(key)) throw new InvalidBody(`unknown field ${JSON.stringify(key)}`)
-  }
-}
-
-/** Required non-empty text, trimmed of surrounding whitespace. */
-function requiredText(source: Record<string, unknown>, key: string, max: number): string {
-  const value = source[key]
-  if (typeof value !== 'string') throw new InvalidBody(`${key} must be a string`)
-  const trimmed = value.trim()
-  if (trimmed === '') throw new InvalidBody(`${key} must not be empty`)
-  if (trimmed.length > max) throw new InvalidBody(`${key} exceeds ${String(max)} characters`)
-  return trimmed
-}
-
-/** Optional text; absent stays absent, and the stored value keeps its own whitespace. */
-function optionalText(source: Record<string, unknown>, key: string, max: number): string | undefined {
-  const value = source[key]
-  if (value === undefined) return undefined
-  if (typeof value !== 'string') throw new InvalidBody(`${key} must be a string`)
-  if (value.length > max) throw new InvalidBody(`${key} exceeds ${String(max)} characters`)
-  return value
-}
-
 /** Preferred model: absent, `null` (deployment default), or a bounded route id. */
 function optionalModel(source: Record<string, unknown>): string | null | undefined {
   const value = source['preferredModel']
@@ -129,17 +74,7 @@ function optionalStatus(source: Record<string, unknown>): CloneStatus | undefine
 
 /** Skills: absent, or a bounded array of bounded names. */
 function optionalSkills(source: Record<string, unknown>): string[] | undefined {
-  const value = source['skills']
-  if (value === undefined) return undefined
-  if (!Array.isArray(value)) throw new InvalidBody('skills must be an array')
-  if (value.length > LIMITS.skillCount) throw new InvalidBody(`skills exceeds ${String(LIMITS.skillCount)} entries`)
-  return value.map((entry: unknown): string => {
-    if (typeof entry !== 'string') throw new InvalidBody('skills must hold strings')
-    if (entry.length > LIMITS.skill) {
-      throw new InvalidBody(`a skill name exceeds ${String(LIMITS.skill)} characters`)
-    }
-    return entry
-  })
+  return optionalStringList(source, 'skills', LIMITS.skillCount, LIMITS.skill)
 }
 
 /** Revision: the concrete integer the caller read. */

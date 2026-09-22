@@ -1,8 +1,9 @@
 /**
  * Ketos clone core: the first host package of the Ketos fork. It owns the
  * clone database (`$DSH_HOME/clones.db`), its forward-only schema, the exact
- * Fetch route the board's clone windows read and write through, and the
- * interview mode a session enters while it drafts a clone's profile.
+ * Fetch routes the board's clone windows read and write through, and the
+ * clone session scope: the profile and memory an agent of a bound session
+ * carries, and the interview mode it enters while it drafts a clone's profile.
  *
  * The database opens on the first request, so a process that never touches
  * clones never imports `node:sqlite` and startup output stays quiet.
@@ -14,8 +15,11 @@ import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-session-projection'
 import { CloneDatabase } from './db.ts'
-import { CloneInterviewCoordinator } from './interview.ts'
+import { registerMemoryRoutes } from './memory-routes.ts'
 import { registerCloneRoutes } from './routes.ts'
+import {
+  CloneSessionCoordinator, DEFAULT_MEMORY_CHARS, DEFAULT_MEMORY_ENTRIES, MAX_MEMORY_CHARS, MAX_MEMORY_ENTRIES,
+} from './session.ts'
 
 /** Loader entry name of the plugin. */
 export const name = 'ketos-clone-core'
@@ -36,25 +40,39 @@ export interface Config {
    * before the file is opened.
    */
   path: string
+  /**
+   * Largest number of active memories the prompt snapshot lists. The default
+   * suits a clone that remembers a handful of working facts; deeper lookup is
+   * the `clone_memory_search` tool.
+   */
+  memoryEntries?: number
+  /** Largest total length, in characters, of the prompt memory snapshot. */
+  memoryChars?: number
 }
 
-/** Schemastery configuration of the clone domain; the path has no default. */
+/** Schemastery configuration of the clone domain; only the path is required. */
 export const Config: z<Config> = z.object({
   path: z.string().required(),
+  memoryEntries: z.number().step(1).min(1).max(MAX_MEMORY_ENTRIES).default(DEFAULT_MEMORY_ENTRIES),
+  memoryChars: z.number().step(1).min(1).max(MAX_MEMORY_CHARS).default(DEFAULT_MEMORY_CHARS),
 })
 
 /**
- * Own the clone database for the lifetime of the plugin, register its route,
- * and follow the interview mode of bound sessions.
+ * Own the clone database for the lifetime of the plugin, register its routes,
+ * and follow the clone session scope of bound sessions.
  * @param ctx - host context carrying `connection`, `agents`, and `sessionProjections`.
- * @param config - deployment's database path.
+ * @param config - deployment's database path and prompt snapshot budget.
  */
 export function apply(ctx: Context, config: Config): void {
   const database = new CloneDatabase(config.path)
-  // Registration order matters at disposal: the route's effect is created last,
-  // so it is withdrawn before this effect closes the handle.
+  // Registration order matters at disposal: the routes' effects are created
+  // last, so they are withdrawn before this effect closes the handle.
   ctx.effect(() => () => database.close(), 'ketos-clone-core: clones.db')
-  const interviews = new CloneInterviewCoordinator(ctx, database)
-  interviews.start()
-  registerCloneRoutes(ctx, database, () => { void interviews.clonesChanged() })
+  const sessions = new CloneSessionCoordinator(ctx, database, {
+    entries: config.memoryEntries ?? DEFAULT_MEMORY_ENTRIES,
+    chars: config.memoryChars ?? DEFAULT_MEMORY_CHARS,
+  })
+  sessions.start()
+  registerCloneRoutes(ctx, database, () => { void sessions.cloneDataChanged() })
+  registerMemoryRoutes(ctx, database, () => { void sessions.cloneDataChanged() })
 }

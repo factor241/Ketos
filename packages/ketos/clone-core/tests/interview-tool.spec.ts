@@ -5,7 +5,7 @@ import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-test
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { afterEach, describe, expect, it } from 'vitest'
-import { cloneDraftSaveTool } from '../src/interview.ts'
+import { cloneDraftSaveTool } from '../src/session.ts'
 import { CloneConflictError, CloneSessionNotBoundError } from '../src/repository.ts'
 import type { CloneDraftFields } from '../src/types.ts'
 

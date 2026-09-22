@@ -16,7 +16,9 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { presetDisplayText } from '@deepseek-ai/dsh-agent-presets/display'
-import type { CloneDto, CloneId, CloneSessionBinding, CloneUpdatePatch } from '@ketos/clone-core/types'
+import type {
+  CloneDto, CloneId, CloneSessionBinding, CloneUpdatePatch, MemoryId, MemoryStatus, MemoryUpdatePatch,
+} from '@ketos/clone-core/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { createBoardStore, nextWindowOrdinal, type BoardStoreHandle } from './store.ts'
 import { BoardLayoutPersistence } from './board-persistence.ts'
@@ -27,6 +29,9 @@ import {
   listCloneSessions, listClones, updateClone as updateCloneRequest,
 } from './clone-api.ts'
 import { parseModelRoute } from './clone-model.ts'
+import {
+  deleteMemory as deleteMemoryRequest, listMemories, searchMemories, updateMemory as updateMemoryRequest,
+} from './memory-api.ts'
 import type {
   BoardCloneRoster, BoardPresetRoster, BoardWindowInjected, CloneModelOption, WindowId,
 } from './contract/slots.ts'
@@ -38,6 +43,7 @@ import { AgentCard } from './window/AgentCard.tsx'
 import { WindowFrame } from './window/WindowFrame.tsx'
 import { ConversationBody } from './window/ConversationBody.tsx'
 import { CloneBody } from './window/CloneBody.tsx'
+import { CloneMemoryBody } from './window/CloneMemoryBody.tsx'
 import { SessionRail } from './dock/SessionRail.tsx'
 import { DashboardToolbar } from './omnibox/DashboardToolbar.tsx'
 import { WindowChatsPanel } from './window/WindowChatsPanel.tsx'
@@ -355,6 +361,25 @@ export function apply(ctx: ClientContext): void {
       const result = await listCloneSessions(cloneId)
       return result.ok ? result.value : []
     },
+    loadMemories: async (cloneId: CloneId, status?: MemoryStatus) => {
+      const result = await listMemories(cloneId, status)
+      return result.ok ? { ok: true, memories: result.value } : { ok: false }
+    },
+    searchMemories: async (cloneId: CloneId, query: string, status?: MemoryStatus) => {
+      const result = await searchMemories(cloneId, query, status)
+      return result.ok ? { ok: true, memories: result.value } : { ok: false }
+    },
+    saveMemory: async (id: MemoryId, patch: MemoryUpdatePatch) => {
+      const result = await updateMemoryRequest(id, patch)
+      if (result.ok) return 'saved'
+      if (result.code === 'ketos/invalid') return 'invalid'
+      return result.code === 'ketos/memory-not-found' ? 'missing' : 'failed'
+    },
+    removeMemory: async (id: MemoryId) => {
+      const result = await deleteMemoryRequest(id)
+      if (result.ok) return 'deleted'
+      return result.code === 'ketos/memory-not-found' ? 'missing' : 'failed'
+    },
     startCloneInterview: async (clone: CloneDto, windowId: WindowId) => {
       /** Give the status back after a start step failed under it. */
       const restoreStatus = async (revision: number): Promise<void> => {
@@ -503,6 +528,13 @@ export function apply(ctx: ClientContext): void {
       locale: NS,
       inject: injected,
     }, CloneBody)
+    yield ctx.slots.register({
+      name: 'board.window.body',
+      key: 'clone-memory',
+      store: boardStore,
+      locale: NS,
+      inject: injected,
+    }, CloneMemoryBody)
   })
 
   ctx.slots.inject('board.dock', () => ctx.slots.register({

@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { act, cleanup } from '@testing-library/react'
 import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { CloneId } from '@ketos/clone-core/types'
 import { createBoardStore } from '../src/client/store.ts'
 import type { WindowBodyKind, WindowKind, WindowId } from '../src/client/contract/slots.ts'
 import { BoardSessionBridge } from '../src/client/session-bridge.ts'
@@ -33,6 +34,7 @@ afterEach(async () => {
 const KINDS: readonly { readonly kind: WindowKind; readonly bodyKind: WindowBodyKind }[] = [
   { kind: 'agent', bodyKind: 'conversation' },
   { kind: 'clone', bodyKind: 'conversation' },
+  { kind: 'clone', bodyKind: 'clone-memory' },
   { kind: 'connectors', bodyKind: 'connectors' },
   { kind: 'settings', bodyKind: 'settings' },
   { kind: 'dashboard', bodyKind: 'dashboard' },
@@ -65,8 +67,13 @@ function countSubscriptions(source: { subscribe: (fn: () => void) => () => void 
 }
 
 /** The window literal one cycle opens. */
-function windowState(index: number, kind: WindowKind, bodyKind: WindowBodyKind) {
-  return { id: `w${index}` as WindowId, kind, bodyKind, ordinal: index + 1, width: 552, height: 648 }
+function windowState(
+  index: number,
+  kind: WindowKind,
+  bodyKind: WindowBodyKind,
+  extra: { cloneId?: CloneId } = {},
+) {
+  return { id: `w${index}` as WindowId, kind, bodyKind, ordinal: index + 1, width: 552, height: 648, ...extra }
 }
 
 describe('board resource discipline', () => {
@@ -109,7 +116,10 @@ describe('board resource discipline', () => {
       for (let index = 0; index < CYCLES; index += 1) {
         const { kind, bodyKind } = KINDS[index % KINDS.length]!
         const id = `w${index}` as WindowId
-        act(() => { store.actions.openWindow(windowState(index, kind, bodyKind)) })
+        // The memory body reads its clone's memory, so the cycle opens it on a
+        // clone identity instead of the missing state.
+        const cloneId = bodyKind === 'clone-memory' ? { cloneId: 'clone-1' as CloneId } : {}
+        act(() => { store.actions.openWindow(windowState(index, kind, bodyKind, cloneId)) })
         await runtime.flush()
         if (bodyKind === 'conversation') {
           act(() => { store.actions.setWindowFullscreen(id) })
@@ -134,7 +144,7 @@ describe('board resource discipline', () => {
       expect(panel.container.querySelectorAll('[data-board-dock-row]')).toHaveLength(0)
       expect(panel.container.querySelectorAll('*').length).toBe(baselineNodes)
       expect(runtime.slots.entries('board.window')).toHaveLength(6)
-      expect(runtime.slots.entries('board.window.body')).toHaveLength(2)
+      expect(runtime.slots.entries('board.window.body')).toHaveLength(3)
       expect(runtime.slots.entries('board.window.panel')).toHaveLength(2)
 
       // Closing a window never deletes its session: the same chat is rebuilt

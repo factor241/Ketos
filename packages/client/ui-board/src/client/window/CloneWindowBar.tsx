@@ -1,6 +1,6 @@
 /**
- * Clone window bar: the Profile/Interview tab pair and the interview status the
- * clone window shows between its header and its body.
+ * Clone window bar: the Profile/Interview/Memory tab trio and the interview
+ * status the clone window shows between its header and its body.
  *
  * The bar is the frame's only clone-specific chrome, and it alone subscribes to
  * the window channel and the clone roster: a streamed chunk republishes that
@@ -8,9 +8,10 @@
  * chrome and its handles untouched.
  *
  * The interview tab presents the window's bound session; the profile tab keeps
- * editing the card. A clone that turns `ready` under a live interview has a
- * profile to review, and the review notice stays until the user opens it or
- * switches tabs.
+ * editing the card; the memory tab opens the clone's memory list in the same
+ * window, which is why memory needs no window kind of its own. A clone that
+ * turns `ready` under a live interview has a profile to review, and the review
+ * notice stays until the user opens it or switches tabs.
  */
 import { useEffect, useRef, useState } from 'react'
 import { Pill } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -90,7 +91,7 @@ export function CloneWindowBar({
   const bodyKind = cardWindow.bodyKind
 
   /** Point the window at one body; the notice belongs to the tab it was raised on. */
-  const selectBody = (next: 'clone' | 'conversation'): void => {
+  const selectBody = (next: 'clone' | 'conversation' | 'clone-memory'): void => {
     setReview(false)
     actions.setWindowBodyKind(cardWindow.id, next)
   }
@@ -99,9 +100,9 @@ export function CloneWindowBar({
     <div className={css.bar}>
       <div className={css.tabs} role="tablist">
         <Pill
-          active={bodyKind !== 'conversation'}
+          active={bodyKind === 'clone'}
           role="tab"
-          aria-selected={bodyKind !== 'conversation'}
+          aria-selected={bodyKind === 'clone'}
           data-board-clone-tab="profile"
           onClick={() => { selectBody('clone') }}
         >
@@ -117,6 +118,15 @@ export function CloneWindowBar({
           onClick={() => { selectBody('conversation') }}
         >
           {t('clone.interview.tab')}
+        </Pill>
+        <Pill
+          active={bodyKind === 'clone-memory'}
+          role="tab"
+          aria-selected={bodyKind === 'clone-memory'}
+          data-board-clone-tab="memory"
+          onClick={() => { selectBody('clone-memory') }}
+        >
+          {t('clone.memory.tab')}
         </Pill>
       </div>
 

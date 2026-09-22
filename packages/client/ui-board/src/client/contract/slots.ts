@@ -4,7 +4,10 @@
 import type { ReactNode } from 'react'
 import type { FileAttachmentRef, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { Branded } from '@deepseek-ai/dsh-brand'
-import type { CloneDto, CloneId, CloneSessionBinding, CloneUpdatePatch } from '@ketos/clone-core/types'
+import type {
+  CloneDto, CloneId, CloneSessionBinding, CloneUpdatePatch,
+  MemoryDto, MemoryId, MemoryStatus, MemoryUpdatePatch,
+} from '@ketos/clone-core/types'
 import type { ChatSnapshot } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { HostObservable, InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
@@ -197,6 +200,18 @@ export interface BoardModelGroup {
 /** Lifecycle status rows the clone editor offers, in display order. */
 export const CLONE_STATUS_ROWS = ['draft', 'interviewing', 'ready'] as const
 
+/** Memory status rows the memory body filters by, in display order. */
+export const MEMORY_STATUS_ROWS = ['active', 'candidate', 'archived'] as const satisfies readonly MemoryStatus[]
+
+/** Longest memory content the host accepts, as the body's editor enforces it. */
+export const MEMORY_CONTENT_LIMIT = 4000
+
+/** Largest number of tags one memory may carry, as the host accepts it. */
+export const MEMORY_TAG_COUNT_LIMIT = 50
+
+/** Longest one memory tag may be, as the host accepts it. */
+export const MEMORY_TAG_LIMIT = 100
+
 /** One selectable model route of the clone editor's preferred-model picker. */
 export interface CloneModelOption {
   /** Provider that serves the route. */
@@ -230,6 +245,20 @@ export type CloneDeleteOutcome = 'deleted' | 'conflict' | 'missing' | 'failed'
 
 /** What starting a clone interview did. */
 export type CloneSessionOutcome = 'started' | 'failed'
+
+/** What one memory save did, for the row's notice. */
+export type MemorySaveOutcome = 'saved' | 'invalid' | 'missing' | 'failed'
+
+/** What one memory deletion did, for the row's notice. */
+export type MemoryDeleteOutcome = 'deleted' | 'missing' | 'failed'
+
+/**
+ * Outcome of one memory read: the rows, or a failed read the body must report
+ * instead of showing an empty memory the store never claimed.
+ */
+export type MemoryReadOutcome =
+  | { readonly ok: true; readonly memories: readonly MemoryDto[] }
+  | { readonly ok: false }
 
 /**
  * The window's model directory view: current selection, catalog, and effort rows.
@@ -531,6 +560,34 @@ export interface BoardWindowInjected {
   loadCloneModels: () => Promise<readonly CloneModelOption[]>
   /** Read the sessions bound to one clone, newest first. */
   loadCloneSessions: (cloneId: CloneId) => Promise<readonly CloneSessionBinding[]>
+  /**
+   * Read the memories of one clone, newest first.
+   * @param cloneId - clone identity.
+   * @param status - restrict to one status; absent lists every status.
+   * @returns the memories, or a failed read the body reports as such.
+   */
+  loadMemories: (cloneId: CloneId, status?: MemoryStatus) => Promise<MemoryReadOutcome>
+  /**
+   * Full-text search inside one clone's memories.
+   * @param cloneId - clone identity.
+   * @param query - search text; every token matches as a prefix.
+   * @param status - restrict to one status; absent searches every status but `archived`.
+   * @returns the matching memories, or a failed read the body reports as such.
+   */
+  searchMemories: (cloneId: CloneId, query: string, status?: MemoryStatus) => Promise<MemoryReadOutcome>
+  /**
+   * Replace the patch's fields on one memory.
+   * @param id - memory identity.
+   * @param patch - fields to replace.
+   * @returns what the save did, for the row's notice.
+   */
+  saveMemory: (id: MemoryId, patch: MemoryUpdatePatch) => Promise<MemorySaveOutcome>
+  /**
+   * Delete one memory.
+   * @param id - memory identity.
+   * @returns what the deletion did, for the row's notice.
+   */
+  removeMemory: (id: MemoryId) => Promise<MemoryDeleteOutcome>
   /**
    * Start the bootstrap interview of one clone: create a session, mark the
    * clone `interviewing`, bind the session with the interview role, show it in

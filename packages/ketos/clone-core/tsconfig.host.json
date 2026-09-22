@@ -8,11 +8,16 @@
   "files": [
     "src/db.ts",
     "src/index.ts",
-    "src/interview.ts",
+    "src/memory-routes.ts",
+    "src/memory-tools.ts",
+    "src/memory.ts",
     "src/repository.ts",
     "src/routes.ts",
     "src/schema.ts",
-    "src/types.ts"
+    "src/session.ts",
+    "src/transaction.ts",
+    "src/types.ts",
+    "src/wire.ts"
   ],
   "references": [
     {

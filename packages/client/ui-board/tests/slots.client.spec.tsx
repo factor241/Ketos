@@ -12,6 +12,7 @@ import { panelWidthFor } from '../src/client/window/panel-geometry.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 import { BOARD_PANEL_ID } from '../src/client/contract/slots.ts'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { CloneId } from '@ketos/clone-core/types'
 import { chatSnapshot, createBoardBench } from './fixtures.client.ts'
 import railCss from '../src/client/dock/SessionRail.module.css'
 import minimapCss from '../src/client/canvas/Minimap.module.css'
@@ -74,13 +75,14 @@ describe('board slot composition', () => {
     expect(runtime.slots.spec('board.window')).toEqual({ kind: 'keyed', scope: 'root' })
     expect(runtime.slots.spec('board.window.body')).toEqual({ kind: 'keyed', scope: 'root' })
 
-    // One frame registration per window type, one body registration for the
-    // conversation body (no board window ships mock tool or settings content).
+    // One frame registration per window type; the conversation body, the clone
+    // card editor, and the clone memory list are the only occupied bodies (no
+    // board window ships mock tool or settings content).
     expect(runtime.slots.entries('board.window').map(entry => entry.options.key)).toEqual([
       'agent', 'clone', 'connectors', 'settings', 'dashboard', 'tasks',
     ])
     expect(runtime.slots.entries('board.window.body').map(entry => entry.options.key)).toEqual([
-      'conversation', 'clone',
+      'conversation', 'clone', 'clone-memory',
     ])
 
     expect(runtime.slots.entries('sidebar.panellist').map(entry => entry.options.id)).toEqual(['board'])
@@ -170,7 +172,7 @@ describe('board slot composition', () => {
     expect(panel.container.querySelector('textarea')).not.toBeNull()
   })
 
-  it('renders the conversation body for an agent window and nothing for an unoccupied body kind', async () => {
+  it('renders the conversation body for an agent window and the memory body for a clone window', async () => {
     const { runtime } = await bench()
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
     const board = runtime.storeOf('board.dock') as BoardInstance
@@ -181,6 +183,7 @@ describe('board slot composition', () => {
         id: 'c1' as WindowId,
         kind: 'clone',
         bodyKind: 'clone-memory',
+        cloneId: 'clone-1' as CloneId,
         ordinal: 3,
         customTitle: 'Clone memory',
       }))
@@ -189,11 +192,12 @@ describe('board slot composition', () => {
 
     expect(panel.container.querySelector('textarea')).not.toBeNull()
 
-    // A body kind without an occupant renders the frame with an empty body region.
     const cloneFrame = panel.container.querySelector('[data-board-window="clone"]')
     expect(cloneFrame).not.toBeNull()
     expect(cloneFrame?.textContent).toContain('Clone memory')
-    expect(cloneFrame?.querySelector('textarea')).toBeNull()
+    // The memory body occupies the clone frame's content region; a read that
+    // fails (this bench has no route) reports an empty memory, not an error.
+    expect(cloneFrame?.querySelector('[data-board-memory-list]')).not.toBeNull()
   })
 
   it('closes a window through its frame and removes it from the layer', async () => {
@@ -595,7 +599,7 @@ describe('board slot composition', () => {
     expect(runtime.slots.entriesOfSlot('board.canvas')).toHaveLength(1)
     expect(runtime.slots.entriesOfSlot('board.windows')).toHaveLength(1)
     expect(runtime.slots.entries('board.window')).toHaveLength(6)
-    expect(runtime.slots.entries('board.window.body')).toHaveLength(2)
+    expect(runtime.slots.entries('board.window.body')).toHaveLength(3)
   })
 
   it('culls a window that leaves the visible canvas and keeps its draft', async () => {
@@ -1263,7 +1267,7 @@ describe('board slot composition', () => {
       expect(runtime.slots.entriesOfSlot('board.canvas')).toHaveLength(1)
       expect(runtime.slots.entriesOfSlot('board.windows')).toHaveLength(1)
       expect(runtime.slots.entries('board.window')).toHaveLength(6)
-      expect(runtime.slots.entries('board.window.body')).toHaveLength(2)
+      expect(runtime.slots.entries('board.window.body')).toHaveLength(3)
       await vi.waitFor(() => {
         expect(panel.container.querySelector('[data-surface="canvas"]')).not.toBeNull()
       })

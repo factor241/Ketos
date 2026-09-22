@@ -94,7 +94,7 @@ function session(nodes: readonly ConversationNode[] = []): BoardWindowSessionSta
 }
 
 /** One tab control by its data attribute. */
-function tab(name: 'profile' | 'interview'): HTMLButtonElement {
+function tab(name: 'profile' | 'interview' | 'memory'): HTMLButtonElement {
   return document.querySelector(`[data-board-clone-tab="${name}"]`) as HTMLButtonElement
 }
 
@@ -114,6 +114,23 @@ describe('clone window tabs', () => {
     expect(tab('interview').getAttribute('aria-selected')).toBe('true')
     fireEvent.click(tab('profile'))
     expect(setWindowBodyKind).toHaveBeenLastCalledWith(CARD.id, 'clone')
+  })
+
+  it('opens the memory list on the same window through the memory tab', () => {
+    const setWindowBodyKind = vi.fn()
+    const { rerender } = render(<CloneWindowBar {...barProps(session(), { actions: { setWindowBodyKind } })} />)
+
+    fireEvent.click(tab('memory'))
+    expect(setWindowBodyKind).toHaveBeenCalledWith(CARD.id, 'clone-memory')
+
+    rerender(<CloneWindowBar {...barProps(session(), {
+      actions: { setWindowBodyKind },
+      window: { ...CARD, bodyKind: 'clone-memory' },
+    })} />)
+    expect(tab('memory').getAttribute('aria-selected')).toBe('true')
+    // The memory tab is not the profile tab: the profile pill stays unselected
+    // while the window shows the memory list.
+    expect(tab('profile').getAttribute('aria-selected')).toBe('false')
   })
 
   it('disables the interview tab while the window has no session', () => {

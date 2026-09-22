@@ -1,15 +1,16 @@
 /**
- * The clone interview: the mode a session enters while it bootstraps a clone.
+ * The clone session scope: everything clone-core composes into the agent of a
+ * session bound to a clone.
  *
- * A session is in interview mode while `clone_sessions` binds it to a clone
- * with role `interview` and that clone's status is `interviewing`. The mode is
- * composed into that one agent's scope — the `clone:interview` prompt section
- * and the `clone_draft_save` tool — never into the global registries, so an
- * ordinary chat sees none of it. The mode ends when the tool saves the profile
- * (the clone becomes `ready`), when the shipped route changes the clone or its
- * bindings, or when the agent is disposed.
+ * A session bound to a clone carries the clone's stable profile section, its
+ * memory tools, and a dynamic memory snapshot; a session that is also
+ * interviewing that clone additionally carries the interview instruction, the
+ * `clone_draft_save` tool, and exactly one opening turn. Every contribution
+ * lives in that one agent's scope — never in the global registries — so an
+ * ordinary chat sees none of it. The scope ends when the agent is disposed or
+ * the binding goes; the interview part ends when the profile is saved.
  *
- * @module @ketos/clone-core/interview
+ * @module @ketos/clone-core/session
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -22,8 +23,25 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import { boundContextSummary, createUserMessage } from '@deepseek-ai/dsh-llm'
 import { z } from 'zod'
 import type { CloneDatabase } from './db.ts'
-import type { CloneDraftFields } from './types.ts'
+import { MEMORY_LIMITS, MemoryRepository } from './memory.ts'
+import type { FoundMemory, RememberArguments, RememberedMemory, SearchArguments } from './memory-tools.ts'
+import { cloneMemoryRememberTool, cloneMemorySearchTool, memorySnapshotText } from './memory-tools.ts'
+import type { CloneRecord, CloneBindingRole, CloneDraftFields, CloneId } from './types.ts'
+import { CloneSessionNotBoundError } from './repository.ts'
 import type { CloneRepository } from './repository.ts'
+
+/**
+ * Prompt-section name of the clone profile. A scoped section shadows a global
+ * one of the same name, and nothing else owns this name.
+ */
+export const CLONE_PROFILE_SECTION = 'clone:profile'
+
+/**
+ * Placement of the clone profile. The order is package-local on purpose:
+ * `getSectionOrder` owns the repository-wide slots, and the profile sorts
+ * before the interview instruction it is the subject of.
+ */
+export const CLONE_PROFILE_ORDER = 690
 
 /**
  * Prompt-section name of the interview instruction. A scoped section shadows
@@ -38,11 +56,56 @@ export const CLONE_INTERVIEW_SECTION = 'clone:interview'
  */
 export const CLONE_INTERVIEW_ORDER = 700
 
+/**
+ * Context name of the dynamic memory snapshot. The snapshot rides
+ * `systemPrompt.context`, not a section, so a new memory leaves the stable
+ * request prefix untouched and arrives as a durable runtime-context message.
+ */
+export const CLONE_MEMORY_CONTEXT = 'clone:memory'
+
+/**
+ * Placement of the memory snapshot among the runtime contexts; it sorts after
+ * the sandbox, approval, and delegation policies.
+ */
+export const CLONE_MEMORY_ORDER = 130
+
+/** Default largest number of memories the prompt snapshot lists. */
+export const DEFAULT_MEMORY_ENTRIES = 10
+
+/** Default largest total length, in characters, of the prompt memory snapshot. */
+export const DEFAULT_MEMORY_CHARS = 8000
+
+/** Largest configurable snapshot size; beyond this the constant prefix stops paying for itself. */
+export const MAX_MEMORY_ENTRIES = 50
+
+/** Largest configurable snapshot length, in characters. */
+export const MAX_MEMORY_CHARS = 32_000
+
 /** Source kind of the kickoff turn the interview opens with. */
 export const CLONE_INTERVIEW_SOURCE = 'ketos-clone-interview'
 
 /** Projection key of the durable "this session was already opened" answer. */
 export const CLONE_KICKOFF_PROJECTION = 'ketos-clone-kickoff'
+
+/**
+ * What the clone profile contributes to the clone's own requests: who it is,
+ * how it works, and the instruction to stay in character. The text is built
+ * from the stored record, so it carries no secret or PII the person did not
+ * write into the profile themselves.
+ * @param clone - the stored clone record.
+ * @returns the profile section text.
+ */
+export function profileSectionText(clone: CloneRecord): string {
+  const lines = [
+    `You are the digital clone of ${clone.name}, working as ${clone.role}.`,
+    ...clone.description.trim() === '' ? [] : [`Summary: ${clone.description}`],
+    ...clone.persona.trim() === '' ? [] : [`Character, tone, and working style: ${clone.persona}`],
+    ...clone.methodology.trim() === '' ? [] : [`Working method: ${clone.methodology}`],
+    ...clone.skills.length === 0 ? [] : [`Skills you may rely on: ${clone.skills.join(', ')}`],
+    'Keep this role, character, and working method in every reply.',
+  ]
+  return lines.join('\n')
+}
 
 /**
  * What the interviewer must cover, in the product's terms. The checklist is
@@ -78,6 +141,14 @@ const KICKOFF_TEXT = [
 
 /** The opening stimulus bound for the transcript's collapsed notice row. */
 const KICKOFF_SUMMARY = 'Clone interview started'
+
+/** How many memories the prompt snapshot lists and how long it may grow. */
+export interface MemoryBudget {
+  /** Largest number of active memories the snapshot lists. */
+  readonly entries: number
+  /** Largest total length, in characters, of the rendered snapshot. */
+  readonly chars: number
+}
 
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
@@ -191,21 +262,47 @@ export function cloneDraftSaveTool(
   })
 }
 
+/** A clone a session is bound to, with the role the binding carries. */
+interface BoundClone {
+  readonly clone: CloneRecord
+  readonly role: CloneBindingRole
+}
+
 /**
- * Derives interview mode from stored clone data and owns the per-agent scope
- * that carries it.
- *
- * The mode is re-derived after every lifecycle and every stored change rather
- * than cached: `agent/created`, `agent/session-start`, the route's mutation
- * notification, and the tool's own save all run the same reconciliation, so a
- * binding written after the agent was created still turns the mode on, and a
- * status that moved to `ready` turns it off.
+ * Per-agent clone session scope plus the mutable text its prompt providers
+ * read. Replacing the text in place refreshes what the next assembly renders
+ * without re-registering anything; reinstalling the scope is only for a
+ * different clone or a different interview mode.
  */
-export class CloneInterviewCoordinator {
+interface CloneScope {
+  /** The scope carrying the registrations. */
+  readonly scope: ReturnType<Context['inject']>
+  /** Clone the scope was installed for. */
+  readonly cloneId: CloneId
+  /** Whether the interview section, tool, and kickoff are part of this scope. */
+  readonly interviewing: boolean
+  /** Profile text the section provider renders; replaced when the clone is edited. */
+  readonly profile: { text: string }
+  /** Memory snapshot the context provider renders; replaced when memory changes. */
+  readonly memory: { text: string }
+}
+
+/**
+ * Derives the clone session scope from stored clone data and owns the
+ * per-agent scopes that carry it.
+ *
+ * The scope is re-derived after every lifecycle and every stored change rather
+ * than cached: `agent/created`, `agent/session-start`, the routes' mutation
+ * notification, and the tools' own writes all run the same reconciliation, so
+ * a binding written after the agent was created still composes the scope, and
+ * a status that moved away from `interviewing` withdraws the interview part.
+ */
+export class CloneSessionCoordinator {
   private readonly ctx: Context
   private readonly database: CloneDatabase
-  /** The scope each interviewing agent carries, keyed by that agent. */
-  private readonly installed = new Map<Agent, ReturnType<Context['inject']>>()
+  private readonly budget: MemoryBudget
+  /** The scope each bound agent carries, keyed by that agent. */
+  private readonly installed = new Map<Agent, CloneScope>()
   /**
    * Agents whose triggers were collected in this tick. The lifecycle pair
    * (`agent/created` then `agent/session-start`) fires in one synchronous
@@ -242,10 +339,12 @@ export class CloneInterviewCoordinator {
   /**
    * @param ctx - host context carrying `agents` and `sessionProjections`.
    * @param database - the plugin's clone database.
+   * @param budget - how many memories the prompt snapshot lists and how long it may grow.
    */
-  constructor(ctx: Context, database: CloneDatabase) {
+  constructor(ctx: Context, database: CloneDatabase, budget: MemoryBudget) {
     this.ctx = ctx
     this.database = database
+    this.budget = budget
   }
 
   /** Follow agent lifecycles and register the durable kickoff projection. */
@@ -259,7 +358,7 @@ export class CloneInterviewCoordinator {
     })
     this.ctx.on('agent/created', ({ agent }) => { this.request(agent) })
     this.ctx.on('agent/session-start', ({ agent, source }) => {
-      // A restored session may be an interview from an earlier process; a
+      // A restored session may belong to a clone from an earlier process; a
       // fresh one cannot be bound yet, so it is not worth opening the database.
       if (source === 'resume') this.touchesClones = true
       this.request(agent)
@@ -278,7 +377,7 @@ export class CloneInterviewCoordinator {
         if (this.chains.get(agent) === chain) this.chains.delete(agent)
       })
     })
-    this.ctx.effect(() => () => { this.close() }, 'ketos-clone-core: interview scopes')
+    this.ctx.effect(() => () => { this.close() }, 'ketos-clone-core: clone session scopes')
     // An agent that already exists at mount (a configured profile agent) may
     // belong to a clone; a fresh process has none, so the database stays shut.
     if (this.ctx.agents.roots().length > 0) this.touchesClones = true
@@ -286,19 +385,20 @@ export class CloneInterviewCoordinator {
   }
 
   /**
-   * Stored clones changed: re-derive the mode of every live top-level agent.
-   * The clone route calls this after an accepted request, because a status or
-   * binding write is what turns the mode on outside the agent's lifecycle.
-   * @returns a promise settling when every agent's mode is reconciled.
+   * Stored clone data changed: re-derive the scope of every live top-level
+   * agent. Both routes call this after an accepted request, because a status,
+   * binding, profile, or memory write is what changes the scope outside the
+   * agent's lifecycle.
+   * @returns a promise settling when every agent's scope is reconciled.
    */
-  clonesChanged(): Promise<void> {
+  cloneDataChanged(): Promise<void> {
     this.touchesClones = true
     return this.resync()
   }
 
   /**
-   * Re-derive the mode of every live top-level agent.
-   * @returns a promise settling when every agent's mode is reconciled.
+   * Re-derive the scope of every live top-level agent.
+   * @returns a promise settling when every agent's scope is reconciled.
    */
   resync(): Promise<void> {
     if (!this.touchesClones) return Promise.resolve()
@@ -312,7 +412,7 @@ export class CloneInterviewCoordinator {
    */
   private close(): void {
     this.disposed = true
-    for (const scope of this.installed.values()) void scope.dispose()
+    for (const entry of this.installed.values()) void entry.scope.dispose()
     this.installed.clear()
     this.chains.clear()
     this.opened.clear()
@@ -337,26 +437,82 @@ export class CloneInterviewCoordinator {
     const next = previous
       .then(() => this.reconcile(agent))
       .catch((error: unknown) => {
-        this.ctx.logger.warn(`ketos-clone-core: interview mode failed for agent "${agent.id}": ${String(error)}`)
+        this.ctx.logger.warn(`ketos-clone-core: clone session scope failed for agent "${agent.id}": ${String(error)}`)
       })
     this.chains.set(agent, next)
     return next
   }
 
-  /** Install, refresh, or withdraw one agent's interview scope. */
+  /**
+   * Install, refresh, or withdraw one agent's clone session scope. A scope is
+   * refreshed in place when its clone and interview mode are unchanged;
+   * anything else disposes it and installs the correct one, because the
+   * registrations themselves differ.
+   */
   private async reconcile(agent: Agent): Promise<void> {
     if (this.disposed || !this.touchesClones) return
-    const repository = await this.database.repository()
-    const mode = this.interviewing(repository, agent.id)
+    const [repository, memories] = await Promise.all([
+      this.database.repository(),
+      this.database.memoryRepository(),
+    ])
+    const bound = this.boundClone(repository, agent.id)
     const installed = this.installed.get(agent)
-    if (!mode) {
+    if (bound === undefined) {
       if (installed === undefined) return
       this.installed.delete(agent)
-      await installed.dispose()
+      await installed.scope.dispose()
       return
     }
-    if (installed === undefined) {
-      const scope = agent.ctx.inject(['tools', 'systemPrompt'], (scoped) => {
+    const interviewing = bound.role === 'interview' && bound.clone.status === 'interviewing'
+    if (installed === undefined || installed.cloneId !== bound.clone.id || installed.interviewing !== interviewing) {
+      if (installed !== undefined) {
+        this.installed.delete(agent)
+        await installed.scope.dispose()
+      }
+      const fresh = await this.install(agent, repository, memories, bound.clone, interviewing)
+      if (fresh === undefined) return
+      this.installed.set(agent, fresh)
+    } else {
+      this.refresh(installed, memories, bound.clone)
+    }
+    if (interviewing) this.open(agent)
+  }
+
+  /**
+   * Register the whole clone session scope into one agent and wait for its
+   * activation. The prompt providers close over the mutable state the
+   * returned entry carries, so a later refresh republishes without
+   * re-registering.
+   * @returns the installed entry, or undefined when disposal won the race.
+   */
+  private async install(
+    agent: Agent,
+    repository: CloneRepository,
+    memories: MemoryRepository,
+    clone: CloneRecord,
+    interviewing: boolean,
+  ): Promise<CloneScope | undefined> {
+    const profile = { text: profileSectionText(clone) }
+    const memory = { text: this.snapshot(memories, clone.id) }
+    const scope = agent.ctx.inject(['tools', 'systemPrompt'], (scoped) => {
+      scoped.systemPrompt.section({
+        name: CLONE_PROFILE_SECTION,
+        order: CLONE_PROFILE_ORDER,
+        text: () => profile.text,
+      })
+      scoped.systemPrompt.context({
+        name: CLONE_MEMORY_CONTEXT,
+        order: CLONE_MEMORY_ORDER,
+        text: () => memory.text,
+      })
+      scoped.tools.register(cloneMemoryRememberTool(
+        (sessionId, args) => this.remember(repository, memories, sessionId, args),
+        (saving) => { this.request(saving) },
+      ))
+      scoped.tools.register(cloneMemorySearchTool(
+        (sessionId, args) => this.search(repository, memories, sessionId, args),
+      ))
+      if (interviewing) {
         scoped.systemPrompt.section({
           name: CLONE_INTERVIEW_SECTION,
           order: CLONE_INTERVIEW_ORDER,
@@ -369,28 +525,87 @@ export class CloneInterviewCoordinator {
           },
           (saving) => { this.request(saving) },
         ))
-      })
-      await scope
-      // oxlint-disable-next-line typescript/no-unnecessary-condition -- close() (a closure) sets it.
-      if (this.disposed) {
-        await scope.dispose()
-        return
       }
-      this.installed.set(agent, scope)
+    })
+    await scope
+    // Disposal may have won the race while the scope was activating; the
+    // registrations belong to the disposal from here on.
+    if (this.disposed) {
+      await scope.dispose()
+      return undefined
     }
-    this.open(agent)
+    return { scope, cloneId: clone.id, interviewing, profile, memory }
+  }
+
+  /** Rebuild the profile text and the memory snapshot of one installed scope. */
+  private refresh(entry: CloneScope, memories: MemoryRepository, clone: CloneRecord): void {
+    entry.profile.text = profileSectionText(clone)
+    entry.memory.text = this.snapshot(memories, clone.id)
+  }
+
+  /** The newest active memories rendered inside the configured budget. */
+  private snapshot(memories: MemoryRepository, cloneId: CloneId): string {
+    return memorySnapshotText(memories.recentActive(cloneId, this.budget.entries), this.budget.chars)
   }
 
   /**
-   * Whether stored state puts one session in interview mode.
-   * @param repository - the open clone repository.
-   * @param sessionId - the session to classify.
-   * @returns whether the session interviews a clone whose profile is pending.
+   * The clone one session works for, or undefined when it has none. A binding
+   * whose clone disappeared counts as none: nothing may inject a profile the
+   * store does not hold.
    */
-  private interviewing(repository: CloneRepository, sessionId: SessionId): boolean {
+  private boundClone(repository: CloneRepository, sessionId: SessionId): BoundClone | undefined {
     const binding = repository.bindingFor(sessionId)
-    if (binding === undefined || binding.role !== 'interview') return false
-    return repository.getClone(binding.cloneId)?.status === 'interviewing'
+    if (binding === undefined) return undefined
+    const clone = repository.getClone(binding.cloneId)
+    if (clone === undefined) return undefined
+    return { clone, role: binding.role }
+  }
+
+  /**
+   * Save one remembered fact for the calling session's clone. The binding is
+   * re-checked at execution time: a tool call may land after the binding went.
+   */
+  private remember(
+    repository: CloneRepository,
+    memories: MemoryRepository,
+    sessionId: SessionId,
+    args: RememberArguments,
+  ): Promise<RememberedMemory> {
+    const bound = this.boundClone(repository, sessionId)
+    if (bound === undefined) throw new CloneSessionNotBoundError(sessionId)
+    const status = args.methodologyCandidate ? 'candidate' : 'active'
+    const memory = memories.remember({
+      cloneId: bound.clone.id,
+      content: args.content,
+      ...(args.tags === undefined ? {} : { tags: args.tags }),
+      sourceSessionId: sessionId,
+      status,
+    })
+    return Promise.resolve({ id: memory.id, status })
+  }
+
+  /**
+   * Search the calling session's clone memory. The binding is re-checked at
+   * execution time, so a call that outlived the binding is refused instead of
+   * reading another clone.
+   */
+  private search(
+    repository: CloneRepository,
+    memories: MemoryRepository,
+    sessionId: SessionId,
+    args: SearchArguments,
+  ): Promise<FoundMemory[]> {
+    const bound = this.boundClone(repository, sessionId)
+    if (bound === undefined) throw new CloneSessionNotBoundError(sessionId)
+    const found = memories.search(bound.clone.id, args.query, args.limit ?? MEMORY_LIMITS.searchLimit)
+    return Promise.resolve(found.map(memory => ({
+      id: memory.id,
+      content: memory.content,
+      tags: [...memory.tags],
+      // Search never returns an archived memory without an explicit status
+      // filter, and the tool never passes one.
+      status: memory.status === 'candidate' ? 'candidate' : 'active',
+    })))
   }
 
   /** Queue the opening turn unless this session already had one. */

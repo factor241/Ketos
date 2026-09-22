@@ -106,7 +106,7 @@ describe('board plugin registration', () => {
     expect(runtime.slots.entriesOfSlot('board.canvas')).toHaveLength(1)
     expect(runtime.slots.entriesOfSlot('board.windows')).toHaveLength(1)
     expect(runtime.slots.entries('board.window')).toHaveLength(6)
-    expect(runtime.slots.entries('board.window.body')).toHaveLength(2)
+    expect(runtime.slots.entries('board.window.body')).toHaveLength(3)
 
     runtime.root.release()
     expect(runtime.slots.entries('main')).toEqual([])

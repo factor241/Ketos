@@ -103,7 +103,7 @@ describe('tasks list', () => {
     expect(statusOf('running')).toContain('Running')
   })
 
-  it('starts scoped to the window clone and switches to every task', async () => {
+  it('filters the shared roster by the window clone and switches to every task', async () => {
     const refreshTasks = vi.fn()
     render(<TasksBody {...tasksProps({
       refreshTasks,
@@ -116,13 +116,15 @@ describe('tasks list', () => {
       },
     })} />)
 
+    // The roster carries every clone's tasks while the view stays scoped to
+    // this window's clone, and the read itself is the shared global one.
     await waitFor(() => { expect(row('task-1')).not.toBeNull() })
     expect(row('task-2')).toBeNull()
-    expect(refreshTasks).toHaveBeenCalledWith('clone-1')
+    expect(refreshTasks).toHaveBeenCalledWith()
 
     fireEvent.click(document.querySelector('[data-board-tasks-filter="all"]') as HTMLElement)
     await waitFor(() => { expect(row('task-2')).not.toBeNull() })
-    expect(refreshTasks).toHaveBeenCalledWith(undefined)
+    expect(refreshTasks).toHaveBeenCalledWith()
   })
 
   it('shows the loading state until a read answers, retries, then the empty state', async () => {

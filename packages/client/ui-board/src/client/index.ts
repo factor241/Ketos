@@ -178,17 +178,19 @@ export function apply(ctx: ClientContext): void {
   }
   refreshClones()
 
-  // Task roster: the /api/ketos.tasks list the tasks window reads. Like the
+  // Task roster: the /api/ketos.tasks list the tasks windows read. The read
+  // covers every clone and the windows filter it client-side, so two windows
+  // scoped to different clones cannot overwrite each other's list. Like the
   // clone roster, a failed read keeps the last published list and leaves the
   // roster unloaded, so a transient failure reads as "still loading" with a
   // retry rather than as a deployment without tasks; every task mutation and
-  // the window's poll re-read it.
+  // the windows' poll re-read it.
   const taskRoster = createSnapshotStore<BoardTaskRoster>({ tasks: [], loaded: false })
   /** Newest task read; an older answer never overwrites a newer one. */
   let taskReadSeq = 0
-  const refreshTasks = (cloneId?: CloneId): void => {
+  const refreshTasks = (): void => {
     const seq = ++taskReadSeq
-    void listTasks(cloneId).then((result) => {
+    void listTasks().then((result) => {
       if (seq !== taskReadSeq || !result.ok) return
       taskRoster.set({ tasks: result.value, loaded: true })
     })
@@ -198,11 +200,14 @@ export function apply(ctx: ClientContext): void {
   /**
    * Start one stored task on a fresh session and report the outcome. The
    * session is created first, so the route's `start` records the identity the
-   * task runs on; a deployment that refuses the start leaves the row as it was.
+   * task runs on; the clone's preferred model route is selected on that session
+   * exactly as the interview flow selects it. A deployment that refuses the
+   * start leaves the row as it was.
    * @param taskId - task identity.
+   * @param clone - the clone the task belongs to.
    * @returns what the start did, for the calling surface's notice.
    */
-  const startTaskById = async (taskId: TaskId): Promise<BoardTaskOutcome> => {
+  const startTaskById = async (taskId: TaskId, clone: CloneDto): Promise<BoardTaskOutcome> => {
     let sessionId: SessionId
     try {
       sessionId = await ctx.sessions.create()
@@ -210,6 +215,12 @@ export function apply(ctx: ClientContext): void {
       // No session, no task: the row stays pending and the notice reports a
       // failed gesture instead of a start that has nowhere to run.
       return 'failed'
+    }
+    const route = clone.preferredModel === null ? undefined : parseModelRoute(clone.preferredModel)
+    if (route !== undefined) {
+      // The selection is best effort, as the clone window's own model chip is:
+      // a refused route leaves the deployment default and the task still runs.
+      await ctx.modelDirectories.directoryFor(sessionId).select(route).catch(() => undefined)
     }
     const result = await startTaskRequest(taskId, sessionId)
     refreshTasks()
@@ -512,6 +523,15 @@ export function apply(ctx: ClientContext): void {
       }
     },
     refreshTasks,
+    openTasksWindow: (cloneId: CloneId) => {
+      const state = instance.getSnapshot()
+      const holder = Object.values(state.windows).find(entry => entry.kind === 'tasks' && entry.cloneId === cloneId)
+      if (holder !== undefined) {
+        instance.actions.centerOnWindow(holder.id)
+        return
+      }
+      openBoardWindow(instance.actions, 'tasks', nextWindowOrdinal(state.windows), { cloneId })
+    },
     createTask: async (cloneId: CloneId, objective: string) => {
       const clone = cloneRoster.getSnapshot().clones.find(entry => entry.id === cloneId)
       if (clone === undefined) {
@@ -531,7 +551,7 @@ export function apply(ctx: ClientContext): void {
         }
         return 'failed'
       }
-      return await startTaskById(created.value.id)
+      return await startTaskById(created.value.id, clone)
     },
     startTask: async (taskId: TaskId) => {
       const task = taskRoster.getSnapshot().tasks.find(entry => entry.id === taskId)
@@ -539,10 +559,11 @@ export function apply(ctx: ClientContext): void {
         refreshTasks()
         return 'missing'
       }
+      if (task.status !== 'pending') return 'conflict'
       const clone = cloneRoster.getSnapshot().clones.find(entry => entry.id === task.cloneId)
       if (clone === undefined) return 'missing'
       if (clone.status !== 'ready') return 'not-ready'
-      return await startTaskById(taskId)
+      return await startTaskById(taskId, clone)
     },
     cancelTask: async (taskId: TaskId) => {
       const result = await cancelTaskRequest(taskId)

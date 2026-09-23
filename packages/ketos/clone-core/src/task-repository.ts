@@ -107,6 +107,14 @@ function parseTaskStatus(id: string, value: string): TaskStatus {
   return value as TaskStatus
 }
 
+/** Decode the stored round budget, refusing a value the goal could not accept. */
+function parseMaxRounds(id: string, value: number): number {
+  if (!Number.isSafeInteger(value) || value < 1 || value > MAX_TASK_ROUNDS) {
+    throw new Error(`task ${id}: max_rounds ${String(value)} is outside 1..${String(MAX_TASK_ROUNDS)}`)
+  }
+  return value
+}
+
 /** Decode one stored task row. */
 function toTaskRecord(row: TaskRow): CloneTaskRecord {
   return {
@@ -116,7 +124,7 @@ function toTaskRecord(row: TaskRow): CloneTaskRecord {
     objective: row.objective,
     status: parseTaskStatus(row.id, row.status),
     resultSummary: row.result_summary,
-    maxRounds: row.max_rounds,
+    maxRounds: parseMaxRounds(row.id, row.max_rounds),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -179,8 +187,11 @@ export class TaskRepository {
    * @returns the running task, or undefined.
    */
   runningTaskFor(sessionId: SessionId): CloneTaskRecord | undefined {
+    // Newest first: the runner refuses a second start on a session whose task
+    // is still running, and the previous task's row is the one to answer with
+    // if a hand-edited database ever holds two.
     const row = this.db.prepare(
-      "SELECT * FROM clone_tasks WHERE session_id = ? AND status = 'running'",
+      "SELECT * FROM clone_tasks WHERE session_id = ? AND status = 'running' ORDER BY rowid DESC LIMIT 1",
     ).get(sessionId) as unknown as TaskRow | undefined
     return row === undefined ? undefined : toTaskRecord(row)
   }

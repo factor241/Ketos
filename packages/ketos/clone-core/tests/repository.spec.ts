@@ -3,6 +3,7 @@ import { brandString } from '@deepseek-ai/dsh-brand'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { afterEach, describe, expect, it } from 'vitest'
 import { openDatabase } from '../src/db.ts'
+import { DEFAULT_TASK_ROUNDS, TaskRepository } from '../src/task-repository.ts'
 import {
   CloneConflictError, CloneNotFoundError, CloneNotInterviewingError, CloneRepository, CloneSessionNotBoundError,
   CLONE_TEXT_LIMITS,
@@ -129,16 +130,21 @@ describe('clone records', () => {
     expect(() => repository.updateClone('missing' as CloneId, { name: 'X' }, 1)).toThrow(CloneNotFoundError)
   })
 
-  it('deletes a clone and its session bindings, refusing a stale revision', async () => {
-    const repository = await fixture()
+  it('deletes a clone, its session bindings, and its tasks, refusing a stale revision', async () => {
+    const db = await openDatabase(':memory:')
+    cleanups.push(() => { db.close() })
+    const repository = new CloneRepository(db)
+    const tasks = new TaskRepository(db)
     const clone = repository.createClone(MINIMAL)
     repository.bindSession({ cloneId: clone.id, sessionId: sid('session-1') })
+    tasks.createTask({ cloneId: clone.id, objective: 'Собрать отчёт', maxRounds: DEFAULT_TASK_ROUNDS })
     expect(() => repository.deleteClone(clone.id, 9)).toThrow(CloneConflictError)
     expect(repository.getClone(clone.id)).toBeDefined()
     repository.updateClone(clone.id, { status: 'ready' }, 1)
     expect(repository.deleteClone(clone.id, 2)).toBe(clone.id)
     expect(repository.getClone(clone.id)).toBeUndefined()
     expect(repository.listSessions(clone.id)).toEqual([])
+    expect(tasks.listTasks(clone.id)).toEqual([])
     expect(() => repository.deleteClone(clone.id, 2)).toThrow(CloneNotFoundError)
   })
 })

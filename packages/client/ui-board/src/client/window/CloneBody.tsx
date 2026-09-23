@@ -24,8 +24,6 @@ import {
 } from '@ketos/clone-core/methodology'
 import { CLONE_STATUS_ROWS, TASK_OBJECTIVE_LIMIT, type BoardTaskOutcome, type BoardWindowInjected, type CloneModelOption } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
-import { nextWindowOrdinal } from '../store.ts'
-import { openBoardWindow } from '../open-window.ts'
 import type { BoardTranslate } from '../locale.ts'
 import { relativeAge } from '../relative-age.ts'
 import { formatModelRoute } from '../clone-model.ts'
@@ -119,6 +117,7 @@ export function CloneBody({
   refreshClones,
   startCloneInterview,
   createTask,
+  openTasksWindow,
   openChat,
 }: CloneBodyProps) {
   const roster = useCloneList(source => source)
@@ -132,9 +131,6 @@ export function CloneBody({
   // switches between its profile and interview bodies, and a remount must not
   // drop the user's text or the marks of what the agent rewrote.
   const cloneEdits = useStore(state => state.cloneEdits)
-  // The open windows resolve the Autopilot gesture's target: a tasks window
-  // already scoped to this clone comes forward instead of opening a second one.
-  const windows = useStore(state => state.windows)
   const [notice, setNotice] = useState<CloneNotice>(undefined)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -389,12 +385,9 @@ export function CloneBody({
     setAutopilotOutcome(outcome)
     if (outcome !== 'started') return
     setAutopilotObjective('')
-    const holder = Object.values(windows).find(entry => entry.kind === 'tasks' && entry.cloneId === clone.id)
-    if (holder !== undefined) {
-      actions.centerOnWindow(holder.id)
-      return
-    }
-    openBoardWindow(actions, 'tasks', nextWindowOrdinal(windows), { cloneId: clone.id })
+    // The board resolves the target window: an existing tasks window scoped to
+    // this clone comes forward instead of a second one opening.
+    openTasksWindow(clone.id)
   }
 
   if (cloneId !== undefined && clone === undefined && !roster.loaded) {

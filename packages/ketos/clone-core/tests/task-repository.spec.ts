@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
-import { CloneDatabase } from '../src/db.ts'
+import { CloneDatabase, openDatabase } from '../src/db.ts'
 import { CloneRepository } from '../src/repository.ts'
 import {
   CloneNotReadyError, DEFAULT_TASK_ROUNDS, INTERRUPTED_TASK_REASON,
@@ -135,6 +135,19 @@ describe('task repository', () => {
     tasks.startTask(done, SessionId('session-task-3'))
     tasks.completeTask(done, null)
     expect(() => tasks.cancelTask(done)).toThrow(TaskStateError)
+  })
+
+  it('refuses a hand-edited round budget when the row is read', async () => {
+    const db = await openDatabase(':memory:')
+    cleanups.push(async () => { db.close() })
+    const clones = new CloneRepository(db)
+    const tasks = new TaskRepository(db)
+    const clone = clones.createClone({ name: 'Борис', role: 'Юрист', status: 'ready' })
+    const task = tasks.createTask({ cloneId: clone.id, objective: 'Собрать отчёт', maxRounds: 5 })
+    db.prepare('UPDATE clone_tasks SET max_rounds = 0 WHERE id = ?').run(task.id)
+    expect(() => tasks.getTask(task.id)).toThrow(/max_rounds/u)
+    db.prepare('UPDATE clone_tasks SET max_rounds = -5 WHERE id = ?').run(task.id)
+    expect(() => tasks.listTasks()).toThrow(/max_rounds/u)
   })
 
   it('reports a missing task identity and releases a failed start', async () => {

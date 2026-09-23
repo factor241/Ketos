@@ -87,12 +87,12 @@ kind: "package-reference"
 | `POST` | `{ op: 'start', id, sessionId }` | `{ ok: true, task }` |
 | `POST` | `{ op: 'cancel', id }` | `{ ok: true, task }` |
 
-失败应答为 `400` `ketos/invalid`、`404` `ketos/task-not-found` 或 `ketos/clone-not-found`、`409` `ketos/invalid-state` 与 `409` `ketos/agent-not-live`。`objective` 必填、会去除首尾空白，且至多 2000 字符；`create` 以配置的 `defaultMaxRounds` 预算存储一条 `pending` 任务；只有当任务为 `pending`、其克隆存在且为 `ready`、且所指会话有存活 agent 时，`start` 才把它转为 `running`；`cancel` 把 `pending` 或 `running` 任务转为 `cancelled`，任务已是 `cancelled` 时为空操作。每次获准的写入都会通知克隆会话协调器，因此报告工具随启动出现、随终态消失。
+失败应答为 `400` `ketos/invalid`、`404` `ketos/task-not-found` 或 `ketos/clone-not-found`、`409` `ketos/invalid-state` 与 `409` `ketos/agent-not-live`。`objective` 必填、会去除首尾空白，且至多 2000 字符；`create` 以配置的 `defaultMaxRounds` 预算存储一条 `pending` 任务；只有当任务为 `pending`、其克隆存在且为 `ready`、且所指会话有存活 agent 时，`start` 才把它转为 `running`；`cancel` 把 `pending` 或 `running` 任务转为 `cancelled`，任务已是 `cancelled` 时为空操作。每次获准的写入都会通知克隆会话协调器，因此报告工具随启动出现、在任务到达终态时被撤回；当终态事件落在轮次进行中时，运行器会把自身的撤回推迟到轮次结束，而由路由变更触发的 scope 变更会立即生效。删除克隆会连同其绑定与记忆一起删除其任务。
 
 ### 可观察行为
 
 - **打开是惰性的。** 配置会挂载插件并注册路由，但 `node:sqlite` 的导入与文件打开发生在首次克隆请求或首个恢复的会话时——从磁盘恢复的会话可能是一场访谈，因此必须查询它。所有聊天都是新的、且从不触碰克隆的进程绝不会打开该文件。
-- **文件仅属主可访问。** 父目录以 `0700` 创建，缺失的数据库文件以 `0600` 创建；已存在的文件保留其权限。数据库以 WAL 模式运行，`application_id` 为 `KTCL`，`user_version` 为 `4`。
+- **文件仅属主可访问。** 父目录以 `0700` 创建，缺失的数据库文件以 `0600` 创建；已存在的文件保留其权限。数据库以 WAL 模式运行，`application_id` 为 `KTCL`，`user_version` 为 `5`。
 - **克隆有三种生命周期状态。** `draft` 是手工创建的记录，`interviewing` 是访谈会话正在草拟其档案的克隆，`ready` 是已保存、等待人检查的档案。只有 `interviewing` 会组合访谈模式。
 - **外来数据库被拒绝。** 由其他应用写入的 `application_id`、比本构建更新的 `user_version`，或不是 SQLite 数据库的文件，都会在打开时被拒绝而不是被改写。没有戳记的空 SQLite 文件会被采用。
 - **写入按修订号校验。** 仅当存储的 `revision` 仍等于调用方读到的值时，`update` 与 `delete` 才会生效；否则应答 `ketos/clone-conflict`，存储记录保持不变。一个会话最多绑定一个克隆，且同一会话的最新绑定生效。
@@ -105,8 +105,8 @@ kind: "package-reference"
 - **个人技能注册进 agent 自身的层。** 已绑定 agent 的克隆技能作为运行时 skill 注册进该 agent 自己的 skill 注册表 scope，每个技能携带其存储的指令，以及其目录条目显示的名称与描述。名称不符合注册表语法、超过 64 字符上限或描述为空的技能不会进入注册表；未组合 skill 注册表的部署只会让该 scope 保持待定，不会因此缺少档案、记忆工具或访谈模式。
 - **档案是稳定的，记忆是动态的。** 档案走 `systemPrompt.section`，记忆快照走 `systemPrompt.context`，因此新记忆会在下一个轮次作为一条持久运行时上下文消息到达，绝不重写请求前缀；`memoryEntries` 与 `memoryChars` 限定该快照，更深的查找则交给搜索工具。
 - **人的编辑会到达 agent。** 通过 `/api/ketos.memory` 进行的编辑或删除会重新派生 agent 的快照，因此它的下一个轮次看到的正是人留在记忆窗口中的内容。
-- **自主任务是存活会话上的一个目标。** `start` 把会话绑定到克隆、重新派生其 scope，并以任务的 objective 与预算创建目标；随后随附的 `goal-round-driver` 会在 agent 每次空闲时加入下一轮，因此克隆无需人提示即可工作。`clone_task_report` 存储报告并完成目标；目标到达 `complete` 时任务以 `done` 落定并带上该报告——若未提交报告则带上最新的 assistant 文本——`blocked` 目标以 `failed` 落定并带上驱动器给出的消息，唯一例外是以代码 `cancelled` 被阻塞的目标，它以 `cancelled` 落定；会话关闭会把运行中的任务落定为 `failed`。终态绝不会被改写，重复取消是空操作。
-- **任务绝不会自行恢复。** 进程内首次打开任务表时，每条 `running` 任务都会以 `the process restarted before the task finished` 落定为 `failed`：目标驱动器在重启后不会重新激活任何目标，被打断的那一轮也已不复存在，因此状态必须停止声称工作仍在进行。继续工作意味着启动一条新任务。
+- **自主任务是存活会话上的一个目标。** `start` 把会话绑定到克隆、像访谈流程一样在该会话上选中克隆的首选模型路由、重新派生其 scope，并以任务的 objective 与预算创建目标；随后随附的 `goal-round-driver` 会在 agent 每次空闲时加入下一轮，因此克隆无需人提示即可工作。`clone_task_report` 存储报告并完成目标；目标到达 `complete` 时任务以 `done` 落定并带上该报告——若未提交报告则带上最新的 assistant 文本——`blocked` 目标以 `failed` 落定并带上驱动器给出的消息，唯一例外是以代码 `cancelled` 被阻塞的目标，它以 `cancelled` 落定；会话关闭会把运行中的任务落定为 `failed`。终态绝不会被改写，重复取消是空操作。
+- **任务绝不会自行恢复。** 克隆数据库首次打开任务表时，每条 `running` 任务都会以 `the process restarted before the task finished` 落定为 `failed`：目标驱动器在重启后不会重新激活任何目标，被打断的那一轮也已不复存在，因此状态必须停止声称工作仍在进行。继续工作意味着启动一条新任务。
 - **取消会持久地阻塞目标。** `cancel` 以代码 `cancelled` 调用 `ctx.goals.block`——写入持久的 `goal/change` 记录，而不是进程本地的 disarm——并中止正在进行的轮次，因此不会再启动新的轮次，日志也会说明原因。
 
 -----
@@ -238,6 +238,9 @@ kind: "package-reference"
 - **轮次进度是尽力而为的** —— 窗口通过 `ctx.remote.goals.get` 读取每条运行中任务的目标；目标已不存在的会话只是不显示进度行。
 - **终态任务不能重启或恢复** —— `done`、`failed` 与 `cancelled` 都是最终状态；再次运行工作只能新建任务。
 - **报告是克隆提交的文本** —— 本包按原样存储工具给出的摘要；窗口列出的产物折叠自浏览器已持有的会话 transcript，因此该客户端从未打开过的会话不会列出任何产物。
+- **在轮次仍进行时被撤回的工具可能回答 `unknown tool`** —— 路由变更会立即对账各 scope，因此若模型在同一轮次中、在别的操作移除了报告工具后再次调用它，会看到 unknown-tool 失败；访谈工具具有同样的性质，而运行器自身的终态路径会等待轮次结束。
+- **重启后的工作由人工继续** —— 重启解除激活的目标仍可从目标界面恢复，而任务行保持 `failed`；从任务记录自动继续属于后 MVP。
+- **被拒绝的启动所创建的会话会作为普通会话留下** —— 客户端在创建前检查克隆与任务状态，但创建之后的宿主拒绝（例如会话的 agent 未能启动）会把空会话留在会话列表中，因为产品没有会话删除功能。
 - **路由为手工校验而非生成** —— 克隆领域没有 Typert 代码生成（API 仍在变化），因此浏览器与主机手工共享 `src/types.ts`，并由路由自行校验每个字段。
 - **已存储的技能编辑只有在重新安装 scope 或重建 agent 时才到达存活 agent** —— 已绑定的 agent 只注册一次技能 scope，因此存储的变更只会刷新档案与记忆文本，新集合要等 scope 重新安装或 agent 重建后才会出现。
 - **会话不固定到某个克隆修订号** —— 存活会话在下一个轮次看到档案与方法论编辑，而之后重建的会话读取的是当时的存储记录；没有任何机制重放会话启动时的记录。

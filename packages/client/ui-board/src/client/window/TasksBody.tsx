@@ -101,25 +101,24 @@ export function TasksBody({
   const [progress, setProgress] = useState<Record<string, BoardTaskProgress>>({})
 
   const scoped = scope === 'clone' && cloneId !== undefined
-  const filterCloneId = scoped ? cloneId : undefined
   const tasks = useMemo(
     () => (scoped ? roster.tasks.filter(task => task.cloneId === cloneId) : roster.tasks),
     [roster.tasks, scoped, cloneId],
   )
   const active = roster.tasks.some(task => task.status === 'pending' || task.status === 'running')
 
-  // The roster is read on mount and whenever the scope changes; while any task
-  // is active the same read repeats on the poll interval. The interval stops
-  // with the last active task and on unmount.
+  // The shared roster is read on mount; while any task is active the same read
+  // repeats on the poll interval. The interval stops with the last active task
+  // and on unmount.
   useEffect(() => {
-    refreshTasks(filterCloneId)
-  }, [refreshTasks, filterCloneId])
+    refreshTasks()
+  }, [refreshTasks])
 
   useEffect(() => {
     if (!active) return undefined
-    const timer = setInterval(() => { refreshTasks(filterCloneId) }, TASK_POLL_INTERVAL_MS)
+    const timer = setInterval(() => { refreshTasks() }, TASK_POLL_INTERVAL_MS)
     return () => { clearInterval(timer) }
-  }, [active, filterCloneId, refreshTasks])
+  }, [active, refreshTasks])
 
   // Round progress belongs to the goal of each running task's session; a
   // settled row shows its final status instead.
@@ -236,7 +235,7 @@ export function TasksBody({
       {!roster.loaded && (
         <div className={css.loading} data-board-tasks-loading="">
           <span className={css.hint}>{t('tasks.loading')}</span>
-          <Button size="sm" variant="outline" data-board-tasks="retry" onClick={() => { refreshTasks(filterCloneId) }}>
+          <Button size="sm" variant="outline" data-board-tasks="retry" onClick={() => { refreshTasks() }}>
             {t('clone.retry')}
           </Button>
         </div>

@@ -389,7 +389,7 @@ export class CloneRepository {
   }
 
   /**
-   * Delete one clone and its session bindings. The delete applies only while
+   * Delete one clone, its session bindings, and its tasks. The delete applies only while
    * the stored revision still equals `expectedRevision`; the revision guard is
    * part of the deleting statement, inside the transaction, so no writer can
    * slip a newer revision between the check and the delete.
@@ -414,6 +414,9 @@ export class CloneRepository {
       // and the index rows, or the index would keep text nothing can reach.
       this.db.prepare('DELETE FROM memories WHERE clone_id = ?').run(id)
       this.db.prepare('DELETE FROM memories_fts WHERE clone_id = ?').run(id)
+      // A task belongs to its clone too: an orphan would stay in the tasks
+      // window forever, unable to start and unable to finish.
+      this.db.prepare('DELETE FROM clone_tasks WHERE clone_id = ?').run(id)
     })
     return id
   }
@@ -436,6 +439,15 @@ export class CloneRepository {
         clone_id = excluded.clone_id, role = excluded.role, created_at = excluded.created_at
     `).run(input.sessionId, input.cloneId, role, createdAt)
     return { sessionId: input.sessionId, cloneId: input.cloneId, role, createdAt }
+  }
+
+  /**
+   * Remove one session's clone binding. A refused task start unbinds the
+   * session it had just bound, so the session is left exactly as it was.
+   * @param sessionId - session identity whose binding is removed.
+   */
+  unbindSession(sessionId: SessionId): void {
+    this.db.prepare('DELETE FROM clone_sessions WHERE session_id = ?').run(sessionId)
   }
 
   /**

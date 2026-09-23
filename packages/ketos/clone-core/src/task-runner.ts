@@ -17,6 +17,7 @@ import { HarnessError } from '@deepseek-ai/dsh-llm'
 import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { CloneDatabase } from './db.ts'
+import type { CloneRepository } from './repository.ts'
 import type { TaskRepository } from './task-repository.ts'
 import { TaskNotFoundError, TaskStateError } from './task-repository.ts'
 import type { CloneTaskRecord, TaskId } from './types.ts'
@@ -148,13 +149,21 @@ export class CloneTaskRunner implements CloneTaskBridge {
     if (goal !== undefined && goal.phase !== 'complete') {
       throw new TaskStateError(taskId, task.status, 'start while the session already carries an unfinished goal')
     }
+    const repository = await this.database.repository()
+    // A session that already works for another clone must not be hijacked by a
+    // task; a fresh task session has no binding and a rebind of the same clone
+    // is a no-op.
+    const previous = repository.bindingFor(sessionId)
+    if (previous !== undefined && previous.cloneId !== task.cloneId) {
+      throw new TaskStateError(taskId, task.status, 'start a session already bound to another clone')
+    }
     const started = tasks.startTask(taskId, sessionId)
     try {
-      const repository = await this.database.repository()
       repository.bindSession({ cloneId: started.cloneId, sessionId, role: 'main' })
       await this.options.syncSessionScope()
       this.goals().create(agent, { objective: started.objective, maxGoalRounds: started.maxRounds })
     } catch (error: unknown) {
+      if (previous === undefined) this.unbind(repository, sessionId)
       this.release(tasks, taskId)
       throw error
     }
@@ -243,13 +252,19 @@ export class CloneTaskRunner implements CloneTaskBridge {
 
   /** Follow the durable events that move a running task to its terminal status. */
   private async onGoalChanged(agent: Agent, change: GoalChanged): Promise<void> {
-    const goal = change.goal
-    if (goal === undefined) return
     const taskId = this.active.get(agent.id)
     if (taskId === undefined) return
     const tasks = await this.database.taskRepository()
     const task = tasks.getTask(taskId)
     if (task === undefined || task.status !== 'running') return
+    const goal = change.goal
+    if (goal === undefined) {
+      // The goal was cleared (a tombstone in the log): the task can neither
+      // continue nor report, and a later start on the same session must find
+      // the session free.
+      this.settle(() => tasks.failTask(taskId, 'the goal was cleared before the task finished'))
+      return
+    }
     if (goal.phase === 'complete') {
       this.settle(() => tasks.completeTask(taskId, this.lastText.get(agent.id) ?? null))
     } else if (goal.phase === 'blocked') {
@@ -353,6 +368,15 @@ export class CloneTaskRunner implements CloneTaskBridge {
     void this.options.syncSessionScope().catch((error: unknown) => {
       this.ctx.logger.warn(`ketos-clone-core: could not reconcile the task scope: ${String(error)}`)
     })
+  }
+
+  /** Remove the binding a refused start wrote, keeping the original failure loud. */
+  private unbind(repository: CloneRepository, sessionId: SessionId): void {
+    try {
+      repository.unbindSession(sessionId)
+    } catch (error: unknown) {
+      this.ctx.logger.warn(`ketos-clone-core: could not unbind session "${sessionId}": ${String(error)}`)
+    }
   }
 
   /** Release a task whose start failed, keeping the original failure loud. */

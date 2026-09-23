@@ -1,5 +1,5 @@
 /** The task runner: starting a goal, terminal statuses, and cancellation. */
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import type { Agent, AgentStatus } from '@deepseek-ai/dsh-agent'
@@ -51,7 +51,7 @@ async function harness(): Promise<{
   cloneId: CloneId
   taskId: TaskId
   disposeSession: () => Promise<void>
-  syncSessionScope: ReturnType<typeof vi.fn>
+  syncSessionScope: Mock<() => Promise<void>>
   setStatus: (status: AgentStatus) => void
 }> {
   const ctx = new Context()
@@ -77,7 +77,7 @@ async function harness(): Promise<{
   const clone = (await database.repository()).createClone({ name: 'Анна', role: 'Аналитик', status: 'ready' })
   const task = (await database.taskRepository())
     .createTask({ cloneId: clone.id, objective: 'Собрать отчёт', maxRounds: DEFAULT_TASK_ROUNDS })
-  const syncSessionScope = vi.fn(() => Promise.resolve())
+  const syncSessionScope: Mock<() => Promise<void>> = vi.fn(() => Promise.resolve())
   const runner = new CloneTaskRunner(ctx, database, { syncSessionScope })
   runner.start()
   return {
@@ -108,6 +108,27 @@ describe('task runner start', () => {
     })
     expect((await database.repository()).bindingFor(session.id)).toMatchObject({ cloneId, role: 'main' })
     expect(await runner.runningTaskFor(session.id)).toMatchObject({ id: taskId, status: 'running' })
+  })
+
+  it('refuses to hijack a session already bound to another clone', async () => {
+    const { database, runner, session, taskId } = await harness()
+    const other = (await database.repository()).createClone({ name: 'Борис', role: 'Юрист', status: 'ready' })
+    ;(await database.repository()).bindSession({ cloneId: other.id, sessionId: session.id, role: 'interview' })
+    await expect(runner.startTask(taskId, session.id)).rejects.toBeInstanceOf(TaskStateError)
+    expect((await database.repository()).bindingFor(session.id)).toMatchObject({ cloneId: other.id, role: 'interview' })
+    expect((await stored(database, taskId)).status).toBe('pending')
+  })
+
+  it('leaves no binding behind when the goal cannot be created', async () => {
+    const { ctx, database, runner, agent, session, taskId, syncSessionScope } = await harness()
+    // A concurrent goal appears while the scope is syncing, so the task start
+    // fails after it already wrote the status and the binding.
+    syncSessionScope.mockImplementationOnce(async () => {
+      ctx.goals.create(agent, { objective: 'чужая цель', maxGoalRounds: 1 })
+    })
+    await expect(runner.startTask(taskId, session.id)).rejects.toThrow()
+    expect((await database.repository()).bindingFor(session.id)).toBeUndefined()
+    expect((await stored(database, taskId)).status).toBe('pending')
   })
 
   it('refuses a second start, a dead session, and an unfinished goal', async () => {
@@ -195,6 +216,23 @@ describe('task runner terminal statuses', () => {
     const pending = (await database.taskRepository())
       .createTask({ cloneId, objective: 'Никогда не стартует', maxRounds: 3 })
     expect(await runner.cancelTask(pending.id)).toMatchObject({ status: 'cancelled', sessionId: null })
+  })
+
+  it('fails the task when its goal is cleared and frees the session', async () => {
+    const { ctx, database, runner, agent, session, cloneId, taskId } = await harness()
+    await runner.startTask(taskId, session.id)
+    const goal = ctx.goals.get(agent)
+    if (goal === undefined) throw new Error('the goal vanished')
+    ctx.goals.clear(agent, { id: goal.id, revision: goal.revision })
+    await vi.waitFor(async () => {
+      expect((await stored(database, taskId)).status).toBe('failed')
+    })
+    expect((await stored(database, taskId)).resultSummary).toMatch(/cleared/u)
+    expect(await runner.runningTaskFor(session.id)).toBeUndefined()
+    // The session is free again: a new task can start on it.
+    const next = (await database.taskRepository())
+      .createTask({ cloneId, objective: 'Новая задача', maxRounds: 3 })
+    await expect(runner.startTask(next.id, session.id)).resolves.toMatchObject({ status: 'running' })
   })
 
   it('keeps a terminal status when a later goal event arrives', async () => {

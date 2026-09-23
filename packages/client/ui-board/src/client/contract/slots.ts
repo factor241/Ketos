@@ -655,10 +655,18 @@ export interface BoardWindowInjected {
    */
   startCloneInterview: (clone: CloneDto, windowId: WindowId) => Promise<CloneSessionOutcome>
   /**
-   * Re-read the task roster; a failed read keeps the last list it published.
-   * @param cloneId - restrict the read to one clone; absent reads every clone's tasks.
+   * Re-read the shared task roster; a failed read keeps the last list it
+   * published. The read always covers every clone, so the roster is one list
+   * the tasks windows filter and one window's read never hides another's rows.
    */
-  refreshTasks: (cloneId?: CloneId) => void
+  refreshTasks: () => void
+  /**
+   * Bring forward the tasks window scoped to one clone, or open it when none
+   * exists. The board resolves this against its own window state, so a calling
+   * component never subscribes to the window map to find the holder.
+   * @param cloneId - clone the tasks window should be scoped to.
+   */
+  openTasksWindow: (cloneId: CloneId) => void
   /**
    * Create one task for a clone and start it on a fresh session: the session is
    * created first, so the task's `sessionId` names the session it runs on.

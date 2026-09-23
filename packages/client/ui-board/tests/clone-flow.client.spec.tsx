@@ -723,6 +723,24 @@ describe('clone autopilot', () => {
       .toContain('The task started.')
   })
 
+  it('applies the clone preferred model to the task session', async () => {
+    const select = vi.fn(async () => {})
+    stubCloneRoute([{ ...CLONE, status: 'ready', preferredModel: 'deepseek/deepseek-reasoner' }])
+    const { panel, field } = await mounted({ modelDirectory: { select } })
+    await waitFor(() => { expect(panel.container.querySelector('[data-board-clone-row="clone-1"]')).not.toBeNull() })
+    act(() => {
+      fireEvent.click(panel.container.querySelector('[data-board-clone-row="clone-1"]') as Element)
+    })
+    await waitFor(() => { expect(field('autopilot')).not.toBeNull() })
+
+    fireEvent.change(field('autopilot-objective') as Element, { target: { value: 'Собрать отчёт' } })
+    act(() => { fireEvent.click(field('autopilot') as Element) })
+
+    await waitFor(() => {
+      expect(select).toHaveBeenCalledWith({ provider: 'deepseek', model: 'deepseek-reasoner' })
+    })
+  })
+
   it('reports an agent-not-live refusal over the Autopilot form', async () => {
     const server = stubCloneRoute([{ ...CLONE, status: 'ready' }])
     server.taskRefuse = { op: 'start', status: 409, error: 'ketos/agent-not-live' }

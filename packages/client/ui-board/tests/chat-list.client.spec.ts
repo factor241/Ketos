@@ -70,12 +70,15 @@ describe('chatGroups', () => {
     expect(groups[1]?.chats.map(chat => chat.id)).toEqual(['c'])
   })
 
-  it('skips workspaces without visible chats and uses their title', () => {
+  it('lists registered workspaces without chats and uses their title', () => {
     const groups = grouped(
       workspaces([workspace('ws-1', '/work/ketos', [], 'Ketos bot'), workspace('ws-2', '/work/other', [])]),
       list([row('a')]),
     )
-    expect(groups.map(group => group.workspaceId)).toEqual([undefined])
+    expect(groups.map(group => group.workspaceId)).toEqual(['ws-1', 'ws-2', undefined])
+    expect(groups[0]?.label).toBe('Ketos bot')
+    expect(groups[0]?.chats).toEqual([])
+    expect(groups[1]?.label).toBe('other')
   })
 
   it('leaves out subagent and archived rows', () => {

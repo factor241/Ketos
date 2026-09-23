@@ -125,9 +125,11 @@ function flatIds(sessions: SessionListState): readonly SessionId[] {
 }
 
 /**
- * The projects the panel lists: every workspace that holds a visible chat, then
- * the ungrouped bucket for sessions no workspace claims. In the flat mode the
- * groups are one unlabelled bucket holding every visible chat.
+ * The projects the panel lists: every registered workspace in registry order —
+ * a workspace with no visible chat included, because the panel is where its
+ * first chat is created — then the ungrouped bucket for sessions no workspace
+ * claims. In the flat mode the groups are one unlabelled bucket holding every
+ * visible chat.
  * @param workspaces - workspace list snapshot.
  * @param sessions - session list snapshot.
  * @param options - the window's own chat and the user's view choice.
@@ -149,7 +151,6 @@ export function chatGroups(
   for (const workspace of workspaces.items) {
     const chats = rowsOf(workspace.sessionIds, sessions, archived, options)
     for (const chat of chats) claimed.add(chat.id)
-    if (chats.length === 0) continue
     groups.push({
       workspaceId: workspace.workspaceId,
       label: workspace.title === '' ? folderName(workspace.path) : workspace.title,

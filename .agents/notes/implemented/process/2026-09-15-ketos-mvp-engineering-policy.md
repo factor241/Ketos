@@ -17,7 +17,7 @@ Coverage exceptions are narrow, named config entries in `vitest.config.ts`, each
 - `packages/ketos/clone-*/src/**` — `@ketos/clone-core` is the first of the clone packages (the memory and task tables join its runner in later stages), and each covers the MVP test list — schema, CAS persistence, route boundaries — with its own suite rather than per-file percentages.
 - `packages/subprocess/subprocess-local/src/linux-execve.ts` and `packages/experimental/code-runtime-python/src/index.ts` — Linux-only sources (exec-ve, the `/proc/<pid>/stat` probe) excluded on non-Linux hosts; the Linux coverage lane keeps both gated.
 
-Every other path keeps per-file 100%, including `@ketos/client-locale-ru` and every package that imports the excluded ones; the ui-board glob covers that package's whole `src` tree. Exceptions are removed when the owning stages land their behaviour tests, reviewed at MVP acceptance (stage 20).
+Every other path keeps per-file 100%, including `@ketos/client-locale-ru` and every package that imports the excluded ones; the ui-board glob covers that package's whole `src` tree. Exceptions are removed when the owning stages land their behaviour tests; the stage-20 acceptance confirmed the shipped set ([MVP acceptance](../architecture/2026-09-23-ketos-mvp-acceptance.md)).
 
 The mandatory test set is the MVP list from §II.4: pure math (`zoomTowardPointer`, snap, minimap projection), persistence (CAS settings, `user_version`, `clones.db` CRUD), slot/tool registration and disposal, Fetch-route boundaries (error codes, validation), and memory behaviour (remember → search → injection). Tests for every CSS class, screenshots of every state, and resize stress tests stay out of scope.
 

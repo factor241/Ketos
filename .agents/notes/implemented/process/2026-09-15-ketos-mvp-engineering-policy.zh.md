@@ -17,7 +17,7 @@ Fork 本地代码保持上游的命名与打包纪律：新的 Ketos 包位于 `
 - `packages/ketos/clone-*/src/**` —— `@ketos/clone-core` 是 clone 包中的第一个（记忆与任务表在后续阶段加入同一 runner），每个包都以自身测试套件覆盖 MVP 测试清单——schema、CAS 持久化、路由边界——而不是逐文件百分比。
 - `packages/subprocess/subprocess-local/src/linux-execve.ts` 与 `packages/experimental/code-runtime-python/src/index.ts` —— Linux 专属源码（exec-ve、`/proc/<pid>/stat` 探针），在非 Linux 主机上排除；Linux 覆盖通道仍对两者保持闸门。
 
-其他所有路径保持逐文件 100%，包括 `@ketos/client-locale-ru` 以及所有导入被排除包的那些包；ui-board 的 glob 覆盖该包的整个 `src` 树。当所属阶段落地其行为测试后移除例外，并在 MVP 验收（阶段 20）时复核。
+其他所有路径保持逐文件 100%，包括 `@ketos/client-locale-ru` 以及所有导入被排除包的那些包；ui-board 的 glob 覆盖该包的整个 `src` 树。当所属阶段落地其行为测试后移除例外；阶段 20 的验收确认了已发布的例外集合（[MVP 验收](../architecture/2026-09-23-ketos-mvp-acceptance.zh.md)）。
 
 强制测试集合为 §II.4 的 MVP 清单：纯数学（`zoomTowardPointer`、snap、小地图投影）、持久化（CAS 设置、`user_version`、`clones.db` CRUD）、槽与工具的注册/释放、Fetch 路由边界（错误码、校验），以及记忆行为（remember → search → 注入）。每个 CSS 类的测试、所有状态的截图、resize 压力测试不在范围内。
 

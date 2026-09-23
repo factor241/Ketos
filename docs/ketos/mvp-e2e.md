@@ -39,7 +39,7 @@ AUDIT_PHASE=two    node .playwright-mcp/stage-20-mvp-acceptance/audit.mjs "<url>
 AUDIT_PHASE=native node .playwright-mcp/stage-20-mvp-acceptance/audit.mjs "<url>"   # фолбэк нативного пикера (хост без SSH-маркера)
 ```
 
-Вердикты — `audit/audit-verdict-<phase>.json`, кадры — `audit/shots/`, доказательства «что видел модель» — `requests-summary.jsonl` стаба (по строке на запрос: роли, каталог инструментов, наличие секций профиля, методологии и памяти); файл перезаписывается приёмочным прогоном. Аудит проверяет, что запрос продолжения несёт профиль, методологию и память, а инструмента `clone_task_report` в нём нет (проверки `B12 the follow-up carries profile, methodology and memory` и `B12 the report tool is withdrawn after the task` в `audit/audit-one.json`). Номера проверок в отчёте этапа 20 ссылаются на имена этих проверок.
+Вердикты — `audit/audit-verdict-<phase>.json`, кадры — `audit/shots/`, доказательства «что видел модель» — `requests-summary.jsonl` стаба, сохранённая копия — `audit/requests-summary.jsonl` (по строке на запрос: роли, каталог инструментов, наличие секций профиля, методологии и памяти); файл перезаписывается приёмочным прогоном. Аудит проверяет, что запрос продолжения несёт профиль, методологию и память, а инструмента `clone_task_report` в нём нет (проверки `B12 the follow-up carries profile, methodology and memory` и `B12 the report tool is withdrawn after the task` в `audit/audit-one.json`). Номера проверок в отчёте этапа 20 ссылаются на имена этих проверок.
 
 ## Источники
 

@@ -18,7 +18,7 @@ Status: implemented
 
 **验收跑在存活的环境上，而不是 mock。** `stand.sh` 以干净的 `DSH_HOME`（`/tmp/ketos-stage20/home`）启动 `ketos web`，`DEEPSEEK_BASE_URL` 指向本地 SSE 桩，因此场景不消耗外部 API；`SSH_CONNECTION` 被刻意设置，使自适应选择器解析为 `browse`、文件夹迷你浏览器可供场景使用，而 `native` 阶段覆盖没有该标记的主机。
 
-**审计依次驱动全新主目录、重启后的进程与选择器回退。** `.playwright-mcp/stage-20-mvp-acceptance/audit.mjs` 在干净的 `DSH_HOME` 上运行阶段 `one`（以本地 SSE 桩为模型），在 `stand.sh restart` 之后运行阶段 `two` 复查恢复后的看板、克隆、记忆与终态任务，阶段 `native` 驱动没有 SSH 标记的主机以覆盖原生文件夹选择器回退。三个阶段的判定均为 `ok: true`（53、9 与 2 项检查），产物为 `audit/audit-verdict-<phase>.json`、`audit/shots/` 下的画面，以及桩的 `requests-summary.jsonl`。
+**审计依次驱动全新主目录、重启后的进程与选择器回退。** `.playwright-mcp/stage-20-mvp-acceptance/audit.mjs` 在干净的 `DSH_HOME` 上运行阶段 `one`（以本地 SSE 桩为模型），在 `stand.sh restart` 之后运行阶段 `two` 复查恢复后的看板、克隆、记忆与终态任务，阶段 `native` 驱动没有 SSH 标记的主机以覆盖原生文件夹选择器回退。三个阶段的判定均为 `ok: true`（53、9 与 2 项检查），产物为 `audit/audit-verdict-<phase>.json`、`audit/shots/` 下的画面，以及桩保留下来的 `audit/requests-summary.jsonl`。
 
 **到达模型的内容按请求记录。** 每行 `requests-summary.jsonl` 携带角色、工具目录，以及克隆档案、方法论与记忆段落是否存在，因此验收可以展示——而非假定——已完成任务的追问回合不携带 `clone_task_report` 工具，同时档案、方法论与记忆段落仍在。
 

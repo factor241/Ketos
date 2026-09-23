@@ -1,5 +1,5 @@
 ---
-description: "Ketos 克隆领域的主机包：clones.db、其只进式 schema、以修订号做 CAS 的仓库与 FTS5 记忆存储、/api/ketos.clones 与 /api/ketos.memory Fetch 路由，以及克隆会话 scope：档案、技能、记忆与草拟档案的访谈。"
+description: "Ketos 克隆领域的主机包：clones.db、其只进式 schema、以修订号做 CAS 的仓库与 FTS5 记忆存储、/api/ketos.clones、/api/ketos.memory 与 /api/ketos.tasks Fetch 路由、克隆会话 scope：档案、技能、记忆、草拟档案的访谈与运行中任务的报告工具，以及把克隆的自主任务作为目标驱动的任务运行器。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@ketos/clone-core` 拥有 Ketos 克隆领域。克隆是一条记录——名称、角色、简介、角色设定、方法论、首选模型路由、技能、状态——以及绑定的会话与记忆；本包是它的唯一写入方：位于 `$DSH_HOME/clones.db` 的一个 `node:sqlite` 数据库、只进式 schema 运行器、以修订号做 CAS 的仓库、FTS5 记忆存储，以及 `/api/ketos.clones` 与 `/api/ketos.memory` Fetch 路由。它还拥有方法论章节与克隆会话 scope：`clone:profile` 段落、注册进已绑定 agent 自身 skill 注册表的技能、带两个记忆工具的 `clone:memory` 快照，以及——当克隆处于 `interviewing` 时——草拟档案的访谈者指令。
+`@ketos/clone-core` 拥有 Ketos 克隆领域。克隆是一条记录——名称、角色、角色设定、方法论、首选模型路由、技能、状态——以及绑定的会话、记忆与自主任务；本包是它的唯一写入方：位于 `$DSH_HOME/clones.db` 的一个 `node:sqlite` 数据库、只进式 schema 运行器、以修订号做 CAS 的仓库、FTS5 记忆存储，以及 `/api/ketos.clones`、`/api/ketos.memory` 与 `/api/ketos.tasks` Fetch 路由。它还拥有方法论章节、克隆会话 scope——档案、已注册技能、记忆工具、访谈，以及运行中任务的报告工具——以及把任务作为目标驱动的运行器。
 
 ## 目录
 
@@ -39,6 +39,7 @@ kind: "package-reference"
 | `path` | 必填 | SQLite 数据库文件路径，或 `:memory:`。web 配置传入 `$DSH_HOME/clones.db`（Ketos CLI 下即 `~/.ketos/clones.db`）。 |
 | `memoryEntries` | `10` | 提示词快照最多列出的活跃记忆条数（1–50）。 |
 | `memoryChars` | `8000` | 提示词记忆快照的最大总长度，以字符计（1–32000）。 |
+| `defaultMaxRounds` | `10` | 新自主任务交给其目标的轮次预算，1 到 50。上限是校验不变量，不是设置项。 |
 
 本包没有浏览器 bundle：`packages/client/ui-board` 用普通 `fetch` 访问该路由，以 type-only 方式导入 `./types` 模块，并把浏览器安全的 `./methodology` 模块内联进自己的 bundle，因此克隆窗口留在既有的看板注册之内，而不新增客户端插件行。
 
@@ -74,6 +75,20 @@ kind: "package-reference"
 
 失败应答为 `400` `ketos/invalid` 与 `404` `ketos/memory-not-found`。`patch` 接受 `content`（至多 4000 字符）、`tags`（至多 50 个单行标签、每个 100 字符，且不得含逗号——逗号是记忆窗口的分隔符）与 `status`（`active`、`candidate`、`archived`）；仓库拒绝同样的边界，因此绕过路由的工具会以完全相同的方式被拒绝为 `ketos/invalid-memory`。搜索查询必须至少含一个字母或数字，且不得含控制字符；路由在打开数据库之前构建 MATCH 表达式，因此被拒绝的查询绝不会创建文件。不带 `status` 的 `list` 返回所有状态；不带 `status` 的 `search` 返回除 `archived` 外的所有状态，显式指定 `status` 则限定结果。每次获准的写入都会通知克隆会话协调器，因此受影响 agent 的下一个轮次会带上该变更。
 
+### 任务路由
+
+`/api/ketos.tasks` 是第三条精确 Fetch 路由，通过同一服务注册，并随插件 fiber 一并撤销。任务指明它为之工作的克隆、克隆目标所追求的目标（objective）、该目标可用的轮次预算，以及启动后运行它的会话。
+
+| 方法 | 请求 | 应答 |
+|---|---|---|
+| `POST` | `{ op: 'list', cloneId? }` | `{ ok: true, tasks }` |
+| `POST` | `{ op: 'get', id }` | `{ ok: true, task }` |
+| `POST` | `{ op: 'create', cloneId, objective }` | `{ ok: true, task }` |
+| `POST` | `{ op: 'start', id, sessionId }` | `{ ok: true, task }` |
+| `POST` | `{ op: 'cancel', id }` | `{ ok: true, task }` |
+
+失败应答为 `400` `ketos/invalid`、`404` `ketos/task-not-found` 或 `ketos/clone-not-found`、`409` `ketos/invalid-state` 与 `409` `ketos/agent-not-live`。`objective` 必填、会去除首尾空白，且至多 2000 字符；`create` 以配置的 `defaultMaxRounds` 预算存储一条 `pending` 任务；只有当任务为 `pending`、其克隆存在且为 `ready`、且所指会话有存活 agent 时，`start` 才把它转为 `running`；`cancel` 把 `pending` 或 `running` 任务转为 `cancelled`，任务已是 `cancelled` 时为空操作。每次获准的写入都会通知克隆会话协调器，因此报告工具随启动出现、随终态消失。
+
 ### 可观察行为
 
 - **打开是惰性的。** 配置会挂载插件并注册路由，但 `node:sqlite` 的导入与文件打开发生在首次克隆请求或首个恢复的会话时——从磁盘恢复的会话可能是一场访谈，因此必须查询它。所有聊天都是新的、且从不触碰克隆的进程绝不会打开该文件。
@@ -90,6 +105,9 @@ kind: "package-reference"
 - **个人技能注册进 agent 自身的层。** 已绑定 agent 的克隆技能作为运行时 skill 注册进该 agent 自己的 skill 注册表 scope，每个技能携带其存储的指令，以及其目录条目显示的名称与描述。名称不符合注册表语法、超过 64 字符上限或描述为空的技能不会进入注册表；未组合 skill 注册表的部署只会让该 scope 保持待定，不会因此缺少档案、记忆工具或访谈模式。
 - **档案是稳定的，记忆是动态的。** 档案走 `systemPrompt.section`，记忆快照走 `systemPrompt.context`，因此新记忆会在下一个轮次作为一条持久运行时上下文消息到达，绝不重写请求前缀；`memoryEntries` 与 `memoryChars` 限定该快照，更深的查找则交给搜索工具。
 - **人的编辑会到达 agent。** 通过 `/api/ketos.memory` 进行的编辑或删除会重新派生 agent 的快照，因此它的下一个轮次看到的正是人留在记忆窗口中的内容。
+- **自主任务是存活会话上的一个目标。** `start` 把会话绑定到克隆、重新派生其 scope，并以任务的 objective 与预算创建目标；随后随附的 `goal-round-driver` 会在 agent 每次空闲时加入下一轮，因此克隆无需人提示即可工作。`clone_task_report` 存储报告并完成目标；目标到达 `complete` 时任务以 `done` 落定并带上该报告——若未提交报告则带上最新的 assistant 文本——`blocked` 目标以 `failed` 落定并带上驱动器给出的消息，唯一例外是以代码 `cancelled` 被阻塞的目标，它以 `cancelled` 落定；会话关闭会把运行中的任务落定为 `failed`。终态绝不会被改写，重复取消是空操作。
+- **任务绝不会自行恢复。** 进程内首次打开任务表时，每条 `running` 任务都会以 `the process restarted before the task finished` 落定为 `failed`：目标驱动器在重启后不会重新激活任何目标，被打断的那一轮也已不复存在，因此状态必须停止声称工作仍在进行。继续工作意味着启动一条新任务。
+- **取消会持久地阻塞目标。** `cancel` 以代码 `cancelled` 调用 `ctx.goals.block`——写入持久的 `goal/change` 记录，而不是进程本地的 disarm——并中止正在进行的轮次，因此不会再启动新的轮次，日志也会说明原因。
 
 -----
 
@@ -101,11 +119,11 @@ kind: "package-reference"
 
 ### Schema
 
-`clones` 每个克隆一行；`clone_sessions` 每个绑定会话一行，并在 `clone_id` 上有索引；`memories` 每条被记住的事实一行，并在 `(clone_id, status)` 上有索引，另有一张覆盖内容与标签的独立 `memories_fts` FTS5 表。三张表都是 STRICT 表，时间戳为 ISO-8601 UTC 字符串，且每次读取都会解码它找到的持久化值——未知 `status`、绑定角色或记忆状态、不是技能对象数组的 `skills_json`，或不是字符串数组的 `tags` 会直接报错，而不会把损坏的克隆带到 UI。技能解码刻意只校验对象字段，不校验名称语法或唯一性，因此在这些规则之前写入的数据库依然可读。版本 `2` 步骤把被取代的推测性状态对（`active` 归一为 `ready`、`archived` 归一为 `draft`）归一，不触碰任何其他字段；版本 `3` 步骤加入记忆表、其索引与其 FTS5 表；版本 `4` 步骤把遗留的技能名称数组按存储顺序改写为带空描述与空指令的技能对象。
+`clones` 每个克隆一行；`clone_sessions` 每个绑定会话一行，并在 `clone_id` 上有索引；`memories` 每条被记住的事实一行，并在 `(clone_id, status)` 上有索引，另有一张覆盖内容与标签的独立 `memories_fts` FTS5 表；`clone_tasks` 每条自主任务一行，并在 `clone_id` 与 `session_id` 上各有索引。它们都是 STRICT 表，时间戳为 ISO-8601 UTC 字符串，且每次读取都会解码它找到的持久化值——未知 `status`、绑定角色或记忆状态、不是技能对象数组的 `skills_json`，或不是字符串数组的 `tags` 会直接报错，而不会把损坏的克隆带到 UI。技能解码刻意只校验对象字段，不校验名称语法或唯一性，因此在这些规则之前写入的数据库依然可读。版本 `2` 步骤把被取代的推测性状态对（`active` 归一为 `ready`、`archived` 归一为 `draft`）归一，不触碰任何其他字段；版本 `3` 步骤加入记忆表、其索引与其 FTS5 表；版本 `4` 步骤把遗留的技能名称数组按存储顺序改写为带空描述与空指令的技能对象；版本 `5` 步骤加入任务表及其两个索引。
 
 ### 克隆会话 scope
 
-`src/session.ts` 拥有该 scope。它的协调器监听 `agent/created`、`agent/session-start`、`agent/disposed`，以及两条路由的变更通知，然后读取存储的绑定与克隆，并对账一个逐 agent scope：`agent.ctx.inject(['tools', 'systemPrompt'], …)` 注册 `clone:profile` 段落、`clone:memory` 上下文与两个记忆工具，并且——当绑定角色为 `interview` 且克隆处于 `interviewing` 时——注册 `clone:interview` 段落、`clone_draft_save`，以及恰好开启一次访谈的开场。第二个 scope 通过 `agent.ctx.inject(['skills'], …)` 把每个可注册的存储技能作为运行时 skill 注册进该 agent 自身的层，并随 agent 一并释放；它独立激活，因此没有 skill 注册表的部署只会让它保持待定，不会因此缺少任何其他克隆贡献。档案编辑或记忆写入会刷新提示词提供者读取的可变文本；重新绑定或访谈模式变化会释放两个 scope 并安装正确的那个。没有任何内容进入全局注册表，且对账按 agent 串接，因此重叠的触发无法把该 scope 安装两次。`clone:profile` 段落刻意不携带技能名称：`skill` 工具发布的目录是 agent 可加载内容的唯一面向模型的列表。
+`src/session.ts` 拥有该 scope。它的协调器监听 `agent/created`、`agent/session-start`、`agent/disposed`，以及两条路由的变更通知，然后读取存储的绑定与克隆，并对账一个逐 agent scope：`agent.ctx.inject(['tools', 'systemPrompt'], …)` 注册 `clone:profile` 段落、`clone:memory` 上下文与两个记忆工具，并且——当绑定角色为 `interview` 且克隆处于 `interviewing` 时——注册 `clone:interview` 段落、`clone_draft_save`，以及恰好开启一次访谈的开场；运行任务的会话还额外携带 `clone:task` 上下文与 `clone_task_report`。第二个 scope 通过 `agent.ctx.inject(['skills'], …)` 把每个可注册的存储技能作为运行时 skill 注册进该 agent 自身的层，并随 agent 一并释放；它独立激活，因此没有 skill 注册表的部署只会让它保持待定，不会因此缺少任何其他克隆贡献。档案编辑或记忆写入会刷新提示词提供者读取的可变文本；重新绑定或访谈模式变化会释放两个 scope 并安装正确的那个。没有任何内容进入全局注册表，且对账按 agent 串接，因此重叠的触发无法把该 scope 安装两次。`clone:profile` 段落刻意不携带技能名称：`skill` 工具发布的目录是 agent 可加载内容的唯一面向模型的列表。
 
 ### 方法论词汇
 
@@ -113,14 +131,14 @@ kind: "package-reference"
 
 ### 只进式运行器
 
-`src/schema.ts` 拥有有序的步骤列表：第 `n - 1` 项产出 `user_version` `n`，`migrate` 在一趟中补齐所有缺失步骤，再写入当前版本戳。步骤要么加入其版本所需的内容，要么把某一列存储的取值改写为该版本的形态；没有回滚，也不会丢弃任何存储值；更新的存储版本会被拒绝，绝不降级。`clone_tasks` 会在其自身阶段作为后续步骤加入列表。
+`src/schema.ts` 拥有有序的步骤列表：第 `n - 1` 项产出 `user_version` `n`，`migrate` 在一趟中补齐所有缺失步骤，再写入当前版本戳。步骤要么加入其版本所需的内容，要么把某一列存储的取值改写为该版本的形态；没有回滚，也不会丢弃任何存储值；更新的存储版本会被拒绝，绝不降级。
 
 ### 源码地图
 
 | 文件 | 职责 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | 插件入口：`name`/`inject`/`Config`/`apply`、惰性打开的数据库及其释放 |
-| [`src/db.ts`](src/db.ts) | 仅属主可访问的文件创建、打开序列，以及两个仓库共同在其上打开的共享惰性句柄 |
+| [`src/db.ts`](src/db.ts) | 仅属主可访问的文件创建、打开序列，以及每个仓库共同在其上打开的共享惰性句柄 |
 | [`src/schema.ts`](src/schema.ts) | 身份与版本戳、有序迁移步骤，以及运行器 |
 | [`src/repository.ts`](src/repository.ts) | 带修订号 CAS 的预处理语句克隆 CRUD、会话绑定，以及访谈档案保存 |
 | [`src/memory.ts`](src/memory.ts) | 记忆仓库、其 FTS5 同步、带引号前缀的 MATCH 表达式，以及记忆边界 |
@@ -128,7 +146,11 @@ kind: "package-reference"
 | [`src/memory-routes.ts`](src/memory-routes.ts) | `/api/ketos.memory` 路由、其校验与错误码 |
 | [`src/methodology.ts`](src/methodology.ts) | 规范方法论标题、模板，以及访谈指令与编辑器共享的缺口解析器 |
 | [`src/routes.ts`](src/routes.ts) | `/api/ketos.clones` 路由、其手工请求体校验与错误码 |
-| [`src/session.ts`](src/session.ts) | 克隆会话 scope：协调器、档案与访谈段落文本、记忆接线、运行时技能注册、开场消息来源与开场投影 |
+| [`src/task-repository.ts`](src/task-repository.ts) | 任务仓库：创建、受状态守卫的转换，以及打开时对被打断任务的对账 |
+| [`src/task-routes.ts`](src/task-routes.ts) | `/api/ketos.tasks` 路由、其校验与错误码 |
+| [`src/task-runner.ts`](src/task-runner.ts) | 把任务作为目标启动、跟随目标与会话事件走向终态，并取消任务的运行器 |
+| [`src/task-tools.ts`](src/task-tools.ts) | `clone_task_report` 工具 |
+| [`src/session.ts`](src/session.ts) | 克隆会话 scope：协调器、档案、访谈与任务文本、记忆接线、运行时技能注册、开场消息来源与开场投影 |
 | [`src/transaction.ts`](src/transaction.ts) | 多条语句写入共享的立即事务包装 |
 | [`src/wire.ts`](src/wire.ts) | 共享路由辅助：JSON 应答、`no-store` 头与请求体校验原语 |
 | [`src/types.ts`](src/types.ts) | 存储记录、wire DTO、请求输入与错误码；浏览器代码以 type-only 方式导入该模块 |
@@ -193,11 +215,29 @@ kind: "package-reference"
 
 段落文本是静态的，因此请求前缀在各轮次之间保持逐字节一致，缓存得以保持；只有工具结果与普通消息增长后缀。在 `ready` 时撤回该模式会把该段落从下一次组装中移除，按设计这是一次新的前缀。
 
+### The task session
+
+#### What the model sees
+
+运行任务的会话携带克隆会话所携带的一切，另加 `clone:task` 运行时上下文指令：没有人正在观看，因此它不得提问或等待批准；每一轮都必须取得具体进展并加以验证；达成目标的方式是用最终结果调用一次 `clone_task_report`。目标与轮次编号通过驱动器的 `<goal_round>` user 消息到达模型，报告工具的 schema 携带其摘要参数。
+
+#### Token effect
+
+自主指令在运行任务会话的每个请求上约占 60 token；轮次提示词每轮加入目标与轮次计数；工具 schema 把其参数加入该会话的工具目录。其他任何会话都不携带其中任何一项。
+
+#### KV Cache effect
+
+指令是静态的，因此请求前缀在各轮次之间保持逐字节一致；每一轮追加一条 user 消息；完成目标会在下一次 scope 对账时撤回工具与上下文，按设计这是一次新的前缀。
+
 ## 已知限制与暂缓事项
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **`clone_tasks` 尚未加入** —— 自主任务阶段会把它作为同一运行器的后续步骤加入；在此之前数据库保存克隆记录、会话绑定与记忆。
+- **运行中的任务不能跨越重启** —— 首次打开任务表会把被打断的任务落定为 `failed`；自动继续属于后 MVP，因此继续工作意味着启动一条新任务。
+- **任务窗口使用轮询** —— 任务处于活动状态时，状态通过窗口的 750 ms 轮询到达浏览器；`goal/changed` 留在主机侧，把它转发到浏览器属于后 MVP。
+- **轮次进度是尽力而为的** —— 窗口通过 `ctx.remote.goals.get` 读取每条运行中任务的目标；目标已不存在的会话只是不显示进度行。
+- **终态任务不能重启或恢复** —— `done`、`failed` 与 `cancelled` 都是最终状态；再次运行工作只能新建任务。
+- **报告是克隆提交的文本** —— 本包按原样存储工具给出的摘要；窗口列出的产物折叠自浏览器已持有的会话 transcript，因此该客户端从未打开过的会话不会列出任何产物。
 - **路由为手工校验而非生成** —— 克隆领域没有 Typert 代码生成（API 仍在变化），因此浏览器与主机手工共享 `src/types.ts`，并由路由自行校验每个字段。
 - **已存储的技能编辑只有在重新安装 scope 或重建 agent 时才到达存活 agent** —— 已绑定的 agent 只注册一次技能 scope，因此存储的变更只会刷新档案与记忆文本，新集合要等 scope 重新安装或 agent 重建后才会出现。
 - **会话不固定到某个克隆修订号** —— 存活会话在下一个轮次看到档案与方法论编辑，而之后重建的会话读取的是当时的存储记录；没有任何机制重放会话启动时的记录。
@@ -218,6 +258,6 @@ kind: "package-reference"
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-用 `sqlite3 "$DSH_HOME/clones.db" '.schema'` 查看实时数据库；Ketos CLI 的默认 home 是 `~/.ketos`。运行包测试：`pnpm exec vitest run packages/ketos/clone-core/tests`；`tests/composition.spec.ts` 通过真实 Loader 在 agent 栈旁挂载该行，并驱动整条路径——访谈的安装、开场、保存与撤回，记忆工具保存并找到一条事实，档案与记忆的注入，技能注册及其目录（包括跳过不可注册的技能，以及重建后刷新已注册集合），人在编辑后与删除后快照的刷新，以及克隆被删除时 scope 的撤回；`tests/memory.spec.ts` 覆盖记忆存储、其 FTS 同步、克隆隔离，以及一万条记录的搜索预算；`tests/methodology.spec.ts` 覆盖模板、章节解析器与缺口清单。
+用 `sqlite3 "$DSH_HOME/clones.db" '.schema'` 查看实时数据库；Ketos CLI 的默认 home 是 `~/.ketos`。运行包测试：`pnpm exec vitest run packages/ketos/clone-core/tests`；`tests/composition.spec.ts` 通过真实 Loader 在 agent 栈旁挂载该行，并驱动整条路径——访谈的安装、开场、保存与撤回，记忆工具保存并找到一条事实，档案与记忆的注入，技能注册及其目录（包括跳过不可注册的技能，以及重建后刷新已注册集合），人在编辑后与删除后快照的刷新，克隆被删除时 scope 的撤回，以及任务路径：一次启动创建目标，且第一轮无需人提示即可到达 `clone_task_report`；`tests/memory.spec.ts` 覆盖记忆存储、其 FTS 同步、克隆隔离，以及一万条记录的搜索预算；`tests/task-repository.spec.ts` 覆盖创建、受守卫的转换与重启对账；`tests/task-routes.spec.ts` 覆盖每个操作、每个失败码，以及文件打开的惰性；`tests/task-runner.spec.ts` 覆盖目标启动、终态及其幂等性与取消；`tests/methodology.spec.ts` 覆盖模板、章节解析器与缺口清单。
 
 </details>

@@ -12,7 +12,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 
 /** Schema version this build produces; stored in `PRAGMA user_version`. */
-export const CLONE_CORE_SCHEMA_VERSION = 4
+export const CLONE_CORE_SCHEMA_VERSION = 5
 
 /** `application_id` marking a database as this package's own ("KTCL"). */
 export const CLONE_CORE_APPLICATION_ID = 0x4b54434c
@@ -118,8 +118,33 @@ const stepV4: MigrationStep = (db) => {
   }
 }
 
+/**
+ * Version 5: the autonomous tasks of a clone. A task names the clone it works
+ * for, the objective the clone's goal pursues, the round budget that goal may
+ * use, and the session that runs it once started; the status column carries
+ * the lifecycle the window shows and the report or failure reason the run left
+ * behind.
+ */
+const stepV5: MigrationStep = (db) => {
+  db.exec(`
+    CREATE TABLE clone_tasks (
+      id             TEXT PRIMARY KEY,
+      clone_id       TEXT NOT NULL,
+      session_id     TEXT,
+      objective      TEXT NOT NULL,
+      status         TEXT NOT NULL DEFAULT 'pending',
+      result_summary TEXT,
+      max_rounds     INTEGER NOT NULL,
+      created_at     TEXT NOT NULL,
+      updated_at     TEXT NOT NULL
+    ) STRICT
+  `)
+  db.exec('CREATE INDEX clone_tasks_clone_id ON clone_tasks (clone_id)')
+  db.exec('CREATE INDEX clone_tasks_session_id ON clone_tasks (session_id)')
+}
+
 /** Ordered forward-only steps; entry `n - 1` produces version `n`. */
-export const CLONE_CORE_MIGRATION_STEPS: readonly MigrationStep[] = [stepV1, stepV2, stepV3, stepV4]
+export const CLONE_CORE_MIGRATION_STEPS: readonly MigrationStep[] = [stepV1, stepV2, stepV3, stepV4, stepV5]
 
 /**
  * Apply every step between the database's stamped version and `currentVersion`,

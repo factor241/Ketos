@@ -137,6 +137,68 @@ export interface CloneSessionBinding {
   readonly createdAt: string
 }
 
+/** Opaque identity of one autonomous task. */
+export type TaskId = Branded<'TaskId'>
+
+/**
+ * Lifecycle status of one autonomous task of a clone. `pending` until the
+ * person starts it, `running` while the clone's goal drives rounds, and one of
+ * the terminal `done | failed | cancelled` afterwards; a terminal status is
+ * never rewritten.
+ */
+export type TaskStatus = 'pending' | 'running' | 'done' | 'failed' | 'cancelled'
+
+/**
+ * One stored autonomous task: the objective handed to the clone's goal, the
+ * session that runs it once started, the status the window shows, and the
+ * report or failure reason left behind.
+ */
+export interface CloneTaskRecord {
+  /** Stable identity minted at creation. */
+  readonly id: TaskId
+  /** Clone the task belongs to; tasks never cross clones. */
+  readonly cloneId: CloneId
+  /** Session running the task, or null while the task is pending. */
+  readonly sessionId: SessionId | null
+  /** What the clone must achieve; the goal's objective. */
+  readonly objective: string
+  /** Lifecycle status shown in the tasks window. */
+  readonly status: TaskStatus
+  /** Report the clone filed, or the reason the task failed. */
+  readonly resultSummary: string | null
+  /** Round budget handed to the goal when the task starts. */
+  readonly maxRounds: number
+  /** ISO-8601 UTC creation time. */
+  readonly createdAt: string
+  /** ISO-8601 UTC time of the last accepted update. */
+  readonly updatedAt: string
+}
+
+/**
+ * One task as it crosses the `/api/ketos.tasks` wire. Field names and JSON
+ * types are part of the browser contract, so they never carry `undefined`:
+ * an absent optional value is `null`.
+ */
+export interface CloneTaskDto {
+  readonly id: TaskId
+  readonly cloneId: CloneId
+  readonly sessionId: string | null
+  readonly objective: string
+  readonly status: TaskStatus
+  readonly resultSummary: string | null
+  readonly maxRounds: number
+  readonly createdAt: string
+  readonly updatedAt: string
+}
+
+/** Fields a task create request supplies; every other field takes its stored default. */
+export interface TaskCreateInput {
+  readonly cloneId: CloneId
+  readonly objective: string
+  /** Round budget resolved by the host from its configured default. */
+  readonly maxRounds: number
+}
+
 /** Opaque identity of one memory record. */
 export type MemoryId = Branded<'MemoryId'>
 
@@ -202,6 +264,19 @@ export type CloneErrorCode = 'ketos/invalid' | 'ketos/clone-not-found' | 'ketos/
 
 /** Failure codes the memory route reports in the JSON body. */
 export type MemoryErrorCode = 'ketos/invalid' | 'ketos/memory-not-found'
+
+/**
+ * Failure codes the tasks route reports in the JSON body. `ketos/invalid-state`
+ * covers a refused status transition, an unprofiled clone, and a session that
+ * already carries an active goal; `ketos/agent-not-live` reports a session
+ * whose agent is not up, so the task cannot run.
+ */
+export type TaskErrorCode =
+  | 'ketos/invalid'
+  | 'ketos/task-not-found'
+  | 'ketos/clone-not-found'
+  | 'ketos/invalid-state'
+  | 'ketos/agent-not-live'
 
 /** Successful list answer to `list` (and to `GET`). */
 export interface CloneListResponse {
@@ -276,3 +351,24 @@ export interface MemoryFailureResponse {
 
 /** Every answer the memory route sends. */
 export type MemoryResponse = MemoryListResponse | MemoryAnswerResponse | MemoryDeletedResponse | MemoryFailureResponse
+
+/** Successful answer to `list`: every task the filter selected, newest first. */
+export interface TaskListResponse {
+  readonly ok: true
+  readonly tasks: readonly CloneTaskDto[]
+}
+
+/** Successful answer to `get`, `create`, `start`, and `cancel`: the task. */
+export interface TaskAnswerResponse {
+  readonly ok: true
+  readonly task: CloneTaskDto
+}
+
+/** Failure answer; `error` is the stable code, never a message to render. */
+export interface TaskFailureResponse {
+  readonly ok: false
+  readonly error: TaskErrorCode
+}
+
+/** Every answer the tasks route sends. */
+export type TaskResponse = TaskListResponse | TaskAnswerResponse | TaskFailureResponse

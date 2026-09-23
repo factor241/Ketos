@@ -86,8 +86,9 @@ describe('clones.db open sequence', () => {
     const root = await temporaryDirectory()
     const path = join(root, 'clones.db')
     const db = await openDatabase(path)
-    // Rewind to a genuine version 1 file: the store the later steps add must
+    // Rewind to a genuine version 1 file: the stores the later steps add must
     // be absent, or adoption would re-run their DDL over existing tables.
+    db.exec('DROP TABLE clone_tasks')
     db.exec('DROP TABLE memories_fts')
     db.exec('DROP TABLE memories')
     db.exec('PRAGMA user_version = 1')
@@ -119,7 +120,9 @@ describe('clones.db open sequence', () => {
     db.prepare('UPDATE clones SET skills_json = ? WHERE id = ?').run(JSON.stringify([
       { name: 'analiz', description: 'Разбор требований', instructions: 'Сначала факты' },
     ]), modern.id)
-    // The schema shape is unchanged by v4, so rewinding the stamp is honest.
+    // The schema shape is unchanged by v4, so rewinding the stamp is honest
+    // once the v5 table is absent.
+    db.exec('DROP TABLE clone_tasks')
     db.exec('PRAGMA user_version = 3')
     db.close()
 
@@ -151,6 +154,7 @@ describe('clones.db open sequence', () => {
     const repository = new CloneRepository(db)
     const clone = repository.createClone({ name: 'Анна', role: 'Аналитик' })
     db.prepare('UPDATE clones SET skills_json = ? WHERE id = ?').run('not json', clone.id)
+    db.exec('DROP TABLE clone_tasks')
     db.exec('PRAGMA user_version = 3')
     db.close()
     // The step must not fail the whole database open on a hand-edited value;
@@ -216,7 +220,7 @@ describe('forward-only migration runner', () => {
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'memories_fts_%' ORDER BY name",
     ).all()
     expect(tables).toEqual([
-      { name: 'clone_sessions' }, { name: 'clones' }, { name: 'memories' }, { name: 'memories_fts' },
+      { name: 'clone_sessions' }, { name: 'clone_tasks' }, { name: 'clones' }, { name: 'memories' }, { name: 'memories_fts' },
     ])
     expect(repository.getClone(created.id)?.name).toBe('Борис')
   })
@@ -231,8 +235,10 @@ describe('forward-only migration runner', () => {
     // under test, so the stamp is rewound to v1 first.
     db.prepare('UPDATE clones SET status = ? WHERE id = ?').run('active', active.id)
     db.prepare('UPDATE clones SET status = ? WHERE id = ?').run('archived', archived.id)
-    // A version 1 file has neither the memory table nor its index; dropping
-    // both makes the rewind honest instead of re-running the v3 DDL.
+    // A version 1 file has neither the memory table, its index, nor the task
+    // table; dropping all three makes the rewind honest instead of re-running
+    // the later DDL.
+    db.exec('DROP TABLE clone_tasks')
     db.exec('DROP TABLE memories_fts')
     db.exec('DROP TABLE memories')
     db.exec('PRAGMA user_version = 1')

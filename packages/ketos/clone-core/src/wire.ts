@@ -9,7 +9,7 @@
  */
 
 import { CLONE_SKILL_NAME } from './repository.ts'
-import type { CloneErrorCode, CloneSkill, MemoryErrorCode } from './types.ts'
+import type { CloneErrorCode, CloneSkill, MemoryErrorCode, TaskErrorCode } from './types.ts'
 
 /** Response headers for every answer: clone data is private and never cached. */
 export const NO_STORE = { 'cache-control': 'no-store' } as const
@@ -40,7 +40,7 @@ export function ok(response: unknown): Response {
  * @param error - the stable code the browser reads.
  * @returns the response with the private no-store header.
  */
-export function fail(status: number, error: CloneErrorCode | MemoryErrorCode): Response {
+export function fail(status: number, error: CloneErrorCode | MemoryErrorCode | TaskErrorCode): Response {
   return Response.json({ ok: false, error }, { status, headers: NO_STORE })
 }
 

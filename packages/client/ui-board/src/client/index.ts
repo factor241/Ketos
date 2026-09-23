@@ -17,7 +17,7 @@ import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { presetDisplayText } from '@deepseek-ai/dsh-agent-presets/display'
 import type {
-  CloneDto, CloneId, CloneSessionBinding, CloneUpdatePatch, MemoryId, MemoryStatus, MemoryUpdatePatch,
+  CloneDto, CloneId, CloneSessionBinding, CloneUpdatePatch, MemoryId, MemoryStatus, MemoryUpdatePatch, TaskId,
 } from '@ketos/clone-core/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { createBoardStore, nextWindowOrdinal, type BoardStoreHandle } from './store.ts'
@@ -32,8 +32,14 @@ import { parseModelRoute } from './clone-model.ts'
 import {
   deleteMemory as deleteMemoryRequest, listMemories, searchMemories, updateMemory as updateMemoryRequest,
 } from './memory-api.ts'
+import {
+  cancelTask as cancelTaskRequest, createTask as createTaskRequest, listTasks,
+  startTask as startTaskRequest,
+} from './tasks-api.ts'
+import { sessionArtifacts } from './window/artifacts-model.ts'
 import type {
-  BoardCloneRoster, BoardPresetRoster, BoardWindowInjected, CloneModelOption, WindowId,
+  BoardCloneRoster, BoardPresetRoster, BoardTaskOutcome, BoardTaskProgress, BoardTaskRoster,
+  BoardWindowInjected, CloneModelOption, WindowId,
 } from './contract/slots.ts'
 import { BoardRoot, BoardIcon } from './BoardViews.tsx'
 import { DashboardCanvas } from './canvas/DashboardCanvas.tsx'
@@ -44,6 +50,7 @@ import { WindowFrame } from './window/WindowFrame.tsx'
 import { ConversationBody } from './window/ConversationBody.tsx'
 import { CloneBody } from './window/CloneBody.tsx'
 import { CloneMemoryBody } from './window/CloneMemoryBody.tsx'
+import { TasksBody } from './window/TasksBody.tsx'
 import { SessionRail } from './dock/SessionRail.tsx'
 import { DashboardToolbar } from './omnibox/DashboardToolbar.tsx'
 import { WindowChatsPanel } from './window/WindowChatsPanel.tsx'
@@ -171,6 +178,50 @@ export function apply(ctx: ClientContext): void {
   }
   refreshClones()
 
+  // Task roster: the /api/ketos.tasks list the tasks window reads. Like the
+  // clone roster, a failed read keeps the last published list and leaves the
+  // roster unloaded, so a transient failure reads as "still loading" with a
+  // retry rather than as a deployment without tasks; every task mutation and
+  // the window's poll re-read it.
+  const taskRoster = createSnapshotStore<BoardTaskRoster>({ tasks: [], loaded: false })
+  /** Newest task read; an older answer never overwrites a newer one. */
+  let taskReadSeq = 0
+  const refreshTasks = (cloneId?: CloneId): void => {
+    const seq = ++taskReadSeq
+    void listTasks(cloneId).then((result) => {
+      if (seq !== taskReadSeq || !result.ok) return
+      taskRoster.set({ tasks: result.value, loaded: true })
+    })
+  }
+  refreshTasks()
+
+  /**
+   * Start one stored task on a fresh session and report the outcome. The
+   * session is created first, so the route's `start` records the identity the
+   * task runs on; a deployment that refuses the start leaves the row as it was.
+   * @param taskId - task identity.
+   * @returns what the start did, for the calling surface's notice.
+   */
+  const startTaskById = async (taskId: TaskId): Promise<BoardTaskOutcome> => {
+    let sessionId: SessionId
+    try {
+      sessionId = await ctx.sessions.create()
+    } catch {
+      // No session, no task: the row stays pending and the notice reports a
+      // failed gesture instead of a start that has nowhere to run.
+      return 'failed'
+    }
+    const result = await startTaskRequest(taskId, sessionId)
+    refreshTasks()
+    if (result.ok) return 'started'
+    switch (result.code) {
+      case 'ketos/task-not-found': return 'missing'
+      case 'ketos/invalid-state': return 'conflict'
+      case 'ketos/agent-not-live': return 'agent-not-live'
+      default: return 'failed'
+    }
+  }
+
   /** The window already editing one clone, in paint order, if any. */
   const cloneWindow = (cloneId: CloneId): WindowId | undefined => {
     const state = instance.getSnapshot()
@@ -214,6 +265,7 @@ export function apply(ctx: ClientContext): void {
       workspaceList: ctx.workspaces.list,
       agentPresetRoster: presetRoster,
       cloneList: cloneRoster,
+      taskList: taskRoster,
     },
     ensureWindowSession: (windowId) => { bridge.ensure(windowId) },
     refreshAgentPresets: () => { void loadPresetRoster() },
@@ -459,6 +511,67 @@ export function apply(ctx: ClientContext): void {
         return 'failed'
       }
     },
+    refreshTasks,
+    createTask: async (cloneId: CloneId, objective: string) => {
+      const clone = cloneRoster.getSnapshot().clones.find(entry => entry.id === cloneId)
+      if (clone === undefined) {
+        // A clone the roster does not hold cannot run a task; re-read it so a
+        // record deleted meanwhile reaches the windows still showing it.
+        refreshClones()
+        return 'missing'
+      }
+      // A task only starts for a profiled clone, and the check runs before the
+      // task is stored: a refusal must not leave a pending task behind.
+      if (clone.status !== 'ready') return 'not-ready'
+      const created = await createTaskRequest(cloneId, objective)
+      if (!created.ok) {
+        if (created.code === 'ketos/clone-not-found') {
+          refreshClones()
+          return 'missing'
+        }
+        return 'failed'
+      }
+      return await startTaskById(created.value.id)
+    },
+    startTask: async (taskId: TaskId) => {
+      const task = taskRoster.getSnapshot().tasks.find(entry => entry.id === taskId)
+      if (task === undefined) {
+        refreshTasks()
+        return 'missing'
+      }
+      const clone = cloneRoster.getSnapshot().clones.find(entry => entry.id === task.cloneId)
+      if (clone === undefined) return 'missing'
+      if (clone.status !== 'ready') return 'not-ready'
+      return await startTaskById(taskId)
+    },
+    cancelTask: async (taskId: TaskId) => {
+      const result = await cancelTaskRequest(taskId)
+      refreshTasks()
+      if (result.ok) return 'cancelled'
+      switch (result.code) {
+        case 'ketos/task-not-found': return 'missing'
+        case 'ketos/invalid-state': return 'conflict'
+        default: return 'failed'
+      }
+    },
+    loadTaskProgress: async (sessionId: SessionId): Promise<BoardTaskProgress | undefined> => {
+      try {
+        const result = await ctx.remote.goals.get(sessionId)
+        if (!result.ok || result.value === undefined) return undefined
+        return { roundsStarted: result.value.roundsStarted, maxGoalRounds: result.value.maxGoalRounds }
+      } catch {
+        // A deployment whose goals remote refuses the read leaves the row
+        // without a progress line; the status pill still reports the task.
+        return undefined
+      }
+    },
+    loadTaskArtifacts: (sessionId: SessionId) => {
+      // A task session this client never opened has no chat to fold artifacts
+      // from, and the report then shows its artifacts section empty.
+      if (ctx.sessions.binding(sessionId) === undefined) return []
+      const target = ctx.uiConversation.binding(sessionId).target('chat')
+      return sessionArtifacts(target.getSnapshot())
+    },
   })
 
   ctx.slots.inject('main', () => ctx.slots.register({
@@ -535,6 +648,13 @@ export function apply(ctx: ClientContext): void {
       locale: NS,
       inject: injected,
     }, CloneMemoryBody)
+    yield ctx.slots.register({
+      name: 'board.window.body',
+      key: 'tasks',
+      store: boardStore,
+      locale: NS,
+      inject: injected,
+    }, TasksBody)
   })
 
   ctx.slots.inject('board.dock', () => ctx.slots.register({

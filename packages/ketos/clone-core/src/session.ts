@@ -29,7 +29,9 @@ import { MEMORY_LIMITS, MemoryRepository } from './memory.ts'
 import type { FoundMemory, RememberArguments, RememberedMemory, SearchArguments } from './memory-tools.ts'
 import { cloneMemoryRememberTool, cloneMemorySearchTool, memorySnapshotText } from './memory-tools.ts'
 import { METHODOLOGY_SECTIONS } from './methodology.ts'
-import type { CloneRecord, CloneBindingRole, CloneDraftFields, CloneId, CloneSkill } from './types.ts'
+import type { CloneTaskBridge } from './task-runner.ts'
+import { cloneTaskReportTool } from './task-tools.ts'
+import type { CloneRecord, CloneBindingRole, CloneDraftFields, CloneId, CloneSkill, TaskId } from './types.ts'
 import { CLONE_SKILL_NAME, CLONE_TEXT_LIMITS, CloneSessionNotBoundError } from './repository.ts'
 import type { CloneRepository } from './repository.ts'
 
@@ -71,6 +73,19 @@ export const CLONE_MEMORY_CONTEXT = 'clone:memory'
  * the sandbox, approval, and delegation policies.
  */
 export const CLONE_MEMORY_ORDER = 130
+
+/**
+ * Context name of the autonomy instruction a session running a task carries.
+ * Like the memory snapshot it rides `systemPrompt.context`, so starting a task
+ * adds no stable-prefix section.
+ */
+export const CLONE_TASK_CONTEXT = 'clone:task'
+
+/**
+ * Placement of the autonomy instruction among the runtime contexts; it sorts
+ * after the memory snapshot it complements.
+ */
+export const CLONE_TASK_ORDER = 140
 
 /** Default largest number of memories the prompt snapshot lists. */
 export const DEFAULT_MEMORY_ENTRIES = 10
@@ -162,6 +177,18 @@ const KICKOFF_TEXT = [
 
 /** The opening stimulus bound for the transcript's collapsed notice row. */
 const KICKOFF_SUMMARY = 'Clone interview started'
+
+/**
+ * What a session running an autonomous task must know: nobody is watching the
+ * turn, so questions wait for nobody and the work ends through the report tool.
+ * The objective itself reaches the model in the goal-round prompt.
+ */
+const TASK_INSTRUCTION = [
+  'You are executing an autonomous task for this clone; no person is watching this session right now.',
+  'Work autonomously: do not ask questions, do not wait for approval, and do not stop to request confirmation.',
+  'Each round must make concrete progress and verify its result against the workspace and tool output.',
+  'When the objective is achieved, call the clone_task_report tool once with the final result; that finishes the task.',
+].join('\n')
 
 /** How many memories the prompt snapshot lists and how long it may grow. */
 export interface MemoryBudget {
@@ -328,6 +355,8 @@ interface CloneScope {
   readonly cloneId: CloneId
   /** Whether the interview section, tool, and kickoff are part of this scope. */
   readonly interviewing: boolean
+  /** Running task the report tool belongs to, or undefined for a plain session. */
+  readonly taskId: TaskId | undefined
   /** Profile text the section provider renders; replaced when the clone is edited. */
   readonly profile: { text: string }
   /** Memory snapshot the context provider renders; replaced when memory changes. */
@@ -353,6 +382,7 @@ export class CloneSessionCoordinator {
   private readonly ctx: Context
   private readonly database: CloneDatabase
   private readonly budget: MemoryBudget
+  private readonly tasks: CloneTaskBridge
   /** The scope each bound agent carries, keyed by that agent. */
   private readonly installed = new Map<Agent, CloneScope>()
   /**
@@ -392,11 +422,14 @@ export class CloneSessionCoordinator {
    * @param ctx - host context carrying `agents` and `sessionProjections`.
    * @param database - the plugin's clone database.
    * @param budget - how many memories the prompt snapshot lists and how long it may grow.
+   * @param tasks - the task side of a scope: whether the session runs a task
+   * and how its report is filed.
    */
-  constructor(ctx: Context, database: CloneDatabase, budget: MemoryBudget) {
+  constructor(ctx: Context, database: CloneDatabase, budget: MemoryBudget, tasks: CloneTaskBridge) {
     this.ctx = ctx
     this.database = database
     this.budget = budget
+    this.tasks = tasks
   }
 
   /** Follow agent lifecycles and register the durable kickoff projection. */
@@ -516,12 +549,17 @@ export class CloneSessionCoordinator {
       return
     }
     const interviewing = bound.role === 'interview' && bound.clone.status === 'interviewing'
-    if (installed === undefined || installed.cloneId !== bound.clone.id || installed.interviewing !== interviewing) {
+    const taskId = (await this.tasks.runningTaskFor(agent.id))?.id
+    const changed = installed === undefined
+      || installed.cloneId !== bound.clone.id
+      || installed.interviewing !== interviewing
+      || installed.taskId !== taskId
+    if (changed) {
       if (installed !== undefined) {
         this.installed.delete(agent)
         await installed.dispose()
       }
-      const fresh = await this.install(agent, repository, memories, bound.clone, interviewing)
+      const fresh = await this.install(agent, repository, memories, bound.clone, interviewing, taskId)
       if (fresh === undefined) return
       this.installed.set(agent, fresh)
     } else {
@@ -543,6 +581,7 @@ export class CloneSessionCoordinator {
     memories: MemoryRepository,
     clone: CloneRecord,
     interviewing: boolean,
+    taskId: TaskId | undefined,
   ): Promise<CloneScope | undefined> {
     const profile = { text: profileSectionText(clone) }
     const memory = { text: this.snapshot(memories, clone.id) }
@@ -564,6 +603,16 @@ export class CloneSessionCoordinator {
       scoped.tools.register(cloneMemorySearchTool(
         (sessionId, args) => this.search(repository, memories, sessionId, args),
       ))
+      if (taskId !== undefined) {
+        scoped.systemPrompt.context({
+          name: CLONE_TASK_CONTEXT,
+          order: CLONE_TASK_ORDER,
+          text: () => TASK_INSTRUCTION,
+        })
+        scoped.tools.register(cloneTaskReportTool(
+          (sessionId, summary) => this.tasks.report(sessionId, summary),
+        ))
+      }
       if (interviewing) {
         scoped.systemPrompt.section({
           name: CLONE_INTERVIEW_SECTION,
@@ -589,6 +638,7 @@ export class CloneSessionCoordinator {
       skills,
       cloneId: clone.id,
       interviewing,
+      taskId,
       profile,
       memory,
       dispose: () => Promise.all([scope.dispose(), skills.dispose()]).then(() => undefined),

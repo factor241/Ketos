@@ -131,6 +131,12 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+/* A successful task start: the same single-line banner in the success tone. */
+.noticeSuccess {
+  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);
+  color: var(--dsw-alias-state-success-primary);
+}
+
 /* Pending agent revision: the row carries its own apply action, so it lays out
    as a wrapped row instead of the single-line banners above. */
 .noticeAgent {

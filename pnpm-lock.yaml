@@ -7149,6 +7149,12 @@ importers:
       '@deepseek-ai/dsh-client-connection':
         specifier: workspace:^
         version: link:../../client/connection
+      '@deepseek-ai/dsh-goal':
+        specifier: workspace:^
+        version: link:../../goal/goal
+      '@deepseek-ai/dsh-goal-round-driver':
+        specifier: workspace:^
+        version: link:../../goal/goal-round-driver
       '@deepseek-ai/dsh-llm':
         specifier: workspace:^
         version: link:../../llm/llm

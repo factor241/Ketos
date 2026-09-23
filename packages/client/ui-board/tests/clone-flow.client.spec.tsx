@@ -8,7 +8,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
-import type { CloneDto, CloneId, CloneSessionBinding, MemoryDto } from '@ketos/clone-core/types'
+import type { CloneDto, CloneId, CloneSessionBinding, CloneTaskDto, MemoryDto, TaskId } from '@ketos/clone-core/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { createBoardStore } from '../src/client/store.ts'
 import { createBoardBench, type BoardBenchOptions } from './fixtures.client.ts'
@@ -58,11 +58,14 @@ interface CloneServer {
   readonly clones: CloneDto[]
   readonly bindings: CloneSessionBinding[]
   readonly memories: MemoryDto[]
+  readonly tasks: CloneTaskDto[]
   readonly calls: CloneCall[]
   /** Operation the stub refuses, so a failure path can be exercised. */
   refuse?: string
   /** Whether the memory stub refuses a search with `ketos/invalid`. */
   refuseMemorySearch?: boolean
+  /** One tasks operation the stub refuses with a stable code. */
+  taskRefuse?: { readonly op: string; readonly status: number; readonly error: string }
 }
 
 /** The decoded request body of one recorded call. */
@@ -79,9 +82,10 @@ function bodyOf(server: CloneServer, op: string): Record<string, unknown> {
  * @returns the stub's state.
  */
 function stubCloneRoute(initial: readonly CloneDto[]): CloneServer {
-  const server: CloneServer = { clones: [...initial], bindings: [], memories: [], calls: [] }
+  const server: CloneServer = { clones: [...initial], bindings: [], memories: [], tasks: [], calls: [] }
   vi.stubGlobal('fetch', vi.fn(async (input: unknown, init?: RequestInit): Promise<Response> => {
     if (String(input) === '/api/ketos.memory') return memoryAnswer(server, init)
+    if (String(input) === '/api/ketos.tasks') return taskAnswer(server, init)
     const method = init?.method ?? 'GET'
     if (method === 'GET') return Response.json({ ok: true, clones: server.clones })
     const body = JSON.parse(typeof init?.body === 'string' ? init.body : '{}') as Record<string, unknown>
@@ -184,6 +188,59 @@ function memoryAnswer(server: CloneServer, init?: RequestInit): Response {
   }
 }
 
+/**
+ * Answer one `/api/ketos.tasks` request from the stub's task store.
+ * @param server - the stub's state.
+ * @param init - the request's init, carrying the body.
+ * @returns the route's answer.
+ */
+function taskAnswer(server: CloneServer, init?: RequestInit): Response {
+  const body = JSON.parse(typeof init?.body === 'string' ? init.body : '{}') as Record<string, unknown>
+  const op = String(body['op'])
+  server.calls.push({ op: `task:${op}`, body })
+  if (server.taskRefuse?.op === op) {
+    return Response.json({ ok: false, error: server.taskRefuse.error }, { status: server.taskRefuse.status })
+  }
+  switch (op) {
+    case 'list':
+      return Response.json({
+        ok: true,
+        tasks: server.tasks.filter(task => body['cloneId'] === undefined || task.cloneId === body['cloneId']),
+      })
+    case 'create': {
+      const created: CloneTaskDto = {
+        id: `task-${String(server.tasks.length + 1)}` as TaskId,
+        cloneId: body['cloneId'] as CloneId,
+        sessionId: null,
+        objective: String(body['objective']),
+        status: 'pending',
+        resultSummary: null,
+        maxRounds: 8,
+        createdAt: '2026-09-21T10:00:00.000Z',
+        updatedAt: '2026-09-21T10:00:00.000Z',
+      }
+      server.tasks.unshift(created)
+      return Response.json({ ok: true, task: created })
+    }
+    case 'start': {
+      const index = server.tasks.findIndex(task => task.id === body['id'])
+      if (index === -1) return Response.json({ ok: false, error: 'ketos/task-not-found' }, { status: 404 })
+      const started = { ...server.tasks[index] as CloneTaskDto, sessionId: String(body['sessionId']), status: 'running' as const }
+      server.tasks[index] = started
+      return Response.json({ ok: true, task: started })
+    }
+    case 'cancel': {
+      const index = server.tasks.findIndex(task => task.id === body['id'])
+      if (index === -1) return Response.json({ ok: false, error: 'ketos/task-not-found' }, { status: 404 })
+      const cancelled = { ...server.tasks[index] as CloneTaskDto, status: 'cancelled' as const }
+      server.tasks[index] = cancelled
+      return Response.json({ ok: true, task: cancelled })
+    }
+    default:
+      return Response.json({ ok: false, error: 'ketos/invalid' }, { status: 400 })
+  }
+}
+
 /** Mount the board, render its panel, and hand the runtime pieces to the test. */
 async function mounted(options: Omit<BoardBenchOptions, 'session'> = {}) {
   const prompt = vi.fn(async () => ({ ok: true as const, value: { accepted: true } }))
@@ -195,8 +252,9 @@ async function mounted(options: Omit<BoardBenchOptions, 'session'> = {}) {
   const windowsOfKind = (kind: string): number =>
     Object.values(store.getSnapshot().windows).filter(window => window.kind === kind).length
   const cloneWindow = () => Object.values(store.getSnapshot().windows).find(window => window.kind === 'clone')
+  const taskWindow = () => Object.values(store.getSnapshot().windows).find(window => window.kind === 'tasks')
   const field = (name: string): HTMLElement | null => panel.container.querySelector(`[data-board-clone="${name}"]`)
-  return { runtime: prepared.runtime, board, panel, store, windowsOfKind, cloneWindow, field, prompt }
+  return { runtime: prepared.runtime, board, panel, store, windowsOfKind, cloneWindow, taskWindow, field, prompt }
 }
 
 describe('clone roster in the board chrome', () => {
@@ -630,5 +688,95 @@ describe('clone interview', () => {
     await waitFor(() => { expect(prompt).toHaveBeenCalled() })
     expect(windowsOfKind('agent')).toBe(0)
     expect(store.getSnapshot().activeWindowId).toBe(cloneWindow()?.id)
+  })
+})
+
+describe('clone autopilot', () => {
+  it('starts an autonomous task and shows it in a tasks window scoped to the clone', async () => {
+    const server = stubCloneRoute([{ ...CLONE, status: 'ready' }])
+    const { panel, taskWindow, field } = await mounted()
+    await waitFor(() => { expect(panel.container.querySelector('[data-board-clone-row="clone-1"]')).not.toBeNull() })
+    act(() => {
+      fireEvent.click(panel.container.querySelector('[data-board-clone-row="clone-1"]') as Element)
+    })
+    await waitFor(() => { expect(field('autopilot')).not.toBeNull() })
+
+    fireEvent.change(field('autopilot-objective') as Element, { target: { value: 'Собрать недельный отчёт' } })
+    act(() => { fireEvent.click(field('autopilot') as Element) })
+
+    // The gesture stores the task first and then starts it on a fresh session.
+    await waitFor(() => { expect(server.calls.some(call => call.op === 'task:start')).toBe(true) })
+    expect(bodyOf(server, 'task:create')).toMatchObject({
+      op: 'create',
+      cloneId: 'clone-1',
+      objective: 'Собрать недельный отчёт',
+    })
+    expect(bodyOf(server, 'task:start')).toMatchObject({ op: 'start', id: 'task-1', sessionId: 'session-1' })
+    expect(server.tasks[0]?.status).toBe('running')
+    expect(server.tasks[0]?.sessionId).toBe('session-1')
+
+    // The task appears where it runs: a tasks window scoped to this clone.
+    await waitFor(() => { expect(taskWindow()?.cloneId).toBe('clone-1') })
+    await waitFor(() => { expect(panel.container.querySelector('[data-board-tasks="task-1"]')).not.toBeNull() })
+    expect(panel.container.textContent).toContain('Собрать недельный отчёт')
+    expect(panel.container.querySelector('[data-board-clone-notice="autopilot-started"]')?.textContent)
+      .toContain('The task started.')
+  })
+
+  it('reports an agent-not-live refusal over the Autopilot form', async () => {
+    const server = stubCloneRoute([{ ...CLONE, status: 'ready' }])
+    server.taskRefuse = { op: 'start', status: 409, error: 'ketos/agent-not-live' }
+    const { panel, taskWindow, field } = await mounted()
+    await waitFor(() => { expect(panel.container.querySelector('[data-board-clone-row="clone-1"]')).not.toBeNull() })
+    act(() => {
+      fireEvent.click(panel.container.querySelector('[data-board-clone-row="clone-1"]') as Element)
+    })
+    await waitFor(() => { expect(field('autopilot')).not.toBeNull() })
+
+    fireEvent.change(field('autopilot-objective') as Element, { target: { value: 'Собрать отчёт' } })
+    act(() => { fireEvent.click(field('autopilot') as Element) })
+
+    await waitFor(() => {
+      expect(panel.container.querySelector('[data-board-clone-notice="autopilot-agent-not-live"]')).not.toBeNull()
+    })
+    expect(panel.container.textContent).toContain('The session has no live agent, so the task cannot start.')
+    // A refused start shows no tasks window and leaves the typed objective.
+    expect(taskWindow()).toBeUndefined()
+    expect((field('autopilot-objective') as HTMLInputElement).value).toBe('Собрать отчёт')
+    expect(server.tasks[0]?.status).toBe('pending')
+  })
+
+  it('refuses Autopilot for a clone that is not ready without storing a task', async () => {
+    const server = stubCloneRoute([CLONE])
+    const { panel, field } = await mounted()
+    await waitFor(() => { expect(panel.container.querySelector('[data-board-clone-row="clone-1"]')).not.toBeNull() })
+    act(() => {
+      fireEvent.click(panel.container.querySelector('[data-board-clone-row="clone-1"]') as Element)
+    })
+    await waitFor(() => { expect(field('autopilot')).not.toBeNull() })
+
+    fireEvent.change(field('autopilot-objective') as Element, { target: { value: 'Собрать отчёт' } })
+    expect((field('autopilot') as HTMLButtonElement).disabled).toBe(false)
+    act(() => { fireEvent.click(field('autopilot') as Element) })
+
+    await waitFor(() => {
+      expect(panel.container.querySelector('[data-board-clone-notice="autopilot-not-ready"]')).not.toBeNull()
+    })
+    // The refusal happens before a task is stored: no mutating task op ran.
+    expect(server.calls.some(call => ['task:create', 'task:start', 'task:cancel'].includes(call.op))).toBe(false)
+  })
+
+  it('disables the Autopilot action until an objective is typed', async () => {
+    stubCloneRoute([{ ...CLONE, status: 'ready' }])
+    const { panel, field } = await mounted()
+    await waitFor(() => { expect(panel.container.querySelector('[data-board-clone-row="clone-1"]')).not.toBeNull() })
+    act(() => {
+      fireEvent.click(panel.container.querySelector('[data-board-clone-row="clone-1"]') as Element)
+    })
+    await waitFor(() => { expect(field('autopilot')).not.toBeNull() })
+    expect((field('autopilot') as HTMLButtonElement).disabled).toBe(true)
+
+    fireEvent.change(field('autopilot-objective') as Element, { target: { value: '   ' } })
+    expect((field('autopilot') as HTMLButtonElement).disabled).toBe(true)
   })
 })

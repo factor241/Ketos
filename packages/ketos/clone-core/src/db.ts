@@ -15,6 +15,7 @@ import { dirname, resolve } from 'node:path'
 import { MemoryRepository } from './memory.ts'
 import { CloneRepository } from './repository.ts'
 import { migrate } from './schema.ts'
+import { INTERRUPTED_TASK_REASON, TaskRepository } from './task-repository.ts'
 
 /* jscpd:ignore-start -- deliberately mirrors the storage-sqlite and
    session-query-sqlite open sequence. Each package owns a distinct database
@@ -72,6 +73,7 @@ export class CloneDatabase {
   private opening: Promise<DatabaseSync> | undefined
   private repositoryPromise: Promise<CloneRepository> | undefined
   private memoryPromise: Promise<MemoryRepository> | undefined
+  private taskPromise: Promise<TaskRepository> | undefined
   private closing: Promise<void> | undefined
   private disposed = false
 
@@ -114,6 +116,23 @@ export class CloneDatabase {
   }
 
   /**
+   * The task repository over the same database, opening the file on first use.
+   * A task a previous process left `running` cannot continue — its goal and
+   * round are gone — so the first open in a process settles such tasks as
+   * failed before this repository answers anything.
+   * @returns the shared repository instance.
+   */
+  taskRepository(): Promise<TaskRepository> {
+    if (this.disposed) return Promise.reject(new Error('clone database: already closed'))
+    this.taskPromise ??= this.openTaskRepository().catch((error: unknown) => {
+      // Same retry policy as {@link repository}: a failed open is not cached.
+      this.taskPromise = undefined
+      throw error
+    })
+    return this.taskPromise
+  }
+
+  /**
    * Close the handle if it was opened. Safe before the first repository call
    * and safe to call more than once; a failed open is not rethrown here,
    * because the caller that asked for the repository already received it.
@@ -130,6 +149,12 @@ export class CloneDatabase {
 
   private async openMemoryRepository(): Promise<MemoryRepository> {
     return new MemoryRepository(await this.handle())
+  }
+
+  private async openTaskRepository(): Promise<TaskRepository> {
+    const tasks = new TaskRepository(await this.handle())
+    tasks.failInterrupted(INTERRUPTED_TASK_REASON)
+    return tasks
   }
 
   /**
@@ -156,6 +181,7 @@ export class CloneDatabase {
     this.opening = undefined
     this.repositoryPromise = undefined
     this.memoryPromise = undefined
+    this.taskPromise = undefined
     if (opening === undefined) return
     let db: DatabaseSync
     try {

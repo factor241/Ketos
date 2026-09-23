@@ -136,6 +136,19 @@ describe('board omnibox', () => {
     expect(opened[0]).toMatchObject({ kind: 'connectors', bodyKind: 'connectors' })
   })
 
+  it('opens a tasks window from the menu without an unavailable notice', async () => {
+    const { runtime, panel, board } = await bench()
+
+    openActionMenu(panel)
+    fireEvent.click(screen.getByRole('menuitem', { name: t('menu.open.tasks') }))
+    await runtime.flush()
+
+    const opened = Object.values(board.store.getSnapshot().windows)
+    expect(opened).toHaveLength(1)
+    expect(opened[0]).toMatchObject({ kind: 'tasks', bodyKind: 'tasks' })
+    expect(panel.container.querySelector('[data-board-omnibar-notice]')).toBeNull()
+  })
+
   it('queues the composer file-picker intent for the active chat window and lets its composer consume it', async () => {
     const { runtime, panel, board } = await bench()
     // The window's session creation is still in flight, so the queued command

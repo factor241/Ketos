@@ -22,8 +22,10 @@ import type { CloneSessionBinding, CloneSkill, CloneStatus } from '@ketos/clone-
 import {
   METHODOLOGY_TEMPLATE, methodologyGaps, methodologySections,
 } from '@ketos/clone-core/methodology'
-import { CLONE_STATUS_ROWS, type BoardWindowInjected, type CloneModelOption } from '../contract/slots.ts'
+import { CLONE_STATUS_ROWS, TASK_OBJECTIVE_LIMIT, type BoardTaskOutcome, type BoardWindowInjected, type CloneModelOption } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
+import { nextWindowOrdinal } from '../store.ts'
+import { openBoardWindow } from '../open-window.ts'
 import type { BoardTranslate } from '../locale.ts'
 import { relativeAge } from '../relative-age.ts'
 import { formatModelRoute } from '../clone-model.ts'
@@ -61,6 +63,17 @@ const SKILL_ERROR_KEYS = {
   duplicate: 'clone.skills.invalid.duplicate',
   limit: 'clone.skills.invalid.limit',
 } as const satisfies Record<SkillError, Parameters<BoardTranslate>[0]>
+
+/** Locale key of one Autopilot outcome notice. */
+const AUTOPILOT_OUTCOME_KEYS = {
+  started: 'tasks.outcome.started',
+  cancelled: 'tasks.outcome.cancelled',
+  missing: 'tasks.outcome.missing',
+  'not-ready': 'tasks.outcome.not-ready',
+  'agent-not-live': 'tasks.outcome.agent-not-live',
+  conflict: 'tasks.outcome.conflict',
+  failed: 'tasks.outcome.failed',
+} as const satisfies Record<BoardTaskOutcome, Parameters<BoardTranslate>[0]>
 
 /** The fields the skill modal edits, with the entry it replaces while editing. */
 interface SkillModalState {
@@ -105,6 +118,7 @@ export function CloneBody({
   loadCloneSessions,
   refreshClones,
   startCloneInterview,
+  createTask,
   openChat,
 }: CloneBodyProps) {
   const roster = useCloneList(source => source)
@@ -118,9 +132,14 @@ export function CloneBody({
   // switches between its profile and interview bodies, and a remount must not
   // drop the user's text or the marks of what the agent rewrote.
   const cloneEdits = useStore(state => state.cloneEdits)
+  // The open windows resolve the Autopilot gesture's target: a tasks window
+  // already scoped to this clone comes forward instead of opening a second one.
+  const windows = useStore(state => state.windows)
   const [notice, setNotice] = useState<CloneNotice>(undefined)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [autopilotObjective, setAutopilotObjective] = useState('')
+  const [autopilotOutcome, setAutopilotOutcome] = useState<BoardTaskOutcome | undefined>(undefined)
   const [models, setModels] = useState<readonly CloneModelOption[]>([])
   const [sessions, setSessions] = useState<readonly CloneSessionBinding[]>([])
   const [sessionEpoch, setSessionEpoch] = useState(0)
@@ -351,6 +370,31 @@ export function CloneBody({
       return
     }
     setSessionEpoch(epoch => epoch + 1)
+  }
+
+  /**
+   * Start one autonomous task for this clone: the objective is stored and the
+   * task starts on a fresh session. A start shows the task where it runs — the
+   * tasks window scoped to this clone, existing or new — while a refusal keeps
+   * the typed objective and reports the outcome.
+   */
+  const onAutopilot = async (): Promise<void> => {
+    if (clone === undefined) return
+    const objective = autopilotObjective.trim()
+    if (objective === '') return
+    setBusy(true)
+    setAutopilotOutcome(undefined)
+    const outcome = await createTask(clone.id, objective)
+    setBusy(false)
+    setAutopilotOutcome(outcome)
+    if (outcome !== 'started') return
+    setAutopilotObjective('')
+    const holder = Object.values(windows).find(entry => entry.kind === 'tasks' && entry.cloneId === clone.id)
+    if (holder !== undefined) {
+      actions.centerOnWindow(holder.id)
+      return
+    }
+    openBoardWindow(actions, 'tasks', nextWindowOrdinal(windows), { cloneId: clone.id })
   }
 
   if (cloneId !== undefined && clone === undefined && !roster.loaded) {
@@ -699,6 +743,15 @@ export function CloneBody({
           </div>
         )}
 
+        {autopilotOutcome !== undefined && (
+          <div
+            className={clsx(css.notice, autopilotOutcome === 'started' ? css.noticeSuccess : css.noticeError)}
+            data-board-clone-notice={`autopilot-${autopilotOutcome}`}
+          >
+            {t(AUTOPILOT_OUTCOME_KEYS[autopilotOutcome])}
+          </div>
+        )}
+
         <div className={css.actions}>
           <Button
             variant="primary"
@@ -743,6 +796,29 @@ export function CloneBody({
             onClick={() => { void onStartInterview() }}
           >
             {clone.status === 'draft' ? t('clone.interview.start') : t('clone.interview.restart')}
+          </Button>
+        </div>
+
+        <div className={css.actions} data-board-clone="autopilot-row">
+          <Input
+            value={autopilotObjective}
+            maxLength={TASK_OBJECTIVE_LIMIT}
+            disabled={busy}
+            aria-label={t('clone.autopilot.objective')}
+            placeholder={t('clone.autopilot.placeholder')}
+            data-board-clone="autopilot-objective"
+            onChange={(event) => {
+              setAutopilotObjective(event.target.value)
+              setAutopilotOutcome(undefined)
+            }}
+          />
+          <Button
+            variant="outline"
+            disabled={busy || autopilotObjective.trim() === ''}
+            data-board-clone="autopilot"
+            onClick={() => { void onAutopilot() }}
+          >
+            {t('clone.autopilot')}
           </Button>
         </div>
 

@@ -16,6 +16,10 @@
     "src/routes.ts",
     "src/schema.ts",
     "src/session.ts",
+    "src/task-repository.ts",
+    "src/task-routes.ts",
+    "src/task-runner.ts",
+    "src/task-tools.ts",
     "src/transaction.ts",
     "src/types.ts",
     "src/wire.ts"
@@ -41,6 +45,9 @@
     },
     {
       "path": "../../core/tools"
+    },
+    {
+      "path": "../../goal/goal"
     },
     {
       "path": "../../llm/llm"

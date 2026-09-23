@@ -105,7 +105,7 @@ export function DashboardToolbar({
         setNotice(t('menu.unavailable.dashboard'))
         return
       case 'open:tasks':
-        setNotice(t('menu.unavailable.tasks'))
+        openBoardWindow(actions, 'tasks', nextWindowOrdinal(windows))
         return
       case 'attachFile': {
         const target = resolveChatWindow(actions, windows, activeWindowId)

@@ -3463,10 +3463,16 @@ export interface Config {
   memoryEntries?: number
   /** Largest total length, in characters, of the prompt memory snapshot. */
   memoryChars?: number
+  /**
+   * Round budget a new autonomous task hands to its goal: how many model
+   * rounds the clone may take before the round driver blocks the goal with
+   * `round-limit`. The upper bound is a validation invariant, not a setting.
+   */
+  defaultMaxRounds?: number
 }
 ```
 
-来源：[`packages/ketos/clone-core/src/index.ts:36`](../packages/ketos/clone-core/src/index.ts)
+来源：[`packages/ketos/clone-core/src/index.ts:43`](../packages/ketos/clone-core/src/index.ts)
 
 ## 无配置的可加载插件
 

@@ -5,8 +5,8 @@ import type { ReactNode } from 'react'
 import type { FileAttachmentRef, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { Branded } from '@deepseek-ai/dsh-brand'
 import type {
-  CloneDto, CloneId, CloneSessionBinding, CloneUpdatePatch,
-  MemoryDto, MemoryErrorCode, MemoryId, MemoryStatus, MemoryUpdatePatch,
+  CloneDto, CloneId, CloneSessionBinding, CloneTaskDto, CloneUpdatePatch,
+  MemoryDto, MemoryErrorCode, MemoryId, MemoryStatus, MemoryUpdatePatch, TaskErrorCode, TaskId,
 } from '@ketos/clone-core/types'
 import type { ChatSnapshot } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
@@ -215,6 +215,9 @@ export const MEMORY_TAG_LIMIT = 100
 /** Longest memory search query the host accepts. */
 export const MEMORY_QUERY_LIMIT = 1000
 
+/** Longest task objective the host accepts, as the tasks window's form enforces it. */
+export const TASK_OBJECTIVE_LIMIT = 2000
+
 /** One selectable model route of the clone editor's preferred-model picker. */
 export interface CloneModelOption {
   /** Provider that serves the route. */
@@ -235,6 +238,40 @@ export interface BoardCloneRoster {
   readonly clones: readonly CloneDto[]
   /** Whether a read has answered; false while the first read is still in flight. */
   readonly loaded: boolean
+}
+
+/**
+ * Task roster the tasks window lists: the stored clone tasks, as the last
+ * `/api/ketos.tasks` read reported them, and whether a read has answered.
+ */
+export interface BoardTaskRoster {
+  readonly tasks: readonly CloneTaskDto[]
+  /** Whether a read has answered; false while the first read is still in flight. */
+  readonly loaded: boolean
+}
+
+/** What one task gesture did, for the surface's notice. */
+export type BoardTaskOutcome =
+  | 'started'
+  | 'cancelled'
+  | 'missing'
+  | 'not-ready'
+  | 'agent-not-live'
+  | 'conflict'
+  | 'failed'
+
+/** Round progress of one running task's goal. */
+export interface BoardTaskProgress {
+  readonly roundsStarted: number
+  readonly maxGoalRounds: number
+}
+
+/** One artifact of a task session's report, as the transcript fold derives it. */
+export interface BoardArtifactRow {
+  /** File path as reported by the tool call or result metadata. */
+  readonly path: string
+  /** Most specific mutation or access kind observed for this path. */
+  readonly kind: string
 }
 
 /** What creating a clone did. */
@@ -260,6 +297,12 @@ export type MemoryDeleteOutcome = 'deleted' | 'missing' | 'failed'
  * for a transport, decoding, or unexpected-answer failure.
  */
 export type MemoryFailureCode = MemoryErrorCode | 'ketos/unreachable'
+
+/**
+ * Failure of one tasks request: the route's stable code, or `ketos/unreachable`
+ * for a transport, decoding, or unexpected-answer failure.
+ */
+export type TaskFailureCode = TaskErrorCode | 'ketos/unreachable'
 
 /**
  * Outcome of one memory read: the rows, or the failure the body must report
@@ -403,6 +446,11 @@ export interface BoardWindowInjected {
      * reported them; empty and not yet loaded until that read answers.
      */
     cloneList: HostObservable<BoardCloneRoster>
+    /**
+     * Stored clone tasks, as the last `/api/ketos.tasks` read reported them;
+     * empty and not yet loaded until that read answers.
+     */
+    taskList: HostObservable<BoardTaskRoster>
   }
   /** Create the window's session on first use; idempotent. */
   ensureWindowSession: (windowId: WindowId) => void
@@ -606,6 +654,43 @@ export interface BoardWindowInjected {
    * @returns whether the interview session started.
    */
   startCloneInterview: (clone: CloneDto, windowId: WindowId) => Promise<CloneSessionOutcome>
+  /**
+   * Re-read the task roster; a failed read keeps the last list it published.
+   * @param cloneId - restrict the read to one clone; absent reads every clone's tasks.
+   */
+  refreshTasks: (cloneId?: CloneId) => void
+  /**
+   * Create one task for a clone and start it on a fresh session: the session is
+   * created first, so the task's `sessionId` names the session it runs on.
+   * @param cloneId - clone the task belongs to; it must be `ready`.
+   * @param objective - what the clone must achieve.
+   * @returns what the gesture did, for the calling surface's notice.
+   */
+  createTask: (cloneId: CloneId, objective: string) => Promise<BoardTaskOutcome>
+  /**
+   * Start one pending task on a fresh session.
+   * @param taskId - task identity.
+   * @returns what the gesture did, for the row's notice.
+   */
+  startTask: (taskId: TaskId) => Promise<BoardTaskOutcome>
+  /**
+   * Cancel one pending or running task.
+   * @param taskId - task identity.
+   * @returns what the gesture did, for the row's notice.
+   */
+  cancelTask: (taskId: TaskId) => Promise<BoardTaskOutcome>
+  /**
+   * Read the round progress of the goal driving one task's session.
+   * @param sessionId - session the task runs on.
+   * @returns the admitted rounds and the cap, or undefined when no goal is current.
+   */
+  loadTaskProgress: (sessionId: SessionId) => Promise<BoardTaskProgress | undefined>
+  /**
+   * Fold the file artifacts of one task session's transcript.
+   * @param sessionId - session the task runs on.
+   * @returns the artifacts newest first, or an empty list when the client holds no chat for it.
+   */
+  loadTaskArtifacts: (sessionId: SessionId) => readonly BoardArtifactRow[]
 }
 
 

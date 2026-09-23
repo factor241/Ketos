@@ -1,5 +1,5 @@
 ---
-description: "The Ketos clone domain host package: clones.db, its forward-only schema, the revision-CAS repository and the FTS5 memory store, the /api/ketos.clones and /api/ketos.memory Fetch routes, and the clone session scope: profile, skills, memory, and the interview that drafts a profile."
+description: "The Ketos clone domain host package: clones.db, its forward-only schema, the revision-CAS repository and the FTS5 memory store, the /api/ketos.clones, /api/ketos.memory, and /api/ketos.tasks Fetch routes, the clone session scope: profile, skills, memory, the interview that drafts a profile, and the report tool of a running task, and the task runner that drives a clone's autonomous task as a goal."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@ketos/clone-core` owns the Ketos clone domain. A clone is a record — name, role, summary, persona, methodology, preferred model route, skills, status — plus bound sessions and memories; the package is the only writer: one `node:sqlite` database at `$DSH_HOME/clones.db`, a forward-only schema runner, a revision-CAS repository, an FTS5 memory store, and the `/api/ketos.clones` and `/api/ketos.memory` Fetch routes. It owns the methodology sections and the clone session scope: the `clone:profile` section, the bound agent's skills registered into its own skill registry, the `clone:memory` snapshot with both memory tools, and — while the clone is `interviewing` — the profile-drafting interviewer instruction.
+`@ketos/clone-core` owns the Ketos clone domain. A clone is a record — name, role, persona, methodology, preferred model route, skills, status — plus bound sessions, memories, and autonomous tasks; the package is the only writer: one `node:sqlite` database at `$DSH_HOME/clones.db`, a forward-only schema runner, a revision-CAS repository, an FTS5 memory store, and the `/api/ketos.clones`, `/api/ketos.memory`, and `/api/ketos.tasks` Fetch routes. It owns the methodology sections, the clone session scope — profile, registered skills, memory tools, the interview, and the report tool of a running task — and the runner that drives a task as a goal.
 
 ## Table of Contents
 
@@ -39,6 +39,7 @@ The shipped `web` profile mounts the package through the `dsh-web-app` bundle pa
 | `path` | required | SQLite database file path, or `:memory:`. The web profile passes `$DSH_HOME/clones.db` (`~/.ketos/clones.db` for the Ketos CLI). |
 | `memoryEntries` | `10` | Largest number of active memories the prompt snapshot lists (1–50). |
 | `memoryChars` | `8000` | Largest total length, in characters, of the prompt memory snapshot (1–32000). |
+| `defaultMaxRounds` | `10` | Round budget a new autonomous task hands to its goal, from 1 to 50. The upper bound is a validation invariant, not a setting. |
 
 The package has no browser bundle: `packages/client/ui-board` talks to the route with plain `fetch`, imports the `./types` module type-only, and inlines the browser-safe `./methodology` module into its own bundle, which keeps the clone window inside the existing board registrations instead of adding a client plugin row.
 
@@ -74,6 +75,20 @@ Failures answer HTTP status plus `{ ok: false, error }`: `400` `ketos/invalid`, 
 
 Failures answer `400` `ketos/invalid` and `404` `ketos/memory-not-found`. `patch` accepts `content` (at most 4000 characters), `tags` (at most 50 single-line tags of 100 characters, none carrying a comma — that is the memory window's separator), and `status` (`active`, `candidate`, `archived`); the repository refuses the same bounds, so the tools that bypass the route are refused identically as `ketos/invalid-memory`. A search query must hold at least one letter or digit and no control character; the route builds the MATCH expression before the database opens, so a refused query never creates the file. A `list` without a status returns every status; a `search` without one returns every status but `archived`, and an explicit status restricts it. Every accepted write notifies the clone session coordinator, so the affected agent's next turn carries the change.
 
+### The tasks route
+
+`/api/ketos.tasks` is the third exact Fetch route, registered through the same service and withdrawn with the plugin fiber. A task names the clone it works for, the objective the clone's goal pursues, the round budget that goal may use, and the session that runs it once started.
+
+| Method | Request | Answer |
+|---|---|---|
+| `POST` | `{ op: 'list', cloneId? }` | `{ ok: true, tasks }` |
+| `POST` | `{ op: 'get', id }` | `{ ok: true, task }` |
+| `POST` | `{ op: 'create', cloneId, objective }` | `{ ok: true, task }` |
+| `POST` | `{ op: 'start', id, sessionId }` | `{ ok: true, task }` |
+| `POST` | `{ op: 'cancel', id }` | `{ ok: true, task }` |
+
+Failures answer `400` `ketos/invalid`, `404` `ketos/task-not-found` or `ketos/clone-not-found`, `409` `ketos/invalid-state`, and `409` `ketos/agent-not-live`. `objective` is required, trimmed, and at most 2000 characters; `create` stores a `pending` task with the configured `defaultMaxRounds` budget; `start` moves it to `running` only while it is `pending`, its clone exists and is `ready`, and the named session has a live agent; `cancel` moves a `pending` or `running` task to `cancelled` and is a no-op when the task is already cancelled. Every accepted write notifies the clone session coordinator, so the report tool appears with a start and disappears with a terminal status.
+
 ### Observable behavior
 
 - **Opening is lazy.** The profile mounts the plugin and registers the route, but `node:sqlite` is imported and the file is opened on the first clone request or the first restored session — a session restored from disk may be an interview, so it has to be looked up. A process whose chats are all fresh and never touch a clone never opens the file.
@@ -90,6 +105,9 @@ Failures answer `400` `ketos/invalid` and `404` `ketos/memory-not-found`. `patch
 - **Personal skills register into the agent's own layer.** A bound agent's clone skills are registered as runtime skills in that agent's own skill-registry scope, each carrying its stored instructions and the name and description its catalog entry shows. A skill stays out of the registry while its name fails the registry grammar, exceeds the 64-character bound, or its description is empty, and a deployment that composes no skill registry leaves that scope pending without withholding the profile, the memory tools, or the interview mode.
 - **The profile is stable, the memory is dynamic.** The profile rides `systemPrompt.section` and the memory snapshot rides `systemPrompt.context`, so a new memory arrives as a durable runtime-context message on the next turn and never rewrites the request prefix; `memoryEntries` and `memoryChars` bound that snapshot, and deeper lookup is the search tool.
 - **The person's edits reach the agent.** An edit or deletion through `/api/ketos.memory` re-derives the agent's snapshot, so its next turn sees exactly what the person left in the memory window.
+- **An autonomous task is a goal over a live session.** `start` binds the session to the clone, re-derives its scope, and creates the goal with the task's objective and budget; the shipped `goal-round-driver` then adds the next round whenever the agent is idle, so the clone works without a person prompting it. `clone_task_report` stores the report and completes the goal; a goal that reaches `complete` settles the task as `done` with that report — or with the newest assistant text when no report was filed — a `blocked` goal settles it as `failed` with the driver's message, except a goal blocked with the code `cancelled`, which settles it as `cancelled`, and closing the session settles a running task as `failed`. A terminal status is never rewritten, and a repeated cancel is a no-op.
+- **A task never resumes by itself.** The first open of the task table in a process settles every `running` task as `failed` with `the process restarted before the task finished`: the goal driver re-arms nothing after a restart and the interrupted round is gone, so the status must stop claiming the work is alive. Continuing the work means starting a new task.
+- **Cancelling blocks the goal durably.** `cancel` calls `ctx.goals.block` with the code `cancelled` — a durable `goal/change` record, not the process-local disarm — and aborts the live turn, so no further round starts and the log says why.
 
 -----
 
@@ -101,11 +119,11 @@ Failures answer `400` `ketos/invalid` and `404` `ketos/memory-not-found`. `patch
 
 ### Schema
 
-`clones` stores one row per clone; `clone_sessions` stores one row per bound session with an index on `clone_id`; `memories` stores one row per remembered fact with an index on `(clone_id, status)` and a standalone `memories_fts` FTS5 table over the content and tags. All three are STRICT tables, timestamps are ISO-8601 UTC strings, and every read decodes the durable value it finds — an unknown `status`, binding role, or memory status, a `skills_json` that is not an array of skill objects, or a `tags` that is not an array of strings fails loud instead of surfacing a broken clone in the UI. The skill decode deliberately checks only the object fields, not the name grammar or uniqueness, so a database written before those rules stays readable. The version `2` step normalizes the superseded speculative status pair (`active` to `ready`, `archived` to `draft`) without touching any other field; the version `3` step adds the memory table, its index, and its FTS5 table; the version `4` step rewrites a legacy array of skill names into skill objects with an empty description and instructions, in the stored order.
+`clones` stores one row per clone; `clone_sessions` stores one row per bound session with an index on `clone_id`; `memories` stores one row per remembered fact with an index on `(clone_id, status)` and a standalone `memories_fts` FTS5 table over the content and tags; `clone_tasks` stores one row per autonomous task with an index on `clone_id` and one on `session_id`. All of them are STRICT tables, timestamps are ISO-8601 UTC strings, and every read decodes the durable value it finds — an unknown `status`, binding role, or memory status, a `skills_json` that is not an array of skill objects, or a `tags` that is not an array of strings fails loud instead of surfacing a broken clone in the UI. The skill decode deliberately checks only the object fields, not the name grammar or uniqueness, so a database written before those rules stays readable. The version `2` step normalizes the superseded speculative status pair (`active` to `ready`, `archived` to `draft`) without touching any other field; the version `3` step adds the memory table, its index, and its FTS5 table; the version `4` step rewrites a legacy array of skill names into skill objects with an empty description and instructions, in the stored order; the version `5` step adds the task table and its two indexes.
 
 ### Clone session scope
 
-`src/session.ts` owns the scope. Its coordinator listens to `agent/created`, `agent/session-start`, `agent/disposed`, and both routes' mutation notification, then reads the stored binding and clone and reconciles one per-agent scope: `agent.ctx.inject(['tools', 'systemPrompt'], …)` registers the `clone:profile` section, the `clone:memory` context, and the two memory tools, and — while the binding role is `interview` and the clone is `interviewing` — the `clone:interview` section, `clone_draft_save`, and the kickoff that opens the interview exactly once. A second scope on `agent.ctx.inject(['skills'], …)` registers every registerable stored skill as a runtime skill in that agent's own layer and disposes with the agent; it activates on its own, so a deployment without a skill registry leaves it pending without withholding any other clone contribution. A profile edit or a memory write refreshes the mutable text the prompt providers read; a rebind or an interview-mode change disposes both scopes and installs the correct one. Nothing enters the global registries, and reconciliations are chained per agent, so overlapping triggers cannot install the scope twice. The `clone:profile` section deliberately carries no skill names: the catalog the `skill` tool publishes is the one model-facing list of what the agent may load.
+`src/session.ts` owns the scope. Its coordinator listens to `agent/created`, `agent/session-start`, `agent/disposed`, and both routes' mutation notification, then reads the stored binding and clone and reconciles one per-agent scope: `agent.ctx.inject(['tools', 'systemPrompt'], …)` registers the `clone:profile` section, the `clone:memory` context, and the two memory tools, and — while the binding role is `interview` and the clone is `interviewing` — the `clone:interview` section, `clone_draft_save`, and the kickoff that opens the interview exactly once; a session running a task additionally carries the `clone:task` context and `clone_task_report`. A second scope on `agent.ctx.inject(['skills'], …)` registers every registerable stored skill as a runtime skill in that agent's own layer and disposes with the agent; it activates on its own, so a deployment without a skill registry leaves it pending without withholding any other clone contribution. A profile edit or a memory write refreshes the mutable text the prompt providers read; a rebind or an interview-mode change disposes both scopes and installs the correct one. Nothing enters the global registries, and reconciliations are chained per agent, so overlapping triggers cannot install the scope twice. The `clone:profile` section deliberately carries no skill names: the catalog the `skill` tool publishes is the one model-facing list of what the agent may load.
 
 ### Methodology vocabulary
 
@@ -113,14 +131,14 @@ Failures answer `400` `ketos/invalid` and `404` `ketos/memory-not-found`. `patch
 
 ### Forward-only runner
 
-`src/schema.ts` owns the ordered step list: entry `n - 1` produces `user_version` `n`, and `migrate` applies every missing step in one pass before stamping the current version. A step adds what its version needs or rewrites one column's stored value into that version's shape; there are no rollbacks and no stored value is dropped, and a newer stored version is refused, never downgraded. `clone_tasks` joins the list as a later step in its own stage.
+`src/schema.ts` owns the ordered step list: entry `n - 1` produces `user_version` `n`, and `migrate` applies every missing step in one pass before stamping the current version. A step adds what its version needs or rewrites one column's stored value into that version's shape; there are no rollbacks and no stored value is dropped, and a newer stored version is refused, never downgraded.
 
 ### Source map
 
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | Plugin entry: `name`/`inject`/`Config`/`apply`, the lazily opened database, and its disposal |
-| [`src/db.ts`](src/db.ts) | Owner-only file creation, the open sequence, and the shared lazy handle both repositories open over |
+| [`src/db.ts`](src/db.ts) | Owner-only file creation, the open sequence, and the shared lazy handle every repository opens over |
 | [`src/schema.ts`](src/schema.ts) | Identity and version stamps, the ordered migration steps, and the runner |
 | [`src/repository.ts`](src/repository.ts) | Prepared-statement clone CRUD with revision CAS, the session bindings, and the interview profile save |
 | [`src/memory.ts`](src/memory.ts) | The memory repository, its FTS5 synchronization, the quoted-prefix MATCH expression, and the memory bounds |
@@ -128,7 +146,11 @@ Failures answer `400` `ketos/invalid` and `404` `ketos/memory-not-found`. `patch
 | [`src/memory-routes.ts`](src/memory-routes.ts) | The `/api/ketos.memory` route, its validation, and its error codes |
 | [`src/methodology.ts`](src/methodology.ts) | The canonical methodology headings, the template, and the gap parser the interview instruction and the editor share |
 | [`src/routes.ts`](src/routes.ts) | The `/api/ketos.clones` route, its manual body validation, and its error codes |
-| [`src/session.ts`](src/session.ts) | The clone session scope: the coordinator, the profile and interview section texts, the memory wiring, the runtime skill registration, the kickoff message source, and the kickoff projection |
+| [`src/task-repository.ts`](src/task-repository.ts) | The task repository: creation, guarded status transitions, and the open-time reconciliation of interrupted tasks |
+| [`src/task-routes.ts`](src/task-routes.ts) | The `/api/ketos.tasks` route, its validation, and its error codes |
+| [`src/task-runner.ts`](src/task-runner.ts) | The runner that starts a task as a goal, follows the goal and session events to a terminal status, and cancels one |
+| [`src/task-tools.ts`](src/task-tools.ts) | The `clone_task_report` tool |
+| [`src/session.ts`](src/session.ts) | The clone session scope: the coordinator, the profile, interview, and task texts, the memory wiring, the runtime skill registration, the kickoff message source, and the kickoff projection |
 | [`src/transaction.ts`](src/transaction.ts) | The immediate-transaction wrapper the multi-statement writes share |
 | [`src/wire.ts`](src/wire.ts) | The shared route helpers: JSON answers, the `no-store` header, and the body-validation primitives |
 | [`src/types.ts`](src/types.ts) | The stored records, the wire DTOs, the request inputs, and the error codes; the module browser code imports type-only |
@@ -193,11 +215,29 @@ The section is about 360 tokens and rides every request of an interview session;
 
 The section text is static, so the request prefix stays byte-identical between turns and the cache holds; only tool results and ordinary messages grow the suffix. Withdrawing the mode at `ready` removes the section from the next assembly, which is a new prefix by design.
 
+### The task session
+
+#### What the model sees
+
+A session running a task carries everything the clone session carries, plus the `clone:task` runtime-context instruction: no person is watching, so it must not ask questions or wait for approval, each round must make concrete progress and verify it, and the objective is achieved by calling `clone_task_report` once with the final result. The objective and the round number reach the model in the driver's `<goal_round>` user message, and the report tool's schema carries its summary argument.
+
+#### Token effect
+
+The autonomy instruction is about 60 tokens on every request of a running task's session; the round prompt adds the objective and the round counter per round; the tool schema adds its argument to that session's catalog. No other session carries any of them.
+
+#### KV Cache effect
+
+The instruction is static, so the request prefix stays byte-identical between rounds; each round appends a user message, and completing the goal withdraws the tool and the context on the next scope reconciliation, which is a new prefix by design.
+
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **`clone_tasks` is absent** — the autonomous-task stage adds it as a later step of the same runner; until then the database holds clone records, session bindings, and memories.
+- **A running task does not survive a restart** — the first open of the task table settles interrupted tasks as `failed`; automatic continuation is post-MVP, so continuing the work means starting a new task.
+- **The tasks window polls** — status reaches the browser through the window's 750 ms poll while a task is active; `goal/changed` stays host-side and forwarding it to the browser is post-MVP.
+- **Round progress is best-effort** — the window reads the goal of each running task through `ctx.remote.goals.get`, and a session whose goal is gone simply shows no progress line.
+- **A terminal task cannot be restarted or resumed** — `done`, `failed`, and `cancelled` are final; a new task is the only way to run the work again.
+- **The report is the text the clone filed** — the package stores the tool's summary as-is; the artifacts the window lists are folded from the session transcript the browser already holds, so a session this client never opened shows none.
 - **The route is hand-validated, not generated** — there is no Typert codegen for the clone domain (the API is still moving), so the browser and the host share `src/types.ts` by hand and the route validates every field itself.
 - **A stored skill edit reaches a live agent only on reinstallation or recreation** — a bound agent registers its skill scope once, so a stored change refreshes the profile and memory text alone and the new set appears after the scope is reinstalled or the agent is recreated.
 - **A session is not pinned to a clone revision** — a live session sees profile and methodology edits on its next turn, and a session recreated later reads the stored record as it stands then; nothing replays the record a session started from.
@@ -218,6 +258,6 @@ The section text is static, so the request prefix stays byte-identical between t
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-Inspect a live database with `sqlite3 "$DSH_HOME/clones.db" '.schema'`; the default home of the Ketos CLI is `~/.ketos`. Run the package specs with `pnpm exec vitest run packages/ketos/clone-core/tests`: `tests/composition.spec.ts` mounts the row through a real Loader beside the agent stack and drives the whole path — interview install, kickoff, save, and withdrawal, the memory tools saving and finding a fact, the profile and memory injection, the skill registration and its catalog with the skip of an unregisterable skill and the recreation that refreshes a registered set, the snapshot refresh after a person's edit and after a deletion, and the scope withdrawal when the clone is deleted; `tests/memory.spec.ts` covers the memory store, its FTS synchronization, the clone isolation, and the ten-thousand-record search budget; `tests/methodology.spec.ts` covers the template, the section parser, and the gap list.
+Inspect a live database with `sqlite3 "$DSH_HOME/clones.db" '.schema'`; the default home of the Ketos CLI is `~/.ketos`. Run the package specs with `pnpm exec vitest run packages/ketos/clone-core/tests`: `tests/composition.spec.ts` mounts the row through a real Loader beside the agent stack and drives the whole path — interview install, kickoff, save, and withdrawal, the memory tools saving and finding a fact, the profile and memory injection, the skill registration and its catalog with the skip of an unregisterable skill and the recreation that refreshes a registered set, the snapshot refresh after a person's edit and after a deletion, and the scope withdrawal when the clone is deleted, and the task path: a start creates the goal and the first round reaches `clone_task_report` without a person prompting it; `tests/memory.spec.ts` covers the memory store, its FTS synchronization, the clone isolation, and the ten-thousand-record search budget; `tests/task-repository.spec.ts` covers creation, the guarded transitions, and the restart reconciliation; `tests/task-routes.spec.ts` covers every operation, every failure code, and the laziness of the file open; `tests/task-runner.spec.ts` covers the goal start, the terminal statuses with their idempotence, and cancellation; `tests/methodology.spec.ts` covers the template, the section parser, and the gap list.
 
 </details>

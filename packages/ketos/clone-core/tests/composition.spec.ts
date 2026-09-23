@@ -15,6 +15,8 @@ import Include from '@deepseek-ai/cordis-plugin-include'
 import { assembleContextFor } from '@deepseek-ai/dsh-agent'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness } from '@deepseek-ai/dsh-agent-loop-testkit'
+import GoalService from '@deepseek-ai/dsh-goal'
+import * as GoalRoundDriver from '@deepseek-ai/dsh-goal-round-driver'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
 import { ToolCallId, createUserMessage } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
@@ -24,13 +26,14 @@ import * as ToolSkill from '@deepseek-ai/dsh-tool-skill'
 import * as CloneCore from '@ketos/clone-core'
 import { MEMORY_PATH } from '../src/memory-routes.ts'
 import { CLONES_PATH } from '../src/routes.ts'
+import { TASKS_PATH } from '../src/task-routes.ts'
 import { openDatabase } from '../src/db.ts'
 import { CLONE_TEXT_LIMITS } from '../src/repository.ts'
 import {
   CLONE_INTERVIEW_SECTION, CLONE_MEMORY_CONTEXT, CLONE_PROFILE_SECTION,
 } from '../src/session.ts'
-import type { CloneAnswerResponse, CloneSkill, MemoryListResponse } from '../src/types.ts'
-import { MockAdapter, textResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
+import type { CloneAnswerResponse, CloneSkill, MemoryListResponse, TaskAnswerResponse } from '../src/types.ts'
+import { MockAdapter, textResponse, toolCallResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 
 /**
  * Stand-in for the connection service that records exact routes and disposes
@@ -85,6 +88,11 @@ async function memoryRequest(route: ConnectionFetchRoute, body: unknown): Promis
   return await pathRequest(route, MEMORY_PATH, body)
 }
 
+/** One decoded request against the booted tasks route. */
+async function taskRequest(route: ConnectionFetchRoute, body: unknown): Promise<TaskAnswerResponse> {
+  return await pathRequest(route, TASKS_PATH, body) as unknown as TaskAnswerResponse
+}
+
 /** One decoded request against one booted route path. */
 async function pathRequest(route: ConnectionFetchRoute, path: string, body: unknown): Promise<Record<string, unknown>> {
   const response = await route.fetch(new Request(`http://localhost${path}`, {
@@ -106,12 +114,14 @@ function answered(answer: Record<string, unknown>): CloneAnswerResponse {
  * @param withPath - whether the row config carries the database path.
  * @param extraConfig - further row config fields, as literal YAML values.
  * @param withSkills - whether the shipped skill registry and its loader tool are mounted beside it.
+ * @param withGoals - whether the shipped goal service and round driver are mounted beside it.
  * @returns the booted context, the recorded routes, and the database path.
  */
 async function boot(
   withPath = true,
   extraConfig: Record<string, string | number> = {},
   withSkills = false,
+  withGoals = false,
 ): Promise<Booted> {
   root = await mkdtemp(join(tmpdir(), 'dsh-clone-loader-'))
   const path = join(root, 'clones.db')
@@ -142,6 +152,10 @@ async function boot(
   // dependencies activate exactly as they do under `dsh web`.
   await mountAgentLoopTestDependencies(ctx)
   await mountAgentLoopTestHarness(ctx)
+  if (withGoals) {
+    await ctx.plugin(GoalService)
+    await ctx.plugin(GoalRoundDriver)
+  }
   const connection = new RecordingConnection(ctx)
   await ctx.plugin(Loader)
   ctx.loader.builtins.include = Include
@@ -187,6 +201,8 @@ describe('clone package real Loader composition', () => {
     expect(route?.requestBody).toBe('buffered')
     expect(routes.get(MEMORY_PATH)?.methods).toEqual(['POST'])
     expect(routes.get(MEMORY_PATH)?.requestBody).toBe('buffered')
+    expect(routes.get(TASKS_PATH)?.methods).toEqual(['POST'])
+    expect(routes.get(TASKS_PATH)?.requestBody).toBe('buffered')
     // Laziness is observable: boot mounted the plugin but nothing opened the file.
     await expect(stat(path)).rejects.toMatchObject({ code: 'ENOENT' })
 
@@ -209,10 +225,11 @@ describe('clone package real Loader composition', () => {
     }))
     await ctx.fiber.dispose()
     context = undefined
-    // The memory route is registered last, so it is withdrawn first.
-    expect(withdrawn).toEqual([MEMORY_PATH, CLONES_PATH])
+    // The tasks route is registered last, so it is withdrawn first.
+    expect(withdrawn).toEqual([TASKS_PATH, MEMORY_PATH, CLONES_PATH])
     expect(routes.has(CLONES_PATH)).toBe(false)
     expect(routes.has(MEMORY_PATH)).toBe(false)
+    expect(routes.has(TASKS_PATH)).toBe(false)
 
     const db = await openDatabase(path)
     expect(db.prepare('SELECT name FROM clones').all()).toEqual([{ name: 'Борис' }])
@@ -863,5 +880,55 @@ describe('clone skills over the shipped composition', () => {
     })
     await expect(ctx.skills.get('sql', { scope: second.agent })).resolves.toMatchObject({ content: 'Пиши SELECT' })
     await second.dispose()
+  })
+})
+
+describe('clone tasks over the shipped composition', () => {
+  it('runs an autonomous task to a report through the goal round driver', async () => {
+    const { ctx, routes } = await boot(true, {}, false, true)
+    const clones = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    const tasks = routes.get(TASKS_PATH) as ConnectionFetchRoute
+    // The clone works one round on its own, then files the report the task
+    // ends with; the second entry answers the continuation of that same turn.
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([
+      toolCallResponse('call-report', 'clone_task_report', { summary: 'Отчёт: проверены 3 документа.' }, 'Работа сделана.'),
+      textResponse('Отчёт зафиксирован.'),
+    ]))
+    const created = answered(await request(clones, { op: 'create', name: 'Анна', role: 'Аналитик', status: 'ready' }))
+    const task = (await taskRequest(tasks, { op: 'create', cloneId: created.clone.id, objective: 'Проверить документы' })).task
+    const agent = await ctx.agentLoop.create(SessionId('task-1'), { provider: 'mock', model: 'mock' })
+    const started = await taskRequest(tasks, { op: 'start', id: task.id, sessionId: 'task-1' })
+    expect(started.task).toMatchObject({ status: 'running', sessionId: 'task-1' })
+    expect(ctx.goals.get(agent)).toMatchObject({
+      phase: 'active',
+      objective: 'Проверить документы',
+      maxGoalRounds: 10,
+    })
+
+    // No person prompts this session: the round driver adds the round and the
+    // model's report tool ends the task.
+    await vi.waitFor(async () => {
+      expect((await taskRequest(tasks, { op: 'get', id: task.id })).task.status).toBe('done')
+    }, { timeout: 10_000 })
+    expect((await taskRequest(tasks, { op: 'get', id: task.id })).task.resultSummary)
+      .toBe('Отчёт: проверены 3 документа.')
+    expect(ctx.goals.get(agent)?.phase).toBe('complete')
+    expect(agent.session.snapshotEvents().some(event => event.type === 'user/message'
+      && event.data.source.kind === 'goal')).toBe(true)
+    // The report tool belongs to the running task only.
+    await vi.waitFor(() => { expect(ctx.tools.get('clone_task_report', agent)).toBeUndefined() })
+  })
+
+  it('refuses to start a task for a session whose clone is not ready', async () => {
+    const { ctx, routes } = await boot(true, {}, false, true)
+    const clones = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    const tasks = routes.get(TASKS_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Привет')]))
+    const created = answered(await request(clones, { op: 'create', name: 'Анна', role: 'Аналитик' }))
+    const task = (await taskRequest(tasks, { op: 'create', cloneId: created.clone.id, objective: 'Проверить' })).task
+    await ctx.agentLoop.create(SessionId('task-draft'), { provider: 'mock', model: 'mock' })
+    const refused = await pathRequest(tasks, TASKS_PATH, { op: 'start', id: task.id, sessionId: 'task-draft' })
+    expect(refused).toEqual({ ok: false, error: 'ketos/invalid-state' })
+    expect((await taskRequest(tasks, { op: 'get', id: task.id })).task.status).toBe('pending')
   })
 })

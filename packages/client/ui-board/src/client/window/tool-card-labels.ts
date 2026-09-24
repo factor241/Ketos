@@ -73,10 +73,10 @@ export function diffBlockLabels(t: BoardTranslate): DiffBlockLabels {
 export function searchBlockLabels(t: BoardTranslate): SearchBlockLabels {
   return {
     pathsSummary: (shown, total, truncated) => truncated
-      ? t('search.paths.truncated', { total })
+      ? t('search.paths.truncated', { shown, total })
       : t('search.paths', { shown, total }),
     matchesSummary: (shown, total, files, truncated) => truncated
-      ? t('search.matches.truncated', { total, files })
+      ? t('search.matches.truncated', { shown, total, files })
       : t('search.matches', { shown, total, files }),
     copy: t('markdown.copy'),
     copied: t('markdown.copied'),

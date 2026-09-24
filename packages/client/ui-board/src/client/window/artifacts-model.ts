@@ -89,20 +89,25 @@ function extractNodeEntries(node: ToolResultNode): RawArtifactEntry[] {
       break
     }
     case 'str_replace_editor': {
-      const isCreate = args !== null && args.command === 'create'
+      const command = args !== null && typeof args.command === 'string' ? args.command : undefined
+      const kind: SessionArtifactKind = command === 'create'
+        ? 'created'
+        : command === 'view'
+          ? 'read'
+          : 'modified'
       let foundInDiffs = false
       if (meta !== null && Array.isArray(meta.diffs)) {
         for (const diffItem of meta.diffs) {
           const diff = asRecord(diffItem)
           if (typeof diff?.path === 'string' && diff.path !== '') {
-            entries.push({ path: diff.path, kind: isCreate ? 'created' : 'modified', time })
+            entries.push({ path: diff.path, kind, time })
             foundInDiffs = true
           }
         }
       }
       if (!foundInDiffs && args !== null) {
         if (typeof args.path === 'string' && args.path !== '') {
-          entries.push({ path: args.path, kind: isCreate ? 'created' : 'modified', time })
+          entries.push({ path: args.path, kind, time })
         }
       }
       break

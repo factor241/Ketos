@@ -9,6 +9,7 @@ import {
   type BoardLayoutDocument, type BoardPanelGroupBy, type BoardPanelOrderBy,
 } from '../board-settings.ts'
 import type { BoardWindowState, WindowBodyKind, WindowId, WindowKind } from './contract/slots.ts'
+import { isWindowOnScreen } from './window-screen.ts'
 
 /** Store handle handed to every board registration; one live root-scope instance backs them all. */
 export type BoardStoreHandle = EngineStoreHandle<BoardState, BoardActions>
@@ -50,6 +51,7 @@ type BoardActions = {
   setWindowCustomTitle: (draft: BoardState, id: WindowId, title: string | undefined) => void
   focusWindow: (draft: BoardState, id: WindowId) => void
   centerOnWindow: (draft: BoardState, id: WindowId) => void
+  revealWindow: (draft: BoardState, id: WindowId) => void
   setWindowFullscreen: (draft: BoardState, id: WindowId) => void
   exitFullscreen: (draft: BoardState) => void
   openWindowPanel: (draft: BoardState, id: WindowId, tab?: 'chats' | 'artifacts') => void
@@ -409,6 +411,16 @@ export function createBoardStore(): BoardStoreHandle {
         draft.panX = -(win.x + win.width / 2 - draft.viewportWidth / (2 * draft.zoom)) * draft.zoom
         draft.panY = -(win.y + win.height / 2 - draft.viewportHeight / (2 * draft.zoom)) * draft.zoom
       },
+      revealWindow: (draft, id) => {
+        const win = draft.windows[id as string]
+        if (!win) return
+        raiseWindow(draft, id)
+        // Raising a window the view has left would be a dead gesture: the
+        // window becomes active but stays out of sight.
+        if (isWindowOnScreen(draft, win)) return
+        draft.panX = -(win.x + win.width / 2 - draft.viewportWidth / (2 * draft.zoom)) * draft.zoom
+        draft.panY = -(win.y + win.height / 2 - draft.viewportHeight / (2 * draft.zoom)) * draft.zoom
+      },
       setWindowFullscreen: (draft, id) => {
         if (!draft.windows[id as string]) return
         draft.fullscreenWindowId = id
@@ -448,9 +460,12 @@ export function createBoardStore(): BoardStoreHandle {
       closeWindow: (draft, id) => {
         // A closed clone window takes its unsaved draft with it: the window is
         // the only surface that edits the record, so nothing should keep a
-        // copy of what the user abandoned.
+        // copy of what the user abandoned. A tasks window carries the same
+        // clone id but edits no draft, so its close leaves the record alone.
         const closing = draft.windows[id as string]
-        if (closing?.cloneId !== undefined) Reflect.deleteProperty(draft.cloneEdits, closing.cloneId)
+        if (closing?.kind === 'clone' && closing.cloneId !== undefined) {
+          Reflect.deleteProperty(draft.cloneEdits, closing.cloneId)
+        }
         // Immer draft: removing the window entry on close; WindowId is
         // opaque, so the record key is only reachable dynamically.
         Reflect.deleteProperty(draft.windows, id)
@@ -473,6 +488,18 @@ export function createBoardStore(): BoardStoreHandle {
         // (selection, queued composer commands) and the measured viewport box
         // belong to the running session. Fullscreen is deliberately not stored,
         // so an adopted layout always leaves it.
+        // A window the adopted document drops loses its per-window view state
+        // as closing it would: a draft or queued command must not outlive its
+        // window.
+        const kept = new Set(layout.windows.map(window => window.id))
+        for (const id of Object.keys(draft.windows)) {
+          if (kept.has(id)) continue
+          const dropped = draft.windows[id]
+          if (dropped?.kind === 'clone' && dropped.cloneId !== undefined) {
+            Reflect.deleteProperty(draft.cloneEdits, dropped.cloneId)
+          }
+          draft.composerIntents = draft.composerIntents.filter(intent => intent.windowId !== id)
+        }
         draft.panX = layout.panX
         draft.panY = layout.panY
         draft.zoom = layout.zoom

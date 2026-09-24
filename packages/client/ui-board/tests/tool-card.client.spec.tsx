@@ -525,6 +525,23 @@ describe('ToolCard', () => {
     expect(webRender.getByText('Example')).not.toBeNull()
   })
 
+  it('keeps the retained count in a truncated search summary', () => {
+    const grep = settled({
+      call: { name: 'grep', argsRaw: '{}' },
+      meta: { shape: 'matches', files: [{ path: 'a.ts', matches: [{ lineNumber: 4, line: 'hit' }] }], truncated: true, total: 4 },
+    })
+    const grepRender = render(<ToolCard node={grep} t={t} />)
+    expect(grepRender.getByText('showing 1 of 4 matches · 1 files')).not.toBeNull()
+    grepRender.unmount()
+
+    const glob = settled({
+      call: { name: 'glob', argsRaw: '{}' },
+      meta: { shape: 'paths', paths: ['a.ts'], truncated: true, total: 4 },
+    })
+    const globRender = render(<ToolCard node={glob} t={t} />)
+    expect(globRender.getByText('showing 1 of 4 paths')).not.toBeNull()
+  })
+
   it('renders a web fetch with its HTTP status', () => {
     const node = settled({
       call: { name: 'web_fetch', argsRaw: '{}' },

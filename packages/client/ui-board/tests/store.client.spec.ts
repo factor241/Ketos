@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import { MIN_WINDOW_SIZE, clampWindowSize, createBoardStore, nextWindowOrdinal, snapPosition } from '../src/client/store.ts'
 import { PANEL_DEFAULT_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH } from '../src/client/window/panel-geometry.ts'
+import type { BoardLayoutDocument } from '../src/board-settings.ts'
 import type { CloneId } from '@ketos/clone-core/types'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 
@@ -18,6 +19,25 @@ function makeWindow(overrides: Partial<BoardWindowState> & Pick<BoardWindowState
     height: 500,
     zIndex: 10,
     ...overrides,
+  }
+}
+
+/** One empty layout document, for the hydrate cleanup cases. */
+function emptyLayout(): BoardLayoutDocument {
+  return {
+    version: 1,
+    panX: 0,
+    panY: 0,
+    zoom: 1,
+    windows: [],
+    windowOrder: [],
+    activeWindowId: '',
+    panelWindowId: '',
+    panelCollapsed: true,
+    panelWidth: PANEL_DEFAULT_WIDTH,
+    panelGroupBy: 'workspace',
+    panelOrderBy: 'updated',
+    defaultPreset: '',
   }
 }
 
@@ -45,6 +65,39 @@ describe('clone editor drafts', () => {
     actions.setCloneEdit('w1' as WindowId, 'clone-1' as CloneId, draft)
     actions.closeWindow('w1' as WindowId)
     expect(store.getSnapshot().cloneEdits['clone-1']).toBeUndefined()
+  })
+
+  it('keeps a clone draft when a tasks window for the same clone closes', () => {
+    const { actions, store } = createBoardStore().create()
+    actions.addWindow(makeWindow({ id: 'c1' as WindowId, kind: 'clone', bodyKind: 'clone', cloneId: 'clone-1' as CloneId }))
+    actions.addWindow(makeWindow({
+      id: 't1' as WindowId,
+      kind: 'tasks',
+      bodyKind: 'tasks',
+      cloneId: 'clone-1' as CloneId,
+      ordinal: 2,
+    }))
+    actions.setCloneEdit('c1' as WindowId, 'clone-1' as CloneId, draft)
+
+    actions.closeWindow('t1' as WindowId)
+
+    // A tasks window carries the clone id but edits no draft: closing it must
+    // leave the open editor's unsaved record alone.
+    expect(store.getSnapshot().cloneEdits['clone-1']).toBeDefined()
+  })
+
+  it('drops the view state of every window an adopted layout removes', () => {
+    const { actions, store } = createBoardStore().create()
+    actions.addWindow(makeWindow({ id: 'c1' as WindowId, kind: 'clone', bodyKind: 'clone', cloneId: 'clone-1' as CloneId }))
+    actions.setCloneEdit('c1' as WindowId, 'clone-1' as CloneId, draft)
+    actions.pushComposerIntent('c1' as WindowId, { text: 'chip' })
+
+    actions.hydrate(emptyLayout())
+
+    // A window the adopted document drops takes its draft and its queued
+    // command with it, exactly as closing it would.
+    expect(store.getSnapshot().cloneEdits['clone-1']).toBeUndefined()
+    expect(store.getSnapshot().composerIntents).toEqual([])
   })
 })
 

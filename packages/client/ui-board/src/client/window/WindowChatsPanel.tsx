@@ -113,13 +113,19 @@ function WindowChatsPanelView({
   }, [])
 
   const windowSessionId = session?.sessionId
-  const groups = useMemo(
-    () => filterGroups(chatGroups(workspaceList, sessionList, { windowSessionId, groupBy, orderBy }), search),
-    [workspaceList, sessionList, windowSessionId, groupBy, orderBy, search],
+  const allGroups = useMemo(
+    () => chatGroups(workspaceList, sessionList, { windowSessionId, groupBy, orderBy }),
+    [workspaceList, sessionList, windowSessionId, groupBy, orderBy],
   )
+  const groups = useMemo(() => filterGroups(allGroups, search), [allGroups, search])
+  // The level's identity comes from the unfiltered groups: a search that hides
+  // the last matching row still leaves the header, badge, and New-chat control.
   const project = level.kind === 'chats'
-    ? groups.find(group => group.workspaceId === level.workspaceId)
+    ? allGroups.find(group => group.workspaceId === level.workspaceId)
     : undefined
+  const renderedChats = level.kind === 'chats'
+    ? groups.find(group => group.workspaceId === level.workspaceId)?.chats ?? []
+    : []
 
   const artifacts = useMemo(() => sessionArtifacts(session?.chat), [session?.chat])
   const projectPath = useMemo(() => {
@@ -274,9 +280,6 @@ function WindowChatsPanelView({
     return true
   }
 
-  const manualChatIds = (groupId: WorkspaceId): readonly SessionId[] =>
-    workspaceList.items.find(item => item.workspaceId === groupId)?.sessionIds ?? []
-
   const menuItems = (target: RowMenuTarget): readonly MenuEntry[] => {
     const common: MenuEntry[] = [
       { id: 'rename', label: t('panel.rename'), icon: <IconEditOutline16 /> },
@@ -289,12 +292,19 @@ function WindowChatsPanelView({
         { id: 'delete', label: t('panel.deleteFolder'), icon: <IconTrashOutline16 />, danger: true },
       ]
     }
+    // A row move writes the manual order, so it is offered only while that
+    // order is what the list renders; under newest-first it would be a no-op.
+    const moves: MenuEntry[] = orderBy === 'manual'
+      ? [
+        { id: 'up', label: t('panel.moveUp') },
+        { id: 'down', label: t('panel.moveDown') },
+      ]
+      : []
     return [
       ...common,
       { id: 'branch', label: t('panel.branch'), icon: <IconBranchOutline16 /> },
       { id: 'archive', label: t('panel.archive'), icon: <IconArchiveOutline20 size={16} /> },
-      { id: 'up', label: t('panel.moveUp') },
-      { id: 'down', label: t('panel.moveDown') },
+      ...moves,
       { id: 'delete', label: t('panel.deleteChat'), icon: <IconTrashOutline16 />, danger: true },
     ]
   }
@@ -314,7 +324,9 @@ function WindowChatsPanelView({
         })
         return
       }
-      const workspaceOrder = workspaceList.items.map(item => item.workspaceId)
+      const workspaceOrder = groups
+        .map(group => group.workspaceId)
+        .filter((id): id is WorkspaceId => id !== undefined)
       if (action === 'up') {
         void reorderWorkspace(workspaceId, moveAnchor(workspaceOrder, workspaceId, -1)).catch(report)
         return
@@ -341,12 +353,13 @@ function WindowChatsPanelView({
       return
     }
     if (groupId === undefined) return
+    const visibleIds = renderedChats.map(chat => chat.id)
     if (action === 'up') {
-      void reorderChat(groupId, chatId, moveAnchor(manualChatIds(groupId), chatId, -1)).catch(report)
+      void reorderChat(groupId, chatId, moveAnchor(visibleIds, chatId, -1)).catch(report)
       return
     }
     if (action === 'down') {
-      void reorderChat(groupId, chatId, moveAnchor(manualChatIds(groupId), chatId, 1)).catch(report)
+      void reorderChat(groupId, chatId, moveAnchor(visibleIds, chatId, 1)).catch(report)
     }
   }
 
@@ -419,6 +432,7 @@ function WindowChatsPanelView({
           }, 'panel-rail-artifacts')}
           {railButton(t('panel.search'), <IconSearchOutline16 />, () => {
             actions.openWindowPanel(cardWindow.id)
+            setLevel({ kind: 'projects' })
             setSearchOpen(true)
           }, 'panel-rail-search')}
         </div>
@@ -693,7 +707,7 @@ function WindowChatsPanelView({
             </div>
           ))}
 
-          {level.kind === 'chats' && panelTab === 'chats' && project?.chats.map(chat => (
+          {level.kind === 'chats' && panelTab === 'chats' && renderedChats.map(chat => (
             <div key={chat.id} className={css.groupRow}>
               <button
                 type="button"
@@ -878,12 +892,18 @@ function FolderBrowser({ t, listDirectory, createDirectory, pickDirectory, useFo
   const [listing, setListing] = useState<BoardDirectoryListing | null>(null)
   const [folderName, setFolderName] = useState<string | null>(null)
   const [browseFailed, setBrowseFailed] = useState(false)
+  const requestSeq = useRef(0)
 
   const load = useCallback((path?: string) => {
+    const request = ++requestSeq.current
+    // Only the newest request settles the view: an older listing that answers
+    // late must not replace the level the user already navigated to.
     void listDirectory(path).then((next) => {
+      if (request !== requestSeq.current) return
       setListing(next)
       setBrowseFailed(false)
     }).catch(() => {
+      if (request !== requestSeq.current) return
       setBrowseFailed(true)
     })
   }, [listDirectory])

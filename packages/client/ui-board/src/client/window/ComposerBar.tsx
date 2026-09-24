@@ -165,6 +165,26 @@ function leadingCommand(text: string): string | null {
   return match?.[1]?.toLowerCase() ?? null
 }
 
+/**
+ * Match a slash-command token at the end of the draft. The slash opens only at
+ * the start of the draft, after whitespace, or after punctuation; a `://`
+ * sequence and a `//` prefix never open one.
+ * @param draft - the composer draft.
+ * @returns the match whose capture is the query, or null without a live token.
+ */
+function slashCommandMatch(draft: string): RegExpExecArray | null {
+  const match = /\/([a-z0-9-]*)$/i.exec(draft)
+  if (match === null) return null
+  const index = match.index
+  if (index === 0) return match
+  const prev = draft.charAt(index - 1)
+  if (/\s/u.test(prev)) return match
+  if (/[\p{L}\p{N}_]/u.test(prev)) return null
+  if (prev === '/') return null
+  if (prev === ':' && index >= 2 && !/\s/u.test(draft.charAt(index - 2))) return null
+  return match
+}
+
 /** Human byte size for the attachment-limit messages: one decimal at most. */
 function sizeText(t: BoardTranslate, bytes: number): string {
   const round = (value: number): number => Math.round(value * 10) / 10
@@ -223,6 +243,9 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
   const presetAnchor = useRef<HTMLButtonElement>(null)
   const permissionAnchor = useRef<HTMLButtonElement>(null)
   const modelAnchor = useRef<HTMLButtonElement>(null)
+  // Arms on `compositionend` and clears on the next timer tick, covering the
+  // Enter Safari delivers after the event (the composition already ended).
+  const compositionGuard = useRef(false)
   // Source files of non-image chips, kept for retry after a failed upload.
   const fileSources = useRef(new Map<string, File>())
   const dragDepth = useRef(0)
@@ -281,7 +304,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
     }
   }, [intents, windowId, canAcceptDrop, actions])
 
-  const slashQuery = commandsDismissed ? null : /\/([a-z0-9-]*)$/i.exec(draft)
+  const slashQuery = commandsDismissed ? null : slashCommandMatch(draft)
   const slashRows = useMemo(() => {
     if (slashQuery === null) return []
     const query = (slashQuery[1] ?? '').toLowerCase()
@@ -357,7 +380,9 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
       return
     }
     const command = name === null ? undefined : session.commands.find(row => row.name === name)
-    const outgoing: OutgoingDraft = { text, images, files: readyFiles }
+    // Every chip returns with a refused draft, a failed upload's included: its
+    // retry source is the only way to re-stage the file.
+    const outgoing: OutgoingDraft = { text, images, files }
     const promptFiles: BoardPromptFile[] = readyFiles.map(file => ({
       receiptId: file.receiptId as string,
       ...(file.file === undefined ? {} : { file: file.file }),
@@ -413,14 +438,26 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
       return
     }
     if (e.key !== 'Enter' || e.shiftKey) return
+    // A composition-closing Enter picks the IME candidate: `isComposing` covers
+    // most engines, keyCode 229 is the legacy signal, and the ref holds the
+    // guard for Safari's keydown delivered just after `compositionend`.
+    // oxlint-disable-next-line typescript/no-deprecated
+    if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229 || compositionGuard.current) return
     e.preventDefault()
     submit(!e.metaKey && !e.ctrlKey ? 'queue' : 'steer')
+  }
+
+  const handleCompositionEnd = (): void => {
+    compositionGuard.current = true
+    window.setTimeout(() => { compositionGuard.current = false }, 0)
   }
 
   const pickCommand = (name: string): void => {
     closeMenu()
     if (name === 'file') {
-      if (canAcceptDrop) fileInput.current?.click()
+      // A disabled picker cannot open, so a blocked session keeps its draft.
+      if (!canAcceptDrop) return
+      fileInput.current?.click()
       setDraft('')
       return
     }
@@ -681,21 +718,23 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
               <IconGoalOutline16 />
               <span className={css.stripTitle}>{t(`goal.phase.${session.goal.phase}`)}</span>
               <span className={css.stripText}>{session.goal.objective}</span>
-              {session.goal.phase === 'paused'
-                ? (
-                  <Tooltip label={t('goal.action.resume')} side="top">
-                    <button type="button" className={css.stripAction} aria-label={t('goal.action.resume')} onClick={() => { injected.goalAction(windowId, 'resume') }}>
-                      <IconChecklistOutline14 />
-                    </button>
-                  </Tooltip>
-                )
-                : (
-                  <Tooltip label={t('goal.action.pause')} side="top">
-                    <button type="button" className={css.stripAction} aria-label={t('goal.action.pause')} onClick={() => { injected.goalAction(windowId, 'pause') }}>
-                      <IconChevronDownOutline14 />
-                    </button>
-                  </Tooltip>
-                )}
+              {/* Only the phase the host accepts offers its verb: a terminal
+                  goal has no pause to give, and the button would be a dead
+                  gesture. */}
+              {session.goal.phase === 'active' && (
+                <Tooltip label={t('goal.action.pause')} side="top">
+                  <button type="button" className={css.stripAction} aria-label={t('goal.action.pause')} onClick={() => { injected.goalAction(windowId, 'pause') }}>
+                    <IconChevronDownOutline14 />
+                  </button>
+                </Tooltip>
+              )}
+              {session.goal.phase === 'paused' && (
+                <Tooltip label={t('goal.action.resume')} side="top">
+                  <button type="button" className={css.stripAction} aria-label={t('goal.action.resume')} onClick={() => { injected.goalAction(windowId, 'resume') }}>
+                    <IconChecklistOutline14 />
+                  </button>
+                </Tooltip>
+              )}
               <Tooltip label={t('goal.action.clear')} side="top">
                 <button type="button" className={css.stripAction} aria-label={t('goal.action.clear')} onClick={() => { injected.goalAction(windowId, 'clear') }}>
                   <IconCloseOutline16 />
@@ -1000,6 +1039,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
             trackMention(e.target.value)
           }}
           onKeyDown={handleKeyDown}
+          onCompositionEnd={handleCompositionEnd}
           onPaste={(e) => {
             const pasted = [...e.clipboardData.items]
               .filter(item => item.kind === 'file')

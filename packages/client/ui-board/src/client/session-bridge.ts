@@ -270,6 +270,9 @@ export class BoardSessionBridge {
   ): Promise<boolean> {
     this.patch(windowId, { promptError: undefined, commandError: undefined, queueError: undefined })
     await this.whenReady(windowId)
+    // A window released while its session was being created owns no record:
+    // the settled prompt is dropped instead of resurrecting it.
+    if (this.windows.get(windowId) === undefined) return false
     const session = this.sessionFace(windowId)
     if (session === undefined) {
       // A missing or still-restoring session must not swallow the prompt.
@@ -571,9 +574,13 @@ export class BoardSessionBridge {
     if (projection == null) return
     const ref = { id: projection.goal.id as never, revision: projection.goal.revision }
     const goals = this.ctx.remote.goals
-    void (action === 'pause' ? goals.pause(sessionId, ref)
+    // A refused verb (the phase moved between the render and the click) must
+    // not surface as an unhandled rejection; the strip re-reads the projection
+    // on the next publish and drops the affordance.
+    const call = action === 'pause' ? goals.pause(sessionId, ref)
       : action === 'resume' ? goals.resume(sessionId, ref)
-        : goals.clear(sessionId, ref))
+        : goals.clear(sessionId, ref)
+    void call.catch(() => undefined)
   }
 
   /**
@@ -674,8 +681,10 @@ export class BoardSessionBridge {
   }
 
   private sessionFace(windowId: WindowId) {
-    const record = this.record(windowId)
-    if (record.sessionId === undefined || !record.attached) return undefined
+    // Read-only: an async gesture settling late must not mint a record for a
+    // window the board already released.
+    const record = this.windows.get(windowId)
+    if (record === undefined || record.sessionId === undefined || !record.attached) return undefined
     return this.ctx.sessions.binding(record.sessionId)?.session
   }
 
@@ -850,6 +859,9 @@ export class BoardSessionBridge {
     record.releaseSession()
     record.releaseSession = () => {}
     record.sessionId = sessionId
+    // The failure lines describe the chat the window leaves; the rebind must
+    // not carry them onto the next session.
+    this.patch(windowId, { commandError: undefined, presetError: undefined, queueError: undefined })
     this.attach(windowId, sessionId)
     this.persistBindings()
   }
@@ -1103,9 +1115,12 @@ export class BoardSessionBridge {
    */
   async forkChat(windowId: WindowId, sessionId: SessionId): Promise<void> {
     const record = this.record(windowId)
+    // The window may branch a chat it does not show: the guard compares the
+    // window's own session, so the fork child still lands in the window.
+    const before = record.sessionId
     const child = await this.ctx.sessions.fork({ sessionId, increaseTitle: true })
     if (this.disposed) return
-    if (!this.owns(record, windowId, sessionId)) return
+    if (!this.owns(record, windowId, before)) return
     this.switchTo(windowId, child)
   }
 
@@ -1225,7 +1240,12 @@ export class BoardSessionBridge {
 
   /** Create a chat from a target and point the window at it. */
   private async createChatTarget(windowId: WindowId, target: BoardChatTarget): Promise<void> {
-    const record = this.record(windowId)
+    // A chat gesture landing while the window's own session is still being
+    // created would create a second session the window never shows; wait for
+    // that creation, then bind the chat it asked for.
+    await this.whenReady(windowId)
+    const record = this.windows.get(windowId)
+    if (record === undefined) return
     const before = record.sessionId
     const sessionId = await this.ctx.sessions.create(target)
     if (this.disposed) return

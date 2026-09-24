@@ -87,8 +87,15 @@ export function useDictation(onText: (text: string) => void): Dictation {
       const trimmed = text.trim()
       if (trimmed !== '') onTextRef.current(trimmed)
     }
-    session.onend = () => { engine.current = null; setListening(false) }
-    session.onerror = () => { engine.current = null; setListening(false) }
+    // A stopped session's async end arrives after the next one started, so the
+    // handler may only clear the state it owns.
+    const settle = (): void => {
+      if (engine.current !== session) return
+      engine.current = null
+      setListening(false)
+    }
+    session.onend = settle
+    session.onerror = settle
     engine.current = session
     session.start()
     setListening(true)

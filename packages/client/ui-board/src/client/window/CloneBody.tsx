@@ -28,7 +28,7 @@ import type { BoardTranslate } from '../locale.ts'
 import { relativeAge } from '../relative-age.ts'
 import { formatModelRoute } from '../clone-model.ts'
 import {
-  CLONE_LIMITS, CLONE_SKILL_NAME_PATTERN, changedFields, sameDraft, toDraft, toPatch,
+  CLONE_LIMITS, CLONE_SKILL_NAME_PATTERN, changedFields, sameDraft, toDraft, toPatch, toStoredDraft,
   type CloneDraft, type CloneEdit, type CloneField,
 } from '../clone-draft.ts'
 import css from './CloneBody.module.css'
@@ -73,10 +73,21 @@ const AUTOPILOT_OUTCOME_KEYS = {
   failed: 'tasks.outcome.failed',
 } as const satisfies Record<BoardTaskOutcome, Parameters<BoardTranslate>[0]>
 
-/** The fields the skill modal edits, with the entry it replaces while editing. */
+/**
+ * One draft skill as a row action or the modal addresses it: the list position
+ * the action lands on and the name that position held when it was picked. A
+ * revision that replaced the list leaves no matching position, so the action
+ * is dropped instead of hitting whichever entry took the row's place.
+ */
+interface SkillRef {
+  readonly index: number
+  readonly name: string
+}
+
+/** The fields the skill modal edits, with the row it replaces while editing. */
 interface SkillModalState {
-  /** Name of the draft skill being edited; undefined while adding. */
-  readonly original: string | undefined
+  /** Row of the draft skill being edited; undefined while adding. */
+  readonly original: SkillRef | undefined
   readonly name: string
   readonly description: string
   readonly instructions: string
@@ -140,7 +151,7 @@ export function CloneBody({
   const [sessions, setSessions] = useState<readonly CloneSessionBinding[]>([])
   const [sessionEpoch, setSessionEpoch] = useState(0)
   const [modelMenuOpen, setModelMenuOpen] = useState(false)
-  const [skillMenu, setSkillMenu] = useState<string | null>(null)
+  const [skillMenu, setSkillMenu] = useState<SkillRef | null>(null)
   const [skillModal, setSkillModal] = useState<SkillModalState | undefined>(undefined)
   const modelAnchor = useRef<HTMLButtonElement>(null)
   const skillAnchor = useRef<HTMLButtonElement | null>(null)
@@ -222,11 +233,12 @@ export function CloneBody({
   /** The live draft's skills, shared by the row list and the modal. */
   const skills = editor?.draft.skills ?? []
 
-  /** Open the skill modal on one draft skill, or on empty fields for a new one. */
-  const openSkillModal = (skill?: CloneSkill): void => {
+  /** Open the skill modal on one draft row, or on empty fields for a new one. */
+  const openSkillModal = (target?: SkillRef): void => {
     setSkillMenu(null)
+    const skill = target === undefined ? undefined : skills[target.index]
     setSkillModal({
-      original: skill?.name,
+      original: target,
       name: skill?.name ?? '',
       description: skill?.description ?? '',
       instructions: skill?.instructions ?? '',
@@ -242,16 +254,18 @@ export function CloneBody({
       setSkillModal({ ...skillModal, error: 'name' })
       return
     }
-    if (editor.draft.skills.some(skill => skill.name.trim() === name && skill.name !== skillModal.original)) {
+    // The edited row is addressed by its position and the name it held when the
+    // modal opened: a revision that landed meanwhile may have moved or replaced
+    // list entries, so the save must not land on a different skill.
+    const original = skillModal.original
+    const at = original !== undefined && skills[original.index]?.name === original.name
+      ? original.index
+      : -1
+    if (skills.some((skill, index) => skill.name.trim() === name && index !== at)) {
       setSkillModal({ ...skillModal, error: 'duplicate' })
       return
     }
-    // The edited entry is addressed by the name it had when the modal opened:
-    // a revision that landed meanwhile may have moved or replaced list entries.
-    const at = skillModal.original === undefined
-      ? -1
-      : editor.draft.skills.findIndex(skill => skill.name === skillModal.original)
-    if (at === -1 && editor.draft.skills.length >= CLONE_LIMITS.skillCount) {
+    if (at === -1 && skills.length >= CLONE_LIMITS.skillCount) {
       setSkillModal({ ...skillModal, error: 'limit' })
       return
     }
@@ -262,25 +276,24 @@ export function CloneBody({
     }
     edit({
       skills: at === -1
-        ? [...editor.draft.skills, skill]
-        : editor.draft.skills.map((entry, index) => (index === at ? skill : entry)),
+        ? [...skills, skill]
+        : skills.map((entry, index) => (index === at ? skill : entry)),
     })
     setSkillModal(undefined)
   }
 
   /** Apply one row-menu action to the skill the menu was opened on. */
   const onSkillMenuSelect = (id: string): void => {
-    const name = skillMenu
+    const target = skillMenu
     setSkillMenu(null)
-    if (name === null) return
-    const index = skills.findIndex(skill => skill.name === name)
-    if (index === -1) return
-    const skill = skills[index]
+    if (target === null) return
+    const skill = skills[target.index]
+    if (skill === undefined || skill.name !== target.name) return
     if (id === 'edit') {
-      openSkillModal(skill)
+      openSkillModal(target)
       return
     }
-    edit({ skills: skills.filter((_entry, at) => at !== index) })
+    edit({ skills: skills.filter((_entry, at) => at !== target.index) })
   }
 
   const modelItems: readonly MenuEntry[] = useMemo(() => [
@@ -306,9 +319,11 @@ export function CloneBody({
 
   const onSave = async (): Promise<void> => {
     if (editor === undefined || cloneId === undefined) return
-    // The saved snapshot, not the live draft: the user may keep typing while
-    // the request runs, and only what the route accepted is adopted.
-    const saved = editor.draft
+    // The draft the request sends, and the normalized snapshot it leaves: the
+    // route stores the trimmed name and role the patch carries, so the accepted
+    // snapshot holds them and the stored record that follows matches the base.
+    const draft = editor.draft
+    const saved = toStoredDraft(draft)
     setBusy(true)
     const outcome = await saveClone(cloneId, toPatch(saved), editor.revision)
     setBusy(false)
@@ -320,7 +335,7 @@ export function CloneBody({
       // stays in the draft.
       const current = editsRef.current[cloneId]
       const accepted: CloneEdit = { draft: saved, base: saved, revision: editor.revision + 1, agentFields: [] }
-      if (current === undefined || sameDraft(current.draft, saved)) {
+      if (current === undefined || sameDraft(current.draft, draft)) {
         writeEdit(accepted)
       } else {
         // The user typed while the request ran: the accepted snapshot becomes
@@ -562,7 +577,7 @@ export function CloneBody({
                     aria-label={`${t('clone.skills.menu')}: ${skill.name}`}
                     onClick={(event) => {
                       skillAnchor.current = event.currentTarget
-                      setSkillMenu(skill.name)
+                      setSkillMenu({ index, name: skill.name })
                     }}
                   >
                     <IconEllipsisOutline16 />

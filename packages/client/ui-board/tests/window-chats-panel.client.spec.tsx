@@ -7,9 +7,11 @@
  * - Path validation and isolation of ~/.ketos / filesystem roots
  */
 import { afterEach, describe, expect, it } from 'vitest'
-import { act, cleanup, fireEvent } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import type { ChatSnapshot, ToolResultNode } from '@deepseek-ai/dsh-client-ui-chat/client'
-import type { WindowId } from '../src/client/contract/slots.ts'
+import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { BoardDirectoryListing, WindowId } from '../src/client/contract/slots.ts'
 import { createBoardStore } from '../src/client/store.ts'
 import { createBoardBench } from './fixtures.client.ts'
 
@@ -63,6 +65,48 @@ function chatWith(nodes: readonly ToolResultNode[]): ChatSnapshot {
     loadingOlder: false,
     running: false,
   } as unknown as ChatSnapshot
+}
+
+/** One workspace view with the fields the panel reads. */
+function workspaceView(id: string, path: string, sessionIds: readonly string[], title = ''): WorkspaceView {
+  return {
+    workspaceId: id as WorkspaceId,
+    path,
+    title,
+    sessionIds: sessionIds.map(sessionId => sessionId as SessionId),
+    createdAt: '2026-09-16T00:00:00.000Z',
+    updatedAt: '2026-09-16T00:00:00.000Z',
+  }
+}
+
+/** One directory level the folder browser renders. */
+function listing(path: string, name: string, entries: readonly { name: string; path: string }[]): BoardDirectoryListing {
+  return {
+    path,
+    home: '/home/user',
+    crumbs: [{ name: '', path: '/' }, { name, path }],
+    entries: entries.map(entry => ({ ...entry, hidden: false })),
+    truncated: false,
+  }
+}
+
+/** Mount the board with one open window and its chats panel open at the projects level. */
+async function openChatsPanel(options: Parameters<typeof createBoardBench>[0] = {}) {
+  const prepared = await createBoardBench(options)
+  runtimes.add(prepared.runtime)
+  await prepared.mountBoard()
+  const panel = prepared.runtime.renderSlot('main', {}, { entryKey: 'board' })
+  const board = prepared.runtime.storeOf('board.dock') as unknown as BoardInstance
+  act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
+  await prepared.runtime.flush()
+  fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+  await prepared.runtime.flush()
+  return { prepared, panel, board }
+}
+
+/** The data-row keys of the rendered chat rows, in order. */
+function chatRowKeys(container: HTMLElement): (string | null)[] {
+  return Array.from(container.querySelectorAll('[data-row-key^="chat:"]')).map(el => el.getAttribute('data-row-key'))
 }
 
 describe('WindowChatsPanel project path and artifacts', () => {
@@ -361,5 +405,224 @@ describe('WindowChatsPanel project path and artifacts', () => {
     await runtime.flush()
 
     expect(runtime.workspaces.calls.some(call => call.method === 'create' && (call.args[0] as { path: string }).path === '/')).toBe(true)
+  })
+})
+
+describe('WindowChatsPanel list controls', () => {
+  it('opens the projects level with the search field from the rail search button', async () => {
+    const { prepared, panel } = await openChatsPanel({ session: {} })
+    const { runtime } = prepared
+    await runtime.workspaces.update((draft) => {
+      draft.items = [workspaceView('ws-1', '/work/my-project', ['session-1'], 'MyProject')]
+    })
+    await runtime.flush()
+
+    fireEvent.click(panel.view.getByText('MyProject'))
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('[data-board-action="panel-collapse"]') as Element)
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('[data-board-action="panel-rail-search"]') as Element)
+    await runtime.flush()
+
+    expect(panel.container.querySelector('[data-board-row-edit="search"] input')).not.toBeNull()
+    expect(panel.view.getByText('Projects')).not.toBeNull()
+  })
+
+  it('moves a chat against its rendered neighbour while hidden rows stay in place', async () => {
+    const { prepared, panel, board } = await openChatsPanel({
+      session: {},
+      sessionSummary: { displayTitle: 'Hidden' },
+      extraSessions: [
+        { id: 'session-2', displayTitle: 'Second' },
+        { id: 'session-3', displayTitle: 'Third' },
+      ],
+    })
+    const { runtime } = prepared
+    runtime.workspaces.stub('insertSessionBefore', async (workspaceId, sessionId, beforeSessionId) => {
+      await runtime.workspaces.update((draft) => {
+        draft.items = draft.items.map((item) => {
+          if (item.workspaceId !== workspaceId) return item
+          const ids = item.sessionIds.filter(id => id !== sessionId)
+          const at = beforeSessionId === undefined ? ids.length : ids.indexOf(beforeSessionId)
+          ids.splice(at === -1 ? ids.length : at, 0, sessionId)
+          return { ...item, sessionIds: ids }
+        })
+      })
+      return runtime.workspaces.list.getSnapshot().items.find(item => item.workspaceId === workspaceId) as WorkspaceView
+    })
+    await runtime.workspaces.update((draft) => {
+      draft.items = [workspaceView('ws-1', '/work/my-project', ['session-2', 'session-1', 'session-3'], 'MyProject')]
+      draft.archivedSessionIds = ['session-1' as SessionId]
+    })
+    act(() => { board.actions.setPanelOrderBy('manual') })
+    await runtime.flush()
+    fireEvent.click(panel.view.getByText('MyProject'))
+    await runtime.flush()
+
+    expect(chatRowKeys(panel.container)).toEqual(['chat:session-2', 'chat:session-3'])
+    fireEvent.click(panel.container.querySelectorAll('[data-board-action="panel-row-menu"]')[1] as Element)
+    await runtime.flush()
+    fireEvent.click(screen.getByText('Move up'))
+    await runtime.flush()
+
+    expect(runtime.workspaces.calls.find(call => call.method === 'insertSessionBefore')?.args)
+      .toEqual(['ws-1', 'session-3', 'session-2'])
+    expect(chatRowKeys(panel.container)).toEqual(['chat:session-3', 'chat:session-2'])
+  })
+
+  it('moves a project against the rendered groups while search hides another project', async () => {
+    const { prepared, panel } = await openChatsPanel({
+      session: {},
+      sessionSummary: { displayTitle: 'Alpha loose' },
+      extraSessions: [
+        { id: 'session-2', displayTitle: 'Alpha' },
+        { id: 'session-3', displayTitle: 'Beta' },
+        { id: 'session-4', displayTitle: 'Alpha two' },
+      ],
+    })
+    const { runtime } = prepared
+    await runtime.workspaces.update((draft) => {
+      draft.items = [
+        workspaceView('ws-1', '/work/one', ['session-2'], 'One'),
+        workspaceView('ws-2', '/work/two', ['session-3'], 'Two'),
+        workspaceView('ws-3', '/work/three', ['session-4'], 'Three'),
+      ]
+    })
+    await runtime.flush()
+
+    fireEvent.click(panel.container.querySelector('[data-board-action="panel-search"]') as Element)
+    await runtime.flush()
+    fireEvent.change(panel.container.querySelector('[data-board-row-edit="search"] input') as Element, { target: { value: 'alpha' } })
+    await runtime.flush()
+
+    const menus = panel.container.querySelectorAll('[data-board-action="panel-project-menu"]')
+    expect(menus).toHaveLength(2)
+    fireEvent.click(menus[1] as Element)
+    await runtime.flush()
+    fireEvent.click(screen.getByText('Move up'))
+    await runtime.flush()
+
+    expect(runtime.workspaces.calls.find(call => call.method === 'insertBefore')?.args).toEqual(['ws-3', 'ws-1'])
+  })
+
+  it('offers chat move actions only while the manual order is chosen', async () => {
+    const { prepared, panel, board } = await openChatsPanel({
+      session: {},
+      sessionSummary: { displayTitle: 'First' },
+      extraSessions: [{ id: 'session-2', displayTitle: 'Second' }],
+    })
+    const { runtime } = prepared
+    await runtime.workspaces.update((draft) => {
+      draft.items = [workspaceView('ws-1', '/work/my-project', ['session-1', 'session-2'], 'MyProject')]
+    })
+    await runtime.flush()
+    fireEvent.click(panel.view.getByText('MyProject'))
+    await runtime.flush()
+
+    fireEvent.click(panel.container.querySelector('[data-board-action="panel-row-menu"]') as Element)
+    await runtime.flush()
+    expect(screen.queryByText('Move up')).toBeNull()
+    expect(screen.queryByText('Move down')).toBeNull()
+    expect(screen.getByText('Rename')).not.toBeNull()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await runtime.flush()
+    act(() => { board.actions.setPanelOrderBy('manual') })
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('[data-board-action="panel-row-menu"]') as Element)
+    await runtime.flush()
+    expect(screen.getByText('Move up')).not.toBeNull()
+    expect(screen.getByText('Move down')).not.toBeNull()
+  })
+
+  it('keeps the project level identity when the search hides its last chat', async () => {
+    const { prepared, panel } = await openChatsPanel({ session: {}, sessionSummary: { displayTitle: 'Alpha' } })
+    const { runtime } = prepared
+    await runtime.workspaces.update((draft) => {
+      draft.items = [workspaceView('ws-1', '/work/ketos', ['session-1'], 'MyProject')]
+    })
+    await runtime.flush()
+
+    fireEvent.click(panel.container.querySelector('[data-board-action="panel-search"]') as Element)
+    await runtime.flush()
+    fireEvent.change(panel.container.querySelector('[data-board-row-edit="search"] input') as Element, { target: { value: 'Alpha' } })
+    await runtime.flush()
+    fireEvent.click(panel.view.getByText('MyProject'))
+    await runtime.flush()
+
+    fireEvent.click(panel.container.querySelector('[data-board-action="panel-row-menu"]') as Element)
+    await runtime.flush()
+    fireEvent.click(screen.getByText('Archive chat'))
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('[data-board-row-edit="confirm"] button') as Element)
+    await runtime.flush()
+
+    expect(panel.container.querySelector('[data-board-project-path="/work/ketos"]')).not.toBeNull()
+    expect(panel.container.querySelector('[data-board-action="panel-new-chat"]')).not.toBeNull()
+    expect(panel.view.queryByText('Ungrouped')).toBeNull()
+  })
+
+  it('ignores a folder listing that resolves after a newer request', async () => {
+    const pending: Array<(value: BoardDirectoryListing) => void> = []
+    const { prepared, panel } = await openChatsPanel({
+      session: {},
+      uiWorkspace: {
+        listDirectory: () => new Promise((resolve) => { pending.push(resolve) }),
+      },
+    })
+    const { runtime } = prepared
+
+    fireEvent.click(panel.container.querySelector('button[aria-label="Add a folder…"]') as Element)
+    await runtime.flush()
+    await act(async () => {
+      pending[0]?.(listing('/root', 'root', [
+        { name: 'slow', path: '/slow' },
+        { name: 'fast', path: '/fast' },
+      ]))
+    })
+    await runtime.flush()
+
+    fireEvent.click(panel.view.getByText('slow'))
+    fireEvent.click(panel.view.getByText('fast'))
+    await runtime.flush()
+    await act(async () => { pending[2]?.(listing('/fast', 'fast', [])) })
+    await runtime.flush()
+    await act(async () => { pending[1]?.(listing('/slow', 'slow', [])) })
+    await runtime.flush()
+
+    expect(panel.container.querySelector('[data-board-crumb-path="/fast"]')).not.toBeNull()
+    expect(panel.container.querySelector('[data-board-crumb-path="/slow"]')).toBeNull()
+  })
+
+  it('ignores a failed folder listing that a newer request already replaced', async () => {
+    const pending: Array<{ resolve: (value: BoardDirectoryListing) => void; reject: (error: Error) => void }> = []
+    const { prepared, panel } = await openChatsPanel({
+      session: {},
+      uiWorkspace: {
+        listDirectory: () => new Promise((resolve, reject) => { pending.push({ resolve, reject }) }),
+      },
+    })
+    const { runtime } = prepared
+
+    fireEvent.click(panel.container.querySelector('button[aria-label="Add a folder…"]') as Element)
+    await runtime.flush()
+    await act(async () => {
+      pending[0]?.resolve(listing('/root', 'root', [
+        { name: 'slow', path: '/slow' },
+        { name: 'fast', path: '/fast' },
+      ]))
+    })
+    await runtime.flush()
+
+    fireEvent.click(panel.view.getByText('slow'))
+    fireEvent.click(panel.view.getByText('fast'))
+    await runtime.flush()
+    await act(async () => { pending[2]?.resolve(listing('/fast', 'fast', [])) })
+    await runtime.flush()
+    await act(async () => { pending[1]?.reject(new Error('browse failed')) })
+    await runtime.flush()
+
+    expect(panel.container.querySelector('[data-board-crumb-path="/fast"]')).not.toBeNull()
+    expect(panel.view.queryByText('Folder browsing is unavailable')).toBeNull()
   })
 })

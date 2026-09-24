@@ -605,6 +605,61 @@ describe('clone skills', () => {
     expect(document.querySelector('[data-board-clone-notice="agent"]')).toBeNull()
   })
 
+  it('adopts a save with a padded name as the stored value so it marks nothing', async () => {
+    const saveClone = vi.fn(async () => 'saved' as const)
+    const instance = createBoardStore().create()
+    const { rerender } = render(<CloneBody {...cloneProps({ instance, saveClone })} />)
+    await waitFor(() => { expect(value('name')).toBe('Анна') })
+
+    fireEvent.change(field('name'), { target: { value: ' Анна П. ' } })
+    fireEvent.click(field('save'))
+    await waitFor(() => { expect(saveClone).toHaveBeenCalledTimes(1) })
+    expect(saveClone).toHaveBeenCalledWith('clone-1', expect.objectContaining({ name: 'Анна П.' }), 3)
+    // The accepted snapshot holds the name the route stores, not the padding.
+    await waitFor(() => { expect(value('name')).toBe('Анна П.') })
+
+    // The roster read returns the stored name; the user's own save must not
+    // look like an agent revision.
+    rerender(<CloneBody {...cloneProps({
+      instance,
+      saveClone,
+      clones: [{ ...CLONE, name: 'Анна П.', revision: 4 }],
+    })} />)
+    await waitFor(() => { expect(document.querySelector('[data-board-clone-revision="4"]')).not.toBeNull() })
+    expect(document.querySelector('[data-board-clone-agent-field="name"]')).toBeNull()
+    expect(document.querySelector('[data-board-clone-notice="agent"]')).toBeNull()
+  })
+
+  it('deletes the duplicate row whose own menu was opened', async () => {
+    const first: CloneSkill = { name: 'sql', description: 'Первый', instructions: '' }
+    const second: CloneSkill = { name: 'sql', description: 'Второй', instructions: '' }
+    render(<CloneBody {...cloneProps({ clones: [{ ...CLONE, skills: [first, second] }] })} />)
+    await waitFor(() => { expect(document.querySelectorAll('[data-board-clone-skill-row="sql"]')).toHaveLength(2) })
+
+    const triggers = document.querySelectorAll('[data-board-clone-skill-row="sql"] [data-board-clone-action="skill-menu"]')
+    fireEvent.click(triggers[1] as HTMLElement)
+    await clickSkillMenuAction('Delete')
+    await waitFor(() => { expect(document.querySelectorAll('[data-board-clone-skill-row="sql"]')).toHaveLength(1) })
+    expect(document.querySelector('[data-board-clone-skill-row="sql"]')?.textContent).toContain('Первый')
+  })
+
+  it('edits the duplicate row whose own menu was opened', async () => {
+    const first: CloneSkill = { name: 'sql', description: 'Первый', instructions: '' }
+    const second: CloneSkill = { name: 'sql', description: 'Второй', instructions: '' }
+    render(<CloneBody {...cloneProps({ clones: [{ ...CLONE, skills: [first, second] }] })} />)
+    await waitFor(() => { expect(document.querySelectorAll('[data-board-clone-skill-row="sql"]')).toHaveLength(2) })
+
+    const triggers = document.querySelectorAll('[data-board-clone-skill-row="sql"] [data-board-clone-action="skill-menu"]')
+    fireEvent.click(triggers[1] as HTMLElement)
+    await clickSkillMenuAction('Edit')
+    expect(skillField('description').value).toBe('Второй')
+    fireEvent.change(skillField('name'), { target: { value: 'sql-two' } })
+    saveSkill()
+    await waitFor(() => { expect(document.querySelector('[data-board-clone-skill-row="sql-two"]')).not.toBeNull() })
+    expect(document.querySelector('[data-board-clone-skill-row="sql-two"]')?.textContent).toContain('Второй')
+    expect(document.querySelector('[data-board-clone-skill-row="sql"]')?.textContent).toContain('Первый')
+  })
+
   it('renames one of two duplicate stored skills without touching the other', async () => {
     const first: CloneSkill = { name: 'sql', description: 'Первый', instructions: '' }
     const second: CloneSkill = { name: 'sql', description: 'Второй', instructions: '' }

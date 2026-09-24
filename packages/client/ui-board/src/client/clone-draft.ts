@@ -71,20 +71,38 @@ export interface CloneEdit {
 }
 
 /**
- * The editable fields of one stored record.
+ * The editable fields of one stored record, with the name, role, and skill
+ * names the route stores normalized.
  * @param clone - the stored record to project.
  * @returns the record's editable values.
  */
 export function toDraft(clone: CloneDto): CloneDraft {
-  return {
+  return toStoredDraft({
     name: clone.name,
     role: clone.role,
     description: clone.description,
     persona: clone.persona,
     methodology: clone.methodology,
-    skills: clone.skills.map(skill => ({ ...skill, name: skill.name.trim() })),
+    skills: clone.skills,
     preferredModel: clone.preferredModel,
     status: clone.status,
+  })
+}
+
+/**
+ * The draft as the route stores it: the name, role, and skill names a save
+ * trims on the wire, with every other value unchanged. A save adopts this as
+ * its accepted snapshot, so the stored record that follows matches the base
+ * and the user's own write raises no agent revision.
+ * @param draft - the draft to normalize.
+ * @returns the draft with the values the route stores.
+ */
+export function toStoredDraft(draft: CloneDraft): CloneDraft {
+  return {
+    ...draft,
+    name: draft.name.trim(),
+    role: draft.role.trim(),
+    skills: draft.skills.map(skill => ({ ...skill, name: skill.name.trim() })),
   }
 }
 
@@ -135,18 +153,15 @@ export function changedFields(previous: CloneDraft, next: CloneDraft): readonly 
  * @returns the patch carrying every editable field.
  */
 export function toPatch(draft: CloneDraft): CloneUpdatePatch {
+  const stored = toStoredDraft(draft)
   return {
-    name: draft.name.trim(),
-    role: draft.role.trim(),
-    description: draft.description,
-    persona: draft.persona,
-    methodology: draft.methodology,
-    skills: draft.skills.map(skill => ({
-      name: skill.name.trim(),
-      description: skill.description,
-      instructions: skill.instructions,
-    })),
-    preferredModel: draft.preferredModel,
-    status: draft.status,
+    name: stored.name,
+    role: stored.role,
+    description: stored.description,
+    persona: stored.persona,
+    methodology: stored.methodology,
+    skills: stored.skills,
+    preferredModel: stored.preferredModel,
+    status: stored.status,
   }
 }

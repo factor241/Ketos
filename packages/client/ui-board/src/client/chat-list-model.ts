@@ -161,7 +161,11 @@ export function chatGroups(
   const loose = sessions.ids.filter(id => !claimed.has(id) && !archived.has(id))
   const ungrouped = rowsOf(loose, sessions, archived, options)
   if (ungrouped.length > 0) {
-    const anchor = options.windowSessionId ?? loose[0]
+    // The bucket's directory comes from its own rows: the window's session only
+    // when it is one of them, otherwise the first loose row.
+    const anchor = options.windowSessionId !== undefined && loose.includes(options.windowSessionId)
+      ? options.windowSessionId
+      : loose[0]
     groups.push({
       label: '',
       cwd: anchor === undefined ? '' : sessions.byId[anchor]?.cwd ?? '',
@@ -184,7 +188,8 @@ export function chatMatches(row: BoardChatRow, cwd: string, query: string): bool
 }
 
 /**
- * The groups a local query keeps, dropping groups that end up empty.
+ * The groups a local query keeps: rows match by title or directory, and a
+ * group whose own directory matches stays even when it holds no matching row.
  * @param groups - the groups to filter.
  * @param query - the raw query; blank keeps everything.
  * @returns the filtered groups.
@@ -194,7 +199,7 @@ export function filterGroups(groups: readonly BoardChatGroup[], query: string): 
   if (needle === '') return groups
   return groups
     .map(group => ({ ...group, chats: group.chats.filter(row => chatMatches(row, group.cwd, needle)) }))
-    .filter(group => group.chats.length > 0)
+    .filter(group => group.chats.length > 0 || group.cwd.toLowerCase().includes(needle))
 }
 
 /**

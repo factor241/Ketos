@@ -152,6 +152,30 @@ describe('board dock', () => {
     expect(focused.panY).toBe(centered.panY)
   })
 
+  it('brings the active window back when the view has moved off it', async () => {
+    const { runtime, panel, store } = await bench()
+    act(() => {
+      store.actions.setViewport(1200, 900)
+      store.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'First' }))
+      store.actions.setPan(-4000, -3000)
+    })
+    await runtime.flush()
+    expect(store.store.getSnapshot().activeWindowId).toBe('a1')
+    const away = store.store.getSnapshot()
+    expect(away.panX).toBe(-4000)
+
+    // The active window is out of sight, so its own row is not a dead gesture:
+    // it centres the view on the window again.
+    fireEvent.click(rowOf(panel, 'First'))
+    await runtime.flush()
+    const revealed = store.store.getSnapshot()
+    const win = revealed.windows['a1'] as BoardWindowState
+    expect(revealed.activeWindowId).toBe('a1')
+    expect(revealed.panX).not.toBe(-4000)
+    expect((win.x + win.width / 2) * revealed.zoom + revealed.panX).toBeCloseTo(revealed.viewportWidth / 2)
+    expect((win.y + win.height / 2) * revealed.zoom + revealed.panY).toBeCloseTo(revealed.viewportHeight / 2)
+  })
+
   it('opens the in-place rename editor from the row menu', async () => {
     const { runtime, panel, store } = await bench()
     act(() => { store.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })

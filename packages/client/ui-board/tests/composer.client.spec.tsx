@@ -97,6 +97,28 @@ const imageFile = (name: string, bytes: number, type = 'image/png'): File =>
   new File([new Uint8Array(bytes)], name, { type })
 
 describe('ComposerBar states', () => {
+  it('offers only the goal verb the host accepts', () => {
+    const active = renderComposer(sessionState(undefined, {
+      goal: { objective: 'Ship the report', phase: 'active', activation: 'armed' },
+    }))
+    expect(active.container.querySelector('button[aria-label="Pause the goal"]')).not.toBeNull()
+    expect(active.container.querySelector('button[aria-label="Resume the goal"]')).toBeNull()
+
+    const paused = renderComposer(sessionState(undefined, {
+      goal: { objective: 'Ship the report', phase: 'paused', activation: 'armed' },
+    }))
+    expect(paused.container.querySelector('button[aria-label="Resume the goal"]')).not.toBeNull()
+    expect(paused.container.querySelector('button[aria-label="Pause the goal"]')).toBeNull()
+
+    // A terminal goal has no pause to give: the strip keeps only Clear.
+    const complete = renderComposer(sessionState(undefined, {
+      goal: { objective: 'Ship the report', phase: 'complete', activation: 'armed' },
+    }))
+    expect(complete.container.querySelector('button[aria-label="Pause the goal"]')).toBeNull()
+    expect(complete.container.querySelector('button[aria-label="Resume the goal"]')).toBeNull()
+    expect(complete.container.querySelector('button[aria-label="Clear the goal"]')).not.toBeNull()
+  })
+
   it('shows the block with its reason and keeps the send control inert', () => {
     const { container, getByText } = renderComposer(sessionState(undefined, { blocked: 'This model is unavailable' }))
     expect(getByText(/Composer is blocked/)).not.toBeNull()
@@ -327,6 +349,42 @@ describe('ComposerBar composer intents', () => {
 })
 
 describe('ComposerBar submission', () => {
+  it('never sends on an IME composition Enter and still sends on a plain Enter', () => {
+    const sendPrompt = vi.fn(async () => true)
+    const { container } = renderComposer(sessionState(undefined), { sendPrompt })
+    const input = textarea(container)
+
+    fireEvent.change(input, { target: { value: 'こんにちは' } })
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true })
+    fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 })
+    expect(sendPrompt).not.toHaveBeenCalled()
+    expect(input.value).toBe('こんにちは')
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(sendPrompt).toHaveBeenCalledOnce()
+    expect(sendPrompt).toHaveBeenCalledWith(WINDOW, 'こんにちは', 'queue', [], [], expect.any(AbortSignal))
+  })
+
+  it('ignores the Enter Safari delivers just after compositionend', () => {
+    vi.useFakeTimers()
+    try {
+      const sendPrompt = vi.fn(async () => true)
+      const { container } = renderComposer(sessionState(undefined), { sendPrompt })
+      const input = textarea(container)
+
+      fireEvent.change(input, { target: { value: 'こんにちは' } })
+      fireEvent.compositionEnd(input)
+      fireEvent.keyDown(input, { key: 'Enter' })
+      expect(sendPrompt).not.toHaveBeenCalled()
+
+      act(() => { vi.advanceTimersByTime(1) })
+      fireEvent.keyDown(input, { key: 'Enter' })
+      expect(sendPrompt).toHaveBeenCalledOnce()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('clears the draft exactly once and sends a single prompt per submit', async () => {
     let settle: (accepted: boolean) => void = () => {}
     const sendPrompt = vi.fn(() => new Promise<boolean>((resolve) => { settle = resolve }))
@@ -372,6 +430,29 @@ describe('ComposerBar submission', () => {
     expect(sendPrompt).toHaveBeenLastCalledWith(
       WINDOW, 'смотри файл', 'queue', [], [{ receiptId: 'receipt-7' }], expect.any(AbortSignal),
     )
+  })
+
+  it('returns a failed upload chip and its retry with the refused draft', async () => {
+    let settle: (accepted: boolean) => void = () => {}
+    const sendPrompt = vi.fn(() => new Promise<boolean>((resolve) => { settle = resolve }))
+    const uploadFile = vi.fn()
+      .mockResolvedValueOnce({ error: 'route down' })
+      .mockResolvedValueOnce({ receiptId: 'receipt-11' })
+    const { container, getByText } = renderComposer(sessionState(undefined), { sendPrompt, uploadFile })
+
+    fireEvent.change(fileInput(container), { target: { files: [new File(['x'], 'notes.txt', { type: 'text/plain' })] } })
+    await waitFor(() => { expect(container.querySelector('[data-board-file="error"]')).not.toBeNull() })
+
+    const input = textarea(container)
+    fireEvent.change(input, { target: { value: 'смотри файл' } })
+    fireEvent.submit(container.querySelector('form') as HTMLFormElement)
+    await act(async () => { settle(false) })
+
+    // The chip comes back with the draft, and its retry still works.
+    await waitFor(() => { expect(container.querySelector('[data-board-file="error"]')).not.toBeNull() })
+    fireEvent.click(getByText('Retry'))
+    await waitFor(() => { expect(container.querySelector('[data-board-file="ready"]')).not.toBeNull() })
+    expect(uploadFile).toHaveBeenCalledTimes(2)
   })
 
   it('keeps text typed after a submission and appends the refused draft', async () => {
@@ -603,6 +684,43 @@ describe('ComposerBar commands and mentions', () => {
     expect(click).toHaveBeenCalledOnce()
     expect(executeCommand).not.toHaveBeenCalled()
     click.mockRestore()
+  })
+
+  it('keeps the draft when a blocked session cannot open the file picker', () => {
+    const { container } = renderComposer(sessionState(undefined, { blocked: 'This model is unavailable' }))
+    const input = textarea(container)
+    fireEvent.change(input, { target: { value: 'черновик' } })
+
+    fireEvent.click(container.querySelector('[data-board-action="composer-actions"]') as Element)
+    fireEvent.click(document.querySelector('[role="menu"] [role="menuitem"]') as Element)
+    expect(input.value).toBe('черновик')
+  })
+
+  it('keeps the slash palette out of URLs and opens it at a draft boundary', () => {
+    const { container } = renderComposer(sessionState(undefined))
+    const input = textarea(container)
+    const palette = (): Element | null =>
+      container.querySelector('[role="listbox"][aria-label="Command list"]')
+
+    fireEvent.change(input, { target: { value: 'see https://' } })
+    expect(palette()).toBeNull()
+    fireEvent.change(input, { target: { value: 'see https://exa' } })
+    expect(palette()).toBeNull()
+    fireEvent.change(input, { target: { value: 'see https:/exa' } })
+    expect(palette()).toBeNull()
+    fireEvent.change(input, { target: { value: 'word/fi' } })
+    expect(palette()).toBeNull()
+
+    fireEvent.change(input, { target: { value: '/' } })
+    expect(palette()).not.toBeNull()
+    fireEvent.change(input, { target: { value: 'run /fi' } })
+    expect(palette()).not.toBeNull()
+    fireEvent.change(input, { target: { value: 'run (/fi' } })
+    expect(palette()).not.toBeNull()
+    fireEvent.change(input, { target: { value: ':/fi' } })
+    expect(palette()).not.toBeNull()
+    fireEvent.change(input, { target: { value: ' :/fi' } })
+    expect(palette()).not.toBeNull()
   })
 
   it('labels mention kinds and inserts a mention without breaking lines', async () => {

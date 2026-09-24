@@ -150,7 +150,9 @@ function DockRow({ window: win, active, actions, t, useWindowSession, useCloneLi
                 data-board-title={title}
                 data-board-status={status}
                 onClick={() => {
-                  if (active) actions.focusWindow(win.id)
+                  // The active row only raises the window while the view is on
+                  // it; a view that moved away is brought back instead.
+                  if (active) actions.revealWindow(win.id)
                   else actions.centerOnWindow(win.id)
                 }}
                 onDoubleClick={() => { setDraft(win.customTitle ?? '') }}

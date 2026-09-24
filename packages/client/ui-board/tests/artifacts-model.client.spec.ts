@@ -96,6 +96,16 @@ describe('sessionArtifacts', () => {
     ])
   })
 
+  it('records a str_replace_editor view as a read, not a modification', () => {
+    const node = toolNode({
+      call: { name: 'str_replace_editor', argsRaw: '{"command":"view","path":"/workspace/a.ts"}' },
+      time: 350,
+    })
+    expect(sessionArtifacts(chatWith([node]))).toEqual([
+      { path: '/workspace/a.ts', kind: 'read', time: 350 },
+    ])
+  })
+
   it('extracts read file from read tool node', () => {
     const node = toolNode({
       call: { name: 'read', argsRaw: '{"file_path":"/workspace/readme.md"}' },

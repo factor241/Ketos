@@ -11,6 +11,7 @@ import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import type { CloneDto, CloneId, CloneSessionBinding, CloneTaskDto, MemoryDto, TaskId } from '@ketos/clone-core/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { createBoardStore } from '../src/client/store.ts'
+import type { WindowId } from '../src/client/contract/slots.ts'
 import { createBoardBench, type BoardBenchOptions } from './fixtures.client.ts'
 
 /** The live board store instance the renderer resolves for the board's registrations. */
@@ -277,6 +278,34 @@ describe('clone roster in the board chrome', () => {
       fireEvent.click(panel.container.querySelector('[data-board-clone-row="clone-1"]') as Element)
     })
     expect(windowsOfKind('clone')).toBe(1)
+  })
+
+  it('opens the clone editor while a tasks window is scoped to the same clone', async () => {
+    stubCloneRoute([CLONE])
+    const { panel, store, windowsOfKind, cloneWindow } = await mounted()
+    await waitFor(() => { expect(panel.container.querySelector('[data-board-clone-row="clone-1"]')).not.toBeNull() })
+
+    // A tasks window carries the same clone id but edits no record: the dock
+    // click must open the editor instead of focusing the task list.
+    act(() => {
+      store.actions.openWindow({
+        id: 'tasks-1' as WindowId,
+        kind: 'tasks',
+        bodyKind: 'tasks',
+        cloneId: 'clone-1' as CloneId,
+        ordinal: 1,
+        width: 648,
+        height: 768,
+      })
+    })
+    await waitFor(() => { expect(windowsOfKind('tasks')).toBe(1) })
+
+    act(() => {
+      fireEvent.click(panel.container.querySelector('[data-board-clone-row="clone-1"]') as Element)
+    })
+
+    await waitFor(() => { expect(cloneWindow()?.cloneId).toBe('clone-1') })
+    expect(windowsOfKind('tasks')).toBe(1)
   })
 
   it('names the clone window after the clone, not after its interview session', async () => {

@@ -5,7 +5,7 @@
  * the floating chrome.
  */
 import { describe, expect, it } from 'vitest'
-import { windowScreenRect } from '../src/client/window-screen.ts'
+import { isWindowOnScreen, windowScreenRect } from '../src/client/window-screen.ts'
 import type { BoardState } from '../src/client/store.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 
@@ -63,5 +63,28 @@ describe('windowScreenRect', () => {
 
   it('falls back to the passed snapshot when the store no longer holds the window', () => {
     expect(windowScreenRect(state({ windows: {} }), WINDOW).left).toBe(100)
+  })
+})
+
+describe('isWindowOnScreen', () => {
+  it('accepts a window that overlaps the viewport and rejects one beyond it', () => {
+    expect(isWindowOnScreen(state(), WINDOW)).toBe(true)
+    // Panned far enough that the window's right edge is left of the viewport.
+    expect(isWindowOnScreen(state({ panX: -2000 }), WINDOW)).toBe(false)
+    // Panned up past the window's bottom edge.
+    expect(isWindowOnScreen(state({ panY: -2000 }), WINDOW)).toBe(false)
+  })
+
+  it('ignores the culling margin: a window in the slack is off screen', () => {
+    // The window's left edge sits 100px beyond the viewport's right edge, well
+    // inside the 480-unit culling margin, so it still renders but is not on
+    // screen for a gesture that only raises it.
+    const slack = state({ panX: -(WINDOW.x + WINDOW.width + 100) })
+    expect(isWindowOnScreen(slack, WINDOW)).toBe(false)
+  })
+
+  it('treats a partially visible window as on screen', () => {
+    const half = state({ panX: -(WINDOW.x + WINDOW.width - 10) })
+    expect(isWindowOnScreen(half, WINDOW)).toBe(true)
   })
 })

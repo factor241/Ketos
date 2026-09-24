@@ -447,6 +447,75 @@ describe('BoardSessionBridge', () => {
     expect(bridge.bindings()).toEqual({})
   })
 
+  it("drops a prompt that waited on a released window's session creation", async () => {
+    const { prepared, bridge } = await bench()
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    prepared.runtime.sessions.stubCreate(async () => {
+      await gate
+      return 'session-1' as SessionId
+    })
+    const windowId = 'a1' as WindowId
+
+    bridge.ensure(windowId)
+    const sent = bridge.send(windowId, 'привет', 'queue')
+    bridge.release(windowId)
+    release()
+    await expect(sent).resolves.toBe(false)
+    await prepared.runtime.flush()
+
+    // The settled prompt must not mint a record for a window the board closed.
+    expect(bridge.windowIds()).toEqual([])
+    expect(bridge.bindings()).toEqual({})
+  })
+
+  it('binds a chat gesture that races the window own session creation', async () => {
+    const { prepared, bridge } = await bench()
+    await prepared.runtime.sessions.add({ id: 'session-2', summary: { displayTitle: 'Project chat' } }, { current: false })
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    let created = 0
+    prepared.runtime.sessions.stubCreate(async () => {
+      created += 1
+      if (created === 1) await gate
+      return (created === 1 ? 'session-1' : 'session-2') as SessionId
+    })
+    const windowId = 'a1' as WindowId
+
+    // The window is still creating its own session when the panel asks for a
+    // new chat: the chat must be bound to this window, not left unshown.
+    bridge.ensure(windowId)
+    const chat = bridge.startChat(windowId)
+    release()
+    await chat
+    await prepared.runtime.flush()
+
+    expect(bridge.bindings()).toEqual({ a1: 'session-2' })
+    expect(bridge.windowIds()).toEqual([windowId])
+  })
+
+  it('binds the window to the fork child when branching another chat', async () => {
+    const { prepared, bridge } = await twoChatBench()
+    const windowId = 'a1' as WindowId
+    const channel = bridge.channel(windowId)
+    bridge.restore({ a1: 'session-1' }, [windowId])
+    await prepared.runtime.flush()
+
+    const child = await prepared.runtime.sessions.add({
+      id: 'session-3',
+      session: { prompt: () => Promise.resolve({ ok: true, value: { accepted: true } }) },
+      summary: { displayTitle: 'Branch of second chat' },
+    })
+    vi.spyOn(prepared.runtime.sessions, 'fork').mockResolvedValue(child)
+
+    // The window shows the first chat and branches the second: the child still
+    // becomes the chat the window shows.
+    await bridge.forkChat(windowId, 'session-2' as SessionId)
+    await prepared.runtime.flush()
+
+    expect(channel.getSnapshot()).toMatchObject({ status: 'ready', sessionId: 'session-3' })
+  })
+
   it('keeps the chat the user picks while a creation is in flight', async () => {
     const { prepared, bridge } = await bench()
     let release: () => void = () => {}
@@ -499,6 +568,50 @@ describe('BoardSessionBridge', () => {
       await prepared.runtime.flush()
     }
     expect(Object.keys(bridge.bindings())).toEqual(['a1'])
+  })
+
+  it('clears the previous chat failure lines when the window rebinds', async () => {
+    const updateQueue = vi.fn(async () => ({
+      ok: false as const,
+      error: { code: 'session/queue-item-not-found', message: 'gone' },
+    }))
+    const prepared = await createBoardBench({
+      session: {
+        prompt: () => Promise.resolve({ ok: true, value: { accepted: true } }),
+        updateQueue,
+      },
+      agentPresets: {
+        select: async () => ({ ok: false as const, error: { code: 'agent-preset/locked', message: 'conversation started' } }),
+      },
+      extraSessions: [{ id: 'session-2', displayTitle: 'Second chat' }],
+    })
+    runtimes.add(prepared.runtime)
+    prepared.runtime.ctx.locale.register(NS, { zh, en })
+    const bridge = new BoardSessionBridge(prepared.runtime.ctx)
+    const windowId = 'a1' as WindowId
+    const channel = bridge.channel(windowId)
+    bridge.ensure(windowId)
+    await prepared.runtime.flush()
+
+    const execute = vi.fn(async () => ({ ok: true as const, value: undefined }))
+    ;(prepared.runtime.ctx.remote as unknown as { commands: { execute: unknown } }).commands.execute = execute
+    bridge.executeCommand(windowId, '/missing')
+    bridge.selectAgentPreset(windowId, 'ptc')
+    bridge.updateQueueItem(windowId, 'q1', { kind: 'remove' })
+    await prepared.runtime.flush()
+    expect(channel.getSnapshot().commandError).toBeDefined()
+    expect(channel.getSnapshot().presetError).toBeDefined()
+    expect(channel.getSnapshot().queueError).toBeDefined()
+
+    bridge.bind(windowId, 'session-2' as SessionId)
+    await prepared.runtime.flush()
+
+    // Every failure line described the chat the window left; the next chat
+    // starts without them.
+    expect(channel.getSnapshot().sessionId).toBe('session-2')
+    expect(channel.getSnapshot().commandError).toBeUndefined()
+    expect(channel.getSnapshot().presetError).toBeUndefined()
+    expect(channel.getSnapshot().queueError).toBeUndefined()
   })
 
   it('leaves no subscription or map growth across open-close cycles', async () => {

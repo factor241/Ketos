@@ -32,3 +32,17 @@ export function windowScreenRect(state: BoardState, window: BoardWindowState): S
     bottom: top + own.height * state.zoom,
   }
 }
+
+/**
+ * Whether any part of one window lies inside the visible panel. This is the
+ * projection without the culling margin, so a caller that only raises a window
+ * can tell when the gesture would have no visible effect.
+ * @param state - board state holding pan, zoom, and the viewport box.
+ * @param window - the window to test.
+ * @returns true when the window's panel rectangle overlaps the viewport.
+ */
+export function isWindowOnScreen(state: BoardState, window: BoardWindowState): boolean {
+  const rect = windowScreenRect(state, window)
+  return rect.right >= 0 && rect.left <= state.viewportWidth
+    && rect.bottom >= 0 && rect.top <= state.viewportHeight
+}

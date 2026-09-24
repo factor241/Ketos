@@ -128,6 +128,17 @@ describe('chatGroups', () => {
     expect(groups[0]?.chats[0]?.running).toBe(true)
     expect(groups[0]?.cwd).toBe('/work/ketos')
   })
+
+  it('anchors the ungrouped bucket on its own rows when a workspace claims the window session', () => {
+    const groups = grouped(
+      workspaces([workspace('ws-1', '/work/ketos', ['w'])]),
+      list([row('w', { cwd: '/work/ketos' }), row('x', { cwd: '/work/other' })]),
+      'w' as SessionId,
+    )
+    const ungrouped = groups.find(group => group.workspaceId === undefined)
+    expect(ungrouped?.chats.map(chat => chat.id)).toEqual(['x'])
+    expect(ungrouped?.cwd).toBe('/work/other')
+  })
 })
 
 describe('filterGroups', () => {
@@ -139,6 +150,17 @@ describe('filterGroups', () => {
     expect(filterGroups(groups, 'alp')[0]?.chats.map(chat => chat.id)).toEqual(['a'])
     // The directory of either group matches too, across both groups.
     expect(filterGroups(groups, 'ketos').flatMap(group => group.chats.map(chat => chat.id))).toEqual(['a', 'b'])
+    expect(filterGroups(groups, 'nothing')).toHaveLength(0)
+  })
+
+  it('keeps a chatless workspace whose directory matches the query', () => {
+    const groups = grouped(
+      workspaces([workspace('ws-1', '/work/ketos', [])]),
+      list([row('a', { cwd: '/work/other' })]),
+    )
+    const filtered = filterGroups(groups, 'ketos')
+    expect(filtered.map(group => group.workspaceId)).toEqual(['ws-1'])
+    expect(filtered[0]?.chats).toEqual([])
     expect(filterGroups(groups, 'nothing')).toHaveLength(0)
   })
 

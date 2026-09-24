@@ -237,7 +237,9 @@ export function apply(ctx: ClientContext): void {
   const cloneWindow = (cloneId: CloneId): WindowId | undefined => {
     const state = instance.getSnapshot()
     for (const id of state.windowOrder) {
-      if (state.windows[id as string]?.cloneId === cloneId) return id
+      const window = state.windows[id as string]
+      // A tasks window carries the clone id too; only a clone window edits it.
+      if (window?.kind === 'clone' && window.cloneId === cloneId) return id
     }
     return undefined
   }

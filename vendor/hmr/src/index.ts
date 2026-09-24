@@ -61,6 +61,17 @@ interface ConfigRegistration {
   watcher: FSWatcher
 }
 
+/** Whether a path exists, treating any missing ancestor as absence. */
+async function pathExists(filename: string): Promise<boolean> {
+  try {
+    await stat(filename)
+    return true
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+    throw error
+  }
+}
+
 async function findWatchRoot(filename: string): Promise<{ filename: string; root: string; depth: number }> {
   let root = dirname(filename)
   let depth = 0
@@ -174,8 +185,28 @@ class Hmr extends Service {
 
     try {
       await ready.promise
+      // A file that appears after the watch is established changes its parent's
+      // mtime exactly once, and the polling watcher's first stat can consume
+      // that change as its baseline, so the creation is never reported. While
+      // the target is absent, poll its existence and dispatch the same
+      // serialized refresh on the first sight; the watcher covers later changes.
+      let stopPolling: (() => void) | undefined
+      if (!(await pathExists(watchFilename))) {
+        stopPolling = this.ctx.setInterval(() => {
+          void pathExists(watchFilename).then((present) => {
+            if (!present) return
+            stopPolling?.()
+            stopPolling = undefined
+            this.refreshConfig(registration, filename, refresh)
+          }).catch((error: unknown) => {
+            this.ctx.logger.warn(error)
+          })
+        }, this.config.interval ?? 100)
+      }
       return this.ctx.effect(() => async () => {
         if (this.configs.get(watchFilename) === registration) this.configs.delete(watchFilename)
+        stopPolling?.()
+        stopPolling = undefined
         await watcher.close()
         await this.configRefreshes.get(registration)?.running
       }, 'hmr.registerConfig()')

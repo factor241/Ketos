@@ -131,11 +131,10 @@ describe('HMR exact config paths', { timeout: WATCHER_CASE_TIMEOUT_MS }, () => {
     hmrRoots.push(root)
     const dir = join(root, 'later')
     const filename = join(dir, 'plugins.yml')
-    // The watch is restored onto the deepest existing ancestor. Under
-    // forked-worker load a native event for a file written immediately after
-    // its directory appears can be lost before Chokidar adopts that directory,
-    // and no deadline recovers it; polling keeps this case about the restored
-    // watch root while the other cases keep native delivery covered.
+    // The watch is restored onto the deepest existing ancestor, and the plugin
+    // polls an absent target's existence, so a file created right after
+    // registration cannot be lost to the polling watcher's first-stat baseline;
+    // the other cases keep native delivery covered.
     const ctx = await bootHmr(root, [], true)
     const observed: string[] = []
     try {
@@ -196,11 +195,10 @@ describe('HMR exact config paths', { timeout: WATCHER_CASE_TIMEOUT_MS }, () => {
     const dir = mkdtempSync(join(tmpdir(), 'dsh-hmr-config-'))
     hmrRoots.push(dir)
     const filename = join(dir, 'plugins.yml')
-    // This case asserts failure normalization, not native event latency: a
-    // single-shot native write can lose its watcher event under forked-worker
-    // load (reproduced in the stage-11 verification with the 80 s deadline),
-    // while polling makes the delivery itself deterministic. The remaining
-    // cases keep native delivery covered.
+    // This case asserts failure normalization, not event latency: the target
+    // is absent at registration, so the plugin's existence poll delivers the
+    // first write deterministically; the remaining cases keep native delivery
+    // covered.
     const ctx = await bootHmr(dir, [], true)
     let observedFailure: { filename: string; error: Error } | undefined
     let failureCount = 0

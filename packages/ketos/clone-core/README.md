@@ -199,7 +199,7 @@ The profile section is fixed for the clone's record; the memory snapshot adds at
 
 #### KV Cache effect
 
-The profile section text changes only when the person edits the record, so the request prefix stays byte-identical between turns while the agent remembers; a memory write changes only the runtime-context message, so the cached prefix holds; the skill catalog is published once and stays byte-identical while the agent lives, because its registered set is fixed for that agent's lifetime.
+The profile section text is fixed for the stored record, so the request prefix stays byte-identical between turns while the agent works; a person's profile or methodology edit republishes the section in place and reaches the running session on its next assembly, which rewrites the prefix from the first changed token and drops the reusable cache there; a memory write changes only the runtime-context message, so the cached prefix holds; the skill catalog is published once and stays byte-identical while the agent lives, because its registered set is fixed for that agent's lifetime.
 
 ### The interview session
 
@@ -243,7 +243,7 @@ The instruction is static, so the request prefix stays byte-identical between ro
 - **A session created for a refused start stays as an ordinary session** — the client checks the clone and task state before creating it, but a host refusal after creation (for example a session whose agent never came up) leaves the empty session in the session list, because the product has no session delete.
 - **The route is hand-validated, not generated** — there is no Typert codegen for the clone domain (the API is still moving), so the browser and the host share `src/types.ts` by hand and the route validates every field itself.
 - **A stored skill edit reaches a live agent only on reinstallation or recreation** — a bound agent registers its skill scope once, so a stored change refreshes the profile and memory text alone and the new set appears after the scope is reinstalled or the agent is recreated.
-- **A session is not pinned to a clone revision** — a live session sees profile and methodology edits on its next turn, and a session recreated later reads the stored record as it stands then; nothing replays the record a session started from.
+- **A session is not pinned to a clone revision** — a live session sees profile and methodology edits on its next turn, which rewrites the request prefix from the first changed token and drops the reusable KV-cache prefix there, and a session recreated later reads the stored record as it stands then; nothing replays the record a session started from.
 - **A clone-bound session comes from the interview or from a task** — no gesture binds a new or existing session to a clone by hand: `Start interview` and a task's `Start` are the only writers of a binding, so a follow-up conversation continues in a session one of them created (the former becomes an ordinary clone session once the profile is `ready`).
 - **An unregisterable skill stays out of the model catalog** — a skill whose stored name fails the registry grammar, exceeds the 64-character bound, or whose description is empty stays in the record and out of the registry until the editor fixes it.
 - **Interview progress is the status, not a checklist** — the package reports `interviewing` and the transcript; it does not track which topics were covered, and the stage that owns progress can add a checklist without changing the mode.

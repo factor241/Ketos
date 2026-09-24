@@ -28,7 +28,7 @@ The main composer cannot be reused. `conversation.composer.bar` is a single-occu
 
 **The window renders one scale above the app.** `BoardViews.module.css` declares one metric block on the board root (`--board-font-title/content/label/hint`, `--board-line-input`, the header/window/lane/card paddings, the two gap steps, and the control, lane-control, small-control, and send sizes); every window module consumes it, so the frame, lane, and composer grow together and a raw size stays only where it is a one-off. The default window is the base design's 480×560 at that scale, kept on the 24px grid: 552×648. The dock, omnibar, minimap, and portalled `Menu`/`Tooltip` keep the app's sizes, and assistant Markdown keeps the app's content font-size setting because the shared Markdown surface reads the theme's ladder on `body`; both are recorded in the package README.
 
-**Focus changes the current session.** Opening or focusing a window calls `sessions.open(id)`, because the live event stream exists only for the session selected as current; that global side effect is accepted deliberately (the plan records the same trade-off). Closing a window does not delete its session.
+**Binding changes the current session.** Creating a window, re-pointing it to another chat, or restoring its binding calls `sessions.open(id)` through `attach()`, because the live event stream exists only for the session selected as current; that global side effect is accepted deliberately (the plan records the same trade-off). Focusing a window only raises it in the z-order and does not call `open()`. Closing a window does not delete its session.
 
 ## Alternatives considered
 

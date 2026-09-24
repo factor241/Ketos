@@ -46,6 +46,8 @@ Status: implemented
 
 **该修正使场景的「注册一个文件夹，然后创建它的第一个聊天」步骤成为可能。** 它是分叉在上游包中携带的少数行为变更之一，记录在此是为了让触及该列表的上游 merge 遇到分叉的期望，而不是悄悄把它回退。
 
+**阶段 21 关闭了 2026-09-24 审计的代码点，阶段 22 关闭其文档、仓库与流程点。** 对整条分支链的审计发现 25 处偏差；阶段 21 修复了主机与看板代码点——克隆模型选择不再移动 `agent-default-model` 系统默认值、`ready` 意味着线路上是已填写的档案、记忆查询上限归仓库所有、数据库打开会等待另一进程的锁，且克隆插件没有工具与提示词注册表也能激活——而阶段 22 记录了审计发现未被写下的决策，把包 README、分叉改动登记册、Beads 流程与计划文件夹对齐到代码与修订 18，清理了仓库中的预 MVP 产物，并负责最终集成（PR 栈、`main` 与 `ketos-mvp` 标签）。[阶段 22 的 note](2026-09-24-ketos-stage-22-mvp-integration.zh.md) 拥有存活克隆会话决策与记忆窗口边界。
+
 **被推迟的工作留在 MVP 边界之外。** 周边容器与 Supervisor、组织库与知识隔离、Temporal 进程、PostgreSQL 库与集中审计、SSO/OIDC 与 MCP 网关，以及语义记忆搜索都被推迟，MVP 仍然是 `~/.ketos` 卷上的本地单用户 `web` profile。
 
 **限制汇总文档是推迟清单的权威。** [docs/ketos/mvp-known-limitations.md](../../../../docs/ketos/mvp-known-limitations.md) 拥有完整清单，每个包的 Known Limitations 节拥有其领域的细节；本 note 记录边界，而不是清单。
@@ -62,6 +64,8 @@ Status: implemented
 - **阶段 17——记忆搜索是词法的、记忆没有修订检查、`candidate` 不是隔离。** FTS5 无嵌入或语义搜索；编辑为最后写入者胜；候选标志是状态，不是隔离队列。
 - **阶段 18——技能编辑只有重建 scope 才能到达存活 agent。** 已注册集合在 agent 生命周期内固定。
 - **阶段 19——任务活在主机进程中、没有自动恢复，词汇是 `clone_tasks`。** 中断的任务对账为 `failed`；计划的 `tasks`/`task_*` 领域在 MVP 中不存在。
+- **阶段 22——记忆窗口不能创建记录。** 新记忆的唯一写入者是 agent 的 `clone_memory_remember` 调用；窗口负责列出、搜索、编辑与删除。
+- **阶段 22——存活的克隆会话跟随档案与记忆编辑，并承担档案编辑的 KV 前缀代价。** 档案段落就地重新发布，并在下一次组装时到达运行中的会话，从第一个变化的词元起丢掉可复用的 KV 缓存前缀；记忆写入随下一条运行时上下文消息到达并保持前缀不变；已注册的技能集合在 scope 被重新安装或 agent 被重建之前固定不变。
 
 [docs/ketos/mvp-known-limitations.md](../../../../docs/ketos/mvp-known-limitations.md) 是这些限制的完整权威，并把每项事实链接到其所属包 README 或阶段报告。
 
@@ -91,3 +95,5 @@ upstream-sync 面保持很小：聊天面板列表是少数上游包行为变更
 - [Ketos MVP 工程政策](../process/2026-09-15-ketos-mvp-engineering-policy.zh.md) —— 本 note 收束的覆盖例外与分叉范围。
 - [Ketos 改名边界](2026-09-13-ketos-rebranding-boundaries.zh.md) —— 品牌切分与内部标识符政策。
 - [docs/ketos/reports/stage-20-mvp-acceptance.md](../../../../docs/ketos/reports/stage-20-mvp-acceptance.md) —— 阶段 20 的判定与证据。
+- [Ketos 阶段 22：存活克隆会话跟随已存编辑，以及 MVP 的收束决策](2026-09-24-ketos-stage-22-mvp-integration.zh.md) —— 阶段 22 的决策与最终集成。
+- [docs/ketos/reports/stage-22-mvp-integration.md](../../../../docs/ketos/reports/stage-22-mvp-integration.md) —— 阶段 22 的判定与证据。

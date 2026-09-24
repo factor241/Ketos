@@ -22,9 +22,9 @@ export type ToolCardKind =
 
 /**
  * Block the card table selects for one wire tool name. The mapped names are the
- * shipped tool views of the application (`ui-tool` and friends); every other
- * name — `str_replace_editor` among them, which has no keyed view of its own —
- * renders through the JSON fallback.
+ * shipped tool views of the application (`ui-tool` and friends) plus
+ * `str_replace_editor`, whose edits render through the diff block; a name the
+ * table cannot read renders through the JSON fallback.
  * @param toolName - wire tool name as the call logged it.
  * @returns the block kind the name maps to.
  */

@@ -46,6 +46,8 @@ A stage report is scoped to its stage, and a package README is scoped to its pac
 
 **The correction is what makes the scenario's "register a folder, then create its first chat" step possible.** It is one of the few behaviour changes the fork carries in an upstream package, and it is recorded here so an upstream merge that touches the listing meets the fork's expectation instead of silently reverting it.
 
+**Stage 21 closed the 2026-09-24 audit's code points and stage 22 its documentation, repository, and process points.** The audit of the full branch chain found 25 deviations; stage 21 fixed the host and board code points — the clone model selection no longer moves the `agent-default-model` system default, `ready` means a filled profile on the wire, the memory query bound lives in the repository, the database open waits for another process's lock, and the clone plugin activates without the tool and prompt registries — and stage 22 recorded the decisions the audit found undocumented, brought the package READMEs, the fork-edit registry, the Beads process, and the plan folder in line with the code and revision 18, cleaned the repository of the pre-MVP artifacts, and owns the final integration (the PR stack, `main`, and the `ketos-mvp` tag). [The stage-22 note](2026-09-24-ketos-stage-22-mvp-integration.md) owns the live-clone-session decision and the memory-window boundary.
+
 **Deferred work stays outside the MVP boundary.** Perimeters and Supervisor, the organization library and knowledge quarantine, Temporal processes, the PostgreSQL library and central audit, SSO/OIDC and the MCP gateway, and semantic memory search are deferred, and the MVP remains the local single-user `web` profile over the `~/.ketos` volume.
 
 **The limitation summary is the authority for the deferred list.** [docs/ketos/mvp-known-limitations.md](../../../../docs/ketos/mvp-known-limitations.md) owns the full list, and each package's Known Limitations section owns its domain's detail; this note records the boundary, not the inventory.
@@ -62,6 +64,8 @@ Each line is an accepted limitation the stage checklist records; the MVP ships t
 - **Stage 17 — memory search is lexical, memory has no revision check, and `candidate` is not a quarantine.** FTS5 with no embeddings or semantic search; edits are last-writer-wins; the candidate flag is a status, not an isolation queue.
 - **Stage 18 — a skill edit reaches a live agent only by scope recreation.** A registered set is fixed for the agent's lifetime.
 - **Stage 19 — tasks live in the host process with no auto-resume, and the vocabulary is `clone_tasks`.** Interrupted tasks reconcile to `failed`; the plan's `tasks`/`task_*` domain does not exist in the MVP.
+- **Stage 22 — the memory window cannot create a record.** The agent's `clone_memory_remember` call is the only writer of a new memory; the window lists, searches, edits, and deletes.
+- **Stage 22 — a live clone session follows profile and memory edits and pays the KV prefix cost of a profile edit.** The profile section is republished in place and reaches the running session on its next assembly, which drops the reusable KV-cache prefix from the first changed token; a memory write rides the next runtime-context message and leaves the prefix intact; a registered skill set stays fixed until the scope is reinstalled or the agent is recreated.
 
 [docs/ketos/mvp-known-limitations.md](../../../../docs/ketos/mvp-known-limitations.md) is the full authority for these limitations and links each fact to its owning package README or stage report.
 
@@ -91,3 +95,5 @@ The record buys the post-MVP phases a starting point: a change to the clone doma
 - [Ketos MVP engineering policy](../process/2026-09-15-ketos-mvp-engineering-policy.md) — the coverage exceptions and fork scope this note closes out.
 - [Ketos rebranding boundaries](2026-09-13-ketos-rebranding-boundaries.md) — the brand split and the internal-identifier policy.
 - [docs/ketos/reports/stage-20-mvp-acceptance.md](../../../../docs/ketos/reports/stage-20-mvp-acceptance.md) — the stage-20 verdicts and evidence.
+- [Ketos stage 22: a live clone session follows stored edits, and the MVP's closing decisions](2026-09-24-ketos-stage-22-mvp-integration.md) — the stage-22 decisions and the final integration.
+- [docs/ketos/reports/stage-22-mvp-integration.md](../../../../docs/ketos/reports/stage-22-mvp-integration.md) — the stage-22 verdicts and evidence.

@@ -28,7 +28,7 @@ Status: implemented
 
 **窗口整体比应用放大一档。** `BoardViews.module.css` 在看板根节点上声明一组度量（`--board-font-title/content/label/hint`、`--board-line-input`，头部/窗口/车道/卡片内边距，两档间距，以及控件、车道控件、小控件与发送按钮尺寸）；每个窗口模块都读取它，因此外框、车道与 composer 一同变大，只有一次性尺寸保留字面量。默认窗口是该缩放下基础设计的 480×560 并对齐 24px 网格：552×648。dock、Omnibox、小地图以及 portal 的 `Menu`/`Tooltip` 保持应用尺寸；助手 Markdown 保持应用的正文字号设置，因为共享的 Markdown 表面读取 `body` 上的主题阶梯——两者都记录在包 README 中。
 
-**聚焦会改变当前会话。** 打开或聚焦窗口会调用 `sessions.open(id)`，因为实时事件流只存在于被选为当前的会话；这一全局副作用是有意接受的（计划记录了同样的取舍）。关闭窗口不会删除其会话。
+**绑定会改变当前会话。** 创建窗口、把窗口重新指向别的聊天或恢复其绑定时，会经由 `attach()` 调用 `sessions.open(id)`，因为实时事件流只存在于被选为当前的会话；这一全局副作用是有意接受的（计划记录了同样的取舍）。聚焦窗口只会把它抬到 z-order 最前，不会调用 `open()`。关闭窗口不会删除其会话。
 
 ## Alternatives considered
 

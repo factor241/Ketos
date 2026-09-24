@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-board",
-  "description": "Spatial multi-window board canvas: pan/zoom surface, 8-point window manager, dock, Omnibox, and minimap on the shared Harness theme",
+  "description": "Web spatial board: canvas pan/zoom with draggable agent, clone, and task windows, plus dock, Omnibox, minimap, chats panel, and persisted layout on the shared Harness theme",
   "version": "0.1.5-rc.2",
   "publishConfig": {
     "access": "public"

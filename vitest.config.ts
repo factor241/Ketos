@@ -355,8 +355,8 @@ export default defineConfig({
         'packages/interaction/commands/src/invariant.ts',
         'packages/session/session-projection/src/index.ts',
         // MVP-fork coverage policy (2026-09-15 Ketos MVP engineering policy
-        // Agent Note): the board GUI is still moving through the clone stages
-        // and @ketos/clone-* packages carry their own behaviour suites instead
+        // Agent Note): the board GUI and the @ketos/clone-* packages are the
+        // fork's product surface and carry their own behaviour suites instead
         // of per-file percentages; behaviour tests for pure math, persistence,
         // registration, routes, interview mode, and memory remain in force.
         // @ketos/client-locale-ru keeps per-file 100%.

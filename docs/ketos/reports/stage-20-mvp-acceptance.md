@@ -70,9 +70,10 @@ MVP проверен end-to-end на живом стенде: сценарий �
 
 | Команда | Результат |
 |---|---|
-| `pnpm exec vitest run packages/client/ui-board/tests` | зелёный; 39 файлов, 536 тестов |
+| `pnpm exec vitest run packages/client/ui-board/tests packages/ketos` | зелёный; 53 файла, 742 теста (в том числе `ui-board` — 40 файлов, 570 тестов) |
 | `pnpm exec vitest run packages/ketos/clone-core/tests` | зелёный; включая `memory.spec.ts` (19 тестов, бюджет 10 000 записей) |
-| `pnpm run test:gui` | зелёный; 417 файлов, 5967 passed, 1 skipped |
+| `pnpm run test:coverage` (Node 24.21.0) | 1316 файлов passed, 12 skipped; 23 237 тестов passed, 1 expected fail, 131 skipped, 1 failed — `packages/boot/app-boot/tests/hmr-config.spec.ts` (нативный watcher под нагрузкой полосы; файл зелёный отдельным прогоном, 6/6). Три прогона полосы дали 11, 1 и 1 падение в не связанных с Кетосом upstream-спеках сервисных таймаутов; каждый падавший файл зелёный отдельно (47/47 и 6/6). Таблица покрытия при падении теста не выводится; сверка порогов перенесена в этап 21 |
+| `pnpm run test:gui` | зелёный; 418 файлов, 6001 passed, 1 skipped |
 | `DSH_SNAPSHOT=replay pnpm run test:web` | зелёный; 101 файл passed, 1 skipped (359 passed, 15 skipped) |
 | `pnpm run typecheck`, `pnpm run lint`, `pnpm run duplication` | зелёные |
 | `pnpm run doc-sync` | зелёный; 34 гейта |
